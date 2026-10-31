@@ -21,6 +21,7 @@ public:
 	[[nodiscard]] virtual QByteArray content() const = 0;
 	[[nodiscard]] virtual crl::time loopDuration() const = 0;
 	[[nodiscard]] virtual VideoTrim trim() const;
+	[[nodiscard]] virtual bool roundVideo() const;
 	virtual void releasePlayers() = 0;
 	ItemAnimated *asAnimated() override;
 

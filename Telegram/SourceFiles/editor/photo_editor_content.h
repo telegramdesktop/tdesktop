@@ -79,6 +79,7 @@ public:
 	void addMimeData(not_null<const QMimeData*> data);
 	bool pasteFromClipboard();
 	void addVideoObject(StoryVideoObject &&object);
+	void addRoundVideo(QByteArray content, crl::time duration);
 
 	[[nodiscard]] rpl::producer<QRect> innerRect() const {
 		return _innerRect.value();

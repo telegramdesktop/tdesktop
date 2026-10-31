@@ -30,6 +30,7 @@ struct AnimatedEntity {
 	QRectF geometry;
 	float64 rotation = 0.;
 	bool flipped = false;
+	bool round = false;
 	std::optional<Cutout> cutout;
 
 	crl::time from = 0;

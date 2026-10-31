@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_audio_menu.h"
 #include "ui/rect.h"
 
+#include <QtGui/QPainterPath>
+
 namespace Editor {
 namespace {
 
@@ -81,6 +83,10 @@ crl::time ItemVideo::loopDuration() const {
 	return _clip->loopDuration();
 }
 
+bool ItemVideo::roundVideo() const {
+	return _clip->source()->round;
+}
+
 void ItemVideo::releasePlayers() {
 	_clip->stop();
 }
@@ -121,10 +127,19 @@ void ItemVideo::paint(
 		_clip->resume();
 	}
 	const auto frame = _clip->frame(_frameSize);
+	if (roundVideo()) {
+		p->save();
+		auto clip = QPainterPath();
+		clip.addEllipse(contentRect());
+		p->setClipPath(clip, Qt::IntersectClip);
+	}
 	if (frame.isNull()) {
 		paintFrame(p, _image, false, false);
 	} else {
 		paintFrame(p, frame, true, flipped());
+	}
+	if (roundVideo()) {
+		p->restore();
 	}
 	ItemBase::paint(p, option, w);
 }

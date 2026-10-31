@@ -254,6 +254,9 @@ Media::Encode::Job ComposeAnimatedJob(
 		}
 		flushRun();
 		const auto clip = item->videoClip();
+		if (entity.round && !clip) {
+			music.push_back({ .bytes = entity.bytes });
+		}
 		const auto loop = animated->loopDuration();
 		if (clip && (loop > 0)) {
 			entity.till = entity.from + loop;

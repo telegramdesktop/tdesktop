@@ -113,6 +113,7 @@ public:
 	void resetView();
 	void addStoryVideoObject(StoryVideoObject &&object);
 	void selectVideoObject();
+	void addRoundVideo(QByteArray content, crl::time duration);
 
 	bool zoomSceneItems(float64 wheelDelta, bool fine = false);
 	bool zoomSceneItemsByFactor(float64 factor);

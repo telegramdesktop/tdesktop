@@ -899,6 +899,12 @@ void PhotoEditorContent::addVideoObject(StoryVideoObject &&object) {
 	_pendingVideo = std::move(object);
 }
 
+void PhotoEditorContent::addRoundVideo(
+		QByteArray content,
+		crl::time duration) {
+	_paint->addRoundVideo(std::move(content), duration);
+}
+
 void PhotoEditorContent::setupDragArea() {
 	auto dragEnterFilter = [=](const QMimeData *data) {
 		return _paint->canHandleMimeData(data);

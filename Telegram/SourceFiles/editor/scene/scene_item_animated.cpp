@@ -21,6 +21,10 @@ VideoTrim ItemAnimated::trim() const {
 	return {};
 }
 
+bool ItemAnimated::roundVideo() const {
+	return false;
+}
+
 Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
 		const QTransform &sceneToCanvas) const {
 	const auto composed = QTransform().scale(flipped() ? -1. : 1., 1.)
@@ -47,6 +51,7 @@ Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
 			size),
 		.rotation = rotation,
 		.flipped = mirrored,
+		.round = roundVideo(),
 		.from = segment.from,
 		.till = segment.till,
 	};

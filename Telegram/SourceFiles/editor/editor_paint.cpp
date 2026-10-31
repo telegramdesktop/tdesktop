@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
+#include "media/media_video_frames.h"
 #include "platform/platform_file_utilities.h"
 #include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
@@ -66,6 +67,12 @@ constexpr auto kMinBrush = 1.;
 constexpr auto kShapeSizeRatio = 2. / 5.;
 constexpr auto kMediaSizeRatio = 1. / 2.;
 constexpr auto kImageMaxSizeRatio = 4.;
+
+constexpr auto kRoundVideoSideRatio = 0.43;
+constexpr auto kRoundVideoRight = 16.;
+constexpr auto kRoundVideoTop = 72.;
+constexpr auto kAndroidDpPerWidth = 360.;
+constexpr auto kRoundVideoThumbnailSide = 400;
 
 constexpr auto kMessageMaxWidthRatio = 0.88;
 constexpr auto kMessageMaxHeightRatio = 0.7;
@@ -1269,6 +1276,33 @@ void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 	}
 	item->keepInitialState();
 	addMediaItem(std::move(item));
+}
+
+void Paint::addRoundVideo(QByteArray content, crl::time duration) {
+	if (content.isEmpty()) {
+		return;
+	}
+	const auto thumbnail = Media::Video::ExtractFrame(
+		QString(),
+		content,
+		0,
+		QSize(kRoundVideoThumbnailSide, kRoundVideoThumbnailSide));
+	const auto scene = _scene->sceneRect().size();
+	const auto density = scene.width() / kAndroidDpPerWidth;
+	const auto side = int(std::floor(scene.width() * kRoundVideoSideRatio));
+	auto data = itemBaseData();
+	data.size = side;
+	data.x = int(scene.width() - side / 2. - kRoundVideoRight * density);
+	data.y = int(kRoundVideoTop * density + side / 2.);
+	data.contentMargins = false;
+	addMediaItem(std::make_shared<ItemVideo>(
+		std::make_shared<VideoClipSource>(VideoClipSource{
+			.content = std::move(content),
+			.thumbnail = thumbnail,
+			.duration = duration,
+			.round = true,
+		}),
+		std::move(data)));
 }
 
 void Paint::addImageItem(QImage &&image) {

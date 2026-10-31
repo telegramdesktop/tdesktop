@@ -27,6 +27,7 @@ public:
 	[[nodiscard]] bool hasContent() const override;
 	[[nodiscard]] QByteArray content() const override;
 	[[nodiscard]] crl::time loopDuration() const override;
+	[[nodiscard]] bool roundVideo() const override;
 	[[nodiscard]] VideoTrim trim() const override;
 	void releasePlayers() override;
 	void setStatus(Status status) override;

@@ -22,6 +22,7 @@ struct VideoClipSource {
 	bool hasAudio = false;
 	VideoTrim initialTrim;
 	float64 initialVolume = 1.;
+	bool round = false;
 };
 
 class VideoClip final {

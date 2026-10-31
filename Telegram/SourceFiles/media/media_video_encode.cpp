@@ -14,9 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_frame_generator.h"
 #include "ui/rect.h"
 
+#include <crl/crl_async.h>
 #include <QtCore/QFileInfo>
 #include <QtCore/QTemporaryFile>
 #include <QtGui/QPainter>
+#include <QtGui/QPainterPath>
 
 extern "C" {
 #include <libavutil/audio_fifo.h>
@@ -1511,6 +1513,11 @@ private:
 						p.scale(-1., 1.);
 					}
 					p.translate(-center);
+					if (entity.round) {
+						auto clip = QPainterPath();
+						clip.addEllipse(entity.geometry);
+						p.setClipPath(clip);
+					}
 					if (cutout && frame.isNull()) {
 						p.drawImage(entity.geometry, cutout->picture);
 					} else if (cutout) {
