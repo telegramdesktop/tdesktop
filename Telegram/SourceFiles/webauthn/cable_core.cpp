@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 namespace Platform::WebAuthn::Cable {
 namespace {
@@ -926,6 +927,10 @@ Bytes BuildGetAssertionRequest(
 	return result;
 }
 
+Bytes BuildGetNextAssertionRequest() {
+	return Bytes{ 0x08 };
+}
+
 std::optional<Bytes> CredentialIdFromAuthData(ByteSpan authData) {
 	constexpr auto kPrefix = size_t(32 + 1 + 4);
 	if (authData.size() < kPrefix + 16 + 2) {
@@ -1003,7 +1008,32 @@ std::optional<GetAssertionResponse> ParseGetAssertionResponse(
 			if (id && id->isBytes()) {
 				result.userHandle = id->bytes();
 			}
+			const auto name = FindText(user->map(), "name");
+			if (name && name->isString()) {
+				result.userName = name->string();
+			}
+			const auto displayName = FindText(user->map(), "displayName");
+			if (displayName && displayName->isString()) {
+				result.userDisplayName = displayName->string();
+			}
 		}
+	}
+	if (const auto count = parsed->find(5)) {
+		if (!count->isInt()) {
+			return std::nullopt;
+		}
+		const auto value = count->toInt();
+		if (value <= 0
+			|| uint64_t(value)
+				> uint64_t(std::numeric_limits<size_t>::max())) {
+			return std::nullopt;
+		}
+		result.numberOfCredentials = size_t(value);
+	}
+	if (result.numberOfCredentials
+		&& *result.numberOfCredentials > 1
+		&& result.credentialId.empty()) {
+		return std::nullopt;
 	}
 	return result;
 }
