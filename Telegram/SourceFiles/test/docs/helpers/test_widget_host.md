@@ -25,10 +25,14 @@ calls, and each scope of the core the watch's attachment registered records
 one event into the watch's work log ([Renderer work](#renderer-work)).
 
 Callers: the widget fixture arms a watch for a record whose `watchHost` is
-set ([test_widget_fixture](test_widget_fixture.md)). Its consumer is the
+set ([test_widget_fixture](test_widget_fixture.md)). Its consumers are the
 stress-kit runner ([test_widget_stress](test_widget_stress.md)), which reads
 the applied options for `config.applied`, the host readings for each run
-entry and the work log for its renderer figures.
+entry and the work log for its renderer figures, and the widget conformance
+runner ([test_widget_conformance](test_widget_conformance.md)), which arms
+an empty-override watch on every run, so every option stays the product's,
+and reads it once, in the run's log stage before the removal, for each
+construction's `applied` `contentSafeArea` (its `safeArea` extra).
 
 Use something else when:
 
@@ -431,6 +435,17 @@ and safe area kept, `loaded` with `loadedMs`, a cap-crossing production
 level's verbatim `dead` with `diedAtMs`, and, with the renderer overlay,
 nonempty work logs with no drops for a changing widget; its own self-check
 covers its grouping of synthetic events.
+
+Executed by the conformance task
+`2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`,
+recorded in its `work/smoke.md`: the watch's first in-app run, on macOS
+arm64 in a Release build with `TDESKTOP_RELEASE_TEST_HARNESS` and no LTO,
+through the conformance runner's empty-override watch. Every loaded run of
+`auto/04-values-units`, `auto/31-stop-text`, `auto/36-safe-area` and
+`visual/17-time-corner` had one `applied` entry with the product's
+`contentSafeArea`: all 0 for the two messages with a caption below the
+widget, `bottom` 26 with `cornerRight` 118 for the two `safeArea` entries,
+equal to `auto/36-safe-area`'s own `contentSafeAreaInset` reading.
 
 ## Related guidance
 

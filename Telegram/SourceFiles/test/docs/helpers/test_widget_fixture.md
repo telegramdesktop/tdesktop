@@ -72,12 +72,23 @@ parse of the log.
   each true flag and each present field sets its TL flag, so a present
   empty `chatData` or `publicData` and a present zero `widgetId` reach the
   media as present, distinct from absent. The record keeps them in
-  `WidgetFixtureMessage::fields`. A caller that sets the record's
-  `watchHost` (a `WidgetHostOverride`; an empty one only watches) before the
-  injection also gets `WidgetFixtureMessage::host`, the message's host watch
-  ([test_widget_host](test_widget_host.md)), armed with the tap for the same
-  key and disarmed with it; the three existing callers set none and arm no
-  watch. The message is a local outgoing client-id
+  `WidgetFixtureMessage::fields`. The record's `caption`, set before the
+  injection, is the widget message's text, which the history shows as the
+  caption below the widget's media; empty, the default, is no text. It
+  changes only the message text, never the media fields or the flags, and
+  the bubble grows below the widget's card. The conformance runner sets
+  each run's manifest id there but for an entry with `safeArea`, whose
+  message stays without one
+  ([message contexts](test_widget_conformance.md#message-contexts)); the
+  attack audit and the chat-list place self-test set none. A caller that
+  sets the record's `watchHost` (a `WidgetHostOverride`; an empty one only
+  watches) before the injection also gets `WidgetFixtureMessage::host`, the
+  message's host watch ([test_widget_host](test_widget_host.md)), armed
+  with the tap for the same key and disarmed with it. The conformance
+  runner sets an empty one for every run, and the stress-kit runner
+  ([test_widget_stress](test_widget_stress.md)) its pass's override; the
+  attack audit and the chat-list place self-test set none and arm no watch.
+  The message is a local outgoing client-id
   message, never sent, and a history entry, so it cannot stand for a Recent
   Actions, scheduled or quick-reply entry; its Web Storage never reaches the
   disk. `InjectTextMessage()` adds a local outgoing client-id text message
@@ -176,7 +187,16 @@ The optional host watch (`watchHost`, `host`, their arming next to the tap
 and their disarming) compiled, with the rest of the module, in a Windows
 Win32 Debug single-file compile for
 `2026/10/30/run-the-widget-stress-kit-at-v0-4-0-on-a-release-build-without-lto`;
-no existing caller sets it, and it has not run in the app.
+the stress-kit runner and the conformance runner set it. The `caption`
+field and the conformance runner's watch compiled in the macOS arm64 Debug
+and Release (no LTO, with the harness) builds of
+`2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`
+and ran in the app in that task's Release smoke (its `work/smoke.md`): the
+hosts of the two captioned runs, `auto/04-values-units` and
+`auto/31-stop-text`, got all 0, the two uncaptioned `safeArea` entries,
+`auto/36-safe-area` and `visual/17-time-corner`, got `bottom` 26 with
+`cornerRight` 118, and each watch was armed with the tap, read and
+disarmed.
 
 ## Related guidance
 

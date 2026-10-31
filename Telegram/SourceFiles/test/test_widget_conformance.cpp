@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_conformance_pictures.h"
 #include "test/test_widget_conformance_state.h"
 #include "test/test_widget_fixture.h"
+#include "test/test_widget_host.h"
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_media.h"
@@ -720,6 +721,14 @@ namespace {
 			break;
 		}
 	}
+	result.stops = object.value(u"stops"_q).toString();
+	if (object.contains(u"stops"_q) && result.stops.isEmpty()) {
+		problems.push_back(u"stops is not a non-empty string"_q);
+	}
+	result.safeArea = object.contains(u"safeArea"_q);
+	if (result.safeArea && !object.value(u"safeArea"_q).isObject()) {
+		problems.push_back(u"safeArea is not an object"_q);
+	}
 	if (result.set == u"auto"_q) {
 		for (const auto &value : object.value(u"stages"_q).toArray()) {
 			const auto stage = value.toObject();
@@ -987,9 +996,16 @@ void CaptureEnvironment(ConformanceState &state) {
 	if (environment.captured) {
 		return;
 	}
+#ifdef _DEBUG
+	const auto build = u"Debug"_q;
+#else // _DEBUG
+	// TDESKTOP_RELEASE_TEST_HARNESS refuses to configure with LTO.
+	const auto build = u"Release without LTO"_q;
+#endif // _DEBUG
 	environment = ConformanceEnvironment{
-		.app = u"Telegram Desktop %1, Debug"_q.arg(
-			QString::fromLatin1(AppVersionStr)),
+		.app = u"Telegram Desktop %1, %2"_q.arg(
+			QString::fromLatin1(AppVersionStr),
+			build),
 		.os = QSysInfo::prettyProductName(),
 		.cpu = QSysInfo::currentCpuArchitecture(),
 		.qt = QString::fromLatin1(qVersion()),
@@ -1089,8 +1105,9 @@ void CaptureEnvironment(ConformanceState &state) {
 // The reconciliation the run file states, computed from the manifest and
 // the selection: the requested auto matrix, each omission and whether it
 // departs from that matrix, this launch's share of it, the dark runs
-// beyond the manifest's own themes, the visual load checks, the message
-// contexts, the requested pictures and a narrowed selection.
+// beyond the manifest's own themes, the visual load checks, the stop wait,
+// the caption and the host watch, the message contexts, the requested
+// pictures and a narrowed selection.
 [[nodiscard]] QStringList Notes(
 		const ConformanceState &state,
 		const Matrix &matrix) {
@@ -1174,6 +1191,39 @@ void CaptureEnvironment(ConformanceState &state) {
 		u"snapshot of the union of the run's stage rects, the chat list's "
 		u"own paint of the card at %1 image px per CSS px; cards/ holds "
 		u"each snapshot."_q.arg(NumberText(kCropScale)));
+	result.push_back(u"an entry with stops waits for its widget's death, "
+		u"never for done, as CLIENTS.md's step 4 asks: its result wait ends "
+		u"only at a fatal frozen notice, a stopped or failed runtime, the "
+		u"message gone or the %1 s bound. Its dead is the reason of the "
+		u"\"Died: \" line of its host's final or fresh runtime summary, "
+		u"WidgetDiagnostics::dead verbatim but cut at 240 characters; a stop "
+		u"run that died without that line carries the runner refusal "
+		u"stop-reason-unmeasured. report.mjs alone judges whether dead starts "
+		u"with the entry's stops."_q.arg(NumberText(kResultBound / 1000)));
+	auto uncaptioned = QStringList();
+	for (const auto &test : state.tests) {
+		if (test.safeArea) {
+			uncaptioned.push_back(test.id);
+		}
+	}
+	result.push_back(u"every run's message but those of the manifest's "
+		u"safeArea entries ([%1]) has its manifest id as its text, the "
+		u"caption below the widget, so the desktop itself gives its host "
+		u"CLIENTS.md's all-0 content safe area and draws the time in the "
+		u"caption's line. A safeArea entry's message has no caption: its host "
+		u"gets the band and corner the desktop passes for a widget with no "
+		u"caption below it, with the time drawn over that corner. "
+		u"safeArea.applied is the content safe area each construction of the "
+		u"run's host got, and safeArea.caption the text (null for none); the "
+		u"manifest's safeArea numbers are its reference picture's, not "
+		u"expectations. A run that is no safeArea entry and got a nonzero area "
+		u"carries safe-area-not-zero, and a loaded run without a reading "
+		u"safe-area-unmeasured. Every run's host is watched with an empty "
+		u"override, which changes no option; with the watch's onChange set, "
+		u"the host copies its whole diagnostics on its host thread for every "
+		u"change, host-thread work beside the widget's, neither JS nor "
+		u"main-thread work."_q.arg(
+			uncaptioned.join(u", "_q)));
 	result.append(ContextNotes(state));
 	result.append(PictureNotes(state));
 	if (!args.themes.isEmpty() || !args.sets.isEmpty() || !args.ids.isEmpty()) {
@@ -1303,6 +1353,35 @@ void CaptureEnvironment(ConformanceState &state) {
 	};
 }
 
+// One construction's content safe area, in CSS px, as the host got it.
+[[nodiscard]] QJsonObject SafeAreaJson(
+		const twidget::WidgetContentSafeArea &area) {
+	return QJsonObject{
+		{ u"top"_q, area.top },
+		{ u"right"_q, area.right },
+		{ u"bottom"_q, area.bottom },
+		{ u"left"_q, area.left },
+		{ u"cornerLeft"_q, area.cornerLeft },
+		{ u"cornerRight"_q, area.cornerRight },
+	};
+}
+
+// The safeArea extra of a run whose host watch was read: never the
+// schema's own host key.
+[[nodiscard]] QJsonObject SafeAreaObject(const ConformanceRun &run) {
+	auto applied = QJsonArray();
+	for (const auto &area : run.safeAreas) {
+		applied.push_back(SafeAreaJson(area));
+	}
+	const auto &caption = run.message->caption;
+	return QJsonObject{
+		{ u"caption"_q, caption.isEmpty()
+			? QJsonValue(QJsonValue::Null)
+			: QJsonValue(caption) },
+		{ u"applied"_q, applied },
+	};
+}
+
 // What the run's hosts were observed doing; the refusals are the
 // summary's own, none when it was never read.
 [[nodiscard]] ConformanceObservation ObservationOf(const ConformanceRun &run) {
@@ -1427,6 +1506,9 @@ void CaptureEnvironment(ConformanceState &state) {
 	}
 	if (!run.stages.empty()) {
 		result.insert(u"snapshot"_q, SnapshotObject(run));
+	}
+	if (run.safeAreaRead) {
+		result.insert(u"safeArea"_q, SafeAreaObject(run));
 	}
 	InsertContextExtras(result, state, run);
 	InsertPictureExtra(result, run);
@@ -2131,10 +2213,13 @@ void PrepareOutput(ConformanceState &state) {
 // Defined with the totals, which it controls.
 [[nodiscard]] WidgetOpsSelfCheckRow CheckTotalsCoverage();
 
+// Defined with the run's readings, which it controls.
+[[nodiscard]] WidgetOpsSelfCheckRow CheckHostReadings();
+
 // The tap's own scanner checks, the played bot's, the tap's probe-fixture
 // checks, then the pure result reader, summary reader, observation, run
-// file, message context and bot table, selection, picture and totals
-// controls; every row is one Check.
+// file, message context and bot table, selection, host reading, picture
+// and totals controls; every row is one Check.
 void RunSelfChecks(ConformanceState &state) {
 	auto failed = QStringList();
 	auto count = 0;
@@ -2181,6 +2266,7 @@ void RunSelfChecks(ConformanceState &state) {
 		take(SelfCheckRow(row.passed, row.name, row.details));
 	}
 	take(CheckSelection());
+	take(CheckHostReadings());
 	for (const auto &row : RunPictureCheck()) {
 		take(SelfCheckRow(row.passed, row.name, row.details));
 	}
@@ -2255,7 +2341,11 @@ void ReadChatFocus(ConformanceRun &run) {
 }
 
 // A group run is refused, never injected, when the loaded chat turns out
-// a broadcast channel. The message gets its entry's context, no widget id.
+// a broadcast channel. The message gets its entry's context, no widget id,
+// and its id as the caption below the widget, so the desktop gives its
+// host CLIENTS.md's all-0 safe area; a safeArea entry's gets no caption, so
+// the desktop's time goes over its corner. The empty override only
+// watches, so every host keeps the product's options.
 void InjectRun(ConformanceState &state, ConformanceRun &run) {
 	run.progress = u"injecting"_q;
 	const auto &test = state.tests[run.test];
@@ -2267,6 +2357,8 @@ void InjectRun(ConformanceState &state, ConformanceRun &run) {
 		run.notRun = u"not injected: "_q + wrong;
 		return;
 	}
+	run.message->caption = test.safeArea ? QString() : test.id;
+	run.message->watchHost = WidgetHostOverride();
 	const auto refusal = InjectWidgetMessage(
 		*state.fixture,
 		*run.message,
@@ -2317,7 +2409,9 @@ enum class ResultWait {
 
 // Done. Before the actions awaiting as well, for an auto test with actions
 // and for every visual test: the SDK's mini harness waits for a person's
-// input. After the actions only done, as CLIENTS.md waits for.
+// input. After the actions only done, as CLIENTS.md waits for. None for a
+// stops entry: CLIENTS.md waits for its death instead, which only the
+// result wait's other conditions or its bound end.
 [[nodiscard]] bool WantedStatus(
 		const ConformanceState &state,
 		const ConformanceRun &run,
@@ -2327,6 +2421,9 @@ enum class ResultWait {
 		return false;
 	}
 	const auto &test = state.tests[run.test];
+	if (!test.stops.isEmpty()) {
+		return false;
+	}
 	const auto awaiting = (wait == ResultWait::Initial)
 		&& ((test.set != u"auto"_q) || !test.actions.isEmpty());
 	return (result.status == u"done"_q)
@@ -2553,6 +2650,239 @@ void ReadDeath(ConformanceRun &run) {
 	}
 }
 
+// A run of a stops entry that died without the reason ReadDeath() takes,
+// a "Died: " line other than "terminated": its dead would be the runner's
+// placeholder, never the host's stop reason that report.mjs judges.
+[[nodiscard]] RunnerRefusal StopRefusal(
+		const QString &stops,
+		bool died,
+		const QString &deathLine) {
+	const auto reason = deathLine.startsWith(u"Died: "_q)
+		? deathLine.mid(6).trimmed()
+		: QString();
+	if (stops.isEmpty()
+		|| !died
+		|| (!reason.isEmpty() && (reason != u"terminated"_q))) {
+		return {};
+	}
+	return {
+		.name = u"stop-reason-unmeasured"_q,
+		.detail = u"the widget of an entry with stops [%1] died, but no "
+			u"fresh or final summary of its host gave its \"Died: \" reason "
+			u"(death line [%2]), so dead is the runner's placeholder"_q.arg(
+				stops,
+				deathLine),
+	};
+}
+
+[[nodiscard]] bool SafeAreaZero(const twidget::WidgetContentSafeArea &area) {
+	return (area.top == 0.)
+		&& (area.right == 0.)
+		&& (area.bottom == 0.)
+		&& (area.left == 0.)
+		&& (area.cornerLeft == 0.)
+		&& (area.cornerRight == 0.);
+}
+
+// A captioned run's host must get CLIENTS.md's all 0 in every
+// construction, and a loaded run needs a reading at all; a safeArea entry's
+// band is whatever the desktop passes, so it is recorded, never refused.
+[[nodiscard]] RunnerRefusal SafeAreaRefusal(
+		bool safeAreaEntry,
+		const std::vector<twidget::WidgetContentSafeArea> &applied,
+		bool loaded) {
+	if (applied.empty()) {
+		return !loaded
+			? RunnerRefusal()
+			: RunnerRefusal{
+				.name = u"safe-area-unmeasured"_q,
+				.detail = u"the widget loaded, but its host watch recorded no "
+					u"construction's options to read the content safe area "
+					u"from"_q,
+			};
+	} else if (safeAreaEntry) {
+		return {};
+	}
+	for (auto i = 0; i != int(applied.size()); ++i) {
+		if (!SafeAreaZero(applied[i])) {
+			return {
+				.name = u"safe-area-not-zero"_q,
+				.detail = u"construction %1 of the host of a message with a "
+					u"caption below the widget got %2, not all 0, so the run "
+					u"is not in CLIENTS.md's zero state"_q.arg(
+						NumberText(i + 1),
+						CompactJson(SafeAreaJson(applied[i]))),
+			};
+		}
+	}
+	return {};
+}
+
+// The content safe area each armed construction of the run's host got, in
+// order; nothing for a run whose message got no watch.
+void ReadSafeAreas(ConformanceRun &run) {
+	const auto &host = run.message->host;
+	if (!host) {
+		return;
+	}
+	for (const auto &applied : ReadWidgetHost(*host).applied) {
+		run.safeAreas.push_back(applied.contentSafeArea);
+	}
+	run.safeAreaRead = true;
+}
+
+// Pure SafeAreaRefusal(), StopRefusal() and WantedStatus() controls on
+// literal readings: the refusals' positive cases, which the live runs never
+// show, and CLIENTS.md's death wait for a stops entry at done.
+WidgetOpsSelfCheckRow CheckHostReadings() {
+	using SafeArea = twidget::WidgetContentSafeArea;
+	const auto zero = SafeArea();
+	const auto band = SafeArea{ .bottom = 26. };
+	const auto corner = SafeArea{ .cornerRight = 118. };
+	const auto bandCorner = SafeArea{ .bottom = 26., .cornerRight = 118. };
+	struct SafeAreaCase {
+		const char *name = nullptr;
+		std::vector<SafeArea> applied;
+		const char *refusal = "";
+		bool entry = false;
+		bool loaded = false;
+	};
+	const auto safeAreaCases = std::array{
+		SafeAreaCase{
+			.name = "zero entry, all 0",
+			.applied = { zero },
+			.loaded = true,
+		},
+		SafeAreaCase{
+			.name = "zero entry, bottom 26",
+			.applied = { band },
+			.refusal = "safe-area-not-zero",
+			.loaded = true,
+		},
+		SafeAreaCase{
+			.name = "zero entry, cornerRight 118 only",
+			.applied = { corner },
+			.refusal = "safe-area-not-zero",
+			.loaded = true,
+		},
+		SafeAreaCase{
+			.name = "zero entry, loaded, no applied",
+			.refusal = "safe-area-unmeasured",
+			.loaded = true,
+		},
+		SafeAreaCase{
+			.name = "zero entry, not loaded, no applied",
+		},
+		SafeAreaCase{
+			.name = "safe-area entry, 26/118",
+			.applied = { bandCorner },
+			.entry = true,
+			.loaded = true,
+		},
+		SafeAreaCase{
+			.name = "safe-area entry, all 0",
+			.applied = { zero },
+			.entry = true,
+			.loaded = true,
+		},
+	};
+	struct StopCase {
+		const char *name = nullptr;
+		const char *stops = "";
+		const char *deathLine = "";
+		const char *refusal = "";
+		bool died = false;
+	};
+	const auto stopCases = std::array{
+		StopCase{
+			.name = "stop died with a Died: line",
+			.stops = "Text limit exceeded",
+			.deathLine = "Died: Text limit exceeded: a control reason",
+			.died = true,
+		},
+		StopCase{
+			.name = "stop died without one",
+			.stops = "Text limit exceeded",
+			.refusal = "stop-reason-unmeasured",
+			.died = true,
+		},
+		StopCase{
+			.name = "stop not died",
+			.stops = "Text limit exceeded",
+		},
+		StopCase{
+			.name = "non-stop died without one",
+			.died = true,
+		},
+	};
+	auto readings = QStringList();
+	auto passed = true;
+	const auto judge = [&](
+			const char *name,
+			const RunnerRefusal &got,
+			const char *refusal) {
+		const auto expected = QString::fromLatin1(refusal);
+		passed = passed
+			&& (got.name == expected)
+			&& (got.detail.isEmpty() == expected.isEmpty());
+		readings.push_back(u"{%1: [%2]}"_q.arg(
+			QString::fromLatin1(name),
+			got.name));
+	};
+	for (const auto &entry : safeAreaCases) {
+		judge(
+			entry.name,
+			SafeAreaRefusal(entry.entry, entry.applied, entry.loaded),
+			entry.refusal);
+	}
+	for (const auto &entry : stopCases) {
+		judge(
+			entry.name,
+			StopRefusal(
+				QString::fromLatin1(entry.stops),
+				entry.died,
+				QString::fromLatin1(entry.deathLine)),
+			entry.refusal);
+	}
+
+	auto control = ConformanceState();
+	control.tests.push_back(ManifestTest{
+		.id = u"auto/s"_q,
+		.set = u"auto"_q,
+		.stops = u"Text limit exceeded"_q,
+	});
+	control.tests.push_back(ManifestTest{
+		.id = u"auto/p"_q,
+		.set = u"auto"_q,
+	});
+	const auto endsAtDone = [&](int test) {
+		auto run = ConformanceRun{
+			.id = control.tests[test].id,
+			.set = u"auto"_q,
+			.theme = u"light"_q,
+		};
+		run.test = test;
+		run.result.present = true;
+		run.result.status = u"done"_q;
+		return WantedStatus(control, run, ResultWait::Initial);
+	};
+	const auto stopEnds = endsAtDone(0);
+	const auto plainEnds = endsAtDone(1);
+	passed = passed && !stopEnds && plainEnds;
+	readings.push_back(u"{done ends the wait: stop entry %1, plain auto "
+		u"entry %2}"_q.arg(
+			NumberText(stopEnds ? 1 : 0),
+			NumberText(plainEnds ? 1 : 0)));
+	return SelfCheckRow(
+		passed,
+		u"host reading self-check: a run with a caption below the widget is "
+			u"refused for any nonzero content safe area, a loaded run without "
+			u"a reading is refused, a safeArea entry's band never is, a stops "
+			u"entry's death without its summary reason is refused, and done "
+			u"never ends a stops entry's result wait"_q,
+		readings.join(QChar(' ')));
+}
+
 // The card's height in CSS px, CLIENTS.md's end bubble height, while the
 // list's own view still shows it, and the core's content height beside it.
 void ReadHeight(const ConformanceState &state, ConformanceRun &run) {
@@ -2596,6 +2926,15 @@ void RecordLog(const ConformanceState &state, ConformanceRun &run) {
 		run.dead = DeathText(true);
 	}
 	ReadDeath(run);
+	ReadSafeAreas(run);
+	const auto &test = state.tests[run.test];
+	for (const auto &refusal : {
+			SafeAreaRefusal(test.safeArea, run.safeAreas, run.loaded),
+			StopRefusal(test.stops, run.died, run.deathLine) }) {
+		if (!refusal.name.isEmpty()) {
+			AddRefusal(run, refusal.name, refusal.detail);
+		}
+	}
 	ReadHeight(state, run);
 	ReadBridgeAndErrors(run, reading.factoriesSelected);
 	run.measured = true;

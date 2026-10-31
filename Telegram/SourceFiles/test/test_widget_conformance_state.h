@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_conformance.h"
 #include "test/test_widget_conformance_bridge.h"
 #include "test/test_widget_fixture.h"
+#include "test/test_widget_host.h"
 #include "test/test_widget_ops.h"
 
 #include <QtCore/QByteArray>
@@ -99,7 +100,10 @@ struct ManifestMessage {
 // is the context its run's message gets. |bot| is its `bot` table as the
 // played bot answers it, empty without one, and |botUnplayed| what the
 // table asks for that is not played. |error| says why a selected entry
-// cannot run, |htmlError| why its HTML cannot.
+// cannot run, |htmlError| why its HTML cannot. |stops| is its `stops`
+// prefix, empty without one: its run waits for the death, never for done.
+// |safeArea| is whether it has a `safeArea`: its run's message gets no
+// caption, so the desktop draws its time over the widget's corner.
 struct ManifestTest {
 	QString id;
 	QString set;
@@ -115,8 +119,10 @@ struct ManifestTest {
 	QByteArray html;
 	QString error;
 	QString htmlError;
+	QString stops;
 	bool selected = false;
 	bool read = false;
+	bool safeArea = false;
 };
 
 // The newest published value of a run's widget, taken once per tap
@@ -296,6 +302,10 @@ struct ConformanceActions;
 // of the injected item, the flags and chat type the client derived, read
 // once the injection was checked; unset otherwise. |picture| is requested
 // only for a visual run whose entry the caller asked a picture of.
+// |safeAreas| is the content safe area each armed construction of the
+// run's host got (WidgetHostApplied::contentSafeArea), in order, copied
+// from the message's host watch before the removal; |safeAreaRead| once it
+// was, so a run with no watch reading has none.
 struct ConformanceRun {
 	QString id;
 	QString set;
@@ -341,6 +351,7 @@ struct ConformanceRun {
 	QString runtimeState;
 	QString deathLine;
 	std::optional<double> contentHeight;
+	std::vector<twidget::WidgetContentSafeArea> safeAreas;
 	crl::time resultMs = 0;
 	crl::time doneMs = 0;
 	crl::time barrierMs = 0;
@@ -348,6 +359,7 @@ struct ConformanceRun {
 	bool measured = false;
 	bool summaryRead = false;
 	bool itemGone = false;
+	bool safeAreaRead = false;
 };
 
 // One palette phase: the restore of the chain's switch before it, when

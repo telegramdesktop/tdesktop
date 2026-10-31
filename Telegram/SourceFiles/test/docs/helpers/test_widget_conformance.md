@@ -42,7 +42,9 @@ Caller: the evidence campaign of
 `2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`,
 and reruns of it at a widget-sandbox or twidget pin move, such as
 `2026/10/26/report-the-desktop-conformance-at-widget-sandbox-v0-2-2` at
-`v0.2.3`.
+`v0.2.3` and
+`2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`
+at `v0.5.0`, on a Release build without LTO.
 
 Use something else when:
 
@@ -98,14 +100,15 @@ Use something else when:
   that is not a non-empty array whose first item is an object, a first spec
   whose kind the runner does not implement or whose `chat_data` or
   `public_data` is not a string, a `bot` table that is not an object of
-  objects with string `result`s) or whose HTML is unreadable or empty is not
-  run, by name.
+  objects with string `result`s, a `stops` that is not a non-empty string,
+  a `safeArea` that is not an object) or whose HTML is unreadable or empty
+  is not run, by name.
   `framework` and `engine` go into the run file as given: the campaign names
   the tag and the twidget pin, and an empty one fails a Check.
 - **The matrix.** The task's matrix is every auto entry in both themes,
   whatever its manifest `themes`, at 390 CSS px, and every visual entry only
-  in its manifest themes. At `v0.2.3` that is 51 auto and 46 visual entries
-  (20 visual and 26 client SDK): 102 requested auto runs. Three runs are
+  in its manifest themes. At `v0.5.0` that is 60 auto and 47 visual entries
+  (21 visual and 26 client SDK): 120 requested auto runs. Three runs are
   omitted in every launch (`elsewhere` false). One is
   `auto/20-client-behaviour` in dark, while its manifest entry still gives
   the reason - its id, `themes: ["light"]` and a first action switching the
@@ -117,18 +120,18 @@ Use something else when:
   `auto/26-context-preview` in both themes, whose message is a preview the
   desktop does not build ([message contexts](#message-contexts)). The run
   file's `omittedRuns` and `notes` state each omission, its reason and that
-  a file with every other auto run has 99 auto runs, not the 102 of the
-  requested 51 x 2: a departure from that criterion, never to be reported as
+  a file with every other auto run has 117 auto runs, not the 120 of the
+  requested 60 x 2: a departure from that criterion, never to be reported as
   meeting it without this reconciliation; `matrix.permanentAutoOmissions`
-  and `matrix.fullAutoRuns` count the same from the manifest. 47 of the 49
+  and `matrix.fullAutoRuns` count the same from the manifest. 56 of the 58
   dark auto runs are of light-only entries; they go beyond `CLIENTS.md`'s
-  loop over each entry's own themes (53 auto runs at `v0.2.3`), `report.mjs`
+  loop over each entry's own themes (62 auto runs at `v0.5.0`), `report.mjs`
   counts their checks and skips their stages by each stage's own themes,
-  and `matrix.extraDark` and a note say so. The visual set gives 46 light
-  and 4 dark runs. A run the launch's chat cannot host is omitted from that
-  launch only, `elsewhere` true, and subtracts nothing from the matrix; a
-  note states the launch's share for its selection alone, and only every
-  launch's runs together give the full matrix.
+  and `matrix.extraDark` and a note say so. The visual set gives 47 light
+  and 4 dark runs, 51 visual runs. A run the launch's chat cannot host is
+  omitted from that launch only, `elsewhere` true, and subtracts nothing
+  from the matrix; a note states the launch's share for its selection
+  alone, and only every launch's runs together give the full matrix.
 - **Visual entries are load checks.** No actions, no crops, no wait after
   actions: a visual run waits for `done` or `awaiting` (the SDK's mini harness
   and some visual pages wait for a person's input) and records its result,
@@ -139,7 +142,15 @@ Use something else when:
 - **Production configuration.** The pack configures no host: every widget
   host gets `DefaultHostOptions()` of `tgw_runtime.cpp`, policy `strict` and
   features `webAnimations`, which the run file states as `policy` and
-  `features` (a source fact, not a per-run reading). The measured core width
+  `features` (a source fact, not a per-run reading). Every run's message
+  gets a [host watch](test_widget_host.md) with an empty
+  `WidgetHostOverride`, which replaces no option, so its `applied` options
+  are the product's; the runner reads only their `contentSafeArea`. The
+  watch is not free: with its `onChange` set, `WidgetHost::changed()` copies
+  the host's whole diagnostics on the host thread for every change. That is
+  host-thread work beside the widget's, not JS or main-thread work, on every
+  run, the timing-sensitive `auto/19-limits` and the stop entries included;
+  a note in the run file states it. The measured core width
   must be 390 within 0.01 CSS px, or the run carries `width-mismatch` (the
   anchor was not honoured, or the chat column is too narrow); the light runs
   go in the app's day palette and the dark ones in its night palette, and a
@@ -154,7 +165,16 @@ Use something else when:
   entry for either. A death, a failure, the message gone or the bound ends the
   wait with that outcome, recorded and not refused: the report judges what the
   widget published, and a dead or unloaded run fails every check. After the
-  actions the runner waits up to 10 s for `done`.
+  actions the runner waits up to 10 s for `done`. An entry with `stops`
+  (`auto/31`-`auto/35` at `v0.5.0`) waits for its widget's death instead, as
+  `CLIENTS.md`'s step 4 asks: no status ends its wait, so a widget its host
+  never stops publishes `done` and the wait runs to the 20 s bound, and only
+  a fatal `frozen`, a stopped or failed runtime or the message gone end it
+  sooner.
+  Its `dead` keeps its usual source, the `Died: ` reason of the host's fresh
+  or final summary (`WidgetDiagnostics::dead` verbatim, cut at 240
+  characters), never the localized stopped label; whether it starts with
+  the entry's `stops` is `report.mjs`'s judgement alone.
 - **2x.** The stage crops and the picture bands need the device pixel ratio
   times the interface scale to be 200 % (a Retina display at 100 %, say), and
   the accepted image of each snapshot and band must be exactly twice its CSS
@@ -185,7 +205,16 @@ Use something else when:
   entry's first `message` spec's kind and that spec's state, an entry
   without `message` with the private chat's context and no state; the
   client derives the chat type and the viewer itself
-  ([message contexts](#message-contexts)).
+  ([message contexts](#message-contexts)). Its text is the entry's id, the
+  caption below the widget (`WidgetFixtureMessage::caption`), but for an
+  entry with `safeArea` (`auto/36-safe-area` and `visual/17-time-corner` at
+  `v0.5.0`), whose message has no text: the caption puts the message's time
+  in its own line below the widget, so the desktop itself gives the host
+  `CLIENTS.md`'s all-0 content safe area, while an uncaptioned message's
+  host gets the band and corner the desktop passes for a widget with no
+  caption below it, with the time drawn over that corner. The `safeArea`
+  extra records what each host got
+  ([Readings and refusals](#readings-and-refusals)).
 - **Played bot.** Every injected run's message is armed with its manifest
   entry's `bot` table (empty without one) through
   [test_widget_bot](test_widget_bot.md), so its widget's requests are
@@ -251,9 +280,10 @@ stages; the show helper's stages are `show in chat list: widget conformance
   - `<key>: inject the fillers above the widget`, only for a run with a
     `visible` action;
   - `<key>: focus the chat's input field`, `<key>: arm the tap and inject the
-    widget message` (with its entry's message context; it also arms the
-    played bot, in the same call, and refuses a group run in a broadcast
-    channel before anything is added),
+    widget message` (with its entry's message context and caption and an
+    empty-override host watch; it also arms the played bot, in the same
+    call, and refuses a group run in a broadcast channel before anything is
+    added),
     `show in chat list: widget conformance <key> load` (the
     card's top 48 CSS px, so the list counts it visible and its host starts;
     no hover), `<key>: wait for the result, a death or a failure`;
@@ -495,8 +525,10 @@ when `output` is empty), written with `QSaveFile` by the totals stage, or by
 `Runner::onFinish` when that stage did not run; its `writtenBy` says which.
 It has the schema's `platform` `desktop`, `renderer` `twidget-core` (the
 report's `desktop-twidget-core.json`), `engine` (the campaign's text naming
-the twidget pin, the app version, OS, CPU, Qt, "TwidgetCore painted by tgw's
-QtBackend (QPainter)", device pixel ratio and interface scale), `framework`,
+the twidget pin, the app version with its build, "Debug" under `_DEBUG` and
+otherwise "Release without LTO", which `TDESKTOP_RELEASE_TEST_HARNESS`
+requires, OS, CPU, Qt, "TwidgetCore painted by tgw's QtBackend (QPainter)",
+device pixel ratio and interface scale), `framework`,
 `policy`, `features`, `date` (UTC, at setup) and `runs`; and the extras
 `locale`, `environment`, `notes`, `omittedRuns`, `incompleteRuns`, `matrix`,
 `selection`, `selfCheck`, `palette`, `paletteRestore` and
@@ -539,7 +571,8 @@ still carry runner refusals; they fail the totals. Its fields:
   (show, outcome, waits), `log` (source, summary provenance, the summary
   reading's counts), `contentHeight`, `layers`, `message`
   ([message contexts](#message-contexts)), `bot`
-  ([played bot answers](#played-bot-answers)), with stages `snapshot`,
+  ([played bot answers](#played-bot-answers)), `safeArea` once the run's
+  host watch was read (below), with stages `snapshot`,
   and with a requested picture `picture` ([pictures](#pictures)). An
   incomplete run carries `message`, its `picture` when one was requested
   and, once injected, `bot` too.
@@ -548,6 +581,26 @@ An observation that was not made is left out, never filled in: `bridge` and
 `errors` appear only when the [summary](#bridge-calls-and-uncaught-errors)
 established them, `chatFocused` only when the field was focused, `height`
 only when the card was measured.
+
+**The content safe area.** `RecordLog()` reads the run's host watch once,
+in the log stage before the removal, and `safeArea` is
+`{caption, applied}`: `caption` the message's text, the entry's id, or null
+for an entry with `safeArea`; `applied` one
+`{top, right, bottom, left, cornerLeft, cornerRight}` in CSS px per armed
+construction of the run's host, in order: `WidgetHostApplied`'s
+`contentSafeArea`, what the `Job` built the host with
+([test_widget_host](test_widget_host.md)). The key is never the schema's
+`host`, which `report.mjs` would read as judged host checks. A safe area
+`Runtime::constructed()` reconciles before `start()`, or a later
+`setContentSafeArea()`, is not in `applied`. A message captioned from its
+creation is never the bubble's bottom, so `HtmlWidget::contentSafeArea()`
+gives it 0 from its first layout on (a static reading of
+`history_view_html_widget.cpp`). The manifest's `safeArea` numbers are its
+reference picture's, never expectations: a `safeArea` entry's band is
+whatever the desktop passes, so it is recorded and never refused, and a
+zero band there is the desktop's finding. Its cross-checks are the
+widget's own readings, `auto/36`'s `contentSafeAreaInset` check details and
+`visual/17`'s footer in its picture.
 
 **Unknown bridge calls in the report.** `report.mjs` counts a missing
 `observed.bridge` as no calls (`observed.bridge ?? []` in its `hostChecks()`)
@@ -573,8 +626,15 @@ Run refusals (`runnerRefusals`), each failing the totals:
 `compose-unavailable`, `compose-not-ordinary`, `focus-not-compose`,
 `load-show-refused`, `width-mismatch`, `width-unmeasured`, `scheme-mismatch`,
 `scheme-unmeasured`, `height-unmeasured`, `card-write-failed`,
-`too-few-moves`, `host-replaced`, `fillers-refused`, and the summary
-reader's. A result value that is not a
+`too-few-moves`, `host-replaced`, `fillers-refused`,
+`safe-area-not-zero` (a run of an entry without `safeArea`, so with a
+caption, whose host got a nonzero field in any construction: the runner did
+not make `CLIENTS.md`'s all-0 state), `safe-area-unmeasured` (a loaded run
+with no watch reading or no `applied` entry), `stop-reason-unmeasured` (a
+run of an entry with `stops` that died without a `Died: ` reason other
+than `terminated` in its host's fresh or final summary, so its `dead` is
+the runner's placeholder), and the summary reader's. None of the three
+drops a run from `runs`. A result value that is not a
 JSON object, not published for this run's id, or whose `checks` is not an
 array is not used; `result.error` names why.
 
@@ -978,7 +1038,18 @@ its id: the auto preview omitted in both themes naming both catalogue IDs,
 `elsewhere` false; the visual preview run as private with its state and
 `previewLeg`; group entries of both sets omitted with `elsewhere` true in
 the state and in `omittedRuns`; `matrix` and the notes counting only the
-permanent omissions against the matrix); `RunPictureCheck()` (requested
+permanent omissions against the matrix); a host reading control
+(`CheckHostReadings()`, the only place the three new refusals' positive
+cases and the stop wait run, as a live campaign shows only their
+negatives: `SafeAreaRefusal()` gives none for an entry without `safeArea`
+with all 0, `safe-area-not-zero` for `bottom` 26 and for `cornerRight` 118
+alone, `safe-area-unmeasured` for a loaded run with no `applied` and none
+for one not loaded, and none for a `safeArea` entry with 26/118 or with
+all 0; `StopRefusal()` gives none for a stop run that died with a `Died: `
+line, `stop-reason-unmeasured` for one that died without, and none for a
+stop run that did not die or a run without `stops` that died without one;
+`WantedStatus()` at `done` is false for a `stops` entry and true for a plain
+auto entry, in a literal `ConformanceState`); `RunPictureCheck()` (requested
 visual, auto, unknown, unselected and no picture ids through
 `SelectPictures()` and the notes; the bands of a 544 CSS px card and the
 completeness of 336, 280 and 650 CSS px pictures, with band 1 refused,
@@ -1033,11 +1104,24 @@ stand-in harness headers and static Qt 6.11.2:
   rows, and the first and the sixth the round trip too. `RunObject()`,
   `CountTallies()` and the totals' Checks were not in it.
 
-Not yet executed: the pack in the real binary - its self-check stage, gates,
-runs, actions, crops, run file and report. The task's packed evidence
-campaign runs them and records the results in that task's `work/test.md`;
-until it has, this pack has produced no measurement of the client. Windows
-has not built it; the code is portable C++ and Qt.
+Executed for the `v0.5.0` adaptation (the stop wait, the caption, the
+empty-override watch with its `safeArea` extra and refusals, the build name
+and the host reading control), by
+`2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`:
+the macOS arm64 Debug and Release (no LTO, with the harness) `Telegram`
+builds of the change, and a Release smoke of `auto/31-stop-text`,
+`auto/04-values-units`, `auto/36-safe-area` and `visual/17-time-corner`
+recorded in its `work/smoke.md`: `CheckHostReadings()` passed in the app;
+`auto/31-stop-text` died with `dead` "Text limit exceeded: a text value of
+40000 characters (max 32768)" from its final summary and no refusal; the
+two captioned runs got all 0 and the two `safeArea` entries `bottom` 26
+with `cornerRight` 118, which `auto/36-safe-area` read back.
+
+Not yet executed: that task's full `v0.5.0` campaign - the whole matrix
+with its actions, crops and pictures, its run files and the report - whose
+results go into that task's `work/test.md`; the smoke above is pre-review
+validation, not campaign evidence. Windows has not built the pack; the code
+is portable C++ and Qt.
 
 ## Related guidance
 

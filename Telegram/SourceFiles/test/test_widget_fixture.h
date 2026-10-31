@@ -133,14 +133,17 @@ struct WidgetMessageFields {
 // set before History::addNewLocalMessage() can notify observers; the
 // session-qualified |key| is kept for every disarm. |fields| are the
 // injected media fields, |shape| describes the injected message, |layers|
-// when a layer was hidden over it. A caller that sets |watchHost| before
-// InjectWidgetMessage() also gets |host|, the message's host watch, armed
-// with that override next to the tap (an empty override only watches) and
-// disarmed with it.
+// when a layer was hidden over it. |caption|, set before
+// InjectWidgetMessage(), is the widget message's text, shown as the caption
+// below its media; empty, the default, is no text. A caller that sets
+// |watchHost| before InjectWidgetMessage() also gets |host|, the message's
+// host watch, armed with that override next to the tap (an empty override
+// only watches) and disarmed with it.
 struct WidgetFixtureMessage {
 	QString name;
 	QByteArray html;
 	WidgetMessageFields fields;
+	QString caption;
 	std::optional<WidgetHostOverride> watchHost;
 	QString shape;
 	QStringList layers;
@@ -244,11 +247,11 @@ void AppendWidgetFixtureClose(
 // Starts |message|'s wait, arms the tap (and the host watch |watchHost|
 // asks for) for the id the injection uses and adds a local outgoing
 // client-id widget message of |html| with the width and height anchors (0
-// is auto), then processes the pending layout. The media carries |fields|
-// as given (an absent field stays unset, a present empty one or a zero id
-// is sent), the record keeps them and CheckWidgetMessage() reads them back.
-// Returns empty, or the refusal ("not injected: ..." when nothing was
-// added).
+// is auto) and the record's |caption| as its text, then processes the
+// pending layout. The media carries |fields| as given (an absent field
+// stays unset, a present empty one or a zero id is sent), the record keeps
+// them and CheckWidgetMessage() reads them back. Returns empty, or the
+// refusal ("not injected: ..." when nothing was added).
 [[nodiscard]] QString InjectWidgetMessage(
 	WidgetFixture &fixture,
 	WidgetFixtureMessage &message,

@@ -1475,7 +1475,7 @@ QString InjectWidgetMessage(
 	message.armed = true;
 	const auto item = history->addNewLocalMessage(
 		LocalFields(history, message.id.msg),
-		tr::marked(),
+		tr::marked(message.caption),
 		MTP_messageMediaWidget(
 			MTP_flags(MediaFlags(fields)),
 			MTP_int(width),
