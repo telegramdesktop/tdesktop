@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "menu/menu_checked_action.h"
 #include "settings/settings_common.h"
+#include "storage/storage_account.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/vertical_list.h"
@@ -134,6 +135,93 @@ struct State {
 	return (a.option == b.option)
 		&& SamePeers(a.always.peers, b.always.peers)
 		&& SamePeers(a.never.peers, b.never.peers);
+}
+
+constexpr auto kPrivacyPref = "stories.privacy";
+constexpr auto kPrivacyMaxPeers = 1000;
+
+[[nodiscard]] QByteArray SerializeStoryPrivacy(
+		const Api::UserPrivacy::Rule &rule) {
+	auto bytes = QByteArray();
+	auto stream = QDataStream(&bytes, QIODevice::WriteOnly);
+	stream.setVersion(QDataStream::Qt_5_1);
+	stream << qint32(static_cast<int>(rule.option));
+	const auto write = [&](const std::vector<not_null<PeerData*>> &list) {
+		stream << quint32(list.size());
+		for (const auto &peer : list) {
+			stream << quint64(peer->id.value);
+		}
+	};
+	write(rule.always.peers);
+	write(rule.never.peers);
+	return bytes;
+}
+
+[[nodiscard]] std::optional<Api::UserPrivacy::Rule> DeserializeStoryPrivacy(
+		not_null<Main::Session*> session,
+		const QByteArray &bytes) {
+	auto stream = QDataStream(bytes);
+	stream.setVersion(QDataStream::Qt_5_1);
+	auto value = qint32(0);
+	stream >> value;
+	if (stream.status() != QDataStream::Ok
+		|| value < 0
+		|| value > int(Option::Nobody)) {
+		return {};
+	}
+	const auto read = [&]()
+			-> std::optional<std::vector<not_null<PeerData*>>> {
+		auto count = quint32(0);
+		stream >> count;
+		if (stream.status() != QDataStream::Ok || count > kPrivacyMaxPeers) {
+			return {};
+		}
+		auto list = std::vector<not_null<PeerData*>>();
+		list.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			auto raw = quint64(0);
+			stream >> raw;
+			if (stream.status() != QDataStream::Ok) {
+				return {};
+			}
+			if (const auto id = PeerId(raw)) {
+				list.push_back(session->data().peer(id));
+			}
+		}
+		return list;
+	};
+	auto result = Api::UserPrivacy::Rule();
+	result.option = static_cast<Option>(value);
+	if (const auto always = read()) {
+		result.always.peers = *always;
+	} else {
+		return {};
+	}
+	if (const auto never = read()) {
+		result.never.peers = *never;
+	} else {
+		return {};
+	}
+	return result;
+}
+
+void SaveStoryPrivacy(
+		not_null<Main::Session*> session,
+		const Api::UserPrivacy::Rule &rule) {
+	session->local().writePref<QByteArray>(
+		kPrivacyPref,
+		SerializeStoryPrivacy(rule));
+}
+
+[[nodiscard]] Api::UserPrivacy::Rule RestoreStoryPrivacy(
+		not_null<Main::Session*> session) {
+	if (const auto data = session->local().readPref<QByteArray>(kPrivacyPref);
+			!data.isEmpty()) {
+		if (const auto rule = DeserializeStoryPrivacy(session, data)) {
+			return *rule;
+		}
+	}
+	return Api::UserPrivacy::Rule();
 }
 
 [[nodiscard]] QString ExcludedText(
@@ -264,10 +352,11 @@ void SetupPrivacy(
 			.session = session,
 			.title = std::move(title),
 			.selected = std::move(selected),
-			.done = [=](std::vector<not_null<PeerData*>> peers) {
-				done(std::move(peers));
-				state->listsChanges.fire({});
-			},
+		.done = [=](std::vector<not_null<PeerData*>> peers) {
+			done(std::move(peers));
+			SaveStoryPrivacy(session, CollectPrivacy(state));
+			state->listsChanges.fire({});
+		},
 		}));
 	};
 	const auto addRow = [&](
@@ -528,6 +617,26 @@ void SetupOptions(
 	Ui::AddDividerText(content, std::move(keepAbout));
 }
 
+void ApplyPrivacy(
+		not_null<State*> state,
+		const Api::UserPrivacy::Rule &rule) {
+	state->initialPrivacy = rule;
+	state->option = rule.option;
+	switch (rule.option) {
+	case Option::Everyone:
+		state->lists.excludedEveryone = rule.never.peers;
+		break;
+	case Option::Contacts:
+		state->lists.excludedContacts = rule.never.peers;
+		break;
+	case Option::Nobody:
+		state->lists.selected = rule.always.peers;
+		break;
+	case Option::CloseFriends:
+		break;
+	}
+}
+
 void Submit(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -597,21 +706,9 @@ void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args) {
 	state->editing = editing;
 	state->posted = std::move(args.posted);
 	if (editing) {
-		state->initialPrivacy = PrivacyFromStory(editing);
-		state->option = state->initialPrivacy.option;
-		switch (state->initialPrivacy.option) {
-		case Option::Everyone:
-			state->lists.excludedEveryone = state->initialPrivacy.never.peers;
-			break;
-		case Option::Contacts:
-			state->lists.excludedContacts = state->initialPrivacy.never.peers;
-			break;
-		case Option::Nobody:
-			state->lists.selected = state->initialPrivacy.always.peers;
-			break;
-		case Option::CloseFriends:
-			break;
-		}
+		ApplyPrivacy(state, PrivacyFromStory(editing));
+	} else {
+		ApplyPrivacy(state, RestoreStoryPrivacy(&controller->session()));
 	}
 
 	box->setTitle(editing
