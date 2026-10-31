@@ -124,7 +124,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: 632aa9f8752fadd402216f8dac905a6ad91b9231
+    source-commit: b1c24a16a6b98b52fb79f2608570c347cf1ceca1
     plugin: nil
     override-pull: |
       craftctl default
@@ -396,7 +396,7 @@ parts:
   qt:
     source: https://github.com/qt/qt5.git
     source-depth: 1
-    source-tag: v6.11.2
+    source-tag: v6.12.0
     source-submodules:
       - qtbase
       - qtdeclarative
