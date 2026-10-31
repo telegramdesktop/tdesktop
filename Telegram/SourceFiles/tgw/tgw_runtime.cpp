@@ -1046,6 +1046,12 @@ void Runtime::WalletAvailabilityChanged(not_null<Main::Session*> session) {
 	for (const auto &item : items) {
 		item->history()->owner().requestItemViewRefresh(item);
 	}
+	if (!items.empty()) {
+		// WHY: availability changes arrive from MTP answers, not from
+		// applyUpdates, so nothing else flushes the pending refresh and the
+		// chat would neither lay out nor start the new widget host.
+		session->data().sendHistoryChangeNotifications();
+	}
 }
 
 void Runtime::PostCheck() {
