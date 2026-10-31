@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_stories_list.h"
 
 #include "base/event_filter.h"
+#include "base/flat_set.h"
 #include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/effects/outline_segments.h"
+#include "ui/arc_angles.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
@@ -39,9 +41,16 @@ constexpr auto kUploadRotationDuration = crl::time(3000);
 constexpr auto kUploadProgressDuration = crl::time(300);
 constexpr auto kUploadArcMin = 4.;
 constexpr auto kUploadArcFull = 360.;
+constexpr auto kFinishMorphDuration = crl::time(500);
+constexpr auto kFailFadeDuration = crl::time(350);
+constexpr auto kBadgeFadeDuration = crl::time(200);
 
 [[nodiscard]] float64 Decelerate(float64 t) {
 	return 1. - (1. - t) * (1. - t);
+}
+[[nodiscard]] float64 EaseOutQuint(float64 t) {
+	const auto u = 1. - t;
+	return 1. - u * u * u * u * u;
 }
 constexpr auto kPreloadPages = 2;
 constexpr auto kExpandAfterRatio = 0.72;
@@ -109,6 +118,7 @@ void List::showContent(Content &&content) {
 		_content = {};
 		_data = {};
 		_empty = true;
+		updateUploadAnimation();
 		validateTitle();
 		return;
 	}
@@ -455,6 +465,7 @@ void List::paint(
 		float64 photo,
 		float64 line,
 		bool layered) {
+	const auto now = crl::now();
 	const auto &st = _st.small;
 	const auto &full = _st.full;
 	const auto expandRatio = layout.expandRatio;
@@ -492,6 +503,7 @@ void List::paint(
 		int indexFull = 0;
 		Item *itemFull = nullptr;
 		float64 photoTop = 0.;
+		uint64 id = 0;
 
 		explicit operator bool() const {
 			return itemSmall || itemFull;
@@ -514,7 +526,10 @@ void List::paint(
 			? &_data.items[indexFull]
 			: nullptr;
 		const auto x = layout.left + layout.single * index;
-		return Single{ x, indexSmall, small, indexFull, full, y };
+		const auto id = full
+			? full->element.id
+			: (small ? small->element.id : 0);
+		return Single{ x, indexSmall, small, indexFull, full, y, id };
 	};
 	const auto hasUnread = [&](const Single &single) {
 		const auto itemSmall = single.itemSmall;
@@ -600,34 +615,100 @@ void List::paint(
 			: itemFull
 			? itemFull->element.unreadCount
 			: 0;
+		const auto id = single.id;
 		const auto uploading = (small && small->element.uploading)
 			|| (itemFull && itemFull->element.uploading);
-		if (uploading) {
-			const auto element = (itemFull && itemFull->element.uploading)
-				? &itemFull->element
-				: &small->element;
+		const auto i = _uploadProgress.find(id);
+		const auto finishing = (i != end(_uploadProgress))
+			&& i->second.finishing;
+		const auto element = itemFull
+			? &itemFull->element
+			: (small ? &small->element : nullptr);
+		if (element && (uploading || finishing)) {
 			const auto outerAdd = 1.5 * line;
 			const auto outer = userpic.marginsAdded(
 				{ outerAdd, outerAdd, outerAdd, outerAdd });
-			gradient.setStart(userpic.topRight());
-			gradient.setFinalStop(userpic.bottomLeft());
-			p.setPen(element->uploadFailed
-				? QPen(st::attentionButtonFg->c, line)
-				: QPen(gradient, line));
 			p.setBrush(Qt::NoBrush);
-			if (element->uploadFailed) {
+			if (uploading && element->uploadFailed) {
+				p.setOpacity(failFadeProgress(id, now));
+				p.setPen(QPen(st::attentionButtonFg->c, line));
 				p.drawEllipse(outer);
 			} else {
-				const auto now = crl::now();
 				const auto passed = (now - _uploadStarted)
 					% kUploadRotationDuration;
 				const auto spin = passed / float64(kUploadRotationDuration);
-				const auto sweep = std::max(
-					kUploadArcFull * uploadShownProgress(element->id, now),
+				gradient.setStart(userpic.topRight());
+				gradient.setFinalStop(userpic.bottomLeft());
+				auto sweep = std::max(
+					kUploadArcFull * uploadShownProgress(id, now),
 					kUploadArcMin);
+				auto arcStart = 90. - spin * kUploadArcFull;
+				auto opacity = 1.;
+				if (finishing) {
+					const auto count = element->count;
+					const auto unitSeparator
+						= (arc::kFullLength > (1.1 * 160 * count))
+							? 160.
+							: (arc::kFullLength / (count * 1.1));
+					const auto unitLength = (count > 1)
+						? ((arc::kFullLength - unitSeparator * count)
+							/ count)
+						: (count == 1)
+						? float64(arc::kFullLength)
+						: 0.;
+					const auto targetSweep = unitLength / 16.;
+					arcStart = i->second.startFrom;
+					const auto tip = arcStart - sweep;
+					const auto targetTip = (count > 1)
+						? ((arc::kQuarterLength
+							+ (unitSeparator / 2.)) / 16.)
+						: tip;
+					auto travel = 0.;
+					if (count > 1) {
+						travel = std::fmod(
+							tip - targetTip,
+							kUploadArcFull);
+						if (travel <= 0.) {
+							travel += kUploadArcFull;
+						}
+					}
+					const auto total
+						= travel + std::abs(sweep - targetSweep);
+					const auto headShare = (total > 0.)
+						? std::clamp(travel / total, 0.05, 0.95)
+						: 1.;
+					const auto t = std::clamp(
+						(now - i->second.started)
+							/ float64(kFinishMorphDuration),
+						0.,
+						1.);
+					auto tipNow = tip;
+					auto sweepNow = sweep;
+					if (headShare < 1. && t >= headShare) {
+						tipNow -= travel;
+						sweepNow += (targetSweep - sweepNow)
+							* anim::sineInOut(
+								1.,
+								(t - headShare) / (1. - headShare));
+					} else {
+						tipNow -= travel
+							* anim::sineInOut(1., t / headShare);
+					}
+					sweep = sweepNow;
+					arcStart = tipNow + sweepNow;
+					if (!count) {
+						opacity = 1. - anim::sineInOut(1., t);
+					}
+				}
+				p.setOpacity(opacity);
+				p.setPen(QPen(
+					QBrush(gradient),
+					line,
+					Qt::SolidLine,
+					Qt::RoundCap));
 				p.drawArc(
 					outer,
-					int(base::SafeRound((90. - spin * kUploadArcFull) * 16.)),
+					int(base::SafeRound(arcStart * 16.)),
 					-int(base::SafeRound(sweep * 16.)));
 			}
 			p.setOpacity(1.);
@@ -708,15 +789,38 @@ void List::paint(
 				&& !small->element.hasVideoStream) {
 				p.setOpacity(expandRatio);
 			}
+			p.setOpacity(p.opacity() * finishMorphProgress(single.id, now));
 			validateSegments(
 				itemFull,
 				st::dialogsUnreadBgMuted->b,
 				lineRead,
 				false);
+			if (itemFull->element.mine && itemFull->element.count > 0) {
+				itemFull->segments.back().width = 0.;
+			}
 			Ui::PaintOutlineSegments(
 				p,
 				rect,
 				itemFull->segments,
+				layout.segmentsSpinProgress);
+		}
+		if (itemFull
+			&& itemFull->element.mine
+			&& itemFull->element.count > 0) {
+			const auto morph = finishMorphProgress(single.id, now);
+			gradient.setStart(userpic.topRight());
+			gradient.setFinalStop(userpic.bottomLeft());
+			auto unread = std::vector<Ui::OutlineSegment>(
+				itemFull->element.count);
+			unread.back().brush = QBrush(gradient);
+			unread.back().width = line;
+			const auto outerAdd = 1.5 * line;
+			p.setOpacity(expandRatio * morph);
+			Ui::PaintOutlineSegments(
+				p,
+				userpic.marginsAdded(
+					{ outerAdd, outerAdd, outerAdd, outerAdd }),
+				unread,
 				layout.segmentsSpinProgress);
 		}
 
@@ -762,8 +866,11 @@ void List::paint(
 			} else if (full->element.mine
 				&& !full->element.uploading
 				&& expandRatio > 0.) {
-				p.setOpacity(expandRatio);
-				paintAddBadge(p, full->element.id, userpic);
+				const auto fade = badgeFadeProgress(full->element.id, now);
+				if (fade > 0.) {
+					p.setOpacity(expandRatio * fade);
+					paintAddBadge(p, full->element.id, userpic);
+				}
 			}
 		}
 		p.setOpacity(1.);
@@ -796,38 +903,89 @@ void List::paint(
 
 void List::updateUploadAnimation() {
 	const auto now = crl::now();
-	auto uploading = false;
+	auto seen = base::flat_set<uint64>();
+	seen.reserve(_data.items.size());
 	for (const auto &item : _data.items) {
 		const auto &element = item.element;
-		if (!element.uploading || element.uploadFailed) {
-			continue;
-		}
-		uploading = true;
-		const auto to = element.uploadProgress / 100.;
-		auto &entry = _uploadProgress[element.id];
-		if (!entry.started) {
-			entry = { .from = to, .to = to, .started = now };
-		} else if (entry.to != to) {
-			entry.from = uploadShownProgress(element.id, now);
-			entry.to = to;
-			entry.started = now;
+		const auto id = element.id;
+		seen.emplace(id);
+		if (element.uploading && !element.uploadFailed) {
+			_failFade.remove(id);
+			const auto to = element.uploadProgress / 100.;
+			auto &entry = _uploadProgress[id];
+			if (!entry.started) {
+				entry = { .from = to, .to = to, .started = now };
+			} else if (entry.finishing || entry.to != to) {
+				entry.from = std::min(uploadShownProgress(id, now), to);
+				entry.to = to;
+				entry.started = now;
+				entry.finishing = false;
+			}
+		} else if (element.uploadFailed) {
+			_failFade.emplace(id, now);
+			_uploadProgress.remove(id);
+		} else {
+			const auto i = _uploadProgress.find(id);
+			if (i != end(_uploadProgress)) {
+				auto &entry = i->second;
+				if (!entry.finishing) {
+					const auto shown = std::min(
+						uploadShownProgress(id, now),
+						1.);
+					const auto passed = (now - _uploadStarted)
+						% kUploadRotationDuration;
+					const auto spin
+						= passed / float64(kUploadRotationDuration);
+					entry = {
+						.from = shown,
+						.to = shown,
+						.started = now,
+						.finishing = true,
+						.startFrom = 90. - kUploadArcFull * spin,
+					};
+				}
+			}
 		}
 	}
 	for (auto i = begin(_uploadProgress); i != end(_uploadProgress);) {
-		const auto id = i->first;
-		const auto still = ranges::any_of(_data.items, [&](const Item &item) {
-			return (item.element.id == id)
-				&& item.element.uploading
-				&& !item.element.uploadFailed;
-		});
-		i = still ? (i + 1) : _uploadProgress.erase(i);
+		i = seen.contains(i->first) ? (i + 1) : _uploadProgress.erase(i);
 	}
-	if (uploading && !_uploadAnimation.animating()) {
+	for (auto i = begin(_failFade); i != end(_failFade);) {
+		i = seen.contains(i->first) ? (i + 1) : _failFade.erase(i);
+	}
+	stepUploadAnimation(now);
+}
+
+void List::stepUploadAnimation(crl::time now) {
+	for (auto i = begin(_uploadProgress); i != end(_uploadProgress);) {
+		const auto done = i->second.finishing
+			&& ((now - i->second.started) >= kFinishMorphDuration);
+		if (done) {
+			_badgeFade.emplace(i->first, now);
+			i = _uploadProgress.erase(i);
+		} else {
+			++i;
+		}
+	}
+	for (auto i = begin(_badgeFade); i != end(_badgeFade);) {
+		i = ((now - i->second) < kBadgeFadeDuration)
+			? (i + 1)
+			: _badgeFade.erase(i);
+	}
+	const auto failFading = ranges::any_of(_failFade, [&](const auto &entry) {
+		return (now - entry.second) < kFailFadeDuration;
+	});
+	if (_uploadProgress.empty() && _badgeFade.empty() && !failFading) {
+		if (_uploadAnimation.animating()) {
+			_uploadAnimation.stop();
+		}
+	} else if (!_uploadAnimation.animating()) {
 		_uploadStarted = now;
-		_uploadAnimation.init([=] { update(); });
+		_uploadAnimation.init([=] {
+			stepUploadAnimation(crl::now());
+			update();
+		});
 		_uploadAnimation.start();
-	} else if (!uploading && _uploadAnimation.animating()) {
-		_uploadAnimation.stop();
 	}
 }
 
@@ -843,6 +1001,45 @@ float64 List::uploadShownProgress(uint64 id, crl::time now) const {
 		0.,
 		1.);
 	return entry.from + (entry.to - entry.from) * Decelerate(t);
+}
+
+float64 List::finishMorphProgress(uint64 id, crl::time now) const {
+	const auto i = _uploadProgress.find(id);
+	if (i == end(_uploadProgress) || !i->second.finishing) {
+		return 1.;
+	}
+	const auto t = std::clamp(
+		(now - i->second.started) / float64(kFinishMorphDuration),
+		0.,
+		1.);
+	return anim::sineInOut(1., t);
+}
+
+float64 List::failFadeProgress(uint64 id, crl::time now) const {
+	const auto i = _failFade.find(id);
+	if (i == end(_failFade)) {
+		return 1.;
+	}
+	const auto t = std::clamp(
+		(now - i->second) / float64(kFailFadeDuration),
+		0.,
+		1.);
+	return EaseOutQuint(t);
+}
+
+float64 List::badgeFadeProgress(uint64 id, crl::time now) const {
+	if (_uploadProgress.contains(id)) {
+		return 0.;
+	}
+	const auto i = _badgeFade.find(id);
+	if (i == end(_badgeFade)) {
+		return 1.;
+	}
+	const auto t = std::clamp(
+		(now - i->second) / float64(kBadgeFadeDuration),
+		0.,
+		1.);
+	return anim::sineInOut(1., t);
 }
 
 void List::paintAddBadge(

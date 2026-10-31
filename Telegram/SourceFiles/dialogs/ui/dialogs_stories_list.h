@@ -138,7 +138,11 @@ private:
 	void showContent(Content &&content);
 	void paintAddBadge(QPainter &p, uint64 id, const QRectF &userpic) const;
 	void updateUploadAnimation();
+	void stepUploadAnimation(crl::time now);
 	[[nodiscard]] float64 uploadShownProgress(uint64 id, crl::time now) const;
+	[[nodiscard]] float64 finishMorphProgress(uint64 id, crl::time now) const;
+	[[nodiscard]] float64 failFadeProgress(uint64 id, crl::time now) const;
+	[[nodiscard]] float64 badgeFadeProgress(uint64 id, crl::time now) const;
 	void validateTitle();
 	//void enterEventHook(QEnterEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -224,8 +228,12 @@ private:
 		float64 from = 0.;
 		float64 to = 0.;
 		crl::time started = 0;
+		bool finishing = false;
+		float64 startFrom = 0.;
 	};
 	base::flat_map<uint64, UploadProgress> _uploadProgress;
+	base::flat_map<uint64, crl::time> _failFade;
+	base::flat_map<uint64, crl::time> _badgeFade;
 	Ui::Animations::Basic _uploadAnimation;
 	crl::time _uploadStarted = 0;
 	float64 _lastRatio = 0.;
