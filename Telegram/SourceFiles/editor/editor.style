@@ -430,6 +430,8 @@ storyCaptionEmoji: EmojiButton(storiesAttachEmoji) {
 storyCaptionRound: IconButton(storiesAttach) {
 	icon: icon {{ "chat/input_video", storiesComposeGrayIcon }};
 	iconOver: icon {{ "chat/input_video", storiesComposeWhiteText }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 42px;
 }
 storyRecordDotLeft: 21px;
 storyRecordDotRadius: 5px;
