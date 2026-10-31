@@ -596,11 +596,15 @@ PhotoEditor::PhotoEditor(
 				.action = PhotoEditorMode::Action::Discard,
 			};
 		} else if (mode == PhotoEditorMode::Mode::Transform) {
-			_mode = PhotoEditorMode{
-				.mode = PhotoEditorMode::Mode::Out,
-				.action = PhotoEditorMode::Action::Discard,
-			};
-			_cancel.fire({});
+			if (_captionBar) {
+				_cancel.fire({});
+			} else {
+				_mode = PhotoEditorMode{
+					.mode = PhotoEditorMode::Mode::Out,
+					.action = PhotoEditorMode::Action::Discard,
+				};
+				_cancel.fire({});
+			}
 		}
 	}, lifetime());
 
