@@ -216,9 +216,9 @@ Every `...At` stamp is 0 until its event. A reading with more than one
 The renderer's own work on one widget, as the stress kit's
 `packages/stress/CLIENTS.md` ("The renderer's own work") asks an own
 renderer to time it, recorded as raw events; turning them into per-frame
-samples is the consumer's (the stress runner groups each rebuilt frame with
-the work since the previous one and documents that grouping next to its
-figures).
+samples is the consumer's (the stress runner groups each `frame()` attempt
+with the work since the previous one, counts the attempts that replayed
+apart and documents that grouping next to its figures).
 
 ### The overlay
 
@@ -237,8 +237,10 @@ configurations and nowhere else:
 - `RendererCore::tick()`: at entry, the same with `WidgetWorkKind::Tick`;
 - `RendererCore::frame()`: right after the cached-frame `return _frame;`,
   `auto workScope = Test::WidgetWorkScope(this, Test::WidgetWorkKind::Frame);`,
-  and right after `const auto list = _renderer->paint();`,
-  `workScope.displayList(list.size());`.
+  right after `const auto list = _renderer->paint();`,
+  `workScope.displayList(list.size());`, and right after
+  `_frame = PaintFrame(list, *_backend, size, _renderer->dpr());`,
+  `workScope.replayed(!_frame.isNull());`.
 
 Without the overlay a registered core records nothing, so an empty log for
 a widget whose content changes is a missing overlay: an invalid
@@ -263,13 +265,14 @@ destruction:
   animations and a build a due frame deferred), forwarding its output and
   the `frame` message that answers the widget's `requestAnimationFrame`,
   and posting the change notice.
-- **`Frame`**: a rebuilt picture, while the chat list paints. `paint()`
-  (the settle: style, layout and the display list, or its reuse),
-  `PaintFrame()` (the QPainter replay into an ARGB32 image on the CPU),
-  `RoundFrame()` and, after a settle, `flushQueued()`. A size the list has
-  not laid out yet runs `paint()` and keeps the earlier picture without a
-  replay; that call is a `Frame` event too. `displayList` is the size of the
-  list `paint()` returned.
+- **`Frame`**: one attempt at a picture past the cache, while the chat list
+  paints. `paint()` (the settle: style, layout and the display list, or its
+  reuse), `PaintFrame()` (the QPainter replay into an ARGB32 image on the
+  CPU), `RoundFrame()` and, after a settle, `flushQueued()`. A size the list
+  has not laid out yet runs `paint()` and keeps the earlier picture without
+  a replay; that call is a `Frame` event too, with `replayed` false, while
+  an attempt whose `PaintFrame()` returned an image has `replayed` true.
+  `displayList` is the size of the list `paint()` returned.
 
 Not included: the chat list's own painting around the card and its
 `drawImage()` of the returned picture, the window's backing-store flush
@@ -325,6 +328,7 @@ addresses, none while nothing is registered.
 | `kind` | `Message`, `Tick` or `Frame`, by the scope's place. |
 | `started`, `finished` | `crl::profile()` microseconds at the scope's construction and destruction. |
 | `displayList` | The display list size a `Frame` scope was given; -1 otherwise. |
+| `replayed` | A `Frame` scope whose `PaintFrame()` ran and returned an image; false for an attempt that returned before the replay and for every other kind. |
 | `host` | The index in `WidgetHostReading::hosts` of the attachment that registered the core. |
 
 | `WidgetWorkReading` field | Meaning |
@@ -408,33 +412,13 @@ path. Nothing is written to the account, the disk or the clipboard.
 
 ## Verification
 
-Executed for this module's introduction, on Windows Win32 with MSVC 14.44:
-Debug single-file compiles of `tgw_runtime.cpp` and `test_widget_fixture.cpp`
-through MSBuild; `test_widget_host.cpp`, not yet in the generated project,
-compiled standalone with a sibling harness file's Debug command line and,
-with the Release command line, both without the harness (its object defines
-only the two seams) and with `TDESKTOP_RELEASE_TEST_HARNESS`; a Release
-single-file compile of `tgw_runtime.cpp` without the harness. No self-check
-exists and nothing has run in the app.
-
-Executed for the renderer work, on the same toolchain:
-`test_widget_host.cpp`, still not in the generated project, compiled
-standalone with a sibling harness file's Debug command line (no
-precompiled header, outputs outside the build tree) and with its Release
-command line both with and without `TDESKTOP_RELEASE_TEST_HARNESS`, the
-scope's symbols present only in the harness object; the overlay hunk above
-applied to `tgw_renderer.cpp` and compiled with an MSBuild Debug single-file
-compile, then the file restored and compiled again. No scope has run in
-the app, and no self-check drives the scopes.
-
-Proposed, by the stress runner's task: a Release smoke whose readings show
-one options call and one host per level, the production pass's applied
-options equal to the framework defaults (no Debug scale), the measure pass's
-override applied with the product's visibility, locale, device pixel ratio
-and safe area kept, `loaded` with `loadedMs`, a cap-crossing production
-level's verbatim `dead` with `diedAtMs`, and, with the renderer overlay,
-nonempty work logs with no drops for a changing widget; its own self-check
-covers its grouping of synthetic events.
+Executed in the app: the stress runner's Release dry runs and both measured
+passes (one options call and one host per level, unscaled production
+defaults, the measure override with the product's visibility, locale, DPR
+and safe area kept, `loaded` with `loadedMs`, verbatim `dead` with
+`diedAtMs`, and with the overlay nonempty work logs without drops); the
+`replayed` flag and its overlay line are compiled (Debug, Win32, MSVC), not
+yet run in the app, and the stress self-check counts it on synthetic events.
 
 Executed by the conformance task
 `2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`,

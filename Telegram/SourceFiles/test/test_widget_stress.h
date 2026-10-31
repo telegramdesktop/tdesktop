@@ -87,7 +87,10 @@ struct WidgetStressArgs {
 // selected level in manifest order: a check that no other widget is
 // alive, its watched injection, a wait of at most 60 s for loaded or dead,
 // the card shown whole and the list's scroll held 3350 ms, the warm-up,
-// the measuring window, its entry, its removal with the host barrier, and
+// the measuring window (a harness worker thread reads the console lock and
+// the windows over the card every 500 ms inside it), after the window of
+// the launch's first level that loaded and showed its card one screen crop
+// of that card, its entry, its removal with the host barrier, and
 // 1 s before the next level or 20 s after a load's last one. Then the kept
 // theme and the palette are restored, the filter and the hint released,
 // the fixture closed and the launch published as |args| says. A failed
@@ -105,9 +108,13 @@ void AppendWidgetStress(not_null<Runner*> runner, WidgetStressArgs args);
 // manifest selection in manifest order and unknown loads refused by name;
 // exact-window update intervals 8, 8, 8 and 33 ms giving count 4, p50 8,
 // p95 33, max 33 and a null dropped; renderer work groups M2 T1 F3 and
-// T1 F2 after a partial first group giving samples 6 and 3, trailing work
-// kept apart, and an overflowed, late-reserved, empty or foreign work log
-// refused with null fields; host rates over the snapshots' seconds;
+// T1 F2 after a partial first group giving samples 6 and 3 whether their
+// frame() attempts replayed or not, the attempts counted 2 replayed and 1
+// unreplayed, trailing work kept apart, and an overflowed, late-reserved,
+// empty or foreign work log refused with null fields; the in-window
+// console-lock and covering-window samples' first failure latched with
+// its offset as the level's runner error, their count and cost recorded,
+// and a window no sample saw refused; host rates over the snapshots' seconds;
 // data-stress values clipped at the window's start and end with the
 // largest maxGap between, and foreign, unparsable or backward values
 // refused with nulls; a counter reset named and null; a never-loaded death

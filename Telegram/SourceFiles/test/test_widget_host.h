@@ -169,13 +169,15 @@ void DisarmWidgetHostWatch(GlobalMsgId id);
 [[nodiscard]] WidgetHostReading ReadWidgetHost(const WidgetHostWatch &watch);
 
 // What one WidgetWorkScope timed, by where the overlay puts it.
-enum class WidgetWorkKind {
+enum class WidgetWorkKind : uint8 {
 	// RendererCore::hostMessage() past its stopped, requestFrame and frozen
 	// returns: one host message applied and its consequences.
 	Message,
 	// RendererCore::tick(), whole.
 	Tick,
-	// RendererCore::frame() past its cached-frame return: a rebuilt picture.
+	// RendererCore::frame() past its cached-frame return: one attempt at a
+	// picture, which a size the list has not laid out yet ends before the
+	// QPainter replay (WidgetWorkEvent::replayed tells).
 	Frame,
 };
 
@@ -191,6 +193,10 @@ struct WidgetWorkEvent {
 	// registered the core.
 	int host = 0;
 	WidgetWorkKind kind = WidgetWorkKind::Message;
+	// A Frame scope whose frame() replayed the display list into an image:
+	// PaintFrame() ran and returned one. False for a Frame that returned
+	// before the replay and for every other kind.
+	bool replayed = false;
 };
 
 // A watch's work log, as ReadWidgetWork() copies it.
@@ -225,6 +231,7 @@ void ReserveWidgetWork(WidgetHostWatch &watch, int capacity);
 // The disposable overlay's timing of one RendererCore call, a local at the
 // start of the timed part, guarded by the harness condition:
 //     const auto workScope = Test::WidgetWorkScope(this, kind);
+// (non-const in frame(), which also gives displayList() and replayed()).
 // It records one event from its construction to its destruction into the
 // log of the watch whose WatchWidgetHost() attachment registered |core|,
 // unless another scope of that watch is open around it, whose event
@@ -240,6 +247,9 @@ public:
 
 	// A Frame scope's display list, given right after paint() returned it.
 	void displayList(size_t size);
+	// A Frame scope's replay, given right after PaintFrame() returned:
+	// whether its image is not null. Not given: the frame was not replayed.
+	void replayed(bool image);
 
 private:
 	std::shared_ptr<WidgetWorkLog> _log;
@@ -247,6 +257,7 @@ private:
 	int64 _displayList = -1;
 	int _host = 0;
 	WidgetWorkKind _kind = WidgetWorkKind::Message;
+	bool _replayed = false;
 
 };
 

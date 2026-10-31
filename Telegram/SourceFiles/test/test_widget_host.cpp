@@ -373,6 +373,7 @@ WidgetWorkScope::~WidgetWorkScope() {
 			.displayList = _displayList,
 			.host = _host,
 			.kind = _kind,
+			.replayed = _replayed,
 		});
 	} else {
 		++log.dropped;
@@ -382,6 +383,12 @@ WidgetWorkScope::~WidgetWorkScope() {
 void WidgetWorkScope::displayList(size_t size) {
 	if (_log) {
 		_displayList = int64(size);
+	}
+}
+
+void WidgetWorkScope::replayed(bool image) {
+	if (_log) {
+		_replayed = image;
 	}
 }
 

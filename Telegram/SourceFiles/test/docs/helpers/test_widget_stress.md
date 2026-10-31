@@ -11,8 +11,8 @@ Internal to it:
 | --- | --- |
 | `test_widget_stress.h` | The contract: `WidgetStressPass`, `WidgetStressArgs`, `AppendWidgetStress`, `RunWidgetStressSelfCheck`. |
 | `test_widget_stress_internal.h` | The model the two translation units share: the manifest, the selection, a level's readings, an entry, the launch, and the functions the live stages call. |
-| `test_widget_stress.cpp` | The kit (arguments, `manifest.json`, the selected HTML), each level's entry arithmetic (frames, renderer, host, widget), the envelope and its notes, the merge, the publication and the self-check. |
-| `test_widget_stress_live.cpp` | `AppendWidgetStress`: the stages, the theme, the window's placement, one-column layout and stay-on-top hint, the update filter, the idle check, the layout capture, the window observations and covering-window check, the one-alive check, the levels, the publication and the `Runner::onFinish` release. |
+| `test_widget_stress.cpp` | The kit (arguments, `manifest.json`, the selected HTML), each level's entry arithmetic (frames, renderer, host, widget, the in-window samples' latch), the envelope and its notes, the merge, the publication and the self-check. |
+| `test_widget_stress_live.cpp` | `AppendWidgetStress`: the stages, the theme, the window's placement, one-column layout and stay-on-top hint, the update filter, the idle check, the layout capture, the window observations, the covering-window check and its worker thread, the card capture, the one-alive check, the levels, the publication and the `Runner::onFinish` release. |
 
 ## Use when
 
@@ -132,7 +132,8 @@ Use something else when:
 - **Not measured.** `frames.dropped`, `frames.longTaskMs`,
   `frames.mainThreadMsPerSec`, `thermal`, `host.processMemoryMb` and
   `device.lowPowerMode` are always `null`. The covering-window check is
-  Windows only; elsewhere its reading says not applicable.
+  Windows only; elsewhere its reading says not applicable and the window's
+  worker samples the console lock alone.
 
 ## Minimal use
 
@@ -226,11 +227,12 @@ Every stage name, Check and Note starts `widget stress: `, after
   - for a loaded widget that has not died: `show in chat list: widget stress
     <id> card` (the whole card, `WidgetCardReady()`; a card in view and
     painted whose runtime cut no frame for it within the bound is measured
-    anyway, `desktop.cardFrameLate` true and a Note, because a renderer too
-    slow to show a level is that level's reading), `[<id>] settle the list
-    and its floating date` (focus cleared and cursor off again, then the
-    list's scroll unchanged for 3350 ms, at most 8 s), `[<id>] warm up`,
-    `[<id>] measure`;
+    anyway, `desktop.setup.cardFrameLate` true and a Note, because a
+    renderer too slow to show a level is that level's reading), `[<id>]
+    settle the list and its floating date` (focus cleared and cursor off
+    again, then the list's scroll unchanged for 3350 ms, at most 8 s),
+    `[<id>] warm up`, `[<id>] measure` (its end, for the launch's first
+    level that loaded and showed its card, also takes the card capture);
   - `[<id>] write the entry`, `[<id>] remove the widget and wait for its
     host` (both run for a level that failed, so it is still written and
     destroyed);
@@ -257,19 +259,49 @@ The warm-up and the window are `manifest.run`'s, counted from the stages'
 runs; the window's actual length is the two snapshots' distance
 (`desktop.windowMs`). Its start reads, in order: the console lock, the
 covering windows and the window against the setup's reading, the applied
-options and the card's CSS width; then it starts the update stamps, reads
-the tap and the host and stamps the start. Its end reads the tap and the
-host, stamps the end, stops the stamps and runs the same window checks.
-Between them the runner only observes: every 500 ms on its ticks it reads
-the window's screen, frame, device pixel ratio, visibility and exposure and
-the card's global bounds and visibility, with no grab, layout, file write or
-other probe. The `data-stress` values are the tap's, each stamped when the
-host handed its batch to the tap, read at the entry's writing, after the
-end; no timer rereads them.
+options and the card's CSS width; then it starts the window's worker
+thread, starts the update stamps, reads the tap and the host and stamps
+the start. Its end stops and joins the worker, reads the tap and the host,
+stamps the end, stops the stamps and runs the same window checks.
+Between them the main thread only observes: every 500 ms on its ticks it
+reads the window's screen, frame, device pixel ratio, visibility and
+exposure and the card's global bounds and visibility, with no grab, layout,
+file write or other probe. The `data-stress` values are the tap's, each
+stamped when the host handed its batch to the tap, read at the entry's
+writing, after the end; no timer rereads them.
 
-A lock, a covering window, a failed covering walk or any sampled change is
-a runner error of the level, and a level with a runner error stops the
-ladder. Samples do not prove the instants between them.
+The worker repeats the ends' console-lock reading and covering-window walk
+every 500 ms from its start, off the GUI thread: on the measured window's
+native handle and the card's native rectangle that the start's walk read,
+with `WTSQuerySessionInformationW` and the z-order calls of the walk
+(`GetTopWindow`, `GetWindow`, `IsWindowVisible`, `IsIconic`,
+`DwmGetWindowAttribute`, `GetWindowLongPtrW`, `GetLayeredWindowAttributes`,
+`GetWindowThreadProcessId`, `GetClassNameW`), never a Qt object and no
+window message, so a busy main thread cannot stall it. It latches its first
+failure; the main thread reads its record only after the join.
+`desktop.window.coverAndLock` holds `samples`, `sampleEveryMs`, `zOrder`
+(whether the samples walked the z-order or, without the start's native
+rectangle, read only the lock), `costMs` and `maxCostMs` (the samples' own
+time on the worker, summed and the longest), `joinMs` (the main thread's
+stop and join, inside the window just before the end snapshot) and
+`failure` (`sample`, `offsetMs` from the start snapshot, `details`, or
+`null`).
+
+A lock, a covering window or a failed covering walk at an end or in a
+worker sample, and any sampled change, is a runner error of the level; so
+is a window of at least two sampling periods that no worker sample saw. A
+level with a runner error stops the ladder. Samples do not prove the
+instants between them.
+
+After the end of the launch's first level that loaded and showed its card
+(not `cardFrameLate`, not dead at the end), outside every timed window and
+before the card's removal, the runner captures that card's global
+rectangle from the screen (`QScreen::grabWindow(0, ...)`, screen-relative,
+so a window over it would show), saves it as `stress-card-<loads>.png`
+through `SaveImage` (its `SCREENSHOT` row), notes its pixel size and
+Checks, next to it, that the save succeeded, the card's core is
+`manifest.run.width` (390) CSS px wide and the renderer's scheme is
+`light`. A failed Check refuses the launch.
 
 ### Frames and the null `dropped`
 
@@ -329,8 +361,10 @@ and chat widths, shown chat and chat lists, minimum width), `stayOnTop`
 `spanMs`, the first 20 `offsetsMs`, `windowMs`, and the settle's
 `dateWaitMs`, `dateHeld`, `scrollChanges` and `focusAndCursor`),
 `layoutScreenshot` (file name, whether it was saved, the frame and the
-image's pixel size), `updateFilter` (UpdateRequests delivered since
-install) and `stopped` when the ladder stopped.
+image's pixel size), `cardScreenshot` (file name, whether it was saved,
+the level, the card's global rectangle, the image's pixel size, the card's
+CSS width and the renderer's scheme), `updateFilter` (UpdateRequests
+delivered since install) and `stopped` when the ladder stopped.
 
 ### Run entry
 
@@ -340,7 +374,7 @@ install) and `stopped` when the ladder stopped.
 | `loaded`, `bootMs` | The host's `loaded` and its own `loadedMs`, from the host's creation. |
 | `dead`, `diedAtMs` | The first dead reason verbatim, and steady-clock ms from the host's creation to the change that carried it. |
 | `frames` | `count` intervals, nearest-rank `p50`/`p95` and `max` of the window's update intervals (above); fewer than two updates give count 0 and nulls. |
-| `renderer` | Complete groups of the measured core's work inside the window: each rebuilt frame's own time plus the message and tick work since the rebuilt frame before it; the first group is partial and discarded, trailing work is kept apart. `msPerFrame` the mean, `p95Ms` the nearest rank, `displayListOps` the last sampled frame's list size; no sample gives nulls. |
+| `renderer` | Complete groups of the measured core's work inside the window: each timed `frame()` attempt's own time plus the message and tick work since the attempt before it; the first group is partial and discarded, trailing work is kept apart. An attempt may end before the QPainter replay when the list has not laid out the card's size; it still closes its group, and `desktop.rendererWork` counts the attempts that painted an image apart. `msPerFrame` the mean, `p95Ms` the nearest rank, `displayListOps` the last sampled attempt's list size; no sample gives nulls. |
 | `host` | `SandboxStats` deltas of `jsMs`, `queries`, `queryMs` over the snapshots' actual seconds; `throttledTasks` the delta; `opsPerSec` the newest host's validated ops in the window; `maxBatchOps` its largest batch since creation; `nodes` and `memoryBytes` at the end. A counter going backwards is a named error and null. |
 | `widget` | The last `data-stress` value at or before the start (else the first after it) and the last at or before the end: `fps`, `frames` and `jank` differences, `maxGap` the largest published inside the window, `last` the end value. |
 | `errors`, `diags` | The host's first 20 error logs verbatim, then the runner's errors, each `runner: `; diag kind to count. |
@@ -352,18 +386,21 @@ that dies during its window keeps the whole window. Fixture, timeout and
 instrument failures are runner errors, never deaths.
 
 `desktop` of an entry: `measured`, `windowMs`, `updates`, `rendererWork`
-(samples, frames, ticks, messages, foreign, `partialGroupMs`,
-`trailingWorkMs`, `trailingWorkEvents`), `statsAgeMs` (`start`, `end`),
-`errorLogs`, `values` (`received`, `inWindow`, `late`, `lastText`),
-`runnerErrors`; and the live runner's: `oneAlive` (what was checked, widget
-views, alive runtime states, visible count, earlier unfinished levels: counts
-and states only, no message of the chat), `setup` (`layoutMs`,
-`loadDecidedMs`, both shows, `dateWaitMs`, `dateHeld`, `scrollChanges`,
-`setupMs` from the injection to the warm-up, the actual `warmupMs`,
-`focusAndCursor`), `window` (the start and end checks with their lock, window
-and covering readings, `samples`, `sampleEveryMs`, `sampleCostMs`,
-`changed`), `hosts` (`optionsCalls`, `attached`, `generation`),
-`cardCssWidth`, `scheme`, `updatesDropped`.
+(samples, frames, `replayedFrames` and `unreplayedFrames` (the frame()
+attempts inside the window that replayed the display list into an image,
+and those that returned before it), ticks, messages, foreign,
+`partialGroupMs`, `trailingWorkMs`, `trailingWorkEvents`), `statsAgeMs`
+(`start`, `end`), `errorLogs`, `values` (`received`, `inWindow`, `late`,
+`lastText`), `runnerErrors`; and the live runner's: `oneAlive` (what was
+checked, widget views, alive runtime states, visible count, earlier
+unfinished levels: counts and states only, no message of the chat), `setup`
+(`layoutMs`, `loadDecidedMs`, both shows, `cardFrameLate`, `dateWaitMs`,
+`dateHeld`, `scrollChanges`, `setupMs` from the injection to the warm-up,
+the actual `warmupMs`, `focusAndCursor`), `window` (the start and end checks
+with their lock, window and covering readings, `samples`, `sampleEveryMs`,
+`sampleCostMs`, `changed`, and `coverAndLock`, the worker's samples above,
+`null` for a level without a window), `hosts` (`optionsCalls`, `attached`,
+`generation`), `cardCssWidth`, `scheme`, `updatesDropped`.
 
 ### Rows and Checks
 
@@ -378,10 +415,13 @@ and covering readings, `samples`, `sampleEveryMs`, `sampleCostMs`,
   `nothing else updates the window while idle`); per level `[<id>] one
   options call, one host and one tap generation`, `[<id>] the entry has no
   runner error`, `[<id>] the widget's host is gone before another
-  injection`; the theme kept again, the palette back, the fixture's
+  injection`; `the card screenshot is of a 390 CSS px card in the light
+  theme` once; the theme kept again, the palette back, the fixture's
   teardown and settle; `the launch is merged into the pass's run file`.
 - `SCREENSHOT: "screenshots/stress-layout-<loads>.png"` once per launch
-  whose idle check ran, after its `layout screenshot:` Note.
+  whose idle check ran, before its `layout screenshot:` Note, and
+  `SCREENSHOT: "screenshots/stress-card-<loads>.png"` once per launch with
+  a shown card, before its `card screenshot:` Note.
 
 ### Merge and acceptance
 
@@ -401,7 +441,10 @@ manifest's 127 entries.
 ## Lifetime and cleanup
 
 `Runner::onFinish` is registered first, before the palette helper's: on
-every path it removes the update filter, clears the stay-on-top hint when
+every path it joins a window's worker that is still running (the window's
+end and the entry's writing join it first on their paths, and the worker's
+owner joins it when destroyed), removes the update filter, clears the
+stay-on-top hint when
 the runner set it (once; the close stage does it first on a normal path),
 keeps the replaced day theme again (once), runs the fixture's idempotent
 release (messages destroyed, taps and host watches disarmed, so their cores
@@ -415,30 +458,19 @@ keeps its placement on the chosen screen, its one-column width and its
 normal state (Telegram saves its geometry); the palette switch persists
 what `test_palette.h` describes; a changed day theme is kept again but a
 replaced custom wallpaper is not; the cursor is moved. Each launch writes
-its run file or launch file and its layout capture.
+its run file or launch file, its layout capture and its card capture.
 
 ## Verification
 
-Executed: `RunWidgetStressSelfCheck()`'s 14 rows (manifest selection,
-frames, renderer groups and refusals, host rates, widget clipping and
-refusals, counter reset, a never-loaded death, envelope, integers, ladder
-merge and refusal, acceptance) passed in a standalone QtCore harness, and
-three deliberate breakages failed six of them; after `device.window` was
-added the 14 rows passed again, and a device without its window failed the
-envelope and the window-merge refusal. Debug and Release single-file
-compiles of `test_widget_stress.cpp` and `test_widget_stress_live.cpp`
-(Windows, Win32, MSVC). The one-column placement, the stay-on-top hint,
-the idle check and the layout capture have not run in the app yet.
-
-Proposed, by the campaign: a Release smoke of short loads (a small moving
-load, a query or canvas load, a production cap-crossing load) with
-`_SELF_CHECK`, smoke durations and the renderer overlay, whose files
-validate against `run.schema.json`, whose entries show one host per level,
-nonempty renderer work for a changing widget, unscaled applied options,
-the chosen screen's refresh rate and the one-column `device.window`, whose
-layout capture shows only the chat on top, and whose card crops, taken
-outside timed windows, show the whole light card on screen; and a
-deliberately covered or moved window refused before any timed run.
+Executed in the app: the Release dry runs and both measured passes of
+`2026/10/30/run-the-widget-stress-kit-at-v0-4-0-on-a-release-build-without-lto`
+ran the whole runner on Windows (the placement on the fastest screen, the
+one-column window on top, the idle check, the layout capture, the
+endpoint and 500 ms main-thread window checks, the self-check with
+`_SELF_CHECK`, 127 schema-valid entries per pass, each with one host).
+Not yet in the app: the worker's in-window samples, the card capture and
+the replay counts, compiled in Debug and Release (Win32, MSVC), their
+arithmetic passing `RunWidgetStressSelfCheck()`'s 15 rows outside it.
 
 ## Related guidance
 

@@ -34,6 +34,11 @@ namespace Test::Stress {
 // CLIENTS.md's theme: requested, and the scheme a level's renderer must get.
 inline constexpr auto kTheme = "light";
 
+// How often the live runner samples the window and the card on the main
+// thread through a level's warm-up and window, and how often its worker
+// thread samples the console lock and the covering windows inside it.
+inline constexpr auto kObserveEvery = crl::time(500);
+
 // ---------------------------------------------------------------------
 // The kit.
 
@@ -94,6 +99,37 @@ struct StressSnapshot {
 	bool attached = false;
 };
 
+// The console-lock and covering-window samples a harness worker thread
+// took inside one window, every kObserveEvery, off the main thread: the
+// endpoints' checks between them. Every stamp is crl::profile().
+struct StressCoverSamples {
+	// What the first failing sample found, latched; empty: none failed.
+	QString failure;
+	// That sample's start and its number from 1.
+	crl::profile_time failureAt = 0;
+	int failureSample = 0;
+	// The samples' own time on the worker, summed, and the longest one.
+	crl::profile_time cost = 0;
+	crl::profile_time maxCost = 0;
+	// The main thread's stop and join of the worker, before the end
+	// snapshot.
+	crl::profile_time joinCost = 0;
+	int samples = 0;
+	// The samples walked the z-order over the card's native rectangle the
+	// window's start read (Windows), not only the console lock.
+	bool zOrder = false;
+};
+
+// Counts one sample from |started| to |finished| into |samples| and
+// latches |failure| unless an earlier failure is latched; an empty
+// |failure| is a sample that passed. Pure: the worker calls it on its own
+// record, which the main thread reads only after joining it.
+void AddCoverSample(
+	StressCoverSamples &samples,
+	crl::profile_time started,
+	crl::profile_time finished,
+	const QString &failure);
+
 // What the live runner observed of one level.
 struct StressLevel {
 	QString id;
@@ -111,6 +147,9 @@ struct StressLevel {
 	// The level's whole work log: ReadWidgetWork() since 0, reserved for
 	// this level before its host was created.
 	WidgetWorkReading work;
+	// The worker's samples inside the window; a latched failure, or no
+	// sample in a window of two periods or more, is a runner error.
+	StressCoverSamples coverAndLock;
 	// The tap's data-stress values and drops, read at or after `end`.
 	std::vector<WidgetStressValue> values;
 	int valuesDropped = 0;
@@ -223,10 +262,10 @@ struct StressPublication {
 	const WidgetOpsLatest &latest,
 	crl::profile_time at);
 
-// The run entry of one level, with every runner error the level carries
-// and the arithmetic found. Expects the level's work log reserved before
-// its host was created and read from 0, and its values read at or after
-// `end`.
+// The run entry of one level, with every runner error the level carries,
+// its in-window samples latched and the arithmetic found. Expects the
+// level's work log reserved before its host was created and read from 0,
+// its values read at or after `end` and its worker joined before `end`.
 [[nodiscard]] StressEntry ComputeEntry(const StressLevel &level);
 
 // Why |entries| cannot be accepted for |selection|: not exactly its levels

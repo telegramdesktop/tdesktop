@@ -61,9 +61,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
+#include <condition_variable>
 #include <memory>
+#include <mutex>
 #include <optional>
+#include <thread>
 #include <vector>
 
 #include "styles/palette.h"
@@ -104,9 +108,6 @@ constexpr auto kIdleStrayUpdates = 1;
 constexpr auto kLevelPause = crl::time(1000);
 constexpr auto kLoadCooldown = crl::time(20000);
 
-// How often the warm-up and the window sample the window and the card.
-constexpr auto kObserveEvery = crl::time(500);
-
 // Room for one level: the work log for everything from the injection to
 // the window's end (about 125 ticks, rebuilt frames and messages a second
 // each, at most), and the window's update stamps.
@@ -144,12 +145,23 @@ constexpr auto kObserverNote = "window: every level waits until its "
 	"before its warm-up, recorded apart as desktop.setup; through the "
 	"warm-up and the window the runner samples the window's screen, frame, "
 	"device pixel ratio, visibility and exposure and the card's bounds every "
-	"500 ms on the main thread (desktop.window.samples and sampleCostMs), "
-	"and at the window's start and end it reads the console lock and, on "
+	"500 ms on the main thread (desktop.window.samples and sampleCostMs). "
+	"At the window's start and end it reads the console lock and, on "
 	"Windows, walks the top-level z-order above the window for a visible, "
-	"non-minimized, non-cloaked window over the card's screen rectangle. "
-	"Any change, lock or covering window makes the level a runner error. "
-	"Samples do not prove the unsampled instants between them.";
+	"non-minimized, non-cloaked window over the card's screen rectangle; "
+	"between them a harness worker thread, off the GUI thread, repeats both "
+	"every 500 ms on the window handle and the card's native rectangle the "
+	"start read, with Win32 and session calls only and no Qt object, and "
+	"latches its first failure with its offset from the window's start "
+	"(desktop.window.coverAndLock: samples, sampleEveryMs, costMs and "
+	"maxCostMs on the worker, joinMs of the main thread's stop and join "
+	"before the end snapshot). Any change, lock or covering window, at an "
+	"end or in a sample, makes the level a runner error. Samples do not "
+	"prove the unsampled instants between them. After the window of the "
+	"launch's first level that loaded and showed its card, outside every "
+	"timed window and before the card is removed, one screen crop of that "
+	"card is kept as evidence with its CSS width and its renderer's "
+	"scheme.";
 
 // Stamps every QEvent::UpdateRequest delivered to one top-level widget
 // while recording, into room reserved at construction; handles nothing,
@@ -197,15 +209,49 @@ struct WindowReading {
 };
 
 // The windows above the measured one in z-order over the card. |native|
-// is the card's rectangle in native screen pixels.
+// is the card's rectangle in native screen pixels, |own| the measured
+// window's native handle.
 struct CoverReading {
 	QStringList covering;
 	QString error;
 	QString monitor;
 	QRect native;
+	quintptr own = 0;
 	int above = 0;
 	int transparent = 0;
 	bool applicable = false;
+};
+
+// The endpoints' console-lock reading and covering-window walk, every
+// kObserveEvery between a window's two ends, on a harness thread of its
+// own, so the measured main thread only starts it before the window and
+// stops and joins it before the end snapshot. The worker reads the values
+// it was given, the console session and Win32's window list; never a Qt
+// object, and it sends no window message, so a busy main thread cannot
+// stall it.
+class WindowSampler final {
+public:
+	WindowSampler(quintptr own, QRect native, bool walk);
+	WindowSampler(const WindowSampler &other) = delete;
+	WindowSampler &operator=(const WindowSampler &other) = delete;
+	~WindowSampler();
+
+	// Main thread: stops and joins the worker, then its samples.
+	[[nodiscard]] StressCoverSamples finish();
+
+private:
+	void stop();
+	void run();
+
+	std::mutex _mutex;
+	std::condition_variable _wake;
+	StressCoverSamples _samples;
+	const QRect _native;
+	const quintptr _own = 0;
+	const bool _walk = false;
+	bool _stop = false;
+	std::thread _thread;
+
 };
 
 // The app's columns as the primary window's session controller laid them
@@ -280,6 +326,8 @@ struct LiveLevel {
 	QString notRun;
 	// The first sample that differed from |accepted|.
 	QString changed;
+	// The window's worker, from its start until it is joined.
+	std::unique_ptr<WindowSampler> sampler;
 	ListSettle settle;
 	std::optional<double> cardCssWidth;
 	crl::time injectedAt = 0;
@@ -338,6 +386,8 @@ struct LiveState {
 	bool idleChecked = false;
 	bool themeRestored = false;
 	bool published = false;
+	// The launch's one card crop was taken.
+	bool cardCaptured = false;
 };
 
 UpdateFilter::UpdateFilter(not_null<QWidget*> target, int capacity)
@@ -944,7 +994,9 @@ void ReleaseOnTop(LiveState &state) {
 	case QSurface::OpenVGSurface: return u"OpenVGSurface"_q;
 	case QSurface::VulkanSurface: return u"VulkanSurface"_q;
 	case QSurface::MetalSurface: return u"MetalSurface"_q;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
 	case QSurface::Direct3DSurface: return u"Direct3DSurface"_q;
+#endif // Qt >= 6.0.0
 	}
 	return u"surface type %1"_q.arg(int(type));
 }
@@ -1427,24 +1479,9 @@ void AddCovering(HWND other, CoverReading &result) {
 		RectText(overlap)));
 }
 
-[[nodiscard]] CoverReading ReadCovering(QWidget *window, const QRect &card) {
-	auto result = CoverReading{ .applicable = true };
-	const auto handle = window ? window->windowHandle() : nullptr;
-	const auto screen = handle ? handle->screen() : nullptr;
-	if (!screen || card.isEmpty()) {
-		result.error = u"no window, screen or card to check"_q;
-		return result;
-	}
-	const auto own = reinterpret_cast<HWND>(handle->winId());
-	result.native = NativeRect(
-		own,
-		screen,
-		card,
-		handle->devicePixelRatio(),
-		result);
-	if (!result.error.isEmpty()) {
-		return result;
-	}
+// The z-order walk alone, from the top down to |own|: Win32 reads only, so
+// the window sampler's worker runs it too.
+void WalkCovering(HWND own, CoverReading &result) {
 	auto other = GetTopWindow(nullptr);
 	auto walked = 0;
 	while (other && (other != own) && (walked < kMaxZOrderWalk)) {
@@ -1457,6 +1494,27 @@ void AddCovering(HWND other, CoverReading &result) {
 		result.error = u"the window was not found in the top-level z-order "
 			u"(%1 windows walked)"_q.arg(walked);
 	}
+}
+
+[[nodiscard]] CoverReading ReadCovering(QWidget *window, const QRect &card) {
+	auto result = CoverReading{ .applicable = true };
+	const auto handle = window ? window->windowHandle() : nullptr;
+	const auto screen = handle ? handle->screen() : nullptr;
+	if (!screen || card.isEmpty()) {
+		result.error = u"no window, screen or card to check"_q;
+		return result;
+	}
+	const auto own = reinterpret_cast<HWND>(handle->winId());
+	result.own = reinterpret_cast<quintptr>(own);
+	result.native = NativeRect(
+		own,
+		screen,
+		card,
+		handle->devicePixelRatio(),
+		result);
+	if (result.error.isEmpty()) {
+		WalkCovering(own, result);
+	}
 	return result;
 }
 #else // Q_OS_WIN
@@ -1464,6 +1522,91 @@ void AddCovering(HWND other, CoverReading &result) {
 	return CoverReading();
 }
 #endif // Q_OS_WIN
+
+// What a lock reading and a covering walk found, in the words a window end
+// and a worker sample both use; empty when both passed.
+[[nodiscard]] QStringList CoverLockFailures(
+		const ConsoleLockReading &lock,
+		const CoverReading &cover) {
+	auto result = QStringList();
+	if (lock.locked()) {
+		result.push_back(u"the console is locked: "_q + ConsoleLockText(lock));
+	}
+	if (!cover.error.isEmpty()) {
+		result.push_back(u"covering windows: "_q + cover.error);
+	} else if (!cover.covering.isEmpty()) {
+		result.push_back(u"windows above the measured one cover the card: "_q
+			+ cover.covering.join(u"; "_q));
+	}
+	return result;
+}
+
+// One sample of the worker: the lock and, when |walk|, the windows above
+// |own| over |native|. Thread-safe reads only.
+[[nodiscard]] QString SampleFailure(
+		[[maybe_unused]] quintptr own,
+		[[maybe_unused]] const QRect &native,
+		[[maybe_unused]] bool walk) {
+	auto cover = CoverReading();
+#ifdef Q_OS_WIN
+	if (walk) {
+		cover.native = native;
+		cover.own = own;
+		cover.applicable = true;
+		WalkCovering(reinterpret_cast<HWND>(own), cover);
+	}
+#endif // Q_OS_WIN
+	return CoverLockFailures(ReadConsoleLock(), cover).join(u"; "_q);
+}
+
+WindowSampler::WindowSampler(quintptr own, QRect native, bool walk)
+: _native(native)
+, _own(own)
+, _walk(walk) {
+	_samples.zOrder = walk;
+	_thread = std::thread([this] {
+		run();
+	});
+}
+
+WindowSampler::~WindowSampler() {
+	stop();
+}
+
+StressCoverSamples WindowSampler::finish() {
+	stop();
+	return _samples;
+}
+
+void WindowSampler::stop() {
+	{
+		const auto lock = std::lock_guard(_mutex);
+		_stop = true;
+	}
+	_wake.notify_one();
+	if (_thread.joinable()) {
+		_thread.join();
+	}
+}
+
+// Every kObserveEvery from its start until stopped; the first sample comes
+// one period after the start, which the window's start check precedes.
+void WindowSampler::run() {
+	auto next = std::chrono::steady_clock::now();
+	auto lock = std::unique_lock(_mutex);
+	while (true) {
+		next += std::chrono::milliseconds(kObserveEvery);
+		if (_wake.wait_until(lock, next, [&] { return _stop; })) {
+			return;
+		}
+		lock.unlock();
+		const auto started = crl::profile();
+		const auto failure = SampleFailure(_own, _native, _walk);
+		const auto finished = crl::profile();
+		lock.lock();
+		AddCoverSample(_samples, started, finished, failure);
+	}
+}
 
 [[nodiscard]] QJsonObject CoverObject(const CoverReading &cover) {
 	return QJsonObject{
@@ -1478,27 +1621,19 @@ void AddCovering(HWND other, CoverReading &result) {
 }
 
 // The lock, the covering windows and the window against the setup's, at
-// one end of the window; every finding is a runner error of the level.
+// one end of the window, the covering reading kept in |cover|; every
+// finding is a runner error of the level.
 [[nodiscard]] QJsonObject WindowChecks(
 		const LiveState &state,
 		LiveLevel &level,
-		const QString &end) {
+		const QString &end,
+		CoverReading &cover) {
 	const auto lock = ReadConsoleLock();
 	const auto reading = ReadWindow(state, level.message->id);
-	const auto cover = ReadCovering(state.window.data(), reading.card);
+	cover = ReadCovering(state.window.data(), reading.card);
 	const auto differences = Differences(level.accepted, reading);
-	if (lock.locked()) {
-		AddError(level, u"window %1: the console is locked: %2"_q.arg(
-			end,
-			ConsoleLockText(lock)));
-	}
-	if (!cover.error.isEmpty()) {
-		AddError(level, u"window %1: covering windows: %2"_q.arg(
-			end,
-			cover.error));
-	} else if (!cover.covering.isEmpty()) {
-		AddError(level, u"window %1: windows above the measured one cover "
-			u"the card: %2"_q.arg(end, cover.covering.join(u"; "_q)));
+	for (const auto &failure : CoverLockFailures(lock, cover)) {
+		AddError(level, u"window %1: %2"_q.arg(end, failure));
 	}
 	if (!differences.isEmpty()) {
 		AddError(level, u"window %1: the window or the card changed since "
@@ -1828,14 +1963,20 @@ void CheckCardWidth(LiveState &state, LiveLevel &level) {
 }
 
 // The window's start: the window, applied options and card width checks
-// first, then the update stamps, then the snapshot, its stamp taken after
-// the host and the tap were read; the renderer's theme is compared after
-// it, from the tap's reading the snapshot took.
+// first, then the worker on the start's covering reading, the update
+// stamps, then the snapshot, its stamp taken after the host and the tap
+// were read; the renderer's theme is compared after it, from the tap's
+// reading the snapshot took.
 void StartWindow(LiveState &state, LiveLevel &level) {
 	auto &message = *level.message;
-	level.windowStart = WindowChecks(state, level, u"start"_q);
+	auto cover = CoverReading();
+	level.windowStart = WindowChecks(state, level, u"start"_q, cover);
 	CheckApplied(state, level, ReadWidgetHost(*message.host));
 	CheckCardWidth(state, level);
+	level.sampler = std::make_unique<WindowSampler>(
+		cover.own,
+		cover.native,
+		cover.applicable && cover.error.isEmpty());
 	if (state.filter) {
 		state.filter->begin();
 	}
@@ -1854,8 +1995,93 @@ void StartWindow(LiveState &state, LiveLevel &level) {
 			>= state.launch.measureMs * 1000);
 }
 
+// Joins the window's worker and keeps its samples, with the main thread's
+// time for the stop and the join; before the end snapshot, and on every
+// later path that finds it still running.
+void StopSampler(LiveLevel &level) {
+	if (!level.sampler) {
+		return;
+	}
+	const auto started = crl::profile();
+	level.level.coverAndLock = level.sampler->finish();
+	level.level.coverAndLock.joinCost = crl::profile() - started;
+	level.sampler = nullptr;
+}
+
+// Evidence beside two assertions: once per launch, after the window of
+// its first level that loaded and showed its card and before the card's
+// removal, so outside every timed window, the card's global rectangle as
+// the screen shows it, with the card core's CSS width and the renderer's
+// scheme read now.
+void CaptureCard(LiveState &state, LiveLevel &level) {
+	const auto shown = level.cardShow.get();
+	if (state.cardCaptured
+		|| level.cardFrameLate
+		|| !shown
+		|| !shown->shown()
+		|| level.level.end.host.dead) {
+		return;
+	}
+	state.cardCaptured = true;
+	const auto &message = *level.message;
+	const auto screen = state.screen.data();
+	const auto card = ReadWindow(state, message.id).card;
+	const auto runtime = FixtureOwnRuntime(*state.fixture, message.id);
+	const auto core = runtime ? runtime->core() : nullptr;
+	const auto width = core ? core->width() : 0.;
+	const auto scheme = message.tap
+		? QString::fromStdString(ReadWidgetOpsLatest(*message.tap).scheme)
+		: QString();
+	auto image = QImage();
+	if (screen && !card.isEmpty()) {
+		const auto origin = screen->geometry().topLeft();
+		image = screen->grabWindow(
+			0,
+			card.x() - origin.x(),
+			card.y() - origin.y(),
+			card.width(),
+			card.height()).toImage();
+	}
+	const auto name = u"stress-card-%1.png"_q.arg(
+		state.launch.loads.join(QChar('+')));
+	const auto saved = !SaveImage(image, name).isEmpty();
+	state.launch.record.insert(u"cardScreenshot"_q, QJsonObject{
+		{ u"file"_q, name },
+		{ u"saved"_q, saved },
+		{ u"level"_q, level.level.id },
+		{ u"card"_q, RectArray(card) },
+		{ u"pixels"_q, QJsonArray{ image.width(), image.height() } },
+		{ u"cardCssWidth"_q, width },
+		{ u"scheme"_q, scheme },
+	});
+	const auto details = u"%1, %2x%3 px of [%4]'s card %5 on [%6], %7; "
+		u"card CSS width %8, renderer scheme [%9]"_q
+		.arg(name)
+		.arg(image.width())
+		.arg(image.height())
+		.arg(level.level.id)
+		.arg(RectText(card))
+		.arg(screen ? screen->name() : u"none"_q)
+		.arg(saved ? u"saved"_q : u"not saved"_q)
+		.arg(QString::number(width))
+		.arg(scheme);
+	Note(Prefixed(u"card screenshot: "_q + details));
+	const auto expected = QString::fromLatin1(kTheme);
+	Check(
+		saved
+			&& (std::abs(width - state.launch.width) <= kWidthTolerance)
+			&& (scheme == expected),
+		Prefixed(u"the card screenshot is of a %1 CSS px card in the %2 "
+			u"theme"_q.arg(QString::number(state.launch.width), expected)),
+		details);
+}
+
+// The window's end: the worker joined, then the snapshot and the update
+// stamps, then the end's window checks and, outside the window, the card
+// capture.
 void EndWindow(LiveState &state, LiveLevel &level) {
 	auto &message = *level.message;
+	StopSampler(level);
 	const auto latest = ReadWidgetOpsLatest(*message.tap);
 	const auto reading = ReadWidgetHost(*message.host);
 	const auto at = crl::profile();
@@ -1865,7 +2091,9 @@ void EndWindow(LiveState &state, LiveLevel &level) {
 		level.level.updates = state.filter->stamps();
 		level.updatesDropped = state.filter->dropped();
 	}
-	level.windowEnd = WindowChecks(state, level, u"end"_q);
+	auto cover = CoverReading();
+	level.windowEnd = WindowChecks(state, level, u"end"_q, cover);
+	CaptureCard(state, level);
 }
 
 void CheckOneHost(
@@ -1952,6 +2180,7 @@ void CheckOneHost(
 // values (read at or after the window's end), the work log since 0, the
 // one-host and applied checks, then the entry.
 void WriteLevel(LiveState &state, LiveLevel &level) {
+	StopSampler(level);
 	auto &message = *level.message;
 	auto &entry = level.level;
 	const auto reading = message.host
@@ -2219,12 +2448,16 @@ void PublishStage(LiveState &state) {
 		publication.merged ? publication.path : publication.error);
 }
 
-// Runner::onFinish: on every path, the filter and the stay-on-top hint
-// are released, the kept day theme the runner replaced is kept again and
-// the fixture (its taps and host watches, and so the work registry)
-// released; a launch that never reached its publish stage writes what it
-// has to its launch file, never to the run file.
+// Runner::onFinish: on every path, a window's worker still running is
+// joined, the filter and the stay-on-top hint are released, the kept day
+// theme the runner replaced is kept again and the fixture (its taps and
+// host watches, and so the work registry) released; a launch that never
+// reached its publish stage writes what it has to its launch file, never
+// to the run file.
 void FinishLaunch(LiveState &state) {
+	for (auto &level : state.levels) {
+		StopSampler(level);
+	}
 	ReleaseFilter(state);
 	ReleaseOnTop(state);
 	RestoreTheme(state);

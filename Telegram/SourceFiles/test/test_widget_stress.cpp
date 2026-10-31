@@ -109,20 +109,23 @@ struct StressFrames {
 };
 
 struct StressRenderer {
-	// One per complete group: a rebuilt frame's own time plus the message
-	// and tick work since the rebuilt frame before it, ms.
+	// One per complete group: a frame() attempt's own time plus the message
+	// and tick work since the attempt before it, ms, replayed or not.
 	std::vector<double> samples;
 	std::optional<double> msPerFrame;
 	std::optional<double> p95Ms;
 	std::optional<int64> displayListOps;
 	// The first group in the window, discarded: its work began before.
 	std::optional<double> partialMs;
-	// Message and tick work after the window's last rebuilt frame.
+	// Message and tick work after the window's last frame() attempt.
 	double trailingMs = 0.;
 	int trailingEvents = 0;
 	// Events that finished inside the window, by kind, and those of
-	// another attachment.
+	// another attachment; the frame() attempts split by whether they
+	// replayed the display list into an image.
 	int frames = 0;
+	int replayedFrames = 0;
+	int unreplayedFrames = 0;
 	int ticks = 0;
 	int messages = 0;
 	int foreign = 0;
@@ -643,7 +646,7 @@ namespace {
 }
 
 // ---------------------------------------------------------------------
-// Renderer: the measured core's work, grouped by rebuilt frame.
+// Renderer: the measured core's work, grouped by frame() attempt.
 
 [[nodiscard]] StressRenderer ComputeRenderer(
 		const WidgetWorkReading &work,
@@ -692,6 +695,7 @@ namespace {
 			continue;
 		}
 		++result.frames;
+		++(event.replayed ? result.replayedFrames : result.unreplayedFrames);
 		const auto group = pending + duration;
 		pending = 0.;
 		pendingEvents = 0;
@@ -966,6 +970,50 @@ namespace {
 }
 
 // ---------------------------------------------------------------------
+// Window: the worker's console-lock and covering-window samples.
+
+// A latched in-window failure is a runner error, as one at an end is; so
+// is a window two sampling periods long or more that no sample saw.
+[[nodiscard]] QStringList CoverErrors(
+		const StressCoverSamples &samples,
+		StressWindow window) {
+	if (!samples.failure.isEmpty()) {
+		return { u"window: in-window sample %1, %2 ms after the start: %3"_q
+			.arg(
+				QString::number(samples.failureSample),
+				QString::number(Ms(samples.failureAt - window.start)),
+				samples.failure) };
+	} else if (!samples.samples
+		&& (window.end - window.start >= 2 * kObserveEvery * 1000)) {
+		return { u"window: no console-lock or covering-window sample ran "
+			u"inside the window"_q };
+	}
+	return {};
+}
+
+[[nodiscard]] QJsonObject CoverSamplesObject(
+		const StressCoverSamples &samples,
+		StressWindow window) {
+	const auto failure = samples.failure.isEmpty()
+		? Null()
+		: QJsonValue(QJsonObject{
+			{ u"sample"_q, samples.failureSample },
+			{ u"offsetMs"_q, Ms(samples.failureAt - window.start) },
+			{ u"details"_q, samples.failure },
+		});
+	return {
+		{ u"thread"_q, u"harness worker"_q },
+		{ u"samples"_q, samples.samples },
+		{ u"sampleEveryMs"_q, qint64(kObserveEvery) },
+		{ u"zOrder"_q, samples.zOrder },
+		{ u"costMs"_q, Ms(samples.cost) },
+		{ u"maxCostMs"_q, Ms(samples.maxCost) },
+		{ u"joinMs"_q, Ms(samples.joinCost) },
+		{ u"failure"_q, failure },
+	};
+}
+
+// ---------------------------------------------------------------------
 // The entry.
 
 [[nodiscard]] QJsonObject FramesObject(const StressFrames &frames) {
@@ -1037,6 +1085,8 @@ namespace {
 		? QJsonValue(QJsonObject{
 			{ u"samples"_q, int(renderer.samples.size()) },
 			{ u"frames"_q, renderer.frames },
+			{ u"replayedFrames"_q, renderer.replayedFrames },
+			{ u"unreplayedFrames"_q, renderer.unreplayedFrames },
 			{ u"ticks"_q, renderer.ticks },
 			{ u"messages"_q, renderer.messages },
 			{ u"foreign"_q, renderer.foreign },
@@ -1046,6 +1096,13 @@ namespace {
 		})
 		: Null();
 	auto result = level.desktop;
+	auto checks = result.value(u"window"_q).toObject();
+	checks.insert(u"coverAndLock"_q, measured
+		? QJsonValue(CoverSamplesObject(
+			level.coverAndLock,
+			{ .start = level.start->at, .end = level.end.at }))
+		: Null());
+	result.insert(u"window"_q, checks);
 	result.insert(u"measured"_q, measured);
 	result.insert(u"windowMs"_q, window);
 	result.insert(u"updates"_q, measured ? QJsonValue(frames.updates) : Null());
@@ -1091,6 +1148,22 @@ StressSnapshot MakeSnapshot(
 	return result;
 }
 
+void AddCoverSample(
+		StressCoverSamples &samples,
+		crl::profile_time started,
+		crl::profile_time finished,
+		const QString &failure) {
+	const auto cost = finished - started;
+	++samples.samples;
+	samples.cost += cost;
+	samples.maxCost = std::max(samples.maxCost, cost);
+	if (!failure.isEmpty() && samples.failure.isEmpty()) {
+		samples.failure = failure;
+		samples.failureAt = started;
+		samples.failureSample = samples.samples;
+	}
+}
+
 // The run entry of one level: loaded, boot and death as the host reported
 // them; a level without a window has frames.count 0 and null window
 // metrics; `errors` are the host's error logs, then the runner's errors,
@@ -1120,6 +1193,9 @@ StressEntry ComputeEntry(const StressLevel &level) {
 		? ComputeRenderer(level.work, level.host, window)
 		: StressRenderer();
 	auto runnerErrors = level.runnerErrors;
+	if (measured) {
+		runnerErrors += CoverErrors(level.coverAndLock, window);
+	}
 	runnerErrors += host.errors;
 	runnerErrors += widget.errors;
 	runnerErrors += renderer.errors;
@@ -1289,20 +1365,24 @@ namespace {
 			u"are null: not measured."_q,
 		u"renderer: the work of the measured widget's RendererCore on the "
 			u"main thread, timed by harness scopes: each host message "
-			u"applied (ops, animations, queries), each tick and each rebuilt "
-			u"frame (TwidgetCore's style, layout and display list, its "
-			u"QPainter replay into an ARGB32 image on the CPU and the "
-			u"rounding), never the window's flush or other chat painting. A "
-			u"sample is one rebuilt frame's own time plus the message and "
-			u"tick work since the rebuilt frame before it: work before the "
-			u"window is dropped, the first group in the window is partial "
-			u"and discarded, only complete groups whose frame finished "
-			u"inside the window count, and the work after the window's last "
-			u"rebuilt frame is desktop.rendererWork.trailingWorkMs. "
-			u"msPerFrame is the samples' mean, p95Ms their nearest rank, "
-			u"displayListOps the display list size of the last sampled "
-			u"frame; no sample gives nulls. The scopes' own clock reads are "
-			u"inside the times."_q,
+			u"applied (ops, animations, queries), each tick and each timed "
+			u"frame() attempt past its cached-frame return (TwidgetCore's "
+			u"style, layout and display list, then its QPainter replay into "
+			u"an ARGB32 image on the CPU and the rounding), never the "
+			u"window's flush or other chat painting. An attempt may end "
+			u"before the QPainter replay when the list has not laid out the "
+			u"card's size; desktop.rendererWork.replayedFrames counts the "
+			u"attempts inside the window that painted an image and "
+			u"unreplayedFrames those that did not. A sample is one attempt's "
+			u"own time plus the message and tick work since the attempt "
+			u"before it, replayed or not: work before the window is dropped, "
+			u"the first group in the window is partial and discarded, only "
+			u"complete groups whose attempt finished inside the window "
+			u"count, and the work after the window's last attempt is "
+			u"desktop.rendererWork.trailingWorkMs. msPerFrame is the samples' "
+			u"mean, p95Ms their nearest rank, displayListOps the display "
+			u"list size of the last sampled attempt; no sample gives nulls. "
+			u"The scopes' own clock reads are inside the times."_q,
 		u"host: the deltas of SandboxStats jsMs, queries, queryMs and "
 			u"throttledTasks between the window's start and end snapshots "
 			u"over the snapshots' actual elapsed seconds (desktop.windowMs). "
@@ -1330,12 +1410,21 @@ namespace {
 			u"readings; a loaded widget that dies later keeps its whole "
 			u"window. The runner's own failures are errors prefixed "
 			u"\"runner: \", never a dead reason; thermal is null."_q,
-		u"observers inside the measured process: the ops tap's parse and "
-			u"leak scan of every batch on the host thread, the host watch's "
-			u"diagnostics copy in onChange on the host thread, the renderer "
-			u"work scopes and the window's UpdateRequest event filter on the "
-			u"main thread, and -testagent's debug logging and the deadlock "
-			u"detector's ping thread. None runs on the widget's JS "
+		u"observers inside the measured process, all included in the "
+			u"readings: the ops tap's parse and leak scan of every batch on "
+			u"the host thread, whose cost scales with the batches' size and "
+			u"frequency and so depends on the workload; the host watch's "
+			u"diagnostics copy in each onChange on the host thread; the "
+			u"renderer work scopes' clock reads and the window's "
+			u"UpdateRequest event filter on the main thread; the 500 ms "
+			u"window and card samples on the main thread "
+			u"(desktop.window.samples, sampleCostMs); the 500 ms "
+			u"console-lock and covering-window samples on a harness worker "
+			u"thread inside the window, off the main thread, which only "
+			u"starts it before the window and stops and joins it before the "
+			u"end snapshot (desktop.window.coverAndLock: samples, costMs, "
+			u"maxCostMs, joinMs); and -testagent's debug logging and the "
+			u"deadlock detector's ping thread. None runs on the widget's JS "
 			u"thread."_q,
 		(launch.pass == WidgetStressPass::Measure)
 			? (u"measure: CLIENTS.md's measure table replaced those fields "
@@ -1900,31 +1989,34 @@ constexpr auto kControlManifest = R"json({"version":1,
 		WidgetWorkKind kind,
 		crl::profile_time started,
 		crl::profile_time finished,
-		int64 displayList = -1) {
+		int64 displayList = -1,
+		bool replayed = false) {
 	return {
 		.started = started,
 		.finished = finished,
 		.displayList = displayList,
 		.kind = kind,
+		.replayed = replayed,
 	};
 }
 
 // Before the window: cleared. Then a partial T1 F4, discarded; M2 T1 F3
-// and T1 F2, the samples 6 and 3; a trailing M1; a frame after the end.
+// (not replayed) and T1 F2, the samples 6 and 3; a trailing M1; a frame
+// after the end.
 [[nodiscard]] WidgetWorkReading ControlWork() {
 	using Kind = WidgetWorkKind;
 	return {
 		.events = {
 			Work(Kind::Message, 945'000, 950'000),
 			Work(Kind::Tick, 1'049'000, 1'050'000),
-			Work(Kind::Frame, 1'056'000, 1'060'000, 400),
+			Work(Kind::Frame, 1'056'000, 1'060'000, 400, true),
 			Work(Kind::Message, 1'200'000, 1'202'000),
 			Work(Kind::Tick, 1'203'000, 1'204'000),
-			Work(Kind::Frame, 1'205'000, 1'208'000, 410),
+			Work(Kind::Frame, 1'205'000, 1'208'000, 410, false),
 			Work(Kind::Tick, 1'300'000, 1'301'000),
-			Work(Kind::Frame, 1'302'000, 1'304'000, 420),
+			Work(Kind::Frame, 1'302'000, 1'304'000, 420, true),
 			Work(Kind::Message, 1'400'000, 1'401'000),
-			Work(Kind::Frame, 11'100'000, 11'105'000, 430),
+			Work(Kind::Frame, 11'100'000, 11'105'000, 430, true),
 		},
 		.reservedAt = 500'000,
 		.capacity = 64,
@@ -1932,9 +2024,20 @@ constexpr auto kControlManifest = R"json({"version":1,
 	};
 }
 
+// The worker's 19 passing samples of 300 us between the window's ends.
+[[nodiscard]] StressCoverSamples ControlCoverSamples() {
+	auto result = StressCoverSamples{ .zOrder = true };
+	for (auto i = 1; i != 20; ++i) {
+		const auto started = kControlStart + i * 500'000;
+		AddCoverSample(result, started, started + 300, QString());
+	}
+	return result;
+}
+
 // A measured level: 10 s between the snapshots, five updates inside the
 // window 8, 8, 8 and 33 ms apart and one on each side, the work above,
-// and data-stress values on both sides of both ends.
+// passing in-window samples and data-stress values on both sides of both
+// ends.
 [[nodiscard]] StressLevel ControlLevel() {
 	return {
 		.id = QString::fromLatin1(kControlId),
@@ -1958,6 +2061,7 @@ constexpr auto kControlManifest = R"json({"version":1,
 			11'100'000,
 		},
 		.work = ControlWork(),
+		.coverAndLock = ControlCoverSamples(),
 		.values = {
 			ControlValue(400'000, 0, 0, 0, 0),
 			ControlValue(900'000, 2000, 120, 25, 0),
@@ -2211,6 +2315,8 @@ constexpr auto kControlManifest = R"json({"version":1,
 		&& (renderer.trailingMs == 1.)
 		&& (renderer.trailingEvents == 1)
 		&& (renderer.frames == 3)
+		&& (renderer.replayedFrames == 2)
+		&& (renderer.unreplayedFrames == 1)
 		&& (renderer.ticks == 3)
 		&& (renderer.messages == 2)
 		&& (renderer.msPerFrame == 4.5)
@@ -2221,21 +2327,26 @@ constexpr auto kControlManifest = R"json({"version":1,
 		&& SameJson(object.value(u"displayListOps"_q), 420)
 		&& SameJson(work.value(u"trailingWorkMs"_q), 1)
 		&& SameJson(work.value(u"partialGroupMs"_q), 5)
-		&& SameJson(work.value(u"samples"_q), 2);
+		&& SameJson(work.value(u"samples"_q), 2)
+		&& SameJson(work.value(u"replayedFrames"_q), 2)
+		&& SameJson(work.value(u"unreplayedFrames"_q), 1);
 	return SelfCheckRow(
 		passed,
 		u"renderer: work before the window is cleared, the first group in "
 			u"it (T1 F4) is partial and discarded, M2 T1 F3 and T1 F2 give "
 			u"samples 6 and 3 (mean 4.5, p95 6, the last sampled frame's "
-			u"display list 420), the trailing M1 is kept apart and the frame "
-			u"after the end is ignored"_q,
-		u"samples=[%1] partial=%2 trailing=%3/%4 frames=%5 ticks=%6 "
-			u"messages=%7 entry=%8"_q
+			u"display list 420) though F3 did not replay, the attempts count "
+			u"2 replayed and 1 unreplayed, the trailing M1 is kept apart and "
+			u"the frame after the end is ignored"_q,
+		u"samples=[%1] partial=%2 trailing=%3/%4 frames=%5 replayed=%6/%7 "
+			u"ticks=%8 messages=%9 entry=%10"_q
 			.arg(samples.join(u","_q))
 			.arg(OptionalText(renderer.partialMs))
 			.arg(renderer.trailingMs)
 			.arg(renderer.trailingEvents)
 			.arg(renderer.frames)
+			.arg(renderer.replayedFrames)
+			.arg(renderer.unreplayedFrames)
 			.arg(renderer.ticks)
 			.arg(renderer.messages)
 			.arg(Compact(object)));
@@ -2290,6 +2401,54 @@ constexpr auto kControlManifest = R"json({"version":1,
 		readings.join(u" "_q)
 			+ u" entryErrors="_q
 			+ Compact(errors));
+}
+
+[[nodiscard]] WidgetOpsSelfCheckRow CheckCoverSamples() {
+	const auto covered = u"windows above the measured one cover the card: "
+		u"class=Control process=other overlap=10,10 50x50"_q;
+	auto level = ControlLevel();
+	auto &samples = level.coverAndLock;
+	samples = StressCoverSamples{ .zOrder = true };
+	AddCoverSample(samples, 1'500'000, 1'500'400, QString());
+	AddCoverSample(samples, 4'000'000, 4'000'900, covered);
+	AddCoverSample(samples, 6'000'000, 6'000'300, u"the console is locked"_q);
+	AddCoverSample(samples, 8'000'000, 8'000'200, QString());
+	const auto entry = ComputeEntry(level);
+	const auto object = entry.object.value(u"desktop"_q).toObject().value(
+		u"window"_q).toObject().value(u"coverAndLock"_q).toObject();
+	const auto failure = object.value(u"failure"_q).toObject();
+	auto unseen = ControlLevel();
+	unseen.coverAndLock = StressCoverSamples();
+	const auto unseenErrors = ComputeEntry(unseen).runnerErrors;
+	const auto errors = entry.runnerErrors.join(u"; "_q);
+	const auto passed = (samples.samples == 4)
+		&& (samples.failureSample == 2)
+		&& (samples.cost == 1800)
+		&& (samples.maxCost == 900)
+		&& (entry.runnerErrors.size() == 1)
+		&& errors.contains(u"in-window sample 2, 3000 ms after the start"_q)
+		&& errors.contains(covered)
+		&& !errors.contains(u"locked"_q)
+		&& SameJson(object.value(u"samples"_q), 4)
+		&& SameJson(object.value(u"sampleEveryMs"_q), 500)
+		&& SameJson(object.value(u"costMs"_q), 1.8)
+		&& SameJson(object.value(u"maxCostMs"_q), 0.9)
+		&& SameJson(failure.value(u"sample"_q), 2)
+		&& SameJson(failure.value(u"offsetMs"_q), 3000)
+		&& (failure.value(u"details"_q).toString() == covered)
+		&& ComputeEntry(ControlLevel()).runnerErrors.isEmpty()
+		&& (unseenErrors.size() == 1)
+		&& unseenErrors[0].contains(u"no console-lock or covering-window"_q);
+	return SelfCheckRow(
+		passed,
+		u"window: of four in-window samples the second, a covering window "
+			u"3000 ms after the start, is latched and later failures are not, "
+			u"it is the level's one runner error, the samples' count and "
+			u"cost (1.8 ms, at most 0.9) are in desktop.window.coverAndLock, "
+			u"19 passing samples give none, and a 10 s window with no sample "
+			u"is a runner error"_q,
+		errors + u" object="_q + Compact(object) + u" unseen="_q
+			+ unseenErrors.join(u"; "_q));
 }
 
 [[nodiscard]] WidgetOpsSelfCheckRow CheckHost() {
@@ -2919,6 +3078,7 @@ std::vector<WidgetOpsSelfCheckRow> RunWidgetStressSelfCheck() {
 		CheckFrames(),
 		CheckRendererGroups(),
 		CheckRendererInvalid(),
+		CheckCoverSamples(),
 		CheckHost(),
 		CheckWidgetWindow(),
 		CheckWidgetInvalid(),
