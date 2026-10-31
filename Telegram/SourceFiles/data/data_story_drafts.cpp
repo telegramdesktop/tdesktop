@@ -23,6 +23,8 @@ namespace {
 
 constexpr auto kPhotoQuality = 95;
 constexpr auto kThumbnailQuality = 87;
+constexpr auto kLifeSeconds = 7 * 86400;
+constexpr auto kMaxDrafts = 50;
 
 template <typename Write>
 [[nodiscard]] QString ReplaceFile(const QString &path, Write &&write) {
@@ -230,6 +232,7 @@ StoryDrafts::StoryDrafts(not_null<Main::Session*> session)
 
 const std::vector<StoryDraft> &StoryDrafts::list() {
 	load();
+	removeExpired();
 	return _list;
 }
 
@@ -374,12 +377,18 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 		draft.thumbnail = existing->thumbnail;
 	}
 
+	auto id = uint64(0);
 	if (replacing) {
+		id = existing->id;
 		*existing = std::move(draft);
 	} else {
 		_list.insert(begin(_list), std::move(draft));
+		id = _list.front().id;
 	}
-	const auto id = replacing ? existing->id : _list.front().id;
+	while (_list.size() > kMaxDrafts) {
+		removeFiles(_list.back());
+		_list.pop_back();
+	}
 	write();
 	_changes.fire({});
 	return id;
@@ -391,17 +400,52 @@ void StoryDrafts::remove(uint64 id) {
 	if (i == end(_list)) {
 		return;
 	}
-	QFile::remove(i->mediaPath);
-	QFile::remove(i->stillPath);
-	QFile::remove(i->audioPath);
-	for (const auto &file : i->sceneFiles) {
-		QFile::remove(file);
-	}
-	QFile::remove(AudioCoverPath(folder(), id));
-	QFile::remove(ThumbnailPath(folder(), id));
+	removeFiles(*i);
 	_list.erase(i);
 	write();
 	_changes.fire({});
+}
+
+void StoryDrafts::clear() {
+	load();
+	for (const auto &draft : _list) {
+		removeFiles(draft);
+	}
+	_list.clear();
+	QFile::remove(folder() + u"index.json"_q);
+	_changes.fire({});
+}
+
+void StoryDrafts::removeExpired() {
+	if (!_loaded) {
+		return;
+	}
+	const auto now = base::unixtime::now();
+	auto changed = false;
+	for (auto i = _list.begin(); i != _list.end();) {
+		if (i->date && (i->date + kLifeSeconds < now)) {
+			removeFiles(*i);
+			i = _list.erase(i);
+			changed = true;
+		} else {
+			++i;
+		}
+	}
+	if (changed) {
+		write();
+		_changes.fire({});
+	}
+}
+
+void StoryDrafts::removeFiles(const StoryDraft &draft) {
+	QFile::remove(draft.mediaPath);
+	QFile::remove(draft.stillPath);
+	QFile::remove(draft.audioPath);
+	for (const auto &file : draft.sceneFiles) {
+		QFile::remove(file);
+	}
+	QFile::remove(AudioCoverPath(folder(), draft.id));
+	QFile::remove(ThumbnailPath(folder(), draft.id));
 }
 
 void StoryDrafts::load() {

@@ -93,10 +93,13 @@ public:
 
 	uint64 save(StoryDraft draft, const StoryDraftMedia &media);
 	void remove(uint64 id);
+	void clear();
 
 private:
 	void load();
+	void removeExpired();
 	void write();
+	void removeFiles(const StoryDraft &draft);
 	[[nodiscard]] QString folder() const;
 	[[nodiscard]] QString storeMedia(
 		uint64 id,
