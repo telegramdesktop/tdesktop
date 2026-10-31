@@ -161,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin 13b4eb3dc1b8ef404b4ab04750e0fd7aafbe06c2
+git fetch --depth=1 origin 6c982f9ca71209d0d72c2728c00c82f01d93a2a2
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -870,7 +870,7 @@ COPY --link --from=openssl /usr/src/openssl-cache /
 COPY --link --from=xkbcommon /usr/src/xkbcommon-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-QT=6.11.2
+QT=6.12.0
 git clone -b v$QT --depth=1 https://github.com/qt/qt5.git
 cd qt5
 git submodule update --init --recursive --depth=1 \
