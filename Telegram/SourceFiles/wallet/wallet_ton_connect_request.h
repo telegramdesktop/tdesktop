@@ -27,6 +27,10 @@ class SessionController;
 
 namespace Wallet {
 
+struct FeeResult;
+struct PreparedSend;
+struct TonConnectRequestBoxState;
+
 class TonConnectRequests final : public base::has_weak_ptr {
 public:
 	TonConnectRequests(
@@ -119,5 +123,12 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] std::shared_ptr<const PreparedSend> ApplyTonConnectPreview(
+	not_null<Main::Session*> session,
+	FeeResult result,
+	rpl::variable<TonConnectRequestBoxState> &state,
+	rpl::lifetime &idle,
+	Fn<void()> retry);
 
 } // namespace Wallet

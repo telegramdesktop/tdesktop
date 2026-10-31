@@ -294,18 +294,8 @@ void TonConnectBotRequest::preview() {
 }
 
 void TonConnectBotRequest::previewed(FeeResult result) {
-	auto state = _state.current();
+	const auto &state = _state.current();
 	if (_finished || state.phase != Phase::Confirm || state.busy) {
-		return;
-	}
-	state.feeLoading = false;
-	if (result.error == SendError::None && result.prepared) {
-		_prepared = std::move(result.prepared);
-		state.feeNano = result.feeNano;
-		state.emulation = std::move(result.emulation);
-		state.confirmable = true;
-		state.error = QString();
-		_state = std::move(state);
 		return;
 	} else if (result.error == SendError::InvalidRequest
 		|| result.error == SendError::DataInvalid
@@ -313,44 +303,16 @@ void TonConnectBotRequest::previewed(FeeResult result) {
 		refuse();
 		return;
 	}
-	auto &wallet = _session->wallet();
-	const auto waiting = [=] {
-		return !_finished && !_state.current().busy;
-	};
-	_prepared = nullptr;
-	state.emulation = nullptr;
-	state.confirmable = false;
-	if (result.error == SendError::SigningUnavailable
-		&& !wallet.signingReady()) {
-		state.feeLoading = true;
-		state.error = QString();
-		_state = std::move(state);
-		_idleLifetime.destroy();
-		wallet.signingReadyValue(
-		) | rpl::filter([](bool ready) {
-			return ready;
-		}) | rpl::take(1) | rpl::on_next([=](bool) {
-			if (waiting()) {
+	_prepared = ApplyTonConnectPreview(
+		_session,
+		std::move(result),
+		_state,
+		_idleLifetime,
+		[=] {
+			if (!_finished && !_state.current().busy) {
 				preview();
 			}
-		}, _idleLifetime);
-		return;
-	}
-	const auto text = SendErrorText(result.error, TransferMinNanos(_session));
-	state.error = text.isEmpty()
-		? tr::lng_wallet_connect_request_fee_failed(tr::now)
-		: text;
-	_state = std::move(state);
-	if (result.error == SendError::PreviousUnresolved
-		|| result.error == SendError::AlreadySending) {
-		_idleLifetime.destroy();
-		wallet.sendStateValue(
-		) | rpl::skip(1) | rpl::take(1) | rpl::on_next([=](SendState) {
-			if (waiting()) {
-				preview();
-			}
-		}, _idleLifetime);
-	}
+		});
 }
 
 void TonConnectBotRequest::armDeadline() {
@@ -506,6 +468,8 @@ void TonConnectBotRequest::signFailed(TonConnectKeyError error) {
 
 void TonConnectBotRequest::sent(TonConnectSendResult result) {
 	using Result = TonConnectBotResult;
+	// A retired send reports its BoC with an error: it may still have landed.
+	const auto sentBoc = !result.signedBoc.isEmpty();
 	if (_finished) {
 		return;
 	} else if (_handoffRefused) {
@@ -519,12 +483,13 @@ void TonConnectBotRequest::sent(TonConnectSendResult result) {
 			.messageHash = result.messageHash,
 			.signature = std::move(_account),
 		});
-	} else if (result.error == SendError::None
+	} else if (sentBoc
+		|| result.error == SendError::None
 		|| result.error == SendError::SubmissionUnknown) {
 		closeWithToast(
-			(result.signedBoc.isEmpty()
-				? tr::lng_wallet_connect_request_not_sent(tr::now)
-				: tr::lng_wallet_connect_request_sent(tr::now)),
+			(sentBoc
+				? tr::lng_wallet_connect_request_sent(tr::now)
+				: tr::lng_wallet_connect_request_not_sent(tr::now)),
 			{ .result = Result::Failed });
 	} else {
 		closeWithToast(
