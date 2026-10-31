@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/send_story_row.h"
 #include "boxes/story_privacy_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -333,7 +334,9 @@ void SetupPostAs(
 
 void SetupPrivacy(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
+		std::shared_ptr<ChatHelpers::Show> show,
+		const style::SendStoryBoxStyle *style,
 		not_null<State*> state) {
 	const auto content = box->verticalLayout();
 	const auto wrap = content->add(
@@ -341,22 +344,26 @@ void SetupPrivacy(
 			content,
 			object_ptr<Ui::VerticalLayout>(content)));
 	const auto inner = wrap->entity();
-	Ui::AddSubsectionTitle(inner, tr::lng_story_privacy_header());
+	Ui::AddSubsectionTitle(
+		inner,
+		tr::lng_story_privacy_header(),
+		{},
+		style ? &style->subsectionTitle : nullptr);
 
-	const auto session = &controller->session();
 	const auto choose = [=](
 			rpl::producer<QString> title,
 			std::vector<not_null<PeerData*>> selected,
 			Fn<void(std::vector<not_null<PeerData*>>)> done) {
-		controller->show(ChooseStoryPeersBox({
+		show->showBox(ChooseStoryPeersBox({
 			.session = session,
 			.title = std::move(title),
 			.selected = std::move(selected),
-		.done = [=](std::vector<not_null<PeerData*>> peers) {
-			done(std::move(peers));
-			SaveStoryPrivacy(session, CollectPrivacy(state));
-			state->listsChanges.fire({});
-		},
+			.style = style,
+			.done = [=](std::vector<not_null<PeerData*>> peers) {
+				done(std::move(peers));
+				SaveStoryPrivacy(session, CollectPrivacy(state));
+				state->listsChanges.fire({});
+			},
 		}));
 	};
 	const auto addRow = [&](
@@ -375,6 +382,7 @@ void SetupPrivacy(
 				.subtitleLink = true,
 				.radio = true,
 				.divider = true,
+				.style = style ? &style->row : nullptr,
 			}));
 		row->setChecked(
 			(state->option.current() == option),
@@ -443,9 +451,9 @@ void SetupPrivacy(
 		},
 		[=] { return PeopleText(CloseFriendsList(session)); },
 		[=] {
-			ShowCloseFriendsBox(controller->uiShow(), crl::guard(box, [=] {
+			ShowCloseFriendsBox(show, crl::guard(box, [=] {
 				state->listsChanges.fire({});
-			}));
+			}), style);
 		},
 		[=] { return CloseFriendsList(session).empty(); });
 
@@ -472,11 +480,14 @@ void SetupPrivacy(
 
 	const auto blocklist = Ui::AddDividerText(
 		inner,
-		state->blocklist.value() | rpl::map(BlocklistText));
+		state->blocklist.value() | rpl::map(BlocklistText),
+		st::defaultBoxDividerLabelPadding,
+		style ? style->dividerText : st::defaultDividerLabel);
 	blocklist->setClickHandlerFilter([=](const auto &...) {
 		ShowStoryBlocklistBox(
-			controller->uiShow(),
-			state->blocklist.current());
+			show,
+			state->blocklist.current(),
+			style);
 		return false;
 	});
 	session->api().stories().blocklistValue(
@@ -639,9 +650,9 @@ void ApplyPrivacy(
 
 void Submit(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<State*> state) {
-	const auto session = &controller->session();
 	if (state->submitted) {
 		return;
 	}
@@ -663,7 +674,7 @@ void Submit(
 	if (HasFormatting(caption)
 		&& session->appConfig().storiesEntitiesPremiumOnly()
 		&& !session->premium()) {
-		controller->showToast(tr::lng_story_entities_premium(tr::now));
+		show->showToast(tr::lng_story_entities_premium(tr::now));
 		state->submitted = false;
 		return;
 	}
@@ -695,6 +706,8 @@ void Submit(
 void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args) {
 	const auto controller = args.controller;
 	const auto editing = args.editing;
+	const auto show = args.show ? args.show : controller->uiShow();
+	const auto session = &show->session();
 	const auto state = box->lifetime().make_state<State>(args.peer);
 	state->media = std::move(args.media);
 	state->caption = std::move(args.caption);
@@ -708,30 +721,29 @@ void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args) {
 	if (editing) {
 		ApplyPrivacy(state, PrivacyFromStory(editing));
 	} else {
-		ApplyPrivacy(state, RestoreStoryPrivacy(&controller->session()));
+		ApplyPrivacy(state, RestoreStoryPrivacy(session));
 	}
 
 	box->setTitle(editing
 		? tr::lng_story_edit_privacy_title()
 		: tr::lng_story_post_title());
 	box->setWidth(st::boxWideWidth);
-	box->setStyle(st::sendStoryBox);
+	box->setStyle(args.style ? args.style->box : st::sendStoryBox);
 
 	if (!editing) {
 		SetupPostAs(box, controller, state);
 	}
-	SetupPrivacy(box, controller, state);
+	SetupPrivacy(box, session, show, args.style, state);
 	if (!editing) {
 		SetupOptions(box, controller, state);
 	}
 
 	box->addButton(
 		editing ? tr::lng_story_save_settings() : tr::lng_story_post_button(),
-		[=] { Submit(box, controller, state); });
+		[=] { Submit(box, session, show, state); });
 
 	if (state->peer->isSelf() && !editing) {
 		const auto self = state->peer;
-		const auto session = &controller->session();
 		session->api().stories().requestChatsToSend(crl::guard(box, [=](
 				std::vector<not_null<PeerData*>> chats) {
 			auto list = std::vector<not_null<PeerData*>>{ self };

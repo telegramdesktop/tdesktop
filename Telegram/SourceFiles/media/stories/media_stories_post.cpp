@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_story_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_channel.h"
@@ -50,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_media_view.h"
 
 namespace Media::Stories {
 namespace {
@@ -938,12 +940,13 @@ void EditStory(
 }
 
 void EditStoryPrivacy(
-		not_null<Window::SessionController*> controller,
+		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<Data::Story*> story) {
-	controller->show(Box(SendStoryBox, SendStoryBoxArgs{
-		.controller = controller,
+	show->showBox(Box(SendStoryBox, SendStoryBoxArgs{
 		.peer = story->peer(),
 		.editing = story,
+		.show = std::move(show),
+		.style = &st::storiesSendStoryBoxStyle,
 	}));
 }
 

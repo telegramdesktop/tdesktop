@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
 namespace {
@@ -89,6 +90,11 @@ object_ptr<Ui::BoxContent> ChooseStoryPeersBox(
 		args.session,
 		std::move(args.title),
 		std::move(args.selected));
+	if (args.style) {
+		controller->setStyleOverrides(
+			&args.style->peerList,
+			&args.style->multiSelect);
+	}
 	const auto done = std::move(args.done);
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_settings_save(), [=] {
@@ -102,13 +108,15 @@ object_ptr<Ui::BoxContent> ChooseStoryPeersBox(
 
 void ShowCloseFriendsBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		Fn<void()> done) {
+		Fn<void()> done,
+		const style::SendStoryBoxStyle *style) {
 	const auto session = &show->session();
 	const auto weak = base::make_weak(session);
 	show->showBox(ChooseStoryPeersBox({
 		.session = session,
 		.title = tr::lng_story_privacy_close_friends_title(),
 		.selected = CloseFriendsList(session),
+		.style = style,
 		.done = [=](std::vector<not_null<PeerData*>> peers) {
 			if (const auto session = weak.get()) {
 				session->api().stories().saveCloseFriends(
@@ -121,13 +129,15 @@ void ShowCloseFriendsBox(
 
 void ShowStoryBlocklistBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		std::vector<not_null<PeerData*>> current) {
+		std::vector<not_null<PeerData*>> current,
+		const style::SendStoryBoxStyle *style) {
 	const auto session = &show->session();
 	const auto weak = base::make_weak(session);
 	show->showBox(ChooseStoryPeersBox({
 		.session = session,
 		.title = tr::lng_story_blocklist_title(),
 		.selected = std::move(current),
+		.style = style,
 		.done = [=](std::vector<not_null<PeerData*>> peers) {
 			if (const auto session = weak.get()) {
 				session->api().stories().saveBlocklist(std::move(peers));

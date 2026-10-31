@@ -9,6 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_stories.h"
 
+class PeerData;
+
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 class Story;
 } // namespace Data
@@ -17,12 +23,16 @@ namespace Ui {
 class GenericBox;
 } // namespace Ui
 
+namespace style {
+struct SendStoryBoxStyle;
+} // namespace style
+
 namespace Window {
 class SessionController;
 } // namespace Window
 
 struct SendStoryBoxArgs {
-	not_null<Window::SessionController*> controller;
+	Window::SessionController *controller = nullptr;
 	not_null<PeerData*> peer;
 	std::optional<Api::SendStoryMedia> media;
 	TextWithTags caption;
@@ -33,6 +43,8 @@ struct SendStoryBoxArgs {
 	std::vector<Data::WeatherArea> weather;
 	Data::Story *editing = nullptr;
 	Fn<void()> posted;
+	std::shared_ptr<ChatHelpers::Show> show;
+	const style::SendStoryBoxStyle *style = nullptr;
 };
 
 void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args);

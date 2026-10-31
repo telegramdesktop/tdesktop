@@ -14,11 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 SendStoryRow::SendStoryRow(QWidget *parent, SendStoryRowContent content)
-: RippleButton(parent, st::defaultRippleAnimation)
+: RippleButton(parent, (content.style
+	? *content.style
+	: st::sendStoryRowStyle).ripple)
 , _content(std::move(content))
+, _st(_content.style ? *_content.style : st::sendStoryRowStyle)
 , _radio(_content.radio
 	? std::make_unique<Ui::RadioView>(
-		st::defaultRadio,
+		_st.radio,
 		false,
 		[=] { update(); })
 	: nullptr) {
@@ -108,7 +111,7 @@ void SendStoryRow::paintEvent(QPaintEvent *e) {
 	if (available <= 0) {
 		return;
 	}
-	p.setPen(st::boxTextFg);
+	p.setPen(_st.titleFg);
 	_title.drawLeftElided(p, left, st::storyRowTitleTop, available, width());
 
 	if (!_subtitle.isEmpty()) {
@@ -120,8 +123,8 @@ void SendStoryRow::paintEvent(QPaintEvent *e) {
 			_subtitle.maxWidth(),
 			available - arrow);
 		p.setPen(_content.subtitleLink
-			? st::windowActiveTextFg
-			: st::windowSubTextFg);
+			? _st.subtitleLinkFg
+			: _st.subtitleFg);
 		_subtitle.drawLeftElided(p, left, top, textWidth, width());
 		if (_content.subtitleLink) {
 			paintSubtitleArrow(p, left + textWidth, top);
@@ -136,7 +139,7 @@ void SendStoryRow::paintEvent(QPaintEvent *e) {
 			height() - st::lineWidth,
 			width() - left,
 			st::lineWidth,
-			st::boxDividerBg);
+			_st.dividerBg);
 	}
 }
 
@@ -169,7 +172,7 @@ void SendStoryRow::paintSubtitleArrow(QPainter &p, int left, int top) {
 	path.moveTo(x, center - size / 2.);
 	path.lineTo(x + size / 2., center);
 	path.lineTo(x, center + size / 2.);
-	auto pen = QPen(st::windowActiveTextFg->c);
+	auto pen = QPen(_st.subtitleLinkFg->c);
 	pen.setWidthF(float64(st::storyRowArrowStroke));
 	pen.setCapStyle(Qt::RoundCap);
 	pen.setJoinStyle(Qt::RoundJoin);
@@ -187,7 +190,7 @@ void SendStoryRow::paintChevron(QPainter &p) {
 	path.moveTo(x, center - size);
 	path.lineTo(x + size, center);
 	path.lineTo(x, center + size);
-	auto color = st::boxTextFg->c;
+	auto color = _st.titleFg->c;
 	color.setAlphaF(color.alphaF() * st::storyRowChevronOpacity);
 	auto pen = QPen(color);
 	pen.setWidthF(float64(st::storyRowChevronStroke));

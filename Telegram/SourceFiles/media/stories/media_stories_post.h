@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QMimeData;
 
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
+
 namespace Data {
 class Story;
 } // namespace Data
@@ -67,7 +71,7 @@ void EditStory(
 	not_null<Window::SessionController*> controller,
 	not_null<Data::Story*> story);
 void EditStoryPrivacy(
-	not_null<Window::SessionController*> controller,
+	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Data::Story*> story);
 void RepostStory(
 	not_null<Window::SessionController*> controller,

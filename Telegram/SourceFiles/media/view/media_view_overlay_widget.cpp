@@ -2405,13 +2405,12 @@ void OverlayWidget::fillContextMenuActions(
 	if (story && Stories::CanEditStoryPrivacy(story)) {
 		const auto id = story->fullId();
 		addAction(tr::lng_story_edit_privacy(tr::now), [=] {
-			const auto window = findWindow();
-			if (!window || !_session) {
+			if (!_session) {
 				return;
 			}
 			const auto &stories = _session->data().stories();
 			if (const auto found = stories.lookup(id)) {
-				Stories::EditStoryPrivacy(window, *found);
+				Stories::EditStoryPrivacy(uiShow(), *found);
 			}
 		}, &st::mediaMenuIconPrivacy);
 	}

@@ -1220,6 +1220,32 @@ storiesStealthStyle: StealthBoxStyle {
 	logoBg: storiesComposeBlue;
 }
 
+storiesSendStoryRadio: Radio(defaultRadio) {
+	untoggledFg: storiesComposeGrayText;
+	toggledFg: storiesComposeBlue;
+}
+storiesSendStoryRowStyle: SendStoryRowStyle {
+	radio: storiesSendStoryRadio;
+	titleFg: storiesComposeWhiteText;
+	subtitleFg: storiesComposeGrayText;
+	subtitleLinkFg: storiesComposeBlue;
+	dividerBg: storiesComposeBgOver;
+	ripple: storiesComposeRipple;
+}
+storiesSendStoryBoxStyle: SendStoryBoxStyle {
+	box: Box(storiesStealthBox) {
+		buttonWide: true;
+		buttonPadding: margins(16px, 12px, 16px, 12px);
+	}
+	subsectionTitle: FlatLabel(defaultSubsectionTitle) {
+		textFg: storiesComposeBlue;
+	}
+	dividerText: groupCallDividerLabel;
+	row: storiesSendStoryRowStyle;
+	peerList: groupCallShareBoxList;
+	multiSelect: groupCallMultiSelect;
+}
+
 storiesViewsPosition: point(4px, 29px);
 storiesViewsIcon: icon{{ "mediaview/views", storiesComposeGrayText }};
 storiesViewsIconTop: 11px;

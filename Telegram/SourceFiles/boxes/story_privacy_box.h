@@ -21,6 +21,10 @@ namespace Ui {
 class BoxContent;
 } // namespace Ui
 
+namespace style {
+struct SendStoryBoxStyle;
+} // namespace style
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -29,6 +33,7 @@ struct StoryPeersChooserArgs {
 	not_null<Main::Session*> session;
 	rpl::producer<QString> title;
 	std::vector<not_null<PeerData*>> selected;
+	const style::SendStoryBoxStyle *style = nullptr;
 	Fn<void(std::vector<not_null<PeerData*>>)> done;
 };
 
@@ -37,14 +42,16 @@ struct StoryPeersChooserArgs {
 
 void ShowCloseFriendsBox(
 	std::shared_ptr<ChatHelpers::Show> show,
-	Fn<void()> done = nullptr);
+	Fn<void()> done = nullptr,
+	const style::SendStoryBoxStyle *style = nullptr);
 
 [[nodiscard]] std::vector<not_null<PeerData*>> CloseFriendsList(
 	not_null<Main::Session*> session);
 
 void ShowStoryBlocklistBox(
 	std::shared_ptr<ChatHelpers::Show> show,
-	std::vector<not_null<PeerData*>> current);
+	std::vector<not_null<PeerData*>> current,
+	const style::SendStoryBoxStyle *style = nullptr);
 
 struct StoryPostAsArgs {
 	not_null<Window::SessionController*> controller;

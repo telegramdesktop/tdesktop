@@ -15,6 +15,10 @@ namespace Ui {
 class RadioView;
 } // namespace Ui
 
+namespace style {
+struct SendStoryRowStyle;
+} // namespace style
+
 struct SendStoryRowIcon {
 	not_null<const style::icon*> icon;
 	not_null<const style::color*> bg1;
@@ -30,6 +34,7 @@ struct SendStoryRowContent {
 	bool radio = false;
 	bool chevron = false;
 	bool divider = false;
+	const style::SendStoryRowStyle *style = nullptr;
 };
 
 class SendStoryRow final : public Ui::RippleButton {
@@ -59,6 +64,7 @@ private:
 	void paintChevron(QPainter &p);
 
 	SendStoryRowContent _content;
+	const style::SendStoryRowStyle &_st;
 	std::unique_ptr<Ui::RadioView> _radio;
 	Ui::PeerUserpicView _userpic;
 	Ui::Text::String _title;

@@ -224,6 +224,33 @@ storyPrivacyIconEveryone: icon {{ "stories/privacy_everyone", historyPeerUserpic
 storyPrivacyIconContacts: icon {{ "stories/privacy_contacts", historyPeerUserpicFg }};
 storyPrivacyIconCloseFriends: icon {{ "stories/privacy_close_friends", historyPeerUserpicFg }};
 storyPrivacyIconSelected: icon {{ "stories/privacy_selected", historyPeerUserpicFg }};
+
+SendStoryRowStyle {
+	radio: Radio;
+	titleFg: color;
+	subtitleFg: color;
+	subtitleLinkFg: color;
+	dividerBg: color;
+	ripple: RippleAnimation;
+}
+
+sendStoryRowStyle: SendStoryRowStyle {
+	radio: defaultRadio;
+	titleFg: boxTextFg;
+	subtitleFg: windowSubTextFg;
+	subtitleLinkFg: windowActiveTextFg;
+	dividerBg: boxDividerBg;
+	ripple: defaultRippleAnimation;
+}
+
+SendStoryBoxStyle {
+	box: Box;
+	subsectionTitle: FlatLabel;
+	dividerText: DividerLabel;
+	row: SendStoryRowStyle;
+	peerList: PeerList;
+	multiSelect: MultiSelect;
+}
 storyAudioSearchHeight: 36px;
 storyAudioSearchMargins: margins(20px, 8px, 20px, 8px);
 storyAudioSearchIcon: icon {{ "box_search", menuIconFg }};
