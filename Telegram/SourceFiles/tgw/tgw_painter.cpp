@@ -188,6 +188,7 @@ public:
 		const QPen &pen);
 
 	[[nodiscard]] bool add(const QPainterPath &path);
+	[[nodiscard]] bool valid() const;
 	[[nodiscard]] float64 edges() const;
 	[[nodiscard]] float64 spans() const;
 	[[nodiscard]] float64 visibleSpans() const;
@@ -251,6 +252,7 @@ public:
 	Executor(QPainter &root, const QtBackend &backend, float64 scale);
 
 	[[nodiscard]] bool run(const twlite::DisplayList &list);
+	[[nodiscard]] const QString &exceeded() const;
 
 private:
 	enum class EntryKind : uchar {
@@ -305,6 +307,7 @@ private:
 	void popEntry(bool composite);
 	void popLayer(bool composite);
 	void unwind(bool composite);
+	[[nodiscard]] bool exceed(QString reason);
 
 	void clipToRect(const QRectF &rect);
 	[[nodiscard]] bool clipToPath(const twlite::Path &source);
@@ -326,15 +329,18 @@ private:
 	int64 _filterWork = kMaxFilterWork;
 	int _hidden = 0;
 	bool _refused = false;
+	QString _exceeded;
 
 };
 
 [[nodiscard]] bool ValidFrame(QSize size, float64 scale) {
-	return !size.isEmpty()
-		&& (int64(size.width()) * size.height()
-			<= kMaxFrameBytes / kPixelBytes)
-		&& std::isfinite(scale)
-		&& (scale > 0.);
+	return !size.isEmpty() && std::isfinite(scale) && (scale > 0.);
+}
+
+[[nodiscard]] QString PaintLimit(const QString &what, int64 max) {
+	return u"Paint limit exceeded: %1 (max %2)"_q.arg(
+		what,
+		QString::number(max));
 }
 
 [[nodiscard]] int64 LayerBytes(QSize size) {
@@ -1720,6 +1726,10 @@ bool Outline::add(const QPainterPath &path) {
 	return _valid && (_edges <= _limit);
 }
 
+bool Outline::valid() const {
+	return _valid;
+}
+
 float64 Outline::edges() const {
 	return _edges;
 }
@@ -2016,7 +2026,9 @@ bool Executor::run(const twlite::DisplayList &list) {
 		}
 	}
 	if (passes > _filterWork / kFilterPassWork) {
-		return false;
+		return exceed(PaintLimit(
+			u"%1 filter passes in one frame"_q.arg(passes),
+			_filterWork / kFilterPassWork));
 	}
 	_filterWork -= passes * kFilterPassWork;
 	const auto device = _root.device();
@@ -2033,6 +2045,10 @@ bool Executor::run(const twlite::DisplayList &list) {
 	}
 	unwind(true);
 	return !_refused;
+}
+
+const QString &Executor::exceeded() const {
+	return _exceeded.isEmpty() ? _allowance.exceeded() : _exceeded;
 }
 
 bool Executor::execute(const twlite::Command &command) {
@@ -2291,8 +2307,11 @@ bool Executor::drawMask(
 	};
 	auto image = Shadows().find(key);
 	if (image.isNull()) {
-		if (BlurBytes(layout.size) > kMaxLayerBytes - _layerBytes) {
-			return false;
+		const auto bytes = BlurBytes(layout.size);
+		if (bytes > kMaxLayerBytes - _layerBytes) {
+			return exceed(PaintLimit(
+				u"%1 active layer bytes at once"_q.arg(_layerBytes + bytes),
+				kMaxLayerBytes));
 		}
 		image = PrepareShadow(key);
 		if (image.isNull()) {
@@ -2506,9 +2525,15 @@ bool Executor::pushLayer(
 	}
 	const auto offset = origin();
 	const auto bytes = LayerBytes(area.size());
-	if (bytes > kMaxLayerBytes - _layerBytes
-		|| bytes > kMaxLayerWork - _layerWork) {
-		return false;
+	if (bytes > kMaxLayerBytes - _layerBytes) {
+		return exceed(PaintLimit(
+			u"%1 active layer bytes at once"_q.arg(_layerBytes + bytes),
+			kMaxLayerBytes));
+	} else if (bytes > kMaxLayerWork - _layerWork) {
+		return exceed(PaintLimit(
+			u"%1 cumulative layer bytes in one frame"_q.arg(
+				_layerWork + bytes),
+			kMaxLayerWork));
 	}
 	auto layer = std::make_unique<Layer>();
 	layer->image = QImage(area.size(), QImage::Format_ARGB32_Premultiplied);
@@ -2535,11 +2560,25 @@ bool Executor::pushLayer(
 
 bool Executor::admitFilter(const FilterCost &cost, int64 bytes) {
 	const auto total = bytes + cost.scratch;
-	if (cost.work > _filterWork
-		|| cost.scratch > kMaxFilterScratch
-		|| total > kMaxLayerBytes - _layerBytes
-		|| total > kMaxLayerWork - _layerWork) {
-		return false;
+	if (cost.work > _filterWork) {
+		return exceed(PaintLimit(
+			u"filter work of %1 units in one frame"_q.arg(
+				kMaxFilterWork - _filterWork + cost.work),
+			kMaxFilterWork));
+	} else if (cost.scratch > kMaxFilterScratch) {
+		return exceed(PaintLimit(
+			u"filter scratch of %1 bytes in one filter pass"_q.arg(
+				cost.scratch),
+			kMaxFilterScratch));
+	} else if (total > kMaxLayerBytes - _layerBytes) {
+		return exceed(PaintLimit(
+			u"%1 active layer bytes at once"_q.arg(_layerBytes + total),
+			kMaxLayerBytes));
+	} else if (total > kMaxLayerWork - _layerWork) {
+		return exceed(PaintLimit(
+			u"%1 cumulative layer bytes in one frame"_q.arg(
+				_layerWork + total),
+			kMaxLayerWork));
 	}
 	_filterWork -= cost.work;
 	_layerWork += cost.scratch;
@@ -2617,6 +2656,11 @@ void Executor::unwind(bool composite) {
 	}
 }
 
+bool Executor::exceed(QString reason) {
+	_exceeded = std::move(reason);
+	return false;
+}
+
 void Executor::clipToRect(const QRectF &rect) {
 	painter().setClipRect(bounded(rect), Qt::IntersectClip);
 }
@@ -2673,8 +2717,18 @@ PaintAllowance::PaintAllowance()
 }
 
 bool PaintAllowance::chargeElements(int64 count) {
-	if (count < 0 || count > _elements || count > _work / kElementWork) {
+	if (count < 0) {
 		return false;
+	} else if (count > _elements) {
+		return exceed(PaintLimit(
+			u"%1 path elements in one frame"_q.arg(
+				kMaxPathElements - _elements + count),
+			kMaxPathElements));
+	} else if (count > _work / kElementWork) {
+		return exceed(PaintLimit(
+			u"path work of %1 units in one frame"_q.arg(
+				kMaxPathWork - _work + count * kElementWork),
+			kMaxPathWork));
 	}
 	_elements -= count;
 	_work -= count * kElementWork;
@@ -2682,10 +2736,18 @@ bool PaintAllowance::chargeElements(int64 count) {
 }
 
 bool PaintAllowance::chargeStops(int64 count) {
-	if (count < 0
-		|| count > _work / kStopWork
-		|| count > _flattenBytes / kStopBytes) {
+	if (count < 0) {
 		return false;
+	} else if (count > _work / kStopWork) {
+		return exceed(PaintLimit(
+			u"path work of %1 units in one frame"_q.arg(
+				kMaxPathWork - _work + count * kStopWork),
+			kMaxPathWork));
+	} else if (count > _flattenBytes / kStopBytes) {
+		return exceed(PaintLimit(
+			u"%1 flattening bytes in one frame"_q.arg(
+				kMaxFlattenBytes - _flattenBytes + count * kStopBytes),
+			kMaxFlattenBytes));
 	}
 	_work -= count * kStopWork;
 	_flattenBytes -= count * kStopBytes;
@@ -2751,7 +2813,10 @@ bool PaintAllowance::strokeDashes(
 		pen.capStyle() != Qt::FlatCap);
 	const auto scaled = QTransform::fromScale(scale, scale);
 	if (!ReserveFlattening(path, _flattenBytes)) {
-		return false;
+		return exceed(PaintLimit(
+			u"more than %1 flattening bytes in one frame"_q.arg(
+				kMaxFlattenBytes),
+			kMaxFlattenBytes));
 	}
 	const auto polygons = path.toSubpathPolygons(scaled);
 	auto points = 0.;
@@ -2763,7 +2828,9 @@ bool PaintAllowance::strokeDashes(
 	}
 	for (const auto &polygon : polygons) {
 		if (!dasher.add(polygon)) {
-			return false;
+			return exceed(PaintLimit(
+				u"more than %1 dash steps in one frame"_q.arg(kMaxDashSteps),
+				kMaxDashSteps));
 		}
 	}
 	auto stroker = QPainterPathStroker(pen);
@@ -2790,6 +2857,10 @@ bool PaintAllowance::strokeDashes(
 	return true;
 }
 
+const QString &PaintAllowance::exceeded() const {
+	return _exceeded;
+}
+
 bool PaintAllowance::chargeShape(
 		const QPainterPath &path,
 		const QTransform &device,
@@ -2808,6 +2879,11 @@ bool PaintAllowance::chargeShape(
 		? Outline(device, size, threshold, limit, *pen)
 		: Outline(device, size, threshold, limit);
 	if (!outline.add(path)) {
+		if (outline.valid() && outline.edges() > limit) {
+			return exceed(PaintLimit(
+				u"more than %1 path edges in one frame"_q.arg(kMaxPathEdges),
+				kMaxPathEdges));
+		}
 		return false;
 	}
 	const auto weight = (style == Qt::SolidPattern) ? 1. : kGradientPixel;
@@ -2817,15 +2893,33 @@ bool PaintAllowance::chargeShape(
 }
 
 bool PaintAllowance::charge(float64 edges, float64 work) {
-	if (!std::isfinite(edges)
-		|| !std::isfinite(work)
-		|| !(edges <= float64(_edges))
-		|| !(work <= float64(_work))) {
+	if (!std::isfinite(edges) || !std::isfinite(work)) {
 		return false;
+	} else if (!(edges <= float64(_edges))) {
+		return exceed(PaintLimit(
+			u"%1 path edges in one frame"_q.arg(
+				std::ceil(float64(kMaxPathEdges - _edges) + edges),
+				0,
+				'f',
+				0),
+			kMaxPathEdges));
+	} else if (!(work <= float64(_work))) {
+		return exceed(PaintLimit(
+			u"path work of %1 units in one frame"_q.arg(
+				std::ceil(float64(kMaxPathWork - _work) + work),
+				0,
+				'f',
+				0),
+			kMaxPathWork));
 	}
 	_edges -= int64(std::ceil(edges));
 	_work -= int64(std::ceil(work));
 	return true;
+}
+
+bool PaintAllowance::exceed(QString reason) {
+	_exceeded = std::move(reason);
+	return false;
 }
 
 void PrepareHints(QPainter &painter) {
@@ -3002,26 +3096,38 @@ QImage ShadowFromCoverage(QImage mask, int radius, QRgb color) {
 	return ColorizeMask(Images::BlurLargeImage(std::move(mask), radius), color);
 }
 
-QImage PaintFrame(
+PaintedFrame PaintFrame(
 		const twlite::DisplayList &list,
 		const QtBackend &backend,
 		QSize deviceSize,
 		float64 cssToDevice) {
 	if (!ValidFrame(deviceSize, cssToDevice)) {
-		return QImage();
+		return {};
+	}
+	const auto pixels = int64(deviceSize.width()) * deviceSize.height();
+	if (pixels > kMaxFrameBytes / kPixelBytes) {
+		return {
+			.limit = PaintLimit(
+				u"a frame of %1 pixels"_q.arg(pixels),
+				kMaxFrameBytes / kPixelBytes),
+		};
 	}
 	auto result = QImage(deviceSize, QImage::Format_ARGB32_Premultiplied);
 	if (result.isNull()) {
-		return QImage();
+		return {};
 	}
 	result.fill(Qt::transparent);
 	auto painter = QPainter();
 	if (!painter.begin(&result)) {
-		return QImage();
+		return {};
 	}
-	const auto painted = Executor(painter, backend, cssToDevice).run(list);
+	auto executor = Executor(painter, backend, cssToDevice);
+	const auto painted = executor.run(list);
 	painter.end();
-	return painted ? result : QImage();
+	if (!painted) {
+		return { .limit = executor.exceeded() };
+	}
+	return { .image = std::move(result) };
 }
 
 } // namespace Tgw

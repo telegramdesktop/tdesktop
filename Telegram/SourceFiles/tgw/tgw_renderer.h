@@ -128,6 +128,7 @@ public:
 		QSize cardArea,
 		bool autoHeight);
 	void dropFrame();
+	void refreshFrame();
 	void takeFrameFrom(RendererCore &other);
 
 	[[nodiscard]] rpl::producer<Changes> updates() const;
@@ -173,6 +174,7 @@ private:
 	[[nodiscard]] std::vector<twidget::Json> leaveHover();
 	void inputDone(const std::vector<twidget::Json> &out, bool wasDirty);
 	void releaseInput();
+	void stop(QString reason, bool fatal);
 	[[nodiscard]] std::vector<twidget::Json> takeSettled();
 	void flushQueued();
 

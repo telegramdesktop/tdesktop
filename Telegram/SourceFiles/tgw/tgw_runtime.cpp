@@ -1283,7 +1283,25 @@ bool Runtime::queryVisible() const {
 		_view.get());
 }
 
+bool Runtime::recordStop(not_null<RendererCore*> renderer) {
+	_stopReason = Clip(renderer->stopReason());
+	_stopFatal = renderer->stopFatal();
+	if (_stopFatal
+		&& currentContent()
+		&& (_memory->crashes < kMaxCrashes)) {
+		return (++_memory->crashes == kMaxCrashes);
+	}
+	return false;
+}
+
 void Runtime::breakCrashRun() {
+	if (_state == State::Live && _live->stopped()) {
+		// A release may overtake the stop that RendererCore::frame() posted.
+		if (recordStop(_live.get())) {
+			_item->history()->owner().requestItemRepaint(_item);
+		}
+		return;
+	}
 	if (_state == State::Live
 		&& _live->hasContent()
 		&& !_live->stopped()
@@ -1583,14 +1601,7 @@ void Runtime::coreStopped(not_null<RendererCore*> renderer) {
 	if (renderer.get() != _live.get() || _state != State::Live) {
 		return;
 	}
-	_stopReason = Clip(renderer->stopReason());
-	_stopFatal = renderer->stopFatal();
-	auto limitReached = false;
-	if (_stopFatal
-		&& currentContent()
-		&& (_memory->crashes < kMaxCrashes)) {
-		limitReached = (++_memory->crashes == kMaxCrashes);
-	}
+	const auto limitReached = recordStop(renderer);
 	// A scroll away may not have reached the posted Check() yet.
 	_visible = queryVisible();
 	retire(State::Stopped);
@@ -1861,10 +1872,10 @@ void Runtime::emojiRefreshed() {
 		return;
 	}
 	if (_live) {
-		_live->dropFrame();
+		_live->refreshFrame();
 	}
 	if (_still) {
-		_still->dropFrame();
+		_still->refreshFrame();
 	}
 	_repaint();
 }

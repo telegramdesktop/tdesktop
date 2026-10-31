@@ -57,6 +57,7 @@ namespace {
 
 constexpr auto kFallbackWidth = 1.;
 constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
+constexpr auto kPaintLimitKind = "paint-limit";
 constexpr auto kMinWakeDelay = crl::time(1);
 constexpr auto kMaxWakeDelay = crl::time(std::numeric_limits<int>::max());
 constexpr auto kTouchDown = 0;
@@ -886,13 +887,19 @@ const QImage &RendererCore::frame(
 		QSize cardArea,
 		bool autoHeight) {
 	const auto ratio = style::DevicePixelRatio();
+	const auto card = cardArea * ratio;
+	const auto fits = [&] {
+		return !_frame.isNull()
+			&& (_frameArea == cardArea)
+			&& (_frameCorners == corners)
+			&& (_frame.devicePixelRatio() == ratio)
+			&& FitsCard(_frame.size(), card, ratio, autoHeight);
+	};
 	if (!_renderer->dirty()
 		&& (_frameSize == DeviceSize(*_renderer))
 		&& (_frameCorners == corners)
 		&& (_frameArea == cardArea)
-		&& (_frame.isNull()
-			|| ((_frame.devicePixelRatio() == ratio)
-				&& (_frame.size() == _frameSize)))) {
+		&& (_frame.isNull() || fits())) {
 		return _frame;
 	}
 	const auto builds = _renderer->stats().builds;
@@ -902,29 +909,33 @@ const QImage &RendererCore::frame(
 	const auto list = _renderer->paint();
 	const auto size = DeviceSize(*_renderer);
 	const auto settled = (_renderer->stats().builds != builds);
-	const auto card = cardArea * ratio;
 	if (!FitsCard(size, card, ratio, autoHeight)) {
 		// A size the list has not laid out yet keeps this card's picture.
 		if (settled) {
 			flushQueued();
 		}
-		const auto keep = !_frame.isNull()
-			&& (_frameArea == cardArea)
-			&& (_frameCorners == corners)
-			&& (_frame.devicePixelRatio() == ratio)
-			&& FitsCard(_frame.size(), card, ratio, autoHeight);
-		if (!keep) {
+		if (!fits()) {
 			dropFrame();
 		}
 		return _frame;
 	}
-	_frame = PaintFrame(list, *_backend, size, _renderer->dpr());
+	auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());
+	const auto refused = !painted.limit.isEmpty();
+	if (!refused || !fits()) {
+		_frame = std::move(painted.image);
+		if (!_frame.isNull()) {
+			_frame = RoundFrame(std::move(_frame), corners, card);
+			_frame.setDevicePixelRatio(ratio);
+		}
+	}
 	_frameSize = size;
 	_frameCorners = corners;
 	_frameArea = cardArea;
-	if (!_frame.isNull()) {
-		_frame = RoundFrame(std::move(_frame), corners, card);
-		_frame.setDevicePixelRatio(ratio);
+	if (refused && !_detached && !_stopped) {
+		_link->diag(kPaintLimitKind, painted.limit.toStdString());
+		stop(std::move(painted.limit), true);
+		refreshClock();
+		notifyPosted(Change::Stopped | Change::Repaint);
 	}
 	if (settled) {
 		flushQueued(); // paint() holds its build's output for the next call
@@ -937,6 +948,11 @@ void RendererCore::dropFrame() {
 	_frameSize = QSize();
 	_frameArea = QSize();
 	_frameCorners = Images::CornersMaskRef();
+}
+
+void RendererCore::refreshFrame() {
+	// A paint-stopped core's replay is refused, so its last picture stays.
+	_frameSize = QSize();
 }
 
 void RendererCore::takeFrameFrom(RendererCore &other) {
@@ -990,11 +1006,9 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		// WHY: HtmlWidget::drawStopped() paints the themed stop pill; the
 		// core's own freeze would rebuild its badge and fatal dimming into
 		// the last frame, so the core never sees this message.
-		_stopped = true;
-		_frameRequested = false;
-		_stopReason = QString::fromStdString(message["reason"].asString());
-		_stopFatal = message["fatal"].asBool();
-		releaseInput();
+		stop(
+			QString::fromStdString(message["reason"].asString()),
+			message["fatal"].asBool());
 		finish({}, Change::Stopped | Change::Repaint);
 		return;
 	}
@@ -1151,6 +1165,14 @@ void RendererCore::releaseInput() {
 	_cursor = nullptr;
 	_pointer = Pointer();
 	_finger = Finger();
+}
+
+void RendererCore::stop(QString reason, bool fatal) {
+	_stopped = true;
+	_frameRequested = false;
+	_stopReason = std::move(reason);
+	_stopFatal = fatal;
+	releaseInput();
 }
 
 std::vector<twidget::Json> RendererCore::takeSettled() {

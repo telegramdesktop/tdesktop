@@ -9,6 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "TwidgetCore/src/display_list.h"
 
+#include <QtCore/QString>
+#include <QtGui/QImage>
+
 namespace Tgw {
 
 class QtBackend;
@@ -33,6 +36,7 @@ public:
 		const QPen &pen,
 		std::vector<float64> dashes,
 		float64 offset);
+	[[nodiscard]] const QString &exceeded() const;
 
 private:
 	[[nodiscard]] bool chargeShape(
@@ -42,12 +46,14 @@ private:
 		const QPen *pen,
 		Qt::BrushStyle style);
 	[[nodiscard]] bool charge(float64 edges, float64 work);
+	[[nodiscard]] bool exceed(QString reason);
 
 	int64 _elements = 0;
 	int64 _edges = 0;
 	int64 _work = 0;
 	int64 _dashSteps = 0;
 	int64 _flattenBytes = 0;
+	QString _exceeded;
 
 };
 
@@ -78,7 +84,12 @@ void PrepareHints(QPainter &painter);
 [[nodiscard]] int StackRadius(float64 sigma);
 [[nodiscard]] QImage ShadowFromCoverage(QImage mask, int radius, QRgb color);
 
-[[nodiscard]] QImage PaintFrame(
+struct PaintedFrame {
+	QImage image;
+	QString limit;
+};
+
+[[nodiscard]] PaintedFrame PaintFrame(
 	const twlite::DisplayList &list,
 	const QtBackend &backend,
 	QSize deviceSize,

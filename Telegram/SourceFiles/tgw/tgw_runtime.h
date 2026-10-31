@@ -148,6 +148,7 @@ private:
 	[[nodiscard]] bool wantsStart() const;
 	[[nodiscard]] bool queryVisible() const;
 
+	[[nodiscard]] bool recordStop(not_null<RendererCore*> renderer);
 	void breakCrashRun();
 	void start();
 	void release();
