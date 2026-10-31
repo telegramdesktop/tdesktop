@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_conformance_context.h"
 #include "test/test_widget_conformance_pictures.h"
 #include "test/test_widget_conformance_state.h"
+#include "test/test_widget_conformance_stop.h"
 #include "test/test_widget_fixture.h"
 #include "test/test_widget_host.h"
 #include "test/test_widget_ops.h"
@@ -1196,10 +1197,13 @@ void CaptureEnvironment(ConformanceState &state) {
 		u"only at a fatal frozen notice, a stopped or failed runtime, the "
 		u"message gone or the %1 s bound. Its dead is the reason of the "
 		u"\"Died: \" line of its host's final or fresh runtime summary, "
-		u"WidgetDiagnostics::dead verbatim but cut at 240 characters; a stop "
-		u"run that died without that line carries the runner refusal "
-		u"stop-reason-unmeasured. report.mjs alone judges whether dead starts "
-		u"with the entry's stops."_q.arg(NumberText(kResultBound / 1000)));
+		u"WidgetDiagnostics::dead verbatim but cut at 240 characters, or, "
+		u"for a stop the desktop decided itself (a paint bound), which no "
+		u"host death carries, RendererCore's stop reason cut the same way, "
+		u"read in the log stage; a stop run that died with neither carries "
+		u"the runner refusal stop-reason-unmeasured. report.mjs alone judges "
+		u"whether dead starts with the entry's stops."_q.arg(
+			NumberText(kResultBound / 1000)));
 	auto uncaptioned = QStringList();
 	for (const auto &test : state.tests) {
 		if (test.safeArea) {
@@ -2218,8 +2222,8 @@ void PrepareOutput(ConformanceState &state) {
 
 // The tap's own scanner checks, the played bot's, the tap's probe-fixture
 // checks, then the pure result reader, summary reader, observation, run
-// file, message context and bot table, selection, host reading, picture
-// and totals controls; every row is one Check.
+// file, message context and bot table, selection, host reading, desktop
+// stop, picture and totals controls; every row is one Check.
 void RunSelfChecks(ConformanceState &state) {
 	auto failed = QStringList();
 	auto count = 0;
@@ -2267,6 +2271,9 @@ void RunSelfChecks(ConformanceState &state) {
 	}
 	take(CheckSelection());
 	take(CheckHostReadings());
+	for (const auto &row : RunDesktopStopCheck()) {
+		take(SelfCheckRow(row.passed, row.name, row.details));
+	}
 	for (const auto &row : RunPictureCheck()) {
 		take(SelfCheckRow(row.passed, row.name, row.details));
 	}
@@ -2631,8 +2638,8 @@ void RecordDone(const ConformanceState &state, ConformanceRun &run) {
 
 // The "Died: " line Summarize() puts first, read only from a summary of
 // the host the log was requested for. "terminated" is the runtime's own
-// retirement, not a death.
-void ReadDeath(ConformanceRun &run) {
+// retirement, not a death. True when it took the host's reason.
+[[nodiscard]] bool ReadDeath(ConformanceRun &run) {
 	const auto &log = run.message->log;
 	const auto own = (log.summaryState == WidgetLogSummary::Fresh)
 		|| (log.summaryState == WidgetLogSummary::Final);
@@ -2640,39 +2647,16 @@ void ReadDeath(ConformanceRun &run) {
 		? log.summary.section(QChar('\n'), 0, 0)
 		: QString();
 	if (!first.startsWith(u"Died: "_q)) {
-		return;
+		return false;
 	}
 	run.deathLine = first;
 	const auto reason = first.mid(6).trimmed();
-	if (reason != u"terminated"_q) {
-		run.died = true;
-		run.dead = reason;
+	if (reason == u"terminated"_q) {
+		return false;
 	}
-}
-
-// A run of a stops entry that died without the reason ReadDeath() takes,
-// a "Died: " line other than "terminated": its dead would be the runner's
-// placeholder, never the host's stop reason that report.mjs judges.
-[[nodiscard]] RunnerRefusal StopRefusal(
-		const QString &stops,
-		bool died,
-		const QString &deathLine) {
-	const auto reason = deathLine.startsWith(u"Died: "_q)
-		? deathLine.mid(6).trimmed()
-		: QString();
-	if (stops.isEmpty()
-		|| !died
-		|| (!reason.isEmpty() && (reason != u"terminated"_q))) {
-		return {};
-	}
-	return {
-		.name = u"stop-reason-unmeasured"_q,
-		.detail = u"the widget of an entry with stops [%1] died, but no "
-			u"fresh or final summary of its host gave its \"Died: \" reason "
-			u"(death line [%2]), so dead is the runner's placeholder"_q.arg(
-				stops,
-				deathLine),
-	};
+	run.died = true;
+	run.dead = reason;
+	return true;
 }
 
 [[nodiscard]] bool SafeAreaZero(const twidget::WidgetContentSafeArea &area) {
@@ -2841,7 +2825,8 @@ WidgetOpsSelfCheckRow CheckHostReadings() {
 			StopRefusal(
 				QString::fromLatin1(entry.stops),
 				entry.died,
-				QString::fromLatin1(entry.deathLine)),
+				QString::fromLatin1(entry.deathLine),
+				false),
 			entry.refusal);
 	}
 
@@ -2925,12 +2910,23 @@ void RecordLog(const ConformanceState &state, ConformanceRun &run) {
 		run.died = true;
 		run.dead = DeathText(true);
 	}
-	ReadDeath(run);
+	// A stop the desktop decided itself may come after RecordDone().
+	const auto desktopStop = ReadDeath(run)
+		? QString()
+		: ReadDesktopStop(*state.fixture, message, reading.fatalFrozen);
+	if (!desktopStop.isEmpty()) {
+		run.died = true;
+		run.dead = desktopStop;
+	}
 	ReadSafeAreas(run);
 	const auto &test = state.tests[run.test];
 	for (const auto &refusal : {
 			SafeAreaRefusal(test.safeArea, run.safeAreas, run.loaded),
-			StopRefusal(test.stops, run.died, run.deathLine) }) {
+			StopRefusal(
+				test.stops,
+				run.died,
+				run.deathLine,
+				!desktopStop.isEmpty()) }) {
 		if (!refusal.name.isEmpty()) {
 			AddRefusal(run, refusal.name, refusal.detail);
 		}

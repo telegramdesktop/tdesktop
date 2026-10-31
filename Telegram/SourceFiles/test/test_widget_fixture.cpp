@@ -1748,6 +1748,26 @@ Tgw::Runtime *FixtureOwnRuntime(const WidgetFixture &state, FullMsgId id) {
 	return view ? Tgw::FindRuntime(view) : nullptr;
 }
 
+// Runtime::core(), never interactive(): a stopped runtime has no
+// interactive core, and its still keeps the watched core's address.
+QString WidgetDesktopStop(
+		const WidgetFixture &state,
+		FullMsgId id,
+		quintptr core,
+		int fatalFrozen) {
+	const auto runtime = FixtureOwnRuntime(state, id);
+	const auto current = runtime ? runtime->core() : nullptr;
+	if (!core
+		|| (fatalFrozen > 0)
+		|| !current
+		|| (reinterpret_cast<quintptr>(current) != core)
+		|| (runtime->state() != RuntimeState::Stopped)
+		|| !current->stopFatal()) {
+		return QString();
+	}
+	return current->stopReason();
+}
+
 QRect WidgetCardLocal(not_null<const Element*> view) {
 	const auto html = dynamic_cast<const HtmlWidget*>(view->media());
 	return html

@@ -223,12 +223,14 @@ Every stage name, Check and Note starts `widget stress: `, after
     before its host can attach), then the layout check;
   - `show in chat list: widget stress <id> load` (the whole card, ready once
     it has a runtime), `[<id>] wait for loaded or dead` (60 s from the
-    injection);
+    injection; dead is the level's death, [below](#deaths));
   - for a loaded widget that has not died: `show in chat list: widget stress
-    <id> card` (the whole card, `WidgetCardReady()`; a card in view and
-    painted whose runtime cut no frame for it within the bound is measured
-    anyway, `desktop.setup.cardFrameLate` true and a Note, because a
-    renderer too slow to show a level is that level's reading), `[<id>]
+    <id> card` (the whole card, `WidgetCardReady()` or the level's death, so
+    a widget that stops during the show ends it at once instead of waiting
+    out the bound; a card in view and painted whose live runtime cut no
+    frame for it within the bound is measured anyway,
+    `desktop.setup.cardFrameLate` true and a Note, because a renderer too
+    slow to show a level is that level's reading), `[<id>]
     settle the list and its floating date` (focus cleared and cursor off
     again, then the list's scroll unchanged for 3350 ms, at most 8 s),
     `[<id>] warm up`, `[<id>] measure` (its end, for the launch's first
@@ -265,8 +267,9 @@ the start. Its end stops and joins the worker, reads the tap and the host,
 stamps the end, stops the stamps and runs the same window checks.
 Between them the main thread only observes: every 500 ms on its ticks it
 reads the window's screen, frame, device pixel ratio, visibility and
-exposure and the card's global bounds and visibility, with no grab, layout,
-file write or other probe. The `data-stress` values are the tap's, each
+exposure and the card's global bounds and visibility, and on every tick,
+until it sees one, the [desktop stop](#deaths) reading, with no grab,
+layout, file write or other probe. The `data-stress` values are the tap's, each
 stamped when the host handed its batch to the tap, read at the entry's
 writing, after the end; no timer rereads them.
 
@@ -372,7 +375,7 @@ delivered since install) and `stopped` when the ladder stopped.
 | --- | --- |
 | `id`, `load`, `value` | The manifest entry. |
 | `loaded`, `bootMs` | The host's `loaded` and its own `loadedMs`, from the host's creation. |
-| `dead`, `diedAtMs` | The first dead reason verbatim, and steady-clock ms from the host's creation to the change that carried it. |
+| `dead`, `diedAtMs` | The level's death ([below](#deaths)): the host's first dead reason verbatim, and steady-clock ms from the host's creation to the change that carried it; for a stop the desktop decided itself, `RendererCore`'s stop reason and an estimate of the host clock at the runner's first reading of it. |
 | `frames` | `count` intervals, nearest-rank `p50`/`p95` and `max` of the window's update intervals (above); fewer than two updates give count 0 and nulls. |
 | `renderer` | Complete groups of the measured core's work inside the window: each timed `frame()` attempt's own time plus the message and tick work since the attempt before it; the first group is partial and discarded, trailing work is kept apart. An attempt may end before the QPainter replay when the list has not laid out the card's size; it still closes its group, and `desktop.rendererWork` counts the attempts that painted an image apart. `msPerFrame` the mean, `p95Ms` the nearest rank, `displayListOps` the last sampled attempt's list size; no sample gives nulls. |
 | `host` | `SandboxStats` deltas of `jsMs`, `queries`, `queryMs` over the snapshots' actual seconds; `throttledTasks` the delta; `opsPerSec` the newest host's validated ops in the window; `maxBatchOps` its largest batch since creation; `nodes` and `memoryBytes` at the end. A counter going backwards is a named error and null. |
@@ -384,6 +387,38 @@ A level that never loaded, or died before its window, has frames count 0 and
 null window metrics, with its boot, death and final host readings; a widget
 that dies during its window keeps the whole window. Fixture, timeout and
 instrument failures are runner errors, never deaths.
+
+#### Deaths
+
+A level's death is, in order: the host's own `dead` other than
+`terminated`; a stop the desktop decided itself; then the host's own value,
+`terminated` included. A paint bound's refusal of the widget's frames stops
+its `RendererCore` and retires the runtime without the host, so the host
+watch never carries that stop ([test_widget_host](test_widget_host.md)).
+The runner reads it with the fixture's `WidgetDesktopStop()` for the
+level's watched core ([test_widget_fixture](test_widget_fixture.md)) and
+latches its first answer with that reading's `crl::profile()`. It reads on
+every 50 ms tick of the load wait, the warm-up and the window, in each of
+the card show's readiness checks, at the skip of each window stage, at a
+refused card show's excuse, and before the window's end snapshot and the
+level's final one; once latched it reads nothing more.
+
+The same death decides the load wait, the window skips, the card show's
+end (a stopped card is never cut a frame, so it is not `cardFrameLate`)
+and the refused show's excuse. `ApplyDesktopStop()` merges it into the
+level's end snapshot (the window's end, or the final reading of a level
+without one): `dead` is `RendererCore`'s reason, `deadAt` the latching
+reading, and `diedAtMs` `loadedMs + (that reading - loadedAt) / 1000` in
+floating point, the host clock at the first reading that saw the stop,
+null without both loading anchors (`loadedMs`, and `loadedAt`, the merge
+that saw `loaded`). That is an estimate, not a measurement of the stop:
+the first reading comes after the stop by the readings' lag (main-thread
+painting, the posted retirement, the gaps between stages), and the merge
+that saw `loaded` after the load by the host callback's. The run file's
+notes say so. A window's
+end takes only a stop seen before its stamp: one first seen later is never
+dated into it, as a host death after the end is not. A host's own reason
+is never replaced, and without a desktop stop a `terminated` stays.
 
 `desktop` of an entry: `measured`, `windowMs`, `updates`, `rendererWork`
 (samples, frames, `replayedFrames` and `unreplayedFrames` (the frame()
@@ -470,7 +505,23 @@ endpoint and 500 ms main-thread window checks, the self-check with
 `_SELF_CHECK`, 127 schema-valid entries per pass, each with one host).
 Not yet in the app: the worker's in-window samples, the card capture and
 the replay counts, compiled in Debug and Release (Win32, MSVC), their
-arithmetic passing `RunWidgetStressSelfCheck()`'s 15 rows outside it.
+arithmetic passing the 15 rows `RunWidgetStressSelfCheck()` had then,
+outside it.
+
+The self-check now has 16 rows. Its `desktop stop:` row merges literal
+desktop stops into the control level's window end: a null and a
+`terminated` dead replaced, the window kept (its 4 frame intervals),
+`deadAt` the reading that saw the stop and `diedAtMs` 84.5 + 9750.25 =
+9834.75 (an integer division of the microseconds would give 9834.5); a
+host's own reason kept with its `diedAtMs` and `deadAt`; no stop keeping
+a null and a `terminated` dead; and `diedAtMs` null without the load's
+stamp or without `loadedMs`. The
+[deaths](#deaths) reading, its merge and that row compiled in the Windows
+Win32 Debug build of
+`2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`;
+the self-check runs only from an overlay (`_SELF_CHECK` above), so that
+task's evidence loop runs it and the live reading, neither of which has
+run yet.
 
 ## Related guidance
 

@@ -91,7 +91,14 @@ Use something else when:
   (max 10000)`), not the renderer's localized stopped label. Destroying a host
   that is still alive ends its engine with `terminated`, which arrives as one
   more change: read the widget's own death before the removal; `terminated`
-  after it is the destruction.
+  after it is the destruction. `dead` comes only from the host's
+  `WidgetDiagnostics::dead`. A stop the desktop decides itself, such as a
+  paint bound's refusal of the widget's frames, stops the `RendererCore`
+  and retires the runtime without the host: the watch keeps `dead` null,
+  or `terminated` with that destruction's `diedAtMs` once the retired host
+  is destroyed. The runners read such a stop with the fixture's
+  `WidgetDesktopStop()` ([test_widget_fixture](test_widget_fixture.md)),
+  never from this record.
 - **Logs and diags.** `errors` keeps the first 20 console texts of level
   `error`, verbatim; `errorLogs` counts them all. The host keeps at most 5000
   console entries (`logs`), so later ones reach neither. `diags` is kind to
@@ -239,8 +246,12 @@ configurations and nowhere else:
   `auto workScope = Test::WidgetWorkScope(this, Test::WidgetWorkKind::Frame);`,
   right after `const auto list = _renderer->paint();`,
   `workScope.displayList(list.size());`, and right after
-  `_frame = PaintFrame(list, *_backend, size, _renderer->dpr());`,
-  `workScope.replayed(!_frame.isNull());`.
+  `auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());`,
+  `workScope.replayed(!painted.image.isNull());`. The flag reads the image
+  this attempt's replay produced, before it is moved into `_frame`, never
+  the retained `_frame`: a frame the paint bounds refuse keeps the card's
+  last picture that fits it in `_frame`, so `!_frame.isNull()` would count
+  that refusal as a replay.
 
 Without the overlay a registered core records nothing, so an empty log for
 a widget whose content changes is a missing overlay: an invalid
@@ -272,6 +283,8 @@ destruction:
   has not laid out yet runs `paint()` and keeps the earlier picture without
   a replay; that call is a `Frame` event too, with `replayed` false, while
   an attempt whose `PaintFrame()` returned an image has `replayed` true.
+  One the paint bounds refused returned none, so it is `replayed` false,
+  whatever picture the card keeps.
   `displayList` is the size of the list `paint()` returned.
 
 Not included: the chat list's own painting around the card and its
@@ -328,7 +341,7 @@ addresses, none while nothing is registered.
 | `kind` | `Message`, `Tick` or `Frame`, by the scope's place. |
 | `started`, `finished` | `crl::profile()` microseconds at the scope's construction and destruction. |
 | `displayList` | The display list size a `Frame` scope was given; -1 otherwise. |
-| `replayed` | A `Frame` scope whose `PaintFrame()` ran and returned an image; false for an attempt that returned before the replay and for every other kind. |
+| `replayed` | A `Frame` scope whose `PaintFrame()` ran and returned an image; false for an attempt that returned before the replay, for one the paint bounds refused, and for every other kind. |
 | `host` | The index in `WidgetHostReading::hosts` of the attachment that registered the core. |
 
 | `WidgetWorkReading` field | Meaning |
@@ -419,6 +432,9 @@ and safe area kept, `loaded` with `loadedMs`, verbatim `dead` with
 `diedAtMs`, and with the overlay nonempty work logs without drops); the
 `replayed` flag and its overlay line are compiled (Debug, Win32, MSVC), not
 yet run in the app, and the stress self-check counts it on synthetic events.
+The overlay line on `PaintFrame()`'s `PaintedFrame` result above is a
+description: the retained tree has no such line, so it compiles only in
+the overlay of a task that applies it.
 
 Executed by the conformance task
 `2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`,

@@ -13,9 +13,11 @@ Internal to it, documented below:
 ([bridge calls and uncaught errors](#bridge-calls-and-uncaught-errors)),
 [test_widget_conformance_context.h](../../test_widget_conformance_context.h)
 ([message contexts](#message-contexts) and
-[played bot answers](#played-bot-answers)) and
+[played bot answers](#played-bot-answers)),
 [test_widget_conformance_pictures.h](../../test_widget_conformance_pictures.h)
-([pictures](#pictures)).
+([pictures](#pictures)) and
+[test_widget_conformance_stop.h](../../test_widget_conformance_stop.h)
+([desktop stops](#preconditions-and-limits)).
 
 ## Use when
 
@@ -175,6 +177,21 @@ Use something else when:
   or final summary (`WidgetDiagnostics::dead` verbatim, cut at 240
   characters), never the localized stopped label; whether it starts with
   the entry's `stops` is `report.mjs`'s judgement alone.
+- **Desktop stops.** A stop the desktop decided itself, such as a paint
+  bound's refusal of the widget's frames, reaches no host death: the
+  summary has no `Died: ` line or, once the retired host is gone,
+  `Died: terminated` ([test_widget_host](test_widget_host.md)). In every
+  run whose summary gives no other `Died: ` reason, `RecordLog()` reads it
+  once, in the log stage, with `ReadDesktopStop()` of
+  `test_widget_conformance_stop.{h,cpp}`: the fixture's
+  `WidgetDesktopStop()` for the core of the run's host watch, and only
+  when that watch has exactly one attachment
+  ([test_widget_fixture](test_widget_fixture.md)). It reads it
+  whatever the result waits saw, so a stop after the last wait counts too.
+  A reason sets the run's death, and `dead` is `RendererCore`'s stop reason
+  cut as `Clip()` cuts the summary's (240 characters, its "..." included).
+  The runner keeps no field for it beyond `dead`; a host's own reason
+  always comes first.
 - **2x.** The stage crops and the picture bands need the device pixel ratio
   times the interface scale to be 200 % (a Retina display at 100 %, say), and
   the accepted image of each snapshot and band must be exactly twice its CSS
@@ -552,7 +569,9 @@ still carry runner refusals; they fail the totals. Its fields:
 - `id`, `theme`, `width` (the measured core width rounded, or 390 with
   `widthMeasured` false), `loaded` (the host's post-load ack answered),
   `dead` (null, a fatal `frozen`, a stopped runtime, the summary's `Died:`
-  reason other than `terminated`, or "died, reason not observed"), `status`
+  reason other than `terminated`, a stop the desktop decided itself
+  ([desktop stops](#preconditions-and-limits)), or "died, reason not
+  observed"), `status`
   and `checks` verbatim from the reported value;
 - `stages` as above; `observed`: `bridge` (`{method, args}`, `args` a JSON
   array), `height` (the card's height in CSS px before the removal),
@@ -632,8 +651,9 @@ caption, whose host got a nonzero field in any construction: the runner did
 not make `CLIENTS.md`'s all-0 state), `safe-area-unmeasured` (a loaded run
 with no watch reading or no `applied` entry), `stop-reason-unmeasured` (a
 run of an entry with `stops` that died without a `Died: ` reason other
-than `terminated` in its host's fresh or final summary, so its `dead` is
-the runner's placeholder), and the summary reader's. None of the three
+than `terminated` in its host's fresh or final summary and without a stop
+the desktop decided itself, so its `dead` is the runner's placeholder),
+and the summary reader's. None of the three
 drops a run from `runs`. A result value that is not a
 JSON object, not published for this run's id, or whose `checks` is not an
 array is not used; `result.error` names why.
@@ -1049,7 +1069,11 @@ all 0; `StopRefusal()` gives none for a stop run that died with a `Died: `
 line, `stop-reason-unmeasured` for one that died without, and none for a
 stop run that did not die or a run without `stops` that died without one;
 `WantedStatus()` at `done` is false for a `stops` entry and true for a plain
-auto entry, in a literal `ConformanceState`); `RunPictureCheck()` (requested
+auto entry, in a literal `ConformanceState`); a desktop stop control
+(`RunDesktopStopCheck()` of `test_widget_conformance_stop.cpp`:
+`StopRefusal()` of a stop run that died with only `Died: terminated` gives
+none with a stop the desktop decided itself and `stop-reason-unmeasured`
+without one); `RunPictureCheck()` (requested
 visual, auto, unknown, unselected and no picture ids through
 `SelectPictures()` and the notes; the bands of a 544 CSS px card and the
 completeness of 336, 280 and 650 CSS px pictures, with band 1 refused,
@@ -1120,8 +1144,18 @@ with `cornerRight` 118, which `auto/36-safe-area` read back.
 Not yet executed: that task's full `v0.5.0` campaign - the whole matrix
 with its actions, crops and pictures, its run files and the report - whose
 results go into that task's `work/test.md`; the smoke above is pre-review
-validation, not campaign evidence. Windows has not built the pack; the code
-is portable C++ and Qt.
+validation, not campaign evidence.
+
+The [desktop stop](#preconditions-and-limits) reading of
+`test_widget_conformance_stop.{h,cpp}`, its `RecordLog()` call, the
+`StopRefusal()` argument and the two literal cases of
+`RunDesktopStopCheck()` compiled in the Windows Win32 Debug build of
+`2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`.
+`RunDesktopStopCheck()` runs in the pack's first stage, so only a launch of
+the pack runs it; that task's evidence loop runs it and a synthetic smoke
+of a paint stop, and neither has run yet. Before that build this page
+recorded no Windows build or run of the pack; the code is portable C++ and
+Qt.
 
 ## Related guidance
 

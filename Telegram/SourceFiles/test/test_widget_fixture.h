@@ -336,6 +336,18 @@ void FinishRuntimeLog(
 	const WidgetFixture &fixture,
 	FullMsgId id);
 
+// A stop the desktop decided itself, such as a paint bound's, which no
+// host death carries: the RendererCore's own stop reason. |core| is the
+// watched host's core (WidgetHostSample::core), |fatalFrozen| the tap's
+// count. Empty unless |core| is nonzero, the list's own runtime of |id| is
+// Stopped with |core| as its Runtime::core() (the still once retired), that
+// core stopped fatally and the host sent no fatal frozen. Only reads.
+[[nodiscard]] QString WidgetDesktopStop(
+	const WidgetFixture &fixture,
+	FullMsgId id,
+	quintptr core,
+	int fatalFrozen);
+
 // The HtmlWidget card's rectangle in |view|'s coordinates, or empty.
 [[nodiscard]] QRect WidgetCardLocal(
 	not_null<const HistoryView::Element*> view);

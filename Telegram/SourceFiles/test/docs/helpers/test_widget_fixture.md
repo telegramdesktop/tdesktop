@@ -16,7 +16,9 @@ Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
 `Test::AppendWidgetConformance` in `test_widget_conformance.cpp`, with its
 action stages in `test_widget_conformance_actions.cpp`
-([test_widget_conformance](test_widget_conformance.md)), and
+([test_widget_conformance](test_widget_conformance.md)),
+`Test::AppendWidgetStress` in `test_widget_stress_live.cpp`
+([test_widget_stress](test_widget_stress.md)), and
 `Test::AppendChatListPlaceSelfTest` in `test_chat_show_place.cpp`
 ([test_chat_show_place](test_chat_show_place.md)), which injects two local
 widget cards and two text fillers and places them. The scoped evidence
@@ -109,6 +111,22 @@ parse of the log.
   the accepted show, list, view, core and geometry again right before a
   press; its first refusal names the show by the caller's `purpose`
   ("the click show refused: ...").
+- **Desktop stop.** `WidgetDesktopStop(fixture, id, core, fatalFrozen)`
+  only reads a stop the desktop decided itself, such as a paint bound's
+  refusal of the widget's frames in `RendererCore::frame()`. Such a stop
+  reaches no host death: the host watch's `dead` stays null, or reads
+  `terminated` once the retired host is destroyed
+  ([test_widget_host](test_widget_host.md)). The identity is the caller's:
+  `core` is `WidgetHostSample::core` of the run's one watched attachment,
+  compared by address with the list's own runtime's `Runtime::core()`,
+  which is the retired core itself (the still) after the stop; never
+  `interactive()`, null once stopped. `fatalFrozen` is the run's tap count
+  ([test_widget_ops](test_widget_ops.md)): a host's counted-cap stop sends
+  a fatal `frozen` and carries its reason in the host's own death. The
+  reading changes nothing, keeps nothing and never takes another view's
+  runtime. Its consumers are the stress-kit runner, which latches its first
+  answer with that reading's time, and the conformance runner, which reads
+  it once in its log stage.
 - **Bounds.** Every wait ends inside its stage's until with a named reading:
   4 s window, 20 s chat, 3 s per control phase and 6 s settle inside the
   fixture's stages; `kWidgetLayoutBound` (8 s), `kWidgetLogBound` (3 s) and
@@ -131,6 +149,7 @@ parse of the log.
 | `RuntimeLogDecided` / `FinishRuntimeLog` | `log.source`: `requestLog`, `logText` (the runtime kept no callback), `logText-at-bound`, `unavailable`; `log.chars`, `log.pending`. |
 | `log.summary` | The raw `Tgw::Runtime::_summary` (the `Summarize()` text) with `log.summaryState`. |
 | `RevalidateWidgetCard` | Empty, or what changed: show refused, list gone, no hover, view gone or another, card not ready, core, card or view geometry. |
+| `WidgetDesktopStop` | `RendererCore::stopReason()` verbatim, or empty: `core` 0, no own runtime or no current core, another core, a runtime not `Stopped` (a stop off screen that `release()` already rearmed reads `Released`), a stop that is not fatal, or a fatal `frozen` counted on the tap. Empty is no desktop stop seen, never proof that the widget is alive. |
 | `FixtureBarrierDecided` | True once no tap, the tap finished (`WidgetTapFinished()`: every factory released, every wrapper destroyed), or the bound passed; only a reading after a finished tap is final. True at the bound too, so a caller that needs the hosts gone (one widget alive at a time) checks `WidgetTapFinished(ReadWidgetOps(*message.tap))` after it and stops before another injection when it is false. |
 
 `log.summaryState` is explicit about provenance; the fixture never parses the
@@ -209,6 +228,11 @@ compiled in the Windows Win32 Debug build of
 `2026/10/31/let-widgets-pay-and-sign-data-through-gram-wallet-for-their-bot`,
 which adds it for local via-bot widget messages; no existing caller sets
 it, and it has not run in the app.
+`WidgetDesktopStop()` compiled, with its two consumers, in the Windows
+Win32 Debug build of
+`2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`;
+it has not run in the app yet: that task's evidence campaign runs it
+through both runners.
 
 ## Related guidance
 

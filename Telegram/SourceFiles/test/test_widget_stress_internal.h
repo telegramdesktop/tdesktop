@@ -262,6 +262,17 @@ struct StressPublication {
 	const WidgetOpsLatest &latest,
 	crl::profile_time at);
 
+// Merges |reason|, a stop the desktop decided itself (RendererCore's, which
+// no host death carries) that a reading first saw at |seenAt|
+// (crl::profile()), into |snapshot|'s host as its death. Nothing for an
+// empty |reason| or a host dead other than "terminated"; otherwise dead is
+// |reason|, deadAt |seenAt| and diedAtMs the estimate loadedMs + (seenAt -
+// loadedAt) / 1000, null without both. Pure.
+void ApplyDesktopStop(
+	StressSnapshot &snapshot,
+	const QString &reason,
+	crl::profile_time seenAt);
+
 // The run entry of one level, with every runner error the level carries,
 // its in-window samples latched and the arithmetic found. Expects the
 // level's work log reserved before its host was created and read from 0,

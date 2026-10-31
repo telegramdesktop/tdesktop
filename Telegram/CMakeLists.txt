@@ -2208,6 +2208,8 @@ PRIVATE
     test/test_widget_conformance_pictures.cpp
     test/test_widget_conformance_pictures.h
     test/test_widget_conformance_state.h
+    test/test_widget_conformance_stop.cpp
+    test/test_widget_conformance_stop.h
     test/test_widget_fixture.cpp
     test/test_widget_fixture.h
     test/test_widget_host.cpp

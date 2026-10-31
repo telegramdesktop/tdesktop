@@ -326,6 +326,10 @@ struct LiveLevel {
 	QString notRun;
 	// The first sample that differed from |accepted|.
 	QString changed;
+	// The first stop the desktop decided itself that a reading saw
+	// (WidgetDesktopStop()), latched with that reading's crl::profile() in
+	// |desktopStopAt|.
+	QString desktopStop;
 	// The window's worker, from its start until it is joined.
 	std::unique_ptr<WindowSampler> sampler;
 	ListSettle settle;
@@ -338,6 +342,7 @@ struct LiveLevel {
 	crl::time pauseStarted = 0;
 	crl::time lastObserved = 0;
 	crl::profile_time observeCost = 0;
+	crl::profile_time desktopStopAt = 0;
 	int observations = 0;
 	int updatesDropped = 0;
 	// The manifest.widgets index.
@@ -516,17 +521,53 @@ void Refuse(LiveState &state, LiveLevel &level, const QString &error) {
 		: std::make_optional(reading.hosts.front());
 }
 
+// Latches the first stop the desktop decided itself of the measured
+// host's core; once one is latched, reads nothing.
+void ObserveDesktopStop(const LiveState &state, LiveLevel &level) {
+	const auto &message = *level.message;
+	if (!level.desktopStop.isEmpty() || !message.tap) {
+		return;
+	}
+	const auto sample = HostSample(level);
+	if (!sample) {
+		return;
+	}
+	auto reason = WidgetDesktopStop(
+		*state.fixture,
+		message.id,
+		sample->core,
+		ReadWidgetOps(*message.tap).fatalFrozen);
+	if (!reason.isEmpty()) {
+		level.desktopStop = std::move(reason);
+		level.desktopStopAt = crl::profile();
+	}
+}
+
+// The level's death as its entry reads it: a host reason other than
+// "terminated", then the latched desktop stop, then the host's own value.
+[[nodiscard]] std::optional<std::string> LevelDeath(
+		const LiveLevel &level,
+		const std::optional<WidgetHostSample> &sample) {
+	auto merged = StressSnapshot();
+	if (sample) {
+		merged.host = *sample;
+	}
+	ApplyDesktopStop(merged, level.desktopStop, level.desktopStopAt);
+	return merged.host.dead;
+}
+
 // Whether the level can have a window: loaded and not dead.
-[[nodiscard]] QString WindowSkip(const LiveLevel &level) {
+[[nodiscard]] QString WindowSkip(const LiveState &state, LiveLevel &level) {
+	ObserveDesktopStop(state, level);
 	if (!level.notRun.isEmpty()) {
 		return level.notRun;
 	}
 	const auto sample = HostSample(level);
 	if (!sample || !sample->loaded) {
 		return u"the widget did not load, so it has no window"_q;
-	} else if (sample->dead) {
+	} else if (const auto dead = LevelDeath(level, sample)) {
 		return u"the widget died before its window: "_q
-			+ QString::fromStdString(*sample->dead);
+			+ QString::fromStdString(*dead);
 	}
 	return QString();
 }
@@ -1646,8 +1687,10 @@ void WindowSampler::run() {
 	};
 }
 
-// One sample every kObserveEvery, on the until's ticks: reads only.
+// One sample every kObserveEvery, on the until's ticks: reads only. A
+// desktop stop is looked for on every tick, for its stamp.
 void Observe(const LiveState &state, LiveLevel &level) {
+	ObserveDesktopStop(state, level);
 	const auto now = crl::now();
 	if (level.lastObserved && (now - level.lastObserved < kObserveEvery)) {
 		return;
@@ -1785,30 +1828,32 @@ void CheckLaidOut(LiveState &state, LiveLevel &level) {
 	}
 }
 
-[[nodiscard]] bool LoadDecided(LiveLevel &level) {
+[[nodiscard]] bool LoadDecided(const LiveState &state, LiveLevel &level) {
+	ObserveDesktopStop(state, level);
 	auto &message = *level.message;
 	const auto reading = message.host
 		? ReadWidgetHost(*message.host)
 		: WidgetHostReading();
 	const auto sample = reading.hosts.empty()
-		? nullptr
-		: &reading.hosts.front();
+		? std::nullopt
+		: std::make_optional(reading.hosts.front());
+	const auto loaded = sample && sample->loaded;
+	const auto dead = LevelDeath(level, sample).has_value();
 	const auto waited = crl::now() - level.injectedAt;
 	message.wait.details = u"optionsCalls=%1 hosts=%2 loaded=%3 dead=%4 "
 		u"waited=%5 ms"_q.arg(
 			QString::number(reading.applied.size()),
 			QString::number(reading.hosts.size()),
-			Flag(sample && sample->loaded),
-			Flag(sample && sample->dead),
+			Flag(loaded),
+			Flag(dead),
 			QString::number(waited));
-	return (sample && (sample->loaded || sample->dead))
-		|| (waited >= kLoadBound);
+	return loaded || dead || (waited >= kLoadBound);
 }
 
 void CheckLoaded(LiveState &state, LiveLevel &level) {
 	level.decidedAt = crl::now();
 	const auto sample = HostSample(level);
-	if (!sample || (!sample->loaded && !sample->dead)) {
+	if ((!sample || !sample->loaded) && !LevelDeath(level, sample)) {
 		Refuse(state, level, u"neither loaded nor dead within %1 ms of the "
 			u"injection: %2; the load show: %3"_q.arg(
 				QString::number(kLoadBound),
@@ -1863,8 +1908,8 @@ void AcceptWindow(LiveState &state, LiveLevel &level) {
 				level.level.id,
 				QString::number(shown->timeout))));
 	} else if (!shown || !shown->shown()) {
-		const auto sample = HostSample(level);
-		if (!sample || !sample->dead) {
+		ObserveDesktopStop(state, level);
+		if (!LevelDeath(level, HostSample(level))) {
 			Refuse(state, level, u"the card show refused: "_q
 				+ ShowText(shown));
 		}
@@ -2076,16 +2121,18 @@ void CaptureCard(LiveState &state, LiveLevel &level) {
 		details);
 }
 
-// The window's end: the worker joined, then the snapshot and the update
-// stamps, then the end's window checks and, outside the window, the card
-// capture.
+// The window's end: the worker joined, then the snapshot with the desktop
+// stop seen before its stamp and the update stamps, then the end's window
+// checks and, outside the window, the card capture.
 void EndWindow(LiveState &state, LiveLevel &level) {
 	auto &message = *level.message;
 	StopSampler(level);
+	ObserveDesktopStop(state, level);
 	const auto latest = ReadWidgetOpsLatest(*message.tap);
 	const auto reading = ReadWidgetHost(*message.host);
 	const auto at = crl::profile();
 	level.level.end = MakeSnapshot(reading, 0, latest, at);
+	ApplyDesktopStop(level.level.end, level.desktopStop, level.desktopStopAt);
 	if (state.filter) {
 		state.filter->end();
 		level.level.updates = state.filter->stamps();
@@ -2178,9 +2225,11 @@ void CheckOneHost(
 
 // After the window, or for a level without one: its final reading, the
 // values (read at or after the window's end), the work log since 0, the
-// one-host and applied checks, then the entry.
+// one-host and applied checks, then the entry. A window's end keeps what
+// EndWindow() saw: a desktop stop seen later is not dated into it.
 void WriteLevel(LiveState &state, LiveLevel &level) {
 	StopSampler(level);
+	ObserveDesktopStop(state, level);
 	auto &message = *level.message;
 	auto &entry = level.level;
 	const auto reading = message.host
@@ -2191,6 +2240,7 @@ void WriteLevel(LiveState &state, LiveLevel &level) {
 		: WidgetOpsLatest();
 	if (!entry.start) {
 		entry.end = MakeSnapshot(reading, 0, latest, crl::profile());
+		ApplyDesktopStop(entry.end, level.desktopStop, level.desktopStopAt);
 	}
 	entry.values = latest.stress;
 	entry.valuesDropped = latest.stressDropped;
@@ -2629,11 +2679,14 @@ void AppendShows(
 		.timeout = kShowBound,
 	};
 	if (card) {
-		args.ready = [](ChatListShowView view) {
-			return WidgetCardReady(ReadWidgetCard(view));
+		// A death ends the show too: a stopped card is never cut a frame.
+		args.ready = [=](ChatListShowView view) {
+			ObserveDesktopStop(*state, entry());
+			return WidgetCardReady(ReadWidgetCard(view))
+				|| LevelDeath(entry(), HostSample(entry())).has_value();
 		};
 		args.skipReason = [=] {
-			return WindowSkip(entry());
+			return WindowSkip(*state, entry());
 		};
 		entry().cardShow = AppendShowInChatList(runner, std::move(args));
 	} else {
@@ -2688,7 +2741,7 @@ void AppendLevelStart(
 		.name = LevelName(entry(), u"wait for loaded or dead"_q),
 		.skipReason = skip,
 		.until = [=] {
-			return LoadDecided(entry());
+			return LoadDecided(*state, entry());
 		},
 		.then = [=] {
 			CheckLoaded(*state, entry());
@@ -2709,7 +2762,7 @@ void AppendLevelWindow(
 		return state->levels[index];
 	};
 	const auto skip = [=] {
-		return WindowSkip(entry());
+		return WindowSkip(*state, entry());
 	};
 	AppendShows(runner, state, index, true);
 	runner->add({

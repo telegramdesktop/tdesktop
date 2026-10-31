@@ -118,8 +118,10 @@ void AppendWidgetStress(not_null<Runner*> runner, WidgetStressArgs args);
 // data-stress values clipped at the window's start and end with the
 // largest maxGap between, and foreign, unparsable or backward values
 // refused with nulls; a counter reset named and null; a never-loaded death
-// entry; the envelope's names, its device with the window's size, layout
-// and filters sidebar, and requested and applied configurations; integers
+// entry; a stop the desktop decided itself merged into dead under a
+// substantive host reason, with its estimated diedAtMs; the envelope's
+// names, its device with the window's size, layout and filters sidebar,
+// and requested and applied configurations; integers
 // without a fraction; a ladder's replacement keeping manifest order, the
 // first date, every note and each launch once; a merge with a different
 // device, or a different window, refused naming device; and the launch

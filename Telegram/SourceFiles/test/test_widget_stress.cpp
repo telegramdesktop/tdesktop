@@ -90,6 +90,10 @@ constexpr auto kMergeKeys = std::array{
 
 constexpr auto kRunnerErrorPrefix = "runner: ";
 
+// The dead a host gets when its engine is ended by the host's destruction,
+// as a retired runtime's host is: no reason of the widget's own.
+constexpr auto kTerminated = "terminated";
+
 // ---------------------------------------------------------------------
 // One level's arithmetic.
 
@@ -1148,6 +1152,24 @@ StressSnapshot MakeSnapshot(
 	return result;
 }
 
+// The host's creation in crl::profile() is about loadedAt - loadedMs: an
+// estimate off by the load merge's lag, and |seenAt| lags the stop.
+void ApplyDesktopStop(
+		StressSnapshot &snapshot,
+		const QString &reason,
+		crl::profile_time seenAt) {
+	auto &host = snapshot.host;
+	if (reason.isEmpty() || (host.dead && (*host.dead != kTerminated))) {
+		return;
+	}
+	host.dead = reason.toStdString();
+	host.deadAt = seenAt;
+	host.diedAtMs = (host.loadedMs && (host.loadedAt != 0))
+		? std::make_optional(
+			*host.loadedMs + double(seenAt - host.loadedAt) / 1000.)
+		: std::nullopt;
+}
+
 void AddCoverSample(
 		StressCoverSamples &samples,
 		crl::profile_time started,
@@ -1408,8 +1430,17 @@ namespace {
 			u"never loaded or died before its window has frames.count 0 "
 			u"and null window metrics, with its boot, death and final host "
 			u"readings; a loaded widget that dies later keeps its whole "
-			u"window. The runner's own failures are errors prefixed "
-			u"\"runner: \", never a dead reason; thermal is null."_q,
+			u"window. dead is the host's first dead reason verbatim and "
+			u"diedAtMs the host's steady clock from its creation to the "
+			u"change that carried it. For a stop the desktop decided itself "
+			u"(a paint bound), which no host death carries, dead is "
+			u"RendererCore's stop reason and diedAtMs the host clock at the "
+			u"runner's first reading that saw it (loadedMs plus the time "
+			u"since the load was seen, null without them): an estimate, not "
+			u"a measurement of the stop. A host reason other than "
+			u"\"terminated\" comes first. The runner's own failures are "
+			u"errors prefixed \"runner: \", never a dead reason; thermal is "
+			u"null."_q,
 		u"observers inside the measured process, all included in the "
 			u"readings: the ops tap's parse and leak scan of every batch on "
 			u"the host thread, whose cost scales with the batches' size and "
@@ -1418,7 +1449,10 @@ namespace {
 			u"renderer work scopes' clock reads and the window's "
 			u"UpdateRequest event filter on the main thread; the 500 ms "
 			u"window and card samples on the main thread "
-			u"(desktop.window.samples, sampleCostMs); the 500 ms "
+			u"(desktop.window.samples, sampleCostMs) and, on each 50 ms "
+			u"runner tick of the warm-up and the window until it sees one, "
+			u"the reading of a stop the desktop decided itself (the host "
+			u"watch, the tap's counts and the card's runtime); the 500 ms "
 			u"console-lock and covering-window samples on a harness worker "
 			u"thread inside the window, off the main thread, which only "
 			u"starts it before the window and stops and joins it before the "
@@ -2696,6 +2730,118 @@ constexpr auto kControlManifest = R"json({"version":1,
 		Compact(object));
 }
 
+// The measured control level with its end's host dead set to |dead| (with
+// diedAtMs 12.5 and deadAt 10.5 s), its load seen at 0.5 s when
+// |loadStamp|, loadedMs 84.5 when |loadedMs|, then a desktop stop of
+// |reason| seen at 10.25025 s merged into that end.
+[[nodiscard]] std::pair<StressSnapshot, StressEntry> DesktopStopLevel(
+		const std::optional<std::string> &dead,
+		const QString &reason,
+		bool loadStamp,
+		bool loadedMs) {
+	auto level = ControlLevel();
+	auto &host = level.end.host;
+	if (dead) {
+		host.dead = dead;
+		host.diedAtMs = 12.5;
+		host.deadAt = 10'500'000;
+	}
+	host.loadedAt = loadStamp ? 500'000 : 0;
+	if (!loadedMs) {
+		host.loadedMs = std::nullopt;
+	}
+	ApplyDesktopStop(level.end, reason, 10'250'250);
+	return { level.end, ComputeEntry(level) };
+}
+
+[[nodiscard]] WidgetOpsSelfCheckRow CheckDesktopStop() {
+	const auto stop = u"Paint limit exceeded: filter work of 8437640 units "
+		u"in one frame (max 8388608)"_q;
+	const auto own = std::string("Ops limit exceeded: 12000 operations in "
+		"one batch (max 10000)");
+	const auto terminated = std::string(kTerminated);
+	auto readings = QStringList();
+	auto passed = true;
+	const auto expect = [&](
+			const QString &name,
+			const std::pair<StressSnapshot, StressEntry> &merged,
+			const QJsonValue &dead,
+			const QJsonValue &diedAtMs,
+			crl::profile_time deadAt) {
+		const auto &[end, entry] = merged;
+		const auto &object = entry.object;
+		passed = passed
+			&& entry.runnerErrors.isEmpty()
+			&& (object.value(u"desktop"_q).toObject().value(u"measured"_q)
+				== QJsonValue(true))
+			&& SameJson(
+				object.value(u"frames"_q).toObject().value(u"count"_q),
+				4)
+			&& SameJson(object.value(u"dead"_q), dead)
+			&& SameJson(object.value(u"diedAtMs"_q), diedAtMs)
+			&& (end.host.deadAt == deadAt);
+		readings.push_back(u"{%1: dead=%2 diedAtMs=%3 deadAt=%4 errors=[%5]}"_q
+			.arg(name)
+			.arg(Compact(object.value(u"dead"_q)))
+			.arg(Compact(object.value(u"diedAtMs"_q)))
+			.arg(QString::number(end.host.deadAt))
+			.arg(entry.runnerErrors.join(u"; "_q)));
+	};
+	expect(
+		u"null"_q,
+		DesktopStopLevel(std::nullopt, stop, true, true),
+		stop,
+		9834.75,
+		10'250'250);
+	expect(
+		u"terminated"_q,
+		DesktopStopLevel(terminated, stop, true, true),
+		stop,
+		9834.75,
+		10'250'250);
+	expect(
+		u"host's own"_q,
+		DesktopStopLevel(own, stop, true, true),
+		QString::fromStdString(own),
+		12.5,
+		10'500'000);
+	expect(
+		u"no stop, null"_q,
+		DesktopStopLevel(std::nullopt, QString(), true, true),
+		Null(),
+		Null(),
+		0);
+	expect(
+		u"no stop, terminated"_q,
+		DesktopStopLevel(terminated, QString(), true, true),
+		QString::fromStdString(terminated),
+		12.5,
+		10'500'000);
+	expect(
+		u"no load stamp"_q,
+		DesktopStopLevel(std::nullopt, stop, false, true),
+		stop,
+		Null(),
+		10'250'250);
+	expect(
+		u"no loadedMs"_q,
+		DesktopStopLevel(terminated, stop, true, false),
+		stop,
+		Null(),
+		10'250'250);
+	return SelfCheckRow(
+		passed,
+		u"desktop stop: a stop the desktop decided itself replaces a null "
+			u"and a \"terminated\" dead at a window's end, which keeps its "
+			u"window (4 frame intervals), with deadAt the reading that saw "
+			u"it and diedAtMs "
+			u"loadedMs 84.5 + 9750.25 ms since the load was seen = 9834.75; "
+			u"a host's own reason keeps its dead, diedAtMs and deadAt; no "
+			u"stop keeps a null and a \"terminated\" dead; without the "
+			u"load's stamp or loadedMs diedAtMs is null"_q,
+		readings.join(QChar(' ')));
+}
+
 [[nodiscard]] WidgetOpsSelfCheckRow CheckEnvelope() {
 	const auto measure = RunFileObject(
 		ControlLaunch(WidgetStressPass::Measure),
@@ -3084,6 +3230,7 @@ std::vector<WidgetOpsSelfCheckRow> RunWidgetStressSelfCheck() {
 		CheckWidgetInvalid(),
 		CheckCounterReset(),
 		CheckNeverLoaded(),
+		CheckDesktopStop(),
 		CheckEnvelope(),
 		CheckIntegers(),
 		CheckLadderMerge(),
