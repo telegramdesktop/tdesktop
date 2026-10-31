@@ -298,13 +298,6 @@ void SetupStoryEditorClose(
 		&& static_cast<Editor::ItemVideo*>(item.get())->atInitialState();
 }
 
-[[nodiscard]] bool PhotoUnchanged(const Editor::PhotoModifications &mods) {
-	return !mods.angle
-		&& !mods.flipped
-		&& mods.canvasMediaRect.isEmpty()
-		&& (!mods.paint || UntouchedVideoOnly(mods.paint.get()));
-}
-
 [[nodiscard]] Editor::StoryAreas CollectAreas(
 		const Editor::PhotoModifications &mods,
 		QSize canvas) {
@@ -590,7 +583,6 @@ void OpenStoryPhotoEditor(
 			.locations = std::move(areas.locations),
 			.weather = std::move(areas.weather),
 			.mediaChanged = raw->edited(),
-			.edited = raw->edited(),
 			.source = std::make_shared<Data::StorySourceSave>(
 				Data::StorySourceSave{
 					.draft = std::move(collected.draft),

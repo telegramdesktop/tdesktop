@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/story_drafts_box.h"
 
 #include "base/unixtime.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_story_drafts.h"
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_post.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
+#include "ui/widgets/labels.h"
 #include "ui/painter.h"
 #include "ui/text/text.h"
 #include "ui/ui_utility.h"
@@ -30,7 +32,10 @@ namespace {
 
 class DraftRow final : public Ui::RippleButton {
 public:
-	DraftRow(not_null<QWidget*> parent, const Data::StoryDraft &draft);
+	DraftRow(
+		not_null<QWidget*> parent,
+		const Data::StoryDraft &draft,
+		const QString &peerName);
 
 	[[nodiscard]] rpl::producer<> removeRequests() const;
 
@@ -49,7 +54,8 @@ private:
 
 DraftRow::DraftRow(
 	not_null<QWidget*> parent,
-	const Data::StoryDraft &draft)
+	const Data::StoryDraft &draft,
+	const QString &peerName)
 : RippleButton(parent, st::defaultRippleAnimation)
 , _thumbnail(PrepareThumbnail(draft.thumbnail))
 , _remove(base::make_unique_q<Ui::IconButton>(this, st::stickersRemove))
@@ -62,7 +68,11 @@ DraftRow::DraftRow(
 		: draft.caption.text))
 , _subtitle(
 	st::storyRowSubtitleStyle,
-	langDateTime(base::unixtime::parse(draft.date))) {
+	(peerName.isEmpty()
+		? langDateTime(base::unixtime::parse(draft.date))
+		: langDateTime(base::unixtime::parse(draft.date))
+		+ u" \u00B7 "_q
+		+ peerName)) {
 	_remove->show();
 }
 
@@ -146,15 +156,21 @@ void StoryDraftsBox(
 	box->setWidth(st::boxWideWidth);
 
 	const auto drafts = &controller->session().data().stories().drafts();
+	const auto self = controller->session().userPeerId();
 	const auto content = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box),
 		QMargins());
+	const auto hadDrafts = box->lifetime().make_state<bool>(true);
 	const auto rebuild = [=] {
 		content->clear();
-		for (const auto &draft : drafts->list()) {
+		auto &list = drafts->list();
+		for (const auto &draft : list) {
 			const auto id = draft.id;
+			const auto peerName = (draft.peer && draft.peer != self)
+				? controller->session().data().peer(draft.peer)->name()
+				: QString();
 			const auto row = content->add(
-				object_ptr<DraftRow>(content, draft));
+				object_ptr<DraftRow>(content, draft, peerName));
 			row->setClickedCallback([=] {
 				box->closeBox();
 				Media::Stories::PostStoryDraft(controller, id);
@@ -163,10 +179,21 @@ void StoryDraftsBox(
 				drafts->remove(id);
 			}, row->lifetime());
 		}
-		if (drafts->list().empty()) {
-			box->closeBox();
+		if (list.empty()) {
+			if (*hadDrafts) {
+				box->closeBox();
+				return;
+			}
+			content->add(
+				object_ptr<Ui::FlatLabel>(
+					content,
+					tr::lng_story_drafts_empty(),
+					st::boxDividerLabel),
+				st::boxRowPadding);
 		}
+		*hadDrafts = !list.empty();
 	};
+	*hadDrafts = !drafts->list().empty();
 	rebuild();
 	drafts->changes() | rpl::on_next([=] {
 		crl::on_main(box, rebuild);

@@ -52,7 +52,6 @@ struct StoryEditorResult {
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
 	bool mediaChanged = true;
-	bool edited = false;
 	std::shared_ptr<Data::StorySourceSave> source;
 };
 

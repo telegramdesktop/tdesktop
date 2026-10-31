@@ -9207,6 +9207,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_drafts_button" = "Drafts";
 "lng_story_draft_photo" = "Photo";
 "lng_story_draft_video" = "Video";
+"lng_story_drafts_empty" = "No drafts yet";
 "lng_story_link_premium" = "Links in stories are available with {link}.";
 "lng_story_location_change" = "Change Location";
 "lng_stories_widget_location" = "Location";
