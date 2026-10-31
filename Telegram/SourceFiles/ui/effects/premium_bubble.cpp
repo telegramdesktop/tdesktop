@@ -120,7 +120,7 @@ int Bubble::countTargetWidth(int targetCounter) const {
 	numbers.finishAnimating();
 	const auto top = filledWidth()
 		+ numbers.maxWidth()
-		+ (_additional.isEmpty()
+		+ (texts.additional.isEmpty()
 			? 0
 			: (_st.additionalSkip
 				+ _st.additionalStyle.font->width(texts.additional)));
@@ -132,8 +132,13 @@ void Bubble::setCounter(int value) {
 		_counter = value;
 		const auto texts = _textFactory(value);
 		_numberAnimation.setText(texts.counter, value);
-		if (!texts.additional.isEmpty()) {
-			_additional.setText(_st.additionalStyle, texts.additional);
+		if (_additional.toString() != texts.additional) {
+			if (texts.additional.isEmpty()) {
+				_additional = {};
+			} else {
+				_additional.setText(_st.additionalStyle, texts.additional);
+			}
+			_widthChanges.fire({});
 		}
 	}
 }
