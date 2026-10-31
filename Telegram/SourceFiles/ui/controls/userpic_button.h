@@ -173,7 +173,7 @@ private:
 	void choosePhotoLocally();
 	[[nodiscard]] bool canSuggestPhoto(not_null<UserData*> user) const;
 	[[nodiscard]] bool hasPersonalPhotoLocally() const;
-	[[nodiscard]] auto makeResetToOriginalAction()
+	[[nodiscard]] auto makeResetToOriginalAction(not_null<UserData*> user)
 		-> base::unique_qptr<Menu::ItemBase>;
 
 	const style::UserpicButton &_st;
