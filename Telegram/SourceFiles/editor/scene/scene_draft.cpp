@@ -210,7 +210,7 @@ SceneItems CollectSceneItems(
 		return files.file ? files.file(path, content, suffix) : kNoFile;
 	};
 	for (const auto &item : scene->items(Qt::AscendingOrder)) {
-		if (!item->isNormalStatus()) {
+		if (!item->isNormalStatus() || item->asAction()) {
 			continue;
 		} else if (item->type() == ItemLine::Type) {
 			const auto line = static_cast<ItemLine*>(item.get());
@@ -583,7 +583,7 @@ void FeedFingerprintImage(
 uint64 SceneFingerprint(not_null<const Scene*> scene) {
 	auto hash = QCryptographicHash(QCryptographicHash::Md5);
 	for (const auto &item : scene->items(Qt::AscendingOrder)) {
-		if (!item->isNormalStatus()) {
+		if (!item->isNormalStatus() || item->asAction()) {
 			continue;
 		} else if (item->type() == ItemLine::Type) {
 			FeedFingerprintImage(
