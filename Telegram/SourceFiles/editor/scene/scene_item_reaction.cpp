@@ -279,9 +279,6 @@ std::shared_ptr<ItemBase> ItemReaction::duplicate(
 }
 
 void ItemReaction::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
-	menu->addAction(tr::lng_story_reaction_change(tr::now), [=] {
-		requestPick();
-	});
 	menu->addAction(
 		(_dark
 			? tr::lng_photo_editor_text_style_opaque(tr::now)
