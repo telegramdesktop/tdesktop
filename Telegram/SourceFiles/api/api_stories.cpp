@@ -804,7 +804,11 @@ void Stories::encodeJob(
 	const auto generation = upload->generation;
 	const auto still = std::get_if<Media::Encode::StillSource>(&job->source);
 	const auto hasAudio = !still || !still->music.empty();
-	const auto cancel = upload->cancelPreparing;
+	auto cancel = upload->cancelPreparing;
+	if (!cancel) {
+		cancel = std::make_shared<std::atomic<bool>>(false);
+		upload->cancelPreparing = cancel;
+	}
 	crl::async([=, weak = base::make_weak(this)] {
 		auto copy = *job;
 		auto lastReported = -1.;
