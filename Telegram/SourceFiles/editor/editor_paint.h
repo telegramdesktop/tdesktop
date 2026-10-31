@@ -114,6 +114,7 @@ public:
 	void resetView();
 	void addStoryVideoObject(StoryVideoObject &&object);
 	void addStoryWidgets(const QJsonArray &widgets);
+	void addStoryAudio(AudioTrack track, bool selected);
 	void selectVideoObject();
 	void addRoundVideo(QByteArray content, crl::time duration);
 

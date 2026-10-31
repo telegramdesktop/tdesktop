@@ -168,6 +168,8 @@ void SetupStoryEditorClose(
 		.period = setup.period ? setup.period : Api::kStoryDefaultPeriod,
 		.periodChoice = !setup.editing,
 		.sceneWidgets = setup.sceneWidgets,
+		.storyAudio = setup.storyAudio,
+		.storyAudioSelected = setup.storyAudioSelected,
 	};
 }
 
@@ -438,6 +440,7 @@ void OpenStoryPhotoEditor(
 		auto videoRect = QRectF();
 		const auto video = VideoObjectFromScene(mods.paint, videoRect);
 		const auto composed = ComposeStoryPhoto(image, background, mods);
+		auto media = Data::StoryDraftMedia();
 		auto draft = Data::StoryDraft{
 			.id = setup.draftId,
 			.peer = setup.peer,
@@ -448,8 +451,22 @@ void OpenStoryPhotoEditor(
 		if (mods.paint) {
 			draft.widgets = Editor::SerializeSceneWidgets(
 				Editor::CollectSceneWidgets(mods.paint.get()));
+			if (const auto audio = mods.paint->audio()) {
+				if (!audio->empty()) {
+					auto &to = draft.audio;
+					to.title = audio->title;
+					to.performer = audio->performer;
+					to.duration = audio->duration;
+					to.from = audio->from;
+					to.till = audio->till;
+					to.volume = audio->volume;
+					to.selected = mods.paint->audioSelected();
+					media.audioPath = audio->path;
+					media.audioContent = audio->content;
+					media.audioCover = audio->cover;
+				}
+			}
 		}
-		auto media = Data::StoryDraftMedia();
 		if (!video.empty()) {
 			draft.video = true;
 			draft.dimensions = video.thumbnail.size();
@@ -791,6 +808,17 @@ void PostStoryDraft(
 			.peer = peer->id,
 			.draftId = draft.id,
 			.sceneWidgets = draft.widgets,
+			.storyAudio = Editor::AudioTrack{
+				.path = draft.audioPath,
+				.title = draft.audio.title,
+				.performer = draft.audio.performer,
+				.cover = draft.audioCover,
+				.duration = draft.audio.duration,
+				.from = draft.audio.from,
+				.till = draft.audio.till,
+				.volume = draft.audio.volume,
+			},
+			.storyAudioSelected = draft.audio.selected,
 		};
 		const auto done = ShowSendBoxWhenEdited(controller, peer, draft.id);
 		const auto &edits = draft.edits;

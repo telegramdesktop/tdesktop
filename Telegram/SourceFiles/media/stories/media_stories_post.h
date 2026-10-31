@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_stories.h"
+#include "editor/photo_editor_common.h"
 
 #include <QtCore/QJsonArray>
 
@@ -36,6 +37,8 @@ struct StoryEditorSetup {
 	PeerId peer;
 	uint64 draftId = 0;
 	QJsonArray sceneWidgets;
+	Editor::AudioTrack storyAudio;
+	bool storyAudioSelected = true;
 };
 
 struct StoryEditorResult {

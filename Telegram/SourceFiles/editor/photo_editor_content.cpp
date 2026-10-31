@@ -126,6 +126,12 @@ PhotoEditorContent::PhotoEditorContent(
 		_paint->addStoryWidgets(data.story->sceneWidgets);
 		_paint->keepResult();
 	}
+	if (data.story && !data.story->storyAudio.empty()) {
+		_paint->addStoryAudio(
+			data.story->storyAudio,
+			data.story->storyAudioSelected);
+		_paint->keepResult();
+	}
 	_paint->setCanvasBackground(_background);
 	_paint->setCropRect(QRectF(_crop->cropRect()));
 	_layoutAnimation.init([=](crl::time now) {

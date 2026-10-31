@@ -31,6 +31,16 @@ struct StoryDraftVideo {
 	float64 volume = 1.;
 };
 
+struct StoryDraftAudio {
+	QString title;
+	QString performer;
+	crl::time duration = 0;
+	crl::time from = 0;
+	crl::time till = 0;
+	float64 volume = 1.;
+	bool selected = true;
+};
+
 struct StoryDraft {
 	uint64 id = 0;
 	TimeId date = 0;
@@ -45,6 +55,9 @@ struct StoryDraft {
 	StoryDraftVideo videoPlacement;
 	QString stillPath;
 	QJsonArray widgets;
+	QString audioPath;
+	StoryDraftAudio audio;
+	QImage audioCover;
 	QImage thumbnail;
 };
 
@@ -52,6 +65,9 @@ struct StoryDraftMedia {
 	QImage photo;
 	QString videoPath;
 	QByteArray videoContent;
+	QString audioPath;
+	QByteArray audioContent;
+	QImage audioCover;
 };
 
 class StoryDrafts final {
@@ -74,6 +90,9 @@ private:
 		uint64 id,
 		const StoryDraftMedia &media) const;
 	[[nodiscard]] QString storeStill(uint64 id, const QImage &still) const;
+	[[nodiscard]] QString storeAudio(
+		uint64 id,
+		const StoryDraftMedia &media) const;
 
 	const not_null<Main::Session*> _session;
 	std::vector<StoryDraft> _list;

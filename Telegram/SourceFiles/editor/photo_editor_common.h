@@ -41,19 +41,6 @@ struct StoryVideoObject {
 	}
 };
 
-struct StoryOptions {
-	std::shared_ptr<ChatHelpers::Show> show;
-	TextWithTags caption;
-	int period = 0;
-	bool periodChoice = true;
-	bool roundVideo = false;
-
-	QImage canvasMedia;
-	Media::Encode::CanvasBackground canvasBackground;
-	StoryVideoObject videoObject;
-	QJsonArray sceneWidgets;
-};
-
 struct AudioTrack {
 	QString path;
 	QByteArray content;
@@ -73,6 +60,21 @@ struct AudioTrack {
 		const auto end = (till > from) ? till : duration;
 		return std::max(end - from, crl::time(0));
 	}
+};
+
+struct StoryOptions {
+	std::shared_ptr<ChatHelpers::Show> show;
+	TextWithTags caption;
+	int period = 0;
+	bool periodChoice = true;
+	bool roundVideo = false;
+
+	QImage canvasMedia;
+	Media::Encode::CanvasBackground canvasBackground;
+	StoryVideoObject videoObject;
+	QJsonArray sceneWidgets;
+	AudioTrack storyAudio;
+	bool storyAudioSelected = true;
 };
 
 enum class RoundedCornersLevel {

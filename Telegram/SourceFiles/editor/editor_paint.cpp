@@ -1348,6 +1348,14 @@ void Paint::addStoryWidgets(const QJsonArray &widgets) {
 	_scene->clearSelection();
 }
 
+void Paint::addStoryAudio(AudioTrack track, bool selected) {
+	if (track.empty() || (track.duration <= 0)) {
+		return;
+	}
+	_scene->setAudio(std::make_shared<AudioTrack>(std::move(track)));
+	_scene->setAudioSelected(selected);
+}
+
 void Paint::addRoundVideo(QByteArray content, crl::time duration) {
 	if (content.isEmpty()) {
 		return;
