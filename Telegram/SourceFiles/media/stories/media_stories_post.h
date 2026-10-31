@@ -36,7 +36,8 @@ struct StoryEditorSetup {
 	bool editing = false;
 	PeerId peer;
 	uint64 draftId = 0;
-	QJsonArray sceneWidgets;
+	QJsonArray sceneItems;
+	QStringList sceneFiles;
 	Editor::AudioTrack storyAudio;
 	bool storyAudioSelected = true;
 };

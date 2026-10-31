@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_message_reaction_id.h"
 #include "editor/editor_link_pill.h"
+#include "editor/photo_editor_inner_common.h"
 #include "editor/scene/scene_item_base.h"
 #include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_weather.h"
@@ -19,50 +20,116 @@ namespace Editor {
 
 class Scene;
 
-struct SceneWidgetLink {
+struct SceneItemSticker {
+	DocumentId documentId = 0;
+	ItemBase::Placement placement;
+};
+
+struct SceneItemText {
+	QString text;
+	QColor color;
+	float64 fontSize = 0.;
+	TextStyle style = TextStyle::Plain;
+	TextTypeface typeface = TextTypeface::Default;
+	TextAlignment alignment = TextAlignment::Center;
+	ItemBase::Placement placement;
+};
+
+struct SceneItemShape {
+	ShapeType shape = ShapeType::Circle;
+	QColor color;
+	float64 strokeWidth = 1.;
+	bool fill = false;
+	float64 bend = 0.;
+	ItemBase::Placement placement;
+};
+
+struct SceneItemImage {
+	QString file;
+	ItemBase::Placement placement;
+};
+
+struct SceneItemLine {
+	QString file;
+	QPointF position;
+};
+
+struct SceneItemMessage {
+	uint64 peerBare = 0;
+	int64 msgBare = 0;
+	std::optional<bool> dark;
+	ItemBase::Placement placement;
+};
+
+struct SceneItemVideo {
+	QString file;
+	crl::time duration = 0;
+	bool round = false;
+	bool hasAudio = false;
+	crl::time from = 0;
+	crl::time till = 0;
+	float64 volume = 1.;
+	ItemBase::Placement placement;
+};
+
+struct SceneItemLink {
 	LinkPreview preview;
 	LinkStyle style = LinkStyle::Framed;
 	ItemBase::Placement placement;
 };
 
-struct SceneWidgetReaction {
+struct SceneItemReaction {
 	Data::ReactionId reaction;
 	bool dark = false;
 	ItemBase::Placement placement;
 };
 
-struct SceneWidgetLocation {
+struct SceneItemLocation {
 	LocationData location;
 	LinkStyle style = LinkStyle::Framed;
 	ItemBase::Placement placement;
 };
 
-struct SceneWidgetWeather {
+struct SceneItemWeather {
 	WeatherData weather;
 	ItemBase::Placement placement;
 };
 
-struct SceneWidgets {
-	std::vector<SceneWidgetLink> links;
-	std::vector<SceneWidgetReaction> reactions;
-	std::vector<SceneWidgetLocation> locations;
-	std::vector<SceneWidgetWeather> weather;
+struct SceneItems {
+	std::vector<SceneItemSticker> stickers;
+	std::vector<SceneItemText> texts;
+	std::vector<SceneItemShape> shapes;
+	std::vector<SceneItemImage> images;
+	std::vector<SceneItemLine> lines;
+	std::vector<SceneItemMessage> messages;
+	std::vector<SceneItemVideo> videos;
+	std::vector<SceneItemLink> links;
+	std::vector<SceneItemReaction> reactions;
+	std::vector<SceneItemLocation> locations;
+	std::vector<SceneItemWeather> weather;
 
-	[[nodiscard]] bool empty() const {
-		return links.empty()
-			&& reactions.empty()
-			&& locations.empty()
-			&& weather.empty();
-	}
+	[[nodiscard]] bool empty() const;
 
 	friend inline bool operator==(
-		const SceneWidgets &,
-		const SceneWidgets &) = default;
+		const SceneItems &,
+		const SceneItems &) = default;
 };
 
-[[nodiscard]] SceneWidgets CollectSceneWidgets(not_null<const Scene*> scene);
+struct SceneDraftFiles {
+	Fn<int(const QImage &image)> image;
+	Fn<int(
+		const QString &path,
+		const QByteArray &content,
+		const QString &suffix)> file;
+};
 
-[[nodiscard]] QJsonArray SerializeSceneWidgets(const SceneWidgets &widgets);
-[[nodiscard]] SceneWidgets ParseSceneWidgets(const QJsonArray &widgets);
+[[nodiscard]] SceneItems CollectSceneItems(
+	not_null<const Scene*> scene,
+	const SceneDraftFiles &files);
+
+[[nodiscard]] QJsonArray SerializeSceneItems(const SceneItems &items);
+[[nodiscard]] SceneItems ParseSceneItems(
+	const QJsonArray &items,
+	Fn<QString(int index)> file);
 
 } // namespace Editor

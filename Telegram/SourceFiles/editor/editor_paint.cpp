@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "data/data_location.h"
 #include "data/data_peer.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "editor/controllers/controllers.h"
 #include "editor/editor_link_box.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_message_source.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
+#include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_link.h"
 #include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_message.h"
@@ -1279,16 +1281,135 @@ void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 	addMediaItem(std::move(item));
 }
 
-void Paint::addStoryWidgets(const QJsonArray &widgets) {
-	const auto parsed = ParseSceneWidgets(widgets);
+void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
+	const auto parsed = ParseSceneItems(items, std::move(file));
+	auto data = itemBaseData();
+	data.initialZoom = _scene->currentZoom();
+	const auto controllersSession = session();
+	for (const auto &sticker : parsed.stickers) {
+		const auto document = controllersSession
+			? controllersSession->data().document(sticker.documentId).get()
+			: nullptr;
+		if (!document || document->isNull()) {
+			continue;
+		}
+		auto itemData = data;
+		addMediaItem(std::make_shared<ItemSticker>(
+			document,
+			std::move(itemData)));
+	}
+	for (const auto &text : parsed.texts) {
+		auto itemData = data;
+		auto item = std::make_shared<ItemText>(
+			text.text,
+			text.color,
+			text.fontSize,
+			text.style,
+			text.typeface,
+			text.alignment,
+			_imageSize,
+			std::move(itemData));
+		item->applyPlacement(text.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &shape : parsed.shapes) {
+		auto itemData = data;
+		auto item = std::make_shared<ItemShape>(
+			shape.shape,
+			shape.color,
+			shape.strokeWidth,
+			shape.fill,
+			std::move(itemData));
+		item->applyPlacement(shape.placement);
+		item->setBend(shape.bend);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &image : parsed.images) {
+		if (image.file.isEmpty()) {
+			continue;
+		}
+		auto itemData = data;
+		auto item = std::make_shared<ItemImage>(
+			Ui::PixmapFromImage(QImage(image.file)),
+			std::move(itemData));
+		item->applyPlacement(image.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &line : parsed.lines) {
+		if (line.file.isEmpty()) {
+			continue;
+		}
+		auto item = std::make_shared<ItemLine>(
+			Ui::PixmapFromImage(QImage(line.file)));
+		item->setPos(line.position);
+		_scene->addItem(std::move(item));
+	}
+	for (const auto &message : parsed.messages) {
+		const auto history = controllersSession
+			? controllersSession->data().message(
+				PeerId(message.peerBare),
+				MsgId(message.msgBare))
+			: nullptr;
+		if (!history) {
+			continue;
+		}
+		auto source = std::make_shared<MessageSource>(history);
+		auto renderer = std::make_unique<MessageRenderer>(source);
+		renderer->setDark(message.dark);
+		auto itemData = data;
+		auto item = std::make_shared<ItemMessage>(
+			std::move(source),
+			std::move(renderer),
+			std::move(itemData),
+			message.dark,
+			MessageVideoOptions{
+				.play = _composeAnimated,
+				.sound = _composeSound,
+			});
+		item->setEditCallback(crl::guard(this, [=](
+				not_null<ItemMessage*> item) {
+			const auto &link = item->source()->link();
+			chooseLink(link ? link->url : QString(), item);
+		}));
+		item->applyPlacement(message.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &video : parsed.videos) {
+		if (video.file.isEmpty()) {
+			continue;
+		}
+		const auto thumbnail = Media::Video::ExtractFrame(
+			video.file,
+			QByteArray(),
+			0,
+			QSize(kRoundVideoThumbnailSide, kRoundVideoThumbnailSide));
+		auto itemData = mediaItemData(thumbnail.size());
+		itemData.initialZoom = data.initialZoom;
+		itemData.maxSizeRatio = kImageMaxSizeRatio;
+		auto item = std::make_shared<ItemVideo>(
+			std::make_shared<VideoClipSource>(VideoClipSource{
+				.path = video.file,
+				.thumbnail = std::move(thumbnail),
+				.duration = video.duration,
+				.hasAudio = video.hasAudio && _composeSound,
+				.initialTrim = { .from = video.from, .till = video.till },
+				.initialVolume = video.volume,
+				.round = video.round,
+			}),
+			std::move(itemData));
+		item->applyPlacement(video.placement);
+		item->keepInitialState();
+		addMediaItem(std::move(item));
+	}
 	for (const auto &link : parsed.links) {
-		auto data = itemBaseData();
-		data.initialZoom = _scene->currentZoom();
-		data.size = std::max(
+		auto itemData = data;
+		itemData.size = std::max(
 			int(std::ceil(ItemLink::MakePill(link.preview, _imageSize)
 				.size().width())),
 			1);
-		auto item = std::make_shared<ItemLink>(link.preview, std::move(data));
+		auto item = std::make_shared<ItemLink>(
+			link.preview,
+			std::move(itemData));
 		item->setStyle(link.style);
 		item->setEditCallback(crl::guard(this, [=](not_null<ItemLink*> item) {
 			chooseLink(item->link().url, item);
@@ -1302,28 +1423,27 @@ void Paint::addStoryWidgets(const QJsonArray &widgets) {
 			if (reaction.reaction.empty()) {
 				continue;
 			}
-			auto data = itemBaseData();
-			data.initialZoom = _scene->currentZoom();
-			data.size = std::min(data.size, _imageSize.width() / 3);
+			auto itemData = data;
+			itemData.size = std::min(itemData.size, _imageSize.width() / 3);
 			auto item = std::make_shared<ItemReaction>(
 				&controller->session(),
 				reaction.reaction,
 				reaction.dark,
-				std::move(data));
+				std::move(itemData));
 			item->applyPlacement(reaction.placement);
 			addMediaItem(std::move(item));
 		}
 	}
 	for (const auto &location : parsed.locations) {
-		auto data = itemBaseData();
-		data.initialZoom = _scene->currentZoom();
-		data.size = std::max(
-			int(std::ceil(ItemLocation::MakePill(location.location, _imageSize)
-				.size().width())),
+		auto itemData = data;
+		itemData.size = std::max(
+			int(std::ceil(ItemLocation::MakePill(
+				location.location,
+				_imageSize).size().width())),
 			1);
 		auto item = std::make_shared<ItemLocation>(
 			location.location,
-			std::move(data));
+			std::move(itemData));
 		item->setStyle(location.style);
 		item->setEditCallback(crl::guard(this, [=](
 				not_null<ItemLocation*> item) {
@@ -1333,15 +1453,14 @@ void Paint::addStoryWidgets(const QJsonArray &widgets) {
 		addMediaItem(std::move(item));
 	}
 	for (const auto &weather : parsed.weather) {
-		auto data = itemBaseData();
-		data.initialZoom = _scene->currentZoom();
-		data.size = std::max(
+		auto itemData = data;
+		itemData.size = std::max(
 			int(std::ceil(ItemWeather::PillSize(weather.weather, _imageSize)
 				.width())),
 			1);
 		auto item = std::make_shared<ItemWeather>(
 			weather.weather,
-			std::move(data));
+			std::move(itemData));
 		item->applyPlacement(weather.placement);
 		addMediaItem(std::move(item));
 	}

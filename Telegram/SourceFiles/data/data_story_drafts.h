@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <QtCore/QJsonArray>
+#include <QtCore/QStringList>
 
 namespace Main {
 class Session;
@@ -54,11 +55,19 @@ struct StoryDraft {
 	StoryDraftEdits edits;
 	StoryDraftVideo videoPlacement;
 	QString stillPath;
-	QJsonArray widgets;
+	QJsonArray scene;
+	QStringList sceneFiles;
 	QString audioPath;
 	StoryDraftAudio audio;
 	QImage audioCover;
 	QImage thumbnail;
+};
+
+struct StoryDraftSceneFile {
+	QImage image;
+	QString path;
+	QByteArray content;
+	QString suffix;
 };
 
 struct StoryDraftMedia {
@@ -68,6 +77,7 @@ struct StoryDraftMedia {
 	QString audioPath;
 	QByteArray audioContent;
 	QImage audioCover;
+	std::vector<StoryDraftSceneFile> sceneFiles;
 };
 
 class StoryDrafts final {

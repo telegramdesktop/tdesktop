@@ -964,6 +964,8 @@ PRIVATE
     editor/photo_editor_controls.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
+    editor/scene/scene_draft.cpp
+    editor/scene/scene_draft.h
     editor/scene/scene_item_message.cpp
     editor/scene/scene_item_message.h
     editor/scene/scene_item_reaction.cpp

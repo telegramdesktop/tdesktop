@@ -122,8 +122,13 @@ PhotoEditorContent::PhotoEditorContent(
 	if (data.story && !data.story->videoObject.empty()) {
 		_pendingVideo = data.story->videoObject;
 	}
-	if (data.story && !data.story->sceneWidgets.isEmpty()) {
-		_paint->addStoryWidgets(data.story->sceneWidgets);
+	if (data.story && !data.story->sceneItems.isEmpty()) {
+		const auto &files = data.story->sceneFiles;
+		_paint->addStoryItems(data.story->sceneItems, [=](int index) {
+			return (index >= 0 && index < files.size())
+				? files[index]
+				: QString();
+		});
 		_paint->keepResult();
 	}
 	if (data.story && !data.story->storyAudio.empty()) {

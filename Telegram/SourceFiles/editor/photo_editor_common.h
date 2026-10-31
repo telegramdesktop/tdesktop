@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_video_encode.h"
 
 #include <QtCore/QJsonArray>
+#include <QtCore/QStringList>
 
 namespace ChatHelpers {
 class Show;
@@ -72,7 +73,8 @@ struct StoryOptions {
 	QImage canvasMedia;
 	Media::Encode::CanvasBackground canvasBackground;
 	StoryVideoObject videoObject;
-	QJsonArray sceneWidgets;
+	QJsonArray sceneItems;
+	QStringList sceneFiles;
 	AudioTrack storyAudio;
 	bool storyAudioSelected = true;
 };

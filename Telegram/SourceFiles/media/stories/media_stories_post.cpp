@@ -167,7 +167,8 @@ void SetupStoryEditorClose(
 		.caption = setup.caption,
 		.period = setup.period ? setup.period : Api::kStoryDefaultPeriod,
 		.periodChoice = !setup.editing,
-		.sceneWidgets = setup.sceneWidgets,
+		.sceneItems = setup.sceneItems,
+		.sceneFiles = setup.sceneFiles,
 		.storyAudio = setup.storyAudio,
 		.storyAudioSelected = setup.storyAudioSelected,
 	};
@@ -436,7 +437,11 @@ void OpenStoryPhotoEditor(
 	};
 	SetupStoryEditorClose(controller, not_null(raw), setup, close, [=] {
 		const auto mods = raw->collect();
-		const auto painted = mods.paint && !mods.paint->items().empty();
+		const auto painted = mods.paint && ranges::any_of(
+			mods.paint->items(),
+			[](const auto &item) {
+				return item->isNormalStatus() && item->bakes();
+			});
 		auto videoRect = QRectF();
 		const auto video = VideoObjectFromScene(mods.paint, videoRect);
 		const auto composed = ComposeStoryPhoto(image, background, mods);
@@ -449,8 +454,26 @@ void OpenStoryPhotoEditor(
 			.thumbnail = DraftThumbnail(composed),
 		};
 		if (mods.paint) {
-			draft.widgets = Editor::SerializeSceneWidgets(
-				Editor::CollectSceneWidgets(mods.paint.get()));
+			auto files = std::vector<Data::StoryDraftSceneFile>();
+			const auto sink = Editor::SceneDraftFiles{
+				.image = [&](const QImage &image) {
+					files.push_back({ .image = image });
+					return int(files.size()) - 1;
+				},
+				.file = [&](const QString &path,
+						const QByteArray &content,
+						const QString &suffix) {
+					files.push_back({
+						.path = path,
+						.content = content,
+						.suffix = suffix,
+					});
+					return int(files.size()) - 1;
+				},
+			};
+			draft.scene = Editor::SerializeSceneItems(
+				Editor::CollectSceneItems(mods.paint.get(), sink));
+			media.sceneFiles = std::move(files);
 			if (const auto audio = mods.paint->audio()) {
 				if (!audio->empty()) {
 					auto &to = draft.audio;
@@ -467,6 +490,7 @@ void OpenStoryPhotoEditor(
 				}
 			}
 		}
+		const auto hasScene = !draft.scene.isEmpty();
 		if (!video.empty()) {
 			draft.video = true;
 			draft.dimensions = video.thumbnail.size();
@@ -482,18 +506,20 @@ void OpenStoryPhotoEditor(
 				.rotation = video.rotation,
 				.volume = video.volume,
 			};
-			media.photo = StillFromScene(image, background, mods);
+			media.photo = hasScene
+				? ComposeStoryPhoto(image, background, {})
+				: StillFromScene(image, background, mods);
 			media.videoPath = video.path;
 			media.videoContent = video.content;
-		} else if (painted) {
-			media.photo = composed;
-		} else {
+		} else if (!painted || hasScene) {
 			media.photo = image;
 			draft.edits = {
 				.angle = mods.angle,
 				.flipped = mods.flipped,
 				.canvasMediaRect = mods.canvasMediaRect,
 			};
+		} else {
+			media.photo = composed;
 		}
 		if (!draft.video) {
 			draft.dimensions = media.photo.size();
@@ -807,7 +833,8 @@ void PostStoryDraft(
 			.period = draft.period,
 			.peer = peer->id,
 			.draftId = draft.id,
-			.sceneWidgets = draft.widgets,
+			.sceneItems = draft.scene,
+			.sceneFiles = draft.sceneFiles,
 			.storyAudio = Editor::AudioTrack{
 				.path = draft.audioPath,
 				.title = draft.audio.title,
@@ -842,7 +869,26 @@ void PostStoryDraft(
 				done);
 			return;
 		}
-		const auto probed = Storage::ReadPhotoEditorMedia(draft.mediaPath, {});
+		if (!draft.scene.isEmpty()) {
+			auto canvas = EmptyStoryCanvas();
+			if (!draft.stillPath.isEmpty()) {
+				auto still = QImage(draft.stillPath);
+				if (!still.isNull()) {
+					canvas = std::move(still);
+				}
+			}
+			OpenStoryPhotoEditor(
+				controller,
+				std::move(canvas),
+				{},
+				setup,
+				{},
+				done);
+			return;
+		}
+		const auto probed = Storage::ReadPhotoEditorMedia(
+			draft.mediaPath,
+			{});
 		auto canvas = EmptyStoryCanvas();
 		if (!draft.stillPath.isEmpty()) {
 			auto still = QImage(draft.stillPath);

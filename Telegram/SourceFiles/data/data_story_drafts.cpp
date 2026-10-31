@@ -44,6 +44,15 @@ template <typename Write>
 	return folder + QString::number(id) + u"_audio_cover.png"_q;
 }
 
+[[nodiscard]] QString SceneFilePath(
+		const QString &folder,
+		uint64 id,
+		int index,
+		const QString &suffix) {
+	const auto ext = suffix.isEmpty() ? u"png"_q : suffix;
+	return folder + QString::number(id) + u"_scene%1.%2"_q.arg(index).arg(ext);
+}
+
 [[nodiscard]] QJsonObject SerializeCaption(const TextWithTags &caption) {
 	auto tags = QJsonArray();
 	for (const auto &tag : caption.tags) {
@@ -103,7 +112,8 @@ template <typename Write>
 			} },
 		} },
 		{ u"still"_q, QFileInfo(draft.stillPath).fileName() },
-		{ u"widgets"_q, draft.widgets },
+		{ u"scene"_q, draft.scene },
+		{ u"sceneFiles"_q, QJsonArray::fromStringList(draft.sceneFiles) },
 		{ u"audioFile"_q, QFileInfo(draft.audioPath).fileName() },
 		{ u"audio"_q, QJsonObject{
 			{ u"title"_q, audio.title },
@@ -164,7 +174,14 @@ template <typename Write>
 	if (!result.stillPath.isEmpty() && !QFile::exists(result.stillPath)) {
 		result.stillPath = QString();
 	}
-	result.widgets = object[u"widgets"_q].toArray();
+	result.scene = object[u"scene"_q].toArray();
+	if (result.scene.isEmpty()) {
+		result.scene = object[u"widgets"_q].toArray();
+	}
+	for (const auto &name : object[u"sceneFiles"_q].toArray()) {
+		const auto path = folder + name.toString();
+		result.sceneFiles.push_back(QFile::exists(path) ? path : QString());
+	}
 	const auto audioFile = object[u"audioFile"_q].toString();
 	if (!audioFile.isEmpty()) {
 		result.audioPath = folder + audioFile;
@@ -298,6 +315,54 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 		draft.audio = StoryDraftAudio();
 	}
 
+	auto sceneNames = QStringList();
+	for (auto i = 0, count = int(media.sceneFiles.size()); i != count; ++i) {
+		const auto &file = media.sceneFiles[i];
+		auto name = QString();
+		if (!file.path.isEmpty() && !draft.mediaPath.isEmpty()
+			&& (file.path == media.videoPath)) {
+			name = QFileInfo(draft.mediaPath).fileName();
+		} else {
+			const auto path = SceneFilePath(
+				folder(),
+				draft.id,
+				i,
+				file.suffix);
+			if (!file.image.isNull()) {
+				if (!file.image.save(path, "PNG")) {
+					return 0;
+				}
+				name = QFileInfo(path).fileName();
+			} else if (!file.path.isEmpty()) {
+				if (file.path != path) {
+					QFile::remove(path);
+					if (!QFile::copy(file.path, path)) {
+						return 0;
+					}
+				}
+				name = QFileInfo(path).fileName();
+			} else if (!file.content.isEmpty()) {
+				QFile::remove(path);
+				auto out = QFile(path);
+				if (!out.open(QIODevice::WriteOnly)
+					|| (out.write(file.content) != file.content.size())) {
+					return 0;
+				}
+				name = QFileInfo(path).fileName();
+			}
+		}
+		sceneNames.push_back(name);
+	}
+	if (replacing) {
+		for (const auto &old : existing->sceneFiles) {
+			if (!old.isEmpty()
+				&& !sceneNames.contains(QFileInfo(old).fileName())) {
+				QFile::remove(old);
+			}
+		}
+	}
+	draft.sceneFiles = std::move(sceneNames);
+
 	const auto thumbnail = ThumbnailPath(folder(), draft.id);
 	if (!draft.thumbnail.isNull()) {
 		draft.thumbnail.save(thumbnail, "JPG", kThumbnailQuality);
@@ -325,6 +390,9 @@ void StoryDrafts::remove(uint64 id) {
 	QFile::remove(i->mediaPath);
 	QFile::remove(i->stillPath);
 	QFile::remove(i->audioPath);
+	for (const auto &file : i->sceneFiles) {
+		QFile::remove(file);
+	}
 	QFile::remove(AudioCoverPath(folder(), id));
 	QFile::remove(ThumbnailPath(folder(), id));
 	_list.erase(i);

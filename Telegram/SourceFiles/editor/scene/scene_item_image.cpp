@@ -35,6 +35,10 @@ QRectF ItemImage::visibleRect() const {
 	return fittedRect(_pixmap.size() / style::DevicePixelRatio());
 }
 
+const QPixmap &ItemImage::pixmap() const {
+	return _pixmap;
+}
+
 void ItemImage::performFlip() {
 	_pixmap = _pixmap.transformed(QTransform().scale(-1, 1));
 	update();

@@ -7,17 +7,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene_draft.h"
 
+#include "mtproto/core_types.h"
+#include "data/data_document.h"
+#include "editor/editor_message_source.h"
 #include "editor/scene/scene.h"
+#include "editor/scene/scene_item_image.h"
+#include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_link.h"
 #include "editor/scene/scene_item_location.h"
+#include "editor/scene/scene_item_message.h"
 #include "editor/scene/scene_item_reaction.h"
+#include "editor/scene/scene_item_shape.h"
+#include "editor/scene/scene_item_sticker.h"
+#include "editor/scene/scene_item_text.h"
+#include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_item_weather.h"
+#include "history/history_item.h"
 
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonObject>
 
 namespace Editor {
 namespace {
+
+constexpr auto kNoFile = -1;
 
 [[nodiscard]] QJsonArray SerializePlacement(
 		const ItemBase::Placement &placement) {
@@ -47,8 +60,26 @@ namespace {
 	result.zValue = array.at(4).toDouble();
 	result.size = array.at(5).toDouble();
 	result.aspectRatio = array.at(6).toDouble(1.);
-	result.flipped = (array.at(7).toInt() == 1);
+	result.flipped = (array.size() > 7) && (array.at(7).toInt() == 1);
 	return result;
+}
+
+[[nodiscard]] QJsonArray SerializePoint(QPointF point) {
+	return QJsonArray{ point.x(), point.y() };
+}
+
+[[nodiscard]] QPointF DeserializePoint(const QJsonArray &array) {
+	return (array.size() == 2)
+		? QPointF(array.at(0).toDouble(), array.at(1).toDouble())
+		: QPointF();
+}
+
+[[nodiscard]] QString SerializeColor(const QColor &color) {
+	return color.isValid() ? color.name(QColor::HexRgb) : QString();
+}
+
+[[nodiscard]] QColor DeserializeColor(const QString &name) {
+	return QColor(name);
 }
 
 [[nodiscard]] QJsonObject SerializeReactionId(Data::ReactionId id) {
@@ -121,14 +152,6 @@ namespace {
 	};
 }
 
-[[nodiscard]] QString SerializeColor(const QColor &color) {
-	return color.isValid() ? color.name(QColor::HexRgb) : QString();
-}
-
-[[nodiscard]] QColor DeserializeColor(const QString &name) {
-	return QColor(name);
-}
-
 [[nodiscard]] QJsonObject SerializeWeather(const WeatherData &data) {
 	return {
 		{ u"emoji"_q, data.emoji },
@@ -151,17 +174,133 @@ namespace {
 		: LinkStyle::Framed;
 }
 
+[[nodiscard]] std::optional<bool> DeserializeDark(int value) {
+	return (value < 0) ? std::nullopt : std::optional<bool>(value == 1);
+}
+
 } // namespace
 
-SceneWidgets CollectSceneWidgets(not_null<const Scene*> scene) {
-	auto result = SceneWidgets();
+bool SceneItems::empty() const {
+	return stickers.empty()
+		&& texts.empty()
+		&& shapes.empty()
+		&& images.empty()
+		&& lines.empty()
+		&& messages.empty()
+		&& videos.empty()
+		&& links.empty()
+		&& reactions.empty()
+		&& locations.empty()
+		&& weather.empty();
+}
+
+SceneItems CollectSceneItems(
+		not_null<const Scene*> scene,
+		const SceneDraftFiles &files) {
+	auto result = SceneItems();
+	auto storeImage = [&](const QImage &image) {
+		return files.image ? files.image(image) : kNoFile;
+	};
+	auto storeFile = [&](const QString &path,
+			const QByteArray &content,
+			const QString &suffix) {
+		return files.file ? files.file(path, content, suffix) : kNoFile;
+	};
 	for (const auto &item : scene->items(Qt::AscendingOrder)) {
 		if (!item->isNormalStatus()) {
+			continue;
+		} else if (item->type() == ItemLine::Type) {
+			const auto line = static_cast<ItemLine*>(item.get());
+			const auto index = storeImage(line->pixmap().toImage());
+			if (index >= 0) {
+				result.lines.push_back({
+					.file = QString::number(index),
+					.position = line->pos(),
+				});
+			}
 			continue;
 		}
 		const auto base = static_cast<ItemBase*>(item.get());
 		const auto placement = base->placement();
-		if (item->type() == ItemLink::Type) {
+		if (item->type() == ItemSticker::Type) {
+			const auto sticker = static_cast<ItemSticker*>(item.get());
+			result.stickers.push_back({
+				.documentId = sticker->sticker()->id,
+				.placement = placement,
+			});
+		} else if (item->type() == ItemText::Type) {
+			const auto text = static_cast<ItemText*>(item.get());
+			result.texts.push_back({
+				.text = text->text(),
+				.color = text->color(),
+				.fontSize = text->fontSize(),
+				.style = text->textStyle(),
+				.typeface = text->typeface(),
+				.alignment = text->alignment(),
+				.placement = placement,
+			});
+		} else if (item->type() == ItemShape::Type) {
+			const auto shape = static_cast<ItemShape*>(item.get());
+			result.shapes.push_back({
+				.shape = shape->shapeType(),
+				.color = shape->color(),
+				.strokeWidth = shape->strokeWidth(),
+				.fill = shape->fill(),
+				.bend = shape->bend(),
+				.placement = placement,
+			});
+		} else if (item->type() == ItemImage::Type) {
+			const auto image = static_cast<ItemImage*>(item.get());
+			const auto index = storeImage(image->pixmap().toImage());
+			if (index >= 0) {
+				result.images.push_back({
+					.file = QString::number(index),
+					.placement = placement,
+				});
+			}
+		} else if (item->type() == ItemMessage::Type) {
+			const auto message = static_cast<ItemMessage*>(item.get());
+			const auto &source = message->source();
+			const auto history = source->item();
+			if (!history) {
+				continue;
+			}
+			const auto fullId = history->fullId();
+			result.messages.push_back({
+				.peerBare = fullId.peer.value,
+				.msgBare = fullId.msg.bare,
+				.dark = message->dark(),
+				.placement = placement,
+			});
+		} else if (item->type() == ItemVideo::Type) {
+			const auto video = static_cast<ItemVideo*>(item.get());
+			const auto clip = video->videoClip();
+			if (!clip) {
+				continue;
+			}
+			const auto &source = *clip->source();
+			if (source.path.isEmpty() && source.content.isEmpty()) {
+				continue;
+			}
+			const auto index = storeFile(
+				source.path,
+				source.content,
+				source.round ? u"webm"_q : u"mp4"_q);
+			if (index < 0) {
+				continue;
+			}
+			const auto trim = clip->trim();
+			result.videos.push_back({
+				.file = QString::number(index),
+				.duration = clip->duration(),
+				.round = source.round,
+				.hasAudio = clip->hasAudio(),
+				.from = trim.from,
+				.till = trim.till,
+				.volume = clip->volume(),
+				.placement = placement,
+			});
+		} else if (item->type() == ItemLink::Type) {
 			const auto link = static_cast<ItemLink*>(item.get());
 			result.links.push_back({
 				.preview = link->link(),
@@ -193,49 +332,178 @@ SceneWidgets CollectSceneWidgets(not_null<const Scene*> scene) {
 	return result;
 }
 
-QJsonArray SerializeSceneWidgets(const SceneWidgets &widgets) {
+QJsonArray SerializeSceneItems(const SceneItems &items) {
 	auto result = QJsonArray();
-	for (const auto &link : widgets.links) {
+	const auto placement = [](const auto &item) {
+		return SerializePlacement(item.placement);
+	};
+	for (const auto &sticker : items.stickers) {
+		result.append(QJsonObject{
+			{ u"kind"_q, u"sticker"_q },
+			{ u"doc"_q, qint64(sticker.documentId) },
+			{ u"p"_q, placement(sticker) },
+		});
+	}
+	for (const auto &text : items.texts) {
+		result.append(QJsonObject{
+			{ u"kind"_q, u"text"_q },
+			{ u"text"_q, text.text },
+			{ u"color"_q, SerializeColor(text.color) },
+			{ u"size"_q, text.fontSize },
+			{ u"style"_q, int(text.style) },
+			{ u"typeface"_q, int(text.typeface) },
+			{ u"align"_q, int(text.alignment) },
+			{ u"p"_q, placement(text) },
+		});
+	}
+	for (const auto &shape : items.shapes) {
+		result.append(QJsonObject{
+			{ u"kind"_q, u"shape"_q },
+			{ u"shape"_q, int(shape.shape) },
+			{ u"color"_q, SerializeColor(shape.color) },
+			{ u"stroke"_q, shape.strokeWidth },
+			{ u"fill"_q, shape.fill },
+			{ u"bend"_q, shape.bend },
+			{ u"p"_q, placement(shape) },
+		});
+	}
+	for (const auto &image : items.images) {
+		result.append(QJsonObject{
+			{ u"kind"_q, u"image"_q },
+			{ u"file"_q, image.file },
+			{ u"p"_q, placement(image) },
+		});
+	}
+	for (const auto &line : items.lines) {
+		result.append(QJsonObject{
+			{ u"kind"_q, u"line"_q },
+			{ u"file"_q, line.file },
+			{ u"pos"_q, SerializePoint(line.position) },
+		});
+	}
+	for (const auto &message : items.messages) {
+		result.append(QJsonObject{
+			{ u"kind"_q, u"message"_q },
+			{ u"peer"_q, QString::number(message.peerBare) },
+			{ u"msgid"_q, message.msgBare },
+			{ u"dark"_q, message.dark
+				? (*message.dark ? 1 : 0)
+				: -1 },
+			{ u"p"_q, placement(message) },
+		});
+	}
+	for (const auto &video : items.videos) {
+		result.append(QJsonObject{
+			{ u"kind"_q, u"video"_q },
+			{ u"file"_q, video.file },
+			{ u"duration"_q, qint64(video.duration) },
+			{ u"round"_q, video.round },
+			{ u"audio"_q, video.hasAudio },
+			{ u"from"_q, qint64(video.from) },
+			{ u"till"_q, qint64(video.till) },
+			{ u"vol"_q, video.volume },
+			{ u"p"_q, placement(video) },
+		});
+	}
+	for (const auto &link : items.links) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"link"_q },
 			{ u"preview"_q, SerializeLinkPreview(link.preview) },
 			{ u"style"_q, int(link.style) },
-			{ u"p"_q, SerializePlacement(link.placement) },
+			{ u"p"_q, placement(link) },
 		});
 	}
-	for (const auto &reaction : widgets.reactions) {
+	for (const auto &reaction : items.reactions) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"reaction"_q },
 			{ u"reaction"_q, SerializeReactionId(reaction.reaction) },
 			{ u"dark"_q, reaction.dark },
-			{ u"p"_q, SerializePlacement(reaction.placement) },
+			{ u"p"_q, placement(reaction) },
 		});
 	}
-	for (const auto &location : widgets.locations) {
+	for (const auto &location : items.locations) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"location"_q },
 			{ u"loc"_q, SerializeLocation(location.location) },
 			{ u"style"_q, int(location.style) },
-			{ u"p"_q, SerializePlacement(location.placement) },
+			{ u"p"_q, placement(location) },
 		});
 	}
-	for (const auto &weather : widgets.weather) {
+	for (const auto &weather : items.weather) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"weather"_q },
 			{ u"weather"_q, SerializeWeather(weather.weather) },
-			{ u"p"_q, SerializePlacement(weather.placement) },
+			{ u"p"_q, placement(weather) },
 		});
 	}
 	return result;
 }
 
-SceneWidgets ParseSceneWidgets(const QJsonArray &widgets) {
-	auto result = SceneWidgets();
-	for (const auto &value : widgets) {
+SceneItems ParseSceneItems(
+		const QJsonArray &items,
+		Fn<QString(int index)> file) {
+	auto result = SceneItems();
+	for (const auto &value : items) {
 		const auto object = value.toObject();
 		const auto kind = object[u"kind"_q].toString();
 		const auto placement = DeserializePlacement(object[u"p"_q].toArray());
-		if (kind == u"link"_q) {
+		const auto path = [&]() -> QString {
+			const auto index = object[u"file"_q].toString().toInt();
+			return (index >= 0) ? file(index) : QString();
+		};
+		if (kind == u"sticker"_q) {
+			result.stickers.push_back({
+				.documentId = DocumentId(object[u"doc"_q].toInteger()),
+				.placement = placement,
+			});
+		} else if (kind == u"text"_q) {
+			result.texts.push_back({
+				.text = object[u"text"_q].toString(),
+				.color = DeserializeColor(object[u"color"_q].toString()),
+				.fontSize = object[u"size"_q].toDouble(),
+				.style = TextStyle(object[u"style"_q].toInt()),
+				.typeface = TextTypeface(object[u"typeface"_q].toInt()),
+				.alignment = TextAlignment(object[u"align"_q].toInt()),
+				.placement = placement,
+			});
+		} else if (kind == u"shape"_q) {
+			result.shapes.push_back({
+				.shape = ShapeType(object[u"shape"_q].toInt()),
+				.color = DeserializeColor(object[u"color"_q].toString()),
+				.strokeWidth = object[u"stroke"_q].toDouble(1.),
+				.fill = object[u"fill"_q].toBool(),
+				.bend = object[u"bend"_q].toDouble(),
+				.placement = placement,
+			});
+		} else if (kind == u"image"_q) {
+			result.images.push_back({
+				.file = path(),
+				.placement = placement,
+			});
+		} else if (kind == u"line"_q) {
+			result.lines.push_back({
+				.file = path(),
+				.position = DeserializePoint(object[u"pos"_q].toArray()),
+			});
+		} else if (kind == u"message"_q) {
+			result.messages.push_back({
+				.peerBare = object[u"peer"_q].toString().toULongLong(),
+				.msgBare = object[u"msgid"_q].toInteger(),
+				.dark = DeserializeDark(object[u"dark"_q].toInt(-1)),
+				.placement = placement,
+			});
+		} else if (kind == u"video"_q) {
+			result.videos.push_back({
+				.file = path(),
+				.duration = object[u"duration"_q].toInteger(),
+				.round = object[u"round"_q].toBool(),
+				.hasAudio = object[u"audio"_q].toBool(),
+				.from = object[u"from"_q].toInteger(),
+				.till = object[u"till"_q].toInteger(),
+				.volume = object[u"vol"_q].toDouble(1.),
+				.placement = placement,
+			});
+		} else if (kind == u"link"_q) {
 			result.links.push_back({
 				.preview = DeserializeLinkPreview(
 					object[u"preview"_q].toObject()),

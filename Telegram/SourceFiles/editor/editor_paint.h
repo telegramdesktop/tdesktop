@@ -113,7 +113,7 @@ public:
 	void paintImage(QPainter &p, const QPixmap &image) const;
 	void resetView();
 	void addStoryVideoObject(StoryVideoObject &&object);
-	void addStoryWidgets(const QJsonArray &widgets);
+	void addStoryItems(const QJsonArray &items, Fn<QString(int index)> file);
 	void addStoryAudio(AudioTrack track, bool selected);
 	void selectVideoObject();
 	void addRoundVideo(QByteArray content, crl::time duration);
