@@ -1788,7 +1788,6 @@ PRIVATE
     platform/linux/tray_linux.h
     platform/linux/update_install_linux.cpp
     platform/linux/update_install_linux.h
-    platform/linux/webauthn_linux.cpp
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
     platform/mac/global_menu_mac.h
