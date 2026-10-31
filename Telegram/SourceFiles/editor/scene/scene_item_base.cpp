@@ -529,6 +529,9 @@ void ItemBase::contextMenuEvent(QGraphicsSceneContextMenuEvent *event) {
 		&st::mediaMenuIconCopy);
 
 	_menu->popup(event->screenPos());
+	if (const auto scene = static_cast<Scene*>(this->scene())) {
+		scene->noteItemContextMenu();
+	}
 }
 
 void ItemBase::fillContextMenu(not_null<Ui::PopupMenu*> menu) {

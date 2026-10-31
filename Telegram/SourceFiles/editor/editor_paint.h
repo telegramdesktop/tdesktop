@@ -38,6 +38,7 @@ struct Controllers;
 struct LinkBoxResult;
 struct LinkPreview;
 class MessageSource;
+class ItemReaction;
 class Scene;
 class VideoClip;
 
@@ -134,6 +135,8 @@ private:
 	ItemBase::Data itemBaseData() const;
 	ItemBase::Data mediaItemData(QSize mediaSize) const;
 	ItemBase::Data messageItemData(QSize bubbleSize) const;
+	void updateReactionSelector();
+	[[nodiscard]] QRect reactionItemRect(not_null<ItemReaction*> item) const;
 	void addMediaItem(std::shared_ptr<ItemBase> item);
 	void addMessages(const MessageIdsList &ids);
 	void addMessageItem(

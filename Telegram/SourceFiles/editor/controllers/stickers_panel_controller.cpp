@@ -8,19 +8,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/controllers/stickers_panel_controller.h"
 
 #include "boxes/premium_preview_box.h"
+#include "base/algorithm.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "data/data_document.h"
+#include "data/data_message_reactions.h"
+#include "history/view/reactions/history_view_reactions_selector.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/controls/location_picker.h"
 #include "ui/emoji_config.h"
+#include "ui/effects/animation_value.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/ui_utility.h"
+#include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h" // Window::GifPauseReason
 
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
+
+#include <QPainter>
 
 namespace Editor {
 namespace {
@@ -61,6 +69,15 @@ void ShowStoryLinkPremiumToast(std::shared_ptr<ChatHelpers::Show> show) {
 
 } // namespace
 
+struct StickersPanelController::ReactionsHiding {
+	explicit ReactionsHiding(not_null<QWidget*> parent) : widget(parent) {
+	}
+
+	Ui::RpWidget widget;
+	Ui::Animations::Simple animation;
+	QImage frame;
+};
+
 StickersPanelController::StickersPanelController(
 	not_null<Ui::RpWidget*> panelContainer,
 	std::shared_ptr<ChatHelpers::Show> show,
@@ -91,6 +108,12 @@ StickersPanelController::StickersPanelController(
 		st::emojiPanMinHeight / 2,
 		st::emojiPanMinHeight);
 	_stickersPanel->hide();
+}
+
+StickersPanelController::~StickersPanelController() {
+	if (_reactionsSelector) {
+		_reactionsSelector->beforeDestroy();
+	}
 }
 
 auto StickersPanelController::stickerChosen() const
@@ -137,43 +160,161 @@ rpl::producer<> StickersPanelController::weatherRequests() const {
 	return _stickersPanel->selector()->weatherRequests();
 }
 
-void StickersPanelController::showReactionsPicker(QPoint middleBottom) {
-	if (!_reactionsPanel) {
-		_reactionsPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
-			_panelContainer,
-			ChatHelpers::TabbedPanelDescriptor{
-				.ownedSelector = object_ptr<ChatHelpers::TabbedSelector>(
-					nullptr,
-					ChatHelpers::TabbedSelectorDescriptor{
-						.show = _show,
-						.st = st::mediaviewEmojiPan,
-						.level = Window::GifPauseReason::Layer,
-						.mode = ChatHelpers::TabbedSelectorMode::FullReactions,
-					}),
-			});
-		_reactionsPanel->setDesiredHeightValues(
-			1.,
-			st::emojiPanMinHeight / 2,
-			st::emojiPanMinHeight);
-		const auto selector = _reactionsPanel->selector();
-		const auto picked = [=](Data::ReactionId id) {
-			_reactionsPanel->hideAnimated();
-			_reactionPicked.fire_copy(id);
-		};
-		selector->emojiChosen(
-		) | rpl::on_next([=](ChatHelpers::EmojiChosen data) {
-			picked(Data::ReactionId{ data.emoji->text() });
-		}, _reactionsPanel->lifetime());
-		selector->customEmojiChosen(
-		) | rpl::on_next([=](ChatHelpers::FileChosen data) {
-			picked(Data::ReactionId{ data.document->id });
-		}, _reactionsPanel->lifetime());
+void StickersPanelController::showReactionsSelector(QRect globalItemRect) {
+	const auto itemRect = _panelContainer->mapFromGlobal(globalItemRect);
+	if (_reactionsSelector) {
+		placeReactionsSelector(itemRect);
+		return;
+	}
+	auto reactions = Data::LookupPossibleReactions(&session());
+	if (reactions.recent.empty()) {
+		return;
 	}
 	_stickersPanel->hideAnimated();
-	_reactionsPanel->moveBottomRight(
-		middleBottom.y(),
-		middleBottom.x() + _reactionsPanel->width() / 2);
-	_reactionsPanel->showAnimated();
+
+	_reactionsSelector = std::make_unique<HistoryView::Reactions::Selector>(
+		_panelContainer,
+		st::storiesReactionsPan,
+		_show,
+		std::move(reactions),
+		TextWithEntities(),
+		[=](bool fast) { hideReactionsSelector(); },
+		nullptr,
+		nullptr,
+		true,
+		_panelContainer);
+
+	_reactionsSelector->chosen(
+	) | rpl::on_next([=](HistoryView::Reactions::ChosenReaction chosen) {
+		_reactionPicked.fire_copy(chosen.id);
+		hideReactionsSelector();
+	}, _reactionsSelector->lifetime());
+
+	_reactionsSelector->escapes(
+	) | rpl::on_next([=] {
+		hideReactionsSelector();
+	}, _reactionsSelector->lifetime());
+
+	_reactionsWidth = _reactionsSelector->countWidth(
+		st::storiesReactionsWidth,
+		st::storiesReactionsWidth * 2);
+	_reactionsCategoriesTop
+		= _reactionsSelector->extendTopForCategoriesAndAbout(
+			_reactionsWidth);
+
+	placeReactionsSelector(itemRect);
+
+	const auto duration = st::defaultPanelAnimation.heightDuration
+		* st::defaultPopupMenu.showDuration;
+	_reactionsShowing.start(
+		[=] { updateReactionsShowState(); },
+		0.,
+		1.,
+		duration);
+	updateReactionsShowState();
+}
+
+void StickersPanelController::placeReactionsSelector(QRect itemRect) {
+	const auto selector = _reactionsSelector.get();
+	const auto container = _panelContainer->rect();
+
+	const auto margins = selector->marginsForShadow();
+	const auto categoriesTop = _reactionsCategoriesTop;
+	const auto full = margins.left() + _reactionsWidth + margins.right();
+	const auto left = std::clamp(
+		itemRect.center().x() - full / 2,
+		0,
+		std::max(container.width() - full, 0));
+
+	const auto smallGap = st::storiesEditorReactionsSkip;
+	const auto roomAbove = itemRect.y()
+		- smallGap
+		- st::reactStripHeight
+		- margins.bottom()
+		- margins.top()
+		- categoriesTop;
+	const auto roomBelow = container.height()
+		- itemRect.y()
+		- itemRect.height()
+		- smallGap
+		- margins.top()
+		- st::reactStripHeight
+		- margins.bottom();
+	const auto below = (roomAbove < 0) && (roomBelow >= 0);
+	selector->setBubbleUp(below);
+	selector->setExpandDown(below);
+	const auto innerTop = below
+		? (itemRect.y()
+			+ itemRect.height()
+			+ smallGap
+			+ margins.top())
+		: std::max(
+			itemRect.y() - smallGap - st::reactStripHeight - margins.bottom(),
+			2 * margins.top() + categoriesTop);
+	const auto maxAdded = innerTop - margins.top() - categoriesTop;
+	const auto added = below
+		? 0
+		: std::clamp(maxAdded, 0, st::storiesReactionsAddedTop);
+	selector->setSpecialExpandTopSkip(added);
+	const auto widgetTop = below
+		? (innerTop - margins.top())
+		: std::max(maxAdded - added, 0);
+	selector->initGeometry(innerTop - widgetTop);
+	selector->setGeometry(QRect(QPoint(left, widgetTop), selector->size()));
+}
+
+void StickersPanelController::updateReactionsShowState() {
+	if (!_reactionsSelector) {
+		return;
+	}
+	_reactionsSelector->updateShowState(
+		_reactionsShowing.value(1.),
+		1.,
+		_reactionsShowing.animating(),
+		false);
+}
+
+void StickersPanelController::hideReactionsSelector() {
+	if (!_reactionsSelector) {
+		return;
+	}
+	_reactionsSelector->beforeDestroy();
+	if (!anim::Disabled()) {
+		fadeOutReactionsSelector();
+	}
+	_reactionsShowing.stop();
+	_reactionsSelector = nullptr;
+}
+
+void StickersPanelController::fadeOutReactionsSelector() {
+	_hiding.push_back(std::make_unique<ReactionsHiding>(_panelContainer));
+	const auto raw = _hiding.back().get();
+	raw->frame = Ui::GrabWidgetToImage(_reactionsSelector.get());
+	raw->widget.setGeometry(_reactionsSelector->geometry());
+	raw->widget.show();
+	raw->widget.paintRequest(
+	) | rpl::on_next([=] {
+		if (const auto opacity = raw->animation.value(0.)) {
+			auto p = QPainter(&raw->widget);
+			p.setOpacity(opacity);
+			p.drawImage(0, 0, raw->frame);
+		}
+	}, raw->widget.lifetime());
+	Ui::PostponeCall(&raw->widget, [=] {
+		raw->animation.start([=] {
+			if (raw->animation.animating()) {
+				raw->widget.update();
+			} else {
+				const auto i = ranges::find(
+					_hiding,
+					raw,
+					&std::unique_ptr<ReactionsHiding>::get);
+				if (i != end(_hiding)) {
+					_hiding.erase(i);
+				}
+			}
+		}, 1., 0., st::slideWrapDuration);
+	});
 }
 
 auto StickersPanelController::reactionPicked() const
@@ -191,9 +332,11 @@ void StickersPanelController::setShowRequestChanges(
 		showRequest
 	) | rpl::on_next([=](ShowRequest show) {
 		if (show == ShowRequest::ToggleAnimated) {
+			hideReactionsSelector();
 			_stickersPanel->toggleAnimated();
 			_stickersPanel->raise();
 		} else if (show == ShowRequest::ShowAnimated) {
+			hideReactionsSelector();
 			_stickersPanel->showAnimated();
 			_stickersPanel->raise();
 		} else if (show == ShowRequest::HideAnimated) {

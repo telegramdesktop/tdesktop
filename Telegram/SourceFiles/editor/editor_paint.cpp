@@ -47,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/location_picker.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+
+#include <QtGui/QGuiApplication>
 #include "window/themes/window_theme.h"
 #include "styles/style_editor.h"
 
@@ -274,12 +276,32 @@ Paint::Paint(
 		_scene->reactionPickRequests(
 		) | rpl::on_next([=](not_null<ItemReaction*> item) {
 			_pickingReaction = _scene->itemShared(item);
-			const auto bottom = _view->mapFromScene(
-				item->mapToScene(item->boundingRect().bottomLeft()));
-			const auto center = _view->mapFromScene(item->pos());
-			controllers->stickersPanelController->showReactionsPicker(
-				mapToParent(QPoint(center.x(), bottom.y())));
+			controllers->stickersPanelController->showReactionsSelector(
+				reactionItemRect(item));
 		}, lifetime());
+
+		_scene->canvasPresses(
+		) | rpl::on_next([=] {
+			controllers->stickersPanelController->hideReactionsSelector();
+		}, lifetime());
+
+		_scene->canvasReleases(
+		) | rpl::on_next([=](Qt::MouseButton button) {
+			if (button == Qt::LeftButton) {
+				updateReactionSelector();
+			}
+		}, lifetime());
+
+		_scene->itemContextMenuRequests(
+		) | rpl::on_next([=] {
+			controllers->stickersPanelController->hideReactionsSelector();
+		}, lifetime());
+
+		QObject::connect(
+			_scene.get(),
+			&QGraphicsScene::selectionChanged,
+			this,
+			[=] { updateReactionSelector(); });
 
 		_scene->locationPickRequests(
 		) | rpl::on_next([=](not_null<ItemLocation*> item) {
@@ -943,6 +965,37 @@ void Paint::addStoryReaction(Data::ReactionId reaction) {
 		reaction,
 		false,
 		std::move(data)));
+	Ui::PostponeCall(this, [=] { updateReactionSelector(); });
+}
+
+void Paint::updateReactionSelector() {
+	const auto controller = _controllers->stickersPanelController.get();
+	if (!controller) {
+		return;
+	}
+	ItemReaction *picked = nullptr;
+	for (const auto item : _scene->selectedItems()) {
+		if (item->type() == ItemReaction::Type) {
+			picked = static_cast<ItemReaction*>(item);
+			break;
+		}
+	}
+	if (!picked || QGuiApplication::mouseButtons() != Qt::NoButton) {
+		controller->hideReactionsSelector();
+		return;
+	}
+	_pickingReaction = _scene->itemShared(picked);
+	controller->showReactionsSelector(reactionItemRect(picked));
+}
+
+QRect Paint::reactionItemRect(not_null<ItemReaction*> item) const {
+	const auto rect = item->contentRect();
+	return QRect(
+		_view->viewport()->mapToGlobal(_view->mapFromScene(
+			item->mapToScene(rect.topLeft()))),
+		_view->viewport()->mapToGlobal(_view->mapFromScene(
+			item->mapToScene(rect.bottomRight())))
+	).normalized();
 }
 
 void Paint::addStoryLocation(

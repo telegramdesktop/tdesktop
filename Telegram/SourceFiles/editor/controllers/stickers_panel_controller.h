@@ -9,11 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 #include "data/data_message_reaction_id.h"
+#include "ui/effects/animations.h"
 
 namespace ChatHelpers {
 class TabbedPanel;
 class Show;
 } // namespace ChatHelpers
+
+namespace HistoryView::Reactions {
+class Selector;
+} // namespace HistoryView::Reactions
 
 namespace Main {
 class Session;
@@ -39,6 +44,7 @@ public:
 		std::shared_ptr<ChatHelpers::Show> show,
 		bool withAudio,
 		bool storyWidgets = false);
+	~StickersPanelController();
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] auto stickerChosen() const
@@ -50,7 +56,8 @@ public:
 	[[nodiscard]] rpl::producer<> weatherRequests() const;
 	[[nodiscard]] auto reactionRequests() const
 	-> rpl::producer<Data::ReactionId>;
-	void showReactionsPicker(QPoint middleBottom);
+	void showReactionsSelector(QRect globalItemRect);
+	void hideReactionsSelector();
 	[[nodiscard]] auto reactionPicked() const
 	-> rpl::producer<Data::ReactionId>;
 	[[nodiscard]] rpl::producer<bool> panelShown() const;
@@ -60,10 +67,20 @@ public:
 	void setMoveRequestChanges(rpl::producer<QPoint> &&moveRequest);
 
 private:
+	struct ReactionsHiding;
+
+	void placeReactionsSelector(QRect itemRect);
+	void updateReactionsShowState();
+	void fadeOutReactionsSelector();
+
 	const not_null<Ui::RpWidget*> _panelContainer;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const base::unique_qptr<ChatHelpers::TabbedPanel> _stickersPanel;
-	base::unique_qptr<ChatHelpers::TabbedPanel> _reactionsPanel;
+	std::unique_ptr<HistoryView::Reactions::Selector> _reactionsSelector;
+	int _reactionsWidth = 0;
+	int _reactionsCategoriesTop = 0;
+	std::vector<std::unique_ptr<ReactionsHiding>> _hiding;
+	Ui::Animations::Simple _reactionsShowing;
 	rpl::event_stream<Data::ReactionId> _reactionPicked;
 
 };

@@ -75,6 +75,10 @@ public:
 	[[nodiscard]] auto reactionPickRequests() const
 	-> rpl::producer<not_null<ItemReaction*>>;
 	void requestReactionPick(not_null<ItemReaction*> item);
+	[[nodiscard]] rpl::producer<> canvasPresses() const;
+	[[nodiscard]] rpl::producer<Qt::MouseButton> canvasReleases() const;
+	[[nodiscard]] rpl::producer<> itemContextMenuRequests() const;
+	void noteItemContextMenu();
 	[[nodiscard]] auto locationPickRequests() const
 	-> rpl::producer<not_null<ItemLocation*>>;
 	void requestLocationPick(not_null<ItemLocation*> item);
@@ -208,6 +212,9 @@ private:
 	rpl::event_stream<QColor> _shapeItemSelections;
 	rpl::event_stream<not_null<ItemReaction*>> _reactionPickRequests;
 	rpl::event_stream<not_null<ItemLocation*>> _locationPickRequests;
+	rpl::event_stream<> _canvasPresses;
+	rpl::event_stream<Qt::MouseButton> _canvasReleases;
+	rpl::event_stream<> _itemContextMenuRequests;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
 	rpl::event_stream<std::shared_ptr<VideoClip>> _videoClipSelections;

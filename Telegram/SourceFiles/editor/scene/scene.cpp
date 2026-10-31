@@ -462,11 +462,13 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		_textEdit->finishEditing(true);
 		QGraphicsScene::mousePressEvent(event);
 		capturePlacements();
+		_canvasPresses.fire({});
 		return;
 	}
 
 	QGraphicsScene::mousePressEvent(event);
 	capturePlacements();
+	_canvasPresses.fire({});
 	if (SkipMouseEvent(event)
 		|| !_canvas->drawableRect().contains(event->scenePos())) {
 		return;
@@ -585,6 +587,7 @@ void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 	}
 	QGraphicsScene::mouseReleaseEvent(event);
 	commitPlacements();
+	_canvasReleases.fire_copy(event->button());
 	if (SkipMouseEvent(event) || _textEdit->editing()) {
 		return;
 	}
@@ -826,6 +829,22 @@ auto Scene::reactionPickRequests() const
 
 void Scene::requestReactionPick(not_null<ItemReaction*> item) {
 	_reactionPickRequests.fire_copy(item);
+}
+
+rpl::producer<> Scene::canvasPresses() const {
+	return _canvasPresses.events();
+}
+
+rpl::producer<Qt::MouseButton> Scene::canvasReleases() const {
+	return _canvasReleases.events();
+}
+
+rpl::producer<> Scene::itemContextMenuRequests() const {
+	return _itemContextMenuRequests.events();
+}
+
+void Scene::noteItemContextMenu() {
+	_itemContextMenuRequests.fire({});
 }
 
 auto Scene::locationPickRequests() const
