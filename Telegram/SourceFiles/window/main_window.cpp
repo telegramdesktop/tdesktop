@@ -73,7 +73,7 @@ using Core::WindowPosition;
 	// When the last monitor is removed Qt keeps delivering resize events
 	// while QGuiApplication has no screens at all, so screen() is nullptr.
 	const auto screen = widget->screen();
-	return screen ? Platform::ScreenAvailableGeometry(screen) : QRect();
+	return screen ? screen->availableGeometry() : QRect();
 }
 
 [[nodiscard]] QPoint ChildSkip() {
