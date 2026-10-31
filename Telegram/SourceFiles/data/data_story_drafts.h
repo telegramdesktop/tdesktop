@@ -60,6 +60,8 @@ struct StoryDraft {
 	QString audioPath;
 	StoryDraftAudio audio;
 	QImage audioCover;
+	QColor backgroundTop;
+	QColor backgroundBottom;
 	QImage thumbnail;
 };
 

@@ -115,6 +115,8 @@ template <typename Write>
 		{ u"scene"_q, draft.scene },
 		{ u"sceneFiles"_q, QJsonArray::fromStringList(draft.sceneFiles) },
 		{ u"audioFile"_q, QFileInfo(draft.audioPath).fileName() },
+		{ u"bgTop"_q, draft.backgroundTop.name(QColor::HexRgb) },
+		{ u"bgBottom"_q, draft.backgroundBottom.name(QColor::HexRgb) },
 		{ u"audio"_q, QJsonObject{
 			{ u"title"_q, audio.title },
 			{ u"performer"_q, audio.performer },
@@ -182,6 +184,8 @@ template <typename Write>
 		const auto path = folder + name.toString();
 		result.sceneFiles.push_back(QFile::exists(path) ? path : QString());
 	}
+	result.backgroundTop = QColor(object[u"bgTop"_q].toString());
+	result.backgroundBottom = QColor(object[u"bgBottom"_q].toString());
 	const auto audioFile = object[u"audioFile"_q].toString();
 	if (!audioFile.isEmpty()) {
 		result.audioPath = folder + audioFile;

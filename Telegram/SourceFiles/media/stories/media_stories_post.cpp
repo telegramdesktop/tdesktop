@@ -408,12 +408,15 @@ void OpenStoryPhotoEditor(
 		Editor::PhotoModifications initial,
 		const StoryEditorSetup &setup,
 		Editor::StoryVideoObject object,
+		Media::Encode::CanvasBackground background,
 		StoryEditorDone done) {
 	const auto parent = controller->widget();
 	const auto show = controller->uiShow();
-	const auto background = object.empty()
-		? Media::Encode::DominantCanvasBackground(image)
-		: Media::Encode::DominantCanvasBackground(object.thumbnail);
+	background = background.valid()
+		? background
+		: (object.empty()
+			? Media::Encode::DominantCanvasBackground(image)
+			: Media::Encode::DominantCanvasBackground(object.thumbnail));
 	const auto photo = std::make_shared<Image>(Media::Encode::FitOnCanvas(
 		image,
 		QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight),
@@ -451,6 +454,10 @@ void OpenStoryPhotoEditor(
 			.peer = setup.peer,
 			.caption = raw->caption(),
 			.period = raw->period(),
+			.backgroundTop = background.valid() ? background.top : QColor(),
+			.backgroundBottom = background.valid()
+				? background.bottom
+				: QColor(),
 			.thumbnail = DraftThumbnail(composed),
 		};
 		if (mods.paint) {
@@ -570,6 +577,7 @@ void EditStoryFile(
 			std::move(image->modifications),
 			setup,
 			{},
+			{},
 			std::move(done));
 		return;
 	}
@@ -594,6 +602,7 @@ void EditStoryFile(
 				? Api::kStoryVideoMaxDuration
 				: 0,
 		},
+		{},
 		std::move(done));
 }
 
@@ -866,7 +875,10 @@ void PostStoryDraft(
 				std::move(initial),
 				setup,
 				{},
-				done);
+			Media::Encode::CanvasBackground{
+				.top = draft.backgroundTop,
+				.bottom = draft.backgroundBottom,
+			},				done);
 			return;
 		}
 		if (!draft.scene.isEmpty()) {
@@ -883,7 +895,10 @@ void PostStoryDraft(
 				{},
 				setup,
 				{},
-				done);
+			Media::Encode::CanvasBackground{
+				.top = draft.backgroundTop,
+				.bottom = draft.backgroundBottom,
+			},				done);
 			return;
 		}
 		const auto probed = Storage::ReadPhotoEditorMedia(
@@ -924,7 +939,10 @@ void PostStoryDraft(
 				.volume = placement.volume,
 				.flipped = edits.flipped,
 			},
-			done);
+		Media::Encode::CanvasBackground{
+			.top = draft.backgroundTop,
+			.bottom = draft.backgroundBottom,
+		},			done);
 	}));
 }
 
@@ -980,6 +998,7 @@ void EditStory(
 				Editor::PhotoModifications(),
 				setup,
 				{},
+				{},
 				done);
 		});
 	} else if (const auto document = story->document()) {
@@ -1015,6 +1034,7 @@ void EditStory(
 						: document->duration()),
 					.hasAudio = probed.videoHasAudio,
 				},
+				{},
 				done);
 		});
 	}
