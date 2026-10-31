@@ -74,6 +74,38 @@ constexpr auto kWalletNetwork = "-239"_cs;
 	};
 }
 
+[[nodiscard]] engine::TonConnectSignDataPayload SignDataPayloadFromBot(
+		const TonConnectBotSignData &data) {
+	using Payload = engine::TonConnectSignDataPayload;
+	switch (data.type) {
+	case TonConnectSignDataType::Text:
+		return Payload::kText{ .text = data.text.toStdString() };
+	case TonConnectSignDataType::Binary:
+		return Payload::kBinary{ .bytes = data.bytes.toStdString() };
+	case TonConnectSignDataType::Cell:
+		return Payload::kCell{
+			.schema = data.schema.toStdString(),
+			.cell = data.cell.toStdString(),
+		};
+	}
+	Unexpected("Type in SignDataPayloadFromBot.");
+}
+
+[[nodiscard]] engine::TonConnectSignDataRequest SignDataRequestFromBot(
+		const TonConnectBotSignData &data,
+		const QString &address) {
+	return {
+		.payload = SignDataPayloadFromBot(data),
+		.network = (data.network
+			? std::make_optional(data.network->toStdString())
+			: std::nullopt),
+		// Checked equal already: the engine never parses the bot's spelling.
+		.from = (data.from
+			? std::make_optional(address.toStdString())
+			: std::nullopt),
+	};
+}
+
 } // namespace
 
 TonConnectBotRequest::TonConnectBotRequest(TonConnectBotArgs args)
@@ -83,6 +115,8 @@ TonConnectBotRequest::TonConnectBotRequest(TonConnectBotArgs args)
 , _domain(args.username.isEmpty() ? QString() : ('@' + args.username))
 , _userpic(std::move(args.userpic))
 , _transaction(std::move(args.transaction))
+, _signData(std::move(args.signData))
+, _signDomain(std::move(args.domain))
 , _current(std::move(args.current))
 , _done(std::move(args.done))
 , _operationId(QUuid::createUuid().toString(
@@ -102,10 +136,14 @@ void TonConnectBotRequest::start() {
 	const auto validUntil = _transaction
 		? _transaction->validUntil
 		: std::nullopt;
-	if (!_transaction
+	const auto network = _transaction
+		? _transaction->network
+		: _signData
+		? _signData->network
+		: std::nullopt;
+	if ((!_transaction && !_signData)
 		|| (validUntil && *validUntil <= base::unixtime::now())
-		|| (_transaction->network
-			&& *_transaction->network != kWalletNetwork.utf16())) {
+		|| (network && *network != kWalletNetwork.utf16())) {
 		refuse();
 		return;
 	}
@@ -195,32 +233,45 @@ void TonConnectBotRequest::stopResolving() {
 void TonConnectBotRequest::prepare() {
 	auto &wallet = _session->wallet();
 	const auto address = wallet.address();
-	const auto &from = _transaction->from;
+	const auto &from = _transaction ? _transaction->from : _signData->from;
 	if (!address) {
 		fail();
 		return;
 	} else if (from && CanonicalAddress(*from) != *address) {
 		refuse();
 		return;
+	} else if (_transaction) {
+		const auto request = SendRequestFromBot(*_transaction, _operationId);
+		auto transfer = request
+			? TonConnectTransferFromEngine(*request)
+			: std::nullopt;
+		if (!transfer) {
+			refuse();
+			return;
+		}
+		_transfer = std::make_shared<const TonConnectTransfer>(
+			std::move(*transfer));
+	} else {
+		_signRequest = std::make_shared<const TonConnectSignData>(
+			TonConnectSignDataFromEngine(
+				nullptr,
+				SignDataRequestFromBot(*_signData, *address)));
 	}
-	const auto request = SendRequestFromBot(*_transaction, _operationId);
-	auto transfer = request
-		? TonConnectTransferFromEngine(*request)
-		: std::nullopt;
-	if (!transfer) {
-		refuse();
-		return;
-	}
-	_transfer = std::make_shared<const TonConnectTransfer>(
-		std::move(*transfer));
 	wallet.transferWalletIdentityChanges(
 	) | rpl::on_next([=] {
 		if (!_sendStarted) {
 			fail();
 		}
 	}, _lifetime);
-	preview();
-	if (!_finished && (_box || showBox())) {
+	if (_transfer) {
+		preview();
+	} else {
+		auto state = stateFor(Phase::Confirm);
+		state.signData = _signRequest;
+		state.confirmable = true;
+		_state = std::move(state);
+	}
+	if (!_finished && (_box || showBox()) && _transfer) {
 		armDeadline();
 	}
 }
@@ -331,7 +382,7 @@ void TonConnectBotRequest::confirmPressed() {
 	if (_finished
 		|| state.phase != Phase::Confirm
 		|| state.busy
-		|| !_prepared) {
+		|| (!_prepared && !_signRequest)) {
 		return;
 	}
 	state.busy = true;
@@ -360,6 +411,22 @@ void TonConnectBotRequest::keyReady(KeyAuthorization auth) {
 		return;
 	}
 	auto &wallet = _session->wallet();
+	const auto failed = crl::guard(this, [=](TonConnectKeyError error) {
+		signFailed(error);
+	});
+	if (_signRequest) {
+		wallet.signTonConnectData(
+			std::move(auth),
+			TonConnectKey(),
+			QString(),
+			_signRequest,
+			_signDomain,
+			crl::guard(this, [=](TonConnectSignature result) {
+				dataSigned(std::move(result));
+			}),
+			failed);
+		return;
+	}
 	const auto refusal = wallet.sendRefusal(_prepared, auth);
 	if (refusal != SendError::None) {
 		backToConfirm(SendErrorText(refusal, TransferMinNanos(_session)));
@@ -375,9 +442,7 @@ void TonConnectBotRequest::keyReady(KeyAuthorization auth) {
 		crl::guard(this, [=](TonConnectSignature account) {
 			accountReady(std::move(account));
 		}),
-		crl::guard(this, [=](TonConnectKeyError error) {
-			accountFailed(error);
-		}));
+		failed);
 }
 
 void TonConnectBotRequest::accountReady(TonConnectSignature account) {
@@ -418,10 +483,21 @@ void TonConnectBotRequest::accountReady(TonConnectSignature account) {
 		});
 }
 
-void TonConnectBotRequest::accountFailed(TonConnectKeyError error) {
+void TonConnectBotRequest::dataSigned(TonConnectSignature result) {
 	if (_finished) {
 		return;
-	} else if (error == TonConnectKeyError::Locked) {
+	}
+	closeWithToast(tr::lng_wallet_connect_sign_done(tr::now), {
+		.result = TonConnectBotResult::Signed,
+		.signature = std::move(result),
+	});
+}
+
+void TonConnectBotRequest::signFailed(TonConnectKeyError error) {
+	if (_finished) {
+		return;
+	} else if (error == TonConnectKeyError::Locked
+		|| error == TonConnectKeyError::Cancelled) {
 		backToConfirm(QString());
 	} else {
 		fail();

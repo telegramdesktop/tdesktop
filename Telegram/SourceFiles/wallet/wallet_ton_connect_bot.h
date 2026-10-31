@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/weak_qptr.h"
 #include "wallet/wallet_session.h"
+#include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_request_box.h"
 
 namespace Main {
@@ -39,6 +40,16 @@ struct TonConnectBotTransaction {
 	std::vector<TonConnectBotMessage> messages;
 };
 
+struct TonConnectBotSignData {
+	TonConnectSignDataType type = TonConnectSignDataType::Text;
+	QString text;
+	QString bytes;
+	QString schema;
+	QString cell;
+	std::optional<QString> network;
+	std::optional<QString> from;
+};
+
 enum class TonConnectBotResult : uchar {
 	Declined,
 	Refused,
@@ -59,6 +70,8 @@ struct TonConnectBotArgs {
 	QString username;
 	std::shared_ptr<Ui::DynamicImage> userpic;
 	std::optional<TonConnectBotTransaction> transaction;
+	std::optional<TonConnectBotSignData> signData;
+	QString domain;
 	Fn<bool()> current;
 	Fn<void(TonConnectBotOutcome)> done;
 };
@@ -87,7 +100,8 @@ private:
 	void confirmPressed();
 	void keyReady(KeyAuthorization auth);
 	void accountReady(TonConnectSignature account);
-	void accountFailed(TonConnectKeyError error);
+	void dataSigned(TonConnectSignature result);
+	void signFailed(TonConnectKeyError error);
 	void sent(TonConnectSendResult result);
 	void declinePressed();
 	void dismissed();
@@ -105,6 +119,8 @@ private:
 	const QString _domain;
 	const std::shared_ptr<Ui::DynamicImage> _userpic;
 	const std::optional<TonConnectBotTransaction> _transaction;
+	const std::optional<TonConnectBotSignData> _signData;
+	const QString _signDomain;
 	const Fn<bool()> _current;
 	const Fn<void(TonConnectBotOutcome)> _done;
 	const std::string _operationId;
@@ -112,6 +128,7 @@ private:
 	rpl::variable<TonConnectRequestBoxState> _state;
 	std::shared_ptr<const TonConnectTransfer> _transfer;
 	std::shared_ptr<const PreparedSend> _prepared;
+	std::shared_ptr<const TonConnectSignData> _signRequest;
 	KeyAuthorization _auth;
 	TonConnectSignature _account;
 	uint64 _previewOwner = 0;

@@ -156,7 +156,7 @@ struct TonConnectSignData {
 [[nodiscard]] std::optional<TonConnectTransfer> TonConnectTransferFromEngine(
 	const wallet_engine::SendRequest &request);
 [[nodiscard]] TonConnectSignData TonConnectSignDataFromEngine(
-	wallet_engine::TonConnectDerivedSession &session,
+	wallet_engine::TonConnectDerivedSession *session,
 	const wallet_engine::TonConnectSignDataRequest &request);
 
 enum class TonConnectRequestKind : uchar {

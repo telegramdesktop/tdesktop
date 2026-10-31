@@ -1467,7 +1467,7 @@ void FailShareFetch(
 	} else if (const auto sign = std::get_if<Incoming::kSignData>(&variant)) {
 		result.kind = Kind::SignData;
 		result.signData = std::make_shared<const TonConnectSignData>(
-			TonConnectSignDataFromEngine(session, sign->request));
+			TonConnectSignDataFromEngine(&session, sign->request));
 	} else if (std::get_if<Incoming::kSignMessage>(&variant)) {
 		result.kind = Kind::Unsupported;
 		result.rejection = TonConnectError::MethodNotSupported;

@@ -49,6 +49,8 @@ private:
 		not_null<PeerData*> peer;
 		MsgId msgId = 0;
 		std::string data;
+		twidget::SignDataPayload payload;
+		QString domain;
 		Respond respond;
 		std::unique_ptr<Wallet::TonConnectBotRequest> flow;
 	};
@@ -138,6 +140,52 @@ using Registry = base::flat_map<
 	return result;
 }
 
+[[nodiscard]] std::optional<Wallet::TonConnectSignDataType> SignDataType(
+		const std::string &type) {
+	using Type = Wallet::TonConnectSignDataType;
+	if (type == "text") {
+		return Type::Text;
+	} else if (type == "binary") {
+		return Type::Binary;
+	} else if (type == "cell") {
+		return Type::Cell;
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] std::optional<Wallet::TonConnectBotSignData> SignDataFrom(
+		const twidget::SignDataPayload &payload) {
+	const auto type = SignDataType(payload.type);
+	if (!type) {
+		return std::nullopt;
+	}
+	const auto text = [](const std::optional<std::string> &value) {
+		return QString::fromStdString(value.value_or(std::string()));
+	};
+	return Wallet::TonConnectBotSignData{
+		.type = *type,
+		.text = text(payload.text),
+		.bytes = text(payload.bytes),
+		.schema = text(payload.schema),
+		.cell = text(payload.cell),
+		.network = OptionalText(payload.network),
+		.from = OptionalText(payload.from),
+	};
+}
+
+[[nodiscard]] std::string SignDataResult(
+		const Wallet::TonConnectSignature &result,
+		const QString &domain,
+		const twidget::SignDataPayload &payload) {
+	auto json = twidget::Json::object();
+	json.set("signature", result.signature.toBase64().toStdString());
+	json.set("address", result.address.toStdString());
+	json.set("timestamp", result.timestamp);
+	json.set("domain", domain.toStdString());
+	json.set("payload", payload.toJson());
+	return json.dump();
+}
+
 [[nodiscard]] MTPUserWallet UserWalletOf(
 		const Wallet::TonConnectSignature &account,
 		int64 balance) {
@@ -177,29 +225,43 @@ void WalletCalls::run(
 		Respond respond) {
 	const auto session = _session;
 	const auto itemId = item->fullId();
+	const auto signs = (call.method == twidget::WalletCall::Method::SignData);
 	_active = std::make_unique<Call>(Call{
 		.itemId = itemId,
 		.peer = item->history()->peer,
 		.msgId = item->id,
 		.data = call.data,
+		.payload = call.payload,
+		.domain = (signs
+			? u"bot%1"_q.arg(peerToUser(bot->id).bare)
+			: QString()),
 		.respond = std::move(respond),
 	});
+	auto args = Wallet::TonConnectBotArgs{
+		.show = std::move(show),
+		.name = bot->name(),
+		.username = bot->username(),
+		.userpic = Ui::MakeUserpicThumbnail(bot, true),
+		.done = crl::guard(this, [=](Wallet::TonConnectBotOutcome outcome) {
+			finished(std::move(outcome));
+		}),
+	};
+	if (signs) {
+		args.signData = SignDataFrom(call.payload);
+		args.domain = _active->domain;
+		// A signature moves nothing on chain, so a local message may sign.
+		args.current = [=] {
+			return session->data().message(itemId) != nullptr;
+		};
+	} else {
+		args.transaction = TransactionFrom(call.transaction);
+		args.current = [=] {
+			const auto message = session->data().message(itemId);
+			return message && message->isRegular();
+		};
+	}
 	_active->flow = std::make_unique<Wallet::TonConnectBotRequest>(
-		Wallet::TonConnectBotArgs{
-			.show = std::move(show),
-			.name = bot->name(),
-			.username = bot->username(),
-			.userpic = Ui::MakeUserpicThumbnail(bot, true),
-			.transaction = TransactionFrom(call.transaction),
-			.current = [=] {
-				const auto message = session->data().message(itemId);
-				return message && message->isRegular();
-			},
-			.done = crl::guard(this, [=](
-					Wallet::TonConnectBotOutcome outcome) {
-				finished(std::move(outcome));
-			}),
-		});
+		std::move(args));
 	const auto flow = _active->flow.get();
 	flow->start();
 }
@@ -240,8 +302,22 @@ void WalletCalls::finished(Wallet::TonConnectBotOutcome outcome) {
 			call->data,
 			call->respond);
 		return;
-	case Result::Failed:
 	case Result::Signed:
+		_queries.send(
+			call->peer,
+			call->msgId,
+			MTP_widgetQueryTypeSignData(
+				UserWalletOf(
+					outcome.signature,
+					_session->wallet().balanceNano()),
+				MTP_dataJSON(MTP_string(SignDataResult(
+					outcome.signature,
+					call->domain,
+					call->payload)))),
+			call->data,
+			call->respond);
+		return;
+	case Result::Failed:
 		break;
 	}
 	call->respond(Outcome(Failure::Failed));
@@ -272,11 +348,6 @@ void RunWalletCall(
 		const twidget::WalletCall &call,
 		Fn<void(const twidget::WidgetRequestOutcome&)> respond) {
 	auto once = Once(std::move(respond));
-	if (call.method == twidget::WalletCall::Method::SignData) {
-		// Not offered yet: a signData call opens nothing and signs nothing.
-		once(Outcome(Failure::Failed));
-		return;
-	}
 	const auto session = &item->history()->session();
 	const auto controller = WindowController(window, session);
 	const auto bot = QueryBot(item);

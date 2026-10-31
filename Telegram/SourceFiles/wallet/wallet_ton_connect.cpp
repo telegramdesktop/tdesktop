@@ -314,7 +314,7 @@ std::optional<TonConnectTransfer> TonConnectTransferFromEngine(
 }
 
 TonConnectSignData TonConnectSignDataFromEngine(
-		engine::TonConnectDerivedSession &session,
+		engine::TonConnectDerivedSession *session,
 		const engine::TonConnectSignDataRequest &request) {
 	using Payload = engine::TonConnectSignDataPayload;
 	using Type = TonConnectSignDataType;
@@ -334,7 +334,12 @@ TonConnectSignData TonConnectSignDataFromEngine(
 			result.type = Type::Cell;
 			result.data = QString::fromStdString(data.cell);
 			result.schema = QString::fromStdString(data.schema);
-			result.fields = DecodedCellFields(session, data.schema, data.cell);
+			if (session) {
+				result.fields = DecodedCellFields(
+					*session,
+					data.schema,
+					data.cell);
+			}
 		}
 	}, request.payload.get_variant());
 	return result;
