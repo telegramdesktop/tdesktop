@@ -49,6 +49,7 @@ public:
 
 	void setRoundRecording(bool recording);
 	void setRoundRecordingAmplitude(float64 amplitude);
+	void updateRecordButtonGeometry();
 	[[nodiscard]] rpl::producer<> roundRequests() const;
 	[[nodiscard]] rpl::producer<> roundStopRequests() const;
 	[[nodiscard]] rpl::producer<> roundCancelRequests() const;
@@ -63,7 +64,6 @@ private:
 	void setupField();
 	void setupEmoji();
 	void setupPeriod();
-	void updateRecordButtonGeometry();
 	void updatePanelGeometry();
 	void showPeriodMenu();
 	void showPremiumHint(int period);

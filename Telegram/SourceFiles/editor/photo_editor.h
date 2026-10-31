@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class LayerManager;
 class LayerWidget;
+class RoundVideoRecorder;
 class Show;
 template <typename Widget>
 class FadeWrap;
@@ -70,6 +71,9 @@ private:
 	void keyReleaseEvent(QKeyEvent *e) override;
 	void updateColorPickerVisibility(anim::type animated);
 	void done();
+	void toggleRoundRecording();
+	void startRoundRecording();
+	void stopRoundRecording(bool save);
 	void layoutContent();
 	[[nodiscard]] QMargins contentMargins() const;
 
@@ -83,6 +87,9 @@ private:
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
 	base::unique_qptr<Ui::FadeWrap<CaptionBar>> _captionBar;
+	std::unique_ptr<Ui::RoundVideoRecorder> _roundRecorder;
+	rpl::lifetime _roundLifetime;
+	bool _roundRecording = false;
 	std::array<Brush, 5> _brushes;
 	Brush::Tool _brushTool = Brush::Tool::Pen;
 	bool _shapesFilled = false;

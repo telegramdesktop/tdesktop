@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor.h"
 
+#include "calls/calls_instance.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "api/api_stories.h"
@@ -15,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_caption_bar.h"
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
+#include "lang/lang_keys.h"
+#include "media/audio/media_audio_capture.h"
+#include "ui/controls/round_video_recorder.h"
+#include "webrtc/webrtc_video_track.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "ui/layers/layer_manager.h"
@@ -23,12 +28,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_calls.h"
 #include "styles/style_editor.h"
 
+#include <tgcalls/VideoCaptureInterface.h>
+
 namespace Editor {
 namespace {
 
 constexpr auto kPrecision = 100000;
 constexpr auto kBrushesVersion = -2;
 constexpr auto kDefaultBrushSizeRatio = 0.9;
+
+constexpr auto kMaxRecordingAmplitude = 1800.;
+
+[[nodiscard]] float64 RecordingAmplitude(
+		const ::Media::Capture::Chunk &chunk) {
+	const auto &samples = chunk.samples;
+	const auto count = int(samples.size() / sizeof(int16));
+	if (!count) {
+		return 0.;
+	}
+	const auto data = reinterpret_cast<const int16*>(samples.constData());
+	auto sum = 0.;
+	for (const auto value : gsl::make_span(data, count)) {
+		sum += float64(value) * value;
+	}
+	const auto amplitude = std::sqrt(sum / count) / 2.;
+	return std::clamp(amplitude / kMaxRecordingAmplitude, 0., 1.);
+}
 
 [[nodiscard]] std::unique_ptr<Ui::LayerManager> MakeLayers(
 		not_null<Ui::RpWidget*> parent) {
@@ -363,6 +388,15 @@ PhotoEditor::PhotoEditor(
 		bar->cancels() | rpl::on_next([=] {
 			setFocus();
 		}, bar->lifetime());
+		bar->roundRequests() | rpl::on_next([=] {
+			toggleRoundRecording();
+		}, bar->lifetime());
+		bar->roundStopRequests() | rpl::on_next([=] {
+			stopRoundRecording(true);
+		}, bar->lifetime());
+		bar->roundCancelRequests() | rpl::on_next([=] {
+			stopRoundRecording(false);
+		}, bar->lifetime());
 	}
 
 	_content->videoClipSelections(
@@ -496,6 +530,9 @@ PhotoEditor::PhotoEditor(
 		_controls->paintModeRequests(),
 		_content->paintModeRequests()
 	) | rpl::on_next([=] {
+		if (_roundRecording) {
+			return;
+		}
 		_mode = PhotoEditorMode{
 			.mode = PhotoEditorMode::Mode::Paint,
 			.action = PhotoEditorMode::Action::None,
@@ -673,9 +710,14 @@ PhotoEditor::PhotoEditor(
 PhotoEditor::~PhotoEditor() {
 	// ~Paint fires shape tool states, don't handle them in a dying widget.
 	lifetime().destroy();
+	stopRoundRecording(false);
 }
 
 void PhotoEditor::keyPressEvent(QKeyEvent *e) {
+	if (_roundRecording && e->key() == Qt::Key_Escape) {
+		stopRoundRecording(false);
+		return;
+	}
 	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
 	if (!_colorPicker->preventHandleKeyPress()) {
 		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
@@ -704,7 +746,9 @@ void PhotoEditor::save() {
 
 void PhotoEditor::done() {
 	const auto mode = _mode.current().mode;
-	if (mode == PhotoEditorMode::Mode::Paint) {
+	if (_roundRecording) {
+		return;
+	} else if (mode == PhotoEditorMode::Mode::Paint) {
 		_mode = PhotoEditorMode{
 			.mode = PhotoEditorMode::Mode::Transform,
 			.action = PhotoEditorMode::Action::Save,
@@ -729,6 +773,99 @@ TextWithTags PhotoEditor::caption() const {
 
 int PhotoEditor::period() const {
 	return _captionBar ? _captionBar->entity()->period() : 0;
+}
+
+void PhotoEditor::toggleRoundRecording() {
+	if (_roundRecording) {
+		stopRoundRecording(true);
+	} else {
+		startRoundRecording();
+	}
+}
+
+void PhotoEditor::startRoundRecording() {
+	if (_roundRecorder || !_captionBar) {
+		return;
+	}
+	const auto hidden = [=](not_null<Ui::RoundVideoRecorder*> which) {
+		if (_roundRecorder.get() == which) {
+			_roundRecorder = nullptr;
+		}
+	};
+	auto capturer = Core::App().calls().getVideoCapture();
+	auto track = std::make_shared<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Active);
+	capturer->setOutput(track->sink());
+	capturer->setPreferredAspectRatio(1.);
+	_roundLifetime = track->stateValue(
+	) | rpl::on_next([=](Webrtc::VideoState state) {
+		capturer->setState((state == Webrtc::VideoState::Active)
+			? tgcalls::VideoState::Active
+			: tgcalls::VideoState::Inactive);
+	});
+	_roundRecorder = std::make_unique<Ui::RoundVideoRecorder>(
+		Ui::RoundVideoRecorderDescriptor{
+			.container = this,
+			.hiding = [](not_null<Ui::RoundVideoRecorder*>) {},
+			.hidden = hidden,
+			.capturer = std::move(capturer),
+			.track = std::move(track),
+		});
+	_roundRecording = true;
+	_captionBar->entity()->setRoundRecording(true);
+	const auto processor = _roundRecorder->audioChunkProcessor();
+	const auto weak = base::make_weak(this);
+	::Media::Capture::instance()->start([=](::Media::Capture::Chunk chunk) {
+		const auto amplitude = RecordingAmplitude(chunk);
+		crl::on_main(weak, [=] {
+			if (_captionBar) {
+				_captionBar->entity()->setRoundRecordingAmplitude(amplitude);
+			}
+		});
+		processor(std::move(chunk));
+	});
+	_roundRecorder->updated(
+	) | rpl::on_next_error([=](const Ui::RoundVideoRecorder::Update &update) {
+		if (update.finished) {
+			stopRoundRecording(true);
+		}
+	}, [=](Ui::RoundVideoRecorder::Error) {
+		stopRoundRecording(false);
+		_controllers->show->showToast(
+			tr::lng_story_round_failed(tr::now));
+	}, _roundLifetime);
+}
+
+void PhotoEditor::stopRoundRecording(bool save) {
+	if (!_roundRecording) {
+		return;
+	}
+	_roundRecording = false;
+	if (_captionBar) {
+		_captionBar->entity()->setRoundRecording(false);
+	}
+	if (const auto recorder = _roundRecorder.get()) {
+		if (save) {
+			const auto weak = base::make_weak(this);
+			recorder->hide([=](Ui::RoundVideoResult data) {
+				crl::on_main(weak, [=, data = std::move(data)]() mutable {
+					if (data.content.isEmpty()) {
+						return;
+					}
+					_mode = PhotoEditorMode{
+						.mode = PhotoEditorMode::Mode::Paint,
+						.action = PhotoEditorMode::Action::None,
+					};
+					_content->addRoundVideo(
+						std::move(data.content),
+						data.duration);
+				});
+			});
+		} else {
+			recorder->hide();
+		}
+	}
+	::Media::Capture::instance()->stop();
 }
 
 bool PhotoEditor::edited() const {
@@ -757,6 +894,7 @@ void PhotoEditor::layoutContent() {
 		- st::photoEditorControlsCenterSkip
 		- _captionBar->height();
 	_captionBar->moveToLeft((width() - barWidth) / 2, top);
+	_captionBar->entity()->updateRecordButtonGeometry();
 }
 
 QMargins PhotoEditor::contentMargins() const {

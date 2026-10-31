@@ -213,6 +213,7 @@ void SetupStoryEditorClose(
 	story.canvasMedia = media;
 	story.canvasBackground = background;
 	story.videoObject = videoObject;
+	story.roundVideo = videoObject.empty();
 	return {
 		.confirm = StoryEditorConfirm(setup),
 		.exactSize = QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight),
