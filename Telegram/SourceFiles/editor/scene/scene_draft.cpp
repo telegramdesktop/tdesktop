@@ -577,6 +577,11 @@ uint64 SceneFingerprint(not_null<const Scene*> scene) {
 	for (const auto &item : scene->items(Qt::AscendingOrder)) {
 		if (!item->isNormalStatus()) {
 			continue;
+		} else if (item->type() == ItemLine::Type) {
+			FeedFingerprintImage(
+				hash,
+				static_cast<ItemLine*>(item.get())->pixmap());
+			continue;
 		}
 		const auto base = static_cast<ItemBase*>(item.get());
 		FeedItemFingerprint(hash, quint32(item->type()), base->placement());
