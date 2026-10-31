@@ -2908,35 +2908,40 @@ if (MSVC)
     PRIVATE
         # Keep delay-load protection across Qt variants with different imports.
         /IGNORE:4199
-        /DELAYLOAD:secur32.dll
-        /DELAYLOAD:winmm.dll
-        /DELAYLOAD:ws2_32.dll
-        /DELAYLOAD:user32.dll
-        /DELAYLOAD:gdi32.dll
-        /DELAYLOAD:advapi32.dll
-        /DELAYLOAD:avrt.dll
-        /DELAYLOAD:shell32.dll
-        /DELAYLOAD:ole32.dll
-        /DELAYLOAD:oleaut32.dll
-        /DELAYLOAD:shlwapi.dll
-        /DELAYLOAD:iphlpapi.dll
-        /DELAYLOAD:gdiplus.dll
-        /DELAYLOAD:version.dll
-        /DELAYLOAD:dwmapi.dll
-        /DELAYLOAD:uxtheme.dll
-        /DELAYLOAD:crypt32.dll
-        /DELAYLOAD:bcrypt.dll
-        /DELAYLOAD:ncrypt.dll
-        /DELAYLOAD:netapi32.dll
-        /DELAYLOAD:mpr.dll
-        /DELAYLOAD:imm32.dll
-        /DELAYLOAD:hid.dll
-        /DELAYLOAD:userenv.dll
-        /DELAYLOAD:wtsapi32.dll
-        /DELAYLOAD:propsys.dll
-        /DELAYLOAD:uiautomationcore.dll
-        /DELAYLOAD:icu.dll
     )
+    if (NOT DESKTOP_APP_WIN7_PROBE)
+        target_link_options(Telegram
+        PRIVATE
+            /DELAYLOAD:secur32.dll
+            /DELAYLOAD:winmm.dll
+            /DELAYLOAD:ws2_32.dll
+            /DELAYLOAD:user32.dll
+            /DELAYLOAD:gdi32.dll
+            /DELAYLOAD:advapi32.dll
+            /DELAYLOAD:avrt.dll
+            /DELAYLOAD:shell32.dll
+            /DELAYLOAD:ole32.dll
+            /DELAYLOAD:oleaut32.dll
+            /DELAYLOAD:shlwapi.dll
+            /DELAYLOAD:iphlpapi.dll
+            /DELAYLOAD:gdiplus.dll
+            /DELAYLOAD:version.dll
+            /DELAYLOAD:dwmapi.dll
+            /DELAYLOAD:uxtheme.dll
+            /DELAYLOAD:crypt32.dll
+            /DELAYLOAD:bcrypt.dll
+            /DELAYLOAD:ncrypt.dll
+            /DELAYLOAD:netapi32.dll
+            /DELAYLOAD:mpr.dll
+            /DELAYLOAD:imm32.dll
+            /DELAYLOAD:hid.dll
+            /DELAYLOAD:userenv.dll
+            /DELAYLOAD:wtsapi32.dll
+            /DELAYLOAD:propsys.dll
+            /DELAYLOAD:uiautomationcore.dll
+            /DELAYLOAD:icu.dll
+        )
+    endif()
     if (QT_VERSION GREATER 6)
         if (NOT build_winarm)
             target_link_options(Telegram PRIVATE
@@ -2944,6 +2949,23 @@ if (MSVC)
             )
         endif()
 
+        if (DESKTOP_APP_WIN7_PROBE)
+        # Delay-load only Win8+ api-sets; other imports resolve at load time.
+        target_link_options(Telegram
+        PRIVATE
+            /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-File-l1-1-0.dll
+            # WindowsApp.lib binds LoadLibraryExA here; delay-load self-recurses.
+            /DELAYLOAD:API-MS-Win-Core-Localization-l1-2-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
+        )
+        else()
         target_link_options(Telegram
         PRIVATE
             /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
@@ -2974,7 +2996,15 @@ if (MSVC)
             /DELAYLOAD:setupapi.dll # SetupAPI.lib
             /DELAYLOAD:winhttp.dll
         )
+        endif()
     endif()
+endif()
+
+if (WIN32 AND DESKTOP_APP_WIN7_PROBE)
+    nice_target_sources(Telegram ${src_loc}
+    PRIVATE
+        _other/win7_probe_api_stubs.cpp
+    )
 endif()
 
 target_prepare_qrc(Telegram)
