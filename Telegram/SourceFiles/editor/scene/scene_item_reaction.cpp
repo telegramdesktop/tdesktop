@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
 
+#include "styles/style_menu_icons.h"
+
 #include <QtGui/QPainter>
 #include <QtWidgets/QGraphicsSceneMouseEvent>
 
@@ -282,9 +284,12 @@ void ItemReaction::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
 	});
 	menu->addAction(
 		(_dark
-			? tr::lng_story_reaction_light(tr::now)
-			: tr::lng_story_reaction_dark(tr::now)),
-		[=] { setDark(!_dark); });
+			? tr::lng_photo_editor_text_style_opaque(tr::now)
+			: tr::lng_photo_editor_text_style_semi_transparent(tr::now)),
+		[=] { setDark(!_dark); },
+		_dark
+			? &st::mediaMenuIconTextStyleOpaque
+			: &st::mediaMenuIconTextStyleSemiTransparent);
 }
 
 } // namespace Editor
