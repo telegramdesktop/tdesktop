@@ -67,11 +67,17 @@ parse of the log.
   runner 390 and 0; the chat-list place self-test 0 and 64). The media's
   other layer-233 fields are an optional `WidgetMessageFields`: `Tgw::WidgetFlags` (`isCopy`, `canQuery`,
   `backgroundQuery`), `Tgw::WidgetState` (raw `chatData` and `publicData`
-  bytes) and `widgetId`. The default is no flag, state or id, which is what
-  the two packs pass. They are sent as given, never validated or derived:
-  each true flag and each present field sets its TL flag, so a present
+  bytes) and `widgetId`. The default is no flag, state, id or via bot, which
+  is what the two packs pass. They are sent as given, never validated or
+  derived: each true flag and each present field sets its TL flag, so a present
   empty `chatData` or `publicData` and a present zero `widgetId` reach the
-  media as present, distinct from absent. The record keeps them in
+  media as present, distinct from absent. `WidgetMessageFields::viaBot`
+  (default 0, none) is not a media field: a nonzero `UserId` becomes the
+  local message's `HistoryItemCommonFields::viaBotId`, so the message comes
+  via that bot (`HistoryMessageVia`, `HistoryItem::viaBot()`) while it stays
+  a local outgoing client-id message from the account itself. The caller
+  resolves and loads the bot first; the fixture never resolves it and checks
+  only the id. The record keeps them in
   `WidgetFixtureMessage::fields`. The record's `caption`, set before the
   injection, is the widget message's text, which the history shows as the
   caption below the widget's media; empty, the default, is no text. It
@@ -121,7 +127,7 @@ parse of the log.
 | Operation | Reading or refusal |
 | --- | --- |
 | `InjectWidgetMessage` | Empty, `not injected: ...` (not registered, history gone or not at its bottom, list not shown, payload does not unpack) with nothing added, or `the injected message got id ..., not the armed ...`. |
-| `CheckWidgetMessage` | Fills `shape`; empty, or `no HtmlWidget view: ...` (not a local outgoing client-id message, not a `Tgw::WidgetMedia` of the bytes, `its media's flags, state or widget id are not the injected ones (the media has ...)` comparing `Tgw::WidgetMedia::fields()` with the record, absent and present-empty bytes and an absent and a zero id told apart, no laid-out card of the list's own). `shape` includes the record's `flags=<copy\|query\|background or none> chat=<bytes or none> public=<bytes or none> widgetId=<id or none>`: sizes, never the state's contents (`chat=0` is present and empty). |
+| `CheckWidgetMessage` | Fills `shape`; empty, or `no HtmlWidget view: ...` (not a local outgoing client-id message, not a `Tgw::WidgetMedia` of the bytes, `its media's flags, state or widget id are not the injected ones (the media has ...)` comparing `Tgw::WidgetMedia::fields()` with the record, absent and present-empty bytes and an absent and a zero id told apart, `it comes via bot <id or none>, not the injected <id or none>` comparing `HistoryItem::viaBot()` with `fields.viaBot`, no laid-out card of the list's own). `shape` includes the record's `flags=<copy\|query\|background or none> chat=<bytes or none> public=<bytes or none> widgetId=<id or none>`: sizes, never the state's contents (`chat=0` is present and empty). |
 | `RuntimeLogDecided` / `FinishRuntimeLog` | `log.source`: `requestLog`, `logText` (the runtime kept no callback), `logText-at-bound`, `unavailable`; `log.chars`, `log.pending`. |
 | `log.summary` | The raw `Tgw::Runtime::_summary` (the `Summarize()` text) with `log.summaryState`. |
 | `RevalidateWidgetCard` | Empty, or what changed: show refused, list gone, no hover, view gone or another, card not ready, core, card or view geometry. |
@@ -197,6 +203,12 @@ hosts of the two captioned runs, `auto/04-values-units` and
 `auto/36-safe-area` and `visual/17-time-corner`, got `bottom` 26 with
 `cornerRight` 118, and each watch was armed with the tap, read and
 disarmed.
+The via bot
+(`WidgetMessageFields::viaBot` and its `CheckWidgetMessage()` comparison)
+compiled in the Windows Win32 Debug build of
+`2026/10/31/let-widgets-pay-and-sign-data-through-gram-wallet-for-their-bot`,
+which adds it for local via-bot widget messages; no existing caller sets
+it, and it has not run in the app.
 
 ## Related guidance
 

@@ -122,10 +122,14 @@ struct WidgetRuntimeLog {
 
 // The layer-233 fields of an injected widget message's media besides its
 // anchors and payload, sent as given; by default no flag, state or id.
+// |viaBot|, when nonzero, makes the local message come via that bot
+// (HistoryItemCommonFields::viaBotId); the caller resolves and loads the
+// bot first, the fixture does not.
 struct WidgetMessageFields {
 	Tgw::WidgetFlags flags;
 	Tgw::WidgetState state;
 	std::optional<uint64> widgetId;
+	UserId viaBot = 0;
 };
 
 // One message record, registered by AddWidgetFixtureMessage() before
@@ -249,9 +253,10 @@ void AppendWidgetFixtureClose(
 // client-id widget message of |html| with the width and height anchors (0
 // is auto) and the record's |caption| as its text, then processes the
 // pending layout. The media carries |fields| as given (an absent field
-// stays unset, a present empty one or a zero id is sent), the record keeps
-// them and CheckWidgetMessage() reads them back. Returns empty, or the
-// refusal ("not injected: ..." when nothing was added).
+// stays unset, a present empty one or a zero id is sent), the message
+// comes via |fields|.viaBot when it is nonzero, the record keeps them and
+// CheckWidgetMessage() reads them back. Returns empty, or the refusal
+// ("not injected: ..." when nothing was added).
 [[nodiscard]] QString InjectWidgetMessage(
 	WidgetFixture &fixture,
 	WidgetFixtureMessage &message,
@@ -275,7 +280,8 @@ void AppendWidgetFixtureClose(
 
 // After WidgetMessageLaidOut(): fills |shape|; returns empty, or "no
 // HtmlWidget view: ..." naming what is not a local widget message card,
-// including media fields other than the injected |fields|.
+// including media fields other than the injected |fields| and a via bot
+// other than |fields|.viaBot (none for zero).
 [[nodiscard]] QString CheckWidgetMessage(
 	const WidgetFixture &fixture,
 	WidgetFixtureMessage &message);

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings_proxy.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/media/history_view_html_widget.h"
 #include "history/view/history_view_element.h"
@@ -823,6 +824,15 @@ void ProcessPendingLayout(History *history) {
 	return value ? NumberText(value->size()) : u"none"_q;
 }
 
+[[nodiscard]] UserId ViaBotId(not_null<HistoryItem*> item) {
+	const auto bot = item->viaBot();
+	return bot ? peerToUser(bot->id) : UserId();
+}
+
+[[nodiscard]] QString UserIdText(UserId id) {
+	return id ? NumberText(qint64(id.bare)) : u"none"_q;
+}
+
 // Sizes, never the state's contents.
 [[nodiscard]] QString FieldsText(const WidgetMessageFields &fields) {
 	auto flags = QStringList();
@@ -1473,8 +1483,10 @@ QString InjectWidgetMessage(
 		message.host = ArmWidgetHostWatch(message.key, *message.watchHost);
 	}
 	message.armed = true;
+	auto common = LocalFields(history, message.id.msg);
+	common.viaBotId = fields.viaBot;
 	const auto item = history->addNewLocalMessage(
-		LocalFields(history, message.id.msg),
+		std::move(common),
 		tr::marked(message.caption),
 		MTP_messageMediaWidget(
 			MTP_flags(MediaFlags(fields)),
@@ -1575,6 +1587,15 @@ QString CheckWidgetMessage(
 			missing.push_back(u"its media's flags, state or widget id are "
 				u"not the injected ones (the media has %1)"_q.arg(
 					FieldsText(fields)));
+		}
+	}
+	if (item) {
+		const auto viaBot = ViaBotId(item);
+		if (viaBot != message.fields.viaBot) {
+			missing.push_back(u"it comes via bot %1, not the injected "
+				u"%2"_q.arg(
+					UserIdText(viaBot),
+					UserIdText(message.fields.viaBot)));
 		}
 	}
 	if (!view || card.isEmpty()) {

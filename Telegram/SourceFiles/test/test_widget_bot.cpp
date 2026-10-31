@@ -21,7 +21,7 @@ class WidgetBotRecord final {
 public:
 	WidgetBotRecord(WidgetBotTable table, crl::time armedAt);
 
-	[[nodiscard]] WidgetBotRequest play(const std::string &data);
+	[[nodiscard]] WidgetBotRequest play(const std::string &data, bool wallet);
 	[[nodiscard]] const std::vector<WidgetBotRequest> &requests() const;
 
 private:
@@ -72,7 +72,7 @@ WidgetBotRecord::WidgetBotRecord(WidgetBotTable table, crl::time armedAt)
 , _armedAt(armedAt) {
 }
 
-WidgetBotRequest WidgetBotRecord::play(const std::string &data) {
+WidgetBotRequest WidgetBotRecord::play(const std::string &data, bool wallet) {
 	const auto n = ++_counts[data];
 	const auto i = _table.find(data);
 	const auto listed = (i != end(_table));
@@ -84,6 +84,7 @@ WidgetBotRequest WidgetBotRecord::play(const std::string &data) {
 		.ms = crl::now() - _armedAt,
 		.n = n,
 		.listed = listed,
+		.wallet = wallet,
 	});
 	return _requests.back();
 }
@@ -136,12 +137,13 @@ struct Played {
 [[nodiscard]] Played Play(
 		GlobalMsgId id,
 		const std::string &data,
-		const std::shared_ptr<Responses> &responses) {
+		const std::shared_ptr<Responses> &responses,
+		bool wallet = false) {
 	const auto before = int(responses->outcomes.size());
 	const auto respond = [=](const twidget::WidgetRequestOutcome &outcome) {
 		responses->outcomes.push_back(outcome);
 	};
-	const auto returned = PlayWidgetBot(id, data, respond);
+	const auto returned = PlayWidgetBot(id, data, respond, wallet);
 	return {
 		.responses = int(responses->outcomes.size()) - before,
 		.returned = returned,
@@ -165,11 +167,13 @@ struct Played {
 		const std::vector<WidgetBotRequest> &list) {
 	auto result = QStringList();
 	for (const auto &request : list) {
-		result.push_back(u"{data=[%1] listed=%2 n=%3 result=%4}"_q.arg(
-			QString::fromStdString(request.data),
-			Flag(request.listed),
-			QString::number(request.n),
-			OptionalText(request.result)));
+		result.push_back(
+			u"{data=[%1] listed=%2 wallet=%3 n=%4 result=%5}"_q.arg(
+				QString::fromStdString(request.data),
+				Flag(request.listed),
+				Flag(request.wallet),
+				QString::number(request.n),
+				OptionalText(request.result)));
 	}
 	return u"["_q + result.join(u" "_q) + u"]"_q;
 }
@@ -186,9 +190,11 @@ struct Played {
 		const std::string &data,
 		bool listed,
 		int n,
-		const std::optional<std::string> &result) {
+		const std::optional<std::string> &result,
+		bool wallet = false) {
 	return (request.data == data)
 		&& (request.listed == listed)
+		&& (request.wallet == wallet)
 		&& (request.n == n)
 		&& (request.result == result)
 		&& (request.ms >= 0);
@@ -325,12 +331,48 @@ void CheckPlayed(std::vector<WidgetOpsSelfCheckRow> &rows) {
 				RequestsText(requests)));
 }
 
+// A request that asked for the wallet is answered from the table as any
+// other and recorded with |wallet| set; the same data asked right after
+// without it is recorded unset, so the flag is the request's, not the
+// data's or the record's.
+void CheckWallet(std::vector<WidgetOpsSelfCheckRow> &rows) {
+	const auto id = SelfCheckId(4);
+	const auto responses = std::make_shared<Responses>();
+	const auto record = ArmWidgetBot(id, { { "conf:pay", "tx {n}" } });
+	const auto asked = Play(id, "conf:pay", responses, true);
+	const auto plain = Play(id, "conf:pay", responses);
+	const auto requests = ReadWidgetBot(*record);
+	DisarmWidgetBot(id);
+	const auto &outcomes = responses->outcomes;
+	AddRow(
+		rows,
+		asked.returned
+			&& plain.returned
+			&& (asked.responses == 1)
+			&& (plain.responses == 1)
+			&& (outcomes.size() == 2)
+			&& Answered(outcomes[0], std::string("tx 1"))
+			&& Answered(outcomes[1], std::string("tx 2"))
+			&& (requests.size() == 2)
+			&& Recorded(requests[0], "conf:pay", true, 1, "tx 1", true)
+			&& Recorded(requests[1], "conf:pay", true, 2, "tx 2", false),
+		u"a request that asked for the wallet is answered from the table "
+			u"and recorded with wallet set, the same data without it unset"_q,
+		u"returned=%1%2 responses=%3,%4 requests=%5"_q.arg(
+			Flag(asked.returned),
+			Flag(plain.returned),
+			QString::number(asked.responses),
+			QString::number(plain.responses),
+			RequestsText(requests)));
+}
+
 } // namespace
 
 bool PlayWidgetBot(
 		GlobalMsgId id,
 		const std::string &data,
-		const Fn<void(const twidget::WidgetRequestOutcome&)> &respond) {
+		const Fn<void(const twidget::WidgetRequestOutcome&)> &respond,
+		bool wallet) {
 	if (!Active()) {
 		return false;
 	}
@@ -339,7 +381,7 @@ bool PlayWidgetBot(
 	if (i == end(armed)) {
 		return false;
 	}
-	const auto played = i->second->play(data);
+	const auto played = i->second->play(data, wallet);
 	respond({ .answer = { .result = played.result } });
 	return true;
 }
@@ -375,6 +417,7 @@ std::vector<WidgetOpsSelfCheckRow> RunWidgetBotSelfCheck() {
 	}
 	CheckUnarmed(rows);
 	CheckPlayed(rows);
+	CheckWallet(rows);
 	return rows;
 }
 
@@ -387,7 +430,8 @@ namespace Test {
 bool PlayWidgetBot(
 		GlobalMsgId,
 		const std::string &,
-		const Fn<void(const twidget::WidgetRequestOutcome&)> &) {
+		const Fn<void(const twidget::WidgetRequestOutcome&)> &,
+		bool) {
 	return false;
 }
 

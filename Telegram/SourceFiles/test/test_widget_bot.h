@@ -29,16 +29,20 @@ namespace Test {
 // The request seam Tgw::Runtime::botRequested() calls on the main thread
 // after its own refusal and right before Tgw::Bridge::request(), for the
 // message |id|: its HistoryItem::globalId(), the FullMsgId and its
-// session's uniqueId(). Returns false, without calling |respond| or
-// recording anything, unless Active() and |id| is armed by ArmWidgetBot().
-// For an armed id it records the request in the id's record, then calls
-// |respond| exactly once, synchronously, with an answer (never a failure),
-// and returns true. |respond| is never kept or copied. The Release branch
-// of this module defines this function alone, returning false.
+// session's uniqueId(). |wallet| is the request's WidgetRequest::wallet,
+// whether it asked for the wallet. Returns false, without calling |respond|
+// or recording anything, unless Active() and |id| is armed by
+// ArmWidgetBot(). For an armed id it records the request, |wallet| as
+// given, in the id's record, then calls |respond| exactly once,
+// synchronously, with an answer (never a failure), and returns true.
+// |wallet| never changes the answer. |respond| is never kept or copied.
+// The Release branch of this module defines this function alone,
+// returning false.
 [[nodiscard]] bool PlayWidgetBot(
 	GlobalMsgId id,
 	const std::string &data,
-	const Fn<void(const twidget::WidgetRequestOutcome&)> &respond);
+	const Fn<void(const twidget::WidgetRequestOutcome&)> &respond,
+	bool wallet = false);
 
 // Everything below is Debug-only: declared here and deliberately left
 // undefined in a Release build, because no production code reads it.
@@ -64,6 +68,8 @@ struct WidgetBotRequest {
 	int n = 0;
 	// Whether |data| is in the table.
 	bool listed = false;
+	// Whether the request asked for the wallet (WidgetRequest::wallet).
+	bool wallet = false;
 };
 
 // Main thread. Arms |id|, the session-qualified id the message's
@@ -93,7 +99,9 @@ void DisarmWidgetBot(GlobalMsgId id);
 // and other-session identity (false, the responder never called, nothing
 // recorded), a listed answer with its templates and counts, an answer
 // without result for a listed entry with none and for unlisted data,
-// records in order, and reading after a disarm, which plays no more.
+// records in order, a request that asked for the wallet recorded as such
+// beside the same data without it, and reading after a disarm, which plays
+// no more.
 // Disarms its ids before it returns. The caller turns each row into a
 // Check().
 [[nodiscard]] std::vector<WidgetOpsSelfCheckRow> RunWidgetBotSelfCheck();

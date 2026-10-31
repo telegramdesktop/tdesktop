@@ -57,6 +57,11 @@ Use something else when:
   reference `scripts/conformance/test-bot.ts` answers unknown data; the record
   says which (`listed`). No request is ever failed, timed out or rate
   limited here.
+- **Wallet flag.** `PlayWidgetBot()`'s last argument is the request's
+  `WidgetRequest::wallet`, true for a `request(data, { wallet: true })`
+  (default `false`). It is recorded per request as given (`wallet`) and never
+  changes the answer: a table entry answers a wallet request as any other,
+  and nothing here plays a wallet, a transaction or a `with_wallet` query.
 - **Message lifetime.** The record belongs to the message, not to one host:
   a host restarted after a death or re-created adds to the same record, and
   its counts continue. A reading never says which host made a request.
@@ -109,6 +114,7 @@ runner->onFinish([=] {
 | --- | --- |
 | `data` | The request's exact data. |
 | `listed` | Whether the table had it. |
+| `wallet` | Whether the request asked for the wallet. |
 | `n` | The record's requests with this data, this one included. |
 | `result` | The answer's result, templates filled, or none. |
 | `ms` | Milliseconds since the record was armed. |
@@ -132,14 +138,17 @@ arms ids disarms them on its finish path (`Runner::onFinish`).
 
 ## Release and inactive identity
 
-The production call is the single `Test::PlayWidgetBot(_item->globalId(),
-data, respond)` in `Tgw::Runtime::botRequested()` (`tgw_runtime.cpp`), after
-its own Live, current-core and attached refusal and right before
+The production call is the single `Test::PlayWidgetBot()` in
+`Tgw::Runtime::botRequested()` (`tgw_runtime.cpp`), with the item's
+`globalId()`, the request's data and responder, and its wallet flag where the
+runtime passes one (otherwise the default `false`), after its own Live,
+current-core and attached refusal and right before
 `Tgw::Bridge::request()`; when it returns true the runtime returns. The
-Release branch of `test_widget_bot.cpp` defines only `PlayWidgetBot()`,
-returning false; every other declaration of the header is left undefined
-there. In Debug, an inactive harness and an unarmed id return false before
-any record is touched, and the bridge gets the request as before.
+Release branch of `test_widget_bot.cpp` defines only `PlayWidgetBot()`, with
+the same parameters, returning false; every other declaration of the header
+is left undefined there. In Debug, an inactive harness and an unarmed id
+return false before any record is touched, and the bridge gets the request
+as before.
 
 ## Verification
 
@@ -155,13 +164,21 @@ responder, and disarms its ids before it returns:
 - a listed entry without result and unlisted data are answered without
   result;
 - the record holds all five requests in order with their `listed`, `n` and
-  `result`, stays readable after the disarm, and a request after the disarm
-  is not played; arming again gives a fresh, empty record.
+  `result`, each with `wallet` unset, stays readable after the disarm, and a
+  request after the disarm is not played; arming again gives a fresh, empty
+  record;
+- a request played with `wallet` true is answered from the table as any
+  other and recorded with `wallet` set, and the same data played right after
+  without it is recorded unset, so the flag is the request's, not the data's
+  or the record's.
 
 The conformance runner's self-check stage takes these rows as Checks, beside
 its own bot-table controls ([test_widget_conformance](test_widget_conformance.md#verification)).
 They run in the real binary in the conformance campaign, which records them;
-the Release identity is a static claim, not a launched one.
+the Release identity is a static claim, not a launched one. The wallet flag
+and its row compiled in the Windows Win32 Debug build of
+`2026/10/31/let-widgets-pay-and-sign-data-through-gram-wallet-for-their-bot`
+and have not run in the app yet.
 
 ## Related guidance
 
