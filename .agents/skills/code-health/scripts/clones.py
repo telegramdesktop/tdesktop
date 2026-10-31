@@ -19,6 +19,10 @@ DECLARES = re.compile(DECLARATOR_END + r'(?:=\s*(?:0|default|delete)\s*)?;')
 DEFINES = re.compile(DECLARATOR_END + r'\{')
 NOT_QUALIFIER = re.compile(r'\b(?:override|final)\b|(?:->|=).*')
 QUALIFIER = re.compile(r'\w+|[^\w\s;{]')
+PARAMETER_TOKEN = re.compile(
+    r'"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|\.?[0-9](?:[eEpP][+-]|[\w.]|\'\w)*'
+    r'|\w+|[=!<>]=|\S')
+BRACKETS = {'(': ')', '[': ']', '{': '}'}
 
 
 class Sequence:
@@ -105,10 +109,13 @@ def declarations_only(block):
 
 
 def parameter_lists(text):
-    """{line number: (name, kind, scope, signature, start, end)} over each
-    line of a function's multi-line parameter list, from the line that opens
-    it through the line holding its closing parenthesis; the signature is
-    the parameter text and the qualifiers that follow it."""
+    """{line number: (name, kind, scope, signature, start, end, defaults_safe)}
+    over each line of a function's multi-line parameter list, from the line
+    that opens it through the line holding its closing parenthesis; the
+    signature is the parameter text and the qualifiers that follow it.
+    defaults_safe is False when the list's source holds a comment: removing
+    it, as `//` cuts even inside a literal, can drop code from that text."""
+    source = text.split('\n')
     lines = cpp_text.code_lines(text)
     result = {}
     i = 0
@@ -117,9 +124,12 @@ def parameter_lists(text):
         if found is None:
             i += 1
             continue
-        for number in range(found[4], found[5] + 1):
+        start, end = found[4], found[5]
+        found += (not any('//' in line or '/*' in line
+                          for line in source[start - 1:end]),)
+        for number in range(start, end + 1):
             result[number] = found
-        i = found[5]
+        i = end
     return result
 
 
@@ -177,18 +187,59 @@ def qualifiers(tail):
     return tuple(QUALIFIER.findall(NOT_QUALIFIER.sub(' ', tail)))
 
 
+def without_defaults(text):
+    """A declaration's parameter text without its default values: each
+    top-level `= value` up to the next top-level `,`, read over matched
+    brackets and string or char literals. `<` is no bracket, being a
+    comparison as often as a template list, so a comma inside template
+    arguments only leaves text behind. None when a bracket or a literal is
+    left open or closed by the wrong bracket, or for a raw string, whose
+    content the literal reading would take for code."""
+    if 'R"' in text:
+        return None
+    kept = []
+    start = 0
+    closers = []
+    for match in PARAMETER_TOKEN.finditer(text):
+        token = match.group()
+        if token in ('"', "'"):
+            return None
+        if token in BRACKETS:
+            closers.append(BRACKETS[token])
+        elif token in (')', ']', '}'):
+            if not closers or closers.pop() != token:
+                return None
+        elif not closers and token == '=' and start is not None:
+            kept.append(text[start:match.start()].rstrip())
+            start = None
+        elif not closers and token == ',' and start is None:
+            start = match.start()
+    if closers:
+        return None
+    if start is not None:
+        kept.append(text[start:])
+    return ''.join(kept)
+
+
 def counterpart(own, other):
     """Whether two parameter lists are one function's declaration and its
-    definition: one name and signature, one of each kind, and scopes that
-    agree where both heads spell one."""
+    definition: one name, one of each kind, scopes that agree where both
+    heads spell one, and one signature, as written or once without_defaults()
+    leaves out the declaration's default values where both lists are
+    defaults_safe. Defaults the definition carries are kept, so a
+    declaration without them still differs."""
     if other is None:
         return False
-    name, kind, scope, signature = own[:4]
-    other_name, other_kind, other_scope, other_signature = other[:4]
+    name, kind, scope = own[:3]
+    other_name, other_kind, other_scope = other[:3]
+    declaration, definition = (own, other) if kind == 'declaration' else (other, own)
+    declared, defined = declaration[3], definition[3]
     return (name == other_name and kind != other_kind
-            and signature == other_signature
             and (('::' + scope).endswith('::' + other_scope)
-                 or ('::' + other_scope).endswith('::' + scope)))
+                 or ('::' + other_scope).endswith('::' + scope))
+            and (declared == defined
+                 or (declaration[6] and definition[6] and declared[1] == defined[1]
+                     and without_defaults(declared[0]) == defined[0])))
 
 
 def copied_from(added, files, window=WINDOW, min_lines=8):

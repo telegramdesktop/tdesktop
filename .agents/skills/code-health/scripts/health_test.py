@@ -312,6 +312,9 @@ class MapTests(unittest.TestCase):
 class CheckTests(unittest.TestCase):
     PARAMETERS = ('first', 'second', 'third', 'fourth', 'fifth',
                   'sixth', 'seventh', 'eighth', 'ninth', 'tenth')
+    FIRST_EIGHT = PARAMETERS[:8]
+    WITH_DEFAULTS = ('Fn<void()> done = nullptr', 'QSize size = QSize(1, 2)')
+    WITHOUT_DEFAULTS = ('Fn<void()> done', 'QSize size')
 
     def setUp(self):
         self.repo = Repo(fixture())
@@ -355,11 +358,12 @@ class CheckTests(unittest.TestCase):
         _, warnings = self.run_check()
         self.assertTrue(any('repeats' in w for w in warnings))
 
-    def signature(self, end, name='Combine', extra=(), head='int'):
-        """`<head> <name>(` with the ten one-per-line `int` parameters and
-        `extra` ones, closed by `end`: `);` declares it, `) {` opens its body."""
+    def signature(self, end, name='Combine', extra=(), head='int', names=PARAMETERS):
+        """`<head> <name>(` with one-per-line `int` parameters, by default the
+        ten `PARAMETERS`, and `extra` ones, closed by `end`: `);` declares
+        it, `) {` opens its body."""
         indent = '\t' if end == ');' else '\t\t'
-        parameters = [f'int {parameter}' for parameter in self.PARAMETERS] + list(extra)
+        parameters = [f'int {parameter}' for parameter in names] + list(extra)
         return (f'{head} {name}(\n' + ',\n'.join(indent + item for item in parameters)
                 + end + '\n')
 
@@ -496,6 +500,58 @@ class CheckTests(unittest.TestCase):
                 self.repo.git('commit', '-qam', title)
                 self.repo.write({src + 'low/low.h': self.owner(
                     declaration, '\t' + self.signature(f'){added};', name='combine'))})
+                self.assertEqual(self.run_check(), ([], expected))
+                self.assertEqual(self.run_check(strict=True), (expected, []))
+
+    def test_declaration_with_defaults_and_its_definition_are_not_copies(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.declared(
+                names=self.FIRST_EIGHT, extra=self.WITH_DEFAULTS),
+            src + 'low/low.cpp': self.defined(
+                LOW, names=self.FIRST_EIGHT, extra=self.WITHOUT_DEFAULTS),
+        })
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_declaration_with_defaults_of_a_committed_definition_is_not_a_copy(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({src + 'low/low.cpp': self.defined(
+            LOW, names=self.FIRST_EIGHT, extra=self.WITHOUT_DEFAULTS)})
+        self.repo.git('commit', '-qam', 'Combine.')
+        self.repo.write({src + 'low/low.h': self.declared(
+            names=self.FIRST_EIGHT, extra=self.WITH_DEFAULTS)})
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_declaration_with_other_parameters_is_still_reported(self):
+        src = 'Telegram/SourceFiles/'
+        header = fixture()[src + 'low/low.h']
+        # Reading a default past its end would swallow `close` and match this.
+        shorter = ('const char *open',)
+        expected = self.repeats(('low/low.h:5-13', 9, 'low/low.cpp:9'))
+        cases = (
+            ('another type', ');', self.WITH_DEFAULTS, ('Fn<void()> done', 'QPoint size')),
+            ('shorter overload', ');',
+             ('const char *open = "("', 'const char *close = ")"'), shorter),
+            ('raw string defaults', ');',
+             ('const char *open = R"tag("[")tag"', 'const char *close = R"tag("]")tag"'),
+             shorter),
+            ('URL defaults', '\n);',
+             ('const char *open = "https://one"', 'const char *close = "https://two"'),
+             shorter),
+            ('defaults on the definition', ');', self.WITHOUT_DEFAULTS, self.WITH_DEFAULTS),
+        )
+        for title, end, declaration, definition in cases:
+            with self.subTest(title):
+                self.repo.write({
+                    src + 'low/low.h': header,
+                    src + 'low/low.cpp': self.defined(
+                        LOW, names=self.FIRST_EIGHT, extra=definition),
+                })
+                self.repo.git('commit', '-q', '--allow-empty', '-am', title)
+                self.repo.write({src + 'low/low.h': self.in_namespace(header, self.signature(
+                    end, names=self.FIRST_EIGHT, extra=declaration))})
                 self.assertEqual(self.run_check(), ([], expected))
                 self.assertEqual(self.run_check(strict=True), (expected, []))
 
