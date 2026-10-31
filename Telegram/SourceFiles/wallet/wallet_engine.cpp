@@ -546,6 +546,12 @@ SecretReadFailure ProtectedSecretFailure(const EngineError &error) {
 	return SecretReadFailure::None;
 }
 
+std::optional<int64> DecimalInt64(const std::string &value) {
+	auto ok = false;
+	const auto result = QString::fromStdString(value).toLongLong(&ok);
+	return ok ? std::make_optional(result) : std::nullopt;
+}
+
 TransferSubmission::Recording::Recording(
 	std::shared_ptr<TransferSubmission> submission,
 	std::optional<QByteArray> gasless)

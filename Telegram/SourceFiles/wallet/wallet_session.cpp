@@ -334,12 +334,6 @@ constexpr auto kTonConnectChallengeAnswerSize = 32;
 	};
 }
 
-[[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
-	auto ok = false;
-	const auto result = QString::fromStdString(value).toLongLong(&ok);
-	return ok ? std::make_optional(result) : std::nullopt;
-}
-
 void FinishHistoryWaiters(std::vector<Fn<void()>> callbacks) {
 	for (const auto &callback : callbacks) {
 		callback();
@@ -1437,113 +1431,6 @@ void FailShareFetch(
 		.expiration = engine::SendExpiration(
 			engine::SendExpiration::kEngineDefault{}),
 	};
-}
-
-[[nodiscard]] std::optional<TonConnectTransfer> TonConnectTransferFromEngine(
-		const engine::SendRequest &request) {
-	auto result = TonConnectTransfer{
-		.request = std::make_shared<const engine::SendRequest>(request),
-	};
-	for (const auto &message : request.intent.messages) {
-		const auto &amount = message.amount.get_variant();
-		const auto exact = std::get_if<engine::SendAmount::kExact>(&amount);
-		const auto nano = exact
-			? DecimalInt64(exact->nanograms)
-			: std::optional<int64>();
-		if (!nano
-			|| *nano < 0
-			|| *nano > std::numeric_limits<int64>::max() - result.totalNano) {
-			return std::nullopt;
-		}
-		result.totalNano += *nano;
-		auto entry = TonConnectMessage{
-			.destination = QString::fromStdString(message.destination),
-			.amountNano = *nano,
-			.deploys = message.state_init.has_value(),
-		};
-		const auto &body = message.body.get_variant();
-		const auto comment = std::get_if<
-			engine::SendMessageBody::kComment>(&body);
-		const auto raw = std::get_if<
-			engine::SendMessageBody::kRawPayload>(&body);
-		if (comment) {
-			entry.comment = QString::fromStdString(comment->text);
-		} else if (raw) {
-			const auto boc = QString::fromStdString(raw->boc);
-			if (const auto text = Gram::TextCommentFromBoc(boc)) {
-				entry.comment = *text;
-			} else {
-				entry.payload = boc;
-			}
-		}
-		result.messages.push_back(std::move(entry));
-	}
-	const auto &expiration = request.intent.expiration.get_variant();
-	const auto until = std::get_if<
-		engine::SendExpiration::kExact>(&expiration);
-	if (until) {
-		result.validUntil = TimeId(std::min<uint64>(
-			until->unix_timestamp,
-			std::numeric_limits<TimeId>::max()));
-	}
-	return result;
-}
-
-[[nodiscard]] std::vector<TonConnectSignDataField> DecodedCellFields(
-		engine::TonConnectDerivedSession &session,
-		const std::string &schema,
-		const std::string &cell) {
-	using Decoding = engine::TonConnectSignDataCellDecoding;
-	auto result = std::vector<TonConnectSignDataField>();
-	try {
-		const auto decoding = session.decode_sign_data_cell(schema, cell);
-		const auto decoded = std::get_if<Decoding::kDecoded>(
-			&decoding.get_variant());
-		if (!decoded) {
-			return result;
-		}
-		result.reserve(decoded->fields.size());
-		for (const auto &field : decoded->fields) {
-			result.push_back({
-				.depth = int(std::min(
-					field.depth,
-					uint32_t(std::numeric_limits<int>::max()))),
-				.name = QString::fromStdString(field.name),
-				.value = QString::fromStdString(field.value),
-			});
-		}
-	} catch (...) {
-		// Display only: a failed decode must not cost the request its answer.
-		return {};
-	}
-	return result;
-}
-
-[[nodiscard]] TonConnectSignData TonConnectSignDataFromEngine(
-		engine::TonConnectDerivedSession &session,
-		const engine::TonConnectSignDataRequest &request) {
-	using Payload = engine::TonConnectSignDataPayload;
-	using Type = TonConnectSignDataType;
-	auto result = TonConnectSignData{
-		.request = std::make_shared<const engine::TonConnectSignDataRequest>(
-			request),
-	};
-	std::visit([&](const auto &data) {
-		using T = std::decay_t<decltype(data)>;
-		if constexpr (std::is_same_v<T, Payload::kText>) {
-			result.type = Type::Text;
-			result.data = QString::fromStdString(data.text);
-		} else if constexpr (std::is_same_v<T, Payload::kBinary>) {
-			result.type = Type::Binary;
-			result.data = QString::fromStdString(data.bytes);
-		} else if constexpr (std::is_same_v<T, Payload::kCell>) {
-			result.type = Type::Cell;
-			result.data = QString::fromStdString(data.cell);
-			result.schema = QString::fromStdString(data.schema);
-			result.fields = DecodedCellFields(session, data.schema, data.cell);
-		}
-	}, request.payload.get_variant());
-	return result;
 }
 
 [[nodiscard]] int TonConnectProtocolCode(
