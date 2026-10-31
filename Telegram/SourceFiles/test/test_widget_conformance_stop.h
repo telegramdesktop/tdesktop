@@ -52,8 +52,8 @@ namespace Test::Conformance {
 // Pure StopRefusal() controls on a stops run that died with only "Died:
 // terminated": none with a stop the desktop decided itself and
 // stop-reason-unmeasured without one. CheckHostReadings() of
-// test_widget_conformance.cpp holds its other cases. Row names carry no
-// prefix.
+// test_widget_conformance_hosts.cpp holds its other cases. Row names carry
+// no prefix.
 [[nodiscard]] std::vector<WidgetOpsSelfCheckRow> RunDesktopStopCheck();
 
 } // namespace Test::Conformance

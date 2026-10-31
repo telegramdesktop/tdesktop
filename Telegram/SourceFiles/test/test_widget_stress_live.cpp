@@ -10,13 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_stress.h"
 
 #include "data/data_wall_paper.h"
-#include "dialogs/dialogs_widget.h"
 #include "history/view/media/history_view_html_widget.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
-#include "history/history_widget.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 #include "test/test_capture.h"
 #include "test/test_chat_show.h"
 #include "test/test_console_lock.h"
@@ -27,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_host.h"
 #include "test/test_widget_ops.h"
 #include "test/test_widget_stress_internal.h"
-#include "test/test_widgets.h"
 #include "test/test_window_exposure.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
@@ -36,8 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
-#include "window/window_adaptive.h"
-#include "window/window_session_controller.h"
 
 #include <QtCore/QEvent>
 #include <QtCore/QFileInfo>
@@ -45,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonParseError>
-#include <QtCore/QMargins>
 #include <QtCore/QPointer>
 #include <QtGui/QCursor>
 #include <QtGui/QGuiApplication>
@@ -71,7 +63,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 
 #include "styles/palette.h"
-#include "styles/style_window.h"
 
 namespace Test::Stress {
 namespace {
@@ -84,8 +75,6 @@ using RuntimeState = Tgw::Runtime::State;
 // CLIENTS.md step 2: loaded or dead within 60 s of the host's creation.
 constexpr auto kLoadBound = crl::time(60000);
 constexpr auto kShowBound = crl::time(10000);
-constexpr auto kPlaceBound = crl::time(6000);
-constexpr auto kPlaceStable = crl::time(1000);
 constexpr auto kThemeBound = crl::time(4000);
 constexpr auto kThemeStable = crl::time(400);
 
@@ -115,11 +104,6 @@ constexpr auto kWorkCapacity = 65536;
 constexpr auto kUpdateCapacity = 16384;
 
 constexpr auto kWidthTolerance = 0.01;
-
-// D7's placement, in logical px: harness constants, not product styles.
-// The width is not one: it comes from the column styles at runtime.
-constexpr auto kWindowMargin = 64;
-constexpr auto kWindowMaxHeight = 1000;
 
 #ifdef Q_OS_WIN
 // A bound on the z-order walk, which the window manager can reorder while
@@ -254,37 +238,6 @@ private:
 
 };
 
-// The app's columns as the primary window's session controller laid them
-// out, read only. |threshold| is columnMinimalWidthLeft +
-// columnMinimalWidthMain: SessionController::computeColumnLayout() lays a
-// body narrower than it out in one column. |body| is that body,
-// bodyWidget()->width() - filtersWidth(); |content| is MainWidget's width
-// and |chat| the width of the legacy HistoryWidget showing the fixture's
-// chat, when it is shown.
-struct LayoutReading {
-	QString columns;
-	QString error;
-	int threshold = 0;
-	int bodyWidget = 0;
-	int filters = 0;
-	int body = 0;
-	int content = 0;
-	int chat = 0;
-	int dialogsShown = 0;
-	int minimumWidth = 0;
-	bool chatShown = false;
-};
-
-// Where the window goes, in global logical coordinates: |frame| with its
-// frame, |client| the geometry that gives it, and the bodyWidget() width
-// it is for.
-struct PlacementTarget {
-	QRect frame;
-	QRect client;
-	QString error;
-	int bodyWidget = 0;
-};
-
 // D7's stay-on-top hint on the measured window's QWindow, through
 // test_window_exposure.h's mechanism (QWindow::setFlag) and under its
 // bans: never QWidget::setWindowFlags, raise(), activateWindow() or
@@ -372,7 +325,7 @@ struct LiveState {
 	QRect frame;
 	// The first measured level's theme message, every later one's too.
 	QString themeMessage;
-	// The current settle wait's last sample.
+	// The current theme wait's last sample.
 	QString sample;
 	// A failed setup gate: no level runs.
 	QString setupError;
@@ -383,6 +336,8 @@ struct LiveState {
 	std::optional<Window::Theme::Object> themeBefore;
 	QString themeRestore;
 	StayOnTop onTop;
+	// The two placement stages' settle.
+	WidgetFixtureWait place;
 	// The settle before the idle check, and the check's start.
 	ListSettle idle;
 	crl::time idleStarted = 0;
@@ -820,78 +775,7 @@ void CheckRendererTheme(
 // ---------------------------------------------------------------------
 // The window.
 
-[[nodiscard]] QString ColumnsName(const Window::Adaptive &adaptive) {
-	return adaptive.isOneColumn()
-		? u"one-column"_q
-		: adaptive.isThreeColumn()
-		? u"three-column"_q
-		: u"normal"_q;
-}
-
-[[nodiscard]] LayoutReading ReadLayout(const LiveState &state) {
-	auto result = LayoutReading{
-		.threshold = st::columnMinimalWidthLeft + st::columnMinimalWidthMain,
-	};
-	const auto window = dynamic_cast<::MainWindow*>(state.window.data());
-	const auto controller = window ? window->sessionController() : nullptr;
-	const auto body = window ? window->bodyWidget() : nullptr;
-	const auto content = window ? window->sessionContent() : nullptr;
-	if (!controller || !body || !content) {
-		result.error = u"the primary window has no session controller, body "
-			u"or content"_q;
-		return result;
-	}
-	result.columns = ColumnsName(controller->adaptive());
-	result.bodyWidget = body->width();
-	result.filters = controller->filtersWidth();
-	result.body = controller->computeColumnLayout().bodyWidth;
-	result.content = content->width();
-	result.minimumWidth = window->minimumWidth();
-	for (const auto dialogs : FindAll<Dialogs::Widget>(content)) {
-		if (dialogs->isVisible()) {
-			++result.dialogsShown;
-		}
-	}
-	const auto history = WidgetFixtureHistory(*state.fixture);
-	for (const auto widget : FindAll<HistoryWidget>(content)) {
-		if (history && (widget->history() == history) && widget->isVisible()) {
-			result.chatShown = true;
-			result.chat = widget->width();
-		}
-	}
-	return result;
-}
-
-// One column, its body below the threshold, no chat list shown and the
-// chat as wide as MainWidget, so no third column beside it either.
-[[nodiscard]] bool OnlyChatShown(const LayoutReading &layout) {
-	return layout.error.isEmpty()
-		&& (layout.columns == u"one-column"_q)
-		&& (layout.body < layout.threshold)
-		&& !layout.dialogsShown
-		&& layout.chatShown
-		&& (layout.chat == layout.content);
-}
-
-[[nodiscard]] QString LayoutText(const LayoutReading &layout) {
-	if (!layout.error.isEmpty()) {
-		return u"layout: "_q + layout.error;
-	}
-	return QStringList{
-		u"columns="_q + layout.columns,
-		u"body=%1"_q.arg(layout.body),
-		u"threshold=%1"_q.arg(layout.threshold),
-		u"bodyWidget=%1"_q.arg(layout.bodyWidget),
-		u"filters=%1"_q.arg(layout.filters),
-		u"content=%1"_q.arg(layout.content),
-		u"chat=%1"_q.arg(layout.chat),
-		u"chatShown="_q + Flag(layout.chatShown),
-		u"dialogsShown=%1"_q.arg(layout.dialogsShown),
-		u"minimumWidth=%1"_q.arg(layout.minimumWidth),
-	}.join(QChar(' '));
-}
-
-[[nodiscard]] QJsonObject LayoutObject(const LayoutReading &layout) {
+[[nodiscard]] QJsonObject LayoutObject(const FixtureColumns &layout) {
 	return QJsonObject{
 		{ u"columns"_q, layout.columns },
 		{ u"body"_q, layout.body },
@@ -905,53 +789,6 @@ void CheckRendererTheme(
 		{ u"minimumWidth"_q, layout.minimumWidth },
 		{ u"error"_q, layout.error },
 	};
-}
-
-// The frame kWindowMargin inside the screen's available area, at most
-// kWindowMaxHeight tall, as wide as a bodyWidget() one logical px below
-// the one-column threshold needs, with the filters sidebar's width when it
-// is shown and the window's own margins beside its body, never below its
-// minimum width. From the window's readings now, so a second call after a
-// move between screens of other scales corrects the first.
-[[nodiscard]] PlacementTarget ComputeTarget(
-		not_null<QWidget*> window,
-		not_null<QScreen*> screen,
-		const LayoutReading &layout) {
-	auto result = PlacementTarget();
-	if (!layout.error.isEmpty()) {
-		result.error = layout.error;
-		return result;
-	}
-	result.bodyWidget = layout.threshold - 1 + layout.filters;
-	const auto client = window->geometry();
-	const auto frame = window->frameGeometry();
-	const auto margins = QMargins(
-		client.left() - frame.left(),
-		client.top() - frame.top(),
-		frame.right() - client.right(),
-		frame.bottom() - client.bottom());
-	const auto width = std::max(
-		result.bodyWidget + (client.width() - layout.bodyWidget),
-		layout.minimumWidth);
-	const auto inner = screen->availableGeometry().marginsRemoved({
-		kWindowMargin,
-		kWindowMargin,
-		kWindowMargin,
-		kWindowMargin,
-	});
-	result.frame = QRect(
-		inner.topLeft(),
-		QSize(
-			width + margins.left() + margins.right(),
-			std::min(kWindowMaxHeight, inner.height())));
-	result.client = result.frame.marginsRemoved(margins);
-	if (result.frame.width() > inner.width()) {
-		result.error = u"the one-column frame %1 does not fit in the "
-			u"screen's available area %2 inside its margin"_q.arg(
-				RectText(result.frame),
-				RectText(inner));
-	}
-	return result;
 }
 
 // Windows' own reading (WS_EX_TOPMOST); elsewhere the QWindow's hint.
@@ -1042,30 +879,6 @@ void ReleaseOnTop(LiveState &state) {
 	return u"surface type %1"_q.arg(int(type));
 }
 
-[[nodiscard]] QString PlacementText(not_null<QWidget*> window) {
-	const auto handle = window->windowHandle();
-	const auto screen = handle ? handle->screen() : nullptr;
-	return u"screen=[%1] frame=%2 dpr=%3 state=%4 minimized=%5"_q.arg(
-		screen ? screen->name() : u"none"_q,
-		RectText(window->frameGeometry()),
-		QString::number(handle ? handle->devicePixelRatio() : 0.),
-		QString::number(int(window->windowState())),
-		Flag(window->isMinimized()));
-}
-
-[[nodiscard]] bool Placed(
-		not_null<QWidget*> window,
-		not_null<QScreen*> screen) {
-	const auto handle = window->windowHandle();
-	const auto states = Qt::WindowMinimized
-		| Qt::WindowMaximized
-		| Qt::WindowFullScreen;
-	return handle
-		&& (handle->screen() == screen.get())
-		&& !(window->windowState() & states)
-		&& screen->availableGeometry().contains(window->frameGeometry());
-}
-
 // Moves the cursor off the window, so nothing in it is hovered, and
 // clears the window's text focus, so no caret blinks.
 [[nodiscard]] QString ClearFocusAndCursor(const LiveState &state) {
@@ -1084,7 +897,7 @@ void ReleaseOnTop(LiveState &state) {
 	const auto frame = window->frameGeometry();
 	if (frame.contains(QCursor::pos())) {
 		const auto away = screen->availableGeometry().topLeft()
-			+ QPoint(kWindowMargin / 2, kWindowMargin / 2);
+			+ QPoint(kWidgetWindowMargin / 2, kWidgetWindowMargin / 2);
 		QCursor::setPos(screen, away);
 		parts.push_back(u"cursor moved off the window to %1,%2"_q.arg(
 			QString::number(away.x()),
@@ -1096,25 +909,23 @@ void ReleaseOnTop(LiveState &state) {
 	return parts.join(u", "_q);
 }
 
-// Gives the window the geometry its readings now ask for, recorded under
-// |key| of the launch's placement record.
+// Gives the window the geometry its readings now ask for; those readings,
+// from before the move, are recorded under |key| of the placement record.
 void MoveWindow(LiveState &state, const QString &key) {
 	const auto window = state.window.data();
 	const auto screen = state.screen.data();
 	if (!state.setupError.isEmpty() || !window || !screen) {
 		return;
 	}
-	const auto layout = ReadLayout(state);
-	const auto target = ComputeTarget(window, screen, layout);
-	const auto moved = target.error.isEmpty()
-		&& (window->geometry() != target.client);
+	const auto move = MoveFixtureWindow(*state.fixture, window, screen);
+	const auto &target = move.target;
 	auto placement = state.launch.record.value(u"placement"_q).toObject();
 	placement.insert(key, QJsonObject{
 		{ u"frame"_q, RectArray(target.frame) },
 		{ u"client"_q, RectArray(target.client) },
 		{ u"bodyWidget"_q, target.bodyWidget },
-		{ u"layout"_q, LayoutObject(layout) },
-		{ u"moved"_q, moved },
+		{ u"layout"_q, LayoutObject(move.columns) },
+		{ u"moved"_q, move.moved },
 		{ u"error"_q, target.error },
 	});
 	state.launch.record.insert(u"placement"_q, placement);
@@ -1126,9 +937,6 @@ void MoveWindow(LiveState &state, const QString &key) {
 			Prefixed(u"fixture gate: the window is wholly on the screen "
 				u"with the highest refresh rate"_q),
 			target.error);
-		return;
-	} else if (moved) {
-		window->setGeometry(target.client);
 	}
 }
 
@@ -1147,8 +955,7 @@ void MoveWindow(LiveState &state, const QString &key) {
 // display mode untouched; out of a maximized or full-screen state, and on
 // top before the move.
 void PlaceWindow(LiveState &state) {
-	state.waitStarted = state.stableSince = crl::now();
-	state.sample = QString();
+	StartFixtureWait(state.place);
 	const auto list = WidgetFixtureList(*state.fixture);
 	const auto window = list ? list->window() : nullptr;
 	const auto screen = FastestScreen();
@@ -1163,7 +970,7 @@ void PlaceWindow(LiveState &state) {
 	state.launch.record.insert(u"placement"_q, QJsonObject{
 		{ u"screens"_q, ScreensArray() },
 		{ u"chosen"_q, screen->name() },
-		{ u"before"_q, PlacementText(window) },
+		{ u"before"_q, FixtureWindowText(window) },
 	});
 	KeepOnTop(state, window);
 	const auto states = Qt::WindowMaximized | Qt::WindowFullScreen;
@@ -1176,8 +983,7 @@ void PlaceWindow(LiveState &state) {
 // The settled window's margins and scale can differ from those the first
 // move read on another screen or in another state: the target again.
 void ResizeWindow(LiveState &state) {
-	state.waitStarted = state.stableSince = crl::now();
-	state.sample = QString();
+	StartFixtureWait(state.place);
 	MoveWindow(state, u"corrected"_q);
 }
 
@@ -1187,16 +993,7 @@ void ResizeWindow(LiveState &state) {
 	if (!state.setupError.isEmpty() || !window || !screen) {
 		return true;
 	}
-	const auto now = crl::now();
-	const auto sample = PlacementText(window)
-		+ u" "_q
-		+ LayoutText(ReadLayout(state));
-	if (sample != state.sample) {
-		state.sample = sample;
-		state.stableSince = now;
-	}
-	return (Placed(window, screen) && (now - state.stableSince >= kPlaceStable))
-		|| (now - state.waitStarted >= kPlaceBound);
+	return FixtureWindowSettled(*state.fixture, state.place, window, screen);
 }
 
 // Three gates: the frame wholly on the fastest screen, only the chat in
@@ -1210,8 +1007,10 @@ void CheckPlacement(LiveState &state) {
 	const auto window = state.window.data();
 	const auto screen = state.screen.data();
 	const auto handle = window ? window->windowHandle() : nullptr;
-	const auto placed = handle && screen && Placed(window, screen);
-	const auto layout = ReadLayout(state);
+	const auto placed = handle
+		&& screen
+		&& FixtureWindowPlaced(window, screen);
+	const auto layout = ReadFixtureColumns(*state.fixture, window);
 	auto &read = state.launch.screen;
 	if (handle && screen) {
 		read.name = screen->name();
@@ -1230,12 +1029,14 @@ void CheckPlacement(LiveState &state) {
 		};
 	}
 	auto placement = state.launch.record.value(u"placement"_q).toObject();
-	placement.insert(u"after"_q, window ? PlacementText(window) : QString());
+	placement.insert(
+		u"after"_q,
+		window ? FixtureWindowText(window) : QString());
 	state.launch.record.insert(u"placement"_q, placement);
 	state.launch.record.insert(u"layout"_q, LayoutObject(layout));
 	state.launch.record.insert(u"stayOnTop"_q, StayOnTopObject(state.onTop));
 	const auto details = window
-		? (PlacementText(window)
+		? (FixtureWindowText(window)
 			+ u" size=%1x%2 surface="_q.arg(window->width()).arg(
 				window->height())
 			+ read.surface)
@@ -1246,8 +1047,8 @@ void CheckPlacement(LiveState &state) {
 			u"with the highest refresh rate"_q),
 		details);
 	Note(Prefixed(u"window surface: "_q + read.surface));
-	const auto onlyChat = OnlyChatShown(layout);
-	const auto layoutDetails = LayoutText(layout);
+	const auto onlyChat = OnlyFixtureChatShown(layout);
+	const auto layoutDetails = FixtureColumnsText(layout);
 	Check(
 		onlyChat,
 		Prefixed(u"fixture gate: only the chat is shown, in the one-column "
@@ -2589,9 +2390,9 @@ void AppendSetup(
 		.until = [=] {
 			return WindowPlaced(*state);
 		},
-		.timeout = kPlaceBound + kDefaultStageTimeout,
+		.timeout = kWidgetPlaceBound + kDefaultStageTimeout,
 		.timeoutDetails = [=] {
-			return state->sample;
+			return state->place.sample;
 		},
 	});
 	runner->add({
@@ -2605,9 +2406,9 @@ void AppendSetup(
 		.then = [=] {
 			CheckPlacement(*state);
 		},
-		.timeout = kPlaceBound + kDefaultStageTimeout,
+		.timeout = kWidgetPlaceBound + kDefaultStageTimeout,
 		.timeoutDetails = [=] {
-			return state->sample;
+			return state->place.sample;
 		},
 	});
 	runner->add({

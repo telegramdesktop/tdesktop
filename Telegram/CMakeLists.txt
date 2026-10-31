@@ -2203,6 +2203,8 @@ PRIVATE
     test/test_widget_conformance_bridge.h
     test/test_widget_conformance_context.cpp
     test/test_widget_conformance_context.h
+    test/test_widget_conformance_hosts.cpp
+    test/test_widget_conformance_hosts.h
     test/test_widget_conformance_input.cpp
     test/test_widget_conformance_input.h
     test/test_widget_conformance_pictures.cpp

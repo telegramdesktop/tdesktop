@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class HistoryItem;
+class QScreen;
 class QWidget;
 
 namespace HistoryView {
@@ -47,10 +48,12 @@ class ElasticScroll;
 // HistoryInner of the primary window, shown normally and kept exposed
 // without activation, local outgoing widget and text messages with tapped
 // widget ops, card readings, the runtime log, loopback network controls and
-// one idempotent release. Internal dependency of those two packs, of the
-// chat-list place self-test (test_chat_show_place.cpp) and of one task's
-// scoped evidence overlay, not a general overlay fixture; contract and
-// callers: docs/helpers/test_widget_fixture.md.
+// one idempotent release. It also holds the window's one-column placement
+// the conformance runner and the widget stress kit
+// (test_widget_stress_live.cpp) share. Internal dependency of those packs,
+// of the chat-list place self-test (test_chat_show_place.cpp) and of one
+// task's scoped evidence overlay, not a general overlay fixture; contract
+// and callers: docs/helpers/test_widget_fixture.md.
 
 namespace Test {
 
@@ -186,6 +189,7 @@ struct WidgetCardReading {
 inline constexpr auto kWidgetLayoutBound = crl::time(8000);
 inline constexpr auto kWidgetLogBound = crl::time(3000);
 inline constexpr auto kWidgetBarrierBound = crl::time(10000);
+inline constexpr auto kWidgetPlaceBound = crl::time(6000);
 
 // Changes nothing. The caller registers its Runner::onFinish, calling
 // ReleaseWidgetFixture(), before it appends any stage that changes state.
@@ -199,6 +203,18 @@ inline constexpr auto kWidgetBarrierBound = crl::time(10000);
 // HistoryInner loaded at its bottom). A failed gate is one "fixture gate:"
 // FAIL; WidgetFixtureGate() then names it and the later stages skip.
 void AppendWidgetFixtureOpen(
+	not_null<Runner*> runner,
+	const std::shared_ptr<WidgetFixture> &fixture);
+
+// After AppendWidgetFixtureOpen(): "move the window for the one-column
+// layout" and "size the window for the one-column layout", two settled
+// MoveFixtureWindow() calls on the window's own screen. A missing window or
+// screen, a refused target and, after the second, any layout but only the
+// chat in one column are "fixture gate:" FAILs. A maximized or full-screen
+// window leaves that state first and stays normal, the state the teardown's
+// settle then expects: maximizing it again would activate it. Nothing
+// requests activation and no geometry is restored.
+void AppendWidgetFixtureOneColumn(
 	not_null<Runner*> runner,
 	const std::shared_ptr<WidgetFixture> &fixture);
 
@@ -373,6 +389,88 @@ void FinishRuntimeLog(
 [[nodiscard]] Ui::ElasticScroll *FixtureListScroll(QWidget *list);
 // A settled QEvent::Leave to |list|, when there is one.
 void DeliverListLeave(QWidget *list);
+
+// The primary window's one-column placement its callers share; each
+// caller keeps its own screen choice, window state and gates. The
+// calculation and the settle: docs/helpers/test_widget_fixture.md.
+
+// How far inside its screen's available area the placed window goes, in
+// logical px: a harness constant, not a product style.
+inline constexpr auto kWidgetWindowMargin = 64;
+
+// The app's columns as the primary window's session controller laid them
+// out, read only. |threshold| is columnMinimalWidthLeft +
+// columnMinimalWidthMain: SessionController::computeColumnLayout() lays a
+// body narrower than it out in one column. |body| is that body,
+// bodyWidget()->width() - filtersWidth(); |content| is MainWidget's width
+// and |chat| the width of the legacy HistoryWidget showing the fixture's
+// chat, when it is shown.
+struct FixtureColumns {
+	QString columns;
+	QString error;
+	int threshold = 0;
+	int bodyWidget = 0;
+	int filters = 0;
+	int body = 0;
+	int content = 0;
+	int chat = 0;
+	int dialogsShown = 0;
+	int minimumWidth = 0;
+	bool chatShown = false;
+};
+
+// Where the window goes, in global logical coordinates: |frame| with its
+// frame, |client| the geometry that gives it, and the bodyWidget() width
+// it is for.
+struct FixtureWindowTarget {
+	QRect frame;
+	QRect client;
+	QString error;
+	int bodyWidget = 0;
+};
+
+// One MoveFixtureWindow(): the columns it read before the move, the target
+// computed from them, and whether the window was given that target.
+struct FixtureWindowMove {
+	FixtureColumns columns;
+	FixtureWindowTarget target;
+	bool moved = false;
+};
+
+// Only reads |window|, the primary window showing the fixture's chat; a
+// window without a session controller, body or content is an error.
+[[nodiscard]] FixtureColumns ReadFixtureColumns(
+	const WidgetFixture &fixture,
+	QWidget *window);
+// One column, its body below the threshold, no chat list shown and the
+// chat as wide as MainWidget, so no third column beside it either.
+[[nodiscard]] bool OnlyFixtureChatShown(const FixtureColumns &layout);
+[[nodiscard]] QString FixtureColumnsText(const FixtureColumns &layout);
+
+// Reads the columns, computes the one-column target on |screen| and calls
+// only setGeometry(target.client), when the target has no error and
+// differs from the window's geometry.
+[[nodiscard]] FixtureWindowMove MoveFixtureWindow(
+	const WidgetFixture &fixture,
+	not_null<QWidget*> window,
+	not_null<QScreen*> screen);
+
+[[nodiscard]] QString FixtureWindowText(not_null<QWidget*> window);
+// On |screen|, not minimized, maximized or full screen, and its frame
+// wholly inside the screen's available area.
+[[nodiscard]] bool FixtureWindowPlaced(
+	not_null<QWidget*> window,
+	not_null<QScreen*> screen);
+
+// An until after a move, on a |wait| started before it: placed with
+// FixtureWindowText() and the columns' text unchanged for a second, or
+// kWidgetPlaceBound passed; |wait|.sample keeps the last reading. The bound
+// only ends the wait: the caller judges the placement after it.
+[[nodiscard]] bool FixtureWindowSettled(
+	const WidgetFixture &fixture,
+	WidgetFixtureWait &wait,
+	not_null<QWidget*> window,
+	not_null<QScreen*> screen);
 
 [[nodiscard]] QString RuntimeStateName(Tgw::Runtime::State state);
 

@@ -12,7 +12,7 @@ Internal to it:
 | `test_widget_stress.h` | The contract: `WidgetStressPass`, `WidgetStressArgs`, `AppendWidgetStress`, `RunWidgetStressSelfCheck`. |
 | `test_widget_stress_internal.h` | The model the two translation units share: the manifest, the selection, a level's readings, an entry, the launch, and the functions the live stages call. |
 | `test_widget_stress.cpp` | The kit (arguments, `manifest.json`, the selected HTML), each level's entry arithmetic (frames, renderer, host, widget, the in-window samples' latch), the envelope and its notes, the merge, the publication and the self-check. |
-| `test_widget_stress_live.cpp` | `AppendWidgetStress`: the stages, the theme, the window's placement, one-column layout and stay-on-top hint, the update filter, the idle check, the layout capture, the window observations, the covering-window check and its worker thread, the card capture, the one-alive check, the levels, the publication and the `Runner::onFinish` release. |
+| `test_widget_stress_live.cpp` | `AppendWidgetStress`: the stages, the theme, the window's placement on the fastest screen (on the [fixture's one-column reading, move and settle](test_widget_fixture.md#one-column-window)), its gates, `placement` record and stay-on-top hint, the update filter, the idle check, the layout capture, the window observations, the covering-window check and its worker thread, the card capture, the one-alive check, the levels, the publication and the `Runner::onFinish` release. |
 
 ## Use when
 
@@ -71,26 +71,38 @@ Use something else when:
   with the highest `QScreen::refreshRate()` (ties: the primary screen),
   its frame placed 64 px inside the screen's available geometry and at most
   1000 logical px tall, out of a maximized or full-screen state if needed;
-  the margin and the height are harness constants, not product styles. It
-  never changes a display mode: `device.refreshHz` is the rate Qt reports
-  for that screen; a screen slower than another is never chosen. Every screen's
+  the margin (the fixture's `kWidgetWindowMargin`) and the height are
+  harness constants, not product styles. It never changes a display mode:
+  `device.refreshHz` is the rate Qt reports for that screen; a screen
+  slower than another is never chosen. Every screen's
   name, geometry and refresh rate go into the launch record.
 - **One column.** The width is not a constant: it comes from the column
-  styles at runtime. `Window::SessionController::computeColumnLayout()`
-  lays the main window out in one column when its body
+  styles at runtime, through the
+  [fixture's one-column placement](test_widget_fixture.md#one-column-window),
+  which the conformance runner shares.
+  `Window::SessionController::computeColumnLayout()` lays the main window
+  out in one column when its body
   (`bodyWidget()->width() - filtersWidth()`) is narrower than
-  `st::columnMinimalWidthLeft + st::columnMinimalWidthMain`, so the runner
-  asks for a `bodyWidget()` one logical px narrower than that, plus
-  `st::windowFiltersWidth` when the chat filters sidebar is shown, plus the
-  window's own margins beside its body, never below the window's minimum
-  width. A first move puts the window on the screen; once it has held its
-  geometry for 1 s a second one recomputes the target from the settled
-  window, whose frame margins and scale can differ on the new screen. A
-  gate then requires `adaptive().isOneColumn()`, a body below the
-  threshold, no `Dialogs::Widget` shown in `MainWidget` and the chat's
-  legacy `HistoryWidget` shown as wide as `MainWidget`: only the chat, no
-  chat list and no third column. The card's 390 CSS px width check of every
-  level proves the bubble is not squeezed.
+  `st::columnMinimalWidthLeft + st::columnMinimalWidthMain`, so
+  `MoveFixtureWindow()` asks for a `bodyWidget()` one logical px narrower
+  than that, plus `st::windowFiltersWidth` when the chat filters sidebar is
+  shown, plus the window's own margins beside its body, never below the
+  window's minimum width, on the screen the runner chose. A first move puts
+  the window on that screen; once it has held its geometry for 1 s
+  (`FixtureWindowSettled()`, at most `kWidgetPlaceBound`, 6 s, each stage
+  that plus `kDefaultStageTimeout`) a second one recomputes the target from
+  the settled window, whose frame margins and scale can differ on the new
+  screen. A gate then requires `OnlyFixtureChatShown()`:
+  `adaptive().isOneColumn()`, a body below the threshold, no
+  `Dialogs::Widget` shown in `MainWidget` and the chat's legacy
+  `HistoryWidget` shown as wide as `MainWidget`: only the chat, no chat
+  list and no third column. The card's 390 CSS px width check of every
+  level proves the bubble is not squeezed. The runner keeps its own policy
+  around those shared steps: the fastest screen, the stay-on-top hint set
+  before the first move, leaving a maximized or full-screen state (not
+  given back at the release), its three placement gates, the `placement`
+  record of each move's readings from before it, and the focus and cursor
+  clearing after the gates.
 - **On top.** Before the move the runner sets `Qt::WindowStaysOnTopHint`
   on the window's `QWindow` with `QWindow::setFlag`
   ([window exposure](test_window_exposure.md)'s mechanism and bans: never
@@ -355,7 +367,8 @@ wallpaper kind, accent colorizer, `windowBg`), `themeChanged`,
 refresh rate, scale and whether it is the primary; the chosen one; the
 window before; the first move's `target` and the settled window's
 `corrected` one, each with its frame, client geometry, body width, layout
-reading and whether it moved the window; the window after), `layout` (the
+reading (the `MoveFixtureWindow()` reading from before that move) and
+whether it moved the window; the window after), `layout` (the
 column layout, body, threshold, `bodyWidget()`, filters width, MainWidget
 and chat widths, shown chat and chat lists, minimum width), `stayOnTop`
 (the hint before, whether the runner applied it, the hint and Windows'
@@ -506,7 +519,13 @@ endpoint and 500 ms main-thread window checks, the self-check with
 Not yet in the app: the worker's in-window samples, the card capture and
 the replay counts, compiled in Debug and Release (Win32, MSVC), their
 arithmetic passing the 15 rows `RunWidgetStressSelfCheck()` had then,
-outside it.
+outside it. The Release runs above ran the placement while its reading,
+target and settle were still the runner's own; since
+`2026/10/31/put-the-conformance-runners-window-in-the-one-column-layout`
+they are the [fixture's](test_widget_fixture.md#one-column-window), and
+the runner has not placed its window through them in the app yet: that
+task's evidence campaign runs a Debug stress-kit smoke for the placement
+gates and the `placement` record.
 
 The self-check now has 16 rows. Its `desktop stop:` row merges literal
 desktop stops into the control level's window end: a null and a

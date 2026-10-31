@@ -14,6 +14,9 @@ Internal to it, documented below:
 [test_widget_conformance_context.h](../../test_widget_conformance_context.h)
 ([message contexts](#message-contexts) and
 [played bot answers](#played-bot-answers)),
+[test_widget_conformance_hosts.h](../../test_widget_conformance_hosts.h)
+([the content safe area](#readings-and-refusals) and the host reading
+control of [verification](#verification)),
 [test_widget_conformance_pictures.h](../../test_widget_conformance_pictures.h)
 ([pictures](#pictures)) and
 [test_widget_conformance_stop.h](../../test_widget_conformance_stop.h)
@@ -73,6 +76,28 @@ Use something else when:
   a private context a user's chat, a group one a basic group or a megagroup,
   a copy any chat; the others are omitted from that launch, for a launch on
   a fitting chat.
+- **Window.** Right after the fixture's opening stages, before the first
+  run's focus and injection, the fixture's `AppendWidgetFixtureOneColumn()`
+  sizes the primary window for the app's one-column layout on the window's
+  own screen, whatever layout the launch inherited
+  ([one-column window](test_widget_fixture.md#one-column-window)): the
+  chat column is then as wide as `MainWidget`. Without it a two-column
+  window just wide enough for two columns leaves the chat column narrower
+  than the card: in Run 5 of
+  `2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`
+  a 715 logical px window on `pc` measured each core at 311 CSS px and
+  refused every run `width-mismatch`. A wider two-column window may hold
+  the anchor; the gate requires one column all the same. Its two gates are
+  fixture gates: a missing window or screen, a refused target, or any
+  layout but only the chat in one column skips every run by that gate's
+  name. The screen is never changed, so the device pixel ratio the 2x
+  captures need stays the launch's. A maximized or full-screen window
+  leaves that state for the sizing, without `Qt::WindowActive`, and stays
+  normal: the fixture's release never maximizes it again, which on Windows
+  would activate it; a normal window gets only its new geometry. The
+  sizing requests no activation and sets no stay-on-top hint, clears no
+  focus and moves no cursor, so the focus oracle below still reads the
+  window's own focus child.
 - **The compose field.** The chat's field must be ordinary and empty: no
   draft text, no message being edited, no edit draft, no rich cloud draft, no
   voice recording, no forward draft. Each run reads it before its injection
@@ -203,10 +228,12 @@ Use something else when:
   (`result.retained`). Its bridge and error reading is refused
   (`summary-multiple-hosts`), and a host replaced between its first
   `visible` action and a later one is `host-replaced`.
-- **Time.** Every wait ends in its stage with a named reading: 8 s layout,
-  10 s per show, 8 s per floating-date wait before a capture (accepted after
-  3.35 s of an unchanged scroll, so each snapshot and band costs at least
-  that: about 80 s for a launch of 16 snapshots and 8 bands), 20 s result,
+- **Time.** Every wait ends in its stage with a named reading: 6 s for
+  each of the window's two settles before the first run (at least 1 s
+  each), 8 s layout, 10 s per show, 8 s per floating-date wait before a
+  capture (accepted after 3.35 s of an unchanged scroll, so each snapshot
+  and band costs at least that: about 80 s for a launch of 16 snapshots
+  and 8 bands), 20 s result,
   350 ms gaps, the planned time of each timed
   sequence, 4 s per palette settle, 4 s theme and visibility waits, 10 s done,
   3 s log, 10 s host barrier, each with `kDefaultStageTimeout` more as the
@@ -287,9 +314,11 @@ stages; the show helper's stages are `show in chat list: widget conformance
 - `tap, result reader, summary reader and run file self-check`, `report the
   package, the selection and the output`;
 - the fixture's `capture the baseline and show the window normally`, `keep
-  the window exposed`, `open the chat in the legacy HistoryWidget`, then
-  `watch the session for outgoing messages` and `network control before the
-  first widget`;
+  the window exposed`, `open the chat in the legacy HistoryWidget`, `move
+  the window for the one-column layout` and `size the window for the
+  one-column layout` ([window](#preconditions-and-limits)), then `watch the
+  session for outgoing messages` and `network control before the first
+  widget`;
 - per theme, light first: `palette restore: widget conformance: before the
   dark runs` (from the second phase on), `palette switch: widget conformance:
   the <theme> runs` and `judge the palette of the <theme> runs`, then every
@@ -602,7 +631,9 @@ established them, `chatFocused` only when the field was focused, `height`
 only when the card was measured.
 
 **The content safe area.** `RecordLog()` reads the run's host watch once,
-in the log stage before the removal, and `safeArea` is
+in the log stage before the removal, with `ReadSafeAreas()` of
+`test_widget_conformance_hosts.{h,cpp}`, which also holds
+`SafeAreaObject()` and `SafeAreaRefusal()`, and `safeArea` is
 `{caption, applied}`: `caption` the message's text, the entry's id, or null
 for an entry with `safeArea`; `applied` one
 `{top, right, bottom, left, cornerLeft, cornerRight}` in CSS px per armed
@@ -728,8 +759,9 @@ incomplete run's last tap reading, disarms every played bot by its run's kept
 key (the records stay with the runs), runs the fixture's idempotent release
 (every tap disarmed by its kept key, every widget and filler message
 destroyed by id, the controls closed, the list left, the option, chat and
-window state restored), then writes the run file and the totals row without
-the totals stage's Checks when that stage did not run. A run whose hosts did
+a minimized window's state restored, never a maximized state the sizing
+left), then writes the run file and the totals row without the totals
+stage's Checks when that stage did not run. A run whose hosts did
 not finish within 10 s of its removal stops every later injection, by name.
 
 The palette chain's final restore is a stage before the fixture's teardown;
@@ -742,8 +774,13 @@ restore saves the settings. Run on a disposable portable copy.
 The messages are local client-id messages, never sent; their Web Storage
 never reaches the disk. A key's typed text is cleared in its own stage; the
 window's focus child is left on the compose field; the scroll position is
-not restored. The output directory keeps `run.json`, `cards/`, `crops/`
-and, with requested pictures, `pictures/`.
+not restored. The window keeps the one-column geometry and position the
+sizing gave it on its own screen (Telegram saves its geometry), and a
+maximized or full-screen state the sizing left is not given back: the
+window stays normal, the state the fixture's "settle after the teardown"
+Checks ([one-column window](test_widget_fixture.md#one-column-window)). The
+output directory keeps `run.json`, `cards/`, `crops/` and, with requested
+pictures, `pictures/`.
 
 ## Message contexts
 
@@ -1059,7 +1096,9 @@ its id: the auto preview omitted in both themes naming both catalogue IDs,
 `previewLeg`; group entries of both sets omitted with `elsewhere` true in
 the state and in `omittedRuns`; `matrix` and the notes counting only the
 permanent omissions against the matrix); a host reading control
-(`CheckHostReadings()`, the only place the three new refusals' positive
+(`CheckHostReadings()` of `test_widget_conformance_hosts.cpp`, with the
+result wait's `ResultWait` and `WantedStatus()` declared in `_state.h`
+for it, the only place the three new refusals' positive
 cases and the stop wait run, as a live campaign shows only their
 negatives: `SafeAreaRefusal()` gives none for an entry without `safeArea`
 with all 0, `safe-area-not-zero` for `bottom` 26 and for `cornerRight` 118
@@ -1135,7 +1174,8 @@ and the host reading control), by
 the macOS arm64 Debug and Release (no LTO, with the harness) `Telegram`
 builds of the change, and a Release smoke of `auto/31-stop-text`,
 `auto/04-values-units`, `auto/36-safe-area` and `visual/17-time-corner`
-recorded in its `work/smoke.md`: `CheckHostReadings()` passed in the app;
+recorded in its `work/smoke.md`: `CheckHostReadings()`, then in
+`test_widget_conformance.cpp` itself, passed in the app;
 `auto/31-stop-text` died with `dead` "Text limit exceeded: a text value of
 40000 characters (max 32768)" from its final summary and no refusal; the
 two captioned runs got all 0 and the two `safeArea` entries `bottom` 26
@@ -1156,6 +1196,15 @@ the pack runs it; that task's evidence loop runs it and a synthetic smoke
 of a paint stop, and neither has run yet. Before that build this page
 recorded no Windows build or run of the pack; the code is portable C++ and
 Qt.
+
+The [window sizing](#preconditions-and-limits) and the move of the host
+readings into `test_widget_conformance_hosts.{h,cpp}` have not run in the
+app yet. The evidence campaign of
+`2026/10/31/put-the-conformance-runners-window-in-the-one-column-layout`
+runs a two-entry smoke from a normal window narrowed to the first
+two-column width and again from an inactive maximized window, and records
+what ran in that task's evidence; until then this page claims no measured
+width, focus or window-state result for the sizing.
 
 ## Related guidance
 

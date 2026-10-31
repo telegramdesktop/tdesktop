@@ -93,7 +93,12 @@ struct WidgetConformanceArgs {
 // any other exit. It holds only runs that completed; every other selected
 // run is named in its "incompleteRuns" with the state it reached, never
 // written as a completed run. A run file that cannot be written is a
-// failure.
+// failure. Before the first run the fixture puts the primary window in the
+// one-column layout on its own screen, activating nothing
+// (AppendWidgetFixtureOneColumn()); a window left in another layout fails
+// a fixture gate, by which every run skips. The window keeps the new
+// geometry, and a maximized or full-screen one stays normal, since
+// maximizing it again would activate it.
 void AppendWidgetConformance(
 	not_null<Runner*> runner,
 	WidgetConformanceArgs args);

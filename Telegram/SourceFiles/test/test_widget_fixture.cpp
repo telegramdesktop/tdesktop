@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/dialogs_widget.h"
 #include "history/view/media/history_view_html_widget.h"
 #include "history/view/history_view_element.h"
 #include "history/history.h"
@@ -42,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_media.h"
 #include "tgw/tgw_renderer.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "window/window_adaptive.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
@@ -50,7 +52,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#include <QtCore/QMargins>
 #include <QtCore/QPointer>
+#include <QtGui/QScreen>
+#include <QtGui/QWindow>
 #include <QtNetwork/QHostAddress>
 #include <QtNetwork/QNetworkProxy>
 #include <QtNetwork/QTcpSocket>
@@ -62,6 +67,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 
 #include <zlib.h>
+
+#include "styles/style_window.h"
 
 namespace Test {
 
@@ -106,6 +113,20 @@ struct WidgetFixture {
 		bool chatRestored = false;
 	};
 
+	// AppendWidgetFixtureOneColumn(): the window and the screen it was on
+	// when the placement started, why it was refused, the window and its
+	// columns read before it, both moves and whether the window was active
+	// before it. A state it left is marked by normalized below.
+	struct OneColumnPlacement {
+		QPointer<QWidget> window;
+		QPointer<QScreen> screen;
+		QString refusal;
+		QString before;
+		std::optional<FixtureWindowMove> target;
+		std::optional<FixtureWindowMove> corrected;
+		bool activeBefore = false;
+	};
+
 	WidgetFixtureArgs args;
 	QString networkUnavailable;
 	std::vector<std::shared_ptr<WidgetFixtureMessage>> messages;
@@ -130,12 +151,20 @@ struct WidgetFixture {
 	bool exposureKept = false;
 	bool optionChanged = false;
 	bool chatOpened = false;
+	bool normalized = false;
+
+	// The state the release leaves and its settle requires: the captured
+	// one, or the normal one a one-column placement left, which is never
+	// maximized again, as that would activate the window.
+	Qt::WindowStates finalState;
 
 	QString gate;
 	WidgetFixtureWait wait;
 
 	ControlPhase before;
 	ControlPhase after;
+
+	OneColumnPlacement oneColumn;
 
 	FixtureRelease release;
 	crl::time restoredAt = 0;
@@ -452,6 +481,7 @@ void GateCheck(
 	state.navigation = base::make_weak(navigation);
 	state.session = base::make_weak(session);
 	state.windowState = WithoutActive(window->windowState());
+	state.finalState = state.windowState;
 	state.windowHidden = window->isHidden();
 	state.optionFound = base::options::lookup<bool>(
 		kOptionUseNewChatView).value();
@@ -546,10 +576,12 @@ void StartBaseline(WidgetFixture &state) {
 	if (!window) {
 		return u"window=gone"_q;
 	}
-	return u"captured{state=%1 hidden=%2} now{state=%3 minimized=%4 "
-		u"hidden=%5}"_q.arg(
+	return u"captured{state=%1 hidden=%2} expected{state=%3 normalized=%4} "
+		u"now{state=%5 minimized=%6 hidden=%7}"_q.arg(
 			WindowStateText(state.windowState),
 			FlagText(state.windowHidden),
+			WindowStateText(state.finalState),
+			FlagText(state.normalized),
 			WindowStateText(window->windowState()),
 			FlagText(window->isMinimized()),
 			FlagText(window->isHidden()));
@@ -737,6 +769,222 @@ void ProcessPendingLayout(History *history) {
 		history->owner().notifyHistoryChangeDelayed(history);
 		history->owner().sendHistoryChangeNotifications();
 	}
+}
+
+// ---------------------------------------------------------------------
+// The one-column window.
+
+// How long a placed window's reading must hold before it counts as
+// settled.
+constexpr auto kPlaceStable = crl::time(1000);
+// The placed window's height cap in logical px: a harness constant like
+// kWidgetWindowMargin, not a product style. The width is not one: it comes
+// from the column styles at runtime.
+constexpr auto kWindowMaxHeight = 1000;
+
+[[nodiscard]] QString ColumnsName(const Window::Adaptive &adaptive) {
+	return adaptive.isOneColumn()
+		? u"one-column"_q
+		: adaptive.isThreeColumn()
+		? u"three-column"_q
+		: u"normal"_q;
+}
+
+// The frame kWidgetWindowMargin inside the screen's available area, at
+// most kWindowMaxHeight tall, as wide as a bodyWidget() one logical px
+// below the one-column threshold needs, with the filters sidebar's width
+// when it is shown and the window's own margins beside its body, never
+// below its minimum width. From the window's readings now, so a second
+// call after a move between screens of other scales corrects the first.
+[[nodiscard]] FixtureWindowTarget ComputeTarget(
+		not_null<QWidget*> window,
+		not_null<QScreen*> screen,
+		const FixtureColumns &layout) {
+	auto result = FixtureWindowTarget();
+	if (!layout.error.isEmpty()) {
+		result.error = layout.error;
+		return result;
+	}
+	result.bodyWidget = layout.threshold - 1 + layout.filters;
+	const auto client = window->geometry();
+	const auto frame = window->frameGeometry();
+	const auto margins = QMargins(
+		client.left() - frame.left(),
+		client.top() - frame.top(),
+		frame.right() - client.right(),
+		frame.bottom() - client.bottom());
+	const auto width = std::max(
+		result.bodyWidget + (client.width() - layout.bodyWidget),
+		layout.minimumWidth);
+	const auto inner = screen->availableGeometry().marginsRemoved({
+		kWidgetWindowMargin,
+		kWidgetWindowMargin,
+		kWidgetWindowMargin,
+		kWidgetWindowMargin,
+	});
+	result.frame = QRect(
+		inner.topLeft(),
+		QSize(
+			width + margins.left() + margins.right(),
+			std::min(kWindowMaxHeight, inner.height())));
+	result.client = result.frame.marginsRemoved(margins);
+	if (result.frame.width() > inner.width()) {
+		result.error = u"the one-column frame %1 does not fit in the "
+			u"screen's available area %2 inside its margin"_q.arg(
+				RectText(result.frame),
+				RectText(inner));
+	}
+	return result;
+}
+
+// The settle's own sample: the window and the columns it shows.
+[[nodiscard]] QString PlacementReading(
+		const WidgetFixture &state,
+		not_null<QWidget*> window) {
+	return FixtureWindowText(window)
+		+ u" "_q
+		+ FixtureColumnsText(ReadFixtureColumns(state, window));
+}
+
+// Every reading of the placement, for both of its gates' details.
+[[nodiscard]] QString OneColumnText(const WidgetFixture &state) {
+	const auto &place = state.oneColumn;
+	const auto moveText = [](const std::optional<FixtureWindowMove> &move) {
+		if (!move) {
+			return u"none"_q;
+		}
+		const auto &target = move->target;
+		return u"frame=%1 client=%2 bodyWidget=%3 moved=%4 error=[%5] %6"_q
+			.arg(
+				RectText(target.frame),
+				RectText(target.client),
+				NumberText(target.bodyWidget),
+				FlagText(move->moved),
+				target.error,
+				FixtureColumnsText(move->columns));
+	};
+	const auto window = place.window.data();
+	return QStringList{
+		u"before={%1}"_q.arg(place.before),
+		u"target={%1}"_q.arg(moveText(place.target)),
+		u"corrected={%1}"_q.arg(moveText(place.corrected)),
+		u"after={%1}"_q.arg(window
+			? PlacementReading(state, window)
+			: u"window=gone"_q),
+		u"window={%1}"_q.arg(WindowText(state)),
+		u"shownNormal=%1"_q.arg(FlagText(state.shownNormal)),
+		u"active=%1->%2"_q.arg(
+			FlagText(place.activeBefore),
+			(window ? FlagText(window->isActiveWindow()) : u"gone"_q)),
+	}.join(QChar(' '));
+}
+
+// A refused target ends the placement: the window keeps the geometry it
+// has, and the gate after the wait names the refusal.
+void MoveOneColumn(
+		WidgetFixture &state,
+		std::optional<FixtureWindowMove> &move) {
+	auto &place = state.oneColumn;
+	const auto window = place.window.data();
+	const auto screen = place.screen.data();
+	if (!place.refusal.isEmpty() || !window || !screen) {
+		return;
+	}
+	move = MoveFixtureWindow(state, window, screen);
+	if (!move->target.error.isEmpty()) {
+		place.refusal = u"the one-column target is refused: "_q
+			+ move->target.error;
+	}
+}
+
+// The window's own screen, never another one, so its scale stays the one
+// the caller found. A maximized or full-screen window cannot take the
+// target geometry: its state is cleared without Qt::WindowActive, which
+// QWidget::setWindowState would answer with activateWindow(), and it stays
+// normal: on Windows maximizing it again at the release would activate it.
+void StartOneColumn(WidgetFixture &state) {
+	StartFixtureWait(state.wait);
+	auto &place = state.oneColumn;
+	const auto list = state.list.data();
+	const auto window = list ? list->window() : nullptr;
+	const auto handle = window ? window->windowHandle() : nullptr;
+	const auto screen = handle ? handle->screen() : nullptr;
+	place.window = window;
+	place.screen = screen;
+	if (!window) {
+		place.refusal = u"no window shows the chat's list"_q;
+		return;
+	} else if (!screen) {
+		place.refusal = u"the window is on no screen"_q;
+		return;
+	}
+	place.before = PlacementReading(state, window);
+	place.activeBefore = window->isActiveWindow();
+	const auto states = Qt::WindowMaximized | Qt::WindowFullScreen;
+	const auto current = WithoutActive(window->windowState());
+	if (current & states) {
+		state.normalized = true;
+		state.finalState = current & ~states;
+		window->setWindowState(current & ~states);
+		Note(Prefixed(state, u"the primary window was maximized or full "
+			u"screen, so it left that state for the one-column size and "
+			u"stays normal; the release does not maximize it again"_q));
+	}
+	MoveOneColumn(state, place.target);
+}
+
+// The settled window's frame margins and its filters sidebar, shown only
+// in a wide enough window, can ask for another width than the first move
+// read: the same move again, from the settled geometry.
+void CorrectOneColumn(WidgetFixture &state) {
+	StartFixtureWait(state.wait);
+	MoveOneColumn(state, state.oneColumn.corrected);
+}
+
+[[nodiscard]] bool OneColumnSettled(WidgetFixture &state) {
+	const auto &place = state.oneColumn;
+	const auto window = place.window.data();
+	const auto screen = place.screen.data();
+	return !place.refusal.isEmpty()
+		|| !window
+		|| !screen
+		|| FixtureWindowSettled(state, state.wait, window, screen);
+}
+
+[[nodiscard]] QStringList OneColumnMissing(const WidgetFixture &state) {
+	const auto &place = state.oneColumn;
+	if (!place.refusal.isEmpty()) {
+		return { place.refusal };
+	} else if (!place.window || !place.screen) {
+		return { u"the window or the screen it started on is gone"_q };
+	}
+	return {};
+}
+
+// The first move's prerequisites and target; the layout is judged after
+// the second.
+void CheckOneColumnMoved(WidgetFixture &state) {
+	GateCheck(
+		state,
+		u"the window is moved for the one-column layout on its own "
+		u"screen"_q,
+		OneColumnMissing(state),
+		OneColumnText(state));
+}
+
+void CheckOneColumn(WidgetFixture &state) {
+	auto missing = OneColumnMissing(state);
+	const auto window = state.oneColumn.window.data();
+	if (missing.isEmpty()
+		&& !OnlyFixtureChatShown(ReadFixtureColumns(state, window))) {
+		missing.push_back(u"the window does not show only the chat in one "
+			u"column"_q);
+	}
+	GateCheck(
+		state,
+		u"only the chat is shown, in the one-column layout"_q,
+		missing,
+		OneColumnText(state));
 }
 
 // ---------------------------------------------------------------------
@@ -1088,7 +1336,7 @@ void RestoreChat(WidgetFixture &state) {
 [[nodiscard]] bool WindowMatches(const WidgetFixture &state) {
 	const auto window = WindowOf(state);
 	return window
-		&& (WithoutActive(window->windowState()) == state.windowState)
+		&& (WithoutActive(window->windowState()) == state.finalState)
 		&& (window->isHidden() == state.windowHidden);
 }
 
@@ -1180,11 +1428,13 @@ void DisarmMessage(WidgetFixtureMessage &message) {
 		RestoreWindowExposure(state.exposure);
 		result.done.push_back(u"exposure hint restored"_q);
 	}
+	// Only a minimized window's showNormal() is undone, to finalState: a
+	// normalized window stays normal, as maximizing it would activate it.
 	const auto window = WindowOf(state);
 	if (state.shownNormal && !state.windowRestored && window) {
 		state.windowRestored = true;
 		state.restoredAt = crl::now();
-		window->setWindowState(state.windowState);
+		window->setWindowState(state.finalState);
 		result.done.push_back(u"window state restored"_q);
 	}
 	result.window = WindowText(state);
@@ -1247,8 +1497,9 @@ void CheckSettled(const WidgetFixture &state) {
 	const auto details = SettleText(state);
 	Check(
 		WindowMatches(state),
-		prefix + u"the main window's state is the captured one again and "
-			u"held it through the repaint settle"_q,
+		prefix + u"the main window's state is the expected one (the captured "
+			u"one, or normal after the one-column placement) and held it "
+			u"through the repaint settle"_q,
 		details);
 	const auto window = WindowOf(state);
 	Check(
@@ -1354,6 +1605,50 @@ void AppendWidgetFixtureOpen(
 		.timeout = kOpenBound + kDefaultStageTimeout,
 		.timeoutDetails = [=] {
 			return state->wait.details;
+		},
+	});
+}
+
+void AppendWidgetFixtureOneColumn(
+		not_null<Runner*> runner,
+		const std::shared_ptr<WidgetFixture> &state) {
+	const auto gate = [=] {
+		return state->gate;
+	};
+	runner->add({
+		.name = Prefixed(*state, u"move the window for the one-column "
+			u"layout"_q),
+		.skipReason = gate,
+		.run = [=] {
+			StartOneColumn(*state);
+		},
+		.until = [=] {
+			return OneColumnSettled(*state);
+		},
+		.then = [=] {
+			CheckOneColumnMoved(*state);
+		},
+		.timeout = kWidgetPlaceBound + kDefaultStageTimeout,
+		.timeoutDetails = [=] {
+			return state->wait.sample;
+		},
+	});
+	runner->add({
+		.name = Prefixed(*state, u"size the window for the one-column "
+			u"layout"_q),
+		.skipReason = gate,
+		.run = [=] {
+			CorrectOneColumn(*state);
+		},
+		.until = [=] {
+			return OneColumnSettled(*state);
+		},
+		.then = [=] {
+			CheckOneColumn(*state);
+		},
+		.timeout = kWidgetPlaceBound + kDefaultStageTimeout,
+		.timeoutDetails = [=] {
+			return state->wait.sample;
 		},
 	});
 }
@@ -1902,6 +2197,127 @@ void DeliverListLeave(QWidget *list) {
 	Settle([&] {
 		QApplication::sendEvent(list, &leave);
 	});
+}
+
+FixtureColumns ReadFixtureColumns(
+		const WidgetFixture &fixture,
+		QWidget *window) {
+	auto result = FixtureColumns{
+		.threshold = st::columnMinimalWidthLeft + st::columnMinimalWidthMain,
+	};
+	const auto primary = dynamic_cast<::MainWindow*>(window);
+	const auto controller = primary ? primary->sessionController() : nullptr;
+	const auto body = primary ? primary->bodyWidget() : nullptr;
+	const auto content = primary ? primary->sessionContent() : nullptr;
+	if (!controller || !body || !content) {
+		result.error = u"the primary window has no session controller, body "
+			u"or content"_q;
+		return result;
+	}
+	result.columns = ColumnsName(controller->adaptive());
+	result.bodyWidget = body->width();
+	result.filters = controller->filtersWidth();
+	result.body = controller->computeColumnLayout().bodyWidth;
+	result.content = content->width();
+	result.minimumWidth = primary->minimumWidth();
+	for (const auto dialogs : FindAll<Dialogs::Widget>(content)) {
+		if (dialogs->isVisible()) {
+			++result.dialogsShown;
+		}
+	}
+	const auto history = fixture.history.get();
+	for (const auto widget : FindAll<HistoryWidget>(content)) {
+		if (history && (widget->history() == history) && widget->isVisible()) {
+			result.chatShown = true;
+			result.chat = widget->width();
+		}
+	}
+	return result;
+}
+
+bool OnlyFixtureChatShown(const FixtureColumns &layout) {
+	return layout.error.isEmpty()
+		&& (layout.columns == u"one-column"_q)
+		&& (layout.body < layout.threshold)
+		&& !layout.dialogsShown
+		&& layout.chatShown
+		&& (layout.chat == layout.content);
+}
+
+QString FixtureColumnsText(const FixtureColumns &layout) {
+	if (!layout.error.isEmpty()) {
+		return u"layout: "_q + layout.error;
+	}
+	return QStringList{
+		u"columns="_q + layout.columns,
+		u"body=%1"_q.arg(layout.body),
+		u"threshold=%1"_q.arg(layout.threshold),
+		u"bodyWidget=%1"_q.arg(layout.bodyWidget),
+		u"filters=%1"_q.arg(layout.filters),
+		u"content=%1"_q.arg(layout.content),
+		u"chat=%1"_q.arg(layout.chat),
+		u"chatShown="_q + FlagText(layout.chatShown),
+		u"dialogsShown=%1"_q.arg(layout.dialogsShown),
+		u"minimumWidth=%1"_q.arg(layout.minimumWidth),
+	}.join(QChar(' '));
+}
+
+FixtureWindowMove MoveFixtureWindow(
+		const WidgetFixture &fixture,
+		not_null<QWidget*> window,
+		not_null<QScreen*> screen) {
+	auto result = FixtureWindowMove{
+		.columns = ReadFixtureColumns(fixture, window),
+	};
+	result.target = ComputeTarget(window, screen, result.columns);
+	result.moved = result.target.error.isEmpty()
+		&& (window->geometry() != result.target.client);
+	if (result.moved) {
+		window->setGeometry(result.target.client);
+	}
+	return result;
+}
+
+QString FixtureWindowText(not_null<QWidget*> window) {
+	const auto handle = window->windowHandle();
+	const auto screen = handle ? handle->screen() : nullptr;
+	return u"screen=[%1] frame=%2 dpr=%3 state=%4 minimized=%5"_q.arg(
+		screen ? screen->name() : u"none"_q,
+		RectText(window->frameGeometry()),
+		QString::number(handle ? handle->devicePixelRatio() : 0.),
+		QString::number(int(window->windowState())),
+		FlagText(window->isMinimized()));
+}
+
+bool FixtureWindowPlaced(
+		not_null<QWidget*> window,
+		not_null<QScreen*> screen) {
+	const auto handle = window->windowHandle();
+	const auto states = Qt::WindowMinimized
+		| Qt::WindowMaximized
+		| Qt::WindowFullScreen;
+	return handle
+		&& (handle->screen() == screen.get())
+		&& !(window->windowState() & states)
+		&& screen->availableGeometry().contains(window->frameGeometry());
+}
+
+bool FixtureWindowSettled(
+		const WidgetFixture &fixture,
+		WidgetFixtureWait &wait,
+		not_null<QWidget*> window,
+		not_null<QScreen*> screen) {
+	const auto now = crl::now();
+	const auto sample = FixtureWindowText(window)
+		+ u" "_q
+		+ FixtureColumnsText(ReadFixtureColumns(fixture, window));
+	if (sample != wait.sample) {
+		wait.sample = sample;
+		wait.stableSince = now;
+	}
+	return (FixtureWindowPlaced(window, screen)
+			&& (now - wait.stableSince >= kPlaceStable))
+		|| (now - wait.started >= kWidgetPlaceBound);
 }
 
 QString RuntimeStateName(RuntimeState state) {

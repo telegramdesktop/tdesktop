@@ -42,10 +42,11 @@ class InputField;
 // test_widget_conformance.cpp (selection, the per-run pipeline, snapshots
 // and the run file), test_widget_conformance_actions.cpp (the scripted
 // actions), test_widget_conformance_context.cpp (message contexts and the
-// played bot's records) and test_widget_conformance_pictures.cpp (the
-// requested pictures' bands and the floating-date wait before every
-// capture). Internal to them; reference:
-// docs/helpers/test_widget_conformance.md.
+// played bot's records), test_widget_conformance_hosts.cpp (the content
+// safe area readings and their controls) and
+// test_widget_conformance_pictures.cpp (the requested pictures' bands and
+// the floating-date wait before every capture). Internal to them;
+// reference: docs/helpers/test_widget_conformance.md.
 
 namespace Test {
 
@@ -142,6 +143,13 @@ struct ConformanceResult {
 	int updates = 0;
 	bool read = false;
 	bool present = false;
+};
+
+// The two result waits of a run: from its load show, and after its
+// actions.
+enum class ResultWait {
+	Initial,
+	AfterActions,
 };
 
 // One expected stage crop of an auto run: |crop| is the PNG's path
@@ -480,6 +488,15 @@ void Row(const QString &marker, const QJsonObject &fields);
 [[nodiscard]] QString RunSkip(
 	const ConformanceState &state,
 	const ConformanceRun &run);
+// Done. Before the actions awaiting as well, for an auto test with actions
+// and for every visual test: the SDK's mini harness waits for a person's
+// input. After the actions only done, as CLIENTS.md waits for. None for a
+// stops entry: CLIENTS.md waits for its death instead, which only the
+// result wait's other conditions or its bound end.
+[[nodiscard]] bool WantedStatus(
+	const ConformanceState &state,
+	const ConformanceRun &run,
+	ResultWait wait);
 // Takes the tap's newest result into |run.result| when it is new.
 void RefreshResult(ConformanceRun &run);
 void AddRefusal(
