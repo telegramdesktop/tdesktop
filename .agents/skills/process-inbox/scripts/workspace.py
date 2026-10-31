@@ -159,6 +159,19 @@ def run_git_process(arguments, **options):
 		raise_pending_termination()
 
 
+def enable_git_long_paths(environment):
+	# Queue evidence paths can pass Windows' 260-character limit under the
+	# longer worktree roots. Give every git child long-path support without
+	# writing it into a git config; git ignores the key elsewhere.
+	count = int(environment.get("GIT_CONFIG_COUNT") or 0)
+	for index in range(count):
+		if environment.get(f"GIT_CONFIG_KEY_{index}", "").lower() == "core.longpaths":
+			return
+	environment[f"GIT_CONFIG_KEY_{count}"] = "core.longpaths"
+	environment[f"GIT_CONFIG_VALUE_{count}"] = "true"
+	environment["GIT_CONFIG_COUNT"] = str(count + 1)
+
+
 def run_git(path, *args, check=True):
 	result = run_git_process(
 		["git", "-C", str(path), *args],
@@ -7569,6 +7582,7 @@ def parse_args():
 
 def main():
 	args = parse_args()
+	enable_git_long_paths(os.environ)
 	try:
 		args.handler(args)
 	except (OSError, ValueError, WorkspaceError) as error:

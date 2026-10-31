@@ -2849,6 +2849,32 @@ class SourcePreparationTest(unittest.TestCase):
 
 
 class MechanicsTest(unittest.TestCase):
+	def test_git_children_get_long_paths_once_without_config(self):
+		environment = {
+			"GIT_CONFIG_COUNT": "1",
+			"GIT_CONFIG_KEY_0": "user.name",
+			"GIT_CONFIG_VALUE_0": "Test",
+		}
+		workspace.enable_git_long_paths(environment)
+		workspace.enable_git_long_paths(environment)
+		self.assertEqual(environment["GIT_CONFIG_COUNT"], "2")
+		self.assertEqual(environment["GIT_CONFIG_KEY_1"], "core.longpaths")
+		with tempfile.TemporaryDirectory() as directory:
+			subprocess.run(["git", "init", "-q", directory], check=True)
+			value = subprocess.run(
+				["git", "-C", directory, "config", "core.longpaths"],
+				stdout=subprocess.PIPE,
+				text=True,
+				env={**os.environ, **environment},
+			)
+			stored = subprocess.run(
+				["git", "-C", directory, "config", "--local", "core.longpaths"],
+				stdout=subprocess.PIPE,
+				text=True,
+			)
+		self.assertEqual(value.stdout.strip(), "true")
+		self.assertEqual(stored.returncode, 1)
+
 	def test_build_lock_recovery_selects_only_exact_owned_processes(self):
 		build = Path(
 			"C:/Telegram/twin/out" if os.name == "nt" else "/Telegram/twin/out"
