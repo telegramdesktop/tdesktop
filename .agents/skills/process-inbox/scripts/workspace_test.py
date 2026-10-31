@@ -1522,6 +1522,70 @@ inbox_receipt: receipts/2026/07/18/test.md
 			self.assertTrue(report["current_satisfies"])
 			self.assertEqual(report["missing_source_tasks"], [])
 
+	def test_source_lineage_accepts_a_rewritten_prerequisite_with_a_witness(self):
+		dependency_id = "2026/07/18/folded-task"
+		witness_id = "2026/07/18/built-on-folded-task"
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source = root / "source"
+			slot = root / "slot"
+			git_repo(source)
+			tracked = source / "tracked.txt"
+			tracked.write_text("base\n", encoding="utf-8")
+			git(source, "add", "tracked.txt")
+			git(source, "commit", "-m", "Create baseline")
+			git(source, "branch", "work")
+			tracked.write_text("folded\n", encoding="utf-8")
+			git(source, "commit", "-am", "Fold away", "-m", f"Task: {dependency_id}")
+			git(source, "branch", "old-history")
+			git(source, "switch", "work")
+
+			for task_id, depends_on in (
+				(dependency_id, "[]"),
+				(witness_id, f"[{dependency_id}]"),
+			):
+				directory = slot / "tasks" / task_id
+				directory.mkdir(parents=True)
+				(directory / "task.md").write_text("# Task\n", encoding="utf-8")
+				(directory / "state.yaml").write_text(
+					f"""status: approved
+type: implement
+created: 2026-07-18
+project: null
+depends_on: {depends_on}
+claimed_by: macbook-twork
+claimed_at: 2026-07-18T10:00:00+04:00
+claim_order: 1
+lease_until: null
+phase: complete
+inbox_receipt: receipts/2026/07/18/test.md
+""",
+					encoding="utf-8",
+				)
+			target = write_task(slot, status="todo", claimed_by=None)
+			state_path = target / "state.yaml"
+			state_path.write_text(
+				state_path.read_text(encoding="utf-8").replace(
+					"depends_on: []",
+					f"depends_on: [{dependency_id}]",
+				),
+				encoding="utf-8",
+			)
+			config = {"source_root": str(source)}
+
+			report = workspace.source_lineage_report(config, slot, TASK_ID)
+			self.assertFalse(report["current_satisfies"])
+			self.assertEqual(report["witnessed_source_tasks"], {})
+
+			tracked.write_text("rewritten with the folded change\n", encoding="utf-8")
+			git(source, "commit", "-am", "Build on it", "-m", f"Task: {witness_id}")
+			report = workspace.source_lineage_report(config, slot, TASK_ID)
+			self.assertTrue(report["current_satisfies"])
+			self.assertEqual(
+				report["witnessed_source_tasks"],
+				{dependency_id: witness_id},
+			)
+
 	def test_checkpoint_updates_only_local_task_state(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			slot = Path(temporary)

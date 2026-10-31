@@ -2001,6 +2001,12 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 		dependency for dependency, commits in tips.items()
 		if not commits or not any(is_ancestor(source, commit) for commit in commits)
 	]
+	witnesses = {}
+	for dependency in missing:
+		witness = lineage_witness(source, states, dependency)
+		if witness is not None:
+			witnesses[dependency] = witness
+	missing = [dependency for dependency in missing if dependency not in witnesses]
 	branches = run_git(
 		source,
 		"for-each-ref",
@@ -2030,8 +2036,25 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 		"required_source_tasks": required,
 		"missing_source_tasks": missing,
 		"unavailable_source_tasks": missing_history,
+		"witnessed_source_tasks": witnesses,
 		"compatible_local_branches": compatible,
 	}
+
+
+def lineage_witness(source, states, dependency):
+	# A history rewrite can fold a task's commit into later work: an approved
+	# task built on it whose own commit is on HEAD shows its change is there.
+	for state in states.values():
+		if (
+			state["status"] == "approved"
+			and dependency in state["depends_on"]
+			and any(
+				is_ancestor(source, commit)
+				for commit in task_tip_commits(source, state["id"])
+			)
+		):
+			return state["id"]
+	return None
 
 
 def is_ancestor(source, older, newer="HEAD"):

@@ -213,7 +213,10 @@ python3 .agents/skills/process-inbox/scripts/workspace.py source-lineage \
 `depends_on` requirements are included automatically. Pass `--require` for an
 explicit source prerequisite named in `task.md` that old routing failed to put
 in `depends_on`. Unfinished dependencies remain a readiness concern and appear
-separately; this gate checks the history of approved source work.
+separately; this gate checks the history of approved source work. A rewrite can
+fold a prerequisite's commit into later work: when an approved task that
+depends on it still has its own commit on `HEAD`, the gate counts the
+prerequisite as present and names that witness in `witnessed_source_tasks`.
 
 If any prospective task reports `current_satisfies: false` at this startup
 gate, leave it out of the frozen batch and continue with the rest; do not
