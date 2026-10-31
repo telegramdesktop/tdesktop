@@ -46,11 +46,13 @@ struct SceneItemShape {
 
 struct SceneItemImage {
 	QString file;
+	float64 dpr = 1.;
 	ItemBase::Placement placement;
 };
 
 struct SceneItemLine {
 	QString file;
+	float64 dpr = 1.;
 	QPointF position;
 };
 

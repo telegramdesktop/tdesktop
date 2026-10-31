@@ -214,10 +214,12 @@ SceneItems CollectSceneItems(
 			continue;
 		} else if (item->type() == ItemLine::Type) {
 			const auto line = static_cast<ItemLine*>(item.get());
-			const auto index = storeImage(line->pixmap().toImage());
+			const auto pixmap = line->pixmap();
+			const auto index = storeImage(pixmap.toImage());
 			if (index >= 0) {
 				result.lines.push_back({
 					.file = QString::number(index),
+					.dpr = pixmap.devicePixelRatio(),
 					.position = line->pos(),
 				});
 			}
@@ -254,10 +256,12 @@ SceneItems CollectSceneItems(
 			});
 		} else if (item->type() == ItemImage::Type) {
 			const auto image = static_cast<ItemImage*>(item.get());
-			const auto index = storeImage(image->pixmap().toImage());
+			const auto pixmap = image->pixmap();
+			const auto index = storeImage(pixmap.toImage());
 			if (index >= 0) {
 				result.images.push_back({
 					.file = QString::number(index),
+					.dpr = pixmap.devicePixelRatio(),
 					.placement = placement,
 				});
 			}
@@ -374,6 +378,7 @@ QJsonArray SerializeSceneItems(const SceneItems &items) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"image"_q },
 			{ u"file"_q, image.file },
+			{ u"dpr"_q, image.dpr },
 			{ u"p"_q, placement(image) },
 		});
 	}
@@ -381,6 +386,7 @@ QJsonArray SerializeSceneItems(const SceneItems &items) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"line"_q },
 			{ u"file"_q, line.file },
+			{ u"dpr"_q, line.dpr },
 			{ u"pos"_q, SerializePoint(line.position) },
 		});
 	}
@@ -481,11 +487,13 @@ SceneItems ParseSceneItems(
 		} else if (kind == u"image"_q) {
 			result.images.push_back({
 				.file = path(),
+				.dpr = object[u"dpr"_q].toDouble(1.),
 				.placement = placement,
 			});
 		} else if (kind == u"line"_q) {
 			result.lines.push_back({
 				.file = path(),
+				.dpr = object[u"dpr"_q].toDouble(1.),
 				.position = DeserializePoint(object[u"pos"_q].toArray()),
 			});
 		} else if (kind == u"message"_q) {

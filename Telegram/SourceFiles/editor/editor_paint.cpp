@@ -1336,9 +1336,11 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 		if (image.file.isEmpty()) {
 			continue;
 		}
+		auto loaded = QImage(image.file);
+		loaded.setDevicePixelRatio(image.dpr);
 		auto itemData = data;
 		auto item = std::make_shared<ItemImage>(
-			Ui::PixmapFromImage(QImage(image.file)),
+			Ui::PixmapFromImage(std::move(loaded)),
 			std::move(itemData));
 		item->applyPlacement(image.placement);
 		addMediaItem(std::move(item));
@@ -1347,8 +1349,10 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 		if (line.file.isEmpty()) {
 			continue;
 		}
+		auto loaded = QImage(line.file);
+		loaded.setDevicePixelRatio(line.dpr);
 		auto item = std::make_shared<ItemLine>(
-			Ui::PixmapFromImage(QImage(line.file)));
+			Ui::PixmapFromImage(std::move(loaded)));
 		item->setPos(line.position);
 		_scene->addItem(std::move(item));
 	}
