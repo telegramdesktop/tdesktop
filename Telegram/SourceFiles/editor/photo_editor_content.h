@@ -155,6 +155,8 @@ private:
 	QTransform _canvasMediaMatrix;
 	float64 _canvasZoom = 1.;
 	QPointF _canvasShift;
+	float64 _initialCanvasZoom = 1.;
+	QPointF _initialCanvasShift;
 	std::optional<QRect> _canvasRestored;
 	QPointF _canvasDragShift;
 	std::optional<QPoint> _canvasPress;

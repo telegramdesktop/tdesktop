@@ -152,6 +152,7 @@ struct StoryAlbumIdsKey {
 };
 
 class StoryDrafts;
+class StoryEditSources;
 
 class Stories final : public base::has_weak_ptr {
 public:
@@ -165,6 +166,7 @@ public:
 	[[nodiscard]] Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] StoryDrafts &drafts();
+	[[nodiscard]] StoryEditSources &editSources();
 
 	void updateDependentMessages(not_null<Data::Story*> story);
 	void registerDependentMessage(
@@ -402,6 +404,7 @@ private:
 
 	const not_null<Session*> _owner;
 	std::unique_ptr<StoryDrafts> _drafts;
+	std::unique_ptr<StoryEditSources> _editSources;
 	std::unordered_map<
 		PeerId,
 		base::flat_map<StoryId, std::unique_ptr<Story>>> _stories;

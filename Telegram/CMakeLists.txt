@@ -844,6 +844,8 @@ PRIVATE
     data/data_story.cpp
     data/data_story.h
     data/data_story_drafts.cpp
+    data/data_story_edit_sources.cpp
+    data/data_story_edit_sources.h
     data/data_story_drafts.h
     data/data_streaming.cpp
     data/data_streaming.h

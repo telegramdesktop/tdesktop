@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_stories.h"
 
+#include "data/data_stories.h"
+
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
@@ -471,6 +473,8 @@ void Stories::remove(uint64 uploadId) {
 	if (!upload) {
 		return;
 	}
+	auto failed = base::take(upload->story.failed);
+	const auto error = infoFor(upload).error;
 	cancelWork(upload);
 	removeTempFile(upload);
 	_uploadsInfo.erase(
@@ -482,6 +486,9 @@ void Stories::remove(uint64 uploadId) {
 		}),
 		end(_uploads));
 	notifyChanges();
+	if (failed) {
+		failed(error);
+	}
 }
 
 void Stories::saveCloseFriends(
@@ -1126,8 +1133,20 @@ void Stories::failed(not_null<Upload*> upload, const QString &error) {
 void Stories::finish(not_null<Upload*> upload, StoryId id) {
 	const auto peer = upload->story.peer;
 	const auto edit = (upload->story.editId != 0);
+	auto sent = base::take(upload->story.sent);
+	upload->story.failed = nullptr;
+	auto expiresAt = TimeId(0);
+	if (sent && !edit) {
+		if (const auto story = _session->data().stories().lookup(
+				{ peer->id, id })) {
+			expiresAt = (*story)->expires();
+		}
+	}
 	remove(upload->id);
 	_sent.fire({ .peer = peer, .id = id, .edit = edit });
+	if (sent) {
+		sent(id, expiresAt);
+	}
 }
 
 void Stories::cancelWork(not_null<Upload*> upload) {

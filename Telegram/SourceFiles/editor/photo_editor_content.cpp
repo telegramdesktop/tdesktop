@@ -138,6 +138,8 @@ PhotoEditorContent::PhotoEditorContent(
 		_paint->keepResult();
 	}
 	_paint->resetSceneBaseline();
+	_initialCanvasZoom = _canvasZoom;
+	_initialCanvasShift = _canvasShift;
 	_paint->setCanvasBackground(_background);
 	_paint->setCropRect(QRectF(_crop->cropRect()));
 	_layoutAnimation.init([=](crl::time now) {
@@ -458,7 +460,12 @@ bool PhotoEditorContent::canvasMoved() const {
 }
 
 bool PhotoEditorContent::edited() const {
-	return canvasMoved() || _paint->sceneChanged();
+	if (canvasMode()
+		&& ((_canvasZoom != _initialCanvasZoom)
+			|| (_canvasShift != _initialCanvasShift))) {
+		return true;
+	}
+	return _paint->sceneChanged();
 }
 
 void PhotoEditorContent::restoreCanvasPlacement(QRect rect) {

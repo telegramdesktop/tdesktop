@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_story_box.h"
+
+#include "base/random.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
@@ -141,7 +143,7 @@ void SetupStoryEditorClose(
 		const auto changed = raw->edited()
 			|| (raw->caption() != setup.caption)
 			|| (raw->period() != InitialPeriod(setup));
-		if (!changed && !setup.draftId) {
+		if (!changed) {
 			close();
 			return;
 		}
@@ -402,6 +404,116 @@ void SetupStoryEditorClose(
 	return true;
 }
 
+struct CollectedStoryDraft {
+	Data::StoryDraft draft;
+	Data::StoryDraftMedia media;
+	uint64 fingerprint = 0;
+};
+
+[[nodiscard]] CollectedStoryDraft CollectStoryDraftState(
+		const QImage &image,
+		const Media::Encode::CanvasBackground &background,
+		const Editor::PhotoModifications &mods,
+		const StoryEditorSetup &setup,
+		TextWithTags caption,
+		int period) {
+	auto result = CollectedStoryDraft();
+	const auto painted = mods.paint && ranges::any_of(
+		mods.paint->items(),
+		[](const auto &item) {
+			return item->isNormalStatus() && item->bakes();
+		});
+	auto videoRect = QRectF();
+	const auto video = VideoObjectFromScene(mods.paint, videoRect);
+	const auto composed = ComposeStoryPhoto(image, background, mods);
+	result.draft = Data::StoryDraft{
+		.id = setup.draftId,
+		.peer = setup.peer,
+		.caption = std::move(caption),
+		.period = period,
+		.backgroundTop = background.valid() ? background.top : QColor(),
+		.backgroundBottom = background.valid()
+			? background.bottom
+			: QColor(),
+		.thumbnail = DraftThumbnail(composed),
+	};
+	auto &draft = result.draft;
+	auto &media = result.media;
+	if (mods.paint) {
+		auto files = std::vector<Data::StoryDraftSceneFile>();
+		const auto sink = Editor::SceneDraftFiles{
+			.image = [&](const QImage &image) {
+				files.push_back({ .image = image });
+				return int(files.size()) - 1;
+			},
+			.file = [&](const QString &path,
+					const QByteArray &content,
+					const QString &suffix) {
+				files.push_back({
+					.path = path,
+					.content = content,
+					.suffix = suffix,
+				});
+				return int(files.size()) - 1;
+			},
+		};
+		draft.scene = Editor::SerializeSceneItems(
+			Editor::CollectSceneItems(mods.paint.get(), sink));
+		media.sceneFiles = std::move(files);
+		result.fingerprint = Editor::SceneFingerprint(mods.paint.get());
+		if (const auto audio = mods.paint->audio()) {
+			if (!audio->empty()) {
+				auto &to = draft.audio;
+				to.title = audio->title;
+				to.performer = audio->performer;
+				to.duration = audio->duration;
+				to.from = audio->from;
+				to.till = audio->till;
+				to.volume = audio->volume;
+				to.selected = mods.paint->audioSelected();
+				media.audioPath = audio->path;
+				media.audioContent = audio->content;
+				media.audioCover = audio->cover;
+			}
+		}
+	}
+	const auto hasScene = !draft.scene.isEmpty();
+	if (!video.empty()) {
+		draft.video = true;
+		draft.dimensions = video.thumbnail.size();
+		draft.duration = video.duration;
+		draft.edits = {
+			.flipped = video.flipped,
+			.from = video.from,
+			.till = video.till,
+		};
+		draft.videoPlacement = {
+			.rect = videoRect,
+			.scale = video.scale,
+			.rotation = video.rotation,
+			.volume = video.volume,
+		};
+		media.photo = hasScene
+			? ComposeStoryPhoto(image, background, {})
+			: StillFromScene(image, background, mods);
+		media.videoPath = video.path;
+		media.videoContent = video.content;
+	} else if (!painted || hasScene) {
+		media.photo = image;
+		draft.edits = {
+			.angle = mods.angle,
+			.flipped = mods.flipped,
+			.canvasMediaRect = mods.canvasMediaRect,
+		};
+	} else {
+		media.photo = composed;
+	}
+	if (!draft.video) {
+		draft.dimensions = media.photo.size();
+	}
+	return result;
+}
+
 void OpenStoryPhotoEditor(
 		not_null<Window::SessionController*> controller,
 		QImage image,
@@ -440,98 +552,18 @@ void OpenStoryPhotoEditor(
 	};
 	SetupStoryEditorClose(controller, not_null(raw), setup, close, [=] {
 		const auto mods = raw->collect();
-		const auto painted = mods.paint && ranges::any_of(
-			mods.paint->items(),
-			[](const auto &item) {
-				return item->isNormalStatus() && item->bakes();
-			});
-		auto videoRect = QRectF();
-		const auto video = VideoObjectFromScene(mods.paint, videoRect);
-		const auto composed = ComposeStoryPhoto(image, background, mods);
-		auto media = Data::StoryDraftMedia();
-		auto draft = Data::StoryDraft{
-			.id = setup.draftId,
-			.peer = setup.peer,
-			.caption = raw->caption(),
-			.period = raw->period(),
-			.backgroundTop = background.valid() ? background.top : QColor(),
-			.backgroundBottom = background.valid()
-				? background.bottom
-				: QColor(),
-			.thumbnail = DraftThumbnail(composed),
-		};
-		if (mods.paint) {
-			auto files = std::vector<Data::StoryDraftSceneFile>();
-			const auto sink = Editor::SceneDraftFiles{
-				.image = [&](const QImage &image) {
-					files.push_back({ .image = image });
-					return int(files.size()) - 1;
-				},
-				.file = [&](const QString &path,
-						const QByteArray &content,
-						const QString &suffix) {
-					files.push_back({
-						.path = path,
-						.content = content,
-						.suffix = suffix,
-					});
-					return int(files.size()) - 1;
-				},
-			};
-			draft.scene = Editor::SerializeSceneItems(
-				Editor::CollectSceneItems(mods.paint.get(), sink));
-			media.sceneFiles = std::move(files);
-			if (const auto audio = mods.paint->audio()) {
-				if (!audio->empty()) {
-					auto &to = draft.audio;
-					to.title = audio->title;
-					to.performer = audio->performer;
-					to.duration = audio->duration;
-					to.from = audio->from;
-					to.till = audio->till;
-					to.volume = audio->volume;
-					to.selected = mods.paint->audioSelected();
-					media.audioPath = audio->path;
-					media.audioContent = audio->content;
-					media.audioCover = audio->cover;
-				}
-			}
-		}
-		const auto hasScene = !draft.scene.isEmpty();
-		if (!video.empty()) {
-			draft.video = true;
-			draft.dimensions = video.thumbnail.size();
-			draft.duration = video.duration;
-			draft.edits = {
-				.flipped = video.flipped,
-				.from = video.from,
-				.till = video.till,
-			};
-			draft.videoPlacement = {
-				.rect = videoRect,
-				.scale = video.scale,
-				.rotation = video.rotation,
-				.volume = video.volume,
-			};
-			media.photo = hasScene
-				? ComposeStoryPhoto(image, background, {})
-				: StillFromScene(image, background, mods);
-			media.videoPath = video.path;
-			media.videoContent = video.content;
-		} else if (!painted || hasScene) {
-			media.photo = image;
-			draft.edits = {
-				.angle = mods.angle,
-				.flipped = mods.flipped,
-				.canvasMediaRect = mods.canvasMediaRect,
-			};
-		} else {
-			media.photo = composed;
-		}
-		if (!draft.video) {
-			draft.dimensions = media.photo.size();
-		}
-		SaveStoryDraft(controller, std::move(draft), media, close);
+		auto collected = CollectStoryDraftState(
+			image,
+			background,
+			mods,
+			setup,
+			raw->caption(),
+			raw->period());
+		SaveStoryDraft(
+			controller,
+			std::move(collected.draft),
+			collected.media,
+			close);
 	});
 	raw->doneRequests(
 	) | rpl::on_next([=](const Editor::PhotoModifications &mods) {
@@ -541,6 +573,14 @@ void OpenStoryPhotoEditor(
 			return;
 		}
 		auto areas = CollectAreas(mods, result.size());
+		auto collected = CollectStoryDraftState(
+			image,
+			background,
+			mods,
+			setup,
+			raw->caption(),
+			raw->period());
+		auto fingerprint = collected.fingerprint;
 		done({
 			.media = StoryPhotoMedia(std::move(result), mods),
 			.caption = raw->caption(),
@@ -549,7 +589,14 @@ void OpenStoryPhotoEditor(
 			.urls = std::move(areas.urls),
 			.locations = std::move(areas.locations),
 			.weather = std::move(areas.weather),
-			.mediaChanged = !PhotoUnchanged(mods),
+			.mediaChanged = raw->edited(),
+			.edited = raw->edited(),
+			.source = std::make_shared<Data::StorySourceSave>(
+				Data::StorySourceSave{
+					.draft = std::move(collected.draft),
+					.media = std::move(collected.media),
+					.fingerprint = fingerprint,
+				}),
 		}, close);
 	}, raw->lifetime());
 	show->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
@@ -610,6 +657,7 @@ void EditStoryFile(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		uint64 draftId) {
+	const auto drafts = &Drafts(controller);
 	return [=](StoryEditorResult result, Fn<void()> closeEditor) {
 		controller->show(Box(SendStoryBox, SendStoryBoxArgs{
 			.controller = controller,
@@ -621,12 +669,11 @@ void EditStoryFile(
 			.urls = std::move(result.urls),
 			.locations = std::move(result.locations),
 			.weather = std::move(result.weather),
-			.posted = [=] {
-				if (draftId) {
-					Drafts(controller).remove(draftId);
-				}
-				closeEditor();
-			},
+			.source = std::move(result.source),
+			.posted = closeEditor,
+			.uploaded = draftId
+				? Fn<void()>([=] { drafts->remove(draftId); })
+				: nullptr,
 		}));
 	};
 }
@@ -942,7 +989,8 @@ void PostStoryDraft(
 		Media::Encode::CanvasBackground{
 			.top = draft.backgroundTop,
 			.bottom = draft.backgroundBottom,
-		},			done);
+		},
+		done);
 	}));
 }
 
@@ -952,6 +1000,12 @@ void EditStory(
 	const auto session = &controller->session();
 	const auto id = story->fullId();
 	const auto origin = Data::FileOrigin(Data::FileOriginStory(id));
+	const auto source = session->data().stories().editSources().find(
+		story->peer()->id,
+		id.story,
+		story->photo() ? story->photo()->id : PhotoId(0),
+		story->document() ? story->document()->id : DocumentId(0));
+	const auto fromSource = (source.storyId == id.story);
 	const auto setup = StoryEditorSetup{
 		.caption = TextWithTags{
 			story->caption().text,
@@ -959,11 +1013,38 @@ void EditStory(
 				story->caption().entities),
 		},
 		.editing = true,
+		.sceneItems = fromSource ? source.draft.scene : QJsonArray(),
+		.sceneFiles = fromSource ? source.draft.sceneFiles : QStringList(),
+		.storyAudio = fromSource
+			? Editor::AudioTrack{
+				.path = source.draft.audioPath,
+				.title = source.draft.audio.title,
+				.performer = source.draft.audio.performer,
+				.duration = source.draft.audio.duration,
+				.from = source.draft.audio.from,
+				.till = source.draft.audio.till,
+				.volume = source.draft.audio.volume,
+			}
+			: Editor::AudioTrack(),
+		.storyAudioSelected = fromSource
+			? source.draft.audio.selected
+			: true,
 	};
 	const auto done = [=](StoryEditorResult result, Fn<void()> close) {
 		const auto found = session->data().stories().lookup(id);
 		if (found) {
 			const auto captionChanged = (result.caption != setup.caption);
+			const auto sources
+				= &session->data().stories().editSources();
+			const auto pending = result.source
+				? base::RandomValue<uint64>()
+				: uint64(0);
+			if (pending) {
+				sources->savePending(
+					pending,
+					*result.source,
+					source.send);
+			}
 			if (captionChanged || result.mediaChanged) {
 				session->api().stories().send({
 					.peer = (*found)->peer(),
@@ -977,11 +1058,70 @@ void EditStory(
 					.weather = std::move(result.weather),
 					.editId = (*found)->id(),
 					.editCaption = captionChanged,
+					.sent = pending
+						? Fn<void(StoryId, TimeId)>(
+							[=](StoryId, TimeId expiresAt) {
+								sources->finalize(
+									pending,
+									id.story,
+									expiresAt);
+							})
+						: nullptr,
+					.failed = pending
+						? Fn<void(const QString &)>([=](const QString &) {
+							sources->removePending(pending);
+						})
+						: nullptr,
 				});
+			} else if (pending) {
+				sources->finalize(pending, id.story, (*found)->expires());
 			}
 		}
 		close();
 	};
+	if (fromSource) {
+		const auto background = Media::Encode::CanvasBackground{
+			.top = source.draft.backgroundTop,
+			.bottom = source.draft.backgroundBottom,
+		};
+		if (!source.draft.video) {
+			auto image = QImage(source.draft.mediaPath);
+			if (image.isNull()) {
+				controller->showToast(tr::lng_story_draft_lost(tr::now));
+				return;
+			}
+			auto initial = Editor::PhotoModifications();
+			const auto &edits = source.draft.edits;
+			initial.angle = edits.angle;
+			initial.flipped = edits.flipped;
+			initial.canvasMediaRect = edits.canvasMediaRect;
+			OpenStoryPhotoEditor(
+				controller,
+				std::move(image),
+				std::move(initial),
+				setup,
+				{},
+				background,
+				done);
+		} else {
+			auto canvas = EmptyStoryCanvas();
+			if (!source.draft.stillPath.isEmpty()) {
+				auto still = QImage(source.draft.stillPath);
+				if (!still.isNull()) {
+					canvas = std::move(still);
+				}
+			}
+			OpenStoryPhotoEditor(
+				controller,
+				std::move(canvas),
+				{},
+				setup,
+				{},
+				background,
+				done);
+		}
+		return;
+	}
 	if (const auto photo = story->photo()) {
 		const auto media = photo->createMediaView();
 		media->wanted(Data::PhotoSize::Large, origin);

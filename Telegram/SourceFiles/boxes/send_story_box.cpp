@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_story_box.h"
 
 #include "apiwrap.h"
+#include "base/random.h"
 #include "boxes/send_story_row.h"
 #include "boxes/story_privacy_box.h"
 #include "chat_helpers/compose/compose_show.h"
@@ -75,6 +76,8 @@ struct State {
 	rpl::variable<std::vector<not_null<PeerData*>>> blocklist;
 	rpl::event_stream<> listsChanges;
 	Fn<void()> posted;
+	Fn<void()> uploaded;
+	std::shared_ptr<Data::StorySourceSave> source;
 	bool submitted = false;
 };
 
@@ -648,6 +651,30 @@ void ApplyPrivacy(
 	}
 }
 
+[[nodiscard]] Data::StorySourceSend ToSourceSend(not_null<State*> state) {
+	const auto peers = [](const auto &list) {
+		auto result = std::vector<PeerId>();
+		for (const auto &peer : list) {
+			result.push_back(peer->id);
+		}
+		return result;
+	};
+	auto albums = std::vector<int>();
+	for (const auto &album : state->chosenAlbums.current()) {
+		albums.push_back(album);
+	}
+	return {
+		.option = int(state->option.current()),
+		.excludedEveryone = peers(state->lists.excludedEveryone),
+		.excludedContacts = peers(state->lists.excludedContacts),
+		.selected = peers(state->lists.selected),
+		.pinned = state->pinned.current(),
+		.allowForwards = state->allowForwards.current(),
+		.albums = std::move(albums),
+		.postTo = state->postTo.current()->id,
+	};
+}
+
 void Submit(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
@@ -666,6 +693,10 @@ void Submit(
 				.editId = editing->id(),
 				.editPrivacy = true,
 			});
+			session->data().stories().editSources().updateSendState(
+				editing->peer()->id,
+				editing->id(),
+				ToSourceSend(state));
 		}
 		box->closeBox();
 		return;
@@ -678,6 +709,16 @@ void Submit(
 		state->submitted = false;
 		return;
 	}
+	const auto pendingId = state->source
+		? base::RandomValue<uint64>()
+		: uint64(0);
+	if (pendingId) {
+		session->data().stories().editSources().savePending(
+			pendingId,
+			*state->source,
+			ToSourceSend(state));
+	}
+	const auto uploaded = state->uploaded;
 	session->api().stories().send({
 		.peer = state->postTo.current(),
 		.media = base::take(state->media),
@@ -693,6 +734,27 @@ void Submit(
 		.period = state->period,
 		.pinned = state->pinned.current(),
 		.noForwards = !state->allowForwards.current(),
+		.sent = (pendingId || uploaded)
+			? Fn<void(StoryId, TimeId)>([=](
+					StoryId id,
+					TimeId expiresAt) {
+				if (pendingId) {
+					session->data().stories().editSources().finalize(
+						pendingId,
+						id,
+						expiresAt);
+				}
+				if (uploaded) {
+					uploaded();
+				}
+			})
+			: nullptr,
+		.failed = pendingId
+			? Fn<void(const QString &)>([=](const QString &) {
+				session->data().stories().editSources().removePending(
+					pendingId);
+			})
+			: nullptr,
 	});
 	const auto posted = state->posted;
 	if (posted) {
@@ -718,6 +780,8 @@ void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args) {
 	state->weather = std::move(args.weather);
 	state->editing = editing;
 	state->posted = std::move(args.posted);
+	state->uploaded = std::move(args.uploaded);
+	state->source = std::move(args.source);
 	if (editing) {
 		ApplyPrivacy(state, PrivacyFromStory(editing));
 	} else {

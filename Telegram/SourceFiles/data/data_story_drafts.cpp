@@ -38,13 +38,17 @@ template <typename Write>
 	return QFile::rename(temp, path) ? path : QString();
 }
 
-[[nodiscard]] QString ThumbnailPath(const QString &folder, uint64 id) {
+} // namespace
+
+QString StoryDraftThumbnailPath(const QString &folder, uint64 id) {
 	return folder + QString::number(id) + u"_thumb.jpg"_q;
 }
 
-[[nodiscard]] QString AudioCoverPath(const QString &folder, uint64 id) {
+QString StoryDraftAudioCoverPath(const QString &folder, uint64 id) {
 	return folder + QString::number(id) + u"_audio_cover.png"_q;
 }
+
+namespace {
 
 [[nodiscard]] QString SceneFilePath(
 		const QString &folder,
@@ -52,7 +56,9 @@ template <typename Write>
 		int index,
 		const QString &suffix) {
 	const auto ext = suffix.isEmpty() ? u"png"_q : suffix;
-	return folder + QString::number(id) + u"_scene%1.%2"_q.arg(index).arg(ext);
+	return folder
+		+ QString::number(id)
+		+ u"_scene%1.%2"_q.arg(index).arg(ext);
 }
 
 [[nodiscard]] QJsonObject SerializeCaption(const TextWithTags &caption) {
@@ -84,7 +90,9 @@ template <typename Write>
 	return result;
 }
 
-[[nodiscard]] QJsonObject Serialize(const StoryDraft &draft) {
+} // namespace
+
+QJsonObject SerializeStoryDraftJson(const StoryDraft &draft) {
 	const auto &edits = draft.edits;
 	const auto &rect = edits.canvasMediaRect;
 	const auto &video = draft.videoPlacement;
@@ -140,7 +148,7 @@ template <typename Write>
 	};
 }
 
-[[nodiscard]] std::optional<StoryDraft> Deserialize(
+std::optional<StoryDraft> ParseStoryDraftJson(
 		const QJsonObject &object,
 		const QString &folder) {
 	auto result = StoryDraft();
@@ -202,7 +210,8 @@ template <typename Write>
 			result.audio.till = audio[u"till"_q].toInteger();
 			result.audio.volume = audio[u"volume"_q].toDouble(1.);
 			result.audio.selected = audio[u"on"_q].toBool(true);
-			result.audioCover = QImage(AudioCoverPath(folder, result.id));
+			result.audioCover = QImage(
+				StoryDraftAudioCoverPath(folder, result.id));
 		}
 	}
 	auto &video = result.videoPlacement;
@@ -220,11 +229,9 @@ template <typename Write>
 	if (!QFile::exists(result.mediaPath)) {
 		return std::nullopt;
 	}
-	result.thumbnail = QImage(ThumbnailPath(folder, result.id));
+	result.thumbnail = QImage(StoryDraftThumbnailPath(folder, result.id));
 	return result;
 }
-
-} // namespace
 
 StoryDrafts::StoryDrafts(not_null<Main::Session*> session)
 : _session(session) {
@@ -310,7 +317,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 			QFile::remove(existing->audioPath);
 		}
 		draft.audioPath = path;
-		const auto coverPath = AudioCoverPath(folder(), draft.id);
+		const auto coverPath = StoryDraftAudioCoverPath(folder(), draft.id);
 		if (!media.audioCover.isNull()) {
 			media.audioCover.save(coverPath, "PNG");
 		} else if (replacing) {
@@ -318,7 +325,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 		}
 	} else if (replacing && !existing->audioPath.isEmpty()) {
 		QFile::remove(existing->audioPath);
-		QFile::remove(AudioCoverPath(folder(), existing->id));
+		QFile::remove(StoryDraftAudioCoverPath(folder(), existing->id));
 		draft.audio = StoryDraftAudio();
 	}
 
@@ -370,7 +377,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 	}
 	draft.sceneFiles = std::move(sceneNames);
 
-	const auto thumbnail = ThumbnailPath(folder(), draft.id);
+	const auto thumbnail = StoryDraftThumbnailPath(folder(), draft.id);
 	if (!draft.thumbnail.isNull()) {
 		draft.thumbnail.save(thumbnail, "JPG", kThumbnailQuality);
 	} else if (replacing) {
@@ -444,8 +451,8 @@ void StoryDrafts::removeFiles(const StoryDraft &draft) {
 	for (const auto &file : draft.sceneFiles) {
 		QFile::remove(file);
 	}
-	QFile::remove(AudioCoverPath(folder(), draft.id));
-	QFile::remove(ThumbnailPath(folder(), draft.id));
+	QFile::remove(StoryDraftAudioCoverPath(folder(), draft.id));
+	QFile::remove(StoryDraftThumbnailPath(folder(), draft.id));
 }
 
 void StoryDrafts::load() {
@@ -460,7 +467,7 @@ void StoryDrafts::load() {
 	const auto document = QJsonDocument::fromJson(file.readAll());
 	const auto drafts = document.object()[u"drafts"_q].toArray();
 	for (const auto &value : drafts) {
-		if (auto draft = Deserialize(value.toObject(), folder())) {
+		if (auto draft = ParseStoryDraftJson(value.toObject(), folder())) {
 			_list.push_back(std::move(*draft));
 		}
 	}
@@ -469,7 +476,7 @@ void StoryDrafts::load() {
 void StoryDrafts::write() {
 	auto drafts = QJsonArray();
 	for (const auto &draft : _list) {
-		drafts.append(Serialize(draft));
+		drafts.append(SerializeStoryDraftJson(draft));
 	}
 	auto file = QSaveFile(folder() + u"index.json"_q);
 	if (file.open(QIODevice::WriteOnly)) {

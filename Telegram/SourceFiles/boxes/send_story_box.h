@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_stories.h"
+#include "data/data_story_edit_sources.h"
 
 class PeerData;
 
@@ -42,7 +43,9 @@ struct SendStoryBoxArgs {
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
 	Data::Story *editing = nullptr;
+	std::shared_ptr<Data::StorySourceSave> source;
 	Fn<void()> posted;
+	Fn<void()> uploaded;
 	std::shared_ptr<ChatHelpers::Show> show;
 	const style::SendStoryBoxStyle *style = nullptr;
 };

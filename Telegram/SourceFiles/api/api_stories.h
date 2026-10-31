@@ -79,6 +79,9 @@ struct StoryToSend {
 	bool noForwards = false;
 	bool editCaption = false;
 	bool editPrivacy = false;
+
+	Fn<void(StoryId id, TimeId expiresAt)> sent;
+	Fn<void(const QString &error)> failed;
 };
 
 struct StoryUpload {

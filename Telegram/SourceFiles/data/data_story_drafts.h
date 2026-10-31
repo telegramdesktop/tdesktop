@@ -82,6 +82,18 @@ struct StoryDraftMedia {
 	std::vector<StoryDraftSceneFile> sceneFiles;
 };
 
+[[nodiscard]] QString StoryDraftThumbnailPath(
+	const QString &folder,
+	uint64 id);
+[[nodiscard]] QString StoryDraftAudioCoverPath(
+	const QString &folder,
+	uint64 id);
+
+[[nodiscard]] QJsonObject SerializeStoryDraftJson(const StoryDraft &draft);
+[[nodiscard]] std::optional<StoryDraft> ParseStoryDraftJson(
+	const QJsonObject &object,
+	const QString &folder);
+
 class StoryDrafts final {
 public:
 	explicit StoryDrafts(not_null<Main::Session*> session);

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_stories.h"
+#include "data/data_story_edit_sources.h"
 #include "editor/photo_editor_common.h"
 
 #include <QtCore/QJsonArray>
@@ -51,6 +52,8 @@ struct StoryEditorResult {
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
 	bool mediaChanged = true;
+	bool edited = false;
+	std::shared_ptr<Data::StorySourceSave> source;
 };
 
 using StoryEditorDone = Fn<void(
