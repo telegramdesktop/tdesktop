@@ -729,6 +729,11 @@ void SendStoryBox(not_null<Ui::GenericBox*> box, SendStoryBoxArgs &&args) {
 		: tr::lng_story_post_title());
 	box->setWidth(st::boxWideWidth);
 	box->setStyle(args.style ? args.style->box : st::sendStoryBox);
+	if (editing) {
+		box->addTopButton(
+			args.style ? args.style->close : st::boxTitleClose,
+			[=] { box->closeBox(); });
+	}
 
 	if (!editing) {
 		SetupPostAs(box, controller, state);

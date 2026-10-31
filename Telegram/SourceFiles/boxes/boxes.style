@@ -245,6 +245,7 @@ sendStoryRowStyle: SendStoryRowStyle {
 
 SendStoryBoxStyle {
 	box: Box;
+	close: IconButton;
 	subsectionTitle: FlatLabel;
 	dividerText: DividerLabel;
 	row: SendStoryRowStyle;
