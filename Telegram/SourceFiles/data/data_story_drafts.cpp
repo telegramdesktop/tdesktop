@@ -25,6 +25,7 @@ constexpr auto kPhotoQuality = 95;
 constexpr auto kThumbnailQuality = 87;
 constexpr auto kLifeSeconds = 7 * 86400;
 constexpr auto kMaxDrafts = 50;
+constexpr auto kMaxIndexSize = 16 * 1024 * 1024;
 
 template <typename Write>
 [[nodiscard]] QString ReplaceFile(const QString &path, Write &&write) {
@@ -76,6 +77,13 @@ namespace {
 	};
 }
 
+[[nodiscard]] QString InFolder(const QString &folder, const QString &name) {
+	const auto file = QFileInfo(name).fileName();
+	return (file.isEmpty() || file == u"."_q || file == u".."_q)
+		? QString()
+		: (folder + file);
+}
+
 [[nodiscard]] TextWithTags DeserializeCaption(const QJsonObject &object) {
 	auto result = TextWithTags();
 	result.text = object[u"text"_q].toString();
@@ -123,7 +131,13 @@ QJsonObject SerializeStoryDraftJson(const StoryDraft &draft) {
 		} },
 		{ u"still"_q, QFileInfo(draft.stillPath).fileName() },
 		{ u"scene"_q, draft.scene },
-		{ u"sceneFiles"_q, QJsonArray::fromStringList(draft.sceneFiles) },
+		{ u"sceneFiles"_q, [&] {
+			auto names = QJsonArray();
+			for (const auto &file : draft.sceneFiles) {
+				names.append(QFileInfo(file).fileName());
+			}
+			return names;
+		}() },
 		{ u"audioFile"_q, QFileInfo(draft.audioPath).fileName() },
 		{ u"bgTop"_q, draft.backgroundTop.name(QColor::HexRgb) },
 		{ u"bgBottom"_q, draft.backgroundBottom.name(QColor::HexRgb) },
@@ -158,7 +172,7 @@ std::optional<StoryDraft> ParseStoryDraftJson(
 	}
 	result.date = TimeId(object[u"date"_q].toInteger());
 	result.peer = PeerId(object[u"peer"_q].toString().toULongLong());
-	result.mediaPath = folder + object[u"media"_q].toString();
+	result.mediaPath = InFolder(folder, object[u"media"_q].toString());
 	result.dimensions = QSize(
 		object[u"width"_q].toInt(),
 		object[u"height"_q].toInt());
@@ -182,7 +196,7 @@ std::optional<StoryDraft> ParseStoryDraftJson(
 			canvas[3].toInt());
 	}
 	const auto still = object[u"still"_q].toString();
-	result.stillPath = still.isEmpty() ? QString() : (folder + still);
+	result.stillPath = InFolder(folder, still);
 	if (!result.stillPath.isEmpty() && !QFile::exists(result.stillPath)) {
 		result.stillPath = QString();
 	}
@@ -191,14 +205,14 @@ std::optional<StoryDraft> ParseStoryDraftJson(
 		result.scene = object[u"widgets"_q].toArray();
 	}
 	for (const auto &name : object[u"sceneFiles"_q].toArray()) {
-		const auto path = folder + name.toString();
+		const auto path = InFolder(folder, name.toString());
 		result.sceneFiles.push_back(QFile::exists(path) ? path : QString());
 	}
 	result.backgroundTop = QColor(object[u"bgTop"_q].toString());
 	result.backgroundBottom = QColor(object[u"bgBottom"_q].toString());
 	const auto audioFile = object[u"audioFile"_q].toString();
 	if (!audioFile.isEmpty()) {
-		result.audioPath = folder + audioFile;
+		result.audioPath = InFolder(folder, audioFile);
 		if (!QFile::exists(result.audioPath)) {
 			result.audioPath = QString();
 		} else {
@@ -461,12 +475,15 @@ void StoryDrafts::load() {
 	}
 	_loaded = true;
 	auto file = QFile(folder() + u"index.json"_q);
-	if (!file.open(QIODevice::ReadOnly)) {
+	if (!file.open(QIODevice::ReadOnly) || (file.size() > kMaxIndexSize)) {
 		return;
 	}
 	const auto document = QJsonDocument::fromJson(file.readAll());
 	const auto drafts = document.object()[u"drafts"_q].toArray();
 	for (const auto &value : drafts) {
+		if (int(_list.size()) >= kMaxDrafts) {
+			break;
+		}
 		if (auto draft = ParseStoryDraftJson(value.toObject(), folder())) {
 			_list.push_back(std::move(*draft));
 		}

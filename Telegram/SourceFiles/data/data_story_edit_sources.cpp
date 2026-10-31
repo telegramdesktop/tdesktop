@@ -26,6 +26,7 @@ namespace Data {
 namespace {
 
 constexpr auto kPendingLifeSeconds = 3600;
+constexpr auto kMaxIndexSize = 16 * 1024 * 1024;
 
 [[nodiscard]] QJsonObject SerializeSend(const StorySourceSend &send) {
 	const auto peers = [](const std::vector<PeerId> &list) {
@@ -362,7 +363,7 @@ void StoryEditSources::load() {
 	}
 	_loaded = true;
 	auto file = QFile(folder() + u"index.json"_q);
-	if (!file.open(QIODevice::ReadOnly)) {
+	if (!file.open(QIODevice::ReadOnly) || (file.size() > kMaxIndexSize)) {
 		return;
 	}
 	const auto document = QJsonDocument::fromJson(file.readAll());
