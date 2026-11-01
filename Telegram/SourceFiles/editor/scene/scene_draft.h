@@ -112,6 +112,7 @@ struct SceneItems {
 	std::vector<SceneItemWeather> weather;
 
 	[[nodiscard]] bool empty() const;
+	[[nodiscard]] float64 maxZ() const;
 
 	friend inline bool operator==(
 		const SceneItems &,

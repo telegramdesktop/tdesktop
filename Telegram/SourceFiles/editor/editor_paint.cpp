@@ -1354,6 +1354,7 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 		auto item = std::make_shared<ItemLine>(
 			Ui::PixmapFromImage(std::move(loaded)));
 		item->setPos(line.position);
+		item->setZValue(line.z);
 		_scene->addItem(std::move(item));
 	}
 	for (const auto &message : parsed.messages) {
@@ -1477,6 +1478,7 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 		addMediaItem(std::move(item));
 	}
 	_scene->clearSelection();
+	*_scene->lastZ() = std::max(*_scene->lastZ(), parsed.maxZ() + 1.);
 }
 
 void Paint::addStoryAudio(AudioTrack track, bool selected) {

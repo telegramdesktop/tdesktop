@@ -197,6 +197,32 @@ bool SceneItems::empty() const {
 		&& weather.empty();
 }
 
+float64 SceneItems::maxZ() const {
+	auto result = 0.;
+	const auto consider = [&](float64 z) {
+		result = std::max(result, z);
+	};
+	const auto byPlacement = [&](const auto &list) {
+		for (const auto &item : list) {
+			consider(item.placement.zValue);
+		}
+	};
+	byPlacement(stickers);
+	byPlacement(texts);
+	byPlacement(shapes);
+	byPlacement(images);
+	for (const auto &line : lines) {
+		consider(line.z);
+	}
+	byPlacement(messages);
+	byPlacement(videos);
+	byPlacement(links);
+	byPlacement(reactions);
+	byPlacement(locations);
+	byPlacement(weather);
+	return result;
+}
+
 SceneItems CollectSceneItems(
 		not_null<const Scene*> scene,
 		const SceneDraftFiles &files) {
