@@ -7,21 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/global_media/info_global_media_widget.h"
 
+#include "info/downloads/info_downloads_widget.h"
 #include "info/global_media/info_global_media_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "main/main_session.h"
-#include "ui/boxes/confirm_box.h"
 #include "ui/search_field_controller.h"
-#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
-#include "data/data_download_manager.h"
 #include "data/data_user.h"
-#include "core/application.h"
 #include "lang/lang_keys.h"
-#include "styles/style_layers.h"
-#include "styles/style_menu_icons.h"
 
 namespace Info::GlobalMedia {
 
@@ -103,28 +98,7 @@ void Widget::selectionAction(SelectionAction action) {
 }
 
 void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
-	const auto window = controller()->parentController();
-	const auto deleteAll = [=] {
-		auto &manager = Core::App().downloadManager();
-		const auto phrase = tr::lng_downloads_delete_sure_all(tr::now);
-		const auto added = manager.loadedHasNonCloudFile()
-			? QString()
-			: tr::lng_downloads_delete_in_cloud(tr::now);
-		const auto deleteSure = [=, &manager](Fn<void()> close) {
-			Ui::PostponeCall(this, close);
-			manager.deleteAll();
-		};
-		window->show(Ui::MakeConfirmBox({
-			.text = phrase + (added.isEmpty() ? QString() : "\n\n" + added),
-			.confirmed = deleteSure,
-			.confirmText = tr::lng_box_delete(tr::now),
-			.confirmStyle = &st::attentionBoxButton,
-		}));
-	};
-	addAction(
-		tr::lng_context_delete_all_files(tr::now),
-		deleteAll,
-		&st::menuIconDelete);
+	Downloads::AddDeleteAllAction(this, controller(), addAction);
 }
 
 rpl::producer<QString> Widget::title() {
