@@ -516,6 +516,27 @@ void AddViewMediaHandler(
 	});
 }
 
+void PaintLottieIcon(
+		not_null<Ui::RpWidget*> icon,
+		const std::unique_ptr<Lottie::SinglePlayer> &lottie) {
+	auto p = Painter(icon);
+	const auto factor = style::DevicePixelRatio();
+	const auto request = Lottie::FrameRequest{
+		.box = icon->size() * factor,
+	};
+	const auto frame = (lottie && lottie->ready())
+		? lottie->frameInfo(request)
+		: Lottie::Animation::FrameInfo();
+	if (!frame.image.isNull()) {
+		p.drawImage(
+			QRect(QPoint(), frame.image.size() / factor),
+			frame.image);
+		if (lottie->frameIndex() < lottie->framesCount() - 1) {
+			lottie->markFrameShown();
+		}
+	}
+}
+
 } // namespace
 
 void AddMiniStars(
@@ -1640,23 +1661,7 @@ void GenericCreditsEntryCover(
 		}
 		icon->paintRequest(
 		) | rpl::on_next([=] {
-			auto p = Painter(icon);
-			const auto &lottie = state->lottie;
-			const auto factor = style::DevicePixelRatio();
-			const auto request = Lottie::FrameRequest{
-				.box = icon->size() * factor,
-			};
-			const auto frame = (lottie && lottie->ready())
-				? lottie->frameInfo(request)
-				: Lottie::Animation::FrameInfo();
-			if (!frame.image.isNull()) {
-				p.drawImage(
-					QRect(QPoint(), frame.image.size() / factor),
-					frame.image);
-				if (lottie->frameIndex() < lottie->framesCount() - 1) {
-					lottie->markFrameShown();
-				}
-			}
+			PaintLottieIcon(icon, state->lottie);
 		}, icon->lifetime());
 		content->sizeValue(
 		) | rpl::on_next([=](const QSize &size) {
@@ -2708,23 +2713,7 @@ void UniqueGiftValueBox(
 	}
 	icon->paintRequest(
 	) | rpl::on_next([=] {
-		auto p = Painter(icon);
-		const auto &lottie = state->lottie;
-		const auto factor = style::DevicePixelRatio();
-		const auto request = Lottie::FrameRequest{
-			.box = icon->size() * factor,
-		};
-		const auto frame = (lottie && lottie->ready())
-			? lottie->frameInfo(request)
-			: Lottie::Animation::FrameInfo();
-		if (!frame.image.isNull()) {
-			p.drawImage(
-				QRect(QPoint(), frame.image.size() / factor),
-				frame.image);
-			if (lottie->frameIndex() < lottie->framesCount() - 1) {
-				lottie->markFrameShown();
-			}
-		}
+		PaintLottieIcon(icon, state->lottie);
 	}, icon->lifetime());
 	content->sizeValue(
 	) | rpl::on_next([=](const QSize &size) {
