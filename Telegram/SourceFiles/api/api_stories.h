@@ -73,6 +73,7 @@ struct StoryToSend {
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
+	std::vector<Data::ChannelPost> channelPosts;
 	StoryId editId = 0;
 	int period = kStoryDefaultPeriod;
 	bool pinned = true;

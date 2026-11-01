@@ -31,6 +31,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_story_drafts.h"
 #include "data/data_user.h"
 #include "editor/editor_layer_widget.h"
+#include "editor/editor_message_source.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "editor/editor_story_areas.h"
 #include "editor/photo_editor.h"
 #include "editor/photo_editor_common.h"
@@ -593,6 +597,7 @@ void OpenStoryPhotoEditor(
 			.urls = std::move(areas.urls),
 			.locations = std::move(areas.locations),
 			.weather = std::move(areas.weather),
+			.channelPosts = std::move(areas.channelPosts),
 			.mediaChanged = raw->edited(),
 			.source = std::make_shared<Data::StorySourceSave>(
 				Data::StorySourceSave{
@@ -672,6 +677,7 @@ void EditStoryFile(
 			.urls = std::move(result.urls),
 			.locations = std::move(result.locations),
 			.weather = std::move(result.weather),
+			.channelPosts = std::move(result.channelPosts),
 			.source = std::move(result.source),
 			.posted = closeEditor,
 			.uploaded = draftId
@@ -869,6 +875,33 @@ bool CanRepostStory(not_null<Data::Story*> story) {
 		&& story->canShare()
 		&& (story->photo() || story->document())
 		&& CanPostStory(story->session().user());
+}
+
+bool CanRepostMessageToStory(not_null<HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	if (!CanPostStory(session->user())) {
+		return false;
+	} else if (item->isSponsored() || item->isService()) {
+		return false;
+	}
+	const auto media = item->media();
+	if (media && (media->poll() || media->sharedContact())) {
+		return false;
+	}
+	const auto peer = item->history()->peer;
+	const auto isBroadcastChannel = peer->isChannel() && !peer->isMegagroup();
+	if (!isBroadcastChannel) {
+		const auto forwarded = item->Get<HistoryMessageForwarded>();
+		const auto savedFrom = forwarded ? forwarded->savedFromPeer : nullptr;
+		const auto channel = savedFrom ? savedFrom->asChannel() : nullptr;
+		const auto fwdBroadcast = channel
+			&& !channel->isMegagroup()
+			&& channel->isPublic();
+		if (!fwdBroadcast) {
+			return false;
+		}
+	}
+	return item->allowsForward() && Editor::CanRenderMessage(item);
 }
 
 bool CanEditStory(not_null<Data::Story*> story) {
@@ -1344,6 +1377,75 @@ void RepostStory(
 				.document = (*story)->document(),
 			},
 		}));
+	}));
+}
+
+void RepostMessageToStory(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	const auto session = &controller->session();
+	const auto self = session->user();
+	const auto itemId = item->fullId();
+	session->api().stories().checkCanSend(self, crl::guard(controller, [=](
+			Api::CanSendStory result) {
+		if (!result.allowed()) {
+			ShowCanSendStoryError(controller, self, result);
+			return;
+		}
+		const auto item = session->data().message(itemId);
+		if (!item) {
+			return;
+		}
+		const auto renderItem = Editor::MessageToRender(item);
+		const auto fullId = renderItem->fullId();
+		auto items = Editor::SceneItems();
+		items.messages.push_back({
+			.peerBare = fullId.peer.value,
+			.msgBare = fullId.msg.bare,
+			.placement = {
+				.position = QPointF(
+					Api::kStoryPhotoWidth / 2.,
+					Api::kStoryPhotoHeight / 2.),
+				.rotation = 0.,
+				.scale = 1.,
+				.zValue = 1.,
+			},
+		});
+
+		auto setup = StoryEditorSetup{
+			.peer = self->id,
+			.sceneItems = Editor::SerializeSceneItems(items),
+		};
+
+		auto background = Media::Encode::CanvasBackground();
+		if (const auto media = renderItem->media()) {
+			if (const auto photo = media->photo()) {
+				if (const auto large = photo->createMediaView()) {
+					const auto img = large->image(Data::PhotoSize::Large);
+					if (img) {
+						background = Media::Encode::DominantCanvasBackground(
+							img->original());
+					}
+				}
+			}
+		}
+		if (!background.valid()) {
+			const auto &color1 = st::groupCallMuted1->c;
+			const auto &color2 = st::groupCallLive1->c;
+			background = Media::Encode::CanvasBackground{
+				.top = color1.darker(250),
+				.bottom = color2.darker(300),
+			};
+		}
+
+		OpenStoryPhotoEditor(
+			controller,
+			EmptyStoryCanvas(),
+			{},
+			setup,
+			{},
+			background,
+			ShowSendBoxWhenEdited(controller, self, 0));
 	}));
 }
 

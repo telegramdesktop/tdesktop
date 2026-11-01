@@ -1389,7 +1389,19 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 		auto source = std::make_shared<MessageSource>(history);
 		auto renderer = std::make_unique<MessageRenderer>(source);
 		renderer->setDark(message.dark);
+		auto placement = message.placement;
 		auto itemData = data;
+		if (placement.size <= 0.) {
+			itemData = messageItemData(renderer->size());
+			itemData.initialZoom = data.initialZoom;
+			placement.size = itemData.size;
+		}
+		if (placement.aspectRatio <= 0.) {
+			const auto bubble = renderer->size();
+			placement.aspectRatio = bubble.isEmpty()
+				? 1.
+				: (bubble.height() / float64(bubble.width()));
+		}
 		auto item = std::make_shared<ItemMessage>(
 			std::move(source),
 			std::move(renderer),
@@ -1404,7 +1416,7 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 			const auto &link = item->source()->link();
 			chooseLink(link ? link->url : QString(), item);
 		}));
-		item->applyPlacement(message.placement);
+		item->applyPlacement(placement);
 		addMediaItem(std::move(item));
 	}
 	for (const auto &video : parsed.videos) {

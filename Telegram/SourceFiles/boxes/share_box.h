@@ -77,7 +77,8 @@ void FastShareMessageToSelf(
 void FastShareMessage(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<HistoryItem*> item,
-	ShareBoxStyleOverrides st = {});
+	ShareBoxStyleOverrides st = {},
+	Window::SessionController *controller = nullptr);
 void FastShareMessage(
 	not_null<Window::SessionController*> controller,
 	not_null<HistoryItem*> item,
@@ -126,6 +127,7 @@ public:
 		CountMessagesCallback countMessagesCallback;
 		SubmitCallback submitCallback;
 		FilterCallback filterCallback;
+		Fn<void()> repostStoryCallback;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
 		rpl::producer<QString> copyLinkText;
 		rpl::producer<QString> titleOverride;

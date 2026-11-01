@@ -53,6 +53,7 @@ struct StoryEditorResult {
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
+	std::vector<Data::ChannelPost> channelPosts;
 	bool mediaChanged = true;
 	std::shared_ptr<Data::StorySourceSave> source;
 };
@@ -107,9 +108,13 @@ void RepostStory(
 void PostStoryDraft(
 	not_null<Window::SessionController*> controller,
 	uint64 draftId);
+void RepostMessageToStory(
+	not_null<Window::SessionController*> controller,
+	not_null<HistoryItem*> item);
 
 [[nodiscard]] bool CanPostStory(not_null<PeerData*> peer);
 [[nodiscard]] bool CanRepostStory(not_null<Data::Story*> story);
+[[nodiscard]] bool CanRepostMessageToStory(not_null<HistoryItem*> item);
 [[nodiscard]] bool CanEditStory(not_null<Data::Story*> story);
 [[nodiscard]] bool CanEditStoryPrivacy(not_null<Data::Story*> story);
 

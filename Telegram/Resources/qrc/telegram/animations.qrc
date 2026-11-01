@@ -79,6 +79,7 @@
     <file alias="cocoon.tgs">../../animations/cocoon.tgs</file>
     <file alias="craft_failed.tgs">../../animations/craft_failed.tgs</file>
     <file alias="stop.tgs">../../animations/stop.tgs</file>
+    <file alias="story_repost.tgs">../../animations/story_repost.tgs</file>
     <file alias="toast_hide_results.tgs">../../icons/poll/toast_hide_results.tgs</file>
     <file alias="uploading.tgs">../../icons/poll/uploading.tgs</file>
 

@@ -13,6 +13,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_reaction.h"
 #include "editor/scene/scene_item_weather.h"
+#include "editor/scene/scene_item_message.h"
+#include "editor/editor_message_source.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_components.h"
+#include "data/data_channel.h"
 
 namespace Editor {
 namespace {
@@ -104,6 +110,32 @@ StoryAreas CollectStoryAreas(not_null<const Scene*> scene, QSize canvas) {
 				.color = data.color,
 				.millicelsius = int(base::SafeRound(data.celsius * 1000.)),
 			});
+		} else if (item->type() == ItemMessage::Type) {
+			const auto message = static_cast<ItemMessage*>(item.get());
+			if (const auto source = message->source()) {
+				if (const auto historyItem = source->item()) {
+					auto postFullId = FullMsgId();
+					if (historyItem->history()->peer->isBroadcast()) {
+						postFullId = historyItem->fullId();
+					} else if (const auto forwarded
+						= historyItem->Get<HistoryMessageForwarded>()) {
+						if (const auto savedFrom = forwarded->savedFromPeer) {
+							const auto channel = savedFrom->asChannel();
+							if (channel && channel->isPublic()) {
+								postFullId = FullMsgId(
+									channel->id,
+									forwarded->savedFromMsgId);
+							}
+						}
+					}
+					if (postFullId) {
+						result.channelPosts.push_back({
+							.area = AreaOf(message, canvas),
+							.itemId = postFullId,
+						});
+					}
+				}
+			}
 		}
 	}
 	return result;

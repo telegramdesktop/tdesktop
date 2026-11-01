@@ -18,6 +18,7 @@ struct StoryAreas {
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
+	std::vector<Data::ChannelPost> channelPosts;
 };
 
 [[nodiscard]] StoryAreas CollectStoryAreas(

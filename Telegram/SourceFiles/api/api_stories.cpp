@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_file_origin.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_photo.h"
 #include "data/data_premium_limits.h"
@@ -197,7 +198,8 @@ void PrepareStoryTask::finish() {
 		story.reactions.size()
 		+ story.urls.size()
 		+ story.locations.size()
-		+ story.weather.size());
+		+ story.weather.size()
+		+ story.channelPosts.size());
 	for (const auto &reaction : story.reactions) {
 		using Flag = MTPDmediaAreaSuggestedReaction::Flag;
 		result.push_back(MTP_mediaAreaSuggestedReaction(
@@ -221,6 +223,15 @@ void PrepareStoryTask::finish() {
 			MTP_double(weather.millicelsius / 1000.),
 			MTP_int(Ui::Color32ToSerialized(weather.color))));
 	}
+	for (const auto &post : story.channelPosts) {
+		const auto postPeer = story.peer->owner().peer(post.itemId.peer);
+		if (const auto channel = postPeer->asChannel()) {
+			result.push_back(MTP_inputMediaAreaChannelPost(
+				AreaCoordinatesToMTP(post.area),
+				channel->inputChannel(),
+				MTP_int(post.itemId.msg)));
+		}
+	}
 	return MTP_vector<MTPMediaArea>(result);
 }
 
@@ -239,6 +250,7 @@ struct Stories::Upload {
 	uint64 generation = 0;
 	mtpRequestId requestId = 0;
 	bool hasAudio = false;
+	bool refreshedReference = false;
 	bool uploading = false;
 };
 
@@ -1054,10 +1066,31 @@ void Stories::sendRequest(
 		finish(upload, storyId);
 	};
 	const auto fail = [=](const MTP::Error &error) {
-		if (const auto upload = find(id)) {
-			upload->requestId = 0;
-			failed(upload, error.type());
+		const auto upload = find(id);
+		if (!upload) {
+			return;
 		}
+		upload->requestId = 0;
+		const auto reposting = upload->story.media
+			? std::get_if<SendStoryRepost>(&*upload->story.media)
+			: nullptr;
+		if (reposting
+			&& !upload->refreshedReference
+			&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
+			upload->refreshedReference = true;
+			_session->api().refreshFileReference(
+				Data::FileOrigin(Data::FileOriginStory{
+					.peer = reposting->peer->id,
+					.story = reposting->id,
+				}),
+				[=](const auto &) {
+					if (const auto upload = find(id)) {
+						start(upload);
+					}
+				});
+			return;
+		}
+		failed(upload, error.type());
 	};
 	const auto areas = MediaAreasToMTP(story);
 	if (story.editId) {

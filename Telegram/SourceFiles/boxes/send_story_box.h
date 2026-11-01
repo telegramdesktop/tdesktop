@@ -42,6 +42,7 @@ struct SendStoryBoxArgs {
 	std::vector<Data::UrlArea> urls;
 	std::vector<Data::StoryLocation> locations;
 	std::vector<Data::WeatherArea> weather;
+	std::vector<Data::ChannelPost> channelPosts;
 	Data::Story *editing = nullptr;
 	std::shared_ptr<Data::StorySourceSave> source;
 	Fn<void()> posted;

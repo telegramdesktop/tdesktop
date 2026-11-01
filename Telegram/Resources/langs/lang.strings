@@ -9236,6 +9236,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_live_already" = "A live story is already being streamed.";
 "lng_story_entities_premium" = "Only Telegram Premium subscribers can use formatting in story captions.";
 "lng_story_repost" = "Repost Story";
+"lng_repost_to_story" = "Repost\nto Story";
 "lng_story_edit" = "Edit Story";
 "lng_bot_share_story_failed" = "Couldn't load media to share.";
 

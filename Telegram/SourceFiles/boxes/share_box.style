@@ -33,3 +33,5 @@ shareComment: InputField(defaultInputField) {
 	borderActive: 0px;
 }
 shareCommentPadding: margins(5px, 5px, 5px, 5px);
+
+shareStoryRepostIconSize: 34px;
