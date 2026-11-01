@@ -749,13 +749,20 @@ bool CanEditStoryPrivacy(not_null<Data::Story*> story) {
 
 void PostStory(
 		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		CanSendStoryErrorContext ctx) {
 	const auto session = &controller->session();
-	session->api().stories().checkCanSend(peer, crl::guard(controller, [=](
-			Api::CanSendStory result) {
+	if (ctx.setLoading) {
+		ctx.setLoading(true);
+	}
+	session->api().stories().checkCanSend(peer, crl::guard(controller, [=
+		, ctx = std::move(ctx)](Api::CanSendStory result) mutable {
 		if (!result.allowed()) {
-			ShowCanSendStoryError(controller, peer, result);
+			ShowCanSendStoryError(controller, peer, result, std::move(ctx));
 			return;
+		}
+		if (ctx.setLoading) {
+			ctx.setLoading(false);
 		}
 		ChooseStoryMedia(
 			controller,
@@ -1192,24 +1199,38 @@ void RepostStory(
 void ShowCanSendStoryError(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
-		const Api::CanSendStory &result) {
+		const Api::CanSendStory &result,
+		CanSendStoryErrorContext ctx) {
 	using Type = Api::CanSendStory::Type;
 	const auto session = &controller->session();
 	const auto premium = session->premium();
 	const auto limits = Data::PremiumLimits(session);
+	const auto stopLoading = [&] {
+		if (ctx.setLoading) {
+			ctx.setLoading(false);
+		}
+	};
 	switch (result.type) {
 	case Type::Allowed:
 		return;
 	case Type::PremiumRequired:
+		stopLoading();
 		ShowPremiumPreviewBox(controller, PremiumFeature::Stories);
 		return;
 	case Type::BoostsRequired:
 		controller->showToast(tr::lng_story_boosts_required(tr::now));
 		if (peer->isChannel()) {
-			controller->showSection(Info::Boosts::Make(peer));
+			if (ctx.openBoosts) {
+				ctx.openBoosts();
+			} else {
+				controller->showSection(Info::Boosts::Make(peer));
+			}
+		} else {
+			stopLoading();
 		}
 		return;
 	case Type::CountLimit:
+		stopLoading();
 		ShowLimitBox(controller, premium
 			? tr::lng_story_limit_count_premium(
 				lt_count,
@@ -1221,6 +1242,7 @@ void ShowCanSendStoryError(
 				tr::rich));
 		return;
 	case Type::WeeklyLimit:
+		stopLoading();
 		ShowLimitBox(controller, premium
 			? tr::lng_story_limit_weekly_premium(
 				lt_count,
@@ -1232,6 +1254,7 @@ void ShowCanSendStoryError(
 				tr::rich));
 		return;
 	case Type::MonthlyLimit:
+		stopLoading();
 		ShowLimitBox(controller, premium
 			? tr::lng_story_limit_monthly_premium(
 				lt_count,
@@ -1243,9 +1266,11 @@ void ShowCanSendStoryError(
 				tr::rich));
 		return;
 	case Type::LiveAlready:
+		stopLoading();
 		controller->showToast(tr::lng_story_live_already(tr::now));
 		return;
 	case Type::Error:
+		stopLoading();
 		controller->showToast(result.error.isEmpty()
 			? tr::lng_story_upload_failed(tr::now)
 			: result.error);

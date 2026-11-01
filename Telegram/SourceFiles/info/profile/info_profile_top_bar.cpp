@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_peer_colors.h"
 #include "api/api_peer_photo.h"
+#include "api/api_statistics.h"
 #include "api/api_user_privacy.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
@@ -48,6 +49,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h"
 #include "editor/video/video_editor_layer.h"
 #include "history/history.h"
+#include "info/channel_statistics/boosts/giveaway/boost_badge.h"
+#include "info/channel_statistics/boosts/info_boosts_widget.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_birthday_effect.h"
@@ -104,6 +107,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "boxes/sticker_set_box.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_info_profile_top_bar.h"
 #include "styles/style_layers.h"
@@ -551,6 +555,7 @@ TopBar::TopBar(
 		updateLabelsPosition();
 	}, _title->lifetime());
 
+	_boostsApi = lifetime().make_state<Api::Boosts>(_peer);
 	setupUniqueBadgeTooltip();
 	setupButtons(controller, descriptor.source);
 	setupSwipeBack(controller);
@@ -954,6 +959,31 @@ void TopBar::finalizeActions(
 	shadowRaw->stackUnder(_actions.get());
 }
 
+void TopBar::openBoostsSectionForStory(
+		not_null<Window::SessionController*> controller) {
+	const auto peer = _peer;
+	if (_boostsStatus) {
+		_storyBoostsLoading = false;
+		controller->showSection(Info::Boosts::Make(peer, *_boostsStatus));
+		return;
+	}
+	_boostsApi->request(
+	) | rpl::on_error_done([=](const QString &) {
+		_storyBoostsLoading = false;
+		controller->showSection(Info::Boosts::Make(peer));
+	}, [=] {
+		auto status = _boostsApi->boostStatus();
+		const auto complete = !status.link.isEmpty();
+		if (complete) {
+			_boostsStatus = std::move(status);
+		}
+		_storyBoostsLoading = false;
+		controller->showSection(complete
+			? Info::Boosts::Make(peer, *_boostsStatus)
+			: Info::Boosts::Make(peer));
+	}, lifetime());
+}
+
 void TopBar::searchInCommunity(
 		not_null<Window::SessionController*> controller) {
 	const auto channel = _peer->asChannel();
@@ -1152,8 +1182,25 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 			this,
 			tr::lng_story_add_button(tr::now),
 			st::infoProfileTopBarActionStory);
+		const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
+			story,
+			st::infoProfileTopBarActionButtonIconSize,
+			&st::editStickerSetNameLoading);
+		Info::Statistics::AddChildToWidgetCenter(story, loading);
+		loading->showOn(_storyBoostsLoading.value());
+		_storyBoostsLoading.value(
+		) | rpl::on_next([=](bool value) {
+			story->setDisabled(value);
+		}, story->lifetime());
 		story->setClickedCallback([=, window = controller] {
-			::Media::Stories::PostStory(window, peer);
+			::Media::Stories::PostStory(window, peer, {
+				.setLoading = crl::guard(this, [=](bool value) {
+					_storyBoostsLoading = value;
+				}),
+				.openBoosts = crl::guard(this, [=] {
+					openBoostsSectionForStory(window);
+				}),
+			});
 		});
 		story->setAccessibleName(tr::lng_story_add_button(tr::now));
 		buttons.push_back(story);

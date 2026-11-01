@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "data/data_boosts.h"
 #include "info/info_controller.h" // Key
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/tabs/info_profile_tab_top_bar_bindings.h"
@@ -15,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
+
+namespace Api {
+class Boosts;
+} // namespace Api
 
 namespace Data {
 class ForumTopic;
@@ -185,6 +190,8 @@ private:
 		not_null<Window::SessionController*> controller,
 		Fn<void()> showSavedMusic);
 	void applyPillsReserve(int reserve);
+	void openBoostsSectionForStory(
+		not_null<Window::SessionController*> controller);
 	void searchInCommunity(not_null<Window::SessionController*> controller);
 	void finalizeActions(
 		const std::vector<not_null<TopBarActionButton*>> &buttons);
@@ -392,6 +399,9 @@ private:
 	std::vector<Ui::OutlineSegment> _storySegments;
 	bool _hasStories = false;
 	bool _hasLiveStories = false;
+	Api::Boosts *_boostsApi = nullptr;
+	std::optional<Data::BoostStatus> _boostsStatus;
+	rpl::variable<bool> _storyBoostsLoading = false;
 
 	std::optional<uint8> _localColorProfileIndex;
 	std::optional<DocumentId> _localPatternEmojiId;

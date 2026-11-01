@@ -65,9 +65,15 @@ void ChooseStoryMedia(
 	StoryEditorSetup setup,
 	StoryEditorDone done);
 
+struct CanSendStoryErrorContext {
+	Fn<void(bool)> setLoading;
+	Fn<void()> openBoosts;
+};
+
 void PostStory(
 	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer);
+	not_null<PeerData*> peer,
+	CanSendStoryErrorContext ctx = {});
 void PostStoryWithFile(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
@@ -97,7 +103,8 @@ void PostStoryDraft(
 void ShowCanSendStoryError(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
-	const Api::CanSendStory &result);
+	const Api::CanSendStory &result,
+	CanSendStoryErrorContext ctx = {});
 
 void SetupStoryPostToasts(not_null<Window::SessionController*> controller);
 
