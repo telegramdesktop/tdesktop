@@ -290,7 +290,7 @@ void FillSourceMenu(
 	if (!peer->isSelf() && Media::Stories::CanPostStory(peer)) {
 		add(tr::lng_story_post_button(tr::now), [=] {
 			Media::Stories::PostStory(controller, peer);
-		}, &st::menuIconStoriesSavedSection);
+		}, &st::menuIconStoryPost);
 	}
 	if (peer->isSelf()) {
 		if (owner->stories().drafts().count() > 0) {

@@ -672,7 +672,7 @@ void Filler::addPostStory() {
 	const auto peer = _peer;
 	_addAction(tr::lng_story_post_button(tr::now), [=] {
 		Media::Stories::PostStory(controller, peer);
-	}, &st::menuIconStoriesSavedSection);
+	}, &st::menuIconStoryPost);
 }
 
 void Filler::addStoryDrafts() {
