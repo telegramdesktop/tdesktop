@@ -267,11 +267,6 @@ void HandleReply(std::shared_ptr<Ceremony> ceremony, Bytes plaintext) {
 			Finish(std::move(ceremony), Outcome::Failed);
 			return;
 		}
-		if (ceremony->loginExpectedAssertions > 1
-			&& parsed->credentialId.empty()) {
-			Finish(std::move(ceremony), Outcome::Failed);
-			return;
-		}
 		ceremony->loginAssertions.push_back(*parsed);
 		if (ceremony->loginAssertions.size() < ceremony->loginExpectedAssertions) {
 			SendCtapRequest(ceremony, true);

@@ -469,13 +469,22 @@ void CloseBox(const std::shared_ptr<State> &state) {
 			&& assertions.size() > 1
 			&& requestedUv == FIDO_OPT_OMIT
 			&& state.data.userVerification != u"discouraged"_q
-			&& AssertionsUnlabeled(assertions)) {
-			auto withUv = std::vector<LoginAssertion>();
-			const auto codeWithUv = runAttempt(FIDO_OPT_TRUE, withUv);
-			if (codeWithUv == FIDO_OK
-				&& withUv.size() == assertions.size()
-				&& !AssertionsUnlabeled(withUv)) {
-				assertions = std::move(withUv);
+			&& AssertionsUnlabeled(assertions)
+			&& !state.ceremony->cancelled()) {
+			const auto ceremony = state.ceremony;
+			crl::on_main([ceremony] {
+				if (!ceremony->cancelled()) {
+					ShowMessage(tr::lng_passkey_touch(tr::now));
+				}
+			});
+			if (!state.ceremony->cancelled()) {
+				auto withUv = std::vector<LoginAssertion>();
+				const auto codeWithUv = runAttempt(FIDO_OPT_TRUE, withUv);
+				if (codeWithUv == FIDO_OK
+					&& withUv.size() == assertions.size()
+					&& !AssertionsUnlabeled(withUv)) {
+					assertions = std::move(withUv);
+				}
 			}
 		}
 
