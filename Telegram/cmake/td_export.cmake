@@ -20,7 +20,6 @@ PRIVATE
     export/export_settings.h
     export/data/export_data_types.cpp
     export/data/export_data_types.h
-    export/data/export_message_slice.h
     export/output/export_output_abstract.cpp
     export/output/export_output_abstract.h
     export/output/export_output_file.cpp
