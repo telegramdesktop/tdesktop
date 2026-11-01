@@ -1058,7 +1058,7 @@ void BuildSubject(
 		QPoint cursor) {
 	const auto titleRoom = st::defaultActiveButton.height;
 	auto column = QSize();
-	for (const auto subject : subjects) {
+	for (const auto &subject : subjects) {
 		const auto size = subject->window->size();
 		column = QSize(
 			std::max(column.width(), size.width()),
@@ -1066,7 +1066,7 @@ void BuildSubject(
 	}
 	auto position = FarCorner(available, column, cursor);
 	const auto bounds = QRect(position, column);
-	for (const auto subject : subjects) {
+	for (const auto &subject : subjects) {
 		const auto size = subject->window->size();
 		position.ry() += titleRoom;
 		subject->window->setGeometry(QRect(position, size));
@@ -1166,7 +1166,7 @@ void ShowSubject(not_null<Subject*> subject) {
 		subjects,
 		screen->availableGeometry(),
 		cursor);
-	for (const auto subject : subjects) {
+	for (const auto &subject : subjects) {
 		ShowSubject(subject);
 	}
 	return QString();
