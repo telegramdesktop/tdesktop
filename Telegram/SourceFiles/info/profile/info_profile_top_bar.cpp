@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "lottie/lottie_multi_player.h"
 #include "main/main_session.h"
+#include "media/stories/media_stories_post.h"
 #include "menu/menu_mute.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/sections/settings_information.h"
@@ -1141,6 +1142,22 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 				? (const style::color*)(nullptr)
 				: &st::windowBoldFg);
 		}, notifications->lifetime());
+	}
+	if (!topic && !sublist
+		&& channel
+		&& channel->amIn()
+		&& !channel->isMonoforum()
+		&& ::Media::Stories::CanPostStory(peer)) {
+		const auto story = Ui::CreateChild<TopBarActionButton>(
+			this,
+			tr::lng_story_add_button(tr::now),
+			st::infoProfileTopBarActionStory);
+		story->setClickedCallback([=, window = controller] {
+			::Media::Stories::PostStory(window, peer);
+		});
+		story->setAccessibleName(tr::lng_story_add_button(tr::now));
+		buttons.push_back(story);
+		_actions->add(story);
 	}
 	if (chechMax()) {
 		return;
