@@ -21,6 +21,7 @@ PRIVATE
     SyntaxHighlighter.h
     TokenList.cpp
     TokenList.h
+    UnicodeEscapes.h
 )
 
 target_include_directories(lib_prisma

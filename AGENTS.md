@@ -48,8 +48,9 @@ done | sort
   implementation, no matter how small the task looks.
 - Acting on an existing queue task goes through the workflow skills instead of
   by hand: `perform-task <slug or full id>` starts or resumes and performs
-  exactly one known task, and `continue` drains eligible shared work. Source
-  commits owned by a task use the three-line form described under `## Commits`.
+  exactly one known task, and `continue <batch specification>` runs the batch
+  of tasks the specification selects. Source commits owned by a task use the
+  three-line form described under `## Commits`.
 - A request the user makes in conversation is ordinary work: do it directly in
   this checkout. Do not write it to the ignored `../ai-tdesktop/inbox/inbox.md`,
   and do not run `process-inbox` or `continue` over it, unless the user asks for
@@ -99,6 +100,35 @@ L:\Telegram\ThirdParty\         # Build tools (NuGet, Python, etc.)
 
 Dependencies are located relative to the repository: `../Libraries`, `../win64/Libraries`, or `../ThirdParty`.
 
+## Dependency backports
+
+For explicitly requested dependency updates and backports, use the dependency
+repositories' `master` branches directly. Do not create `codex/*` or other topic
+branches in `Libraries/patches`, `Libraries/tg_owt`, or `Libraries/tg_angle`.
+The scheduled dependency monitor remains advisory and does not implement fixes.
+
+- Before editing each dependency repository, inspect its working tree and
+  current branch, fetch `origin`, and verify that the checkout is on `master`,
+  tracks `origin/master`, and is synchronized with the fetched remote branch.
+  Switch to `master` when necessary and fast-forward it when possible. Review
+  divergence before integrating it; preserve unrelated edits, untracked library
+  checkouts and local commits. Do not reset them away or publish unrelated local
+  commits implicitly.
+- Commit fixes to our copied dependencies, including WebRTC and ANGLE, directly
+  in `tg_owt` and `tg_angle`. For external dependencies such as Qt and FFmpeg,
+  commit patch files to `Libraries/patches` and apply them consistently through
+  the applicable prepare, Docker and Snap recipes. Keep intentional differences
+  between platform versions and do not add patch copies inside tdesktop.
+- Keep each independent fix in a separate commit and retain its upstream
+  provenance. Review applicability, prerequisites and patch interactions before
+  committing. Respect the requested validation scope; do not rebuild dependencies
+  unless the user explicitly requests it.
+- Push `master` to `origin/master` without force, fetch again and verify that
+  every new dependency commit is reachable from the published `origin/master`.
+  Only then update the applicable tdesktop revisions to those published SHAs.
+  If integration changes a SHA, update every recipe that consumed the old one.
+  A commit available only on a local or topic branch is not a finished update.
+
 ## Build Configuration
 
 ### Build Commands
@@ -123,6 +153,24 @@ cmake --build "l:\Telegram\tx64\out" --config Debug --target Telegram
 ```
 
 **Never build Release** - it's extremely heavy and not needed for testing changes.
+
+**On macOS, never run an Xcode clean against `out/`** - not `--target clean`,
+not `--clean-first` with any target, not `xcodebuild ... clean` and not a
+Clean in the Xcode app. Xcode's build-products folder for `Telegram` is
+`out/Debug`, which also holds the portable account folders. When `out/Debug`
+carries the `com.apple.xcode.CreatedByBuildSystem` extended attribute,
+`--target clean` deletes `out/Debug` with every folder in it, and
+`--target Telegram --clean-first` does the same before it builds. Without the
+attribute, `--target clean` refuses to delete `out/Debug` and ends
+`** CLEAN FAILED **` (exit 65). It ends the same way when it refuses only
+another, unmarked products folder and deletes a marked `out/Debug`, so exit 65
+alone does not prove that `out/Debug` survived. To force a full recompile,
+follow the `out/build` deletion in "### Forcing a full recompile on macOS"
+under "## Troubleshooting" exactly as written there, its precondition and its
+checks before and after the rebuild included. Never mark `out/Debug` deletable
+with `xattr -w com.apple.xcode.CreatedByBuildSystem true`, as the note in
+Xcode's refusal suggests, and never move, rename or remove any `out/Debug`
+entry to make a clean succeed.
 
 ## Platform-Specific Requirements
 
@@ -183,37 +231,65 @@ older `kKeysCount`. The characteristic failure is:
   `Local::readLangPack()`.
 
 If this exact startup failure repeats twice, do not change the implementation,
-test overlay, or portable account. Stop only this checkout's exact Telegram
-process. Because Xcode's `CONFIGURATION_BUILD_DIR` is `out/Debug`, make a
-safety copy of every existing portable folder outside `out/` before cleaning:
+test overlay, or portable account. Rebuild every object once by following the
+`out/build` deletion in "### Forcing a full recompile on macOS" exactly as
+written there, its precondition and checks included, never with an Xcode clean
+(see the macOS statement in "### Build Commands" under
+"## Build Configuration"). Then rerun the same test once. If the signature
+persists after that clean rebuild, continue normal crash diagnosis or report
+the blocker. Do not loop clean rebuilds.
+
+### Forcing a full recompile on macOS
+
+Start only when no build of this checkout is running and this checkout's exact
+Telegram process is stopped. Never stop any other process for this procedure.
+Outside the autonomous `continue` / `perform-task` workflow, stopping that
+process follows "### Build output locks": the user may be testing it, so ask
+the user first and never terminate it without explicit permission. Then
+rebuild every object by deleting the intermediate tree `out/build`, never with
+an Xcode clean (see the macOS statement in "### Build Commands" under
+"## Build Configuration").
+
+The generated project keeps every intermediate (object files, precompiled
+headers and Xcode's build database) under `out/build`, its `SYMROOT`, and
+only build products in `out/Debug` and the other per-target `Debug` folders.
+Deleting `out/build` therefore works the same whether or not `out/Debug`
+carries the `com.apple.xcode.CreatedByBuildSystem` attribute, and it touches
+nothing in `out/Debug`. From the repository root, record what `out/Debug`
+holds, delete the intermediates and confirm that `out/build` is gone:
 
 ```bash
-portable_backup_root="$(mktemp -d "${TMPDIR:-/tmp}/tdesktop-portable-clean.XXXXXX")"
-for portable_name in \
-  TelegramForcePortable \
-  test_TelegramForcePortable \
-  real_TelegramForcePortable; do
-  if [ -d "out/Debug/$portable_name" ]; then
-    ditto "out/Debug/$portable_name" "$portable_backup_root/$portable_name"
-  fi
-done
+test -d out/Telegram.xcodeproj &&
+  ls -A out/Debug | sort > out/language-rebuild-mark.txt &&
+  rm -rf out/build &&
+  test ! -e out/build &&
+  echo 'out/build is gone'
 ```
 
-Require every expected backup copy to exist before continuing. Then perform
-one full Xcode Debug clean and rebuild:
+It must print `out/build is gone`: no intermediate object survived. Object
+files elsewhere in `out/`, such as CMake's compiler checks or a release
+build's tree, belong to other builds; leave them alone. This step has no
+accepted failure: an error, other output or no output stops the procedure.
+Then run one full Debug rebuild, which has to compile every object again:
 
 ```bash
-cmake --build out --config Debug --target clean
 cmake --build out --config Debug --target Telegram
 ```
 
-Afterward, restore a portable folder from the backup only when its original
-path is missing; never overwrite a folder that survived the clean. Verify all
-three original folder names that existed before the clean are present, keep
-the backup until the rebuilt app completes one successful launch, and record
-its path if the run stops before verification. Then rerun the same test once.
-If the signature persists after that clean rebuild, continue normal crash
-diagnosis or report the blocker. Do not loop clean rebuilds.
+It must end `** BUILD SUCCEEDED **`. Then check that the rebuild compiled every
+object and that nothing in `out/Debug` was lost:
+
+```bash
+test -f out/language-rebuild-mark.txt &&
+  find out/build -name '*.o' ! -newer out/language-rebuild-mark.txt | wc -l &&
+  find out/build -name '*.o' | wc -l &&
+  ls -A out/Debug | sort | comm -23 out/language-rebuild-mark.txt -
+```
+
+It must print `0` (no object file is older than the mark written before
+`out/build` was deleted), then a nonzero object count, and nothing else (every
+entry `out/Debug` held before is still there). Anything else stops the
+procedure; report what it printed.
 
 ### Build output locks
 
@@ -235,6 +311,14 @@ user to close that checkout's Telegram/debugger before rebuilding.
 1. **Always use Debug builds** - Release builds are extremely heavy
 2. **Don't build Release configuration** - it's too heavy for testing
 
+## Remote CI Build Validation (private-ci)
+
+Fast Debug build checks on Depot.dev (`.github/workflows/private-ci.yml`) run on
+`private-ci/<slug>` branches. Strictly on-demand: never push or babysit CI unless
+the user explicitly asks. Track with `gh run watch`, inspect with
+`gh run view --log-failed`. Amend your commit on your own build error; make a
+separate commit if broken by upstream. Delete the remote branch when green.
+
 ## Debug-Only Code
 
 Production translation units stay free of debug machinery. The permanent test
@@ -253,6 +337,17 @@ publication at a construction seam).
 - Exceptions exist — a few `#ifdef _DEBUG` hooks are deliberately kept in
   production files — but they are exceptions and each new one needs a solid,
   stated reason. "The test needed it" is not one.
+
+## Harness documentation
+
+Keep `Telegram/SourceFiles/test/README.md` a short mandatory guide, under
+8 KiB. When adding or changing a harness helper, follow
+`Telegram/SourceFiles/test/docs/adding-helpers.md`: add or update one helper
+index row and its on-demand reference, and keep the source header focused on
+its callable contract. Detailed examples, platform caveats and diagnostic
+history belong in the references, not in the mandatory README. Overlay work
+reads that guide, the references selected by the task and their headers;
+never require reading every helper page.
 
 ## Text File Format
 
@@ -286,6 +381,9 @@ publication at a construction seam).
   implementation notes out of the commit message; put a short durable note
   under `tasks/<task-id>.md` only when useful. Do not copy commit hashes into
   that note or any AI task artifact; the task id is the cross-repository link.
+- Never create backup branches or tags before a rebase, reorder, squash or any
+  other history rewrite. The branch reflog keeps the old tip; report its sha
+  as the undo path instead.
 
 ## Local Storage Serialization
 
@@ -299,6 +397,17 @@ Both app-level (`Core::Settings`) and session-level (`Main::SessionSettings`) us
 ---
 
 # Development Guidelines
+
+## Area maps
+
+`Telegram/SourceFiles/AGENTS.md` is the source atlas: every area of the
+tree with its paths and responsibility. A directory may also
+have its own `AGENTS.md`: the map of that area's modules, placement rules,
+invariants, and things to leave alone. Before adding code, read the atlas
+entry of the area you touch and the nearest map, and put new code where they
+say. A change that needs a different shape amends the map in the same task.
+How the atlas and maps are written and how changes are checked against them
+is in `.agents/skills/code-health/SKILL.md`.
 
 ## Coding Style
 
@@ -714,6 +823,23 @@ void MyWidget::paintEvent(QPaintEvent *e) {
     p.fillRect(rect(), st::chatInput.backgroundColor);
 }
 ```
+
+## Input Method Hints
+
+A field for typed content tells the input method what it is for: call `setInputMethodHints` right after creating it (`Ui::InputField` forwards the hints to its inner editor; `Ui::MaskedInputField` subclasses set them in the constructor). Combinations already used in the code:
+
+- URL: `Qt::ImhUrlCharactersOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- E-mail: `Qt::ImhEmailCharactersOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- Phone: `Qt::ImhDialableCharactersOnly | Qt::ImhNoPredictiveText`
+- Digits only (codes, date and time parts): `Qt::ImhDigitsOnly | Qt::ImhNoPredictiveText`
+- Numbers with separators (amounts, timestamps): `Qt::ImhFormattedNumbersOnly | Qt::ImhNoPredictiveText`
+- Latin identifiers (usernames, file extensions, keys): `Qt::ImhLatinOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- Add `Qt::ImhSensitiveData` to one-time codes and to secrets shown in clear text, such as recovery phrase words
+- Free text (names, titles, comments, search) gets no hints; `Ui::PasswordInput` sets its own
+
+Prefer the hint that says what the field is for, as long as it works or at least doesn't conflict with what works. To see what works, check every consumer on every platform tdesktop ships at the Qt version in use: the Qt platform plugins (windows, cocoa, xcb, wayland) and the input context plugins, including the bundled ones (fcitx5-qt). If the semantic hint conflicts, pick what works. Hints don't filter input: the field still drops unwanted characters itself.
+
+As of 2026-10-20, `Qt::ImhDate` and `Qt::ImhTime` do nothing anywhere tdesktop runs. Qt on Wayland sends them as the date/time content purpose, but no Wayland on-screen keyboard implements those purposes (Qt Virtual Keyboard, which Plasma Keyboard is built on, GNOME Shell, Squeekboard). Qt reads them on none of tdesktop's other platforms (Windows, macOS, X11), and neither does the bundled fcitx5-qt. Used instead of the digit hints, they lose the digit layouts, so date and time fields use the digit hints above.
 
 ## Localization
 

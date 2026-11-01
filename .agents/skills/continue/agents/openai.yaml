@@ -1,4 +1,4 @@
 interface:
   display_name: "Continue AI Work"
-  short_description: "Resume active work, then drain the selected batch"
-  default_prompt: "Use $continue to place any active task first, freeze all startup tasks matching my criteria behind it, and process the batch one task at a time."
+  short_description: "Resume active work, then run a specified batch"
+  default_prompt: "Use $continue to place any active task first, freeze exactly the tasks my batch specification selects behind it, and process the batch one task at a time."

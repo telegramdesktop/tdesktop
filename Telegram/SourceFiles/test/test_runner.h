@@ -25,7 +25,9 @@ inline constexpr auto kStartupStageTimeout = crl::time(30000);
 // in TEST_COMPLETE and quit, never a hang. A stage whose |skipReason| returns
 // a non-empty string does not apply: the runner writes TEST_RESULT: N/A with
 // that reason, skips |run|, |until| and |then|, and moves to the next stage
-// in the same turn, so a false gate never waits and never times out.
+// in the same turn, so a false gate never waits and never times out. A stage
+// appended inside Runner::addGated also inherits that group's gate, read
+// before its own |skipReason|.
 struct Stage {
 	QString name;
 	Fn<QString()> skipReason;
@@ -40,6 +42,30 @@ class Runner final {
 public:
 	void add(Stage stage);
 
+	// One fixture prerequisite shared by a composed group of stages. Calls
+	// |compose| once, synchronously, before start(); every stage appended
+	// while it runs (through add, the sugar waits, actOnWidget,
+	// captureWidget, captureAndInspect or any helper given the runner)
+	// inherits |gate|. When such a stage begins, the open groups' gates are
+	// read outermost first, then the stage's own skipReason. The first
+	// non-empty answer of a group's gate is kept for every later stage of
+	// that group: a gate that later answers another reason or empty changes
+	// nothing. A non-empty answer writes TEST_RESULT: N/A: <stage> - <reason>
+	// and skips |run|, |until| and |then|, so no widget is resolved, no
+	// readiness polled, no action dispatched and no capture taken. Work that
+	// |compose| itself does while appending is not a stage and is not gated.
+	// Stages appended after it returns, addRecovery stages and onFinish
+	// releases do not inherit; the session gate's refusal still replaces
+	// every stage's reason at start(). The prerequisite deciding |gate| must
+	// be settled by an earlier stage (await an asynchronous answer in that
+	// stage's |until|). Usage: docs/helpers/test_runner.md.
+	void addGated(Fn<QString()> gate, Fn<void()> compose);
+
+	// Appends |stage| with only its own skipReason (its recovery policy),
+	// even while an addGated composition is open, so a failed prerequisite
+	// never swallows a restoration stage. The session gate still skips it.
+	void addRecovery(Stage stage);
+
 	// Sugar stages over the common waits.
 	void waitEvent(
 		const QString &event,
@@ -50,7 +76,8 @@ public:
 
 	// Polls an exact target and an optional pure readiness predicate, then
 	// runs the action once against the same lifetime-guarded widget. This
-	// avoids eager stage actions and resolve-again races.
+	// avoids eager stage actions and resolve-again races. Inside addGated the
+	// stage inherits the group's gate.
 	void actOnWidget(
 		const QString &name,
 		Fn<QWidget*()> resolve,
@@ -62,7 +89,8 @@ public:
 	// Resolves an exact widget on every tick, waits until the harness can
 	// prepare a valid painted frame and the optional task predicate agrees,
 	// then saves that same frame. Use this for full boxes, layer owners, and
-	// animated surfaces instead of capture-from-then timing guesses.
+	// animated surfaces instead of capture-from-then timing guesses. Inside
+	// addGated the stage inherits the group's gate.
 	void captureWidget(
 		const QString &name,
 		Fn<QWidget*()> resolve,
@@ -76,7 +104,8 @@ public:
 	// so a mismatch is a FAIL with actual values, never a timeout.
 	// |skipReason| becomes the capture stage's own Stage::skipReason: a
 	// non-empty answer when the stage begins writes TEST_RESULT: N/A and
-	// skips it; left empty the stage is unchanged.
+	// skips it; left empty the stage is unchanged. Inside addGated the stage
+	// inherits the group's gate; |skipReason| is read after it.
 	void captureAndInspect(
 		const QString &name,
 		Fn<QWidget*()> resolve,
@@ -96,11 +125,32 @@ public:
 	// drain nor wait for it, and they run before Complete() and Core::Quit().
 	// They also run when a teardown stage already ran, so they must be safe
 	// to call after teardown. A registration made after finish() has already
-	// run executes immediately and is never silently dropped.
+	// run executes immediately and is never silently dropped. The
+	// Test-session helper's finish verification (FinishSessionGate in
+	// test_session_gate.h) runs after every callback registered before or
+	// during finish(), and before the post-quit fuse and the drain. Only
+	// while a switch back's post-switch drain is outstanding - that
+	// verification switched an account back, or the watchdog finished the
+	// runner while the helper's restore stage was still waiting its drain -
+	// does finish() also wait what is left of that drain, yielding to the
+	// event loop, and take its fresh verification
+	// (FinishSessionGateAfterDrain) before running the drain, Complete() and
+	// Core::Quit() once; a timer that arrives before the drain's recorded end
+	// waits the rest again, so neither the verification nor the completion
+	// comes early. The post-quit fuse is armed before that wait, its
+	// deadline extended by it. Without the helper, or when it is already
+	// settled (nothing was switched back, or the restore stage finished its
+	// drain and its fresh check), finish() goes on at once.
 	void onFinish(Fn<void()> callback);
 
 	[[nodiscard]] bool empty() const;
 
+	// Logs SCENARIO_START, arms the watchdog, then runs the session gate
+	// (test_session_gate.h) before the first stage begins: it logs every
+	// account's environment and, when it refuses, writes one
+	// "fixture gate: session gate" FAIL and gives every stage its skip
+	// reason, so each writes TEST_RESULT: N/A, none of their callbacks runs
+	// and the run still reaches finish() and TEST_COMPLETE.
 	void start();
 
 private:
@@ -110,6 +160,7 @@ private:
 	void finish();
 
 	std::vector<Stage> _stages;
+	std::vector<Fn<QString()>> _inheritedGates;
 	int _index = 0;
 	bool _started = false;
 	bool _finished = false;

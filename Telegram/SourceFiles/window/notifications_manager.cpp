@@ -101,7 +101,9 @@ base::options::toggle OptionMacModernNotifications({
 	.name = "Modern macOS notifications",
 	.description = "Use UserNotifications framework"
 		" for native notifications (macOS 10.14+)."
-		" System asks for notifications permission on first launch.",
+		" System asks for notifications permission on first launch."
+		" Once used, it stays in use even if turned off,"
+		" because macOS stops showing the older notifications.",
 	.scope = base::options::macos,
 	.restartRequired = true,
 });
@@ -1243,6 +1245,29 @@ TextWithEntities Manager::ComposePollVoteNotification(
 		tr::marked);
 }
 
+Manager::ContextId Manager::ItemContextId(not_null<HistoryItem*> item) {
+	const auto history = item->history();
+	return {
+		.sessionId = history->session().uniqueId(),
+		.peerId = history->peer->id,
+		.topicRootId = item->topicRootId(),
+		.monoforumPeerId = (history->amMonoforumAdmin()
+			? item->sublistPeerId()
+			: PeerId()),
+	};
+}
+
+Manager::ContextId Manager::SublistContextId(
+		not_null<Data::SavedSublist*> sublist) {
+	return {
+		.sessionId = sublist->session().uniqueId(),
+		.peerId = sublist->owningHistory()->peer->id,
+		// Monoforum items are never in a topic, so topicRootId() is General.
+		.topicRootId = Data::ForumTopic::kGeneralId,
+		.monoforumPeerId = sublist->sublistPeer()->id,
+	};
+}
+
 TextWithEntities Manager::addTargetAccountName(
 		TextWithEntities title,
 		not_null<Main::Session*> session) {
@@ -1417,7 +1442,9 @@ Window::SessionController *Manager::openNotificationMessage(
 void Manager::notificationReplied(
 		NotificationId id,
 		const TextWithTags &reply) {
-	if (!id.contextId.sessionId || !id.contextId.peerId) {
+	if (!id.contextId.sessionId
+		|| !id.contextId.peerId
+		|| Core::App().passcodeLocked()) {
 		return;
 	}
 
@@ -1460,7 +1487,9 @@ void Manager::notificationReplied(
 void Manager::notificationActionActivated(
 		NotificationId id,
 		const QString &actionId) {
-	if (actionId == u"markAsRead"_q) {
+	if (Core::App().passcodeLocked()) {
+		return;
+	} else if (actionId == u"markAsRead"_q) {
 		notificationReplied(id, {});
 		return;
 	}
@@ -1643,12 +1672,11 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 			}
 		}
 	}
+	const auto contextId = ItemContextId(item);
 	doShowNativeNotification({
 		.peer = item->history()->peer,
-		.topicRootId = item->topicRootId(),
-		.monoforumPeerId = (item->history()->amMonoforumAdmin()
-			? item->sublistPeerId()
-			: PeerId()),
+		.topicRootId = contextId.topicRootId,
+		.monoforumPeerId = contextId.monoforumPeerId,
 		.itemId = item->id,
 		.title = scheduled ? WrapFromScheduled(fullTitle) : fullTitle,
 		.subtitle = subtitle,
@@ -1685,14 +1713,14 @@ QRect NotificationDisplayRect(Window::Controller *controller) {
 	}
 
 	if (screen) {
-		return screen->availableGeometry();
+		return Platform::ScreenAvailableGeometry(screen);
 	} else if (controller) {
 		return controller->widget()->desktopRect();
 	}
 	// When the last monitor is removed QGuiApplication has no screens at
 	// all, so primaryScreen() is nullptr.
 	const auto primary = QGuiApplication::primaryScreen();
-	return primary ? primary->availableGeometry() : QRect();
+	return primary ? Platform::ScreenAvailableGeometry(primary) : QRect();
 }
 
 } // namespace Notifications

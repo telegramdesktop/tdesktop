@@ -18,7 +18,7 @@ namespace Wallet {
 namespace {
 
 const auto kStorageKey = u"presentation/submitted-transfers"_q;
-constexpr auto kFormatVersion = quint32(3);
+constexpr auto kFormatVersion = quint32(4);
 constexpr auto kIdentityMaxBytes = 256;
 constexpr auto kAddressMaxBytes = 128;
 constexpr auto kServerIdMaxBytes = 1024;
@@ -76,6 +76,17 @@ constexpr auto kProjectionFlags = kDateFlag | kFeeFlag
 		return QString();
 	}
 	return result;
+}
+
+[[nodiscard]] TransferGiftMove ReadGiftMove(
+		Serialize::ByteArrayReader &stream) {
+	auto value = quint32();
+	stream >> value;
+	if (value > quint32(TransferGiftMove::OwnProfile)) {
+		stream.underlying().setStatus(QDataStream::ReadCorruptData);
+		return TransferGiftMove::None;
+	}
+	return TransferGiftMove(value);
 }
 
 void WriteBytes(
@@ -201,6 +212,9 @@ void WriteText(Serialize::ByteArrayWriter &stream, const QString &text) {
 	if (version >= 2) {
 		result.collectible = ReadText(stream, kAddressMaxBytes);
 	}
+	if (version >= 4) {
+		result.giftMove = ReadGiftMove(stream);
+	}
 	result.peerTransfer = (flags & kPeerFlag);
 	result.failed = (flags & kFailedFlag);
 	result.commentEncrypted = (flags & kPrivateFlag);
@@ -231,6 +245,7 @@ void WriteProjection(
 		stream << qint32(*item.date);
 	}
 	WriteText(stream, item.collectible);
+	stream << quint32(item.giftMove);
 }
 
 [[nodiscard]] std::optional<SubmittedTransferRecord> ReadRecord(
@@ -285,6 +300,9 @@ void WriteProjection(
 	if (version >= 3) {
 		result.collectible = ReadText(stream, kAddressMaxBytes);
 	}
+	if (version >= 4) {
+		result.giftMove = ReadGiftMove(stream);
+	}
 	return (stream.ok() && ValidRecord(result))
 		? std::make_optional(std::move(result))
 		: std::nullopt;
@@ -324,6 +342,7 @@ void WriteRecord(
 	}
 	stream << quint64(record.recipient.bare);
 	WriteText(stream, record.collectible);
+	stream << quint32(record.giftMove);
 }
 
 } // namespace

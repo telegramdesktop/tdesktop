@@ -1188,17 +1188,6 @@ std::shared_ptr<DynamicImage> MakeDocumentFilePreviewThumbnail(
 		fullId);
 }
 
-std::shared_ptr<DynamicImage> MakeGeoThumbnail(
-		not_null<Data::CloudImage*> data,
-		not_null<Main::Session*> session,
-		Data::FileOrigin origin) {
-	return std::make_shared<GeoThumbnail>(
-		data,
-		session,
-		std::move(origin),
-		false);
-}
-
 std::shared_ptr<DynamicImage> MakeGeoThumbnailWithPin(
 		not_null<Data::CloudImage*> data,
 		not_null<Main::Session*> session,

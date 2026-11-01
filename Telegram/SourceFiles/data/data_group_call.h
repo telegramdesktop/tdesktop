@@ -57,8 +57,6 @@ struct GroupCallParticipant {
 
 	[[nodiscard]] const std::string &cameraEndpoint() const;
 	[[nodiscard]] const std::string &screenEndpoint() const;
-	[[nodiscard]] bool cameraPaused() const;
-	[[nodiscard]] bool screenPaused() const;
 };
 
 enum class GroupCallOrigin : uchar {
@@ -158,8 +156,6 @@ public:
 		-> rpl::producer<not_null<Participant*>>;
 
 	void setParticipantsWithAccess(base::flat_set<UserId> list);
-	[[nodiscard]] auto participantsWithAccessCurrent() const
-		-> const base::flat_set<UserId> &;
 	[[nodiscard]] auto participantsWithAccessValue() const
 		-> rpl::producer<base::flat_set<UserId>>;
 	[[nodiscard]] auto staleParticipantIds() const

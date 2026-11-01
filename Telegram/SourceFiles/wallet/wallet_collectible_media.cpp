@@ -7,11 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_collectible_media.h"
 
-#include "api/api_premium.h"
-#include "apiwrap.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "data/data_file_origin.h"
-#include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
@@ -66,11 +63,13 @@ constexpr auto kChainTimeout = 60 * crl::time(1000);
 // matters only to a load that failed. The members compared here mirror what
 // startArtwork() reads and must be extended together with it.
 [[nodiscard]] bool SameArtworkSource(
-		const Gram::NftItem &was,
-		const Gram::NftItem &now,
+		const CollectibleRecord &was,
+		const CollectibleRecord &now,
 		bool exact) {
 	if (was.kind != now.kind || was.key != now.key) {
 		return false;
+	} else if (was.gift || now.gift) {
+		return SameServedGift(was, now);
 	}
 	const auto &before = ArtworkDocument(was);
 	const auto &after = ArtworkDocument(now);
@@ -153,7 +152,7 @@ TextWithEntities CollectibleTitleText(const CollectibleView &view) {
 
 QString CollectibleKindText(const CollectibleView &view) {
 	using Kind = Gram::NftKind;
-	return (view.kind == Kind::TelegramGift && view.authenticGift)
+	return (view.kind == Kind::TelegramGift)
 		? tr::lng_wallet_chip_gift(tr::now)
 		: (view.kind == Kind::TelegramUsername)
 		? tr::lng_wallet_chip_username(tr::now)
@@ -162,34 +161,12 @@ QString CollectibleKindText(const CollectibleView &view) {
 		: tr::lng_wallet_chip_nft(tr::now);
 }
 
-QString CollectibleSubtitleText(const CollectibleView &view) {
-	using Kind = Gram::NftKind;
-	if (view.kind == Kind::TelegramUsername
-		|| view.kind == Kind::TelegramNumber) {
-		return CollectibleKindText(view);
-	} else if (view.kind == Kind::TelegramGift
-		&& !view.model.isEmpty()
-		&& !view.backdrop.isEmpty()) {
-		return tr::lng_wallet_collectible_gift_attributes(
-			tr::now,
-			lt_model,
-			view.model,
-			lt_backdrop,
-			view.backdrop);
-	} else if (!view.collectionName.isEmpty()) {
-		return view.collectionName;
-	}
-	return tr::lng_wallet_chip_nft(tr::now);
-}
-
 struct CollectibleMedia::Entry {
 	QString address;
-	Gram::NftItem record;
+	CollectibleRecord record;
 	QString fallback;
 	QString name;
 	QString number;
-	QString model;
-	QString backdrop;
 	QString collectionName;
 	QByteArray imageBytes;
 	int artworkGeneration = 0;
@@ -199,7 +176,6 @@ struct CollectibleMedia::Entry {
 	crl::time deadline = 0;
 	State state = State::None;
 	bool sticky = false;
-	bool authenticGift = false;
 };
 
 CollectibleMedia::CollectibleMedia(not_null<Main::Session*> session)
@@ -208,6 +184,12 @@ CollectibleMedia::CollectibleMedia(not_null<Main::Session*> session)
 	_session->wallet().collectiblesUpdates(
 	) | rpl::on_next([=] {
 		refreshFromCollectibles();
+	}, _lifetime);
+	_session->wallet().collectibleInfoReplaced(
+	) | rpl::on_next([=](const CollectibleRecord &record) {
+		if (const auto entry = find(record.address)) {
+			refreshFromRecord(entry, record);
+		}
 	}, _lifetime);
 }
 
@@ -253,6 +235,24 @@ void CollectibleMedia::resolveBackground(const QString &item) {
 	entry->state = State::Background;
 	_background.push_back(item);
 	checkStartNext();
+}
+
+QString CollectibleMedia::resolveServed(const CollectibleRecord &record) {
+	Expects(record.gift && record.gift->unique);
+
+	// Never an address, so list refreshes and resolution chains miss it.
+	const auto key = record.address + u"/gift/"_q + record.key;
+	auto &pointer = _map[key];
+	if (!pointer) {
+		pointer = std::make_unique<Entry>();
+		pointer->address = key;
+		pointer->state = State::Done;
+	}
+	const auto entry = pointer.get();
+	if (applyRecord(entry, record)) {
+		applyGift(entry);
+	}
+	return key;
 }
 
 void CollectibleMedia::setListWindow(std::vector<QString> ordered) {
@@ -330,7 +330,7 @@ void CollectibleMedia::startChain(not_null<Entry*> entry) {
 	const auto generation = entry->artworkGeneration;
 	_session->wallet().resolveCollectibleInfo(
 		entry->address,
-		crl::guard(this, [=](const Gram::NftItem &record) {
+		crl::guard(this, [=](const CollectibleRecord &record) {
 			resolveFromRecord(entry, record, generation);
 		}));
 }
@@ -407,7 +407,7 @@ void CollectibleMedia::checkTimeouts() {
 
 void CollectibleMedia::resolveFromRecord(
 		not_null<Entry*> entry,
-		const Gram::NftItem &record,
+		const CollectibleRecord &record,
 		int generation) {
 	// A refresh that lands mid-chain orphans this callback: it applies the
 	// fresh record itself, stamps a new generation and re-queues the entry,
@@ -443,7 +443,7 @@ void CollectibleMedia::refreshFromCollectibles() {
 
 void CollectibleMedia::refreshFromRecord(
 		not_null<Entry*> entry,
-		const Gram::NftItem &record) {
+		const CollectibleRecord &record) {
 	if (applyRecord(entry, record)) {
 		requeue(entry);
 	}
@@ -451,7 +451,7 @@ void CollectibleMedia::refreshFromRecord(
 
 bool CollectibleMedia::applyRecord(
 		not_null<Entry*> entry,
-		const Gram::NftItem &record) {
+		const CollectibleRecord &record) {
 	if (record == entry->record) {
 		return false;
 	}
@@ -474,14 +474,28 @@ bool CollectibleMedia::applyRecord(
 
 void CollectibleMedia::startArtwork(not_null<Entry*> entry) {
 	const auto &record = entry->record;
-	const auto generation = entry->artworkGeneration;
-	if (record.kind == Gram::NftKind::TelegramGift && !record.key.isEmpty()) {
-		requestGift(entry, record.key, generation);
+	if (record.gift) {
+		applyGift(entry);
 	} else if (const auto &document = ArtworkDocument(record)) {
-		startImageLoad(entry, *document, generation);
+		startImageLoad(entry, *document, entry->artworkGeneration);
 	} else {
 		finishChain(entry, State::Done);
 	}
+}
+
+void CollectibleMedia::applyGift(not_null<Entry*> entry) {
+	const auto &unique = entry->record.gift->unique;
+	entry->giftPaint = GenerateGiftUniqueUserpicCallback(
+		_session,
+		unique,
+		[=] { _repaint.fire_copy(entry->address); });
+	entry->name = unique->title;
+	if (unique->number > 0) {
+		entry->number = u" #"_q + Lang::FormatCountDecimal(unique->number);
+	}
+	_changed.fire_copy(entry->address);
+	_repaint.fire_copy(entry->address);
+	finishChain(entry, State::Done);
 }
 
 void CollectibleMedia::clearArtwork(not_null<Entry*> entry) {
@@ -489,65 +503,9 @@ void CollectibleMedia::clearArtwork(not_null<Entry*> entry) {
 	entry->loader = nullptr;
 	entry->name.clear();
 	entry->number.clear();
-	entry->model.clear();
-	entry->backdrop.clear();
-	entry->authenticGift = false;
 	entry->giftPaint = nullptr;
 	entry->imageBytes.clear();
 	entry->prepared.clear();
-}
-
-void CollectibleMedia::requestGift(
-		not_null<Entry*> entry,
-		const QString &slug,
-		int generation) {
-	const auto session = _session;
-	const auto apply = [=](const std::shared_ptr<Data::UniqueGift> &unique) {
-		entry->giftPaint = GenerateGiftUniqueUserpicCallback(
-			session,
-			unique,
-			[=] { _repaint.fire_copy(entry->address); });
-		entry->name = unique->title;
-		if (unique->number > 0) {
-			entry->number = u" #"_q
-				+ Lang::FormatCountDecimal(unique->number);
-		}
-		entry->model = unique->model.name;
-		entry->backdrop = unique->backdrop.name;
-		entry->authenticGift = true;
-		_changed.fire_copy(entry->address);
-		_repaint.fire_copy(entry->address);
-		finishChain(entry, State::Done);
-	};
-	const auto fallback = [=] {
-		if (const auto &document = ArtworkDocument(entry->record)) {
-			startImageLoad(entry, *document, generation);
-		} else {
-			finishChain(entry, State::Done);
-		}
-	};
-	session->api().request(MTPpayments_GetUniqueStarGift(
-		MTP_string(slug)
-	)).done(crl::guard(this, [=](
-			const MTPpayments_UniqueStarGift &result) {
-		if (entry->artworkGeneration != generation) {
-			return;
-		}
-		const auto &data = result.data();
-		session->data().processUsers(data.vusers());
-		const auto gift = ::Api::FromTL(session, data.vgift());
-		if (!gift
-			|| !UniqueGiftMatchesAddress(gift->unique, entry->address)) {
-			fallback();
-			return;
-		}
-		apply(gift->unique);
-	})).fail(crl::guard(this, [=](const MTP::Error &) {
-		if (entry->artworkGeneration != generation) {
-			return;
-		}
-		fallback();
-	})).send();
 }
 
 void CollectibleMedia::startImageLoad(
@@ -618,10 +576,7 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 			entry->number,
 			entry->collectionName,
 			entry->record.kind,
-			entry->authenticGift,
 			entry->record.key,
-			entry->model,
-			entry->backdrop,
 		};
 	}
 	const auto title = SplitNumberTail(entry->name.isEmpty()
@@ -632,10 +587,7 @@ CollectibleView CollectibleMedia::view(const QString &item) const {
 		title.second,
 		entry->collectionName,
 		entry->record.kind,
-		entry->authenticGift,
 		entry->record.key,
-		entry->model,
-		entry->backdrop,
 	};
 }
 

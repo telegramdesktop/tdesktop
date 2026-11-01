@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/share_box.h"
 #include "data/data_peer.h"
-#include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_user.h"
@@ -21,10 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_actions.h"
 #include "info/profile/info_profile_icon.h"
+#include "info/profile/info_profile_section_stack.h"
 #include "info/profile/info_profile_top_bar.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
-#include "info/saved/info_saved_music_common.h"
+#include "info/saved/info_saved_music_widget.h"
 #include "info/stories/info_stories_albums.h"
 #include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"
@@ -254,7 +254,6 @@ void InnerWidget::preloadArchiveCount() {
 }
 
 void InnerWidget::setupAlbums() {
-	Ui::AddSkip(_top);
 	_albumsWrap = _top->add(object_ptr<Ui::BoxContentDivider>(_top));
 
 	_peer->owner().stories().albumsListValue(
@@ -303,48 +302,47 @@ void InnerWidget::startTop() {
 void InnerWidget::createProfileTop() {
 	startTop();
 
-	Info::Saved::SetupSavedMusic(
-		_top,
-		_controller,
-		_peer,
-		_topBarColor.value());
-
 	using namespace Profile;
-	AddDetails(
-		_top,
+	auto stack = SectionStack(_top);
+	BuildProfileDetailsSections(
+		stack,
 		_controller,
 		_peer,
 		nullptr,
 		nullptr,
 		{ v::null });
 
-	auto tracker = Ui::MultiSlideTracker();
-	const auto dividerWrap = _top->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			_top,
-			object_ptr<Ui::VerticalLayout>(_top)));
-	const auto divider = dividerWrap->entity();
-	Ui::AddDivider(divider);
-	Ui::AddSkip(divider);
+	stack.addPlainSeparator();
+	const auto addButton = [&](object_ptr<Ui::SlideWrap<>> button) {
+		const auto raw = button.data();
+		stack.add({
+			.widget = std::move(button),
+			.shown = raw->toggledValue(),
+		});
+		return raw;
+	};
+	const auto buttons = {
+		addButton(makeGiftsButton()),
+		addButton(makeArchiveButton()),
+		addButton(makeRecentButton()),
+	};
+	stack.finalize();
+	// Layout insertion shows even wrappers whose initial toggle is off.
+	for (const auto button : buttons) {
+		button->finishAnimating();
+	}
 
-	addGiftsButton(tracker);
-	addArchiveButton(tracker);
-	addRecentButton(tracker);
-
-	dividerWrap->toggleOn(tracker.atLeastOneShownValue());
-
-	finalizeTop();
+	finalizeTop(false);
 }
 
 void InnerWidget::createButtons() {
 	startTop();
-	auto tracker = Ui::MultiSlideTracker();
-	addArchiveButton(tracker);
-	addRecentButton(tracker);
+	_top->add(makeArchiveButton())->finishAnimating();
+	_top->add(makeRecentButton())->finishAnimating();
 	finalizeTop();
 }
 
-void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
+object_ptr<Ui::SlideWrap<>> InnerWidget::makeArchiveButton() {
 	Expects(_top != nullptr);
 
 	const auto stories = &_peer->owner().stories();
@@ -365,14 +363,14 @@ void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 		return stories->albumIdsCount(_peer->id, kArchive);
 	}) | rpl::start_spawning(_top->lifetime());
 
-	const auto archiveWrap = _top->add(
-		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+	auto wrap = object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+		_top,
+		object_ptr<Ui::SettingsButton>(
 			_top,
-			object_ptr<Ui::SettingsButton>(
-				_top,
-				tr::lng_stories_archive_button(),
-				st::infoSharedMediaButton))
-	)->setDuration(
+			tr::lng_stories_archive_button(),
+			st::infoSharedMediaButton));
+	const auto archiveWrap = wrap.data();
+	archiveWrap->setDuration(
 		st::infoSlideDuration
 	)->toggleOn(rpl::duplicate(count) | rpl::map(rpl::mappers::_1 > 0));
 
@@ -396,19 +394,19 @@ void InnerWidget::addArchiveButton(Ui::MultiSlideTracker &tracker) {
 		archive,
 		st::infoIconMediaStoriesArchive,
 		st::infoSharedMediaButtonIconPosition)->show();
-	tracker.track(archiveWrap);
+	return wrap;
 }
 
-void InnerWidget::addRecentButton(Ui::MultiSlideTracker &tracker) {
+object_ptr<Ui::SlideWrap<>> InnerWidget::makeRecentButton() {
 	Expects(_top != nullptr);
 
-	const auto recentWrap = _top->add(
-		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+	auto wrap = object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+		_top,
+		object_ptr<Ui::SettingsButton>(
 			_top,
-			object_ptr<Ui::SettingsButton>(
-				_top,
-				tr::lng_stories_recent_button(),
-				st::infoSharedMediaButton)));
+			tr::lng_stories_recent_button(),
+			st::infoSharedMediaButton));
+	const auto recentWrap = wrap.data();
 
 	using namespace Dialogs::Stories;
 	auto last = LastForPeer(
@@ -456,10 +454,10 @@ void InnerWidget::addRecentButton(Ui::MultiSlideTracker &tracker) {
 	) | rpl::map([](const Content &content) {
 		return !content.elements.empty();
 	}));
-	tracker.track(recentWrap);
+	return wrap;
 }
 
-void InnerWidget::addGiftsButton(Ui::MultiSlideTracker &tracker) {
+object_ptr<Ui::SlideWrap<>> InnerWidget::makeGiftsButton() {
 	Expects(_top != nullptr);
 
 	const auto user = _peer->asUser();
@@ -469,14 +467,14 @@ void InnerWidget::addGiftsButton(Ui::MultiSlideTracker &tracker) {
 		user
 	) | rpl::start_spawning(_top->lifetime());
 
-	const auto giftsWrap = _top->add(
-		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+	auto wrap = object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
+		_top,
+		object_ptr<Ui::SettingsButton>(
 			_top,
-			object_ptr<Ui::SettingsButton>(
-				_top,
-				tr::lng_peer_gifts_title(),
-				st::infoSharedMediaButton))
-	)->setDuration(
+			tr::lng_peer_gifts_title(),
+			st::infoSharedMediaButton));
+	const auto giftsWrap = wrap.data();
+	giftsWrap->setDuration(
 		st::infoSlideDuration
 	)->toggleOn(rpl::duplicate(count) | rpl::map(rpl::mappers::_1 > 0));
 
@@ -500,7 +498,7 @@ void InnerWidget::addGiftsButton(Ui::MultiSlideTracker &tracker) {
 		gifts,
 		st::infoIconMediaGifts,
 		st::infoSharedMediaButtonIconPosition)->show();
-	tracker.track(giftsWrap);
+	return wrap;
 }
 
 bool InnerWidget::hasFlexibleTopBar() const {
@@ -525,10 +523,12 @@ base::weak_qptr<Ui::RpWidget> InnerWidget::createPinnedToTop(
 			.peer = _peer,
 			.backToggles = _backToggles.value(),
 			.showFinished = _showFinished.events(),
+			.showSavedMusic = [controller = _controller, peer = _peer] {
+				controller->showSection(Info::Saved::MakeMusic(peer));
+			},
 		});
 	content->backRequest(
 	) | rpl::start_to_stream(_backClicks, content->lifetime());
-	_topBarColor = content->edgeColor();
 	return base::make_weak(not_null<Ui::RpWidget*>{ content });
 }
 
@@ -560,10 +560,13 @@ void InnerWidget::showFinished() {
 	}
 }
 
-void InnerWidget::finalizeTop() {
+void InnerWidget::finalizeTop(bool addAlbumsSkip) {
 	const auto addPossibleAlbums = !_addingToAlbumId
 		&& (_albumId.current() != Data::kStoriesAlbumIdArchive);
 	if (addPossibleAlbums) {
+		if (addAlbumsSkip) {
+			Ui::AddSkip(_top);
+		}
 		setupAlbums();
 	}
 	_top->resizeToWidth(width());

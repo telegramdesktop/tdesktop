@@ -116,9 +116,6 @@ protected:
 
 	void fillSentCodeData(const MTPDauth_sentCode &type);
 
-	void showDescription();
-	void hideDescription();
-
 	[[nodiscard]] not_null<Data*> getData() const {
 		return _data;
 	}

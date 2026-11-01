@@ -22,8 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h" // Session::api().
 #include "ui/boxes/confirm_box.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
@@ -85,6 +87,9 @@ using RightsMap = std::vector<std::pair<ChatAdminRight, tr::phrase<>>>;
 		{ Flag::ManageCall, tr::lng_request_group_manage_video_chats },
 		{ Flag::Anonymous, tr::lng_request_group_anonymous },
 		{ Flag::AddAdmins, tr::lng_request_group_add_admins },
+		{ Flag::PostStories, tr::lng_request_group_post_stories },
+		{ Flag::EditStories, tr::lng_request_group_edit_stories },
+		{ Flag::DeleteStories, tr::lng_request_group_delete_stories },
 	};
 }
 
@@ -100,17 +105,26 @@ using RightsMap = std::vector<std::pair<ChatAdminRight, tr::phrase<>>>;
 		{ Flag::ManageDirect, tr::lng_request_channel_manage_direct },
 		{ Flag::AddAdmins, tr::lng_request_channel_add_admins },
 		{ Flag::BanUsers, tr::lng_request_group_ban_users },
+		{ Flag::PostStories, tr::lng_request_channel_post_stories },
+		{ Flag::EditStories, tr::lng_request_channel_edit_stories },
+		{ Flag::DeleteStories, tr::lng_request_channel_delete_stories },
 	};
 }
 
 [[nodiscard]] QString RightsText(
 		ChatAdminRights rights,
-		const RightsMap &phrases) {
+		const RightsMap &phrases,
+		bool withResidual = false) {
 	auto list = QStringList();
+	auto covered = ChatAdminRights();
 	for (const auto &[flag, phrase] : phrases) {
+		covered |= flag;
 		if (rights & flag) {
 			list.push_back(phrase(tr::now));
 		}
+	}
+	if (withResidual && (rights & ~covered)) {
+		list.push_back(tr::lng_request_peer_rights_other(tr::now));
 	}
 	const auto count = list.size();
 	if (!count) {
@@ -127,12 +141,16 @@ using RightsMap = std::vector<std::pair<ChatAdminRight, tr::phrase<>>>;
 		: last;
 }
 
-[[nodiscard]] QString GroupRightsText(ChatAdminRights rights) {
-	return RightsText(rights, GroupRights());
+[[nodiscard]] QString GroupRightsText(
+		ChatAdminRights rights,
+		bool withResidual = false) {
+	return RightsText(rights, GroupRights(), withResidual);
 }
 
-[[nodiscard]] QString BroadcastRightsText(ChatAdminRights rights) {
-	return RightsText(rights, BroadcastRights());
+[[nodiscard]] QString BroadcastRightsText(
+		ChatAdminRights rights,
+		bool withResidual = false) {
+	return RightsText(rights, BroadcastRights(), withResidual);
 }
 
 [[nodiscard]] QStringList RestrictionsList(RequestPeerQuery query) {
@@ -194,6 +212,59 @@ using RightsMap = std::vector<std::pair<ChatAdminRight, tr::phrase<>>>;
 	return result;
 }
 
+[[nodiscard]] TextWithEntities RequestedPeerAddText(
+		not_null<UserData*> bot,
+		const QString &chat,
+		RequestPeerQuery query,
+		bool created) {
+	using Type = RequestPeerQuery::Type;
+	if (query.type == Type::User) {
+		return {};
+	}
+	const auto botName = bot->name();
+	if (query.botRights) {
+		const auto rights = (query.type == Type::Broadcast)
+			? BroadcastRightsText(query.botRights, true)
+			: GroupRightsText(query.botRights, true);
+		return tr::lng_request_peer_confirm_rights(
+			tr::now,
+			lt_bot,
+			tr::bold(botName),
+			lt_chat,
+			tr::bold(chat),
+			lt_rights,
+			TextWithEntities{ rights },
+			tr::marked);
+	} else if (query.type == Type::Group && query.isBotParticipant) {
+		return created
+			? tr::lng_request_peer_confirm_add(
+				tr::now,
+				lt_bot,
+				tr::bold(botName),
+				lt_chat,
+				tr::bold(chat),
+				tr::marked)
+			: tr::lng_request_peer_confirm_add_maybe(
+				tr::now,
+				lt_bot,
+				tr::bold(botName),
+				lt_chat,
+				tr::bold(chat),
+				tr::marked);
+	}
+	return {};
+}
+
+[[nodiscard]] TextWithEntities RequestedPeerAddText(
+		not_null<UserData*> bot,
+		not_null<PeerData*> peer,
+		RequestPeerQuery query) {
+	if (peer->isUser()) {
+		return {};
+	}
+	return RequestedPeerAddText(bot, peer->name(), query, /*created=*/false);
+}
+
 object_ptr<Ui::BoxContent> MakeConfirmBox(
 		not_null<UserData*> bot,
 		not_null<PeerData*> peer,
@@ -209,38 +280,70 @@ object_ptr<Ui::BoxContent> MakeConfirmBox(
 		tr::bold(botName),
 		tr::marked);
 	if (!peer->isUser()) {
-		const auto rights = peer->isBroadcast()
-			? BroadcastRightsText(query.botRights)
-			: GroupRightsText(query.botRights);
-		if (!rights.isEmpty()) {
-			text.append('\n').append('\n').append(
-				tr::lng_request_peer_confirm_rights(
-					tr::now,
-					lt_bot,
-					tr::bold(botName),
-					lt_chat,
-					tr::bold(name),
-					lt_rights,
-					TextWithEntities{ rights },
-					tr::marked));
-		} else if (!peer->isBroadcast() && query.isBotParticipant) {
-			const auto common = bot->session().api().botCommonGroups(bot);
-			if (!common || !ranges::contains(*common, peer)) {
-				text.append('\n').append('\n').append(
-					tr::lng_request_peer_confirm_add(
-						tr::now,
-						lt_bot,
-						tr::bold(botName),
-						lt_chat,
-						tr::bold(name),
-						tr::marked));
-			}
+		auto add = RequestedPeerAddText(bot, peer, query);
+		if (!add.empty()) {
+			text.append('\n').append('\n').append(std::move(add));
 		}
 	}
 	return Ui::MakeConfirmBox({
 		.text = std::move(text),
 		.confirmed = [=](Fn<void()> close) { confirmed(); close(); },
 		.confirmText = tr::lng_request_peer_confirm_send(tr::now),
+	});
+}
+
+object_ptr<Ui::BoxContent> MakeConfirmBox(
+		not_null<UserData*> bot,
+		const QString &chat,
+		RequestPeerQuery query,
+		Fn<void()> confirmed) {
+	auto text = tr::lng_request_peer_confirm(
+		tr::now,
+		lt_chat,
+		tr::bold(chat),
+		lt_bot,
+		tr::bold(bot->name()),
+		tr::marked);
+	auto add = RequestedPeerAddText(bot, chat, query, /*created=*/true);
+	if (!add.empty()) {
+		text.append('\n').append('\n').append(std::move(add));
+	}
+	return Ui::MakeConfirmBox({
+		.text = std::move(text),
+		.confirmed = [=](Fn<void()> close) { confirmed(); close(); },
+		.confirmText = tr::lng_request_peer_confirm_send(tr::now),
+	});
+}
+
+object_ptr<Ui::BoxContent> MakeConfirmManyBox(
+		not_null<UserData*> bot,
+		std::vector<not_null<PeerData*>> peers,
+		RequestPeerQuery query,
+		Fn<void()> confirmed) {
+	return Box([=](not_null<Ui::GenericBox*> box) {
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box,
+			rpl::single(tr::lng_request_peer_confirm_many(
+				tr::now,
+				lt_count,
+				int(peers.size()),
+				lt_bot,
+				tr::bold(bot->name()),
+				tr::marked)),
+			st::boxLabel));
+		for (const auto &peer : peers) {
+			auto add = RequestedPeerAddText(bot, peer, query);
+			box->addRow(object_ptr<Ui::FlatLabel>(
+				box,
+				rpl::single(add.empty()
+					? tr::bold(peer->name())
+					: std::move(add)),
+				st::boxLabel));
+		}
+		Ui::ConfirmBox(box, {
+			.confirmed = [=](Fn<void()> close) { confirmed(); close(); },
+			.confirmText = tr::lng_request_peer_confirm_send(tr::now),
+		});
 	});
 }
 
@@ -256,11 +359,18 @@ object_ptr<Ui::BoxContent> CreatePeerByQueryBox(
 			strong->closeBox();
 		}
 	};
+	auto creationConfirm = [=](QString title, Fn<void()> resume) {
+		if (const auto strong = weak->get()) {
+			strong->uiShow()->showBox(
+				MakeConfirmBox(bot, title, query, resume));
+		}
+	};
 	auto result = Box<GroupInfoBox>(
 		navigation,
 		bot,
 		query,
-		std::move(callback));
+		std::move(callback),
+		std::move(creationConfirm));
 	*weak = result.data();
 	return result;
 }
@@ -464,8 +574,23 @@ rpl::producer<int> ChoosePeerBoxController::selectedCountValue() const {
 }
 
 void ChoosePeerBoxController::submit() {
-	const auto onstack = _callback;
-	onstack(ranges::to_vector(_selected));
+	auto selected = ranges::to_vector(_selected);
+	if (selected.empty()) {
+		return;
+	}
+	const auto confirmed = [callback = _callback, selected] {
+		const auto onstack = callback;
+		onstack(selected);
+	};
+	if (_query.type == RequestPeerQuery::Type::User) {
+		confirmed();
+	} else if (selected.size() == 1) {
+		delegate()->peerListUiShow()->showBox(
+			MakeConfirmBox(_bot, selected.front(), _query, confirmed));
+	} else {
+		delegate()->peerListUiShow()->showBox(
+			MakeConfirmManyBox(_bot, std::move(selected), _query, confirmed));
+	}
 }
 
 auto ChoosePeerBoxController::createRow(not_null<History*> history)
@@ -558,9 +683,6 @@ void ShowChoosePeerBox(
 			if (count > 0) {
 				box->addButton(tr::lng_intro_submit(), [=] {
 					ptr->submit();
-					if (*weak) {
-						(*weak)->closeBox();
-					}
 				});
 			}
 			box->addButton(tr::lng_cancel(), [box] {

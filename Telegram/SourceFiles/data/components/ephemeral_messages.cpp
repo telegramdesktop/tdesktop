@@ -94,7 +94,10 @@ struct ParsedCommand {
 		.hideEdited = true,
 	};
 	if (const auto richMessage = data.vrich_message()) {
-		result.richPage = Iv::ParseRichPage(session, *richMessage);
+		result.richPage = Iv::ParseRichPage(
+			session,
+			*richMessage,
+			Iv::RichParseMode::Quotable);
 	}
 	return result;
 }
@@ -300,7 +303,10 @@ void EphemeralMessages::apply(const MTPDupdateEditEphemeralMessage &update) {
 	edition.mtpMedia = data.vmedia();
 	edition.invertMedia = data.is_invert_media();
 	if (const auto richMessage = data.vrich_message()) {
-		edition.richPage = Iv::ParseRichPage(_session, *richMessage);
+		edition.richPage = Iv::ParseRichPage(
+			_session,
+			*richMessage,
+			Iv::RichParseMode::Quotable);
 	}
 	item->applyEdition(std::move(edition));
 }
@@ -446,7 +452,10 @@ HistoryItem *EphemeralMessages::applyNew(const MTPDephemeralMessage &data) {
 			? *data.vmedia()
 			: MTPMessageMedia(MTP_messageMediaEmpty()));
 	if (const auto richMessage = data.vrich_message()) {
-		item->applyLocalRichPage(Iv::ParseRichPage(_session, *richMessage));
+		item->applyLocalRichPage(Iv::ParseRichPage(
+			_session,
+			*richMessage,
+			Iv::RichParseMode::Quotable));
 	}
 	registerEntry(history, ephemeralId, UserId(data.vreceiver_id()), item);
 	recountAttachToPrevious(item);

@@ -101,7 +101,6 @@ public:
 		int size,
 		QBrush bg,
 		const style::color &fg);
-	[[nodiscard]] static QImage GenerateHiddenAuthor(int size);
 
 	static void PaintMyNotes(
 		QPainter &p,
@@ -117,7 +116,6 @@ public:
 		int size,
 		QBrush bg,
 		const style::color &fg);
-	[[nodiscard]] static QImage GenerateMyNotes(int size);
 
 	static void PaintCurrency(
 		QPainter &p,
@@ -133,7 +131,6 @@ public:
 		int size,
 		QBrush bg,
 		const style::color &fg);
-	[[nodiscard]] static QImage GenerateCurrency(int size);
 
 	~EmptyUserpic();
 

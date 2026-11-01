@@ -53,7 +53,6 @@ private:
 		Data::ColorProfileData data;
 		int requiredLevelsChannel = 0;
 		int requiredLevelsGroup = 0;
-		bool isHidden = false;
 	};
 
 	void request();

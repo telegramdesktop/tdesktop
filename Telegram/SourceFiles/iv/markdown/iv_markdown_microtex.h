@@ -41,6 +41,5 @@ struct MicrotexRenderResult {
 	const MicrotexMeasureRequest &request);
 [[nodiscard]] MicrotexRenderResult RenderWithMicrotex(
 	const MicrotexRenderRequest &request);
-[[nodiscard]] bool MicrotexBackendLinked();
 
 } // namespace Iv::Markdown

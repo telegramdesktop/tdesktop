@@ -310,6 +310,8 @@ void IntroWidget::createTopBar(not_null<Window::Controller*> window) {
 }
 
 void IntroWidget::setInnerWidget(object_ptr<Ui::RpWidget> content) {
+	using namespace rpl::mappers;
+
 	_innerWrap = _scroll->setOwnedWidget(
 		object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
 			this,
@@ -317,16 +319,15 @@ void IntroWidget::setInnerWidget(object_ptr<Ui::RpWidget> content) {
 			_innerWrap ? _innerWrap->padding() : style::margins()));
 	_innerWrap->move(0, 0);
 
-	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
 	rpl::combine(
 		_scroll->scrollTopValue(),
 		_scroll->heightValue(),
-		_innerWrap->entity()->desiredHeightValue()
+		_innerWrap->entity()->desiredHeightValue(),
+		tuple(_1, _1 + _2, _3)
 	) | rpl::on_next([this](
 			int top,
-			int height,
+			int bottom,
 			int desired) {
-		const auto bottom = top + height;
 		_innerDesiredHeight = desired;
 		_innerWrap->setVisibleTopBottom(top, bottom);
 		_scrollTillBottomChanges.fire_copy(std::max(desired - bottom, 0));

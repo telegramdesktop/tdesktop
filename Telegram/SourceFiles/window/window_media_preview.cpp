@@ -148,7 +148,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 			effectImage);
 	}
 	if (!_emojiList.empty()) {
-		const auto emojiCount = _emojiList.size();
+		const auto emojiCount = int(_emojiList.size());
 		const auto emojiWidth = (emojiCount * _emojiSize)
 			+ (emojiCount - 1) * st::stickerEmojiSkip;
 		auto emojiLeft = (width() - emojiWidth) / 2;

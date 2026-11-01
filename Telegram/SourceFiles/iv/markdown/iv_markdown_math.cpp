@@ -212,30 +212,6 @@ void OffsetToPosition(
 	return cleaned;
 }
 
-[[nodiscard]] SourceRange RangeForOffsets(
-		const std::vector<int> &lineStarts,
-		int sourceSize,
-		int startOffset,
-		int endOffset) {
-	auto startLine = 0;
-	auto startColumn = 0;
-	auto endLine = 0;
-	auto endColumn = 0;
-	OffsetToPosition(lineStarts, startOffset, &startLine, &startColumn);
-	OffsetToPosition(
-		lineStarts,
-		std::max(startOffset, endOffset - 1),
-		&endLine,
-		&endColumn);
-	return RangeFromLineColumns(
-		lineStarts,
-		sourceSize,
-		startLine,
-		startColumn,
-		endLine,
-		endColumn);
-}
-
 [[nodiscard]] bool ExceedsFormulaBytes(
 		const QByteArray &content,
 		int maxFormulaBytes) {
@@ -292,6 +268,30 @@ SourceRange RangeFromLineColumns(
 	result.startOffset = std::clamp(startOffset, 0, maxOffset);
 	result.endOffset = std::clamp(endOffset, 0, maxOffset);
 	return result;
+}
+
+SourceRange RangeForOffsets(
+		const std::vector<int> &lineStarts,
+		int sourceSize,
+		int startOffset,
+		int endOffset) {
+	auto startLine = 0;
+	auto startColumn = 0;
+	auto endLine = 0;
+	auto endColumn = 0;
+	OffsetToPosition(lineStarts, startOffset, &startLine, &startColumn);
+	OffsetToPosition(
+		lineStarts,
+		std::max(startOffset, endOffset - 1),
+		&endLine,
+		&endColumn);
+	return RangeFromLineColumns(
+		lineStarts,
+		sourceSize,
+		startLine,
+		startColumn,
+		endLine,
+		endColumn);
 }
 
 bool ExtractMathRegions(

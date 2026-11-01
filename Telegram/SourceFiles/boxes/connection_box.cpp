@@ -313,8 +313,8 @@ void ShareProxy(
 					box,
 					nullptr,
 					qrLink,
-					rpl::single(QString()));
-				box->setTitle(tr::lng_proxy_edit_share_qr_box_title());
+					rpl::single(QString()),
+					tr::lng_proxy_edit_share_qr_box_title());
 			}));
 		} else {
 			ShowProxyQrBox(show, qrLink);

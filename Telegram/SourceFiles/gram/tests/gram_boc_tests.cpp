@@ -38,6 +38,24 @@ const auto kHashed = u"te6cckEBAwEARQARGAAAAABIZWxsbyEhIQIAZAAAAAAAAAAAAAAAAAAAA
 
 constexpr auto kSignatureBytes = 64;
 
+constexpr auto kNftTransferOpcode = quint32(0x5FCC3D14);
+constexpr auto kJettonTransferOpcode = quint32(0x0F8A7EA5);
+constexpr auto kNftTransferOwnerBits = 32 + 64 + 2 + 1 + 8 + 256;
+constexpr auto kQueryId = quint64(0x0102030405060708ULL);
+const auto kOwnerHex = u"0123456789abcdef"
+	u"fedcba9876543210"
+	u"13579bdf02468ace"
+	u"eca86420fdb97531"_q;
+const auto kResponseHex = u"5a5a5a5a5a5a5a5a"
+	u"5a5a5a5a5a5a5a5a"
+	u"5a5a5a5a5a5a5a5a"
+	u"5a5a5a5a5a5a5a5a"_q;
+
+struct TestCell {
+	QByteArray bits;
+	std::vector<int> refs;
+};
+
 [[nodiscard]] QByteArray Decode(const QString &base64) {
 	return QByteArray::fromBase64(base64.toLatin1());
 }
@@ -127,6 +145,144 @@ constexpr auto kSignatureBytes = 64;
 	bytes.append(QByteArray::fromHex("010e" "00000000" "616263" "01"));
 	bytes.append(QByteArray::fromHex("0006" "646566"));
 	return Encode(bytes);
+}
+
+[[nodiscard]] QByteArray Bits(quint64 value, int count) {
+	auto result = QByteArray();
+	for (auto i = count; i != 0; --i) {
+		result.append(((value >> (i - 1)) & 1) ? '1' : '0');
+	}
+	return result;
+}
+
+[[nodiscard]] QByteArray BytesBits(const QByteArray &bytes) {
+	auto result = QByteArray();
+	for (const auto byte : bytes) {
+		result.append(Bits(uchar(byte), 8));
+	}
+	return result;
+}
+
+[[nodiscard]] QByteArray StdAddress(int workchain, const QString &hex) {
+	return Bits(0b10, 2)
+		+ Bits(0, 1)
+		+ Bits(uchar(qint8(workchain)), 8)
+		+ BytesBits(QByteArray::fromHex(hex.toLatin1()));
+}
+
+[[nodiscard]] QByteArray TransferBits(
+		quint32 opcode,
+		const QByteArray &newOwner,
+		bool forwardInRef) {
+	return Bits(opcode, 32)
+		+ Bits(kQueryId, 64)
+		+ newOwner
+		+ StdAddress(0, kResponseHex)
+		+ Bits(0, 1)
+		+ Bits(1, 4)
+		+ Bits(1, 8)
+		+ Bits(forwardInRef ? 1 : 0, 1);
+}
+
+[[nodiscard]] QByteArray CellBytes(const TestCell &cell) {
+	auto padded = cell.bits;
+	if (padded.size() % 8) {
+		padded.append('1');
+		while (padded.size() % 8) {
+			padded.append('0');
+		}
+	}
+	auto result = QByteArray();
+	result.append(char(cell.refs.size()));
+	result.append(char((cell.bits.size() / 8) + (padded.size() / 8)));
+	for (auto i = 0; i != int(padded.size()); i += 8) {
+		result.append(char(padded.mid(i, 8).toUInt(nullptr, 2)));
+	}
+	for (const auto ref : cell.refs) {
+		result.append(char(ref));
+	}
+	return result;
+}
+
+[[nodiscard]] QByteArray BocBytes(
+		const std::vector<TestCell> &cells,
+		int root = 0,
+		bool checksummed = false) {
+	auto body = QByteArray();
+	for (const auto &cell : cells) {
+		body.append(CellBytes(cell));
+	}
+	auto result = QByteArray::fromHex("b5ee9c72");
+	result.append(char(checksummed ? 0x41 : 0x01));
+	result.append(char(1));
+	result.append(char(cells.size()));
+	result.append(char(1));
+	result.append(char(0));
+	result.append(char(body.size()));
+	result.append(char(root));
+	result.append(body);
+	if (checksummed) {
+		const auto crc = Crc32c(result, int(result.size()));
+		for (auto i = 0; i != 4; ++i) {
+			result.append(char(uchar((crc >> (8 * i)) & 0xFF)));
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] QByteArray TransferTo(const QByteArray &newOwner) {
+	return BocBytes({
+		{ .bits = TransferBits(kNftTransferOpcode, newOwner, false) },
+	});
+}
+
+[[nodiscard]] std::vector<TestCell> TransferWithLeaf(
+		const QByteArray &leaf) {
+	return {
+		{
+			.bits = TransferBits(
+				kNftTransferOpcode,
+				StdAddress(0, kOwnerHex),
+				true),
+			.refs = { 1 },
+		},
+		{ .bits = leaf },
+	};
+}
+
+[[nodiscard]] std::vector<TestCell> TransferWithComment() {
+	return TransferWithLeaf(Bits(0, 32) + BytesBits("hi"));
+}
+
+[[nodiscard]] QString RelinkedTransfer(
+		std::vector<int> rootRefs,
+		std::vector<int> leafRefs) {
+	auto cells = TransferWithComment();
+	cells[0].refs = std::move(rootRefs);
+	cells[1].refs = std::move(leafRefs);
+	return Encode(BocBytes(cells));
+}
+
+[[nodiscard]] QByteArray WithLastByte(QByteArray bytes, uchar value) {
+	bytes[bytes.size() - 1] = char(value);
+	return bytes;
+}
+
+[[nodiscard]] QString CheckOwner(
+		const QByteArray &boc,
+		const QString &expected) {
+	const auto owner = NftTransferNewOwner(Encode(boc));
+	return (owner == expected)
+		? QString()
+		: (u"read \""_q + owner + u"\" instead of "_q + expected);
+}
+
+[[nodiscard]] QString CheckNoOwner(
+		const QString &name,
+		const QString &boc) {
+	return NftTransferNewOwner(boc).isEmpty()
+		? QString()
+		: (u"read an owner from "_q + name);
 }
 
 } // namespace
@@ -250,6 +406,112 @@ std::vector<Check> BocChecks() {
 		{
 			u"boc: a comment continues into the referenced cell"_q,
 			[] { return CheckComment(SnakeComment(), u"abcdef"_q); },
+		},
+		{
+			u"boc: an NFT transfer names its new owner"_q,
+			[] {
+				return CheckOwner(
+					TransferTo(StdAddress(0, kOwnerHex)),
+					u"0:"_q + kOwnerHex);
+			},
+		},
+		{
+			u"boc: a masterchain new owner keeps its sign"_q,
+			[] {
+				return CheckOwner(
+					TransferTo(StdAddress(-1, kOwnerHex)),
+					u"-1:"_q + kOwnerHex);
+			},
+		},
+		{
+			u"boc: a referenced forward payload keeps the owner"_q,
+			[]() -> QString {
+				const auto expected = u"0:"_q + kOwnerHex;
+				const auto cases = std::vector<QByteArray>{
+					BocBytes(TransferWithComment()),
+					BocBytes(TransferWithComment(), 0, true),
+					BocBytes(TransferWithLeaf(Bits(0, 4))),
+				};
+				for (const auto &boc : cases) {
+					const auto error = CheckOwner(boc, expected);
+					if (!error.isEmpty()) {
+						return error;
+					}
+				}
+				return QString();
+			},
+		},
+		{
+			u"boc: anything but a transfer to an address names no owner"_q,
+			[]() -> QString {
+				const auto owner = StdAddress(0, kOwnerHex);
+				const auto jetton = TransferBits(
+					kJettonTransferOpcode,
+					owner,
+					false);
+				const auto truncated = TransferBits(
+					kNftTransferOpcode,
+					owner,
+					false).left(kNftTransferOwnerBits - 1);
+				const auto anycast = Bits(0b10, 2)
+					+ Bits(1, 1)
+					+ owner.mid(3);
+				auto badCrc = BocBytes(TransferWithComment(), 0, true);
+				badCrc[badCrc.size() - 1] = char(
+					uchar(badCrc[badCrc.size() - 1]) ^ 0x01);
+				const auto leaf = BocBytes(TransferWithLeaf(Bits(0, 4)));
+				const auto cases = std::vector<std::pair<QString, QString>>{
+					{ u"an empty payload"_q, QString() },
+					{ u"text that is not base64"_q, u"not base64 at all"_q },
+					{ u"a text comment"_q, kComment },
+					{
+						u"a jetton transfer"_q,
+						Encode(BocBytes({ { jetton } })),
+					},
+					{ u"no new owner"_q, Encode(TransferTo(Bits(0, 2))) },
+					{
+						u"an external new owner"_q,
+						Encode(TransferTo(Bits(0b01, 2) + Bits(0, 9))),
+					},
+					{ u"an anycast new owner"_q, Encode(TransferTo(anycast)) },
+					{
+						u"a body cut before the owner ends"_q,
+						Encode(BocBytes({ { truncated } })),
+					},
+					{
+						u"a root past the cells"_q,
+						Encode(BocBytes(TransferWithComment(), 2)),
+					},
+					{
+						u"a reference past the cells"_q,
+						RelinkedTransfer({ 2 }, {}),
+					},
+					{
+						u"a cell referencing itself"_q,
+						RelinkedTransfer({ 0 }, {}),
+					},
+					{
+						u"a reference cycle"_q,
+						RelinkedTransfer({ 1 }, { 0 }),
+					},
+					{ u"a wrong checksum"_q, Encode(badCrc) },
+					{
+						u"a cell without its completion tag"_q,
+						Encode(WithLastByte(leaf, 0x00)),
+					},
+					{
+						u"a cell with an overlong completion tag"_q,
+						Encode(WithLastByte(leaf, 0x80)),
+					},
+				};
+				for (const auto &[name, boc] : cases) {
+					const auto error = CheckNoOwner(name, boc);
+					if (!error.isEmpty()) {
+						return error;
+					}
+				}
+				return QString();
+			},
 		},
 	};
 }

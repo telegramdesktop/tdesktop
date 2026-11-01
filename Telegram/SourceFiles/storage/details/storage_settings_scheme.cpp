@@ -90,7 +90,8 @@ bool ReadSetting(
 		stream >> serialized;
 		if (!CheckStreamStatus(stream)) return false;
 
-		Core::App().settings().addFromSerialized(serialized);
+		Core::App().settings().addFromSerialized(serialized, version);
+		psDownloadPathEnableAccess();
 	} break;
 
 	case dbiChatSizeMaxOld: {
@@ -418,7 +419,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 
-		context.sessionSettings().addFromSerialized(v);
+		context.sessionSettings().addFromSerialized(v, version);
 	} break;
 
 	case dbiWorkModeOld: {

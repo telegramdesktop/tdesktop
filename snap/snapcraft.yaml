@@ -21,6 +21,7 @@ apps:
       - camera
       - hardware-observe
       - home
+      - login-session-observe
       - network
       - network-bind
       - network-status
@@ -123,7 +124,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: aec474953ff7ee9b6e4cd9b8658288ea86d124f3
+    source-commit: 13b4eb3dc1b8ef404b4ab04750e0fd7aafbe06c2
     plugin: nil
     override-pull: |
       craftctl default
@@ -425,12 +426,14 @@ parts:
       - -DINSTALL_LIBDIR=/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR
       - -DBUILD_SHARED_LIBS=OFF
       - -DQT_QPA_PLATFORMS="wayland;xcb"
+      - -DFEATURE_brotli=OFF
       - -DFEATURE_eglfs=OFF
       - -DINPUT_openssl=linked
     override-pull: |
       craftctl default
       QT="$(grep 'set(QT_REPO_MODULE_VERSION' qtbase/.cmake.conf | sed -r 's/.*"(.*)".*/\1/')"
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtbase apply
+      find $CRAFT_STAGE/patches/qtsvg_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtsvg apply
       find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtwayland apply
     prime: [-./*]
     after:
@@ -526,7 +529,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: d1cf250ea73de26c4c1f0a3c8173eb2648efbb04
+    source-commit: 49ceed3985d8626b3a24bdb14d9c593a115cc6e8
     plugin: cmake
     build-packages:
       - libopenh264-dev

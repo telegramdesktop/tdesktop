@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_pinned_section.h"
 
+#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_translate_bar.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/view/controls/history_view_compose_search.h"
 #include "api/api_messages_search.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_saved_sublist.h"
 #include "data/data_chat_participant_status.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -32,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
 #include "window/window_adaptive.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "base/event_filter.h"
@@ -59,14 +63,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeData>
 
 namespace HistoryView {
+
+struct PinnedThreadLifetime {
+	Data::Thread *thread = nullptr;
+	not_null<History*> history;
+	base::weak_qptr<PinnedWidget> widget;
+	base::weak_ptr<Window::Controller> rootedWindow;
+	rpl::lifetime lifetime;
+};
+
 namespace {
+
+[[nodiscard]] bool ThreadIsDying(not_null<Data::Thread*> thread) {
+	if (const auto topic = thread->asTopic()) {
+		const auto forum = topic->forum();
+		return (forum->peer()->forum() != forum)
+			|| forum->topicDeleted(topic->rootId());
+	} else if (const auto sublist = thread->asSublist()) {
+		const auto chat = sublist->parentChat();
+		return chat && (chat->monoforum() != sublist->parent());
+	}
+	return false;
+}
 
 } // namespace
 
 PinnedMemento::PinnedMemento(
 	not_null<Data::Thread*> thread,
-	UniversalMsgId highlightId)
+	UniversalMsgId highlightId,
+	std::shared_ptr<PinnedThreadLifetime> threadLifetime)
 : _thread(thread)
+, _threadLifetime(std::move(threadLifetime))
 , _highlightId(highlightId) {
 	_list.setAroundPosition({
 		.fullId = FullMsgId(_thread->peer()->id, highlightId),
@@ -82,26 +109,48 @@ object_ptr<Window::SectionWidget> PinnedMemento::createWidget(
 	if (column == Window::Column::Third) {
 		return nullptr;
 	}
+	const auto replacement = expired()
+		? _threadLifetime->history.get()
+		: ThreadIsDying(_thread)
+		? _thread->owningHistory().get()
+		: nullptr;
+	if (replacement) {
+		auto memento = ChatMemento(ChatViewId{ .history = replacement });
+		return memento.createWidget(parent, controller, column, geometry);
+	}
 	auto result = object_ptr<PinnedWidget>(
 		parent,
 		controller,
-		_thread);
+		_thread,
+		_threadLifetime);
 	result->setInternalState(geometry, this);
 	return result;
 }
 
+bool PinnedMemento::expired() const {
+	return _threadLifetime && !_threadLifetime->thread;
+}
+
+not_null<Data::Thread*> PinnedMemento::getThread() const {
+	if (expired()) {
+		return _threadLifetime->history;
+	}
+	return _thread;
+}
+
 Data::ForumTopic *PinnedMemento::topicForRemoveRequests() const {
-	return _thread->asTopic();
+	return expired() ? nullptr : _thread->asTopic();
 }
 
 Data::SavedSublist *PinnedMemento::sublistForRemoveRequests() const {
-	return _thread->asSublist();
+	return expired() ? nullptr : _thread->asSublist();
 }
 
 PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	not_null<Data::Thread*> thread)
+	not_null<Data::Thread*> thread,
+	std::shared_ptr<PinnedThreadLifetime> threadLifetime)
 : Window::SectionWidget(parent, controller, thread->peer())
 , WindowListDelegate(controller)
 , _thread(thread->migrateToOrMe())
@@ -200,9 +249,62 @@ PinnedWidget::PinnedWidget(
 	setupTranslateBar();
 	setupShortcuts();
 	Window::SetupSwipeBackSection(this, _scroll.get(), _inner);
+
+	if (threadLifetime) {
+		adoptThreadLifetime(std::move(threadLifetime));
+	} else if (const auto topic = _thread->asTopic()) {
+		setupThreadLifetime(topic->destroyed());
+	} else if (const auto sublist = _thread->asSublist()) {
+		setupThreadLifetime(sublist->destroyed());
+	}
 }
 
 PinnedWidget::~PinnedWidget() = default;
+
+void PinnedWidget::setupThreadLifetime(rpl::producer<> destroyed) {
+	adoptThreadLifetime(std::make_shared<PinnedThreadLifetime>(
+		PinnedThreadLifetime{ .thread = _thread, .history = _history }));
+	const auto raw = _threadLifetime.get();
+
+	// WHY: mementos keep this subscription, so a stack entry expires
+	// before later sections go back to it, and a Pinned restored by an
+	// earlier subscriber adopts it, as a new one would miss the event.
+	std::move(
+		destroyed
+	) | rpl::on_next([=] {
+		if (!base::take(raw->thread)) {
+			return;
+		}
+		const auto widget = raw->widget.get();
+		const auto window = raw->rootedWindow.get();
+		if (widget) {
+			widget->threadDestroyed();
+		} else if (window) {
+			Core::App().closeWindow(window);
+		}
+	}, raw->lifetime);
+}
+
+void PinnedWidget::adoptThreadLifetime(
+		std::shared_ptr<PinnedThreadLifetime> threadLifetime) {
+	const auto id = controller()->windowId();
+	const auto rooted = (id.chat() == _thread) || (id.sublist() == _thread);
+	_threadLifetime = std::move(threadLifetime);
+	_threadLifetime->widget = base::make_weak(this);
+	_threadLifetime->rootedWindow = rooted
+		? base::make_weak(&controller()->window())
+		: base::weak_ptr<Window::Controller>();
+}
+
+void PinnedWidget::threadDestroyed() {
+	const auto window = &controller()->window();
+	const auto id = controller()->windowId();
+	if (id.chat() == _thread || id.sublist() == _thread) {
+		Core::App().closeWindow(window);
+		return;
+	}
+	showHistoryAfterThreadDestroyed(_history);
+}
 
 void PinnedWidget::setupClearButton() {
 	Data::CanPinMessagesValue(
@@ -427,7 +529,9 @@ bool PinnedWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto logMemento = dynamic_cast<PinnedMemento*>(memento.get())) {
-		if (logMemento->getThread() == thread()
+		if (logMemento->expired()) {
+			return false;
+		} else if (logMemento->getThread() == thread()
 			|| logMemento->getThread()->migrateToOrMe() == thread()) {
 			restoreState(logMemento);
 			return true;
@@ -445,14 +549,20 @@ void PinnedWidget::setInternalState(
 }
 
 std::shared_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
-	auto result = std::make_shared<PinnedMemento>(thread());
+	auto result = std::make_shared<PinnedMemento>(
+		thread(),
+		MsgId(),
+		_threadLifetime);
 	saveState(result.get());
 	return result;
 }
 
 auto PinnedWidget::createIdentityMemento()
 -> std::shared_ptr<Window::SectionMemento> {
-	return std::make_shared<PinnedMemento>(thread());
+	return std::make_shared<PinnedMemento>(
+		thread(),
+		MsgId(),
+		_threadLifetime);
 }
 
 bool PinnedWidget::showMessage(

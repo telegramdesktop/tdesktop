@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 
+#include <QtWidgets/QWidget>
+
 namespace Core {
 
 // A reason may be held by an object that outlives this one, so the callbacks
@@ -18,25 +20,38 @@ public:
 	ScreenshotProtection();
 	~ScreenshotProtection();
 
-	// Window shows protected content itself.
-	void addContentReason(rpl::producer<bool> active, rpl::lifetime &lifetime);
+	// The window shows protected content itself.
+	void addContentReason(
+		not_null<QWidget*> window,
+		rpl::producer<bool> active,
+		rpl::lifetime &lifetime);
 
 	// Only context around the window is protected, not the window content.
-	void addAmbientReason(rpl::producer<bool> active, rpl::lifetime &lifetime);
-
-	[[nodiscard]] bool active() const;
-	[[nodiscard]] rpl::producer<bool> activeValue() const;
+	void addAmbientReason(
+		not_null<QWidget*> window,
+		rpl::producer<bool> active,
+		rpl::lifetime &lifetime);
 
 private:
-	void addReason(rpl::producer<bool> active, rpl::lifetime &lifetime);
+	void addReason(
+		not_null<QWidget*> window,
+		rpl::producer<bool> active,
+		rpl::lifetime &lifetime);
 	void refresh();
-	void apply(bool enabled);
+	void apply(not_null<QWidget*> window, bool force = false);
+	[[nodiscard]] bool activeFor(not_null<QWidget*> window) const;
 
-	base::flat_map<uint64, bool> _reasons;
+	struct Reason {
+		QPointer<QWidget> window;
+		bool active = false;
+	};
+	struct Applied {
+		QPointer<QWidget> window;
+		bool enabled = false;
+	};
+	base::flat_map<uint64, Reason> _reasons;
 	uint64 _lastReasonId = 0;
-	rpl::variable<bool> _active = false;
-	std::unique_ptr<QObject> _filter;
-	rpl::lifetime _lifetime;
+	base::flat_map<not_null<QWidget*>, Applied> _applied;
 
 };
 

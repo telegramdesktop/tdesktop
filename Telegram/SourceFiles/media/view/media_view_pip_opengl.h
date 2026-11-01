@@ -30,11 +30,6 @@ public:
 	std::optional<QColor> clearColor() override;
 
 private:
-	struct Control {
-		int index = -1;
-		not_null<const style::icon*> icon;
-		not_null<const style::icon*> iconOver;
-	};
 	void createShadowTexture();
 
 	void paintTransformedVideoFrame(ContentGeometry geometry) override;
@@ -107,6 +102,7 @@ private:
 	quint64 _cacheKey = 0;
 	int _trackFrameIndex = 0;
 	bool _chromaNV12 = false;
+	GLenum _nv12ChromaFormat = GL_RG;
 
 	Ui::GL::Image _radialImage;
 	Ui::GL::Image _controlsImage;
@@ -114,7 +110,6 @@ private:
 	Ui::GL::Image _volumeControllerImage;
 	Ui::GL::Image _shadowImage;
 
-	static constexpr auto kControlsCount = 7;
 	[[nodiscard]] static Control ControlMeta(
 		OverState control,
 		int index = 0);

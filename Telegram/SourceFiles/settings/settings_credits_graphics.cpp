@@ -90,6 +90,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/fields/number_input.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
@@ -98,6 +100,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
+#include "wallet/wallet_move_to_gifts.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
@@ -281,6 +284,99 @@ void ConvertStarGift(
 		}
 		done(false);
 	}).send();
+}
+
+[[nodiscard]] bool CanDeleteSavedStarGift(
+		not_null<PeerData*> owner,
+		const Data::SavedStarGift &data) {
+	if (!data.manageId
+		|| data.info.unique
+		|| data.info.limitedCount
+		|| data.info.auction()
+		|| data.refunded) {
+		return false;
+	} else if (const auto chat = data.manageId.chat()) {
+		return (chat == owner)
+			&& owner->isChannel()
+			&& owner->canTransferGifts();
+	}
+	return owner->isSelf() && data.mine;
+}
+
+void DeleteStarGift(
+		std::shared_ptr<ChatHelpers::Show> show,
+		Data::SavedStarGiftId savedId,
+		Fn<void(bool)> done) {
+	const auto session = &show->session();
+	session->api().request(MTPpayments_DeleteStarGift(
+		Api::InputSavedStarGiftId(savedId)
+	)).done([=](const MTPBool &result) {
+		if (!mtpIsTrue(result)) {
+			done(false);
+			return;
+		}
+		session->data().notifyGiftUpdate({
+			.id = savedId,
+			.action = Data::GiftUpdate::Action::Delete,
+		});
+		show->showToast({
+			.text = { tr::lng_gift_deleted(tr::now) },
+			.iconLottie = u"toast/delete"_q,
+			.iconLottieSize = st::toastLottieIconSize,
+		});
+		done(true);
+	}).fail([=](const MTP::Error &error) {
+		if (!MTP::IgnoreError(error)
+			&& !Ui::ShowGiftErrorToast(show, error)) {
+			MTP::ShowErrorFallback(show, error);
+		}
+		done(false);
+	}).send();
+}
+
+void AddDeleteGiftMenuButton(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<ChatHelpers::Show> show,
+		Data::SavedStarGiftId savedId) {
+	const auto weak = base::make_weak(box);
+	const auto busy = box->lifetime().make_state<bool>(false);
+	const auto confirmed = [=](Fn<void()> close) {
+		close();
+		if (!weak || *busy) {
+			return;
+		}
+		*busy = true;
+		DeleteStarGift(show, savedId, crl::guard(weak, [=](bool deleted) {
+			*busy = deleted;
+		}));
+	};
+	const auto confirm = [=] {
+		if (!weak || *busy) {
+			return;
+		}
+		show->show(Ui::MakeConfirmBox({
+			.text = tr::lng_gift_delete_sure_text(),
+			.confirmed = confirmed,
+			.confirmText = tr::lng_box_delete(),
+			.confirmStyle = &st::attentionBoxButton,
+			.title = tr::lng_gift_menu_delete(),
+		}));
+	};
+	const auto fill = [=](not_null<Ui::PopupMenu*> menu) {
+		Ui::Menu::CreateAddActionCallback(menu)({
+			.text = tr::lng_gift_menu_delete(tr::now),
+			.handler = confirm,
+			.icon = &st::menuIconDeleteAttention,
+			.isAttention = true,
+		});
+	};
+	AddUniqueCloseMoreButton(
+		box,
+		{},
+		fill,
+		nullptr,
+		&st::boxTitleClose,
+		&st::regularGiftMenuButton);
 }
 
 void AddViewMediaHandler(
@@ -1186,9 +1282,6 @@ void FillUniqueGiftMenu(
 			if (Ui::ShowCraftLaterError(show, unique)) {
 				return;
 			}
-			if (Ui::ShowCraftAddressError(show, unique)) {
-				return;
-			}
 			const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
 			if (const auto window = show->resolveWindow()) {
 				Ui::ShowGiftCraftInfoBox(window, unique, savedId);
@@ -1199,11 +1292,14 @@ void FillUniqueGiftMenu(
 		&& (savedId.isUser() ? e.in : savedId.chat()->canTransferGifts())
 		&& (unique->starsForTransfer >= 0);
 	if (transfer) {
+		const auto shownOnProfile = e.savedToProfile;
 		menu->addAction(tr::lng_gift_transfer_button(tr::now), [=] {
 			if (!owner) {
-				ShowActionLocked(show, unique->slug);
+				Wallet::ShowAddressHeldGiftTransfer(show, unique, [=] {
+					ShowActionLocked(show, unique->slug);
+				});
 			} else if (const auto window = show->resolveWindow()) {
-				ShowTransferGiftBox(window, unique, savedId);
+				ShowTransferGiftBox(window, unique, savedId, shownOnProfile);
 			}
 		}, st.transfer ? st.transfer : &st::menuIconReplace);
 	}
@@ -1285,6 +1381,7 @@ CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle() {
 		.menu = &st::mediaviewPopupMenu,
 		.table = &st::darkGiftTable,
 		.tableValueMultiline = &st::darkGiftTableValueMultiline,
+		.tableValueAddress = &st::darkGiftTableAddress,
 		.tableValueMessage = &st::darkGiftTableMessage,
 		.link = &st::darkGiftLink,
 		.share = &st::darkGiftShare,
@@ -1433,16 +1530,14 @@ void GenericCreditsEntryCover(
 		if (actions && actions->transfer) {
 			coverActions.push_back({
 				.text = tr::lng_gift_transfer_button(),
-				.icon = &st::menuIconReplace,
+				.icon = rpl::single(&st::menuIconReplace),
 				.callback = actions->transfer,
 			});
 		}
-		if (actions && actions->sell) {
-			coverActions.push_back({
-				.text = tr::lng_gift_transfer_sell(),
-				.icon = &st::menuIconTagSell,
-				.callback = actions->sell,
-			});
+		if (actions && actions->extra) {
+			for (auto &action : actions->extra(box)) {
+				coverActions.push_back(std::move(action));
+			}
 		}
 		AddUniqueGiftCover(content, rpl::single(cover), {
 			.numberText = (uniqueGift->number > 0)
@@ -1593,8 +1688,11 @@ void GenericCreditsEntryBox(
 		const Data::SubscriptionEntry &s,
 		CreditsEntryBoxStyleOverrides st,
 		std::shared_ptr<const UniqueGiftCoverActions> actions) {
-	GenericCreditsEntryCover(box, show, e, s, st, std::move(actions));
+	GenericCreditsEntryCover(box, show, e, s, st, actions);
 	GenericCreditsEntryBody(box, show, e, s, nullptr, st);
+	if (actions && actions->aboveButtons && e.uniqueGift) {
+		actions->aboveButtons(box);
+	}
 }
 
 void GenericCreditsEntryBody(
@@ -1694,9 +1792,6 @@ void GenericCreditsEntryBody(
 		const auto craft = canCraft ? [=] {
 			const auto unique = e.uniqueGift;
 			if (Ui::ShowCraftLaterError(show, unique)) {
-				return;
-			}
-			if (Ui::ShowCraftAddressError(show, unique)) {
 				return;
 			}
 			const auto savedId = EntryToSavedStarGiftId(&show->session(), e);
@@ -2001,9 +2096,12 @@ void GenericCreditsEntryBody(
 				st::creditsBoxAbout),
 			style::al_top);
 		about->setClickHandlerFilter([=](const auto &...) {
-			Core::App().iv().openWithIvPreferred(
+			HiddenUrlClickHandler::OpenTranslatedWithIv(
 				session,
-				tr::lng_paid_about_link_url(tr::now));
+				tr::lng_paid_about_link_url,
+				QVariant::fromValue(ClickHandlerContext{
+					.show = show,
+				}));
 			return false;
 		});
 		if (e.giftRefunded) {
@@ -2911,6 +3009,9 @@ void ShowSavedStarGiftBox(
 			controller,
 			std::move(entry),
 			Data::SubscriptionEntry());
+		if (CanDeleteSavedStarGift(owner, data)) {
+			AddDeleteGiftMenuButton(box, controller->uiShow(), data.manageId);
+		}
 	}));
 }
 
@@ -3756,12 +3857,16 @@ void AddUniqueCloseMoreButton(
 		not_null<Ui::GenericBox*> box,
 		Settings::CreditsEntryBoxStyleOverrides st,
 		Fn<void(not_null<Ui::PopupMenu*>)> fillMenu,
-		Fn<void()> launchCraft) {
+		Fn<void()> launchCraft,
+		const style::IconButton *closeSt,
+		const style::IconButton *menuSt) {
 	const auto close = Ui::CreateChild<Ui::IconButton>(
 		box,
-		st::uniqueCloseButton);
+		closeSt ? *closeSt : st::uniqueCloseButton);
 	const auto menu = fillMenu
-		? Ui::CreateChild<Ui::IconButton>(box, st::uniqueMenuButton)
+		? Ui::CreateChild<Ui::IconButton>(
+			box,
+			menuSt ? *menuSt : st::uniqueMenuButton)
 		: nullptr;
 	const auto craft = launchCraft
 		? Ui::CreateChild<Ui::IconButton>(box, st::uniqueCraftButton)

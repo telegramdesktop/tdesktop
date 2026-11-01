@@ -169,8 +169,6 @@ private:
 	// FloatDelegate
 	[[nodiscard]] auto floatPlayerDelegate()
 		-> not_null<Media::Player::FloatDelegate*>;
-	[[nodiscard]] auto floatPlayerSectionDelegate()
-		-> not_null<Media::Player::FloatSectionDelegate*>;
 	not_null<Ui::RpWidget*> floatPlayerWidget() override;
 	void floatPlayerToggleGifsPaused(bool paused) override;
 	not_null<Media::Player::FloatSectionDelegate*> floatPlayerGetSection(

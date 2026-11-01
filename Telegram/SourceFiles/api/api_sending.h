@@ -63,6 +63,11 @@ void FillMessagePostFlags(
 	not_null<PeerData*> peer,
 	MessageFlags &flags);
 
+[[nodiscard]] MTPmessages_SendMedia::Flags PrepareSendMedia(
+	not_null<Main::Session*> session,
+	SendAction &action,
+	int &starsPaid);
+
 void SendConfirmedFile(
 	not_null<Main::Session*> session,
 	const std::shared_ptr<FilePrepareResult> &file);

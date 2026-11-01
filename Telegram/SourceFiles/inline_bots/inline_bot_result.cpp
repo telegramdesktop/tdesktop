@@ -435,10 +435,6 @@ void Result::createGame(not_null<Main::Session*> session) {
 		_document);
 }
 
-QSize Result::thumbBox() const {
-	return (_type == Type::Photo) ? QSize(100, 100) : QSize(90, 90);
-}
-
 MTPWebDocument Result::adjustAttributes(const MTPWebDocument &document) {
 	switch (document.type()) {
 	case mtpc_webDocument: {

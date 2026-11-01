@@ -540,17 +540,156 @@ moderateBoxExpandTextStyle: TextStyle(boxTextStyle) {
 moderateBoxExpandToggleSize: 4px;
 moderateBoxExpandToggleFourStrokes: 3px;
 
-profileQrFont: font(fsize bold);
-profileQrBackgroundRadius: 12px;
-profileQrIcon: icon{{ "qr_mini", windowActiveTextFg }};
-profileQrBackgroundMargins: margins(36px, 12px, 36px, 12px);
-profileQrBackgroundPadding: margins(0px, 24px, 0px, 24px);
+peerQrBox: Box(defaultBox) {
+	buttonPadding: margins(0px, 0px, 0px, 0px);
+	buttonHeight: 0px;
+	shadowIgnoreTopSkip: true;
+}
+peerQrBoxWidth: aboutWidth;
+peerQrCardWidth: 288px;
+peerQrCardSkip: 20px;
+peerQrUsernameSkip: 18px;
+peerQrUsernameLarge: font(36px bold);
+peerQrUsernameMedium: font(30px bold);
+peerQrUsernameSmall: font(23px bold);
+peerQrUsernameMin: 13px;
+peerQrCardShadowRadius: 21px;
+peerQrCardShadowShift: 7px;
+peerQrPillSkip: 13px;
+peerQrPillHeight: 26px;
+peerQrDriftSpeed: 6px;
+peerQrButtonSkip: 16px;
+peerQrButton: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
+peerQrClose: IconButton(peerQrButton) {
+	icon: icon {{ "box_button_close", windowFg }};
+	iconOver: icon {{ "box_button_close", windowFg }};
+}
+peerQrCopy: IconButton(peerQrButton) {
+	icon: icon {{ "menu/copy", windowFg }};
+	iconOver: icon {{ "menu/copy", windowFg }};
+}
+peerQrShare: IconButton(peerQrButton) {
+	icon: icon {{ "menu/share", windowFg }};
+	iconOver: icon {{ "menu/share", windowFg }};
+}
+peerQrButtonLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(20px, 20px);
+	thickness: 2px;
+}
+peerQrTitle: FlatLabel(boxTitle) {
+}
+peerQrAbout: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 100px;
+}
+peerQrPillFont: font(13px);
+peerQrPillPadding: margins(10px, 0px, 13px, 0px);
+peerQrPillStarBox: 14px;
+peerQrPillStarSkip: 2px;
+peerQrPillStar: icon {{ "premium/star-11x11", windowFg }};
+peerQrPillTextStyle: TextStyle(defaultTextStyle) {
+	font: peerQrPillFont;
+}
+peerQrPillStarEmoji: IconEmoji {
+	icon: peerQrPillStar;
+	padding: margins(1px, 5px, 0px, 0px);
+}
+peerQrMenuReset: icon {{ "chat/refresh-24x24", menuIconColor }};
+peerQrMenuTimerOff: icon {{ "menu/timer_off-24x24", menuIconColor }};
+peerQrMenuAboutFont: font(12px);
+peerQrToastTimer: icon {{ "menu/timer", toastFg }};
+peerQrToastCheck: icon {{ "toast/check", toastFg }};
+peerQrWaveOvershoot: 71px;
+peerQrWaveGlowFrom: 107px;
+peerQrWaveGlowTill: 67px;
+peerQrWaveBlend: 190px;
+peerQrColors: IconButton(peerQrButton) {
+	width: 48px;
+	icon: icon {{ "menu/colors", windowFg }};
+	iconOver: icon {{ "menu/colors", windowFg }};
+	rippleAreaPosition: point(4px, 0px);
+}
+peerQrEmoji: IconButton(peerQrColors) {
+	icon: icon {{ "menu/emoji", windowFg }};
+	iconOver: icon {{ "menu/emoji", windowFg }};
+}
+peerQrGift: IconButton(peerQrColors) {
+	icon: icon {{ "menu/gift_premium", windowFg }};
+	iconOver: icon {{ "menu/gift_premium", windowFg }};
+}
+peerQrPanelMargin: 10px;
+peerQrPanelPadding: 11px;
+peerQrPanelRadius: 24px;
+peerQrPanelFade: 14px;
+peerQrPanelSkip: 12px;
+peerQrPanelScroll: ScrollArea(defaultScrollArea) {
+	barHidden: true;
+}
+peerQrSwatchSkip: 12px;
+peerQrSwatchRing: 2px;
+peerQrSwatchRingInset: 6px;
+peerQrSwatchRise: 8px;
+peerQrEmojiSkipX: 80px;
+peerQrEmojiSkipY: 66px;
+peerQrEmojiSize: 32px;
+peerQrEmojiOffsetMin: 3px;
+peerQrEmojiOffsetMax: 10px;
+peerQrEmojiBob: 3px;
+peerQrLayerBand: 98px;
+peerQrLayerGlideBrake: 9px;
+peerQrLayerGlideMax: 900px;
+peerQrGiftModelSize: 78px;
+peerQrGiftModelSkipX: 150px;
+peerQrGiftModelSkipY: 132px;
+peerQrGiftModelOffset: 16px;
+peerQrGiftModelFrame: 116px;
+peerQrGiftSymbolSize: 20px;
+peerQrGiftSymbolSkipX: 39px;
+peerQrGiftSymbolSkipY: 33px;
+peerQrGiftSymbolJitterX: 17px;
+peerQrGiftSymbolJitterY: 14px;
+peerQrGiftSkip: 9px;
+peerQrGiftRadius: 14px;
+peerQrGiftsEmptyPadding: margins(16px, 8px, 16px, 12px);
+peerQrGiftsEmptySticker: 80px;
+peerQrGiftsEmptyTitleSkip: 4px;
+peerQrGiftsEmptyTextSkip: 2px;
+peerQrGiftsEmptyTextWidth: 240px;
+peerQrGiftsEmptyButtonSkip: 10px;
+peerQrGiftsEmptyTitle: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px semibold);
+	}
+}
+peerQrGiftsEmptyText: FlatLabel(defaultFlatLabel) {
+	align: align(top);
+	minWidth: 100px;
+}
+peerQrGiftsBrowse: RoundButton(defaultActiveButton) {
+	width: -40px;
+	height: 34px;
+	textTop: 8px;
+	fullRadius: true;
+}
 
 foldersMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 320px;
 	menu: Menu(menuWithIcons) {
 		itemPadding: margins(54px, 8px, 44px, 8px);
 	}
+}
+
+ownedStickerSetsMenu: PopupMenu(popupMenuWithIcons) {
+	maxHeight: 320px;
 }
 
 futureOwnerBox: Box(defaultBox) {

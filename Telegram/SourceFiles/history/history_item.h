@@ -188,7 +188,7 @@ public:
 	void dependencyItemRemoved(not_null<HistoryItem*> dependency);
 	void dependencyStoryRemoved(not_null<Data::Story*> dependency);
 	void updateDependencyItem();
-	[[nodiscard]] MsgId dependencyMsgId() const;
+	void updateDependentServiceText();
 	[[nodiscard]] bool notificationReady() const;
 	[[nodiscard]] PeerData *specialNotificationPeer() const;
 	void checkStoryForwardInfo();
@@ -203,6 +203,7 @@ public:
 	[[nodiscard]] bool isGuestChatBotMessage() const;
 	[[nodiscard]] UserData *getMessageBot() const;
 	[[nodiscard]] bool hideLinks() const;
+	[[nodiscard]] bool hideInlineKeyboard() const;
 	[[nodiscard]] bool isHistoryEntry() const;
 	[[nodiscard]] bool isAdminLogEntry() const;
 	[[nodiscard]] bool isFromScheduled() const;
@@ -246,7 +247,6 @@ public:
 	void setMainView(not_null<HistoryView::Element*> view) {
 		_mainView = view;
 	}
-	void refreshMainView();
 	void clearMainView();
 	void removeMainView(
 		Data::ViewRemovalReason reason = Data::ViewRemovalReason::Removed);
@@ -397,7 +397,6 @@ public:
 	void setCommentsPossibleMaxId(MsgId possibleMaxId);
 	[[nodiscard]] bool areCommentsUnread() const;
 
-	[[nodiscard]] FullMsgId commentsItemId() const;
 	void setCommentsItemId(FullMsgId id);
 
 	[[nodiscard]] bool needCheck() const;
@@ -610,6 +609,7 @@ public:
 
 	[[nodiscard]] bool showForwardsFromSender(
 		not_null<const HistoryMessageForwarded*> forwarded) const;
+	[[nodiscard]] bool displayForwardedFrom() const;
 
 	[[nodiscard]] bool isEmpty() const;
 	[[nodiscard]] MessageGroupId groupId() const;
@@ -732,7 +732,6 @@ private:
 	[[nodiscard]] HistoryServiceDependentData *GetServiceDependentData();
 	[[nodiscard]] auto GetServiceDependentData() const
 		-> const HistoryServiceDependentData *;
-	void updateDependentServiceText();
 	void updateServiceDependent(bool force = false);
 	void setServiceText(PreparedServiceText &&prepared);
 
@@ -834,6 +833,8 @@ private:
 	int _boostsApplied = 0;
 	int _starsPaid = 0;
 	BusinessShortcutId _shortcutId = 0;
+	// Service-styled regular messages still accept ordinary content updates.
+	bool _isServiceMessage = false;
 
 	MessageGroupId _groupId = MessageGroupId();
 	EffectId _effectId = 0;

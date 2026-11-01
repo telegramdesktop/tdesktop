@@ -79,13 +79,6 @@ void DiscreteSlider::selectSection(int index) {
 	startRipple(index);
 }
 
-void DiscreteSlider::setAdditionalContentWidthToSection(int index, int w) {
-	if (index >= 0 && index < _sections.size()) {
-		auto &section = _sections[index];
-		section.contentWidth = section.label.maxWidth() + w;
-	}
-}
-
 int DiscreteSlider::sectionsCount() const {
 	return int(_sections.size());
 }

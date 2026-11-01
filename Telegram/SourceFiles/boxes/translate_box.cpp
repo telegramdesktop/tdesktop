@@ -185,12 +185,13 @@ void SetupRichArticleBody(
 	});
 }
 
-[[nodiscard]] bool ShowRichArticlePage(
+bool ShowRichArticlePage(
 		not_null<Main::Session*> session,
 		FullMsgId itemId,
 		not_null<Iv::Markdown::MarkdownDocumentWidget*> body,
 		not_null<std::shared_ptr<Iv::Markdown::MarkdownArticle>*> article,
 		std::shared_ptr<const Iv::RichPage> page) {
+	const auto item = session->data().message(itemId);
 	const auto limits = Iv::ResolveRichMessageLimits(session);
 	auto prepared = Iv::Markdown::TryPrepareNativeInstantView({
 		.richPage = page,
@@ -204,9 +205,13 @@ void SetupRichArticleBody(
 			st::translateBoxMarkdown),
 		.tableRenderLimits
 			= Iv::Markdown::PrepareTableRenderLimitsForRichMessage(limits),
+		.disableButtons = (item && item->hideLinks()),
 	});
 	if (!prepared.supported()) {
 		return false;
+	}
+	if (item && prepared.buttonsDisabled) {
+		item->setHasHiddenLinks(true);
 	}
 	if (!*article) {
 		*article = std::make_shared<Iv::Markdown::MarkdownArticle>(
@@ -237,6 +242,7 @@ void SetupRichArticleBody(
 		mtpRequestId requestId = 0;
 		std::shared_ptr<Iv::Markdown::MarkdownArticle> original;
 		std::shared_ptr<Iv::Markdown::MarkdownArticle> translated;
+		std::shared_ptr<const Iv::RichPage> translatedPage;
 	};
 	const auto session = &peer->session();
 	const auto itemId = FullMsgId(peer->id, msgId);
@@ -372,6 +378,7 @@ void SetupRichArticleBody(
 				translated->entity(),
 				&state->translated,
 				result)) {
+			state->translatedPage = result;
 			translated->show(anim::type::instant);
 			loading->hide(anim::type::instant);
 			setCopyText(Iv::FlattenRichPageToSimpleText(*result));
@@ -405,6 +412,28 @@ void SetupRichArticleBody(
 			showResult(nullptr);
 		}).send();
 	};
+	const auto item = session->data().message(itemId);
+	if (item && item->hideLinks()) {
+		session->data().itemViewRefreshRequest(
+		) | rpl::filter([=](not_null<const HistoryItem*> refreshed) {
+			return (refreshed->fullId() == itemId) && !refreshed->hideLinks();
+		}) | rpl::take(1) | rpl::on_next([=] {
+			ShowRichArticlePage(
+				session,
+				itemId,
+				original->entity(),
+				&state->original,
+				page);
+			if (const auto translatedPage = state->translatedPage) {
+				ShowRichArticlePage(
+					session,
+					itemId,
+					translated->entity(),
+					&state->translated,
+					translatedPage);
+			}
+		}, box->lifetime());
+	}
 	std::move(to) | rpl::on_next(send, box->lifetime());
 
 	box->addLeftButton(tr::lng_settings_language(), [=] {

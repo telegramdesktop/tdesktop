@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/object_ptr.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "core/click_handler_types.h"
 #include "data/components/credits.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
@@ -337,10 +338,15 @@ void InsufficientTonBox(
 	label->resizeToWidth(
 		st::boxWidth - st::boxRowPadding.left() - st::boxRowPadding.right());
 
-	const auto url = tr::lng_suggest_low_ton_fragment_url(tr::now);
 	const auto button = box->addButton(
 		tr::lng_suggest_low_ton_fragment(),
-		[=] { UrlClickHandler::Open(url); });
+		[=] {
+			HiddenUrlClickHandler::OpenTranslated(
+				tr::lng_suggest_low_ton_fragment_url,
+				QVariant::fromValue(ClickHandlerContext{
+					.show = box->uiShow(),
+				}));
+		});
 	const auto buttonWidth = st::boxWidth
 		- rect::m::sum::h(st::suggestPriceBox.buttonPadding);
 	button->widthValue() | rpl::filter([=] {

@@ -375,17 +375,27 @@ void FillChooseFilterMenu(
 			};
 			auto filter =
 				Data::ChatFilter({}, {}, {}, {}, {}, { history }, {}, {});
-			const auto send = [=](const Data::ChatFilter &filter) {
+			const auto saveAnd = [=](
+					const Data::ChatFilter &filter,
+					Fn<void(Data::ChatFilter)> next) {
+				const auto updated = filter.withId(
+					filter.id() ? filter.id() : chooseNextId());
 				session->api().request(MTPmessages_UpdateDialogFilter(
 					MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
-					MTP_int(chooseNextId()),
-					filter.tl()
+					MTP_int(updated.id()),
+					updated.tl()
 				)).done([=] {
+					if (next) {
+						next(updated);
+					}
 					session->data().chatsFilters().reload();
 				}).send();
 			};
+			const auto send = [=](const Data::ChatFilter &filter) {
+				saveAnd(filter, nullptr);
+			};
 			strong->uiShow()->show(
-				Box(EditFilterBox, strong, std::move(filter), send, nullptr));
+				Box(EditFilterBox, strong, std::move(filter), send, saveAnd));
 		}, &st::menuIconShowInFolder);
 	}
 

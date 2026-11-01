@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 
 #include "base/variant.h"
+#include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
 
@@ -15,11 +16,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QByteArray>
 
+#include <algorithm>
 #include <limits>
 #include <utility>
 
 namespace Iv::Markdown {
 namespace {
+
+struct TextOffsetsRun {
+	int64 from = 0;
+	int64 value = 0;
+	bool constant = false;
+};
+
+struct TextOffsetsMap {
+	std::vector<TextOffsetsRun> runs;
+	int64 size = 0;
+};
 
 [[nodiscard]] QString EncodeInlineTextObjectBytes(const QByteArray &value) {
 	return QString::fromUtf8(value.toPercentEncoding());
@@ -157,6 +170,164 @@ void ReplaceInlineObjectText(
 			entity.data()));
 	}
 	return entities.begin() + at;
+}
+
+[[nodiscard]] int64 TextOffsetAt(const TextOffsetsRun &run, int64 boundary) {
+	return run.constant ? run.value : (run.value + boundary - run.from);
+}
+
+[[nodiscard]] TextOffsetsMap StartTextOffsets(qsizetype size) {
+	auto result = TextOffsetsMap{ .size = size };
+	if (size >= 0 && size < std::numeric_limits<int>::max()) {
+		result.runs.push_back({});
+	}
+	return result;
+}
+
+[[nodiscard]] std::size_t SplitTextOffsets(
+		TextOffsetsMap *map,
+		int64 value) {
+	auto &runs = map->runs;
+	auto till = map->size + 1;
+	auto i = runs.size();
+	for (; i != 0; --i) {
+		const auto &run = runs[i - 1];
+		if (TextOffsetAt(run, till - 1) < value) {
+			break;
+		} else if (TextOffsetAt(run, run.from) < value) {
+			const auto split = TextOffsetsRun{
+				.from = run.from + (value - run.value),
+				.value = value,
+			};
+			runs.insert(begin(runs) + i, split);
+			break;
+		}
+		till = run.from;
+	}
+	return i;
+}
+
+void ReplaceTextOffsets(
+		TextOffsetsMap *map,
+		int64 size,
+		int64 position,
+		int64 length,
+		int64 added) {
+	auto &runs = map->runs;
+	const auto till = position + length;
+	if (runs.empty()) {
+		return;
+	} else if (position < 0
+		|| length < 0
+		|| till > size
+		|| size - length + added >= std::numeric_limits<int>::max()) {
+		runs.clear();
+		return;
+	}
+	const auto moved = length ? (position + 1) : position;
+	const auto from = SplitTextOffsets(map, moved);
+	const auto shifted = SplitTextOffsets(map, till);
+	for (auto i = shifted; i != runs.size(); ++i) {
+		runs[i].value += added - length;
+	}
+	if (from != shifted) {
+		runs[from].value = position + added;
+		runs[from].constant = true;
+		runs.erase(begin(runs) + from + 1, begin(runs) + shifted);
+	}
+}
+
+void FinishTextOffsets(
+		const TextOffsetsMap &map,
+		std::vector<int> *result) {
+	result->clear();
+	const auto &runs = map.runs;
+	if (runs.empty()) {
+		return;
+	}
+	result->reserve(std::size_t(map.size) + 1);
+	for (auto i = begin(runs); i != end(runs); ++i) {
+		const auto till = (i + 1 != end(runs))
+			? (i + 1)->from
+			: (map.size + 1);
+		for (auto boundary = i->from; boundary != till; ++boundary) {
+			result->push_back(int(TextOffsetAt(*i, boundary)));
+		}
+	}
+}
+
+void TrimTextOffsets(
+		std::vector<int> *offsets,
+		const QString &untrimmed,
+		const QString &trimmed) {
+	const auto size = int64(untrimmed.size());
+	const auto length = int64(trimmed.size());
+	const auto kept = ranges::find_if_not(untrimmed, Ui::Text::IsTrimmed);
+	const auto leading = int64(kept - untrimmed.begin());
+	if (offsets->empty()
+		|| offsets->front() != 0
+		|| offsets->back() != size
+		|| !ranges::is_sorted(*offsets)
+		|| leading + length > size
+		|| QStringView(untrimmed).mid(leading, length) != trimmed) {
+		offsets->clear();
+		return;
+	}
+	for (auto &offset : *offsets) {
+		offset = int(std::clamp(offset - leading, int64(), length));
+	}
+}
+
+[[nodiscard]] bool RecordDateReplacement(
+		std::vector<PreparedTextReplacement> *records,
+		int64 size,
+		int64 position,
+		int64 length,
+		int64 added) {
+	const auto till = position + length;
+	if (position < 0
+		|| length < 0
+		|| till > size
+		|| size - length + added > std::numeric_limits<int>::max()) {
+		return false;
+	}
+	auto skipped = length;
+	auto before = 0;
+	auto result = std::vector<PreparedTextReplacement>();
+	result.reserve(records->size() + 1);
+	for (const auto &record : *records) {
+		const auto from = int64(record.position);
+		const auto to = from + record.added;
+		const auto edge = (length > 0)
+			&& !record.added
+			&& (from == position || from == till);
+		if (from >= position && to <= till && !edge) {
+			skipped += record.skipped - record.added;
+		} else if (to <= position) {
+			result.push_back(record);
+			++before;
+		} else if (from >= till && to <= size) {
+			result.push_back({
+				.position = int(from - length + added),
+				.skipped = record.skipped,
+				.added = record.added,
+			});
+		} else {
+			return false;
+		}
+	}
+	if (skipped < 0 || skipped > std::numeric_limits<int>::max()) {
+		return false;
+	}
+	result.insert(
+		begin(result) + before,
+		PreparedTextReplacement{
+			.position = int(position),
+			.skipped = int(skipped),
+			.added = int(added),
+		});
+	*records = std::move(result);
+	return true;
 }
 
 [[nodiscard]] int TextSizeForFormula(const style::TextStyle &textStyle) {
@@ -302,7 +473,11 @@ std::optional<InlineTextObjectEntity> ParseInlineTextObjectEntity(
 
 TextWithEntities ResolveRichButtonLabelDates(
 		TextWithEntities label,
-		const Ui::Text::FormattedDateFactory &dates) {
+		const Ui::Text::FormattedDateFactory &dates,
+		std::vector<PreparedTextReplacement> *replacements) {
+	if (replacements) {
+		replacements->clear();
+	}
 	// BlockParser::checkEntities hands a FormattedDate entity its own internal
 	// index, createBlock promotes that index to the block's link index, and
 	// the renderer then paints such a block with the link pen and with an
@@ -334,6 +509,16 @@ TextWithEntities ResolveRichButtonLabelDates(
 		}
 		const auto replacement = dates(date, flags).text;
 		const auto delta = int(replacement.size()) - length;
+		if (replacements
+			&& !RecordDateReplacement(
+				replacements,
+				label.text.size(),
+				offset,
+				length,
+				replacement.size())) {
+			replacements->clear();
+			replacements = nullptr;
+		}
 		label.text.replace(offset, length, replacement);
 		auto entities = EntitiesInText();
 		entities.reserve(label.entities.size());
@@ -357,7 +542,11 @@ TextWithEntities ResolveRichButtonLabelDates(
 	}
 }
 
-void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
+void ExpandInlineTextObjects(
+		TextWithEntities *text,
+		bool withIcons,
+		std::vector<int> *offsets) {
+	auto map = offsets ? StartTextOffsets(text->text.size()) : TextOffsetsMap();
 	auto &entities = text->entities;
 	for (auto i = entities.begin(); i != entities.end();) {
 		if (i->type() != EntityType::CustomEmoji) {
@@ -380,6 +569,14 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 			return data.label.text;
 		});
 		const auto offset = i->offset();
+		if (offsets) {
+			ReplaceTextOffsets(
+				&map,
+				text->text.size(),
+				offset,
+				i->length(),
+				replacement.size());
+		}
 		ReplaceInlineObjectText(text, *i, replacement);
 		const auto formula = (object->kind
 			== InlineTextObjectKind::Formula);
@@ -397,6 +594,9 @@ void ExpandInlineTextObjects(TextWithEntities *text, bool withIcons) {
 			i = ExpandInlineObjectEntities(text, i, nested);
 		}
 	}
+	if (offsets) {
+		FinishTextOffsets(map, offsets);
+	}
 }
 
 bool TextHasInlineLinkButton(const TextWithEntities &text) {
@@ -408,8 +608,11 @@ bool TextHasInlineLinkButton(const TextWithEntities &text) {
 std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
 		TextWithEntities *text,
 		RichButtonLabelDates dates,
-		const Ui::Text::FormattedDateFactory &factory) {
+		const Ui::Text::FormattedDateFactory &factory,
+		std::vector<PreparedTextReplacement> *replacements,
+		std::vector<PreparedTextReplacement> *labelDates) {
 	auto result = std::vector<InlineLinkButtonSpan>();
+	auto records = std::vector<PreparedTextReplacement>();
 	auto &entities = text->entities;
 	for (auto i = entities.begin(); i != entities.end();) {
 		const auto button = InlineLinkButtonFor(*i);
@@ -418,12 +621,31 @@ std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
 			continue;
 		}
 		auto label = (dates == RichButtonLabelDates::Resolve)
-			? ResolveRichButtonLabelDates(button->label, factory)
+			? ResolveRichButtonLabelDates(
+				button->label,
+				factory,
+				labelDates ? &records : nullptr)
 			: button->label;
 		const auto actionable = (button->type
 			!= HistoryMessageMarkupButton::Type::Disabled);
 		auto data = actionable ? i->data() : QString();
 		const auto offset = i->offset();
+		if (replacements) {
+			replacements->push_back({
+				.position = offset,
+				.skipped = i->length(),
+				.added = int(label.text.size()),
+			});
+		}
+		if (labelDates) {
+			for (const auto &record : records) {
+				labelDates->push_back({
+					.position = offset + record.position,
+					.skipped = record.skipped,
+					.added = record.added,
+				});
+			}
+		}
 		ReplaceInlineObjectText(text, *i, label.text);
 		i = ExpandInlineObjectEntities(text, i, label.entities);
 		if (actionable && !label.text.isEmpty()) {
@@ -437,8 +659,10 @@ std::vector<InlineLinkButtonSpan> ExpandInlineLinkButtons(
 	return result;
 }
 
-TextWithEntities NormalizeRichButtonLabel(TextWithEntities text) {
-	ExpandInlineTextObjects(&text, false);
+TextWithEntities NormalizeRichButtonLabel(
+		TextWithEntities text,
+		std::vector<int> *offsets) {
+	ExpandInlineTextObjects(&text, false, offsets);
 	text.entities.erase(
 		ranges::remove_if(text.entities, [](const EntityInText &entity) {
 			const auto type = entity.type();
@@ -471,7 +695,11 @@ TextWithEntities NormalizeRichButtonLabel(TextWithEntities text) {
 			SerializeFormattedDateData(date, flags));
 		++i;
 	}
+	const auto untrimmed = offsets ? text.text : QString();
 	TextUtilities::Trim(text);
+	if (offsets) {
+		TrimTextOffsets(offsets, untrimmed, text.text);
+	}
 	return text;
 }
 

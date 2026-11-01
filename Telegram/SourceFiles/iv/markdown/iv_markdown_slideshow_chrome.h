@@ -41,11 +41,6 @@ void PaintRoundButton(
 	QImage large,
 	QImage blurred);
 
-[[nodiscard]] int SlideshowFrameHeight(
-	int width,
-	int slideshowMinHeight,
-	gsl::span<const QSize> slideOriginalSizes);
-
 struct SlideshowNavRects {
 	QRect previous;
 	QRect next;

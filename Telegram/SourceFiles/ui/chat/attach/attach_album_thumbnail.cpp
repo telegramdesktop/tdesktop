@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
-#include "base/call_delayed.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_boxes.h"
@@ -53,7 +52,11 @@ AlbumThumbnail::AlbumThumbnail(
 , _ttlSeconds(file.ttlSeconds)
 , _isCompressedSticker(Core::IsMimeSticker(file.information->filemime))
 , _repaint(std::move(repaint))
-, _repaintRect(std::move(repaintRect)) {
+, _repaintRect(std::move(repaintRect))
+, _selectCheck(_st.files.selectCheck, _repaint)
+, _selectable(!_isCompressedSticker
+	&& !file.archive
+	&& !file.path.isEmpty()) {
 	Expects(!_fullPreview.isNull());
 
 	moveToLayout(layout);
@@ -152,18 +155,14 @@ AlbumThumbnail::AlbumThumbnail(
 	_editMedia.create(parent, _st.files.buttonFile);
 	_deleteMedia.create(parent, _st.files.buttonFile);
 
-	const auto duration = st::historyAttach.ripple.hideDuration;
-	_editMedia->setClickedCallback([=] {
-		// Guarded by the button, which dies with this thumbnail, so the
-		// delayed edit is dropped instead of firing for a thumb that is gone.
-		base::call_delayed(duration, _editMedia.data(), editCallback);
-	});
+	_editMedia->setClickedCallback(editCallback);
 	_deleteMedia->setClickedCallback(deleteCallback);
 
 	_editMedia->setIconOverride(&_st.files.buttonFileEdit);
 	_deleteMedia->setIconOverride(&_st.files.buttonFileDelete);
 
 	setSpoiler(file.spoiler);
+	setSelected(file.selected, anim::type::instant);
 	setButtonVisible(false);
 }
 
@@ -188,6 +187,18 @@ void AlbumThumbnail::setCaption(const TextWithTags &caption) {
 		kMarkupTextOptions,
 		_captionContext);
 	_repaint();
+}
+
+void AlbumThumbnail::setSelected(bool selected, anim::type animated) {
+	_selectCheck.setChecked(selected, animated);
+}
+
+bool AlbumThumbnail::selected() const {
+	return _selectCheck.checked();
+}
+
+bool AlbumThumbnail::selectable() const {
+	return _selectable;
 }
 
 bool AlbumThumbnail::hasSpoiler() const {
@@ -586,6 +597,12 @@ void AlbumThumbnail::paintFile(
 	const auto textLeft = left + st.thumbSize + st.thumbSkip;
 
 	p.drawPixmap(left, top, _fileThumb);
+	const auto checkSize = _st.files.selectCheck.size;
+	_selectCheck.paint(
+		p,
+		left + st.thumbSize - checkSize,
+		top + st.thumbSize - checkSize,
+		outerWidth);
 	p.setFont(st::semiboldFont);
 	p.setPen(_st.files.nameFg);
 	p.drawTextLeft(

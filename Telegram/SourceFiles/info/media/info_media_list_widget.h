@@ -86,8 +86,6 @@ public:
 	rpl::producer<int> scrollToRequests() const;
 	[[nodiscard]] std::optional<int> fullCount() const;
 	[[nodiscard]] rpl::producer<std::optional<int>> fullCountValue() const;
-	[[nodiscard]] auto globalMediaSliceView() const
-		-> const std::optional<GlobalMediaSliceView> &;
 	[[nodiscard]] auto globalMediaSliceViewValue() const
 		-> rpl::producer<std::optional<GlobalMediaSliceView>>;
 	[[nodiscard]] rpl::producer<> globalMediaSliceRefreshStarts() const;

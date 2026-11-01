@@ -47,6 +47,5 @@ struct IconDescriptor {
 	IconDescriptor descriptor = {});
 
 [[nodiscard]] Ui::Text::PaletteDependentEmoji IconCreditsEmojiSmall();
-[[nodiscard]] Ui::Text::PaletteDependentEmoji IconCurrencyEmojiSmall();
 
 } // namespace Ui::Earn

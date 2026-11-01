@@ -166,7 +166,13 @@ private:
 		std::optional<bool> overrideWideMode = std::nullopt);
 	void refreshTopButton();
 	void createPinOnTop();
-	[[nodiscard]] QRect pinOnTopRect() const;
+	void createTitleMenu();
+	void createTitleColumn();
+	void toggleMembersColumn();
+	[[nodiscard]] int membersColumnReserve() const;
+	[[nodiscard]] std::vector<not_null<Ui::IconButton*>> titleButtons() const;
+	[[nodiscard]] QRect titleButtonRect(
+		not_null<Ui::IconButton*> button) const;
 	void setupFullScreenBehavior();
 	void setupEmptyRtmp();
 	void toggleWideControls(bool shown);
@@ -226,10 +232,11 @@ private:
 	object_ptr<Ui::AbstractButton> _recordingMark = { nullptr };
 	object_ptr<Ui::IconButton> _menuToggle = { nullptr };
 	object_ptr<Ui::IconButton> _pinOnTop = { nullptr };
+	object_ptr<Ui::IconButton> _titleColumn = { nullptr };
+	object_ptr<Ui::IconButton> _titleMenu = { nullptr };
 	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 	rpl::variable<bool> _wideMenuShown = false;
 	rpl::variable<bool> _messageTyping = false;
-	object_ptr<Ui::AbstractButton> _joinAsToggle = { nullptr };
 	object_ptr<Members> _members = { nullptr };
 	std::unique_ptr<Viewport> _viewport;
 	rpl::lifetime _trackControlsOverStateLifetime;
@@ -246,7 +253,9 @@ private:
 	bool _showWideControls = false;
 	bool _trackControls = false;
 	bool _wideControlsShown = false;
+	bool _membersColumnShown = true;
 	Ui::Animations::Simple _wideControlsAnimation;
+	Ui::Animations::Simple _membersColumnAnimation;
 
 	object_ptr<Ui::RpWidget> _controlsBackgroundWide = { nullptr };
 	std::unique_ptr<ControlsBackgroundNarrow> _controlsBackgroundNarrow;

@@ -145,6 +145,8 @@ DurationInput::DurationInput(QWidget *parent, const QString &value)
 	st::videoTimelineDurationField,
 	rpl::single(QString()),
 	value) {
+	setInputMethodHints(Qt::ImhFormattedNumbersOnly
+		| Qt::ImhNoPredictiveText);
 }
 
 void DurationInput::correctValue(

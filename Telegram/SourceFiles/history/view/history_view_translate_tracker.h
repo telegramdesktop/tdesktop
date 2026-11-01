@@ -34,8 +34,6 @@ public:
 	void addBunchFromBlocks();
 	void addBunchFrom(const std::vector<not_null<Element*>> &views);
 
-	[[nodiscard]] rpl::producer<bool> trackingLanguage() const;
-
 private:
 	using MaybeLanguageId = std::variant<QString, LanguageId>;
 	struct ItemForRecognize {

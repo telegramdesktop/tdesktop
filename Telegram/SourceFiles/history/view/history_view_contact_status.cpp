@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "info/profile/info_profile_values.h"
 #include "settings/sections/settings_premium.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
@@ -130,11 +131,9 @@ void FinalizeSetBotPhotoFirstOpenState(not_null<PeerData*> peer) {
 		return rpl::single(TextWithEntities());
 	}
 	const auto owner = &peer->owner();
-	return peer->session().changes().peerFlagsValue(
-		peer,
-		Data::PeerUpdate::Flag::EmojiStatus
-	) | rpl::map([=] {
-		const auto id = peer->emojiStatusId();
+	return Info::Profile::ShownEmojiStatusIdValue(
+		peer
+	) | rpl::map([=](const EmojiStatusId &id) {
 		return id.collectible
 			? rpl::single(Ui::Text::SingleCustomEmoji(
 				Data::EmojiStatusCustomId(id)))

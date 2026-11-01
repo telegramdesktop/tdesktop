@@ -34,7 +34,7 @@ void Changes::Manager<DataType, UpdateType>::sendRealtimeNotifications(
 		not_null<DataType*> data,
 		Flags flags) {
 	for (auto i = 0; i != kCount; ++i) {
-		const auto flag = static_cast<Flag>(1U << i);
+		const auto flag = static_cast<Flag>(1ULL << i);
 		if (flags & flag) {
 			_realtimeStreams[i].fire({ data, flags });
 		}
@@ -134,11 +134,6 @@ rpl::producer<PeerUpdate> Changes::peerFlagsValue(
 	return _peerChanges.flagsValue(peer, flags);
 }
 
-rpl::producer<PeerUpdate> Changes::realtimePeerUpdates(
-		PeerUpdate::Flag flag) const {
-	return _peerChanges.realtimeUpdates(flag);
-}
-
 void Changes::historyUpdated(
 		not_null<History*> history,
 		HistoryUpdate::Flags flags) {
@@ -161,11 +156,6 @@ rpl::producer<HistoryUpdate> Changes::historyFlagsValue(
 		not_null<History*> history,
 		HistoryUpdate::Flags flags) const {
 	return _historyChanges.flagsValue(history, flags);
-}
-
-rpl::producer<HistoryUpdate> Changes::realtimeHistoryUpdates(
-		HistoryUpdate::Flag flag) const {
-	return _historyChanges.realtimeUpdates(flag);
 }
 
 void Changes::topicUpdated(
@@ -195,11 +185,6 @@ rpl::producer<TopicUpdate> Changes::topicFlagsValue(
 	return _topicChanges.flagsValue(topic, flags);
 }
 
-rpl::producer<TopicUpdate> Changes::realtimeTopicUpdates(
-		TopicUpdate::Flag flag) const {
-	return _topicChanges.realtimeUpdates(flag);
-}
-
 void Changes::topicRemoved(not_null<ForumTopic*> topic) {
 	_topicChanges.drop(topic);
 }
@@ -223,17 +208,6 @@ rpl::producer<SublistUpdate> Changes::sublistUpdates(
 		not_null<SavedSublist*> sublist,
 		SublistUpdate::Flags flags) const {
 	return _sublistChanges.updates(sublist, flags);
-}
-
-rpl::producer<SublistUpdate> Changes::sublistFlagsValue(
-		not_null<SavedSublist*> sublist,
-		SublistUpdate::Flags flags) const {
-	return _sublistChanges.flagsValue(sublist, flags);
-}
-
-rpl::producer<SublistUpdate> Changes::realtimeSublistUpdates(
-		SublistUpdate::Flag flag) const {
-	return _sublistChanges.realtimeUpdates(flag);
 }
 
 void Changes::sublistRemoved(not_null<SavedSublist*> sublist) {
@@ -299,11 +273,6 @@ rpl::producer<EntryUpdate> Changes::entryFlagsValue(
 	return _entryChanges.flagsValue(entry, flags);
 }
 
-rpl::producer<EntryUpdate> Changes::realtimeEntryUpdates(
-		EntryUpdate::Flag flag) const {
-	return _entryChanges.realtimeUpdates(flag);
-}
-
 void Changes::entryRemoved(not_null<Dialogs::Entry*> entry) {
 	_entryChanges.drop(entry);
 }
@@ -327,17 +296,6 @@ rpl::producer<StoryUpdate> Changes::storyUpdates(
 		not_null<Story*> story,
 		StoryUpdate::Flags flags) const {
 	return _storyChanges.updates(story, flags);
-}
-
-rpl::producer<StoryUpdate> Changes::storyFlagsValue(
-		not_null<Story*> story,
-		StoryUpdate::Flags flags) const {
-	return _storyChanges.flagsValue(story, flags);
-}
-
-rpl::producer<StoryUpdate> Changes::realtimeStoryUpdates(
-		StoryUpdate::Flag flag) const {
-	return _storyChanges.realtimeUpdates(flag);
 }
 
 void Changes::chatAdminChanged(

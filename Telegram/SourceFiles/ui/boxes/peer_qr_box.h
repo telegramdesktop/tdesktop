@@ -22,6 +22,7 @@ void FillPeerQrBox(
 	not_null<Ui::GenericBox*> box,
 	PeerData *peer,
 	std::optional<QString> customLink,
-	rpl::producer<QString> about);
+	rpl::producer<QString> about,
+	rpl::producer<QString> title = nullptr);
 
 } // namespace Ui

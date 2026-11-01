@@ -1379,7 +1379,9 @@ void PhotoEditorControls::updateTimelineGeometry(
 
 bool PhotoEditorControls::handleKeyPress(not_null<QKeyEvent*> e) const {
 	if ((e->key() == Qt::Key_Question) || (e->text() == u"?"_q)) {
-		_keysLegend->toggle();
+		if (!e->isAutoRepeat()) {
+			_keysLegend->toggle();
+		}
 		return true;
 	}
 	_keyPresses.fire(std::move(e));

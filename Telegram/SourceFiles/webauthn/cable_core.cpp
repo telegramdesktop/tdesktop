@@ -731,68 +731,6 @@ std::optional<HandshakeResult> HandshakeInitiator::processResponse(
 	return result;
 }
 
-std::optional<HandshakeResult> RespondToHandshake(
-		ByteSpan psk32,
-		ByteSpan peerIdentityX962,
-		ByteSpan message,
-		Bytes *outResponse) {
-	if (message.size() < kP256X962Length) {
-		return std::nullopt;
-	}
-	const auto peerPointBytes = message.first(kP256X962Length);
-	const auto ciphertext = message.subspan(kP256X962Length);
-
-	auto noise = Noise();
-	noise.init(Noise::HandshakeType::KNpsk0);
-	const auto prologue = std::array<uint8_t, 1>{ 1 };
-	noise.mixHash(prologue);
-	noise.mixHash(peerIdentityX962);
-	noise.mixKeyAndHash(psk32);
-
-	noise.mixHash(peerPointBytes);
-	noise.mixKey(peerPointBytes);
-
-	const auto ephemeralKey = GenerateP256Key();
-	if (!ephemeralKey) {
-		return std::nullopt;
-	}
-	const auto plaintext = noise.decryptAndHash(ciphertext);
-	if (!plaintext || !plaintext->empty()) {
-		return std::nullopt;
-	}
-	const auto ephemeralPublic = PublicKeyX962(ephemeralKey.get(), false);
-	noise.mixHash(ephemeralPublic);
-	noise.mixKey(ephemeralPublic);
-
-	const auto sharedEe = EcdhSharedX(ephemeralKey.get(), peerPointBytes);
-	if (!sharedEe) {
-		return std::nullopt;
-	}
-	noise.mixKey(*sharedEe);
-
-	const auto sharedSe = EcdhSharedX(ephemeralKey.get(), peerIdentityX962);
-	if (!sharedSe) {
-		return std::nullopt;
-	}
-	noise.mixKey(*sharedSe);
-
-	const auto myCiphertext = noise.encryptAndHash({});
-	outResponse->insert(
-		outResponse->end(),
-		ephemeralPublic.begin(),
-		ephemeralPublic.end());
-	outResponse->insert(
-		outResponse->end(),
-		myCiphertext.begin(),
-		myCiphertext.end());
-
-	const auto [readKey, writeKey] = noise.trafficKeys();
-	auto result = HandshakeResult();
-	result.crypter = std::make_unique<Crypter>(readKey, writeKey);
-	result.handshakeHash = noise.handshakeHash();
-	return result;
-}
-
 QRKey MakeQRKey() {
 	auto result = QRKey();
 	result.identity = GenerateP256Key();
@@ -835,56 +773,6 @@ std::string BytesToDigits(ByteSpan bytes) {
 			static_cast<unsigned long long>(value));
 		result += buffer;
 		bytes = bytes.subspan(take);
-	}
-	return result;
-}
-
-std::optional<Bytes> DigitsToBytes(const std::string &digits) {
-	auto result = Bytes();
-	result.reserve(((digits.size() + 16) / 17) * 7);
-	auto in = std::string_view(digits);
-	const auto parse = [](std::string_view chunk, uint64_t &value) {
-		value = 0;
-		for (const auto ch : chunk) {
-			if (ch < '0' || ch > '9') {
-				return false;
-			}
-			if (value > (UINT64_MAX - uint64_t(ch - '0')) / 10) {
-				return false;
-			}
-			value = value * 10 + uint64_t(ch - '0');
-		}
-		return true;
-	};
-	while (in.size() >= 17) {
-		auto value = uint64_t(0);
-		if (!parse(in.substr(0, 17), value) || (value >> 56) != 0) {
-			return std::nullopt;
-		}
-		for (auto i = 0; i != 7; ++i) {
-			result.push_back(uint8_t(value >> (8 * i)));
-		}
-		in = in.substr(17);
-	}
-	if (!in.empty()) {
-		auto bytesCount = size_t(0);
-		switch (in.size()) {
-		case 3: bytesCount = 1; break;
-		case 5: bytesCount = 2; break;
-		case 8: bytesCount = 3; break;
-		case 10: bytesCount = 4; break;
-		case 13: bytesCount = 5; break;
-		case 15: bytesCount = 6; break;
-		default: return std::nullopt;
-		}
-		auto value = uint64_t(0);
-		if (!parse(in, value)
-			|| (bytesCount < 8 && (value >> (8 * bytesCount)) != 0)) {
-			return std::nullopt;
-		}
-		for (auto i = size_t(0); i != bytesCount; ++i) {
-			result.push_back(uint8_t(value >> (8 * i)));
-		}
 	}
 	return result;
 }

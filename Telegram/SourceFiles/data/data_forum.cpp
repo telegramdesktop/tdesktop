@@ -78,7 +78,7 @@ Forum::~Forum() {
 		}
 	}
 	if (_staleRequestId) {
-		session().api().request(_staleRequestId).cancel();
+		owner().histories().cancelRequest(_staleRequestId);
 	}
 	if (_requestId) {
 		session().api().request(_requestId).cancel();
@@ -187,7 +187,9 @@ void Forum::requestTopics() {
 		MTP_int(loadCount)
 	)).done([=](const MTPmessages_ForumTopics &result) {
 		const auto previousOffset = _offset;
-		applyReceivedTopics(result, _offset);
+		if (!applyReceivedTopics(result, _offset)) {
+			return;
+		}
 		const auto &list = result.data().vtopics().v;
 		if (list.isEmpty()
 			|| list.size() == result.data().vcount().v
@@ -207,6 +209,8 @@ void Forum::requestTopics() {
 		if (error.type() == u"CHANNEL_FORUM_MISSING"_q && channel()) {
 			const auto flags = channel()->flags() & ~ChannelDataFlag::Forum;
 			channel()->setFlags(flags);
+		} else {
+			requestSomeStale();
 		}
 	}).send();
 }
@@ -243,7 +247,8 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 	session().changes().entryUpdated(
 		raw,
 		Data::EntryUpdate::Flag::Destroyed);
-	_topics.erase(i);
+	// Callbacks above may insert topics, invalidating i.
+	_topics.erase(rootId);
 
 	_history->destroyMessagesByTopic(rootId);
 	if (rootId) {
@@ -358,10 +363,10 @@ void Forum::listMessageChanged(HistoryItem *from, HistoryItem *to) {
 	}
 }
 
-void Forum::applyReceivedTopics(
+bool Forum::applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		ForumOffsets &updateOffsets) {
-	applyReceivedTopics(topics, [&](not_null<ForumTopic*> topic) {
+	return applyReceivedTopics(topics, [&](not_null<ForumTopic*> topic) {
 		if (const auto last = topic->lastServerMessage()) {
 			updateOffsets.date = last->date();
 			updateOffsets.id = last->id;
@@ -370,20 +375,28 @@ void Forum::applyReceivedTopics(
 	});
 }
 
-void Forum::applyReceivedTopics(
+bool Forum::applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		Fn<void(not_null<ForumTopic*>)> callback) {
 	const auto &data = topics.data();
-	owner().processUsers(data.vusers());
-	owner().processChats(data.vchats());
-	owner().processMessages(data.vmessages(), NewMessageType::Existing);
-	if (const auto channel = this->channel()) {
+	const auto weak = base::make_weak(this);
+	const auto owner = &this->owner();
+	const auto channel = this->channel();
+	owner->processUsers(data.vusers());
+	owner->processChats(data.vchats());
+	owner->processMessages(data.vmessages(), NewMessageType::Existing);
+	if (channel) {
 		channel->ptsReceived(data.vpts().v);
+	}
+	// Applying the response's chats or users can drop this forum.
+	if (!weak) {
+		return false;
 	}
 	applyReceivedTopics(data.vtopics(), std::move(callback));
 	if (!_staleRootIds.empty()) {
 		requestSomeStale();
 	}
+	return true;
 }
 
 void Forum::applyReceivedTopics(
@@ -419,7 +432,9 @@ void Forum::applyReceivedTopics(
 			}
 		};
 
-		_staleRootIds.remove(rootId);
+		if (!_topicRequests.contains(rootId)) {
+			_staleRootIds.remove(rootId);
+		}
 		topic.match([&](const MTPDforumTopicDeleted &data) {
 			if (rootId != ForumTopic::kGeneralId) {
 				applyTopicDeleted(rootId);
@@ -469,11 +484,13 @@ void Forum::requestSomeStale() {
 				MTP_vector<MTPint>(rootIds))
 		).done([=](const MTPmessages_ForumTopics &result) {
 			_staleRequestId = 0;
-			applyReceivedTopics(result);
-			call();
+			if (applyReceivedTopics(result)) {
+				call();
+			}
 			finish();
 		}).fail([=] {
 			_staleRequestId = 0;
+			requestSomeStale();
 			call();
 			finish();
 		}).send();
@@ -570,9 +587,13 @@ void Forum::discardCreatingId(MsgId rootId) {
 	const auto i = _topics.find(rootId);
 	if (i != end(_topics)) {
 		Assert(!i->second->inChatList());
+		const auto raw = i->second.get();
+		session().changes().topicRemoved(raw);
+		session().changes().entryRemoved(raw);
 		_topics.erase(i);
 	}
 	_creatingRootIds.remove(rootId);
+	owner().histories().discardCreatingTopic(_history, rootId);
 }
 
 bool Forum::creating(MsgId rootId) const {
@@ -598,6 +619,10 @@ void Forum::created(MsgId rootId, MsgId realId) {
 		reorderLastTopics();
 	}
 	owner().notifyItemIdChange({ id, rootId });
+	if (const auto raw = topic.get()) {
+		session().changes().topicRemoved(raw);
+		session().changes().entryRemoved(raw);
+	}
 }
 
 void Forum::clearAllUnreadMentions() {

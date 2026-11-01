@@ -1135,10 +1135,6 @@ const std::vector<StoriesSourceInfo> &Stories::sources(
 	return _sources[static_cast<int>(list)];
 }
 
-bool Stories::sourcesLoaded(StorySourcesList list) const {
-	return _sourcesLoaded[static_cast<int>(list)];
-}
-
 rpl::producer<> Stories::sourcesChanged(StorySourcesList list) const {
 	return _sourcesChanged[static_cast<int>(list)].events();
 }
@@ -1768,11 +1764,6 @@ bool Stories::albumIdsCountKnown(PeerId peerId, int albumId) const {
 	return set && (set->total >= 0);
 }
 
-bool Stories::albumIdsLoaded(PeerId peerId, int albumId) const {
-	const auto set = albumIdsSet(peerId, albumId);
-	return set && set->loaded;
-}
-
 void Stories::albumIdsLoadMore(PeerId peerId, int albumId) {
 	albumIdsLoadMore(peerId, albumId, false);
 }
@@ -2093,11 +2084,6 @@ void Stories::notifyAlbumUpdate(StoryAlbumUpdate &&update) {
 			albumIdsLoadMore(peerId, albumId, true);
 		}
 	}
-	_albumUpdates.fire(std::move(update));
-}
-
-rpl::producer<StoryAlbumUpdate> Stories::albumUpdates() const {
-	return _albumUpdates.events();
 }
 
 void Stories::setPinnedToTop(
@@ -2311,24 +2297,6 @@ void Stories::decrementPreloadingMainSources() {
 
 	if (!--_preloadingMainSourcesCounter
 		&& rebuildPreloadSources(StorySourcesList::NotHidden)) {
-		continuePreloading();
-	}
-}
-
-void Stories::incrementPreloadingHiddenSources() {
-	Expects(_preloadingHiddenSourcesCounter >= 0);
-
-	if (++_preloadingHiddenSourcesCounter == 1
-		&& rebuildPreloadSources(StorySourcesList::Hidden)) {
-		continuePreloading();
-	}
-}
-
-void Stories::decrementPreloadingHiddenSources() {
-	Expects(_preloadingHiddenSourcesCounter > 0);
-
-	if (!--_preloadingHiddenSourcesCounter
-		&& rebuildPreloadSources(StorySourcesList::Hidden)) {
 		continuePreloading();
 	}
 }

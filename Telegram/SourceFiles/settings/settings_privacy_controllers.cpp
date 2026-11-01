@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_message.h"
+#include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/sections/settings_premium.h"
@@ -64,10 +65,6 @@ namespace {
 using UserPrivacy = Api::UserPrivacy;
 using PrivacyRule = Api::UserPrivacy::Rule;
 using Option = EditPrivacyBox::Option;
-
-[[nodiscard]] QString PublicLinkByPhone(not_null<UserData*> user) {
-	return user->session().createInternalLinkFull('+' + user->phone());
-}
 
 class BlockPeerBoxController final : public ChatsListBoxController {
 public:
@@ -420,7 +417,6 @@ void BlockedBoxController::handleBlockedEvent(not_null<PeerData*> user) {
 	} else if (auto row = delegate()->peerListFindRow(user->id.value)) {
 		delegate()->peerListRemoveRow(row);
 		delegate()->peerListRefreshRows();
-		_rowsCountChanges.fire(delegate()->peerListFullRowsCount());
 	}
 }
 
@@ -445,7 +441,6 @@ bool BlockedBoxController::appendRow(not_null<PeerData*> peer) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(peer));
-	_rowsCountChanges.fire(delegate()->peerListFullRowsCount());
 	return true;
 }
 
@@ -454,7 +449,6 @@ bool BlockedBoxController::prependRow(not_null<PeerData*> peer) {
 		return false;
 	}
 	delegate()->peerListPrependRow(createRow(peer));
-	_rowsCountChanges.fire(delegate()->peerListFullRowsCount());
 	return true;
 }
 
@@ -477,10 +471,6 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 	}();
 	row->setCustomStatus(status);
 	return row;
-}
-
-rpl::producer<int> BlockedBoxController::rowsCountChanges() const {
-	return _rowsCountChanges.events();
 }
 
 PhoneNumberPrivacyController::PhoneNumberPrivacyController(
@@ -520,7 +510,7 @@ auto PhoneNumberPrivacyController::warning() const
 				auto base = TextWithEntities{
 					warning + "\n\n" + added + "\n",
 				};
-				const auto link = PublicLinkByPhone(self);
+				const auto link = Info::Profile::PublicLinkByPhone(self);
 				return base.append(tr::link(link, link));
 			});
 	}) | rpl::flatten_latest();
@@ -529,7 +519,7 @@ auto PhoneNumberPrivacyController::warning() const
 void PhoneNumberPrivacyController::prepareWarningLabel(
 		not_null<Ui::FlatLabel*> warning) const {
 	warning->overrideLinkClickHandler([=] {
-		QGuiApplication::clipboard()->setText(PublicLinkByPhone(
+		QGuiApplication::clipboard()->setText(Info::Profile::PublicLinkByPhone(
 			_controller->session().user()));
 		_controller->window().showToast({
 			.text = { tr::lng_username_copied(tr::now) },

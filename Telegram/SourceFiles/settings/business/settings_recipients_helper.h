@@ -56,9 +56,6 @@ void AddBusinessRecipientsSelector(
 [[nodiscard]] rpl::producer<int> ShortcutMessagesCountValue(
 	not_null<::Main::Session*> session,
 	const QString &name);
-[[nodiscard]] bool ShortcutExists(
-	not_null<::Main::Session*> session,
-	const QString &name);
 [[nodiscard]] rpl::producer<bool> ShortcutExistsValue(
 	not_null<::Main::Session*> session,
 	const QString &name);

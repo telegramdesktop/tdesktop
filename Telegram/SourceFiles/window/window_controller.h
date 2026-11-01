@@ -61,8 +61,6 @@ public:
 	}
 	[[nodiscard]] auto sessionControllerValue() const
 		-> rpl::producer<SessionController*>;
-	[[nodiscard]] auto sessionControllerChanges() const
-		-> rpl::producer<SessionController*>;
 	[[nodiscard]] bool locked() const;
 
 	[[nodiscard]] Adaptive &adaptive() const;

@@ -97,27 +97,39 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_address_label.h"
 #include "wallet/wallet_amount_field.h"
 #include "wallet/wallet_amount_painter.h"
 #include "wallet/wallet_card_angle.h"
+#include "wallet/wallet_card_editor.h"
+#include "wallet/wallet_card_float.h"
+#include "wallet/wallet_card_foreground.h"
 #include "wallet/wallet_card_gradient.h"
+#include "wallet/wallet_card_space.h"
+#include "wallet/wallet_card_stickers.h"
+#include "wallet/wallet_card_transition.h"
 #include "wallet/wallet_chat_show.h"
 #include "wallet/wallet_collectible_media.h"
 #include "wallet/wallet_collectibles.h"
+#include "wallet/wallet_collectibles_viewport.h"
 #include "wallet/wallet_comment.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_diamond_flight.h"
 #include "wallet/wallet_fiat.h"
+#include "wallet/wallet_gift_move_presentation.h"
 #include "wallet/wallet_key_protection.h"
+#include "wallet/wallet_move_to_gifts.h"
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_palette.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_send_preparation.h"
 #include "wallet/wallet_sending_effects.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_box.h"
 #include "wallet/wallet_unlock.h"
 #include "wallet/wallet_user_addresses.h"
+#include "wallet/wallet_window_transition.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -167,7 +179,6 @@ constexpr auto kBackupWriteDownDelay = 30 * crl::time(1000);
 constexpr auto kBackupQuizWordCount = 3;
 constexpr auto kCoverBodyPart = 0.90;
 constexpr auto kCoverTitleScale = 0.05;
-constexpr auto kCardFoldMinHeight = 1.;
 constexpr auto kIntroTooltipShownPref = "wallet_intro_tooltip_shown"_cs;
 constexpr auto kWalletIntroGlares = 2;
 constexpr auto kUndatedRowDate = std::numeric_limits<TimeId>::max();
@@ -179,12 +190,9 @@ constexpr auto kSendUserLoadTimeout = 30 * crl::time(1000);
 constexpr auto kRecipientSearchLimit = 64;
 constexpr auto kNameBusyRetryDelay = crl::time(500);
 constexpr auto kSendOwnerLookupDelay = crl::time(500);
-constexpr auto kSendRefusalRetries = 3;
 constexpr auto kCommentPasswordStateTimeout = 30 * crl::time(1000);
-constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 constexpr auto kHeldSendKeyTimeout = 60 * crl::time(1000);
 constexpr auto kCustodyResolveTimeout = 20 * crl::time(1000);
-constexpr auto kGramDigits = 9;
 constexpr auto kSendingRowGlareDuration = crl::time(1450);
 constexpr auto kSendingRowGlarePause = crl::time(1040);
 constexpr auto kSendingRowGlareLag = 0.4;
@@ -227,7 +235,6 @@ constexpr auto kRowEmojiDiamondBottom = 62. / 72.;
 
 class BalanceInk;
 class Card;
-struct CardFold;
 class InfoIsland;
 class InfoIslandEntry;
 class SendingHistoryRow;
@@ -318,7 +325,8 @@ class Content final : public Ui::RpWidget {
 public:
 	Content(
 		not_null<Ui::SeparatePanel*> panel,
-		std::shared_ptr<Main::SessionShow> show);
+		std::shared_ptr<Main::SessionShow> show,
+		std::shared_ptr<WindowPalette> palette);
 	~Content();
 
 	void flySendDiamond(
@@ -364,10 +372,16 @@ private:
 	[[nodiscard]] QRegion cardOutline() const;
 
 	const std::shared_ptr<Main::SessionShow> _show;
+	const std::shared_ptr<WindowPalette> _palette;
 	Ui::SeparatePanel *_panel = nullptr;
 	object_ptr<Ui::ScrollArea> _scroll;
 	SingleQueuedInvokation _loadMoreCheck;
 	std::unique_ptr<BalanceInk> _ink;
+	std::unique_ptr<CardStickers> _cardStickers;
+	std::unique_ptr<CardForeground> _cardForeground;
+	std::unique_ptr<CardFloat> _cardFloat;
+	std::unique_ptr<CardStickerEditor> _cardEditor;
+	std::unique_ptr<WindowLookTransition> _cardLook;
 	Ui::Text::String _title;
 	base::unique_qptr<Ui::RpWidget> _titleBalance;
 	Ui::RpWidget *_container = nullptr;
@@ -397,49 +411,41 @@ private:
 
 };
 
-struct CardFold {
-	QRect rest;
-	QPolygonF quad;
-	QTransform transform;
-	float64 topY = 0.;
-	float64 bottomY = 0.;
-	float64 opacity = 1.;
-	float64 fold = 0.;
-	bool valid = false;
-};
-
-// CardFold is expressed entirely in Content coordinates: `rest` is the
-// card's rest rect there, `quad` the folded quadrilateral it is painted
-// as, and `transform` maps the first onto the second. A Card paints with
-// a widget-local painter, so it reconciles with p.translate(-x(), -y())
-// before applying `transform` and draws into `rest`; paintedQuad() and
-// paintedOutline() return Content coordinates for the same reason.
-[[nodiscard]] CardFold ComputeCardFold(QRect cardRest, float64 fold);
-
 class Card final : public Ui::RpWidget {
 public:
 	Card(
 		QWidget *parent,
 		std::shared_ptr<Main::SessionShow> show,
-		rpl::producer<TextWithEntities> name);
+		rpl::producer<TextWithEntities> name,
+		rpl::producer<QString> address = nullptr);
 
 	void setFold(const CardFold &fold);
 	[[nodiscard]] const CardFold &fold() const;
-	[[nodiscard]] QPolygonF paintedQuad() const;
-	[[nodiscard]] QPolygonF paintedOutline() const;
+	void paintFold(
+		Painter &p,
+		const CardFold &fold,
+		not_null<QWidget*> paintOwner);
+	void liftForeground();
+	void paintForeground(Painter &p, const CardFold &fold);
 	void invalidateCache();
+	[[nodiscard]] rpl::producer<> invalidations() const;
 	void followCursor();
+	void setLook(CardLook look, CardLookChange change = {});
+	[[nodiscard]] rpl::producer<bool> lookTransitionValue() const;
+	[[nodiscard]] CardMarkTint markTint(const BalanceInk &ink) const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
 	[[nodiscard]] QRect restRect() const;
-	[[nodiscard]] QRectF paintedRect() const;
-	[[nodiscard]] float64 paintAngle();
+	[[nodiscard]] float64 paintAngle(
+		not_null<QWidget*> paintOwner,
+		QRectF rect);
 	void paintContent(Painter &p, float64 angle);
+	void paintFace(Painter &p);
 	void validateCache(float64 angle);
-	void refreshAddress();
+	void setAddress(const QString &address);
 
 	const std::shared_ptr<Main::SessionShow> _show;
 	style::TextStyle _nameStyle;
@@ -447,10 +453,13 @@ private:
 	QString _addressLine1;
 	QString _addressLine2;
 	CardFold _fold;
-	CardBackground _background;
+	QPointer<QWidget> _paintOwner;
+	rpl::event_stream<> _invalidations;
+	CardLookTransition _look;
 	QImage _cache;
 	float64 _cacheAngle = 0.;
 	std::unique_ptr<CardAngle> _angle;
+	bool _lifted = false;
 
 };
 
@@ -467,6 +476,18 @@ enum class BalanceStyle : uchar {
 	Exact,
 };
 
+enum class BalanceInkPart : uchar {
+	Both,
+	Card,
+	Outside,
+};
+
+enum class BalanceInkLayer : uchar {
+	All,
+	Primary,
+	Secondary,
+};
+
 class BalanceInk final {
 public:
 	BalanceInk();
@@ -477,21 +498,24 @@ public:
 		BalanceStyle style = BalanceStyle::Balance);
 	void setOuterWidth(int outerWidth);
 	void playMark(Fn<void()> repaint);
+	void setMarkTint(Fn<CardMarkTint()> tint);
 	void refresh();
 
 	void paint(
 		QPainter &p,
 		const CardFold &fold,
 		const QRegion &cardOutline,
-		QRect clip) const;
+		QRect clip,
+		BalanceInkPart part = BalanceInkPart::Both,
+		BalanceInkLayer layer = BalanceInkLayer::All) const;
 
 	[[nodiscard]] QRect boundingRect(const CardFold &fold) const;
 	[[nodiscard]] QRect markRect(QRect cardRest) const;
 	[[nodiscard]] QRect markPaintRect(const CardFold &fold) const;
-
-private:
 	[[nodiscard]] QRectF amountRect(const CardFold &fold) const;
 	[[nodiscard]] QRectF fiatRect(const CardFold &fold) const;
+
+private:
 	[[nodiscard]] QRectF markVisible(float64 fold) const;
 	[[nodiscard]] QRectF markDrawRect(
 		float64 fold,
@@ -508,11 +532,14 @@ private:
 		const BalancePalette &palette,
 		const QImage &mark,
 		bool card,
-		float64 secondaryOpacity) const;
+		float64 secondaryOpacity,
+		BalanceInkLayer layer) const;
 	[[nodiscard]] QTransform groupTransform(const CardFold &fold) const;
 
 	std::unique_ptr<Lottie::Icon> _markLottie;
 	Fn<void()> _markRepaint;
+	Fn<CardMarkTint()> _markTint;
+	mutable CardMarkTinter _markTinter;
 	Wallet::AmountPainter _painter;
 	QPainterPath _fiat;
 	QImage _markCard;
@@ -1087,14 +1114,6 @@ QString EncryptedCommentLabel::accessibilityName() {
 		- st::walletCardMargin.right();
 }
 
-[[nodiscard]] QRect CardQrRect(int cardWidth) {
-	return QRect(
-		cardWidth - st::walletCardQrRight - st::walletCardQrSize.width(),
-		st::walletCardQrTop,
-		st::walletCardQrSize.width(),
-		st::walletCardQrSize.height());
-}
-
 [[nodiscard]] QRect TransferCardInfoRect(int cardWidth) {
 	return QRect(
 		cardWidth - st::walletCardContentLeft - st::walletCardQrSize.width(),
@@ -1155,18 +1174,6 @@ QString EncryptedCommentLabel::accessibilityName() {
 	return friendly;
 }
 
-[[nodiscard]] TextWithEntities DetailsAddressValue(
-		const QString &address) {
-	auto groups = QStringList();
-	for (auto offset = 0; offset < address.size(); offset += kAddressGroup) {
-		groups.append(address.mid(offset, kAddressGroup));
-	}
-	return Ui::Text::Wrapped(
-		{ groups.join(QChar(' ')) },
-		EntityType::Code,
-		{});
-}
-
 [[nodiscard]] Fn<void()> CopyAddressCallback(
 		std::shared_ptr<Ui::Show> show,
 		const QString &address) {
@@ -1195,18 +1202,16 @@ Fn<void()> CopyTextCallback(
 object_ptr<Ui::FlatLabel> AddressValueLabel(
 		not_null<QWidget*> parent,
 		std::shared_ptr<Ui::Show> show,
-		const QString &address) {
-	auto result = object_ptr<Ui::FlatLabel>(
+		const QString &address,
+		const style::FlatLabel *styleOverride) {
+	const auto &st = styleOverride
+		? *styleOverride
+		: st::walletDetailsAddressLabel;
+	return MakeAddressLabel(
 		parent,
-		rpl::single(DetailsAddressValue(address)),
-		st::walletDetailsAddressLabel);
-	result->setTryMakeSimilarLines(true);
-	const auto copy = CopyAddressCallback(std::move(show), address);
-	result->setClickHandlerFilter([=](const auto &...) {
-		copy();
-		return false;
-	});
-	return result;
+		address,
+		st,
+		CopyAddressCallback(std::move(show), address));
 }
 
 namespace {
@@ -1254,6 +1259,7 @@ struct HistoryRowContent {
 	PeerData *peer = nullptr;
 	bool itemAmount = false;
 	QString collectible;
+	std::optional<CollectibleRecord> collectibleRecord;
 
 	friend bool operator==(
 		const HistoryRowContent &,
@@ -1295,7 +1301,7 @@ void SetAmountColor(
 		not_null<Ui::FlatLabel*> minor,
 		const style::color &color) {
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(major)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(major);
 		major->setTextColorOverride(color->c);
@@ -1305,17 +1311,6 @@ void SetAmountColor(
 
 [[nodiscard]] QString GramMajorPart(int64 amountNano) {
 	return QString::number(amountNano / Ui::kNanosInOne);
-}
-
-[[nodiscard]] QString GramMinorPart(int64 amountNano) {
-	const auto tiny = TinyAmountFraction(amountNano, kGramDigits);
-	if (!tiny.isEmpty()) {
-		return QString(QLocale().decimalPoint()) + tiny;
-	}
-	const auto cents = std::abs(amountNano % Ui::kNanosInOne)
-		/ (Ui::kNanosInOne / 100);
-	return QString(QLocale().decimalPoint())
-		+ u"%1"_q.arg(cents, 2, 10, QChar('0'));
 }
 
 struct RowAmountText {
@@ -1640,6 +1635,7 @@ struct RowAmountPlacement {
 }
 
 struct HistoryRowChipState {
+	QString key;
 	Gram::NftKind kind = Gram::NftKind::Generic;
 	Ui::Text::String title;
 	Ui::Text::String subtitle;
@@ -1699,8 +1695,7 @@ void PaintHistoryRowChipArtwork(
 		Painter &p,
 		int outerWidth,
 		const HistoryRowChipState &state,
-		const std::shared_ptr<CollectibleMedia> &media,
-		const QString &address) {
+		const std::shared_ptr<CollectibleMedia> &media) {
 	const auto side = st::walletRowIconSize;
 	const auto radius = st::walletCollectibleThumbRadius;
 	const auto rtl = style::RightToLeft();
@@ -1718,7 +1713,7 @@ void PaintHistoryRowChipArtwork(
 	} else if (state.kind == Gram::NftKind::TelegramNumber) {
 		st::walletChipNumberIcon.paintInCenter(p, square);
 	} else {
-		media->paintArtwork(p, address, square, outerWidth, radius);
+		media->paintArtwork(p, state.key, square, outerWidth, radius);
 	}
 }
 
@@ -1767,10 +1762,14 @@ void TrackHistoryRowChip(
 		not_null<HistoryRowChipState*> state,
 		std::shared_ptr<CollectibleMedia> media,
 		QString address,
+		const std::optional<CollectibleRecord> &record,
 		Fn<void()> repaint,
 		rpl::lifetime &lifetime) {
+	const auto served = record && record->gift;
+	const auto key = served ? media->resolveServed(*record) : address;
+	state->key = key;
 	const auto refresh = [=] {
-		const auto view = media->view(address);
+		const auto view = media->view(key);
 		state->kind = view.kind;
 		using Kind = Gram::NftKind;
 		state->title.setMarkedText(
@@ -1790,13 +1789,15 @@ void TrackHistoryRowChip(
 		repaint();
 	};
 	const auto mine = [=](const QString &changed) {
-		return (changed == address);
+		return (changed == key);
 	};
 	media->changed(
 	) | rpl::filter(mine) | rpl::on_next(refresh, lifetime);
 	media->repaint(
 	) | rpl::filter(mine) | rpl::on_next(repaint, lifetime);
-	media->resolveBackground(address);
+	if (!served) {
+		media->resolveBackground(address);
+	}
 	refresh();
 }
 
@@ -1804,7 +1805,8 @@ void AddHistoryRowChip(
 		not_null<Ui::VerticalLayout*> inner,
 		not_null<HistoryRowButton*> button,
 		std::shared_ptr<CollectibleMedia> media,
-		QString address) {
+		QString address,
+		const std::optional<CollectibleRecord> &record) {
 	Ui::AddSkip(inner, st::walletChipTopSkip);
 	const auto chip = inner->add(object_ptr<Ui::FixedHeightWidget>(
 		inner,
@@ -1818,7 +1820,7 @@ void AddHistoryRowChip(
 	chip->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = Painter(chip);
-		PaintHistoryRowChipArtwork(p, chip->width(), *state, media, address);
+		PaintHistoryRowChipArtwork(p, chip->width(), *state, media);
 		PaintHistoryRowChipText(p, chip->width(), *state);
 	}, chip->lifetime());
 	button->setPaintUnderRipple([=](Painter &p) {
@@ -1827,7 +1829,13 @@ void AddHistoryRowChip(
 		PaintHistoryRowChipPlate(p, chip->width(), *state);
 		p.translate(-origin);
 	});
-	TrackHistoryRowChip(state, media, address, repaint, chip->lifetime());
+	TrackHistoryRowChip(
+		state,
+		media,
+		address,
+		record,
+		repaint,
+		chip->lifetime());
 }
 
 not_null<Ui::RpWidget*> AddHistoryRow(
@@ -1888,7 +1896,12 @@ not_null<Ui::RpWidget*> AddHistoryRow(
 		st::walletRowDateLabel));
 	const auto hasChip = content.itemAmount && (media != nullptr);
 	if (hasChip) {
-		AddHistoryRowChip(inner, button, media, content.collectible);
+		AddHistoryRowChip(
+			inner,
+			button,
+			media,
+			content.collectible,
+			content.collectibleRecord);
 	}
 
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
@@ -2294,7 +2307,8 @@ void SendingHistoryRow::updateSurfaceGeometry() {
 
 void SendingHistoryRow::setContent(HistoryRowContent content) {
 	const auto peerChanged = !_userpic || (_content.peer != content.peer);
-	const auto chipChanged = (_content.collectible != content.collectible);
+	const auto chipChanged = (_content.collectible != content.collectible)
+		|| (_content.collectibleRecord != content.collectibleRecord);
 	_content = std::move(content);
 	_text = PrepareHistoryRowText(_content);
 	if (!_content.itemAmount) {
@@ -2315,6 +2329,7 @@ void SendingHistoryRow::setContent(HistoryRowContent content) {
 				&_chip,
 				_media,
 				_content.collectible,
+				_content.collectibleRecord,
 				[=] { _surface->update(); },
 				_chipLifetime);
 		}
@@ -3109,7 +3124,7 @@ void SendingHistoryRow::paintChip(Painter &p) {
 		rowLayout().chipTop);
 	p.translate(origin);
 	PaintHistoryRowChipPlate(p, outer, _chip);
-	PaintHistoryRowChipArtwork(p, outer, _chip, _media, _content.collectible);
+	PaintHistoryRowChipArtwork(p, outer, _chip, _media);
 	PaintHistoryRowChipText(p, outer, _chip);
 	p.translate(-origin);
 }
@@ -3187,20 +3202,21 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 		? langDateTime(base::unixtime::parse(*item.date))
 		: QString();
 	if (ShowsCollectible(item)) {
+		const auto telegram = ShowsGiftMove(item);
 		const auto peer = item.counterpartyPeer
 			? session->data().peerLoaded(PeerId(item.counterpartyPeer))
 			: nullptr;
-		const auto hasCounterparty = !item.counterparty.isEmpty();
+		const auto hasCounterparty = !telegram && !item.counterparty.isEmpty();
 		const auto domain = hasCounterparty
 			? item.counterpartyName.trimmed()
 			: QString();
-		const auto kindText = item.incoming
-			? tr::lng_wallet_row_collectible_in(tr::now)
-			: tr::lng_wallet_row_collectible_out(tr::now);
-		const auto titleIsKind = !peer && !hasCounterparty;
+		const auto kindText = CollectibleRowKindText(item);
+		const auto titleIsKind = !telegram && !peer && !hasCounterparty;
 		const auto statusText = RowStatusSubtitle(item.status);
 		return {
-			.title = (peer
+			.title = (telegram
+				? tr::lng_wallet_row_telegram(tr::now)
+				: peer
 				? peer->name()
 				: !domain.isEmpty()
 				? domain
@@ -3223,6 +3239,7 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 			.peer = peer,
 			.itemAmount = true,
 			.collectible = item.collectible,
+			.collectibleRecord = item.collectibleRecord,
 		};
 	}
 	const auto pending
@@ -3395,12 +3412,14 @@ void AddDetailsAmountHeader(
 			? u"+"_q
 			: QString(kMinus)) + formatted.wholeString,
 		st::walletDetailsAmountMajorLabel);
+	major->show();
 	const auto minor = Ui::CreateChild<Ui::FlatLabel>(
 		container,
 		formatted.nanoString.isEmpty()
 			? QString()
 			: (formatted.separator + formatted.nanoString),
 		st::walletDetailsAmountMinorLabel);
+	minor->show();
 	// The unit is spelled out instead of drawn as the currency mark: the
 	// mark is the animation above the amount now, and saying it twice in
 	// one header only makes the line harder to read.
@@ -3411,6 +3430,7 @@ void AddDetailsAmountHeader(
 			lt_count,
 			std::abs(item.amountNano / float64(Ui::kNanosInOne))).toUpper(),
 		st::walletDetailsTickerLabel);
+	ticker->show();
 	const auto subdued = (item.status == TransferItem::Status::Pending)
 		|| (item.status == TransferItem::Status::Failure);
 	const auto &color = subdued
@@ -3419,7 +3439,7 @@ void AddDetailsAmountHeader(
 		? st::boxTextFgGood
 		: st::windowFg;
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(container)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(container);
 		major->setTextColorOverride(color->c);
@@ -3472,6 +3492,7 @@ void AddDetailsAmountHeader(
 		}
 	};
 	if (fiat) {
+		fiat->show();
 		std::move(rate) | rpl::on_next([=](const FiatRate &value) {
 			fiat->setText(FormatFiat(amountNano, value));
 			relayout();
@@ -3496,6 +3517,13 @@ void AddDetailsCollectibleHeader(
 		style::margins(0, st::walletDetailsAmountTopSkip, 0, bottomSkip),
 		style::al_top);
 	const auto address = item.collectible;
+	const auto &record = item.collectibleRecord;
+	const auto served = record && record->gift;
+	const auto key = served ? media->resolveServed(*record) : address;
+	// A served record may omit the collection its list record knows.
+	const auto collectionKey = [=] {
+		return media->collection(key).isEmpty() ? address : key;
+	};
 	const auto available = st::boxWideWidth
 		- st::giveawayGiftCodeTableMargin.left()
 		- st::giveawayGiftCodeTableMargin.right();
@@ -3506,12 +3534,13 @@ void AddDetailsCollectibleHeader(
 		st::walletDetailsCollectibleSize,
 		st::walletDetailsCollectibleSize);
 	artwork->setAttribute(Qt::WA_TransparentForMouseEvents);
+	artwork->show();
 	artwork->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = Painter(artwork);
 		media->paint(
 			p,
-			address,
+			key,
 			artwork->rect(),
 			artwork->width(),
 			st::walletDetailsCollectibleRadius);
@@ -3520,6 +3549,7 @@ void AddDetailsCollectibleHeader(
 		container,
 		st::walletCollectibleTitleLabel);
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
+	name->show();
 	const auto collection = Ui::CreateChild<Ui::AbstractButton>(container);
 	const auto collectionLabel = Ui::CreateChild<Ui::FlatLabel>(
 		collection,
@@ -3527,7 +3557,7 @@ void AddDetailsCollectibleHeader(
 	collectionLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	collection->hide();
 	collection->setClickedCallback([=] {
-		const auto contract = media->collection(address);
+		const auto contract = media->collection(collectionKey());
 		if (!contract.isEmpty()) {
 			UrlClickHandler::Open(Core::TonExplorerUrl(
 				session,
@@ -3551,7 +3581,7 @@ void AddDetailsCollectibleHeader(
 	}, collection->lifetime());
 	const auto relayout = [=] {
 		const auto hasCollection = withCollection
-			&& !media->collection(address).isEmpty();
+			&& !media->collection(collectionKey()).isEmpty();
 		collection->setVisible(hasCollection);
 		const auto nameTop = st::walletDetailsCollectibleSize
 			+ st::walletDetailsCollectibleNameSkip;
@@ -3573,23 +3603,27 @@ void AddDetailsCollectibleHeader(
 		}
 	};
 	const auto apply = [=] {
-		const auto view = media->view(address);
+		const auto view = media->view(key);
 		name->setMarkedText(CollectibleTitleText(view));
 		name->resizeToNaturalWidth(available);
-		const auto contract = media->collection(address);
+		const auto from = collectionKey();
+		const auto contract = media->collection(from);
 		if (!contract.isEmpty()) {
-			collectionLabel->setText(view.collectionName.isEmpty()
+			const auto collectionName = media->view(from).collectionName;
+			collectionLabel->setText(collectionName.isEmpty()
 				? ShortAddress(contract)
-				: view.collectionName);
+				: collectionName);
 			collectionLabel->resizeToNaturalWidth(available - arrowWidth);
 		}
 		relayout();
 	};
 	const auto mine = [=](const QString &changed) {
-		return (changed == address);
+		return (changed == key);
 	};
 	media->changed(
-	) | rpl::filter(mine) | rpl::on_next(apply, container->lifetime());
+	) | rpl::filter([=](const QString &changed) {
+		return mine(changed) || (changed == address);
+	}) | rpl::on_next(apply, container->lifetime());
 	media->repaint(
 	) | rpl::filter(mine) | rpl::on_next([=] {
 		artwork->update();
@@ -3763,6 +3797,7 @@ namespace {
 		const TransferItem &b) {
 	return (ShowsCollectible(a) == ShowsCollectible(b))
 		&& (a.collectible == b.collectible)
+		&& (a.collectibleRecord == b.collectibleRecord)
 		&& (a.amountNano == b.amountNano)
 		&& (a.incoming == b.incoming)
 		&& (a.status == b.status)
@@ -4047,6 +4082,8 @@ void AddDetailsTable(
 			table,
 			tr::lng_wallet_details_operation(),
 			tr::lng_wallet_row_key_change(tr::marked));
+	} else if (ShowsGiftMove(item)) {
+		AddGiftMoveDetailsRows(table, item);
 	} else if (peer) {
 		AddPeerCounterpartyRows(box, table, show, peer, item);
 	} else if (!item.counterparty.isEmpty()) {
@@ -4439,7 +4476,7 @@ void WalletReceiveBox(
 	rpl::single(
 		rpl::empty
 	) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(box)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(box);
 		bar.title->setTextColorOverride(st::activeButtonFg->c);
@@ -4522,8 +4559,7 @@ void WalletReceiveBox(
 			hintTop + hintFont->ascent,
 			hint);
 	}, plate->lifetime());
-	style::PaletteChanged(
-	) | rpl::on_next([=] {
+	WindowPaletteChanged(plate) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(plate);
 		state->image = ReceiveQrImage(
 			address,
@@ -4930,7 +4966,7 @@ void SetupIntroTooltip(
 		colors());
 	state->tooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
 	state->tooltip->finishAnimating();
-	style::PaletteChanged() | rpl::on_next([=] {
+	WindowPaletteChanged(parent) | rpl::on_next([=] {
 		if (!state->finished) {
 			state->tooltip->setColors(colors());
 		}
@@ -5159,7 +5195,7 @@ void WalletTransactionBox(
 			[=] { show->showBox(Box(WalletHowItWorksBox, session)); },
 			&st::menuIconFaq);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-		const auto scope = WindowPaletteScope(box);
+		const auto scope = WindowPaletteScope(raw);
 		raw->popup(toggle->mapToGlobal(QPoint(
 			toggle->width(),
 			toggle->height())));
@@ -6025,6 +6061,10 @@ void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show) {
 	ShowKeyChangedBox(show, tr::lng_wallet_send_key_changed_text());
 }
 
+void ShowWalletHowItWorks(std::shared_ptr<Main::SessionShow> show) {
+	show->showBox(Box(WalletHowItWorksBox, &show->session()));
+}
+
 QString ErrorWithType(const QString &message, const QString &error) {
 	return error.isEmpty()
 		? message
@@ -6082,7 +6122,7 @@ void SetButtonDisabledLook(
 	ApplyButtonDisabledLook(button);
 	if (!button->property("walletDisabledLook").toBool()) {
 		button->setProperty("walletDisabledLook", true);
-		style::PaletteChanged() | rpl::on_next([=] {
+		WindowPaletteChanged(button) | rpl::on_next([=] {
 			ApplyButtonDisabledLook(button);
 		}, button->lifetime());
 	}
@@ -6337,6 +6377,7 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeRecentMoneyRecipientsList(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<Main::SessionShow> show,
+		bool hasMoveToMyGiftsRow,
 		rpl::producer<bool> hidden,
 		Fn<void(not_null<UserData*>)> choose) {
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -6350,6 +6391,9 @@ rpl::producer<bool> RecentMoneyRecipientsController::shownValue() const {
 			std::move(show),
 			std::move(choose));
 
+	if (hasMoveToMyGiftsRow) {
+		Ui::AddSkip(container);
+	}
 	const auto header = container->add(object_ptr<Ui::RpWidget>(container));
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		header,
@@ -7168,11 +7212,6 @@ void WalletSendConfirmBox(
 	AddBoxCloseButton(box);
 }
 
-struct CollectibleTransfer {
-	QString address;
-	std::shared_ptr<CollectibleMedia> media;
-};
-
 struct CollectibleRecipient {
 	QString destination;
 	QString tonName;
@@ -7264,137 +7303,20 @@ void CollectibleTransferBox(
 
 	using ShownFee = std::pair<std::optional<int64>, DetailsFee>;
 	struct State {
-		std::shared_ptr<const PreparedSend> prepared;
-		KeyAuthorization authorization;
-		base::Timer signingWait;
 		rpl::variable<QString> comment;
-		rpl::variable<std::optional<int64>> fee;
-		rpl::variable<SendError> error = SendError::None;
-		rpl::variable<bool> estimating = false;
-		rpl::variable<bool> sending = false;
-		Fn<void()> estimate;
-		Fn<void()> continueSend;
 		ShownFee table;
 		std::optional<ShownFee> built;
-		uint64 owner = 0;
-		uint64 revision = 0;
-		int refusals = 0;
 		bool tableQueued = false;
-		bool requoteQueued = false;
-		bool requoteForced = false;
-		bool unlocking = false;
-		bool submitted = false;
 		bool handedOver = false;
-		rpl::lifetime signingLifetime;
-		// WHY: last, so the key ladder cancelled first finds the rest alive.
-		rpl::lifetime keyLifetime;
+		std::optional<SendPreparation> preparation;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->owner = wallet->createPreviewOwner(box->lifetime());
 
 	wallet->transferWalletIdentityChanges(
 	) | rpl::filter([=] {
 		return !current();
 	}) | rpl::take(1) | rpl::on_next([=] {
 		box->closeBox();
-	}, box->lifetime());
-
-	const auto args = [=] {
-		return SendArgs{
-			.destination = recipient.destination,
-			.collectible = address,
-			.userId = recipient.userId,
-			.comment = SendComment{
-				.text = state->comment.current(),
-				.isPublic = true,
-			},
-			.bounce = recipient.bounce,
-		};
-	};
-	state->estimate = [=] {
-		if (state->estimating.current()) {
-			state->requoteQueued = true;
-			return;
-		}
-		const auto text = state->comment.current();
-		if (!CommentFits(text)) {
-			state->prepared = nullptr;
-			state->fee = std::nullopt;
-			state->error = SendError::CommentTooLong;
-			return;
-		}
-		const auto revision = ++state->revision;
-		const auto signing = wallet->signingReady();
-		state->estimating = true;
-		wallet->estimateFee(
-			KeyAuthorization(),
-			state->owner,
-			args(),
-			crl::guard(box, [=](FeeResult result) {
-				if (revision != state->revision) {
-					return;
-				}
-				const auto forced = base::take(state->requoteForced);
-				const auto requote = base::take(state->requoteQueued)
-					&& (forced
-						|| text != state->comment.current()
-						|| signing != wallet->signingReady());
-				const auto error = (result.error == SendError::None
-						&& !result.prepared)
-					? SendError::Failed
-					: result.error;
-				if (requote || error == SendError::QuoteExpired) {
-					state->prepared = nullptr;
-					state->estimating = false;
-					state->estimate();
-				} else {
-					state->prepared = std::move(result.prepared);
-					state->fee = (error == SendError::None)
-						? std::make_optional(result.feeNano)
-						: std::nullopt;
-					state->error = error;
-					state->estimating = false;
-				}
-				if (state->sending.current() && !state->submitted) {
-					state->continueSend();
-				}
-			}));
-	};
-	wallet->signingReadyValue(
-	) | rpl::skip(1) | rpl::on_next([=](bool ready) {
-		if (ready) {
-			state->signingWait.cancel();
-		}
-		if (!state->submitted) {
-			state->prepared = nullptr;
-			state->estimate();
-		}
-	}, box->lifetime());
-	rpl::merge(
-		wallet->sendStateValue() | rpl::skip(1) | rpl::to_empty,
-		wallet->presenceValue() | rpl::skip(1) | rpl::to_empty
-	) | rpl::on_next([=] {
-		if (state->sending.current() || state->submitted) {
-			return;
-		}
-		state->prepared = nullptr;
-		state->requoteForced = true;
-		state->estimate();
-	}, box->lifetime());
-	rpl::merge(
-		wallet->balanceNanoValue() | rpl::skip(1) | rpl::to_empty,
-		wallet->custodyUpdates()
-	) | rpl::on_next([=] {
-		if (state->sending.current()
-			|| state->submitted
-			|| (!state->estimating.current()
-				&& state->prepared
-				&& state->error.current() == SendError::None)) {
-			return;
-		}
-		state->prepared = nullptr;
-		state->requoteForced = true;
-		state->estimate();
 	}, box->lifetime());
 
 	const auto insufficient = [](std::optional<int64> fee, int64 balance) {
@@ -7417,17 +7339,61 @@ void CollectibleTransferBox(
 		}
 		return SendErrorText(error, TransferMinNanos(session));
 	};
-	const auto refusalNow = [=] {
-		return refusalText(
-			state->error.current(),
-			state->fee.current(),
-			wallet->balanceNano());
+	const auto started = [=](SendStarted value) {
+		state->handedOver = true;
+		const auto panel = wallet->panel();
+		if (panel && box->window() == panel->window()) {
+			SetWindowSendOperation(wallet, value.operationId);
+		}
+		show->hideLayer();
 	};
+	const auto sent = [=](SendError error) {
+		if (error == SendError::KeyChanged) {
+			if (weak && !state->handedOver) {
+				weak->closeBox();
+			}
+			if (sessionValid()) {
+				ShowWalletKeyChanged(show);
+			}
+			return;
+		} else if (!current() || state->handedOver) {
+			return;
+		} else if (error == SendError::None
+			|| error == SendError::SubmissionUnknown) {
+			show->hideLayer();
+			return;
+		}
+		state->preparation->refused(error);
+	};
+	const auto preparation = &state->preparation.emplace(
+		SendPreparationDescriptor{
+			.show = show,
+			.current = current,
+			.args = [=] {
+				return std::make_optional(SendArgs{
+					.destination = recipient.destination,
+					.collectible = address,
+					.userId = recipient.userId,
+					.comment = SendComment{
+						.text = state->comment.current(),
+						.isPublic = true,
+					},
+					.bounce = recipient.bounce,
+				});
+			},
+			.blocked = [=](SendError error, std::optional<int64> fee) {
+				const auto balance = wallet->balanceNano();
+				return !refusalText(error, fee, balance).isEmpty();
+			},
+			.started = crl::guard(box, started),
+			.sent = sent,
+		});
+	preparation->start();
 
 	rpl::combine(
-		state->fee.value(),
-		state->estimating.value(),
-		state->error.value()
+		preparation->feeValue(),
+		preparation->estimatingValue(),
+		preparation->errorValue()
 	) | rpl::map([](
 			std::optional<int64> fee,
 			bool estimating,
@@ -7470,8 +7436,8 @@ void CollectibleTransferBox(
 			return !text.isEmpty();
 		}),
 		rpl::combine(
-			state->error.value(),
-			state->fee.value(),
+			preparation->errorValue(),
+			preparation->feeValue(),
 			wallet->balanceNanoValue(),
 			rpl::single(rpl::empty) | rpl::then(Lang::Updated())
 		) | rpl::map([=](
@@ -7493,174 +7459,42 @@ void CollectibleTransferBox(
 		box->scrollToY(ScrollMax);
 	}, box->lifetime());
 
-	const auto pressable = [=] {
-		return !state->sending.current()
-			&& !state->estimating.current()
-			&& refusalNow().isEmpty()
-			&& (state->prepared
-				|| state->error.current() == SendError::SigningUnavailable);
-	};
 	const auto press = [=] {
-		if (!pressable()) {
-			return;
-		}
-		state->sending = true;
-		state->refusals = 0;
-		state->continueSend();
+		preparation->press();
 	};
 	const auto button = box->addButton(
 		BusyFooterLabel(
 			tr::lng_wallet_collectible_send(
 				lt_name,
 				CollectibleNameValue(media, address)),
-			state->sending.value()),
+			preparation->sendingValue()),
 		press).data();
 	rpl::combine(
-		state->sending.value(),
-		state->estimating.value(),
-		state->error.value(),
-		state->fee.value(),
+		preparation->sendingValue(),
+		preparation->estimatingValue(),
+		preparation->errorValue(),
+		preparation->feeValue(),
 		wallet->balanceNanoValue()
 	) | rpl::to_empty | rpl::on_next([=] {
 		SetButtonDisabledLook(
 			button,
-			!state->sending.current() && !pressable());
+			!preparation->sending() && !preparation->pressable());
 	}, button->lifetime());
-	AddBusyFooterSpinner(button, state->sending.value());
+	AddBusyFooterSpinner(button, preparation->sendingValue());
 
 	field->changes() | rpl::on_next([=] {
 		state->comment = field->getLastText();
-		if (!state->sending.current()) {
-			state->estimate();
+		if (!preparation->sending()) {
+			preparation->estimate();
 		}
 	}, field->lifetime());
 	field->submits() | rpl::on_next(press, field->lifetime());
-	state->sending.value() | rpl::on_next([=](bool sending) {
+	preparation->sendingValue() | rpl::on_next([=](bool sending) {
 		field->setDisabled(sending);
 	}, field->lifetime());
 	box->setFocusCallback([=] { field->setFocusFast(); });
 
-	const auto stop = [=] {
-		state->authorization = {};
-		state->signingWait.cancel();
-		state->signingLifetime.destroy();
-		state->sending = false;
-	};
-	const auto acquireKey = [=] {
-		state->keyLifetime.destroy();
-		state->unlocking = true;
-		AcquireWalletKey(
-			show,
-			current,
-			state->keyLifetime,
-			crl::guard(box, [=](KeyAuthorization auth) {
-				state->unlocking = false;
-				if (!state->sending.current() || state->submitted) {
-					return;
-				} else if (!auth.valid()) {
-					stop();
-					return;
-				}
-				state->authorization = std::move(auth);
-				state->continueSend();
-			}),
-			tr::lng_wallet_restore_text());
-	};
-	const auto awaitSigning = [=] {
-		if (state->signingWait.isActive()) {
-			return;
-		}
-		state->signingLifetime.destroy();
-		wallet->signingReadyValue(
-		) | rpl::filter([](bool ready) {
-			return ready;
-		}) | rpl::take(1) | rpl::on_next([=] {
-			state->continueSend();
-		}, state->signingLifetime);
-		state->signingWait.callOnce(kSigningReadyTimeout);
-	};
-	state->signingWait.setCallback([=] {
-		stop();
-		state->error = SendError::Failed;
-	});
-	const auto started = [=](SendStarted value) {
-		state->handedOver = true;
-		const auto panel = wallet->panel();
-		if (panel && box->window() == panel->window()) {
-			wallet->setWindowSend(value.operationId);
-		}
-		show->hideLayer();
-	};
-	const auto sent = [=](SendError error) {
-		if (error == SendError::KeyChanged) {
-			if (weak && !state->handedOver) {
-				weak->closeBox();
-			}
-			if (sessionValid()) {
-				ShowWalletKeyChanged(show);
-			}
-			return;
-		} else if (!current() || state->handedOver) {
-			return;
-		} else if (error == SendError::None
-			|| error == SendError::SubmissionUnknown) {
-			show->hideLayer();
-			return;
-		}
-		state->submitted = false;
-		const auto retry = (error == SendError::QuoteExpired)
-			|| (error == SendError::SigningUnavailable);
-		if (retry && ++state->refusals <= kSendRefusalRetries) {
-			state->estimate();
-			return;
-		}
-		stop();
-		state->error = (error == SendError::QuoteExpired)
-			? SendError::Failed
-			: error;
-	};
-	state->continueSend = [=] {
-		if (!state->sending.current()
-			|| state->submitted
-			|| state->unlocking) {
-			return;
-		} else if (!current()) {
-			stop();
-			return;
-		} else if (state->estimating.current()) {
-			return;
-		} else if (!state->authorization.valid()) {
-			acquireKey();
-			return;
-		} else if (!wallet->signingReady()) {
-			awaitSigning();
-			return;
-		} else if (!state->prepared) {
-			const auto error = state->error.current();
-			const auto retry = (error == SendError::None)
-				|| (error == SendError::SigningUnavailable);
-			if (retry && ++state->refusals <= kSendRefusalRetries) {
-				state->estimate();
-				return;
-			}
-			stop();
-			if (retry) {
-				state->error = SendError::Failed;
-			}
-			return;
-		} else if (!refusalNow().isEmpty()) {
-			stop();
-			return;
-		}
-		state->submitted = true;
-		wallet->send(
-			state->authorization,
-			base::take(state->prepared),
-			crl::guard(session, sent),
-			crl::guard(session, crl::guard(box, started)));
-	};
-
-	state->estimate();
+	preparation->estimate();
 }
 
 void ShowSendRecipientWallet(
@@ -7912,7 +7746,7 @@ void WalletSendBox(
 			editComment,
 			&st::menuIconChatBubble);
 		raw->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-		const auto scope = WindowPaletteScope(box);
+		const auto scope = WindowPaletteScope(raw);
 		raw->popup(toggle->mapToGlobal(QPoint(
 			toggle->width(),
 			toggle->height())));
@@ -8941,7 +8775,7 @@ void WalletSendBox(
 		const auto panel = wallet->panel();
 		if (panel && box->window() == panel->window()) {
 			state->handedOver = true;
-			wallet->setWindowSend(started.operationId);
+			SetWindowSendOperation(wallet, started.operationId);
 			if (const auto content = dynamic_cast<Content*>(panel->inner())) {
 				content->flySendDiamond(started.operationId, amountField);
 			}
@@ -9709,9 +9543,15 @@ void WalletSendRecipientBox(
 			0));
 	errorWrap->toggleOn(state->invalid.value());
 	errorWrap->finishAnimating();
+	const auto hasMoveToMyGiftsRow = AddMoveToMyGiftsRow(
+		recipient,
+		show,
+		collectible,
+		state->recentHidden.value());
 	recipient->add(MakeRecentMoneyRecipientsList(
 		box,
 		show,
+		hasMoveToMyGiftsRow,
 		state->recentHidden.value(),
 		choose));
 
@@ -10709,53 +10549,6 @@ void PaintAddressGroups(
 	}
 }
 
-void AddAddressPlate(
-		not_null<Ui::VerticalLayout*> container,
-		const QString &address,
-		const style::margins &margin,
-		std::shared_ptr<Ui::Show> show = nullptr) {
-	const auto font = st::walletAddressPlateFont->monospace();
-	const auto inner = st::walletAddressPlateInner;
-	const auto groups = kAddressLength / kAddressGroup;
-	const auto lines = groups / kAddressGroupsPerLine;
-	const auto plate = container->add(
-		object_ptr<Ui::FixedHeightWidget>(
-			container,
-			inner + lines * font->height + inner),
-		margin);
-	plate->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = QPainter(plate);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBgOver);
-		p.drawRoundedRect(
-			plate->rect(),
-			st::walletAddressPlateRadius,
-			st::walletAddressPlateRadius);
-		const auto lineWidth = AddressGroupsWidth(
-			font,
-			address,
-			kAddressGroupsPerLine);
-		const auto left = (plate->width() - lineWidth) / 2;
-		PaintAddressGroups(
-			p,
-			font,
-			address,
-			{ left, inner },
-			kAddressGroupsPerLine);
-	}, plate->lifetime());
-	if (show) {
-		const auto copy = Ui::CreateChild<Ui::AbstractButton>(plate);
-		copy->setClickedCallback(
-			CopyAddressCallback(std::move(show), address));
-		plate->sizeValue(
-		) | rpl::on_next([=](QSize size) {
-			copy->setGeometry(QRect(QPoint(), size));
-		}, copy->lifetime());
-	}
-}
-
 void ShowWrongSecretWords(
 		std::shared_ptr<Main::SessionShow> show,
 		bool outdated,
@@ -10782,12 +10575,14 @@ void ShowWrongSecretWords(
 		if (plate) {
 			AddAddressPlate(
 				box->verticalLayout(),
-				address,
+				rpl::single(address),
 				QMargins(
 					padding.left(),
 					st::walletAddressPlateSkip,
 					padding.right(),
-					padding.bottom()));
+					padding.bottom()),
+				kAddressGroupsPerLine,
+				box->uiShow());
 		}
 		box->addButton(tr::lng_bot_download_retry(), [=] {
 			box->closeBox();
@@ -10827,12 +10622,13 @@ void ShowSendRecipientWallet(
 		});
 		AddAddressPlate(
 			box->verticalLayout(),
-			address,
+			rpl::single(address),
 			QMargins(
 				padding.left(),
 				st::walletAddressPlateSkip,
 				padding.right(),
 				padding.bottom()),
+			kAddressGroupsPerLine,
 			box->uiShow());
 		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();
@@ -11730,6 +11526,10 @@ void WalletBackupPhraseBox(
 			st::walletBackupQuizField,
 			Ui::InputField::Mode::SingleLine),
 		st::walletImportFieldMargin);
+	field->setInputMethodHints(Qt::ImhLatinOnly
+		| Qt::ImhNoAutoUppercase
+		| Qt::ImhNoPredictiveText
+		| Qt::ImhSensitiveData);
 	const auto number = Ui::CreateChild<Ui::FlatLabel>(
 		field,
 		QString::number(index + 1) + QChar('.'),
@@ -12641,6 +12441,10 @@ void WalletImportBox(
 				st::walletImportField,
 				Ui::InputField::Mode::SingleLine),
 			st::walletImportFieldMargin);
+		field->setInputMethodHints(Qt::ImhLatinOnly
+			| Qt::ImhNoAutoUppercase
+			| Qt::ImhNoPredictiveText
+			| Qt::ImhSensitiveData);
 		const auto number = Ui::CreateChild<Ui::FlatLabel>(
 			field,
 			QString::number(index + 1) + QChar('.'),
@@ -13347,12 +13151,14 @@ void WalletConflictBox(
 			if (address.size() == kAddressLength) {
 				AddAddressPlate(
 					content,
-					address,
+					rpl::single(address),
 					QMargins(
 						st::boxRowPadding.left(),
 						st::walletAddressPlateSkip,
 						st::boxRowPadding.right(),
-						st::walletAddressPlateSkip));
+						st::walletAddressPlateSkip),
+					kAddressGroupsPerLine,
+					box->uiShow());
 			} else {
 				Ui::AddSkip(content);
 			}
@@ -13712,6 +13518,10 @@ void BalanceInk::playMark(Fn<void()> repaint) {
 		_markLottie->framesCount() - 1);
 }
 
+void BalanceInk::setMarkTint(Fn<CardMarkTint()> tint) {
+	_markTint = std::move(tint);
+}
+
 void BalanceInk::refresh() {
 	const auto &fiatFont = st::walletCardFiatLabel.style.font;
 	const auto exact = (_style != BalanceStyle::Balance);
@@ -13835,9 +13645,10 @@ void BalanceInk::paintMark(
 		if (!_markLottie->animating() && _markLottie->frameIndex() != 0) {
 			_markLottie->jumpTo(0, _markRepaint);
 		}
+		const auto frame = _markLottie->frame();
 		p.drawImage(
 			markDrawRect(fold, _markFrame, _markLottieVisible),
-			_markLottie->frame());
+			_markTint ? _markTinter.apply(frame, _markTint()) : frame);
 	} else {
 		p.drawImage(markDrawRect(fold, monoBox, _markMonoVisible), mono);
 	}
@@ -13849,16 +13660,24 @@ void BalanceInk::paintPass(
 		const BalancePalette &palette,
 		const QImage &mark,
 		bool card,
-		float64 secondaryOpacity) const {
+		float64 secondaryOpacity,
+		BalanceInkLayer layer) const {
+	const auto primary = (layer != BalanceInkLayer::Secondary);
+	const auto secondary = (layer != BalanceInkLayer::Primary);
 	p.save();
 	p.setTransform(groupTransform(fold), true);
-	paintMark(p, fold.fold, mark, card);
+	if (primary) {
+		paintMark(p, fold.fold, mark, card);
+	}
 	_painter.paint(p, {
-		.digits = palette.amount,
+		.digits = primary ? palette.amount : QColor(Qt::transparent),
 		.ticker = palette.secondary,
-		.tickerOpacity = secondaryOpacity,
+		.tickerOpacity = secondary ? secondaryOpacity : 0.,
 	});
 	p.restore();
+	if (!secondary) {
+		return;
+	}
 
 	const auto fiat = fiatRect(fold);
 	const auto fiatScale = BalanceFiatScale(fold.fold);
@@ -13886,10 +13705,15 @@ void BalanceInk::paint(
 		QPainter &p,
 		const CardFold &fold,
 		const QRegion &cardOutline,
-		QRect clip) const {
+		QRect clip,
+		BalanceInkPart part,
+		BalanceInkLayer layer) const {
 	const auto ink = boundingRect(fold);
 	const auto inside = cardOutline.intersected(QRegion(clip));
-	if (inside.intersects(ink)) {
+	if (part != BalanceInkPart::Outside && inside.intersects(ink)) {
+		const auto secondaryOpacity = (layer == BalanceInkLayer::Secondary)
+			? 1.
+			: st::walletCardSecondaryOpacity;
 		p.save();
 		p.setClipRegion(inside, Qt::IntersectClip);
 		paintPass(
@@ -13898,11 +13722,12 @@ void BalanceInk::paint(
 			CardBalancePalette(),
 			_markCard,
 			true,
-			st::walletCardSecondaryOpacity);
+			secondaryOpacity,
+			layer);
 		p.restore();
 	}
 	const auto outside = QRegion(clip) - inside;
-	if (outside.intersects(ink)) {
+	if (part != BalanceInkPart::Card && outside.intersects(ink)) {
 		p.save();
 		p.setClipRegion(outside, Qt::IntersectClip);
 		paintPass(
@@ -13911,7 +13736,8 @@ void BalanceInk::paint(
 			SettledBalancePalette(),
 			_markSettled,
 			false,
-			1.);
+			1.,
+			layer);
 		p.restore();
 	}
 }
@@ -13954,23 +13780,46 @@ QRect BalanceInk::markPaintRect(const CardFold &fold) const {
 	});
 }
 
+[[nodiscard]] rpl::producer<QString> CardAddressValue(
+		not_null<Main::Session*> session) {
+	return session->wallet().presenceValue(
+	) | rpl::map([=](Presence) {
+		return session->wallet().addressFriendly(false);
+	});
+}
+
 void SetupCardBalance(
 		not_null<BalanceInk*> ink,
 		not_null<Main::Session*> session,
 		Fn<void()> repaint,
-		not_null<Ui::RpWidget*> owner) {
-	rpl::combine(
-		session->wallet().balanceNanoValue(),
-		FiatRateValue(session)
-	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		not_null<Ui::RpWidget*> owner,
+		rpl::producer<int64> balanceNano = nullptr,
+		rpl::producer<QString> fiat = nullptr) {
+	const auto apply = [=](int64 nano, const QString &text) {
 		const auto scope = WindowPaletteScope(owner);
 		ink->setContent(
 			CreditsAmount(
 				nano / Ui::kNanosInOne,
 				nano % Ui::kNanosInOne,
 				CreditsType::Ton),
-			FormatFiat(nano, rate));
+			text);
 		repaint();
+	};
+	auto amount = balanceNano
+		? std::move(balanceNano)
+		: session->wallet().balanceNanoValue();
+	if (fiat) {
+		rpl::combine(
+			std::move(amount),
+			std::move(fiat)
+		) | rpl::on_next(apply, owner->lifetime());
+		return;
+	}
+	rpl::combine(
+		std::move(amount),
+		FiatRateValue(session)
+	) | rpl::on_next([=](int64 nano, FiatRate rate) {
+		apply(nano, FormatFiat(nano, rate));
 	}, owner->lifetime());
 }
 
@@ -14008,14 +13857,18 @@ void SetupCardMark(
 Card::Card(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show,
-	rpl::producer<TextWithEntities> name)
+	rpl::producer<TextWithEntities> name,
+	rpl::producer<QString> address)
 : RpWidget(parent)
 , _show(std::move(show))
-, _nameStyle(st::defaultTextStyle) {
+, _nameStyle(st::defaultTextStyle)
+, _look(crl::guard(this, [=] { invalidateCache(); })) {
 	_nameStyle.font = st::walletCardNameFont->monospace();
-	_show->session().wallet().presenceValue(
-	) | rpl::on_next([=](Presence) {
-		refreshAddress();
+	auto friendly = address
+		? std::move(address)
+		: CardAddressValue(&_show->session());
+	std::move(friendly) | rpl::on_next([=](const QString &value) {
+		setAddress(value);
 	}, lifetime());
 
 	std::move(name) | rpl::on_next([=](TextWithEntities name) {
@@ -14025,10 +13878,9 @@ Card::Card(
 			kMarkupTextOptions,
 			Core::TextContext({
 				.session = &_show->session(),
-				.repaint = crl::guard(this, [=] { update(); }),
+				.repaint = crl::guard(this, [=] { invalidateCache(); }),
 		}));
 		invalidateCache();
-		update();
 	}, lifetime());
 }
 
@@ -14042,24 +13894,23 @@ const CardFold &Card::fold() const {
 	return _fold;
 }
 
-QPolygonF Card::paintedQuad() const {
-	return _fold.quad;
-}
-
-QPolygonF Card::paintedOutline() const {
-	if (!_fold.valid) {
-		return QPolygonF();
-	}
-	auto path = QPainterPath();
-	path.addRoundedRect(
-		QRectF(_fold.rest),
-		st::walletCardRadius,
-		st::walletCardRadius);
-	return _fold.transform.map(path.toFillPolygon());
-}
-
 void Card::invalidateCache() {
 	_cache = QImage();
+	if (const auto owner = _paintOwner.data()) {
+		owner->update();
+	} else {
+		update();
+	}
+	_invalidations.fire({});
+}
+
+rpl::producer<> Card::invalidations() const {
+	return _invalidations.events();
+}
+
+void Card::liftForeground() {
+	_lifted = true;
+	invalidateCache();
 }
 
 void Card::followCursor() {
@@ -14068,15 +13919,24 @@ void Card::followCursor() {
 	}
 }
 
-QRectF Card::paintedRect() const {
-	return _fold.quad.boundingRect().translated(-QPointF(pos()));
+void Card::setLook(CardLook look, CardLookChange change) {
+	_look.setLook(std::move(look), change);
 }
 
-float64 Card::paintAngle() {
+rpl::producer<bool> Card::lookTransitionValue() const {
+	return _look.runningValue();
+}
+
+CardMarkTint Card::markTint(const BalanceInk &ink) const {
+	const auto card = QRect(QPoint(), restRect().size());
+	return _look.markTint(card, ink.markRect(card));
+}
+
+float64 Card::paintAngle(not_null<QWidget*> paintOwner, QRectF rect) {
 	if (!_angle) {
 		return 0.;
 	}
-	_angle->track(this, this, paintedRect());
+	_angle->track(this, paintOwner, rect);
 	return _angle->value(crl::now());
 }
 
@@ -14088,16 +13948,13 @@ QRect Card::restRect() const {
 		st::walletCardHeight);
 }
 
-void Card::refreshAddress() {
-	auto &wallet = _show->session().wallet();
-	const auto address = wallet.addressFriendly(false);
+void Card::setAddress(const QString &address) {
 	_addressLine1 = _addressLine2 = QString();
 	if (address.size() == kAddressLength) {
 		_addressLine1 = GroupedAddressLine(address, 0);
 		_addressLine2 = GroupedAddressLine(address, kAddressLength / 2);
 	}
 	invalidateCache();
-	update();
 }
 
 void Card::validateCache(float64 angle) {
@@ -14118,107 +13975,87 @@ void Card::validateCache(float64 angle) {
 }
 
 void Card::paintEvent(QPaintEvent *e) {
-	if (!_fold.valid || _fold.opacity <= 0.) {
-		return;
-	}
-	const auto angle = paintAngle();
 	auto p = Painter(this);
-	if (!_fold.fold) {
-		auto hq = PainterHighQualityEnabler(p);
-		p.translate(restRect().topLeft());
-		paintContent(p, angle);
+	p.translate(-x(), -y());
+	paintFold(p, _fold, this);
+}
+
+void Card::paintFold(
+		Painter &p,
+		const CardFold &fold,
+		not_null<QWidget*> paintOwner) {
+	if (!fold.valid || fold.opacity <= 0.) {
 		return;
 	}
-	validateCache(angle);
+	_paintOwner = paintOwner.get();
+	const auto bounds = fold.quad.boundingRect();
+	const auto angle = paintAngle(paintOwner, p.transform().mapRect(bounds));
+	p.save();
 	auto hq = PainterHighQualityEnabler(p);
-	p.setOpacity(_fold.opacity);
-	p.translate(-x(), -y());
-	p.setTransform(_fold.transform, true);
-	p.drawImage(QRectF(_fold.rest), _cache);
+	p.setOpacity(p.opacity() * fold.opacity);
+	if (fold.transform.type() <= QTransform::TxTranslate) {
+		p.translate(bounds.topLeft());
+		paintContent(p, angle);
+	} else {
+		validateCache(angle);
+		p.setTransform(fold.transform, true);
+		p.drawImage(QRectF(fold.rest), _cache);
+	}
+	p.restore();
+}
+
+void Card::paintForeground(Painter &p, const CardFold &fold) {
+	if (!_lifted || !fold.valid || fold.opacity <= 0.) {
+		return;
+	}
+	p.save();
+	auto hq = PainterHighQualityEnabler(p);
+	p.setOpacity(p.opacity() * fold.opacity);
+	p.setTransform(fold.transform, true);
+	p.translate(fold.rest.topLeft());
+	paintFace(p);
+	p.restore();
 }
 
 void Card::paintContent(Painter &p, float64 angle) {
-	const auto size = restRect().size();
-	_background.paint(p, QRect(QPoint(), size), angle);
-
-	const auto qr = CardQrRect(size.width());
-	PaintCardQrPlate(p, qr);
-	st::walletCardQrIcon.paintInCenter(p, qr, CardQrIconFg());
-
-	const auto &nameFont = _nameStyle.font;
-	const auto addressFont = st::walletCardAddressFont->monospace();
-	const auto addressBaseline = size.width()
-		- st::walletCardAddressRight
-		- addressFont->height
-		- addressFont->ascent;
-	const auto stripLeft = addressBaseline - addressFont->descent;
-	const auto nameMax = stripLeft
-		- st::walletCardContentSkip
-		- st::walletCardContentLeft;
-	p.setPen(st::activeButtonFg);
-	_name.drawLeftElided(
-		p,
-		st::walletCardContentLeft,
-		size.height() - st::walletCardNameBottom - nameFont->ascent,
-		nameMax,
-		size.width(),
-		1);
-
-	if (!_addressLine1.isEmpty()) {
-		p.setPen(st::windowActiveTextFg);
-		p.setFont(addressFont);
-		p.save();
-		p.translate(addressBaseline, st::walletCardAddressSkip);
-		p.rotate(90);
-		p.drawText(0, 0, _addressLine1);
-		p.drawText(0, -addressFont->height, _addressLine2);
-		p.restore();
+	_look.paint(p, QRect(QPoint(), restRect().size()), angle);
+	if (!_lifted) {
+		paintFace(p);
 	}
 }
 
-CardFold ComputeCardFold(QRect cardRest, float64 fold) {
-	auto result = CardFold();
-	result.rest = cardRest;
-	result.fold = fold;
-	result.topY = cardRest.top() - cardRest.top() * fold;
-	result.bottomY = result.topY + cardRest.height() * (1. - fold);
-	result.opacity = 1. - std::pow(fold, st::walletCardFoldFadePower);
-	if (result.bottomY - result.topY < kCardFoldMinHeight) {
-		return result;
-	}
-	const auto bottomWidth = cardRest.width()
-		* (1. - (1. - st::walletCardFoldBottomScale) * fold);
-	const auto topWidth = bottomWidth
-		* (1. - (1. - st::walletCardFoldTopScale) * fold);
-	const auto center = cardRest.left() + cardRest.width() / 2.;
-	const auto rest = QRectF(cardRest);
-	const auto restQuad = QPolygonF({
-		rest.topLeft(),
-		rest.topRight(),
-		rest.bottomRight(),
-		rest.bottomLeft(),
-	});
-	auto quad = QPolygonF({
-		QPointF(center - topWidth / 2., result.topY),
-		QPointF(center + topWidth / 2., result.topY),
-		QPointF(center + bottomWidth / 2., result.bottomY),
-		QPointF(center - bottomWidth / 2., result.bottomY),
-	});
-	auto transform = QTransform();
-	if (!QTransform::quadToQuad(restQuad, quad, transform)) {
-		return result;
-	}
-	result.quad = std::move(quad);
-	result.transform = transform;
-	result.valid = true;
-	return result;
+void Card::paintFace(Painter &p) {
+	const auto size = restRect().size();
+	const auto qr = CardQrRect(size.width());
+	const auto layout = ComputeCardTextLayout(size, _nameStyle.font);
+	const auto foreground = [&](Painter &q, QColor ink) {
+		PaintCardQrPlate(q, qr);
+		st::walletCardQrIcon.paintInCenter(q, qr, CardQrIconFg());
+
+		q.setPen(st::activeButtonFg);
+		_name.drawElided(q, layout.nameLeft, layout.nameTop, layout.nameMax);
+
+		if (!_addressLine1.isEmpty()) {
+			q.setPen(ink);
+			q.setFont(layout.addressFont);
+			q.save();
+			q.translate(layout.addressBaseline, st::walletCardAddressSkip);
+			q.rotate(90);
+			q.drawText(0, -layout.addressFont->height, _addressLine1);
+			q.drawText(0, 0, _addressLine2);
+			q.restore();
+		}
+	};
+	_look.paintForeground(p, QRect(QPoint(), size), foreground);
 }
 
 Content::Content(
 	not_null<Ui::SeparatePanel*> panel,
-	std::shared_ptr<Main::SessionShow> show)
+	std::shared_ptr<Main::SessionShow> show,
+	std::shared_ptr<WindowPalette> palette)
 : RpWidget(panel)
 , _show(std::move(show))
+, _palette(std::move(palette))
 , _panel(panel)
 , _scroll(this, st::defaultScrollArea)
 , _loadMoreCheck([this] { checkLoadMore(); }) {
@@ -14230,15 +14067,18 @@ Content::Content(
 }
 
 Content::~Content() {
+	_cardLook = nullptr;
 	_show->session().wallet().stopPolling();
 }
 
 [[nodiscard]] bool HistoryShown(not_null<Main::Session*> session) {
 	const auto wallet = &session->wallet();
-	return !wallet->listsGated()
-		&& (!wallet->historyVisibleEmpty()
-			|| !wallet->listedSubmittedTransactions().empty()
-			|| wallet->sendingTransaction(wallet->windowSend()));
+	return CurrentGiftMovePreview(wallet)
+		|| (!wallet->listsGated()
+			&& (!wallet->historyVisibleEmpty()
+				|| !wallet->listedSubmittedTransactions().empty()
+				|| wallet->sendingTransaction(
+					wallet->windowSend().operationId)));
 }
 
 [[nodiscard]] rpl::producer<bool> HistoryShownValue(
@@ -14493,7 +14333,7 @@ void Content::setupContent() {
 
 	const auto rowsTopSkip = column->add(Ui::CreateSlideSkipWidget(
 		column,
-		st::walletRowsTopSkip));
+		st::walletTransactionsTopSkip));
 	rowsTopSkip->toggleOn(rpl::combine(
 		std::move(collectiblesShown),
 		wallet->collectiblesTabValue(),
@@ -14624,6 +14464,11 @@ void Content::setupContent() {
 		return created;
 	};
 	const auto rebuildList = [=] {
+		auto submitted = wallet->listedSubmittedTransactions();
+		const auto window = WindowSendingRowFor(wallet, submitted);
+		if (_sendingRow && _sendingRow->operationId == window.predecessor) {
+			_sendingRow->operationId = window.operationId;
+		}
 		const auto scrollTop = _scroll->scrollTop();
 		const auto anchor = listWrap->toggled()
 			? CountListAnchor(listedRows(), column, scrollTop - _reserve)
@@ -14634,8 +14479,7 @@ void Content::setupContent() {
 		// then keep their place on screen in one move.
 		place->rebuilding = true;
 		list->clear();
-		const auto &history = wallet->history();
-		auto submitted = wallet->listedSubmittedTransactions();
+		const auto &history = ListedHistory(wallet);
 		// A row sits by date, so old failures stop covering fresh history.
 		ranges::stable_sort(submitted, ranges::greater(), [](const auto &entry) {
 			return entry.item.date.value_or(kUndatedRowDate);
@@ -14651,8 +14495,8 @@ void Content::setupContent() {
 		};
 		auto created = false;
 		if (HistoryShown(&_show->session())) {
-			const auto &op = wallet->windowSend();
-			const auto sending = wallet->sendingTransaction(op);
+			const auto &op = window.operationId;
+			const auto &sending = window.sending;
 			const auto settled = (op.empty() || sending)
 				? end(submitted)
 				: ranges::find(
@@ -14705,7 +14549,7 @@ void Content::setupContent() {
 			const auto skipId = !held
 				? QString()
 				: sending
-				? sending->id
+				? (sending->id.isEmpty() ? window.servedId : sending->id)
 				: kept
 				? kept->id
 				: QString();
@@ -14772,10 +14616,33 @@ void Content::setupContent() {
 	listWrap->finishAnimating();
 
 	const auto collectiblesWrap = column->add(
-		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		object_ptr<Ui::SlideWrap<CollectiblesViewport>>(
 			column,
-			object_ptr<Ui::VerticalLayout>(column)));
-	AddCollectiblesList(collectiblesWrap->entity(), _show, media);
+			object_ptr<CollectiblesViewport>(column, listWrap, rowsTopSkip)));
+	const auto host = CardHost{
+		.body = this,
+		.painter = base::make_weak(_cardStickers),
+		.fold = [=] { return cardFold(); },
+		.bring = [=] { _cardFloat->bring(); },
+		.prepareColor = [=](const CardLook &look) { _palette->prepare(look); },
+	};
+	_cardEditor = std::make_unique<CardStickerEditor>(CardEditorArgs{
+		.show = _show,
+		.host = host,
+		.input = _cardButton,
+		.header = _pinned,
+		.squares = AddCollectiblesList(
+			collectiblesWrap->entity()->page(),
+			_scroll.data(),
+			_show,
+			media,
+			host),
+		.repaint = [=](QRect rect) {
+			_pinnedBalance->update(rect);
+			_cardFloat->update();
+		},
+	});
+	_cardEditor->updateInput();
 	collectiblesWrap->toggleOn(wallet->collectiblesTabValue());
 	collectiblesWrap->finishAnimating();
 
@@ -14834,11 +14701,12 @@ void Content::setupContent() {
 	_pinnedBackground->raise();
 	_card->raise();
 	_pinned->raise();
-	_cardButton->raise();
 	_tabsShadow->raise();
 	_headerShadow->raise();
 	_stripShadow->raise();
 	_strip->raise();
+	_cardButton->raise();
+	_cardFloat->widget()->raise();
 
 	const auto local = &_show->session().local();
 	if (!local->readPref<bool>(kIntroTooltipShownPref)) {
@@ -15127,21 +14995,108 @@ void Content::setupProtectRow() {
 
 void Content::setupBalance() {
 	_ink = std::make_unique<BalanceInk>();
+	_ink->setMarkTint([=] { return _card->markTint(*_ink); });
 
 	_pinnedBalance = Ui::CreateChild<Ui::RpWidget>(_pinned);
 	_pinnedBalance->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_pinnedBalance->show();
 	_pinnedBalance->raise();
+	const auto repaintCard = [=] {
+		_pinnedBalance->update(_card->geometry());
+		if (_cardFloat) {
+			_cardFloat->update();
+		}
+	};
+	_cardStickers = std::make_unique<CardStickers>(
+		&_show->session(),
+		OwnCardStickersValue(&_show->session()),
+		repaintCard);
+	_cardForeground = std::make_unique<CardForeground>(CardForegroundArgs{
+		.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
+			_card->paintForeground(p, fold);
+			_ink->paint(
+				p,
+				fold,
+				cardOutline(),
+				clip,
+				BalanceInkPart::Card,
+				BalanceInkLayer::Primary);
+		},
+		.halo = {
+			.area = [=](const CardFold &fold) {
+				return _ink->boundingRect(fold);
+			},
+			.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
+				_ink->paint(
+					p,
+					fold,
+					cardOutline(),
+					clip,
+					BalanceInkPart::Card,
+					BalanceInkLayer::Secondary);
+			},
+			.tint = [=] { return _card->markTint(*_ink); },
+			.gifts = [=] { return _cardStickers->settledLayer(); },
+		},
+		.repaint = repaintCard,
+		.changes = _card->invalidations(),
+	});
+	_card->liftForeground();
+	_cardLook = std::make_unique<WindowLookTransition>(
+		WindowLookTransitionArgs{
+			.session = &_show->session(),
+			.stickers = _cardStickers.get(),
+			.panel = _panel,
+			.body = this,
+			.palette = _palette,
+			.fold = [=] { return cardFold(); },
+			.apply = [card = _card](CardLook look, CardLookChange change) {
+				card->setLook(std::move(look), change);
+			},
+		});
+	const auto paintInkAndStickers = [=](
+			QPainter &p,
+			const CardFold &fold,
+			QRect clip) {
+		auto hq = PainterHighQualityEnabler(p);
+		if (clip.intersects(_ink->boundingRect(fold))) {
+			_ink->paint(p, fold, cardOutline(), clip, BalanceInkPart::Outside);
+		}
+		if (fold.valid && fold.opacity > 0.) {
+			_cardStickers->paint(p, fold);
+			_cardForeground->paint(p, fold);
+			_cardStickers->paintAbove(p, fold);
+			if (_cardEditor) {
+				_cardEditor->paint(p, fold);
+			}
+		}
+	};
+	_cardFloat = std::make_unique<CardFloat>(CardFloatArgs{
+		.body = this,
+		.inPlace = [=] {
+			return ComputeCardFold(cardRest(), foldProgress());
+		},
+		.arriving = rpl::combine(
+			_cardStickers->arrivingValue(),
+			_card->lookTransitionValue(),
+			_cardLook->runningValue(),
+			rpl::mappers::_1 || rpl::mappers::_2 || rpl::mappers::_3
+		) | rpl::distinct_until_changed(),
+		.paint = [=](Painter &p, const CardFold &fold, QRect clip) {
+			_card->paintFold(p, fold, _cardFloat->widget());
+			paintInkAndStickers(p, fold, clip);
+		},
+		.changed = [=] {
+			updatePinned();
+			_titleBalance->update();
+		},
+	});
 	_pinnedBalance->paintRequest(
 	) | rpl::on_next([=](QRect clip) {
-		const auto fold = cardFold();
-		const auto ink = _ink->boundingRect(fold);
-		if (!clip.intersects(ink)) {
-			return;
+		if (!_cardFloat->shown()) {
+			auto p = QPainter(_pinnedBalance);
+			paintInkAndStickers(p, cardFold(), clip);
 		}
-		auto p = QPainter(_pinnedBalance);
-		auto hq = PainterHighQualityEnabler(p);
-		_ink->paint(p, fold, cardOutline(), clip);
 	}, _pinnedBalance->lifetime());
 
 	_titleBalance.reset(Ui::CreateChild<Ui::RpWidget>(window()));
@@ -15165,6 +15120,7 @@ void Content::setupBalance() {
 	const auto repaintBalance = [=] {
 		_pinnedBalance->update();
 		_titleBalance->update();
+		_cardForeground->invalidate();
 		_paintedInk = _ink->boundingRect(cardFold());
 	};
 
@@ -15181,12 +15137,10 @@ void Content::setupBalance() {
 		repaintBalance,
 		this);
 
-	style::PaletteChanged(
-	) | rpl::on_next([=] {
+	WindowPaletteChanged(this) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(this);
 		_ink->refresh();
 		_card->invalidateCache();
-		_card->update();
 		_pinnedBackground->update();
 		repaintBalance();
 	}, lifetime());
@@ -15207,18 +15161,20 @@ void Content::setupBalance() {
 		_pinnedBalance->update(mark);
 		_titleBalance->update(
 			mark.translated(0, st::separatePanelTitleHeight));
+		_cardForeground->invalidate();
 	});
 }
 
 const CardFold &Content::cardFold() const {
-	return _card->fold();
+	return _cardFloat->shown() ? _cardFloat->fold() : _card->fold();
 }
 
 QRegion Content::cardOutline() const {
-	if (_card->isHidden()) {
+	const auto &fold = cardFold();
+	if (!fold.valid || fold.opacity <= 0.) {
 		return {};
 	}
-	return QRegion(_card->paintedQuad().toPolygon());
+	return QRegion(fold.quad.toPolygon());
 }
 
 void Content::paintTitle(QPainter &p, float64 fold) {
@@ -15758,16 +15714,12 @@ void Content::updatePinned() {
 		QPoint(rest.left(), 0),
 		rest.bottomRight());
 	_card->setGeometry(cardWidget);
-	_card->setFold(fold);
-	const auto shown = fold.valid && fold.opacity > 0.;
-	if (shown) {
-		const auto outline = _card->paintedOutline();
-		const auto bounds = outline.boundingRect().toAlignedRect();
-		_cardButton->setGeometry(bounds);
-		_cardButton->setMask(QRegion(
-			outline.translated(-bounds.topLeft()).toPolygon()));
+	_cardFloat->update();
+	_card->setFold(_cardFloat->shown() ? CardFold() : fold);
+	const auto presented = cardFold();
+	if (_cardEditor) {
+		_cardEditor->updateInput();
 	}
-	_cardButton->setVisible(shown);
 	_scroll->setVerticalBarTopSkip(height - min);
 	_tabsShadow->setGeometry(0, height, width(), st::lineWidth);
 	_headerShadow->setVisible(height == min);
@@ -15776,7 +15728,7 @@ void Content::updatePinned() {
 	// The card's dirty area is its whole widget rect, which contains
 	// every folded quad, and the ink's is the union of the rects it was
 	// and is painted into.
-	const auto inkPainted = _ink->boundingRect(fold);
+	const auto inkPainted = _ink->boundingRect(presented);
 	const auto inkDirty = _paintedInk.united(inkPainted);
 	_paintedInk = inkPainted;
 	update(cardWidget);
@@ -16425,14 +16377,16 @@ rpl::producer<bool> TransactionsShownValue(
 
 base::unique_qptr<Ui::RpWidget> CreateContent(
 		not_null<Ui::SeparatePanel*> panel,
-		std::shared_ptr<Main::SessionShow> show) {
-	return base::make_unique_q<Content>(panel, std::move(show));
+		std::shared_ptr<Main::SessionShow> show,
+		const std::shared_ptr<WindowPalette> &palette) {
+	return base::make_unique_q<Content>(panel, std::move(show), palette);
 }
 
 object_ptr<Ui::RpWidget> MakeWalletCard(
 		QWidget *parent,
 		std::shared_ptr<Main::SessionShow> show,
-		std::shared_ptr<bool> markPlayed) {
+		std::shared_ptr<bool> markPlayed,
+		WalletCardArgs args) {
 	auto result = object_ptr<Ui::FixedHeightWidget>(
 		parent,
 		st::walletCardHeight);
@@ -16442,8 +16396,16 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 	const auto card = Ui::CreateChild<Card>(
 		raw,
 		show,
-		CardNameValue(&show->session()));
+		(args.name
+			? std::move(args.name)
+			: CardNameValue(&show->session())),
+		std::move(args.address));
 	card->setAttribute(Qt::WA_TransparentForMouseEvents);
+	if (args.look) {
+		std::move(args.look) | rpl::on_next([=](CardLook look) {
+			card->setLook(std::move(look));
+		}, card->lifetime());
+	}
 
 	const auto overlay = Ui::CreateChild<Ui::RpWidget>(raw);
 	overlay->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -16479,19 +16441,20 @@ object_ptr<Ui::RpWidget> MakeWalletCard(
 		ink,
 		&show->session(),
 		[=] { overlay->update(); },
-		raw);
+		raw,
+		std::move(args.balanceNano),
+		std::move(args.fiat));
 	SetupCardMark(ink, raw, std::move(markPlayed), [=] {
 		overlay->update(
 			ink->markPaintRect(ComputeCardFold(raw->rect(), 0.)));
 	});
 
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(raw)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(raw);
 		ink->refresh();
 		card->invalidateCache();
-		card->update();
 		overlay->update();
 	}, raw->lifetime());
 
@@ -16577,7 +16540,7 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 	}, raw->lifetime());
 
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(raw)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(raw);
 		state->ink.refresh();
@@ -16590,6 +16553,74 @@ object_ptr<Ui::RpWidget> MakeTransferCard(
 	});
 
 	return result;
+}
+
+void AddAddressPlate(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> address,
+		const style::margins &margin,
+		int groupsPerLine,
+		std::shared_ptr<Ui::Show> show,
+		rpl::producer<bool> spinnerAllowed) {
+	const auto font = st::walletAddressPlateFont->monospace();
+	const auto inner = st::walletAddressPlateInner;
+	const auto lines = kAddressLength / kAddressGroup / groupsPerLine;
+	const auto plate = container->add(
+		object_ptr<Ui::FixedHeightWidget>(
+			container,
+			inner + lines * font->height + inner),
+		margin);
+	const auto value = plate->lifetime().make_state<QString>();
+	plate->paintRequest(
+	) | rpl::on_next([=] {
+		auto p = QPainter(plate);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+		p.drawRoundedRect(
+			plate->rect(),
+			st::walletAddressPlateRadius,
+			st::walletAddressPlateRadius);
+		if (value->isEmpty()) {
+			return;
+		}
+		const auto lineWidth = AddressGroupsWidth(font, *value, groupsPerLine);
+		const auto left = (plate->width() - lineWidth) / 2;
+		PaintAddressGroups(
+			p,
+			font,
+			*value,
+			{ left, inner },
+			groupsPerLine);
+	}, plate->lifetime());
+	const auto &loading = st::walletBusyBoxLoading;
+	const auto side = loading.size.height() + 2 * loading.thickness;
+	const auto spinner = Info::Statistics::InfiniteRadialAnimationWidget(
+		plate,
+		side,
+		&loading);
+	spinner->setAttribute(Qt::WA_TransparentForMouseEvents);
+	Info::Statistics::AddChildToWidgetCenter(plate, spinner);
+	rpl::combine(
+		std::move(address),
+		std::move(spinnerAllowed)
+	) | rpl::on_next([=](const QString &text, bool allowed) {
+		*value = (text.size() == kAddressLength) ? text : QString();
+		spinner->setVisible(allowed && value->isEmpty());
+		plate->update();
+	}, plate->lifetime());
+	if (show) {
+		const auto copy = Ui::CreateChild<Ui::AbstractButton>(plate);
+		copy->setClickedCallback([=] {
+			if (!value->isEmpty()) {
+				CopyAddressCallback(show, *value)();
+			}
+		});
+		plate->sizeValue(
+		) | rpl::on_next([=](QSize size) {
+			copy->setGeometry(QRect(QPoint(), size));
+		}, copy->lifetime());
+	}
 }
 
 void FillMenu(
@@ -16747,7 +16778,9 @@ void ShowSendToUser(
 void ShowCollectibleTransfer(
 		std::shared_ptr<Main::SessionShow> show,
 		std::shared_ptr<CollectibleMedia> media,
-		const QString &collectible) {
+		const QString &collectible,
+		const QString &slug,
+		std::shared_ptr<Data::UniqueGift> unique) {
 	if (!show || !show->valid() || !media || collectible.isEmpty()) {
 		return;
 	}
@@ -16764,6 +16797,8 @@ void ShowCollectibleTransfer(
 			QString(),
 			std::make_shared<const CollectibleTransfer>(CollectibleTransfer{
 				.address = collectible,
+				.slug = slug,
+				.unique = unique,
 				.media = strong,
 			})));
 	});

@@ -125,11 +125,4 @@ void ChartRulersData::computeRelative(
 	}
 }
 
-ChartValue ChartRulersData::LookupHeight(ChartValue maxValue) {
-	const auto v = (maxValue > 100) ? Round(maxValue) : maxValue;
-
-	const auto step = ChartValue(std::ceil(v / kStep));
-	return step * kStep;
-}
-
 } // namespace Statistic

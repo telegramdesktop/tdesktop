@@ -1164,4 +1164,22 @@ std::vector<MessageSubItem> ActiveMessageSubItems(
 	return result;
 }
 
+HistoryItem *AccessibilityItemAtIndex(
+		int index,
+		const std::vector<Element*> &elements,
+		int barIndex) {
+	// The unread bar row maps to no item: a focused bar is cached as
+	// a null item with a nonnegative index, so it can never be
+	// mistaken for the message it is anchored to when rows shift.
+	if (index < 0 || (barIndex >= 0 && index == barIndex)) {
+		return nullptr;
+	}
+	const auto elementIndex = (barIndex >= 0 && index > barIndex)
+		? (index - 1)
+		: index;
+	return (elementIndex < int(elements.size()))
+		? elements[elementIndex]->data().get()
+		: nullptr;
+}
+
 } // namespace HistoryView

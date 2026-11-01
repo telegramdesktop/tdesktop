@@ -76,6 +76,8 @@ struct TonConnectEventRequest {
 struct TonConnectReply {
 	QByteArray challengeAnswer;
 	QByteArray body;
+	TimeId proofTimestamp = 0;
+	QByteArray proofSignature;
 };
 
 struct TonConnectKeyResult {
@@ -206,6 +208,7 @@ public:
 	void stop();
 
 	void apply(const MTPTonConnectSession &session);
+	void applyCreated(const MTPTonConnectSession &session);
 	void applyPendingDisconnect(const QVector<MTPlong> &ids);
 	[[nodiscard]] static TonConnectSessionInfo Parse(
 		const MTPTonConnectSession &session);

@@ -82,7 +82,6 @@ Card Card::DecodedObjectFromAPIResponse(QJsonObject object) {
 	const auto expYear = object.value("exp_year").toInt();
 	auto result = Card(cardId, last4, brand, expMonth, expYear);
 	result._name = string(u"name");
-	result._dynamicLast4 = string(u"dynamic_last4");
 	result._funding = FundingFromString(string(u"funding").toLower());
 	result._fingerprint = string(u"fingerprint");
 	result._country = string(u"country");
@@ -110,10 +109,6 @@ QString Card::name() const {
 
 QString Card::last4() const {
 	return _last4;
-}
-
-QString Card::dynamicLast4() const {
-	return _dynamicLast4;
 }
 
 CardBrand Card::brand() const {

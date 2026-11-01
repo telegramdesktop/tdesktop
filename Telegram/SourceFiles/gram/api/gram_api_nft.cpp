@@ -222,12 +222,7 @@ constexpr auto kFragmentCollections = std::array{
 } // namespace
 
 void ClassifyNftKind(NftItem &item) {
-	// Numbers and usernames each live in one authoritative Fragment
-	// collection, so the on-chain collection address is the authenticity
-	// gate for them. Gifts mint one collection per model, which no address
-	// list can enumerate, so a gift content URI only nominates a candidate
-	// slug; the wallet trusts it after payments.getUniqueStarGift returns
-	// this exact item's address as the resolved gift's gift_address.
+	// Numbers and usernames are gated by their one authoritative collection.
 	if (const auto entry = FragmentEntry(item.collection)) {
 		item.kind = entry->kind;
 		item.key = FragmentSlug(item.contentUri, entry->segment);
@@ -236,15 +231,6 @@ void ClassifyNftKind(NftItem &item) {
 		}
 		if (item.key.isEmpty()) {
 			item.key = KeyFromName(item.name, entry->kind);
-		}
-	} else {
-		auto slug = FragmentSlug(item.contentUri, u"gift");
-		if (slug.isEmpty()) {
-			slug = MediaSlug(item, u"gift");
-		}
-		if (!slug.isEmpty()) {
-			item.kind = NftKind::TelegramGift;
-			item.key = std::move(slug);
 		}
 	}
 }

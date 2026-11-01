@@ -40,8 +40,6 @@ public:
 	EmojiStatusPanel();
 	~EmojiStatusPanel();
 
-	void setChooseFilter(Fn<bool(EmojiStatusId)> filter);
-
 	void show(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> button,
@@ -88,7 +86,6 @@ private:
 
 	base::unique_qptr<ChatHelpers::TabbedPanel> _panel;
 	Fn<QColor()> _customTextColor;
-	Fn<bool(EmojiStatusId)> _chooseFilter;
 	QPointer<QWidget> _panelButton;
 	std::unique_ptr<Ui::EmojiFlyAnimation> _animation;
 	rpl::event_stream<CustomChosen> _someCustomChosen;

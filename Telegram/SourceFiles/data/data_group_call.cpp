@@ -50,14 +50,6 @@ const std::string &GroupCallParticipant::screenEndpoint() const {
 	return GetScreenEndpoint(videoParams);
 }
 
-bool GroupCallParticipant::cameraPaused() const {
-	return IsCameraPaused(videoParams);
-}
-
-bool GroupCallParticipant::screenPaused() const {
-	return IsScreenPaused(videoParams);
-}
-
 GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	CallId id,
@@ -384,11 +376,6 @@ void GroupCall::setParticipantsWithAccess(base::flat_set<UserId> list) {
 	} else {
 		requestParticipants();
 	}
-}
-
-auto GroupCall::participantsWithAccessCurrent() const
--> const base::flat_set<UserId> & {
-	return _participantsWithAccess.current();
 }
 
 auto GroupCall::participantsWithAccessValue() const

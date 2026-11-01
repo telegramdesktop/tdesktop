@@ -78,7 +78,6 @@ public:
 	void loadPaidReactionShownPeer();
 	void updatePaidReactionShownPeer(PeerId shownPeer);
 	[[nodiscard]] PeerId paidReactionShownPeerCurrent() const;
-	[[nodiscard]] rpl::producer<PeerId> paidReactionShownPeer() const;
 
 private:
 	void apply(const MTPGlobalPrivacySettings &settings);

@@ -157,33 +157,6 @@ void MessagesList::removeOne(MessagePosition messageId) {
 	}
 }
 
-void MessagesList::removeLessThan(MessagePosition messageId) {
-	auto removed = 0;
-	for (auto i = begin(_slices); i != end(_slices);) {
-		if (i->range.till <= messageId) {
-			removed += i->messages.size();
-			i = _slices.erase(i);
-			continue;
-		} else if (i->range.from <= messageId) {
-			_slices.modify(i, [&](Slice &slice) {
-				slice.range.from = MinMessagePosition;
-				auto from = begin(slice.messages);
-				auto till = ranges::lower_bound(slice.messages, messageId);
-				if (from != till) {
-					removed += till - from;
-					slice.messages.erase(from, till);
-				}
-			});
-			break;
-		} else {
-			break;
-		}
-	}
-	if (removed && _count) {
-		*_count -= removed;
-	}
-}
-
 void MessagesList::invalidate() {
 	_slices.clear();
 	_count = std::nullopt;

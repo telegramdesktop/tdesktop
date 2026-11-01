@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
 #include "base/parse_helper.h"
+#include "base/qt/qt_possible_keys.h"
 #include "core/application.h"
 #include "core/version.h"
 #include "mainwindow.h"
@@ -182,6 +183,9 @@ public:
 	void toggleSupport(bool toggled);
 	void listen(not_null<QWidget*> widget);
 	[[nodiscard]] bool handles(const QKeySequence &sequence) const;
+	[[nodiscard]] bool matchesCommand(
+		not_null<QKeyEvent*> event,
+		Command command) const;
 
 	[[nodiscard]] const QStringList &errors() const;
 
@@ -196,6 +200,10 @@ public:
 		Command command,
 		std::optional<Command> restore);
 	void resetToDefaults();
+	void restoreDefaultFor(
+		QKeySequence was,
+		QKeySequence now,
+		Command command);
 
 private:
 	void fillDefaults();
@@ -357,6 +365,25 @@ void Manager::resetToDefaults() {
 	writeCustomFile();
 }
 
+void Manager::restoreDefaultFor(
+		QKeySequence was,
+		QKeySequence now,
+		Command command) {
+	if (!was.isEmpty()) {
+		remove(was, command);
+	}
+	if (now.isEmpty()) {
+		writeCustomFile();
+		return;
+	}
+	if (_shortcuts.contains(now)) {
+		set(now, command, false);
+	} else {
+		set(now, command, true);
+	}
+	writeCustomFile();
+}
+
 std::vector<Command> Manager::lookup(not_null<QObject*> object) const {
 	auto result = std::vector<Command>();
 	auto i = _commandByObject.findFirst(object);
@@ -389,6 +416,21 @@ void Manager::listen(not_null<QWidget*> widget) {
 
 bool Manager::handles(const QKeySequence &sequence) const {
 	return _shortcuts.contains(sequence);
+}
+
+bool Manager::matchesCommand(
+		not_null<QKeyEvent*> event,
+		Command command) const {
+	for (const auto &combination : base::PossibleKeys(event)) {
+		const auto i = _shortcuts.find(QKeySequence(combination));
+		if (i == end(_shortcuts)) {
+			continue;
+		}
+		if (ranges::contains(lookup(i->second.get()), command)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 void Manager::pruneListened() {
@@ -1025,6 +1067,17 @@ void ResetToDefaults() {
 	Data.resetToDefaults();
 }
 
+void RestoreDefaultFor(
+		QKeySequence was,
+		QKeySequence now,
+		Command command) {
+	Data.restoreDefaultFor(was, now, command);
+}
+
+bool MatchesCommand(not_null<QKeyEvent*> event, Command command) {
+	return Data.matchesCommand(event, command);
+}
+
 bool AllowWithoutModifiers(int key) {
 	const auto service = {
 		Qt::Key_Escape,
@@ -1056,6 +1109,19 @@ bool AllowWithoutModifiers(int key) {
 		Qt::Key_ScrollLock,
 	};
 	return (key >= 0x80) && !ranges::contains(service, key);
+}
+
+QString ToDisplayString(const QKeySequence &sequence) {
+	auto result = sequence.toString();
+	if (!Platform::IsMac()) {
+		return result;
+	}
+	// Qt swaps modifiers on mac: Cmd arrives as "Ctrl+", Control as "Meta+".
+	return result
+		.replace(u"Ctrl+"_q, QString(QChar(0x2318)))
+		.replace(u"Meta+"_q, QString(QChar(0x2303)))
+		.replace(u"Alt+"_q, QString(QChar(0x2325)))
+		.replace(u"Shift+"_q, QString(QChar(0x21E7)));
 }
 
 void Finish() {

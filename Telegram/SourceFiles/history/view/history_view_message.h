@@ -120,6 +120,8 @@ struct HistoryMessageRichPage
 	mutable Iv::Markdown::MediaActivation handlerMediaActivation;
 	mutable Iv::Markdown::PreparedPlaceholderBlockId handlerPlaceholderId;
 	mutable QPoint handlerPlaceholderPoint;
+	mutable Iv::Markdown::PreparedPlaceholderBlockId pressedPlaceholderId;
+	mutable ClickHandlerPtr pressedPlaceholderHandler;
 	mutable Iv::Markdown::MarkdownArticleButtonRowHit handlerButtonRow;
 	mutable ClickHandlerPtr handlerButtonRowHandler;
 	mutable Iv::Markdown::MarkdownArticleButtonRowHit pressedButtonRow;
@@ -234,6 +236,8 @@ public:
 		const MessageSelection &selection) const override;
 	TextSelection selectionFromQuote(
 		const SelectedQuote &quote) const override;
+	HighlightYRange richQuoteHighlightYRange(
+		const Ui::ChatPaintRichQuote &quote) const override;
 	TextSelection adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const override;
@@ -532,6 +536,8 @@ private:
 	[[nodiscard]] int rightBadgeWidth() const;
 	void validateFromNameText(PeerData *from) const;
 	void ensureFromNameStatusLink(not_null<PeerData*> peer) const;
+	[[nodiscard]] EmojiStatusId fromNameStatusId(
+		not_null<PeerData*> from) const;
 
 	mutable std::unique_ptr<RightAction> _rightAction;
 	mutable ClickHandlerPtr _fastReplyLink;

@@ -97,9 +97,6 @@ void CollectAnchors(
 [[nodiscard]] std::optional<TextSelection> TextSelectionForSegment(
 	const SelectableSegment &segment,
 	const PaintSelectionState &selectionState);
-[[nodiscard]] std::optional<TextSelection> TextSelectionForSegmentIndex(
-	const PaintSelectionState &selectionState,
-	int index);
 [[nodiscard]] std::optional<TextSelection> PaintTextSelectionForSegment(
 	const SelectableSegment &segment,
 	const PaintSelectionState &selectionState);

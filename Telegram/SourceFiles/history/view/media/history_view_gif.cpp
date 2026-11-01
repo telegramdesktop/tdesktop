@@ -212,7 +212,6 @@ Gif::Gif(
 		const auto fullId = _realParent->fullId();
 		const auto &data = &_parent->data()->history()->owner();
 		const auto isOut = _parent->data()->out();
-		_parent->data()->removeFromSharedMediaIndex();
 		setDocumentLinks(_data, realParent, [=] {
 			auto lifetime = std::make_shared<rpl::lifetime>();
 			TTLVoiceStops(fullId) | rpl::on_next([=]() mutable {

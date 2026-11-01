@@ -772,6 +772,11 @@ void SubsectionTabs::track() {
 			if (_around == topic) {
 				_around = _history;
 				refreshSlice();
+			} else if (ranges::contains(
+					_slice,
+					not_null<Data::Thread*>(topic),
+					&Item::thread)) {
+				refreshSlice();
 			}
 		}, _lifetime);
 
@@ -802,6 +807,11 @@ void SubsectionTabs::track() {
 		) | rpl::on_next([=](not_null<Data::SavedSublist*> sublist) {
 			if (_around == sublist) {
 				_around = _history;
+				refreshSlice();
+			} else if (ranges::contains(
+					_slice,
+					not_null<Data::Thread*>(sublist),
+					&Item::thread)) {
 				refreshSlice();
 			}
 		}, _lifetime);

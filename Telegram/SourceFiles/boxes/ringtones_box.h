@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 struct NotifySound;
-class Thread;
 enum class DefaultNotify : uint8_t;
 struct VolumeController;
 } // namespace Data
@@ -32,7 +31,3 @@ void RingtonesBox(
 	Data::NotifySound selected,
 	Fn<void(Data::NotifySound)> save,
 	Data::VolumeController volumeController);
-
-void ThreadRingtonesBox(
-	not_null<Ui::GenericBox*> box,
-	not_null<Data::Thread*> thread);

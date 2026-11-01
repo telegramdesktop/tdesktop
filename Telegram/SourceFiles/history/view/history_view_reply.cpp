@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
@@ -354,6 +355,7 @@ void Reply::update(
 		not_null<HistoryMessageReply*> data) {
 	const auto item = view->data();
 	const auto &fields = data->fields();
+	const auto &quote = fields.displayQuote();
 	const auto message = data->resolvedMessage.get();
 	const auto messageMedia = (message
 			&& (fields.todoItemId || !fields.pollOption.isEmpty()))
@@ -415,7 +417,7 @@ void Reply::update(
 	_multiline = data->multiline() ? 1 : 0;
 	const auto hasQuoteIcon = _displaying
 		&& fields.manualQuote
-		&& !fields.quote.empty();
+		&& !quote.empty();
 	_hasQuoteIcon = hasQuoteIcon ? 1 : 0;
 
 	const auto repaint = [=] { item->customEmojiRepaint(); };
@@ -444,10 +446,10 @@ void Reply::update(
 		? Ui::Text::Colorized(
 			Ui::Text::IconEmoji(&st::historyPollReplyIcon)
 		).append(messagePoll->question)
-		: (message && (fields.quote.empty() || !fields.manualQuote))
+		: (message && (quote.empty() || !fields.manualQuote))
 		? message->inReplyText()
-		: !fields.quote.empty()
-		? fields.quote
+		: !quote.empty()
+		? quote
 		: story
 		? Ui::Text::Colorized(
 			Ui::Text::IconEmoji(&st::historyReplyStoryIcon)
@@ -504,12 +506,7 @@ void Reply::setLinkFrom(
 	const auto isAdminLogEntry = view->data()->isAdminLogEntry();
 	const auto externalChannelId = peerToChannel(fields.externalPeerId);
 	const auto messageId = fields.messageId;
-	const auto highlight = MessageHighlightId{
-		.quote = fields.manualQuote ? fields.quote : TextWithEntities(),
-		.quoteOffset = int(fields.quoteOffset),
-		.todoItemId = fields.todoItemId,
-		.pollOption = fields.pollOption,
-	};
+	const auto highlight = fields.highlight();
 	const auto returnToId = view->data()->fullId();
 	const auto externalLink = [=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -1156,7 +1153,7 @@ TextWithEntities Reply::ComposePreviewName(
 	const auto groupNameAdded = displayAsExternal
 		&& (toPeer != sender)
 		&& (toPeer->isChat() || toPeer->isMegagroup());
-	const auto quote = replyTo && !replyTo.quote.empty();
+	const auto quote = replyTo && !ComposePreviewQuote(replyTo).empty();
 	const auto shorten = groupNameAdded || quote;
 
 	auto nameFull = TextWithEntities();
@@ -1177,6 +1174,11 @@ TextWithEntities Reply::ComposePreviewName(
 			nameFull,
 			tr::marked);
 
+}
+
+const TextWithEntities &Reply::ComposePreviewQuote(
+		const FullReplyTo &replyTo) {
+	return replyTo.richQuote ? replyTo.richQuote->text : replyTo.quote;
 }
 
 void Reply::unloadPersistentAnimation() {

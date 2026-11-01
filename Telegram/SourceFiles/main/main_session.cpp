@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_download_manager.h"
 #include "data/stickers/data_stickers.h"
+#include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -305,6 +306,13 @@ void Session::setTmpPassword(const QByteArray &password, TimeId validUntil) {
 	}
 }
 
+void Session::dropTmpPassword(const QByteArray &password) {
+	if (_tmpPassword == password) {
+		_tmpPassword = QByteArray();
+		_tmpPasswordValidUntil = 0;
+	}
+}
+
 QByteArray Session::validTmpPassword() const {
 	return (_tmpPasswordValidUntil
 		>= base::unixtime::now() + kTmpPasswordReserveTime)
@@ -314,12 +322,14 @@ QByteArray Session::validTmpPassword() const {
 
 // Can be called only right before ~Session.
 void Session::finishLogout() {
+	Wallet::CloseWallet(this);
 	unlockTerms();
 	data().clear();
 	data().clearLocalStorage();
 }
 
 Session::~Session() {
+	Wallet::CloseWallet(this);
 	unlockTerms();
 	data().clear();
 	ClickHandler::clearActive();
@@ -540,6 +550,7 @@ void Session::addWindow(not_null<Window::SessionController*> controller) {
 	) | rpl::map([=](Dialogs::Key chat) {
 		return chat.peer();
 	}) | rpl::distinct_until_changed());
+	_windowAdded.fire({});
 }
 
 bool Session::uploadsInProgress() const {
@@ -597,6 +608,10 @@ void Session::uploadsStop() {
 auto Session::windows() const
 -> const base::flat_set<not_null<Window::SessionController*>> & {
 	return _windows;
+}
+
+rpl::producer<> Session::windowAdded() const {
+	return _windowAdded.events();
 }
 
 Window::SessionController *Session::tryResolveWindow(

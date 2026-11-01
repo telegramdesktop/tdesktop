@@ -1059,15 +1059,6 @@ void Pip::setOverState(OverState state) {
 	_panel.update();
 }
 
-void Pip::setPressedState(std::optional<OverState> state) {
-	if (_pressed == state) {
-		return;
-	}
-	const auto wasShown = shownActiveState();
-	_pressed = state;
-	updateActiveState(wasShown);
-}
-
 Pip::OverState Pip::shownActiveState() const {
 	return ResolveShownOver(_pressed.value_or(_over));
 }
@@ -1413,7 +1404,7 @@ QImage Pip::currentVideoFrameImage() const {
 
 Ui::GL::ChosenRenderer Pip::chooseRenderer(
 		Ui::GL::Capabilities capabilities) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (Ui::GL::WidgetsRhiSupported()) {
 		LOG(("Renderer: [QRhi] (PipPanel)"));
 		_opengl = true;

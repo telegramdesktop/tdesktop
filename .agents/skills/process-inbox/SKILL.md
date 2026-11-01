@@ -91,6 +91,16 @@ inbox into requests, then decide for each request whether to:
 - add one or more tasks to an existing project;
 - create a new project when durable shared context is useful.
 
+Every project is branch-bound: its tasks are performed on a branch named by
+its slug, in tdesktop and in each top-level submodule it changes, by checkouts the owner
+switched to that branch, several at once if the owner wants. Give a new
+project a short slug, one or two words such as `net` or `scale`, because it
+becomes a branch name; existing projects keep theirs. Plan a long or
+experimental project, such as a rewrite, as a task graph that can run for
+days: tasks that migrate one part each, differential tests against the old
+implementation, and `improve` tasks; the project planner extends it as
+results come in.
+
 Never create a task whose work is to move an existing source commit between
 branches: no backport, forward-port, cherry-pick, rebase, merge, branch sync,
 or equivalent integration task. Branch placement is human release/history
@@ -282,6 +292,15 @@ launches with `-testagent -noupdate`, so no task needs to require either flag.
 Every such criterion costs a performer real time and proves nothing about the
 product.
 
+Plan a harness or testing-infrastructure task for its consumers. Say in
+`task.md` that it is harness work, and name the tasks, tests or agents that
+will use it. Write its acceptance as the few results those consumers need,
+each shown by the harness's own self-test or one consumer run. Leave the
+mechanism, the framework internals it relies on and the edge cases no consumer
+reaches to the performer's plan. A harness task that specifies framework
+internals or exhaustive edge cases is over-specified: the performer builds,
+reviews and tests every line of it.
+
 Never write an acceptance criterion that can only be satisfied by adding
 debug machinery to production code — `#ifdef _DEBUG` blocks, debug-only
 types, observation structs, counters, or hooks in product translation units.
@@ -325,11 +344,25 @@ The checkout tag belongs in the receipt only.
 
 Every new task uses `type: implement`. Do not predict a cheap or expensive
 execution profile while routing: the performer selects review specialists and
-evidence instruments after inspecting the real code and risks. Keep acceptance
+evidence instruments after inspecting the real code and risks. Requests
+written by the code-health skill carry a `## Code health` section; keep it
+verbatim in the task, because its class selects the performer's lane, and
+never add one to any other request. A Q0, Q1 or Q2 request is already
+planned and sized: route it as one standalone task (`project: null`, no
+dependencies), copy its title, paragraph and sections verbatim, and never
+merge or split it. Q3–Q5 requests are planned like any other. Keep acceptance
 criteria outcome-focused. Name a required build, probe, app run, interaction,
 or screenshot only when that instrument is itself part of the requested result
 or no other instrument could decide the claim from the facts already known to
 the planner.
+
+An exploratory request, one that asks to make something faster or smoother
+with no exact end result, gets an `## Objective` section in place of
+acceptance for that objective: the metric and which direction is better, the
+measurement protocol with its noise threshold, the guardrails, and optionally
+a target. The performer runs it in the improve lane
+(`.agents/skills/perform-task/references/improve-lane.md`); missing the target
+never blocks it. Hard requirements stay acceptance criteria.
 
 For a new project, create `projects/<slug>/project.md` with a concise durable
 scope and `projects/<slug>/tasks.md` with task links. For an existing project,

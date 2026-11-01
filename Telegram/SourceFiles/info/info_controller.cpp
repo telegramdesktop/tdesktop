@@ -466,7 +466,9 @@ void Controller::updateSearchControllers(
 		? _section.mediaType()
 		: Section::MediaType::kCount;
 	const auto hasMediaSearch = isMedia
-		&& SharedMediaAllowSearch(mediaType);
+		&& (SharedMediaAllowSearch(mediaType)
+			|| (type == Type::GlobalMedia
+				&& mediaType == Section::MediaType::RoundVoiceFile));
 	const auto hasRequestsListSearch = (type == Type::RequestsList);
 	const auto hasCommonGroupsSearch = (type == Type::CommonGroups);
 	const auto hasDownloadsSearch = (type == Type::Downloads);

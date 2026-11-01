@@ -47,11 +47,13 @@ enum class SystemSettingsType {
 
 void SetApplicationIcon(const QIcon &icon);
 [[nodiscard]] QString SingleInstanceLocalServerName(const QString &hash);
+[[nodiscard]] bool LocalSocketPeerAllowed(qintptr descriptor);
 [[nodiscard]] PermissionStatus GetPermissionStatus(PermissionType type);
 void RequestPermission(PermissionType type, Fn<void(PermissionStatus)> resultCallback);
 void OpenSystemSettingsForPermission(PermissionType type);
 bool OpenSystemSettings(SystemSettingsType type);
 void IgnoreApplicationActivationRightNow();
+[[nodiscard]] int64 ClipboardChangeCount();
 [[nodiscard]] bool AutostartSupported();
 void AutostartRequestStateFromSystem(Fn<void(bool)> callback);
 void AutostartToggle(bool enabled, Fn<void(bool)> done = nullptr);

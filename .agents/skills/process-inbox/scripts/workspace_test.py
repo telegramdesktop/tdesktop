@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
 
 import contextlib
+import ctypes
 import datetime
+import hashlib
 import io
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import plistlib
+import shutil
 import signal
 import subprocess
+import sys
 import tempfile
+import threading
 import time
 from types import SimpleNamespace
 import unittest
@@ -64,6 +69,24 @@ class CommitHashArtifactTests(unittest.TestCase):
 				with self.subTest(value=value):
 					path.write_text(value, encoding="utf-8")
 					workspace.ensure_no_persisted_commit_hashes(root)
+
+	def test_exempts_supplied_inputs_only(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			report = root / "input" / "ANT-2026-TEST" / "REPORT.md"
+			report.parent.mkdir(parents=True)
+			report.write_text("Commit:   abcdef1234567", encoding="utf-8")
+			workspace.ensure_no_persisted_commit_hashes(root, exempt=("input",))
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.ensure_no_persisted_commit_hashes(root)
+			result = root / "work" / "input" / "result.md"
+			result.parent.mkdir(parents=True)
+			result.write_text("Commit: abcdef1", encoding="utf-8")
+			with self.assertRaises(workspace.WorkspaceError):
+				workspace.ensure_no_persisted_commit_hashes(
+					root,
+					exempt=("input",),
+				)
 
 
 class FrozenDate(datetime.date):
@@ -151,6 +174,43 @@ inbox_receipt: receipts/2026/01/10/test.md
 """,
 		encoding="utf-8",
 	)
+	return directory
+
+
+def write_retired_task(root, task_id):
+	directory = root / "tasks" / task_id
+	directory.mkdir(parents=True)
+	(directory / "task.md").write_text(
+		"# Retired task\n\n## Retired\n\nThe owner dropped it.\n",
+		encoding="utf-8",
+	)
+	return directory
+
+
+def write_split_source(root, task_id, targets):
+	directory = root / "tasks" / task_id
+	directory.mkdir(parents=True)
+	(directory / "task.md").write_text("# Split source\n", encoding="utf-8")
+	receipt = "receipts/2026/07/20/split.md"
+	(root / receipt).parent.mkdir(parents=True, exist_ok=True)
+	(root / receipt).write_text("# Split\n", encoding="utf-8")
+	git(root, "add", "-A")
+	git(root, "commit", "-q", "-m", "Retain the split source")
+	(directory / "split.yaml").write_text(
+		f"""split_into: [{", ".join(targets)}]
+implementation_carrier: null
+receipt: {receipt}
+type: implement
+created: 2026-07-18
+project: null
+depends_on: []
+model: claude-opus-5
+content_sha256: {workspace.retained_task_digest(directory)}
+""",
+		encoding="utf-8",
+	)
+	git(root, "add", "-A")
+	git(root, "commit", "-q", "-m", "Split the source")
 	return directory
 
 
@@ -807,6 +867,77 @@ content_sha256: {content_digest}
 		with self.assertRaisesRegex(workspace.WorkspaceError, "dependency cycle"):
 			workspace.validate_dependency_graph({TASK_ID: first, other_id: other})
 
+	def test_a_retired_dependency_counts_as_met(self):
+		retired_id = "2026/07/18/retired-task"
+		task = {**task_state("todo", None), "depends_on": [retired_id]}
+		states = {TASK_ID: task}
+
+		self.assertFalse(workspace.task_ready(task, states))
+		self.assertTrue(workspace.task_ready(task, states, {retired_id}))
+		workspace.validate_dependency_graph(states, {retired_id})
+		with self.assertRaisesRegex(workspace.WorkspaceError, "missing dependencies"):
+			workspace.validate_dependency_graph(states)
+
+	def test_a_split_may_name_a_retired_successor(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			git_repo(root)
+			git(root, "symbolic-ref", "HEAD", "refs/heads/master")
+			write_task(root, status="todo", claimed_by=None)
+			retired_id = "2026/07/20/retired-successor"
+			write_retired_task(root, retired_id)
+			source_id = "2026/07/18/split-source"
+			write_split_source(root, source_id, [TASK_ID, retired_id])
+			states = workspace.load_states(root)
+			superseded = workspace.load_superseded(root)
+			splits = workspace.load_splits(root)
+
+			self.assertEqual(
+				workspace.load_retired(root),
+				{retired_id},
+			)
+			self.assertEqual(
+				workspace.resolve_split_targets(
+					states,
+					superseded,
+					splits,
+					source_id,
+					retired={retired_id},
+				),
+				[TASK_ID],
+			)
+			workspace.validate_queue_graph(root)
+
+	def test_a_graph_problem_on_master_blocks_only_its_own_records(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			git_repo(root)
+			git(root, "symbolic-ref", "HEAD", "refs/heads/master")
+			write_task(root, status="todo", claimed_by=None)
+			broken_id = "2026/07/20/broken-dependency"
+			broken = write_project_task(root, broken_id, "null", "todo", "2026-07-20")
+			state = broken / "state.yaml"
+			state.write_text(
+				state.read_text(encoding="utf-8").replace(
+					"depends_on: []", "depends_on: [2026/07/18/never-existed]",
+				),
+				encoding="utf-8",
+			)
+			git(root, "add", "-A")
+			git(root, "commit", "-q", "-m", "Break a dependency on master")
+			git(root, "checkout", "-q", "-b", "routing")
+			task_file = root / "tasks" / TASK_ID / "task.md"
+			task_file.write_text("# Revised unrelated task\n", encoding="utf-8")
+
+			stderr = io.StringIO()
+			with contextlib.redirect_stderr(stderr):
+				workspace.validate_queue_graph(root)
+			self.assertIn("already on master", stderr.getvalue())
+
+			(broken / "task.md").write_text("# Revised broken task\n", encoding="utf-8")
+			with self.assertRaisesRegex(workspace.WorkspaceError, "missing dependencies"):
+				workspace.validate_queue_graph(root)
+
 	def test_queue_inventory_finds_pending_consolidation_markers(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -1134,6 +1265,7 @@ inbox_receipt: {receipt}
 				mappings,
 				receipt,
 			)
+			git(root, "checkout", "-q", "-b", "publication")
 			(root / "tasks" / old_ids[0] / "task.md").write_text(
 				"# Late changed acceptance\n", encoding="utf-8",
 			)
@@ -1245,6 +1377,13 @@ inbox_receipt: receipts/2026/07/20/race.md
 			self.assertIsNotNone(state["claimed_at"])
 			self.assertEqual(state["claim_order"], 1)
 			self.assertEqual(state["phase"], "setup")
+			self.assertEqual(
+				commit.call_args.args[1],
+				[
+					str(Path("tasks") / TASK_ID / "state.yaml"),
+					"batches/macbook-twork.yaml",
+				],
+			)
 			self.assertEqual(
 				commit.call_args.args[2],
 				f"Start {TASK_ID} on macbook-twork",
@@ -1719,6 +1858,7 @@ def write_complete_markers_exe(path):
 		'echo "TEST_STEP: open settings" >> "$LOG"\n'
 		'echo "TEST_RESULT: PASS: row painted" >> "$LOG"\n'
 		'echo "SCREENSHOT: /tmp/fake.png" >> "$LOG"\n'
+		"echo 'SCREENSHOT: \"screenshots/fake shot.png\"' >> \"$LOG\"\n"
 		'echo "TEST_COMPLETE" >> "$LOG"\n'
 		"exit 0\n"
 	), (
@@ -1726,6 +1866,7 @@ def write_complete_markers_exe(path):
 		'echo TEST_STEP: open settings>>"%LOG%"\n'
 		'echo TEST_RESULT: PASS: row painted>>"%LOG%"\n'
 		'echo SCREENSHOT: /tmp/fake.png>>"%LOG%"\n'
+		'echo SCREENSHOT: "screenshots/fake shot.png">>"%LOG%"\n'
 		'echo TEST_COMPLETE>>"%LOG%"\n'
 		"exit /b 0\n"
 	))
@@ -1920,6 +2061,11 @@ def run_test_run(exe, run_dir, **overrides):
 		"grace": 5.0,
 		"wait_idle": None,
 		"wait_idle_max": workspace.WAIT_IDLE_MAX_DEFAULT,
+		"host_load": False,
+		"host_load_threshold": workspace.HOST_LOAD_THRESHOLD_DEFAULT,
+		"host_load_hold": workspace.HOST_LOAD_HOLD_DEFAULT,
+		"host_load_max": workspace.HOST_LOAD_MAX_DEFAULT,
+		"host_load_interval": workspace.HOST_LOAD_INTERVAL_DEFAULT,
 		"activate": False,
 		"env": None,
 	}
@@ -2035,6 +2181,345 @@ class FakeConsole:
 			),
 		):
 			yield self
+
+
+needs_windows = unittest.skipUnless(
+	os.name == "nt", "the Windows process reader runs on Windows only",
+)
+needs_macos = unittest.skipUnless(
+	sys.platform == "darwin", "the macOS process reader runs on macOS only",
+)
+needs_host_load_reader = unittest.skipUnless(
+	sys.platform in ("win32", "darwin"),
+	"the host-load sampler reads processes on Windows and macOS only",
+)
+HOST_LOAD_FIXTURE_TIMEOUT = 60.0
+BURN_SCRIPT = """\
+import json, os, sys, time
+seconds, record = float(sys.argv[1]), sys.argv[2]
+shared = getattr(time, "CLOCK_UPTIME_RAW", None)
+def now():
+	return time.monotonic() if shared is None else time.clock_gettime(shared)
+def save(path, **values):
+	with open(path + ".tmp", "w") as file:
+		json.dump({"pid": os.getpid(), **values}, file)
+	os.replace(path + ".tmp", path)
+start, cpu = now(), time.process_time()
+save(record + ".ready", start=start)
+while now() - start < seconds:
+	pass
+save(record, start=start, end=now(), cpu=time.process_time() - cpu)
+"""
+SLEEPER_SOURCE = """\
+#include <errno.h>
+#include <stdlib.h>
+#include <time.h>
+
+int main(int argc, char **argv) {
+	if (argc != 2) {
+		return 2;
+	}
+	double seconds = atof(argv[1]);
+	struct timespec left = {
+		(time_t)seconds,
+		(long)((seconds - (time_t)seconds) * 1e9),
+	};
+	while (nanosleep(&left, &left) != 0) {
+		if (errno != EINTR) {
+			return 1;
+		}
+	}
+	return 0;
+}
+"""
+BACKGROUND_CLIENT_SOURCE = """\
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <unistd.h>
+
+static const char *setting(const char *name) {
+	const char *value = getenv(name);
+	if (!value || !*value) {
+		exit(2);
+	}
+	return value;
+}
+
+static int save(const char *path, const char *mode, const char *text) {
+	FILE *file = fopen(path, mode);
+	if (!file) {
+		return -1;
+	}
+	int written = fputs(text, file);
+	return (fclose(file) != 0 || written < 0) ? -1 : 0;
+}
+
+int main(void) {
+	const char *announced = setting("HOST_LOAD_CLIENT_PID_FILE");
+	const char *python = setting("HOST_LOAD_HELPER_PYTHON");
+	const char *script = setting("HOST_LOAD_HELPER_SCRIPT");
+	const char *seconds = setting("HOST_LOAD_HELPER_SECONDS");
+	const char *record = setting("HOST_LOAD_HELPER_RECORD");
+	const char *evidence = setting("TDESKTOP_TEST_EVIDENCE_DIR");
+	char temporary[4096], marker[4096], text[64], byte;
+	int fds[2], status;
+	ssize_t got;
+	if (snprintf(temporary, sizeof(temporary), "%s.tmp", announced) >= (int)sizeof(temporary)
+		|| snprintf(marker, sizeof(marker), "%s/test_log.txt", evidence) >= (int)sizeof(marker)
+		|| snprintf(text, sizeof(text), "{\\"pid\\": %d}", (int)getpid()) >= (int)sizeof(text)
+		|| save(temporary, "w", text) != 0
+		|| rename(temporary, announced) != 0
+		|| pipe(fds) != 0) {
+		return 1;
+	}
+	pid_t middle = fork();
+	if (middle < 0) {
+		return 1;
+	}
+	if (middle == 0) {
+		pid_t parent = getpid();
+		pid_t helper = fork();
+		if (helper == 0) {
+			close(fds[0]);
+			while (getppid() == parent) {
+				usleep(1000);
+			}
+			execl(python, python, "-I", script, seconds, record, (char *)NULL);
+			_exit(write(fds[1], "e", 1) == 1 ? 126 : 127);
+		}
+		_exit(helper < 0 ? 1 : 0);
+	}
+	close(fds[1]);
+	if (waitpid(middle, &status, 0) != middle
+		|| !WIFEXITED(status)
+		|| WEXITSTATUS(status) != 0) {
+		return 1;
+	}
+	do {
+		got = read(fds[0], &byte, 1);
+	} while (got < 0 && errno == EINTR);
+	return (got != 0 || save(marker, "a", "TEST_COMPLETE\\n") != 0) ? 1 : 0;
+}
+"""
+
+
+def write_burn_script(directory):
+	script = directory / "burn.py"
+	script.write_text(BURN_SCRIPT, encoding="utf-8")
+	return script
+
+
+def compile_c_fixture(path, source):
+	path.parent.mkdir(parents=True, exist_ok=True)
+	subprocess.run(
+		["/usr/bin/xcrun", "clang", "-x", "c", "-o", str(path), "-"],
+		input=source,
+		text=True,
+		check=True,
+	)
+	return path
+
+
+def compile_background_client(bundle):
+	contents = bundle / "Contents"
+	exe = compile_c_fixture(
+		contents / "MacOS" / "Telegram", BACKGROUND_CLIENT_SOURCE,
+	)
+	(contents / "Info.plist").write_bytes(
+		plistlib.dumps({"CFBundleExecutable": exe.name})
+	)
+	return exe
+
+
+def background_client_env(script, seconds, record, announced):
+	return [
+		f"HOST_LOAD_CLIENT_PID_FILE={announced}",
+		f"HOST_LOAD_HELPER_PYTHON={sys.executable}",
+		f"HOST_LOAD_HELPER_SCRIPT={script}",
+		f"HOST_LOAD_HELPER_SECONDS={seconds}",
+		f"HOST_LOAD_HELPER_RECORD={record}",
+	]
+
+
+def write_python_client(path, *arguments):
+	command = subprocess.list2cmdline([sys.executable, "-I", *arguments])
+	return write_fake_exe(path, (
+		f"{command}\n"
+		'echo "TEST_COMPLETE" >> "$TDESKTOP_TEST_EVIDENCE_DIR/test_log.txt"\n'
+		"exit 0\n"
+	), (
+		f"{command}\n"
+		'echo TEST_COMPLETE>>"%TDESKTOP_TEST_EVIDENCE_DIR%\\test_log.txt"\n'
+		"exit /b 0\n"
+	))
+
+
+def owned_process(test, argv):
+	process = subprocess.Popen(argv, stdout=subprocess.DEVNULL)
+
+	def close():
+		if process.poll() is None:
+			process.kill()
+		process.wait()
+
+	test.addCleanup(close)
+	return process
+
+
+def start_burner(test, script, seconds, record):
+	process = owned_process(
+		test, [sys.executable, "-I", str(script), str(seconds), str(record)],
+	)
+	ready = Path(f"{record}.ready")
+	deadline = time.monotonic() + HOST_LOAD_FIXTURE_TIMEOUT
+	while not ready.is_file():
+		if process.poll() is not None or time.monotonic() > deadline:
+			test.fail(f"burner {process.pid} never got ready: {process.poll()}")
+		time.sleep(0.01)
+	return process
+
+
+def read_json(path):
+	return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def read_burn_record(path):
+	record = read_json(path)
+	shared = getattr(time, "CLOCK_UPTIME_RAW", None)
+	offset = 0.0 if shared is None else time.clock_gettime(shared) - time.monotonic()
+	for key in ("start", "end"):
+		if key in record:
+			record[key] -= offset
+	return record
+
+
+def host_load_test_options(bound=30.0):
+	return {
+		"host_load": True,
+		"host_load_threshold": 12.5 / os.cpu_count(),
+		"host_load_hold": 0.5,
+		"host_load_max": bound,
+		"host_load_interval": 0.25,
+	}
+
+
+def host_load_series(result):
+	series = {"wait": [], "trace": []}
+	text = Path(result["host_load"]["samples_file"]).read_text(encoding="utf-8")
+	for line in text.splitlines():
+		sample = json.loads(line)
+		series[sample.pop("phase")].append(sample)
+	return series
+
+
+def cpu_percent_within(work, start, end):
+	# one thread spends at most its wall time outside the window
+	overlap = max(0.0, min(work["end"], end) - max(work["start"], start))
+	inside = work["cpu"] - (work["end"] - work["start"] - overlap)
+	return 100 * inside / ((end - start) * os.cpu_count())
+
+
+class ProcessScope:
+	def __init__(self, announced=()):
+		self.announced = [Path(path) for path in announced]
+		self.real = (
+			workspace.windows_process_snapshot
+			if os.name == "nt"
+			else workspace.macos_process_snapshot
+		)
+		self.announced_created = {}
+		self.seen = {}
+
+	def snapshot(self, size):
+		size, records = self.real(size)
+		return size, self.scoped(records)
+
+	def macos_snapshot(self):
+		records, _ = self.real()
+		return self.scoped(records), None
+
+	def scoped(self, records):
+		root = os.getpid()
+		kept = {root: records[root]}
+		for path in self.announced:
+			if not path.is_file():
+				continue
+			pid = read_json(path)["pid"]
+			record = records.get(pid)
+			if record is not None and self.announced_created.setdefault(
+				pid, record["created"],
+			) == record["created"]:
+				kept[pid] = record
+		grown = True
+		while grown:
+			grown = False
+			for pid, record in records.items():
+				parent = kept.get(record["parent_pid"])
+				if (
+					pid not in kept
+					and parent is not None
+					and parent["created"] <= record["created"]
+				):
+					kept[pid] = record
+					grown = True
+		self.seen.update(kept)
+		return kept
+
+	def installed(self):
+		if os.name == "nt":
+			return mock.patch.object(
+				workspace, "windows_process_snapshot", side_effect=self.snapshot,
+			)
+		return mock.patch.object(
+			workspace, "macos_process_snapshot", side_effect=self.macos_snapshot,
+		)
+
+
+class FakeClock:
+	def __init__(self):
+		self.now = 0.0
+		self.sleeps = []
+
+	def __call__(self):
+		return self.now
+
+	def sleep(self, seconds):
+		self.sleeps.append(seconds)
+		self.now += seconds
+
+
+def fake_host_load_monitor(hold=2.0, bound=30.0, background_exe=None):
+	with (
+		mock.patch.object(
+			workspace, "host_load_unsupported_reason", return_value=None,
+		),
+		mock.patch.object(workspace.os, "cpu_count", return_value=16),
+	):
+		return workspace.HostLoadMonitor({
+			"hold_seconds": hold,
+			"interval_seconds": 1.0,
+			"max_seconds": bound,
+			"threshold_percent": 6.25,
+		}, background_exe)
+
+
+def patch_monitor(name, side_effect=None):
+	return mock.patch.object(
+		workspace.HostLoadMonitor, name, autospec=True, side_effect=side_effect,
+	)
+
+
+def load_snapshots(pid, loads):
+	cpu = 0
+	step = 0
+	while True:
+		yield workspace.HOST_LOAD_SNAPSHOT_SIZE, {pid: {
+			"cpu": cpu, "created": 1, "name": "other.exe", "parent_pid": 1,
+		}}, None
+		cpu += loads[min(step, len(loads) - 1)] * 10**7
+		step += 1
 
 
 class SourcePreparationTest(unittest.TestCase):
@@ -2533,7 +3018,10 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(result["exit_code"], 0)
 			self.assertEqual(result["account"], "fresh-copy")
 			self.assertEqual(result["markers"]["pass"], ["row painted"])
-			self.assertEqual(result["markers"]["screenshots"], ["/tmp/fake.png"])
+			self.assertEqual(result["markers"]["screenshots"], [
+				"/tmp/fake.png",
+				str(Path(result["run_dir"]) / "screenshots" / "fake shot.png"),
+			])
 			self.assertFalse(result["crash_report_fresh"])
 
 	def test_test_run_redirects_the_launch_for_a_portable_root(self):
@@ -2925,12 +3413,75 @@ class MechanicsTest(unittest.TestCase):
 			"TEST_RESULT: PASS: applied stage - ran=1",
 			"TEST_RESULT: FAIL: other stage - ran=0",
 			"SCREENSHOT: /tmp/fake.png",
-		]))
+		]), Path("/synthetic/evidence"))
 		self.assertEqual(markers["skipped"], ["skipped stage - applies=0"])
 		self.assertEqual(markers["pass"], ["applied stage - ran=1"])
 		self.assertEqual(markers["fail"], ["other stage - ran=0"])
 		self.assertEqual(markers["steps"], ["gated stage self-test: arm"])
 		self.assertEqual(markers["screenshots"], ["/tmp/fake.png"])
+
+	def test_parse_test_log_resolves_quoted_screenshot_markers(self):
+		# Rows as Test::SaveImage and LogRaw write them, transcribed by hand.
+		rows = [
+			(
+				'SCREENSHOT: "screenshots/screenshot_marker_plain.png"',
+				"screenshot_marker_plain.png",
+			),
+			(
+				'SCREENSHOT: "screenshots/  screenshot marker '
+				'\u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442_\U0001f600'
+				'  .png"',
+				"  screenshot marker "
+				"\u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442_\U0001f600"
+				"  .png",
+			),
+			(
+				r'SCREENSHOT: "screenshots/screenshot_marker_quote_\"_.png"',
+				'screenshot_marker_quote_"_.png',
+			),
+			(
+				r'SCREENSHOT: "screenshots/screenshot_marker_literal_\\u000A_.png"',
+				r"screenshot_marker_literal_\u000A_.png",
+			),
+			(
+				r'SCREENSHOT: "screenshots/screenshot_marker_mixed_\\\u000A\u000B'
+				r'\u000C\u000D\u001C\u001D\u001E\u0085\u2028\u2029\".png"',
+				"screenshot_marker_mixed_\\"
+				"\n\x0b\x0c\r\x1c\x1d\x1e\x85\u2028\u2029\".png",
+			),
+		]
+		evidence = Path("/synthetic/evidence root")
+		expected = [str(evidence / "screenshots" / name) for _, name in rows]
+		for terminator in ("\n", "\r\n"):
+			text = "".join(row + terminator for row, _ in rows)
+			markers = workspace.parse_test_log(text, evidence)
+			self.assertEqual(markers["screenshots"], expected, repr(terminator))
+
+	def test_parse_test_log_keeps_historical_and_malformed_screenshots(self):
+		payloads = [
+			"/tmp/fake.png",
+			r"/run/screenshots/a\u000Ab.png",
+			r'/run/screenshots/a\"b.png',
+			"C:/run/screenshots/a b.png",
+			"//host/share/run/screenshots/a.png",
+			r"\\host\share\run\screenshots\a.png",
+			'"screenshots/a.png',
+			r'"screenshots/a\tb.png"',
+			r'"screenshots/a\u0041b.png"',
+			r'"screenshots/a\u000ab.png"',
+			r'"screenshots/a\u000"',
+			r'"screenshots/a.png\"',
+			'"screenshots/a"b.png"',
+			'"screenshots/a.png" trailing',
+			'"screenshots/a.png" ',
+			' "screenshots/a.png"',
+		]
+		for terminator in ("\n", "\r\n"):
+			text = "".join(
+				"SCREENSHOT: " + payload + terminator for payload in payloads
+			)
+			markers = workspace.parse_test_log(text, Path("/synthetic/evidence"))
+			self.assertEqual(markers["screenshots"], payloads, repr(terminator))
 
 	def test_log_marks_complete_reads_the_marker_as_a_whole_line(self):
 		for text in [
@@ -3751,6 +4302,1340 @@ class MechanicsTest(unittest.TestCase):
 			self.assertEqual(console.sleeps, [])
 			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
 
+	@needs_host_load_reader
+	def test_test_run_host_load_waits_out_a_burner_and_ignores_a_busy_client(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			script = write_burn_script(root)
+			busy = root / "client.json"
+			exe = write_python_client(
+				debug / "Telegram", str(script), "1.5", str(busy),
+			)
+			scope = ProcessScope()
+			burners = []
+			marks = {}
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def wait(monitor):
+				marks["live"] = (debug / workspace.PORTABLE_LIVE).is_dir()
+				burners.append(start_burner(self, script, 1.5, root / "burner.json"))
+				marks["wait"] = time.monotonic()
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				marks["client"] = process.pid
+				real_start(monitor, process)
+				marks["trace"] = monitor.trace_origin
+
+			with (
+				scope.installed(),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(exe, root / "run1", **host_load_test_options())
+			self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+			burner = read_burn_record(root / "burner.json")
+			client = read_burn_record(busy)
+			host = result["host_load"]
+			threshold = host["threshold_percent"]
+			series = host_load_series(result)
+			self.assertLessEqual(
+				{os.getpid(), burner["pid"], marks["client"], client["pid"]},
+				set(scope.seen),
+			)
+			self.assertTrue(marks["live"])
+			self.assertGreaterEqual(burner["end"] - burner["start"], 1.5)
+			self.assertIs(host["wait"]["met"], True)
+			self.assertGreaterEqual(
+				marks["wait"] + host["wait"]["waited_seconds"],
+				burner["end"] - 0.001,
+			)
+			self.assertTrue(any(
+				sample["others_percent"] > threshold
+				and burner["pid"] in [entry["pid"] for entry in sample["top"]]
+				for sample in series["wait"]
+			), series["wait"])
+			trace = host["trace"]
+			self.assertGreaterEqual(trace["samples"], 3)
+			self.assertEqual(trace["over_threshold"], 0, series["trace"])
+			self.assertLess(trace["max_percent"], threshold)
+			self.assertIsNone(trace["error"])
+			excluded = host["excluded"]
+			self.assertEqual(excluded["test_run_pid"], os.getpid())
+			self.assertEqual(excluded["client_pid"], marks["client"])
+			self.assertLessEqual(
+				{marks["client"], client["pid"]},
+				{entry["pid"] for entry in excluded["client_processes"]},
+			)
+			trace_end = marks["trace"] + series["trace"][-1]["seconds"]
+			self.assertGreater(
+				cpu_percent_within(client, marks["trace"], trace_end), threshold,
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_host_load_reader
+	def test_test_run_host_load_launches_at_its_bound_and_traces_a_burner(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			script = write_burn_script(root)
+			exe = write_python_client(
+				debug / "Telegram", "-c", "import time; time.sleep(2)",
+			)
+			scope = ProcessScope()
+			burners = []
+			marks = {}
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def wait(monitor):
+				burners.append(start_burner(self, script, 4.0, root / "burner.json"))
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				marks["launch"] = time.monotonic()
+				marks["client"] = process.pid
+				real_start(monitor, process)
+
+			with (
+				scope.installed(),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(
+					exe, root / "run1", **host_load_test_options(bound=0.75),
+				)
+			self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+			burner = read_burn_record(root / "burner.json")
+			host = result["host_load"]
+			threshold = host["threshold_percent"]
+			series = host_load_series(result)
+			self.assertLessEqual(
+				{os.getpid(), burner["pid"], marks["client"]}, set(scope.seen),
+			)
+			self.assertGreaterEqual(burner["end"] - burner["start"], 4.0)
+			self.assertGreater(burner["end"], marks["launch"])
+			self.assertIs(host["wait"]["met"], False)
+			self.assertGreaterEqual(host["wait"]["waited_seconds"], 0.75)
+			trace = host["trace"]
+			self.assertGreaterEqual(trace["samples"], 3)
+			self.assertGreater(trace["mean_percent"], threshold)
+			self.assertGreater(trace["max_percent"], threshold)
+			self.assertGreater(trace["over_threshold"], 0)
+			self.assertTrue(any(
+				burner["pid"] in [entry["pid"] for entry in sample["top"]]
+				for sample in series["trace"]
+			), series["trace"])
+			self.assertEqual(
+				Path(host["samples_file"]),
+				Path(result["run_dir"]) / workspace.HOST_LOAD_SAMPLES_FILE,
+			)
+			self.assertEqual(series["wait"], host["wait"]["last_samples"])
+			values = [sample["others_percent"] for sample in series["trace"]]
+			self.assertEqual(len(values), trace["samples"])
+			self.assertEqual(max(values), trace["max_percent"])
+			self.assertAlmostEqual(
+				sum(values) / len(values), trace["mean_percent"], delta=0.01,
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_host_load_reader
+	def test_test_run_host_load_quiet_control_ignores_its_own_cpu(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe = write_python_client(
+				debug / "Telegram", "-c", "import time; time.sleep(2)",
+			)
+			scope = ProcessScope()
+			marks = {}
+			data = bytes(8 << 20)
+			burning = threading.Event()
+			stop = threading.Event()
+			self.addCleanup(stop.set)
+			hashed = {}
+
+			def hash_in_this_process():
+				start, cpu = time.monotonic(), time.thread_time()
+				burning.set()
+				while not stop.is_set():
+					hashlib.sha256(data).digest()
+				hashed.update(
+					start=start, end=time.monotonic(), cpu=time.thread_time() - cpu,
+				)
+
+			worker = threading.Thread(target=hash_in_this_process, daemon=True)
+			real_start = workspace.HostLoadMonitor.start_trace
+			real_stop = workspace.HostLoadMonitor.stop_trace
+
+			def start_trace(monitor, process):
+				marks["client"] = process.pid
+				worker.start()
+				self.assertTrue(burning.wait(HOST_LOAD_FIXTURE_TIMEOUT))
+				real_start(monitor, process)
+				marks["trace"] = monitor.trace_origin
+
+			def stop_trace(monitor):
+				stop.set()
+				if worker.is_alive():
+					worker.join(HOST_LOAD_FIXTURE_TIMEOUT)
+				real_stop(monitor)
+
+			with (
+				scope.installed(),
+				patch_monitor("start_trace", start_trace),
+				patch_monitor("stop_trace", stop_trace),
+			):
+				result = run_test_run(exe, root / "run1", **host_load_test_options())
+			self.assertFalse(worker.is_alive())
+			host = result["host_load"]
+			threshold = host["threshold_percent"]
+			series = host_load_series(result)
+			self.assertLessEqual({os.getpid(), marks["client"]}, set(scope.seen))
+			self.assertIs(host["wait"]["met"], True)
+			self.assertLessEqual(
+				host["wait"]["waited_seconds"], 0.5 + 0.25 + 0.5,
+				"hold plus one interval plus 0.5 s of scheduling slack",
+			)
+			trace = host["trace"]
+			self.assertGreaterEqual(trace["samples"], 3)
+			self.assertEqual(trace["over_threshold"], 0, series["trace"])
+			self.assertLess(trace["max_percent"], threshold)
+			self.assertIsNone(trace["error"])
+			trace_end = marks["trace"] + series["trace"][-1]["seconds"]
+			self.assertGreater(
+				cpu_percent_within(hashed, marks["trace"], trace_end), threshold,
+			)
+			client_children = [
+				entry for entry in host["excluded"]["client_processes"]
+				if entry["pid"] != marks["client"]
+			]
+			self.assertTrue(client_children, host["excluded"])
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_host_load_reader
+	def test_test_run_host_load_waits_while_a_build_tool_runs(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			if os.name == "nt":
+				tool = root / "tools" / "cl.exe"
+				tool.parent.mkdir()
+				shutil.copyfile(
+					Path(os.environ["SystemRoot"]) / "System32" / "PING.EXE", tool,
+				)
+				arguments = ["-n", "3", "127.0.0.1"]
+			else:
+				tool = compile_c_fixture(root / "tools" / "clang", SLEEPER_SOURCE)
+				arguments = ["2"]
+			scope = ProcessScope()
+			tools = []
+			marks = {}
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def wait(monitor):
+				tools.append(owned_process(self, [str(tool), *arguments]))
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				marks["tool_exit"] = tools[0].poll()
+				real_start(monitor, process)
+
+			with (
+				scope.installed(),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(exe, root / "run1", **host_load_test_options())
+			stand_in = {"name": tool.name, "pid": tools[0].pid}
+			host = result["host_load"]
+			series = host_load_series(result)
+			self.assertIn(tools[0].pid, scope.seen)
+			self.assertEqual(marks["tool_exit"], 0)
+			self.assertIs(host["wait"]["met"], True)
+			self.assertIn(stand_in, host["wait"]["build_tools_seen"])
+			self.assertTrue(any(
+				stand_in in sample["build_tools"]
+				and sample["others_percent"] < host["threshold_percent"]
+				for sample in series["wait"]
+			), series["wait"])
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_macos
+	def test_test_run_host_load_excludes_a_background_client_and_its_helper(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			script = write_burn_script(root)
+			exe = compile_background_client(debug / "Telegram.app")
+			for outside in (False, True):
+				with self.subTest(outside=outside):
+					run = root / ("outside" if outside else "quiet")
+					run.mkdir()
+					announced = run / "client.json"
+					helped = run / "helper.json"
+					burned = run / "burner.json"
+					scope = ProcessScope([announced, f"{helped}.ready"])
+					burners = []
+					marks = {}
+					real_wait = workspace.HostLoadMonitor.wait
+					real_start = workspace.HostLoadMonitor.start_trace
+
+					def wait(monitor):
+						waited = real_wait(monitor)
+						if outside:
+							burners.append(start_burner(self, script, 2.0, burned))
+						return waited
+
+					def start_trace(monitor, process):
+						marks["launcher"] = process.pid
+						real_start(monitor, process)
+						marks["trace"] = monitor.trace_origin
+
+					with (
+						scope.installed(),
+						patch_monitor("wait", wait),
+						patch_monitor("start_trace", start_trace),
+					):
+						result = run_test_run(
+							exe, run / "evidence",
+							env=background_client_env(script, 1.5, helped, announced),
+							**host_load_test_options(),
+						)
+					client = read_json(announced)["pid"]
+					helper = read_burn_record(helped)
+					host = result["host_load"]
+					threshold = host["threshold_percent"]
+					series = host_load_series(result)
+					trace = host["trace"]
+					excluded = host["excluded"]
+					members = {
+						(entry["name"], entry["pid"])
+						for entry in excluded["client_processes"]
+					}
+					self.assertEqual(result["launch_method"], "background")
+					self.assertLessEqual(
+						{marks["launcher"], client, helper["pid"]}, set(scope.seen),
+					)
+					orphan = scope.seen[helper["pid"]]
+					self.assertEqual(scope.seen[marks["launcher"]]["name"], "open")
+					self.assertEqual(scope.seen[client]["name"], exe.name)
+					self.assertEqual(orphan["parent_pid"], 1)
+					self.assertNotEqual(orphan["name"], exe.name)
+					self.assertEqual(excluded["client_pid"], marks["launcher"])
+					self.assertEqual(excluded["test_run_pid"], os.getpid())
+					self.assertLessEqual({
+						("open", marks["launcher"]),
+						(exe.name, client),
+						(orphan["name"], helper["pid"]),
+					}, members)
+					self.assertEqual(set(host), {
+						"excluded", "hold_seconds", "interval_seconds",
+						"logical_processors", "max_seconds", "samples_file",
+						"samples_file_error", "threshold_percent", "trace",
+						"unsupported", "wait",
+					})
+					self.assertIsNone(host["unsupported"])
+					self.assertEqual(host["logical_processors"], os.cpu_count())
+					self.assertIsNone(host["samples_file_error"])
+					self.assertEqual(
+						Path(host["samples_file"]),
+						Path(result["run_dir"]) / workspace.HOST_LOAD_SAMPLES_FILE,
+					)
+					self.assertIs(host["wait"]["met"], True)
+					self.assertEqual(
+						series["wait"][-workspace.HOST_LOAD_LAST_SAMPLES:],
+						host["wait"]["last_samples"],
+					)
+					self.assertIsNone(trace["error"])
+					self.assertGreaterEqual(trace["samples"], 3)
+					values = [sample["others_percent"] for sample in series["trace"]]
+					self.assertEqual(len(values), trace["samples"])
+					self.assertEqual(max(values), trace["max_percent"])
+					self.assertAlmostEqual(
+						sum(values) / len(values), trace["mean_percent"], delta=0.01,
+					)
+					trace_end = marks["trace"] + series["trace"][-1]["seconds"]
+					self.assertGreater(
+						cpu_percent_within(helper, marks["trace"], trace_end), threshold,
+					)
+					if outside:
+						self.assertEqual(burners[0].wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+						burner = read_burn_record(burned)
+						self.assertIn(burner["pid"], scope.seen)
+						self.assertNotIn(burner["pid"], {pid for _, pid in members})
+						self.assertGreater(
+							cpu_percent_within(burner, marks["trace"], trace_end),
+							threshold,
+						)
+						self.assertGreater(trace["mean_percent"], threshold)
+						self.assertGreater(trace["max_percent"], threshold)
+						self.assertGreater(trace["over_threshold"], 0)
+						self.assertTrue(any(
+							burner["pid"] in [entry["pid"] for entry in sample["top"]]
+							for sample in series["trace"]
+						), series["trace"])
+					else:
+						self.assertEqual(trace["over_threshold"], 0, series["trace"])
+						self.assertLess(trace["max_percent"], threshold)
+					self.assertEqual(result["outcome"], "exited")
+					self.assertIsNone(result["exit_code"])
+					self.assertEqual(result["launcher_exit_code"], 0)
+					self.assertEqual(result["verdict_hint"], "complete")
+
+	@needs_windows
+	def test_windows_process_snapshot_grows_and_reads_this_process(self):
+		size, records = workspace.windows_process_snapshot(64)
+		me = records[os.getpid()]
+		self.assertGreater(size, 64)
+		self.assertNotIn(0, records)
+		self.assertEqual(me["parent_pid"], os.getppid())
+		self.assertTrue(me["name"])
+		self.assertGreater(me["cpu"], 0)
+		self.assertGreater(me["created"], 0)
+
+	@needs_macos
+	def test_macos_process_snapshot_reads_processes_and_the_machine(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			tool = compile_c_fixture(
+				Path(temporary).resolve() / "host-load-sleeper", SLEEPER_SOURCE,
+			)
+			sleeper = owned_process(self, [str(tool), "1"])
+			records, busy = workspace.macos_process_snapshot()
+			mine = workspace.macos_process_details(os.getpid())
+			child = workspace.macos_process_details(sleeper.pid)
+			self.assertEqual(sleeper.wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+		me = records[os.getpid()]
+		spawned = records[sleeper.pid]
+		launchd = records[1]
+		self.assertNotEqual(os.geteuid(), 0)
+		self.assertNotIn(0, records)
+		self.assertEqual(me["parent_pid"], os.getppid())
+		self.assertEqual(me["name"], Path(mine["path"]).name[:15])
+		self.assertGreater(me["cpu"], 0)
+		self.assertEqual(me["created"], mine["created"])
+		self.assertEqual(spawned["parent_pid"], os.getpid())
+		self.assertEqual(spawned["name"], tool.name[:15])
+		self.assertIsNotNone(spawned["cpu"])
+		self.assertGreater(spawned["created"], me["created"])
+		self.assertEqual(child["created"], spawned["created"])
+		self.assertEqual(child["path"], str(tool))
+		self.assertIsNotNone(mine["responsible"])
+		self.assertEqual(child["responsible"], mine["responsible"])
+		responsible, identity = mine["responsible"]
+		self.assertEqual(records[responsible]["created"], identity)
+		self.assertEqual(
+			(launchd["name"], launchd["cpu"], launchd["parent_pid"]),
+			("launchd", None, 0),
+		)
+		self.assertIsInstance(busy, int)
+		self.assertGreater(busy, 0)
+
+	@needs_macos
+	def test_macos_process_snapshot_releases_its_host_port_and_cpu_array(self):
+		library, task_self = workspace.macos_system_library()
+		for inconsistent in (0, 1):
+			with self.subTest(inconsistent=inconsistent):
+				hosts = []
+				arrays = []
+				spy = mock.Mock(wraps=library)
+
+				def host_self():
+					hosts.append(library.mach_host_self())
+					return hosts[-1]
+
+				def processor_info(host, flavor, processors, array, words):
+					status = library.host_processor_info(
+						host, flavor, processors, array, words,
+					)
+					arrays.append((
+						ctypes.cast(array._obj, ctypes.c_void_p).value,
+						words._obj.value * ctypes.sizeof(ctypes.c_uint32),
+					))
+					processors._obj.value += inconsistent
+					return status
+
+				spy.mach_host_self.side_effect = host_self
+				spy.host_processor_info.side_effect = processor_info
+				with mock.patch.object(
+					workspace, "macos_system_library", return_value=(spy, task_self),
+				):
+					if inconsistent:
+						with self.assertRaisesRegex(
+							OSError, "^host_processor_info returned ",
+						):
+							workspace.macos_process_snapshot()
+					else:
+						records, busy = workspace.macos_process_snapshot()
+						self.assertIn(os.getpid(), records)
+						self.assertGreater(busy, 0)
+				self.assertEqual(len(hosts), 1)
+				self.assertEqual(len(arrays), 1)
+				address, size = arrays[0]
+				self.assertTrue(address)
+				self.assertGreater(size, 0)
+				self.assertEqual(
+					spy.vm_deallocate.call_args_list,
+					[mock.call(task_self, address, size)],
+				)
+				self.assertEqual(
+					spy.mach_port_deallocate.call_args_list,
+					[mock.call(task_self, hosts[0])],
+				)
+
+	@needs_macos
+	def test_host_load_reads_one_busy_thread_as_one_processor(self):
+		monitor = workspace.HostLoadMonitor(workspace.host_load_parameters(
+			SimpleNamespace(**host_load_test_options()),
+		))
+		scope = ProcessScope()
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			burner = start_burner(
+				self, write_burn_script(root), 1.4, root / "burner.json",
+			)
+			with scope.installed():
+				baseline = monitor._observe(time.monotonic)
+				time.sleep(1.0)
+				observed = monitor._observe(time.monotonic)
+			self.assertEqual(burner.wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+			work = read_burn_record(root / "burner.json")
+		start, end = baseline[0], observed[0]
+		self.assertIn(burner.pid, scope.seen)
+		self.assertLess(work["start"], start)
+		self.assertGreater(work["end"], end)
+		duty = cpu_percent_within(work, start, end) * os.cpu_count() / 100
+		self.assertGreaterEqual(
+			duty, 0.9,
+			f"the burner ran {duty:.2f} of a processor between the readings, "
+			"too starved for this run to check the units",
+		)
+		shares = {entry["pid"]: entry["percent"] for entry in observed[3]}
+		expected = 100 / monitor.processors
+		self.assertIn(burner.pid, shares, observed)
+		self.assertAlmostEqual(shares[burner.pid], expected, delta=expected * 0.1)
+		self.assertIsNone(observed[4])
+
+	@needs_macos
+	def test_host_load_counts_machine_cpu_no_process_explains(self):
+		monitor = workspace.HostLoadMonitor(workspace.host_load_parameters(
+			SimpleNamespace(**host_load_test_options()),
+		))
+		readings = []
+		real = workspace.host_process_snapshot
+
+		def snapshot(size):
+			readings.append(real(size))
+			return readings[-1]
+
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			script = write_burn_script(root)
+			record = root / "burner.json"
+			with mock.patch.object(
+				workspace, "host_process_snapshot", side_effect=snapshot,
+			):
+				baseline = monitor._observe(time.monotonic)
+				burner = owned_process(
+					self, [sys.executable, "-I", str(script), "2.0", str(record)],
+				)
+				self.assertEqual(burner.wait(HOST_LOAD_FIXTURE_TIMEOUT), 0)
+				observed = monitor._observe(time.monotonic)
+			work = read_burn_record(record)
+		count = monitor.processors
+		scale = (observed[0] - baseline[0]) * 10**7 * count
+		machine = readings[1][2] - readings[0][2]
+		burned = work["cpu"] * 10**7
+		allowance = count * 3 * 10**7 // os.sysconf("SC_CLK_TCK") + 10**5
+		stated = (
+			f"machine {machine / 10**7:.3f} s, burner {work['cpu']:.3f} s, "
+			f"allowance {allowance / 10**7:.3f} s: one tick per logical "
+			"processor and counted state, and 10 ms of read skew"
+		)
+		self.assertNotEqual(os.geteuid(), 0)
+		self.assertEqual(len(readings), 2)
+		for _, records, _ in readings:
+			self.assertNotIn(burner.pid, records)
+			self.assertEqual(
+				(records[1]["name"], records[1]["cpu"]), ("launchd", None),
+			)
+		self.assertLess(baseline[0], work["start"])
+		self.assertLess(work["end"], observed[0])
+		self.assertGreaterEqual(machine, burned - allowance, stated)
+		self.assertLessEqual(machine, scale + allowance, stated)
+		self.assertGreaterEqual(observed[2] * scale / 100, burned - allowance, stated)
+		self.assertTrue(0 <= observed[4] < float("inf"), observed)
+
+	def test_host_load_wait_meets_its_hold_and_bound(self):
+		other = os.getpid() + 1
+		for name, hold, bound, loads, met, percents, sleeps in (
+			(
+				"busy then calm", 2.0, 30.0, [2, 2, 2, 0],
+				True, [12.5, 12.5, 12.5, 0.0, 0.0], [1.0] * 5,
+			),
+			(
+				"busy restarts the hold", 2.0, 30.0, [0, 2, 0],
+				True, [0.0, 12.5, 0.0, 0.0], [1.0] * 4,
+			),
+			("quiet", 2.0, 30.0, [0], True, [0.0, 0.0], [1.0] * 2),
+			("the threshold is busy", 2.0, 4.0, [1], False, [6.25] * 4, [1.0] * 4),
+			("no wait", 2.0, 0.0, [0], False, [], []),
+			("bound below an interval", 2.0, 0.5, [0], False, [0.0], [0.5]),
+			("hold beyond the bound", 5.0, 3.0, [0], False, [0.0] * 3, [1.0] * 3),
+		):
+			with self.subTest(name):
+				clock = FakeClock()
+				monitor = fake_host_load_monitor(hold, bound)
+				with mock.patch.object(
+					workspace, "host_process_snapshot",
+					side_effect=load_snapshots(other, loads),
+				):
+					result = monitor.wait(clock=clock, sleep=clock.sleep)
+				self.assertIs(result["met"], met)
+				self.assertIsNone(result["error"])
+				self.assertEqual(
+					[sample["others_percent"] for sample in result["last_samples"]],
+					percents,
+				)
+				self.assertEqual(clock.sleeps, sleeps)
+				self.assertEqual(result["waited_seconds"], sum(sleeps))
+
+	def test_host_load_sample_math_and_process_identities(self):
+		me = os.getpid()
+		(
+			other, client, child, grandchild, newcomer, adopted, tool, server,
+			helper, orphan, outsider,
+		) = range(me + 1, me + 12)
+
+		def process(cpu, created, name, parent=1):
+			return {
+				"cpu": round(cpu * 10**7),
+				"created": created,
+				"name": name,
+				"parent_pid": parent,
+			}
+
+		identities = [
+			({
+				me: process(0, 1, "python.exe"),
+				other: process(0, 2, "other.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				child: process(0, 4, "python.exe", client),
+			}, None, [], []),
+			({
+				me: process(5, 1, "python.exe"),
+				other: process(1, 2, "other.exe"),
+				client: process(2, 3, "cmd.exe", me),
+				child: process(3, 4, "python.exe", client),
+			}, 6.25, [(other, 6.25)], []),
+			({
+				me: process(9, 1, "python.exe"),
+				other: process(1, 2, "other.exe"),
+				client: process(3, 3, "cmd.exe", me),
+				grandchild: process(2, 5, "python.exe", child),
+				newcomer: process(0.5, 6, "new.exe"),
+			}, 3.125, [(newcomer, 3.125)], []),
+			({
+				me: process(12, 1, "python.exe"),
+				other: process(0.25, 7, "reused.exe"),
+				client: process(0.5, 8, "reused.exe"),
+				grandchild: process(4, 5, "python.exe", child),
+				newcomer: process(0.5, 6, "new.exe"),
+				adopted: process(1, 9, "adopted.exe", client),
+			}, 10.9375, [(adopted, 6.25), (client, 3.125), (other, 1.5625)], []),
+			({
+				me: process(12, 1, "python.exe"),
+				grandchild: process(4, 5, "python.exe", child),
+				tool: process(0, 10, "Cl.Exe"),
+				server: process(1, 11, "MSPDBSRV.EXE"),
+			}, 6.25, [(server, 6.25)], [{"name": "Cl.Exe", "pid": tool}]),
+		]
+		reused_parent = [
+			({
+				me: process(0, 1, "python.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				helper: process(0, 20, "helper.exe", client),
+			}, None, [], []),
+			({
+				me: process(0, 1, "python.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				helper: process(0, 30, "other.exe"),
+				orphan: process(1, 25, "python.exe", helper),
+				outsider: process(1, 40, "burner.exe", helper),
+			}, 6.25, [(outsider, 6.25)], []),
+			({
+				me: process(0, 1, "python.exe"),
+				client: process(0, 3, "cmd.exe", me),
+				helper: process(0, 50, "reused.exe"),
+				orphan: process(2, 25, "python.exe", helper),
+				outsider: process(2, 40, "burner.exe", helper),
+			}, 6.25, [(outsider, 6.25)], []),
+		]
+		for name, steps, members in (
+			("identities", identities, {(client, 3), (child, 4), (grandchild, 5)}),
+			(
+				"reused external parent", reused_parent,
+				{(client, 3), (helper, 20), (orphan, 25)},
+			),
+		):
+			clock = FakeClock()
+			monitor = fake_host_load_monitor()
+			monitor.build_tools = workspace.HOST_LOAD_BUILD_TOOLS
+			monitor.client_pid = client
+			with mock.patch.object(
+				workspace, "host_process_snapshot",
+				side_effect=[(64, records, None) for records, *_ in steps],
+			):
+				for index, (_, percent, top, tools) in enumerate(steps):
+					with self.subTest(name, step=index):
+						(
+							_, seen_tools, seen_percent, seen_top, unattributed,
+						) = monitor._observe(clock)
+						self.assertIsNone(unattributed)
+						self.assertEqual(seen_percent, percent)
+						self.assertEqual(
+							[(entry["pid"], entry["percent"]) for entry in seen_top or []],
+							top,
+						)
+						self.assertEqual(seen_tools, tools)
+					clock.sleep(1.0)
+			with self.subTest(name, client=True):
+				self.assertEqual(set(monitor.client), members)
+
+	def test_host_load_machine_counter_math(self):
+		me = os.getpid()
+		other, client, newcomer, launchd = me + 1, me + 2, me + 3, 1
+
+		def process(cpu, created, name, parent=1):
+			return {
+				"cpu": None if cpu is None else round(cpu * 10**7),
+				"created": created,
+				"name": name,
+				"parent_pid": parent,
+			}
+
+		first = {
+			me: process(0, 10, "Python"),
+			other: process(0, 11, "other"),
+			client: process(0, 12, "Telegram", me),
+			launchd: process(None, 1, "launchd", 0),
+		}
+		second = {
+			me: process(0.5, 10, "Python"),
+			other: process(1, 11, "other"),
+			client: process(1, 12, "Telegram", me),
+			launchd: process(None, 1, "launchd", 0),
+		}
+		for name, steps in (
+			("no machine counter", [
+				("baseline", first, None, None, None, []),
+				("readable others only", second, None, 6.25, None, [(other, 6.25)]),
+			]),
+			("machine counter", [
+				("baseline", first, 100, None, None, []),
+				(
+					"busy above the readable sum less self and client",
+					second, 104, 15.625, 9.375, [(other, 6.25)],
+				),
+				(
+					"a newcomer's lifetime above the busy delta",
+					{
+						**second,
+						other: process(3, 11, "other"),
+						newcomer: process(3, 13, "clangd"),
+					},
+					106.5, 15.625, 0.0, [(newcomer, 18.75), (other, 12.5)],
+				),
+				(
+					"readable to unreadable and unreadable to readable",
+					{
+						**second,
+						other: process(None, 11, "other"),
+						launchd: process(7, 1, "launchd", 0),
+						newcomer: process(3, 13, "clangd"),
+					},
+					107.5, 6.25, 6.25, [],
+				),
+				(
+					"excluded cpu above the busy delta",
+					{
+						**second,
+						client: process(4, 12, "Telegram", me),
+						launchd: process(7, 1, "launchd", 0),
+						newcomer: process(3, 13, "clangd"),
+					},
+					108.5, 0.0, 0.0, [],
+				),
+				(
+					"a reused client pid is other load",
+					{
+						**second,
+						client: process(0.5, 14, "reused"),
+						launchd: process(7, 1, "launchd", 0),
+						newcomer: process(3, 13, "clangd"),
+					},
+					109.5, 6.25, 3.125, [(client, 3.125)],
+				),
+			]),
+		):
+			clock = FakeClock()
+			monitor = fake_host_load_monitor()
+			monitor.client_pid = client
+			with mock.patch.object(
+				workspace, "host_process_snapshot",
+				side_effect=[
+					(64, records, None if busy is None else round(busy * 10**7))
+					for _, records, busy, *_ in steps
+				],
+			):
+				for label, _, _, percent, unattributed, top in steps:
+					with self.subTest(name, step=label):
+						(
+							_, _, seen_percent, seen_top, seen_unattributed,
+						) = monitor._observe(clock)
+						self.assertEqual(seen_percent, percent)
+						self.assertEqual(seen_unattributed, unattributed)
+						self.assertEqual(
+							[(entry["pid"], entry["percent"]) for entry in seen_top or []],
+							top,
+						)
+					clock.sleep(1.0)
+		clock = FakeClock()
+		monitor = fake_host_load_monitor()
+		with mock.patch.object(
+			workspace, "host_process_snapshot",
+			side_effect=[(64, first, 10**9), (64, first, 10**9 - 1)],
+		):
+			result = monitor.wait(clock=clock, sleep=clock.sleep)
+		self.assertIsNone(result["met"])
+		self.assertRegex(result["error"], "^ValueError: .*backwards")
+		self.assertEqual(result["last_samples"], [])
+
+	def test_host_load_samples_add_unattributed_cpu_only_with_a_counter(self):
+		me, other = os.getpid(), os.getpid() + 1
+
+		def readings(counter):
+			step = 0
+			while True:
+				yield 64, {
+					me: {"cpu": 0, "created": 10, "name": "Python", "parent_pid": 1},
+					other: {
+						"cpu": step * 123456, "created": 11, "name": "other",
+						"parent_pid": 1,
+					},
+				}, None if counter is None else step * counter
+				step += 1
+
+		for counter, others, extra in (
+			(1234567, 0.77, {"unattributed_percent": 0.69}),
+			(None, 0.08, {}),
+		):
+			with (
+				self.subTest(counter=counter),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				clock = FakeClock()
+				monitor = fake_host_load_monitor()
+				process = SimpleNamespace(
+					pid=other + 1, poll=iter([None, None, 0]).__next__,
+				)
+				with mock.patch.object(
+					workspace, "host_process_snapshot", side_effect=readings(counter),
+				):
+					wait = monitor.wait(clock=clock, sleep=clock.sleep)
+					monitor.interval = 0.01
+					monitor.start_trace(process)
+					monitor.worker.join(HOST_LOAD_FIXTURE_TIMEOUT)
+				report = monitor.report(Path(temporary))
+				expected = [
+					{
+						"build_tools": [],
+						"others_percent": others,
+						"seconds": seconds,
+						"top": [{"name": "other", "percent": 0.08, "pid": other}],
+						**extra,
+					}
+					for seconds in (1.0, 2.0)
+				]
+				self.assertIs(wait["met"], True)
+				self.assertEqual(wait["last_samples"], expected)
+				self.assertIsNone(report["trace"]["error"])
+				self.assertEqual(report["trace"]["samples"], 2)
+				text = Path(report["samples_file"]).read_text(encoding="utf-8")
+				lines = [json.loads(line) for line in text.splitlines()]
+				self.assertEqual(
+					[line.pop("phase") for line in lines],
+					["wait", "wait", "trace", "trace"],
+				)
+				self.assertEqual(lines[:2], expected)
+				for line in lines[2:]:
+					self.assertEqual(
+						set(line),
+						{"build_tools", "others_percent", "seconds", "top", *extra},
+					)
+
+	def test_host_load_background_client_identities(self):
+		me = os.getpid()
+		exe = "/Applications/Telegram.app/Contents/MacOS/Telegram"
+		(
+			launcher, old, client, unrelated, helper, child, grandchild,
+			wrong_responsible, wrong_id, newer, adopted, stale,
+		) = range(me + 1, me + 13)
+
+		def process(created, name, parent=1):
+			return {"cpu": 0, "created": created, "name": name, "parent_pid": parent}
+
+		def details(created=None, path=None, responsible=None):
+			return {"created": created, "path": path, "responsible": responsible}
+
+		started = {
+			me: process(10, "Python"),
+			old: process(5, "Telegram"),
+			launcher: process(100, "open", me),
+			client: process(101, "xpcproxy"),
+			unrelated: process(102, "other"),
+			helper: process(103, "Python"),
+		}
+		joined = {
+			(launcher, 100), (client, 101), (helper, 103), (child, 104),
+			(grandchild, 105),
+		}
+		steps = [
+			(
+				"the launcher is not read yet",
+				{me: process(10, "Python"), old: process(5, "Telegram")},
+				{old: details(5, exe, (old, 5))},
+				[],
+				set(),
+			),
+			(
+				"the client before its exec and a missed helper lookup",
+				started,
+				{
+					old: details(5, exe, (old, 5)),
+					client: details(101, "/usr/libexec/xpcproxy", (client, 101)),
+					unrelated: details(102, "/bin/other", (unrelated, 102)),
+				},
+				[client, unrelated, helper],
+				{(launcher, 100)},
+			),
+			(
+				"the client, its helper and their descendants join together",
+				{
+					**started,
+					client: process(101, "Telegram"),
+					child: process(104, "Telegram", client),
+					grandchild: process(105, "sh", helper),
+					wrong_responsible: process(106, "agent"),
+					wrong_id: process(107, "Telegram"),
+				},
+				{
+					old: details(5, exe, (old, 5)),
+					client: details(101, exe, (client, 101)),
+					unrelated: details(102, "/bin/other", (unrelated, 102)),
+					helper: details(103, "/usr/bin/python3", (client, 101)),
+					wrong_responsible: details(106, "/bin/agent", (client, 999)),
+					wrong_id: details(555, exe, (client, 101)),
+				},
+				[client, unrelated, helper, wrong_responsible, wrong_id],
+				joined,
+			),
+			(
+				"reused launcher and client pids inherit nothing",
+				{
+					me: process(10, "Python"),
+					old: process(5, "Telegram"),
+					helper: process(103, "Python"),
+					grandchild: process(105, "sh", helper),
+					client: process(200, "reused"),
+					newer: process(201, "newer"),
+					adopted: process(202, "adopted"),
+					launcher: process(203, "open"),
+					stale: process(204, "stale"),
+				},
+				{
+					old: details(5, exe, (old, 5)),
+					client: details(200, "/bin/reused", (client, 200)),
+					newer: details(201, "/bin/newer", (client, 200)),
+					adopted: details(202, "/bin/adopted", (helper, 103)),
+					launcher: details(203, "/usr/bin/open", (launcher, 203)),
+					stale: details(204, "/bin/stale", (client, 101)),
+				},
+				[client, newer, adopted, launcher, stale],
+				joined | {(adopted, 202)},
+			),
+		]
+		clock = FakeClock()
+		monitor = fake_host_load_monitor(background_exe=PurePosixPath(exe))
+		monitor.client_pid = launcher
+		self.assertEqual(monitor.background_exe, exe)
+		lookups = []
+		answers = {}
+
+		def lookup(pid):
+			lookups.append(pid)
+			return answers.get(pid, details())
+
+		with mock.patch.object(
+			workspace, "macos_process_details", side_effect=lookup,
+		):
+			for label, records, replies, looked_up, members in steps:
+				answers.clear()
+				answers.update(replies)
+				lookups.clear()
+				with (
+					self.subTest(label),
+					mock.patch.object(
+						workspace, "host_process_snapshot",
+						return_value=(64, records, None),
+					),
+				):
+					monitor._observe(clock)
+					self.assertEqual(lookups, looked_up)
+					self.assertEqual(set(monitor.client), members)
+				clock.sleep(1.0)
+		self.assertEqual(monitor.launcher_created, 100)
+		for root, readings, members in (
+			(launcher, [steps[0][1], steps[2][1]], set()),
+			(client, [steps[2][1]], {(client, 101), (child, 104)}),
+		):
+			with (
+				self.subTest("a direct launch", root=root),
+				mock.patch.object(workspace, "macos_process_details") as never,
+			):
+				clock = FakeClock()
+				direct = fake_host_load_monitor()
+				direct.client_pid = root
+				for records in readings:
+					with mock.patch.object(
+						workspace, "host_process_snapshot",
+						return_value=(64, records, None),
+					):
+						direct._observe(clock)
+					clock.sleep(1.0)
+				never.assert_not_called()
+				self.assertEqual(set(direct.client), members)
+
+	def test_host_load_supports_windows_and_macos_with_their_own_tools(self):
+		self.assertIsNone(workspace.host_load_unsupported_reason("win32"))
+		self.assertIsNone(workspace.host_load_unsupported_reason("darwin"))
+		self.assertEqual(
+			workspace.host_load_unsupported_reason("linux"),
+			"host-load sampling needs Windows or macOS, this host is linux",
+		)
+		self.assertEqual(
+			workspace.host_load_unsupported_reason(),
+			workspace.host_load_unsupported_reason(sys.platform),
+		)
+		windows = workspace.HOST_LOAD_BUILD_TOOLS
+		macos = workspace.HOST_LOAD_MACOS_BUILD_TOOLS
+		self.assertEqual(
+			windows, workspace.BUILD_LOCK_PROCESS_NAMES - {"mspdbsrv.exe"},
+		)
+		self.assertTrue(all(name.endswith(".exe") for name in windows), windows)
+		self.assertLessEqual({"clang", "cmake", "ld", "xcodebuild"}, macos)
+		self.assertTrue(all(
+			name == name.casefold() and len(name) <= 15 and not name.endswith(".exe")
+			for name in macos
+		), macos)
+		me = os.getpid()
+		records = {
+			pid: {"cpu": cpu, "created": pid - me + 1, "name": name, "parent_pid": 1}
+			for pid, cpu, name in (
+				(me, 0, "Python"),
+				(me + 1, None, "Clang"),
+				(me + 2, 0, "clangd"),
+				(me + 3, 0, "SWBBuildService"),
+				(me + 4, None, "XCBBuildService"),
+				(me + 5, 0, "CL.EXE"),
+			)
+		}
+		for platform, tools, gating in (
+			("darwin", macos, [{"name": "Clang", "pid": me + 1}]),
+			("win32", windows, [{"name": "CL.EXE", "pid": me + 5}]),
+		):
+			with self.subTest(platform):
+				with mock.patch.object(workspace.sys, "platform", platform):
+					monitor = fake_host_load_monitor()
+				self.assertIs(monitor.build_tools, tools)
+				with mock.patch.object(
+					workspace, "host_process_snapshot",
+					return_value=(64, records, None),
+				):
+					self.assertEqual(monitor._observe(FakeClock())[1], gating)
+
+	def test_test_run_host_load_stays_off_without_its_flag(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			plain = ["workspace.py", "test-run", "--exe", str(exe), "--run-dir"]
+			with mock.patch("sys.argv", [*plain, str(root / "run0")]):
+				args = workspace.parse_args()
+			self.assertEqual(
+				(
+					args.host_load, args.host_load_threshold, args.host_load_hold,
+					args.host_load_max, args.host_load_interval,
+				),
+				(False, 15.0, 5.0, 600.0, 1.0),
+			)
+			for index, extra in enumerate((
+				[],
+				["--host-load-threshold", "50", "--host-load-max", "0"],
+			)):
+				with (
+					self.subTest(extra=extra),
+					mock.patch("sys.argv", [*plain, str(root / f"run{index}"), *extra]),
+				):
+					options = dict(vars(workspace.parse_args()))
+					with mock.patch.object(
+						workspace, "HostLoadMonitor",
+						side_effect=AssertionError("HostLoadMonitor constructed"),
+					) as monitor:
+						result = run_command(options.pop("handler"), **options)
+					monitor.assert_not_called()
+					self.assertIsNone(result["host_load"])
+					self.assertEqual(result["outcome"], "exited")
+					self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_host_load_records_an_unsupported_host(self):
+		reason = workspace.host_load_unsupported_reason("linux")
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			sleeps = []
+			real_wait = workspace.HostLoadMonitor.wait
+
+			def wait(monitor):
+				return real_wait(monitor, sleep=sleeps.append)
+
+			with (
+				mock.patch.object(
+					workspace, "host_load_unsupported_reason", return_value=reason,
+				),
+				mock.patch.object(workspace, "host_process_snapshot") as snapshot,
+				patch_monitor("wait", wait),
+				patch_monitor("_trace") as trace,
+			):
+				result = run_test_run(exe, root / "run1", host_load=True)
+			snapshot.assert_not_called()
+			trace.assert_not_called()
+			self.assertEqual(sleeps, [])
+			self.assertEqual(result["host_load"], {
+				"excluded": None,
+				"hold_seconds": 5.0,
+				"interval_seconds": 1.0,
+				"logical_processors": None,
+				"max_seconds": 600.0,
+				"samples_file": None,
+				"samples_file_error": None,
+				"threshold_percent": 15.0,
+				"trace": None,
+				"unsupported": reason,
+				"wait": None,
+			})
+			self.assertFalse(
+				(root / "run1" / workspace.HOST_LOAD_SAMPLES_FILE).exists()
+			)
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_host_load_refuses_bad_values_before_setup(self):
+		nan, inf = float("nan"), float("inf")
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			run_dir = root / "run1"
+			for name, values in (
+				("threshold", (0.0, -1.0, 100.5, nan, inf)),
+				("hold", (0.0, -1.0, nan, inf)),
+				("max", (-1.0, nan, inf)),
+				("interval", (0.05, 0.0, -1.0, nan, inf)),
+			):
+				for value in values:
+					with (
+						self.subTest(option=name, value=value),
+						mock.patch.object(workspace, "HostLoadMonitor") as monitor,
+					):
+						with self.assertRaisesRegex(
+							workspace.WorkspaceError, f"^--host-load-{name} ",
+						):
+							run_test_run(
+								exe, run_dir,
+								host_load=True, **{f"host_load_{name}": value},
+							)
+						monitor.assert_not_called()
+						self.assertFalse(run_dir.exists())
+						self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_test_run_host_load_prerequisites_fail_before_any_reading(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = root / "out" / "Debug"
+			exe = write_complete_markers_exe(debug / "Telegram")
+			for name, launched, overrides, error in (
+				("executable", root / "Telegram.exe", {}, "^Test executable"),
+				(
+					"portable root", exe, {"portable_root": str(root / "none")},
+					"^Portable root",
+				),
+				("golden", exe, {}, "^Missing golden"),
+			):
+				with (
+					self.subTest(name),
+					mock.patch.object(workspace, "HostLoadMonitor") as monitor,
+				):
+					with self.assertRaisesRegex(workspace.WorkspaceError, error):
+						run_test_run(
+							launched, root / "run1", host_load=True, **overrides,
+						)
+					monitor.assert_not_called()
+			self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+
+	def test_test_run_host_load_waits_after_the_idle_gate_and_setup(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			debug = make_portable_root(root)
+			exe = write_complete_markers_exe(debug / "Telegram")
+			live = debug / workspace.PORTABLE_LIVE
+			events = []
+			real_setup = workspace.setup_test_account
+			real_kill = workspace.kill_processes_with_executable
+			real_wait = workspace.HostLoadMonitor.wait
+			real_start = workspace.HostLoadMonitor.start_trace
+
+			def setup(portable):
+				events.append("setup")
+				return real_setup(portable)
+
+			def kill(path):
+				events.append("stragglers")
+				return real_kill(path)
+
+			def wait(monitor):
+				events.append(("host wait", live.is_dir()))
+				return real_wait(monitor)
+
+			def start_trace(monitor, process):
+				events.append("launch")
+				real_start(monitor, process)
+
+			console = FakeConsole(
+				lambda now: now + 0.5,
+				on_sleep=lambda seconds: events.append(("idle gate", live.exists())),
+			)
+			quiet = {os.getpid() + 1: {
+				"cpu": 0, "created": 1, "name": "idle.exe", "parent_pid": 1,
+			}}
+			with (
+				console.installed(),
+				mock.patch.object(
+					workspace, "setup_test_account", side_effect=setup,
+				),
+				mock.patch.object(
+					workspace, "kill_processes_with_executable", side_effect=kill,
+				),
+				mock.patch.object(
+					workspace, "host_load_unsupported_reason", return_value=None,
+				),
+				mock.patch.object(
+					workspace, "host_process_snapshot", return_value=(64, quiet, None),
+				),
+				patch_monitor("wait", wait),
+				patch_monitor("start_trace", start_trace),
+			):
+				result = run_test_run(
+					exe, root / "run1", wait_idle=1.0, wait_idle_max=10.0,
+					host_load=True, host_load_hold=2.0, host_load_interval=0.5,
+				)
+			self.assertEqual(events, [
+				("idle gate", False),
+				"setup",
+				"stragglers",
+				("host wait", True),
+				"launch",
+				"stragglers",
+			])
+			self.assertIs(result["wait_idle"]["met"], True)
+			self.assertIs(result["host_load"]["wait"]["met"], True)
+			self.assertLess(
+				result["duration_seconds"],
+				result["host_load"]["wait"]["waited_seconds"],
+			)
+			self.assertEqual(result["verdict_hint"], "complete")
+
+	def test_test_run_host_load_keeps_readings_past_a_failed_one(self):
+		refusal = "OSError: snapshot refused"
+		quiet = {os.getpid() + 1: {
+			"cpu": 0, "created": 1, "name": "idle.exe", "parent_pid": 1,
+		}}
+		for failing in (("wait", 1), ("trace", 3)):
+			with (
+				self.subTest(failing=failing),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_python_client(
+					debug / "Telegram", "-c", "import time; time.sleep(1)",
+				)
+				reads = []
+				alive_at_report = []
+				real_start = workspace.HostLoadMonitor.start_trace
+				real_report = workspace.HostLoadMonitor.report
+
+				def snapshot(size):
+					reads.append("trace" if "launch" in reads else "wait")
+					if (reads[-1], reads.count(reads[-1])) == failing:
+						raise OSError("snapshot refused")
+					return size, quiet, None
+
+				def start_trace(monitor, process):
+					reads.append("launch")
+					real_start(monitor, process)
+
+				def report(monitor, run_dir):
+					alive_at_report.append(monitor.worker.is_alive())
+					return real_report(monitor, run_dir)
+
+				with (
+					mock.patch.object(
+						workspace, "host_load_unsupported_reason", return_value=None,
+					),
+					mock.patch.object(
+						workspace, "host_process_snapshot", side_effect=snapshot,
+					),
+					patch_monitor("start_trace", start_trace),
+					patch_monitor("report", report),
+				):
+					result = run_test_run(
+						exe, root / "run1",
+						host_load=True, host_load_hold=0.2, host_load_interval=0.1,
+					)
+				wait = result["host_load"]["wait"]
+				trace = result["host_load"]["trace"]
+				if failing[0] == "wait":
+					self.assertIsNone(wait["met"])
+					self.assertEqual(wait["error"], refusal)
+					self.assertEqual(wait["last_samples"], [])
+					self.assertIsNone(trace["error"])
+				else:
+					self.assertIs(wait["met"], True)
+					self.assertIsNone(wait["error"])
+					self.assertEqual(trace["samples"], 1)
+					self.assertEqual(trace["error"], refusal)
+				self.assertEqual(alive_at_report, [False])
+				self.assertEqual(result["outcome"], "exited")
+				self.assertEqual(result["verdict_hint"], "complete")
+
 	def test_portable_root_for_prefers_app_bundle_parent(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -4306,6 +6191,90 @@ class MechanicsTest(unittest.TestCase):
 			self.assertTrue(verified["valid"])
 			self.assertEqual(verified["subject"], "Correct peer actions")
 
+	def test_source_commit_force_mirrors_head_to_the_checkout_branch(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			config["checkout_tag"] = "macbook-twork"
+			mirror = root / "mirror.git"
+			git(root, "init", "-q", "--bare", str(mirror))
+			git(source, "remote", "add", "private", str(mirror))
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				(source / "tracked.txt").write_text("first\n", encoding="utf-8")
+				first = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions",
+					mark_green=False,
+				)
+				self.assertEqual(first["mirror"], {
+					"branch": "ai-macbook-twork",
+					"pushed": True,
+					"remote": "private",
+				})
+				self.assertEqual(
+					git(mirror, "rev-parse", "refs/heads/ai-macbook-twork"),
+					git(source, "rev-parse", "HEAD"),
+				)
+				git(source, "reset", "-q", "--hard", "HEAD~1")
+				(source / "tracked.txt").write_text("second\n", encoding="utf-8")
+				second = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions again",
+					mark_green=False,
+				)
+			self.assertTrue(second["mirror"]["pushed"])
+			self.assertEqual(
+				git(mirror, "rev-parse", "refs/heads/ai-macbook-twork"),
+				git(source, "rev-parse", "HEAD"),
+			)
+			self.assertEqual(
+				git(mirror, "for-each-ref", "--format=%(refname)"),
+				"refs/heads/ai-macbook-twork",
+			)
+
+	def test_source_commit_keeps_the_commit_when_the_mirror_is_unavailable(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary)
+			source, slot, work, config = source_repo_with_task(root)
+			config["checkout_tag"] = "macbook-twork"
+			(work / "owned-paths.txt").write_text(
+				"tracked.txt\n", encoding="utf-8",
+			)
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				(source / "tracked.txt").write_text("first\n", encoding="utf-8")
+				skipped = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions",
+					mark_green=False,
+				)
+				self.assertEqual(skipped["mirror"], {
+					"pushed": False,
+					"skipped": "no private remote",
+				})
+				git(source, "remote", "add", "private", str(root / "missing.git"))
+				(source / "tracked.txt").write_text("second\n", encoding="utf-8")
+				failed = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Correct peer actions again",
+					mark_green=False,
+				)
+			self.assertFalse(failed["mirror"]["pushed"])
+			self.assertEqual(failed["mirror"]["branch"], "ai-macbook-twork")
+			self.assertTrue(failed["mirror"]["error"])
+			self.assertEqual(git(source, "rev-list", "--count", "HEAD"), "3")
+			self.assertEqual(git(source, "status", "--porcelain"), "")
+
 	def test_source_commit_stages_a_removed_tracked_file(self):
 		with tempfile.TemporaryDirectory() as temporary:
 			root = Path(temporary)
@@ -4830,6 +6799,24 @@ inbox_receipt: {receipt}
 					require=[],
 				)
 			self.assertEqual(started["status"], "in-progress")
+			self.assertEqual(started["batch"], [replacements[0]])
+			self.assertEqual(
+				head_subject(main),
+				f"Start {replacements[0]} on macbook-twork",
+			)
+			self.assertEqual(
+				sorted(git(
+					main, "show", "--name-only", "--format=", "HEAD",
+				).splitlines()),
+				[
+					"batches/macbook-twork.yaml",
+					f"tasks/{replacements[0]}/state.yaml",
+				],
+			)
+			self.assertEqual(
+				workspace.load_batch(main, "macbook-twork"),
+				[replacements[0]],
+			)
 			self.assertIsNotNone(workspace.resolved_ref(
 				source,
 				workspace.source_task_ref(replacements[0], "base"),
@@ -5073,6 +7060,1213 @@ inbox_receipt: {receipt}
 				self.assertEqual(
 					task_refs(source, OTHER_APPROVAL_TASK), fixture["other_refs"],
 				)
+
+
+BATCH_FIRST = "2026/07/18/first-task"
+BATCH_NEXT = "2026/07/20/next-task"
+BATCH_LATER = "2026/07/21/later-task"
+BATCH_DONE = "2026/07/17/done-task"
+BATCH_MERGED = "2026/07/16/merged-task"
+BATCH_DIVIDED = "2026/07/15/divided-task"
+BATCH_RETRACTED = "2026/07/14/retracted-task"
+BATCH_BLOCKED = "2026/07/13/blocked-task"
+OUR_BATCH = "batches/macbook-twork.yaml"
+THEIR_BATCH = "batches/macbook-tother.yaml"
+
+
+class BatchMarkTest(unittest.TestCase):
+	def setUp(self):
+		temporary = tempfile.TemporaryDirectory()
+		self.addCleanup(temporary.cleanup)
+		self.root = Path(temporary.name)
+		self.origin = self.root / "origin.git"
+		git(self.root, "init", "--bare", "--initial-branch=master", str(self.origin))
+		seed = self.root / "ai-a"
+		seed.mkdir()
+		git(seed, "init", "--initial-branch=master")
+		self.identity(seed)
+		(seed / ".gitignore").write_text("inbox/\n**/.local/\n", encoding="utf-8")
+		for task_id in (BATCH_FIRST, BATCH_NEXT, BATCH_LATER):
+			self.task(seed, task_id, "todo")
+		self.task(seed, BATCH_DONE, "approved", "macbook-tother")
+		self.task(seed, BATCH_BLOCKED, "blocked", "macbook-twork")
+		self.task(seed, BATCH_MERGED).joinpath("superseded.yaml").write_text(
+			f"superseded_by: {BATCH_LATER}\n"
+			"receipt: receipts/2026/07/16/merge.md\n"
+			"type: implement\n"
+			"project: null\n"
+			"content_sha256: " + "0" * 64 + "\n",
+			encoding="utf-8",
+		)
+		self.task(seed, BATCH_DIVIDED).joinpath("split.yaml").write_text(
+			f"split_into: [{BATCH_NEXT}, {BATCH_LATER}]\n",
+			encoding="utf-8",
+		)
+		self.task(seed, BATCH_RETRACTED)
+		git(seed, "add", "-A")
+		git(seed, "commit", "-m", "Seed batch tasks")
+		git(seed, "remote", "add", "origin", str(self.origin))
+		git(seed, "push", "origin", "master")
+		other = self.root / "ai-b"
+		git(self.root, "clone", "--quiet", str(self.origin), str(other))
+		self.identity(other)
+		self.ours = self.machine("twork", seed)
+		self.theirs = self.machine("tother", other)
+
+	def identity(self, repo):
+		git(repo, "config", "user.name", "Workflow Test")
+		git(repo, "config", "user.email", "workflow@example.invalid")
+
+	def task(self, repo, task_id, status=None, claimed_by=None):
+		directory = repo / "tasks" / task_id
+		directory.mkdir(parents=True)
+		(directory / "task.md").write_text(
+			f"# {task_id.rsplit('/', 1)[-1]}\n", encoding="utf-8",
+		)
+		if status is None:
+			return directory
+		claimed = claimed_by is not None
+		(directory / "state.yaml").write_text(
+			f"""status: {status}
+type: implement
+created: {task_id[:10].replace("/", "-")}
+project: null
+depends_on: []
+claimed_by: {claimed_by if claimed else "null"}
+claimed_at: {"2026-07-13T10:00:00+04:00" if claimed else "null"}
+claim_order: {"1" if claimed else "null"}
+lease_until: null
+phase: {"null" if status == "todo" else status}
+inbox_receipt: receipts/2026/07/13/test.md
+""",
+			encoding="utf-8",
+		)
+		return directory
+
+	def machine(self, name, main):
+		source = self.root / name
+		build = source / "Telegram" / "build"
+		build.mkdir(parents=True)
+		git(source, "init", "--initial-branch=master")
+		(build / "ai-machine-tag").write_text("macbook\n", encoding="utf-8")
+		return SimpleNamespace(
+			source_root=str(source),
+			ai_main=str(main),
+			worktrees_root=str(self.root / f"{name}-worktrees"),
+			require=[],
+			batch=None,
+		)
+
+	def run_json(self, handler, machine, **values):
+		output = io.StringIO()
+		with contextlib.redirect_stdout(output):
+			handler(SimpleNamespace(**{**vars(machine), **values}))
+		return json.loads(output.getvalue())
+
+	def slot(self, machine):
+		name = Path(machine.source_root).name
+		return Path(machine.worktrees_root) / f"macbook-{name}"
+
+	def published(self, path):
+		return git(self.origin, "show", f"master:{path}")
+
+	def head_paths(self, repo):
+		return sorted(git(
+			repo, "show", "--name-only", "--format=", "master",
+		).splitlines())
+
+	def test_start_writes_the_batch_into_its_start_commit(self):
+		result = self.run_json(
+			workspace.command_start,
+			self.ours,
+			task=BATCH_FIRST,
+			batch=[
+				BATCH_NEXT,
+				BATCH_DONE,
+				BATCH_FIRST,
+				BATCH_MERGED,
+				BATCH_NEXT,
+				BATCH_DIVIDED,
+				BATCH_RETRACTED,
+				BATCH_LATER,
+			],
+		)
+
+		self.assertTrue(result["published"])
+		self.assertEqual(result["batch"], [BATCH_FIRST, BATCH_NEXT, BATCH_LATER])
+		self.assertEqual(result["batch_dropped"], [
+			{"id": BATCH_DONE, "status": "approved"},
+			{"id": BATCH_MERGED, "status": "superseded"},
+			{"id": BATCH_DIVIDED, "status": "split"},
+			{"id": BATCH_RETRACTED, "status": "retired"},
+		])
+		self.assertEqual(
+			head_subject(self.origin, "master"),
+			f"Start {BATCH_FIRST} on macbook-twork",
+		)
+		self.assertEqual(self.head_paths(self.origin), [
+			OUR_BATCH,
+			f"tasks/{BATCH_FIRST}/state.yaml",
+		])
+		lines = self.published(OUR_BATCH).splitlines()
+		self.assertEqual(lines[0], "checkout: macbook-twork")
+		self.assertTrue(lines[1].startswith("updated: "))
+		updated = datetime.datetime.fromisoformat(lines[1][len("updated: "):])
+		self.assertIsNotNone(updated.tzinfo)
+		self.assertEqual(lines[2:], [
+			"tasks:",
+			f"  - {BATCH_FIRST}",
+			f"  - {BATCH_NEXT}",
+			f"  - {BATCH_LATER}",
+		])
+		self.assertEqual(workspace.changed_paths(self.slot(self.ours)), [])
+
+	def test_start_rejects_unknown_batch_ids_before_changing_anything(self):
+		with self.assertRaisesRegex(
+			workspace.WorkspaceError,
+			"Unknown batch task ids: 2026/07/30/missing-task, not-a-task",
+		):
+			self.run_json(
+				workspace.command_start,
+				self.ours,
+				task=BATCH_FIRST,
+				batch=[BATCH_NEXT, "2026/07/30/missing-task", "not-a-task"],
+			)
+
+		slot = self.slot(self.ours)
+		self.assertEqual(workspace.changed_paths(slot), [])
+		self.assertFalse((slot / OUR_BATCH).exists())
+		self.assertEqual(head_subject(self.origin, "master"), "Seed batch tasks")
+		state = workspace.load_state(slot, workspace.state_path(slot, BATCH_FIRST))
+		self.assertEqual(state["status"], "todo")
+
+	def test_start_without_a_batch_marks_only_the_started_task(self):
+		result = self.run_json(
+			workspace.command_start, self.ours, task=BATCH_NEXT,
+		)
+
+		self.assertEqual(result["batch"], [BATCH_NEXT])
+		self.assertEqual(result["batch_dropped"], [])
+		self.assertEqual(
+			workspace.load_batch(Path(self.ours.ai_main), "macbook-twork"),
+			[BATCH_NEXT],
+		)
+
+	def test_a_batch_marks_tasks_without_claiming_them(self):
+		self.run_json(
+			workspace.command_start,
+			self.ours,
+			task=BATCH_FIRST,
+			batch=[BATCH_NEXT, BATCH_LATER],
+		)
+
+		started = self.run_json(
+			workspace.command_start,
+			self.theirs,
+			task=BATCH_NEXT,
+		)
+
+		self.assertTrue(started["published"])
+		self.assertEqual(
+			head_subject(self.origin, "master"),
+			f"Start {BATCH_NEXT} on macbook-tother",
+		)
+		self.assertIn(f"  - {BATCH_NEXT}", self.published(OUR_BATCH))
+		self.assertEqual(
+			self.published(THEIR_BATCH).splitlines()[2:],
+			["tasks:", f"  - {BATCH_NEXT}"],
+		)
+		queue = self.run_json(workspace.command_queue, self.ours)
+		self.assertEqual(queue["own_batch"], [
+			{
+				"id": BATCH_FIRST,
+				"status": "in-progress",
+				"claimed_by": "macbook-twork",
+			},
+			{
+				"id": BATCH_NEXT,
+				"status": "in-progress",
+				"claimed_by": "macbook-tother",
+			},
+			{"id": BATCH_LATER, "status": "todo", "claimed_by": None},
+		])
+		self.assertEqual(queue["own_todo"], [])
+		self.assertEqual(
+			[task["id"] for task in queue["unclaimed_todo"]],
+			[BATCH_LATER],
+		)
+		self.assertEqual(queue["other_claimed_unfinished"], 1)
+		self.assertEqual(queue["violations"], [])
+		theirs = self.run_json(workspace.command_queue, self.theirs)
+		self.assertEqual(
+			[entry["id"] for entry in theirs["own_batch"]],
+			[BATCH_NEXT],
+		)
+		self.assertEqual(
+			[task["id"] for task in theirs["unclaimed_todo"]],
+			[BATCH_LATER],
+		)
+
+	def test_a_lost_start_leaves_no_batch_published(self):
+		self.run_json(workspace.command_start, self.theirs, task=BATCH_NEXT)
+
+		with mock.patch.object(workspace, "sync_canonical"):
+			with self.assertRaisesRegex(workspace.WorkspaceError, "Start lost"):
+				self.run_json(
+					workspace.command_start,
+					self.ours,
+					task=BATCH_NEXT,
+					batch=[BATCH_NEXT, BATCH_LATER],
+				)
+
+		slot = self.slot(self.ours)
+		self.assertEqual(workspace.changed_paths(slot), [])
+		self.assertEqual(
+			git(slot, "rev-parse", "HEAD"),
+			git(slot, "rev-parse", "master"),
+		)
+		self.assertFalse((slot / OUR_BATCH).exists())
+		missing = subprocess.run(
+			["git", "-C", str(self.origin), "cat-file", "-e", f"master:{OUR_BATCH}"],
+			stdout=subprocess.DEVNULL,
+			stderr=subprocess.DEVNULL,
+		)
+		self.assertNotEqual(missing.returncode, 0)
+		self.assertEqual(
+			head_subject(self.origin, "master"),
+			f"Start {BATCH_NEXT} on macbook-tother",
+		)
+
+	def test_queue_lists_an_absent_batch_as_empty(self):
+		queue = self.run_json(workspace.command_queue, self.ours)
+
+		self.assertEqual(queue["own_batch"], [])
+
+	def test_batch_option_collects_every_id_in_order(self):
+		with mock.patch("sys.argv", [
+			"workspace.py", "start", "--task", BATCH_FIRST,
+			"--batch", BATCH_NEXT, BATCH_LATER, "--batch", BATCH_DONE,
+		]):
+			args = workspace.parse_args()
+		self.assertEqual(args.batch, [BATCH_NEXT, BATCH_LATER, BATCH_DONE])
+		with mock.patch("sys.argv", [
+			"workspace.py", "start", "--task", BATCH_FIRST,
+		]):
+			args = workspace.parse_args()
+		self.assertIsNone(args.batch)
+		with mock.patch("sys.argv", [
+			"workspace.py", "retry", "--task", BATCH_BLOCKED,
+		]):
+			args = workspace.parse_args()
+		self.assertFalse(hasattr(args, "batch"))
+
+	def test_reading_a_batch_ignores_what_it_cannot_use(self):
+		root = self.root / "loose"
+		self.assertEqual(workspace.load_batch(root, "macbook-twork"), [])
+		path = root / OUR_BATCH
+		path.parent.mkdir(parents=True)
+		path.write_bytes(b"\xff\xfe\x00tasks:\n")
+		self.assertEqual(workspace.load_batch(root, "macbook-twork"), [])
+		path.write_text(
+			"# comment\n"
+			"updated: soon\n"
+			"tasks:\n"
+			f"  - {BATCH_FIRST}\n"
+			"  - not-a-task\n"
+			"  - [nested]\n"
+			f"  - '{BATCH_NEXT}'\n"
+			f"  - {BATCH_FIRST}\n"
+			"other:\n"
+			f"  - {BATCH_LATER}\n",
+			encoding="utf-8",
+		)
+		self.assertEqual(
+			workspace.load_batch(root, "macbook-twork"),
+			[BATCH_FIRST, BATCH_NEXT],
+		)
+		path.write_text(f"tasks:\n- {BATCH_LATER}\n", encoding="utf-8")
+		self.assertEqual(
+			workspace.load_batch(root, "macbook-twork"),
+			[BATCH_LATER],
+		)
+
+
+class HealthWorktreeTest(unittest.TestCase):
+	def setUp(self):
+		temporary = tempfile.TemporaryDirectory()
+		self.addCleanup(temporary.cleanup)
+		self.root = Path(temporary.name)
+		origin = self.root / "origin.git"
+		git(self.root, "init", "--bare", "--initial-branch=master", str(origin))
+		seed = self.root / "ai-a"
+		seed.mkdir()
+		git(seed, "init", "--initial-branch=master")
+		(seed / ".gitignore").write_text("inbox/\n**/.local/\n", encoding="utf-8")
+		(seed / "AGENTS.md").write_text("# AI tasks\n", encoding="utf-8")
+		self.identity(seed)
+		git(seed, "add", ".gitignore", "AGENTS.md")
+		git(seed, "commit", "-m", "Create AI workspace")
+		git(seed, "remote", "add", "origin", str(origin))
+		git(seed, "push", "origin", "master")
+		other = self.root / "ai-b"
+		git(self.root, "clone", "--quiet", str(origin), str(other))
+		self.identity(other)
+		self.machines = [self.machine("twork", seed), self.machine("tother", other)]
+
+	def identity(self, repo):
+		git(repo, "config", "user.name", "Workflow Test")
+		git(repo, "config", "user.email", "workflow@example.invalid")
+
+	def machine(self, name, main):
+		source = self.root / name
+		build = source / "Telegram" / "build"
+		build.mkdir(parents=True)
+		git(source, "init", "--initial-branch=master")
+		(build / "ai-machine-tag").write_text("macbook\n", encoding="utf-8")
+		return SimpleNamespace(
+			source_root=str(source),
+			ai_main=str(main),
+			worktrees_root=str(self.root / f"{name}-worktrees"),
+			message=None,
+			drop_on_conflict=False,
+		)
+
+	def run_json(self, handler, args):
+		output = io.StringIO()
+		with contextlib.redirect_stdout(output):
+			handler(args)
+		return json.loads(output.getvalue())
+
+	def write(self, config, path, text):
+		target = Path(config["health_worktree"]) / path
+		target.parent.mkdir(parents=True, exist_ok=True)
+		target.write_text(text, encoding="utf-8")
+
+	def test_second_run_of_the_day_is_dropped(self):
+		first, second = self.machines
+		config_first = self.run_json(workspace.command_health_ensure, first)
+		config_second = self.run_json(workspace.command_health_ensure, second)
+		self.write(config_first, "code-health/ledger.json", "first\n")
+		self.write(config_second, "code-health/ledger.json", "second\n")
+
+		first.message = "Record code health scan"
+		published = self.run_json(workspace.command_health_publish, first)
+		self.assertTrue(published["published"])
+		self.assertEqual(
+			git(first.ai_main, "show", "master:code-health/ledger.json"),
+			"first",
+		)
+
+		second.message = "Record code health scan"
+		with self.assertRaises(workspace.RebaseConflict):
+			self.run_json(workspace.command_health_publish, second)
+		second.drop_on_conflict = True
+		dropped = self.run_json(workspace.command_health_publish, second)
+		self.assertFalse(dropped["published"])
+		self.assertTrue(dropped["dropped"])
+		state = Path(config_second["health_state"]) / "ledger.json"
+		self.assertEqual(state.read_text(encoding="utf-8"), "first\n")
+
+	def test_only_code_health_paths_are_published(self):
+		config = self.run_json(workspace.command_health_ensure, self.machines[0])
+		self.write(config, "tasks/stray.md", "stray\n")
+		self.machines[0].message = "Record code health scan"
+		with self.assertRaises(workspace.WorkspaceError):
+			self.run_json(workspace.command_health_publish, self.machines[0])
+
+
+
+PROJECT = "net"
+TASK_A = "2026/10/28/route-requests-through-the-new-session"
+TASK_B = "2026/10/28/retry-requests-after-a-reconnect"
+
+GIT_TEST_ENV = {
+	"GIT_CONFIG_COUNT": "3",
+	"GIT_CONFIG_KEY_0": "protocol.file.allow",
+	"GIT_CONFIG_VALUE_0": "always",
+	"GIT_CONFIG_KEY_1": "user.name",
+	"GIT_CONFIG_VALUE_1": "Workflow Test",
+	"GIT_CONFIG_KEY_2": "user.email",
+	"GIT_CONFIG_VALUE_2": "workflow@example.invalid",
+}
+
+
+def write_file(repo, name, text):
+	path = Path(repo) / name
+	path.parent.mkdir(parents=True, exist_ok=True)
+	path.write_text(text, encoding="utf-8")
+
+
+def project_slot(root, task_id, tag):
+	slot = Path(root) / f"slot-{tag}"
+	if not (slot / "projects" / PROJECT).exists():
+		write_project(slot, PROJECT)
+	directory = slot / "tasks" / task_id
+	directory.mkdir(parents=True)
+	(directory / "task.md").write_text("# Project task\n", encoding="utf-8")
+	(directory / "state.yaml").write_text(
+		f"""status: in-progress
+created: 2026-10-28
+project: {PROJECT}
+depends_on: []
+claimed_by: {tag}
+claimed_at: 2026-10-28T10:00:00+04:00
+claim_order: 1
+lease_until: null
+phase: implement
+inbox_receipt: receipts/2026/10/28/test.md
+""",
+		encoding="utf-8",
+	)
+	return slot
+
+
+def begin_task(source, task_id):
+	for name in ("base", "run"):
+		git(source, "update-ref", workspace.source_task_ref(task_id, name), "HEAD")
+
+
+def commit_task(source, task_id, name, module_name=None):
+	if module_name is not None:
+		module = Path(source) / "dep"
+		write_file(module, module_name, f"{module_name}\n")
+		git(module, "add", module_name)
+		git(module, "commit", "-m", f"Add {module_name}")
+		git(source, "add", "dep")
+	write_file(source, name, f"{name}\n")
+	git(source, "add", name)
+	git(source, "commit", "-m", f"Add {name}\n\nTask: {task_id}")
+	for ref in ("green", "run"):
+		git(source, "update-ref", workspace.source_task_ref(task_id, ref), "HEAD")
+
+
+class ProjectBranchTest(unittest.TestCase):
+	def setUp(self):
+		patcher = mock.patch.dict(os.environ, GIT_TEST_ENV)
+		patcher.start()
+		self.addCleanup(patcher.stop)
+		self.temp = tempfile.TemporaryDirectory()
+		self.addCleanup(self.temp.cleanup)
+		self.root = Path(self.temp.name).resolve()
+		self.private = self.root / "private.git"
+		self.dep = self.root / "dep.git"
+		for bare in (self.private, self.dep):
+			subprocess.run(
+				[
+					"git", "init", "--quiet", "--bare",
+					"--initial-branch=master", str(bare),
+				],
+				check=True,
+			)
+		seed_dep = self.root / "seed-dep"
+		git_repo(seed_dep)
+		write_file(seed_dep, "module.txt", "module\n")
+		git(seed_dep, "add", "module.txt")
+		git(seed_dep, "commit", "-m", "Create module")
+		git(seed_dep, "push", "--quiet", str(self.dep), "HEAD:refs/heads/master")
+		seed = self.root / "seed"
+		git_repo(seed)
+		write_file(seed, "Telegram/build/marker.txt", "build\n")
+		git(seed, "add", "Telegram")
+		git(seed, "commit", "-m", "Create baseline")
+		git(seed, "submodule", "add", "--quiet", str(self.dep), "dep")
+		git(seed, "commit", "-m", "Record dependency")
+		for branch in ("alpha", PROJECT):
+			git(seed, "push", "--quiet", str(self.private), f"HEAD:refs/heads/{branch}")
+
+	def clone(self, name):
+		path = self.root / name
+		subprocess.run(
+			[
+				"git", "clone", "--quiet", "--origin", "private",
+				"--branch", PROJECT, str(self.private), str(path),
+			],
+			check=True,
+		)
+		git(path, "submodule", "update", "--quiet", "--init")
+		return path
+
+	def run_task(self, handler, source, slot, tag, **arguments):
+		config = {
+			"source_root": str(source),
+			"slot_worktree": str(slot),
+			"checkout_tag": tag,
+		}
+		with mock.patch.object(
+			workspace, "task_action_config", return_value=(config, slot),
+		):
+			return run_command(handler, **arguments)
+
+	def two_checkouts(self):
+		first = self.clone("first")
+		second = self.clone("second")
+		first_slot = project_slot(self.root, TASK_A, "xps-first")
+		second_slot = project_slot(self.root, TASK_B, "xps-second")
+		begin_task(first, TASK_A)
+		begin_task(second, TASK_B)
+		commit_task(first, TASK_A, "first.txt", "first-module.txt")
+		commit_task(second, TASK_B, "second.txt", "second-module.txt")
+		return first, first_slot, second, second_slot
+
+	def sync(self, source, slot, tag, task, onto=None, base_fix=None):
+		return self.run_task(
+			workspace.command_project_sync, source, slot, tag,
+			task=task, onto=onto, base_fix=base_fix,
+		)
+
+	def push(self, source, slot, tag, task, rewritten=False, base_fix=None, base=None):
+		return self.run_task(
+			workspace.command_project_push, source, slot, tag,
+			task=task, rewritten=rewritten, base_fix=base_fix, base=base,
+		)
+
+	def test_parallel_checkouts_replay_their_own_work_onto_the_shared_branch(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		result = self.sync(first, first_slot, "xps-first", TASK_A)
+		self.assertFalse(result["build_required"])
+		self.push(first, first_slot, "xps-first", TASK_A)
+		shared = git(self.private, "rev-parse", f"refs/heads/{PROJECT}")
+		first_pin = git(first, "rev-parse", "HEAD:dep")
+		self.assertEqual(
+			git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), first_pin,
+		)
+
+		result = self.sync(second, second_slot, "xps-second", TASK_B)
+		self.assertTrue(result["synced"])
+		self.assertTrue(result["build_required"])
+		self.assertEqual(git(second, "rev-parse", "HEAD^"), shared)
+		self.assertEqual(git(second, "branch", "--show-current"), PROJECT)
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(second / "dep", "rev-parse", f"{pin}^"), first_pin)
+		self.assertEqual(git(second / "dep", "rev-parse", "HEAD"), pin)
+		self.assertEqual(task_refs(second, TASK_B), {
+			"base": shared,
+			"green": git(second, "rev-parse", "HEAD"),
+			"run": git(second, "rev-parse", "HEAD"),
+		})
+		self.assertEqual(workspace.source_changed_paths(second), [])
+
+		pushed = self.push(second, second_slot, "xps-second", TASK_B)
+		self.assertEqual(pushed["submodules"], ["dep"])
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(second, "rev-parse", "HEAD"),
+		)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_push_refuses_a_branch_that_moved_since_the_sync(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B)
+
+	def advance_base(self):
+		base = self.root / "base"
+		subprocess.run(
+			[
+				"git", "clone", "--quiet", "--branch", "alpha",
+				str(self.private), str(base),
+			],
+			check=True,
+		)
+		git(base, "submodule", "update", "--quiet", "--init")
+		module = base / "dep"
+		write_file(module, "base-module.txt", "base\n")
+		git(module, "add", "base-module.txt")
+		git(module, "commit", "-m", "Advance module")
+		git(module, "push", "--quiet", "origin", "HEAD:refs/heads/master")
+		write_file(base, "base.txt", "base\n")
+		git(base, "add", "base.txt", "dep")
+		git(base, "commit", "-m", "Advance base")
+		git(base, "push", "--quiet", "origin", "HEAD:refs/heads/alpha")
+		return git(base, "rev-parse", "HEAD"), git(module, "rev-parse", "HEAD")
+
+	def test_rebase_onto_a_base_moves_submodule_work_onto_its_pin(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		base_tip, base_pin = self.advance_base()
+
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B, onto="private/alpha",
+		)
+		self.assertTrue(result["rebased_onto_base"])
+		self.assertEqual(git(second, "rev-parse", "HEAD~2"), base_tip)
+		module = second / "dep"
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(module, "rev-parse", f"{pin}~2"), base_pin)
+		for name in ("base-module.txt", "first-module.txt", "second-module.txt"):
+			self.assertTrue((module / name).is_file(), name)
+
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(second, "rev-parse", "HEAD"),
+		)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_a_base_fix_goes_first_and_reaches_the_base_branch(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		base_tip, _ = self.advance_base()
+		write_file(first, "fix.txt", "fix\n")
+		git(first, "add", "fix.txt")
+		git(first, "commit", "-m", "Fix build.")
+		fix = git(first, "rev-parse", "HEAD")
+		git(first, "update-ref", workspace.source_task_ref(TASK_A, "run"), "HEAD")
+
+		result = self.sync(
+			first, first_slot, "xps-first", TASK_A,
+			onto="private/alpha", base_fix=fix,
+		)
+		moved = result["base_fix"]
+		self.assertEqual(git(first, "rev-parse", f"{moved}^"), base_tip)
+		self.assertEqual(git(first, "log", "-1", "--format=%s", moved), "Fix build.")
+		self.assertEqual(git(first, "rev-parse", "HEAD^"), moved)
+		self.assertEqual(
+			task_refs(first, TASK_A)["green"], git(first, "rev-parse", "HEAD"),
+		)
+
+		self.push(
+			first, first_slot, "xps-first", TASK_A,
+			rewritten=True, base_fix=moved, base="private/alpha",
+		)
+		self.assertEqual(git(self.private, "rev-parse", "refs/heads/alpha"), moved)
+		self.push(
+			first, first_slot, "xps-first", TASK_A,
+			rewritten=True, base_fix=moved, base="private/alpha",
+		)
+
+	def test_a_base_fix_must_not_touch_project_files(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		self.advance_base()
+		write_file(first, "first.txt", "fixed\n")
+		git(first, "commit", "-am", "Fix build.")
+		git(first, "update-ref", workspace.source_task_ref(TASK_A, "run"), "HEAD")
+		with self.assertRaises(workspace.WorkspaceError):
+			self.sync(
+				first, first_slot, "xps-first", TASK_A,
+				onto="private/alpha", base_fix="HEAD",
+			)
+
+	def test_tasks_start_only_on_their_project_branch(self):
+		first = self.clone("first")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		config = {"source_root": str(first)}
+		project_task = {"id": TASK_A, "project": PROJECT}
+		standalone = {"id": TASK_B, "project": None}
+		workspace.ensure_task_branch(config, slot, project_task)
+		with self.assertRaisesRegex(workspace.WorkspaceError, "non-project branch"):
+			workspace.ensure_task_branch(config, slot, standalone)
+		git(first, "switch", "--quiet", "-c", "alpha", "private/alpha")
+		workspace.ensure_task_branch(config, slot, standalone)
+		with self.assertRaisesRegex(workspace.WorkspaceError, "check out branch net"):
+			workspace.ensure_task_branch(config, slot, project_task)
+
+	def test_source_prepare_brings_a_project_branch_to_its_shared_tip(self):
+		first, first_slot, second, _ = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		third = self.clone("third")
+		git(first, "commit", "--allow-empty", "-m", f"Later\n\nTask: {TASK_A}")
+		git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			self.assertTrue(workspace.update_project_branch(None, third))
+			self.assertEqual(
+				git(third, "rev-parse", "HEAD"), git(first, "rev-parse", "HEAD"),
+			)
+			self.assertFalse(workspace.update_project_branch(None, third))
+			with self.assertRaisesRegex(workspace.WorkspaceError, "lacks"):
+				workspace.update_project_branch(None, second)
+
+	def wip_save(self, source, second):
+		config = {"source_root": str(source), "checkout_tag": "xps-first"}
+		moment = datetime.datetime(2026, 10, 28, 17, 0, second)
+		clock = mock.Mock(wraps=datetime.datetime)
+		clock.now.return_value = moment
+		with mock.patch.object(workspace, "worktree_config", return_value=config), \
+				mock.patch.object(workspace.datetime, "datetime", clock):
+			return run_command(workspace.command_wip_save, reason="Unknown edits")
+
+	def test_wip_save_keeps_unexplained_changes_on_a_side_branch(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		write_file(first, "stray.txt", "stray\n")
+		write_file(first / "dep", "module.txt", "edited\n")
+		result = self.wip_save(first, 1)
+		self.assertEqual(result["branch"], "wip/net/xps-first/20261028-170001")
+		self.assertEqual(result["repositories"], ["dep", "."])
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+		self.assertEqual(workspace.source_changed_paths(first), [])
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "show", f"{saved}:stray.txt"), "stray")
+		pin = git(self.private, "rev-parse", f"{saved}:dep")
+		self.assertEqual(git(self.dep, "show", f"{pin}:module.txt"), "edited")
+
+		write_file(first, "later.txt", "later\n")
+		second = self.wip_save(first, 2)
+		self.assertNotEqual(second["branch"], result["branch"])
+		self.assertEqual(git(self.private, "show", f"{saved}:stray.txt"), "stray")
+
+	def test_a_failed_wip_push_keeps_the_changes_in_place(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		write_file(first, "stray.txt", "stray\n")
+		git(first, "remote", "set-url", "private", str(self.root / "missing.git"))
+		with self.assertRaises(workspace.WorkspaceError):
+			self.wip_save(first, 1)
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+		self.assertEqual(workspace.source_changed_paths(first), ["stray.txt"])
+
+	def test_a_rewritten_push_never_drops_work_it_did_not_incorporate(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		third = self.clone("third")
+		write_file(third, "third.txt", "third\n")
+		git(third, "add", "third.txt")
+		git(third, "commit", "-m", f"Third\n\nTask: {TASK_A}")
+		git(third, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		published = git(third, "rev-parse", "HEAD")
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"), published,
+		)
+
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B, onto="private/alpha",
+		)
+		self.assertTrue(result["rewrite_discarded"])
+		self.assertTrue(result["build_required"])
+		self.assertEqual(git(second, "show", "HEAD:third.txt"), "third")
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.private, "show", f"refs/heads/{PROJECT}:third.txt"), "third",
+		)
+
+	def test_a_submodule_branch_ahead_of_its_parent_is_synced(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		orphan = git(first, "rev-parse", "HEAD:dep")
+		git(first / "dep", "push", "--quiet", "origin", f"{orphan}:refs/heads/{PROJECT}")
+		result = self.sync(second, second_slot, "xps-second", TASK_B)
+		self.assertTrue(result["synced"])
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(second / "dep", "rev-parse", f"{pin}^"), orphan)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_a_base_fix_survives_an_incoming_sync(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		base_tip, _ = self.advance_base()
+		write_file(second, "fix.txt", "fix\n")
+		git(second, "add", "fix.txt")
+		git(second, "commit", "-m", "Fix build.")
+		fix = git(second, "rev-parse", "HEAD")
+		git(second, "update-ref", workspace.source_task_ref(TASK_B, "run"), "HEAD")
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B,
+			onto="private/alpha", base_fix=fix,
+		)
+		self.assertTrue(result["synced"])
+		self.assertEqual(git(second, "rev-parse", f"{result['base_fix']}^"), base_tip)
+		self.assertEqual(
+			git(second, "log", "-1", "--format=%s", result["base_fix"]), "Fix build.",
+		)
+
+	def test_a_submodule_conflict_restores_every_repository(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		write_file(first / "dep", "second-module.txt", "conflicting\n")
+		git(first / "dep", "add", "second-module.txt")
+		git(first / "dep", "commit", "--amend", "--no-edit")
+		git(first, "add", "dep")
+		git(first, "commit", "--amend", "--no-edit")
+		git(first, "update-ref", workspace.source_task_ref(TASK_A, "run"), "HEAD")
+		self.push(first, first_slot, "xps-first", TASK_A)
+		head = git(second, "rev-parse", "HEAD")
+		module_head = git(second / "dep", "rev-parse", "HEAD")
+		with self.assertRaisesRegex(workspace.WorkspaceError, "conflicts"):
+			self.sync(second, second_slot, "xps-second", TASK_B)
+		self.assertEqual(git(second, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(second, "branch", "--show-current"), PROJECT)
+		self.assertEqual(git(second / "dep", "rev-parse", "HEAD"), module_head)
+		self.assertEqual(workspace.source_changed_paths(second), [])
+
+	def test_a_submodule_race_discards_the_pending_rebase(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		_, base_pin = self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		other = self.clone("other")
+		module = other / "dep"
+		git(module, "checkout", "--quiet", "--detach", f"origin/{PROJECT}")
+		write_file(module, "other-module.txt", "other\n")
+		git(module, "add", "other-module.txt")
+		git(module, "commit", "-m", "Add other module work")
+		git(module, "push", "--quiet", "origin", f"HEAD:refs/heads/{PROJECT}")
+
+		result = self.sync(
+			second, second_slot, "xps-second", TASK_B, onto="private/alpha",
+		)
+		self.assertTrue(result["rewrite_discarded"])
+		self.assertTrue(result["rebased_onto_base"])
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertTrue(workspace.is_ancestor(second / "dep", base_pin, pin))
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_wip_save_pushes_a_clean_submodule_at_a_new_commit(self):
+		first = self.clone("first")
+		module = first / "dep"
+		write_file(module, "committed.txt", "committed\n")
+		git(module, "add", "committed.txt")
+		git(module, "commit", "-m", "Local module commit")
+		local = git(module, "rev-parse", "HEAD")
+		result = self.wip_save(first, 3)
+		self.assertEqual(result["repositories"], ["dep", "."])
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "rev-parse", f"{saved}:dep"), local)
+		self.assertEqual(git(self.dep, "rev-parse", saved), local)
+		self.assertEqual(workspace.source_changed_paths(first), [])
+
+	def test_a_submodule_branch_created_after_a_rebase_discards_it(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		_, base_pin = self.advance_base()
+		self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		other = self.clone("other")
+		module = other / "dep"
+		write_file(module, "other-module.txt", "other\n")
+		git(module, "add", "other-module.txt")
+		git(module, "commit", "-m", "Add other module work")
+		git(module, "push", "--quiet", "origin", f"HEAD:refs/heads/{PROJECT}")
+		result = self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		self.assertTrue(result["rewrite_discarded"])
+		pin = git(first, "rev-parse", "HEAD:dep")
+		self.assertTrue(workspace.is_ancestor(first / "dep", base_pin, pin))
+
+	def test_wip_save_keeps_staged_and_working_versions_apart(self):
+		first = self.clone("first")
+		write_file(first, "staged.txt", "staged\n")
+		git(first, "add", "staged.txt")
+		write_file(first, "staged.txt", "working\n")
+		result = self.wip_save(first, 4)
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "show", f"{saved}^:staged.txt"), "staged")
+		self.assertEqual(git(self.private, "show", f"{saved}:staged.txt"), "working")
+
+	def test_a_failed_wip_push_restores_the_staged_version(self):
+		first = self.clone("first")
+		write_file(first, "staged.txt", "staged\n")
+		git(first, "add", "staged.txt")
+		write_file(first, "staged.txt", "working\n")
+		git(first, "remote", "set-url", "private", str(self.root / "missing.git"))
+		with self.assertRaises(workspace.WorkspaceError):
+			self.wip_save(first, 5)
+		self.assertEqual(git(first, "show", ":staged.txt"), "staged")
+		self.assertEqual((first / "staged.txt").read_text(encoding="utf-8"), "working\n")
+
+	def test_wip_save_pushes_a_submodule_whose_new_pin_is_staged(self):
+		first = self.clone("first")
+		module = first / "dep"
+		write_file(module, "committed.txt", "committed\n")
+		git(module, "add", "committed.txt")
+		git(module, "commit", "-m", "Local module commit")
+		local = git(module, "rev-parse", "HEAD")
+		git(first, "add", "dep")
+		result = self.wip_save(first, 6)
+		self.assertEqual(result["repositories"], ["dep", "."])
+		self.assertEqual(git(self.dep, "rev-parse", "refs/heads/" + result["branch"]), local)
+
+	def test_a_split_carrier_keeps_its_inherited_commits(self):
+		first = self.clone("first")
+		begin_task(first, TASK_B)
+		commit_task(first, TASK_A, "inherited.txt")
+		commit_task(first, TASK_B, "carrier.txt")
+		start = git(first, "rev-parse", "HEAD~2")
+		workspace.reconcile_task_refs(first, TASK_B, TASK_A)
+		self.assertEqual(task_refs(first, TASK_B)["base"], start)
+
+	def test_a_failed_staged_commit_keeps_the_original_index(self):
+		first = self.clone("first")
+		write_file(first, "staged.txt", "staged\n")
+		git(first, "add", "staged.txt")
+		write_file(first, "staged.txt", "working\n")
+		hook = first / ".git" / "hooks" / "pre-commit"
+		hook.write_text("#!/bin/sh\nexit 1\n", encoding="utf-8")
+		hook.chmod(0o755)
+		with self.assertRaises(workspace.WorkspaceError):
+			self.wip_save(first, 7)
+		self.assertEqual(git(first, "show", ":staged.txt"), "staged")
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+
+	def test_wip_save_pushes_a_staged_pin_the_submodule_left(self):
+		first = self.clone("first")
+		module = first / "dep"
+		committed = git(module, "rev-parse", "HEAD")
+		write_file(module, "staged-module.txt", "staged\n")
+		git(module, "add", "staged-module.txt")
+		git(module, "commit", "-m", "Staged module commit")
+		staged = git(module, "rev-parse", "HEAD")
+		git(first, "add", "dep")
+		git(module, "checkout", "--quiet", "--detach", committed)
+		result = self.wip_save(first, 8)
+		self.assertEqual(
+			git(self.dep, "rev-parse", "refs/heads/" + result["branch"] + "-staged"),
+			staged,
+		)
+
+	def test_a_clean_peer_follows_a_published_base_rebase(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		peer = self.clone("peer")
+		self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			self.assertTrue(workspace.update_project_branch(None, peer))
+		self.assertEqual(
+			git(peer, "rev-parse", "HEAD"), git(second, "rev-parse", "HEAD"),
+		)
+
+	def test_a_local_merge_is_never_reset_away(self):
+		first, first_slot, second, _ = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		git(second, "switch", "--quiet", "-c", "side", "HEAD~1")
+		git(second, "commit", "--allow-empty", "-m", "Side")
+		git(second, "switch", "--quiet", PROJECT)
+		git(second, "merge", "--quiet", "--no-ff", "--no-edit", "side")
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			git(first, "commit", "--allow-empty", "-m", "Later")
+			git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+			with self.assertRaisesRegex(workspace.WorkspaceError, "merge"):
+				workspace.update_project_branch(None, second)
+
+	def test_a_rejected_rewrite_leaves_submodule_branches_alone(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.advance_base()
+		third = self.clone("third")
+		module = third / "dep"
+		write_file(module, "third-module.txt", "third\n")
+		git(module, "add", "third-module.txt")
+		git(module, "commit", "-m", "Add third module work")
+		git(module, "push", "--quiet", "origin", f"HEAD:refs/heads/{PROJECT}")
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		git(third, "add", "dep")
+		git(third, "commit", "-m", f"Third\n\nTask: {TASK_A}")
+		git(third, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		published = git(module, "rev-parse", "HEAD")
+		with self.assertRaises(workspace.WorkspaceError):
+			self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		self.assertEqual(
+			git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), published,
+		)
+
+	def test_a_cancelled_wip_save_restores_the_checkout(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		write_file(first, "stray.txt", "stray\n")
+		with mock.patch.object(
+			workspace, "push_branch", side_effect=KeyboardInterrupt,
+		):
+			with self.assertRaises(KeyboardInterrupt):
+				self.wip_save(first, 9)
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+		self.assertEqual(workspace.source_changed_paths(first), ["stray.txt"])
+
+	def test_wip_save_keeps_the_copy_of_a_staged_deletion(self):
+		first = self.clone("first")
+		write_file(first, "kept.txt", "kept\n")
+		git(first, "add", "kept.txt")
+		git(first, "commit", "-m", "Track kept")
+		git(first, "rm", "--quiet", "--cached", "kept.txt")
+		write_file(first, ".gitignore", "kept.txt\n")
+		git(first, "add", ".gitignore")
+		write_file(first, "kept.txt", "local copy\n")
+		result = self.wip_save(first, 10)
+		saved = "refs/heads/" + result["branch"]
+		self.assertEqual(git(self.private, "show", f"{saved}:.gitignore"), "kept.txt")
+		self.assertNotIn("kept.txt", git(self.private, "ls-tree", "--name-only", saved))
+		[copy] = result["local_copies"]
+		self.assertEqual(Path(copy).read_text(encoding="utf-8"), "local copy\n")
+		self.assertEqual(workspace.source_changed_paths(first), [])
+
+	def test_a_rewritten_push_stages_submodule_commits_first(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.sync(second, second_slot, "xps-second", TASK_B)
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.advance_base()
+		self.sync(second, second_slot, "xps-second", TASK_B, onto="private/alpha")
+		self.push(second, second_slot, "xps-second", TASK_B, rewritten=True)
+		pin = git(second, "rev-parse", "HEAD:dep")
+		self.assertEqual(
+			git(self.dep, "rev-parse", f"refs/heads/_staging/{PROJECT}/xps-second"),
+			pin,
+		)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_source_prepare_refuses_local_commits_above_the_shared_tip(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		peer = self.clone("peer")
+		git(peer, "commit", "--allow-empty", "-m", "Unexplained")
+		with mock.patch.object(
+			workspace, "repository_config",
+			return_value={"ai_main": str(first_slot)},
+		):
+			with self.assertRaisesRegex(workspace.WorkspaceError, "lacks"):
+				workspace.update_project_branch(None, peer)
+
+	def test_a_base_rebase_follows_pins_that_move_back(self):
+		first, first_slot, _, _ = self.two_checkouts()
+		module = first / "dep"
+		start = git(module, "rev-parse", "HEAD")
+		write_file(module, "later-module.txt", "later\n")
+		git(module, "add", "later-module.txt")
+		git(module, "commit", "-m", "Later module")
+		git(first, "add", "dep")
+		git(first, "commit", "-m", f"Move ahead\n\nTask: {TASK_A}")
+		git(module, "checkout", "--quiet", "--detach", start)
+		git(first, "add", "dep")
+		git(first, "commit", "-m", f"Move back\n\nTask: {TASK_A}")
+		for ref in ("green", "run"):
+			git(first, "update-ref", workspace.source_task_ref(TASK_A, ref), "HEAD")
+		_, base_pin = self.advance_base()
+		result = self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		self.assertTrue(result["rebased_onto_base"])
+		pin = git(first, "rev-parse", "HEAD:dep")
+		self.assertEqual(git(module, "rev-parse", f"{pin}^"), base_pin)
+		self.assertTrue((module / "first-module.txt").is_file())
+		self.assertFalse((module / "later-module.txt").exists())
+		self.push(first, first_slot, "xps-first", TASK_A)
+		self.assertEqual(
+			git(self.dep, "show", f"refs/heads/{PROJECT}:later-module.txt"), "later",
+		)
+		self.assertTrue(workspace.is_ancestor(self.dep, pin, f"refs/heads/{PROJECT}"))
+
+	def test_a_split_carrier_inherits_the_sync_state(self):
+		first, first_slot, second, second_slot = self.two_checkouts()
+		self.push(second, second_slot, "xps-second", TASK_B)
+		self.advance_base()
+		self.sync(first, first_slot, "xps-first", TASK_A, onto="private/alpha")
+		config = {"source_root": str(first)}
+		workspace.transfer_source_refs(config, TASK_A, TASK_B)
+		for name in ("shared", "rewrite-from", "base", "green", "run"):
+			self.assertIsNotNone(workspace.task_ref(first, TASK_B, name), name)
+		self.assertIsNotNone(workspace.task_ref(first / "dep", TASK_B, "shared"))
+		self.assertIsNone(workspace.task_ref(first / "dep", TASK_A, "shared"))
+
+	def test_wip_save_refuses_ignored_files_where_head_tracks_a_file(self):
+		first = self.clone("first")
+		head = git(first, "rev-parse", "HEAD")
+		git(first, "rm", "--quiet", "Telegram/build/marker.txt")
+		write_file(first, "Telegram/build/marker.txt/new.txt", "new\n")
+		write_file(first, "Telegram/build/marker.txt/.env", "secret\n")
+		write_file(first, ".gitignore", ".env\n")
+		with self.assertRaisesRegex(workspace.WorkspaceError, "tracks the file"):
+			self.wip_save(first, 11)
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertTrue((first / "Telegram/build/marker.txt/.env").is_file())
+
+	def test_a_termination_signal_waits_for_the_running_git_command(self):
+		first = self.clone("first")
+		finished = []
+		real = subprocess.run
+
+		def slow_git(arguments, **options):
+			workspace._TERMINATION["pending"] = signal.SIGTERM
+			workspace.raise_pending_termination()
+			finished.append(arguments)
+			return real(arguments, **options)
+
+		with mock.patch.object(workspace.subprocess, "run", side_effect=slow_git):
+			with self.assertRaises(SystemExit):
+				workspace.run_git(first, "status", "--porcelain")
+		self.assertEqual(len(finished), 1)
+		self.assertIsNone(workspace._TERMINATION["pending"])
+
+	def test_lineage_never_offers_a_project_branch_switch(self):
+		first = self.clone("first")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		config = {"source_root": str(first)}
+		report = workspace.source_lineage_report(config, slot, TASK_A)
+		self.assertEqual(report["compatible_local_branches"], [])
+
+
+class RoutingRevisionTest(unittest.TestCase):
+	def test_routing_never_revises_a_started_task(self):
+		with tempfile.TemporaryDirectory() as temp:
+			repo = Path(temp)
+			git(repo, "init", "--quiet", "--initial-branch=master")
+			git(repo, "config", "user.name", "Workflow Test")
+			git(repo, "config", "user.email", "workflow@example.invalid")
+			ready = "2026/10/28/ready-task"
+			started = "2026/10/28/started-task"
+			source = "2026/10/28/source-task"
+			for task_id, status, owner in (
+				(ready, "todo", "null"),
+				(started, "in-progress", "xps-other"),
+				(source, "approved", "xps-first"),
+			):
+				write_file(repo, f"tasks/{task_id}/task.md", "# Task\n")
+				write_file(
+					repo, f"tasks/{task_id}/state.yaml",
+					f"status: {status}\nclaimed_by: {owner}\n",
+				)
+			git(repo, "add", ".")
+			git(repo, "commit", "--quiet", "-m", "Seed")
+			git(repo, "switch", "--quiet", "-c", "routing")
+			write_file(repo, f"tasks/{ready}/task.md", "# Revised\n")
+			write_file(repo, f"tasks/{source}/work/discovered-routed.md", "done\n")
+			write_file(repo, "tasks/2026/10/28/new-task/state.yaml", "status: todo\n")
+			git(repo, "add", ".")
+			git(repo, "commit", "--quiet", "-m", "Route")
+			workspace.ensure_revisions_unclaimed(repo)
+			write_file(repo, f"tasks/{started}/task.md", "# Revised\n")
+			git(repo, "commit", "--quiet", "-am", "Revise started")
+			with self.assertRaisesRegex(workspace.RebaseConflict, started):
+				workspace.ensure_revisions_unclaimed(repo)
+			git(repo, "reset", "--quiet", "--hard", "HEAD~1")
+			write_file(repo, f"tasks/{source}/task.md", "# Revised\n")
+			git(repo, "commit", "--quiet", "-am", "Revise source")
+			with self.assertRaisesRegex(workspace.RebaseConflict, source):
+				workspace.ensure_revisions_unclaimed(repo)
+			git(repo, "reset", "--quiet", "--hard", "HEAD~1")
+			git(repo, "config", "diff.renames", "true")
+			git(
+				repo, "mv", f"tasks/{started}",
+				"tasks/2026/10/28/moved-task",
+			)
+			git(repo, "commit", "--quiet", "-m", "Move started")
+			with self.assertRaisesRegex(workspace.RebaseConflict, started):
+				workspace.ensure_revisions_unclaimed(repo)
+			git(repo, "reset", "--quiet", "--hard", "HEAD~1")
+			git(repo, "switch", "--quiet", "master")
+			git(repo, "rm", "--quiet", f"tasks/{ready}/state.yaml")
+			git(repo, "commit", "--quiet", "-m", "Retire ready")
+			git(repo, "switch", "--quiet", "routing")
+			git(repo, "rebase", "--quiet", "master")
+			with self.assertRaisesRegex(workspace.RebaseConflict, "retired"):
+				workspace.ensure_revisions_unclaimed(repo)
 
 
 if __name__ == "__main__":

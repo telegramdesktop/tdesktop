@@ -97,8 +97,6 @@ public:
 	[[nodiscard]] FormulaCacheMutation put(
 		FormulaCacheKey key,
 		RenderedFormula value);
-	[[nodiscard]] FormulaCacheMutation setBudgetBytes(int64 bytes);
-	[[nodiscard]] int64 budgetBytes() const;
 	[[nodiscard]] int64 sizeBytes() const;
 	[[nodiscard]] int size() const;
 	void clear();
@@ -133,11 +131,8 @@ public:
 	void clearCache(bool resetDebugCounters = false);
 	void invalidate(bool resetDebugCounters = false);
 	void resetDebugCounters();
-	void setCacheBudgetBytes(int64 bytes);
 
 	[[nodiscard]] const FormulaDebugCounters &debugCounters() const;
-	[[nodiscard]] int64 cacheBudgetBytes() const;
-	[[nodiscard]] int64 cacheUsageBytes() const;
 
 private:
 	[[nodiscard]] FormulaCacheKey makeKey(

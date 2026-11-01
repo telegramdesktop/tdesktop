@@ -541,8 +541,13 @@ void Credits::setupContent() {
 						tr::marked)));
 		const auto show = controller()->uiShow();
 		if (isCurrency) {
-			const auto url = tr::lng_suggest_low_ton_fragment_url(tr::now);
-			button->setClickedCallback([=] { UrlClickHandler::Open(url); });
+			button->setClickedCallback([=] {
+				HiddenUrlClickHandler::OpenTranslated(
+					tr::lng_suggest_low_ton_fragment_url,
+					QVariant::fromValue(ClickHandlerContext{
+						.show = show,
+					}));
+			});
 		} else {
 			const auto paid = [parent = QPointer<QWidget>(_parent)] {
 				if (parent) {

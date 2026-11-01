@@ -16,15 +16,9 @@ namespace Main {
 class Session;
 } // namespace Main
 
-namespace Window {
-class SessionController;
-} // namespace Window
-
 namespace Settings {
 
 [[nodiscard]] Type BusinessId();
-
-void ShowBusiness(not_null<Window::SessionController*> controller);
 
 [[nodiscard]] std::vector<PremiumFeature> BusinessFeaturesOrder(
 	not_null<::Main::Session*> session);

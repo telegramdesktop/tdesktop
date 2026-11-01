@@ -33,7 +33,6 @@ public:
 	void tonLoad();
 	[[nodiscard]] DocumentData *tonLookup(int amount) const;
 	[[nodiscard]] Data::FileOrigin tonOrigin() const;
-	[[nodiscard]] rpl::producer<> tonUpdated() const;
 
 private:
 	using SetId = uint64;

@@ -85,6 +85,7 @@ struct HashtagWithUsername {
 	QStringView query);
 
 [[nodiscard]] QString ReactionEntityData(const ReactionId &id);
+[[nodiscard]] ReactionId ReactionFromEntityData(QStringView data);
 
 [[nodiscard]] ReactionId ReactionFromMTP(const MTPReaction &reaction);
 [[nodiscard]] MTPReaction ReactionToMTP(ReactionId id);

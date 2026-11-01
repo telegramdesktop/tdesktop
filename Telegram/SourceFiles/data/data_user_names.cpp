@@ -12,57 +12,30 @@ namespace Data {
 UsernamesInfo::UsernamesInfo() = default;
 
 void UsernamesInfo::setUsername(const QString &username) {
-	if (_usernames.empty()) {
-		if (username.isEmpty()) {
-			_indexEditableUsername = -1;
-		} else {
+	if (_indexEditableUsername < 0) {
+		if (!username.isEmpty()) {
+			_indexEditableUsername = int(_usernames.size());
 			_usernames.push_back(username);
-			_indexEditableUsername = 0;
 		}
-	} else if ((_indexEditableUsername < 0)
-			|| (_indexEditableUsername >= _usernames.size())) {
-		if (username.isEmpty()) {
-			_indexEditableUsername = -1;
-		} else {
-			_usernames.push_back(username);
-			_indexEditableUsername = 0;
-		}
-	} else if (_usernames[_indexEditableUsername] != username) {
-		if (username.isEmpty()) {
-			_usernames.erase(begin(_usernames) + _indexEditableUsername);
-			_indexEditableUsername = -1;
-		} else {
-			_usernames[_indexEditableUsername] = username;
-		}
+	} else if (username.isEmpty()) {
+		_usernames.erase(begin(_usernames) + _indexEditableUsername);
+		_indexEditableUsername = -1;
+	} else {
+		_usernames[_indexEditableUsername] = username;
 	}
 }
 
 void UsernamesInfo::setUsernames(const Usernames &usernames) {
-	auto editableUsername = QString();
-	auto newUsernames = ranges::views::all(
-		usernames
-	) | ranges::views::filter([&](const Data::Username &username) {
-		if (username.editable) {
-			editableUsername = username.username;
-			return username.active;
-		}
-		return username.active;
-	}) | ranges::views::transform([](const Data::Username &username) {
-		return username.username;
-	}) | ranges::to_vector;
-
-	if (!ranges::equal(_usernames, newUsernames)) {
-		_usernames = std::move(newUsernames);
-	}
-	if (!editableUsername.isEmpty()) {
-		for (auto i = 0; i < _usernames.size(); i++) {
-			if (_usernames[i] == editableUsername) {
-				_indexEditableUsername = i;
-				break;
+	// Bots may deactivate the editable username, leaving it out of the list.
+	_usernames.clear();
+	_indexEditableUsername = -1;
+	for (const auto &username : usernames) {
+		if (username.active) {
+			if (username.editable) {
+				_indexEditableUsername = int(_usernames.size());
 			}
+			_usernames.push_back(username.username);
 		}
-	} else {
-		_indexEditableUsername = -1;
 	}
 }
 

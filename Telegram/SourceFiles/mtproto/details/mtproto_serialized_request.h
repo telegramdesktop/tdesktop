@@ -63,7 +63,6 @@ public:
 	[[nodiscard]] mtpMsgId getMsgId() const;
 
 	void setSeqNo(uint32 seqNo);
-	[[nodiscard]] uint32 getSeqNo() const;
 
 	void addPadding(bool forAuthKeyInner);
 	[[nodiscard]] uint32 messageSize() const;

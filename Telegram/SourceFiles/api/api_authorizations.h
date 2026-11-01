@@ -59,7 +59,6 @@ public:
 	void toggleCallsDisabled(uint64 hash, bool disabled);
 	[[nodiscard]] bool callsDisabledHere() const;
 	[[nodiscard]] rpl::producer<bool> callsDisabledHereValue() const;
-	[[nodiscard]] rpl::producer<bool> callsDisabledHereChanges() const;
 
 	[[nodiscard]] static QString ActiveDateString(TimeId active);
 

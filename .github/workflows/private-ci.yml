@@ -1,0 +1,402 @@
+name: Private CI.
+
+on:
+  push:
+    branches:
+      - 'private-ci/**'
+      - 'private-ci-*'
+
+concurrency:
+  group: private-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  linux:
+    name: Linux x64 (Debug)
+    runs-on: depot-ubuntu-latest-32
+
+    env:
+      IMAGE_TAG: tdesktop:centos_env
+
+    steps:
+      - name: Clone.
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      - name: Nested submodules.
+        env:
+          CPPGIR_MIRROR: ${{ vars.CANARY_CPPGIR_MIRROR }}
+        run: |
+          if [ -n "$CPPGIR_MIRROR" ]; then
+            git config --global \
+              url."$CPPGIR_MIRROR".insteadOf https://gitlab.com/mnauw/cppgir.git
+          fi
+          git -C cmake submodule update --init --recursive --depth=1
+
+      - name: First set up.
+        run: |
+          sudo apt update
+          sudo apt install -y python3-jinja2
+          cd Telegram/build/docker/centos_env
+          DOCKERFILE=$(DEBUG=1 LTO= python3 gen_dockerfile.py)
+          echo "$DOCKERFILE" > Dockerfile
+          rm -rf __pycache__
+
+      - name: Free up some disk space.
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6
+        with:
+          preinstalled-runtimes: true
+          large-packages: false
+
+      - name: Set up Docker Buildx.
+        id: setup-buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ runner.temp }}/.buildx-cache
+            ${{ runner.temp }}/.mount-cache
+          key: ${{ runner.OS }}-libsdeb-${{ hashFiles('Telegram/build/docker/centos_env/**') }}
+          restore-keys: ${{ runner.OS }}-libsdeb-
+
+      - name: Restore Docker cache mounts.
+        uses: reproducible-containers/buildkit-cache-dance@5422eac04292c961a382e0f584ea0f03ad9da723
+        with:
+          builder: ${{ steps.setup-buildx.outputs.name }}
+          cache-dir: ${{ runner.temp }}/.mount-cache
+          dockerfile: Telegram/build/docker/centos_env/Dockerfile
+          skip-extraction: ${{ steps.cache-libs.outputs.cache-hit }}
+
+      - name: Libraries.
+        uses: docker/build-push-action@v7
+        env:
+          DOCKER_BUILD_RECORD_UPLOAD: false
+        with:
+          context: Telegram/build/docker/centos_env
+          load: true
+          tags: ${{ env.IMAGE_TAG }}
+          cache-from: type=local,src=${{ runner.temp }}/.buildx-cache
+          cache-to: type=local,dest=${{ runner.temp }}/.buildx-cache-new,mode=max
+
+      - name: Move cache.
+        run: |
+          rm -rf ${{ runner.temp }}/.buildx-cache
+          mv ${{ runner.temp }}/.buildx-cache{-new,}
+
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ runner.temp }}/.buildx-cache
+            ${{ runner.temp }}/.mount-cache
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Telegram Desktop build.
+        run: |
+          docker run --rm \
+          -u $(id -u) \
+          -v $PWD:/usr/src/tdesktop \
+          -e CONFIG=Debug \
+          -e KEEP_GOING=1 \
+          $IMAGE_TAG \
+          /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
+          -D CMAKE_CONFIGURATION_TYPES=Debug \
+          -D CMAKE_C_FLAGS_DEBUG="-O0 -fpch-preprocess" \
+          -D CMAKE_CXX_FLAGS_DEBUG="-O0 -fpch-preprocess" \
+          -D CMAKE_COMPILE_WARNING_AS_ERROR=ON \
+          -D DESKTOP_APP_SPECIAL_TARGET=linux \
+          -D TDESKTOP_API_TEST=ON \
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+
+      - name: Verify build.
+        run: |
+          test -f out/Debug/Telegram
+          echo "Linux x64 Debug build succeeded."
+
+  windows:
+    name: Windows x64 (Debug)
+    runs-on: depot-windows-latest-32
+
+    env:
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Git auth through the TBuild symlink.
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          BASIC=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          echo "::add-mask::$BASIC"
+          echo "GIT_AUTH_HEADER=AUTHORIZATION: basic $BASIC" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v7
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: http.https://github.com/.extraheader
+          GIT_CONFIG_VALUE_0: ${{ env.GIT_AUTH_HEADER }}
+        with:
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Submodules.
+        shell: bash
+        run: |
+          cd $TBUILD/$REPO_NAME
+          git submodule update --init --depth=1
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+          echo "Configurate git for cherry-picks."
+          git config --global user.email "you@example.com"
+          git config --global user.name "Sample"
+
+      - name: Install ATL for the pinned toolset.
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP 'vs_buildtools.exe'
+          Invoke-WebRequest -Uri https://aka.ms/vs/18/stable/vs_buildtools.exe -OutFile $exe
+          $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList `
+            '--quiet','--wait','--norestart','--nocache', `
+            '--add','Microsoft.VisualStudio.Component.VC.14.44.17.14.x86.x64', `
+            '--add','Microsoft.VisualStudio.Component.VC.14.44.17.14.ATL'
+          Remove-Item $exe -Force -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { exit $p.ExitCode }
+
+      - uses: Eden-CI/msvc-dev-cmd@master
+        name: Native Tools Command Prompt.
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: 14.44
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache.
+        id: cache-third-party
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-win-debug-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-win-debug-libs-
+
+      - name: Qt cache.
+        id: cache-qt
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-win-debug-qt-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-win-debug-qt-
+
+      - name: Libraries.
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent
+
+      - name: Free up some disk space.
+        shell: bash
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Save ThirdParty cache.
+        if: steps.cache-third-party.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ steps.cache-third-party.outputs.cache-primary-key }}
+
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Save Qt cache.
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ steps.cache-qt.outputs.cache-primary-key }}
+
+      - name: Telegram Desktop build.
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+
+          call configure.bat ^
+          x64 ^
+          -D TDESKTOP_API_TEST=ON ^
+          -D CMAKE_CONFIGURATION_TYPES=Debug ^
+          -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+
+          cmake --build ..\out --config Debug --target Telegram --parallel
+
+      - name: Verify build.
+        run: |
+          if not exist %TBUILD%\%REPO_NAME%\out\Debug\Telegram.exe exit /b 1
+          echo Windows x64 Debug build succeeded.
+
+  macos:
+    name: macOS ${{ matrix.arch }} (Debug)
+    runs-on: depot-macos-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, arm64]
+
+    env:
+      TDESKTOP_MAC_TOOLCHAIN: system
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+
+    steps:
+      - name: Get repository name.
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        run: |
+          sudo chown -R `whoami`:admin /usr/local/share
+
+          brew update
+          brew upgrade || true
+          brew install automake libtool meson nasm ninja pkg-config
+
+          sudo mdutil -a -i off
+
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Record macOS toolchain.
+        run: |
+          SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          MACOSX_DEPLOYMENT_TARGET=$(/usr/libexec/PlistBuddy -c 'Print :SupportedTargets:macosx:MinimumDeploymentTarget' "$SDKROOT/SDKSettings.plist")
+          {
+            echo "SDKROOT=$SDKROOT"
+            echo "MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+          } >> "$GITHUB_ENV"
+          {
+            xcodebuild -version
+            xcrun clang --version
+            xcrun swiftc --version
+            plutil -convert xml1 -o - "$SDKROOT/SDKSettings.plist"
+            echo "MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+          } > MACOS_TOOLCHAIN.txt
+          echo "MACOS_TOOLCHAIN_KEY=$(shasum -a 256 MACOS_TOOLCHAIN.txt | awk '{ print $1 }')" >> "$GITHUB_ENV"
+          echo "CI toolchain: $(xcodebuild -version | tr '\n' ' '), SDK $(xcrun --sdk macosx --show-sdk-version), minimum macOS $MACOSX_DEPLOYMENT_TARGET"
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            Libraries
+            ThirdParty
+          key: ${{ runner.OS }}-mac-debug-libs-${{ env.MACOS_TOOLCHAIN_KEY }}-${{ hashFiles(format('{0}/Telegram/build/prepare/**', env.REPO_NAME), format('{0}/Telegram/build/qt_version.py', env.REPO_NAME), format('{0}/Telegram/build/build_mac.py', env.REPO_NAME)) }}
+          restore-keys: ${{ runner.OS }}-mac-debug-libs-${{ env.MACOS_TOOLCHAIN_KEY }}-
+
+      - name: Libraries.
+        run: |
+          ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
+
+      - name: Free up some disk space.
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -name 'macos_toolchain.json' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            Libraries
+            ThirdParty
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Telegram Desktop build.
+        run: |
+          cd $REPO_NAME/Telegram
+
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+
+          ./configure.sh \
+          -D CMAKE_CONFIGURATION_TYPES=Debug \
+          -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+          -D CMAKE_OSX_SYSROOT="$SDKROOT" \
+          -D CMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
+          -D CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} \
+          -D DESKTOP_APP_MAC_ARCH=${{ matrix.arch }} \
+          -D DESKTOP_APP_SPECIAL_TARGET=mac \
+          -D TDESKTOP_API_TEST=ON \
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+
+          cmake --build ../out --config Debug --target Telegram --parallel
+
+      - name: Verify build.
+        run: |
+          test -f $REPO_NAME/out/Debug/Telegram.app/Contents/MacOS/Telegram
+          echo "macOS ${{ matrix.arch }} Debug build succeeded."

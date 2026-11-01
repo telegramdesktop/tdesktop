@@ -222,7 +222,24 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner);
 // Reason. Mouse by default; Keyboard passes through, and what it means is
 // the product's business - MarkdownDocumentWidget positions a keyboard
 // menu at QCursor::pos(), for instance. The helper does not hover: a
-// caller whose handler reads the hovered link hovers first.
+// caller whose handler reads the hovered link hovers first. A chat list -
+// HistoryInner or HistoryView::ListWidget - resolves the message under the
+// point only while its window is active or the mouse is inside it, so a
+// menu read there with this helper alone may belong to another message:
+// read those with Test::OpenChatListContextMenu (test_chat_menu.h).
+//
+// At-build observer. |observeAtBuild|, when given, is called once,
+// synchronously, inside the settle action: after the event was delivered
+// and the fresh menu was collected, immediately before the at-build
+// lifecycle is read, and so before any Ui::PostponeCall the delivery
+// queued has drained. It is called only while the receiver is alive - not
+// for a null receiver and not for one its own handler destroyed - and it
+// may run when no fresh menu exists (a no-menu or several-menus reading).
+// It is for observation only: it must not deliver events, mutate product
+// state, pop or hide menus, or turn the event loop, because the reading
+// it sits inside is taken in that same call. Left empty, the reader
+// behaves exactly as before. test_chat_menu.cpp reads the list's resolved
+// message through it.
 //
 // No pixels. A grab in the building turn lands on a blank show-animation
 // frame (the comment at the top of this file), so the reader takes none.
@@ -339,11 +356,13 @@ struct ContextMenuReading {
 // |point| is in |receiver|'s coordinates. A null |receiver| - a destroyed
 // QPointer reads as one - is the receiver-gone refusal and nothing is
 // sent; a receiver destroyed by its own handler is the same refusal, with
-// the counts it reached kept.
+// the counts it reached kept. |observeAtBuild| is the optional at-build
+// observer described above; neither refusal calls it.
 [[nodiscard]] ContextMenuReading OpenContextMenu(
 	QWidget *receiver,
 	QPoint point,
-	QContextMenuEvent::Reason reason = QContextMenuEvent::Mouse);
+	QContextMenuEvent::Reason reason = QContextMenuEvent::Mouse,
+	Fn<void()> observeAtBuild = {});
 
 // Pure: no grab, no mutation, safe on a reading whose menu is gone. A
 // caller polls it on later turns to watch the menu close, if it must.
@@ -383,7 +402,85 @@ struct MenuTrigger {
 	const QString &text);
 [[nodiscard]] QString MenuTriggerDetails(const MenuTrigger &trigger);
 
-// The reader measuring itself, in seven stages, over hidden harness widgets
+// A custom row, read by its exact full accessible name and activated by real
+// keys (docs/helpers/test_menu.md#accessible-custom-rows).
+//
+// ReadMenuItem walks |popup|'s current Ui::Menu: every non-separator action
+// resolved to its row by Menu::itemForAction and compared by the row's whole
+// accessibilityName() - never by index, prefix or QAction::text(), which a
+// custom row such as AboutAction (ui/boxes/peer_qr_box.cpp) leaves empty.
+// |names| lists every row's name. Exactly one enabled match is found(), and
+// only then are the row and its QAction held, beside the popup and the Menu.
+// Refusals: menu-gone (no live Ui::PopupMenu), no-such-item (also an empty
+// name), several-items and item-disabled.
+//
+// ActivateMenuItem sends nothing for a refused reading. Otherwise it checks
+// the binding before any key and after every Down - the popup alive, its
+// current Menu the captured one, the row and its QAction alive and still
+// mapped to each other there under the same name, still unique and enabled,
+// the popup ready - refusing menu-gone, menu-replaced, item-gone, item-stale,
+// several-items or item-disabled; a same-named replacement or a live row of
+// a replaced Menu is never taken for the captured one. It sends Down through
+// Test::PressKey until the captured row is the Menu's Keyboard-selected row,
+// at most |bound| (the Menu's actions, separators included) times, else
+// not-selected, then exactly one Return. Nothing is read after the Return:
+// |returnSent| is not proof that a callback ran. It never triggers a QAction,
+// calls a callback, activates a window or turns the event loop. Neither
+// function Notes or Fails, and a reading owns nothing and prints safely after
+// its objects die.
+enum class MenuItemRefusal {
+	None,
+	MenuGone,
+	MenuReplaced,
+	NoSuchItem,
+	SeveralItems,
+	ItemDisabled,
+	ItemGone,
+	ItemStale,
+	NotSelected,
+};
+
+struct MenuItemReading {
+	QPointer<QWidget> popup;
+	QPointer<QWidget> menu;
+	QPointer<QWidget> item;
+	QPointer<QObject> action;
+	QString name;
+	QStringList names;
+	QString reason;
+	MenuItemRefusal refusal = MenuItemRefusal::None;
+	int matches = 0;
+
+	[[nodiscard]] bool found() const {
+		return (refusal == MenuItemRefusal::None);
+	}
+};
+
+// activated() means the Return was sent with no refusal before it.
+struct MenuItemActivation {
+	QString name;
+	QString reason;
+	MenuItemRefusal refusal = MenuItemRefusal::None;
+	int steps = 0;
+	int bound = 0;
+	bool returnSent = false;
+
+	[[nodiscard]] bool activated() const {
+		return returnSent && (refusal == MenuItemRefusal::None);
+	}
+};
+
+[[nodiscard]] QString MenuItemRefusalName(MenuItemRefusal refusal);
+[[nodiscard]] MenuItemReading ReadMenuItem(
+	QWidget *popup,
+	const QString &accessibleName);
+[[nodiscard]] MenuItemActivation ActivateMenuItem(
+	const MenuItemReading &reading);
+[[nodiscard]] QString MenuItemReadingDetails(const MenuItemReading &reading);
+[[nodiscard]] QString MenuItemActivationDetails(
+	const MenuItemActivation &activation);
+
+// The reader measuring itself, in eight stages, over hidden harness widgets
 // parented to the primary window whose handlers build their Ui::PopupMenus
 // the way the products do - so every popup is its own window with a live
 // parent, and none is ever popped without one.
@@ -409,7 +506,13 @@ struct MenuTrigger {
 //     a standalone CreateAction action stays queued until then and is not
 //     delivered by the helper (the premise); then no-such-action,
 //     action-disabled and, once the fixture dropped the menu, menu-gone.
-//  7. Teardown.
+//  7. The at-build observer: for a handler that builds its menu and queues
+//     a Ui::PostponeCall marker, the observer runs exactly once, after the
+//     handler ran and before the marker drained, and the marker has run
+//     when the reader returns; for a receiver destroyed before the call
+//     (its QPointer reads null) the reader refuses receiver-gone and the
+//     observer is not called.
+//  8. Teardown.
 //
 // It needs no session, no chats list, no network and no account fixture.
 // The only thing it asks of the process is a primary window to parent its
@@ -420,5 +523,17 @@ struct MenuTrigger {
 // deliberate failure: every refusal it demonstrates is a returned value,
 // asserted as a passing Check whose details print the reading.
 void AppendContextMenuReaderSelfTest(not_null<Runner*> runner);
+
+// The accessible-row route measuring itself, in five stages, over popups of
+// its own parented to the primary window: lookup (an empty-text custom row
+// bound by its full name beside an ordinary sibling, while a missing name,
+// the label alone, a duplicate and a disabled row refuse with no key and the
+// old trigger refuses the label), activation (the row's callback runs exactly
+// once), lifetime before input and across a Down's settlement (destroyed
+// rows, destroyed popups and stashed Menus against same-named replacements),
+// and teardown. It needs no session or account; a missing primary window
+// fails the first stage's fixture-gate Check and makes every later stage but
+// the teardown N/A, and Runner::onFinish repeats the teardown's release.
+void AppendMenuItemActivationSelfTest(not_null<Runner*> runner);
 
 } // namespace Test

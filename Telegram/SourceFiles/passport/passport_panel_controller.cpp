@@ -537,15 +537,6 @@ const std::map<QString, QString> &NativeToLatinMap() {
 	return result;
 }
 
-QString AdjustKeyName(not_null<const Value*> value, const QString &key) {
-	if (!value->nativeNames) {
-		return key;
-	}
-	const auto &map = LatinToNativeMap();
-	const auto i = map.find(key);
-	return (i == end(map)) ? key : i->second;
-}
-
 bool SkipFieldCheck(not_null<const Value*> value, const QString &key) {
 	if (value->type != Value::Type::PersonalDetails) {
 		return false;

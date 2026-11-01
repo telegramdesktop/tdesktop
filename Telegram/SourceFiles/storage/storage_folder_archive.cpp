@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_folder_archive.h"
 
+#include "core/private_temp_directory.h"
 #include "platform/platform_file_utilities.h"
 #include "ui/chat/attach/attach_prepare.h"
 
@@ -155,9 +156,11 @@ private:
 }
 
 [[nodiscard]] QString ArchiveFileTemplate() {
-	const auto directory = ArchiveDirectory();
-	QDir().mkpath(directory);
-	return directory + u"/XXXXXX.zip"_q;
+	const auto directory = Core::PreparePrivateTempDirectory(
+		ArchiveDirectory());
+	return directory.isEmpty()
+		? QString()
+		: (directory + u"/XXXXXX.zip"_q);
 }
 
 [[nodiscard]] QString ArchiveRootName(const QString &folder) {
@@ -273,10 +276,12 @@ void FillEntryDate(const QDateTime &modified, zip_fileinfo *result) {
 }
 
 [[nodiscard]] std::optional<ArchiveEntries> GatherFiles(
-		const QStringList &paths) {
+		const QStringList &paths,
+		const QStringList &names) {
 	auto result = ArchiveEntries();
 	auto counts = base::flat_map<QString, int>();
-	for (const auto &path : paths) {
+	for (auto i = 0; i != paths.size(); ++i) {
+		const auto &path = paths[i];
 		const auto info = QFileInfo(path);
 		if (info.isDir()) {
 			continue;
@@ -286,10 +291,13 @@ void FillEntryDate(const QDateTime &modified, zip_fileinfo *result) {
 			continue;
 		}
 		const auto size = info.size();
+		const auto name = (i < names.size() && !names[i].isEmpty())
+			? names[i]
+			: info.fileName();
 		result.total += size;
 		result.list.push_back({
 			info.absoluteFilePath(),
-			DedupedName(counts, info.fileName()),
+			DedupedName(counts, name),
 			info.lastModified(),
 			size,
 		});
@@ -304,7 +312,11 @@ void FillEntryDate(const QDateTime &modified, zip_fileinfo *result) {
 		const std::vector<ArchiveEntry> &entries,
 		WriteState &state,
 		int64 limit) {
-	auto temp = QTemporaryFile(ArchiveFileTemplate());
+	const auto fileTemplate = ArchiveFileTemplate();
+	if (fileTemplate.isEmpty()) {
+		return { Status::Failed };
+	}
+	auto temp = QTemporaryFile(fileTemplate);
 	if (!temp.open()) {
 		return { Status::Failed };
 	}
@@ -469,17 +481,24 @@ Ui::PreparedFile PrepareFilesArchive(const QList<QUrl> &urls) {
 			paths.push_back(Platform::File::UrlToLocal(url));
 		}
 	}
+	return PrepareFilesArchive(paths);
+}
+
+Ui::PreparedFile PrepareFilesArchive(
+		const QStringList &paths,
+		const QStringList &names) {
 	const auto parent = CommonParentName(paths);
 	const auto name = parent.isEmpty() ? u"Archive"_q : parent;
 	return ArchiveFile(name + u".zip"_q, {
 		.paths = paths,
+		.names = names,
 	});
 }
 
 std::optional<ArchiveEntries> GatherArchiveEntries(
 		const Ui::PreparedFileArchive &job) {
 	return job.folder.isEmpty()
-		? GatherFiles(job.paths)
+		? GatherFiles(job.paths, job.names)
 		: WalkFolder(job.folder, job.root);
 }
 
@@ -504,9 +523,13 @@ ArchiveWriteResult WriteArchive(
 
 void ClearStaleArchiveFiles() {
 	crl::async([] {
+		const auto directory = ArchiveDirectory();
+		if (!Core::IsOwnTempDirectory(directory)) {
+			return;
+		}
 		const auto stale = QDateTime::currentDateTime().addSecs(
 			-kStaleArchiveTimeout);
-		const auto entries = QDir(ArchiveDirectory()).entryInfoList(
+		const auto entries = QDir(directory).entryInfoList(
 			QDir::Files | QDir::NoDotAndDotDot);
 		for (const auto &entry : entries) {
 			if (entry.lastModified() < stale) {

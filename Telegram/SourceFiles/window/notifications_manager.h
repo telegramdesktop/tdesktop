@@ -334,6 +334,9 @@ public:
 		not_null<HistoryItem*> item,
 		const QByteArray &option,
 		bool hideContent);
+	[[nodiscard]] static ContextId ItemContextId(not_null<HistoryItem*> item);
+	[[nodiscard]] static ContextId SublistContextId(
+		not_null<Data::SavedSublist*> sublist);
 
 	[[nodiscard]] TextWithEntities addTargetAccountName(
 		TextWithEntities title,

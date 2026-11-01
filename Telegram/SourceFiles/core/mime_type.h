@@ -82,9 +82,16 @@ enum class NameType : uchar {
 	OtherBenign,
 };
 
+struct LaunchType {
+	QString extension;
+	NameType nameType = NameType::Unknown;
+	bool ipRevealing = false;
+	bool byContent = false; // a non-IP warning chosen by the file content
+};
+
 [[nodiscard]] QString FileExtension(const QString &filepath);
 [[nodiscard]] NameType DetectNameType(const QString &filepath);
 [[nodiscard]] bool NameTypeAllowsThumbnail(NameType type);
-[[nodiscard]] bool IsIpRevealingPath(const QString &filepath);
+[[nodiscard]] LaunchType DetectLaunchType(const QString &filepath);
 
 } // namespace Core

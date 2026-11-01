@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_math_renderer.h"
 
-#include <algorithm>
 #include <utility>
 
 namespace Iv::Markdown {
@@ -117,15 +116,6 @@ FormulaCacheMutation FormulaCache::put(
 	return evictToBudget();
 }
 
-FormulaCacheMutation FormulaCache::setBudgetBytes(int64 bytes) {
-	_budgetBytes = std::max<int64>(0, bytes);
-	return evictToBudget();
-}
-
-int64 FormulaCache::budgetBytes() const {
-	return _budgetBytes;
-}
-
 int64 FormulaCache::sizeBytes() const {
 	return _sizeBytes;
 }
@@ -232,20 +222,8 @@ void MathRenderer::resetDebugCounters() {
 	syncCacheCounters();
 }
 
-void MathRenderer::setCacheBudgetBytes(int64 bytes) {
-	applyCacheMutation(_cache.setBudgetBytes(bytes));
-}
-
 const FormulaDebugCounters &MathRenderer::debugCounters() const {
 	return _debugCounters;
-}
-
-int64 MathRenderer::cacheBudgetBytes() const {
-	return _cache.budgetBytes();
-}
-
-int64 MathRenderer::cacheUsageBytes() const {
-	return _cache.sizeBytes();
 }
 
 FormulaCacheKey MathRenderer::makeKey(

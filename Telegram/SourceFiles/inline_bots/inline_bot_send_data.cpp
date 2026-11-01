@@ -102,17 +102,17 @@ SendDataCommon::SentMessageFields SendGeo::getSentMessageFields() const {
 				| (_proximityNotificationRadius
 					? Flag::f_proximity_notification_radius
 					: Flag(0))),
-			_location.toMTP(),
+			_location->toMTP(),
 			MTP_int(_heading.value_or(0)),
 			MTP_int(*_period),
 			MTP_int(_proximityNotificationRadius.value_or(0))) };
 	}
-	return { .media = MTP_messageMediaGeo(_location.toMTP()) };
+	return { .media = MTP_messageMediaGeo(_location->toMTP()) };
 }
 
 SendDataCommon::SentMessageFields SendVenue::getSentMessageFields() const {
 	return { .media = MTP_messageMediaVenue(
-		_location.toMTP(),
+		_location->toMTP(),
 		MTP_string(_title),
 		MTP_string(_address),
 		MTP_string(_provider),

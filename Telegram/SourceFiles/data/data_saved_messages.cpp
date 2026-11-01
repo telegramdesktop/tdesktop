@@ -52,6 +52,16 @@ SavedMessages::SavedMessages(
 	if (_owningHistory && _owningHistory->inChatList()) {
 		preloadSublists();
 	}
+
+	session().changes().realtimeNameUpdates(
+	) | rpl::on_next([=](const NameUpdate &update) {
+		if (const auto sublist = sublistLoaded(update.peer)) {
+			_chatsList.indexed()->entryNameChanged(
+				FilterId(),
+				sublist,
+				update.oldFirstLetters);
+		}
+	}, _lifetime);
 }
 
 void SavedMessages::clear() {
@@ -61,6 +71,12 @@ void SavedMessages::clear() {
 		}
 	}
 	if (const auto requestId = base::take(_staleRequestId)) {
+		owner().histories().cancelRequest(requestId);
+	}
+	if (const auto requestId = base::take(_loadMoreRequestId)) {
+		session().api().request(requestId).cancel();
+	}
+	if (const auto requestId = base::take(_pinnedRequestId)) {
 		session().api().request(requestId).cancel();
 	}
 
@@ -531,7 +547,8 @@ void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
 	const auto history = owningHistory();
 	history->destroyMessagesBySublist(sublistPeer);
 	session().changes().sublistRemoved(raw);
-	_sublists.erase(i);
+	// Callbacks above may insert sublists, invalidating i.
+	_sublists.erase(sublistPeer);
 
 	session().storage().unload(Storage::SharedMediaUnloadThread(
 		_owningHistory->peer->id,

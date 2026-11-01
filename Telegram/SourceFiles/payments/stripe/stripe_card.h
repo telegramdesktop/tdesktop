@@ -46,7 +46,6 @@ public:
 	[[nodiscard]] QString cardId() const;
 	[[nodiscard]] QString name() const;
 	[[nodiscard]] QString last4() const;
-	[[nodiscard]] QString dynamicLast4() const;
 	[[nodiscard]] CardBrand brand() const;
 	[[nodiscard]] CardFundingType funding() const;
 	[[nodiscard]] QString fingerprint() const;
@@ -77,7 +76,6 @@ private:
 	QString _cardId;
 	QString _name;
 	QString _last4;
-	QString _dynamicLast4;
 	CardBrand _brand = CardBrand::Unknown;
 	CardFundingType _funding = CardFundingType::Other;
 	QString _fingerprint;

@@ -21,8 +21,10 @@ public:
 	struct Descriptor {
 		crl::time spinDuration = 0;
 		crl::time respinDelay = 0;
+		crl::time enterSpinDelay = 0;
 		float64 period = 0.;
 		bool spinEaseOut = false;
+		bool invertDrag = false;
 		int sampleCount = 4;
 	};
 
@@ -31,6 +33,7 @@ public:
 	void setShownProgress(float64 progress);
 	void setPaused(bool paused);
 	void setNight(bool night);
+	void startEnter();
 
 	[[nodiscard]] rpl::producer<float64> flungStrength() const;
 
@@ -121,6 +124,7 @@ private:
 
 	bool _paused = false;
 	bool _entered = false;
+	bool _enterStarted = false;
 	crl::time _pausedAt = 0;
 
 };

@@ -239,10 +239,9 @@ void Location::chooseOnMap() {
 	}
 	const auto callback = [=](Data::InputVenue venue) {
 		auto copy = _data.current();
-		copy.point = Data::LocationPoint(
+		copy.point = Data::LocationPoint::FromCoordinates(
 			venue.lat,
-			venue.lon,
-			Data::LocationPoint::NoAccessHash);
+			venue.lon);
 		copy.address = venue.address;
 		_data = std::move(copy);
 	};

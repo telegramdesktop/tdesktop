@@ -27,6 +27,34 @@ class Session;
 
 namespace Iv {
 
+class RichQuoteModel;
+
+// Copies and moves never carry a model to a page it was not built for.
+class RichQuoteModelSlot final {
+public:
+	RichQuoteModelSlot() noexcept;
+	RichQuoteModelSlot(const RichQuoteModelSlot &other) noexcept;
+	RichQuoteModelSlot(RichQuoteModelSlot &&other) noexcept;
+	RichQuoteModelSlot &operator=(const RichQuoteModelSlot &other) noexcept;
+	RichQuoteModelSlot &operator=(RichQuoteModelSlot &&other) noexcept;
+	~RichQuoteModelSlot();
+
+	[[nodiscard]] const RichQuoteModel *get() const {
+		return _model.get();
+	}
+	void set(std::unique_ptr<const RichQuoteModel> model);
+
+	friend inline bool operator==(
+			const RichQuoteModelSlot &,
+			const RichQuoteModelSlot &) {
+		return true;
+	}
+
+private:
+	std::unique_ptr<const RichQuoteModel> _model;
+
+};
+
 struct RichPage {
 	static constexpr auto kCollageMaxItems = 10;
 
@@ -261,6 +289,7 @@ struct RichPage {
 	bool part = false;
 	int views = 0;
 	std::vector<Block> blocks;
+	RichQuoteModelSlot quoteModel;
 
 	friend inline bool operator==(
 		const RichPage &,
@@ -299,9 +328,16 @@ struct RichPageLinkUrl {
 	uint64 webpageId = 0;
 };
 
+struct RichQuote {
+	MTPVector<MTPRichText> fragments;
+	std::optional<int> offset;
+	TextWithEntities text;
+};
+
 enum class RichParseMode : uchar {
 	Normal, // textDiff is resolved to the updated text.
 	DisplayTextDiff, // textDiff shows old and new text with highlights.
+	Quotable, // Normal text, plus the model that locates reply quotes.
 };
 
 // Special text color indices used for textDiff display, right after
@@ -339,6 +375,10 @@ inline constexpr auto kTextDiffDeletedColorIndex = 11;
 [[nodiscard]] std::shared_ptr<const RichPage> ParseRichPage(
 	not_null<Main::Session*> session,
 	const MTPDwebPage &webpage);
+[[nodiscard]] std::shared_ptr<const RichQuote> ParseRichQuote(
+	not_null<Main::Session*> session,
+	const MTPVector<MTPRichText> &fragments,
+	std::optional<int> offset);
 [[nodiscard]] std::optional<TextWithEntities> SerializeAsSimple(
 	const RichPage &page,
 	not_null<Main::Session*> session);

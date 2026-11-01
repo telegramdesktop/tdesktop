@@ -190,12 +190,14 @@ NativeInstantViewPrepareResult TryPrepareNativeInstantView(
 		PrepareTableRenderLimitsForIv());
 	state.editMode = request.editMode;
 	state.unsupportedBlockNotices = request.unsupportedBlockNotices;
+	state.disableButtons = request.disableButtons;
 	const auto finish = [&](NativeInstantViewPrepareResultKind kind, QString reason) {
 		state.result.debug.prepareMs = int(timer.elapsed());
 		return NativeInstantViewPrepareResult{
 			.kind = kind,
 			.content = std::move(state.result),
 			.debugReason = std::move(reason),
+			.buttonsDisabled = state.buttonsDisabled,
 		};
 	};
 

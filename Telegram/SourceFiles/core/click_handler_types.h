@@ -34,6 +34,11 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace tr {
+template <typename ...Tags>
+struct phrase;
+} // namespace tr
+
 namespace HistoryView {
 class ElementDelegate;
 } // namespace HistoryView
@@ -42,7 +47,9 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-[[nodiscard]] bool UrlRequiresConfirmation(const QUrl &url);
+[[nodiscard]] bool UrlRequiresConfirmation(
+	not_null<Main::Session*> session,
+	const QUrl &url);
 
 // Our links open without a confirmation, so a web login token someone else
 // put into such a link would log the user in to the sender's account.
@@ -79,6 +86,11 @@ public:
 	QString dragText() const override;
 
 	static void Open(QString url, QVariant context = {});
+	static void OpenTranslated(tr::phrase<> phrase, QVariant context = {});
+	static void OpenTranslatedWithIv(
+		not_null<Main::Session*> session,
+		tr::phrase<> phrase,
+		QVariant context = {});
 	void onClick(ClickContext context) const override {
 		const auto button = context.button;
 		if (button == Qt::LeftButton || button == Qt::MiddleButton) {

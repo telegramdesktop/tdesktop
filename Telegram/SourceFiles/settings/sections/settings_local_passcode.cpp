@@ -1357,6 +1357,7 @@ void BuildManageContent(
 
 	struct State {
 		rpl::event_stream<> autoLockBoxClosing;
+		rpl::event_stream<bool> appLockClicks;
 		rpl::event_stream<bool> appLockToggles;
 		rpl::variable<bool> appLockOn;
 		rpl::variable<bool> walletDependent;
@@ -1402,14 +1403,23 @@ void BuildManageContent(
 		.id = u"passcode/lock-app"_q,
 		.title = tr::lng_settings_passcode_lock_app(),
 		.icon = { &st::menuIconPermissions },
-		.toggled = rpl::merge(
-			state->appLockOn.value(),
-			state->appLockToggles.events()),
 		.keywords = { u"lock"_q, u"launch"_q, u"startup"_q },
 		.shown = state->walletDependent.value(),
 	});
 	if (lockApp) {
 		const auto weak = base::make_weak(container);
+
+		lockApp->toggleOn(
+			rpl::merge(
+				state->appLockOn.value(),
+				state->appLockToggles.events(),
+				state->appLockClicks.events()),
+			true);
+		lockApp->setClickedCallback([=] {
+			if (!lockApp->isDisabled()) {
+				state->appLockClicks.fire(!lockApp->toggled());
+			}
+		});
 
 		section->busyValue(
 		) | rpl::on_next([=](bool busy) {

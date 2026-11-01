@@ -93,7 +93,7 @@ public:
 	void requestConfigIfOld();
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
-	void badConfigurationError();
+	void badConfigurationError(const ProxyData &proxy);
 	void syncHttpUnixtime();
 
 	void restartedByTimeout(ShiftedDcId shiftedDcId);
@@ -541,9 +541,9 @@ void Instance::Private::setUserPhone(const QString &phone) {
 	}
 }
 
-void Instance::Private::badConfigurationError() {
+void Instance::Private::badConfigurationError(const ProxyData &proxy) {
 	if (_mode == Mode::Normal) {
-		Core::App().badMtprotoConfigurationError();
+		Core::App().badMtprotoConfigurationError(proxy);
 	}
 }
 
@@ -2002,8 +2002,8 @@ void Instance::setUserPhone(const QString &phone) {
 	_private->setUserPhone(phone);
 }
 
-void Instance::badConfigurationError() {
-	_private->badConfigurationError();
+void Instance::badConfigurationError(const ProxyData &proxy) {
+	_private->badConfigurationError(proxy);
 }
 
 void Instance::syncHttpUnixtime() {

@@ -337,7 +337,7 @@ void ChooseJoinAsProcess::start(
 			.changingJoinAsFrom = changingJoinAsFrom });
 	};
 
-	if (isScheduled) {
+	if (isScheduled && peer->isBroadcast()) {
 		auto box = Box(
 			ScheduleGroupCallBox,
 			JoinInfo{ .peer = peer, .joinAs = peer },
@@ -381,10 +381,15 @@ void ChooseJoinAsProcess::requestList() {
 		});
 		processList(std::move(list));
 	}).fail([=] {
-		finish({
+		auto info = JoinInfo{
 			.peer = _request->peer,
 			.joinAs = _request->peer->session().user(),
-		});
+		};
+		if (_request->context == Context::CreateScheduled) {
+			showScheduleBox(std::move(info));
+		} else {
+			finish(std::move(info));
+		}
 	}).send();
 }
 
@@ -396,6 +401,12 @@ void ChooseJoinAsProcess::finish(JoinInfo info) {
 	if (const auto strong = box.get()) {
 		strong->closeBox();
 	}
+}
+
+void ChooseJoinAsProcess::showScheduleBox(JoinInfo info) {
+	const auto request = base::take(_request);
+	request->show->showBox(
+		Box(ScheduleGroupCallBox, std::move(info), request->done));
 }
 
 void ChooseJoinAsProcess::processList(
@@ -424,6 +435,11 @@ void ChooseJoinAsProcess::processList(
 			: list.front();
 	}();
 	info.possibleJoinAs = std::move(list);
+
+	if (_request->context == Context::CreateScheduled) {
+		showScheduleBox(std::move(info));
+		return;
+	}
 
 	const auto onlyByMe = (info.possibleJoinAs.size() == 1)
 		&& (info.possibleJoinAs.front() == self);

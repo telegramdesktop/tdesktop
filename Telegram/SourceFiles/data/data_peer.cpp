@@ -233,20 +233,6 @@ PeerData *PeerFromInputMTP(
 	});
 }
 
-UserData *UserFromInputMTP(
-		not_null<Session*> owner,
-		const MTPInputUser &input) {
-	return input.match([&](const MTPDinputUser &data) {
-		const auto user = owner->user(data.vuser_id().v);
-		user->setAccessHash(data.vaccess_hash().v);
-		return user.get();
-	}, [&](const MTPDinputUserSelf &data) {
-		return owner->session().user().get();
-	}, [](const auto &data) {
-		return (UserData*)nullptr;
-	});
-}
-
 Ui::ColorCollectible ParseColorCollectible(
 		const MTPDpeerColorCollectible &data) {
 	return {
@@ -945,6 +931,7 @@ void PeerData::setBarSettings(const MTPPeerSettings &data) {
 }
 
 void PeerData::setBarSettings(PeerBarSettings which) {
+	const auto wasSettings = _barSettings.current();
 	const auto was = hideLinks();
 	_barSettings.set(which);
 	if (was && !hideLinks()) {
@@ -960,6 +947,9 @@ void PeerData::setBarSettings(PeerBarSettings which) {
 				});
 			}
 		}
+	}
+	if (_barSettings.current() != wasSettings) {
+		session().changes().peerUpdated(this, UpdateFlag::BarSettings);
 	}
 }
 
@@ -991,6 +981,24 @@ bool PeerData::hideLinks() const {
 	if (const auto to = migrateTo()) {
 		return to->hideLinks();
 	}
+	const auto settings = barSettings();
+	return !settings || (*settings & PeerBarSetting::ReportSpam);
+}
+
+bool PeerData::hideEmojiStatus() const {
+	if (const auto to = migrateTo()) {
+		return to->hideEmojiStatus();
+	}
+	const auto settings = barSettings();
+	return settings && (*settings & PeerBarSetting::ReportSpam);
+}
+
+bool PeerData::keepIncomingUnread() const {
+	if (const auto to = migrateTo()) {
+		return to->keepIncomingUnread();
+	}
+	// WHY: unknown settings hold too, as every reading host requests them
+	// and requestPeerSettings() always ends with known settings.
 	const auto settings = barSettings();
 	return !settings || (*settings & PeerBarSetting::ReportSpam);
 }

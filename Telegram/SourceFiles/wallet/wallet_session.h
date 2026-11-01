@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 #include "base/timer.h"
 #include "core/core_cloud_password.h"
 #include "data/data_msg_id.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
+#include "wallet/wallet_collectible_record.h"
 #include "wallet/wallet_custody.h"
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_stream.h"
@@ -24,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_unlock.h"
 
 namespace wallet_engine {
-struct ActivityItem;
 struct SendMessageBody;
 struct SendSnapshot;
 struct WalletClient;
@@ -43,8 +44,10 @@ class SeparatePanel;
 
 namespace Wallet {
 
+class CollectibleWaits;
 class Engine;
 class Onramp;
+class OwnCard;
 class Rates;
 class Session;
 struct ShareFetch;
@@ -213,12 +216,13 @@ struct TransferItem {
 	std::optional<TransferWalletIdentity> walletIdentity;
 	Kind kind = Kind::Transfer;
 	bool incoming = false;
+	TransferGiftMove giftMove = TransferGiftMove::None;
 	QString counterparty;
 	bool counterpartyBounceable = false; // as served or as sent, raw is UQ
 	QString counterpartyName;
 	quint64 counterpartyPeer = 0;
 	QString collectible;
-	std::optional<Gram::NftItem> collectibleRecord;
+	std::optional<CollectibleRecord> collectibleRecord;
 	QString provider;
 	// Always a magnitude. The mappings fold a source's signed amount into
 	// this field and `incoming`, because every surface that paints a
@@ -232,7 +236,6 @@ struct TransferItem {
 	EncryptedFormat encryptedFormat = EncryptedFormat::Unavailable;
 	QByteArray encryptedPayload;
 	std::optional<TimeId> date;
-	quint64 lt = 0;
 	QByteArray traceId;
 	QByteArray externalHashNorm;
 	QString failureReason;
@@ -345,6 +348,7 @@ struct PendingSendInfo {
 	QString comment;
 	UserId recipient;
 	bool bounce = false;
+	TransferGiftMove giftMove = TransferGiftMove::None;
 };
 
 [[nodiscard]] TransferItem ItemFromPending(const PendingSendInfo &pending);
@@ -357,6 +361,28 @@ struct SendStarted {
 struct ListedSubmittedTransfer {
 	std::string operationId;
 	TransferItem item;
+	QString servedId;
+};
+
+struct GiftMoveHistoryCoverage {
+	std::optional<TimeId> oldest;
+	QString cursor;
+	bool complete = false;
+};
+
+struct GiftMovePreviewData {
+	uint64 token = 0;
+	uint64 generation = 0;
+	std::string operationId;
+	std::string selected;
+	TransferItem item;
+	std::weak_ptr<void> alive;
+};
+
+struct WindowSend {
+	std::string operationId;
+	std::shared_ptr<bool> guard;
+	std::vector<GiftMovePreviewData> previews;
 };
 
 struct TransferReceipt {
@@ -415,8 +441,10 @@ struct SendComment {
 
 struct SendArgs {
 	QString destination;
-	// An owned collectible's item address; the session picks amountNano then.
+	// The owned item's address; without a payload the session sets amountNano.
 	QString collectible;
+	// A served NFT transfer body, sent unmodified to the collectible.
+	QString payload;
 	int64 amountNano = 0;
 	UserId userId;
 	SendComment comment;
@@ -447,15 +475,13 @@ struct SendArgs {
 // The 32 hash bytes in base64 or hex, or nothing for another shape.
 [[nodiscard]] QByteArray TransactionHashFromServer(const QString &value);
 
-[[nodiscard]] std::vector<TransferItem> HistoryFromEngine(
-	const std::vector<wallet_engine::ActivityItem> &items,
-	std::optional<TransferWalletIdentity> identity = std::nullopt);
-
 [[nodiscard]] std::vector<TransferItem> HistoryFromServer(
+	not_null<Main::Session*> session,
 	const QVector<MTPWalletTransaction> &list,
 	std::optional<TransferWalletIdentity> identity = std::nullopt);
 
-[[nodiscard]] std::vector<Gram::NftItem> CollectiblesFromServer(
+[[nodiscard]] std::vector<CollectibleRecord> CollectiblesFromServer(
+	not_null<Main::Session*> session,
 	const QVector<MTPwallet_NftItem> &list);
 
 [[nodiscard]] bool IsWordlistWord(const QString &word);
@@ -561,7 +587,6 @@ public:
 	// never reconciles a passcode while an install is only armed. A failed
 	// reset can preserve unusable state when it announces its terminal result.
 	[[nodiscard]] rpl::producer<> keyProtectionUpdates() const;
-	void notifyKeyProtectionChanged(bool vaultKeyStillUnusable = false);
 
 	void resetCustodyAfterForgottenPasscode(Fn<void(CustodyResetResult)> done);
 
@@ -755,7 +780,7 @@ public:
 	void loadMoreHistory();
 	void resetHiddenHistoryPages();
 
-	[[nodiscard]] const std::vector<Gram::NftItem> &collectibles() const;
+	[[nodiscard]] const std::vector<CollectibleRecord> &collectibles() const;
 	[[nodiscard]] rpl::producer<> collectiblesUpdates() const;
 	[[nodiscard]] bool collectiblesTab() const;
 	[[nodiscard]] rpl::producer<bool> collectiblesTabValue() const;
@@ -764,7 +789,14 @@ public:
 	void loadMoreCollectibles();
 	void resolveCollectibleInfo(
 		const QString &item,
-		Fn<void(const Gram::NftItem &)> done);
+		Fn<void(const CollectibleRecord &)> done);
+	[[nodiscard]] auto collectibleInfoReplaced() const
+	-> rpl::producer<CollectibleRecord>;
+	// Waits for a collectible the server is sending to this wallet.
+	[[nodiscard]] uint64 expectIncomingCollectible(
+		Fn<bool(const Gram::NftItem &)> matches,
+		Fn<void(bool arrived)> done);
+	void cancelIncomingCollectible(uint64 id);
 #ifdef _DEBUG
 	void debugClearNetworkState();
 	void debugRestoreNetworkState();
@@ -779,6 +811,7 @@ public:
 	[[nodiscard]] TransferMessages &transferMessages();
 	[[nodiscard]] UserAddresses &userAddresses();
 	[[nodiscard]] TonConnect &tonConnect();
+	[[nodiscard]] OwnCard &ownCard();
 
 	[[nodiscard]] Ui::SeparatePanel *panel() const;
 	void setPanel(std::unique_ptr<Ui::SeparatePanel> panel);
@@ -824,7 +857,8 @@ public:
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(SendStarted)> started = nullptr);
+		Fn<void(SendStarted)> started = nullptr,
+		Fn<void(std::string)> preparing = nullptr);
 	[[nodiscard]] SendError sendRefusal(
 		const std::shared_ptr<const PreparedSend> &prepared,
 		const KeyAuthorization &auth);
@@ -837,8 +871,6 @@ public:
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] std::optional<PendingSendInfo> pendingSend() const;
-	[[nodiscard]] auto lastTransferReceipt() const
-		-> const std::optional<TransferReceipt> &;
 	[[nodiscard]] std::vector<TransferItem> submittedTransactions() const;
 	[[nodiscard]] auto listedSubmittedTransactions() const
 	-> std::vector<ListedSubmittedTransfer>;
@@ -850,8 +882,8 @@ public:
 	[[nodiscard]] std::optional<TransferItem> sendingTransaction(
 		const std::string &operationId) const;
 	// The send the wallet window started, which its list shows as sending.
-	void setWindowSend(std::string operationId);
-	[[nodiscard]] const std::string &windowSend() const;
+	void setWindowSend(WindowSend value);
+	[[nodiscard]] const WindowSend &windowSend() const;
 	[[nodiscard]] TonConnectSendFate tonConnectSendFate(
 		const std::string &operationId);
 
@@ -1055,11 +1087,12 @@ private:
 	void applyCollectibles(
 		const MTPwallet_NftItems &result,
 		const CollectiblesRequest &request);
-	void setCollectibles(std::vector<Gram::NftItem> &&list);
+	void setCollectibles(std::vector<CollectibleRecord> &&list);
 	void rememberCollectibles(const std::vector<TransferItem> &items);
 	void followCollectibles(const std::vector<TransferItem> &arrived);
 	void followCollectible(const QString &address, bool incoming);
-	void spendCollectibleFollowUps(const std::vector<Gram::NftItem> *list);
+	void spendCollectibleFollowUps(
+		const std::vector<CollectibleRecord> *list);
 	struct PreviewRequest;
 	struct PreviewState;
 	[[nodiscard]] bool previewCurrent(const PreviewRequest &request) const;
@@ -1184,7 +1217,9 @@ private:
 	const std::unique_ptr<UserAddresses> _userAddresses;
 	const std::unique_ptr<TransferMessages> _transferMessages;
 	const std::unique_ptr<TonConnect> _tonConnect;
+	const std::unique_ptr<OwnCard> _ownCard;
 	const std::unique_ptr<Stream> _stream;
+	const std::unique_ptr<CollectibleWaits> _collectibleWaits;
 	base::Timer _pollTimer;
 	base::Timer _shareFetchTimer;
 	base::Timer _gaslessTimer;
@@ -1260,9 +1295,10 @@ private:
 	bool _historyHasNext = false;
 	// Set by new rows, cleared when paging stalls: a shown row stays shown.
 	std::optional<TimeId> _listedBoundary;
+	GiftMoveHistoryCoverage _giftMoveCoverage;
 	crl::time _historyRefreshedAt = 0;
 
-	std::vector<Gram::NftItem> _collectibles;
+	std::vector<CollectibleRecord> _collectibles;
 	rpl::event_stream<> _collectiblesUpdates;
 	rpl::variable<bool> _collectiblesTab = false;
 	crl::time _collectiblesRefreshedAt = 0;
@@ -1272,10 +1308,13 @@ private:
 	QString _collectiblesNextOffset;
 	bool _collectiblesPaged = false;
 	bool _collectiblesForced = false;
-	base::flat_map<QString, Gram::NftItem> _collectibleInfo;
+	base::flat_map<QString, CollectibleRecord> _collectibleInfo;
+	// Answered by toncenter only, so a served record replaces them.
+	base::flat_set<QString> _collectibleInfoLookedUp;
+	rpl::event_stream<CollectibleRecord> _collectibleInfoReplaced;
 	base::flat_map<
 		QString,
-		std::vector<Fn<void(const Gram::NftItem &)>>> _collectibleInfoWaiters;
+		std::vector<Fn<void(const CollectibleRecord &)>>> _collectibleInfoWaiters;
 	struct CollectibleFollowUp {
 		bool incoming = false;
 		int left = 0;
@@ -1306,7 +1345,7 @@ private:
 	std::optional<PendingSendInfo> _pending;
 	bool _sendUnresolved = false;
 	std::string _unresolvedOperationId;
-	std::string _windowSend;
+	WindowSend _windowSend;
 	uint64 _sendRevision = 0;
 	struct TransferSubmissionState {
 		std::string operationId;
@@ -1332,7 +1371,6 @@ private:
 	std::vector<SubmittedTransfer> _submitted;
 	std::shared_ptr<SubmittedLookup> _lookup;
 	std::string _lastLookupOperationId;
-	std::optional<TransferReceipt> _lastReceipt;
 	bool _previewPending = false;
 	std::unique_ptr<PreviewState> _preview;
 

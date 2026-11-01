@@ -13,17 +13,6 @@ class Session;
 
 namespace Serialize {
 
-int storageImageLocationSize(const StorageImageLocation &location);
-void writeStorageImageLocation(
-	QDataStream &stream,
-	const StorageImageLocation &location);
-
-// NB! This method can return StorageFileLocation with Type::Generic!
-// The reader should discard it or convert to one of the valid modern types.
-std::optional<StorageImageLocation> readStorageImageLocation(
-	int streamAppVersion,
-	QDataStream &stream);
-
 int imageLocationSize(const ImageLocation &location);
 void writeImageLocation(QDataStream &stream, const ImageLocation &location);
 

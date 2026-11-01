@@ -490,13 +490,6 @@ DynamicImage *SubsectionButton::userpic() const {
 	return _data.userpic.get();
 }
 
-void SubsectionButton::setActiveShown(float64 activeShown) {
-	if (_activeShown != activeShown) {
-		_activeShown = activeShown;
-		update();
-	}
-}
-
 void SubsectionButton::setIsPinned(bool pinned) {
 	if (_isPinned != pinned) {
 		_isPinned = pinned;
@@ -529,10 +522,6 @@ bool SubsectionButton::isLastPinned() const {
 void SubsectionButton::setBackgroundMargin(int margin) {
 	_backgroundMargin = margin;
 	invalidateCache();
-}
-
-void SubsectionButton::setShift(int shift) {
-	_shift = shift;
 }
 
 void SubsectionButton::contextMenuEvent(QContextMenuEvent *e) {
@@ -731,28 +720,6 @@ int SubsectionSlider::lookupSectionPosition(int index) const {
 }
 
 void SubsectionSlider::paintEvent(QPaintEvent *e) {
-}
-
-int SubsectionSlider::lookupSectionIndex(QPoint position) const {
-	Expects(!_tabs.empty());
-
-	const auto count = sectionsCount();
-	if (_vertical) {
-		for (auto i = 0; i != count; ++i) {
-			const auto tab = _tabs[i].get();
-			if (position.y() < tab->y() + tab->height()) {
-				return i;
-			}
-		}
-	} else {
-		for (auto i = 0; i != count; ++i) {
-			const auto tab = _tabs[i].get();
-			if (position.x() < tab->x() + tab->width()) {
-				return i;
-			}
-		}
-	}
-	return count - 1;
 }
 
 SubsectionSlider::Range SubsectionSlider::getFinalActiveRange() const {

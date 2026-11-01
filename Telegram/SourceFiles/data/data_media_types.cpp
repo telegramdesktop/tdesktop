@@ -383,11 +383,18 @@ bool UpdateExtendedMedia(
 	auto changed = false;
 	const auto count = int(media.size());
 	for (auto i = 0; i != count; ++i) {
-		if (i <= invoice.extendedMedia.size()) {
+		if (i == invoice.extendedMedia.size()) {
 			invoice.extendedMedia.emplace_back();
 			changed = true;
 		}
-		UpdateExtendedMedia(invoice.extendedMedia[i], item, media[i]);
+		changed = UpdateExtendedMedia(
+			invoice.extendedMedia[i],
+			item,
+			media[i]) || changed;
+		if (!invoice.extendedMedia[i]) {
+			invoice.extendedMedia.clear();
+			return true;
+		}
 	}
 	if (count < invoice.extendedMedia.size()) {
 		invoice.extendedMedia.resize(count);
@@ -2389,7 +2396,8 @@ std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 			message,
 			realParent,
 			replacing);
-	} else if (!_invoice.extendedMedia.empty()) {
+	} else if (!_invoice.extendedMedia.empty()
+		&& ranges::all_of(_invoice.extendedMedia, &Media::canBeGrouped)) {
 		return std::make_unique<HistoryView::GroupedMedia>(
 			message,
 			_invoice.extendedMedia);

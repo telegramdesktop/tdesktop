@@ -23,6 +23,7 @@ class Session;
 class DcOptions;
 class Config;
 struct ConfigFields;
+struct ProxyData;
 class AuthKey;
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 using AuthKeysList = std::vector<AuthKeyPtr>;
@@ -135,7 +136,7 @@ public:
 	void requestConfigIfOld();
 	void requestCDNConfig();
 	void setUserPhone(const QString &phone);
-	void badConfigurationError();
+	void badConfigurationError(const ProxyData &proxy);
 
 	void restartedByTimeout(ShiftedDcId shiftedDcId);
 	[[nodiscard]] rpl::producer<ShiftedDcId> restartsByTimeout() const;

@@ -2,8 +2,10 @@
 
 layout(local_size_x = 64) in;
 
-layout(rgba32f, binding = 0) uniform image2D particleStateImage;
-layout(rgba32f, binding = 2) uniform image2D particleVelocityImage;
+// One texel per float: offset.x, offset.y, lifetime for the state and
+// x, y for the velocity, as only single-channel images load everywhere.
+layout(r32f, binding = 0) uniform image2D particleStateImage;
+layout(r32f, binding = 2) uniform image2D particleVelocityImage;
 
 layout(std140, binding = 1) uniform Params {
 	uint particleCountX;
@@ -35,20 +37,31 @@ void main() {
 	float particleXFraction = float(particleX) / float(particleCountX);
 	float particleFraction = easeInWindow(effectFraction, particleXFraction);
 
-	ivec2 coord = ivec2(
-		int(particleX),
-		int(gid / particleCountX));
+	int y = int(gid / particleCountX);
+	ivec2 stateCoord = ivec2(int(particleX) * 3, y);
+	ivec2 velocityCoord = ivec2(int(particleX) * 2, y);
 
-	vec4 state = imageLoad(particleStateImage, coord);
-	vec2 offset = state.xy;
-	float lifetime = state.z;
+	vec2 offset = vec2(
+		imageLoad(particleStateImage, stateCoord).x,
+		imageLoad(particleStateImage, stateCoord + ivec2(1, 0)).x);
+	float lifetime = imageLoad(
+		particleStateImage,
+		stateCoord + ivec2(2, 0)).x;
 
-	vec2 velocity = imageLoad(particleVelocityImage, coord).xy;
+	vec2 velocity = vec2(
+		imageLoad(particleVelocityImage, velocityCoord).x,
+		imageLoad(particleVelocityImage, velocityCoord + ivec2(1, 0)).x);
 
 	offset += velocity * timeStep * particleFraction;
 	velocity.y += 80.0 * timeStep * particleFraction;
 	lifetime = max(0.0, lifetime - 0.6 * timeStep * particleFraction);
 
-	imageStore(particleStateImage, coord, vec4(offset, lifetime, 0.0));
-	imageStore(particleVelocityImage, coord, vec4(velocity, 0.0, 0.0));
+	imageStore(particleStateImage, stateCoord, vec4(offset.x));
+	imageStore(particleStateImage, stateCoord + ivec2(1, 0), vec4(offset.y));
+	imageStore(particleStateImage, stateCoord + ivec2(2, 0), vec4(lifetime));
+	// velocity.x stays as the init pass wrote it.
+	imageStore(
+		particleVelocityImage,
+		velocityCoord + ivec2(1, 0),
+		vec4(velocity.y));
 }

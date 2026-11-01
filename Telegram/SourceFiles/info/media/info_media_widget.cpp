@@ -27,15 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Info::Media {
 
-std::optional<int> TypeToTabIndex(Type type) {
-	switch (type) {
-	case Type::Photo: return 0;
-	case Type::Video: return 1;
-	case Type::File: return 2;
-	}
-	return std::nullopt;
-}
-
 Type TabIndexToType(int index) {
 	switch (index) {
 	case 0: return Type::Photo;

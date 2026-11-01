@@ -32,13 +32,13 @@ Coin::Coin(QWidget *parent)
 Coin::~Coin() = default;
 
 std::unique_ptr<Ui::GL::Renderer> Coin::createRenderer() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	auto renderer = std::make_unique<CoinRenderer>();
 	_renderer = renderer.get();
 	return renderer;
-#else // Qt >= 6.7
+#else // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	return nullptr;
-#endif // Qt < 6.7
+#endif // Qt < 6.7 || DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Coin::applyState(
@@ -47,7 +47,7 @@ void Coin::applyState(
 		float time,
 		float alpha,
 		bool night) {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setState({
 			.yaw = yaw,
@@ -57,7 +57,7 @@ void Coin::applyState(
 			.night = night,
 		});
 	}
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 } // namespace Ui::Premium

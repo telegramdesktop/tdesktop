@@ -122,7 +122,7 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 		return;
 	}
 	if (const auto user = item->history()->peer->asUser()) {
-		if (!user->isBot() || !user->botInfo->inlineReturnTo.key) {
+		if (!user->isBot() || !user->botInfo->inlineReturnTo().key) {
 			return;
 		}
 		if (const auto markup = item->Get<HistoryMessageReplyMarkup>()) {
@@ -558,6 +558,9 @@ void Session::clear() {
 	_contactsList.clear();
 	for (const auto &[id, folder] : _folders) {
 		folder->clearChatsList();
+
+		// Folders outlive clear(), don't leave them with dangling rows.
+		removeChatListEntry(folder.get());
 	}
 	_chatsList.clear();
 	_chatsFilters->clear();
@@ -824,7 +827,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				? result->phone()
 				: qs(data.vphone().value_or_empty());
 			const auto uname = minimal
-				? result->username()
+				? result->editableUsername()
 				: TextUtilities::SingleLine(
 					qs(data.vusername().value_or_empty()));
 
@@ -1990,24 +1993,6 @@ void Session::requestDocumentViewRepaint(
 	if (i != end(_documentItems)) {
 		for (const auto &item : i->second) {
 			requestItemRepaint(item);
-		}
-	}
-}
-
-void Session::requestPollViewRepaint(not_null<const PollData*> poll) {
-	if (const auto i = _pollViews.find(poll); i != _pollViews.end()) {
-		for (const auto &view : i->second) {
-			requestViewResize(view);
-		}
-	}
-}
-
-void Session::requestTodoListViewRepaint(
-		not_null<const TodoListData*> todolist) {
-	if (const auto i = _todoListViews.find(todolist)
-		; i != _todoListViews.end()) {
-		for (const auto &view : i->second) {
-			requestViewResize(view);
 		}
 	}
 }
@@ -3680,13 +3665,6 @@ bool Session::unreadBadgeMutedIgnoreOne(Dialogs::Key key) const {
 	return computeUnreadBadgeMuted(_chatsList.unreadState() - remove);
 }
 
-int Session::unreadOnlyMutedBadge() const {
-	const auto state = _chatsList.unreadState();
-	return Core::App().settings().countUnreadMessages()
-		? state.messagesMuted
-		: state.chatsMuted;
-}
-
 rpl::producer<> Session::unreadBadgeChanges() const {
 	return _unreadBadgeChanges.events();
 }
@@ -3929,7 +3907,9 @@ void Session::photoApplyFields(
 			sizes,
 			std::greater<>(),
 			level);
-		return (level(*result) == kInvalidIndex) ? sizes.end() : result;
+		return (result == sizes.end() || level(*result) == kInvalidIndex)
+			? sizes.end()
+			: result;
 	};
 	const auto image = [&](const QByteArray &levels) {
 		const auto i = find(levels);
@@ -3945,7 +3925,9 @@ void Session::photoApplyFields(
 		}
 		const auto area = [](const MTPVideoSize &size) {
 			return size.match([](const MTPDvideoSize &data) {
-				return data.vsize().v ? (data.vw().v * data.vh().v) : 0;
+				return (data.vsize().v > 0)
+					? (data.vw().v * data.vh().v)
+					: 0;
 			}, [](const MTPDvideoSizeEmojiMarkup &) {
 				return 0;
 			}, [](const MTPDvideoSizeStickerMarkup &) {
@@ -4940,15 +4922,9 @@ not_null<PollData*> Session::processPoll(const MTPDmessageMediaPoll &data) {
 				media.document = processDocument(*document);
 			}
 		}, [&](const MTPDmessageMediaGeo &data) {
-			data.vgeo().match([&](const MTPDgeoPoint &point) {
-				media.geo = LocationPoint(point);
-			}, [](const MTPDgeoPointEmpty &) {
-			});
+			media.geo = LocationPoint::FromMTP(data.vgeo());
 		}, [&](const MTPDmessageMediaVenue &data) {
-			data.vgeo().match([&](const MTPDgeoPoint &point) {
-				media.geo = LocationPoint(point);
-			}, [](const MTPDgeoPointEmpty &) {
-			});
+			media.geo = LocationPoint::FromMTP(data.vgeo());
 		}, [](const auto &) {
 		});
 	}
@@ -6047,7 +6023,13 @@ auto Session::joinChatWebViewDecision() const
 }
 
 rpl::producer<not_null<PeerData*>> Session::peerDecorationsUpdated() const {
-	return _peerDecorationsUpdated.events();
+	return rpl::merge(
+		_peerDecorationsUpdated.events(),
+		session().changes().peerUpdates(
+			PeerUpdate::Flag::BarSettings
+		) | rpl::map([](const PeerUpdate &update) {
+			return update.peer;
+		}));
 }
 
 void Session::viewTagsChanged(

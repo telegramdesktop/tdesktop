@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_credits.h"
 #include "api/api_global_privacy.h"
+#include "api/api_share_themes.h"
 #include "api/api_statistics.h"
 #include "base/timer_rpl.h"
 #include "data/components/credits.h"
@@ -320,14 +321,15 @@ void ChannelData::setLocation(const MTPChannelLocation &data) {
 	const auto was = mgInfo->getLocation();
 	const auto wasValue = was ? *was : ChannelLocation();
 	data.match([&](const MTPDchannelLocation &data) {
-		data.vgeo_point().match([&](const MTPDgeoPoint &point) {
+		const auto point = Data::LocationPoint::FromMTP(data.vgeo_point());
+		if (point) {
 			mgInfo->setLocation({
 				qs(data.vaddress()),
-				Data::LocationPoint(point)
+				*point
 			});
-		}, [&](const MTPDgeoPointEmpty &) {
+		} else {
 			mgInfo->setLocation(ChannelLocation());
-		});
+		}
 	}, [&](const MTPDchannelLocationEmpty &) {
 		mgInfo->setLocation(ChannelLocation());
 	});
@@ -924,9 +926,16 @@ void ChannelData::setAdminRights(ChatAdminRights rights) {
 		this,
 		UpdateFlag::Rights | UpdateFlag::Admins | UpdateFlag::BannedUsers);
 	if (isBroadcast() && _monoforumLink) {
-		const auto flags = _monoforumLink->flags();
-		_monoforumLink->setFlags((flags & ~Flag::MonoforumAdmin)
-			| (canAccessMonoforum() ? Flag::MonoforumAdmin : Flag()));
+		if (canAccessMonoforum()) {
+			_monoforumLink->addFlags(Flag::MonoforumAdmin);
+		} else if (_monoforumLink->amMonoforumAdmin()) {
+			// A reply may revoke these rights while still using the sublists.
+			Core::App().postponeCall(crl::guard(&session(), [=] {
+				if (_monoforumLink && !canAccessMonoforum()) {
+					_monoforumLink->removeFlags(Flag::MonoforumAdmin);
+				}
+			}));
+		}
 	}
 }
 
@@ -1416,6 +1425,9 @@ void ApplyChannelUpdate(
 	channel->setSlowmodeSeconds(update.vslowmode_seconds().value_or_empty());
 	channel->setPeerGiftsCount(update.vstargifts_count().value_or_empty());
 	channel->setMainProfileTab(Data::ParseProfileTab(update.vmain_tab()));
+	channel->session().api().shareThemes().apply(
+		channel,
+		update.vshare_theme());
 	if (const auto next = update.vslowmode_next_send_date()) {
 		channel->growSlowmodeLastMessage(
 			next->v - channel->slowmodeSeconds());

@@ -527,15 +527,9 @@ PollMedia PollMediaFromMTP(
 			});
 		}
 	}, [&](const MTPDmessageMediaGeo &data) {
-		data.vgeo().match([&](const MTPDgeoPoint &point) {
-			result.geo = Data::LocationPoint(point);
-		}, [](const MTPDgeoPointEmpty &) {
-		});
+		result.geo = Data::LocationPoint::FromMTP(data.vgeo());
 	}, [&](const MTPDmessageMediaVenue &data) {
-		data.vgeo().match([&](const MTPDgeoPoint &point) {
-			result.geo = Data::LocationPoint(point);
-		}, [](const MTPDgeoPointEmpty &) {
-		});
+		result.geo = Data::LocationPoint::FromMTP(data.vgeo());
 	}, [&](const MTPDmessageMediaWebPage &data) {
 		data.vwebpage().match([&](const MTPDwebPage &page) {
 			result.webpage = owner->processWebpage(page);
@@ -574,10 +568,9 @@ PollMedia PollMediaFromInputMTP(
 		});
 	}, [&](const MTPDinputMediaGeoPoint &data) {
 		data.vgeo_point().match([&](const MTPDinputGeoPoint &point) {
-			result.geo.emplace(
+			result.geo = Data::LocationPoint::FromCoordinates(
 				point.vlat().v,
-				point.vlong().v,
-				Data::LocationPoint::NoAccessHash);
+				point.vlong().v);
 		}, [](const auto &) {
 		});
 	}, [&](const MTPDinputMediaWebPage &data) {

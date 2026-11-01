@@ -20,6 +20,10 @@ inline bool CheckAppTranslocation() {
 inline void IgnoreApplicationActivationRightNow() {
 }
 
+inline int64 ClipboardChangeCount() {
+	return 0;
+}
+
 inline bool TrayIconSupported() {
 	return true;
 }
@@ -44,6 +48,10 @@ void SetWindowPriority(not_null<QWidget*> window, uint32 priority);
 void ActivateOtherProcess(uint64 processId, uint64 windowId);
 
 [[nodiscard]] bool WaitForProcessExit(uint64 processId, crl::time timeout);
+
+inline bool LocalSocketPeerAllowed(qintptr) {
+	return true;
+}
 
 inline QString ApplicationIconName() {
 	return {};

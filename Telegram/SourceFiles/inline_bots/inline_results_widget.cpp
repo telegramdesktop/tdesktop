@@ -183,10 +183,6 @@ void Widget::paintContent(QPainter &p) {
 	p.fillRect(myrtlrect(inner.x(), sidesTop, st::roundRadiusSmall, sidesHeight), st::emojiPanBg);
 }
 
-void Widget::moveByBottom() {
-	updateContentHeight();
-}
-
 void Widget::hideFast() {
 	if (isHidden()) return;
 

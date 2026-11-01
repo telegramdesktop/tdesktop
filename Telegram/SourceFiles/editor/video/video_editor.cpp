@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/video/video_editor.h"
 
+#include "base/event_filter.h"
 #include "base/timer.h"
 #include "editor/editor_crop.h"
 #include "editor/video/video_quality_slider.h"
@@ -19,10 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/layer_widget.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/tooltip.h"
 #include "ui/painter.h"
 #include "ui/text/format_values.h"
+#include "ui/ui_utility.h"
 #include "styles/style_editor.h"
 
+#include <QtCore/QFileInfo>
 #include <QtGui/QPainterPath>
 #include <QtGui/QtEvents>
 #include <QtWidgets/QApplication>
@@ -37,6 +41,16 @@ constexpr auto kBubbleMinVisible = crl::time(600);
 constexpr auto kBubbleDuration = crl::time(500);
 
 constexpr auto kCaptureDuration = crl::time(420);
+
+constexpr auto kMaxGifSize = 10 * 1024 * 1024;
+
+[[nodiscard]] int64 SourceSize(
+		const QString &path,
+		const QByteArray &content) {
+	return path.isEmpty()
+		? int64(content.size())
+		: QFileInfo(path).size();
+}
 
 class ControlsBar final : public Ui::RpWidget {
 public:
@@ -185,6 +199,7 @@ VideoEditor::VideoEditor(
 	SegmentPlayerOptions{ .keepAlpha = _data.webmSticker })) {
 	_geometry = _initial.geometry;
 	_gif = _initial.gif;
+	_gifAllowed = (SourceSize(_path, _content) <= kMaxGifSize);
 	_geometry.cropType = _data.editor.cropType;
 	_geometry.cropMode = _data.editor.cropMode;
 	if (!_geometry.crop.isValid() && !_data.exactSize.isEmpty()) {
@@ -367,6 +382,7 @@ void VideoEditor::setupControls() {
 		_gifButton = base::make_unique_q<Ui::IconButton>(
 			bar,
 			st::videoEditorGifButton);
+		setupGifButton();
 	}
 	_confirm = base::make_unique_q<BarTextButton>(
 		bar,
@@ -500,20 +516,6 @@ void VideoEditor::setupControls() {
 		refreshSizeEstimate();
 		invalidateCoverPreview();
 	});
-	if (_gifButton) {
-		const auto refresh = [=] {
-			const auto icon = _gif
-				? &st::videoEditorGifIconActive
-				: nullptr;
-			_gifButton->setIconOverride(icon, icon);
-		};
-		refresh();
-		_gifButton->setClickedCallback([=] {
-			_gif = !_gif;
-			refresh();
-			refreshSizeEstimate();
-		});
-	}
 	_cancelButton->setClickedCallback([=] {
 		_cancel.fire({});
 	});
@@ -521,6 +523,83 @@ void VideoEditor::setupControls() {
 		_timeline->commitPendingEdit();
 		_done.fire(collect());
 	});
+}
+
+void VideoEditor::setupGifButton() {
+	if (!_gifButton) {
+		return;
+	}
+	const auto refresh = [=] {
+		const auto icon = _gif
+			? &st::videoEditorGifIconActive
+			: nullptr;
+		_gifButton->setIconOverride(icon, icon);
+	};
+	refresh();
+	_gifButton->setClickedCallback([=] {
+		if (!_gifAllowed) {
+			return;
+		}
+		_gif = !_gif;
+		refresh();
+		refreshSizeEstimate();
+	});
+	if (_gifAllowed) {
+		return;
+	}
+	_gifButton->setDisabled(true);
+	_gifButton->setIconColorOverride(st::photoEditorButtonIconFgInactive->c);
+	base::install_event_filter(_gifButton, [](not_null<QEvent*> e) {
+		const auto type = e->type();
+		return (type == QEvent::MouseButtonPress
+			|| type == QEvent::MouseButtonDblClick)
+			? base::EventFilterResult::Cancel
+			: base::EventFilterResult::Continue;
+	}, _gifButton->lifetime());
+	_gifButton->events() | rpl::on_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::Enter) {
+			showGifTooltip();
+		} else if (type == QEvent::Leave) {
+			hideGifTooltip();
+		}
+	}, _gifButton->lifetime());
+}
+
+void VideoEditor::showGifTooltip() {
+	if (_gifAllowed || !_gifButton) {
+		return;
+	}
+	if (!_gifTooltip) {
+		const auto parent = parentWidget();
+		if (!parent) {
+			return;
+		}
+		const auto text = tr::marked(tr::lng_video_editor_gif_too_large(
+			tr::now,
+			lt_size,
+			QString::number(kMaxGifSize / (1024 * 1024)) + u" MB"_q));
+		_gifTooltip = base::make_unique_q<Ui::ImportantTooltip>(
+			parent,
+			Ui::MakeNiceTooltipLabel(
+				parent,
+				rpl::single(text),
+				st::videoEditorGifTooltipMaxWidth,
+				st::defaultImportantTooltipLabel),
+			st::defaultImportantTooltip);
+		_gifTooltip->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+	const auto parent = _gifTooltip->parentWidget();
+	_gifTooltip->pointAt(
+		Ui::MapFrom(parent, _gifButton, _gifButton->rect()),
+		RectPart::Top | RectPart::Center);
+	_gifTooltip->toggleAnimated(true);
+}
+
+void VideoEditor::hideGifTooltip() {
+	if (_gifTooltip) {
+		_gifTooltip->toggleAnimated(false);
+	}
 }
 
 void VideoEditor::setupStreaming() {

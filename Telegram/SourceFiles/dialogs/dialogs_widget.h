@@ -236,6 +236,7 @@ private:
 
 	// Child list may be unable to set specific search state.
 	bool applySearchState(SearchState state);
+	void trackSearchInChatDestroyed();
 
 	void showCalendar();
 	void showSearchFrom();
@@ -309,6 +310,7 @@ private:
 	void updateSuggestions(anim::type animated);
 	void processSearchFocusChange();
 	void closeSuggestions();
+	[[nodiscard]] bool suggestionsCoverList() const;
 	[[nodiscard]] bool searchActive() const;
 
 	[[nodiscard]] bool redirectToSearchPossible() const;
@@ -318,8 +320,10 @@ private:
 	struct CancelSearchOptions {
 		bool forceFullCancel = false;
 		bool jumpBackToSearchedChat = false;
+		bool leaveSearch = false;
 	};
 	bool cancelSearch(CancelSearchOptions options);
+	void escape(CancelSearchOptions options);
 
 	MTP::Sender _api;
 
@@ -399,6 +403,7 @@ private:
 	SearchState _searchState;
 	History *_searchInMigrated = nullptr;
 	rpl::lifetime _searchTagsLifetime;
+	rpl::lifetime _searchInChatLifetime;
 	QString _lastSearchText;
 	bool _searchSuggestionsLocked = false;
 	bool _searchHasFocus = false;
@@ -438,10 +443,12 @@ private:
 	bool _chatsFilterSwipeSwitch = false;
 	bool _swipeBackMirrored = false;
 	bool _swipeBackIconMirrored = false;
+	bool _swipeSearchTabs = false;
 
 	SearchProcessState _searchProcess;
 	SearchProcessState _migratedProcess;
 	SearchProcessState _postsProcess;
+	uint64 _searchGeneration = 0;
 	int _historiesRequest = 0; // Not real mtpRequestId.
 
 	Api::PeerSearch _peerSearch;

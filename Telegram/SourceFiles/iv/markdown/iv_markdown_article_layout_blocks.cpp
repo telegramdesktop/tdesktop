@@ -44,14 +44,6 @@ constexpr auto kReadableTextColumns = 12;
 constexpr auto kReadableTextLineHeights = 4;
 constexpr auto kReadableCodeColumns = 16;
 
-thread_local const LayoutContext *CurrentLayoutContext = nullptr;
-
-[[nodiscard]] QString DetailsStateText(bool open) {
-	return open
-		? tr::lng_iv_details_state_expanded(tr::now)
-		: tr::lng_iv_details_state_collapsed(tr::now);
-}
-
 [[nodiscard]] size_t CombineHash(size_t accumulator, size_t value) {
 	return (accumulator * 1315423911U) ^ value;
 }
@@ -162,105 +154,16 @@ void SetPlainTextLeaf(
 	int minResizeWidth,
 	bool rtl);
 
-[[nodiscard]] CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
-		TextWithEntities text,
-		const style::TextStyle &textStyle,
-		int minResizeWidth,
-		bool rtl) {
-	auto result = CachedTextLeafSourceSignature();
-	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
-	result.dependsOnInlineButtonColumn = TextHasInlineButton(text);
-	result.text = std::move(text);
-	result.minResizeWidth = minResizeWidth;
-	result.styleKey = TextStyleKey(textStyle);
-	result.rtl = rtl;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
-		const QString &text,
-		const style::TextStyle &textStyle,
-		int minResizeWidth,
-		bool rtl) {
-	return MarkedTextLeafSourceSignature(
-		TextWithEntities::Simple(text),
-		textStyle,
-		minResizeWidth,
-		rtl);
-}
-
-[[nodiscard]] CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
-		const PreparedBlock &prepared,
-		const style::Markdown &st) {
-	auto result = MarkedTextLeafSourceSignature(
-		CodeBlockDisplayText(prepared.text),
-		st.code,
-		CodeTextMinResizeWidth(st),
-		false);
-	result.codeLanguage = prepared.codeLanguage;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafKey BlockCachedTextLeafKey(
-		CachedTextLeafSlot slot,
-		const PreparedBlock &prepared,
-		const std::vector<int> &preparedPath) {
-	auto result = CachedTextLeafKey();
-	result.slot = slot;
-	if ((slot == CachedTextLeafSlot::Leaf
-			|| slot == CachedTextLeafSlot::Placeholder
-			|| slot == CachedTextLeafSlot::Fallback)
-		&& prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
+template <typename Callback>
+void EnumerateCodeBlockDisplayChars(const QString &text, Callback &&callback) {
+	auto column = 0;
+	for (const auto ch : text) {
+		const auto width = (ch == QChar::Tabulation)
+			? (kCodeTabColumns - (column % kCodeTabColumns))
+			: 1;
+		callback(ch, width);
+		column = Ui::Text::IsNewline(ch) ? 0 : (column + width);
 	}
-	if ((slot == CachedTextLeafSlot::Marker) && prepared.editListItem) {
-		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
-		result.editListItem = *prepared.editListItem;
-		return result;
-	}
-	if (prepared.editBlock) {
-		result.identityKind = CachedTextLeafIdentityKind::EditBlock;
-		result.editBlock = *prepared.editBlock;
-		return result;
-	}
-	if (prepared.editListItem) {
-		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
-		result.editListItem = *prepared.editListItem;
-		return result;
-	}
-	if (prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	result.preparedPath = preparedPath;
-	return result;
-}
-
-[[nodiscard]] CachedTextLeafKey TableCellCachedTextLeafKey(
-		CachedTextLeafSlot slot,
-		const PreparedTableCell &prepared,
-		const std::vector<int> &preparedPath,
-		int tableRowIndex,
-		int tableCellIndex) {
-	auto result = CachedTextLeafKey();
-	result.slot = slot;
-	result.tableRowIndex = tableRowIndex;
-	result.tableCellIndex = tableCellIndex;
-	if (prepared.editLeaf) {
-		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
-		result.editLeaf = *prepared.editLeaf;
-		return result;
-	}
-	if (prepared.editCell) {
-		result.identityKind = CachedTextLeafIdentityKind::EditTableCell;
-		result.editTableCell = *prepared.editCell;
-		return result;
-	}
-	result.preparedPath = preparedPath;
-	return result;
 }
 
 template <typename Builder, typename Consumer>
@@ -741,7 +644,9 @@ void PopulateCodeBlockLeaf(
 		false,
 		std::move(repaint),
 		std::move(repaintRect),
-		std::move(spoilerLinkFilter));
+		std::move(spoilerLinkFilter),
+		false,
+		true);
 	BindLinks(leaf, codeLinks);
 	if (syntaxHighlightProcessId) {
 		*syntaxHighlightProcessId = processId;
@@ -921,39 +826,7 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	if (!block) {
 		return;
 	}
-	block->outer = QRect();
-	block->headerRect = QRect();
-	block->bodyRect = QRect();
-	block->iconRect = QRect();
-	block->textRect = QRect();
-	block->labelRect = QRect();
-	block->subtitleRect = QRect();
-	block->actionRect = QRect();
-	block->markerRect = QRect();
-	block->contentRect = QRect();
-	block->collapseControlRect = QRect();
-	block->buttonRowControlRect = QRect();
-	block->formulaRect = QRect();
-	block->tableRect = QRect();
-	block->mediaRect = QRect();
-	block->thumbnailRect = QRect();
-	block->visibleFormulaRect = QRect();
-	block->scrollViewportRect = QRect();
-	block->scrollLogicalContentRect = QRect();
-	block->scrollScrollbarTrackRect = QRect();
-	block->scrollScrollbarThumbRect = QRect();
-	block->visibleTableRect = QRect();
-	block->tableScrollbarTrackRect = QRect();
-	block->tableScrollbarThumbRect = QRect();
-	block->visibleMediaRect = QRect();
-	block->markerCenter = QPoint();
-	block->logicalGeometry = {};
-	block->textWidth = 0;
-	block->labelWidth = 0;
-	block->subtitleWidth = 0;
-	block->actionWidth = 0;
-	block->markerWidth = 0;
-	block->firstLineBaseline = -1;
+	ResetBlockGeometryFields(block);
 	block->formulaAlign = style::al_left;
 	block->overflowed = false;
 	block->insideHorizontalScroll = false;
@@ -1006,360 +879,43 @@ void FinishBlockGeometry(LaidOutBlock *block) {
 		: 0;
 }
 
-void CopyCachedTextLeaf(
-		CachedTextLeafPool *pool,
-		CachedTextLeafKey key,
-		CachedTextLeafSourceSignature source,
-		Ui::Text::String *leaf,
-		Spellchecker::HighlightProcessId syntaxHighlightProcessId = 0) {
-	if (!pool || !leaf || leaf->isEmpty()) {
-		return;
-	}
-	pool->entries.insert_or_assign(
-		std::move(key),
-		CachedTextLeafEntry{
-			.leaf = std::move(*leaf),
-			.source = std::move(source),
-			.syntaxHighlightProcessId = syntaxHighlightProcessId,
-		});
-	*leaf = Ui::Text::String();
-}
-
-void CopyBlockCachedTextLeafs(
-		const PreparedBlock &prepared,
-		LaidOutBlock &block,
-		const style::Markdown &st,
-		CachedTextLeafPool *pool,
-		const std::vector<int> &preparedPath,
-		bool rtl) {
-	const auto copyBlockLeaf = [&](CachedTextLeafSlot slot,
-			CachedTextLeafSourceSignature source,
-			Ui::Text::String *leaf,
-			Spellchecker::HighlightProcessId syntaxHighlightProcessId = 0) {
-		CopyCachedTextLeaf(
-			pool,
-			BlockCachedTextLeafKey(slot, prepared, preparedPath),
-			std::move(source),
-			leaf,
-			syntaxHighlightProcessId);
-	};
-	const auto copyTableCellLeaf = [&](
-			CachedTextLeafSlot slot,
-			const PreparedTableCell &preparedCell,
-			int tableRowIndex,
-			int tableCellIndex,
-			CachedTextLeafSourceSignature source,
-			Ui::Text::String *leaf) {
-		CopyCachedTextLeaf(
-			pool,
-			TableCellCachedTextLeafKey(
-				slot,
-				preparedCell,
-				preparedPath,
-				tableRowIndex,
-				tableCellIndex),
-			std::move(source),
-			leaf);
-	};
-
-	if (!block.marker.isEmpty()) {
-		copyBlockLeaf(
-			CachedTextLeafSlot::Marker,
-			PlainTextLeafSourceSignature(
-				ListMarkerText(prepared),
-				st.body,
-				PlainTextMinResizeWidth(st.body),
-				false),
-			&block.marker);
-	}
-
-	switch (prepared.kind) {
-	case PreparedBlockKind::Paragraph:
-	case PreparedBlockKind::Thinking:
-	case PreparedBlockKind::Heading: {
-		const auto &textStyle = TextStyleFor(prepared, st);
-		const auto &placeholderStyle = EditPlaceholderTextStyleFor(
-			prepared,
-			st);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Leaf,
-			MarkedTextLeafSourceSignature(
-				prepared.text,
-				textStyle,
-				FlowBlockMinimumWidth(prepared, st),
-				rtl),
-			&block.leaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			MarkedTextLeafSourceSignature(
-				EditPlaceholderTextValue(
-					prepared,
-					prepared.editPlaceholderText),
-				placeholderStyle,
-				PlainTextMinResizeWidth(placeholderStyle),
-				rtl),
-			&block.placeholderLeaf);
-	} break;
-	case PreparedBlockKind::CodeBlock:
-		copyBlockLeaf(
-			CachedTextLeafSlot::Leaf,
-			CodeTextLeafSourceSignature(prepared, st),
-			&block.leaf,
-			block.syntaxHighlightProcessId);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				st.code,
-				PlainTextMinResizeWidth(st.code),
-				rtl),
-			&block.placeholderLeaf);
-		break;
-	case PreparedBlockKind::DisplayMath:
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				st.displayMath.fallbackStyle,
-				DisplayMathFallbackTextMinResizeWidth(st),
-				rtl),
-				&block.placeholderLeaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Fallback,
-			MarkedTextLeafSourceSignature(
-				DisplayMathFallbackText(),
-				st.displayMath.fallbackStyle,
-				DisplayMathFallbackTextMinResizeWidth(st),
-				false),
-			&block.fallbackLeaf);
-		break;
-	case PreparedBlockKind::Table: {
-		copyBlockLeaf(
-			CachedTextLeafSlot::Leaf,
-			MarkedTextLeafSourceSignature(
-				prepared.text,
-				st.body,
-				FlowTextMinResizeWidth(st.body),
-				rtl),
-			&block.leaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				st.body,
-				PlainTextMinResizeWidth(st.body),
-				rtl),
-			&block.placeholderLeaf);
-		const auto rowCount = std::min(
-			int(prepared.tableRows.size()),
-			int(block.tableRows.size()));
-		for (auto rowIndex = 0; rowIndex != rowCount; ++rowIndex) {
-			const auto cellCount = std::min(
-				int(prepared.tableRows[rowIndex].cells.size()),
-				int(block.tableRows[rowIndex].cells.size()));
-			for (auto cellIndex = 0; cellIndex != cellCount; ++cellIndex) {
-				const auto &preparedCell = prepared.tableRows[rowIndex].cells[cellIndex];
-				auto &cell = block.tableRows[rowIndex].cells[cellIndex];
-				const auto &textStyle = preparedCell.header
-					? st.table.headerStyle
-					: st.table.bodyStyle;
-				const auto minResizeWidth = TableCellTextMinResizeWidth(
-					textStyle,
-					st);
-				copyTableCellLeaf(
-					CachedTextLeafSlot::TableCellText,
-					preparedCell,
-					rowIndex,
-					cellIndex,
-					MarkedTextLeafSourceSignature(
-						preparedCell.text,
-						textStyle,
-						minResizeWidth,
-						rtl),
-					&cell.leaf);
-				copyTableCellLeaf(
-					CachedTextLeafSlot::TableCellPlaceholder,
-					preparedCell,
-					rowIndex,
-					cellIndex,
-					PlainTextLeafSourceSignature(
-						preparedCell.editPlaceholderText,
-						textStyle,
-						minResizeWidth,
-						rtl),
-					&cell.placeholderLeaf);
-			}
-		}
-	} break;
-	case PreparedBlockKind::Details:
-		copyBlockLeaf(
-			CachedTextLeafSlot::Leaf,
-			MarkedTextLeafSourceSignature(
-				prepared.text,
-				st.details.summaryStyle,
-				FlowTextMinResizeWidth(st.details.summaryStyle),
-				rtl),
-			&block.leaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				st.details.summaryStyle,
-				PlainTextMinResizeWidth(st.details.summaryStyle),
-				rtl),
-			&block.placeholderLeaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Action,
-			PlainTextLeafSourceSignature(
-				DetailsStateText(prepared.detailsOpen),
-				st.details.summaryStyle,
-				PlainTextMinResizeWidth(st.details.summaryStyle),
-				false),
-			&block.actionLeaf);
-		break;
-	case PreparedBlockKind::Placeholder:
-		copyBlockLeaf(
-			CachedTextLeafSlot::Label,
-			PlainTextLeafSourceSignature(
-				prepared.placeholder.label,
-				st.placeholder.labelStyle,
-				PlainTextMinResizeWidth(st.placeholder.labelStyle),
-				rtl),
-			&block.labelLeaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Leaf,
-			MarkedTextLeafSourceSignature(
-				prepared.text,
-				st.body,
-				FlowTextMinResizeWidth(st.body),
-				rtl),
-			&block.leaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				st.body,
-				PlainTextMinResizeWidth(st.body),
-				rtl),
-			&block.placeholderLeaf);
-		break;
-	case PreparedBlockKind::RelatedArticle:
-		copyBlockLeaf(
-			CachedTextLeafSlot::Label,
-			PlainTextLeafSourceSignature(
-				prepared.relatedArticle.title,
-				st.relatedArticle.titleStyle,
-				PlainTextMinResizeWidth(st.relatedArticle.titleStyle),
-				rtl),
-				&block.labelLeaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Subtitle,
-			PlainTextLeafSourceSignature(
-				prepared.relatedArticle.description,
-				st.relatedArticle.subtitleStyle,
-				PlainTextMinResizeWidth(st.relatedArticle.subtitleStyle),
-				rtl),
-				&block.subtitleLeaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Action,
-			PlainTextLeafSourceSignature(
-				prepared.relatedArticle.footer,
-				st.relatedArticle.footerStyle,
-				PlainTextMinResizeWidth(st.relatedArticle.footerStyle),
-				rtl),
-			&block.actionLeaf);
-		break;
-	case PreparedBlockKind::EmbedPost:
-		copyBlockLeaf(
-			CachedTextLeafSlot::Label,
-			PlainTextLeafSourceSignature(
-				prepared.embedPost.author,
-				st.embedPost.authorStyle,
-				PlainTextMinResizeWidth(st.embedPost.authorStyle),
-				rtl),
-			&block.labelLeaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Subtitle,
-			PlainTextLeafSourceSignature(
-				prepared.embedPost.dateText,
-				st.embedPost.dateStyle,
-				PlainTextMinResizeWidth(st.embedPost.dateStyle),
-				rtl),
-			&block.subtitleLeaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Leaf,
-			MarkedTextLeafSourceSignature(
-				prepared.text,
-				st.body,
-				FlowTextMinResizeWidth(st.body),
-				rtl),
-			&block.leaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				st.body,
-				PlainTextMinResizeWidth(st.body),
-				rtl),
-			&block.placeholderLeaf);
-		break;
-	case PreparedBlockKind::Photo:
-	case PreparedBlockKind::Video:
-	case PreparedBlockKind::Document:
-	case PreparedBlockKind::Map:
-	case PreparedBlockKind::Channel:
-	case PreparedBlockKind::GroupedMedia:
-		copyBlockLeaf(
-			CachedTextLeafSlot::Leaf,
-			MarkedTextLeafSourceSignature(
-				prepared.text,
-				st.body,
-				FlowTextMinResizeWidth(st.body),
-				rtl),
-			&block.leaf);
-		copyBlockLeaf(
-			CachedTextLeafSlot::Placeholder,
-			PlainTextLeafSourceSignature(
-				prepared.editPlaceholderText,
-				st.body,
-				PlainTextMinResizeWidth(st.body),
-				rtl),
-			&block.placeholderLeaf);
-		break;
-	case PreparedBlockKind::Rule:
-	case PreparedBlockKind::ButtonRow:
-	case PreparedBlockKind::Quote:
-	case PreparedBlockKind::List:
-	case PreparedBlockKind::ListItem:
-		break;
-	}
-}
-
-void CopyBlockCachedTextLeafs(
-		const std::vector<PreparedBlock> &preparedBlocks,
-		std::vector<LaidOutBlock> *blocks,
-		const style::Markdown &st,
-		CachedTextLeafPool *pool,
-		std::vector<int> *preparedPath,
-		bool rtl) {
-	if (!pool || !blocks || !preparedPath) {
-		return;
-	}
-	const auto count = std::min(int(preparedBlocks.size()), int(blocks->size()));
-	for (auto i = 0; i != count; ++i) {
-		preparedPath->push_back(i);
-		CopyBlockCachedTextLeafs(
-			preparedBlocks[i],
-			(*blocks)[i],
-			st,
-			pool,
-			*preparedPath,
-			rtl);
-		preparedPath->pop_back();
-	}
-}
-
 } // namespace
+
+void ResetBlockGeometryFields(LaidOutBlock *block) {
+	block->outer = QRect();
+	block->headerRect = QRect();
+	block->bodyRect = QRect();
+	block->iconRect = QRect();
+	block->textRect = QRect();
+	block->labelRect = QRect();
+	block->subtitleRect = QRect();
+	block->actionRect = QRect();
+	block->markerRect = QRect();
+	block->contentRect = QRect();
+	block->collapseControlRect = QRect();
+	block->buttonRowControlRect = QRect();
+	block->formulaRect = QRect();
+	block->tableRect = QRect();
+	block->mediaRect = QRect();
+	block->thumbnailRect = QRect();
+	block->visibleFormulaRect = QRect();
+	block->scrollViewportRect = QRect();
+	block->scrollLogicalContentRect = QRect();
+	block->scrollScrollbarTrackRect = QRect();
+	block->scrollScrollbarThumbRect = QRect();
+	block->visibleTableRect = QRect();
+	block->tableScrollbarTrackRect = QRect();
+	block->tableScrollbarThumbRect = QRect();
+	block->visibleMediaRect = QRect();
+	block->markerCenter = QPoint();
+	block->logicalGeometry = {};
+	block->textWidth = 0;
+	block->labelWidth = 0;
+	block->subtitleWidth = 0;
+	block->actionWidth = 0;
+	block->markerWidth = 0;
+	block->firstLineBaseline = -1;
+}
 
 int TableBorder(
 		bool bordered,
@@ -1402,6 +958,107 @@ bool MissingRetainedLeaf(
 		const QString &text,
 		const Ui::Text::String &leaf) {
 	return TextNeedsRetainedLeaf(text) && leaf.isEmpty();
+}
+
+CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
+		TextWithEntities text,
+		const style::TextStyle &textStyle,
+		int minResizeWidth,
+		bool rtl) {
+	auto result = CachedTextLeafSourceSignature();
+	result.dependsOnMediaRuntime = TextDependsOnMediaRuntime(text);
+	result.dependsOnInlineButtonColumn = TextHasInlineButton(text);
+	result.text = std::move(text);
+	result.minResizeWidth = minResizeWidth;
+	result.styleKey = TextStyleKey(textStyle);
+	result.rtl = rtl;
+	return result;
+}
+
+CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
+		const QString &text,
+		const style::TextStyle &textStyle,
+		int minResizeWidth,
+		bool rtl) {
+	return MarkedTextLeafSourceSignature(
+		TextWithEntities::Simple(text),
+		textStyle,
+		minResizeWidth,
+		rtl);
+}
+
+CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
+		const PreparedBlock &prepared,
+		const style::Markdown &st) {
+	auto result = MarkedTextLeafSourceSignature(
+		CodeBlockDisplayText(prepared.text),
+		st.code,
+		CodeTextMinResizeWidth(st),
+		false);
+	result.codeLanguage = prepared.codeLanguage;
+	return result;
+}
+
+CachedTextLeafKey BlockCachedTextLeafKey(
+		CachedTextLeafSlot slot,
+		const PreparedBlock &prepared,
+		const std::vector<int> &preparedPath) {
+	auto result = CachedTextLeafKey();
+	result.slot = slot;
+	if ((slot == CachedTextLeafSlot::Leaf
+			|| slot == CachedTextLeafSlot::Placeholder
+			|| slot == CachedTextLeafSlot::Fallback)
+		&& prepared.editLeaf) {
+		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
+		result.editLeaf = *prepared.editLeaf;
+		return result;
+	}
+	if ((slot == CachedTextLeafSlot::Marker) && prepared.editListItem) {
+		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
+		result.editListItem = *prepared.editListItem;
+		return result;
+	}
+	if (prepared.editBlock) {
+		result.identityKind = CachedTextLeafIdentityKind::EditBlock;
+		result.editBlock = *prepared.editBlock;
+		return result;
+	}
+	if (prepared.editListItem) {
+		result.identityKind = CachedTextLeafIdentityKind::EditListItem;
+		result.editListItem = *prepared.editListItem;
+		return result;
+	}
+	if (prepared.editLeaf) {
+		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
+		result.editLeaf = *prepared.editLeaf;
+		return result;
+	}
+	result.preparedPath = preparedPath;
+	return result;
+}
+
+CachedTextLeafKey TableCellCachedTextLeafKey(
+		CachedTextLeafSlot slot,
+		const PreparedTableCell &prepared,
+		const std::vector<int> &preparedPath,
+		int tableRowIndex,
+		int tableCellIndex) {
+	auto result = CachedTextLeafKey();
+	result.slot = slot;
+	result.tableRowIndex = tableRowIndex;
+	result.tableCellIndex = tableCellIndex;
+	if (prepared.editLeaf) {
+		result.identityKind = CachedTextLeafIdentityKind::EditLeaf;
+		result.editLeaf = *prepared.editLeaf;
+		return result;
+	}
+	if (prepared.editCell) {
+		result.identityKind = CachedTextLeafIdentityKind::EditTableCell;
+		result.editTableCell = *prepared.editCell;
+		return result;
+	}
+	result.preparedPath = preparedPath;
+	return result;
 }
 
 void BuildOrReuseMarkedTextLeaf(
@@ -1514,26 +1171,6 @@ void BuildOrReuseEditPlaceholderLeaf(
 		});
 }
 
-void CopyCachedTextLeafs(
-		const std::vector<PreparedBlock> &preparedBlocks,
-		std::vector<LaidOutBlock> *blocks,
-		const style::Markdown &st,
-		CachedTextLeafPool *pool,
-		bool rtl) {
-	if (!pool) {
-		return;
-	}
-	pool->entries.clear();
-	auto preparedPath = std::vector<int>();
-	CopyBlockCachedTextLeafs(
-		preparedBlocks,
-		blocks,
-		st,
-		pool,
-		&preparedPath,
-		rtl);
-}
-
 size_t CachedTextLeafKeyHasher::operator()(
 		const CachedTextLeafKey &value) const noexcept {
 	auto result = CombineHash(0, size_t(value.slot));
@@ -1562,15 +1199,6 @@ size_t CachedTextLeafKeyHasher::operator()(
 	return result;
 }
 
-LayoutContextScope::LayoutContextScope(const LayoutContext &context)
-: _previous(CurrentLayoutContext) {
-	CurrentLayoutContext = &context;
-}
-
-LayoutContextScope::~LayoutContextScope() {
-	CurrentLayoutContext = _previous;
-}
-
 void FillMediaCaptionContent(
 		LaidOutBlock *block,
 		const PreparedBlock &prepared,
@@ -1587,40 +1215,6 @@ void FillMediaCaptionContent(
 		mediaRuntime,
 		st,
 		context);
-}
-
-void LayoutMediaCaption(
-		LaidOutBlock *block,
-		const PreparedBlock &prepared,
-		const std::vector<PreparedFormulaSlot> *formulas,
-		InlineFormulaObjectCache *inlineFormulaObjects,
-		const std::shared_ptr<MediaRuntime> &mediaRuntime,
-		const style::Markdown &st,
-		int left,
-		int top,
-		int width,
-		int skip,
-		int *bottom,
-		LayoutContext context) {
-	FillMediaCaption(
-		block,
-		prepared,
-		formulas,
-		inlineFormulaObjects,
-		mediaRuntime,
-		st,
-		context);
-	const auto counted = LayoutMediaCaptionGeometry(
-		block,
-		prepared,
-		st,
-		left,
-		top,
-		width,
-		skip,
-		bottom,
-		context);
-	Expects(counted);
 }
 
 bool LayoutMediaCaptionGeometry(
@@ -1668,58 +1262,38 @@ bool LayoutMediaCaptionGeometry(
 QString CodeBlockDisplayText(const QString &text) {
 	auto result = QString();
 	result.reserve(text.size());
-
-	auto column = 0;
-	for (const auto ch : text) {
-		if (ch == QChar::Tabulation) {
-			const auto count = kCodeTabColumns - (column % kCodeTabColumns);
-			for (auto i = 0; i != count; ++i) {
-				result.append(QChar::Space);
-			}
-			column += count;
-			continue;
+	EnumerateCodeBlockDisplayChars(text, [&](QChar ch, int width) {
+		if (ch != QChar::Tabulation) {
+			result.append(ch);
+			return;
 		}
-		result.append(ch);
-		if (Ui::Text::IsNewline(ch)) {
-			column = 0;
-		} else {
-			++column;
+		for (auto i = 0; i != width; ++i) {
+			result.append(QChar::Space);
 		}
-	}
+	});
 	if (result.isEmpty() || Ui::Text::IsTrimmed(result.back())) {
 		result.append(QChar(kCodeTrailingGuard));
 	}
 	return result;
 }
 
-TextWithEntities CodeBlockDisplayText(TextWithEntities text) {
-	auto result = TextWithEntities();
-	const auto sourceLength = int(text.text.size());
-	result.text.reserve(sourceLength);
-	result.entities.reserve(text.entities.size());
+std::vector<int> CodeBlockDisplayOffsets(const QString &text) {
+	auto result = std::vector<int>();
+	result.reserve(text.size() + 1);
+	auto position = 0;
+	EnumerateCodeBlockDisplayChars(text, [&](QChar, int width) {
+		result.push_back(position);
+		position += width;
+	});
+	result.push_back(position);
+	return result;
+}
 
-	auto offsets = std::vector<int>();
-	offsets.reserve(sourceLength + 1);
-	auto column = 0;
-	for (auto i = 0; i != sourceLength; ++i) {
-		offsets.push_back(result.text.size());
-		const auto ch = text.text[i];
-		if (ch == QChar::Tabulation) {
-			const auto count = kCodeTabColumns - (column % kCodeTabColumns);
-			for (auto j = 0; j != count; ++j) {
-				result.text.append(QChar::Space);
-			}
-			column += count;
-			continue;
-		}
-		result.text.append(ch);
-		if (Ui::Text::IsNewline(ch)) {
-			column = 0;
-		} else {
-			++column;
-		}
-	}
-	offsets.push_back(result.text.size());
+TextWithEntities CodeBlockDisplayText(TextWithEntities text) {
+	const auto sourceLength = int(text.text.size());
+	const auto offsets = CodeBlockDisplayOffsets(text.text);
+	auto result = tr::marked(CodeBlockDisplayText(text.text));
+	result.entities.reserve(text.entities.size());
 
 	for (const auto &entity : text.entities) {
 		const auto from = entity.offset();
@@ -1744,9 +1318,6 @@ TextWithEntities CodeBlockDisplayText(TextWithEntities text) {
 			displayFrom,
 			displayTill - displayFrom,
 			entity.data()));
-	}
-	if (result.text.isEmpty() || Ui::Text::IsTrimmed(result.text.back())) {
-		result.text.append(QChar(kCodeTrailingGuard));
 	}
 	return result;
 }

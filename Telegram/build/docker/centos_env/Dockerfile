@@ -161,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin aec474953ff7ee9b6e4cd9b8658288ea86d124f3
+git fetch --depth=1 origin 13b4eb3dc1b8ef404b4ab04750e0fd7aafbe06c2
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -876,6 +876,7 @@ cd qt5
 git submodule update --init --recursive --depth=1 \
 	qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
 find $PWD/../patches/qtbase_$QT -type f -print0 | sort -z | xargs -r0 git -C qtbase apply
+find $PWD/../patches/qtsvg_$QT -type f -print0 | sort -z | xargs -r0 git -C qtsvg apply
 find $PWD/../patches/qtwayland_$QT -type f -print0 | sort -z | xargs -r0 git -C qtwayland apply
 cmake -B build . \
 	-DCMAKE_INSTALL_PREFIX=/usr/local \
@@ -952,7 +953,7 @@ RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tg_owt
 cd tg_owt
 git remote add origin https://github.com/desktop-app/tg_owt.git
-git fetch --depth=1 origin d1cf250ea73de26c4c1f0a3c8173eb2648efbb04
+git fetch --depth=1 origin 49ceed3985d8626b3a24bdb14d9c593a115cc6e8
 git reset --hard FETCH_HEAD
 git submodule update --init --recursive --depth=1
 cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON

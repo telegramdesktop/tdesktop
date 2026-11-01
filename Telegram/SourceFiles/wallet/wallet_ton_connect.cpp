@@ -43,6 +43,7 @@ struct CharRange {
 };
 
 constexpr auto kBidiControls = std::array{
+	CharRange{ 0x061C, 0x061C },
 	CharRange{ 0x200E, 0x200F },
 	CharRange{ 0x202A, 0x202E },
 	CharRange{ 0x2066, 0x2069 },
@@ -335,6 +336,10 @@ void TonConnect::stop() {
 
 void TonConnect::apply(const MTPTonConnectSession &session) {
 	store(Parse(session), false);
+}
+
+void TonConnect::applyCreated(const MTPTonConnectSession &session) {
+	store(Parse(session), true);
 }
 
 void TonConnect::applyPendingDisconnect(const QVector<MTPlong> &ids) {

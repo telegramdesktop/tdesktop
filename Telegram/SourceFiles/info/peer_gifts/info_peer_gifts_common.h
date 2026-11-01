@@ -87,6 +87,8 @@ struct GiftTypeStars {
 	bool hidden : 1 = false;
 	bool resale : 1 = false;
 	bool mine : 1 = false;
+	bool onCard : 1 = false;
+	bool silhouette : 1 = false;
 
 	[[nodiscard]] friend inline bool operator==(
 		const GiftTypeStars&,
@@ -151,6 +153,12 @@ enum class GiftSelectionMode : uint8 {
 	Check,
 };
 
+enum class GiftButtonPlayback : uint8 {
+	Hover,
+	Once,
+	Rest,
+};
+
 class GiftButton;
 
 class GiftButtonDelegate {
@@ -195,12 +203,25 @@ public:
 
 	[[nodiscard]] rpl::producer<QPoint> contextMenuRequests() const;
 	[[nodiscard]] rpl::producer<QMouseEvent*> mouseEvents();
+	[[nodiscard]] QImage currentStickerFrame() const;
+
+	void setPlayback(GiftButtonPlayback playback);
+	[[nodiscard]] rpl::producer<> firstFrameShown() const;
+
+	void setKeepFirstFrame(bool keep);
+	[[nodiscard]] std::unique_ptr<HistoryView::StickerPlayer> takePlayer();
+	void restorePlayer(
+		not_null<DocumentData*> document,
+		std::unique_ptr<HistoryView::StickerPlayer> player,
+		QImage firstFrame);
 
 	[[nodiscard]] bool makeCraftFrameIsFinal(
 		QImage &frame,
 		float64 progress);
 
 private:
+	struct KeptFrame;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
@@ -226,6 +247,15 @@ private:
 
 	void refreshLocked();
 	void setDocument(not_null<DocumentData*> document);
+	void stepPlayback(QImage &frame, int index, bool paused);
+	[[nodiscard]] bool playbackSettled(int index) const;
+	void pendingPlayerRepaint();
+	void captureFirstFrame(const QImage &frame, int index);
+	[[nodiscard]] QImage silhouetteFrame(
+		const QImage &frame,
+		QRect target,
+		QRect inner,
+		const Data::UniqueGiftBackdrop &backdrop);
 	[[nodiscard]] QSize stickerSize() const;
 	[[nodiscard]] QMargins currentExtend() const;
 	[[nodiscard]] bool small() const;
@@ -236,6 +266,7 @@ private:
 	const not_null<GiftButtonDelegate*> _delegate;
 	rpl::event_stream<QPoint> _contextMenuRequests;
 	rpl::event_stream<QMouseEvent*> _mouseEvents;
+	rpl::event_stream<> _firstFrameShows;
 	QImage _hiddenBgCache;
 	GiftDescriptor _descriptor;
 	Ui::Text::String _text;
@@ -257,6 +288,8 @@ private:
 	bool _selected : 1 = false;
 	bool _locked : 1 = false;
 	bool _playerFinished : 1 = false;
+	GiftButtonPlayback _playback : 2 = GiftButtonPlayback::Hover;
+	bool _firstFrameShown : 1 = false;
 
 	bool _mouseEventsAreListening = false;
 
@@ -265,11 +298,15 @@ private:
 
 	QRect _button;
 	QMargins _extend;
+	int _playbackIndex = 0;
+	QImage _playbackRest;
+	Fn<void()> _createPlayer;
 
 	DocumentData *_resolvedDocument = nullptr;
 
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
 	DocumentData *_playerDocument = nullptr;
+	std::unique_ptr<KeptFrame> _kept;
 	rpl::lifetime _mediaLifetime;
 	rpl::lifetime _documentLifetime;
 

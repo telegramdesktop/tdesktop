@@ -67,6 +67,22 @@ walletCardQrRight: 42px;
 walletCardQrTop: 72px;
 walletCardQrIcon: icon{{ "menu/qr_code", windowSubTextFg }};
 walletCardInfoIcon: icon{{ "menu/info", windowSubTextFg }};
+walletCardStickerRingWidth: 1px;
+walletCardColorToastIcon: icon {{ "menu/palette", toastFg }};
+walletCoverColorOffIcon: icon{{ "wallet/palette_off-24x24", menuIconColor }};
+walletCoverCardAddIcon: icon{{ "wallet/card_add-24x24", menuIconColor }};
+walletCoverCardOffIcon: icon{{ "wallet/card_off-24x24", menuIconColor }};
+walletCardFloatShadow: BoxShadow {
+	blurRadius: 18px;
+	offset: point(0px, 2px);
+	opacity: 0.22;
+}
+walletCardForegroundShadow: BoxShadow {
+	blurRadius: 3px;
+	offset: point(0px, 1px);
+	opacity: 0.45;
+}
+walletCardForegroundHalo: 4px;
 walletChatCardMarkTop: 29px;
 walletChatCardMarkSize: 42px;
 // The animation paints over its layout slot, centred on it, so rows stay put.
@@ -96,6 +112,22 @@ walletSendButton: RoundButton(defaultActiveButton) {
 // Sides match walletRowIconLeft, the gap matches the card-to-buttons skip.
 walletSendButtonMargin: margins(20px, 12px, 20px, 0px);
 walletButtonsSkip: 12px;
+walletCardViewSkip: 24px;
+walletCardViewLabelWidth: 188px;
+walletCardViewLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: walletCardViewLabelWidth;
+	align: align(top);
+	textFg: windowSubTextFg;
+}
+walletCardViewLabelPlatePadding: margins(12px, 6px, 12px, 6px);
+walletCardViewButtonOutline: 3px;
+// Painted in the button's text color.
+walletCardViewSendIcon: IconEmoji {
+	icon: icon{{ "payments/ton_emoji-18x18", activeButtonFg }};
+	padding: margins(0px, 1px, 5px, 0px);
+}
+walletCardViewDimDay: 0.07;
+walletCardViewDimNight: 0.25;
 walletIslandMargin: margins(20px, 0px, 20px, 0px);
 walletHeaderBottomSkip: 12px;
 // Left 22px and the vertical 10/8 are settingsButtonNoIcon's own values, so
@@ -148,6 +180,7 @@ walletAboutFeesIcon: icon{{ "menu/no_fees-24x24", windowBoldFg }};
 walletAboutChainIcon: icon{{ "menu/blockchain_verified-24x24", windowBoldFg }};
 
 walletRowsTopSkip: 16px;
+walletTransactionsTopSkip: 5px;
 walletAboutBottomSkip: walletRowsTopSkip;
 walletRowPadding: margins(76px, 6px, 20px, 6px);
 walletRowIconSize: 46px;
@@ -230,6 +263,8 @@ walletUnlockPromptLoading: InfiniteRadialAnimation(walletBusyBoxLoading) {
 walletUnlockPromptPadding: margins(0px, 12px, 0px, 4px);
 
 walletTabsSlider: SettingsSlider(defaultTabsSlider) {
+	height: 39px;
+	barTop: 36px;
 	padding: 12px;
 	strictSkip: 24px;
 }
@@ -237,7 +272,6 @@ walletTabsSlider: SettingsSlider(defaultTabsSlider) {
 walletRowsTitle: SettingsSlider(walletTabsSlider) {
 	barFgActive: transparent;
 }
-walletCollectibleRowHeight: 60px;
 walletCollectibleThumbRadius: 6px;
 walletCollectibleTitleStyle: TextStyle(defaultTextStyle) {
 	font: font(14px);
@@ -618,6 +652,9 @@ walletCollectibleActionRadius: walletDetailsCollectibleRadius;
 walletCollectibleActionIconTop: 7px;
 walletCollectibleActionTextTop: 32px;
 walletCollectibleActionTextSkip: 8px;
+walletCollectibleShowCheckbox: Checkbox(defaultBoxCheckbox) {
+	width: 0px;
+}
 walletCollectibleCommentField: InputField(walletCommentField) {
 	textMargins: margins(0px, 4px, 0px, 4px);
 	heightMin: 28px;
@@ -784,6 +821,10 @@ walletIntroTooltip: ImportantTooltip(defaultImportantTooltip) {
 	margin: margins(4px, 4px, 4px, 8px);
 }
 walletIntroTooltipFont: font(11px semibold);
+walletCardHintTooltip: ImportantTooltip(defaultImportantTooltip) {
+	padding: margins(0px, 0px, 0px, 0px);
+}
+walletCardHintMaxWidth: 200px;
 
 walletCurrencyRowHeight: 36px;
 walletCurrencyRowPadding: margins(24px, 9px, 24px, 0px);

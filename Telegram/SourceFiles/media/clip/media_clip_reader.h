@@ -125,7 +125,6 @@ public:
 
 	[[nodiscard]] crl::time getPositionMs() const;
 	[[nodiscard]] crl::time getDurationMs() const;
-	void pauseResumeVideo();
 
 	void stop();
 	void error();

@@ -328,7 +328,9 @@ private:
 
 };
 
-class ChooseTopicSearchController : public PeerListSearchController {
+class ChooseTopicSearchController
+	: public PeerListSearchController
+	, public base::has_weak_ptr {
 public:
 	explicit ChooseTopicSearchController(not_null<Data::Forum*> forum);
 

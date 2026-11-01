@@ -58,7 +58,6 @@ struct ProxyData {
 	[[nodiscard]] bool operator==(const ProxyData &other) const;
 	[[nodiscard]] bool operator!=(const ProxyData &other) const;
 
-	[[nodiscard]] static bool ValidMtprotoPassword(const QString &password);
 	[[nodiscard]] static Status MtprotoPasswordStatus(
 		const QString &password);
 

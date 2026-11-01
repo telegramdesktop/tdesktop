@@ -81,8 +81,6 @@ private:
 
 	void subscribeToUpdates();
 	void appendClientSideMessages(MessagesSlice &slice);
-	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
-		MsgId afterId) const;
 
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
 	[[nodiscard]] bool applyItemDestroyed(

@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "core/file_utilities.h"
+#include "core/shortcuts.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_dialog.h"
 #include "webview/webview_interface.h"
@@ -54,7 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
-#include <QtGui/qpa/qplatformscreen.h>
 
 #include <algorithm>
 #include <memory>
@@ -1296,11 +1296,7 @@ Panel::Panel(Args &&args)
 
 	_widget->closeRequests(
 	) | rpl::on_next([=] {
-		if (_closeNeedConfirmation) {
-			scheduleCloseWithConfirmation();
-		} else {
-			requestClose();
-		}
+		requestWindowClose();
 	}, _widget->lifetime());
 
 	_widget->closeEvents(
@@ -1352,9 +1348,12 @@ Panel::Panel(Args &&args)
 			}
 		}
 	}
+
+	toggleApplicationEventFilter(true);
 }
 
 Panel::~Panel() {
+	toggleApplicationEventFilter(false);
 	closeExternalShellPopup();
 	base::take(_webview);
 	_progress = nullptr;
@@ -1362,6 +1361,66 @@ Panel::~Panel() {
 	_externalWebviewParent = nullptr;
 	_widget = nullptr;
 	_externalPanelParent = nullptr;
+}
+
+void Panel::toggleApplicationEventFilter(bool install) {
+	if (!install) {
+		_applicationEventFilter = nullptr;
+		return;
+	} else if (_applicationEventFilter) {
+		return;
+	}
+	class Filter final : public QObject {
+	public:
+		explicit Filter(not_null<Panel*> owner) : _owner(owner) {
+		}
+
+	private:
+		bool eventFilter(QObject *obj, QEvent *e) override {
+			return obj && e && _owner->filterApplicationEvent(obj, e);
+		}
+
+		const not_null<Panel*> _owner;
+
+	};
+
+	_applicationEventFilter = std::make_unique<Filter>(this);
+	qApp->installEventFilter(_applicationEventFilter.get());
+}
+
+bool Panel::filterApplicationEvent(
+		not_null<QObject*> object,
+		not_null<QEvent*> e) {
+	if (e->type() != QEvent::ShortcutOverride) {
+		return false;
+	}
+	const auto event = static_cast<QKeyEvent*>(e.get());
+	if (!isActiveWindow()) {
+		return false;
+	} else if (Shortcuts::MatchesCommand(
+			event,
+			Shortcuts::Command::Close)) {
+		e->accept();
+		requestWindowClose();
+		return true;
+	}
+	return false;
+}
+
+void Panel::requestWindowClose() {
+	if (_closeNeedConfirmation) {
+		scheduleCloseWithConfirmation();
+	} else {
+		requestClose();
+	}
+}
+
+bool Panel::isActiveWindow() const {
+	if (_externalShell) {
+		const auto widget = _webview ? _webview->window.widget() : nullptr;
+		return widget && widget->isActiveWindow();
+	}
+	return _widget->isActiveWindow();
 }
 
 void Panel::setupDownloadsProgress(
@@ -1648,7 +1707,7 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 			}
 		},
 		.terms = [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			_delegate->botOpenTermsOfService();
 		},
 		.privacy = [=] {
 			_delegate->botOpenPrivacyPolicy();
@@ -1968,7 +2027,7 @@ void Panel::handleExternalShellMenuAction(const QString &id) {
 			}
 		},
 		.terms = [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			_delegate->botOpenTermsOfService();
 		},
 		.privacy = [=] {
 			_delegate->botOpenPrivacyPolicy();
@@ -2634,8 +2693,7 @@ void Panel::sendContentSafeArea() {
 	} else if (const auto screen = QGuiApplication::primaryScreen()) {
 		const auto dpi = screen->logicalDotsPerInch();
 		const auto ratio = screen->devicePixelRatio();
-		const auto basePair = screen->handle()->logicalBaseDpi();
-		const auto base = (basePair.first + basePair.second) * 0.5;
+		const auto base = style::BaseDpi();
 		const auto systemScreenScale = dpi * ratio / base;
 		report = int(base::SafeRound(scaled / systemScreenScale));
 	}
@@ -2890,10 +2948,14 @@ void Panel::openExternalLink(const QJsonObject &args) {
 			File::OpenUrl(url);
 		}
 	};
+	requestOpenLink(url, open);
+}
+
+void Panel::requestOpenLink(const QString &url, Fn<void()> open) {
 	if (allowOpenLink()) {
 		open();
 	} else {
-		confirmExternalLink(url, open);
+		confirmExternalLink(url, std::move(open));
 	}
 }
 

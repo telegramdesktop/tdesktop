@@ -20,7 +20,6 @@ class SpoilerAnimation;
 
 namespace Data {
 class Thread;
-struct WebPageDraft;
 } // namespace Data
 
 namespace Main {
@@ -30,10 +29,6 @@ class Session;
 namespace Window {
 class SessionController;
 } // namespace Window
-
-namespace ChatHelpers {
-class Show;
-} // namespace ChatHelpers
 
 namespace HistoryView::Controls {
 
@@ -82,12 +77,6 @@ void ClearDraftReplyTo(
 	MsgId topicRootId,
 	PeerId monoforumPeerId,
 	FullMsgId equalTo);
-
-void EditWebPageOptions(
-	std::shared_ptr<ChatHelpers::Show> show,
-	not_null<WebPageData*> webpage,
-	Data::WebPageDraft draft,
-	Fn<void(Data::WebPageDraft)> done);
 
 [[nodiscard]] bool HasOnlyForcedForwardedInfo(const HistoryItemsList &list);
 [[nodiscard]] bool HasOnlyDroppedForwardedInfo(const HistoryItemsList &list);

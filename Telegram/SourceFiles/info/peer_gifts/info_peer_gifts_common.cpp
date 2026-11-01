@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dynamic_thumbnails.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/top_background_gradient.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -47,6 +48,55 @@ namespace {
 
 constexpr auto kGiftsPerRow = 3;
 constexpr auto kCraftUnavailableOpacity = 0.5;
+constexpr auto kOnCardShade = 0.45;
+
+class StillPlayer final : public HistoryView::StickerPlayer {
+public:
+	explicit StillPlayer(QImage frame);
+
+	void setRepaintCallback(Fn<void()> callback) override;
+	bool ready() override;
+	int framesCount() override;
+	FrameInfo frame(
+		QSize size,
+		QColor colored,
+		bool mirrorHorizontal,
+		crl::time now,
+		bool paused) override;
+	bool markFrameShown() override;
+
+private:
+	QImage _frame;
+
+};
+
+StillPlayer::StillPlayer(QImage frame)
+: _frame(std::move(frame)) {
+}
+
+void StillPlayer::setRepaintCallback(Fn<void()> callback) {
+}
+
+bool StillPlayer::ready() {
+	return true;
+}
+
+int StillPlayer::framesCount() {
+	return 1;
+}
+
+StillPlayer::FrameInfo StillPlayer::frame(
+		QSize size,
+		QColor colored,
+		bool mirrorHorizontal,
+		crl::time now,
+		bool paused) {
+	return { .image = _frame };
+}
+
+bool StillPlayer::markFrameShown() {
+	return false;
+}
 
 [[nodiscard]] bool AllowedToSend(
 		const GiftTypeStars &gift,
@@ -71,6 +121,54 @@ constexpr auto kCraftUnavailableOpacity = 0.5;
 		return allowUnlimited;
 	}
 	return allowLimited || (gift.info.starsToUpgrade && allowUnique);
+}
+
+[[nodiscard]] QColor OnCardTone(QColor color, QColor edge) {
+	const auto tone = [](int value, int border) {
+		const auto multiplier = 1. - kOnCardShade * (1. - border / 255.);
+		return int(base::SafeRound(value * multiplier));
+	};
+	return QColor(
+		tone(color.red(), edge.red()),
+		tone(color.green(), edge.green()),
+		tone(color.blue(), edge.blue()));
+}
+
+[[nodiscard]] QImage OnCardSilhouette(
+		const QImage &frame,
+		QRect target,
+		QRect inner,
+		const Data::UniqueGiftBackdrop &backdrop) {
+	auto result = frame.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	if (result.isNull() || target.isEmpty()) {
+		return result;
+	}
+	auto gradient = QRadialGradient(inner.center(), inner.width() / 2);
+	gradient.setStops({
+		{ 0., OnCardTone(backdrop.centerColor, backdrop.edgeColor) },
+		{ 1., OnCardTone(backdrop.edgeColor, backdrop.edgeColor) },
+	});
+	const auto ratio = result.devicePixelRatio();
+	auto p = QPainter(&result);
+	p.setCompositionMode(QPainter::CompositionMode_SourceIn);
+	p.scale(
+		result.width() / (ratio * target.width()),
+		result.height() / (ratio * target.height()));
+	p.translate(-target.topLeft());
+	p.fillRect(target, gradient);
+	p.end();
+	return result;
+}
+
+[[nodiscard]] GiftBadge OnCardBadge(
+		const Data::UniqueGiftBackdrop &backdrop) {
+	return {
+		.text = tr::lng_gift_stars_on_card(tr::now),
+		.bg1 = backdrop.edgeColor,
+		.bg2 = backdrop.patternColor,
+		.fg = QColor(255, 255, 255),
+		.small = true,
+	};
 }
 
 } // namespace
@@ -157,6 +255,23 @@ rpl::producer<std::vector<GiftTypeStars>> GiftsStars(
 		return lifetime;
 	};
 }
+
+struct GiftButton::KeptFrame {
+	struct Key {
+		qint64 source = 0;
+		QRect target;
+		QRect inner;
+		QRgb center = 0;
+		QRgb edge = 0;
+
+		friend inline bool operator==(const Key &, const Key &) = default;
+	};
+
+	QImage first;
+	QSize request;
+	QImage silhouette;
+	Key key;
+};
 
 GiftButton::GiftButton(
 	QWidget *parent,
@@ -391,21 +506,30 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 
 	const auto destroyed = base::take(_player);
 	_playerDocument = nullptr;
-	_mediaLifetime = rpl::single() | rpl::then(
-		document->session().downloaderTaskFinished()
-	) | rpl::filter([=] {
-		return media->loaded();
-	}) | rpl::on_next([=] {
-		_mediaLifetime.destroy();
-
+	_createPlayer = nullptr;
+	_playbackIndex = 0;
+	_playbackRest = QImage();
+	if (_firstFrameShown && _playback == GiftButtonPlayback::Once) {
+		_playback = GiftButtonPlayback::Rest;
+	}
+	if (_kept) {
+		*_kept = KeptFrame();
+	}
+	const auto create = [=] {
 		auto result = std::unique_ptr<HistoryView::StickerPlayer>();
 		const auto sticker = document->sticker();
 		if (sticker->isLottie()) {
+			// A kept cover is never re-rendered, so it needs device pixels.
+			const auto keepsCover = _kept
+				|| (_playback != GiftButtonPlayback::Hover);
+			const auto box = keepsCover
+				? (stickerSize() * style::DevicePixelRatio())
+				: stickerSize();
 			result = std::make_unique<HistoryView::LottiePlayer>(
 				ChatHelpers::LottiePlayerFromDocument(
 					media.get(),
 					ChatHelpers::StickerLottieSize::InlineResults,
-					stickerSize(),
+					box,
 					Lottie::Quality::High));
 		} else if (sticker->isWebm()) {
 			result = std::make_unique<HistoryView::WebmPlayer>(
@@ -422,10 +546,119 @@ void GiftButton::setDocument(not_null<DocumentData*> document) {
 		_playerDocument = media->owner();
 		_player = std::move(result);
 		update();
+	};
+	_mediaLifetime = rpl::single() | rpl::then(
+		document->session().downloaderTaskFinished()
+	) | rpl::filter([=] {
+		return media->loaded();
+	}) | rpl::on_next([=] {
+		_mediaLifetime.destroy();
+		if (_playback == GiftButtonPlayback::Hover
+			|| !document->sticker()->isWebm()) {
+			create();
+			return;
+		}
+		_playerDocument = media->owner();
+		_createPlayer = [=] {
+			create();
+			_player->setRepaintCallback([=] { pendingPlayerRepaint(); });
+		};
+		update();
 	});
 	if (_playerDocument) {
 		_mediaLifetime.destroy();
 	}
+}
+
+void GiftButton::stepPlayback(QImage &frame, int index, bool paused) {
+	_createPlayer = nullptr;
+	if (!_firstFrameShown) {
+		_firstFrameShown = true;
+		_firstFrameShows.fire({});
+	}
+	if (!index && _playbackRest.isNull()) {
+		_playbackRest = frame;
+	}
+	const auto single = (_player->framesCount() == 1);
+	if (single || playbackSettled(index) || (paused && !index)) {
+		_playback = GiftButtonPlayback::Rest;
+		_playbackIndex = 0;
+		// WHY: a WebM reader keeps decoding behind an unadvanced first frame
+		// whatever the pause flag says, so a settled wallet tile drops its
+		// decoder and keeps only the frame it rests on.
+		if (!single) {
+			frame = _playbackRest;
+			_player = frame.isNull()
+				? nullptr
+				: std::make_unique<StillPlayer>(frame);
+		}
+	} else if (paused) {
+		_playback = GiftButtonPlayback::Rest;
+	} else {
+		_playbackIndex = index;
+		_player->markFrameShown();
+	}
+}
+
+bool GiftButton::playbackSettled(int index) const {
+	return (_playback != GiftButtonPlayback::Hover)
+		&& ((index < _playbackIndex)
+			|| (!index && _playback == GiftButtonPlayback::Rest));
+}
+
+void GiftButton::pendingPlayerRepaint() {
+	// Qt holds all paints while the window is unmapped, e.g. occluded.
+	if (!_createPlayer
+		|| (window()->testAttribute(Qt::WA_Mapped)
+			&& !visibleRegion().isEmpty())) {
+		update();
+		return;
+	}
+	// A reader never pauses itself before its first frame is shown.
+	crl::on_main(this, [=] {
+		const auto mapped = window()->testAttribute(Qt::WA_Mapped);
+		if (_createPlayer && (!mapped || visibleRegion().isEmpty())) {
+			_player = nullptr;
+			if (!mapped) {
+				update();
+			}
+		}
+	});
+}
+
+void GiftButton::captureFirstFrame(const QImage &frame, int index) {
+	if (!_kept || index || frame.isNull()) {
+		return;
+	}
+	const auto request = stickerSize() * style::DevicePixelRatio();
+	if (_kept->first.isNull() || _kept->request != request) {
+		_kept->first = frame;
+		_kept->request = request;
+	}
+}
+
+QImage GiftButton::silhouetteFrame(
+		const QImage &frame,
+		QRect target,
+		QRect inner,
+		const Data::UniqueGiftBackdrop &backdrop) {
+	if (!_kept
+		|| _kept->first.isNull()
+		|| frame.cacheKey() != _kept->first.cacheKey()) {
+		return OnCardSilhouette(frame, target, inner, backdrop);
+	}
+	const auto key = KeptFrame::Key{
+		.source = frame.cacheKey(),
+		.target = target,
+		.inner = inner,
+		.center = backdrop.centerColor.rgba(),
+		.edge = backdrop.edgeColor.rgba(),
+	};
+	if (_kept->silhouette.isNull() || _kept->key != key) {
+		_kept->silhouette = OnCardSilhouette(frame, target, inner, backdrop);
+		_kept->key = key;
+	}
+	return _kept->silhouette;
 }
 
 void GiftButton::setGeometry(QRect inner, QMargins extend) {
@@ -597,6 +830,93 @@ rpl::producer<QMouseEvent*> GiftButton::mouseEvents() {
 	return _mouseEvents.events();
 }
 
+QImage GiftButton::currentStickerFrame() const {
+	if (!_player || !_player->ready()) {
+		return _kept ? _kept->first : QImage();
+	}
+	const auto info = _player->frame(
+		stickerSize(),
+		QColor(0, 0, 0, 0),
+		false,
+		crl::now(),
+		true);
+	return (info.index && playbackSettled(info.index))
+		? _playbackRest
+		: info.image;
+}
+
+void GiftButton::setPlayback(GiftButtonPlayback playback) {
+	if (_playback != playback) {
+		_playback = playback;
+		update();
+	}
+}
+
+rpl::producer<> GiftButton::firstFrameShown() const {
+	return _firstFrameShows.events();
+}
+
+void GiftButton::setKeepFirstFrame(bool keep) {
+	if (!keep) {
+		_kept = nullptr;
+	} else if (!_kept) {
+		_kept = std::make_unique<KeptFrame>();
+	}
+}
+
+std::unique_ptr<HistoryView::StickerPlayer> GiftButton::takePlayer() {
+	if (!_kept || !_player || !_player->ready()) {
+		return nullptr;
+	}
+	const auto info = _player->frame(
+		stickerSize(),
+		QColor(0, 0, 0, 0),
+		false,
+		crl::now(),
+		true);
+	if (playbackSettled(info.index)) {
+		return nullptr;
+	}
+	captureFirstFrame(info.image, info.index);
+	if (_kept->first.isNull()) {
+		return nullptr;
+	}
+	_player->setRepaintCallback(nullptr);
+	update();
+	return base::take(_player);
+}
+
+void GiftButton::restorePlayer(
+		not_null<DocumentData*> document,
+		std::unique_ptr<HistoryView::StickerPlayer> player,
+		QImage firstFrame) {
+	if (_resolvedDocument != document) {
+		return;
+	} else if (_kept && _kept->first.isNull() && !firstFrame.isNull()) {
+		_kept->first = firstFrame;
+		_kept->request = stickerSize() * style::DevicePixelRatio();
+	}
+	const auto live = player
+		&& player->ready()
+		&& player->frame(
+			stickerSize(),
+			QColor(0, 0, 0, 0),
+			false,
+			crl::now(),
+			true).index;
+	if (live) {
+		_mediaLifetime.destroy();
+		_player = std::move(player);
+		_playerDocument = document;
+		_player->setRepaintCallback([=] { update(); });
+		_createPlayer = nullptr;
+		if (_playbackRest.isNull()) {
+			_playbackRest = std::move(firstFrame);
+		}
+	}
+	update();
+}
+
 bool GiftButton::makeCraftFrameIsFinal(
 		QImage &frame,
 		float64 progress) {
@@ -724,6 +1044,8 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	const auto stargift = std::get_if<GiftTypeStars>(&_descriptor);
 	const auto unique = stargift ? stargift->info.unique.get() : nullptr;
 	const auto onsale = unique && unique->starsForResale && small();
+	const auto onCard = unique && stargift->onCard;
+	const auto silhouette = onCard || (unique && stargift->silhouette);
 	const auto requirePremium = stargift
 		&& !stargift->userpic
 		&& !stargift->resale
@@ -831,8 +1153,24 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	}
 
 	auto frame = QImage();
-	if (_player && _player->ready()) {
-		const auto paused = !isOver() || isHidden();
+	auto size = QSize();
+	const auto ready = _player && _player->ready();
+	if (_kept && !_kept->first.isNull() && (silhouette || !ready)) {
+		if (silhouette) {
+			_player = nullptr;
+		}
+		frame = _kept->first;
+		size = frame.size() / style::DevicePixelRatio();
+		if (_kept->request != stickerSize() * style::DevicePixelRatio()) {
+			size = size.scaled(stickerSize(), Qt::KeepAspectRatio);
+		}
+	} else if (ready) {
+		const auto still = silhouette && _kept;
+		const auto paused = still
+			|| ((_playback == GiftButtonPlayback::Hover)
+				? (!isOver() || isHidden())
+				: (anim::Disabled()
+					|| PowerSaving::On(PowerSaving::kStickersChat)));
 		auto info = _player->frame(
 			stickerSize(),
 			QColor(0, 0, 0, 0),
@@ -840,34 +1178,47 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 			crl::now(),
 			paused);
 		frame = info.image;
+		captureFirstFrame(frame, info.index);
 		_playerFinished = (info.index + 1 == _player->framesCount());
-		if (!_playerFinished || !paused) {
+		if (_playback != GiftButtonPlayback::Hover) {
+			stepPlayback(frame, info.index, paused);
+		} else if (!still && (!_playerFinished || !paused)) {
 			_player->markFrameShown();
 		}
-		const auto size = frame.size() / style::DevicePixelRatio();
-		p.drawImage(
-			QRect(
-				(width - size.width()) / 2,
-				((_mode == Mode::CraftPreview
-					|| _mode == Mode::Minimal
-					|| _mode == Mode::Craft)
-					? (extend.top()
-						+ ((height
-							- extend.top()
-							- extend.bottom()
-							- size.height()) / 2))
-					: small()
-					? st::giftBoxSmallStickerTop
-					: _text.isEmpty()
-					? (unique
-						? st::giftBoxStickerUniqueTop
-						: st::giftBoxStickerStarTop)
-					: _byStars.isEmpty()
-					? st::giftBoxStickerTop
-					: st::giftBoxStickerTopByStars),
-				size.width(),
-				size.height()),
-			frame);
+		size = frame.size() / style::DevicePixelRatio();
+	} else if (!_player && _createPlayer) {
+		_createPlayer();
+	}
+	if (!frame.isNull()) {
+		const auto target = QRect(
+			(width - size.width()) / 2,
+			((_mode == Mode::CraftPreview
+				|| _mode == Mode::Minimal
+				|| _mode == Mode::Craft)
+				? (extend.top()
+					+ ((height
+						- extend.top()
+						- extend.bottom()
+						- size.height()) / 2))
+				: small()
+				? st::giftBoxSmallStickerTop
+				: _text.isEmpty()
+				? (unique
+					? st::giftBoxStickerUniqueTop
+					: st::giftBoxStickerStarTop)
+				: _byStars.isEmpty()
+				? st::giftBoxStickerTop
+				: st::giftBoxStickerTopByStars),
+			size.width(),
+			size.height());
+		const auto image = silhouette
+			? silhouetteFrame(
+				frame,
+				target,
+				QRect(0, 0, width, height).marginsRemoved(extend),
+				unique->backdrop)
+			: frame;
+		p.drawImage(target, image);
 	}
 	if (hidden) {
 		const auto topleft = QPoint(
@@ -896,7 +1247,7 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 	const auto font = st::semiboldFont;
 	p.setFont(font);
 
-	const auto badge = v::match(_descriptor, [&](GiftTypePremium data) {
+	auto badge = v::match(_descriptor, [&](GiftTypePremium data) {
 		if (data.discountPercent > 0) {
 			p.setBrush(st::attentionButtonFg);
 			const auto kMinus = QChar(0x2212);
@@ -986,6 +1337,9 @@ void GiftButton::paint(QPainter &p, float64 craftProgress) {
 		}
 		return GiftBadge();
 	});
+	if (onCard) {
+		badge = OnCardBadge(unique->backdrop);
+	}
 
 	if (badge) {
 		const auto rubberOut = st::lineWidth;

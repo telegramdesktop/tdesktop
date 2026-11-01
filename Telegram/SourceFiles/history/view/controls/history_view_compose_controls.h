@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class DocumentData;
-class Image;
 struct InlineBotQuery;
 
 namespace style {
@@ -685,6 +684,8 @@ private:
 	rpl::lifetime _sessionLifetime;
 	rpl::lifetime _threadFieldVisibleLifetime;
 	rpl::lifetime _uploaderSubscriptions;
+	// Last, so the handler ends before any members it uses are destroyed.
+	rpl::lifetime _recordingStateLifetime;
 
 };
 
@@ -692,15 +693,5 @@ private:
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> SendDisabledBySlowmode(
 	not_null<PeerData*> peer);
-
-void ShowPhotoEditSpoilerMenu(
-	not_null<Ui::RpWidget*> parent,
-	not_null<HistoryItem*> item,
-	const std::optional<bool> &override,
-	Fn<void(bool)> callback);
-
-[[nodiscard]] Image *MediaPreviewWithOverriddenSpoiler(
-	not_null<HistoryItem*> item,
-	bool spoiler);
 
 } // namespace HistoryView

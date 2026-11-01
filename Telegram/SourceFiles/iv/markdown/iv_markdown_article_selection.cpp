@@ -363,7 +363,12 @@ void RefreshBlockSegmentRect(
 	return result;
 }
 
-[[nodiscard]] std::optional<int> SingleTableCellSelection(
+struct TableEndpointCell {
+	int segment = -1;
+	bool leavesTable = false;
+};
+
+[[nodiscard]] std::optional<TableEndpointCell> SingleTableCellSelection(
 		const PaintSelectionState &selectionState,
 		int tableSegmentIndex) {
 	if (selectionState.empty()
@@ -409,7 +414,11 @@ void RefreshBlockSegmentRect(
 	if (tableHit || multipleCells || cellSegment < 0 || spansWholeTable) {
 		return std::nullopt;
 	}
-	return cellSegment;
+	return TableEndpointCell{
+		.segment = cellSegment,
+		.leavesTable = (normalized.from.segment < tableSegmentIndex)
+			|| (normalized.to.segment > lastCellSegment),
+	};
 }
 
 [[nodiscard]] std::optional<TextSelection> BaseTextSelectionForSegment(
@@ -764,16 +773,18 @@ void ApplyRichPageSliceEndTrim(TextWithEntities *target, int offset) {
 		return std::nullopt;
 	}
 	if (segment.tableSegmentIndex >= 0) {
-		if (const auto singleCell = SingleTableCellSelection(
-				selectionState,
-				segment.tableSegmentIndex);
-			singleCell && *singleCell != segment.index) {
+		const auto endpointCell = SingleTableCellSelection(
+			selectionState,
+			segment.tableSegmentIndex);
+		if (endpointCell
+			&& !endpointCell->leavesTable
+			&& (endpointCell->segment != segment.index)) {
 			return std::nullopt;
 		}
-	}
-	if (segment.tableSegmentIndex >= 0
-		&& TableSegmentSelected(selectionState, segment.tableSegmentIndex)) {
-		return std::nullopt;
+		if ((!endpointCell || selectionState.hasStructuralSelection())
+			&& TableSegmentSelected(selectionState, segment.tableSegmentIndex)) {
+			return std::nullopt;
+		}
 	}
 	if (const auto structural = StructuralTextSelectionForSegment(
 			segment,
@@ -1371,15 +1382,6 @@ std::optional<TextSelection> TextSelectionForSegment(
 		segment,
 		selectionState,
 		false);
-}
-
-std::optional<TextSelection> TextSelectionForSegmentIndex(
-		const PaintSelectionState &selectionState,
-		int index) {
-	const auto segment = FindSegment(selectionState.segments, index);
-	return segment
-		? TextSelectionForSegment(*segment, selectionState)
-		: std::nullopt;
 }
 
 std::optional<TextSelection> PaintTextSelectionForSegment(

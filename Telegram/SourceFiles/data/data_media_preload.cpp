@@ -25,9 +25,9 @@ constexpr auto kDefaultPreloadPrefix = 4 * 1024 * 1024;
 
 [[nodiscard]] int64 ChoosePreloadPrefix(not_null<DocumentData*> video) {
 	const auto result = video->videoPreloadPrefix();
-	return result
-		? result
-		: std::min(int64(kDefaultPreloadPrefix), video->size);
+	return std::min(
+		result ? int64(result) : int64(kDefaultPreloadPrefix),
+		video->size);
 }
 
 } // namespace
@@ -152,6 +152,7 @@ VideoPreload::~VideoPreload() {
 
 bool VideoPreload::Can(not_null<DocumentData*> video) {
 	return video->canBeStreamed()
+		&& (video->size > 0)
 		&& video->videoPreloadLocation().valid()
 		&& video->bigFileBaseCacheKey();
 }

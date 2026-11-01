@@ -23,7 +23,3 @@ constexpr auto kMaxGroupSelectionItems = 0x0F;
 [[nodiscard]] TextSelection AddGroupItemSelection(
 		TextSelection selection,
 		int index);
-
-[[nodiscard]] TextSelection RemoveGroupItemSelection(
-		TextSelection selection,
-		int index);

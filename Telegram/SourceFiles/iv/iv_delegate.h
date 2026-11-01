@@ -21,6 +21,8 @@ public:
 	[[nodiscard]] virtual int ivZoom() const = 0;
 	[[nodiscard]] virtual rpl::producer<int> ivZoomValue() const = 0;
 	virtual void ivSetZoom(int value) = 0;
+
+	virtual void ivActivated(not_null<Ui::RpWindow*> window) = 0;
 };
 
 } // namespace Iv

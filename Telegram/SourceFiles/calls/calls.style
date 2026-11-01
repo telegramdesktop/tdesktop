@@ -923,6 +923,7 @@ groupCallTitleLabel: FlatLabel(groupCallSubtitleLabel) {
 	}
 }
 groupCallTitleSeparator: 4px;
+groupCallTitleLeftMac: 78px;
 groupCallVideoLimitLabel: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: groupCallMemberNotJoinedStatus;
@@ -948,11 +949,6 @@ groupCallMenuToggle: IconButton {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: groupCallMembersBg;
 	}
-}
-groupCallJoinAsToggle: UserpicButton(defaultUserpicButton) {
-	size: size(36px, 36px);
-	photoSize: 30px;
-	photoPosition: point(3px, 3px);
 }
 groupCallMenuPosition: point(-1px, 29px);
 groupCallWideMenuPosition: point(-2px, 28px);
@@ -1012,6 +1008,9 @@ groupCallMessageInner: IconButton(groupCallSettingsInner) {
 	icon: icon {{ "calls/call_message", groupCallIconFg }};
 	iconPosition: point(-1px, 16px);
 }
+groupCallScreenShareInner: IconButton(groupCallSettingsInner) {
+	icon: icon {{ "calls/calls_present", groupCallIconFg }};
+}
 groupCallSettings: CallButton(callMicrophoneMute) {
 	button: groupCallSettingsInner;
 }
@@ -1035,6 +1034,9 @@ groupCallMessageInnerActive: IconButton(groupCallMessageInner) {
 }
 groupCallMessageActive: CallButton(groupCallMessage) {
 	button: groupCallMessageInnerActive;
+}
+groupCallScreenShare: CallButton(groupCallSettings) {
+	button: groupCallScreenShareInner;
 }
 groupCallHangup: CallButton(callHangup) {
 	button: groupCallHangupInner;
@@ -1334,6 +1336,42 @@ groupCallTitlePinOnTop: IconButton(groupCallTitleButton) {
 	icon: groupCallTitlePinIcon;
 	iconOver: groupCallTitlePinIconOver;
 }
+groupCallTitleColumnIcon: icon {
+	{ "calls/navbar_column", groupCallMemberNotJoinedStatus },
+};
+groupCallTitleColumnIconOver: icon {
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "calls/navbar_column", groupCallMembersFg },
+};
+groupCallTitleColumnShownIcon: icon {
+	{ "calls/navbar_column_filled", groupCallMembersFg },
+};
+groupCallTitleColumnShownIconOver: icon {
+	{ windowTitleButtonSize, groupCallMembersBgOver },
+	{ "calls/navbar_column_filled", groupCallMembersFg },
+};
+groupCallTitleColumn: IconButton(groupCallTitleButton) {
+	icon: groupCallTitleColumnIcon;
+	iconOver: groupCallTitleColumnIconOver;
+}
+groupCallTitleMenu: IconButton(groupCallTitleButton) {
+	icon: icon {
+		{ "calls/navbar_more", groupCallMemberNotJoinedStatus },
+	};
+	iconOver: icon {
+		{ windowTitleButtonSize, groupCallMembersBgOver },
+		{ "calls/navbar_more", groupCallMembersFg },
+	};
+}
+groupCallMenuOnTop: IconButton(groupCallPinOnTop) {
+	icon: icon{{ "calls/navbar_more", groupCallMemberNotJoinedStatus }};
+	iconOver: icon{{ "calls/navbar_more", groupCallMembersFg }};
+}
+groupCallColumnOnTop: IconButton(groupCallPinOnTop) {
+	icon: icon{{ "calls/navbar_column", groupCallMemberNotJoinedStatus }};
+	iconOver: icon{{ "calls/navbar_column", groupCallMembersFg }};
+}
+groupCallColumnShownOnTop: icon{{ "calls/navbar_column_filled", groupCallMembersFg }};
 
 groupCallMajorBlobMaxRadius: 4px;
 

@@ -1,3 +1,34 @@
+7.3.4 beta (29.10.26)
+
+- Search apps, channels, posts and media in the search tabs.
+- Animate sent text messages flying into their bubbles.
+- Fix code blocks losing the indentation of their first line.
+- Fix save hotkeys doing nothing in media viewer.
+- Fix several crashes when forum topics are deleted.
+- Fix several other crashes and bugs.
+
+7.3.3 (21.10.26)
+
+- Show TON DNS gift owners as links, not address groups.
+- Fix green video tint when using D3D9 backend with ANGLE on Windows.
+- Fix transparent unusable media viewer with ANGLE on Windows.
+- Fix inability to type '?' showing Shortcuts legend instead.
+- Fix text rendering ignoring system settings on Windows.
+- Fix Chinese characters not showing on older Windows.
+- Fix possible crash in context loss on Windows.
+- Fix respecting Focus Mode on Windows.
+- Fix menu translation on macOS.
+- Fix several other crashes.
+- Add DESKTOP_APP_DISABLE_PRIVATE_QT_API build option. (allows to build tdesktop without the need to rebuild on Qt updates at the price of feature degradation and KWindowSystem dependency)
+
+7.3.2 (20.10.26)
+
+- Reply with quotes to rich messages.
+- Move your unique gifts to your Money card on the TON blockchain.
+- Decorate your Money card with your unique gifts.
+- QR code design for public usernames.
+- Migrate to Qt 6 on Windows.
+
 7.3.1 (09.10.26)
 
 - Fix wallet encryption with Windows Hello sometimes failing.

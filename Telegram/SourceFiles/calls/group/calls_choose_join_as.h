@@ -44,6 +44,7 @@ public:
 private:
 	void requestList();
 	void processList(std::vector<not_null<PeerData*>> &&list);
+	void showScheduleBox(JoinInfo info);
 	void finish(JoinInfo info);
 
 	struct ChannelsListRequest {

@@ -143,6 +143,22 @@ struct MarkdownArticleSearchMatch {
 	int to = 0;
 };
 
+struct MarkdownArticleTextRange {
+	int from = 0;
+	int till = 0;
+};
+
+enum class MarkdownArticleTextEdge : uchar {
+	Start,
+	End,
+};
+
+struct MarkdownArticleLeafPoint {
+	PreparedEditLeafSource leaf;
+	int position = 0;
+	int labelOffset = -1;
+};
+
 struct MarkdownArticleSearchSource {
 	QString text;
 	QString hiddenText;
@@ -207,6 +223,7 @@ struct MarkdownArticlePaintContext final : Ui::ChatPaintContext {
 	MarkdownArticlePaintCaches caches;
 	PaintSelectionState selectionState;
 	PaintSearchState searchState;
+	const std::vector<MarkdownArticleSearchMatch> *quoteRanges = nullptr;
 	MarkdownArticleRevealPaintState *reveal = nullptr;
 	int hiddenTextSegmentIndex = -1;
 	int hiddenSegmentIndex = -1;
@@ -510,6 +527,17 @@ public:
 	-> std::optional<PreparedEditLeafSource>;
 	[[nodiscard]] int segmentIndexForEditableLeaf(
 		const PreparedEditLeafSource &source) const;
+	void appendDisplayRangesForLeafText(
+		const PreparedEditLeafSource &source,
+		std::span<const MarkdownArticleTextRange> ranges,
+		not_null<std::vector<MarkdownArticleSearchMatch>*> result) const;
+	[[nodiscard]] std::optional<MarkdownArticleLeafPoint> leafPointForDisplay(
+		int segmentIndex,
+		int offset,
+		MarkdownArticleTextEdge edge) const;
+	[[nodiscard]] int groupedCaptionSegment(int segmentIndex) const;
+	[[nodiscard]] QRect displayRangesRect(
+		const std::vector<MarkdownArticleSearchMatch> &ranges) const;
 	[[nodiscard]] QRect textSegmentRect(int segmentIndex) const;
 	[[nodiscard]] QRect logicalSegmentRect(int segmentIndex) const;
 	[[nodiscard]] QRect segmentRect(int segmentIndex) const;

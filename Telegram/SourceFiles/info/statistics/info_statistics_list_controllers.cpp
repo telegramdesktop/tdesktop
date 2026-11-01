@@ -1205,7 +1205,7 @@ private:
 		QImage credits;
 		QImage ton;
 		int tonPaletteVersion = 0;
-		const style::palette *tonPaletteOverride = nullptr;
+		uint64 tonPaletteIdentity = 0;
 	};
 
 	void applySlice(const Data::CreditsStatusSlice &slice);
@@ -1365,15 +1365,15 @@ void CreditsController::applySlice(const Data::CreditsStatusSlice &slice) {
 
 QImage CreditsController::tonIcon() {
 	const auto version = style::PaletteVersion();
-	const auto overridden = style::main_palette::CurrentOverride();
+	const auto identity = style::main_palette::CurrentOverrideIdentity();
 	if (_iconCache.ton.isNull()
 		|| _iconCache.tonPaletteVersion != version
-		|| _iconCache.tonPaletteOverride != overridden) {
+		|| _iconCache.tonPaletteIdentity != identity) {
 		_iconCache.ton = Ui::Earn::IconCurrencyTwoTone(
 			st::tonFieldIconSize,
 			st::windowActiveTextFg->c);
 		_iconCache.tonPaletteVersion = version;
-		_iconCache.tonPaletteOverride = overridden;
+		_iconCache.tonPaletteIdentity = identity;
 	}
 	return _iconCache.ton;
 }

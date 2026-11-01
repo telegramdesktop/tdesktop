@@ -474,7 +474,8 @@ HistoryItem *HistoryStreamedDrafts::adoptIncoming(
 	}
 	if (best == end(_drafts)) {
 		return nullptr;
-	} else if (!CanAdoptInPlace(data)) {
+	} else if (!CanAdoptInPlace(data)
+		|| _history->owner().message(_history->peer, data.vid().v)) {
 		clearByRandomId(best->first);
 		return nullptr;
 	}

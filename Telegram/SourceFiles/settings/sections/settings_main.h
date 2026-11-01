@@ -41,6 +41,7 @@ void SetupValidatePasswordSuggestion(
 	Fn<void(Type)> showOther);
 
 void OpenFaq(base::weak_ptr<Window::SessionController> weak);
+void OpenFeatures(base::weak_ptr<Window::SessionController> weak);
 void OpenAskQuestionConfirm(not_null<Window::SessionController*> window);
 
 } // namespace Settings

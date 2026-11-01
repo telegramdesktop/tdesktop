@@ -83,6 +83,7 @@ class ViewsManager;
 class ConfirmPhone;
 class PeerPhoto;
 class PeerColors;
+class ShareThemes;
 class Polls;
 class TodoLists;
 class RichTasks;
@@ -268,7 +269,6 @@ public:
 
 	void requestWebPageDelayed(not_null<WebPageData*> page);
 	void clearWebPageRequest(not_null<WebPageData*> page);
-	void clearWebPageRequests();
 
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
@@ -477,6 +477,7 @@ public:
 	[[nodiscard]] Api::Usernames &usernames();
 	[[nodiscard]] Api::Websites &websites();
 	[[nodiscard]] Api::PeerColors &peerColors();
+	[[nodiscard]] Api::ShareThemes &shareThemes();
 
 	void updatePrivacyLastSeens();
 
@@ -859,6 +860,7 @@ private:
 	const std::unique_ptr<Api::Usernames> _usernames;
 	const std::unique_ptr<Api::Websites> _websites;
 	const std::unique_ptr<Api::PeerColors> _peerColors;
+	const std::unique_ptr<Api::ShareThemes> _shareThemes;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

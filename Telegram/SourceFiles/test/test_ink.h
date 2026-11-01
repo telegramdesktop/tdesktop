@@ -34,6 +34,12 @@ inline constexpr auto kChromaticFloor = 24;
 inline constexpr auto kChromaticDensityFloor = 0.40;
 // Not kInkMargin: retuning the attribution gap must not redefine a core.
 inline constexpr auto kGlyphCoreTolerance = 8;
+// GlyphBackground::Surround geometry, in image pixels: the gap between the
+// band and each strip, each strip's height in rows, and the half-width in
+// columns of the median that smooths the per-column strip medians.
+inline constexpr auto kGlyphSurroundGap = 2;
+inline constexpr auto kGlyphSurroundStrip = 8;
+inline constexpr auto kGlyphSurroundSmooth = 6;
 
 struct InkCandidate {
 	QString name;
@@ -288,17 +294,34 @@ struct ChromaticRaster {
 // A refused box, density or mean is the text "none", not an empty value.
 [[nodiscard]] QString FormatChromaticRaster(const ChromaticRaster &reading);
 
+// Where ReadGlyphCore takes a band's background from. BandMode is the
+// band's most frequent exact colour, right for a flat fill. Surround is
+// measured from strips outside the band, for text on gradients and
+// patterns, where the most frequent exact colour is the glyph's own.
+enum class GlyphBackground {
+	BandMode,
+	Surround,
+};
+
+// "band-mode" or "surround", as FormatGlyphCore prints it after bgSource=.
+[[nodiscard]] QString GlyphBackgroundName(GlyphBackground source);
+
 // Measured means at least one solid core was read, so the modal colour,
 // its count, the core count and every pen's solid count are measurements.
 // NoPaint and NoSolidCore were scanned, so |ok| stays true and |strongest|
 // is a real distance, but they hand back no colour and no count. OutsideBand
-// looked at no pixel. Unread is the value before ReadGlyphCore. A named pen
-// is only something to count against: it is never copied into |modal|.
+// looked at no pixel. NoBackground (core-no-background) looked at no pixel
+// either: a GlyphBackground::Surround strip lies outside the image, so no
+// background was established; |ok| is false and it hands back no
+// background, colour or count. Unread is the value before ReadGlyphCore. A
+// named pen is only something to count against: it is never copied into
+// |modal|.
 enum class GlyphCoreState {
 	Unread,
 	OutsideBand,
 	NoPaint,
 	NoSolidCore,
+	NoBackground,
 	Measured,
 };
 
@@ -335,7 +358,9 @@ struct GlyphCoreSolid {
 struct GlyphCore {
 	bool ok = false;
 	QRect band;
+	GlyphBackground source = GlyphBackground::BandMode;
 	QColor background;
+	int backgroundSpread = -1;
 	int total = 0;
 	int inkPixels = 0;
 	int cores = 0;
@@ -354,19 +379,125 @@ struct GlyphCore {
 	[[nodiscard]] GlyphCoreSolid solidAt(int index) const;
 };
 
-// Band background is the modal colour of the clip. Ink is a pixel at least
-// kInkDelta from it. A solid core is an ink pixel within kGlyphCoreTolerance
-// of the per-channel extreme away from that background. The modal colour is
-// the mode of those cores. |pens| may be empty; each entry is only counted.
+// |source| picks the background every band pixel is compared with.
+// BandMode, the default, is the modal colour of the clip, read exactly as
+// before the source existed. Surround reads two strips kGlyphSurroundStrip
+// rows tall, kGlyphSurroundGap rows above and below |band|, over the clip's
+// columns; it takes per-column per-channel medians, smooths them with a
+// median over +-kGlyphSurroundSmooth columns and interpolates linearly
+// between the two strips' centre rows, so each band pixel has its own
+// background. It is for text on gradients and patterns, and the caller
+// chooses a band whose strips are the same surface as its background (no
+// other text, icon or edge inside them). Ink is a pixel at least kInkDelta
+// from its background. A solid core is an ink pixel within
+// kGlyphCoreTolerance of the per-channel extreme: in each channel, the ink
+// value farthest from its own pixel's background. The modal colour is the
+// mode of those cores. |pens| may be empty; each entry is only counted.
+// |source| is recorded on the reading; |background| is the mean of the
+// background used and |backgroundSpread| its largest per-channel range (0
+// in band mode, -1 when no background was established). A band that misses
+// the image answers OutsideBand for either source. A Surround strip that
+// leaves the image answers NoBackground: ok false, no colour, no count.
+// Reference: docs/helpers/test_ink.md.
 [[nodiscard]] GlyphCore ReadGlyphCore(
 	const QImage &image,
 	QRect band,
-	std::vector<InkCandidate> pens = {});
+	std::vector<InkCandidate> pens = {},
+	GlyphBackground source = GlyphBackground::BandMode);
 
-// Prints the band, measured background, core tolerance, strongest distance,
+// Prints the band, measured background and its source (bgSource=, followed
+// by bgSpread= for a surround reading), core tolerance, strongest distance,
 // core count, modal colour and share, and each pen's solid count on a
 // measured reading. A refused colour or count is the text "none".
 [[nodiscard]] QString FormatGlyphCore(const GlyphCore &reading);
+
+// The fixed declared coverage of ReadIsolatedGlyph: a band pixel is glyph
+// ink when its projection share onto pen - background is at least this.
+inline constexpr auto kIsolatedGlyphCoverage = 0.5;
+
+// Isolated is the only state with bounds. BandOutsideImage, NoPen and a
+// NoInk carried from the glyph core built no coverage mask, so |ok| is
+// false, |background| and |pen| are invalid, |inkPixels| is -1 and
+// |components| is empty. Clipped, Ambiguous and a NoInk coverage mask were
+// measured: |ok| is true and every count and component is real. Unread is
+// the value before ReadIsolatedGlyph.
+enum class IsolatedGlyphState {
+	Unread,
+	BandOutsideImage,
+	NoInk,
+	NoPen,
+	Clipped,
+	Ambiguous,
+	Isolated,
+};
+
+// "glyph-unread", "glyph-band-outside-image", "glyph-no-ink",
+// "glyph-no-pen", "glyph-clipped", "glyph-ambiguous" or "glyph-isolated".
+[[nodiscard]] QString IsolatedGlyphStateName(IsolatedGlyphState state);
+
+// |bounds| is filled only when |read()| is true; a refusal leaves it empty
+// and names the reading's state and reason.
+struct IsolatedGlyphBox {
+	QRect bounds;
+	QString refusal;
+
+	[[nodiscard]] bool read() const {
+		return refusal.isEmpty();
+	}
+};
+
+// One 8-connected component of the coverage mask, in image coordinates.
+// |interior| is true when its bounds touch no edge of the band.
+struct IsolatedGlyphComponent {
+	QRect bounds;
+	int pixels = 0;
+	bool interior = false;
+};
+
+struct IsolatedGlyph {
+	bool ok = false;
+	QRect band;
+	QColor background;
+	QColor pen;
+	int inkPixels = -1;
+	int interior = 0;
+	QRect bounds;
+	std::vector<IsolatedGlyphComponent> components;
+	IsolatedGlyphState state = IsolatedGlyphState::Unread;
+	QString reason;
+
+	// Refuses every state except Isolated.
+	[[nodiscard]] IsolatedGlyphBox readBounds() const;
+};
+
+// The observed bounds of one complete connected glyph inside |band|, such
+// as a renderer advance cell that may also hold a neighbour's overhang.
+// |band| must be non-empty and lie wholly inside the image, else
+// BandOutsideImage. The background and pen are those of the band-mode
+// ReadGlyphCore of the same band (its modal solid core): a core with no ink
+// answers NoInk, one with no solid core NoPen. A band pixel c is ink when
+// its projection share ((c - bg) . (pen - bg)) / |pen - bg|^2 is at least
+// kIsolatedGlyphCoverage. Components are 8-connected and listed in raster
+// order of their first pixel. A component touching any band edge is a
+// boundary fragment (a neighbour's overhang or a cut glyph) and is never
+// part of the result. Clipped: no interior component is larger than every
+// boundary component (none is interior, or a boundary component is at
+// least as large as the largest interior one). Otherwise Ambiguous: two or
+// more interior components, which is also how a disconnected glyph (i, j,
+// ;, %, =, an accented capital) is handled: unsupported and refused, never
+// unioned or chosen between. Otherwise Isolated: the one interior
+// component, whose half-open raster rectangle is |bounds|. The target
+// therefore needs one pixel of clearance from every band edge; touching it,
+// the target is a boundary component and refuses Clipped. The reader takes
+// no expected height, centre or metric: metric agreement and alignment are
+// the caller's assertions. Reference: docs/helpers/test_ink.md.
+[[nodiscard]] IsolatedGlyph ReadIsolatedGlyph(const QImage &image, QRect band);
+
+// Prints the state, band, bg, pen, coverage, ink, components, interior and
+// bounds, then up to eight component=<rect> pixels=<n> interior=<0|1>
+// entries (more=<n> counts the rest) and the reason. A refused colour,
+// count or bounds is the text "none".
+[[nodiscard]] QString FormatIsolatedGlyph(const IsolatedGlyph &reading);
 
 // AppendDeriveBandSelfTest is the underivable-band refusal measuring
 // itself. Three synthetic images, no widget, no window, no session, chats,
@@ -388,6 +519,19 @@ struct GlyphCore {
 // here too: a triple the measured background cannot separate, beside one
 // that still classifies, and a dense mark beside an equal-count smear and
 // a flat fill. The glyph-core stage registers here too.
+//
+// The glyph-core surround stages register after it: a dark pen over a
+// patterned four-colour gradient read with GlyphBackground::Surround and,
+// as the revert control, with the band-mode rule; the same glyph over a
+// flat fill read alike by both sources; and the core-no-background refusal
+// beside the band-mode control and the outside-band precedence.
+//
+// The isolated-glyph stages register last: a capital beside a neighbour's
+// boundary overhang, a clean capital and a coverage fixture, each read
+// against the rectangles the stage drew, with the contaminated all-ink union
+// as the control the overhang fixture defeats; every named refusal with no
+// usable bounds; and two caller expectations whose opposite verdicts leave
+// the reading unchanged.
 void AppendDeriveBandSelfTest(not_null<Runner*> runner);
 
 } // namespace Test

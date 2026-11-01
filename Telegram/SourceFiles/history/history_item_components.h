@@ -59,6 +59,7 @@ struct CornersMaskRef;
 
 namespace Iv {
 struct RichPage;
+struct RichQuote;
 } // namespace Iv
 
 namespace HistoryView {
@@ -205,6 +206,9 @@ struct HistoryMessageForwarded
 	void create(
 		const HistoryMessageVia *via,
 		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] TextWithEntities phrase(
+		const HistoryMessageVia *via,
+		TextWithEntities userpic = {}) const;
 
 	[[nodiscard]] bool forwardOfForward() const {
 		return savedFromSender || savedFromHiddenSenderInfo;
@@ -323,8 +327,11 @@ private:
 
 struct ReplyFields {
 	[[nodiscard]] ReplyFields clone(not_null<HistoryItem*> parent) const;
+	[[nodiscard]] const TextWithEntities &displayQuote() const;
+	[[nodiscard]] MessageHighlightId highlight() const;
 
 	TextWithEntities quote;
+	std::shared_ptr<const Iv::RichQuote> richQuote;
 	std::unique_ptr<Data::Media> externalMedia;
 	PeerId externalSenderId = 0;
 	QString externalSenderName;

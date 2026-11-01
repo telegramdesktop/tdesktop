@@ -761,6 +761,9 @@ object_ptr<Ui::BoxContent> LinkBox(LinkBoxArgs &&args) {
 				: !args.url.isEmpty()
 				? args.url
 				: u"https://"_q)));
+		url->setInputMethodHints(Qt::ImhUrlCharactersOnly
+			| Qt::ImhNoAutoUppercase
+			| Qt::ImhNoPredictiveText);
 		box->setFocusCallback([=] { url->setFocusFast(); });
 
 		const auto preview = box->addRow(

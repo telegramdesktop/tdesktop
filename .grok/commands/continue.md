@@ -1,6 +1,6 @@
 ---
 name: continue
-description: Continue work from the shared ai-tdesktop queue. Use when the user invokes /continue or $continue in Grok Build, or asks to resume the active task and drain the frozen startup batch.
+description: Continue a specified batch from the shared ai-tdesktop queue. Use when the user invokes /continue or $continue in Grok Build with a batch specification, or asks to resume the active task and run a specified batch.
 ---
 
 # Continue AI Work
@@ -8,14 +8,16 @@ description: Continue work from the shared ai-tdesktop queue. Use when the user 
 Read `.grok/ai-workflow-adapter.md` and
 `.agents/skills/continue/SKILL.md` completely. Follow the shared skill with
 the Grok adapter's delegation, depth, text-handling, UI-driver, and
-compaction substitutions. At startup choose exactly one shared-skill mode
-and record its frozen task ids: put any active task first and append the
-matching existing queue snapshot, drain that snapshot when no task is
-active, or, when both are empty, process one inbox transaction and drain
-only its routed tasks. Never add unrelated tasks observed later in the
-run. Append and implement only new follow-up tasks routed from results
-produced by this invocation, including their transitive discovered
-follow-ups. Preserve the shared skill's source-project inheritance rule;
+compaction substitutions. The arguments below are the required batch
+specification. Without one, stop after the read-only `queue` call, report
+what the shared skill lists, and ask the user for a specification. Otherwise
+choose exactly one shared-skill mode and record its frozen task ids: any
+active task first, then exactly the tasks the specification selects, or the
+tasks one inbox transaction routes when it asks for the inbox. "All pending
+tasks" freezes the pending tasks on canonical ai-tdesktop master at startup.
+Never add unrelated tasks observed later in the run. Append and implement
+only new follow-up tasks routed from results produced by this invocation,
+including their transitive discovered follow-ups. Preserve the shared skill's source-project inheritance rule;
 detaching a follow-up requires its affirmative independence test. Continue
 until that frozen-and-derived batch reaches the scheduler's normal stop
 condition or a global hard stop. Do not stop on your own because a compact
@@ -46,9 +48,8 @@ workers. A continue-spawned performer is at depth 1 and must run every
 phase leaf as a same-session checklist. Do not start Grok subprocesses
 through Bash.
 
-Arguments, when present, are natural-language hints for new shared work;
-their wording decides whether they merely prioritize or strictly restrict
-selection:
+The arguments are the batch specification. They always restrict the batch
+to the tasks they select; ordering words only order those tasks:
 
 ```text
 $ARGUMENTS

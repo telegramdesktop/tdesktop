@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/thanos_effect.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
+#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history_item.h"
@@ -22,6 +23,12 @@ constexpr auto kBaseDuration = crl::time(400);
 constexpr auto kPerPixelDuration = float64(0.15);
 constexpr auto kMaxDuration = crl::time(600);
 constexpr auto kPendingAttempts = 4;
+
+[[nodiscard]] bool IsStarGiftService(not_null<const HistoryItem*> item) {
+	const auto media = item->media();
+	const auto gift = media ? media->gift() : nullptr;
+	return gift && gift->type == Data::GiftType::StarGift;
+}
 
 } // namespace
 
@@ -122,6 +129,7 @@ void ThanosEffectController::captureOnRemoval(
 		const auto saved = it->second;
 		_preCaptured.erase(it);
 		if (saved.top >= 0) {
+			ensureScrollBaseline();
 			notePendingRemoval(saved.height, saved.top, saved.dateHeight);
 		}
 		return;
@@ -131,7 +139,7 @@ void ThanosEffectController::captureOnRemoval(
 	const auto dateHeight = view->displayedDateHeight();
 
 	if ((!item->isRegular() && !item->isEphemeral())
-		|| item->isService()
+		|| (item->isService() && !IsStarGiftService(item))
 		|| top < 0
 		|| _delegate.contentWidth() <= 0) {
 		return;
@@ -205,7 +213,8 @@ bool ThanosEffectController::captureView(
 		int viewHeight,
 		int viewTop) {
 	const auto item = view->data();
-	if ((!item->isRegular() && !item->isEphemeral()) || item->isService()) {
+	if ((!item->isRegular() && !item->isEphemeral())
+		|| (item->isService() && !IsStarGiftService(item))) {
 		return false;
 	}
 	if (viewTop < 0) {
@@ -364,6 +373,10 @@ void ThanosEffectController::startCollapseAnimation(
 }
 
 void ThanosEffectController::collapseAnimationCallback() {
+	if (ThanosEffect::FailedOnce()) {
+		handleEffectFailure();
+		return;
+	}
 	const auto progress = _collapseAnimation.value(1.);
 
 	auto sumOriginal = 0;
@@ -431,6 +444,12 @@ void ThanosEffectController::shiftGaps(int delta) {
 	}
 }
 
+void ThanosEffectController::shiftScrollBaseline(int delta) {
+	if (_restoreScrollPending && !_wasAtBottom) {
+		_savedScrollTop += delta;
+	}
+}
+
 void ThanosEffectController::notePrependBaseline(int contentHeight) {
 	if (_collapseGaps.empty() || _prependPending) {
 		return;
@@ -448,6 +467,34 @@ void ThanosEffectController::applyPrependBaseline(int contentHeight) {
 	if (delta > 0) {
 		shiftGaps(delta);
 	}
+}
+
+void ThanosEffectController::handleEffectFailure() {
+	_preCaptured.clear();
+	_announcedRemoval.clear();
+	_pending.clear();
+	_pendingAttempts = 0;
+
+	auto sumOriginal = 0;
+	for (const auto &gap : _collapseGaps) {
+		sumOriginal += gap.originalHeight;
+	}
+	_collapseAnimation.stop();
+	_collapseGaps.clear();
+	_renderGaps.clear();
+	_gapsShift = 0;
+	_prependPending = false;
+	_delegate.collapseGapsUpdated();
+	if (sumOriginal > 0) {
+		if (_wasAtBottom) {
+			_delegate.scrollToY(_delegate.scrollTopMax());
+		} else {
+			_delegate.scrollToY(std::max(_savedScrollTop - sumOriginal, 0));
+		}
+	}
+	_restoreScrollPending = false;
+	_wasAtBottom = false;
+	_collapseAnimation = {};
 }
 
 void ThanosEffectController::syncCollapseGapsToHost() {

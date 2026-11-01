@@ -97,6 +97,7 @@ Manager::Manager(System *system)
 Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 : history(fields.item->history())
 , topicRootId(fields.item->topicRootId())
+, monoforumPeerId(ItemContextId(fields.item).monoforumPeerId)
 , peer(history->peer)
 , reaction(fields.reactionId)
 , author(!fields.reactionFrom
@@ -408,7 +409,7 @@ void Manager::doClearFromTopic(not_null<Data::ForumTopic*> topic) {
 
 void Manager::doClearFromSublist(not_null<Data::SavedSublist*> sublist) {
 	const auto history = sublist->owningHistory();
-	const auto sublistPeerId = sublist->sublistPeer()->id;
+	const auto sublistPeerId = SublistContextId(sublist).monoforumPeerId;
 	for (auto i = _queuedNotifications.begin(); i != _queuedNotifications.cend();) {
 		if (i->history == history && i->monoforumPeerId == sublistPeerId) {
 			i = _queuedNotifications.erase(i);
@@ -486,8 +487,22 @@ void Manager::doMaybeFlashBounce(Fn<void()> flashBounce) {
 }
 
 void Manager::doUpdateAll() {
+	const auto locked = Core::App().passcodeLocked();
+	auto unlinked = false;
 	for (const auto &notification : _notifications) {
-		notification->updateNotifyDisplay();
+		if (locked
+			&& (notification->isReplying() || notification->isUnlinked())) {
+			notification->hide();
+			if (notification->unlinkHistory()) {
+				unlinked = true;
+			}
+		} else {
+			notification->updateNotifyDisplay();
+		}
+	}
+	if (unlinked) {
+		_positionsOutdated = true;
+		showNextFromQueue();
 	}
 }
 
@@ -1107,7 +1122,7 @@ void Notification::toggleActionButtons(bool visible) {
 }
 
 void Notification::showReplyField() {
-	if (!_item) {
+	if (!canReply()) {
 		return;
 	}
 	raise();

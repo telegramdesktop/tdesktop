@@ -50,6 +50,8 @@ public:
 	explicit Panel(not_null<PanelDelegate*> delegate);
 	~Panel();
 
+	[[nodiscard]] not_null<QWidget*> widget() const;
+
 	void requestActivate();
 	void toggleProgress(bool shown);
 

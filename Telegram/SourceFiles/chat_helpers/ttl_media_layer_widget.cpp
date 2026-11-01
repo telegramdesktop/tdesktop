@@ -169,6 +169,10 @@ PreviewWrap::PreviewWrap(
 			update(_elementGeometry);
 		}
 	}, lifetime());
+	session->data().peerDecorationsUpdated(
+	) | rpl::on_next([=] {
+		update(_elementGeometry);
+	}, lifetime());
 	session->data().itemViewRefreshRequest(
 	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
 		if (item == _item) {
@@ -381,6 +385,7 @@ void ShowTTLMediaLayerWidget(
 		std::move(preview));
 	layer->lifetime().add([] { ::Media::Player::instance()->stop(); });
 	Core::App().screenshotProtection().addContentReason(
+		controller->widget(),
 		rpl::single(true),
 		layer->lifetime());
 	base::install_event_filter(layer.get(), [=](not_null<QEvent*> e) {

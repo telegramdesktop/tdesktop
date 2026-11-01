@@ -12,21 +12,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "settings/settings_builder.h"
 #include "settings/sections/settings_advanced.h"
-#include "settings/sections/settings_local_storage.h"
 #include "settings/sections/settings_main.h"
 #include "settings/sections/settings_privacy_security.h"
-#include "settings/settings_experimental.h"
 #include "settings/sections/settings_shortcuts.h"
 #include "boxes/abstract_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/connection_box.h"
-#include "boxes/auto_download_box.h"
 #include "boxes/reactions_settings_box.h"
 #include "boxes/stickers_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/background_box.h"
 #include "boxes/background_preview_box.h"
-#include "boxes/download_path_box.h"
 #include "dialogs/ui/dialogs_quick_action_context.h"
 #include "dialogs/dialogs_quick_action.h"
 #include "ui/boxes/choose_font_box.h"
@@ -53,7 +49,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
-#include "export/export_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_themes_embedded.h"
 #include "window/themes/window_theme_editor_box.h"
@@ -61,7 +56,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_adaptive.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
-#include "info/downloads/info_downloads_widget.h"
 #include "info/info_memento.h"
 #include "storage/localstorage.h"
 #include "core/file_utilities.h"
@@ -75,7 +69,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
-#include "base/call_delayed.h"
 #include "support/support_common.h"
 #include "support/support_templates.h"
 #include "main/main_session.h"
@@ -723,71 +716,6 @@ void ChooseFromFile(
 		tr::lng_choose_image(tr::now),
 		filters.join(u";;"_q),
 		crl::guard(parent, callback));
-}
-
-void SetupSupportSwitchSettings(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	using SwitchType = Support::SwitchSettings;
-	const auto group = std::make_shared<Ui::RadioenumGroup<SwitchType>>(
-		controller->session().settings().supportSwitch());
-	const auto add = [&](SwitchType value, const QString &label) {
-		container->add(
-			object_ptr<Ui::Radioenum<SwitchType>>(
-				container,
-				group,
-				value,
-				label,
-				st::settingsSendType),
-			st::settingsSendTypePadding);
-	};
-	add(SwitchType::None, "Just send the reply");
-	add(SwitchType::Next, "Send and switch to next");
-	add(SwitchType::Previous, "Send and switch to previous");
-	group->setChangedCallback([=](SwitchType value) {
-		controller->session().settings().setSupportSwitch(value);
-		controller->session().saveSettingsDelayed();
-	});
-}
-
-void SetupSupportChatsLimitSlice(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	constexpr auto kDayDuration = 24 * 60 * 60;
-	struct Option {
-		int days = 0;
-		QString label;
-	};
-	const auto options = std::vector<Option>{
-		{ 1, "1 day" },
-		{ 7, "1 week" },
-		{ 30, "1 month" },
-		{ 365, "1 year" },
-		{ 0, "All of them" },
-	};
-	const auto current = controller->session().settings().supportChatsTimeSlice();
-	const auto days = current / kDayDuration;
-	const auto best = ranges::min_element(
-		options,
-		std::less<>(),
-		[&](const Option &option) { return std::abs(option.days - days); });
-
-	const auto group = std::make_shared<Ui::RadiobuttonGroup>(best->days);
-	for (const auto &option : options) {
-		container->add(
-			object_ptr<Ui::Radiobutton>(
-				container,
-				group,
-				option.days,
-				option.label,
-				st::settingsSendType),
-			st::settingsSendTypePadding);
-	}
-	group->setChangedCallback([=](int days) {
-		controller->session().settings().setSupportChatsTimeSlice(
-			days * kDayDuration);
-		controller->session().saveSettingsDelayed();
-	});
 }
 
 void BuildThemeOptionsSection(SectionBuilder &builder) {
@@ -1819,197 +1747,6 @@ void SetupMessages(
 	Ui::AddSkip(inner);
 }
 
-void SetupArchive(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container,
-		Fn<void(Type)> showOther) {
-	Ui::AddSkip(container);
-
-	AddButtonWithIcon(
-		container,
-		tr::lng_settings_shortcuts(),
-		st::settingsButton,
-		{ &st::menuIconShortcut }
-	)->addClickHandler([=] {
-		showOther(ShortcutsId());
-	});
-
-	PreloadArchiveSettings(&controller->session());
-	AddButtonWithIcon(
-		container,
-		tr::lng_context_archive_settings(),
-		st::settingsButton,
-		{ &st::menuIconArchive }
-	)->addClickHandler([=] {
-		controller->show(Box(Settings::ArchiveSettingsBox, controller));
-	});
-}
-
-void SetupExport(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container,
-		Fn<void(Type)> showOther) {
-	AddButtonWithIcon(
-		container,
-		tr::lng_settings_export_data(),
-		st::settingsButton,
-		{ &st::menuIconExport }
-	)->addClickHandler([=] {
-		const auto session = &controller->session();
-		controller->window().hideSettingsAndLayer();
-		base::call_delayed(
-			st::boxDuration,
-			session,
-			[=] { Core::App().exportManager().start(session); });
-	});
-
-	AddButtonWithIcon(
-		container,
-		tr::lng_settings_experimental(),
-		st::settingsButton,
-		{ &st::menuIconExperimental }
-	)->addClickHandler([=] {
-		showOther(Experimental::Id());
-	});
-}
-
-void SetupLocalStorage(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	AddButtonWithIcon(
-		container,
-		tr::lng_settings_manage_local_storage(),
-		st::settingsButton,
-		{ &st::menuIconStorage }
-	)->addClickHandler([=] {
-		controller->showSettings(LocalStorageId());
-	});
-}
-
-void SetupDataStorage(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	using namespace rpl::mappers;
-
-	Ui::AddSkip(container);
-
-	Ui::AddSubsectionTitle(container, tr::lng_settings_data_storage());
-
-	SetupConnectionType(
-		&controller->window(),
-		&controller->session().account(),
-		container);
-
-#ifndef OS_WIN_STORE
-	const auto showpath = container->lifetime(
-	).make_state<rpl::event_stream<bool>>();
-
-	const auto path = container->add(
-		object_ptr<Ui::SlideWrap<Button>>(
-			container,
-			CreateButtonWithIcon(
-				container,
-				tr::lng_download_path(),
-				st::settingsButton,
-				{ &st::menuIconShowInFolder })));
-	auto pathtext = Core::App().settings().downloadPathValue(
-	) | rpl::map([](const QString &text) {
-		if (text.isEmpty()) {
-			return Core::App().canReadDefaultDownloadPath()
-				? tr::lng_download_path_default(tr::now)
-				: tr::lng_download_path_temp(tr::now);
-		} else if (text == FileDialog::Tmp()) {
-			return tr::lng_download_path_temp(tr::now);
-		}
-		return QDir::toNativeSeparators(text);
-	});
-	CreateRightLabel(
-		path->entity(),
-		std::move(pathtext),
-		st::settingsButton,
-		tr::lng_download_path());
-	path->entity()->addClickHandler([=] {
-		controller->show(Box<DownloadPathBox>(controller));
-	});
-#endif // OS_WIN_STORE
-
-	SetupLocalStorage(controller, container);
-
-	AddButtonWithIcon(
-		container,
-		tr::lng_downloads_section(),
-		st::settingsButton,
-		{ &st::menuIconDownload }
-	)->setClickedCallback([=] {
-		controller->showSection(
-			Info::Downloads::Make(controller->session().user()));
-	});
-
-	const auto ask = container->add(object_ptr<Ui::SettingsButton>(
-		container,
-		tr::lng_download_path_ask(),
-		st::settingsButtonNoIcon
-	))->toggleOn(rpl::single(Core::App().settings().askDownloadPath()));
-
-	ask->toggledValue(
-	) | rpl::filter([](bool checked) {
-		return (checked != Core::App().settings().askDownloadPath());
-	}) | rpl::on_next([=](bool checked) {
-		Core::App().settings().setAskDownloadPath(checked);
-		Core::App().saveSettingsDelayed();
-
-#ifndef OS_WIN_STORE
-		showpath->fire_copy(!checked);
-#endif // OS_WIN_STORE
-
-	}, ask->lifetime());
-
-#ifndef OS_WIN_STORE
-	path->toggleOn(ask->toggledValue() | rpl::map(!_1));
-#endif // OS_WIN_STORE
-
-	Ui::AddSkip(container, st::settingsCheckboxesSkip);
-}
-
-void SetupAutoDownload(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	Ui::AddDivider(container);
-	Ui::AddSkip(container);
-
-	Ui::AddSubsectionTitle(container, tr::lng_media_auto_settings());
-
-	using Source = Data::AutoDownload::Source;
-	const auto add = [&](
-		rpl::producer<QString> label,
-		Source source,
-		IconDescriptor &&descriptor) {
-		AddButtonWithIcon(
-			container,
-			std::move(label),
-			st::settingsButton,
-			std::move(descriptor)
-		)->addClickHandler([=] {
-			controller->show(
-				Box<AutoDownloadBox>(&controller->session(), source));
-		});
-	};
-	add(
-		tr::lng_media_auto_in_private(),
-		Source::User,
-		{ &st::menuIconProfile });
-	add(
-		tr::lng_media_auto_in_groups(),
-		Source::Group,
-		{ &st::menuIconGroups });
-	add(
-		tr::lng_media_auto_in_channels(),
-		Source::Channel,
-		{ &st::menuIconChannel });
-
-	Ui::AddSkip(container, st::settingsCheckboxesSkip);
-}
-
 void SetupChatBackground(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -2832,67 +2569,6 @@ void SetupThemeSettings(
 	}
 
 	Ui::AddSkip(container, st::settingsCheckboxesSkip);
-}
-
-void SetupSupport(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::VerticalLayout*> container) {
-	Ui::AddSkip(container);
-
-	Ui::AddSubsectionTitle(container, rpl::single(u"Support settings"_q));
-
-	Ui::AddSkip(container, st::settingsSendTypeSkip);
-
-	const auto skip = st::settingsSendTypeSkip;
-	auto wrap = object_ptr<Ui::VerticalLayout>(container);
-	const auto inner = wrap.data();
-	container->add(
-		object_ptr<Ui::OverrideMargins>(
-			container,
-			std::move(wrap),
-			QMargins(0, skip, 0, skip)));
-
-	SetupSupportSwitchSettings(controller, inner);
-
-	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-
-	inner->add(
-		object_ptr<Ui::Checkbox>(
-			inner,
-			"Enable templates autocomplete",
-			controller->session().settings().supportTemplatesAutocomplete(),
-			st::settingsCheckbox),
-		st::settingsSendTypePadding
-	)->checkedChanges(
-	) | rpl::on_next([=](bool checked) {
-		controller->session().settings().setSupportTemplatesAutocomplete(
-			checked);
-		controller->session().saveSettingsDelayed();
-	}, inner->lifetime());
-
-	inner->add(
-		object_ptr<Ui::Checkbox>(
-			inner,
-			"Send all messages without sound",
-			controller->session().settings().supportAllSilent(),
-			st::settingsCheckbox),
-		st::settingsSendTypePadding
-	)->checkedChanges(
-	) | rpl::on_next([=](bool checked) {
-		controller->session().settings().setSupportAllSilent(
-			checked);
-		controller->session().saveSettingsDelayed();
-	}, inner->lifetime());
-
-	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-
-	Ui::AddSubsectionTitle(inner, rpl::single(u"Load chats for a period"_q));
-
-	SetupSupportChatsLimitSlice(controller, inner);
-
-	Ui::AddSkip(inner, st::settingsCheckboxesSkip);
-
-	Ui::AddSkip(inner);
 }
 
 Type ChatId() {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_process.h"
 #include "platform/platform_specific.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -40,10 +41,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QLockFile>
 #include <QtGui/QSessionManager>
 #include <QtGui/QScreen>
-#include <QtGui/qpa/qplatformscreen.h>
 
 namespace Core {
 namespace {
+
+constexpr auto kLocalClientBufferLimit = 1024 * 1024;
 
 base::options::toggle OptionDeadlockDetector({
 	.id = kOptionDeadlockDetector,
@@ -111,7 +113,6 @@ constexpr auto kCleanupQuitTimeout = 30 * crl::time(1000);
 const char kOptionDeadlockDetector[] = "deadlock-detector";
 
 bool Sandbox::QuitOnStartRequested = false;
-bool Sandbox::SystemShuttingDown = false;
 
 Sandbox::Sandbox(int &argc, char **argv)
 : QApplication(argc, argv)
@@ -195,27 +196,9 @@ int Sandbox::start() {
 
 	crl::on_main(this, [=] { checkForQuit(); });
 	connect(this, &QCoreApplication::aboutToQuit, [=] {
-		// On Windows, Qt emits aboutToQuit synchronously from its
-		// WM_ENDSESSION handler (QWindowsContext::windowsProc). Running
-		// closeApplication() there destroys QWindows mid-dispatch and
-		// later WM_ENDSESSION messages delivered to other top-level
-		// HWNDs crash on virtual dispatch through stale QWindow*. Detect
-		// that path and defer cleanup to the next main-loop tick so Qt
-		// finishes delivering shutdown messages on still-live windows.
-		// On a normal quit (Ctrl+Q etc.) aboutToQuit fires from the
-		// exec() epilogue after the event loop has exited and queued
-		// events would not run, so we keep the synchronous teardown.
-		if (SystemShuttingDown) {
-			QMetaObject::invokeMethod(this, [=] {
-				customEnterFromEventLoop([&] {
-					closeApplication();
-				});
-			}, Qt::QueuedConnection);
-		} else {
-			customEnterFromEventLoop([&] {
-				closeApplication();
-			});
-		}
+		customEnterFromEventLoop([&] {
+			closeApplication();
+		});
 	});
 
 	// https://github.com/telegramdesktop/tdesktop/issues/948
@@ -244,6 +227,10 @@ int Sandbox::stopRunningInstance() {
 			return 0;
 		}
 		LOG(("Cleanup: connect error %1.").arg(_localSocket.error()));
+		return 1;
+	}
+	if (!Platform::LocalSocketPeerAllowed(_localSocket.socketDescriptor())) {
+		LOG(("Cleanup: untrusted socket peer."));
 		return 1;
 	}
 	_localSocket.write("CMD:quit;");
@@ -277,22 +264,16 @@ int Sandbox::stopRunningInstance() {
 	return 0;
 }
 
-void Sandbox::NotifySystemShuttingDown() {
-	SystemShuttingDown = true;
-}
-
 void Sandbox::QuitWhenStarted() {
 	if (!QApplication::instance() || !Instance()._started) {
 		QuitOnStartRequested = true;
 	} else {
-		// Use exit(0) instead of quit() to avoid recursive
-		// [NSApp terminate:] on macOS. Since Qt 6.0, quit() routes
-		// through QCocoaIntegration::quit() -> [NSApp terminate:],
-		// which when called from within applicationShouldTerminate:
-		// causes a nested terminate that leads to exit() being called
-		// directly, bypassing normal cleanup. exit(0) properly exits
-		// event loops without going through the platform plugin.
-		QCoreApplication::exit(0);
+		// WHY: quit() on macOS since Qt 6.0 routes through [NSApp terminate:],
+		// and since Qt 6.7 even exit() emits aboutToQuit synchronously, which
+		// destroys windows mid-dispatch. So exit(0), deferred one loop tick.
+		InvokeQueued(&Instance(), [] {
+			QCoreApplication::exit(0);
+		});
 	}
 }
 
@@ -354,8 +335,7 @@ void Sandbox::setupScreenScale() {
 
 	const auto screen = Sandbox::primaryScreen();
 	const auto dpi = screen->logicalDotsPerInch();
-	const auto basePair = screen->handle()->logicalBaseDpi();
-	const auto base = (basePair.first + basePair.second) * 0.5;
+	const auto base = style::BaseDpi();
 	const auto screenScaleExact = dpi / base;
 	const auto screenScale = int(base::SafeRound(screenScaleExact * 20)) * 5;
 	LOG(("Primary screen DPI: %1, Base: %2.").arg(dpi).arg(base));
@@ -374,14 +354,6 @@ void Sandbox::setupScreenScale() {
 }
 
 Sandbox::~Sandbox() {
-	// When WM_ENDSESSION deferred closeApplication() to a main-loop
-	// tick that never came, the Application is still alive here and
-	// would be destroyed by member teardown at base nesting level,
-	// where Ui::PostponeCall bookkeeping is not allowed. Destroy it
-	// inside enter-from-event-loop instead, like a normal quit does.
-	customEnterFromEventLoop([&] {
-		closeApplication();
-	});
 #ifdef Q_OS_MAC
 	Platform::DestroyGlobalMenu();
 #endif // Q_OS_MAC
@@ -406,6 +378,12 @@ bool Sandbox::event(QEvent *e) {
 }
 
 void Sandbox::socketConnected() {
+	if (!Platform::LocalSocketPeerAllowed(_localSocket.socketDescriptor())) {
+		LOG(("Socket %1 has an untrusted peer, quitting..."
+			).arg(_localServerName));
+		_localSocket.disconnectFromServer();
+		return Quit();
+	}
 	LOG(("Socket connected, this is not the first application instance, sending show command..."));
 	_secondInstance = true;
 
@@ -552,6 +530,13 @@ void Sandbox::socketDisconnected() {
 void Sandbox::newInstanceConnected() {
 	DEBUG_LOG(("Sandbox Info: new local socket connected"));
 	for (auto client = _localServer.nextPendingConnection(); client; client = _localServer.nextPendingConnection()) {
+		if (!Platform::LocalSocketPeerAllowed(client->socketDescriptor())) {
+			LOG(("Sandbox Warning: local socket client of another user "
+				"rejected."));
+			client->close();
+			client->deleteLater();
+			continue;
+		}
 		_localClients.push_back(LocalClient{ .socket = client });
 		connect(
 			client,
@@ -580,12 +565,23 @@ void Sandbox::readClients() {
 		return (i != _localClients.end()) ? &*i : nullptr;
 	};
 	QList<QUrl> startUrls;
+	struct Reply {
+		QLocalSocket *socket = nullptr;
+		bool activationRequired = false;
+	};
+	auto replies = std::vector<Reply>();
 	for (const auto socket : sockets) {
 		const auto client = findClient(socket);
 		if (!client) {
 			continue;
 		}
 		client->buffer.append(socket->readAll());
+		if (client->buffer.size() > kLocalClientBufferLimit) {
+			LOG(("Sandbox Error: local socket client buffer overflow."));
+			client->buffer.clear();
+			socket->abort(); // emits disconnected, so client is gone now
+			continue;
+		}
 		if (client->buffer.size()) {
 			QString cmds(QString::fromLatin1(client->buffer));
 			int32 from = 0, l = cmds.length();
@@ -659,20 +655,38 @@ void Sandbox::readClients() {
 				}
 				startUrls.append(url);
 				if (!activationRequired) {
-					activationRequired = StartUrlRequiresActivate(url.toString());
+					// WHY: without Application the passcode state is unknown.
+					activationRequired = !Core::IsAppLaunched()
+						|| StartUrlRequiresActivate(url.toString());
 				}
 			}
-			const auto processId = QApplication::applicationPid();
-			const auto windowId = activationRequired
-				? execExternal("show")
-				: 0;
-			const auto response = u"RES:%1_%2;"_q.arg(processId).arg(windowId).toLatin1();
-			socket->write(response.data(), response.size());
+			replies.push_back({ socket, activationRequired });
 		}
 	}
 	cRefStartUrls() << base::take(startUrls);
-	if (_application) {
-		_application->checkStartUrls();
+	const auto activated = _application
+		? _application->checkStartUrlsActivating()
+		: QPointer<QWidget>();
+	auto windowId = std::optional<uint64>();
+	const auto activate = [&] {
+		if (!windowId) {
+			if (const auto window = activated.data()) {
+				windowId = Platform::ActivationWindowId(window);
+				base::Platform::ActivateThisProcessWindow(window->winId());
+			} else {
+				windowId = execExternal("show");
+			}
+		}
+		return *windowId;
+	};
+	const auto processId = QApplication::applicationPid();
+	for (const auto &reply : replies) {
+		if (!findClient(reply.socket)) {
+			continue;
+		}
+		const auto id = reply.activationRequired ? activate() : 0;
+		const auto response = u"RES:%1_%2;"_q.arg(processId).arg(id).toLatin1();
+		reply.socket->write(response.data(), response.size());
 	}
 }
 
@@ -778,6 +792,10 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	if (e->type() == QEvent::UpdateRequest) {
 		const auto weak = QPointer<QObject>(receiver);
 		_widgetUpdateRequests.fire({});
+		// WHY: main queue tasks drained above entered from the event loop at
+		// this level, else paint events below would run postponed calls
+		// right after themselves, while Qt still uses the painted widget.
+		checkForEmptyLoopNestingLevel();
 		if (!weak) {
 			return true;
 		}

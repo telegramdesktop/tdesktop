@@ -70,9 +70,4 @@ rpl::producer<bool> Adaptive::chatWideValue() const {
 	) | rpl::map(rpl::mappers::_1 && rpl::mappers::_2);
 }
 
-bool Adaptive::isChatWide() const {
-	return Core::App().settings().adaptiveForWide()
-		&& (_chatLayout.current() == Adaptive::ChatLayout::Wide);
-}
-
 } // namespace Window

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QPointer>
 #include <QtCore/QString>
 
+#include <memory>
 #include <vector>
 
 class QWidget;
@@ -77,6 +78,62 @@ struct PostPaintStop {
 	const PostPaintStop &stop,
 	NumberFormat format);
 
+// How a sampler classified one paint its filter received:
+// - Product: a counted product paint (paints=) that posted a sample or
+//   joined the pending one;
+// - Untracked: a counted product paint received outside every sampling
+//   window or inside a grab-free window (its lead included), so no sample
+//   follows it;
+// - Capture: a paint caused by this sampler's own action or by the action
+//   of any sampler sharing its PostPaintCaptureScope, counted in ignored=
+//   and never sampled.
+enum class PostPaintReceiptKind {
+	Product,
+	Untracked,
+	Capture,
+};
+
+// One paint the sampler received. |index| is 1-based in receipt order: the
+// sampler's filter runs before the owner's paintEvent, so receiptMark()
+// read inside that paintEvent is this paint's |index|, the key a caller's
+// own paint records use. |at| is crl::now() at receipt, the value a
+// sample's paintAt / lastPaintAt carries for a Product receipt.
+struct PostPaintReceipt {
+	int index = 0;
+	crl::time at = 0;
+	PostPaintReceiptKind kind = PostPaintReceiptKind::Product;
+};
+
+// "receipt index=<n> at=<ms> kind=product|untracked|capture", in ordinary
+// integers.
+[[nodiscard]] QString PostPaintReceiptText(const PostPaintReceipt &receipt);
+
+// The first receipt of one kind after a mark, or the refusal naming why
+// there is none ("absent-receipt: ...").
+struct PostPaintFirstReceipt {
+	PostPaintReceipt receipt;
+	QString refusal;
+
+	[[nodiscard]] bool received() const;
+};
+
+// The samplers whose actions may paint each other's owners, such as one
+// sampler per child of a composite owner whose action grabs the whole
+// composite. Create one with std::make_shared and hand it to every member's
+// constructor; while any member's action runs, every member classifies the
+// paints it receives as Capture. It holds no sampler and may outlive them.
+class PostPaintCaptureScope final {
+public:
+	// True while some member's action runs.
+	[[nodiscard]] bool capturing() const;
+
+private:
+	friend class PostPaintSampler;
+
+	int _depth = 0;
+
+};
+
 // Samples one painted owner right after each of its product paints instead
 // of on a timer.
 //
@@ -134,6 +191,17 @@ struct PostPaintStop {
 // requests a repaint from every paint keeps being sampled because it keeps
 // painting, never because the sampler feeds itself.
 //
+// The shared capture scope. A sampler constructed with a
+// PostPaintCaptureScope also enters that scope around its action, and every
+// member checks the scope as well as its own flag, so a composite grab one
+// member takes - which synchronously paints the other members' owners too -
+// is a Capture receipt to every member: none counts it as a product paint
+// or posts a sample for it. The scope is left when the action returns, even
+// when the action destroyed the sampler, so a later paint that such a grab
+// paint requested is still a genuine product paint and is sampled. A
+// sampler without a scope keeps the instance-local guard alone: to it,
+// another sampler's grab of its owner is a product paint.
+//
 // The windows, in crl::now() milliseconds, each [from, till):
 // - sampleDuring opens a sampling window. Outside every sampling window
 //   the sampler is idle, so there is no start() or stop(). Window
@@ -176,13 +244,34 @@ struct PostPaintStop {
 // samplesSince(mark), which returns the rows with seq > mark. There is
 // deliberately no accessor over the whole history. details() prints the
 // owner, pending, stop reason, counters, window counts and the longest
-// action, for a Check's details on either verdict.
+// action, then scope=shared|local and the receipt count, for a Check's
+// details on either verdict.
+//
+// Receipts. Every paint the filter sees while the sampler is live is one
+// PostPaintReceipt, classified at receipt (PostPaintReceiptKind); a stopped
+// sampler records none, and receipts never change rows or the stop row.
+// Read them the way rows are read: take receiptMark() immediately before
+// the action under test and pass it to receiptsSince(mark), which returns
+// the receipts with index > mark. A caller reconciles its own paint records
+// to receipts by index (stamp receiptMark() inside the owner's paintEvent),
+// and a Product receipt to its row by paintAt or lastPaintAt equal to |at|.
+//
+// The first-receipt rule. An exposed idle window has promised no paint:
+// being shown or exposed, or time passing, is not a paint request. To prove
+// the owner paints, open a sampling window (outside one the paint is
+// Untracked), take receiptMark(), call update() on the owner once, then
+// wait in a pure until for firstReceiptSince(mark).received(); no such
+// receipt is the named refusal "absent-receipt: ...". Visibility, elapsed
+// time or a Capture receipt - a grab paints whether or not the window
+// would - is never a first-paint control. Coordination, receipts and this
+// pitfall: docs/helpers/test_post_paint.md, "Coordinated samplers and
+// receipts".
 //
 // The numbers of the two rows are ordinary integers until
 // Test::RequestTelemetryNumbers(); a row formatted after it prints every
 // one of them as a TelemetryNumber (seq=4821p ... hi=61537p, pending=1p
-// ...). details() and the empty-window NOTE keep ordinary integers either
-// way.
+// ...). details(), the empty-window NOTE, PostPaintReceiptText and the
+// absent-receipt refusal keep ordinary integers either way.
 //
 // The instrument floor. A post-paint sample's lo can never precede the end
 // of the paint it follows: in Attempt 2 of the same task the post-paint
@@ -197,17 +286,22 @@ struct PostPaintStop {
 // - an action that destroys the owner or the sampler (the sampler touches
 //   nothing of itself after such an action, but it is not supported);
 // - any other grab of the owner or of an ancestor taken while a sampling
-//   window is open: its paint looks like a product paint, so route it
-//   through the action or take it outside the windows;
+//   window is open, unless it is the action of a sampler sharing this
+//   sampler's PostPaintCaptureScope: its paint looks like a product paint,
+//   so route it through such an action or take it outside the windows.
+//   Samplers that share no scope keep the instance-local guard, so the
+//   grab one takes is a product paint to the other;
 // - an owner that is not the widget whose own paintEvent paints the
 //   measured surface: the filter sees the owner's paints only, never a
 //   child's.
 class PostPaintSampler final : public base::has_weak_ptr {
 public:
+	// A null |scope| keeps the instance-local recursion guard only.
 	PostPaintSampler(
 		QString name,
 		not_null<QWidget*> owner,
-		Fn<void(int seq)> sample);
+		Fn<void(int seq)> sample,
+		std::shared_ptr<PostPaintCaptureScope> scope = nullptr);
 	~PostPaintSampler();
 
 	void sampleDuring(crl::time from, crl::time till);
@@ -217,6 +311,19 @@ public:
 	// action under test.
 	[[nodiscard]] int mark() const;
 	[[nodiscard]] std::vector<PostPaintSample> samplesSince(int mark) const;
+
+	// The end of the receipt history right now; take it immediately before
+	// the action under test.
+	[[nodiscard]] int receiptMark() const;
+	[[nodiscard]] std::vector<PostPaintReceipt> receiptsSince(int mark) const;
+
+	// The first |kind| receipt with index > |mark|, or the refusal
+	// "absent-receipt: no <kind> receipt since mark <m> (receipts=<n>,
+	// last=<PostPaintReceiptText or none>, stop=<reason or ->)", where
+	// receipts= counts the whole history and last= is its last receipt.
+	[[nodiscard]] PostPaintFirstReceipt firstReceiptSince(
+		int mark,
+		PostPaintReceiptKind kind = PostPaintReceiptKind::Product) const;
 
 	// True while a posted sample has not run yet.
 	[[nodiscard]] bool pending() const;
@@ -232,6 +339,7 @@ private:
 	};
 
 	void paintReceived();
+	void receive(crl::time at, PostPaintReceiptKind kind);
 	void post();
 	void runPending();
 	void finish(const QString &reason);
@@ -242,10 +350,12 @@ private:
 	const QString _name;
 	const QPointer<QWidget> _owner;
 	const Fn<void(int)> _sample;
+	const std::shared_ptr<PostPaintCaptureScope> _scope;
 	QPointer<QObject> _filter;
 	std::vector<Window> _windows;
 	std::vector<Window> _grabFree;
 	std::vector<PostPaintSample> _samples;
+	std::vector<PostPaintReceipt> _receipts;
 	QString _stopReason;
 	crl::time _pendingFirstAt = 0;
 	crl::time _pendingLastAt = 0;

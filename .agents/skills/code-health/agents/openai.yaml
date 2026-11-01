@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Health"
+  short_description: "Measure code health and propose quality tasks"
+  default_prompt: "Use $code-health to scan freshly fetched origin/dev, update the findings ledger, and report what got worse before this run's proposals."

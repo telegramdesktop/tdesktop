@@ -159,6 +159,8 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 		resolveList().clear();
 	}
 	const auto history = _thread->owningHistory();
+	auto &owner = history->owner();
+	const auto weak = base::make_weak(_thread);
 	auto fullCount = slice.match([&](
 			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
@@ -181,7 +183,6 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 		return data.vcount().v;
 	});
 
-	auto &owner = _thread->owner();
 	const auto messages = slice.match([&](
 			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
@@ -192,11 +193,10 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 		owner.processChats(data.vchats());
 		return data.vmessages().v;
 	});
-	if (!messages.isEmpty() && !_data) {
-		createData();
+	if (!weak) {
+		return;
 	}
 	auto added = false;
-	const auto list = _data ? &resolveList() : nullptr;
 	const auto localFlags = MessageFlags();
 	const auto type = NewMessageType::Existing;
 	for (const auto &message : messages) {
@@ -205,6 +205,9 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 			message,
 			localFlags,
 			type);
+		if (!weak) {
+			return;
+		}
 		if (_type == Type::PollVotes) {
 			item->setHasUnreadPollVote();
 		}
@@ -217,15 +220,20 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 			Unexpected("Type in Proxy::addSlice.");
 		}();
 		if (is) {
-			list->insert(item->id);
+			if (!_data) {
+				createData();
+			}
+			resolveList().insert(item->id);
 			added = true;
 		}
 	}
 	if (!added) {
-		fullCount = loadedCount();
+		fullCount = _data ? resolveList().loadedCount() : 0;
 	}
 	setCount(fullCount);
-	notifyUpdated();
+	if (weak) {
+		notifyUpdated();
+	}
 }
 
 void Proxy::checkAdd(MsgId msgId, bool resolved) {

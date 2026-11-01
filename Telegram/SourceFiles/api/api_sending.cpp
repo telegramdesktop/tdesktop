@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h" // UserData::name
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_forum.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/components/ephemeral_messages.h"
@@ -66,6 +67,42 @@ void InnerFillMessagePostFlags(
 	if (channel->addsSignature()) {
 		flags |= MessageFlag::HasPostAuthor;
 	}
+}
+
+[[nodiscard]] int FillSendMediaOptionFlags(
+		SendOptions &options,
+		not_null<PeerData*> peer,
+		MessageFlags &flags,
+		MTPmessages_SendMedia::Flags &sendFlags) {
+	const auto starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		options.starsApproved);
+	if (options.scheduled) {
+		flags |= MessageFlag::IsOrWasScheduled;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+		if (options.scheduleRepeatPeriod) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
+		}
+	}
+	if (options.shortcutId) {
+		flags |= MessageFlag::ShortcutMessage;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
+	}
+	if (options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
+	if (options.suggest) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
+	}
+	if (options.invertCaption) {
+		flags |= MessageFlag::InvertMedia;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
+	}
+	if (starsPaid) {
+		options.starsApproved -= starsPaid;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+	}
+	return starsPaid;
 }
 
 void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
@@ -120,34 +157,11 @@ void SendSimpleMedia(SendAction action, MTPInputMedia inputMedia) {
 	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name()
 		: QString();
-	const auto starsPaid = std::min(
-		peer->starsPerMessageChecked(),
-		action.options.starsApproved);
-	if (action.options.scheduled) {
-		flags |= MessageFlag::IsOrWasScheduled;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
-		if (action.options.scheduleRepeatPeriod) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
-		}
-	}
-	if (action.options.shortcutId) {
-		flags |= MessageFlag::ShortcutMessage;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
-	}
-	if (action.options.effectId) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
-	}
-	if (action.options.suggest) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
-	}
-	if (action.options.invertCaption) {
-		flags |= MessageFlag::InvertMedia;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
-	}
-	if (starsPaid) {
-		action.options.starsApproved -= starsPaid;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
-	}
+	const auto starsPaid = FillSendMediaOptionFlags(
+		action.options,
+		peer,
+		flags,
+		sendFlags);
 
 	auto &histories = history->owner().histories();
 	histories.sendPreparedMessage(
@@ -252,34 +266,11 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}
 	const auto captionText = caption.text;
-	const auto starsPaid = std::min(
-		peer->starsPerMessageChecked(),
-		action.options.starsApproved);
-	if (action.options.scheduled) {
-		flags |= MessageFlag::IsOrWasScheduled;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
-		if (action.options.scheduleRepeatPeriod) {
-			sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
-		}
-	}
-	if (action.options.shortcutId) {
-		flags |= MessageFlag::ShortcutMessage;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
-	}
-	if (action.options.effectId) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
-	}
-	if (action.options.suggest) {
-		sendFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
-	}
-	if (action.options.invertCaption) {
-		flags |= MessageFlag::InvertMedia;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_invert_media;
-	}
-	if (starsPaid) {
-		action.options.starsApproved -= starsPaid;
-		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
-	}
+	const auto starsPaid = FillSendMediaOptionFlags(
+		action.options,
+		peer,
+		flags,
+		sendFlags);
 
 	const auto item = history->addNewLocalMessage({
 		.id = newId.msg,
@@ -981,6 +972,63 @@ void FillMessagePostFlags(
 	InnerFillMessagePostFlags(action.options, peer, flags);
 }
 
+MTPmessages_SendMedia::Flags PrepareSendMedia(
+		not_null<Main::Session*> session,
+		SendAction &action,
+		int &starsPaid) {
+	StripEphemeralReply(session, action.replyTo);
+	session->api().sendAction(action);
+
+	const auto history = action.history;
+	const auto peer = history->peer;
+	const auto topicRootId = action.replyTo.messageId
+		? action.replyTo.topicRootId
+		: 0;
+	const auto monoforumPeerId = action.replyTo.monoforumPeerId;
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
+	if (action.replyTo) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to;
+	}
+	const auto clearCloudDraft = action.clearDraft;
+	if (clearCloudDraft) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
+		history->clearLocalDraft(topicRootId, monoforumPeerId);
+		history->clearCloudDraft(topicRootId, monoforumPeerId);
+		history->startSavingCloudDraft(topicRootId, monoforumPeerId);
+	}
+	const auto silentPost = ShouldSendSilent(peer, action.options);
+	starsPaid = std::min(
+		peer->starsPerMessageChecked(),
+		action.options.starsApproved);
+	if (silentPost) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
+	}
+	if (action.options.scheduled) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_date;
+		if (action.options.scheduleRepeatPeriod) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_schedule_repeat_period;
+		}
+	}
+	if (action.options.shortcutId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_quick_reply_shortcut;
+	}
+	if (action.options.effectId) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_effect;
+	}
+	if (action.options.suggest) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_suggested_post;
+	}
+	if (starsPaid) {
+		action.options.starsApproved -= starsPaid;
+		sendFlags |= MTPmessages_SendMedia::Flag::f_allow_paid_stars;
+	}
+	const auto sendAs = action.options.sendAs;
+	if (sendAs) {
+		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
+	}
+	return sendFlags;
+}
+
 namespace {
 
 struct ConfirmedLocalFile {
@@ -1243,6 +1291,20 @@ void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
 	}
 }
 
+[[nodiscard]] bool TargetsDiscardedTopic(
+		not_null<Main::Session*> session,
+		const std::shared_ptr<FilePrepareResult> &file) {
+	const auto rootId = file->to.replyTo.topicRootId;
+	if (!IsClientMsgId(rootId)) {
+		return false;
+	}
+	const auto history = session->data().history(file->to.peer);
+	const auto forum = history->asForum();
+	const auto &histories = session->data().histories();
+	return !(forum && forum->creating(rootId))
+		&& IsClientMsgId(histories.convertTopicReplyToId(history, rootId));
+}
+
 [[nodiscard]] bool FlushPreparedMusicBatch(
 		not_null<Main::Session*> session,
 		const std::shared_ptr<FilePrepareResult> &sample) {
@@ -1253,6 +1315,8 @@ void AddConfirmedLocalPlaceholder(const ConfirmedLocalFile &local) {
 	auto files = album->takePreparedMusic();
 	if (files.empty()) {
 		return false;
+	} else if (TargetsDiscardedTopic(session, files.front())) {
+		return true;
 	}
 
 	const auto peer = session->data().history(files.front()->to.peer)->peer;
@@ -1306,7 +1370,8 @@ void SendConfirmedFile(
 			return;
 		}
 	}
-	if (FlushPreparedMusicBatch(session, file)) {
+	if (FlushPreparedMusicBatch(session, file)
+		|| TargetsDiscardedTopic(session, file)) {
 		return;
 	}
 

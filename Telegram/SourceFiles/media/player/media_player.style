@@ -242,6 +242,8 @@ mediaPlayerSpeedButton: MediaSpeedButton {
 	menuPosition: point(-2px, -1px);
 }
 
+mediaPlayerSpeedBoostDragPerUnit: 300px;
+
 mediaPlayerVolumeIcon0: icon {
 	{ "player/player_mini_off", mediaPlayerActiveFg },
 };

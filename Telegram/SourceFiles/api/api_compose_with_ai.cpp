@@ -191,14 +191,7 @@ void ClearAiApplyBoundSlug() {
 QString AiApplyShortcutText() {
 	for (const auto &[keys, commands] : Shortcuts::KeysCurrents()) {
 		if (commands.contains(Shortcuts::Command::ComposeAiApplyInPlace)) {
-			auto result = keys.toString();
-#ifdef Q_OS_MAC
-			result = result.replace(u"Ctrl+"_q, QString() + QChar(0x2318));
-			result = result.replace(u"Meta+"_q, QString() + QChar(0x2303));
-			result = result.replace(u"Alt+"_q, QString() + QChar(0x2325));
-			result = result.replace(u"Shift+"_q, QString() + QChar(0x21E7));
-#endif // Q_OS_MAC
-			return result;
+			return Shortcuts::ToDisplayString(keys);
 		}
 	}
 	return QString();

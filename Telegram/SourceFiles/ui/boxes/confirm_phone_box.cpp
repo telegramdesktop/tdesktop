@@ -184,8 +184,4 @@ void ConfirmPhoneBox::showServerError(const QString &text) {
 	showError(text);
 }
 
-QString ConfirmPhoneBox::getPhone() const {
-	return _phone;
-}
-
 } // namespace Ui

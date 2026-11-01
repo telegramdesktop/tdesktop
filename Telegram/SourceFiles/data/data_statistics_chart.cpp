@@ -133,34 +133,4 @@ int StatisticalChart::findEndIndex(int left, float64 v) const {
 	return std::max(wasLeft, right);
 }
 
-
-int StatisticalChart::findIndex(int left, int right, float64 v) const {
-	const auto n = int(xPercentage.size());
-
-	if (v <= xPercentage[left]) {
-		return left;
-	}
-	if (v >= xPercentage[right]) {
-		return right;
-	}
-
-	while (left <= right) {
-		const auto middle = (right + left) >> 1;
-		if (v > xPercentage[middle]
-			&& ((middle == n - 1) || (v < xPercentage[middle + 1]))) {
-			return middle;
-		}
-
-		if (v == xPercentage[middle]) {
-			return middle;
-		}
-		if (v < xPercentage[middle]) {
-			right = middle - 1;
-		} else if (v > xPercentage[middle]) {
-			left = middle + 1;
-		}
-	}
-	return right;
-}
-
 } // namespace Data

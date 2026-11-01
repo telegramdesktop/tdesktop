@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_theme_readability.h"
 #include "ui/image/image.h"
+#include "ui/image/image_prepare.h"
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/ui_utility.h"
 #include "ui/boxes/confirm_box.h"
@@ -52,7 +53,6 @@ namespace Window {
 namespace Theme {
 namespace {
 
-constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr auto kBackgroundSizeLimit = 25 * 1024 * 1024;
 constexpr auto kNightThemeFile = ":/gui/night.tdesktop-theme"_cs;
 constexpr auto kDarkValueThreshold = 0.5;
@@ -289,6 +289,31 @@ bool loadBackground(zlib::FileToRead &file, QByteArray *outBackground, bool *out
 	return true;
 }
 
+std::optional<QByteArray> ReadPaletteContent(
+		zlib::FileToRead &file,
+		const QByteArray &content,
+		const std::optional<QByteArray> &editedPalette) {
+	unz_global_info globalInfo = { 0 };
+	file.getGlobalInfo(&globalInfo);
+	if (file.error() != UNZ_OK) {
+		// Looks like it is not a .zip theme.
+		return editedPalette.value_or(content);
+	}
+	auto schemeContent = editedPalette.value_or(QByteArray());
+	if (schemeContent.isEmpty()) {
+		schemeContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	}
+	if (schemeContent.isEmpty()) {
+		file.clearError();
+		schemeContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
+	}
+	if (file.error() != UNZ_OK) {
+		LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
+		return std::nullopt;
+	}
+	return schemeContent;
+}
+
 bool LoadTheme(
 		const QByteArray &content,
 		const style::colorizer &colorizer,
@@ -308,32 +333,20 @@ bool LoadTheme(
 
 	const auto emptyColorizer = style::colorizer();
 	const auto &paletteColorizer = editedPalette ? emptyColorizer : colorizer;
-	auto paletteContent = QByteArray();
-
-	unz_global_info globalInfo = { 0 };
-	file.getGlobalInfo(&globalInfo);
+	const auto paletteContent = ReadPaletteContent(
+		file,
+		content,
+		editedPalette);
+	if (!paletteContent) {
+		return false;
+	} else if (!loadColorScheme(*paletteContent, paletteColorizer, out)) {
+		DEBUG_LOG(("Theme: Could not loadColorScheme."));
+		return false;
+	}
+	if (!out) {
+		Background()->saveAdjustableColors();
+	}
 	if (file.error() == UNZ_OK) {
-		auto schemeContent = editedPalette.value_or(QByteArray());
-		if (schemeContent.isEmpty()) {
-			schemeContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		}
-		if (schemeContent.isEmpty()) {
-			file.clearError();
-			schemeContent = file.readFileContent("colors.tdesktop-palette", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
-		}
-		if (file.error() != UNZ_OK) {
-			LOG(("Theme Error: could not read 'colors.tdesktop-theme' or 'colors.tdesktop-palette' in the theme file."));
-			return false;
-		}
-		if (!loadColorScheme(schemeContent, paletteColorizer, out)) {
-			DEBUG_LOG(("Theme: Could not loadColorScheme."));
-			return false;
-		}
-		paletteContent = schemeContent;
-		if (!out) {
-			Background()->saveAdjustableColors();
-		}
-
 		auto backgroundTiled = false;
 		auto backgroundContent = QByteArray();
 		if (!loadBackground(file, &backgroundContent, &backgroundTiled)) {
@@ -344,9 +357,13 @@ bool LoadTheme(
 		if (!backgroundContent.isEmpty()) {
 			auto check = QBuffer(&backgroundContent);
 			auto reader = QImageReader(&check);
+			if (Images::IsSvgFormat(reader.format())) {
+				LOG(("Theme Error: SVG background is not supported."));
+				return false;
+			}
 			const auto size = reader.size();
 			if (size.isEmpty()
-				|| (size.width() * size.height() > kBackgroundSizeLimit)) {
+				|| (int64(size.width()) * size.height() > kBackgroundSizeLimit)) {
 				LOG(("Theme Error: bad background image size in the theme file."));
 				return false;
 			}
@@ -354,6 +371,7 @@ bool LoadTheme(
 				.content = backgroundContent,
 				.forceOpaque = true,
 			}).image;
+			background = Ui::PreprocessBackgroundImage(std::move(background));
 			if (background.isNull()) {
 				LOG(("Theme Error: could not read background image in the theme file."));
 				return false;
@@ -371,16 +389,6 @@ bool LoadTheme(
 			}
 			applyBackground(std::move(background), backgroundTiled, out);
 		}
-	} else {
-		// Looks like it is not a .zip theme.
-		paletteContent = editedPalette.value_or(content);
-		if (!loadColorScheme(paletteContent, paletteColorizer, out)) {
-			DEBUG_LOG(("Theme: Could not loadColorScheme from non-zip."));
-			return false;
-		}
-		if (!out) {
-			Background()->saveAdjustableColors();
-		}
 	}
 	if (out) {
 		out->palette.finalize(paletteColorizer);
@@ -388,7 +396,7 @@ bool LoadTheme(
 	if (ensureReadable && paletteColorizer) {
 		EnsureAccentReadable(
 			out ? out->palette : *style::main_palette::get(),
-			paletteContent);
+			*paletteContent);
 	}
 	if (cache) {
 		if (out) {
@@ -417,7 +425,14 @@ bool InitializeFromCache(
 		QDataStream stream(cache.background);
 		QImageReader reader(stream.device());
 		reader.setAutoTransform(true);
-		if (!reader.read(&background) || background.isNull()) {
+		const auto size = reader.size();
+		if (size.isEmpty()
+			|| (int64(size.width()) * size.height() > kBackgroundSizeLimit)
+			|| !reader.read(&background)) {
+			return false;
+		}
+		background = Ui::PreprocessBackgroundImage(std::move(background));
+		if (background.isNull()) {
 			return false;
 		}
 	}
@@ -926,12 +941,6 @@ std::optional<QColor> ChatBackground::colorForFill() const {
 
 QImage ChatBackground::gradientForFill() const {
 	return _gradient;
-}
-
-void ChatBackground::recacheGradientForFill(QImage gradient) {
-	if (_gradient.size() == gradient.size()) {
-		_gradient = std::move(gradient);
-	}
 }
 
 QImage ChatBackground::createCurrentImage() const {
@@ -1577,6 +1586,15 @@ bool LoadFromContent(
 		std::nullopt,
 		outCache,
 		out);
+}
+
+std::optional<QByteArray> ReadPaletteContent(const QString &path) {
+	const auto content = readThemeContent(path);
+	if (content.isEmpty()) {
+		return std::nullopt;
+	}
+	auto file = zlib::FileToRead(content);
+	return ReadPaletteContent(file, content, std::nullopt);
 }
 
 rpl::producer<bool> IsThemeDarkValue() {

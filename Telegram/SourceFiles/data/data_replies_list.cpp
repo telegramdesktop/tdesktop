@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_unread_value.h"
 #include "window/notifications_manager.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
@@ -129,7 +130,15 @@ void RepliesList::apply(const RepliesReadTillUpdate &update) {
 	} else if (update.readTillId >= _inboxReadTillId) {
 		setInboxReadTill(
 			update.readTillId,
-			computeUnreadCountLocally(update.readTillId));
+			ComputeUnreadCountLocally(
+				update.readTillId,
+				_rootId,
+				_list,
+				_skippedBefore,
+				_skippedAfter,
+				_fullCount.current(),
+				_unreadCount.current(),
+				_inboxReadTillId));
 	}
 }
 
@@ -743,30 +752,13 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		_list = std::move(refreshed);
 	}
 
-	const auto nowSize = int(_list.size());
-	auto &decrementFrom = toFront ? _skippedAfter : _skippedBefore;
-	if (decrementFrom.has_value()) {
-		*decrementFrom = std::max(
-			*decrementFrom - (nowSize - wasSize),
-			0);
-	}
-
-	const auto checkedCount = std::max(fullCount - skipped, nowSize);
-	if (_skippedBefore && _skippedAfter) {
-		auto &correct = toFront ? _skippedBefore : _skippedAfter;
-		*correct = std::max(
-			checkedCount - *decrementFrom - nowSize,
-			0);
-		*decrementFrom = checkedCount - *correct - nowSize;
-		Assert(*decrementFrom >= 0);
-	} else if (_skippedBefore) {
-		*_skippedBefore = std::min(*_skippedBefore, checkedCount - nowSize);
-		_skippedAfter = checkedCount - *_skippedBefore - nowSize;
-	} else if (_skippedAfter) {
-		*_skippedAfter = std::min(*_skippedAfter, checkedCount - nowSize);
-		_skippedBefore = checkedCount - *_skippedAfter - nowSize;
-	}
-	_fullCount = checkedCount;
+	_fullCount = ReconcileSkippedCounts(
+		_skippedBefore,
+		_skippedAfter,
+		toFront,
+		wasSize,
+		int(_list.size()),
+		fullCount - skipped);
 
 	checkReadTillEnd();
 
@@ -870,57 +862,6 @@ void RepliesList::checkReadTillEnd() {
 	}
 }
 
-std::optional<int> RepliesList::computeUnreadCountLocally(
-		MsgId afterId) const {
-	Expects(afterId >= _inboxReadTillId);
-
-	const auto currentUnreadCountAfter = _unreadCount.current();
-	const auto startingMarkingAsRead = (currentUnreadCountAfter == 0)
-		&& (_inboxReadTillId == 1)
-		&& (afterId > 1);
-	const auto wasUnreadCountAfter = startingMarkingAsRead
-		? _fullCount.current().value_or(0)
-		: currentUnreadCountAfter;
-	const auto readTillId = std::max(afterId, _rootId);
-	const auto wasReadTillId = _inboxReadTillId;
-	const auto backLoaded = (_skippedBefore == 0);
-	const auto frontLoaded = (_skippedAfter == 0);
-	const auto fullLoaded = backLoaded && frontLoaded;
-	const auto allUnread = (readTillId == _rootId)
-		|| (fullLoaded && _list.empty());
-	if (allUnread && fullLoaded) {
-		// Should not happen too often unless the list is empty.
-		return int(_list.size());
-	} else if (frontLoaded && !_list.empty() && readTillId >= _list.front()) {
-		// Always "count by local data" if read till the end.
-		return 0;
-	} else if (wasReadTillId == readTillId) {
-		// Otherwise don't recount the same value over and over.
-		return wasUnreadCountAfter;
-	} else if (frontLoaded && !_list.empty() && readTillId >= _list.back()) {
-		// And count by local data if it is available and read-till changed.
-		return int(ranges::lower_bound(_list, readTillId, std::greater<>())
-			- begin(_list));
-	} else if (_list.empty()) {
-		return std::nullopt;
-	} else if (wasUnreadCountAfter.has_value()
-		&& (frontLoaded || readTillId <= _list.front())
-		&& (backLoaded || wasReadTillId >= _list.back())) {
-		// Count how many were read since previous value.
-		const auto from = ranges::lower_bound(
-			_list,
-			readTillId,
-			std::greater<>());
-		const auto till = ranges::lower_bound(
-			from,
-			end(_list),
-			wasReadTillId,
-			std::greater<>());
-		return std::max(*wasUnreadCountAfter - int(till - from), 0);
-	}
-	return std::nullopt;
-}
-
 void RepliesList::requestUnreadCount() {
 	if (_reloadUnreadCountRequestId) {
 		return;
@@ -977,7 +918,15 @@ void RepliesList::readTill(
 	if (now < was) {
 		return;
 	}
-	const auto unreadCount = computeUnreadCountLocally(now);
+	const auto unreadCount = ComputeUnreadCountLocally(
+		now,
+		_rootId,
+		_list,
+		_skippedBefore,
+		_skippedAfter,
+		_fullCount.current(),
+		_unreadCount.current(),
+		_inboxReadTillId);
 	const auto fast = (tillIdItem && tillIdItem->out()) || !unreadCount.has_value();
 	if (was < now || (fast && now == was)) {
 		setInboxReadTill(now, unreadCount);

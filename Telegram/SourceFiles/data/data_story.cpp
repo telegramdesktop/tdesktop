@@ -29,22 +29,50 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/color_int_conversion.h"
 
+#include <cmath>
+
 namespace Data {
-namespace {
 
-using UpdateFlag = StoryUpdate::Flag;
-
-[[nodiscard]] StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
+StoryArea ParseArea(const MTPMediaAreaCoordinates &area) {
 	const auto &data = area.data();
+	const auto valid = [](float64 value) {
+		return (value >= 0.) && (value <= 100.);
+	};
+	if (!valid(data.vx().v)
+		|| !valid(data.vy().v)
+		|| !valid(data.vw().v)
+		|| !valid(data.vh().v)) {
+		return {};
+	}
 	const auto center = QPointF(data.vx().v, data.vy().v);
 	const auto size = QSizeF(data.vw().v, data.vh().v);
 	const auto corner = center - QPointF(size.width(), size.height()) / 2.;
+	const auto rotation = data.vrotation().v;
+	const auto radius = data.vradius().value_or_empty();
 	return {
 		.geometry = { corner / 100., size / 100. },
-		.rotation = data.vrotation().v,
-		.radius = data.vradius().value_or_empty(),
+		.rotation = std::isfinite(rotation) ? std::fmod(rotation, 360.) : 0.,
+		.radius = valid(radius) ? radius : 0.,
 	};
 }
+
+MTPMediaAreaCoordinates SerializeArea(const StoryArea &area) {
+	using Flag = MTPDmediaAreaCoordinates::Flag;
+	const auto &geometry = area.geometry;
+	const auto center = geometry.center() * 100.;
+	return MTP_mediaAreaCoordinates(
+		MTP_flags((area.radius > 0.) ? Flag::f_radius : Flag()),
+		MTP_double(center.x()),
+		MTP_double(center.y()),
+		MTP_double(geometry.width() * 100.),
+		MTP_double(geometry.height() * 100.),
+		MTP_double(area.rotation),
+		MTP_double(area.radius));
+}
+
+namespace {
+
+using UpdateFlag = StoryUpdate::Flag;
 
 [[nodiscard]] TextWithEntities StripLinks(TextWithEntities text) {
 	const auto link = [&](const EntityInText &entity) {
@@ -63,26 +91,24 @@ using UpdateFlag = StoryUpdate::Flag;
 -> std::optional<StoryLocation> {
 	auto result = std::optional<StoryLocation>();
 	area.match([&](const MTPDmediaAreaVenue &data) {
-		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+		if (const auto point = Data::LocationPoint::FromMTP(data.vgeo())) {
 			result.emplace(StoryLocation{
 				.area = ParseArea(data.vcoordinates()),
-				.point = Data::LocationPoint(geo),
+				.point = *point,
 				.title = qs(data.vtitle()),
 				.address = qs(data.vaddress()),
 				.provider = qs(data.vprovider()),
 				.venueId = qs(data.vvenue_id()),
 				.venueType = qs(data.vvenue_type()),
 			});
-		}, [](const MTPDgeoPointEmpty &) {
-		});
+		}
 	}, [&](const MTPDmediaAreaGeoPoint &data) {
-		data.vgeo().match([&](const MTPDgeoPoint &geo) {
+		if (const auto point = Data::LocationPoint::FromMTP(data.vgeo())) {
 			result.emplace(StoryLocation{
 				.area = ParseArea(data.vcoordinates()),
-				.point = Data::LocationPoint(geo),
+				.point = *point,
 			});
-		}, [](const MTPDgeoPointEmpty &) {
-		});
+		}
 	}, [&](const MTPDmediaAreaSuggestedReaction &data) {
 	}, [&](const MTPDmediaAreaChannelPost &data) {
 	}, [&](const MTPDmediaAreaUrl &data) {

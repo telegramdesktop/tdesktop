@@ -68,6 +68,7 @@ public:
 	void setLoading(bool loading);
 	void stealFocus();
 	void returnFocus();
+	void refreshColors();
 
 	[[nodiscard]] static int IconSizeOverride();
 
@@ -84,10 +85,13 @@ private:
 
 	[[nodiscard]] anim::type animated() const;
 	void initField();
+	void initCaret();
 	void initGroups();
 	void initEdges();
 	void initButtons();
 
+	void restartCaretBlink();
+	void updateCaret();
 	void ensureRounding(int size, float64 rounding);
 
 	const style::TabbedSearch &_st;
@@ -98,9 +102,11 @@ private:
 	QPointer<QWidget> _focusTakenFrom;
 	not_null<FadeWrap<RpWidget>*> _groups;
 	not_null<RpWidget*> _fade;
+	RpWidget *_caret = nullptr;
 	QPointer<RpWidget> _rightEdge;
 	rpl::variable<float64> _fadeOpacity = 0.;
 	int _fadeLeftStart = 0;
+	int _fieldCursorWidth = 0;
 
 	rpl::variable<int> _fieldPlaceholderWidth;
 	rpl::variable<bool> _fieldEmpty = true;
@@ -113,6 +119,9 @@ private:
 	rpl::variable<std::vector<QString>> _debouncedQuery;
 	rpl::variable<QString> _chosenGroup;
 	base::Timer _debounceTimer;
+	base::Timer _caretBlink;
+	bool _fieldPushed = false;
+	bool _caretOn = false;
 	bool _inited = false;
 
 };
@@ -137,6 +146,7 @@ public:
 	void stealFocus();
 	void returnFocus();
 	void setRightReserved(int value);
+	void refreshColors();
 
 private:
 	void updateSearchGeometry();

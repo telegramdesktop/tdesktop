@@ -24,6 +24,9 @@ Read these files completely before phase work:
   mappings before assigning phase workers;
 - On Codex, [child completion and recovery](../../shared/codex-delegation.md)
   for result-driven waits and recovery of stopped agents;
+- On Claude Code, unless the invocation opted out of Codex reviews,
+  [Codex CLI leaves](../../shared/codex-cli-leaves.md) for the review and
+  assessment phases;
 - `references/pipeline.md` for the authoritative end-to-end runner contract;
 - `references/phase-prompts.md` for exact leaf prompts and retry rules;
 - `.agents/shared/test-loop.md` for the implementation/test state machine;
@@ -35,6 +38,16 @@ Read these files completely before phase work:
 The pipeline reference adapts conflicting generic test-loop mechanics for the
 external AI worktree and exact-path safety. Its named adapter wins at those
 points; retain every other test-loop rule.
+
+A task whose `task.md` has a `## Code health` section with class Q0, Q1 or
+Q2 runs the [mechanical lane](references/mechanical-lane.md) instead. For it,
+read that file and, from `pipeline.md`, the Contract, Preflight, Telegram
+commits and Final AI state sections; skip the test-loop and Computer Use
+references.
+
+A task whose `task.md` has an `## Objective` section is exploratory: it runs
+the [improve lane](references/improve-lane.md) on top of the normal pipeline.
+Read that file too.
 
 ## Resolve the workspace and task
 
@@ -73,8 +86,18 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 - If it is owned by another checkout, stop. Cross-checkout restart is a rare
   explicit human reassignment, never an implicit steal.
 - If its dependencies are unfinished, report them and stop without starting.
+- A project task starts only on a checkout whose current branch is the
+  project's slug, and a standalone task only on a branch that is not a live
+  project's; `start` and `retry` refuse otherwise. Never switch branches for
+  it: the owner checks project branches out. Report the refusal as a
+  pre-phase routing stop.
 - Inspect `task.md` for approved source-task prerequisites in addition to
-  `depends_on`, then run `workspace.py source-lineage --task <full-task-id>`
+  `depends_on`. Before a `start`, or a `retry` whose task retains no source
+  work, on a project branch first run `workspace.py source-prepare`, which
+  fast-forwards the branch to the work other checkouts published. A task that
+  is already `in-progress` resumes as it is; its work meets newer project
+  commits at `project-sync`. Then
+  run `workspace.py source-lineage --task <full-task-id>`
   with one `--require <source-task-id>` for each explicit prerequisite. Require
   `current_satisfies: true` before Phase 1. For `start` or `retry`, pass the same
   `--require` arguments so claiming is machine-gated too.
@@ -98,6 +121,12 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
   `Resume` commit.
 - If it is already `in-progress` and owned by this checkout, resume it without
   another state commit.
+
+Without `--batch`, `start` records this task alone as the checkout's soft
+batch mark, `batches/<checkout-tag>.yaml`, inside its `Start` commit. A
+`continue` scheduler passes its own ordered `--batch` instead. `retry` stays
+local and leaves the mark untouched. The mark never claims or reserves any
+task.
 
 Refresh with `resolve` after each mutation. The source pipeline begins only
 after the slot state shows this task `in-progress` for this checkout. For a new
@@ -131,7 +160,7 @@ New and unfinished tasks use the single adaptive `implement` path. Assessment
 must first confirm that the request is one cohesive implementation/review/test
 unit. If it contains independently useful and independently testable product
 boundaries, record `Scope: split-required` and a concrete split proposal before
-source edits. The same result may arise later from the bounded convergence
+source edits. The same result may arise later from the review convergence
 assessment when the retained implementation proves that one review/evidence
 campaign is not coherent. Do not force the broad request through smaller
 implementation phases and call it one task. The independent assessment has
@@ -165,29 +194,46 @@ and evidence checks it actually affects. Review fixes receive a focused general
 delta review plus only those invalidated specialists; they do not restart the
 full review or evidence design.
 
-Automatic replay is bounded. If two review verdicts need changes, findings are
-not converging, or a fix expands the architecture or owned paths, run the
-pipeline's independent convergence assessment instead of another broad round.
-It chooses a bounded focused repair, a coherent replan, or `RESCOPE_REQUIRED`;
-unresolved findings are never approved merely to meet the bound. A task whose
+The review loop runs until the reviewers agree, with no round limit and no
+human stop. At the fifth verdict that needs changes, at each later checkpoint,
+or when the loop cycles or a fix outgrows the plan, the pipeline's independent
+convergence assessment diagnoses it instead of another ordinary fix. It
+continues the loop with rulings that settle reopened questions, replans the
+failing mechanism, or chooses `RESCOPE_REQUIRED`; unresolved findings are never
+approved to end the loop. A task whose
 desired outcome was already present may finish without a source commit only
 after the same general review and evidence loop prove
 `Outcome: already-satisfied`.
 
+A project task syncs its work onto the shared project branch before its
+`Approve`, as `pipeline.md` "Project branches" describes; several checkouts
+may be working on the same project.
+
 Only a genuine exhausted task blocker produces a
-canonical `Block <full-task-id>` commit. Agent interruption, tool loss, and
-global environment stops leave the task `in-progress` with its task-scoped
-local state intact for the next invocation.
+canonical `Block <full-task-id>` commit. In a `continue` run a `Block` sets
+the task aside: the scheduler's project planner routes around it and the run
+goes on. Agent interruption and tool loss leave the task `in-progress` with
+its task-scoped local state intact for the next invocation.
+
+Never wait on the owner. A `continue` run often has nobody at the computer,
+so the performer and its leaves never ask the owner a question. Decide from
+the task, the project description and repository precedent, prefer existing
+behavior, record the question, the choice and the alternatives in
+`work/decisions.md`, and continue. A decision that should bind later tasks
+also goes into `work/project-amendment.md`. The owner reviews decisions
+afterwards; overturning one becomes a new task.
 
 A repeated evidence setup failure is not exhausted recovery by itself. Follow
 the shared directness ladder: forbid the failed command, fixture, probe, or
 capture technique and make the next run closer to the changed surface. The configured
 test-run cap closes one campaign: preserve prior passes, isolate the unmet
-checks, and start at most one focused recovery campaign unless a fresh
-assessment proves every direct strategy exhausted. A second campaign cap or a
-repeated non-converging focused signature stops automatic work for an explicit
-human/convergence decision; it does not start another campaign. A cap and a
-`TEST_FLAW` can never by themselves publish `BLOCKED` or approval.
+checks, and start a focused recovery campaign only when a fresh cap
+assessment names a direct strategy not yet tried; each further campaign needs
+another such assessment. When none remains, the assessment records recovery
+exhaustion, and the task is split, moved to the improve lane for a threshold
+the code cannot meet, or set aside with a `Block`. Nobody waits for the
+owner. A cap and a `TEST_FLAW` can never by themselves publish `BLOCKED` or
+approval.
 
 A pre-Runner crash or DeadlockDetector event is not an evidence setup failure merely
 because the scenario did not start. Apply the shared crash diagnostics and debugger
@@ -201,9 +247,19 @@ capture widgets or windows, quit, and assess the saved artifacts. Non-app
 instruments are unaffected.
 
 A Windows build-output lock is not an immediate environment stop. Follow the
-shared bounded recovery contract, including exact-path cleanup before builds.
-Only its exhausted or unsafe outcome is a global hard stop; it never becomes a
-task `Block`.
+shared bounded recovery contract, including exact-path cleanup before builds
+and its delayed retries. Only its exhausted or unsafe outcome stops the run;
+it never becomes a task `Block`.
+
+The global stops that remain are a server scheme mismatch (the server rejects
+the client's constructors, for example `INPUT_CONSTRUCTOR_INVALID`, or answers
+with constructors the client cannot parse: the owner must update the scheme)
+and a missing golden test account that cannot be recreated unattended. Dirty
+source the run cannot account for is never a reason to stop: save it with
+`workspace.py wip-save --reason "<what is unknown>"`, which commits it to a
+new side branch `wip/<branch>/<checkout-tag>/<time>` (tdesktop on `private`,
+submodules on their `origin`) and leaves the checkout clean, name that branch
+in the result, and continue.
 
 Do not report success from a source commit alone. The final AI commit must be
 canonical. Retry ordinary concurrent-master publication races until success.

@@ -96,15 +96,6 @@ void TryAddingPaidReaction(
 
 } // namespace
 
-bool LookupMyPaidAnonymous(not_null<HistoryItem*> item) {
-	for (const auto &entry : item->topPaidReactionsWithLocal()) {
-		if (entry.my) {
-			return !entry.peer;
-		}
-	}
-	return false;
-}
-
 void TryAddingPaidReaction(
 		not_null<HistoryItem*> item,
 		HistoryView::Element *view,

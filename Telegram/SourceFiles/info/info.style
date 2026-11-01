@@ -11,6 +11,7 @@ using "boxes/boxes.style";
 using "ui/controls/userpic_button.style";
 using "ui/widgets/widgets.style";
 using "ui/chat/chat.style"; // GroupCallUserpics.
+using "chat_helpers/chat_helpers.style"; // EmojiPan.
 using "dialogs/dialogs.style"; // dialogsDateFont.
 
 InfoToggle {
@@ -53,8 +54,6 @@ InfoTopBar {
 	storiesUnpin: IconButton;
 	search: IconButton;
 	searchRow: SearchFieldRow;
-	highlightBg: color;
-	highlightDuration: int;
 	radius: pixels;
 }
 
@@ -193,6 +192,10 @@ infoTopBarQr: IconButton(infoTopBarMenu) {
 	iconPosition: point(8px, -1px);
 	rippleAreaPosition: point(0px, 6px);
 }
+infoTopBarKeysLegend: IconButton(infoTopBarQr) {
+	icon: icon {{ "menu/faq", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/faq", boxTitleCloseFgOver }};
+}
 infoTopBarEdit: IconButton(infoTopBarMenu) {
 	width: 48px;
 	icon: icon {{ "menu/edit", boxTitleCloseFg }};
@@ -216,8 +219,8 @@ infoTopBarSaveStories: IconButton(infoTopBarForward) {
 	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoTopBarArchiveStories: IconButton(infoTopBarForward) {
-	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
-	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
 }
 infoTopBarPinStories: IconButton(infoTopBarForward) {
 	icon: icon {{ "menu/pin", boxTitleCloseFg }};
@@ -256,8 +259,6 @@ infoTopBar: InfoTopBar {
 	storiesUnpin: infoTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
-	highlightBg: windowBgOver;
-	highlightDuration: 240;
 	radius: 0px;
 }
 infoTopBarScale: 0.7;
@@ -304,6 +305,10 @@ infoLayerTopBarQr: IconButton(infoLayerTopBarClose) {
 	iconOver: icon {{ "menu/qr_code", boxTitleCloseFgOver }};
 	iconPosition: point(8px, -1px);
 }
+infoLayerTopBarKeysLegend: IconButton(infoLayerTopBarQr) {
+	icon: icon {{ "menu/faq", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/faq", boxTitleCloseFgOver }};
+}
 infoLayerTopBarSearch: IconButton(infoLayerTopBarClose) {
 	width: 48px;
 	icon: icon {{ "top_bar_search", boxTitleCloseFg }};
@@ -336,8 +341,8 @@ infoLayerTopBarSaveStories: IconButton(infoLayerTopBarForward) {
 	iconOver: icon {{ "info/info_stories_to_profile", boxTitleCloseFgOver }};
 }
 infoLayerTopBarArchiveStories: IconButton(infoLayerTopBarForward) {
-	icon: icon {{ "info/info_stories_to_archive", boxTitleCloseFg }};
-	iconOver: icon {{ "info/info_stories_to_archive", boxTitleCloseFgOver }};
+	icon: icon {{ "menu/archive", boxTitleCloseFg }};
+	iconOver: icon {{ "menu/archive", boxTitleCloseFgOver }};
 }
 infoLayerTopBarPinStories: IconButton(infoLayerTopBarForward) {
 	icon: icon {{ "menu/pin", boxTitleCloseFg }};
@@ -1105,10 +1110,8 @@ inviteLinkRevokedTitlePadding: margins(22px, 16px, 10px, 4px);
 inviteLinkLimitMargin: margins(22px, 8px, 22px, 8px);
 inviteLinkSubscriptionSize: 18px;
 
-inviteLinkQrPixel: 8px;
 inviteLinkQrSkip: 24px;
 inviteLinkQrMargin: margins(0px, 0px, 0px, 13px);
-inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
 
 inviteLinkCreditsField: InputField(defaultInputField) {
 	textMargins: margins(23px, 10px, 0px, 0px);
@@ -1339,10 +1342,34 @@ collectionSubTabs: SubTabs(defaultSubTabs) {
 earnTonIconSize: 16px;
 earnTonIconMargin: margins(0px, 2px, 0px, 0px);
 
-infoMusicButtonRipple: universalRippleAnimation;
-infoMusicButtonPadding: margins(16px, 6px, 13px, 6px);
-
 memberTagPillPadding: margins(5px, -1px, 5px, 0px);
 
 infoSecurityRiskIconSize: 16px;
 infoSecurityRiskIconMargin: margins(0px, 2px, 0px, 0px);
+
+peerQrEmojiPan: EmojiPan(statusEmojiPan) {
+	bg: transparent;
+	categoriesBg: transparent;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", transparent }};
+	fadeRight: icon {{ "fade_horizontal", transparent }};
+	search: TabbedSearch(defaultTabbedSearch) {
+		outer: transparent;
+		fadeLeft: icon {{ "fade_horizontal-flip_horizontal", transparent }};
+		fadeRight: icon {{ "fade_horizontal", transparent }};
+		back: IconButton(defaultTabbedSearchBack) {
+			icon: icon{{ "emoji/emoji_back", emojiSubIconFgActive }};
+			iconOver: icon{{ "emoji/emoji_back", emojiSubIconFgActive }};
+		}
+	}
+	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
+	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
+	linkButtonIcon: icon {{ "limits/links", windowFg }};
+}
+peerQrEmojiBadgeSize: 14px;
+peerQrEmojiBadgeInset: 6px;
+peerQrEmojiBadgeFont: font(11px semibold);
+peerQrEmojiStripHeight: 44px;
+peerQrEmojiStripSkip: 34px;
+peerQrEmojiStripSize: 26px;
+peerQrEmojiStripPadding: 9px;
+peerQrEmojiStripBottom: 18px;

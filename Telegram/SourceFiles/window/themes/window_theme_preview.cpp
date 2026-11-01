@@ -493,6 +493,9 @@ void Generator::paintHistoryBackground() {
 	}
 	background = std::move(background).convertToFormat(
 		QImage::Format_ARGB32_Premultiplied);
+	if (background.isNull()) {
+		return;
+	}
 	background.setDevicePixelRatio(style::DevicePixelRatio());
 	_p->setClipRect(_history);
 	if (tiled) {
@@ -508,23 +511,28 @@ void Generator::paintHistoryBackground() {
 			width * repeatTimesX,
 			height * repeatTimesY,
 			QImage::Format_ARGB32_Premultiplied);
-		imageForTiled.setDevicePixelRatio(background.devicePixelRatio());
-		auto imageForTiledBytes = imageForTiled.bits();
-		auto bytesInLine = width * sizeof(uint32);
-		for (auto timesY = 0; timesY != repeatTimesY; ++timesY) {
-			auto imageBytes = background.constBits();
-			for (auto y = 0; y != height; ++y) {
-				for (auto timesX = 0; timesX != repeatTimesX; ++timesX) {
-					memcpy(imageForTiledBytes, imageBytes, bytesInLine);
-					imageForTiledBytes += bytesInLine;
+		if (imageForTiled.isNull()) {
+			tiled = false;
+		} else {
+			imageForTiled.setDevicePixelRatio(background.devicePixelRatio());
+			auto imageForTiledBytes = imageForTiled.bits();
+			auto bytesInLine = width * sizeof(uint32);
+			for (auto timesY = 0; timesY != repeatTimesY; ++timesY) {
+				auto imageBytes = background.constBits();
+				for (auto y = 0; y != height; ++y) {
+					for (auto timesX = 0; timesX != repeatTimesX; ++timesX) {
+						memcpy(imageForTiledBytes, imageBytes, bytesInLine);
+						imageForTiledBytes += bytesInLine;
+					}
+					imageBytes += background.bytesPerLine();
+					imageForTiledBytes += imageForTiled.bytesPerLine()
+						- (repeatTimesX * bytesInLine);
 				}
-				imageBytes += background.bytesPerLine();
-				imageForTiledBytes += imageForTiled.bytesPerLine()
-					- (repeatTimesX * bytesInLine);
 			}
+			_p->drawImage(_history.x(), _history.y() + fromy, imageForTiled);
 		}
-		_p->drawImage(_history.x(), _history.y() + fromy, imageForTiled);
-	} else {
+	}
+	if (!tiled) {
 		PainterHighQualityEnabler hq(*_p);
 
 		auto fill = QSize(_topBar.width(), _body.height());

@@ -7,19 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <optional>
+
 namespace Data {
 
 struct FileOrigin;
 
+[[nodiscard]] bool ValidGeoCoordinates(float64 lat, float64 lon);
+
 class LocationPoint {
 public:
 	LocationPoint() = default;
-	explicit LocationPoint(const MTPDgeoPoint &point);
 
-	enum IgnoreAccessHash {
-		NoAccessHash,
-	};
-	LocationPoint(float64 lat, float64 lon, IgnoreAccessHash);
+	[[nodiscard]] static std::optional<LocationPoint> FromMTP(
+		const MTPGeoPoint &point);
+	[[nodiscard]] static std::optional<LocationPoint> FromCoordinates(
+		float64 lat,
+		float64 lon,
+		uint64 accessHash = 0);
 
 	[[nodiscard]] QString latAsString() const;
 	[[nodiscard]] QString lonAsString() const;
@@ -44,6 +49,8 @@ public:
 	}
 
 private:
+	LocationPoint(float64 lat, float64 lon, uint64 accessHash);
+
 	float64 _lat = 0;
 	float64 _lon = 0;
 	uint64 _access = 0;

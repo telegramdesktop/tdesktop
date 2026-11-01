@@ -778,7 +778,7 @@ void DownloadMtprotoTask::getCdnFileHashesDone(
 			const auto goodBytes = std::move(i->second);
 			const auto weak = base::make_weak(this);
 			i = _cdnUncheckedParts.erase(i);
-			if (!feedPart(goodOffset, goodBytes) || !weak) {
+			if (!partLoaded(goodOffset, goodBytes) || !weak) {
 				return;
 			}
 		} break;
@@ -916,10 +916,14 @@ void DownloadMtprotoTask::removeFromQueue() {
 	_owner->remove(this);
 }
 
-void DownloadMtprotoTask::partLoaded(
+bool DownloadMtprotoTask::partLoaded(
 		int64 offset,
 		const QByteArray &bytes) {
-	feedPart(offset, bytes);
+	if (bytes.size() > Storage::kDownloadPartSize) {
+		cancelOnFail();
+		return false;
+	}
+	return feedPart(offset, bytes);
 }
 
 bool DownloadMtprotoTask::normalPartFailed(

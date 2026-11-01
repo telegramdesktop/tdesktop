@@ -424,11 +424,6 @@ void PremiumGift::unloadHeavyPart() {
 	}
 }
 
-bool PremiumGift::incomingGift() const {
-	const auto out = _parent->data()->out();
-	return gift() && !_data.auctionTo && (starGiftUpgrade() ? out : !out);
-}
-
 bool PremiumGift::outgoingGift() const {
 	const auto out = _parent->data()->out();
 	return gift() && (_data.auctionTo || (starGiftUpgrade() ? !out : out));

@@ -275,6 +275,5 @@ struct ParseResult {
 };
 
 [[nodiscard]] PreparedDocument EmptyDocument(QString sourceName = QString());
-[[nodiscard]] QString DumpForDebug(const PreparedDocument &document);
 
 } // namespace Iv::Markdown

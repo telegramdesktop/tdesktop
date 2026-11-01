@@ -365,18 +365,7 @@ struct LayoutContext {
 		const PreparedEditListItemSource&)> taskMarkerRippleRuntimeFactory;
 };
 
-class LayoutContextScope {
-public:
-	explicit LayoutContextScope(const LayoutContext &context);
-	~LayoutContextScope();
-
-	LayoutContextScope(const LayoutContextScope &) = delete;
-	LayoutContextScope &operator=(const LayoutContextScope &) = delete;
-
-private:
-	const LayoutContext *_previous = nullptr;
-};
-
+void ResetBlockGeometryFields(LaidOutBlock *block);
 [[nodiscard]] bool TextNeedsRetainedLeaf(const QString &text);
 [[nodiscard]] bool MissingRetainedLeaf(
 	const QString &text,
@@ -498,6 +487,7 @@ struct TableCellMinimumWidthConstraint {
 	const LaidOutBlock &block,
 	const style::Markdown &st);
 [[nodiscard]] QString CodeBlockDisplayText(const QString &text);
+[[nodiscard]] std::vector<int> CodeBlockDisplayOffsets(const QString &text);
 [[nodiscard]] TextWithEntities CodeBlockDisplayText(TextWithEntities text);
 [[nodiscard]] int BlockSkip(
 	const PreparedBlock &block,
@@ -516,12 +506,29 @@ struct TableCellMinimumWidthConstraint {
 [[nodiscard]] TextWithEntities EditPlaceholderTextValue(
 	const PreparedBlock &block,
 	const QString &text);
-void CopyCachedTextLeafs(
-	const std::vector<PreparedBlock> &preparedBlocks,
-	std::vector<LaidOutBlock> *blocks,
-	const style::Markdown &st,
-	CachedTextLeafPool *pool,
+[[nodiscard]] CachedTextLeafSourceSignature MarkedTextLeafSourceSignature(
+	TextWithEntities text,
+	const style::TextStyle &textStyle,
+	int minResizeWidth,
 	bool rtl);
+[[nodiscard]] CachedTextLeafSourceSignature PlainTextLeafSourceSignature(
+	const QString &text,
+	const style::TextStyle &textStyle,
+	int minResizeWidth,
+	bool rtl);
+[[nodiscard]] CachedTextLeafSourceSignature CodeTextLeafSourceSignature(
+	const PreparedBlock &prepared,
+	const style::Markdown &st);
+[[nodiscard]] CachedTextLeafKey BlockCachedTextLeafKey(
+	CachedTextLeafSlot slot,
+	const PreparedBlock &prepared,
+	const std::vector<int> &preparedPath);
+[[nodiscard]] CachedTextLeafKey TableCellCachedTextLeafKey(
+	CachedTextLeafSlot slot,
+	const PreparedTableCell &prepared,
+	const std::vector<int> &preparedPath,
+	int tableRowIndex,
+	int tableCellIndex);
 void BuildOrReuseMarkedTextLeaf(
 	Ui::Text::String *leaf,
 	CachedTextLeafSlot slot,
@@ -554,19 +561,6 @@ void BuildOrReuseEditPlaceholderLeaf(
 void ApplyPreparedEditSources(
 	LaidOutBlock *block,
 	const PreparedBlock &prepared);
-void LayoutMediaCaption(
-	LaidOutBlock *block,
-	const PreparedBlock &prepared,
-	const std::vector<PreparedFormulaSlot> *formulas,
-	InlineFormulaObjectCache *inlineFormulaObjects,
-	const std::shared_ptr<MediaRuntime> &mediaRuntime,
-	const style::Markdown &st,
-	int left,
-	int top,
-	int width,
-	int skip,
-	int *bottom,
-	LayoutContext context = {});
 void FillMediaCaptionContent(
 	LaidOutBlock *block,
 	const PreparedBlock &prepared,

@@ -1,0 +1,41 @@
+name: PR evidence check.
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  check-evidence:
+    runs-on: ubuntu-slim
+    steps:
+      - name: Check for screenshot or video demonstration
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          body="$(gh pr view "$PR_NUMBER" -R "$REPOSITORY" --json body --jq .body)"
+
+          if echo "$body" | grep -qiE \
+            '!\[[^]]*\]\([^)]*\)|https?://[^ )]+\.(png|jpe?g|gif|webp|mp4|mov|webm)|https?://github\.com/[^ )]+/attachments/|screenshot|video|recording|demonstration'; then
+            echo "Evidence found, nothing to do."
+            exit 0
+          fi
+
+          if gh pr view "$PR_NUMBER" -R "$REPOSITORY" --json labels \
+            --jq '.labels[].name' | grep -Fxq 'waiting for answer'; then
+            echo "Already labeled, nothing to do."
+            exit 0
+          fi
+
+          gh pr comment "$PR_NUMBER" -R "$REPOSITORY" --body '
+            This pull request does not include a screenshot or a video
+            demonstration of the change. Please add one to the description, so
+            that reviewers can see the change in action. The
+            `waiting for answer` label was added until then.'
+
+          gh pr edit "$PR_NUMBER" -R "$REPOSITORY" --add-label 'waiting for answer'

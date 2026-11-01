@@ -118,7 +118,7 @@ menuIconChannel: icon {{ "menu/channel", menuIconColor }};
 menuIconStoriesSavedSection: icon {{ "menu/stories_saved_section", menuIconColor }};
 menuIconStoriesArchiveSection: icon {{ "menu/stories_archive_section", menuIconColor }};
 menuIconStoriesSave: icon {{ "menu/stories_save", menuIconColor }};
-menuIconStoriesArchive: icon {{ "menu/stories_archive", menuIconColor }};
+menuIconStoriesArchive: icon {{ "menu/archive", menuIconColor }};
 menuIconArchiveOpen: icon {{ "menu/archive_open", menuIconColor }};
 menuIconGroups: icon {{ "menu/groups", menuIconColor }};
 menuIconSavedMessages: icon {{ "menu/saved_messages", menuIconColor }};
@@ -186,6 +186,7 @@ menuIconUniqueProfile: icon {{ "settings/premium/features/feature_profile_cover"
 menuIconNftWear: icon {{ "menu/nft_wear", menuIconColor }};
 menuIconNftTakeOff: icon {{ "menu/nft_takeoff", menuIconColor }};
 menuIconShortcut: icon {{ "menu/shortcut", menuIconColor }};
+menuIconKeysLegend: icon {{ "menu/keyboard", menuIconColor }};
 menuIconHourglass: icon {{ "menu/hourglass", menuIconColor }};
 menuIconPayment: icon {{ "payments/payment_card", menuIconColor }};
 menuIconOrderPrice: icon {{ "menu/order_price", menuIconColor }};
@@ -219,8 +220,6 @@ menuIconRemovedUsers: icon {{ "menu/removed_users-24x24", menuIconColor }};
 menuIconWelcomeMessage: icon {{ "menu/welcome_message-24x24", menuIconColor }};
 menuIconStar: icon {{ "menu/star", menuIconColor }};
 
-menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
-menuIconTTLAnyTextPosition: point(11px, 22px);
 menuIconTTL: icon {{ "menu/auto_delete", menuIconColor }};
 
 menuIconMuteForAny: icon {{ "menu/mute_for_plain", menuIconColor }};
@@ -250,7 +249,7 @@ mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
 mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};
 mediaMenuIconReport: icon {{ "menu/report", mediaviewMenuFg }};
 mediaMenuIconSaveStory: icon {{ "menu/stories_save", mediaviewMenuFg }};
-mediaMenuIconArchiveStory: icon {{ "menu/stories_archive", mediaviewMenuFg }};
+mediaMenuIconArchiveStory: icon {{ "menu/archive", mediaviewMenuFg }};
 mediaMenuIconStealthLocked: icon {{ "menu/stealth_locked", mediaviewMenuFg }};
 mediaMenuIconStealth: icon {{ "menu/stealth", mediaviewMenuFg }};
 mediaMenuIconStats: icon {{ "menu/stats", mediaviewMenuFg }};
@@ -310,6 +309,4 @@ mediaSpeedVeryFastActive: icon {{ "player/speed/audiospeed_menu_1.7", mediaviewT
 mediaSpeedSuperFast: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewMenuFg }};
 mediaSpeedSuperFastActive: icon {{ "player/speed/audiospeed_menu_2.0", mediaviewTextLinkFg }};
 
-menuIconMakeBig: icon {{ "player/player_fullscreen", menuIconColor }};
-menuIconMakeSmall: icon {{ "player/player_minimize", menuIconColor }};
 menuIconChangeOrder: icon {{ "player/player_order", menuIconColor }};

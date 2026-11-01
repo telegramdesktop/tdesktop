@@ -540,7 +540,8 @@ private:
 	void validateThumbnail();
 	void setupLinks(
 		const TextWithEntities &text,
-		const QString &mainUrl);
+		const QString &mainUrl,
+		EntityType mainType);
 
 	ClickHandlerPtr _photol;
 	ClickHandlerPtr _titlel;
@@ -558,12 +559,16 @@ private:
 
 	struct LinkEntry {
 		LinkEntry() = default;
-		LinkEntry(const QString &url, const QString &display);
+		LinkEntry(
+			const QString &url,
+			const QString &display,
+			EntityType type);
 
 		QString url;
 		QString display;
 		Ui::Text::String text;
 		ClickHandlerPtr handler;
+		EntityType type = EntityType::Url;
 	};
 	std::vector<LinkEntry> _links;
 

@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_reply.h"
+#include "history/view/history_view_rich_quote.h"
 #include "history/view/history_view_text_helper.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
@@ -36,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "iv/iv_cached_media.h"
 #include "iv/iv_rich_page.h"
+#include "iv/iv_rich_page_quote.h"
+#include "iv/iv_rich_page_quote_builder.h"
 #include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
 #include "core/application.h"
@@ -2154,6 +2157,7 @@ void Element::validateText() {
 			.tableRenderLimits = Iv::Markdown::PrepareTableRenderLimitsForRichMessage(
 				richLimits),
 			.unsupportedBlockNotices = true,
+			.disableButtons = _textItem->hideLinks(),
 		});
 		if (!prepared.supported()) {
 			clearRichPage();
@@ -2161,6 +2165,10 @@ void Element::validateText() {
 				_media = std::make_unique<UnsupportedNotice>(this);
 			}
 			return;
+		}
+		if (prepared.buttonsDisabled) {
+			data()->setHasHiddenLinks(true);
+			_textItem->setHasHiddenLinks(true);
 		}
 		ClickHandler::clearActive(this);
 		runtime->article.setContent(std::move(prepared.content));
@@ -2170,10 +2178,13 @@ void Element::validateText() {
 			runtime->tornEdges = nullptr;
 		}
 		runtime->handler = nullptr;
+		runtime->handlerTaskItem = std::nullopt;
 		runtime->handlerPreparedLink = std::nullopt;
 		runtime->handlerMediaActivation = {};
 		runtime->handlerPlaceholderId = {};
 		runtime->handlerPlaceholderPoint = QPoint();
+		runtime->pressedPlaceholderId = {};
+		runtime->pressedPlaceholderHandler = nullptr;
 		runtime->handlerButtonRow = {};
 		runtime->handlerButtonRowHandler = nullptr;
 		runtime->pressedButtonRow = {};
@@ -2334,10 +2345,10 @@ void Element::validateInlineKeyboard(HistoryMessageReplyMarkup *markup) {
 		return;
 	}
 	const auto item = data();
-	//if (item->hideLinks()) {
-	//	item->setHasHiddenLinks(true);
-	//	return;
-	//}
+	if (item->hideInlineKeyboard()) {
+		item->setHasHiddenLinks(true);
+		return;
+	}
 	markup->inlineKeyboard = std::make_unique<ReplyKeyboard>(
 		item,
 		std::make_unique<KeyboardStyle>(
@@ -3266,6 +3277,16 @@ Iv::RichPageBlocksSlice Element::selectedRichBlocks(
 	};
 }
 
+std::optional<Iv::BuiltRichQuote> Element::selectedRichQuote(
+		const MessageSelection &selection) const {
+	const auto rich = richpage();
+	if (!rich || !selection.isRichPage()) {
+		return std::nullopt;
+	}
+	const auto item = textItem() ? textItem() : data().get();
+	return RichQuoteForSelection(rich, item, selection.richPage.selection);
+}
+
 SelectedQuote Element::selectedQuote(
 		const MessageSelection &selection) const {
 	if (const auto flat = selection.flatSelection(); !flat.empty()) {
@@ -3468,6 +3489,37 @@ TextSelection Element::FindSelectionFromQuote(
 	return ApplyModificationsFrom(result, text);
 }
 
+Ui::ChatPaintRichQuote Element::richSelectionFromQuote(
+		const SelectedQuote &quote) const {
+	Expects(quote.item != nullptr);
+
+	const auto &payload = quote.highlight.richQuote;
+	const auto rich = richpage();
+	if (!payload || !rich || !rich->page) {
+		return {};
+	}
+	const auto item = quote.item;
+	const auto &translated = item->translatedText();
+	const auto &original = item->originalText();
+	if (&translated != &original || rich->page != item->richPage()) {
+		return {};
+	}
+	const auto found = Iv::LocateRichQuote(
+		&history()->session(),
+		*rich->page,
+		payload->fragments.v,
+		payload->offset.value_or(0));
+	if (!found) {
+		return {};
+	}
+	return { rich->page, found->from, found->till };
+}
+
+HighlightYRange Element::richQuoteHighlightYRange(
+		const Ui::ChatPaintRichQuote &quote) const {
+	return {};
+}
+
 Reactions::ButtonParameters Element::reactionButtonParameters(
 		QPoint position,
 		const TextState &reactionState) const {
@@ -3532,9 +3584,6 @@ auto Element::takeReactionAnimations()
 		return _reactions->takeAnimations();
 	}
 	return {};
-}
-
-void Element::animateUnreadEffect() {
 }
 
 auto Element::takeEffectAnimation()
@@ -3830,6 +3879,9 @@ HighlightYRange FindHighlightYRange(
 	if (!highlight.pollOption.isEmpty()) {
 		const auto y = FindViewPollOptionY(view, highlight.pollOption);
 		return { y - 4 * single, y + 4 * single };
+	}
+	if (highlight.richQuote) {
+		return view->richQuoteHighlightYRange(highlight.richQuote);
 	}
 	if (!sel.empty()) {
 		const auto begin = FindViewY(view, sel.from) - single;

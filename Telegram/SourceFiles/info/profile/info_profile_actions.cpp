@@ -1681,13 +1681,14 @@ Section DetailsFiller::makeInfo() {
 				user->session().supportHelper().infoTextValue(user));
 		}
 
+		const auto phoneLine = addInfoOneLine(
+			tr::lng_info_mobile_label(),
+			PhoneWithSpoilerValue(user, PhoneOrHiddenValue(user)),
+			tr::lng_profile_copy_phone(tr::now),
+			st::infoProfileLabeledPadding,
+			st::popupMenuWithIcons);
 		{
-			const auto phoneLabel = addInfoOneLine(
-				tr::lng_info_mobile_label(),
-				PhoneWithSpoilerValue(user, PhoneOrHiddenValue(user)),
-				tr::lng_profile_copy_phone(tr::now),
-				st::infoProfileLabeledPadding,
-				st::popupMenuWithIcons).text;
+			const auto phoneLabel = phoneLine.text;
 			const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
 				if (request.selection.empty()) {
 					const auto callback = [=] {
@@ -1749,16 +1750,33 @@ Section DetailsFiller::makeInfo() {
 			usernameLine.text->parentWidget(),
 			st::infoProfileLabeledButtonQr);
 		qrButton->setAccessibleName(tr::lng_group_invite_context_qr(tr::now));
-		UsernamesValue(_peer) | rpl::on_next([=](const auto &u) {
-			qrButton->setVisible(!u.empty());
-		}, qrButton->lifetime());
 		const auto rightSkip = st::infoProfileLabeledButtonQrRightSkip;
-		fitLabelToButton(qrButton, usernameLine.text, rightSkip);
-		fitLabelToButton(qrButton, usernameLine.subtext, rightSkip);
-		qrButton->setClickedCallback([=, show = controller->uiShow()] {
+		const auto showQr = [=, show = controller->uiShow()] {
 			Ui::DefaultShowFillPeerQrBoxCallback(show, user);
 			return false;
-		});
+		};
+		if (user->isSelf()) {
+			const auto phoneQr = Ui::CreateChild<Ui::IconButton>(
+				phoneLine.text->parentWidget(),
+				st::infoProfileLabeledButtonQr);
+			phoneQr->setAccessibleName(tr::lng_group_invite_context_qr(tr::now));
+			fitLabelToButton(phoneQr, phoneLine.text, rightSkip);
+			fitLabelToButton(phoneQr, phoneLine.subtext, rightSkip);
+			phoneQr->setClickedCallback(showQr);
+			UsernameValue(user, true) | rpl::on_next([=](
+					const TextWithEntities &username) {
+				const auto hasUsername = !username.text.isEmpty();
+				phoneQr->setVisible(!hasUsername);
+				qrButton->setVisible(hasUsername);
+			}, qrButton->lifetime());
+		} else {
+			UsernamesValue(_peer) | rpl::on_next([=](const auto &u) {
+				qrButton->setVisible(!u.empty());
+			}, qrButton->lifetime());
+		}
+		fitLabelToButton(qrButton, usernameLine.text, rightSkip);
+		fitLabelToButton(qrButton, usernameLine.subtext, rightSkip);
+		qrButton->setClickedCallback(showQr);
 
 		if (!user->isBot()) {
 			tracker.track(result->add(
@@ -2277,12 +2295,16 @@ void DetailsFiller::addMainApp(not_null<UserData*> user) {
 		}
 		return text;
 	});
-	auto setup = [url](not_null<Ui::FlatLabel*> label) {
+	auto setup = [url, controller](not_null<Ui::FlatLabel*> label) {
 		label->setClickHandlerFilter([=](
 				const ClickHandlerPtr &link,
 				Qt::MouseButton) {
 			if (link && link->url() == url) {
-				UrlClickHandler::Open(url);
+				HiddenUrlClickHandler::OpenTranslated(
+					tr::lng_mini_apps_tos_url,
+					QVariant::fromValue(ClickHandlerContext{
+						.sessionWindow = controller,
+					}));
 				return false;
 			}
 			return true;
@@ -3066,7 +3088,10 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 			}
 		}
 		if (!sendBotCommand(u"privacy"_q)) {
-			openUrl(tr::lng_profile_bot_privacy_url(tr::now));
+			HiddenUrlClickHandler::OpenTranslatedWithIv(
+				&user->session(),
+				tr::lng_profile_bot_privacy_url,
+				makeOtherContext());
 		}
 	};
 	AddActionButton(
@@ -3486,26 +3511,6 @@ void BuildProfileDetailsSections(
 		DetailsFiller filler(controller, &stack, peer, origin);
 		filler.buildSections();
 	}
-}
-
-void AddDetails(
-		not_null<Ui::VerticalLayout*> container,
-		not_null<Controller*> controller,
-		not_null<PeerData*> peer,
-		Data::ForumTopic *topic,
-		Data::SavedSublist *sublist,
-		Origin origin) {
-	auto layout = object_ptr<Ui::VerticalLayout>(container);
-	auto stack = SectionStack(layout.data());
-	BuildProfileDetailsSections(
-		stack,
-		controller,
-		peer,
-		topic,
-		sublist,
-		origin);
-	stack.finalize();
-	container->add(std::move(layout));
 }
 
 } // namespace Profile
