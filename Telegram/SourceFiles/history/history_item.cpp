@@ -2404,7 +2404,9 @@ not_null<Data::Thread*> HistoryItem::notificationThread() const {
 Data::Thread *HistoryItem::maybeNotificationThread() const {
 	if (const auto rootId = topicRootId()) {
 		if (const auto forum = _history->asForum()) {
-			return forum->topicFor(rootId);
+			if (!_history->peer->isBot()) {
+				return forum->topicFor(rootId);
+			}
 		}
 	}
 	return _history;
