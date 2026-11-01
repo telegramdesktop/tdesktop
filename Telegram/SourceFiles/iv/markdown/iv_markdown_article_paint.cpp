@@ -1963,7 +1963,8 @@ void PaintQuoteBlock(
 			*context.caches.blockquote,
 			quoteStyle);
 		if (!block.pullquote) {
-			const auto control = QuoteHasCollapseControl(block);
+			const auto control = QuoteHasCollapseControl(block)
+				&& !context.suppressInteractiveControls;
 			p.save();
 			p.setClipRect(quoteClip);
 			Ui::Text::FillQuotePaint(
@@ -2790,7 +2791,7 @@ void PaintDetailsBlock(
 	if (lineHeight > 0 && !lineRect.isEmpty()) {
 		p.fillRect(lineRect, lineFg);
 	}
-	if (!block.iconRect.isEmpty()) {
+	if (!block.iconRect.isEmpty() && !context.suppressInteractiveControls) {
 		const auto collapsed = block.actionRect.isEmpty()
 			? block.collapsed
 			: !block.detailsOpen;
