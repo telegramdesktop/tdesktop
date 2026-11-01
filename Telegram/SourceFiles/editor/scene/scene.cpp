@@ -162,6 +162,7 @@ constexpr auto kShapeSnapAngle = 45.;
 constexpr auto kDraftShapeOpacity = 0.5;
 constexpr auto kStickyGuideDuration = crl::time(150);
 constexpr auto kItemsBaseZ = 9000.;
+constexpr auto kOverlayZ = 1e6;
 
 } // namespace
 
@@ -170,7 +171,7 @@ public:
 	explicit StickyGuidesItem(not_null<Scene*> scene)
 	: _scene(scene) {
 		setAcceptedMouseButtons(Qt::NoButton);
-		setZValue(kItemsBaseZ - 1.);
+		setZValue(kOverlayZ);
 	}
 
 	QRectF boundingRect() const override {
@@ -247,7 +248,6 @@ Scene::Scene(const QRectF &rect)
 					maskPos,
 					std::move(targets));
 				addItem(eraser);
-				_canvas->setZValue(++_lastLineZ);
 			}
 			return;
 		}
@@ -323,15 +323,15 @@ Scene::Scene(const QRectF &rect)
 			const auto item = std::make_shared<ItemLine>(
 				std::move(blurPixmap));
 			item->setPos(maskPos);
+			item->setZValue((*_lastZ)++);
 			addItem(item);
-			_canvas->setZValue(++_lastLineZ);
 			return;
 		}
 		const auto item = std::make_shared<ItemLine>(
 			std::move(content.pixmap));
 		item->setPos(content.position);
+		item->setZValue((*_lastZ)++);
 		addItem(item);
-		_canvas->setZValue(++_lastLineZ);
 	}, _lifetime);
 
 	QObject::connect(
@@ -473,6 +473,7 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		|| !_canvas->drawableRect().contains(event->scenePos())) {
 		return;
 	}
+	_canvas->setZValue(*_lastZ);
 	_canvas->handleMousePressEvent(event);
 }
 

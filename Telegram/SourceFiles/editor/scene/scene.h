@@ -193,7 +193,6 @@ private:
 	StickyGuide _stickyGuideX;
 	StickyGuide _stickyGuideY;
 
-	float64 _lastLineZ = 0.;
 	float64 _currentZoom = 1.;
 	int _itemNumber = 0;
 
