@@ -464,10 +464,26 @@ void CloseBox(const std::shared_ptr<State> &state) {
 
 		auto assertions = std::vector<LoginAssertion>();
 		const auto requestedUv = UserVerification(state.data.userVerification);
-		const auto code = runAttempt(requestedUv, assertions);
+		const auto discoverable = state.data.allowCredentials.empty();
+		const auto initialUv = (discoverable && requestedUv != FIDO_OPT_FALSE)
+			? FIDO_OPT_TRUE
+			: requestedUv;
+		auto code = runAttempt(initialUv, assertions);
+		if (code != FIDO_OK
+			&& discoverable
+			&& requestedUv == FIDO_OPT_OMIT
+			&& initialUv == FIDO_OPT_TRUE
+			&& !state.ceremony->cancelled()) {
+			auto withoutUv = std::vector<LoginAssertion>();
+			const auto codeWithoutUv = runAttempt(FIDO_OPT_OMIT, withoutUv);
+			if (codeWithoutUv == FIDO_OK) {
+				code = codeWithoutUv;
+				assertions = std::move(withoutUv);
+			}
+		}
 		if (code == FIDO_OK
 			&& assertions.size() > 1
-			&& requestedUv == FIDO_OPT_OMIT
+			&& initialUv == FIDO_OPT_OMIT
 			&& state.data.userVerification != u"discouraged"_q
 			&& AssertionsUnlabeled(assertions)
 			&& !state.ceremony->cancelled()) {
