@@ -12,19 +12,51 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "media/stories/media_stories_post.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/widgets/shadow.h"
 #include "lang/lang_keys.h"
 #include "ui/ui_utility.h"
+#include "styles/style_basic.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QScrollBar>
 
 namespace Info::Stories {
+
+namespace {
+
+void PaintIslandOutline(
+		QPainter &p,
+		const QRectF &island,
+		float64 radius,
+		const style::color &bg) {
+	const auto light = (bg->c.lightness() >= 128);
+	const auto width = light ? (0.6 * st::lineWidth) : double(st::lineWidth);
+	if (light) {
+		p.setPen(QPen(QColor(0, 0, 0, 20), width));
+	} else {
+		auto grad = QLinearGradient(0, island.top(), 0, island.bottom());
+		grad.setColorAt(0., QColor(255, 255, 255, 40));
+		grad.setColorAt(0.5, QColor(255, 255, 255, 0));
+		grad.setColorAt(1., QColor(255, 255, 255, 20));
+		p.setPen(QPen(QBrush(grad), width));
+	}
+	p.setBrush(Qt::NoBrush);
+	const auto half = 0.5 * width;
+	const auto stroke = light
+		? island.marginsAdded(QMarginsF(half, half, half, half))
+		: island.adjusted(half, half, -half, -half);
+	const auto strokeRadius = light ? (radius + half) : (radius - half);
+	p.drawRoundedRect(stroke, strokeRadius, strokeRadius);
+}
+
+} // namespace
 
 int ArchiveId() {
 	return Data::kStoriesAlbumIdArchive;
@@ -146,6 +178,23 @@ Widget::Widget(
 		refreshBottom();
 	}, _inner->lifetime());
 
+	rpl::combine(
+		scroll()->scrollTopValue(),
+		_inner->heightValue(),
+		heightValue()
+	) | rpl::on_next([=](int top, int contentHeight, int viewHeight) {
+		const auto max = std::max(contentHeight - viewHeight, 0);
+		const auto closeToBottom
+			= (top + st::storiesBottomButtonRevealAfter >= max);
+		if (_bottomNear == closeToBottom) {
+			return;
+		}
+		_bottomNear = closeToBottom;
+		if (const auto wrap = _pinnedToBottom.data()) {
+			wrap->toggle(_shown && closeToBottom, anim::type::normal);
+		}
+	}, lifetime());
+
 	_inner->backRequest() | rpl::on_next([=] {
 		checkBeforeClose([=] { controller->showBackFromStack(); });
 	}, _inner->lifetime());
@@ -206,14 +255,15 @@ void Widget::restoreState(not_null<Memento*> memento) {
 
 void Widget::refreshBottom() {
 	const auto albumId = _albumId.current();
-	const auto withButton = (albumId != Data::kStoriesAlbumIdSaved)
-		&& (albumId != Data::kStoriesAlbumIdArchive)
-		&& controller()->storiesPeer()->canEditStories()
-		&& !_emptyAlbumShown.current();
+	const auto peer = controller()->storiesPeer();
+	const auto withButton = (albumId == Data::kStoriesAlbumIdArchive)
+		? false
+		: (albumId == Data::kStoriesAlbumIdSaved)
+		? (_inner->myProfile() && ::Media::Stories::CanPostStory(peer))
+		: (peer->canEditStories() && !_emptyAlbumShown.current());
 	const auto wasBottom = _pinnedToBottom ? _pinnedToBottom->height() : 0;
 	delete _pinnedToBottom.data();
 	if (!withButton) {
-		setScrollBottomSkip(0);
 		_hasPinnedToBottom = false;
 	} else {
 		setupBottomButton(wasBottom);
@@ -221,7 +271,6 @@ void Widget::refreshBottom() {
 
 	if (_pinnedToBottom) {
 		const auto processHeight = [=] {
-			setScrollBottomSkip(_pinnedToBottom->height());
 			_pinnedToBottom->moveToLeft(
 				_pinnedToBottom->x(),
 				height() - _pinnedToBottom->height());
@@ -252,37 +301,103 @@ void Widget::setupBottomButton(int wasBottomHeight) {
 	const auto button = Ui::CreateChild<Ui::RoundButton>(
 		bottom,
 		rpl::single(QString()),
-		st::collectionEditBox.button);
-	button->setText(tr::lng_stories_album_add_button(
-	) | rpl::map([](const QString &text) {
-		return Ui::Text::IconEmoji(&st::collectionAddIcon).append(text);
+		st::storiesBottomButton);
+	button->setFullRadius(true);
+	const auto saved = (_albumId.current() == Data::kStoriesAlbumIdSaved);
+	button->setText((saved
+		? tr::lng_story_add_button()
+		: tr::lng_stories_album_add_button()
+	) | rpl::map([saved](const QString &text) {
+		return Ui::Text::IconEmoji(
+			saved ? &st::storiesAddPostIcon : &st::collectionAddIcon
+		).append(text);
 	}));
 	button->show();
 	_hasPinnedToBottom = true;
 
-	button->setClickedCallback([=] {
-		if (const auto id = _albumId.current()) {
+	const auto postOrEdit = [=] {
+		if (_albumId.current() == Data::kStoriesAlbumIdSaved) {
+			::Media::Stories::PostStory(
+				controller()->parentController(),
+				controller()->storiesPeer());
+		} else if (const auto id = _albumId.current()) {
 			_inner->editAlbumStories(id);
 		} else {
 			refreshBottom();
 		}
-	});
+	};
+	button->setClickedCallback(postOrEdit);
 
-	const auto buttonTop = st::boxRadius;
-	bottom->widthValue() | rpl::on_next([=](int width) {
-		const auto normal = width - 2 * buttonTop;
-		button->resizeToWidth(normal);
-		const auto buttonLeft = (width - normal) / 2;
-		button->moveToLeft(buttonLeft, buttonTop);
+	const auto halo = st::storiesBottomButtonHalo;
+	const auto shadowExtend = Ui::BoxShadow::ExtendFor(
+		st::storiesBottomButtonShadow);
+	const auto pad = shadowExtend.top();
+	const auto bottomMargin = st::storiesBottomButtonBottom;
+	const auto bottomPadding = shadowExtend.bottom() + bottomMargin;
+
+	rpl::combine(
+		bottom->widthValue(),
+		button->widthValue()
+	) | rpl::on_next([=](int outerWidth, int innerWidth) {
+		button->moveToLeft(
+			(outerWidth - innerWidth) / 2,
+			pad + halo);
 	}, button->lifetime());
 
 	button->heightValue() | rpl::on_next([=](int height) {
-		bottom->resize(bottom->width(), st::boxRadius + height);
+		bottom->resize(
+			bottom->width(),
+			pad + height + 2 * halo + bottomPadding);
 	}, button->lifetime());
+
+	const auto shadow = bottom->lifetime().make_state<Ui::BoxShadow>(
+		st::storiesBottomButtonShadow);
+	bottom->paintRequest(
+	) | rpl::on_next([=] {
+		const auto inner = button->geometry();
+		if (inner.isEmpty()) {
+			return;
+		}
+		const auto outer = inner.marginsAdded({ halo, halo, halo, halo });
+		const auto radius = outer.height() / 2.;
+
+		auto p = QPainter(bottom);
+		shadow->paint(p, outer, int(radius));
+		{
+			auto hq = PainterHighQualityEnabler(p);
+			p.setBrush(st::windowBg);
+			p.setPen(Qt::NoPen);
+			p.drawRoundedRect(outer, radius, radius);
+		}
+		PaintIslandOutline(p, QRectF(outer), radius, st::windowBg);
+	}, bottom->lifetime());
+
+	bottom->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		const auto type = e->type();
+		if (type == QEvent::MouseMove) {
+			const auto me = static_cast<QMouseEvent*>(e.get());
+			const auto outer = button->geometry().marginsAdded(
+				{ halo, halo, halo, halo });
+			bottom->setCursor(outer.contains(me->pos())
+				? style::cur_pointer
+				: style::cur_default);
+		} else if (type == QEvent::MouseButtonPress) {
+			const auto me = static_cast<QMouseEvent*>(e.get());
+			const auto outer = button->geometry().marginsAdded(
+				{ halo, halo, halo, halo });
+			if (me->button() == Qt::LeftButton && outer.contains(me->pos())) {
+				postOrEdit();
+			}
+		} else if (type == QEvent::Wheel) {
+			scroll()->viewportEvent(e.get());
+		}
+	}, bottom->lifetime());
+	bottom->setMouseTracking(true);
 
 	if (_shown) {
 		wrap->toggle(
-			true,
+			_shown && _bottomNear,
 			wasBottomHeight ? anim::type::instant : anim::type::normal);
 	}
 }
@@ -294,7 +409,7 @@ void Widget::enableBackButton() {
 void Widget::showFinished() {
 	_shown = true;
 	if (const auto bottom = _pinnedToBottom.data()) {
-		bottom->toggle(true, anim::type::normal);
+		bottom->toggle(_shown && _bottomNear, anim::type::normal);
 	}
 	_inner->showFinished();
 }
