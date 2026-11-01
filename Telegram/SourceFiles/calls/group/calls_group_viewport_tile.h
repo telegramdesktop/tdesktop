@@ -140,4 +140,14 @@ private:
 
 };
 
+[[nodiscard]] bool UseExpandForCamera(QSize original, QSize viewport);
+[[nodiscard]] QSize CountBlurredSize(
+	QSize unscaled,
+	QSize outer,
+	float factor);
+[[nodiscard]] QSize InterpolateScaledSize(
+	QSize unscaled,
+	QSize size,
+	float64 ratio);
+
 } // namespace Calls::Group
