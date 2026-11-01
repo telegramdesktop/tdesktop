@@ -170,6 +170,14 @@ using Ui::KeysLegend::DeleteKey;
 				tr::lng_photo_editor_keys_objects_flip(tr::now),
 			},
 			{
+				{ CtrlKey(), u"]"_q },
+				tr::lng_photo_editor_keys_objects_raise(tr::now),
+			},
+			{
+				{ CtrlKey(), u"["_q },
+				tr::lng_photo_editor_keys_objects_lower(tr::now),
+			},
+			{
 				{ DeleteKey() },
 				tr::lng_photo_editor_keys_objects_delete(tr::now),
 			},

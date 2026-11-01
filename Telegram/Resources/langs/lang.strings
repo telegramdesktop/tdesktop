@@ -7929,6 +7929,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_keys_objects_stretch" = "Stretch shape freely";
 "lng_photo_editor_keys_objects_duplicate" = "Duplicate selection";
 "lng_photo_editor_keys_objects_flip" = "Flip selection horizontally";
+"lng_photo_editor_keys_objects_raise" = "Raise selection one step";
+"lng_photo_editor_keys_objects_lower" = "Lower selection one step";
 "lng_photo_editor_keys_objects_delete" = "Delete selection";
 "lng_photo_editor_keys_objects_text" = "Edit text";
 "lng_photo_editor_keys_timeline" = "Timeline";
