@@ -569,7 +569,7 @@ void Viewport::RendererGL::paintTile(
 	const auto pauseIconTop = !_owner->wide()
 		? (y + (height - st::groupCallPaused.height()) / 2)
 		: (pausedSpace < 3 * st::semiboldFont->height)
-		? (pausedSpace / 3)
+		? (y + (pausedSpace / 3))
 		: std::min(
 			y + (height / 2) - pauseIconSkip,
 			(nameTop
