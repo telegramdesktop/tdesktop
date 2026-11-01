@@ -308,6 +308,9 @@ PRIVATE
     media/media_video_encode.cpp
     media/media_video_encode.h
 
+    media/stories/media_stories_discard_prompt.cpp
+    media/stories/media_stories_discard_prompt.h
+
     menu/gift_resale_filter.cpp
     menu/gift_resale_filter.h
     menu/menu_action_with_thumbnail.cpp

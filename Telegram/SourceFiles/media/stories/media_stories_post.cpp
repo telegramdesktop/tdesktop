@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/stories/media_stories_post.h"
 
+#include "media/stories/media_stories_discard_prompt.h"
+
 #include "apiwrap.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_story_box.h"
@@ -96,46 +98,11 @@ void SaveStoryDraft(
 	close();
 }
 
-struct DiscardStoryArgs {
-	bool draft = false;
-	bool allowDraft = true;
-	Fn<void()> discard;
-	Fn<void()> saveDraft;
-};
-
-void ShowDiscardStoryBox(
-		not_null<Window::SessionController*> controller,
-		DiscardStoryArgs args) {
-	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-		Ui::ConfirmBox(box, {
-			.text = tr::lng_story_discard_text(),
-			.confirmed = Fn<void(Fn<void()>)>([=](Fn<void()> close) {
-				close();
-				args.discard();
-			}),
-			.confirmText = (args.draft
-				? tr::lng_story_delete_draft()
-				: tr::lng_story_discard_button()),
-			.confirmStyle = &st::attentionBoxButton,
-			.title = tr::lng_story_discard_title(),
-		});
-		if (args.allowDraft) {
-			box->addLeftButton(
-				(args.draft
-					? tr::lng_story_keep_draft()
-					: tr::lng_story_save_draft()),
-				[=] {
-					box->closeBox();
-					args.saveDraft();
-				});
-		}
-	}));
-}
-
 template <typename Widget>
 void SetupStoryEditorClose(
 		not_null<Window::SessionController*> controller,
 		not_null<Widget*> raw,
+		not_null<Ui::RpWidget*> promptParent,
 		const StoryEditorSetup &setup,
 		Fn<void()> close,
 		Fn<void()> saveDraft) {
@@ -147,7 +114,7 @@ void SetupStoryEditorClose(
 			close();
 			return;
 		}
-		ShowDiscardStoryBox(controller, {
+		ShowDiscardStoryPrompt(promptParent, {
 			.draft = (setup.draftId != 0),
 			.allowDraft = !setup.editing,
 			.discard = [=] {
@@ -232,7 +199,6 @@ void SetupStoryEditorClose(
 		.story = std::move(story),
 	};
 }
-
 
 [[nodiscard]] QImage ComposeStoryPhoto(
 		const QImage &image,
@@ -548,7 +514,9 @@ void OpenStoryPhotoEditor(
 			strong->closeLayer();
 		}
 	};
-	SetupStoryEditorClose(controller, not_null(raw), setup, close, [=] {
+	const auto rawPtr = not_null(raw);
+	const auto layerPtr = layer.get();
+	SetupStoryEditorClose(controller, rawPtr, layerPtr, setup, close, [=] {
 		const auto mods = raw->collect();
 		auto collected = CollectStoryDraftState(
 			image,
