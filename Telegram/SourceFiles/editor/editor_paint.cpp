@@ -226,6 +226,18 @@ Paint::Paint(
 			};
 		})));
 
+	Shortcuts::Requests(
+	) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
+		request->check(Shortcuts::Command::ShowChatPreview, 2)
+			&& request->handle([=] {
+				const auto item = _scene->focusItem();
+				if (item && (item->type() >= ItemBase::Type)) {
+					_scene->raiseItem(static_cast<ItemBase*>(item));
+				}
+				return true;
+			});
+	}, lifetime());
+
 	if (controllers->stickersPanelController) {
 		using ShowRequest = StickersPanelController::ShowRequest;
 
