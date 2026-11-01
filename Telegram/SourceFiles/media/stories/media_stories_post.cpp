@@ -266,6 +266,8 @@ void SetupStoryEditorClose(
 
 [[nodiscard]] Api::SendStoryMedia StoryPhotoMedia(
 		QImage composed,
+		const QImage &image,
+		const Media::Encode::CanvasBackground &background,
 		const Editor::PhotoModifications &mods) {
 	const auto animated = mods.paint && mods.paint->hasAnimatedItems();
 	if (!animated) {
@@ -273,10 +275,13 @@ void SetupStoryEditorClose(
 	}
 	auto paintOnly = Editor::PhotoModifications();
 	paintOnly.paint = mods.paint;
-	auto job = Editor::ComposeAnimatedJob(composed, paintOnly, {
-		.maxSide = Api::kStoryVideoHeight,
-		.maxDuration = Api::kStoryVideoMaxDuration,
-	});
+	auto job = Editor::ComposeAnimatedJob(
+		ComposeStoryPhoto(image, background, mods, false),
+		paintOnly,
+		{
+			.maxSide = Api::kStoryVideoHeight,
+			.maxDuration = Api::kStoryVideoMaxDuration,
+		});
 	job.silentLoop = false;
 	return Api::SendStoryVideo{
 		.cover = std::move(composed),
@@ -575,7 +580,11 @@ void OpenStoryPhotoEditor(
 			raw->period());
 		auto fingerprint = collected.fingerprint;
 		done({
-			.media = StoryPhotoMedia(std::move(result), mods),
+			.media = StoryPhotoMedia(
+				std::move(result),
+				image,
+				background,
+				mods),
 			.caption = raw->caption(),
 			.period = raw->period(),
 			.reactions = std::move(areas.reactions),
