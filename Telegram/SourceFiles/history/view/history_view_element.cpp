@@ -1841,6 +1841,7 @@ void Element::skipInactiveTextAppearing() {
 		if (const auto appearing = Get<TextAppearing>()) {
 			appearing->widthAnimation.stop();
 			appearing->heightAnimation.stop();
+			appearing->use = false;
 			appearing->shownLine = kMaxShownLine;
 			appearing->shownWidth
 				= appearing->shownHeight

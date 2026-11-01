@@ -7054,7 +7054,11 @@ bool Message::textAppearCheckLine() {
 					|| (appearing->shownHeight < finalLineHeight))));
 	if (!use) {
 		if (data()->isRegular()) {
-			// We are inside these animations' tick, can't destroy them now.
+			// WHY: we are inside these animations' tick, so the removal is
+			// deferred, and the animations must not outlive the lines they
+			// were started for after a view replacement.
+			appearing->widthAnimation.stop();
+			appearing->heightAnimation.stop();
 			crl::on_main(this, [=] {
 				if (Has<TextAppearing>() && !Get<TextAppearing>()->use) {
 					RemoveComponents(TextAppearing::Bit());
@@ -7188,9 +7192,11 @@ void Message::textAppearWidthCallback() {
 	}
 	const auto now = int(base::SafeRound(
 		appearing->widthAnimation.value(appearing->targetLineWidth)));
-	if (now != appearing->revealedLineWidth) {
+	const auto shown = appearing->shownLine;
+	if (now != appearing->revealedLineWidth
+		&& shown < int(appearing->lines.size())) {
 		appearing->revealedLineWidth = now;
-		const auto &line = appearing->lines[appearing->shownLine];
+		const auto &line = appearing->lines[shown];
 		if (line.rtl) {
 			appearing->shownWidth = textRealWidth();
 		} else {
