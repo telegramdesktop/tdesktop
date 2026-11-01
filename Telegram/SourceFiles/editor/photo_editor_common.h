@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "editor/editor_link_pill.h"
 #include "media/media_video_canvas.h"
 #include "media/media_video_encode.h"
 
@@ -77,6 +78,8 @@ struct StoryOptions {
 	QStringList sceneFiles;
 	AudioTrack storyAudio;
 	bool storyAudioSelected = true;
+
+	std::optional<LinkPreview> storyLink;
 };
 
 enum class RoundedCornersLevel {

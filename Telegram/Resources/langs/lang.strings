@@ -5208,7 +5208,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_add_to_side_menu" = "{bot} asks your permission to be added as an option to your main menu so you can access it any time.";
 "lng_bot_add_to_side_menu_done" = "Bot added to the main menu.";
 "lng_bot_no_scan_qr" = "QR Codes for bots are not supported on Desktop. Please use one of Telegram's mobile apps.";
-"lng_bot_no_share_story" = "Sharing to Stories is not supported on Desktop. Please use one of Telegram's mobile apps.";
 "lng_bot_emoji_status_confirm" = "Confirm";
 "lng_bot_emoji_status_title" = "Set Emoji Status";
 "lng_bot_emoji_status_text" = "Do you want to set this emoji status suggested by {bot}?";
@@ -9238,5 +9237,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_entities_premium" = "Only Telegram Premium subscribers can use formatting in story captions.";
 "lng_story_repost" = "Repost Story";
 "lng_story_edit" = "Edit Story";
+"lng_bot_share_story_failed" = "Couldn't load media to share.";
 
 // Keys finished

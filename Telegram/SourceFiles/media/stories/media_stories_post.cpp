@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_video_canvas.h"
 #include "media/media_video_encode.h"
 #include "media/media_video_frames.h"
+#include "storage/file_download_web.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
@@ -57,6 +58,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
+#include <QtCore/QDateTime>
+#include <QtCore/QDir>
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
@@ -141,6 +144,7 @@ void SetupStoryEditorClose(
 		.sceneFiles = setup.sceneFiles,
 		.storyAudio = setup.storyAudio,
 		.storyAudioSelected = setup.storyAudioSelected,
+		.storyLink = setup.storyLink,
 	};
 }
 
@@ -721,6 +725,106 @@ void ShowLimitBox(
 	}));
 }
 
+constexpr auto kWebAppStoryShareMaxFileSize = int64(100 * 1024 * 1024);
+constexpr auto kWebAppStoryShareFileLife = 24 * 60 * 60;
+
+[[nodiscard]] StoryEditorSetup WebAppStorySetup(
+		not_null<Window::SessionController*> controller,
+		const WebAppStoryShare &args) {
+	auto link = std::optional<Editor::LinkPreview>();
+	if (!args.widgetLinkUrl.isEmpty() && controller->session().premium()) {
+		link = Editor::LinkPreview{
+			.url = args.widgetLinkUrl,
+			.name = args.widgetLinkName,
+		};
+	}
+	return {
+		.caption = args.caption,
+		.storyLink = std::move(link),
+	};
+}
+
+void RemoveStaleWebAppStoryFiles() {
+	const auto now = QDateTime::currentDateTime();
+	const auto list = QDir(QDir::tempPath()).entryInfoList(
+		{ u"tdesktop_story_share_*"_q },
+		QDir::Files);
+	for (const auto &info : list) {
+		if (info.lastModified().secsTo(now) > kWebAppStoryShareFileLife) {
+			QFile::remove(info.absoluteFilePath());
+		}
+	}
+}
+
+void OpenWebAppStoryDownload(
+		not_null<Window::SessionController*> controller,
+		not_null<UserData*> peer,
+		const WebAppStoryShare &args) {
+	static auto active = 0;
+	const auto failToast = crl::guard(controller, [=] {
+		controller->showToast(tr::lng_bot_share_story_failed(tr::now));
+	});
+	if (active > 0) {
+		failToast();
+		return;
+	}
+	RemoveStaleWebAppStoryFiles();
+	const auto session = &controller->session();
+	const auto path = QDir::tempPath()
+		+ u"/tdesktop_story_share_"_q
+		+ QString::number(base::RandomValue<uint64>(), 16);
+	const auto holder = controller->lifetime().make_state<
+		std::shared_ptr<webFileLoader>>();
+	*holder = std::make_shared<webFileLoader>(
+		session,
+		args.mediaUrl,
+		path,
+		WebRequestType::FullLoad);
+	const auto loader = holder->get();
+	++active;
+	loader->lifetime().add([] { --active; });
+	const auto cancelled = controller->lifetime().make_state<bool>(false);
+	const auto release = crl::guard(controller, [=] {
+		crl::on_main(controller, [=] {
+			*holder = nullptr;
+		});
+	});
+	loader->updates(
+	) | rpl::on_next_error_done(crl::guard(controller, [=] {
+		if (*cancelled) {
+			return;
+		}
+		const auto total = loader->fullSize();
+		if ((total >= 0 && total > kWebAppStoryShareMaxFileSize)
+			|| loader->currentOffset() > kWebAppStoryShareMaxFileSize) {
+			*cancelled = true;
+			loader->cancel();
+			QFile::remove(path);
+			failToast();
+			release();
+		}
+	}), crl::guard(controller, [=](FileLoader::Error) {
+		if (!*cancelled) {
+			*cancelled = true;
+			QFile::remove(path);
+			failToast();
+			release();
+		}
+	}), crl::guard(controller, [=] {
+		if (*cancelled) {
+			return;
+		}
+		release();
+		controller->window().activate();
+		PostStoryWithFile(
+			controller,
+			peer,
+			path,
+			WebAppStorySetup(controller, args));
+	}), loader->lifetime());
+	loader->start();
+}
+
 } // namespace
 
 void ChooseStoryMedia(
@@ -805,10 +909,12 @@ void PostStory(
 void PostStoryWithFile(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
-		const QString &path) {
+		const QString &path,
+		StoryEditorSetup setup) {
 	const auto session = &controller->session();
+	setup.peer = peer->id;
 	session->api().stories().checkCanSend(peer, crl::guard(controller, [=](
-			Api::CanSendStory result) {
+			Api::CanSendStory result) mutable {
 		if (!result.allowed()) {
 			ShowCanSendStoryError(controller, peer, result);
 			return;
@@ -819,8 +925,23 @@ void PostStoryWithFile(
 				QStringList(path),
 				st::sendMediaPreviewSize,
 				session->premium()),
-			StoryEditorSetup{ .peer = peer->id },
+			std::move(setup),
 			ShowSendBoxWhenEdited(controller, peer, 0));
+	}));
+}
+
+void PostStoryFromWebApp(
+		not_null<Window::SessionController*> controller,
+		WebAppStoryShare args) {
+	const auto session = &controller->session();
+	const auto self = session->user();
+	session->api().stories().checkCanSend(self, crl::guard(controller, [=](
+			Api::CanSendStory result) {
+		if (!result.allowed()) {
+			ShowCanSendStoryError(controller, self, result);
+			return;
+		}
+		OpenWebAppStoryDownload(controller, self, args);
 	}));
 }
 

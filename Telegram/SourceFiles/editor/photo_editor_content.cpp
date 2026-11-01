@@ -131,6 +131,10 @@ PhotoEditorContent::PhotoEditorContent(
 		});
 		_paint->keepResult();
 	}
+	if (data.story && data.story->storyLink) {
+		_paint->addStoryLink(*data.story->storyLink);
+		_paint->keepResult();
+	}
 	if (data.story && !data.story->storyAudio.empty()) {
 		_paint->addStoryAudio(
 			data.story->storyAudio,

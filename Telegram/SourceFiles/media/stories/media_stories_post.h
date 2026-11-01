@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_stories.h"
 #include "data/data_story_edit_sources.h"
+#include "editor/editor_link_pill.h"
 #include "editor/photo_editor_common.h"
 
 #include <QtCore/QJsonArray>
@@ -41,6 +42,7 @@ struct StoryEditorSetup {
 	QStringList sceneFiles;
 	Editor::AudioTrack storyAudio;
 	bool storyAudioSelected = true;
+	std::optional<Editor::LinkPreview> storyLink;
 };
 
 struct StoryEditorResult {
@@ -70,14 +72,25 @@ struct CanSendStoryErrorContext {
 	Fn<void()> openBoosts;
 };
 
+struct WebAppStoryShare {
+	QString mediaUrl;
+	TextWithTags caption;
+	QString widgetLinkUrl;
+	QString widgetLinkName;
+};
+
 void PostStory(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	CanSendStoryErrorContext ctx = {});
+void PostStoryFromWebApp(
+	not_null<Window::SessionController*> controller,
+	WebAppStoryShare args);
 void PostStoryWithFile(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
-	const QString &path);
+	const QString &path,
+	StoryEditorSetup setup = {});
 void PostStoryWithMimeData(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,

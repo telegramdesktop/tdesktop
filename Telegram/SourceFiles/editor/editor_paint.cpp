@@ -948,6 +948,10 @@ void Paint::chooseLink(const QString &url, ItemBase *editing) {
 	}));
 }
 
+void Paint::addStoryLink(LinkPreview link) {
+	addLinkItem(std::move(link), std::nullopt);
+}
+
 void Paint::applyLinkResult(
 		LinkBoxResult &&result,
 		std::weak_ptr<NumberedItem> editing) {
