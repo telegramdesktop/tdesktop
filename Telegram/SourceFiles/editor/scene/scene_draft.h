@@ -53,6 +53,7 @@ struct SceneItemImage {
 struct SceneItemLine {
 	QString file;
 	float64 dpr = 1.;
+	float64 z = 0.;
 	QPointF position;
 };
 

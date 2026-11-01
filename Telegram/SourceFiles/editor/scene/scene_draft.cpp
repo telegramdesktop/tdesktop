@@ -220,6 +220,7 @@ SceneItems CollectSceneItems(
 				result.lines.push_back({
 					.file = QString::number(index),
 					.dpr = pixmap.devicePixelRatio(),
+					.z = line->zValue(),
 					.position = line->pos(),
 				});
 			}
@@ -387,6 +388,7 @@ QJsonArray SerializeSceneItems(const SceneItems &items) {
 			{ u"kind"_q, u"line"_q },
 			{ u"file"_q, line.file },
 			{ u"dpr"_q, line.dpr },
+			{ u"z"_q, line.z },
 			{ u"pos"_q, SerializePoint(line.position) },
 		});
 	}
@@ -494,6 +496,7 @@ SceneItems ParseSceneItems(
 			result.lines.push_back({
 				.file = path(),
 				.dpr = object[u"dpr"_q].toDouble(1.),
+				.z = object[u"z"_q].toDouble(),
 				.position = DeserializePoint(object[u"pos"_q].toArray()),
 			});
 		} else if (kind == u"message"_q) {
