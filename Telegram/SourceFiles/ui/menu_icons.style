@@ -116,7 +116,7 @@ menuIconChatBubble: icon {{ "menu/chat_bubble", menuIconColor }};
 menuIconPhone: icon {{ "menu/phone", menuIconColor }};
 menuIconChannel: icon {{ "menu/channel", menuIconColor }};
 menuIconStoriesSavedSection: icon {{ "menu/stories_saved_section", menuIconColor }};
-menuIconStoryPost: icon {{ "profile/add_story", menuIconColor }};
+menuIconStoryPost: icon {{ "menu/add_story", menuIconColor }};
 menuIconStoriesArchived: icon {{ "menu/stories_archived", menuIconColor }};
 menuIconStoriesPosted: icon {{ "menu/stories_posted", menuIconColor }};
 menuIconStoriesArchiveSection: icon {{ "menu/stories_archive_section", menuIconColor }};
