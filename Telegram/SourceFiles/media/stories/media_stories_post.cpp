@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
@@ -230,53 +231,6 @@ void SetupStoryEditorClose(
 	return result;
 }
 
-[[nodiscard]] Api::SendStoryMedia StoryPhotoMedia(
-		QImage composed,
-		const QImage &image,
-		const Media::Encode::CanvasBackground &background,
-		const Editor::PhotoModifications &mods) {
-	const auto animated = mods.paint && mods.paint->hasAnimatedItems();
-	if (!animated) {
-		return Api::SendStoryPhoto{ std::move(composed) };
-	}
-	auto paintOnly = Editor::PhotoModifications();
-	paintOnly.paint = mods.paint;
-	auto job = Editor::ComposeAnimatedJob(
-		ComposeStoryPhoto(image, background, mods, false),
-		paintOnly,
-		{
-			.maxSide = Api::kStoryVideoHeight,
-			.maxDuration = Api::kStoryVideoMaxDuration,
-		});
-	job.silentLoop = false;
-	return Api::SendStoryVideo{
-		.cover = std::move(composed),
-		.job = std::make_shared<Media::Encode::Job>(std::move(job)),
-	};
-}
-
-[[nodiscard]] bool UntouchedVideoOnly(const Editor::Scene *scene) {
-	if (!scene || scene->audio()) {
-		return false;
-	}
-	const auto items = scene->items();
-	if (items.size() != 1) {
-		return false;
-	}
-	const auto &item = items.front();
-	return (item->type() == Editor::ItemVideo::Type)
-		&& item->isNormalStatus()
-		&& static_cast<Editor::ItemVideo*>(item.get())->atInitialState();
-}
-
-[[nodiscard]] Editor::StoryAreas CollectAreas(
-		const Editor::PhotoModifications &mods,
-		QSize canvas) {
-	return mods.paint
-		? Editor::CollectStoryAreas(mods.paint.get(), canvas)
-		: Editor::StoryAreas();
-}
-
 [[nodiscard]] Editor::StoryVideoObject VideoObjectFromScene(
 		const std::shared_ptr<Editor::Scene> &scene,
 		QRectF &rect) {
@@ -314,6 +268,80 @@ void SetupStoryEditorClose(
 		};
 	}
 	return {};
+}
+
+[[nodiscard]] int StoryOutputMaxSide(
+		const QImage &image,
+		bool videoBased,
+		const Editor::PhotoModifications &mods) {
+	auto longSide = videoBased
+		? 0
+		: std::max(image.width(), image.height());
+	auto videoRect = QRectF();
+	const auto video = VideoObjectFromScene(mods.paint, videoRect);
+	longSide = std::max({
+		longSide,
+		video.thumbnail.width(),
+		video.thumbnail.height(),
+	});
+	return (longSide >= Api::kStoryPhotoHeight)
+		? Api::kStoryPhotoHeight
+		: Api::kStoryVideoHeight;
+}
+
+[[nodiscard]] Api::SendStoryMedia StoryPhotoMedia(
+		QImage composed,
+		const QImage &image,
+		bool videoBased,
+		const Media::Encode::CanvasBackground &background,
+		const Editor::PhotoModifications &mods) {
+	const auto maxSide = StoryOutputMaxSide(image, videoBased, mods);
+	if (maxSide < Api::kStoryPhotoHeight) {
+		composed = composed.scaled(
+			QSize(Api::kStoryVideoWidth, Api::kStoryVideoHeight),
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	const auto animated = mods.paint && mods.paint->hasAnimatedItems();
+	if (!animated) {
+		return Api::SendStoryPhoto{ std::move(composed) };
+	}
+	auto paintOnly = Editor::PhotoModifications();
+	paintOnly.paint = mods.paint;
+	auto job = Editor::ComposeAnimatedJob(
+		ComposeStoryPhoto(image, background, mods, false),
+		paintOnly,
+		{
+			.maxSide = maxSide,
+			.maxDuration = Api::kStoryVideoMaxDuration,
+		});
+	job.silentLoop = false;
+	return Api::SendStoryVideo{
+		.cover = std::move(composed),
+		.job = std::make_shared<Media::Encode::Job>(std::move(job)),
+	};
+}
+
+[[nodiscard]] bool UntouchedVideoOnly(const Editor::Scene *scene) {
+	if (!scene || scene->audio()) {
+		return false;
+	}
+	const auto items = scene->items();
+	if (items.size() != 1) {
+		return false;
+	}
+	const auto &item = items.front();
+	return (item->type() == Editor::ItemVideo::Type)
+		&& item->isNormalStatus()
+		&& static_cast<Editor::ItemVideo*>(item.get())->atInitialState();
+}
+
+[[nodiscard]] Editor::StoryAreas CollectAreas(
+		const Editor::PhotoModifications &mods,
+		QSize canvas) {
+	return mods.paint
+		? Editor::CollectStoryAreas(mods.paint.get(), canvas)
+		: Editor::StoryAreas();
 }
 
 [[nodiscard]] QImage StillFromScene(
@@ -488,6 +516,7 @@ void OpenStoryPhotoEditor(
 		StoryEditorDone done) {
 	const auto parent = controller->widget();
 	const auto show = controller->uiShow();
+	const auto videoBased = !object.empty();
 	background = background.valid()
 		? background
 		: (object.empty()
@@ -551,6 +580,7 @@ void OpenStoryPhotoEditor(
 			.media = StoryPhotoMedia(
 				std::move(result),
 				image,
+				videoBased,
 				background,
 				mods),
 			.caption = raw->caption(),
