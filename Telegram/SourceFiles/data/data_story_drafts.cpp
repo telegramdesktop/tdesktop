@@ -349,7 +349,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 		auto name = QString();
 		if (!file.path.isEmpty() && !draft.mediaPath.isEmpty()
 			&& (file.path == media.videoPath)) {
-			name = QFileInfo(draft.mediaPath).fileName();
+			name = draft.mediaPath;
 		} else {
 			const auto path = SceneFilePath(
 				folder(),
@@ -360,7 +360,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 				if (!file.image.save(path, "PNG")) {
 					return 0;
 				}
-				name = QFileInfo(path).fileName();
+				name = path;
 			} else if (!file.path.isEmpty()) {
 				if (file.path != path) {
 					QFile::remove(path);
@@ -368,7 +368,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 						return 0;
 					}
 				}
-				name = QFileInfo(path).fileName();
+				name = path;
 			} else if (!file.content.isEmpty()) {
 				QFile::remove(path);
 				auto out = QFile(path);
@@ -376,15 +376,14 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 					|| (out.write(file.content) != file.content.size())) {
 					return 0;
 				}
-				name = QFileInfo(path).fileName();
+				name = path;
 			}
 		}
 		sceneNames.push_back(name);
 	}
 	if (replacing) {
 		for (const auto &old : existing->sceneFiles) {
-			if (!old.isEmpty()
-				&& !sceneNames.contains(QFileInfo(old).fileName())) {
+			if (!old.isEmpty() && !sceneNames.contains(old)) {
 				QFile::remove(old);
 			}
 		}

@@ -198,7 +198,7 @@ void StoryEditSources::savePending(
 		if (path.isEmpty()) {
 			continue;
 		}
-		sceneNames.push_back(QFileInfo(path).fileName());
+		sceneNames.push_back(path);
 	}
 	if (sceneNames.size() != media.sceneFiles.size()) {
 		while (sceneNames.size() != media.sceneFiles.size()) {

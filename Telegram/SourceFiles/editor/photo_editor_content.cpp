@@ -98,7 +98,7 @@ PhotoEditorContent::PhotoEditorContent(
 	this,
 	modifications,
 	_photoSize,
-	std::move(data)))
+	data))
 , _audioDisc(base::make_unique_q<AudioDiscButton>(this))
 , _photo(std::move(photo))
 , _background(data.story

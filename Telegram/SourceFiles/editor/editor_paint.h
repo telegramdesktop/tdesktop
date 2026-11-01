@@ -38,6 +38,7 @@ namespace Editor {
 struct Controllers;
 struct LinkBoxResult;
 struct LinkPreview;
+struct SceneItemSticker;
 class MessageSource;
 class ItemReaction;
 class Scene;
@@ -126,6 +127,9 @@ public:
 	[[nodiscard]] QPointF mapWidgetDeltaToScene(QPoint delta) const;
 
 private:
+	void resolveStorySticker(const SceneItemSticker &sticker);
+	void addResolvedStorySticker(const SceneItemSticker &sticker);
+
 	bool eventFilter(QObject *obj, QEvent *e) override;
 	void updateViewGeometry();
 	void zoomCanvas(float64 factor, QPoint viewportPoint, bool animated);

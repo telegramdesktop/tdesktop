@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/stickers/data_stickers.h"
 #include "editor/controllers/controllers.h"
 #include "editor/editor_link_box.h"
 #include "editor/editor_message_render.h"
@@ -1311,12 +1312,15 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 			? controllersSession->data().document(sticker.documentId).get()
 			: nullptr;
 		if (!document || document->isNull()) {
+			resolveStorySticker(sticker);
 			continue;
 		}
 		auto itemData = data;
-		addMediaItem(std::make_shared<ItemSticker>(
+		auto item = std::make_shared<ItemSticker>(
 			document,
-			std::move(itemData)));
+			std::move(itemData));
+		item->applyPlacement(sticker.placement);
+		addMediaItem(std::move(item));
 	}
 	for (const auto &text : parsed.texts) {
 		auto itemData = data;
@@ -1491,6 +1495,46 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 	}
 	_scene->clearSelection();
 	*_scene->lastZ() = std::max(*_scene->lastZ(), parsed.maxZ() + 1.);
+}
+
+void Paint::resolveStorySticker(const SceneItemSticker &sticker) {
+	const auto session = this->session();
+	if (!session || sticker.setShortName.isEmpty()) {
+		return;
+	}
+	session->api().request(MTPmessages_GetStickerSet(
+		MTP_inputStickerSetShortName(MTP_string(sticker.setShortName)),
+		MTP_int(0)
+	)).done(crl::guard(this, [=](const MTPmessages_StickerSet &result) {
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			session->data().stickers().feedSetFull(data);
+		}, [&](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: "
+				"Unexpected messages.stickerSetNotModified for a draft."));
+		});
+		addResolvedStorySticker(sticker);
+	})).send();
+}
+
+void Paint::addResolvedStorySticker(const SceneItemSticker &sticker) {
+	const auto session = this->session();
+	const auto document = session
+		? session->data().document(sticker.documentId).get()
+		: nullptr;
+	if (!document || document->isNull()) {
+		return;
+	}
+	const auto pristine = !sceneChanged();
+	auto data = itemBaseData();
+	auto item = std::make_shared<ItemSticker>(
+		document,
+		std::move(data));
+	item->applyPlacement(sticker.placement);
+	addMediaItem(std::move(item));
+	if (pristine) {
+		keepResult();
+		resetSceneBaseline();
+	}
 }
 
 void Paint::addStoryAudio(AudioTrack track, bool selected) {

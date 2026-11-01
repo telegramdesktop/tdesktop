@@ -256,8 +256,13 @@ SceneItems CollectSceneItems(
 		const auto placement = base->placement();
 		if (item->type() == ItemSticker::Type) {
 			const auto sticker = static_cast<ItemSticker*>(item.get());
+			const auto document = sticker->sticker();
+			const auto stickerData = document->sticker();
 			result.stickers.push_back({
-				.documentId = sticker->sticker()->id,
+				.documentId = document->id,
+				.setShortName = stickerData
+					? stickerData->set.shortName
+					: QString(),
 				.placement = placement,
 			});
 		} else if (item->type() == ItemText::Type) {
@@ -375,6 +380,7 @@ QJsonArray SerializeSceneItems(const SceneItems &items) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"sticker"_q },
 			{ u"doc"_q, qint64(sticker.documentId) },
+			{ u"set"_q, sticker.setShortName },
 			{ u"p"_q, placement(sticker) },
 		});
 	}
@@ -491,6 +497,7 @@ SceneItems ParseSceneItems(
 		if (kind == u"sticker"_q) {
 			result.stickers.push_back({
 				.documentId = DocumentId(object[u"doc"_q].toInteger()),
+				.setShortName = object[u"set"_q].toString(),
 				.placement = placement,
 			});
 		} else if (kind == u"text"_q) {
