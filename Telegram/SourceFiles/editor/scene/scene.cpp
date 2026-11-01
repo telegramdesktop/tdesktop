@@ -153,6 +153,46 @@ private:
 	std::vector<Target> _targets;
 };
 
+class ItemZOrder final : public ItemAction {
+public:
+	struct Target {
+		std::shared_ptr<NumberedItem> item;
+		float64 before = 0.;
+		float64 after = 0.;
+	};
+
+	explicit ItemZOrder(std::vector<Target> targets)
+	: _targets(std::move(targets)) {
+	}
+
+	void apply() override {
+		for (const auto &target : _targets) {
+			target.item->setZValue(target.after);
+		}
+	}
+
+	void revert() override {
+		for (const auto &target : _targets) {
+			target.item->setZValue(target.before);
+		}
+	}
+
+	void restore(SaveState state) override {
+		if (!hasState(state)) {
+			return;
+		}
+		ItemAction::restore(state);
+		if (isNormalStatus()) {
+			apply();
+		} else if (isUndidStatus()) {
+			revert();
+		}
+	}
+
+private:
+	std::vector<Target> _targets;
+};
+
 bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
 }
@@ -1174,6 +1214,49 @@ void Scene::performRedo() {
 			checkDurationsLink();
 		}
 	}
+}
+
+void Scene::raiseItem(not_null<ItemBase*> item) {
+	changeItemZOrder(item, 1);
+}
+
+void Scene::lowerItem(not_null<ItemBase*> item) {
+	changeItemZOrder(item, -1);
+}
+
+void Scene::changeItemZOrder(not_null<ItemBase*> item, int step) {
+	const auto z = item->zValue();
+	auto best = ItemPtr();
+	for (const auto &candidate : _items) {
+		if (candidate.get() == item
+			|| candidate->asAction()
+			|| !candidate->isNormalStatus()) {
+			continue;
+		}
+		const auto candidateZ = candidate->zValue();
+		const auto closer = (step > 0)
+			? (candidateZ > z)
+			: (candidateZ < z);
+		if (!closer) {
+			continue;
+		} else if (!best
+			|| (step > 0
+				? (candidateZ < best->zValue())
+				: (candidateZ > best->zValue()))) {
+			best = candidate;
+		}
+	}
+	if (!best) {
+		return;
+	}
+	const auto bestZ = best->zValue();
+	best->setZValue(z);
+	item->setZValue(bestZ);
+	addItem(std::make_shared<ItemZOrder>(
+		std::vector<ItemZOrder::Target>{
+			{ .item = itemShared(item), .before = z, .after = bestZ },
+			{ .item = best, .before = bestZ, .after = z },
+		}));
 }
 
 void Scene::capturePlacements() {

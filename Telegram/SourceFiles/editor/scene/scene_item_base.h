@@ -142,6 +142,8 @@ protected:
 	virtual void actionFlip();
 	void actionDelete();
 	void actionDuplicate();
+	void actionRaise();
+	void actionLower();
 	void raiseToTop();
 
 	QRectF innerRect() const;

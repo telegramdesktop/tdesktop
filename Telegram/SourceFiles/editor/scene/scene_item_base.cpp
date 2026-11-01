@@ -579,6 +579,18 @@ void ItemBase::actionDuplicate() {
 	}
 }
 
+void ItemBase::actionRaise() {
+	if (const auto s = static_cast<Scene*>(scene())) {
+		s->raiseItem(this);
+	}
+}
+
+void ItemBase::actionLower() {
+	if (const auto s = static_cast<Scene*>(scene())) {
+		s->lowerItem(this);
+	}
+}
+
 void ItemBase::raiseToTop() {
 	setZValue((*_lastZ)++);
 }
@@ -620,6 +632,10 @@ void ItemBase::handleActionKey(not_null<QKeyEvent*> e) {
 	};
 	if (matches(kDuplicateSequence)) {
 		performForSelectedItems(&ItemBase::actionDuplicate);
+	} else if (matches(kRaiseZOrderSequence)) {
+		performForSelectedItems(&ItemBase::actionRaise);
+	} else if (matches(kLowerZOrderSequence)) {
+		performForSelectedItems(&ItemBase::actionLower);
 	} else if (matches(kDeleteSequence) || matches(kBackspaceSequence)) {
 		performForSelectedItems(&ItemBase::actionDelete);
 	} else {

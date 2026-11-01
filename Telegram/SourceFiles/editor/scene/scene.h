@@ -21,6 +21,9 @@ class RpWidget;
 
 namespace Editor {
 
+inline const auto kRaiseZOrderSequence = QKeySequence("ctrl+]");
+inline const auto kLowerZOrderSequence = QKeySequence("ctrl+[");
+
 class ItemCanvas;
 class ItemLocation;
 class ItemReaction;
@@ -136,6 +139,8 @@ public:
 
 	void performUndo();
 	void performRedo();
+	void raiseItem(not_null<ItemBase*> item);
+	void lowerItem(not_null<ItemBase*> item);
 
 	void save(SaveState state);
 	void restore(SaveState state);
@@ -176,6 +181,7 @@ private:
 		Qt::KeyboardModifiers modifiers);
 	void applyDraftFrame(float64 width, float64 height);
 	void finishShapeDrawing(bool apply);
+	void changeItemZOrder(not_null<ItemBase*> item, int step);
 	[[nodiscard]] std::shared_ptr<ItemShape> createShape(
 		int size,
 		const QPointF &center) const;
