@@ -224,6 +224,17 @@ void ShowMessage(const QString &text) {
 		+ QString::number(index + 1);
 }
 
+[[nodiscard]] bool AssertionsUnlabeled(
+		const std::vector<LoginAssertion> &assertions) {
+	for (const auto &assertion : assertions) {
+		if (!assertion.userDisplayName.trimmed().isEmpty()
+			|| !assertion.userName.trimmed().isEmpty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
 [[nodiscard]] base::weak_qptr<Ui::GenericBox> ShowAssertionChoiceBox(
 		std::vector<LoginAssertion> assertions,
 		Fn<void(LoginResult)> submit,
@@ -391,27 +402,7 @@ void CloseBox(const std::shared_ptr<State> &state) {
 		}
 		state.ceremony->setDevice(dev);
 
-		auto assert = fido_assert_new();
-		fido_assert_set_clientdata(
-			assert,
-			reinterpret_cast<const unsigned char*>(clientData.data()),
-			clientData.size());
-		fido_assert_set_rp(assert, rpId.constData());
-		for (const auto &cred : state.data.allowCredentials) {
-			fido_assert_allow_cred(
-				assert,
-				reinterpret_cast<const unsigned char*>(cred.id.constData()),
-				cred.id.size());
-		}
-		fido_assert_set_uv(assert, UserVerification(state.data.userVerification));
-
-		const auto code = fido_dev_get_assert(dev, assert, pinPtr);
-
-		state.ceremony->clearDevice();
-		fido_dev_close(dev);
-		fido_dev_free(&dev);
-
-		if (code == FIDO_OK && fido_assert_count(assert) > 0) {
+		const auto collectAssertions = [&](fido_assert_t *assert) {
 			const auto count = fido_assert_count(assert);
 			const auto limitedCount = (count > Cable::kMaxLoginAssertions)
 				? Cable::kMaxLoginAssertions
@@ -446,7 +437,53 @@ void CloseBox(const std::shared_ptr<State> &state) {
 				}
 				assertions.push_back(std::move(assertion));
 			}
+			return assertions;
+		};
+		const auto runAttempt = [&](fido_opt_t uv,
+				std::vector<LoginAssertion> &assertions) {
+			auto assert = fido_assert_new();
+			fido_assert_set_clientdata(
+				assert,
+				reinterpret_cast<const unsigned char*>(clientData.data()),
+				clientData.size());
+			fido_assert_set_rp(assert, rpId.constData());
+			for (const auto &cred : state.data.allowCredentials) {
+				fido_assert_allow_cred(
+					assert,
+					reinterpret_cast<const unsigned char*>(cred.id.constData()),
+					cred.id.size());
+			}
+			fido_assert_set_uv(assert, uv);
+			const auto code = fido_dev_get_assert(dev, assert, pinPtr);
+			if (code == FIDO_OK && fido_assert_count(assert) > 0) {
+				assertions = collectAssertions(assert);
+			}
 			fido_assert_free(&assert);
+			return code;
+		};
+
+		auto assertions = std::vector<LoginAssertion>();
+		const auto requestedUv = UserVerification(state.data.userVerification);
+		const auto code = runAttempt(requestedUv, assertions);
+		if (code == FIDO_OK
+			&& assertions.size() > 1
+			&& requestedUv == FIDO_OPT_OMIT
+			&& state.data.userVerification != u"discouraged"_q
+			&& AssertionsUnlabeled(assertions)) {
+			auto withUv = std::vector<LoginAssertion>();
+			const auto codeWithUv = runAttempt(FIDO_OPT_TRUE, withUv);
+			if (codeWithUv == FIDO_OK
+				&& withUv.size() == assertions.size()
+				&& !AssertionsUnlabeled(withUv)) {
+				assertions = std::move(withUv);
+			}
+		}
+
+		state.ceremony->clearDevice();
+		fido_dev_close(dev);
+		fido_dev_free(&dev);
+
+		if (code == FIDO_OK && !assertions.empty()) {
 			if (assertions.size() == 1) {
 				out = std::move(assertions.front().result);
 				return Outcome::Success;
@@ -454,7 +491,6 @@ void CloseBox(const std::shared_ptr<State> &state) {
 			assertionsOut = std::move(assertions);
 			return Outcome::ChooseCredential;
 		}
-		fido_assert_free(&assert);
 		if (code == FIDO_OK) {
 			last = Outcome::NoCredentials;
 			continue;
@@ -713,6 +749,7 @@ void AttemptRegister(std::shared_ptr<RegisterState> state, QString pin) {
 			case Outcome::PinBlocked:
 				ShowMessage(tr::lng_passkey_pin_blocked(tr::now));
 				break;
+			case Outcome::ChooseCredential:
 			case Outcome::NoCredentials:
 			case Outcome::Other:
 				ShowMessage(tr::lng_passkey_error_register(tr::now));
