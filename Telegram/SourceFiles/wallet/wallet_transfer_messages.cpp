@@ -125,7 +125,8 @@ FullMsgId TransferMessages::create(const SendArgs &args, uint64 randomId) {
 			MTP_long(args.amountNano),
 			MTP_string(address),
 			MTP_string(QString()), // transaction_id, only the server assigns it
-			commentText.isEmpty() ? MTPstring() : MTP_string(commentText)),
+			commentText.isEmpty() ? MTPstring() : MTP_string(commentText),
+			MTPstring()), // onramp_provider_name
 		MTPMessageReactions(), // reactions
 		MTPint()); // ttl_period
 	const auto item = history->makeMessage(

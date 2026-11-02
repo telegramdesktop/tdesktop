@@ -1031,6 +1031,8 @@ void ChooseTopicSearchController::searchOnServer() {
 		MTP_flags(MTPmessages_GetForumTopics::Flag::f_q),
 		_forum->peer()->input(),
 		MTP_string(_query),
+		MTPlong(), // icon_emoji_id
+		MTPBool(), // closed
 		MTP_int(_offsetDate),
 		MTP_int(_offsetId),
 		MTP_int(_offsetTopicId),

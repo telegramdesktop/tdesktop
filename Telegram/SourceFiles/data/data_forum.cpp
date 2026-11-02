@@ -182,6 +182,8 @@ void Forum::requestTopics() {
 		MTP_flags(0),
 		peer()->input(),
 		MTPstring(), // q
+		MTPlong(), // icon_emoji_id
+		MTPBool(), // closed
 		MTP_int(_offset.date),
 		MTP_int(_offset.id),
 		MTP_int(_offset.topicId),

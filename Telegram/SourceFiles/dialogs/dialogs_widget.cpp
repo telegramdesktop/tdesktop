@@ -3329,6 +3329,8 @@ void Widget::searchTopics() {
 		MTP_flags(MTPmessages_GetForumTopics::Flag::f_q),
 		_openedForum->peer()->input(),
 		MTP_string(_topicSearchQuery),
+		MTPlong(), // icon_emoji_id
+		MTPBool(), // closed
 		MTP_int(_topicSearchOffsetDate),
 		MTP_int(_topicSearchOffsetId),
 		MTP_int(_topicSearchOffsetTopicId),

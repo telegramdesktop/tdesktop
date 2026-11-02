@@ -8090,6 +8090,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGramTransfer,
 		prepareTonConnectRequest,
 		prepareNoPaidMessagesTokenUsed,
+		PrepareEmptyText<MTPDmessageActionStarGiftOnchainOffer>,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	processAction(action);

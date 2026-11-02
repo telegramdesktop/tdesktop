@@ -2829,6 +2829,7 @@ ServiceAction ParseServiceAction(
 		};
 	}, [&](const MTPDmessageActionNoPaidMessagesTokenUsed &data) {
 		result.content = ActionNoPaidMessagesTokenUsed();
+	}, [](const MTPDmessageActionStarGiftOnchainOffer &data) {
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
