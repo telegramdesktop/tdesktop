@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_content.h"
 
+#include "base/algorithm.h"
 #include "editor/editor_audio_disc_button.h"
 #include "editor/editor_video_layer_button.h"
 #include "editor/editor_crop.h"
+#include "editor/editor_enhance_indicator.h"
 #include "editor/editor_paint.h"
 #include "editor/scene/scene_item_video.h"
 #include "history/history_drag_area.h"
@@ -115,6 +117,10 @@ PhotoEditorContent::PhotoEditorContent(
 , _canvasBackground(data.story
 	? data.story->canvasBackground
 	: Media::Encode::CanvasBackground()) {
+	_enhance = _initialEnhance = modifications.enhance;
+	_storyPhoto = data.story && data.story->videoObject.empty();
+	_enhanceIndicator = std::make_unique<EnhanceIndicator>(this);
+	_enhanceIndicator->setGeometry(rect());
 	_crop->setExpansionAllowed(!_fixedCrop);
 	if (canvasMode()) {
 		_crop->hide();
@@ -222,6 +228,7 @@ PhotoEditorContent::PhotoEditorContent(
 	) | rpl::on_next([=] {
 		updateAudioDiscGeometry();
 		updateVideoLayerButtonGeometry();
+		_enhanceIndicator->setGeometry(rect());
 	}, lifetime());
 
 	rpl::combine(
@@ -326,6 +333,8 @@ PhotoEditorContent::PhotoEditorContent(
 		}, _crop->lifetime());
 	}
 }
+
+PhotoEditorContent::~PhotoEditorContent() = default;
 
 QRectF PhotoEditorContent::layoutTarget(
 		const PhotoModifications &mods,
@@ -497,7 +506,8 @@ bool PhotoEditorContent::edited() const {
 			|| (_canvasShift != _initialCanvasShift))) {
 		return true;
 	}
-	return _paint->sceneChanged();
+	return _paint->sceneChanged()
+		|| (_enhance != _initialEnhance);
 }
 
 void PhotoEditorContent::restoreCanvasPlacement(QRect rect) {
@@ -576,16 +586,22 @@ void PhotoEditorContent::paintCanvas(QPainter &p) {
 	Media::Encode::PaintCanvasBackground(p, canvas, _canvasBackground);
 	p.setClipRect(canvas);
 	p.setTransform(_canvasMediaMatrix);
+	const auto size = _canvasFrameRect.size();
 	p.drawPixmap(
 		_canvasFrameRect,
-		_canvasMedia->pix(_canvasFrameRect.size()));
+		(_enhance > 0 && _storyPhoto)
+			? enhancedCanvasPix(size)
+			: _canvasMedia->pix(size));
 	p.resetTransform();
 	p.setClipping(false);
 }
 
 void PhotoEditorContent::recomposeCanvas() {
 	const auto &mods = _modifications.current();
-	const auto media = TransformedMedia(_canvasMedia->original(), mods);
+	auto media = TransformedMedia(_canvasMedia->original(), mods);
+	if (_enhance > 0) {
+		media = EnhanceImage(std::move(media), _enhance);
+	}
 	_photo = std::make_shared<Image>(Media::Encode::FitOnCanvas(
 		media,
 		_photoSize,
@@ -627,6 +643,37 @@ void PhotoEditorContent::zoomCanvas(float64 factor, QPoint about) {
 void PhotoEditorContent::canvasChanged() {
 	layoutCanvasMedia(_imageMatrix.mapRect(_imageRect));
 	update();
+}
+
+void PhotoEditorContent::adjustEnhance(int delta) {
+	const auto step = delta / float64(QWheelEvent::DefaultDeltasPerStep);
+	const auto next = std::clamp(
+		_enhance + int(base::SafeRound(step * 5)),
+		0,
+		100);
+	if (next == _enhance) {
+		return;
+	}
+	_enhance = next;
+	_canvasDirty = true;
+	_enhancedPixmapAmount = -1;
+	_enhanceIndicator->setValue(_enhance);
+	update();
+}
+
+const QPixmap &PhotoEditorContent::enhancedCanvasPix(QSize size) {
+	if (_enhancedPixmapAmount != _enhance
+		|| _enhancedPixmapSize != size) {
+		if (!_enhanceLut.valid) {
+			_enhanceLut = PrepareEnhance(_canvasMedia->original());
+		}
+		auto image = _canvasMedia->pix(size).toImage();
+		image = ApplyEnhance(std::move(image), _enhanceLut, _enhance);
+		_enhancedPixmap = QPixmap::fromImage(std::move(image));
+		_enhancedPixmapAmount = _enhance;
+		_enhancedPixmapSize = size;
+	}
+	return _enhancedPixmap;
 }
 
 void PhotoEditorContent::mousePressEvent(QMouseEvent *e) {
@@ -680,8 +727,12 @@ void PhotoEditorContent::wheelEvent(QWheelEvent *e) {
 	const auto delta = e->angleDelta().y()
 		? e->angleDelta().y()
 		: e->angleDelta().x();
-	if (delta) {
-		zoomCanvas(std::pow(kCanvasWheelZoomBase, delta), position);
+	if (e->modifiers().testFlag(Qt::ControlModifier)) {
+		if (delta) {
+			zoomCanvas(std::pow(kCanvasWheelZoomBase, delta), position);
+		}
+	} else if (_storyPhoto) {
+		adjustEnhance(delta);
 	}
 	e->accept();
 }
@@ -720,6 +771,7 @@ void PhotoEditorContent::save(PhotoModifications &modifications) {
 	} else {
 		modifications.crop = _crop->saveCropRect();
 	}
+	modifications.enhance = _enhance;
 	_paint->keepResult();
 
 	const auto savedScene = _paint->saveScene();

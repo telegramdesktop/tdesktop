@@ -627,6 +627,8 @@ PhotoEditorControls::PhotoEditorControls(
 , _imageSize(imageSize)
 , _originalRatio(data.originalRatio)
 , _fixedCrop(data.fixedCrop)
+, _canvasMode(data.story && !data.story->canvasMedia.isNull())
+, _storyPhoto(data.story && data.story->videoObject.empty())
 , _bg(st::roundedBg)
 , _buttonHeight(st::photoEditorButtonBarHeight)
 , _transformButtons(base::make_unique_q<ButtonBar>(this, _bg))
@@ -723,6 +725,8 @@ PhotoEditorControls::PhotoEditorControls(
 		.mode = _mode.current().mode,
 		.fixedCrop = _fixedCrop,
 		.timeline = _videoTimelineShown || _audioTimelineShown,
+		.canvasMode = _canvasMode,
+		.storyPhoto = _storyPhoto,
 	};
 })) {
 

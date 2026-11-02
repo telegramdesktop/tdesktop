@@ -93,6 +93,8 @@ private:
 	const QSize _imageSize;
 	const float64 _originalRatio = 0.;
 	const bool _fixedCrop = false;
+	const bool _canvasMode = false;
+	const bool _storyPhoto = false;
 	const style::color &_bg;
 	const int _buttonHeight;
 	const base::unique_qptr<ButtonBar> _transformButtons;

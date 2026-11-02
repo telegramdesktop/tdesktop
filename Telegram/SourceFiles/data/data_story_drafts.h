@@ -23,6 +23,7 @@ struct StoryDraftEdits {
 	crl::time till = 0;
 	crl::time cover = 0;
 	QRect canvasMediaRect;
+	int enhance = 0;
 };
 
 struct StoryDraftVideo {

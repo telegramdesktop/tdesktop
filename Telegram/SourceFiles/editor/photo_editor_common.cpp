@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_common.h"
 
+#include "editor/editor_enhance.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_animated.h"
 #include "editor/video/video_clip.h"
@@ -106,6 +107,9 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 
 	if (!mods) {
 		return image;
+	}
+	if (mods.enhance > 0) {
+		image = EnhanceImage(std::move(image), mods.enhance);
 	}
 	const auto expanded = mods.crop.isValid()
 		&& !image.rect().contains(mods.crop);
@@ -315,7 +319,8 @@ bool PhotoModifications::empty() const {
 		&& !flipped
 		&& !crop.isValid()
 		&& !hasPaint
-		&& canvasMediaRect.isEmpty();
+		&& canvasMediaRect.isEmpty()
+		&& !enhance;
 }
 
 PhotoModifications::operator bool() const {

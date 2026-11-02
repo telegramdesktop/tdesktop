@@ -1792,10 +1792,12 @@ bool Paint::eventFilter(QObject *obj, QEvent *e) {
 			return true;
 		}
 		const auto step = delta / float64(QWheelEvent::DefaultDeltasPerStep);
-		zoomCanvas(
-			std::pow(kCanvasZoomStep, step),
-			wheel->position().toPoint(),
-			false);
+		if (wheel->modifiers().testFlag(Qt::ControlModifier)) {
+			zoomCanvas(
+				std::pow(kCanvasZoomStep, step),
+				wheel->position().toPoint(),
+				false);
+		}
 		return true;
 	} else if (e->type() == QEvent::NativeGesture) {
 		const auto gesture = static_cast<QNativeGestureEvent*>(e);

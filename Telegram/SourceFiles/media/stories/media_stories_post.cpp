@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_story.h"
 #include "data/data_story_drafts.h"
 #include "data/data_user.h"
+#include "editor/editor_enhance.h"
 #include "editor/editor_layer_widget.h"
 #include "editor/editor_message_source.h"
 #include "history/history.h"
@@ -227,6 +228,9 @@ void SetupStoryEditorClose(
 			transform.rotate(mods.angle);
 		}
 		media = media.transformed(transform);
+	}
+	if (mods.enhance > 0) {
+		media = Editor::EnhanceImage(std::move(media), mods.enhance);
 	}
 	const auto canvas = QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight);
 	auto result = Media::Encode::FitOnCanvas(
@@ -789,6 +793,7 @@ struct CollectedStoryDraft {
 			.angle = mods.angle,
 			.flipped = mods.flipped,
 			.canvasMediaRect = mods.canvasMediaRect,
+			.enhance = mods.enhance,
 		};
 	} else {
 		media.photo = composed;
@@ -1377,6 +1382,7 @@ void PostStoryDraft(
 			initial.angle = edits.angle;
 			initial.flipped = edits.flipped;
 			initial.canvasMediaRect = edits.canvasMediaRect;
+			initial.enhance = edits.enhance;
 			OpenStoryPhotoEditor(
 				controller,
 				std::move(image),
@@ -1561,6 +1567,7 @@ void EditStory(
 			initial.angle = edits.angle;
 			initial.flipped = edits.flipped;
 			initial.canvasMediaRect = edits.canvasMediaRect;
+			initial.enhance = edits.enhance;
 			OpenStoryPhotoEditor(
 				controller,
 				std::move(image),

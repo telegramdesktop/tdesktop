@@ -10,14 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
+#include "editor/editor_enhance.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
 #include "media/media_video_canvas.h"
 #include "ui/image/image.h"
 
+#include <QtGui/QPixmap>
+
 namespace Editor {
 
 class AudioDiscButton;
+class EnhanceIndicator;
 class VideoLayerButton;
 class Crop;
 class VideoClip;
@@ -32,6 +36,7 @@ public:
 		PhotoModifications modifications,
 		std::shared_ptr<Controllers> controllers,
 		EditorData data);
+	~PhotoEditorContent();
 
 	void applyModifications(PhotoModifications modifications);
 	void applyMode(const PhotoEditorMode &mode);
@@ -117,6 +122,8 @@ private:
 	void clampCanvasShift();
 	void zoomCanvas(float64 factor, QPoint about);
 	void canvasChanged();
+	void adjustEnhance(int delta);
+	[[nodiscard]] const QPixmap &enhancedCanvasPix(QSize size);
 	void recomposeCanvas();
 	void paintCanvas(QPainter &p);
 	void updateVideoLayerButton();
@@ -166,6 +173,15 @@ private:
 	std::optional<QPoint> _canvasPress;
 	bool _canvasMoved = false;
 	bool _canvasDirty = false;
+
+	bool _storyPhoto = false;
+	int _enhance = 0;
+	int _initialEnhance = 0;
+	EnhanceLut _enhanceLut;
+	std::unique_ptr<EnhanceIndicator> _enhanceIndicator;
+	QPixmap _enhancedPixmap;
+	int _enhancedPixmapAmount = -1;
+	QSize _enhancedPixmapSize;
 
 };
 

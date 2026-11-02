@@ -105,6 +105,22 @@ QJsonObject SerializeStoryDraftJson(const StoryDraft &draft) {
 	const auto &rect = edits.canvasMediaRect;
 	const auto &video = draft.videoPlacement;
 	const auto &audio = draft.audio;
+	auto editsObject = QJsonObject{
+		{ u"angle"_q, edits.angle },
+		{ u"flipped"_q, edits.flipped },
+		{ u"from"_q, qint64(edits.from) },
+		{ u"till"_q, qint64(edits.till) },
+		{ u"cover"_q, qint64(edits.cover) },
+		{ u"canvas"_q, QJsonArray{
+			rect.x(),
+			rect.y(),
+			rect.width(),
+			rect.height(),
+		} },
+	};
+	if (edits.enhance) {
+		editsObject.insert(u"enhance"_q, edits.enhance);
+	}
 	return QJsonObject{
 		{ u"id"_q, QString::number(draft.id) },
 		{ u"date"_q, qint64(draft.date) },
@@ -116,19 +132,7 @@ QJsonObject SerializeStoryDraftJson(const StoryDraft &draft) {
 		{ u"video"_q, draft.video },
 		{ u"caption"_q, SerializeCaption(draft.caption) },
 		{ u"period"_q, draft.period },
-		{ u"edits"_q, QJsonObject{
-			{ u"angle"_q, edits.angle },
-			{ u"flipped"_q, edits.flipped },
-			{ u"from"_q, qint64(edits.from) },
-			{ u"till"_q, qint64(edits.till) },
-			{ u"cover"_q, qint64(edits.cover) },
-			{ u"canvas"_q, QJsonArray{
-				rect.x(),
-				rect.y(),
-				rect.width(),
-				rect.height(),
-			} },
-		} },
+		{ u"edits"_q, editsObject },
 		{ u"still"_q, QFileInfo(draft.stillPath).fileName() },
 		{ u"scene"_q, draft.scene },
 		{ u"sceneFiles"_q, [&] {
@@ -187,6 +191,7 @@ std::optional<StoryDraft> ParseStoryDraftJson(
 	result.edits.from = edits[u"from"_q].toInteger();
 	result.edits.till = edits[u"till"_q].toInteger();
 	result.edits.cover = edits[u"cover"_q].toInteger();
+	result.edits.enhance = edits[u"enhance"_q].toInt();
 	const auto canvas = edits[u"canvas"_q].toArray();
 	if (canvas.size() == 4) {
 		result.edits.canvasMediaRect = QRect(

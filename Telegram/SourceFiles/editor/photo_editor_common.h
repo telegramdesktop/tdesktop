@@ -129,6 +129,7 @@ struct PhotoModifications {
 	RoundedCornersLevel cornersLevel = RoundedCornersLevel::Large;
 	std::shared_ptr<Scene> paint = nullptr;
 	QRect canvasMediaRect;
+	int enhance = 0;
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] explicit operator bool() const;

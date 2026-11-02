@@ -7894,6 +7894,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_photo_editor_audio_remove" = "Remove Audio";
 "lng_photo_editor_trim_shortest" = "Trim to shortest";
+"lng_photo_editor_enhance" = "Enhance";
 
 "lng_video_editor_gif_too_large" = "Videos larger than {size} can't be converted to a GIF";
 
@@ -7918,6 +7919,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_photo_editor_keys_canvas" = "Canvas";
 "lng_photo_editor_keys_canvas_zoom" = "Zoom canvas at cursor";
 "lng_photo_editor_keys_canvas_pan" = "Pan zoomed canvas";
+"lng_photo_editor_keys_enhance" = "Enhance photo";
 "lng_photo_editor_keys_canvas_paste" = "Paste image, sticker, file or link";
 "lng_photo_editor_keys_canvas_undo" = "Undo";
 "lng_photo_editor_keys_canvas_redo" = "Redo";

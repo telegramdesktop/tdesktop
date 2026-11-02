@@ -188,6 +188,10 @@ PRIVATE
     editor/editor_audio_menu.h
     editor/editor_crop.cpp
     editor/editor_crop.h
+    editor/editor_enhance.cpp
+    editor/editor_enhance.h
+    editor/editor_enhance_indicator.cpp
+    editor/editor_enhance_indicator.h
     editor/editor_keys_legend.cpp
     editor/editor_keys_legend.h
     editor/editor_link_pill.cpp
