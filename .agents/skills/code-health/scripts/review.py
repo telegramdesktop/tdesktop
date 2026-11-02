@@ -6,7 +6,7 @@ a new include may not cross a target boundary, a header may not get much
 heavier to rebuild, added code may not repeat code that already exists, a
 removed definition may not leave mentions behind, and a removed use may not
 leave a definition nothing uses."""
-from collections import Counter
+from collections import Counter, namedtuple
 from pathlib import Path
 import re
 import subprocess
@@ -17,7 +17,7 @@ import cpp_text
 import includes
 import metrics
 from report import LIMITS, file_limit
-from sources import LANG_FILE, git, wanted
+from sources import LANG_FILE, LIB_PREFIX, git, wanted
 
 
 HUNK = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@')
@@ -30,6 +30,7 @@ SCAFFOLDING = re.compile(
     r'For license and copyright.*|https://github.com/.*LEGAL|/\*|\*/|)$')
 BUILD_SHARE = 0.002
 GROWTH_TOLERANCE = 20
+GITLINK_MODE = '160000'
 PREFIXES = re.compile(r'^(\[\[nodiscard\]\] |static |inline )+')
 DEFAULTS = re.compile(r'([\w>*&] [*&]?\w+) = [^,(){}]+(?=[,)])')
 CONTROL = ('if ', 'for ', 'while ', 'switch ', 'return ', '} else')
@@ -57,65 +58,135 @@ def tracked_path(path):
     return code_path(path) or (wanted(path) and path.endswith('.style')) or path == LANG_FILE
 
 
-def untracked(repo):
+# Where a change lives and how to ask Git about it: the superproject, or one
+# changed `Telegram/lib_*` submodule, whose paths get `prefix` prepended.
+Side = namedtuple('Side', 'repo base scope prefix')
+
+
+def untracked(repo, scope='Telegram', prefix=''):
     raw = git(repo, 'ls-files', '--others', '--exclude-standard', '--',
-              'Telegram').decode('utf-8', 'replace')
-    return [path for path in raw.splitlines() if tracked_path(path)]
+              scope).decode('utf-8', 'replace')
+    return [prefix + path for path in raw.splitlines() if tracked_path(prefix + path)]
+
+
+def unread_reason(checkout, pin, staged):
+    """Why `check` cannot read a changed submodule, or None. `git -C` in a
+    folder without `.git` would answer for the superproject instead."""
+    if staged:
+        return '--staged sees only its pin; check without --staged'
+    if not (checkout / '.git').exists():
+        return 'it has no checkout here'
+    if pin:
+        try:
+            git(checkout, 'cat-file', '-e', pin + '^{commit}')
+        except subprocess.CalledProcessError:
+            return f'its base pin {pin[:10]} is unavailable locally'
+    return None
+
+
+def changed_submodules(repo, base, staged):
+    """(root, base pin or None, unread reason or None) of each top-level
+    `Telegram/lib_*` gitlink that differs from `base`, as `sources.from_ref()`
+    selects them; `--ignore-submodules=none` also lists one whose only change
+    is an untracked file, which a plain diff leaves out."""
+    args = ['diff', '--raw', '--no-abbrev', '--no-renames', '--ignore-submodules=none']
+    args += ['--cached', base] if staged else [base]
+    raw = git(repo, *args, '--', LIB_PREFIX + '*').decode('utf-8', 'replace')
+    result = []
+    for line in raw.splitlines():
+        meta, _, root = line.partition('\t')
+        old_mode, new_mode, old_oid = meta[1:].split()[:3]
+        if GITLINK_MODE in (old_mode, new_mode) and root.count('/') == 1:
+            pin = old_oid if old_mode == GITLINK_MODE else None
+            result.append((root, pin, unread_reason(Path(repo) / root, pin, staged)))
+    return result
+
+
+def sides(repo, base, staged):
+    """The superproject, then each changed submodule `check` can read, with
+    the commit its working tree is compared with: its pin at `base`, or the
+    empty tree when the change adds it, so that all of its files are new."""
+    result = [Side(repo, base, 'Telegram', '')]
+    for root, pin, reason in changed_submodules(repo, base, staged):
+        if reason is None:
+            checkout = Path(repo) / root
+            start = pin or git(checkout, 'hash-object', '-t', 'tree', '--stdin',
+                               data=b'').decode().strip()
+            result.append(Side(checkout, start, '.', root + '/'))
+    return result
+
+
+def located(repo, base, path):
+    """(repo, commit, path) to ask Git for `path` at `base`: a file inside a
+    checked out `Telegram/lib_*` gitlink lives in that submodule at its pin."""
+    parts = path.split('/', 2)
+    if path.startswith(LIB_PREFIX) and len(parts) == 3:
+        root = '/'.join(parts[:2])
+        checkout = Path(repo) / root
+        if (checkout / '.git').exists():
+            fields = git(repo, 'ls-tree', base, '--', root).decode().split()
+            if fields[1:2] == ['commit']:
+                return checkout, fields[2], parts[2]
+    return repo, base, path
 
 
 def changed(repo, base, staged):
     """(status letter, path) of changed code, style and language files;
     without `staged`, untracked files count as added, so a change is seen
     before its commit."""
-    args = ['diff', '--name-status', '--no-renames']
-    args += ['--cached', base] if staged else [base]
-    raw = git(repo, *args, '--', 'Telegram').decode('utf-8', 'replace')
     result = []
-    for line in raw.splitlines():
-        status, _, path = line.partition('\t')
-        if tracked_path(path):
-            result.append((status[0], path))
-    if not staged:
-        result += [('A', path) for path in untracked(repo)]
+    for side in sides(repo, base, staged):
+        args = ['diff', '--name-status', '--no-renames']
+        args += ['--cached', side.base] if staged else [side.base]
+        raw = git(side.repo, *args, '--', side.scope).decode('utf-8', 'replace')
+        for line in raw.splitlines():
+            status, _, path = line.partition('\t')
+            path = side.prefix + path
+            if tracked_path(path):
+                result.append((status[0], path))
+        if not staged:
+            result += [('A', path) for path in untracked(side.repo, side.scope, side.prefix)]
     return result
 
 
 def diff_lines(repo, base, staged):
     """{path: (removed lines, added lines)} over the changed files; each
     removed line is (its number in the base, its text)."""
-    args = ['diff', '-U0', '--no-color', '--no-renames']
-    args += ['--cached', base] if staged else [base]
-    raw = git(repo, *args, '--', 'Telegram').decode('utf-8', 'replace')
     result = {}
-    path = None
-    number = 0
-    for line in raw.splitlines():
-        if line.startswith('--- '):
-            path = line[6:] if line.startswith('--- a/') else None
-            continue
-        if line.startswith('+++ '):
-            path = line[6:] if line.startswith('+++ b/') else path
-            continue
-        hunk = HUNK.match(line)
-        if hunk:
-            number = int(hunk.group(1))
-            continue
-        if not path or not tracked_path(path) or not line or line[0] not in '+-':
-            continue
-        entry = result.setdefault(path, ([], []))
-        if line[0] == '-':
-            entry[0].append((number, line[1:]))
-            number += 1
-        else:
-            entry[1].append(line[1:])
-    if not staged:
-        for path in untracked(repo):
-            text = (Path(repo) / path).read_text(encoding='utf-8', errors='replace')
-            result[path] = ([], text.split('\n'))
+    for side in sides(repo, base, staged):
+        args = ['diff', '-U0', '--no-color', '--no-renames']
+        args += ['--cached', side.base] if staged else [side.base]
+        raw = git(side.repo, *args, '--', side.scope).decode('utf-8', 'replace')
+        path = None
+        number = 0
+        for line in raw.splitlines():
+            if line.startswith('--- '):
+                path = side.prefix + line[6:] if line.startswith('--- a/') else None
+                continue
+            if line.startswith('+++ '):
+                path = side.prefix + line[6:] if line.startswith('+++ b/') else path
+                continue
+            hunk = HUNK.match(line)
+            if hunk:
+                number = int(hunk.group(1))
+                continue
+            if not path or not tracked_path(path) or not line or line[0] not in '+-':
+                continue
+            entry = result.setdefault(path, ([], []))
+            if line[0] == '-':
+                entry[0].append((number, line[1:]))
+                number += 1
+            else:
+                entry[1].append(line[1:])
+        if not staged:
+            for path in untracked(side.repo, side.scope, side.prefix):
+                text = (Path(repo) / path).read_text(encoding='utf-8', errors='replace')
+                result[path] = ([], text.split('\n'))
     return result
 
 
 def base_text(repo, base, path):
+    repo, base, path = located(repo, base, path)
     try:
         return git(repo, 'show', f'{base}:{path}').decode('utf-8', 'replace')
     except subprocess.CalledProcessError:
@@ -123,6 +194,7 @@ def base_text(repo, base, path):
 
 
 def added_hunks(repo, base, staged, path):
+    repo, base, path = located(repo, base, path)
     args = ['diff', '-U0', '--no-color']
     args += ['--cached', base] if staged else [base]
     raw = git(repo, *args, '--', path).decode('utf-8', 'replace')
@@ -142,7 +214,10 @@ def added_hunks(repo, base, staged, path):
 def check(tree, base='HEAD', staged=False, strict=False):
     """Returns (errors, warnings) as lists of strings."""
     errors = []
-    warnings = []
+    warnings = [
+        f'{root}: changed, but not read: {reason}.'
+        for root, _, reason in changed_submodules(tree.repo, base, staged) if reason
+    ]
     model = cmake_model.build(tree.files)
     graph = includes.IncludeGraph(tree, model)
     costs = None

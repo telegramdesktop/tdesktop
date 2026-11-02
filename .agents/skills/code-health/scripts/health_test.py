@@ -844,6 +844,231 @@ class CheckTests(unittest.TestCase):
         self.assertEqual(crlf, lf)
 
 
+class SubmoduleCheckTests(unittest.TestCase):
+    """`health.py check` over a real `Telegram/lib_webrtc` submodule, run the
+    way the review step runs it."""
+    ROOT = 'Telegram/lib_webrtc'
+    EXISTING = 'int Existing() {\n\treturn 1;\n}\n'
+    BIG = ''.join(f'int Value{i}() {{\n\treturn {i};\n}}\n\n' for i in range(1100))
+    NEW = ''.join(f'int Fresh{i}() {{\n\treturn {i} + 1;\n}}\n\n' for i in range(1100))
+
+    def setUp(self):
+        self.library = Repo({'webrtc/existing.cpp': self.EXISTING, 'webrtc/big.cpp': self.BIG})
+        self.addCleanup(self.library.temp.cleanup)
+        self.repo = Repo(fixture())
+        self.addCleanup(self.repo.temp.cleanup)
+        self.add_submodule(self.library, self.ROOT)
+        self.repo.git('commit', '-qm', 'Library.')
+        self.base = self.head()
+
+    def add_submodule(self, library, root):
+        self.repo.git('-c', 'protocol.file.allow=always', 'submodule', 'add', '-q',
+                      str(library.root), root)
+        self.repo.git('-C', root, 'config', 'user.name', 'Fixture')
+        self.repo.git('-C', root, 'config', 'user.email', 'fixture@example.invalid')
+
+    def commit_library(self, pin=True):
+        """Commits the submodule's working tree; `pin` commits the moved pin too."""
+        self.repo.git('-C', self.ROOT, 'add', '-A')
+        self.repo.git('-C', self.ROOT, 'commit', '-qm', 'Change.')
+        if pin:
+            self.repo.git('add', self.ROOT)
+            self.repo.git('commit', '-qm', 'Pin.')
+
+    def head(self):
+        return self.repo.git('rev-parse', 'HEAD').strip()
+
+    def health(self, *args, repo=None):
+        script = Path(__file__).resolve().parent / 'health.py'
+        return subprocess.run(
+            [sys.executable, str(script), '--repo', str(repo or self.repo.root), *args],
+            capture_output=True, text=True)
+
+    def check(self, *extra, base=None, repo=None):
+        return self.health('check', '--base', base or self.base, *extra, repo=repo)
+
+    def assert_report(self, result, code, errors=(), warnings=()):
+        """`check` printed exactly these findings, nothing on stderr, and
+        exited with `code`."""
+        expected = ''.join(
+            f'## {title}\n\n' + ''.join(f'- {item}\n' for item in items) + '\n'
+            for title, items in (('Errors', errors), ('Warnings', warnings)) if items)
+        self.assertEqual((result.returncode, result.stderr, result.stdout),
+                         (code, '', expected or 'Code health check: clean.\n'))
+
+    def new_file(self, path):
+        return f'{path}: new file starts at 4401 lines (limit 4000).'
+
+    def gap(self, reason):
+        return f'{self.ROOT}: changed, but not read: {reason}.'
+
+    def test_committed_pin_move_is_checked(self):
+        new = self.ROOT + '/webrtc/new.cpp'
+        self.repo.write({new: self.NEW})
+        self.commit_library()
+        self.assertEqual(self.repo.git('diff', '--name-status', self.base, '--', 'Telegram'),
+                         f'M\t{self.ROOT}\n')
+        self.assert_report(self.check(), 1, errors=[self.new_file(new)])
+
+    def test_dirty_submodule_working_tree_is_checked(self):
+        new = self.ROOT + '/webrtc/new.cpp'
+        self.repo.write({new: self.NEW})
+        with self.subTest('untracked'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(new)])
+        self.repo.git('-C', self.ROOT, 'add', '-A')
+        with self.subTest('in the submodule index'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(new)])
+        self.commit_library(pin=False)
+        with self.subTest('committed in the submodule only'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(new)])
+        self.assertEqual(self.head(), self.base)
+
+    def test_existing_submodule_file_is_measured_against_its_pin(self):
+        big = self.ROOT + '/webrtc/big.cpp'
+        self.repo.write({big: self.BIG + 'int Extra() {\n\treturn 0;\n}\n'})
+        with self.subTest('three lines'):
+            self.assert_report(self.check(), 0)
+        more = ''.join(f'int More{i}() {{\n\treturn {i};\n}}\n' for i in range(10))
+        self.repo.write({big: self.BIG + more})
+        grows = (f'{big}: grows 4401 -> 4431 lines while over the 4000-line limit; '
+                 f'put the new code in a new file.')
+        with self.subTest('dirty'):
+            self.assert_report(self.check(), 0, warnings=[grows])
+        self.commit_library()
+        with self.subTest('committed'):
+            self.assert_report(self.check(), 0, warnings=[grows])
+        with self.subTest('strict'):
+            self.assert_report(self.check('--strict'), 1, errors=[grows])
+
+    def test_missing_base_pin_is_named(self):
+        missing = 'a' * 40
+        self.repo.git('update-index', '--cacheinfo', f'160000,{missing},{self.ROOT}')
+        self.repo.git('commit', '-qm', 'Unknown pin.')
+        self.repo.git('add', self.ROOT)
+        gap = self.gap(f'its base pin {missing[:10]} is unavailable locally')
+        with self.subTest('default'):
+            self.assert_report(self.check(base='HEAD'), 0, warnings=[gap])
+        with self.subTest('strict'):
+            self.assert_report(self.check('--strict', base='HEAD'), 0, warnings=[gap])
+        big = 'Telegram/SourceFiles/app/big.cpp'
+        self.repo.write({big: self.NEW})
+        with self.subTest('beside a superproject error'):
+            self.assert_report(self.check(base='HEAD'), 1,
+                               errors=[self.new_file(big)], warnings=[gap])
+
+    def test_repo_on_a_submodule_refuses_in_one_line(self):
+        checkout = self.repo.root / self.ROOT
+        result = self.check(base='HEAD', repo=checkout)
+        self.assertEqual((result.returncode, result.stdout), (2, ''))
+        self.assertEqual(result.stderr, (
+            f'{checkout} has no Telegram folder; run check from the superproject, '
+            'which reads changed Telegram/lib_* submodules itself.\n'))
+
+    def test_superproject_change_beside_a_submodule_is_unchanged(self):
+        with self.subTest('no change'):
+            self.assert_report(self.check(base='HEAD'), 0)
+        big = 'Telegram/SourceFiles/app/big.cpp'
+        self.repo.write({big: self.NEW})
+        with self.subTest('superproject new file'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(big)])
+
+    def test_unavailable_checkout_is_skipped_or_named(self):
+        self.repo.write({self.ROOT + '/webrtc/new.cpp': self.NEW})
+        self.commit_library()
+        self.repo.git('submodule', 'deinit', '-f', self.ROOT)
+        gap = self.gap('it has no checkout here')
+        with self.subTest('unchanged pin'):
+            self.assert_report(self.check(base='HEAD'), 0)
+        with self.subTest('moved pin'):
+            self.assert_report(self.check(), 0, warnings=[gap])
+        moved = self.head()
+        self.repo.git('rm', '-q', self.ROOT)
+        self.repo.git('commit', '-qm', 'Remove.')
+        with self.subTest('removed'):
+            self.assert_report(self.check(base=moved), 0, warnings=[gap])
+
+    def test_added_submodule_files_are_new(self):
+        library = Repo({'n.cpp': self.NEW})
+        self.addCleanup(library.temp.cleanup)
+        self.add_submodule(library, 'Telegram/lib_new')
+        new = 'Telegram/lib_new/n.cpp'
+        with self.subTest('registration staged'):
+            self.assert_report(self.check(), 1, errors=[self.new_file(new)])
+        self.repo.git('commit', '-qm', 'New library.')
+        with self.subTest('registration committed'):
+            self.assert_report(self.check(), 1, errors=[self.new_file(new)])
+
+    def test_staged_check_names_a_moved_pin(self):
+        self.repo.write({self.ROOT + '/webrtc/new.cpp': self.NEW})
+        with self.subTest('library change outside the index'):
+            self.assert_report(self.check('--staged', base='HEAD'), 0)
+        self.commit_library(pin=False)
+        self.repo.git('add', self.ROOT)
+        with self.subTest('staged pin'):
+            self.assert_report(self.check('--staged', base='HEAD'), 0, warnings=[
+                self.gap('--staged sees only its pin; check without --staged')])
+
+    def test_repeated_code_in_a_submodule_is_reported(self):
+        body = ''.join(f'\tauto value{i} = compute({i}, other{i});\n' for i in range(12))
+        existing = self.ROOT + '/webrtc/existing.cpp'
+        first = self.EXISTING + 'void A() {\n' + body + '}\n'
+        self.repo.write({existing: first})
+        self.commit_library()
+        self.repo.write({existing: first + '\nvoid C() {\n' + body + '}\n'})
+        self.assert_report(self.check(base='HEAD'), 0, warnings=[
+            f'{existing}:20-31: repeats 12 lines of {existing}:5; reuse or promote it instead.'])
+
+    def test_removed_submodule_definition_still_mentioned_is_reported(self):
+        user = 'Telegram/SourceFiles/app/user.cpp'
+        self.repo.write({user: 'void Use() {\n\tExisting();\n}\n'})
+        self.repo.git('add', user)
+        self.repo.git('commit', '-qm', 'User.')
+        base = self.head()
+        self.repo.remove(self.ROOT + '/webrtc/existing.cpp')
+        self.commit_library()
+        self.assert_report(self.check(base=base), 0, warnings=[
+            f'Existing: definition removed but still mentioned at {user}:2; remove what '
+            f'is left, or keep it if code this host does not compile calls it.'])
+
+    def test_removed_last_use_in_a_submodule_reports_orphan(self):
+        existing = self.ROOT + '/webrtc/existing.cpp'
+        helper = 'int Helper(int value) {\n\treturn value + 1;\n}\n\n'
+        pick = ('int Pick(bool flag, int value) {\n\treturn flag\n'
+                '\t\t? value\n\t\t: Helper(value);\n}\n')
+        self.repo.write({existing: self.EXISTING + '\n' + helper + pick})
+        self.commit_library()
+        self.repo.write({existing: self.EXISTING + '\n' + helper
+                         + pick.replace(': Helper(value);', ': value + 1;')})
+        self.assert_report(self.check(base='HEAD'), 0, warnings=[
+            f'Helper: the change removed its last use; only its definition remains at '
+            f'{existing}:5; remove it too.'])
+
+    def test_plain_lib_folder_stays_in_the_superproject(self):
+        kept = 'Telegram/lib_plain/kept.cpp'
+        fresh = 'Telegram/lib_plain/fresh.cpp'
+        self.repo.write({kept: self.BIG})
+        self.repo.git('add', kept)
+        self.repo.git('commit', '-qm', 'Plain folder.')
+        self.repo.write({kept: self.BIG + 'int Extra() {\n\treturn 0;\n}\n', fresh: self.NEW})
+        self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(fresh)])
+
+    def test_moves_still_reads_only_the_superproject(self):
+        self.repo.write({self.ROOT + '/webrtc/new.cpp': self.NEW})
+        with self.subTest('untracked in the submodule'):
+            result = self.health('moves', '--base', 'HEAD')
+            self.assertEqual((result.returncode, result.stderr, result.stdout), (
+                0, '', 'Moved lines: 0\nAdded declarations: 0\nVerdict: MOVE_ONLY\n'))
+        old = self.repo.git('rev-parse', f'HEAD:{self.ROOT}').strip()
+        self.commit_library()
+        new = self.repo.git('rev-parse', f'HEAD:{self.ROOT}').strip()
+        with self.subTest('committed pin'):
+            result = self.health('moves', '--base', self.base)
+            self.assertEqual((result.returncode, result.stderr, result.stdout), (
+                1, '', 'Moved lines: 0\nAdded declarations: 0\nVerdict: NOT_MOVE_ONLY\n'
+                f'\n## Added lines that were not moved\n\n- 1x Subproject commit {new}\n'
+                f'\n## Removed lines that did not reappear\n\n- 1x Subproject commit {old}\n'))
+
+
 class VerifyTests(unittest.TestCase):
     def test_deleted_candidate_is_resolved(self):
         repo = Repo(fixture())
