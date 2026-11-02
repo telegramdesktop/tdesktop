@@ -2390,22 +2390,24 @@ void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
 
+MsgId HistoryItem::notificationTopicRootId() const {
+	const auto rootId = topicRootId();
+	// A bot has no General topic, enforcing one would list it empty.
+	const auto botGeneral = (rootId == Data::ForumTopic::kGeneralId)
+		&& _history->peer->isBot();
+	return (_history->asForum() && !botGeneral) ? rootId : MsgId();
+}
+
 not_null<Data::Thread*> HistoryItem::notificationThread() const {
-	if (const auto rootId = topicRootId()) {
-		if (const auto forum = _history->asForum()) {
-			if (!_history->peer->isBot()) {
-				return forum->enforceTopicFor(rootId);
-			}
-		}
+	if (const auto rootId = notificationTopicRootId()) {
+		return _history->asForum()->enforceTopicFor(rootId);
 	}
 	return _history;
 }
 
 Data::Thread *HistoryItem::maybeNotificationThread() const {
-	if (const auto rootId = topicRootId()) {
-		if (const auto forum = _history->asForum()) {
-			return forum->topicFor(rootId);
-		}
+	if (const auto rootId = notificationTopicRootId()) {
+		return _history->asForum()->topicFor(rootId);
 	}
 	return _history;
 }

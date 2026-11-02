@@ -857,7 +857,7 @@ void System::showNext() {
 			: nullptr;
 		auto forwardedCount = isForwarded ? 1 : 0;
 
-		const auto thread = notifyItem->notificationThread();
+		const auto thread = not_null(notifyThread);
 		const auto j = _whenMaps.find(thread);
 		if (j == _whenMaps.cend()) {
 			thread->clearNotifications();
