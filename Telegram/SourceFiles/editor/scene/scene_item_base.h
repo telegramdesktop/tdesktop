@@ -117,6 +117,8 @@ public:
 	[[nodiscard]] virtual Placement placement() const;
 	virtual void applyPlacement(const Placement &placement);
 
+	[[nodiscard]] virtual bool isBackground() const;
+	[[nodiscard]] virtual bool isBackgroundLocked() const;
 	bool hasState(SaveState state) const override;
 	void save(SaveState state) override;
 	void restore(SaveState state) override;

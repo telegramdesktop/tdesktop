@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_video.h"
 
 #include "editor/editor_audio_menu.h"
+#include "lang/lang_keys.h"
 #include "ui/rect.h"
+#include "ui/widgets/popup_menu.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QPainterPath>
 
@@ -63,6 +66,24 @@ bool ItemVideo::atInitialState() const {
 		&& (_initialState == _clip->state());
 }
 
+void ItemVideo::setBackground(bool background) {
+	_isBackground = background;
+}
+
+bool ItemVideo::isBackground() const {
+	return _isBackground;
+}
+
+void ItemVideo::setBackgroundLocked(bool locked) {
+	if (_isLocked != locked) {
+		_isLocked = locked;
+		update();
+	}
+}
+
+bool ItemVideo::isBackgroundLocked() const {
+	return _isBackground && _isLocked;
+}
 VideoTrim ItemVideo::trim() const {
 	return _clip->trim();
 }
@@ -145,6 +166,15 @@ void ItemVideo::paint(
 }
 
 void ItemVideo::fillContextMenu(not_null<Ui::PopupMenu*> menu) {
+	if (_isBackground) {
+		const auto locked = _isLocked;
+		menu->addAction(
+			locked
+				? tr::lng_story_video_unlock(tr::now)
+				: tr::lng_story_video_lock(tr::now),
+			[=] { setBackgroundLocked(!locked); },
+			&st::mediaMenuIconPrivacy);
+	}
 	if (_clip->hasAudio()) {
 		AddVolumeAction(menu, _clip->volume(), [=](float64 volume) {
 			_clip->setVolume(volume);

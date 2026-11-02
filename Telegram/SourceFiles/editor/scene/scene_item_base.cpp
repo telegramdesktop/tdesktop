@@ -127,6 +127,13 @@ bool NumberedItem::undoable() const {
 	return _undoable;
 }
 
+bool ItemBase::isBackground() const {
+	return false;
+}
+
+bool ItemBase::isBackgroundLocked() const {
+	return false;
+}
 ItemBase::ItemBase(Data data)
 : _lastZ(data.zPtr)
 , _imageSize(data.imageSize)
@@ -235,6 +242,13 @@ void ItemBase::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
 
 void ItemBase::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 	const auto owner = static_cast<Scene*>(scene());
+	if (isBackgroundLocked()) {
+		setCursor((owner && owner->hasPendingShape())
+			? Qt::CrossCursor
+			: Qt::ArrowCursor);
+		QGraphicsItem::hoverMoveEvent(event);
+		return;
+	}
 	setCursor((owner && owner->hasPendingShape())
 		? Qt::CrossCursor
 		: isHandling()
@@ -246,6 +260,10 @@ void ItemBase::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 }
 
 void ItemBase::mousePressEvent(QGraphicsSceneMouseEvent *event) {
+	if (isBackgroundLocked() && (event->button() == Qt::LeftButton)) {
+		event->ignore();
+		return;
+	}
 	raiseToTop();
 	resetDragging();
 	if (event->button() == Qt::LeftButton) {
@@ -592,7 +610,9 @@ void ItemBase::actionLower() {
 }
 
 void ItemBase::raiseToTop() {
-	setZValue((*_lastZ)++);
+	if (!isBackground()) {
+		setZValue((*_lastZ)++);
+	}
 }
 
 bool ItemBase::sceneEvent(QEvent *event) {

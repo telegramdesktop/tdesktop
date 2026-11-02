@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Editor {
 
 class AudioDiscButton;
+class VideoLayerButton;
 class Crop;
 class VideoClip;
 class Paint;
@@ -118,6 +119,8 @@ private:
 	void canvasChanged();
 	void recomposeCanvas();
 	void paintCanvas(QPainter &p);
+	void updateVideoLayerButton();
+	void updateVideoLayerButtonGeometry();
 
 	const QSize _photoSize;
 	const bool _fixedCrop = false;
@@ -127,6 +130,7 @@ private:
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
 	const base::unique_qptr<AudioDiscButton> _audioDisc;
+	const base::unique_qptr<VideoLayerButton> _videoLayerButton;
 	std::shared_ptr<Image> _photo;
 	const Media::Encode::CanvasBackground _background;
 

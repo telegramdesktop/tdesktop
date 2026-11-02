@@ -9215,6 +9215,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stories_location_add" = "Add This Location";
 "lng_story_weather_failed" = "Could not load weather.";
 "lng_story_round_failed" = "Could not record the video message.";
+"lng_story_video_lock" = "Lock Video";
+"lng_story_video_unlock" = "Unlock Video";
 "lng_story_edited" = "Story updated.";
 "lng_story_upload_failed" = "Failed to upload the story.";
 "lng_story_upload_retry" = "Try Again";

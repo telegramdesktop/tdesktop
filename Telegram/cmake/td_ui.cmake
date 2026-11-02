@@ -182,6 +182,8 @@ PRIVATE
     editor/controllers/undo_controller.h
     editor/editor_audio_disc_button.cpp
     editor/editor_audio_disc_button.h
+    editor/editor_video_layer_button.cpp
+    editor/editor_video_layer_button.h
     editor/editor_audio_menu.cpp
     editor/editor_audio_menu.h
     editor/editor_crop.cpp

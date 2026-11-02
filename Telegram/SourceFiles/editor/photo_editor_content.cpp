@@ -8,8 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_content.h"
 
 #include "editor/editor_audio_disc_button.h"
+#include "editor/editor_video_layer_button.h"
 #include "editor/editor_crop.h"
 #include "editor/editor_paint.h"
+#include "editor/scene/scene_item_video.h"
 #include "history/history_drag_area.h"
 #include "media/view/media_view_pip.h"
 #include "storage/storage_media_prepare.h"
@@ -100,6 +102,7 @@ PhotoEditorContent::PhotoEditorContent(
 	_photoSize,
 	data))
 , _audioDisc(base::make_unique_q<AudioDiscButton>(this))
+, _videoLayerButton(base::make_unique_q<VideoLayerButton>(this))
 , _photo(std::move(photo))
 , _background(data.story
 	? data.story->canvasBackground
@@ -182,6 +185,29 @@ PhotoEditorContent::PhotoEditorContent(
 	) | rpl::on_next([=] {
 		_paint->removeAudio();
 	}, _audioDisc->lifetime());
+	_videoLayerButton->hide();
+	_videoLayerButton->setClickedCallback([=] {
+		if (const auto video = _paint->backgroundVideo()) {
+			const auto locked = !video->isBackgroundLocked();
+			_paint->setBackgroundVideoLocked(locked);
+			_videoLayerButton->setLocked(locked);
+		}
+	});
+	_paint->videoClipSelections(
+	) | rpl::on_next([=](std::shared_ptr<VideoClip> clip) {
+		if (!clip) {
+			if (const auto video = _paint->backgroundVideo()) {
+				if (!video->isBackgroundLocked()) {
+					video->setBackgroundLocked(true);
+					_videoLayerButton->setLocked(true);
+				}
+			}
+		} else if (const auto video = _paint->backgroundVideo()) {
+			if (clip.get() == video->videoClip()) {
+				_videoLayerButton->setLocked(false);
+			}
+		}
+	}, lifetime());
 	_paint->audioChanges(
 	) | rpl::on_next([=] {
 		updateAudioDisc();
@@ -195,6 +221,7 @@ PhotoEditorContent::PhotoEditorContent(
 		sizeValue() | rpl::to_empty
 	) | rpl::on_next([=] {
 		updateAudioDiscGeometry();
+		updateVideoLayerButtonGeometry();
 	}, lifetime());
 
 	rpl::combine(
@@ -377,7 +404,8 @@ void PhotoEditorContent::applyLayout(QRectF imageRect) {
 		_paint->addStoryVideoObject(std::move(*pending));
 		_paint->keepResult();
 		_paint->resetSceneBaseline();
-		_selectVideoInPaint = true;
+		_selectVideoInPaint = false;
+		updateVideoLayerButton();
 	}
 
 	_innerRect = canvasGeometry;
@@ -736,6 +764,7 @@ void PhotoEditorContent::applyMode(const PhotoEditorMode &mode) {
 	updateCanvas();
 	updateRoom();
 	updateAudioDisc();
+	updateVideoLayerButton();
 	update();
 }
 
@@ -762,6 +791,36 @@ void PhotoEditorContent::updateAudioDisc() {
 	_audioDisc->setVisible(shown);
 	if (shown) {
 		_audioDisc->raise();
+	}
+}
+
+void PhotoEditorContent::updateVideoLayerButtonGeometry() {
+	const auto inner = _innerRect.current();
+	if (inner.isEmpty()) {
+		return;
+	}
+	const auto skip = st::photoEditorAudioDiscSkip;
+	const auto size = _videoLayerButton->width();
+	const auto right = rect::right(inner);
+	const auto top = inner.top();
+	if (width() - right >= size + skip) {
+		_videoLayerButton->moveToLeft(right + skip, top);
+	} else {
+		_videoLayerButton->moveToLeft(right - skip - size, top + skip);
+	}
+}
+
+void PhotoEditorContent::updateVideoLayerButton() {
+	const auto video = _paint->backgroundVideo();
+	const auto shown = (video != nullptr)
+		&& (_mode.mode == PhotoEditorMode::Mode::Paint);
+	_videoLayerButton->setVisible(shown);
+	if (shown) {
+		_videoLayerButton->setLocked(
+			video->isBackgroundLocked(),
+			anim::type::instant);
+		_videoLayerButton->raise();
+		updateVideoLayerButtonGeometry();
 	}
 }
 

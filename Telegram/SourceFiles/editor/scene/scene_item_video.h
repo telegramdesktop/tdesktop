@@ -39,6 +39,11 @@ public:
 	void keepInitialState();
 	[[nodiscard]] bool atInitialState() const;
 
+	void setBackground(bool background);
+	[[nodiscard]] bool isBackground() const override;
+	void setBackgroundLocked(bool locked);
+	[[nodiscard]] bool isBackgroundLocked() const override;
+
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()
 		const override;
@@ -55,6 +60,8 @@ private:
 	bool _hasInitial = false;
 	VideoClip::State _saved;
 	VideoClip::State _kept;
+	bool _isBackground = false;
+	bool _isLocked = true;
 
 };
 

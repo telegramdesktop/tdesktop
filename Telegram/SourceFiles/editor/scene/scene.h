@@ -141,6 +141,7 @@ public:
 	void performRedo();
 	void raiseItem(not_null<ItemBase*> item);
 	void lowerItem(not_null<ItemBase*> item);
+	void pinToBottom(not_null<ItemBase*> item);
 
 	void save(SaveState state);
 	void restore(SaveState state);

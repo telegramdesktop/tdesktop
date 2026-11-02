@@ -1224,13 +1224,23 @@ void Scene::lowerItem(not_null<ItemBase*> item) {
 	changeItemZOrder(item, -1);
 }
 
+void Scene::pinToBottom(not_null<ItemBase*> item) {
+	item->setZValue(kItemsBaseZ - 1.);
+}
+
 void Scene::changeItemZOrder(not_null<ItemBase*> item, int step) {
+	if (item->isBackground()) {
+		return;
+	}
 	const auto z = item->zValue();
 	auto best = ItemPtr();
 	for (const auto &candidate : _items) {
 		if (candidate.get() == item
 			|| candidate->asAction()
-			|| !candidate->isNormalStatus()) {
+			|| !candidate->isNormalStatus()
+			|| ((candidate->type() >= ItemBase::Type)
+				&& static_cast<const ItemBase*>(
+					candidate.get())->isBackground())) {
 			continue;
 		}
 		const auto candidateZ = candidate->zValue();

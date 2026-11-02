@@ -41,6 +41,7 @@ struct LinkPreview;
 struct SceneItemSticker;
 class MessageSource;
 class ItemReaction;
+class ItemVideo;
 class Scene;
 class VideoClip;
 
@@ -121,6 +122,9 @@ public:
 	void addStoryAudio(AudioTrack track, bool selected);
 	void selectVideoObject();
 	void addRoundVideo(QByteArray content, crl::time duration);
+	[[nodiscard]] ItemVideo *backgroundVideo() const;
+	void setBackgroundVideoLocked(bool locked);
+	[[nodiscard]] bool isBackgroundVideoLocked() const;
 
 	bool zoomSceneItems(float64 wheelDelta, bool fine = false);
 	bool zoomSceneItemsByFactor(float64 factor);

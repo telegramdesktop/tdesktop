@@ -1264,7 +1264,38 @@ void Paint::selectVideoObject() {
 		}
 	}
 }
+ItemVideo *Paint::backgroundVideo() const {
+	for (const auto &item : _scene->items()) {
+		if ((item->type() == ItemVideo::Type) && item->isNormalStatus()) {
+			const auto video = static_cast<ItemVideo*>(item.get());
+			if (video->isBackground()) {
+				return video;
+			}
+		}
+	}
+	return nullptr;
+}
 
+void Paint::setBackgroundVideoLocked(bool locked) {
+	if (const auto video = backgroundVideo()) {
+		video->setBackgroundLocked(locked);
+		if (!locked) {
+			_scene->clearSelection();
+			video->setSelected(true);
+			video->setFocus();
+			_view->setFocus();
+		} else {
+			_scene->clearSelection();
+		}
+	}
+}
+
+bool Paint::isBackgroundVideoLocked() const {
+	if (const auto video = backgroundVideo()) {
+		return video->isBackgroundLocked();
+	}
+	return false;
+}
 void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 	const auto thumbnail = object.thumbnail;
 	auto source = std::make_shared<VideoClipSource>(VideoClipSource{
@@ -1294,6 +1325,9 @@ void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 		data.y = center.y();
 	}
 	auto item = std::make_shared<ItemVideo>(std::move(source), data);
+	item->setBackground(true);
+	item->setBackgroundLocked(true);
+	_scene->pinToBottom(item.get());
 	if (object.size > 0.) {
 		auto placement = item->placement();
 		placement.position = object.position;
@@ -1608,8 +1642,10 @@ void Paint::addMediaItem(std::shared_ptr<ItemBase> item) {
 	disarmShapeTool();
 	_scene->addItem(item);
 	_scene->clearSelection();
-	item->setSelected(true);
-	item->setFocus();
+	if (!item->isBackgroundLocked()) {
+		item->setSelected(true);
+		item->setFocus();
+	}
 	_view->setFocus();
 }
 
