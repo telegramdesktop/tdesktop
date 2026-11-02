@@ -1,0 +1,262 @@
+# Windows 7 import gate: builds with -DDESKTOP_APP_WIN7_PROBE=ON and verifies
+# load-time imports against the Win7 SP1 export database.
+name: Private Win7 gate.
+
+on:
+  push:
+    branches:
+      - 'win7-gate-*'
+  workflow_dispatch:
+
+concurrency:
+  group: win7-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  windows:
+    name: Windows x64 (Release, Win7 gate)
+    runs-on: depot-windows-latest-32
+
+    env:
+      PREPARE_PATH: "Telegram/build/prepare/prepare.py"
+
+    defaults:
+      run:
+        shell: cmd
+
+    steps:
+      - name: Prepare directories.
+        run: |
+          mkdir %userprofile%\TBuild\Libraries
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
+
+      - name: Get repository name.
+        shell: bash
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Git auth through the TBuild symlink.
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          BASIC=$(printf 'x-access-token:%s' "$GITHUB_TOKEN" | base64 -w0)
+          echo "::add-mask::$BASIC"
+          echo "GIT_AUTH_HEADER=AUTHORIZATION: basic $BASIC" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v7
+        env:
+          GIT_CONFIG_COUNT: 1
+          GIT_CONFIG_KEY_0: http.https://github.com/.extraheader
+          GIT_CONFIG_VALUE_0: ${{ env.GIT_AUTH_HEADER }}
+        with:
+          path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
+
+      - name: Submodules.
+        shell: bash
+        run: |
+          cd $TBUILD/$REPO_NAME
+          git submodule update --init --depth=1
+
+      - name: First set up.
+        shell: bash
+        run: |
+          DOCPATH=$TBUILD/$REPO_NAME/docs/building-win.md
+          SDK="$(grep "SDK version" $DOCPATH | sed -r 's/.*\*\*(.*)\*\* SDK version.*/\1/')"
+          echo "SDK=$SDK" >> $GITHUB_ENV
+
+          sed -i '/CMAKE_${lang}_FLAGS_DEBUG_INIT/s/${_Zi}//' "$PROGRAMFILES"/CMake/share/cmake*/Modules/Platform/Windows-MSVC.cmake
+
+          echo "$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> CACHE_KEY.txt
+          echo "$SDK" >> CACHE_KEY.txt
+          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> $GITHUB_ENV
+
+          echo "Configurate git for cherry-picks."
+          git config --global user.email "you@example.com"
+          git config --global user.name "Sample"
+
+      - name: Install Build Tools with the pinned toolset.
+        shell: pwsh
+        run: |
+          $exe = Join-Path $env:RUNNER_TEMP 'vs_buildtools.exe'
+          Invoke-WebRequest -Uri https://aka.ms/vs/17/release/vs_buildtools.exe -OutFile $exe
+          $p = Start-Process -FilePath $exe -Wait -PassThru -ArgumentList `
+            '--quiet','--wait','--norestart','--nocache', `
+            '--add','Microsoft.VisualStudio.Workload.VCTools', `
+            '--add','Microsoft.VisualStudio.Component.VC.14.44.17.14.x86.x64', `
+            '--add','Microsoft.VisualStudio.Component.Windows11SDK.26100'
+          Remove-Item $exe -Force -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { exit $p.ExitCode }
+
+      - name: Verify toolset installation.
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          if (-not (Test-Path $vswhere)) { throw 'vswhere not found' }
+          $path = & $vswhere -products * -latest -requires Microsoft.VisualStudio.Component.VC.14.44.17.14.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $path) {
+            & $vswhere -products * -all -format json
+            throw 'VC 14.44 toolset was not installed'
+          }
+          $tools = Get-ChildItem (Join-Path $path 'VC\Tools\MSVC') -Directory |
+            Where-Object Name -like '14.44*'
+          if (-not $tools) { throw 'VC\Tools\MSVC\14.44.* directory not found' }
+          Write-Output "Visual Studio at: $path, toolset: $($tools.Name -join ', ')"
+
+      - uses: Eden-CI/msvc-dev-cmd@master
+        name: Native Tools Command Prompt.
+        with:
+          arch: x64
+          sdk: ${{ env.SDK }}
+          toolset: 14.44
+
+      - name: NuGet sources.
+        run: |
+          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages"
+          nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
+
+      - name: ThirdParty cache.
+        id: cache-third-party
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ runner.OS }}-${{ runner.arch }}-third-party-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ runner.arch }}-third-party-
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-win7gate-release-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-win7gate-release-libs-
+
+      - name: Qt cache.
+        id: cache-qt
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ runner.OS }}-win7gate-release-qt-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-win7gate-release-qt-
+
+      - name: Reset pruned Rust source stages.
+        shell: bash
+        run: |
+          for name in tlottie wallet-engine tdesktop_rust; do
+            rm -rf "$LibrariesPath/$name" "$LibrariesPath/cache_keys/$name"
+          done
+
+      - name: Libraries.
+        env:
+          SKIP_DUMPSYMS: "1"
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent
+
+      - name: Free up some disk space.
+        shell: bash
+        run: find $LibrariesPath '(' '(' ! '(' -name '*.lib' -o -name '*.a' -o -name '*.exe' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/nv-codec-headers/*' -o -path '*/tlottie/*' -o -path '*/tdesktop_rust/out/src/*' -o -path '*/wallet-engine/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Save ThirdParty cache.
+        if: steps.cache-third-party.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ env.TBUILD }}\ThirdParty
+          key: ${{ steps.cache-third-party.outputs.cache-primary-key }}
+
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\*
+            !${{ env.LibrariesPath }}\cache_keys
+            !${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\*
+            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Save Qt cache.
+        if: steps.cache-qt.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            ${{ env.LibrariesPath }}\[qQ]t[_-]*
+            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          key: ${{ steps.cache-qt.outputs.cache-primary-key }}
+
+      - name: Stub private packer keys.
+        shell: bash
+        run: |
+          mkdir -p "$TBUILD/DesktopPrivate"
+          cat > "$TBUILD/DesktopPrivate/packer_private.h" <<'EOF'
+          const char *PrivateKey = "";
+          const char *PrivateBetaKey = "";
+          EOF
+          cat > "$TBUILD/DesktopPrivate/alpha_private.h" <<'EOF'
+          #pragma once
+          static const char *AlphaPrivateKey = "";
+          EOF
+
+      - name: Telegram Desktop build.
+        run: |
+          cd %TBUILD%\%REPO_NAME%\Telegram
+
+          call configure.bat ^
+          x64 ^
+          -D TDESKTOP_API_TEST=ON ^
+          -D DESKTOP_APP_WIN7_PROBE=ON ^
+          -D CMAKE_CONFIGURATION_TYPES=Release ^
+          -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=OFF ^
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+
+          cmake --build ..\out --config Release --target Telegram --parallel
+
+      - name: Verify build.
+        run: |
+          if not exist %TBUILD%\%REPO_NAME%\out\Release\Telegram.exe exit /b 1
+          echo Windows x64 Release build succeeded.
+
+      - name: Win7 import gate.
+        run: |
+          python %TBUILD%\Libraries\win64\qt6_windows7\win7_gate\check_imports.py check %TBUILD%\%REPO_NAME%\out\Release\Telegram.exe %TBUILD%\Libraries\win64\qt6_windows7\win7_gate\win7sp1_exports.txt
+
+      - name: Record dependency revisions.
+        shell: bash
+        run: |
+          cd "$TBUILD/$REPO_NAME"
+          {
+            echo "commit $(git rev-parse HEAD)"
+            echo "prepare_cache_key $CACHE_KEY"
+            echo "qt $(grep -A6 "elif sys.platform == 'win32'" "$TBUILD/$REPO_NAME/Telegram/build/qt_version.py" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | tail -1)"
+            echo "patches $(git -C "$LibrariesPath/patches" rev-parse HEAD 2>/dev/null || echo missing)"
+            echo "qt6_windows7 $(git -C "$LibrariesPath/qt6_windows7" rev-parse HEAD 2>/dev/null || echo missing)"
+            echo "qtbase $(git -C "$LibrariesPath/qt_6.12.0/qtbase" rev-parse HEAD 2>/dev/null || echo missing)"
+            echo "qtbase_dirty_files $(git -C "$LibrariesPath/qt_6.12.0/qtbase" status --porcelain 2>/dev/null | wc -l)"
+            echo "win7_db_sha256 $(tr -d '\r' < "$LibrariesPath/qt6_windows7/win7_gate/win7sp1_exports.txt" | sha256sum | awk '{ print $1 }')"
+            echo "exe_sha256 $(sha256sum out/Release/Telegram.exe | awk '{ print $1 }')"
+          } | tee build_dep_revisions.txt
+          cp build_dep_revisions.txt out/Release/dep_revisions.txt
+
+      - name: Upload Windows artifact.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-nodelay
+          path: |
+            ${{ env.TBUILD }}/${{ env.REPO_NAME }}/out/Release/Telegram.exe
+            ${{ env.TBUILD }}/${{ env.REPO_NAME }}/out/Release/dep_revisions.txt
+          if-no-files-found: ignore
