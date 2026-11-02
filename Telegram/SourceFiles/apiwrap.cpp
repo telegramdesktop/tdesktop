@@ -1008,6 +1008,10 @@ void ApiWrap::requestMoreDialogs(Data::Folder *folder) {
 		}, [&](const auto &data) {
 			_session->data().processUsers(data.vusers());
 			_session->data().processChats(data.vchats());
+			Data::ApplyResponseTopics(
+				&_session->data(),
+				data.vtopics(),
+				data.vmessages().v);
 			_session->data().applyDialogs(
 				folder,
 				data.vmessages().v,
@@ -1175,6 +1179,10 @@ mtpRequestId ApiWrap::sendPinnedDialogsRequest(
 		result.match([&](const MTPDmessages_peerDialogs &data) {
 			_session->data().processUsers(data.vusers());
 			_session->data().processChats(data.vchats());
+			Data::ApplyResponseTopics(
+				&_session->data(),
+				data.vtopics(),
+				data.vmessages().v);
 			_session->data().clearPinnedChats(folder);
 			_session->data().applyDialogs(
 				folder,

@@ -151,4 +151,10 @@ private:
 
 };
 
+void ApplyResponseTopics(
+	not_null<Session*> owner,
+	const MTPVector<MTPForumTopic> *topics,
+	const QVector<MTPMessage> &messages,
+	ChannelData *channel = nullptr);
+
 } // namespace Data

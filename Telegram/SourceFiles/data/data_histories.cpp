@@ -523,6 +523,7 @@ void Histories::applyPeerDialogs(const MTPmessages_PeerDialogs &dialogs) {
 	const auto &data = dialogs.c_messages_peerDialogs();
 	_owner->processUsers(data.vusers());
 	_owner->processChats(data.vchats());
+	ApplyResponseTopics(_owner, data.vtopics(), data.vmessages().v);
 	_owner->processMessages(data.vmessages(), NewMessageType::Last);
 	for (const auto &dialog : data.vdialogs().v) {
 		dialog.match([&](const MTPDdialog &data) {
