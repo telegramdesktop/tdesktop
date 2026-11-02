@@ -1917,6 +1917,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_action_short_live_stream" = "Live stream";
 "lng_profile_action_short_video_chat" = "Video chat";
 
+"lng_profile_action_return_story_button" = "Return Story button";
+
 "lng_media_type_media" = "Media";
 "lng_media_type_photos" = "Photos";
 "lng_media_type_gifs" = "GIFs";

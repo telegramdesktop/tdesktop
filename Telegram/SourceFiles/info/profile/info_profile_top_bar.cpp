@@ -165,6 +165,7 @@ constexpr auto kMinPatternRadius = 8;
 constexpr auto kStoryOutlineFadeEnd = 0.4;
 constexpr auto kStoryOutlineFadeRange = 1. - kStoryOutlineFadeEnd;
 constexpr auto kSwapMoveAmplitude = 0.3;
+constexpr auto kHiddenTopBarActionsPref = "profile-top-bar-hidden-actions"_cs;
 
 using AnimatedPatternPoint = TopBar::AnimatedPatternPoint;
 
@@ -1047,6 +1048,19 @@ void TopBar::searchInCommunity(
 	controller->searchInChat(history);
 }
 
+bool TopBarActionHidden(TopBarAction action) {
+	return (Core::App().settings().readPref<quint64>(kHiddenTopBarActionsPref)
+		& static_cast<quint64>(action)) != 0;
+}
+
+void SetTopBarActionHidden(TopBarAction action, bool hidden) {
+	auto &settings = Core::App().settings();
+	auto flags = settings.readPref<quint64>(kHiddenTopBarActionsPref);
+	const auto bit = static_cast<quint64>(action);
+	flags = hidden ? (flags | bit) : (flags & ~bit);
+	settings.writePref<quint64>(kHiddenTopBarActionsPref, flags);
+}
+
 void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	const auto peer = _peer;
 	const auto user = peer->asUser();
@@ -1055,6 +1069,14 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	const auto topic = _key.topic();
 	const auto sublist = _key.sublist();
 	const auto isSide = (_wrap.current() == Wrap::Side);
+	const auto canAddStory = [=] {
+		return !topic
+			&& !sublist
+			&& channel
+			&& channel->amIn()
+			&& !channel->isMonoforum()
+			&& ::Media::Stories::CanPostStory(peer);
+	};
 
 	if (_source == Source::Community) {
 		_actions = base::make_unique_q<Ui::HorizontalFitContainer>(
@@ -1224,11 +1246,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 				: &st::windowBoldFg);
 		}, notifications->lifetime());
 	}
-	if (!topic && !sublist
-		&& channel
-		&& channel->amIn()
-		&& !channel->isMonoforum()
-		&& ::Media::Stories::CanPostStory(peer)) {
+	if (canAddStory() && !TopBarActionHidden(TopBarAction::AddStory)) {
 		const auto story = Ui::CreateChild<TopBarActionButton>(
 			this,
 			tr::lng_story_add_button(tr::now),
@@ -1255,6 +1273,32 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 		});
 		story->setAccessibleName(tr::lng_story_add_button(tr::now));
 		setupStoryDrop(story, controller);
+		story->setAcceptBoth();
+		story->clicks(
+		) | rpl::filter([](Qt::MouseButton button) {
+			return (button == Qt::RightButton);
+		}) | rpl::on_next([=] {
+			auto context = base::make_unique_q<Ui::PopupMenu>(
+				this,
+				st::popupMenuWithIcons);
+			context->addAction(
+				tr::lng_translate_menu_hide(tr::now),
+				[=] {
+					SetTopBarActionHidden(TopBarAction::AddStory, true);
+					InvokeQueued(this, [=] { setupActions(controller); });
+				},
+				&st::menuIconStealth);
+			_actionContextMenu = std::move(context);
+			_actionContextMenu->setForcedOrigin(
+				Ui::PanelAnimation::Origin::TopLeft);
+			const auto extend = Ui::BoxShadow::ExtendFor(
+				_actionContextMenu->st().shadow);
+			_actionContextMenu->popup(Ui::PopupMenu::ConstrainToParentScreen(
+				_actionContextMenu.get(),
+				story->mapToGlobal(QPoint(
+					-extend.left(),
+					story->height() + st::infoProfileTopBarActionMenuSkip))));
+		}, story->lifetime());
 		buttons.push_back(story);
 		_actions->add(story);
 	}
@@ -1321,6 +1365,37 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 			}
 		});
 		manage->setAccessibleName(tr::lng_profile_action_short_manage(tr::now));
+		manage->setAcceptBoth();
+		manage->clicks(
+		) | rpl::filter([](Qt::MouseButton button) {
+			return (button == Qt::RightButton);
+		}) | rpl::on_next([=] {
+			if (!canAddStory()
+				|| !TopBarActionHidden(TopBarAction::AddStory)) {
+				return;
+			}
+			auto context = base::make_unique_q<Ui::PopupMenu>(
+				this,
+				st::popupMenuWithIcons);
+			context->addAction(
+				tr::lng_profile_action_return_story_button(tr::now),
+				[=] {
+					SetTopBarActionHidden(TopBarAction::AddStory, false);
+					InvokeQueued(this, [=] { setupActions(controller); });
+				},
+				&st::menuIconStoryPost);
+			_actionContextMenu = std::move(context);
+			_actionContextMenu->setForcedOrigin(
+				Ui::PanelAnimation::Origin::TopRight);
+			const auto extend = Ui::BoxShadow::ExtendFor(
+				_actionContextMenu->st().shadow);
+			_actionContextMenu->popup(Ui::PopupMenu::ConstrainToParentScreen(
+				_actionContextMenu.get(),
+				manage->mapToGlobal(QPoint(
+					manage->width() + extend.right(),
+					manage->height()
+						+ st::infoProfileTopBarActionMenuSkip))));
+		}, manage->lifetime());
 		buttons.push_back(manage);
 		_actions->add(manage);
 	}

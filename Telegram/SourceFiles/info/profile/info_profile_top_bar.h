@@ -97,6 +97,13 @@ class TopBarActionButton;
 
 struct TopBarActionButtonStyle;
 
+enum class TopBarAction : quint64 {
+	AddStory = (1 << 0),
+};
+
+[[nodiscard]] bool TopBarActionHidden(TopBarAction action);
+void SetTopBarActionHidden(TopBarAction action, bool hidden);
+
 class TopBar final : public Ui::RpWidget {
 public:
 	enum class Source {
@@ -374,6 +381,7 @@ private:
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabSearchToggle;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabGroupToggle;
 	base::unique_qptr<Ui::PopupMenu> _peerMenu;
+	base::unique_qptr<Ui::PopupMenu> _actionContextMenu;
 
 	Ui::RpWidget *_actionMore = nullptr;
 
