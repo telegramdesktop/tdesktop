@@ -1894,7 +1894,11 @@ SourceInfo ProbeSource(const QString &path) {
 	result.videoBitrate = (videoParameters->bit_rate > 0)
 		? videoParameters->bit_rate
 		: input->bit_rate;
-	result.videoRemuxable = (videoParameters->codec_id == AV_CODEC_ID_H264)
+	result.videoH264 = (videoParameters->codec_id == AV_CODEC_ID_H264);
+	const auto format = AVPixelFormat(videoParameters->format);
+	result.videoYuv420 = (format == AV_PIX_FMT_YUV420P)
+		|| (format == AV_PIX_FMT_YUVJ420P);
+	result.videoRemuxable = result.videoH264
 		|| (videoParameters->codec_id == AV_CODEC_ID_HEVC);
 
 	const auto audioId = av_find_best_stream(
@@ -1915,6 +1919,56 @@ SourceInfo ProbeSource(const QString &path) {
 				&& (audioParameters->sample_rate >= kMp3InMp4MinFrequency));
 	}
 	return result;
+}
+
+bool IsFaststartMp4(const QString &path) {
+	auto file = QFile(path);
+	if (!file.open(QIODevice::ReadOnly)) {
+		return false;
+	}
+	const auto be32 = [&](const char *data) {
+		return (uint32(uchar(data[0])) << 24)
+			| (uint32(uchar(data[1])) << 16)
+			| (uint32(uchar(data[2])) << 8)
+			| uint32(uchar(data[3]));
+	};
+	auto skip = qint64(0);
+	auto seenData = false;
+	for (auto i = 0; i != 64; ++i) {
+		if (skip > 0) {
+			if (!file.seek(file.pos() + skip)) {
+				return false;
+			}
+			skip = 0;
+		}
+		const auto header = file.read(8);
+		if (header.size() != 8) {
+			return false;
+		}
+		const auto type = header.mid(4, 4);
+		if (type == "moov") {
+			return !seenData;
+		} else if (type == "mdat") {
+			seenData = true;
+		}
+		const auto size = be32(header.constData());
+		if (size == 1) {
+			const auto large = file.read(8);
+			if (large.size() != 8) {
+				return false;
+			}
+			skip = ((int64(be32(large.constData())) << 32)
+				| be32(large.constData() + 4)) - 16;
+			if (skip < 0) {
+				return false;
+			}
+		} else if (size == 0) {
+			return !seenData;
+		} else {
+			skip = size - 8;
+		}
+	}
+	return false;
 }
 
 int64 EstimateTranscodedSize(

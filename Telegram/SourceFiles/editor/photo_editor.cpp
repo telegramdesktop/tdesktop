@@ -354,7 +354,8 @@ PhotoEditor::PhotoEditor(
 	this,
 	std::move(show),
 	_brushes,
-	_brushTool)) {
+	_brushTool))
+, _hasSaveButton(data.hasSaveButton || data.story.has_value()) {
 	_modifications.cropType = data.cropType;
 	_modifications.cropMode = data.cropMode;
 	if (data.story && !data.story->videoObject.empty()) {
@@ -587,6 +588,13 @@ PhotoEditor::PhotoEditor(
 		done();
 	}, lifetime());
 
+	_controls->saveRequests(
+	) | rpl::on_next([=] {
+		_controls->commitTimelineEdits();
+		_content->save(_modifications);
+		_save.fire_copy(_modifications);
+	}, lifetime());
+
 	_controls->cancelRequests(
 	) | rpl::on_next([=] {
 		const auto mode = _mode.current().mode;
@@ -720,6 +728,15 @@ PhotoEditor::~PhotoEditor() {
 void PhotoEditor::keyPressEvent(QKeyEvent *e) {
 	if (_roundRecording && e->key() == Qt::Key_Escape) {
 		stopRoundRecording(false);
+		return;
+	}
+	if (_hasSaveButton
+		&& _saveEnabled
+		&& !_roundRecording
+		&& e->matches(QKeySequence::Save)) {
+		_controls->commitTimelineEdits();
+		_content->save(_modifications);
+		_save.fire_copy(_modifications);
 		return;
 	}
 	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
@@ -920,6 +937,15 @@ rpl::producer<PhotoModifications> PhotoEditor::doneRequests() const {
 
 rpl::producer<> PhotoEditor::cancelRequests() const {
 	return _cancel.events();
+}
+
+rpl::producer<PhotoModifications> PhotoEditor::saveRequests() const {
+	return _save.events();
+}
+
+void PhotoEditor::setSaveEnabled(bool enabled) {
+	_saveEnabled = enabled;
+	_controls->setSaveEnabled(enabled);
 }
 
 void InitEditorLayer(

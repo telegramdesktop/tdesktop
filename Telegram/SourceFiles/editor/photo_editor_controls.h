@@ -53,6 +53,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> shapesFillChanges() const;
 	[[nodiscard]] rpl::producer<> doneRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<> saveRequests() const;
 	[[nodiscard]] rpl::producer<QPoint> colorLinePositionValue() const;
 	[[nodiscard]] rpl::producer<bool> colorLineShownValue() const;
 	[[nodiscard]] rpl::producer<float64> aspectRatioChanges() const;
@@ -62,6 +63,7 @@ public:
 	[[nodiscard]] bool animating() const;
 
 	bool handleKeyPress(not_null<QKeyEvent*> e) const;
+	void setSaveEnabled(bool enabled);
 
 	void applyMode(const PhotoEditorMode &mode);
 	void setShapeToolActive(bool active);
@@ -105,6 +107,7 @@ private:
 	const base::unique_qptr<Ui::IconButton> _paintModeButton;
 	const base::unique_qptr<Ui::IconButton> _cropRatioButton;
 	const base::unique_qptr<Ui::IconButton> _cornersButton;
+	const base::unique_qptr<Ui::IconButton> _saveButton;
 	const base::unique_qptr<EdgeButton> _transformDone;
 
 	const base::unique_qptr<EdgeButton> _paintCancel;

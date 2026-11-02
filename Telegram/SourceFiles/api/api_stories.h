@@ -40,14 +40,19 @@ inline constexpr auto kStoryVideoHeight = 1280;
 inline constexpr auto kStoryPhotoWidth = 1080;
 inline constexpr auto kStoryPhotoHeight = 1920;
 inline constexpr auto kStoryVideoMaxDuration = crl::time(60'000);
+inline constexpr auto kStoryVideoMaxFileSize = 30 * 1024 * 1024;
+inline constexpr auto kStoryPhotoMaxFileSize = 10 * 1024 * 1024;
 
 struct SendStoryPhoto {
 	QImage image;
+	QString path;
 };
 
 struct SendStoryVideo {
 	std::shared_ptr<Media::Encode::VideoSource> source;
 	QImage cover;
+	QString path;
+	bool hasAudio = false;
 	std::shared_ptr<Media::Encode::Job> job;
 };
 
@@ -174,6 +179,7 @@ private:
 	void notifyChanges();
 	void start(not_null<Upload*> upload);
 	void preparePhoto(not_null<Upload*> upload, QImage &&image);
+	void preparePhotoFile(not_null<Upload*> upload, const QString &path);
 	void transcodeVideo(not_null<Upload*> upload);
 	void videoTranscoded(
 		uint64 id,

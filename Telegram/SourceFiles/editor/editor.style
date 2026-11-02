@@ -73,6 +73,12 @@ photoEditorPaintModeButton: IconButton(photoEditorRotateButton) {
 }
 photoEditorPaintIconActive: icon {{ "photo_editor/paint", photoEditorButtonIconFgActive }};
 
+photoEditorSaveButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "mediaview/download", photoEditorButtonIconFg }};
+	iconOver: icon {{ "mediaview/download", photoEditorButtonIconFgOver }};
+}
+photoEditorButtonDisabledOpacity: 0.35;
+
 photoEditorUndoButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "menu/tabs_undo-24x24", photoEditorButtonIconFg }};
 	iconOver: icon {{ "menu/tabs_undo-24x24", photoEditorButtonIconFgOver }};

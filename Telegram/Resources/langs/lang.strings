@@ -9239,5 +9239,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_repost_to_story" = "Repost\nto Story";
 "lng_story_edit" = "Edit Story";
 "lng_bot_share_story_failed" = "Couldn't load media to share.";
+"lng_story_save_file" = "Save to File";
+"lng_story_save_file_done" = "Story saved to file.";
+"lng_story_save_file_failed" = "Failed to save story.";
+"lng_story_preparing_video" = "Preparing video...";
 
 // Keys finished

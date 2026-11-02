@@ -132,6 +132,8 @@ struct SourceInfo {
 	int64 audioBitrate = 0;
 	int audioChannels = 0;
 	bool videoRemuxable = false;
+	bool videoH264 = false;
+	bool videoYuv420 = false;
 	bool audioRemuxable = false;
 	bool hasAudio = false;
 
@@ -166,6 +168,8 @@ struct TranscodeResult {
 	Fn<bool(float64)> progress = nullptr);
 
 [[nodiscard]] SourceInfo ProbeSource(const QString &path);
+
+[[nodiscard]] bool IsFaststartMp4(const QString &path);
 
 // Zero when nothing can be guessed.
 [[nodiscard]] int64 EstimateTranscodedSize(

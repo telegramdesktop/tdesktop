@@ -60,6 +60,8 @@ public:
 	void save();
 	[[nodiscard]] rpl::producer<PhotoModifications> doneRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<PhotoModifications> saveRequests() const;
+	void setSaveEnabled(bool enabled);
 
 	[[nodiscard]] TextWithTags caption() const;
 	[[nodiscard]] int period() const;
@@ -109,6 +111,9 @@ private:
 	bool _colorLineShown = false;
 	rpl::event_stream<PhotoModifications> _done;
 	rpl::event_stream<> _cancel;
+	const bool _hasSaveButton = false;
+	bool _saveEnabled = true;
+	rpl::event_stream<PhotoModifications> _save;
 
 };
 

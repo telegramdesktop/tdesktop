@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_story_box.h"
 
 #include "base/random.h"
+#include "base/variant.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
@@ -64,6 +65,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
+#include <QtCore/QFileInfo>
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {
@@ -205,6 +207,7 @@ void SetupStoryEditorClose(
 		.keepAspectRatio = true,
 		.composeAnimated = true,
 		.composeSound = true,
+		.hasSaveButton = true,
 		.story = std::move(story),
 	};
 }
@@ -297,12 +300,99 @@ void SetupStoryEditorClose(
 		: Api::kStoryVideoHeight;
 }
 
+[[nodiscard]] bool UntouchedVideoOnly(const Editor::Scene *scene) {
+	if (!scene || scene->audio()) {
+		return false;
+	}
+	const auto items = scene->items();
+	if (items.size() != 1) {
+		return false;
+	}
+	const auto &item = items.front();
+	const auto video = static_cast<Editor::ItemVideo*>(item.get());
+	return (item->type() == Editor::ItemVideo::Type)
+		&& item->isNormalStatus()
+		&& !video->roundVideo()
+		&& video->atInitialState();
+}
+
+[[nodiscard]] bool PhotoStoryPassthroughFits(const QImage &image) {
+	const auto width = image.width();
+	const auto height = image.height();
+	return (width > 0)
+		&& (width <= Api::kStoryPhotoWidth)
+		&& (height <= Api::kStoryPhotoHeight)
+		&& (std::abs(9 * height - 16 * width) <= 9);
+}
+
+[[nodiscard]] bool VideoStoryPlacementFits(
+		const Editor::Scene &scene,
+		const QRectF &rect) {
+	const auto canvas = scene.canvasRect();
+	if (canvas.isEmpty() || rect.isEmpty()) {
+		return false;
+	}
+	return (rect.width() >= canvas.width() * 0.95)
+		&& (rect.width() <= canvas.width() * 1.12)
+		&& (rect.height() >= canvas.height() * 0.95)
+		&& (rect.height() <= canvas.height() * 1.12)
+		&& (std::abs(rect.center().x() - canvas.center().x())
+			<= canvas.width() * 0.01)
+		&& (std::abs(rect.center().y() - canvas.center().y())
+			<= canvas.height() * 0.01);
+}
+
+[[nodiscard]] std::optional<Api::SendStoryMedia> StoryVideoPassthroughMedia(
+		const Editor::Scene &scene,
+		const QRectF &videoRect,
+		const Editor::StoryVideoObject &video,
+		QImage cover) {
+	if (video.path.isEmpty()
+		|| video.flipped
+		|| (video.volume != 1.)
+		|| (video.from > 0)
+		|| (video.till > 0)
+		|| (video.rotation != 0.)
+		|| (video.scale != 1.)
+		|| !VideoStoryPlacementFits(scene, videoRect)
+		|| (Core::MimeTypeForFile(QFileInfo(video.path)).name()
+			!= u"video/mp4"_q)) {
+		return std::nullopt;
+	}
+	const auto info = Media::Encode::ProbeSource(video.path);
+	if (info.empty()
+		|| !info.videoH264
+		|| !info.videoYuv420
+		|| (info.rotation != 0)
+		|| (info.hasAudio && !info.audioRemuxable)
+		|| (info.duration <= 0)
+		|| (info.duration > Api::kStoryVideoMaxDuration)
+		|| (info.fileSize > Media::Encode::MaxTranscodeSourceSize())
+		|| !Media::Encode::IsFaststartMp4(video.path)) {
+		return std::nullopt;
+	}
+	const auto &size = info.display;
+	if ((size.width() > Api::kStoryPhotoWidth)
+		|| (size.height() > Api::kStoryPhotoHeight)
+		|| (std::abs(9 * size.height() - 16 * size.width()) > 9)) {
+		return std::nullopt;
+	}
+	return Api::SendStoryMedia{
+		Api::SendStoryVideo{
+			.cover = std::move(cover),
+			.path = video.path,
+			.hasAudio = info.hasAudio,
+		},
+	};
+}
+
 [[nodiscard]] Api::SendStoryMedia StoryPhotoMedia(
 		QImage composed,
 		const QImage &image,
 		bool videoBased,
 		const Media::Encode::CanvasBackground &background,
-		const Editor::PhotoModifications &mods) {
+		const Editor::PhotoModifications &mods,
+		const QString &original) {
 	const auto maxSide = StoryOutputMaxSide(image, videoBased, mods);
 	if (maxSide < Api::kStoryPhotoHeight) {
 		composed = composed.scaled(
@@ -310,7 +400,34 @@ void SetupStoryEditorClose(
 			Qt::KeepAspectRatio,
 			Qt::SmoothTransformation);
 	}
-	const auto animated = mods.paint && mods.paint->hasAnimatedItems();
+	auto videoRect = QRectF();
+	const auto video = VideoObjectFromScene(mods.paint, videoRect);
+	if (videoBased) {
+		const auto canvasTouched = mods.angle
+			|| mods.flipped
+			|| mods.crop.isValid()
+			|| !mods.canvasMediaRect.isEmpty();
+		if (!canvasTouched && UntouchedVideoOnly(mods.paint.get())) {
+			if (auto passthrough = StoryVideoPassthroughMedia(
+					*mods.paint,
+					videoRect,
+					video,
+					composed)) {
+				return std::move(*passthrough);
+			}
+		}
+	} else if (!original.isEmpty()
+		&& !mods
+		&& PhotoStoryPassthroughFits(image)) {
+		return Api::SendStoryPhoto{
+			.image = std::move(composed),
+			.path = original,
+		};
+	}
+	const auto animated = !video.empty()
+		|| (mods.paint
+			&& (mods.paint->hasAnimatedItems()
+				|| mods.paint->hasSoundResult()));
 	if (!animated) {
 		return Api::SendStoryPhoto{ std::move(composed) };
 	}
@@ -330,18 +447,170 @@ void SetupStoryEditorClose(
 	};
 }
 
-[[nodiscard]] bool UntouchedVideoOnly(const Editor::Scene *scene) {
-	if (!scene || scene->audio()) {
-		return false;
+void SaveStoryMediaToFile(
+		not_null<Window::SessionController*> controller,
+		QPointer<Editor::PhotoEditor> editor,
+		const Api::SendStoryMedia &media,
+		const QString &path) {
+	v::match(media, [&](const Api::SendStoryPhoto &data) {
+		const auto sameExtension = !data.path.isEmpty()
+			&& (QFileInfo(path).suffix().toLower()
+				== QFileInfo(data.path).suffix().toLower());
+		if (sameExtension) {
+			if (QFileInfo(path) == QFileInfo(data.path)) {
+				controller->showToast(tr::lng_story_save_file_done(tr::now));
+				return;
+			}
+			if (QFile::exists(path)) {
+				QFile::remove(path);
+			}
+			if (QFile::copy(data.path, path)) {
+				controller->showToast(tr::lng_story_save_file_done(tr::now));
+				return;
+			}
+		}
+		const auto ok = data.image.save(path, nullptr, 90);
+		if (ok) {
+			controller->showToast(tr::lng_story_save_file_done(tr::now));
+		} else {
+			controller->showToast(tr::lng_story_save_file_failed(tr::now));
+		}
+	}, [&](const Api::SendStoryVideo &data) {
+		if (!data.path.isEmpty()) {
+			if (QFileInfo(path) == QFileInfo(data.path)) {
+				controller->showToast(tr::lng_story_save_file_done(tr::now));
+				return;
+			}
+			if (QFile::exists(path)) {
+				QFile::remove(path);
+			}
+			const auto ok = QFile::copy(data.path, path);
+			if (ok) {
+				controller->showToast(tr::lng_story_save_file_done(tr::now));
+			} else {
+				controller->showToast(
+					tr::lng_story_save_file_failed(tr::now));
+			}
+		} else if (data.job) {
+			if (editor) {
+				editor->setSaveEnabled(false);
+			}
+			controller->showToast(tr::lng_story_preparing_video(tr::now));
+			auto copy = *data.job;
+			crl::async([=, weak = base::make_weak(controller)]() mutable {
+				const auto encoded = Media::Encode::Run(std::move(copy));
+				const auto ok = !encoded.empty() && [&] {
+					QFile file(path);
+					if (!file.open(
+							QIODevice::WriteOnly | QIODevice::Truncate)) {
+						return false;
+					}
+					return (file.write(encoded.bytes)
+						== encoded.bytes.size());
+				}();
+				crl::on_main(weak, [=] {
+					if (editor) {
+						editor->setSaveEnabled(true);
+					}
+					if (const auto strong = weak.get()) {
+						strong->showToast(ok
+							? tr::lng_story_save_file_done(tr::now)
+							: tr::lng_story_save_file_failed(tr::now));
+					}
+				});
+			});
+		} else if (data.source) {
+			if (editor) {
+				editor->setSaveEnabled(false);
+			}
+			controller->showToast(tr::lng_story_preparing_video(tr::now));
+			auto source = *data.source;
+			crl::async([=, weak = base::make_weak(controller)] {
+				const auto result = Media::Encode::TranscodeVideo(source);
+				const auto ok = !result.empty() && [&] {
+					if (QFile::exists(path)) {
+						QFile::remove(path);
+					}
+					return QFile::copy(result.path, path);
+				}();
+				if (!result.path.isEmpty()) {
+					QFile::remove(result.path);
+				}
+				crl::on_main(weak, [=] {
+					if (editor) {
+						editor->setSaveEnabled(true);
+					}
+					if (const auto strong = weak.get()) {
+						strong->showToast(ok
+							? tr::lng_story_save_file_done(tr::now)
+							: tr::lng_story_save_file_failed(tr::now));
+					}
+				});
+			});
+		} else {
+			controller->showToast(tr::lng_story_save_file_failed(tr::now));
+		}
+	}, [&](const Api::SendStoryRepost &) {
+		controller->showToast(tr::lng_story_save_file_failed(tr::now));
+	});
+}
+
+void SaveStoryToFile(
+		not_null<Window::SessionController*> controller,
+		QPointer<Editor::PhotoEditor> editor,
+		const QImage &image,
+		const Media::Encode::CanvasBackground &background,
+		const Editor::PhotoModifications &mods,
+		bool videoBased,
+		const QString &original) {
+	auto composed = ComposeStoryPhoto(image, background, mods);
+	if (composed.isNull()) {
+		controller->showToast(tr::lng_bad_photo(tr::now));
+		return;
 	}
-	const auto items = scene->items();
-	if (items.size() != 1) {
-		return false;
-	}
-	const auto &item = items.front();
-	return (item->type() == Editor::ItemVideo::Type)
-		&& item->isNormalStatus()
-		&& static_cast<Editor::ItemVideo*>(item.get())->atInitialState();
+	auto media = StoryPhotoMedia(
+		composed,
+		image,
+		videoBased,
+		background,
+		mods,
+		original);
+	const auto isVideo = std::holds_alternative<Api::SendStoryVideo>(media);
+	const auto filter = isVideo
+		? (u"Video Files (*.mp4);;"_q + FileDialog::AllFilesFilter())
+		: (u"JPEG Image (*.jpg);;PNG Image (*.png);;"_q
+			+ FileDialog::AllFilesFilter());
+	const auto defaultName = filedialogDefaultName(
+		u"story"_q,
+		isVideo ? u".mp4"_q : u".jpg"_q);
+	const auto title = isVideo
+		? tr::lng_save_video(tr::now)
+		: tr::lng_save_photo(tr::now);
+
+	FileDialog::GetWritePath(
+		controller->widget().get(),
+		title,
+		filter,
+		defaultName,
+		crl::guard(controller, [=, media = std::move(media)](
+				const QString &path) {
+			if (path.isEmpty()) {
+				return;
+			}
+			auto finalPath = path;
+			if (isVideo) {
+				if (!finalPath.endsWith(u".mp4"_q, Qt::CaseInsensitive)) {
+					finalPath += u".mp4"_q;
+				}
+			} else {
+				if (!finalPath.endsWith(u".jpg"_q, Qt::CaseInsensitive)
+					&& !finalPath.endsWith(u".jpeg"_q, Qt::CaseInsensitive)
+					&& !finalPath.endsWith(u".png"_q, Qt::CaseInsensitive)) {
+					finalPath += u".jpg"_q;
+				}
+			}
+			SaveStoryMediaToFile(controller, editor, media, finalPath);
+		}));
 }
 
 [[nodiscard]] Editor::StoryAreas CollectAreas(
@@ -520,11 +789,13 @@ void OpenStoryPhotoEditor(
 		Editor::PhotoModifications initial,
 		const StoryEditorSetup &setup,
 		Editor::StoryVideoObject object,
+		QString originalPath,
 		Media::Encode::CanvasBackground background,
 		StoryEditorDone done) {
 	const auto parent = controller->widget();
 	const auto show = controller->uiShow();
 	const auto videoBased = !object.empty();
+	const auto original = initial ? QString() : std::move(originalPath);
 	background = background.valid()
 		? background
 		: (object.empty()
@@ -590,7 +861,8 @@ void OpenStoryPhotoEditor(
 				image,
 				videoBased,
 				background,
-				mods),
+				mods,
+				original),
 			.caption = raw->caption(),
 			.period = raw->period(),
 			.reactions = std::move(areas.reactions),
@@ -606,6 +878,17 @@ void OpenStoryPhotoEditor(
 					.fingerprint = fingerprint,
 				}),
 		}, close);
+	}, raw->lifetime());
+	raw->saveRequests(
+	) | rpl::on_next([=](const Editor::PhotoModifications &mods) {
+		SaveStoryToFile(
+			controller,
+			raw,
+			image,
+			background,
+			mods,
+			videoBased,
+			original);
 	}, raw->lifetime());
 	show->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
@@ -632,6 +915,7 @@ void EditStoryFile(
 			std::move(image->modifications),
 			setup,
 			{},
+			file.path,
 			{},
 			std::move(done));
 		return;
@@ -657,6 +941,7 @@ void EditStoryFile(
 				? Api::kStoryVideoMaxDuration
 				: 0,
 		},
+		{},
 		{},
 		std::move(done));
 }
@@ -1082,10 +1367,12 @@ void PostStoryDraft(
 				std::move(initial),
 				setup,
 				{},
-			Media::Encode::CanvasBackground{
-				.top = draft.backgroundTop,
-				.bottom = draft.backgroundBottom,
-			},				done);
+				draft.mediaPath,
+				Media::Encode::CanvasBackground{
+					.top = draft.backgroundTop,
+					.bottom = draft.backgroundBottom,
+				},
+				done);
 			return;
 		}
 		if (!draft.scene.isEmpty()) {
@@ -1102,10 +1389,12 @@ void PostStoryDraft(
 				{},
 				setup,
 				{},
-			Media::Encode::CanvasBackground{
-				.top = draft.backgroundTop,
-				.bottom = draft.backgroundBottom,
-			},				done);
+				{},
+				Media::Encode::CanvasBackground{
+					.top = draft.backgroundTop,
+					.bottom = draft.backgroundBottom,
+				},
+				done);
 			return;
 		}
 		const auto probed = Storage::ReadPhotoEditorMedia(
@@ -1146,11 +1435,12 @@ void PostStoryDraft(
 				.volume = placement.volume,
 				.flipped = edits.flipped,
 			},
-		Media::Encode::CanvasBackground{
-			.top = draft.backgroundTop,
-			.bottom = draft.backgroundBottom,
-		},
-		done);
+			{},
+			Media::Encode::CanvasBackground{
+				.top = draft.backgroundTop,
+				.bottom = draft.backgroundBottom,
+			},
+			done);
 	}));
 }
 
@@ -1261,6 +1551,7 @@ void EditStory(
 				std::move(initial),
 				setup,
 				{},
+				source.draft.mediaPath,
 				background,
 				done);
 		} else {
@@ -1276,6 +1567,7 @@ void EditStory(
 				std::move(canvas),
 				{},
 				setup,
+				{},
 				{},
 				background,
 				done);
@@ -1297,6 +1589,7 @@ void EditStory(
 				media->image(Data::PhotoSize::Large)->original(),
 				Editor::PhotoModifications(),
 				setup,
+				{},
 				{},
 				{},
 				done);
@@ -1334,6 +1627,7 @@ void EditStory(
 						: document->duration()),
 					.hasAudio = probed.videoHasAudio,
 				},
+				{},
 				{},
 				done);
 		});
@@ -1443,6 +1737,7 @@ void RepostMessageToStory(
 			EmptyStoryCanvas(),
 			{},
 			setup,
+			{},
 			{},
 			background,
 			ShowSendBoxWhenEdited(controller, self, 0));

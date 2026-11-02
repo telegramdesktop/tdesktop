@@ -116,6 +116,7 @@ struct EditorData {
 	bool forOtherUser = false;
 	bool composeAnimated = false;
 	bool composeSound = false;
+	bool hasSaveButton = false;
 	std::optional<StoryOptions> story;
 };
 
