@@ -76,6 +76,8 @@ PRIVATE
     encode.cpp
     filters.cpp
     filters.h
+    paint_policy.cpp
+    paint_policy.h
     png.cpp
     png.h
     renderer.cpp

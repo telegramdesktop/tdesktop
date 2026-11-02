@@ -57,7 +57,7 @@ namespace {
 
 constexpr auto kFallbackWidth = 1.;
 constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
-constexpr auto kPaintLimitKind = "paint-limit";
+constexpr auto kPaintBoundsKind = "paint-bounds";
 constexpr auto kMinWakeDelay = crl::time(1);
 constexpr auto kMaxWakeDelay = crl::time(std::numeric_limits<int>::max());
 constexpr auto kTouchDown = 0;
@@ -932,7 +932,7 @@ const QImage &RendererCore::frame(
 	_frameCorners = corners;
 	_frameArea = cardArea;
 	if (refused && !_detached && !_stopped) {
-		_link->diag(kPaintLimitKind, painted.limit.toStdString());
+		_link->diag(kPaintBoundsKind, painted.limit.toStdString());
 		stop(std::move(painted.limit), true);
 		refreshClock();
 		notifyPosted(Change::Stopped | Change::Repaint);
