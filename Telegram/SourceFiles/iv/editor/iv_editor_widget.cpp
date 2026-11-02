@@ -11232,26 +11232,28 @@ void Widget::removeStructuralSelectionAndReposition(bool forward) {
 	const auto origin = [&]() -> std::optional<BoundarySelectionOrigin> {
 		if (_boundarySelectionOrigin
 			&& _boundarySelectionOrigin->forward == forward) {
-			return _boundarySelectionOrigin;
+			auto result = *_boundarySelectionOrigin;
+			result.leafSelection.leaf = _state->shiftLeafAfterRemovedSelection(
+				_structuralSelection,
+				result.leafSelection.leaf);
+			return result;
 		}
 		return std::nullopt;
 	}();
+	const auto historyIndex = _historyIndex;
 	const auto target = removeCurrentStructuralSelection(forward);
 	if (hasStructuralSelection()) {
 		return;
 	}
-	if (origin) {
-		const auto ordinal = _state->textOrdinalForLeafPath(
-			origin->leafSelection.leaf);
-		if (ordinal >= 0 && ordinal < _state->textNodeCount()) {
-			activateTextOrdinal(
-				ordinal,
-				origin->leafSelection.anchorOffset,
-				origin->leafSelection.cursorOffset);
-			return;
-		}
-	}
-	if (target) {
+	const auto originOrdinal = origin
+		? _state->textOrdinalForLeafPath(origin->leafSelection.leaf)
+		: -1;
+	if (originOrdinal >= 0 && originOrdinal < _state->textNodeCount()) {
+		activateTextOrdinal(
+			originOrdinal,
+			origin->leafSelection.anchorOffset,
+			origin->leafSelection.cursorOffset);
+	} else if (target) {
 		if (forward) {
 			activateTextOrdinal(*target, 0);
 		} else {
@@ -11259,6 +11261,11 @@ void Widget::removeStructuralSelectionAndReposition(bool forward) {
 		}
 	} else {
 		activateInitialNode();
+	}
+	if (_historyIndex != historyIndex
+		&& _historyIndex >= 0
+		&& _historyIndex < int(_history.size())) {
+		_history[_historyIndex].viewState = captureHistoryViewState();
 	}
 }
 

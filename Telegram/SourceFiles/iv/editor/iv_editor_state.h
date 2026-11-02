@@ -241,6 +241,9 @@ public:
 	[[nodiscard]] std::optional<int> removeStructuralSelection(
 		const Markdown::PreparedEditSelection &selection,
 		bool forward);
+	[[nodiscard]] LeafPath shiftLeafAfterRemovedSelection(
+		const Markdown::PreparedEditSelection &selection,
+		LeafPath leaf) const;
 	[[nodiscard]] bool toggleTaskState(
 		const Markdown::PreparedEditListItemSource &source);
 	[[nodiscard]] bool toggleDetailsOpen(
