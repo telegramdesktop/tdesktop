@@ -652,7 +652,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		return data.vid().v;
 	}));
 	auto minimal = false;
-	const MTPUserStatus *status = nullptr;
+	auto status = (const MTPUserStatus*)nullptr;
 	const MTPUserStatus emptyStatus = MTP_userStatusEmpty();
 
 	using UpdateFlag = PeerUpdate::Flag;

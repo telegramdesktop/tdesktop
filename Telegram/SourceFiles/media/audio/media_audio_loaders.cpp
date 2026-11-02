@@ -404,7 +404,7 @@ Loaders::SetupLoaderResult Loaders::setupLoader(
 	}
 
 	bool isGoodId = false;
-	AudioPlayerLoader *l = nullptr;
+	auto l = (AudioPlayerLoader*)nullptr;
 	switch (audio.type()) {
 	case AudioMsgId::Type::Voice: l = _audioLoader.get(); isGoodId = (_audio == audio); break;
 	case AudioMsgId::Type::Song: l = _songLoader.get(); isGoodId = (_song == audio); break;
@@ -418,7 +418,7 @@ Loaders::SetupLoaderResult Loaders::setupLoader(
 
 	auto SpeedDependentPosition = Mixer::Track::SpeedDependentPosition;
 	if (!l) {
-		std::unique_ptr<AudioPlayerLoader> *loader = nullptr;
+		auto loader = (std::unique_ptr<AudioPlayerLoader>*)nullptr;
 		switch (audio.type()) {
 		case AudioMsgId::Type::Voice: _audio = audio; loader = &_audioLoader; break;
 		case AudioMsgId::Type::Song: _song = audio; loader = &_songLoader; break;
@@ -565,7 +565,7 @@ Mixer::Track *Loaders::checkLoader(AudioMsgId::Type type) {
 
 	auto track = mixer()->trackForType(type);
 	auto isGoodId = false;
-	AudioPlayerLoader *l = nullptr;
+	auto l = (AudioPlayerLoader*)nullptr;
 	switch (type) {
 	case AudioMsgId::Type::Voice: l = _audioLoader.get(); isGoodId = (track->state.id == _audio); break;
 	case AudioMsgId::Type::Song: l = _songLoader.get(); isGoodId = (track->state.id == _song); break;

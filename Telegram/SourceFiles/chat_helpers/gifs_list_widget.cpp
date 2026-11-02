@@ -839,7 +839,7 @@ void GifsListWidget::beforeHiding() {
 
 bool GifsListWidget::refreshInlineRows(int32 *added) {
 	auto it = _inlineCache.find(_inlineQuery);
-	const InlineCacheEntry *entry = nullptr;
+	auto entry = (const InlineCacheEntry*)nullptr;
 	if (it != _inlineCache.cend()) {
 		entry = it->second.get();
 		_inlineNextOffset = it->second->nextOffset;

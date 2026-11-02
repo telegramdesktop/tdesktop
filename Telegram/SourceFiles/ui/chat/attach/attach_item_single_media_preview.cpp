@@ -42,7 +42,7 @@ ItemSingleMediaPreview::ItemSingleMediaPreview(
 	const auto media = item->media();
 	Assert(media != nullptr);
 
-	Main::Session *session = nullptr;
+	auto session = (Main::Session*)nullptr;
 
 	if (const auto photo = media->photo()) {
 		_photoMedia = photo->createMediaView();

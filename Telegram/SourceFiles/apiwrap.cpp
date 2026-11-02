@@ -4799,7 +4799,7 @@ void ApiWrap::sendMessage(
 		_session->user()).flags;
 	TextUtilities::PrepareForSending(left, prepareFlags);
 
-	HistoryItem *lastMessage = nullptr;
+	auto lastMessage = (HistoryItem*)nullptr;
 
 	auto &histories = history->owner().histories();
 	const auto messageLengthLimit = Data::PremiumLimits(

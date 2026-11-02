@@ -80,14 +80,14 @@ struct TestKey {
 		EVP_PKEY_CTX_free(ctx);
 		return nullptr;
 	}
-	EVP_PKEY *raw = nullptr;
+	auto raw = (EVP_PKEY*)nullptr;
 	const auto success = (EVP_PKEY_keygen(ctx, &raw) == 1);
 	EVP_PKEY_CTX_free(ctx);
 	return success ? EvpPkey(raw) : nullptr;
 }
 
 [[nodiscard]] QByteArray BnParam(EVP_PKEY *key, const char *name) {
-	BIGNUM *bn = nullptr;
+	auto bn = (BIGNUM*)nullptr;
 	if (EVP_PKEY_get_bn_param(key, name, &bn) != 1) {
 		return QByteArray();
 	}
@@ -135,7 +135,7 @@ struct TestKey {
 		BIO_free(bio);
 		return QByteArray();
 	}
-	char *data = nullptr;
+	auto data = (char*)nullptr;
 	const auto length = BIO_get_mem_data(bio, &data);
 	const auto result = QByteArray(data, int(length));
 	BIO_free(bio);
@@ -148,8 +148,8 @@ struct TestKey {
 	if (!sig) {
 		return QByteArray();
 	}
-	const BIGNUM *r = nullptr;
-	const BIGNUM *s = nullptr;
+	auto r = (const BIGNUM*)nullptr;
+	auto s = (const BIGNUM*)nullptr;
 	ECDSA_SIG_get0(sig, &r, &s);
 	auto result = QByteArray(64, Qt::Uninitialized);
 	const auto success = (BN_bn2binpad(

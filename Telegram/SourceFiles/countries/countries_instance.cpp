@@ -345,8 +345,8 @@ FormatResult CountriesInstance::format(FormatArgs args) const {
 	}
 	const auto &phoneNumber = args.phone;
 
-	const Info *bestCountryPtr = nullptr;
-	const CallingCodeInfo *bestCallingCodePtr = nullptr;
+	auto bestCountryPtr = (const Info*)nullptr;
+	auto bestCallingCodePtr = (const CallingCodeInfo*)nullptr;
 	auto bestLength = size_t(0);
 	[[maybe_unused]] auto isPrefix = false;
 	for (const auto &country : list()) {
