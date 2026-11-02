@@ -1023,8 +1023,13 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.12.0 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.12.0 --recursive https://github.com/libjxl/libjxl.git
     cd libjxl
+    cd third_party
+    cd brotli
+    git checkout v1.2.1
+    cd ..
+    cd ..
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
     -DBUILD_TESTING=OFF
