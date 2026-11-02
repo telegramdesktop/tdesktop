@@ -862,6 +862,7 @@ auto Uploader::sendSlicedPart(not_null<Entry*> entry, uchar dcIndex)
 	), {
 		.itemId = itemId,
 		.bytes = partBytes,
+		.part = index,
 		.dcIndex = dcIndex,
 	});
 	return SendResult::Success;
