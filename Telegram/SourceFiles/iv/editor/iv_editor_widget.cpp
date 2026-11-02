@@ -149,7 +149,7 @@ namespace {
 
 constexpr auto kRetainedLeafFieldLimit = 50;
 constexpr auto kTooltipDelay = 1000;
-thread_local Widget *PreservingExternalFieldRestore = nullptr;
+thread_local auto PreservingExternalFieldRestore = (Widget*)nullptr;
 using ToolbarFormatAction = Widget::ToolbarFormatAction;
 using ToolbarLinkMode = Widget::ToolbarLinkMode;
 using TextFormattingAction = State::TextFormattingAction;

@@ -62,7 +62,7 @@ using Database = Storage::Cache::Database;
 
 QString _basePath, _userBasePath, _userDbPath;
 
-TaskQueue *_localLoader = nullptr;
+auto _localLoader = (TaskQueue*)nullptr;
 
 QByteArray _settingsSalt;
 

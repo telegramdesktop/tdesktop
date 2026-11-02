@@ -28,7 +28,7 @@ constexpr auto kCaptureFadeInDuration = crl::time(300);
 constexpr auto kCaptureBufferSlice = 256 * 1024;
 constexpr auto kCaptureUpdateDelta = crl::time(100);
 
-Instance *CaptureInstance = nullptr;
+auto CaptureInstance = (Instance*)nullptr;
 
 bool ErrorHappened(ALCdevice *device) {
 	ALenum errCode;
@@ -358,8 +358,8 @@ bool Instance::Inner::initializeFFmpeg() {
 	d->ioContext = avio_alloc_context(d->ioBuffer, FFmpeg::kAVBlockSize, 1, static_cast<void*>(d.get()), &Private::ReadData, &Private::WriteData, &Private::SeekData);
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-	const AVOutputFormat *fmt = nullptr;
-	void *i = nullptr;
+	auto fmt = (const AVOutputFormat*)nullptr;
+	auto i = (void*)nullptr;
 	while ((fmt = av_muxer_iterate(&i))) {
 		if (fmt->name == u"opus"_q) {
 			break;

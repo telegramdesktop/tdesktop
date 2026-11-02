@@ -471,7 +471,7 @@ RichQuotePoint RichQuoteModel::labelPoint(
 	const auto &owner = _pieces[label.piece];
 	const auto from = begin(_labelPieces) + label.from;
 	const auto till = begin(_labelPieces) + label.till;
-	const Piece *piece = nullptr;
+	auto piece = (const Piece*)nullptr;
 	if (atEnd) {
 		const auto after = std::lower_bound(
 			from,
@@ -517,7 +517,7 @@ bool RichQuoteModel::valid(const RichPage &page) const {
 		return false;
 	}
 	auto pieces = 0;
-	const RichQuoteNode *previous = nullptr;
+	auto previous = (const RichQuoteNode*)nullptr;
 	auto previousPageTill = 0;
 	for (auto i = 0, count = int(_nodes.size()); i != count; ++i) {
 		const auto &node = _nodes[i];

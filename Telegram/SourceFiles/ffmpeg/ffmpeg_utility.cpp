@@ -228,7 +228,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		AVCodecContext *context,
 		const enum AVPixelFormat *formats) {
 	const auto has = [&](enum AVPixelFormat format) {
-		const enum AVPixelFormat *p = nullptr;
+		auto p = (const enum AVPixelFormat*)nullptr;
 		for (p = formats; *p != AV_PIX_FMT_NONE; p++) {
 			if (*p == format) {
 				return true;
@@ -296,7 +296,7 @@ template <AVPixelFormat Required>
 enum AVPixelFormat GetFormatImplementation(
 		AVCodecContext *ctx,
 		const enum AVPixelFormat *pix_fmts) {
-	const enum AVPixelFormat *p = nullptr;
+	auto p = (const enum AVPixelFormat*)nullptr;
 	for (p = pix_fmts; *p != -1; p++) {
 		if (*p == Required) {
 			return *p;
@@ -415,8 +415,8 @@ FormatPointer MakeWriteFormatPointer(
 #endif
 		int64_t(*seek)(void *opaque, int64_t offset, int whence),
 		const QByteArray &format) {
-	const AVOutputFormat *found = nullptr;
-	void *i = nullptr;
+	auto found = (const AVOutputFormat*)nullptr;
+	auto i = (void*)nullptr;
 	while ((found = av_muxer_iterate(&i))) {
 		if (found->name == format) {
 			break;
