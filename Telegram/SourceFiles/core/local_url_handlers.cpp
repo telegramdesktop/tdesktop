@@ -666,6 +666,14 @@ bool ResolveUsernameOrPhone(
 		}
 	}
 
+	// Any parameter, like start or startapp, still goes to the bot.
+	if (params.size() == 1
+		&& Wallet::OpenWalletInsteadOfOldBot(
+			controller,
+			params.value(u"domain"_q))) {
+		return true;
+	}
+
 	if (params.contains(u"acc"_q)) {
 		const auto switched = ApplyAccountIndex(
 			controller,
@@ -2111,16 +2119,24 @@ QString TryConvertUrlToLocal(QString url) {
 		const auto protocol = tonsiteMatch->captured(1);
 		return u"tonsite://"_q + url.mid(protocol.size());
 	}
-	auto subdomainMatch = regex_match(u"^(https?://)?([a-zA-Z0-9\\_]+)\\.t\\.me(/\\d+)?/?(\\?.+)?"_q, url, matchOptions);
+	auto subdomainMatch = regex_match(u"^(https?://)?([a-zA-Z0-9\\_]+)\\.t\\.me"_q, url, matchOptions);
 	if (subdomainMatch) {
 		const auto name = subdomainMatch->captured(2);
 		if (name.size() > 1 && name != "www") {
+			const auto protocol = subdomainMatch->captured(1);
+			auto tail = url.mid(
+				protocol.size() + name.size() + u".t.me"_q.size());
+			const auto fragment = tail.indexOf('#');
+			if (fragment >= 0) {
+				tail.truncate(fragment);
+			}
+			if (!tail.isEmpty()
+				&& !tail.startsWith('/')
+				&& !tail.startsWith('?')) {
+				return url;
+			}
 			const auto result = TryConvertUrlToLocal(
-				subdomainMatch->captured(1)
-				+ "t.me/"
-				+ name
-				+ subdomainMatch->captured(3)
-				+ subdomainMatch->captured(4));
+				protocol + "t.me/" + name + tail);
 			return (result.startsWith("tg://resolve?domain=")
 					|| IsGetPremiumLocalUrl(result))
 				? result

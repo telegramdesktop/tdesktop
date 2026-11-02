@@ -60,6 +60,14 @@ namespace {
 	return Ui::ParseTonAmountString(amount, u"."_q);
 }
 
+[[nodiscard]] bool WalletUsable(not_null<Main::Session*> session) {
+	auto &wallet = session->wallet();
+	return !session->supportMode()
+		&& session->appConfig().walletAvailable()
+		&& (wallet.presenceCurrent() != Presence::Unavailable)
+		&& !wallet.userAddresses().unavailable();
+}
+
 } // namespace
 
 not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
@@ -190,13 +198,30 @@ void OpenAddressEntity(
 	OpenSendGramsLink(controller, address, QString());
 }
 
+bool IsOldWalletBotUsername(
+		not_null<Main::Session*> session,
+		const QString &username) {
+	const auto bot = session->appConfig().oldWalletBotUsername();
+	return !bot.isEmpty() && !username.compare(bot, Qt::CaseInsensitive);
+}
+
+bool OpenWalletInsteadOfOldBot(
+		not_null<Window::SessionController*> controller,
+		const QString &username) {
+	const auto session = &controller->session();
+	if (!IsOldWalletBotUsername(session, username)
+		|| !WalletUsable(session)) {
+		return false;
+	}
+	Core::App().hideMediaView();
+	ShowWallet(session);
+	return true;
+}
+
 bool CanOfferSendMoney(not_null<UserData*> user) {
 	const auto session = &user->session();
-	auto &wallet = session->wallet();
-	return !session->supportMode()
-		&& session->appConfig().walletAvailable()
-		&& (wallet.presenceCurrent() != Presence::Unavailable)
-		&& wallet.userAddresses().recipientError(
+	return WalletUsable(session)
+		&& session->wallet().userAddresses().recipientError(
 			peerToUser(user->id)).isEmpty();
 }
 

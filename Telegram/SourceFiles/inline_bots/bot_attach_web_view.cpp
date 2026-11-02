@@ -112,7 +112,9 @@ constexpr auto kProlongTimeout = 60 * crl::time(1000);
 constexpr auto kRefreshBotsTimeout = 60 * 60 * crl::time(1000);
 constexpr auto kPopularAppBotsLimit = 100;
 
-[[nodiscard]] bool LocalUriRequiresUserAction(const QString &local) {
+[[nodiscard]] bool LocalUriRequiresUserAction(
+		not_null<Main::Session*> session,
+		const QString &local) {
 	if (local.startsWith(u"ton://"_q, Qt::CaseInsensitive)
 		|| local.startsWith(u"tonsite://"_q, Qt::CaseInsensitive)) {
 		return true;
@@ -135,9 +137,12 @@ constexpr auto kPopularAppBotsLimit = 100;
 	const auto params = url_parse_params(
 		resolve->captured(1),
 		UrlParamNameTransform::ToLower);
-	return !params.value(u"domain"_q).compare(
-			u"sendgrams"_q,
-			Qt::CaseInsensitive)
+	const auto domain = params.value(u"domain"_q);
+	if (params.size() == 1
+		&& Wallet::IsOldWalletBotUsername(session, domain)) {
+		return true;
+	}
+	return !domain.compare(u"sendgrams"_q, Qt::CaseInsensitive)
 		&& Wallet::TonConnectStartParamQuery(
 			params.value(u"startapp"_q)).has_value();
 }
@@ -1670,7 +1675,7 @@ bool WebViewInstance::botHandleLocalUri(QString uri, bool keepOpen) {
 			UrlClickHandler::Open(local, variant);
 		});
 	});
-	if (LocalUriRequiresUserAction(local)) {
+	if (LocalUriRequiresUserAction(_session, local)) {
 		_panel->requestOpenLink(uri, open);
 	} else {
 		open();
