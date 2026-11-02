@@ -1242,7 +1242,7 @@ void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 
 void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 	const auto data = mediaItemData(media.image.size());
-	addMediaItem(std::make_shared<ItemVideo>(
+	auto item = std::make_shared<ItemVideo>(
 		std::make_shared<VideoClipSource>(VideoClipSource{
 			.path = std::move(media.videoPath),
 			.content = std::move(media.videoContent),
@@ -1250,7 +1250,9 @@ void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 			.duration = media.videoDuration,
 			.hasAudio = media.videoHasAudio && _composeSound,
 		}),
-		data));
+		data);
+	item->keepInitialState();
+	addMediaItem(std::move(item));
 }
 
 void Paint::selectVideoObject() {

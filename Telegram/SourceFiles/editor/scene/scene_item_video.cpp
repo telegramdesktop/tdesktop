@@ -61,9 +61,22 @@ void ItemVideo::keepInitialState() {
 }
 
 bool ItemVideo::atInitialState() const {
-	return _hasInitial
-		&& (_initialPlacement == placement())
-		&& (_initialState == _clip->state());
+	if (!_hasInitial || (_initialPlacement != placement())) {
+		return false;
+	}
+	const auto current = _clip->state();
+	if (std::abs(_initialState.volume - current.volume) > 0.01) {
+		return false;
+	}
+	const auto duration = _clip->duration();
+	const auto isUntrimmed = [&](const VideoTrim &trim) {
+		return (trim.from == 0)
+			&& ((trim.till == 0) || (duration > 0 && trim.till >= duration));
+	};
+	if (isUntrimmed(_initialState.trim) && isUntrimmed(current.trim)) {
+		return true;
+	}
+	return (_initialState.trim == current.trim);
 }
 
 void ItemVideo::setBackground(bool background) {
@@ -138,6 +151,10 @@ int ItemVideo::type() const {
 
 Media::Encode::AnimatedEntity::Kind ItemVideo::entityKind() const {
 	return Media::Encode::AnimatedEntity::Kind::Webm;
+}
+
+QString ItemVideo::entityPath() const {
+	return _clip->source()->path;
 }
 
 void ItemVideo::paint(

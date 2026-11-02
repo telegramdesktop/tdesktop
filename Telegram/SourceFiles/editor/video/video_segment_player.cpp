@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/video/video_segment_player.h"
 
+#include "logs.h"
 #include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_common.h"
 #include "media/streaming/media_streaming_document.h"
@@ -217,6 +218,11 @@ void SegmentPlayer::handleUpdate(Media::Streaming::Update &&update) {
 }
 
 void SegmentPlayer::handleError() {
+	LOG(("Streaming Error: segment player failed, path: %1, audio: %2, "
+		"retrying: %3"
+		).arg(_path
+		).arg(_options.audio
+		).arg(_sound && !_soundFailed && !_options.audio));
 	_instance = nullptr;
 	if (_sound && !_soundFailed && !_options.audio) {
 		_soundFailed = true;

@@ -635,7 +635,8 @@ bool ApplyModifications(PreparedList &list, bool composeAnimated) {
 						const auto entity
 							= std::get_if<Media::Encode::AnimatedEntity>(
 								&layer);
-						return entity && !entity->bytes.isEmpty();
+						return entity && (!entity->bytes.isEmpty()
+							|| !entity->path.isEmpty());
 					});
 			if (animated) {
 				file.animationJob = std::make_shared<Media::Encode::Job>(

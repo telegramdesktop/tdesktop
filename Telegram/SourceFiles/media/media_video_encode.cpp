@@ -1319,12 +1319,16 @@ public:
 	, _from(std::max(entity.from, crl::time(0)))
 	, _trimmed(entity.till > _from)
 	, _till(_trimmed ? entity.till : std::numeric_limits<crl::time>::max()) {
-		if (_size.isEmpty() || entity.bytes.isEmpty()) {
+		if (_size.isEmpty()
+			|| (entity.bytes.isEmpty() && entity.path.isEmpty())) {
 			return;
 		}
 		if (entity.kind == AnimatedEntity::Kind::Lottie) {
 			_generator = std::make_unique<Lottie::FrameGenerator>(
 				entity.bytes);
+		} else if (!entity.path.isEmpty()) {
+			_generator = std::make_unique<FFmpeg::FrameGenerator>(
+				entity.path);
 		} else {
 			_generator = std::make_unique<FFmpeg::FrameGenerator>(
 				entity.bytes);

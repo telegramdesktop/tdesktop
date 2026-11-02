@@ -47,6 +47,7 @@ public:
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()
 		const override;
+	[[nodiscard]] QString entityPath() const override;
 	void fillContextMenu(not_null<Ui::PopupMenu*> menu) override;
 	void performFlip() override;
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;

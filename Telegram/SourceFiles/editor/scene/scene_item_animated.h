@@ -31,6 +31,7 @@ public:
 protected:
 	[[nodiscard]] virtual Media::Encode::AnimatedEntity::Kind entityKind()
 		const = 0;
+	[[nodiscard]] virtual QString entityPath() const;
 	[[nodiscard]] virtual QRectF entityRect() const;
 	[[nodiscard]] QRectF visibleRect() const override;
 

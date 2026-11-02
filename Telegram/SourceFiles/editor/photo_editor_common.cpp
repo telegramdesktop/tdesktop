@@ -248,14 +248,16 @@ Media::Encode::Job ComposeAnimatedJob(
 			continue;
 		}
 		auto entity = animated->animatedEntity(sceneToCanvas);
-		if (entity.bytes.isEmpty()) {
+		if (entity.bytes.isEmpty() && entity.path.isEmpty()) {
 			run.push_back(item);
 			continue;
 		}
 		flushRun();
 		const auto clip = item->videoClip();
 		if (entity.round && !clip) {
-			music.push_back({ .bytes = entity.bytes });
+			music.push_back({
+				.path = entity.path,
+				.bytes = entity.bytes });
 		}
 		const auto loop = animated->loopDuration();
 		if (clip && (loop > 0)) {
@@ -264,6 +266,7 @@ Media::Encode::Job ComposeAnimatedJob(
 		if (clip && clip->sounding()) {
 			const auto trim = clip->trim();
 			music.push_back({
+				.path = entity.path,
 				.bytes = entity.bytes,
 				.from = trim.from,
 				.till = trim.from + loop,
@@ -305,10 +308,13 @@ Media::Encode::Job ComposeAnimatedJob(
 }
 
 bool PhotoModifications::empty() const {
+	const auto hasPaint = paint
+		&& (paint->audio()
+			|| ranges::any_of(paint->items(), &NumberedItem::isNormalStatus));
 	return !angle
 		&& !flipped
 		&& !crop.isValid()
-		&& !paint
+		&& !hasPaint
 		&& canvasMediaRect.isEmpty();
 }
 

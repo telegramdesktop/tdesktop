@@ -26,6 +26,7 @@ struct AnimatedEntity {
 	};
 
 	Kind kind = Kind::Lottie;
+	QString path;
 	QByteArray bytes;
 	QRectF geometry;
 	float64 rotation = 0.;

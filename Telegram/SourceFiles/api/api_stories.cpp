@@ -717,9 +717,18 @@ void Stories::start(not_null<Upload*> upload) {
 		return;
 	}
 	v::match(*story.media, [&](SendStoryPhoto &data) {
-		preparePhoto(upload, base::duplicate(data.image));
-	}, [&](SendStoryVideo &) {
-		transcodeVideo(upload);
+		if (data.path.isEmpty()) {
+			preparePhoto(upload, base::duplicate(data.image));
+		} else {
+			preparePhotoFile(upload, data.path);
+		}
+	}, [&](SendStoryVideo &data) {
+		if (data.path.isEmpty()) {
+			transcodeVideo(upload);
+			return;
+		}
+		upload->hasAudio = data.hasAudio;
+		prepareFile(upload, data.path, QImage());
 	}, [&](SendStoryRepost &data) {
 		if (data.photo) {
 			sendRequest(
@@ -760,6 +769,36 @@ void Stories::preparePhoto(not_null<Upload*> upload, QImage &&image) {
 			Qt::SmoothTransformation);
 	}
 	prepareFile(upload, QString(), std::move(image));
+}
+
+void Stories::preparePhotoFile(
+		not_null<Upload*> upload,
+		const QString &path) {
+	const auto id = upload->id;
+	const auto generation = upload->generation;
+	if (!_prepareQueue) {
+		_prepareQueue = std::make_unique<TaskQueue>();
+	}
+	const auto weak = base::make_weak(this);
+	_prepareQueue->addTask(std::make_unique<PrepareStoryTask>(
+		FileLoadTask::Args{
+			.session = _session,
+			.filepath = path,
+			.type = SendMediaType::Photo,
+			.to = FileLoadTo(
+				upload->story.peer->id,
+				SendOptions(),
+				FullReplyTo(),
+				MsgId()),
+			.sendLargePhotos = true,
+		},
+		[=](std::shared_ptr<FilePrepareResult> result) {
+			const auto strong = weak.get();
+			const auto upload = strong ? strong->find(id) : nullptr;
+			if (upload && (upload->generation == generation)) {
+				strong->prepared(id, std::move(result));
+			}
+		}));
 }
 
 void Stories::transcodeVideo(not_null<Upload*> upload) {
@@ -947,7 +986,10 @@ void Stories::prepared(
 	}
 	const auto photo = v::is<SendStoryPhoto>(*upload->story.media);
 	const auto expected = photo ? SendMediaType::Photo : SendMediaType::File;
-	if (!result || (result->type != expected) || (result->filesize <= 0)) {
+	if (!result
+		|| (result->type != expected)
+		|| (result->filesize <= 0)
+		|| (!photo && (result->document.type() != mtpc_document))) {
 		failed(upload, u"PREPARE_FAILED"_q);
 		return;
 	}
@@ -1013,7 +1055,11 @@ void Stories::updateProgress(
 		float64 progress) {
 	auto &info = infoFor(upload);
 	const auto video = upload->story.media
-		&& v::is<SendStoryVideo>(*upload->story.media);
+		&& v::match(*upload->story.media, [](const SendStoryVideo &data) {
+			return data.source || data.job;
+		}, [](const auto &) {
+			return false;
+		});
 	const auto value = (video && !info.preparing)
 		? (kTranscodeShare + (1. - kTranscodeShare) * progress)
 		: progress;

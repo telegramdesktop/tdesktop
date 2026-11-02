@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ffmpeg/ffmpeg_frame_generator.h"
 
+#include "ffmpeg/ffmpeg_bytes_io_wrap.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "media/media_common.h"
 #include "base/debug_log.h"
@@ -100,6 +101,7 @@ struct SourceRecipe {
 class FrameGenerator::Impl final {
 public:
 	explicit Impl(const QByteArray &bytes);
+	explicit Impl(const QString &path);
 
 	[[nodiscard]] Frame renderNext(
 		QImage storage,
@@ -140,9 +142,11 @@ private:
 		int whence);
 	[[nodiscard]] int read(uint8_t *buf, int buf_size);
 	[[nodiscard]] int64_t seek(int64_t offset, int whence);
+	bool initFormat();
 
 	const QByteArray _bytes;
 	int _deviceOffset = 0;
+	std::unique_ptr<ReadFileWrap> _fileWrap;
 
 	FormatPointer _format;
 	ReadFrame _current;
@@ -169,13 +173,30 @@ FrameGenerator::Impl::Impl(const QByteArray &bytes)
 		&FrameGenerator::Impl::Read,
 		nullptr,
 		&FrameGenerator::Impl::Seek);
+	initFormat();
+}
 
-	if (!_format) {
+FrameGenerator::Impl::Impl(const QString &path)
+: _fileWrap(std::make_unique<ReadFileWrap>()) {
+	_fileWrap->file.setFileName(path);
+	if (!_fileWrap->file.open(QIODevice::ReadOnly)) {
 		return;
+	}
+	_format = MakeFormatPointer(
+		static_cast<void*>(_fileWrap.get()),
+		&ReadFileWrap::Read,
+		nullptr,
+		&ReadFileWrap::Seek);
+	initFormat();
+}
+
+bool FrameGenerator::Impl::initFormat() {
+	if (!_format) {
+		return false;
 	}
 	auto error = 0;
 	if ((error = avformat_find_stream_info(_format.get(), nullptr))) {
-		return;
+		return false;
 	}
 	_streamId = av_find_best_stream(
 		_format.get(),
@@ -185,7 +206,7 @@ FrameGenerator::Impl::Impl(const QByteArray &bytes)
 		nullptr,
 		0);
 	if (_streamId < 0) {
-		return;
+		return false;
 	}
 
 	const auto info = _format->streams[_streamId];
@@ -196,6 +217,7 @@ FrameGenerator::Impl::Impl(const QByteArray &bytes)
 		.hwAllowed = false,
 		.videoMaxArea = kMaxArea,
 	});
+	return true;
 }
 
 int FrameGenerator::Impl::Read(void *opaque, uint8_t *buf, int buf_size) {
@@ -203,6 +225,9 @@ int FrameGenerator::Impl::Read(void *opaque, uint8_t *buf, int buf_size) {
 }
 
 int FrameGenerator::Impl::read(uint8_t *buf, int buf_size) {
+	if (_fileWrap) {
+		return ReadFileWrap::Read(_fileWrap.get(), buf, buf_size);
+	}
 	const auto available = _bytes.size() - _deviceOffset;
 	if (available <= 0) {
 		return AVERROR_EOF;
@@ -221,6 +246,9 @@ int64_t FrameGenerator::Impl::Seek(
 }
 
 int64_t FrameGenerator::Impl::seek(int64_t offset, int whence) {
+	if (_fileWrap) {
+		return ReadFileWrap::Seek(_fileWrap.get(), offset, whence);
+	}
 	if (whence == AVSEEK_SIZE) {
 		return _bytes.size();
 	}
@@ -581,6 +609,10 @@ QString FrameGenerator::Impl::wrapError(int result) const {
 
 FrameGenerator::FrameGenerator(const QByteArray &bytes)
 : _impl(std::make_unique<Impl>(bytes)) {
+}
+
+FrameGenerator::FrameGenerator(const QString &path)
+: _impl(std::make_unique<Impl>(path)) {
 }
 
 FrameGenerator::~FrameGenerator() = default;

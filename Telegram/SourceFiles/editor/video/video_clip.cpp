@@ -110,7 +110,7 @@ void VideoClip::restore(const State &state) {
 }
 
 bool VideoClip::animated() const {
-	return _player->valid() || _released;
+	return hasContent() || _released;
 }
 
 bool VideoClip::hasContent() const {

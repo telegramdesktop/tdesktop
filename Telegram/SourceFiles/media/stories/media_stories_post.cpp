@@ -304,25 +304,37 @@ void SetupStoryEditorClose(
 	if (!scene || scene->audio()) {
 		return false;
 	}
-	const auto items = scene->items();
-	if (items.size() != 1) {
-		return false;
+	auto normalCount = 0;
+	auto video = (Editor::ItemVideo*)nullptr;
+	for (const auto &item : scene->items()) {
+		if (item->isNormalStatus()) {
+			++normalCount;
+			if (item->type() == Editor::ItemVideo::Type) {
+				video = static_cast<Editor::ItemVideo*>(item.get());
+			}
+		}
 	}
-	const auto &item = items.front();
-	const auto video = static_cast<Editor::ItemVideo*>(item.get());
-	return (item->type() == Editor::ItemVideo::Type)
-		&& item->isNormalStatus()
+	return (normalCount == 1)
+		&& video
 		&& !video->roundVideo()
 		&& video->atInitialState();
 }
 
-[[nodiscard]] bool PhotoStoryPassthroughFits(const QImage &image) {
-	const auto width = image.width();
-	const auto height = image.height();
-	return (width > 0)
-		&& (width <= Api::kStoryPhotoWidth)
-		&& (height <= Api::kStoryPhotoHeight)
-		&& (std::abs(9 * height - 16 * width) <= 9);
+[[nodiscard]] bool StoryPassthroughDimensions(QSize size) {
+	return (size == QSize(Api::kStoryVideoWidth, Api::kStoryVideoHeight))
+		|| (size == QSize(Api::kStoryPhotoWidth, Api::kStoryPhotoHeight));
+}
+
+[[nodiscard]] bool PhotoStoryPassthroughFits(
+		const QImage &image,
+		const QString &originalPath,
+		int64 fileSize = 0) {
+	if (!StoryPassthroughDimensions(image.size())
+		|| (fileSize > Api::kStoryPhotoMaxFileSize)) {
+		return false;
+	}
+	const auto mime = Core::MimeTypeForFile(QFileInfo(originalPath)).name();
+	return (mime == u"image/jpeg"_q);
 }
 
 [[nodiscard]] bool VideoStoryPlacementFits(
@@ -333,13 +345,13 @@ void SetupStoryEditorClose(
 		return false;
 	}
 	return (rect.width() >= canvas.width() * 0.95)
-		&& (rect.width() <= canvas.width() * 1.12)
+		&& (rect.width() <= canvas.width() * 1.25)
 		&& (rect.height() >= canvas.height() * 0.95)
-		&& (rect.height() <= canvas.height() * 1.12)
+		&& (rect.height() <= canvas.height() * 1.25)
 		&& (std::abs(rect.center().x() - canvas.center().x())
-			<= canvas.width() * 0.01)
+			<= canvas.width() * 0.05)
 		&& (std::abs(rect.center().y() - canvas.center().y())
-			<= canvas.height() * 0.01);
+			<= canvas.height() * 0.05);
 }
 
 [[nodiscard]] std::optional<Api::SendStoryMedia> StoryVideoPassthroughMedia(
@@ -349,11 +361,13 @@ void SetupStoryEditorClose(
 		QImage cover) {
 	if (video.path.isEmpty()
 		|| video.flipped
-		|| (video.volume != 1.)
+		|| (std::abs(video.volume - 1.) > 0.01)
 		|| (video.from > 0)
-		|| (video.till > 0)
-		|| (video.rotation != 0.)
-		|| (video.scale != 1.)
+		|| (video.till > 0
+			&& video.duration > 0
+			&& video.till < video.duration)
+		|| (std::abs(video.rotation) > 0.01)
+		|| (std::abs(video.scale - 1.) > 0.001)
 		|| !VideoStoryPlacementFits(scene, videoRect)
 		|| (Core::MimeTypeForFile(QFileInfo(video.path)).name()
 			!= u"video/mp4"_q)) {
@@ -367,14 +381,11 @@ void SetupStoryEditorClose(
 		|| (info.hasAudio && !info.audioRemuxable)
 		|| (info.duration <= 0)
 		|| (info.duration > Api::kStoryVideoMaxDuration)
-		|| (info.fileSize > Media::Encode::MaxTranscodeSourceSize())
+		|| (info.fileSize > Api::kStoryVideoMaxFileSize)
 		|| !Media::Encode::IsFaststartMp4(video.path)) {
 		return std::nullopt;
 	}
-	const auto &size = info.display;
-	if ((size.width() > Api::kStoryPhotoWidth)
-		|| (size.height() > Api::kStoryPhotoHeight)
-		|| (std::abs(9 * size.height() - 16 * size.width()) > 9)) {
+	if (!StoryPassthroughDimensions(info.display)) {
 		return std::nullopt;
 	}
 	return Api::SendStoryMedia{
@@ -402,7 +413,9 @@ void SetupStoryEditorClose(
 	}
 	auto videoRect = QRectF();
 	const auto video = VideoObjectFromScene(mods.paint, videoRect);
-	if (videoBased) {
+	const auto videoStory = videoBased
+		|| (!video.empty() && UntouchedVideoOnly(mods.paint.get()));
+	if (videoStory) {
 		const auto canvasTouched = mods.angle
 			|| mods.flipped
 			|| mods.crop.isValid()
@@ -418,7 +431,10 @@ void SetupStoryEditorClose(
 		}
 	} else if (!original.isEmpty()
 		&& !mods
-		&& PhotoStoryPassthroughFits(image)) {
+		&& PhotoStoryPassthroughFits(
+			image,
+			original,
+			QFileInfo(original).size())) {
 		return Api::SendStoryPhoto{
 			.image = std::move(composed),
 			.path = original,
