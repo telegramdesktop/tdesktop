@@ -189,6 +189,9 @@ private:
 	void finishDialogsList();
 	void requestSinglePeerDialog();
 	mtpRequestId requestSinglePeerMigrated(const Data::DialogInfo &info);
+	void requestSinglePeerMigratedFromHistory(
+		const MTPInputPeer &peer,
+		ChannelId channelId);
 	void appendSinglePeerDialogs(Data::DialogsInfo &&info);
 
 	void requestLeftChannelsIfNeeded();
