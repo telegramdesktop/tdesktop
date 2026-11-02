@@ -3852,6 +3852,9 @@ void ChatWidget::showAtEnd() {
 
 void ChatWidget::finishSending(const Api::SendOptions &options) {
 	_composeControls->hidePanelsAnimated();
+	if (_supportAutocomplete) {
+		_supportAutocomplete->hide();
+	}
 	//if (_previewData && _previewData->pendingTill) previewCancel();
 	doSetInnerFocus();
 	if (!options.scheduled && !_inner->sendingLandingAtBottom()) {
@@ -3987,6 +3990,9 @@ QPixmap ChatWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	updateControlsVisibility();
 	if (params.fromBottom && _subsectionTabs) {
 		_subsectionTabs->hide();
+	}
+	if (_supportAutocomplete) {
+		_supportAutocomplete->hide();
 	}
 	auto result = Ui::GrabWidget(this);
 	if (hideTopBarShadow) {
@@ -4772,11 +4778,12 @@ void ChatWidget::showFinishedHook() {
 			_inner->setFocus();
 		}
 		_composeControls->hide();
-		if (_supportAutocomplete) {
-			_supportAutocomplete->hide();
-		}
 	} else {
 		_composeControls->showFinished();
+	}
+	if (_supportAutocomplete) {
+		// showChildren() reveals it, but only the Tab request may open it.
+		_supportAutocomplete->hide();
 	}
 	_inner->showFinished();
 	updateSubsectionTabsGeometry();
