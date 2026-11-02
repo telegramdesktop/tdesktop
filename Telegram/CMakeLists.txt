@@ -3073,6 +3073,7 @@ if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_wins
                 /DELAYLOAD:advapi32.dll
                 /DELAYLOAD:shell32.dll
                 /DELAYLOAD:ole32.dll
+                /DELAYLOAD:oleaut32.dll
                 /DELAYLOAD:shlwapi.dll
             )
         else()
