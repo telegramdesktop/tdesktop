@@ -196,6 +196,11 @@ struct System::Waiter {
 	crl::time when = 0;
 };
 
+struct System::Alert {
+	NotificationInHistoryKey key;
+	PeerData *notifyBy = nullptr;
+};
+
 System::NotificationInHistoryKey::NotificationInHistoryKey(
 	Data::ItemNotification notification)
 : NotificationInHistoryKey(notification.item->id, notification.type) {
@@ -459,7 +464,10 @@ void System::schedule(Data::ItemNotification notification) {
 		: notification.reactionOrVoteSender;
 	if (!skip.silent) {
 		registerThread(thread);
-		_whenAlerts[thread].emplace(timing.when, notifyBy);
+		_whenAlerts[thread].emplace(timing.when, Alert{
+			.key = NotificationInHistoryKey(notification),
+			.notifyBy = notifyBy,
+		});
 	}
 	if (const auto user = item->history()->peer->asUser()) {
 		if (user->hasStarsPerMessage()
@@ -505,6 +513,7 @@ void System::clearAll() {
 	}
 	_whenMaps.clear();
 	_whenAlerts.clear();
+	_shownIncoming.clear();
 	_waiters.clear();
 	_settingWaiters.clear();
 	_watchedTopics.clear();
@@ -519,6 +528,7 @@ void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 	topic->clearNotifications();
 	_whenMaps.remove(topic);
 	_whenAlerts.remove(topic);
+	_shownIncoming.remove(topic);
 	_waiters.remove(topic);
 	_settingWaiters.remove(topic);
 
@@ -580,6 +590,7 @@ void System::clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate) {
 		}
 	};
 	clearFrom(_whenAlerts);
+	clearFrom(_shownIncoming);
 	clearFrom(_waiters);
 	clearFrom(_settingWaiters);
 
@@ -611,6 +622,7 @@ void System::clearIncomingFromHistory(not_null<History*> history) {
 	}
 	history->clearIncomingNotifications();
 	_whenAlerts.remove(history);
+	_shownIncoming.remove(history);
 }
 
 void System::clearIncomingFromTopic(not_null<Data::ForumTopic*> topic) {
@@ -619,6 +631,7 @@ void System::clearIncomingFromTopic(not_null<Data::ForumTopic*> topic) {
 	}
 	topic->clearIncomingNotifications();
 	_whenAlerts.remove(topic);
+	_shownIncoming.remove(topic);
 }
 
 void System::clearIncomingFromSublist(
@@ -628,6 +641,87 @@ void System::clearIncomingFromSublist(
 	}
 	sublist->clearIncomingNotifications();
 	_whenAlerts.remove(sublist);
+}
+
+void System::clearReadFromTopic(
+		not_null<Data::ForumTopic*> topic,
+		MsgId readTillId) {
+	clearReadIncoming(topic, [=](not_null<HistoryItem*> item) {
+		return (item->id <= readTillId);
+	});
+}
+
+void System::clearReadFromSublist(
+		not_null<Data::SavedSublist*> sublist,
+		MsgId readTillId) {
+	const auto sublistPeerId = sublist->sublistPeer()->id;
+	const auto read = [=](not_null<HistoryItem*> item) {
+		return (item->id <= readTillId)
+			&& (item->sublistPeerId() == sublistPeerId);
+	};
+	clearReadIncoming(sublist, read);
+	clearReadIncoming(sublist->owningHistory(), read);
+}
+
+void System::clearReadIncoming(
+		not_null<Data::Thread*> thread,
+		Fn<bool(not_null<HistoryItem*>)> read) {
+	thread->clearIncomingNotifications(read);
+	const auto owner = &thread->owner();
+	const auto peerId = thread->peer()->id;
+	const auto covered = [&](HistoryItem *item) {
+		return item && !item->out() && read(item);
+	};
+	const auto i = _whenAlerts.find(thread);
+	if (i != end(_whenAlerts)) {
+		for (auto j = begin(i->second); j != end(i->second);) {
+			const auto &key = j->second.key;
+			if (key.type == Data::ItemNotificationType::Message
+				&& covered(owner->message(peerId, key.messageId))) {
+				j = i->second.erase(j);
+			} else {
+				++j;
+			}
+		}
+		if (i->second.empty()) {
+			_whenAlerts.erase(i);
+		}
+	}
+	const auto k = _shownIncoming.find(thread);
+	if (k == end(_shownIncoming)) {
+		return;
+	}
+	auto kept = base::flat_set<MsgId>();
+	auto hide = std::vector<not_null<HistoryItem*>>();
+	for (const auto id : k->second) {
+		const auto item = owner->message(peerId, id);
+		if (covered(item)) {
+			hide.push_back(item);
+		} else if (item) {
+			kept.emplace(id);
+		}
+	}
+	if (kept.empty()) {
+		_shownIncoming.erase(k);
+	} else {
+		k->second = std::move(kept);
+	}
+	if (_manager) {
+		// Newest first, so the custom popup queue never promotes a hidden one.
+		for (const auto item : ranges::views::reverse(hide)) {
+			_manager->clearFromItem(item);
+		}
+	}
+}
+
+void System::rememberShownIncoming(
+		not_null<Data::Thread*> thread,
+		not_null<HistoryItem*> item) {
+	if (!item->out()
+		&& (thread->asTopic()
+			|| thread->owningHistory()->amMonoforumAdmin())) {
+		_shownIncoming[thread].emplace(item->id);
+	}
 }
 
 void System::clearFromItem(not_null<HistoryItem*> item) {
@@ -643,6 +737,7 @@ void System::clearAllFast() {
 
 	_whenMaps.clear();
 	_whenAlerts.clear();
+	_shownIncoming.clear();
 	_waiters.clear();
 	_settingWaiters.clear();
 	_watchedTopics.clear();
@@ -689,6 +784,11 @@ void System::showGrouped() {
 	if (const auto session = findSession(_lastHistorySessionId)) {
 		if (const auto lastItem = session->data().message(_lastHistoryItemId)) {
 			_waitForAllGroupedTimer.cancel();
+			const auto thread = lastItem->maybeNotificationThread();
+			// A summary of several forwards may span threads, so skip it.
+			if (thread && _lastForwardedCount < 2) {
+				rememberShownIncoming(thread, lastItem);
+			}
 			_manager->showNotification({
 				.item = lastItem,
 				.forwardedCount = _lastForwardedCount,
@@ -730,7 +830,7 @@ void System::showNext() {
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
 			const auto thread = i->first;
-			const auto from = i->second.begin()->second;
+			const auto from = i->second.begin()->second.notifyBy;
 			if (const auto soundId = MaybeSoundFor(thread, from)) {
 				alertThread = thread;
 				alertSoundId = soundId;
@@ -969,6 +1069,9 @@ void System::showNext() {
 				: notify->item->specialNotificationPeer();
 			if ((!reactionNotification || !reaction.empty())
 				&& (!pollVoteNotification || !pollVoteOption.isEmpty())) {
+				if (messageType) {
+					rememberShownIncoming(thread, notify->item);
+				}
 				_manager->showNotification({
 					.item = notify->item,
 					.forwardedCount = forwardedCount,

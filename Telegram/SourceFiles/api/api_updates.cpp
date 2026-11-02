@@ -1367,11 +1367,20 @@ void Updates::applyUpdateNoPtsCheck(const MTPUpdate &update) {
 		const auto &d = update.c_updateReadHistoryInbox();
 		const auto peer = peerFromMTP(d.vpeer());
 		if (const auto history = _session->data().historyLoaded(peer)) {
-			const auto folderId = d.vfolder_id().value_or_empty();
-			history->applyInboxReadUpdate(
-				folderId,
-				d.vmax_id().v,
-				d.vstill_unread_count().v);
+			const auto rootId = d.vtop_msg_id().value_or_empty();
+			if (history->peer->forumTopicFor(rootId)) {
+				session().data().updateRepliesReadTill({
+					{ peer, rootId },
+					d.vmax_id().v,
+					false,
+				});
+			} else {
+				const auto folderId = d.vfolder_id().value_or_empty();
+				history->applyInboxReadUpdate(
+					folderId,
+					d.vmax_id().v,
+					d.vstill_unread_count().v);
+			}
 		}
 	} break;
 
