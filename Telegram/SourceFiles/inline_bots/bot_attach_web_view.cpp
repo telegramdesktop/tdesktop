@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_file_origin.h"
+#include "data/data_location.h"
 #include "data/data_peer_bot_command.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -3003,10 +3004,10 @@ void ChooseAndSendLocation(
 	}
 	struct State {
 		SendPaymentHelper sendPayment;
-		Fn<void(Data::InputVenue, Api::SendAction)> send;
+		Fn<void(Data::LocationPoint, Api::SendAction)> send;
 	};
 	const auto state = std::make_shared<State>();
-	state->send = [=](Data::InputVenue venue, Api::SendAction action) {
+	state->send = [=](Data::LocationPoint point, Api::SendAction action) {
 		const auto strong = weak.get();
 		const auto ephemeralReply = session->ephemeralMessages()
 			.isEphemeralBotReply(action.replyTo.messageId);
@@ -3015,7 +3016,7 @@ void ChooseAndSendLocation(
 				if (const auto onstack = state->send) {
 					auto copy = action;
 					copy.options.starsApproved = stars;
-					onstack(venue, copy);
+					onstack(point, copy);
 				}
 			};
 			const auto checked = state->sendPayment.check(
@@ -3029,21 +3030,15 @@ void ChooseAndSendLocation(
 			}
 		}
 		state->send = nullptr;
-		if (venue.justLocation()) {
-			Api::SendLocation(action, venue.lat, venue.lon);
-		} else {
-			Api::SendVenue(action, venue);
-		}
+		Api::SendLocation(action, point.lat(), point.lon());
 	};
-	const auto callback = [=](Data::InputVenue venue) {
-		state->send(venue, action);
+	const auto callback = [=](Data::LocationPoint point, QString) {
+		state->send(point, action);
 	};
 	const auto picker = Ui::LocationPicker::Show({
 		.parent = controller->widget(),
 		.config = config,
 		.chooseLabel = tr::lng_maps_point_send(),
-		.recipient = action.history->peer,
-		.session = session,
 		.callback = crl::guard(session, callback),
 		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
 		.storageId = session->local().resolveStorageIdBots(),

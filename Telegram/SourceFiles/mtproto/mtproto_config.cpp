@@ -31,10 +31,7 @@ ConfigFields::ConfigFields(Environment environment)
 , reactionDefaultEmoji(ConfigDefaultReactionEmoji())
 , gifSearchUsername(environment == Environment::Test
 	? u"izgifbot"_q
-	: u"gif"_q)
-, venueSearchUsername(environment == Environment::Test
-	? u"foursquarebot"_q
-	: u"foursquare"_q) {
+	: u"gif"_q) {
 }
 
 Config::Config(Environment environment)
@@ -60,7 +57,7 @@ QByteArray Config::serialize() const {
 		+ sizeof(quint64)
 		+ sizeof(qint32)
 		+ Serialize::stringSize(_fields.gifSearchUsername)
-		+ Serialize::stringSize(_fields.venueSearchUsername);
+		+ Serialize::stringSize(QString());
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -107,7 +104,7 @@ QByteArray Config::serialize() const {
 			<< quint64(_fields.reactionDefaultCustom)
 			<< qint32(_fields.ratingDecay)
 			<< _fields.gifSearchUsername
-			<< _fields.venueSearchUsername;
+			<< QString(); // legacy venue search username
 	}
 	return result;
 }
@@ -144,6 +141,7 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	auto legacyPinnedDialogsCountMax = 0;
 	auto legacyPinnedDialogsInFolderMax = 0;
 	auto legacyPhoneCallsEnabled = rpl::variable<bool>();
+	auto legacyVenueSearchUsername = QString();
 	const auto read = [&](auto &field) {
 		using Type = std::remove_reference_t<decltype(field)>;
 		if constexpr (std::is_same_v<Type, int>
@@ -208,7 +206,7 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	}
 	if (!stream.atEnd()) {
 		read(raw->_fields.gifSearchUsername);
-		read(raw->_fields.venueSearchUsername);
+		read(legacyVenueSearchUsername);
 	}
 
 	if (stream.status() != QDataStream::Ok
@@ -283,7 +281,6 @@ void Config::apply(const MTPDconfig &data) {
 		).ratingDecay;
 	}
 	_fields.gifSearchUsername = qs(data.vgif_search_username().value_or_empty());
-	_fields.venueSearchUsername = qs(data.vvenue_search_username().value_or_empty());
 
 	if (data.vdc_options().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
