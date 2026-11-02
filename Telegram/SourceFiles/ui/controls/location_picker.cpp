@@ -488,8 +488,10 @@ void LocationPicker::setupWebview() {
 				const auto point = Data::LocationPoint::FromCoordinates(
 					lat,
 					lon);
-				if (point) {
-					_callback(*point, _geocoderAddress.current());
+				// Another send can be handled before the queued close() runs.
+				const auto onstack = base::take(_callback);
+				if (onstack && point) {
+					onstack(*point, _geocoderAddress.current());
 				}
 				close();
 			} else if (event == u"move_start"_q) {
