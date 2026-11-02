@@ -1,0 +1,147 @@
+# macOS High Sierra launch gate: builds with the Qt 6.12.0 High Sierra
+# patch stack and verifies the bundle against the 10.13 export snapshot.
+name: Private macOS gate.
+
+on:
+  push:
+    branches:
+      - 'mac-gate-*'
+  workflow_dispatch:
+
+concurrency:
+  group: mac-gate-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+
+  macos:
+    name: macOS x86_64 (Release, 10.13 gate)
+    runs-on: depot-macos-latest
+
+    env:
+      TDESKTOP_MAC_TOOLCHAIN: system
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+
+    steps:
+      - name: Get repository name.
+        run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
+
+      - name: Clone.
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+          path: ${{ env.REPO_NAME }}
+
+      - name: First set up.
+        run: |
+          sudo chown -R `whoami`:admin /usr/local/share
+
+          brew install automake libtool meson nasm ninja pkg-config
+
+          sudo mdutil -a -i off
+
+          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Record macOS toolchain.
+        run: |
+          SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
+          MACOSX_DEPLOYMENT_TARGET=$(/usr/libexec/PlistBuddy -c 'Print :SupportedTargets:macosx:MinimumDeploymentTarget' "$SDKROOT/SDKSettings.plist")
+          {
+            echo "SDKROOT=$SDKROOT"
+            echo "MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+          } >> "$GITHUB_ENV"
+          {
+            xcodebuild -version
+            xcrun clang --version
+            xcrun swiftc --version
+            plutil -convert xml1 -o - "$SDKROOT/SDKSettings.plist"
+            echo "MACOSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET"
+          } > MACOS_TOOLCHAIN.txt
+          echo "MACOS_TOOLCHAIN_KEY=$(shasum -a 256 MACOS_TOOLCHAIN.txt | awk '{ print $1 }')" >> "$GITHUB_ENV"
+          echo "CI toolchain: $(xcodebuild -version | tr '\n' ' '), SDK $(xcrun --sdk macosx --show-sdk-version), deployment target $MACOSX_DEPLOYMENT_TARGET"
+
+      - name: Libraries cache.
+        id: cache-libs
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            Libraries
+            ThirdParty
+          key: ${{ runner.OS }}-mac-gate-libs2-${{ env.MACOS_TOOLCHAIN_KEY }}-${{ hashFiles(format('{0}/Telegram/build/prepare/**', env.REPO_NAME), format('{0}/Telegram/build/qt_version.py', env.REPO_NAME), format('{0}/Telegram/build/build_mac.py', env.REPO_NAME), format('{0}/.github/workflows/mac-gate.yml', env.REPO_NAME)) }}
+          restore-keys: ${{ runner.OS }}-mac-gate-libs2-${{ env.MACOS_TOOLCHAIN_KEY }}-
+
+      - name: Libraries.
+        run: |
+          ./$REPO_NAME/Telegram/build/prepare/mac.sh silent
+
+      - name: Free up some disk space.
+        run: find Libraries '(' '(' ! '(' -name '*.a' -o -name '*.h' -o -name '*.hpp' -o -name '*.inc' -o -name '*.cmake' -o -name '*.pc' -o -name 'macos_toolchain.json' -o -path '*/include/*' -o -path '*/objects-*' -o -path '*/cache_keys/*' -o -path '*/patches/*' -o -path '*/libexec/*' -o -path '*/bin/*' -o -path 'Libraries/local/*' ')' -type f ')' -o -empty ')' -delete
+
+      - name: Save Libraries cache.
+        if: steps.cache-libs.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: |
+            Libraries
+            ThirdParty
+          key: ${{ steps.cache-libs.outputs.cache-primary-key }}
+
+      - name: Telegram Desktop build.
+        run: |
+          cd $REPO_NAME/Telegram
+
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+
+          ./configure.sh \
+          -D CMAKE_CONFIGURATION_TYPES=Release \
+          -D CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO \
+          -D CMAKE_OSX_SYSROOT="$SDKROOT" \
+          -D CMAKE_OSX_DEPLOYMENT_TARGET="$MACOSX_DEPLOYMENT_TARGET" \
+          -D CMAKE_OSX_ARCHITECTURES=x86_64 \
+          -D CMAKE_EXE_LINKER_FLAGS="-Wl,-weak_framework,ScreenCaptureKit -Wl,-U,_OBJC_CLASS_\$_SCContentFilter -Wl,-U,_OBJC_CLASS_\$_SCScreenshotManager -Wl,-U,_OBJC_CLASS_\$_SCShareableContent -Wl,-U,_OBJC_CLASS_\$_SCStreamConfiguration" \
+          -D CMAKE_XCODE_ATTRIBUTE_CLANG_DEBUG_INFORMATION_LEVEL=line-tables-only \
+          -D DESKTOP_APP_MAC_ARCH=x86_64 \
+          -D DESKTOP_APP_SPECIAL_TARGET=mac \
+          -D TDESKTOP_API_TEST=ON \
+          -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON \
+          -D DESKTOP_APP_DISABLE_SWIFT6=ON \
+          -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
+
+          cmake --build ../out --config Release --target Telegram --parallel
+
+      - name: Verify build.
+        run: |
+          test -f $REPO_NAME/out/Release/Telegram.app/Contents/MacOS/Telegram
+          echo "macOS x86_64 Release build succeeded."
+
+      - name: Package the app.
+        run: |
+          cd $REPO_NAME/out/Release
+          ditto -c -k --sequesterRsrc --keepParent Telegram.app Telegram-app-rel.zip
+          ls -la Telegram-app-rel.zip
+
+      - name: Upload the app.
+        uses: actions/upload-artifact@v4
+        with:
+          name: telegram-app-rel
+          path: ${{ env.REPO_NAME }}/out/Release/Telegram-app-rel.zip
+          if-no-files-found: error
+
+      - name: macOS 10.13 launch gate.
+        run: |
+          set -o pipefail
+          GATE=Libraries/patches/qt6_highsierra/macos_gate
+          /usr/bin/python3 "$GATE/check_macho.py" check \
+            "$REPO_NAME/out/Release/Telegram.app" \
+            "$GATE/macos1013_exports.txt.gz" | tee gate.log
+
+      - name: Upload gate log.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-gate-log
+          path: gate.log
+          if-no-files-found: ignore
