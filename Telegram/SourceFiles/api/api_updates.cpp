@@ -2682,6 +2682,27 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateEditForumTopic: {
+		const auto &d = update.c_updateEditForumTopic();
+		const auto peerId = peerFromMTP(d.vpeer());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			if (const auto topic = peer->forumTopicFor(d.vtopic_id().v)) {
+				if (const auto &title = d.vtitle()) {
+					topic->applyTitle(qs(*title));
+				}
+				if (const auto icon = d.vicon_emoji_id()) {
+					topic->applyIconId(icon->v);
+				}
+				if (const auto closed = d.vclosed()) {
+					topic->setClosed(mtpIsTrue(*closed));
+				}
+				if (const auto hidden = d.vhidden()) {
+					topic->setHidden(mtpIsTrue(*hidden));
+				}
+			}
+		}
+	} break;
+
 	case mtpc_updateChannelViewForumAsMessages: {
 		const auto &d = update.c_updateChannelViewForumAsMessages();
 		const auto id = ChannelId(d.vchannel_id());
