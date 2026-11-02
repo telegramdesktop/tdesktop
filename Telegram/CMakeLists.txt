@@ -928,8 +928,6 @@ PRIVATE
     editor/controllers/stickers_panel_controller.h
     editor/editor_audio_timeline.cpp
     editor/editor_audio_timeline.h
-    editor/editor_keys_legend.cpp
-    editor/editor_keys_legend.h
     editor/editor_link_box.cpp
     editor/editor_link_box.h
     editor/editor_message_render.cpp
@@ -952,14 +950,8 @@ PRIVATE
     editor/scene/scene_item_message.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
-    editor/scene/scene_item_video.cpp
-    editor/scene/scene_item_video.h
-    editor/video/video_clip.cpp
-    editor/video/video_clip.h
     editor/video/video_editor.cpp
     editor/video/video_editor.h
-    editor/video/video_editor_common.cpp
-    editor/video/video_editor_common.h
     editor/video/video_editor_layer.cpp
     editor/video/video_editor_layer.h
     editor/video/video_editor_quality.cpp
@@ -1662,8 +1654,6 @@ PRIVATE
     media/streaming/media_streaming_video_track.cpp
     media/streaming/media_streaming_video_track.h
     media/streaming/media_streaming_native_frame_mac.h
-    media/media_video_encode.cpp
-    media/media_video_encode.h
     media/media_video_frames.cpp
     media/media_video_frames.h
     media/view/media_view_group_thumbs.cpp

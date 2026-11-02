@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video/video_timeline.h"
 #include "ui/image/image_prepare.h"
 
+#include <QtCore/QFile>
+
 namespace Editor {
 
 VideoClip::VideoClip(
