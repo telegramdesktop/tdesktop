@@ -108,10 +108,9 @@ class IncludeGraph:
             source = self.model.target_of(path)
             if not source:
                 continue
-            allowed = self.model.dependencies(source)
             for number, target in edges:
-                owner = self.model.target_of(target)
-                if owner and owner not in allowed:
+                owner = self.model.crossed(source, target)
+                if owner:
                     result.append({
                         'path': path,
                         'line': number,

@@ -254,8 +254,8 @@ def check(tree, base='HEAD', staged=False, strict=False):
             if target in base_includes:
                 continue
             fresh.append(target)
-            owner = model.target_of(target)
-            if source and owner and owner not in model.dependencies(source):
+            owner = model.crossed(source, target)
+            if owner:
                 crossings.append((path, number, target, source, owner))
         if fresh and cpp_text.is_header(path):
             if costs is None:

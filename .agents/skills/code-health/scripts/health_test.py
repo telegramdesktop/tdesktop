@@ -315,6 +315,8 @@ class CheckTests(unittest.TestCase):
     FIRST_EIGHT = PARAMETERS[:8]
     WITH_DEFAULTS = ('Fn<void()> done = nullptr', 'QSize size = QSize(1, 2)')
     WITHOUT_DEFAULTS = ('Fn<void()> done', 'QSize size')
+    TEST_APP = 'Telegram/SourceFiles/tests/test_app.cpp'
+    APP_HEADER = 'Telegram/SourceFiles/app/app.h'
 
     def setUp(self):
         self.repo = Repo(fixture())
@@ -581,6 +583,43 @@ class CheckTests(unittest.TestCase):
         errors, warnings = self.run_check()
         self.assertEqual(errors, [])
         self.assertTrue(any('already exist' in w for w in warnings), warnings)
+
+    def include_from_test_app(self, *listed):
+        """Add an unlinked test_app target; listed adds its extra sources."""
+        names = ''.join(f'    {name}\n' for name in (*listed, 'tests/test_app.cpp'))
+        self.repo.write({
+            'Telegram/cmake/test_app.cmake': (
+                'add_executable(test_app)\n'
+                'nice_target_sources(test_app ${src_loc}\nPRIVATE\n' + names + ')\n'),
+            self.TEST_APP: '#include "app/app.h"\n\nint main() {\n\treturn 0;\n}\n',
+        })
+        tree = sources.from_worktree(self.repo.root)
+        model = cmake_model.build(tree.files)
+        self.assertEqual(model.target_of(self.TEST_APP), 'test_app')
+        self.assertEqual(model.target_of(self.APP_HEADER), 'Telegram')
+        self.assertNotIn('Telegram', model.dependencies('test_app'))
+        graph = includes.IncludeGraph(tree, model)
+        return [(v['path'], v['include'], v['from'], v['to']) for v in graph.layering()]
+
+    def test_including_its_own_listed_header_crosses_nothing(self):
+        rows = self.include_from_test_app('app/app.h')
+        with self.subTest('layering'):
+            self.assertEqual(rows, [])
+        with self.subTest('check'):
+            self.assertEqual(self.run_check(), ([], []))
+        with self.subTest('strict check'):
+            self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_including_an_unlisted_header_still_crosses(self):
+        rows = self.include_from_test_app()
+        with self.subTest('layering'):
+            self.assertEqual(rows, [(self.TEST_APP, self.APP_HEADER, 'test_app', 'Telegram')])
+        error = (f'{self.TEST_APP}:1: includes {self.APP_HEADER} of target Telegram, '
+                 f'which test_app does not link.')
+        with self.subTest('check'):
+            self.assertEqual(self.run_check(), ([error], []))
+        with self.subTest('strict check'):
+            self.assertEqual(self.run_check(strict=True), ([error], []))
 
     def test_platform_file_mention_of_removed_method_is_reported(self):
         src = 'Telegram/SourceFiles/'
