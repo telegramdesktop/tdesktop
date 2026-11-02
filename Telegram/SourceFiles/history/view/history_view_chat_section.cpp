@@ -941,7 +941,6 @@ ChatWidget::ChatWidget(
 		_peer,
 		PeerUpdateFlag::BarSettings
 	) | rpl::on_next([=] {
-		checkActivation();
 		_inner->update();
 	}, lifetime());
 
@@ -6036,11 +6035,6 @@ Ui::ChatPaintContext ChatWidget::listPreparePaintContext(
 		std::move(args));
 	context.gestureHorizontal = _gestureHorizontal;
 	return context;
-}
-
-bool ChatWidget::listMarkingContentRead() {
-	return WindowListDelegate::listMarkingContentRead()
-		&& !_peer->keepIncomingUnread();
 }
 
 base::unique_qptr<Ui::PopupMenu> ChatWidget::listFillSenderUserpicMenu(

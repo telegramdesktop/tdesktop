@@ -1091,11 +1091,8 @@ HistoryWidget::HistoryWidget(
 				}
 			}
 		}
-		if (flags & PeerUpdateFlag::BarSettings) {
-			checkActivation();
-			if (_list) {
-				_list->update();
-			}
+		if ((flags & PeerUpdateFlag::BarSettings) && _list) {
+			_list->update();
 		}
 	}, lifetime());
 
@@ -5009,7 +5006,6 @@ bool HistoryWidget::markingMessagesRead() const {
 
 bool HistoryWidget::markingContentsRead() const {
 	return _history
-		&& !_history->peer->keepIncomingUnread()
 		&& _list
 		&& _historyInited
 		&& !_firstLoadRequest
