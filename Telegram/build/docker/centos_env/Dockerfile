@@ -212,7 +212,7 @@ EOF
 
 FROM builder AS brotli
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v1.2.0 --depth=1 https://github.com/google/brotli.git
+git clone -b v1.2.1 --depth=1 https://github.com/google/brotli.git
 cd brotli
 cmake -B build . -DBUILD_SHARED_LIBS=OFF -DBROTLI_DISABLE_TESTS=ON
 cmake --build build
