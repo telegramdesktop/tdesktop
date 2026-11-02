@@ -7057,6 +7057,11 @@ bool Message::textAppearCheckLine() {
 				&& ((appearing->revealedLineWidth < line->width)
 					|| (appearing->shownHeight < finalLineHeight))));
 	if (!use) {
+		if (!line) {
+			// The width tick reads lines[shownLine], which is now past the end.
+			appearing->widthAnimation.stop();
+			appearing->heightAnimation.stop();
+		}
 		if (data()->isRegular()) {
 			// We are inside these animations' tick, can't destroy them now.
 			crl::on_main(this, [=] {
