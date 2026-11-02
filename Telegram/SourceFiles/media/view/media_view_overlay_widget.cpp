@@ -555,6 +555,7 @@ public:
 			std::move(layer),
 			options,
 			anim::type::normal);
+		_widget->_layerBg->raise();
 	}
 	not_null<QWidget*> toastParent() const override {
 		return _widget->_body;
@@ -687,6 +688,10 @@ OverlayWidget::OverlayWidget()
 }) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
+	_layerBg->layerShownValue(
+	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
+		_layerBg->raise();
+	}, lifetime());
 
 	_recognition.setSources(&_recognitionResult, &_staticContent);
 
