@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_privacy.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
+#include "base/event_filter.h"
 #include "base/timer_rpl.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
@@ -66,11 +67,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_animation.h"
 #include "lottie/lottie_multi_player.h"
 #include "main/main_session.h"
+#include "mainwindow.h"
 #include "media/stories/media_stories_post.h"
 #include "menu/menu_mute.h"
 #include "settings/settings_credits_graphics.h"
 #include "settings/sections/settings_information.h"
 #include "settings/sections/settings_premium.h"
+#include "storage/storage_media_prepare.h"
 #include "ui/boxes/show_or_premium_box.h"
 #include "ui/color_contrast.h"
 #include "ui/controls/stars_rating.h"
@@ -114,6 +117,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QClipboard>
+#include <QtGui/QDragMoveEvent>
 #include <QtGui/QGuiApplication>
 
 namespace Info::Profile {
@@ -959,6 +963,53 @@ void TopBar::finalizeActions(
 	shadowRaw->stackUnder(_actions.get());
 }
 
+void TopBar::setupStoryDrop(
+		not_null<TopBarActionButton*> button,
+		not_null<Window::SessionController*> controller) {
+	const auto peer = _peer;
+	const auto accepts = [=](not_null<const QMimeData*> data) {
+		return !button->isDisabled()
+			&& Storage::IsAcceptableStoryDragState(
+				Storage::ComputeMimeDataState(data));
+	};
+	button->setAcceptDrops(true);
+	base::install_event_filter(button, [=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::DragEnter
+			|| e->type() == QEvent::DragMove) {
+			const auto event = static_cast<QDragMoveEvent*>(e.get());
+			const auto over = accepts(event->mimeData());
+			button->setDragHover(over);
+			if (over) {
+				event->setDropAction(Qt::CopyAction);
+				event->accept();
+			} else {
+				event->ignore();
+			}
+			return base::EventFilterResult::Cancel;
+		} else if (e->type() == QEvent::DragLeave) {
+			button->setDragHover(false);
+			return base::EventFilterResult::Cancel;
+		} else if (e->type() == QEvent::Drop) {
+			const auto event = static_cast<QDropEvent*>(e.get());
+			button->setDragHover(false);
+			if (!accepts(event->mimeData())) {
+				event->ignore();
+				return base::EventFilterResult::Cancel;
+			}
+			event->setDropAction(Qt::CopyAction);
+			event->accept();
+			::Media::Stories::PostStoryWithMimeData(
+				controller,
+				peer,
+				event->mimeData());
+			controller->widget()->raise();
+			controller->widget()->activateWindow();
+			return base::EventFilterResult::Cancel;
+		}
+		return base::EventFilterResult::Continue;
+	});
+}
+
 void TopBar::openBoostsSectionForStory(
 		not_null<Window::SessionController*> controller) {
 	const auto peer = _peer;
@@ -1203,6 +1254,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 			});
 		});
 		story->setAccessibleName(tr::lng_story_add_button(tr::now));
+		setupStoryDrop(story, controller);
 		buttons.push_back(story);
 		_actions->add(story);
 	}

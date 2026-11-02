@@ -112,17 +112,6 @@ constexpr auto kSearchPerPage = 50;
 constexpr auto kStoriesExpandDuration = crl::time(200);
 constexpr auto kSearchRequestDelay = crl::time(900);
 
-[[nodiscard]] bool IsAcceptableStoryDragState(
-		Storage::MimeDataState state) {
-	using State = Storage::MimeDataState;
-	return state == State::Image
-		|| state == State::Media
-		|| state == State::PhotoFiles
-		|| state == State::PhotoFilesArchive
-		|| state == State::MediaFiles
-		|| state == State::MediaFilesArchive;
-}
-
 base::options::toggle OptionForumHideChatsList({
 	.id = kOptionForumHideChatsList,
 	.name = "Hide chat list in forums",
@@ -3742,7 +3731,8 @@ bool Widget::updateStoriesDrag(not_null<QDragMoveEvent*> e) {
 		_stories->dragLeft();
 		return false;
 	}
-	if (!IsAcceptableStoryDragState(Storage::ComputeMimeDataState(e->mimeData()))) {
+	if (!Storage::IsAcceptableStoryDragState(
+			Storage::ComputeMimeDataState(e->mimeData()))) {
 		_stories->dragLeft();
 		return false;
 	}
@@ -3812,7 +3802,8 @@ void Widget::dropEvent(QDropEvent *e) {
 			: nullptr;
 		if (peer
 			&& Media::Stories::CanPostStory(peer)
-			&& IsAcceptableStoryDragState(ComputeMimeDataState(e->mimeData()))) {
+			&& Storage::IsAcceptableStoryDragState(
+				Storage::ComputeMimeDataState(e->mimeData()))) {
 			e->setDropAction(Qt::CopyAction);
 			e->accept();
 			Media::Stories::PostStoryWithMimeData(

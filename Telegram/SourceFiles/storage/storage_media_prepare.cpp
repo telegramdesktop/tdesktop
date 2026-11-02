@@ -150,6 +150,16 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 
 } // namespace
 
+bool IsAcceptableStoryDragState(MimeDataState state) {
+	using State = MimeDataState;
+	return state == State::Image
+		|| state == State::Media
+		|| state == State::PhotoFiles
+		|| state == State::PhotoFilesArchive
+		|| state == State::MediaFiles
+		|| state == State::MediaFilesArchive;
+}
+
 bool ValidatePhotoEditorMediaDragData(
 		not_null<const QMimeData*> data,
 		bool composeAnimated,

@@ -390,6 +390,7 @@ infoProfileTopBarActionButtonLottieSize: infoProfileTopBarActionButtonIconSize -
 infoProfileTopBarActionButtonIconTop: 6px;
 infoProfileTopBarActionButtonTextTop: infoProfileTopBarActionButtonIconSize + infoProfileTopBarActionButtonIconTop + 1px;
 infoProfileTopBarActionButtonTextSkip: 4px;
+infoProfileTopBarActionButtonDragBorder: 2px;
 infoProfileTopBarActionButtonFont: font(11px);
 
 infoProfileTopBarActionButtonsPadding: margins(18px, 0px, 18px, 16px);

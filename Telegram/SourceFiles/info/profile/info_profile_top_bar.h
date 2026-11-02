@@ -192,6 +192,9 @@ private:
 	void applyPillsReserve(int reserve);
 	void openBoostsSectionForStory(
 		not_null<Window::SessionController*> controller);
+	void setupStoryDrop(
+		not_null<TopBarActionButton*> button,
+		not_null<Window::SessionController*> controller);
 	void searchInCommunity(not_null<Window::SessionController*> controller);
 	void finalizeActions(
 		const std::vector<not_null<TopBarActionButton*>> &buttons);
