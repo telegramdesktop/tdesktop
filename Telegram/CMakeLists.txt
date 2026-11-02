@@ -2218,6 +2218,8 @@ PRIVATE
     test/test_widget_host.h
     test/test_widget_ops.cpp
     test/test_widget_ops.h
+    test/test_widget_paint_policy.cpp
+    test/test_widget_paint_policy.h
     test/test_widget_stress.cpp
     test/test_widget_stress.h
     test/test_widget_stress_internal.h

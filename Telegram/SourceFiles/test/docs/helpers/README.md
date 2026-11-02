@@ -55,7 +55,8 @@ should call.
 | [test_chat_show](test_chat_show.md) | API | Show a chat-list message wholly in view, painted, ready and hovered before input |
 | [test_chat_show_self_test](test_chat_show_self_test.md) | Self-test | Self-test for chat-list show acceptance, re-correction and named refusals |
 | [test_chat_show_place](test_chat_show_place.md) | API | Place several chat-list messages wholly in or out of view together, gated by geometry and a fresh visibility reading, and prove they stayed for a window |
-| [test_widget_ops](test_widget_ops.md) | API | Tap a widget message's validated ops: the `--attacks` leak scan, the latest conformance result, every `data-stress` value with its receipt, the newest host's batch counts, scheme and theme message |
+| [test_widget_ops](test_widget_ops.md) | API | Tap a widget message's validated ops: the `--attacks` leak scan, its renderer's `limit` reports, the latest conformance result, every `data-stress` value with its receipt, the newest host's batch counts, scheme and theme message |
+| [test_widget_paint_policy](test_widget_paint_policy.md) | API | Run widget-sandbox's `paint-policy.json` against the heavy-box rule and limit glue Telegram compiles, one row per entry, without the app's state |
 | [test_widget_host](test_widget_host.md) | API | Override a widget message's host measurement options and record what its host got and reported: applied options, stats, nodes, load, verbatim death with its time, diag counts and error logs, one record per host; and its renderer core's work, timed by a disposable overlay's scopes |
 | [test_widget_attacks](test_widget_attacks.md) | API | Run widget-sandbox's attack corpus through the chat list with tapped ops, one click each and loopback network controls |
 | [test_widget_bot](test_widget_bot.md) | API | Answer an armed widget message's bot requests from a table at the runtime's request seam, with a record per message |

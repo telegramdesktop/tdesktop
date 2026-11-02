@@ -147,9 +147,11 @@ struct HostScan {
 struct RendererSeen {
 	std::string detail;
 	std::string eventType;
+	std::string limitExample;
 	bool violation = false;
 	bool trustedEvent = false;
 	bool ack = false;
+	bool limit = false;
 };
 
 } // namespace
@@ -326,6 +328,12 @@ constexpr auto kViolationDetail
 	= "image refused: https://127.0.0.1:9999/refused.png";
 constexpr auto kViolation = R"json({"type":"violation",)json"
 	R"json("detail":"image refused: https://127.0.0.1:9999/refused.png"})json";
+constexpr auto kPaintReport = R"json({"type":"limit",)json"
+	R"json("code":"paint-limit","count":17})json";
+constexpr auto kBackdropReport = R"json({"type":"limit",)json"
+	R"json("code":"backdrop-limit","count":3})json";
+constexpr auto kPaintExample = "paint-limit 17";
+constexpr auto kBackdropExample = "backdrop-limit 3";
 constexpr auto kDiagKind = "renderer-message";
 constexpr auto kMainDiag = "self-check diag on the main thread";
 constexpr auto kWorkerDiag = "self-check diag on a worker thread";
@@ -558,7 +566,16 @@ void ApplyResults(
 	return result;
 }
 
-// The fields WidgetHost::handleRendererMessage() itself reads.
+// A `limit` report's `code` and `count` as they came: a string code bare,
+// anything else, a missing member included, as its JSON text.
+[[nodiscard]] std::string LimitExample(const twidget::Json &message) {
+	const auto &code = message["code"];
+	const auto text = code.isString() ? code.asString() : code.dump();
+	return (text + ' ' + message["count"].dump()).substr(0, kDetailBytes);
+}
+
+// The fields WidgetHost::handleRendererMessage() itself reads. A `limit`
+// report is read whatever its code and count: the host judges those.
 [[nodiscard]] RendererSeen ReadRendererMessage(const std::string &json) {
 	auto result = RendererSeen();
 	const auto parsed = twidget::Json::parse(json);
@@ -580,6 +597,9 @@ void ApplyResults(
 		}
 	} else if (type == "result") {
 		result.ack = IsAck(message["qid"]);
+	} else if (type == "limit") {
+		result.limit = true;
+		result.limitExample = LimitExample(message);
 	}
 	return result;
 }
@@ -852,6 +872,7 @@ constexpr auto kProbeCaseIndex = 21;
 		{ u"leaks"_q, reading.leaks },
 		{ u"notes"_q, reading.notes },
 		{ u"violations"_q, reading.violations },
+		{ u"limitReports"_q, reading.limitReports },
 		{ u"trustedEvents"_q, reading.trustedEvents },
 		{ u"trustedClicks"_q, reading.trustedClicks },
 		{ u"ackQueries"_q, reading.ackQueries },
@@ -909,6 +930,8 @@ struct Expected {
 		delivered(kPressEvent, false),
 		delivered(kTrustedClick, false),
 		delivered(kUntrustedClick, false),
+		delivered(kPaintReport, false),
+		delivered(kBackdropReport, false),
 		diag(kMainDiag, false),
 		delivered(kViolation, true),
 		diag(kWorkerDiag, true),
@@ -1026,6 +1049,9 @@ void ExerciseWrapper(
 	MarkWidgetOpsEvents(tap);
 	stub.emitMessage(kTrustedClick);
 	stub.emitMessage(kUntrustedClick);
+	const auto beforeReports = ReadWidgetOps(tap);
+	stub.emitMessage(kPaintReport);
+	stub.emitMessage(kBackdropReport);
 	stub.emitDiag(kDiagKind, kMainDiag);
 	auto workerThread = std::thread::id();
 	auto worker = std::thread([&stub, &workerThread] {
@@ -1153,6 +1179,36 @@ void ExerciseWrapper(
 			QString::number(reading.trustedEvents),
 			QString::number(reading.trustedClicks),
 			ExamplesText(reading.trustedEventTypes)));
+
+	const auto paintReport = IndexOf(
+		*log,
+		std::string("host.message ") + kPaintReport);
+	const auto backdropReport = IndexOf(
+		*log,
+		std::string("host.message ") + kBackdropReport);
+	const auto examples = std::vector<std::string>{
+		kPaintExample,
+		kBackdropExample,
+	};
+	AddRow(
+		result,
+		(beforeReports.limitReports == 0)
+			&& beforeReports.limitExamples.empty()
+			&& (reading.limitReports == 2)
+			&& (reading.limitExamples == examples)
+			&& (reading.violations == 1)
+			&& (paintReport >= 0)
+			&& (backdropReport == paintReport + 1),
+		u"two renderer limit reports count twice from none, keep their "
+		"code and count, and reach the host in order with their bytes"_q,
+		u"before=%1 limitReports=%2 examples=%3 violations=%4 "
+		"delivered=%5,%6"_q.arg(
+			QString::number(beforeReports.limitReports),
+			QString::number(reading.limitReports),
+			ExamplesText(reading.limitExamples),
+			QString::number(reading.violations),
+			QString::number(paintReport),
+			QString::number(backdropReport)));
 }
 
 [[nodiscard]] WidgetOpsReading CheckArmed(WidgetOpsSelfCheck &result) {
@@ -2149,7 +2205,7 @@ bool WidgetOpsTap::current(int selection) {
 
 void WidgetOpsTap::rendererMessage(const std::string &json) {
 	auto seen = ReadRendererMessage(json);
-	if (!seen.violation && !seen.trustedEvent && !seen.ack) {
+	if (!seen.violation && !seen.trustedEvent && !seen.ack && !seen.limit) {
 		return;
 	}
 	auto lock = std::lock_guard(_mutex);
@@ -2157,6 +2213,10 @@ void WidgetOpsTap::rendererMessage(const std::string &json) {
 	if (seen.violation) {
 		++reading.violations;
 		AppendExample(reading.violationDetails, std::move(seen.detail));
+	}
+	if (seen.limit) {
+		++reading.limitReports;
+		AppendExample(reading.limitExamples, std::move(seen.limitExample));
 	}
 	if (seen.trustedEvent) {
 		++reading.trustedEvents;

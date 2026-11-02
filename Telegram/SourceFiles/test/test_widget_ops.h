@@ -62,6 +62,9 @@ struct WidgetOpsReading {
 	std::vector<std::string> gapExamples;
 	// The `detail` of each renderer `violation` message, never a leak.
 	std::vector<std::string> violationDetails;
+	// The `code` and `count` of each renderer `limit` report, as
+	// "paint-limit 17": a string code bare, any other value as JSON text.
+	std::vector<std::string> limitExamples;
 	// The `ev.type` of each trusted renderer `event` since the mark.
 	std::vector<std::string> trustedEventTypes;
 
@@ -92,6 +95,10 @@ struct WidgetOpsReading {
 
 	// Renderer -> host `violation` messages.
 	int violations = 0;
+	// Renderer -> host `limit` reports, each counted before it is forwarded
+	// whatever its code and count, also when WidgetHost ignores it (compat,
+	// or a widget already dead): two reports count twice.
+	int limitReports = 0;
 	// Renderer -> host `event` messages marked `trusted`, and those of them
 	// whose `ev.type` is "click", since the last MarkWidgetOpsEvents().
 	int trustedEvents = 0;
@@ -217,8 +224,9 @@ struct WidgetOpsSelfCheck {
 // message has in any session: unarmed identity, armed wrapping and
 // forwarding with exact bytes, order and threads, the scanner's 2-leak,
 // 1-note control followed by a removal batch, scan gaps, the ack, frozen,
-// violation and trusted-event readings, a throwing product factory, normal
-// destruction, and one FullMsgId in two sessions (only the armed one
+// violation and trusted-event readings, two `limit` reports counted twice
+// with their examples and delivered in order, a throwing product factory,
+// normal destruction, and one FullMsgId in two sessions (only the armed one
 // wrapped, separate readings when both are armed, disarming one leaves the
 // other). Its stress leg replaces an older host whose wrapper adopted <html>
 // with a value, then gives the newer one a one-op adopting batch with a

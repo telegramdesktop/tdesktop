@@ -17,8 +17,8 @@ forwarding tap at the `twidget::Renderer::send` seam. Each
 `ops` batch is scanned, before it is forwarded, with a verbatim copy of
 widget-sandbox's `--attacks` leak definition. The tap also counts the host's
 post-load ack, the renderer's answer to it, a fatal `frozen`, renderer
-`violation` messages and trusted renderer events, and it says when no factory
-call or wrapper of the message is still pending.
+`violation` messages, renderer `limit` reports and trusted renderer events,
+and it says when no factory call or wrapper of the message is still pending.
 
 The same scan also reads what a conformance or stress widget publishes:
 `ReadWidgetOpsLatest()` returns the last `data-conformance` value of the
@@ -38,7 +38,10 @@ that reader against the package's `probe-fixture.json` with
 `RunWidgetConformanceProbeCheck()`. The stress-kit runner of
 `2026/10/30/run-the-widget-stress-kit-at-v0-4-0-on-a-release-build-without-lto`
 is the planned reader of the `data-stress` values and the batch counts;
-until it lands nothing reads them.
+until it lands nothing reads them. The heavy-box evidence of
+`2026/11/02/stop-widgets-past-the-heavy-box-limit-with-a-v0-6-0-twidgetcore`
+reads `limitReports` and `limitExamples`: one report per strict host, none
+under compat.
 
 Use something else when:
 
@@ -73,6 +76,16 @@ Use something else when:
 - **Scan gaps.** A host message that is not JSON, or an `ops` message whose
   `ops` is not an array, is forwarded unchanged and counted as a scan gap,
   never as an empty batch. A clean result needs `scanGaps == 0`.
+- **Limit reports are the renderer's.** `limitReports` counts every
+  renderer message of type `limit`, before it is forwarded, whatever its
+  `code` and `count`, under any policy and after the widget died: two
+  reports count twice even when `WidgetHost` ignores the second. What the
+  host made of a report (its diagnostic, the stop, a `renderer-violation`
+  for a malformed one, nothing under compat or once dead) is
+  [test_widget_host](test_widget_host.md)'s reading. The count covers every
+  host built for the message, so compare it with `factoriesSelected` (or the
+  latest `generation`) before calling a second report a duplicate: a
+  restarted widget's new host reports again.
 - **Not measured.** The tap sees no network request: it observes what
   reaches the renderer and what the renderer answers. It does not tell
   whether a card is live, painted or interactive now.
@@ -246,7 +259,8 @@ thread. Counts cover every renderer built for the message while it was armed
 and are never reset; only `trustedEvents`, `trustedClicks` and
 `trustedEventTypes` restart at `MarkWidgetOpsEvents()`. Counts are uncapped;
 the example lists (`leakExamples`, `noteExamples`, `gapExamples`,
-`violationDetails`, `trustedEventTypes`) keep only their first 64 entries, so
+`violationDetails`, `limitExamples`, `trustedEventTypes`) keep only their
+first 64 entries, so
 compare a list with its count before calling it complete.
 
 | Field | Meaning |
@@ -260,6 +274,7 @@ compare a list with its count before calling it complete.
 | `scanGaps`, `gapExamples` | Unscanned host messages, with their reason and first 160 bytes. |
 | `leaks`, `notes` and examples | The copied scanner's own counts and texts. |
 | `violations`, `violationDetails` | Renderer `violation` messages and their `detail`. |
+| `limitReports`, `limitExamples` | Renderer `limit` reports, each counted before it is forwarded, and their `code` and `count`: a string code bare, any other code and every count as JSON text, a missing member as `null` (`paint-limit 17`, `paint-limit "17"`). |
 | `trustedEvents`, `trustedClicks`, `trustedEventTypes` | Renderer `event` messages with `trusted` true since the mark, those whose `ev.type` is `click`, and their types. |
 | `ackQueries`, `ackResults` | The host's post-load `query` and the renderer's `result`, each with numeric `qid` -1 (`WidgetHost`'s `kRenderAckQid`). |
 | `fatalFrozen` | Host `frozen` messages with `fatal` true, sent when the runtime died for any reason but `terminated`. |
@@ -395,6 +410,11 @@ session has, and disarms them before it returns:
   gaps; the ack query, its `result`, a fatal `frozen`, a `violation` (not a
   leak) and trusted events since the mark (an untrusted click and a press
   before the mark excluded) are read;
+- two `limit` reports the stub sends after a reading of none,
+  `paint-limit` 17 then `backdrop-limit` 3, count twice with the examples
+  `paint-limit 17` and `backdrop-limit 3`, are not violations, and reach the
+  caller's callback once each, in order, with their exact bytes (also part
+  of the forwarding sequence above);
 - destroying the wrapper destroys the stub first, and releasing the factory
   completes the counts; a disarmed id gets the stub factory itself again; a
   throwing stub factory is counted and its exception reaches the caller;
@@ -487,6 +507,12 @@ which includes the header, and standalone compiles of
 and no row since this change, has run in the app yet: they run where a
 scenario calls `RunWidgetOpsSelfCheck()`. The earlier rows' expectations
 are unchanged, as the conformance reading and the cumulative counts are.
+
+`limitReports`, `limitExamples` and their self-check row were added by
+`2026/11/02/stop-widgets-past-the-heavy-box-limit-with-a-v0-6-0-twidgetcore`
+and compiled in the macOS Debug build. The row runs in that task's evidence
+campaign, which records it; the earlier rows' expectations are unchanged
+apart from the two reports' places in the forwarding sequence.
 
 ## Related guidance
 
