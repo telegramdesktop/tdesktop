@@ -286,9 +286,6 @@ public:
 	[[nodiscard]] virtual bool drawsOwnEphemeralBadge() const {
 		return false;
 	}
-	[[nodiscard]] virtual ClickHandlerPtr networkMarkerLink() const {
-		return nullptr;
-	}
 	[[nodiscard]] virtual bool customInfoLayout() const = 0;
 	[[nodiscard]] virtual QRect contentRectForReactions() const {
 		return QRect(0, 0, width(), height());

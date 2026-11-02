@@ -9,7 +9,3 @@ using "ui/chat/chat.style";
 
 tgwPlaceholderHeight: 160px;
 tgwBubbleInfoSkip: mediaInBubbleSkip;
-
-tgwNetworkMarkerIcon: icon {{ "menu/network", msgInDateFg }};
-tgwNetworkMarkerWidth: 24px;
-tgwNetworkMarkerPosition: point(0px, -21px);

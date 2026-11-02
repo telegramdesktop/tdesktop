@@ -71,7 +71,6 @@ public:
 		return true;
 	}
 	bool needsBubble() const override;
-	ClickHandlerPtr networkMarkerLink() const override;
 	bool customInfoLayout() const override;
 	QPoint resolveCustomInfoRightBottom() const override;
 	bool enforceBubbleWidth() const override;
@@ -118,7 +117,6 @@ private:
 	const Tgw::Anchors _anchors;
 	std::unique_ptr<Tgw::Runtime> _runtime;
 	const ClickHandlerPtr _cardLink;
-	const ClickHandlerPtr _networkLink;
 	mutable Tgw::ThemeKey _themeKey;
 	QPoint _pointerPoint;
 	mutable std::optional<HtmlWidgetGeometry> _placed;

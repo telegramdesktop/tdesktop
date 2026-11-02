@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_scale.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
-#include "window/window_session_controller.h"
 
 #include "styles/style_chat.h"
 #include "styles/style_tgw.h"
@@ -62,23 +61,6 @@ constexpr auto kMaxSafeAreaCorner = 200;
 	return pressed && (pressed != link);
 }
 
-class NetworkMarkerLink final : public ClickHandler {
-public:
-	void onClick(ClickContext context) const override;
-	QString tooltip() const override;
-
-};
-
-void NetworkMarkerLink::onClick(ClickContext context) const {
-	if (const auto controller = ExtractController(context)) {
-		controller->showToast(tooltip());
-	}
-}
-
-QString NetworkMarkerLink::tooltip() const {
-	return tr::lng_tgw_network_marker(tr::now);
-}
-
 } // namespace
 
 HtmlWidget::HtmlWidget(
@@ -90,10 +72,7 @@ HtmlWidget::HtmlWidget(
 	Element *replacing)
 : Media(parent)
 , _anchors(anchors)
-, _cardLink(std::make_shared<LambdaClickHandler>([] {}))
-, _networkLink(context.flags.canQuery
-	? std::make_shared<NetworkMarkerLink>()
-	: nullptr) {
+, _cardLink(std::make_shared<LambdaClickHandler>([] {})) {
 	auto descriptor = Tgw::RuntimeDescriptor{
 		.view = parent,
 		.item = realParent,
@@ -260,10 +239,6 @@ QSize HtmlWidget::countCurrentSize(int newWidth) {
 
 bool HtmlWidget::needsBubble() const {
 	return true;
-}
-
-ClickHandlerPtr HtmlWidget::networkMarkerLink() const {
-	return _networkLink;
 }
 
 bool HtmlWidget::customInfoLayout() const {
