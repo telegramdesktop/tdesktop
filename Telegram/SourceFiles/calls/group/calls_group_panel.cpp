@@ -402,7 +402,13 @@ void Panel::initWindow() {
 				toggleFullScreen();
 			}
 		} else if (type == QEvent::WindowStateChange) {
+			const auto was = static_cast<QWindowStateChangeEvent*>(
+				e.get())->oldState();
 			updateFullScreen();
+			if ((was & Qt::WindowFullScreen)
+				!= (window()->windowState() & Qt::WindowFullScreen)) {
+				updateControlsGeometry();
+			}
 		}
 		return base::EventFilterResult::Continue;
 	}, lifetime());
@@ -1971,7 +1977,9 @@ QRect Panel::computeTitleRect() const {
 			+ custom));
 	const auto width = widget()->width();
 #ifdef Q_OS_MAC
-	const auto left = st::groupCallTitleLeftMac;
+	const auto left = window()->isFullScreen()
+		? st::groupCallNarrowSkip
+		: st::groupCallTitleLeftMac;
 	return QRect(left, 0, width - remove - left, 28);
 #else // Q_OS_MAC
 	const auto controls = _window->controlsGeometry();
