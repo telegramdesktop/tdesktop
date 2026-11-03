@@ -1117,9 +1117,14 @@ void RendererCore::hostWatch(bool on) {
 }
 
 int64 RendererCore::elementAt(QPointF point) {
+	const auto wasDirty = _renderer->dirty();
 	auto out = _renderer->receive(ElementAtQuery(point));
 	const auto result = TakeMessage(out, "result")["result"].asNumber();
-	notifyPosted(forwardAll(out));
+	auto changes = forwardAll(out);
+	if (!wasDirty && _renderer->dirty()) {
+		changes |= Change::Repaint;
+	}
+	notifyPosted(changes);
 	return int64(result);
 }
 
@@ -1260,7 +1265,7 @@ void RendererCore::scheduleWake() {
 }
 
 void RendererCore::dropHeld() {
-	// A reader that built the held work asked for no repaint of its own.
+	// A reader's build may still need a repaint when this hold ends.
 	if (_held
 		&& canTick()
 		&& (_held->builds != _renderer->stats().builds)
