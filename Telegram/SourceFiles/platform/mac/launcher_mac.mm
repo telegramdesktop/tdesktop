@@ -31,6 +31,13 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cExeName().isEmpty()) {
 		return false;
 	}
+	// WHY: every install path ends here after the app has quit, so the kept
+	// package is verified and unpacked only now, and a package that fails
+	// brings the current version back instead of leaving the user without it.
+	if (action == UpdaterLaunch::PerformUpdate
+		&& !Core::prepareReadyUpdate()) {
+		action = UpdaterLaunch::JustRelaunch;
+	}
 	@autoreleasepool {
 
 #ifdef OS_MAC_STORE

@@ -54,6 +54,9 @@ private:
 };
 
 bool checkReadyUpdate();
+#ifdef Q_OS_MACOS
+bool prepareReadyUpdate();
+#endif // Q_OS_MACOS
 void UpdateApplication();
 QString countAlphaVersionSignature(uint64 version);
 

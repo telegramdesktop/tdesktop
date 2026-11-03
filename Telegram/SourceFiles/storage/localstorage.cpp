@@ -621,13 +621,16 @@ bool readUpdateManifest(QByteArray *manifest, QByteArray *signature) {
 	if (Core::UpdaterDisabled()) {
 		return false;
 	}
-	QFile f(updateManifestFile());
-	if (!f.open(QIODevice::ReadOnly)) {
-		return false;
-	}
 	constexpr auto kSignatureSize = 64;
 	constexpr auto kMaxManifestSize = 256 * 1024;
-	const auto content = f.readAll();
+	const auto info = QFileInfo(updateManifestFile());
+	QFile f(info.filePath());
+	if (info.isSymLink()
+		|| !info.isFile()
+		|| !f.open(QIODevice::ReadOnly)) {
+		return false;
+	}
+	const auto content = f.read(kSignatureSize + kMaxManifestSize + 1);
 	if (content.size() <= kSignatureSize
 		|| content.size() > kSignatureSize + kMaxManifestSize) {
 		return false;

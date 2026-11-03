@@ -47,7 +47,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/update_install_linux.h"
 
 #include <flatpakportal/flatpakportal.hpp>
-#endif // !Q_OS_WIN && !Q_OS_MACOS
+#elif defined Q_OS_MACOS // !Q_OS_WIN && !Q_OS_MACOS
+#include "platform/mac/update_install_mac.h"
+#endif // Q_OS_MACOS
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -458,8 +460,7 @@ enum class ManifestAdoption {
 	return true;
 }
 
-[[nodiscard]] bool UnpackUpdateV2(
-		const QString &filepath,
+[[nodiscard]] std::optional<Updates::VerifiedUpdate> VerifyUpdateV2(
 		const QByteArray &content,
 		ManifestAdoption adoption) {
 	// The expected target follows the feed key, not the build: an x64
@@ -469,13 +470,13 @@ enum class ManifestAdoption {
 	if (!target) {
 		LOG(("Update Error: No v2 target for platform key '%1'."
 			).arg(Platform::AutoUpdateKey()));
-		return false;
+		return std::nullopt;
 	}
 
 	// The full verification happens before any decompression, so no
 	// unauthenticated bytes ever reach the LZMA or QDataStream parsers.
 	auto error = QString();
-	const auto verified = Updates::VerifyUpdate(
+	auto verified = Updates::VerifyUpdate(
 		content,
 		BuildUpdateChannel,
 		AppBetaVersion || cInstallBetaVersion(),
@@ -487,7 +488,7 @@ enum class ManifestAdoption {
 		&error);
 	if (!verified) {
 		LOG(("Update Error: v2 update rejected: %1").arg(error));
-		return false;
+		return std::nullopt;
 	}
 	if (verified->adoptManifest) {
 		if (adoption == ManifestAdoption::Immediate) {
@@ -497,6 +498,17 @@ enum class ManifestAdoption {
 				AdoptManifest(manifest);
 			});
 		}
+	}
+	return verified;
+}
+
+[[nodiscard]] bool UnpackUpdateV2(
+		const QString &filepath,
+		const QByteArray &content,
+		ManifestAdoption adoption) {
+	const auto verified = VerifyUpdateV2(content, adoption);
+	if (!verified) {
+		return false;
 	}
 
 	const auto tempDirPath = cWorkingDir() + u"tupdates/temp"_q;
@@ -509,6 +521,7 @@ enum class ManifestAdoption {
 		return false;
 	}
 
+	auto error = QString();
 	const auto uncompressed = Updates::DecompressUpdatePayload(
 		*verified,
 		&error);
@@ -554,7 +567,31 @@ bool UnpackUpdate(const QString &filepath) {
 		return true;
 	}
 
-#if !defined Q_OS_WIN && !defined Q_OS_MACOS
+#ifdef Q_OS_MACOS
+	auto error = QString();
+	if (!Platform::UpdateDestinationWritable(cExeDir() + cExeName(), error)) {
+		LOG(("Update Error: %1").arg(error));
+		return false;
+	}
+	const auto content = Platform::ReadUpdatePackage(filepath, error);
+	if (!content) {
+		LOG(("Update Error: %1").arg(error));
+		return false;
+	} else if (!Updates::IsV2UpdateFile(*content)) {
+		LOG(("Update Error: unsupported update format (missing v2 magic)."));
+		return false;
+	} else if (!VerifyUpdateV2(*content, ManifestAdoption::Queued)) {
+		return false;
+	}
+	const auto ready = Platform::ReadyUpdatePackagePath(cWorkingDir());
+	QFile::remove(ready);
+	if (!QFile::rename(filepath, ready)) {
+		LOG(("Update Error: could not keep the verified update package."));
+		return false;
+	}
+	return true;
+#else // Q_OS_MACOS
+#ifndef Q_OS_WIN
 	auto error = QString();
 	const auto mode = KSandbox::isInside()
 		? Platform::UpdateInstallMode::Writable
@@ -580,7 +617,7 @@ bool UnpackUpdate(const QString &filepath) {
 		return true;
 	}
 	const auto &compressed = *content;
-#else // !Q_OS_WIN && !Q_OS_MACOS
+#else // !Q_OS_WIN
 	QFile input(filepath);
 	if (!input.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
@@ -592,13 +629,14 @@ bool UnpackUpdate(const QString &filepath) {
 
 	QByteArray compressed = input.readAll();
 	input.close();
-#endif // Q_OS_WIN || Q_OS_MACOS
+#endif // Q_OS_WIN
 
 	if (!Updates::IsV2UpdateFile(compressed)) {
 		LOG(("Update Error: unsupported update format (missing v2 magic)."));
 		return false;
 	}
 	return UnpackUpdateV2(filepath, compressed, ManifestAdoption::Queued);
+#endif // !Q_OS_MACOS
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
 	return false;
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
@@ -2013,63 +2051,9 @@ bool UpdateChecker::percent() const {
 //	return QString::fromWCharArray(errMsg);
 //}
 
-bool checkReadyUpdate() {
-#if !defined Q_OS_WIN && !defined Q_OS_MACOS
-	if (!KSandbox::isInside()) {
-		const auto packagePresent = Platform::ReadyUpdatePackagePresent(
-			cWorkingDir());
-		const auto temp = QFileInfo(cWorkingDir() + u"tupdates/temp"_q);
-		const auto legacy = QFileInfo(cWorkingDir() + u"tupdates/ready"_q);
-		if (!packagePresent
-			&& !temp.exists() && !temp.isSymLink()
-			&& !legacy.exists() && !legacy.isSymLink()) {
-			return false;
-		}
-		auto error = QString();
-		const auto reject = [&] {
-			LOG(("Update Error: %1").arg(error));
-			ClearAll();
-			return false;
-		};
-		const auto mode = Platform::GetUpdateInstallMode(
-			cExeDir() + cExeName(),
-			error);
-		if (mode == Platform::UpdateInstallMode::Refused) {
-			return reject();
-		} else if (packagePresent) {
-			if (!Platform::ClearUpdateData(cWorkingDir(), error, true)) {
-				return reject();
-			}
-			const auto package = Platform::ReadyUpdatePackagePath(cWorkingDir());
-			const auto content = Platform::ReadUpdatePackage(package, error);
-			if (!content) {
-				return reject();
-			} else if (mode == Platform::UpdateInstallMode::Protected) {
-				if (!Platform::ValidateProtectedUpdate(
-						*content,
-						cInstallBetaVersion(),
-						error)) {
-					return reject();
-				}
-				return true;
-			}
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-			if (!UnpackUpdateV2(
-					package,
-					*content,
-					ManifestAdoption::Immediate)
-				|| (Platform::ReadyUpdatePackagePresent(cWorkingDir())
-					&& !QFile::remove(package))) {
-				error = u"Could not unpack and retire the ready update package."_q;
-				return reject();
-			}
-#endif // !TDESKTOP_DISABLE_AUTOUPDATE
-		} else if (mode == Platform::UpdateInstallMode::Protected) {
-			error = u"An unpacked update cannot be installed with privilege."_q;
-			return reject();
-		}
-	}
-#endif // !Q_OS_WIN && !Q_OS_MACOS
+namespace {
+
+[[nodiscard]] bool PromoteReadyUpdater() {
 	QString readyFilePath = cWorkingDir() + u"tupdates/temp/ready"_q, readyPath = cWorkingDir() + u"tupdates/temp"_q;
 	if (!QFile(readyFilePath).exists() || cExeName().isEmpty()) {
 		if (QDir(cWorkingDir() + u"tupdates/ready"_q).exists() || QDir(cWorkingDir() + u"tupdates/temp"_q).exists()) {
@@ -2196,6 +2180,138 @@ bool checkReadyUpdate() {
 
 	return true;
 }
+
+#if defined Q_OS_MACOS && !defined TDESKTOP_DISABLE_AUTOUPDATE
+[[nodiscard]] bool CheckKeptUpdatePackage() {
+	const auto working = cWorkingDir();
+	if (!Platform::ReadyUpdatePackagePresent(working)) {
+		const auto temp = QFileInfo(working + u"tupdates/temp"_q);
+		const auto legacy = QFileInfo(working + u"tupdates/ready"_q);
+		if (temp.exists()
+			|| temp.isSymLink()
+			|| legacy.exists()
+			|| legacy.isSymLink()) {
+			ClearAll(); // an unpacked tree never installs without its package
+		}
+		return false;
+	}
+	auto error = QString();
+	const auto content = Platform::UpdateDestinationWritable(
+		cExeDir() + cExeName(),
+		error)
+		? Platform::ReadUpdatePackage(
+			Platform::ReadyUpdatePackagePath(working),
+			error)
+		: std::nullopt;
+	if (!content) {
+		LOG(("Update Error: %1").arg(error));
+		ClearAll();
+		return false;
+	} else if (!VerifyUpdateV2(*content, ManifestAdoption::Immediate)) {
+		ClearAll();
+		return false;
+	}
+	return true;
+}
+#endif // Q_OS_MACOS && !TDESKTOP_DISABLE_AUTOUPDATE
+
+} // namespace
+
+bool checkReadyUpdate() {
+#ifdef Q_OS_MACOS
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	return CheckKeptUpdatePackage();
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	return false;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+#else // Q_OS_MACOS
+#ifndef Q_OS_WIN
+	if (!KSandbox::isInside()) {
+		const auto packagePresent = Platform::ReadyUpdatePackagePresent(
+			cWorkingDir());
+		const auto temp = QFileInfo(cWorkingDir() + u"tupdates/temp"_q);
+		const auto legacy = QFileInfo(cWorkingDir() + u"tupdates/ready"_q);
+		if (!packagePresent
+			&& !temp.exists() && !temp.isSymLink()
+			&& !legacy.exists() && !legacy.isSymLink()) {
+			return false;
+		}
+		auto error = QString();
+		const auto reject = [&] {
+			LOG(("Update Error: %1").arg(error));
+			ClearAll();
+			return false;
+		};
+		const auto mode = Platform::GetUpdateInstallMode(
+			cExeDir() + cExeName(),
+			error);
+		if (mode == Platform::UpdateInstallMode::Refused) {
+			return reject();
+		} else if (packagePresent) {
+			if (!Platform::ClearUpdateData(cWorkingDir(), error, true)) {
+				return reject();
+			}
+			const auto package = Platform::ReadyUpdatePackagePath(cWorkingDir());
+			const auto content = Platform::ReadUpdatePackage(package, error);
+			if (!content) {
+				return reject();
+			} else if (mode == Platform::UpdateInstallMode::Protected) {
+				if (!Platform::ValidateProtectedUpdate(
+						*content,
+						cInstallBetaVersion(),
+						error)) {
+					return reject();
+				}
+				return true;
+			}
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+			if (!UnpackUpdateV2(
+					package,
+					*content,
+					ManifestAdoption::Immediate)
+				|| (Platform::ReadyUpdatePackagePresent(cWorkingDir())
+					&& !QFile::remove(package))) {
+				error = u"Could not unpack and retire the ready update package."_q;
+				return reject();
+			}
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+		} else if (mode == Platform::UpdateInstallMode::Protected) {
+			error = u"An unpacked update cannot be installed with privilege."_q;
+			return reject();
+		}
+	}
+#endif // !Q_OS_WIN
+	return PromoteReadyUpdater();
+#endif // !Q_OS_MACOS
+}
+
+#ifdef Q_OS_MACOS
+bool prepareReadyUpdate() {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+	const auto working = cWorkingDir();
+	const auto package = Platform::ReadyUpdatePackagePath(working);
+	auto error = QString();
+	const auto content = Platform::ReadyUpdatePackagePresent(working)
+		? Platform::ReadUpdatePackage(package, error)
+		: std::nullopt;
+	if (!content) {
+		LOG(("Update Error: %1").arg(error.isEmpty()
+			? u"No update package is kept for installation."_q
+			: error));
+		ClearAll();
+		return false;
+	} else if (!UnpackUpdateV2(package, *content, ManifestAdoption::Immediate)
+		|| Platform::ReadyUpdatePackagePresent(working)) {
+		LOG(("Update Error: could not unpack and retire the kept update package."));
+		ClearAll();
+		return false;
+	}
+	return PromoteReadyUpdater();
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+	return false;
+#endif // TDESKTOP_DISABLE_AUTOUPDATE
+}
+#endif // Q_OS_MACOS
 
 void UpdateApplication() {
 	if (UpdaterDisabled()) {

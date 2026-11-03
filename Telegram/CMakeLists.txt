@@ -1864,6 +1864,8 @@ PRIVATE
     platform/mac/specific_mac.h
     platform/mac/specific_mac_p.mm
     platform/mac/specific_mac_p.h
+    platform/mac/update_install_mac.mm
+    platform/mac/update_install_mac.h
     platform/mac/translate_provider_mac.h
     platform/mac/translate_provider_mac.mm
     platform/mac/tray_mac.h
