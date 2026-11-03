@@ -1,3 +1,14 @@
+7.3.5 (03.11.26)
+
+- Ask for camera and microphone access in mini apps on Windows and macOS.
+- Fix custom download folder and other settings getting reset.
+- Fix maximized window jitter on Windows.
+- Fix notifications moving off screen on Windows.
+- Fix missing notifications in bots with topics.
+- Fix exports of migrated groups missing the old group history.
+- Fix code blocks losing the indentation of their first line.
+- Fix many crashes and other bugs.
+
 7.3.4 beta (29.10.26)
 
 - Search apps, channels, posts and media in the search tabs.
