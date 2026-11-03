@@ -33,8 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h" // st::boxDividerLabel
 #include "styles/style_menu_icons.h"
 
-#include <QtSvg/QSvgRenderer>
-
 namespace {
 
 enum class Color {
@@ -728,13 +726,11 @@ void LinksController::rowPaintIcon(
 			p.drawEllipse(rect);
 		}
 		if (color == Color::Subscription) {
-			auto svg = QSvgRenderer(u":/gui/links_subscription.svg"_q);
-			const auto r = QRect(
+			PaintSubscriptionBadge(p, QRectF(
 				(inner - st::inviteLinkSubscriptionSize) / 2,
 				(inner - st::inviteLinkSubscriptionSize) / 2,
 				st::inviteLinkSubscriptionSize,
-				st::inviteLinkSubscriptionSize);
-			svg.render(&p, r);
+				st::inviteLinkSubscriptionSize));
 		} else {
 			(color == Color::Revoked
 				? st::inviteLinkRevokedIcon
