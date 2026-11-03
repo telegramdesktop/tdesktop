@@ -14,8 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 
-[[nodiscard]] bool UpdateDestinationWritable(
-	const QString &bundlePath,
+enum class UpdateInstallMode {
+	Writable,
+	Protected,
+	Refused,
+};
+
+[[nodiscard]] UpdateInstallMode GetUpdateInstallMode(
+	const QString &executablePath,
 	QString &error);
 [[nodiscard]] QString ReadyUpdatePackagePath(const QString &workingDirectory);
 [[nodiscard]] bool ReadyUpdatePackagePresent(const QString &workingDirectory);

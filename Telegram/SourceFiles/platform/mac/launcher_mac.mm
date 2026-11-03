@@ -35,7 +35,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	// package is verified and unpacked only now, and a package that fails
 	// brings the current version back instead of leaving the user without it.
 	if (action == UpdaterLaunch::PerformUpdate
-		&& !Core::prepareReadyUpdate()) {
+		&& Core::prepareReadyUpdate() != Core::ReadyUpdateInstall::Unpacked) {
 		action = UpdaterLaunch::JustRelaunch;
 	}
 	@autoreleasepool {

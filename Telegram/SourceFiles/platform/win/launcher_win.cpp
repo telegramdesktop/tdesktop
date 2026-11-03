@@ -9,6 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
+#include "base/platform/base_platform_file_utilities.h"
+#include "platform/win/update_install_win.h"
+
+#include <QtCore/QDateTime>
+#include <QtCore/QDir>
+#include <QtCore/QFile>
 
 #include <windows.h>
 #include <shellapi.h>
@@ -19,6 +25,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Platform {
 namespace {
+
+constexpr auto kMaxUpdateLogBytes = 1024 * 1024;
+
+void WriteUpdateLog(const QString &installLogPath, const QString &status) {
+	auto content = QByteArray();
+	auto installLog = QFile(installLogPath);
+	if (!installLogPath.isEmpty() && installLog.open(QIODevice::ReadOnly)) {
+		content = installLog.read(kMaxUpdateLogBytes + 1);
+		if (content.size() > kMaxUpdateLogBytes) {
+			content = content.left(kMaxUpdateLogBytes)
+				+ "\nUpdate launcher: install log truncated.\n";
+		}
+	}
+	content += u"\nUpdate launcher: %1\n"_q.arg(status).toUtf8();
+	const auto directory = cWorkingDir() + u"DebugLogs"_q;
+	if (!QDir().mkpath(directory)) {
+		return;
+	}
+	const auto timestamp = QDateTime::currentDateTime().toString(
+		u"yyyyMMdd_hhmmss"_q);
+	for (auto attempt = 0; attempt != 100; ++attempt) {
+		auto file = QFile(directory
+			+ '/'
+			+ timestamp
+			+ (attempt ? '_' + QString::number(attempt) : QString())
+			+ u"_upd.txt"_q);
+		if (file.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
+			file.write(content);
+			return;
+		}
+	}
+}
 
 // Turn a CRT/STL assertion (or pure-virtual / invalid-parameter) into a real,
 // crash-reported failure instead of a modal Abort/Retry/Ignore dialog that
@@ -116,6 +154,15 @@ Launcher::Launcher(int argc, char *argv[])
 : Core::Launcher(argc, argv) {
 }
 
+int Launcher::exec() {
+	const auto native = readArgumentsHook(0, nullptr);
+	if (const auto result = InstallUpdateIfRequested(
+			native ? *native : arguments())) {
+		return *result;
+	}
+	return Core::Launcher::exec();
+}
+
 void Launcher::initHook() {
 	if (cTestAgent()) {
 		InstallTestAgentCrashHandling();
@@ -144,17 +191,21 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cExeName().isEmpty()) {
 		return false;
 	}
+	if (action == UpdaterLaunch::PerformUpdate) {
+		_updating = true;
+		switch (Core::prepareReadyUpdate()) {
+		case Core::ReadyUpdateInstall::Failed:
+			return relaunchAfterUpdate(false);
+		case Core::ReadyUpdateInstall::Protected:
+			return installProtectedUpdate();
+		case Core::ReadyUpdateInstall::Unpacked:
+			break;
+		}
+	}
 
-	const auto operation = (action == UpdaterLaunch::JustRelaunch)
-		? QString()
-		: (cWriteProtected()
-			? u"runas"_q
-			: QString());
 	const auto binaryPath = (action == UpdaterLaunch::JustRelaunch)
 		? (cExeDir() + cExeName())
-		: (cWriteProtected()
-			? (cWorkingDir() + u"tupdates/temp/Updater.exe"_q)
-			: (cExeDir() + u"Updater.exe"_q));
+		: (cExeDir() + u"Updater.exe"_q);
 
 	auto argumentsList = QStringList();
 	const auto pushArgument = [&](const QString &argument) {
@@ -179,7 +230,9 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	}
 
 	if (action == UpdaterLaunch::JustRelaunch) {
-		pushArgument(u"-noupdate"_q);
+		if (!_updating || _updateFailed) {
+			pushArgument(u"-noupdate"_q);
+		}
 		if (cRestartingToSettings()) {
 			pushArgument(u"-tosettings"_q);
 		}
@@ -204,16 +257,70 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		}
 		pushArgument(u"-exename"_q);
 		pushArgument('"' + cExeName() + '"');
-		if (cWriteProtected()) {
-			pushArgument(u"-writeprotected"_q);
-			pushArgument('"' + cExeDir() + '"');
+	}
+	return launch(binaryPath, argumentsList);
+}
+
+bool Launcher::installProtectedUpdate() {
+	const auto executable = cExeDir() + cExeName();
+	const auto package = ReadyUpdatePackagePath(cWorkingDir());
+	const auto parameters = u"-installupdate \""_q
+		+ QDir::toNativeSeparators(package)
+		+ '"'
+		+ (cInstallBetaVersion() ? u" -beta"_q : QString());
+	const auto nativeExecutable = QDir::toNativeSeparators(
+		executable).toStdWString();
+	const auto nativeDirectory = QDir::toNativeSeparators(
+		cExeDir()).toStdWString();
+	const auto nativeParameters = parameters.toStdWString();
+
+	DEBUG_LOG(("Application Info: installing with privilege %1 %2"
+		).arg(executable
+		).arg(parameters));
+	Logs::closeMain();
+	CrashReports::Finish();
+
+	auto info = SHELLEXECUTEINFOW();
+	info.cbSize = sizeof(info);
+	info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_NOASYNC;
+	info.lpVerb = L"runas";
+	info.lpFile = nativeExecutable.c_str();
+	info.lpParameters = nativeParameters.c_str();
+	info.lpDirectory = nativeDirectory.c_str();
+	info.nShow = SW_SHOWNORMAL;
+	auto installed = false;
+	auto status = QString();
+	auto installLogPath = UpdateInstallLogPath(cExeDir());
+	if (!ShellExecuteExW(&info) || !info.hProcess) {
+		status = u"the privileged install was not started, error %1"_q.arg(
+			GetLastError());
+		installLogPath = QString();
+	} else {
+		const auto process = info.hProcess;
+		const auto guard = gsl::finally([&] { CloseHandle(process); });
+		auto code = DWORD(1);
+		if (WaitForSingleObject(process, INFINITE) != WAIT_OBJECT_0
+			|| !GetExitCodeProcess(process, &code)) {
+			status = u"could not wait for the privileged install"_q;
+		} else if (code == 2) {
+			status = u"another update is being installed"_q;
+			installLogPath = QString();
+		} else {
+			installed = (code == 0);
+			status = u"privileged install exit code %1"_q.arg(code);
 		}
 	}
-	return launch(operation, binaryPath, argumentsList);
+	WriteUpdateLog(installLogPath, status);
+	return relaunchAfterUpdate(installed);
+}
+
+bool Launcher::relaunchAfterUpdate(bool installed) {
+	base::Platform::DeleteDirectory(cWorkingDir() + u"tupdates"_q);
+	_updateFailed = !installed;
+	return launchUpdater(UpdaterLaunch::JustRelaunch);
 }
 
 bool Launcher::launch(
-		const QString &operation,
 		const QString &binaryPath,
 		const QStringList &argumentsList) {
 	const auto convertPath = [](const QString &path) {
@@ -234,7 +341,7 @@ bool Launcher::launch(
 	const auto hwnd = HWND(0);
 	const auto result = ShellExecute(
 		hwnd,
-		operation.isEmpty() ? nullptr : operation.toStdWString().c_str(),
+		nullptr,
 		nativeBinaryPath.c_str(),
 		arguments.toStdWString().c_str(),
 		nativeWorkingDir.empty() ? nullptr : nativeWorkingDir.c_str(),

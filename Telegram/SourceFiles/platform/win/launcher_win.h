@@ -15,6 +15,8 @@ class Launcher : public Core::Launcher {
 public:
 	Launcher(int argc, char *argv[]);
 
+	int exec() override;
+
 private:
 	std::optional<QStringList> readArgumentsHook(
 		int argc,
@@ -25,9 +27,13 @@ private:
 	bool launchUpdater(UpdaterLaunch action) override;
 
 	bool launch(
-		const QString &operation,
 		const QString &binaryPath,
 		const QStringList &argumentsList);
+	bool installProtectedUpdate();
+	bool relaunchAfterUpdate(bool installed);
+
+	bool _updating = false;
+	bool _updateFailed = false;
 
 };
 

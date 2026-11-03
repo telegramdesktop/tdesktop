@@ -49,7 +49,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <flatpakportal/flatpakportal.hpp>
 #elif defined Q_OS_MACOS // !Q_OS_WIN && !Q_OS_MACOS
 #include "platform/mac/update_install_mac.h"
-#endif // Q_OS_MACOS
+#else // Q_OS_MACOS
+#include "platform/win/update_install_win.h"
+#endif // Q_OS_WIN
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -412,38 +414,6 @@ enum class ManifestAdoption {
 	Immediate,
 };
 
-[[nodiscard]] bool WriteUpdateVersionFile(
-		QDir &tempDir,
-		const QString &tempDirPath,
-		quint32 version,
-		quint64 canaryVersion) {
-	// create tdata/version file
-	tempDir.mkdir(QDir(tempDirPath + u"/tdata"_q).absolutePath());
-	std::wstring versionString = FormatVersionDisplay(version).toStdWString();
-
-	const auto versionNum = canaryVersion
-		? VersionInt(kVersionFileCanaryMarker)
-		: VersionInt(version);
-	const auto versionLen = VersionInt(versionString.size() * sizeof(VersionChar));
-	VersionChar versionStr[32];
-	memcpy(versionStr, versionString.c_str(), versionLen);
-
-	QFile fVersion(tempDirPath + u"/tdata/version"_q);
-	if (!fVersion.open(QIODevice::WriteOnly)) {
-		LOG(("Update Error: cant write version file '%1'").arg(tempDirPath + u"/version"_q));
-		return false;
-	}
-	fVersion.write((const char*)&versionNum, sizeof(VersionInt));
-	if (canaryVersion) {
-		fVersion.write((const char*)&canaryVersion, sizeof(quint64));
-	} else {
-		fVersion.write((const char*)&versionLen, sizeof(VersionInt));
-		fVersion.write((const char*)&versionStr[0], versionLen);
-	}
-	fVersion.close();
-	return true;
-}
-
 [[nodiscard]] bool WriteUpdateReadyFile(const QString &readyFilePath) {
 	QFile readyFile(readyFilePath);
 	if (readyFile.open(QIODevice::WriteOnly)) {
@@ -502,6 +472,30 @@ enum class ManifestAdoption {
 	return verified;
 }
 
+#if defined Q_OS_MACOS || defined Q_OS_WIN
+[[nodiscard]] bool VerifyKeptUpdate(
+		const QByteArray &content,
+		Platform::UpdateInstallMode mode,
+		ManifestAdoption adoption) {
+	if (!VerifyUpdateV2(content, adoption)) {
+		return false;
+	}
+#ifdef Q_OS_WIN
+	if (mode == Platform::UpdateInstallMode::Protected) {
+		auto error = QString();
+		if (!Platform::ValidateProtectedUpdate(
+				content,
+				cInstallBetaVersion(),
+				error)) {
+			LOG(("Update Error: %1").arg(error));
+			return false;
+		}
+	}
+#endif // Q_OS_WIN
+	return true;
+}
+#endif // Q_OS_MACOS || Q_OS_WIN
+
 [[nodiscard]] bool UnpackUpdateV2(
 		const QString &filepath,
 		const QByteArray &content,
@@ -544,7 +538,6 @@ enum class ManifestAdoption {
 		return false;
 	}
 	if (!WriteUpdateVersionFile(
-			tempDir,
 			tempDirPath,
 			Updates::UpdateVersionBase(verified->envelope.version),
 			canary ? verified->envelope.version : 0)) {
@@ -567,9 +560,12 @@ bool UnpackUpdate(const QString &filepath) {
 		return true;
 	}
 
-#ifdef Q_OS_MACOS
+#if defined Q_OS_MACOS || defined Q_OS_WIN
 	auto error = QString();
-	if (!Platform::UpdateDestinationWritable(cExeDir() + cExeName(), error)) {
+	const auto mode = Platform::GetUpdateInstallMode(
+		cExeDir() + cExeName(),
+		error);
+	if (mode == Platform::UpdateInstallMode::Refused) {
 		LOG(("Update Error: %1").arg(error));
 		return false;
 	}
@@ -580,7 +576,7 @@ bool UnpackUpdate(const QString &filepath) {
 	} else if (!Updates::IsV2UpdateFile(*content)) {
 		LOG(("Update Error: unsupported update format (missing v2 magic)."));
 		return false;
-	} else if (!VerifyUpdateV2(*content, ManifestAdoption::Queued)) {
+	} else if (!VerifyKeptUpdate(*content, mode, ManifestAdoption::Queued)) {
 		return false;
 	}
 	const auto ready = Platform::ReadyUpdatePackagePath(cWorkingDir());
@@ -590,8 +586,7 @@ bool UnpackUpdate(const QString &filepath) {
 		return false;
 	}
 	return true;
-#else // Q_OS_MACOS
-#ifndef Q_OS_WIN
+#else // Q_OS_MACOS || Q_OS_WIN
 	auto error = QString();
 	const auto mode = KSandbox::isInside()
 		? Platform::UpdateInstallMode::Writable
@@ -617,26 +612,12 @@ bool UnpackUpdate(const QString &filepath) {
 		return true;
 	}
 	const auto &compressed = *content;
-#else // !Q_OS_WIN
-	QFile input(filepath);
-	if (!input.open(QIODevice::ReadOnly)) {
-		LOG(("Update Error: cant read updates file!"));
-		return false;
-	} else if (input.size() > Loader::kMaxFileSize) {
-		LOG(("Update Error: updates file is too large: %1").arg(input.size()));
-		return false;
-	}
-
-	QByteArray compressed = input.readAll();
-	input.close();
-#endif // Q_OS_WIN
-
 	if (!Updates::IsV2UpdateFile(compressed)) {
 		LOG(("Update Error: unsupported update format (missing v2 magic)."));
 		return false;
 	}
 	return UnpackUpdateV2(filepath, compressed, ManifestAdoption::Queued);
-#endif // !Q_OS_MACOS
+#endif // !Q_OS_MACOS && !Q_OS_WIN
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
 	return false;
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
@@ -1566,6 +1547,38 @@ void SetUpdaterDisabledAtStartup() {
 	UpdaterIsDisabled = true;
 }
 
+bool WriteUpdateVersionFile(
+		const QString &directory,
+		quint32 version,
+		quint64 canaryVersion) {
+	// create tdata/version file
+	QDir().mkpath(directory + u"/tdata"_q);
+	std::wstring versionString = FormatVersionDisplay(version).toStdWString();
+
+	const auto versionNum = canaryVersion
+		? VersionInt(kVersionFileCanaryMarker)
+		: VersionInt(version);
+	const auto versionLen = VersionInt(versionString.size() * sizeof(VersionChar));
+	VersionChar versionStr[32];
+	memcpy(versionStr, versionString.c_str(), versionLen);
+
+	QFile fVersion(directory + u"/tdata/version"_q);
+	if (!fVersion.open(QIODevice::WriteOnly)) {
+		LOG(("Update Error: cant write version file '%1'").arg(directory + u"/version"_q));
+		return false;
+	}
+	fVersion.write((const char*)&versionNum, sizeof(VersionInt));
+	if (canaryVersion) {
+		fVersion.write((const char*)&canaryVersion, sizeof(quint64));
+	} else {
+		fVersion.write((const char*)&versionLen, sizeof(VersionInt));
+		fVersion.write((const char*)&versionStr[0], versionLen);
+	}
+	fVersion.close();
+	return true;
+}
+
+
 class Updater : public base::has_weak_ptr {
 public:
 	Updater();
@@ -2053,6 +2066,7 @@ bool UpdateChecker::percent() const {
 
 namespace {
 
+#if !defined TDESKTOP_DISABLE_AUTOUPDATE || (!defined Q_OS_WIN && !defined Q_OS_MACOS)
 [[nodiscard]] bool PromoteReadyUpdater() {
 	QString readyFilePath = cWorkingDir() + u"tupdates/temp/ready"_q, readyPath = cWorkingDir() + u"tupdates/temp"_q;
 	if (!QFile(readyFilePath).exists() || cExeName().isEmpty()) {
@@ -2140,13 +2154,8 @@ namespace {
 		const auto errorCode = GetLastError();
 		LOG(("Update Error: could not copy '%1' to '%2', error code: %3"
 			).arg(updater.absoluteFilePath()).arg(curUpdater).arg(errorCode));
-		if (errorCode == ERROR_ACCESS_DENIED) { // we are in write-protected dir, like Program Files
-			cSetWriteProtected(true);
-			return true;
-		} else {
-			ClearAll();
-			return false;
-		}
+		ClearAll();
+		return false;
 	}
 	if (DeleteFile(updater.absoluteFilePath().toStdWString().c_str()) == FALSE) {
 		ClearAll();
@@ -2180,8 +2189,9 @@ namespace {
 
 	return true;
 }
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE || (!Q_OS_WIN && !Q_OS_MACOS)
 
-#if defined Q_OS_MACOS && !defined TDESKTOP_DISABLE_AUTOUPDATE
+#if (defined Q_OS_MACOS || defined Q_OS_WIN) && !defined TDESKTOP_DISABLE_AUTOUPDATE
 [[nodiscard]] bool CheckKeptUpdatePackage() {
 	const auto working = cWorkingDir();
 	if (!Platform::ReadyUpdatePackagePresent(working)) {
@@ -2196,9 +2206,10 @@ namespace {
 		return false;
 	}
 	auto error = QString();
-	const auto content = Platform::UpdateDestinationWritable(
+	const auto mode = Platform::GetUpdateInstallMode(
 		cExeDir() + cExeName(),
-		error)
+		error);
+	const auto content = (mode != Platform::UpdateInstallMode::Refused)
 		? Platform::ReadUpdatePackage(
 			Platform::ReadyUpdatePackagePath(working),
 			error)
@@ -2207,25 +2218,24 @@ namespace {
 		LOG(("Update Error: %1").arg(error));
 		ClearAll();
 		return false;
-	} else if (!VerifyUpdateV2(*content, ManifestAdoption::Immediate)) {
+	} else if (!VerifyKeptUpdate(*content, mode, ManifestAdoption::Immediate)) {
 		ClearAll();
 		return false;
 	}
 	return true;
 }
-#endif // Q_OS_MACOS && !TDESKTOP_DISABLE_AUTOUPDATE
+#endif // (Q_OS_MACOS || Q_OS_WIN) && !TDESKTOP_DISABLE_AUTOUPDATE
 
 } // namespace
 
 bool checkReadyUpdate() {
-#ifdef Q_OS_MACOS
+#if defined Q_OS_MACOS || defined Q_OS_WIN
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	return CheckKeptUpdatePackage();
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
 	return false;
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
-#else // Q_OS_MACOS
-#ifndef Q_OS_WIN
+#else // Q_OS_MACOS || Q_OS_WIN
 	if (!KSandbox::isInside()) {
 		const auto packagePresent = Platform::ReadyUpdatePackagePresent(
 			cWorkingDir());
@@ -2280,18 +2290,21 @@ bool checkReadyUpdate() {
 			return reject();
 		}
 	}
-#endif // !Q_OS_WIN
 	return PromoteReadyUpdater();
-#endif // !Q_OS_MACOS
+#endif // !Q_OS_MACOS && !Q_OS_WIN
 }
 
-#ifdef Q_OS_MACOS
-bool prepareReadyUpdate() {
+#if defined Q_OS_MACOS || defined Q_OS_WIN
+ReadyUpdateInstall prepareReadyUpdate() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	const auto working = cWorkingDir();
 	const auto package = Platform::ReadyUpdatePackagePath(working);
 	auto error = QString();
-	const auto content = Platform::ReadyUpdatePackagePresent(working)
+	const auto mode = Platform::GetUpdateInstallMode(
+		cExeDir() + cExeName(),
+		error);
+	const auto content = (mode != Platform::UpdateInstallMode::Refused
+		&& Platform::ReadyUpdatePackagePresent(working))
 		? Platform::ReadUpdatePackage(package, error)
 		: std::nullopt;
 	if (!content) {
@@ -2299,19 +2312,31 @@ bool prepareReadyUpdate() {
 			? u"No update package is kept for installation."_q
 			: error));
 		ClearAll();
-		return false;
-	} else if (!UnpackUpdateV2(package, *content, ManifestAdoption::Immediate)
+		return ReadyUpdateInstall::Failed;
+	}
+#ifdef Q_OS_WIN
+	if (mode == Platform::UpdateInstallMode::Protected) {
+		if (!VerifyKeptUpdate(*content, mode, ManifestAdoption::Immediate)) {
+			ClearAll();
+			return ReadyUpdateInstall::Failed;
+		}
+		return ReadyUpdateInstall::Protected;
+	}
+#endif // Q_OS_WIN
+	if (!UnpackUpdateV2(package, *content, ManifestAdoption::Immediate)
 		|| Platform::ReadyUpdatePackagePresent(working)) {
 		LOG(("Update Error: could not unpack and retire the kept update package."));
 		ClearAll();
-		return false;
+		return ReadyUpdateInstall::Failed;
 	}
-	return PromoteReadyUpdater();
+	return PromoteReadyUpdater()
+		? ReadyUpdateInstall::Unpacked
+		: ReadyUpdateInstall::Failed;
 #else // !TDESKTOP_DISABLE_AUTOUPDATE
-	return false;
+	return ReadyUpdateInstall::Failed;
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 }
-#endif // Q_OS_MACOS
+#endif // Q_OS_MACOS || Q_OS_WIN
 
 void UpdateApplication() {
 	if (UpdaterDisabled()) {

@@ -211,6 +211,29 @@ DWORD FinishUpdateProcess(DWORD processId, ULONGLONG creationTime) {
 		: GetLastError();
 }
 
+// WHY: the parent keeps running while a privileged install copies, and
+// Windows cannot overwrite a mapped image or library, only rename it, so a
+// shared target moves aside and the leftover goes with the next reboot.
+bool ReplaceSharedFile(const wstring &from, const wstring &to) {
+	const auto fresh = to + L".new";
+	const auto aside = to + L".old";
+	DeleteFile(fresh.c_str());
+	if (!CopyFile(from.c_str(), fresh.c_str(), FALSE)) {
+		return false;
+	}
+	DeleteFile(aside.c_str());
+	if (!MoveFileEx(to.c_str(), aside.c_str(), MOVEFILE_REPLACE_EXISTING)) {
+		DeleteFile(fresh.c_str());
+		return false;
+	} else if (!MoveFileEx(fresh.c_str(), to.c_str(), 0)) {
+		MoveFileEx(aside.c_str(), to.c_str(), 0);
+		DeleteFile(fresh.c_str());
+		return false;
+	}
+	MoveFileEx(aside.c_str(), nullptr, MOVEFILE_DELAY_UNTIL_REBOOT);
+	return true;
+}
+
 void fullClearPath(const wstring &dir) {
 	WCHAR path[4096];
 	memcpy(path, dir.c_str(), (dir.size() + 1) * sizeof(WCHAR));
@@ -363,19 +386,27 @@ bool update() {
 	for (size_t i = 0; i < from.size(); ++i) {
 		wstring fname = from[i], tofname = to[i];
 		BOOL copyResult;
+		auto movedAside = false;
 		do {
 			writeLog(L"Copying file '" + fname + L"' to '" + tofname + L"'..");
 			int copyTries = 0;
 			auto errorCode = DWORD(0);
 			do {
 				copyResult = CopyFile(fname.c_str(), tofname.c_str(), FALSE);
-				if (!copyResult) {
-					errorCode = GetLastError();
-					++copyTries;
-					Sleep(100);
-				} else {
+				if (copyResult) {
 					break;
 				}
+				errorCode = GetLastError();
+				if (errorCode == ERROR_SHARING_VIOLATION
+					&& !movedAside
+					&& ReplaceSharedFile(fname, tofname)) {
+					movedAside = true;
+					copyResult = TRUE;
+					writeLog(L"Replaced the shared target aside: " + tofname);
+					break;
+				}
+				++copyTries;
+				Sleep(100);
 			} while (copyTries < 100);
 			if (!copyResult) {
 				const auto error = FormatUpdateError(
@@ -642,6 +673,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	auto processArgumentsValid = true;
 
 	bool needupdate = false, autostart = false, debug = false, writeprotected = false, startintray = false;
+	bool justupdate = false, updated = false;
 	const auto args = CommandLineToArgvW(GetCommandLine(), &argsCount);
 	const auto argsGuard = std::unique_ptr<void, decltype(&LocalFree)>(
 		args,
@@ -666,6 +698,8 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 				}
 			} else if (equal(args[i], L"-autostart")) {
 				autostart = true;
+			} else if (equal(args[i], L"-justupdate")) {
+				justupdate = true;
 			} else if (equal(args[i], L"-debug")) {
 				debug = _debug = true;
 				openLog();
@@ -730,6 +764,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 					}
 				}
 				if (needupdate && update()) {
+					updated = true;
 					updateRegistry();
 				}
 				if (writeprotected) { // if we can't clear all tupdates\ready (Updater.exe is there) - clear only version
@@ -761,8 +796,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 	}
 	writeLog(L"Result arguments: " + targs);
 
-	bool executed = false;
-	if (writeprotected) { // run un-elevated
+	bool executed = justupdate;
+	if (justupdate) {
+		writeLog(L"Just updating, the parent relaunches..");
+	} else if (writeprotected) { // run un-elevated
 		writeLog(L"Trying to run un-elevated through the desktop shell..");
 
 		HRESULT hres = CoInitialize(0);
@@ -789,10 +826,10 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 			SW_SHOWNORMAL);
 	}
 
-	writeLog(L"Executed '" + exeName + L"', closing log and quitting..");
+	writeLog(L"Closing log and quitting..");
 	closeLog();
 
-	return 0;
+	return (needupdate && !updated) ? 1 : 0;
 }
 
 static const WCHAR *_programName = L"Telegram Desktop"; // folder in APPDATA, if current path is unavailable for writing

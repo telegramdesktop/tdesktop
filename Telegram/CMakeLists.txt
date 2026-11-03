@@ -1909,6 +1909,8 @@ PRIVATE
     platform/win/translate_provider_win.h
     platform/win/tray_win.cpp
     platform/win/tray_win.h
+    platform/win/update_install_win.cpp
+    platform/win/update_install_win.h
     platform/win/wallet_protection_win.cpp
     platform/win/wallet_protection_win.h
     platform/win/webauthn_win.cpp

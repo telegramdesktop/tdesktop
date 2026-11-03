@@ -40,6 +40,7 @@ using std::wstring;
 [[nodiscard]] DWORD FinishUpdateProcess(
 	DWORD processId,
 	ULONGLONG creationTime);
+[[nodiscard]] bool ReplaceSharedFile(const wstring &from, const wstring &to);
 
 extern LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter;
 LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers);

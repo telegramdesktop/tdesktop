@@ -67,22 +67,24 @@ FileHandle::operator bool() const {
 
 } // namespace
 
-bool UpdateDestinationWritable(const QString &bundlePath, QString &error) {
+UpdateInstallMode GetUpdateInstallMode(
+		const QString &executablePath,
+		QString &error) {
 #ifdef TDESKTOP_DISABLE_AUTOUPDATE
 	error = u"Automatic updates are disabled in this build."_q;
-	return false;
+	return UpdateInstallMode::Refused;
 #else // TDESKTOP_DISABLE_AUTOUPDATE
-	const auto contents = QFile::encodeName(bundlePath + u"/Contents"_q);
+	const auto contents = QFile::encodeName(executablePath + u"/Contents"_q);
 	const auto frameworks = contents + "/Frameworks";
 	struct stat info = {};
 	const auto target = lstat(frameworks.constData(), &info)
 		? contents
 		: frameworks;
 	if (WritableDirectory(target)) {
-		return true;
+		return UpdateInstallMode::Writable;
 	}
 	error = u"The application bundle is not writable for updating."_q;
-	return false;
+	return UpdateInstallMode::Refused;
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 

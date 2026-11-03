@@ -93,6 +93,85 @@ void TestErrors() {
 		"handle unavailable system error description");
 }
 
+void TestReplaceSharedFile() {
+	auto buffer = wstring(MAX_PATH + 1, L'\0');
+	const auto length = GetTempPath(DWORD(buffer.size()), buffer.data());
+	Check(length > 0 && length < buffer.size(), "resolve a temporary folder");
+	if (!length || length >= buffer.size()) {
+		return;
+	}
+	const auto base = buffer.substr(0, length)
+		+ L"TelegramUpdaterTest-"
+		+ std::to_wstring(GetCurrentProcessId());
+	const auto target = base + L".bin";
+	const auto source = base + L".new";
+	const auto aside = target + L".old";
+	const auto open = [](
+			const wstring &path,
+			DWORD access,
+			DWORD share,
+			DWORD disposition) {
+		const auto file = CreateFile(
+			path.c_str(),
+			access,
+			share,
+			nullptr,
+			disposition,
+			FILE_ATTRIBUTE_NORMAL,
+			nullptr);
+		return Handle(
+			(file == INVALID_HANDLE_VALUE) ? nullptr : file,
+			&CloseHandle);
+	};
+	const auto write = [&](const wstring &path, const char *data) {
+		const auto file = open(path, GENERIC_WRITE, 0, CREATE_ALWAYS);
+		auto written = DWORD(0);
+		return file
+			&& WriteFile(file.get(), data, 1, &written, nullptr)
+			&& written == 1;
+	};
+	const auto first = [&](const wstring &path) {
+		const auto file = open(
+			path,
+			GENERIC_READ,
+			FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+			OPEN_EXISTING);
+		auto byte = '\0';
+		auto read = DWORD(0);
+		return (file && ReadFile(file.get(), &byte, 1, &read, nullptr) && read)
+			? byte
+			: '\0';
+	};
+	Check(write(target, "a") && write(source, "b"), "create test files");
+	auto mapped = open(
+		target,
+		GENERIC_READ,
+		FILE_SHARE_READ | FILE_SHARE_DELETE,
+		OPEN_EXISTING);
+	Check(mapped != nullptr, "hold the target like a loaded image");
+	Check(
+		!CopyFile(source.c_str(), target.c_str(), FALSE)
+			&& GetLastError() == ERROR_SHARING_VIOLATION,
+		"a held target refuses the copy");
+	Check(ReplaceSharedFile(source, target), "replace a held target");
+	Check(first(target) == 'b', "the new content is in place");
+	Check(
+		GetFileAttributes(aside.c_str()) != INVALID_FILE_ATTRIBUTES,
+		"keep the moved-aside file");
+	mapped = nullptr;
+	auto locked = open(target, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
+	Check(locked != nullptr, "hold the target without delete sharing");
+	Check(!ReplaceSharedFile(source, target), "report an unmovable target");
+	Check(first(target) == 'b', "a failed replacement keeps the target");
+	Check(
+		GetFileAttributes((target + L".new").c_str()) == INVALID_FILE_ATTRIBUTES,
+		"a failed replacement leaves no copy behind");
+	locked = nullptr;
+	DeleteFile(target.c_str());
+	DeleteFile(source.c_str());
+	DeleteFile(aside.c_str());
+}
+
 void TestProcess(const wchar_t *executable, bool force, bool denyTermination) {
 	const auto eventName = L"Local\\TelegramUpdaterTest-"
 		+ std::to_wstring(GetCurrentProcessId())
@@ -215,6 +294,7 @@ int wmain(int argc, wchar_t *argv[]) {
 	}
 	TestArguments();
 	TestErrors();
+	TestReplaceSharedFile();
 	Check(
 		FinishUpdateProcess(0, 1) == ERROR_INVALID_PARAMETER,
 		"reject zero process id");
