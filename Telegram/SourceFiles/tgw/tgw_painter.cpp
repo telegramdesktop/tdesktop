@@ -40,6 +40,16 @@ constexpr auto kMaxMaskPixels = float64(1 << 20);
 constexpr auto kMaskMargin = 2;
 constexpr auto kMaxShadowBytes = int64(16 * 1024 * 1024);
 constexpr auto kMaxShadows = 128;
+constexpr auto kMaxShadowLayers = int64(1 << 12);
+constexpr auto kMaxShadowWork = int64(1 << 25);
+constexpr auto kShadowLayerWork = int64(1 << 14);
+constexpr auto kShadowRowWork = int64(96);
+constexpr auto kMaskPixelWork = int64(8);
+constexpr auto kCompositePixelWork = int64(3);
+constexpr auto kClippedShadowWork = int64(8);
+constexpr auto kContourReach = 1024.;
+constexpr auto kContourCellWork = int64(128);
+constexpr auto kShallowContourCells = 3.;
 constexpr auto kMaxPathElements = int64(1 << 18);
 constexpr auto kMaxPathEdges = int64(1 << 20);
 constexpr auto kMaxPathWork = int64(1 << 27);
@@ -289,8 +299,8 @@ private:
 		const ShadowSource &source,
 		const MaskLayout &layout,
 		QRgb color);
-	void fillShadow(const ShadowSource &source, QRgb color);
-	void clipShadow(const ShadowSource &source);
+	[[nodiscard]] bool fillShadow(const ShadowSource &source, QRgb color);
+	void clipShadow(const ShadowSource &source, const QRectF &ink);
 	[[nodiscard]] bool pushClip(const twlite::Command &command);
 	void popClip();
 	[[nodiscard]] bool pushGroup(const twlite::Command &command);
@@ -300,6 +310,12 @@ private:
 		float64 opacity,
 		const QRect &area);
 	[[nodiscard]] bool admitFilter(const FilterCost &cost, int64 bytes);
+	[[nodiscard]] bool chargeShadow(
+		const QRectF &area,
+		const QRectF &contour,
+		float64 contourCells,
+		int64 pixelWork,
+		int64 maskPixels);
 	[[nodiscard]] bool drawBackdrop(const twlite::Command &command);
 	void pushHidden();
 	void popGroup();
@@ -314,6 +330,8 @@ private:
 	[[nodiscard]] QPainter &painter() const;
 	[[nodiscard]] QPoint origin() const;
 	[[nodiscard]] QRectF bounded(const QRectF &rect) const;
+	[[nodiscard]] QRectF frameInk(const QRectF &rect) const;
+	[[nodiscard]] QPolygonF around(const QRectF &ink) const;
 	[[nodiscard]] QRectF limit() const;
 	[[nodiscard]] bool reachable(QPointF point) const;
 
@@ -327,7 +345,9 @@ private:
 	int64 _layerBytes = 0;
 	int64 _layerWork = 0;
 	int64 _filterWork = kMaxFilterWork;
+	int64 _shadowWork = kMaxShadowWork;
 	int _hidden = 0;
+	bool _pathClips = false;
 	bool _refused = false;
 	QString _exceeded;
 
@@ -622,6 +642,46 @@ private:
 	}
 	result.closeSubpath();
 	return result;
+}
+
+[[nodiscard]] bool WithinContourReach(
+		QSize device,
+		const QRectF &deviceBounds) {
+	const auto frame = QRectF(QPointF(), QSizeF(device));
+	return frame.adjusted(
+		-kContourReach,
+		-kContourReach,
+		kContourReach,
+		kContourReach).contains(deviceBounds);
+}
+
+// WHY: Qt flattens and rasterizes a whole contour on every layer, which
+// ContourCells() prices. Within the device + kContourReach it keeps its pixels;
+// past that Qt adds QPathClipper, so cut the exact curves first, a few elements.
+[[nodiscard]] QPainterPath NearRoundedPath(
+		const QRectF &rect,
+		const Corners &corners,
+		const QPainter &painter,
+		const QRectF &ink) {
+	const auto world = painter.combinedTransform();
+	const auto device = DeviceSize(painter);
+	auto result = RoundedPath(rect, corners);
+	if (WithinContourReach(device, world.mapRect(rect))) {
+		return result;
+	}
+	auto invertible = false;
+	const auto inverse = world.inverted(&invertible);
+	auto area = QPainterPath();
+	area.addRect(ink.adjusted(
+		-kInkMargin,
+		-kInkMargin,
+		kInkMargin,
+		kInkMargin));
+	result = world.map(result).intersected(area);
+	return (invertible
+		&& WithinContourReach(device, result.controlPointRect()))
+		? inverse.map(result)
+		: QPainterPath();
 }
 
 [[nodiscard]] QRectF SourceRect(
@@ -1397,6 +1457,46 @@ void DrawTextWithEmoji(
 		capped(reach.bottom())).intersected(frame);
 }
 
+[[nodiscard]] float64 ContourCells(
+		const QRectF &rect,
+		const Corners &corners,
+		const QTransform &world,
+		QSize device,
+		const QRectF &ink) {
+	const auto frame = QRectF(QPointF(), QSizeF(device));
+	const auto whole = WithinContourReach(device, world.mapRect(rect));
+	const auto bounds = whole ? DeviceInk(world, rect, frame) : ink;
+	const auto stretch = MaxStretch(world);
+	auto curved = 0.;
+	auto pieces = 0.;
+	for (const auto &corner : {
+			corners.topLeft,
+			corners.topRight,
+			corners.bottomRight,
+			corners.bottomLeft }) {
+		curved += (std::abs(world.m11()) + std::abs(world.m12())) * corner.x
+			+ (std::abs(world.m21()) + std::abs(world.m22())) * corner.y;
+		const auto radius = stretch * std::max(corner.x, corner.y);
+		pieces += std::min(
+			std::exp2(float64(kCurveLevels)),
+			2. * std::sqrt(whole
+				? radius
+				: std::min(radius, bounds.width() + bounds.height())));
+	}
+	const auto shallow = [](float64 across, float64 down) {
+		return down
+			? std::min(kRasterCells, std::abs(across / down))
+			: 0.;
+	};
+	const auto density = std::max(
+		shallow(world.m11(), world.m12()),
+		shallow(world.m21(), world.m22()));
+	const auto perimeter = 2. * (bounds.width() + bounds.height());
+	return pieces
+		+ (1. + kShallowContourCells * density / kRasterCells)
+			* (world.isRotating() ? perimeter : std::min(perimeter, curved));
+}
+
 [[nodiscard]] QRectF FilterInk(
 		const twlite::Command &command,
 		const QTransform &world,
@@ -1509,9 +1609,11 @@ void DrawTextWithEmoji(
 	p.translate(layout.padding, layout.padding);
 	p.scale(layout.scale, layout.scale);
 	p.fillPath(
-		RoundedPath(
+		NearRoundedPath(
 			QRectF(key.x, key.y, key.width, key.height),
-			key.corners),
+			key.corners,
+			p,
+			QRectF(result.rect())),
 		Qt::white);
 	p.end();
 	return ShadowFromCoverage(std::move(result), layout.radius, key.color);
@@ -2010,12 +2112,14 @@ Executor::Executor(
 bool Executor::run(const twlite::DisplayList &list) {
 	using Cmd = twlite::Cmd;
 	auto passes = int64();
+	auto layers = int64();
 	for (const auto &command : list) {
 		const auto vector = (command.kind == Cmd::Path)
 			|| (command.kind == Cmd::ClipPush);
 		const auto filter = (command.kind == Cmd::FilterPush)
 			|| (command.kind == Cmd::Backdrop);
 		if (vector && command.path) {
+			_pathClips |= (command.kind == Cmd::ClipPush);
 			const auto &path = *command.path;
 			if (!_allowance.chargeElements(int64(path.ops.size()))
 				|| !_allowance.chargeStops(StrokeStops(path))) {
@@ -2023,6 +2127,8 @@ bool Executor::run(const twlite::DisplayList &list) {
 			}
 		} else if (filter && command.filter && !command.filter->empty()) {
 			++passes;
+		} else if (command.kind == Cmd::Shadow) {
+			++layers;
 		}
 	}
 	if (passes > _filterWork / kFilterPassWork) {
@@ -2031,6 +2137,11 @@ bool Executor::run(const twlite::DisplayList &list) {
 			_filterWork / kFilterPassWork));
 	}
 	_filterWork -= passes * kFilterPassWork;
+	if (layers > kMaxShadowLayers) {
+		return exceed(PaintLimit(
+			u"%1 shadow layers in one frame"_q.arg(layers),
+			kMaxShadowLayers));
+	}
 	const auto device = _root.device();
 	_inks = GroupInks(
 		list,
@@ -2265,8 +2376,7 @@ bool Executor::drawShadow(const twlite::Command &command) {
 	if (source.shape.isEmpty() && !source.inset) {
 		return true;
 	} else if (blur == 0. || source.shape.isEmpty()) {
-		fillShadow(source, color);
-		return true;
+		return fillShadow(source, color);
 	}
 	const auto layout = ChooseMaskLayout(
 		source.area.size(),
@@ -2275,8 +2385,7 @@ bool Executor::drawShadow(const twlite::Command &command) {
 	if (!layout) {
 		return true;
 	} else if (layout->radius < 1) {
-		fillShadow(source, color);
-		return true;
+		return fillShadow(source, color);
 	}
 	return drawMask(source, *layout, color);
 }
@@ -2291,7 +2400,10 @@ bool Executor::drawMask(
 		source.area.topLeft() - QPointF(padding, padding),
 		QSizeF(layout.size) / layout.scale);
 	const auto visible = bounded(target);
-	if (visible.isEmpty()
+	const auto ink = frameInk(source.inset
+		? visible.intersected(source.box)
+		: visible);
+	if (ink.isEmpty()
 		|| (p.hasClipping() && !p.clipBoundingRect().intersects(visible))) {
 		return true;
 	}
@@ -2306,6 +2418,33 @@ bool Executor::drawMask(
 		.inset = source.inset,
 	};
 	auto image = Shadows().find(key);
+	const auto maskPixels = image.isNull()
+		? int64(layout.size.width()) * layout.size.height()
+		: int64();
+	auto cells = ContourCells(
+		source.box,
+		source.boxCorners,
+		p.combinedTransform(),
+		DeviceSize(p),
+		ink);
+	if (image.isNull()) {
+		cells += ContourCells(
+			QRectF(key.x, key.y, key.width, key.height),
+			key.corners,
+			QTransform::fromTranslate(layout.padding, layout.padding).scale(
+				layout.scale,
+				layout.scale),
+			layout.size,
+			QRectF(QPointF(), QSizeF(layout.size)));
+	}
+	if (!chargeShadow(
+			visible,
+			source.box,
+			cells,
+			kCompositePixelWork,
+			maskPixels)) {
+		return false;
+	}
 	if (image.isNull()) {
 		const auto bytes = BlurBytes(layout.size);
 		if (bytes > kMaxLayerBytes - _layerBytes) {
@@ -2320,40 +2459,68 @@ bool Executor::drawMask(
 		Shadows().insert(key, image);
 	}
 	p.save();
-	clipShadow(source);
+	clipShadow(source, ink);
 	p.drawImage(visible, image, SourceRect(layout.size, target, visible));
 	p.restore();
 	return true;
 }
 
-void Executor::fillShadow(const ShadowSource &source, QRgb color) {
+bool Executor::fillShadow(const ShadowSource &source, QRgb color) {
+	const auto drawn = source.inset ? source.box : source.area;
+	const auto ink = frameInk(drawn);
+	if (ink.isEmpty()) {
+		return true;
+	}
+	const auto shape = source.shape.translated(source.area.topLeft());
+	auto &p = painter();
+	const auto world = p.combinedTransform();
+	const auto device = DeviceSize(p);
+	auto cells = ContourCells(
+		shape,
+		source.shapeCorners,
+		world,
+		device,
+		ink);
+	cells += ContourCells(
+		source.box,
+		source.boxCorners,
+		world,
+		device,
+		ink);
+	if (!chargeShadow(
+			drawn,
+			source.inset ? shape : source.box,
+			cells,
+			1,
+			0)) {
+		return false;
+	}
 	auto path = source.shape.isEmpty()
 		? QPainterPath()
-		: RoundedPath(
-			source.shape.translated(source.area.topLeft()),
-			source.shapeCorners);
+		: NearRoundedPath(shape, source.shapeCorners, p, ink);
 	if (source.inset) {
-		path.addRect(limit());
+		path.addPolygon(around(ink));
 	}
 	path.setFillRule(Qt::OddEvenFill);
-	auto &p = painter();
 	p.save();
-	clipShadow(source);
+	clipShadow(source, ink);
 	p.fillPath(path, QColor::fromRgba(color));
 	p.restore();
+	return true;
 }
 
-void Executor::clipShadow(const ShadowSource &source) {
+void Executor::clipShadow(const ShadowSource &source, const QRectF &ink) {
 	if (source.inset && !Rounded(source.boxCorners)) {
 		clipToRect(source.box);
 		return;
 	}
-	auto path = RoundedPath(source.box, source.boxCorners);
+	auto &p = painter();
+	auto path = NearRoundedPath(source.box, source.boxCorners, p, ink);
 	if (!source.inset) {
-		path.addRect(limit());
+		path.addPolygon(around(ink));
 		path.setFillRule(Qt::OddEvenFill);
 	}
-	painter().setClipPath(path, Qt::IntersectClip);
+	p.setClipPath(path, Qt::IntersectClip);
 }
 
 bool Executor::drawBackdrop(const twlite::Command &command) {
@@ -2585,6 +2752,40 @@ bool Executor::admitFilter(const FilterCost &cost, int64 bytes) {
 	return true;
 }
 
+bool Executor::chargeShadow(
+		const QRectF &area,
+		const QRectF &contour,
+		float64 contourCells,
+		int64 pixelWork,
+		int64 maskPixels) {
+	const auto &p = painter();
+	const auto world = p.combinedTransform();
+	const auto ink = frameInk(area);
+	const auto covered = ink.isEmpty() ? QRect() : ink.toAlignedRect();
+	const auto pixels = int64(covered.width()) * covered.height();
+	const auto reached = WithinContourReach(
+			DeviceSize(p),
+			world.mapRect(contour))
+		? (ink | frameInk(contour)).toAlignedRect()
+		: covered;
+	const auto drawn = int64(reached.height()) * kShadowRowWork
+		+ pixels * pixelWork;
+	const auto cells = std::max(contourCells - kRasterCells, 0.);
+	// A clip path's spans slow every row and pixel the layer draws.
+	const auto work = kShadowLayerWork
+		+ drawn * (_pathClips ? kClippedShadowWork : 1)
+		+ int64(cells) * kContourCellWork
+		+ maskPixels * kMaskPixelWork;
+	if (work > _shadowWork) {
+		return exceed(PaintLimit(
+			u"shadow work of %1 units in one frame"_q.arg(
+				kMaxShadowWork - _shadowWork + work),
+			kMaxShadowWork));
+	}
+	_shadowWork -= work;
+	return true;
+}
+
 void Executor::pushHidden() {
 	++_hidden;
 	_stack.push_back({ .kind = EntryKind::Hidden });
@@ -2689,6 +2890,27 @@ QPoint Executor::origin() const {
 QRectF Executor::bounded(const QRectF &rect) const {
 	const auto area = limit();
 	return area.isEmpty() ? QRectF() : rect.intersected(area);
+}
+
+QRectF Executor::frameInk(const QRectF &rect) const {
+	const auto &p = painter();
+	return DeviceInk(
+		p.combinedTransform(),
+		rect,
+		QRectF(QPointF(), QSizeF(DeviceSize(p))));
+}
+
+// A polygon: a local bounding rect explodes under a near-singular matrix.
+QPolygonF Executor::around(const QRectF &ink) const {
+	auto invertible = false;
+	const auto inverse = painter().combinedTransform().inverted(&invertible);
+	return invertible
+		? inverse.map(QPolygonF(ink.adjusted(
+			-kInkMargin,
+			-kInkMargin,
+			kInkMargin,
+			kInkMargin)))
+		: QPolygonF();
 }
 
 QRectF Executor::limit() const {
