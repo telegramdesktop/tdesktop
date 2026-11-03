@@ -2648,6 +2648,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_created_channel" = "Channel created";
 "lng_action_pinned_message" = "{from} pinned \"{text}\"";
 "lng_action_pinned_media" = "{from} pinned {media}";
+"lng_action_pinned_deleted" = "{from} pinned a deleted message";
 "lng_action_pinned_media_photo" = "a photo";
 "lng_action_pinned_media_video" = "a video";
 "lng_action_pinned_media_audio" = "an audio file";
@@ -2902,6 +2903,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_todo_tasks_fallback#other" = "{count} tasks";
 "lng_action_todo_tasks_and_one" = "{tasks}, {task}";
 "lng_action_todo_tasks_and_last" = "{tasks} and {task}";
+"lng_action_todo_task_quote" = "\"{task}\"";
 "lng_action_suggest_success_stars#one" = "{from} has received {count} Star for publishing post.";
 "lng_action_suggest_success_stars#other" = "{from} has received {count} Stars for publishing post.";
 "lng_action_suggest_success_ton#one" = "{from} has received {count} Gram for publishing post.";

@@ -8646,12 +8646,10 @@ PreparedServiceText HistoryItem::preparePinnedText() {
 			tr::marked);
 	} else {
 		result.links.push_back(fromLink());
-		result.text = tr::lng_action_pinned_media(
+		result.text = tr::lng_action_pinned_deleted(
 			tr::now,
 			lt_from,
 			fromLinkText(), // Link 1.
-			lt_media,
-			{ .text = tr::lng_deleted_message(tr::now) },
 			tr::marked);
 	}
 	return result;
