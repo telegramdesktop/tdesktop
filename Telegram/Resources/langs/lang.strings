@@ -122,6 +122,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_years_tiny#one" = "{count}y";
 "lng_years_tiny#other" = "{count}y";
 
+"lng_hours_badge#one" = "{count}h";
+"lng_hours_badge#other" = "{count}h";
+"lng_days_badge#one" = "{count}d";
+"lng_days_badge#other" = "{count}d";
+"lng_weeks_badge#one" = "{count}w";
+"lng_weeks_badge#other" = "{count}w";
+"lng_months_badge#one" = "{count}m";
+"lng_months_badge#other" = "{count}m";
+"lng_years_badge#one" = "{count}y";
+"lng_years_badge#other" = "{count}y";
+
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";
 "lng_box_yes" = "Yes";

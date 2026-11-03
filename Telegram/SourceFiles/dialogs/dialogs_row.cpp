@@ -198,7 +198,7 @@ constexpr auto kBlurRadius = 24;
 
 	const auto innerRect = QRect(QPoint(), partRect.size())
 		- st::dialogsTTLBadgeInnerMargins;
-	const auto ttlText = Ui::FormatTTLTiny(ttl);
+	const auto ttlText = Ui::FormatTTLBadge(ttl);
 
 	Ui::PaintTimerIcon(q, innerRect, ttlText, st::premiumButtonFg->c);
 

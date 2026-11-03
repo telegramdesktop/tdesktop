@@ -676,6 +676,23 @@ QString FormatTTLTiny(float64 ttl) {
 		: QString();
 }
 
+QString FormatTTLBadge(float64 ttl) {
+	return (ttl <= 3600 * 9)
+		? tr::lng_hours_badge(tr::now, lt_count, int(ttl / 3600))
+		: (ttl <= (86400) * 6)
+		? tr::lng_days_badge(tr::now, lt_count, int(ttl / (86400)))
+		: (ttl <= (86400 * 7) * 3)
+		? tr::lng_weeks_badge(tr::now, lt_count, int(ttl / (86400 * 7)))
+		: (ttl <= (86400 * 31) * 11)
+		? tr::lng_months_badge(tr::now, lt_count, int(ttl / (86400 * 31)))
+		: (ttl <= 86400 * 366)
+		? tr::lng_years_badge(
+			tr::now,
+			lt_count,
+			std::round(ttl / (86400 * 365)))
+		: QString();
+}
+
 QString FormatMuteFor(float64 sec) {
 	return (sec <= 60)
 		? tr::lng_seconds(tr::now, lt_count, sec)
