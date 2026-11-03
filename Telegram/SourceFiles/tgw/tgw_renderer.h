@@ -206,6 +206,7 @@ private:
 	base::Timer _wake;
 	base::Timer _heldTimer;
 	std::optional<Held> _held;
+	crl::time _recentReplyUntil = 0;
 	QImage _frame;
 	QSize _frameSize;
 	QSize _frameArea;
@@ -232,6 +233,7 @@ private:
 	bool _stopFatal = false;
 	bool _onScreen = false;
 	bool _frameRequested = false;
+	bool _idleRequest = false;
 	bool _stepBusy = false;
 
 };

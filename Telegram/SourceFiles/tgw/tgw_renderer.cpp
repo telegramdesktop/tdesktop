@@ -64,6 +64,8 @@ constexpr auto kMinWakeDelay = crl::time(1);
 constexpr auto kMaxWakeDelay = crl::time(std::numeric_limits<int>::max());
 // Mirrors lib_ui's private kAnimationTick, the cadence every clock runs at.
 constexpr auto kHeldTick = crl::time(1000) / st::universalDuration;
+// A request this soon after a reply may continue a frame loop.
+constexpr auto kRecentReply = crl::time(1000);
 constexpr auto kTouchDown = 0;
 constexpr auto kTouchMove = 1;
 constexpr auto kTouchUp = 2;
@@ -1004,9 +1006,14 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 	if (_stopped) {
 		return;
 	} else if (type == "requestFrame") {
-		if (_held) {
-			dropHeld();
-			_clock.stop();
+		if (!_frameRequested) {
+			_idleRequest = canTick()
+				&& !_clock.animating()
+				&& (crl::now() >= _recentReplyUntil);
+			if (_held) {
+				dropHeld();
+				_clock.stop();
+			}
 		}
 		_frameRequested = true;
 		refreshClock();
@@ -1024,8 +1031,8 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 	const auto wasDirty = _renderer->dirty();
 	const auto quiet = (type == "ops")
 		&& canTick()
-		&& !_clock.animating()
-		&& !_frameRequested
+		&& !_held
+		&& (_frameRequested ? _idleRequest : !_clock.animating())
 		&& !_renderer->wants_tick();
 	const auto builds = _renderer->stats().builds;
 	_backend->beginCanvasBatch();
@@ -1056,9 +1063,9 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
 	}
-	// WHY: a clock started for the held part of a flush first ticks on the
-	// next event-loop turn, building it before the later parts arrive and
-	// laying the document out twice, so held work waits one cadence tick.
+	// WHY: a clock started for the held part of a flush, or by a request
+	// pending at it, first ticks next turn and builds it before the later
+	// parts arrive, laying out twice, so held work waits one cadence tick.
 	if (quiet
 		&& (_renderer->stats().builds == builds)
 		&& _renderer->wants_tick()) {
@@ -1266,11 +1273,12 @@ void RendererCore::dropHeld() {
 	}
 	_held = std::nullopt;
 	_heldTimer.cancel();
+	_idleRequest = false;
 }
 
 void RendererCore::releaseHeld() {
 	dropHeld();
-	_stepBusy = false;
+	_stepBusy = _frameRequested;
 	if (clockWanted()) {
 		tick();
 	}
@@ -1310,6 +1318,7 @@ void RendererCore::tick() {
 	auto changes = forwardAll(_renderer->tick());
 	if (base::take(_frameRequested)) {
 		forward(FrameMessage());
+		_recentReplyUntil = crl::now() + kRecentReply;
 	}
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
