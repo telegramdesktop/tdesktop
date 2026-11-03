@@ -1065,6 +1065,12 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		_held = Held{ .since = crl::now(), .builds = builds };
 		_heldTimer.callOnce(kHeldTick);
 	}
+	// A paint before the release would only redraw the cached picture.
+	if (_held
+		&& (_held->builds == _renderer->stats().builds)
+		&& !_renderer->dirty()) {
+		changes &= ~Change::Repaint;
+	}
 	finish(out, changes);
 }
 
@@ -1247,6 +1253,17 @@ void RendererCore::scheduleWake() {
 }
 
 void RendererCore::dropHeld() {
+	// A reader that built the held work asked for no repaint of its own.
+	if (_held
+		&& canTick()
+		&& (_held->builds != _renderer->stats().builds)
+		&& _renderer->dirty()) {
+		crl::on_main(this, [=] {
+			if (canTick() && _renderer->dirty()) {
+				_updates.fire(Change::Repaint);
+			}
+		});
+	}
 	_held = std::nullopt;
 	_heldTimer.cancel();
 }
