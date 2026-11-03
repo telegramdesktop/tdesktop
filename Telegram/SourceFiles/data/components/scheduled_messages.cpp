@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "data/data_forum_topic.h"
+#include "data/data_messages.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "api/api_hash.h"
