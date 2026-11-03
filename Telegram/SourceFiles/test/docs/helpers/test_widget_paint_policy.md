@@ -164,12 +164,14 @@ the row of case 16, "the first verdict sticks", to failing; its
 those rows test the mirror and the glue's encoding, not the host's parser,
 whichever caller runs them.
 
-Not yet executed: the retained conformance caller. The pre-review Debug
-build of `2026/11/02/report-the-desktop-conformance-at-widget-sandbox-v0-6-0`
-is to compile and link it, and that task's `v0.6.0` campaign on a Release
-build without LTO, with the harness, is to run these rows in every launch's
-first stage, and the one failed read row in a launch on a package copy
-without the sibling fixture; its evidence records what ran.
+The retained conformance caller compiled and linked into the macOS Debug
+Telegram build of
+`2026/11/02/report-the-desktop-conformance-at-widget-sandbox-v0-6-0`, and
+that task's `v0.6.0` campaign on a Release build without LTO, with the
+harness, ran these rows in the first stage of each of its eight launches:
+all 93 passed on the `v0.6.0` bytes every time (`LC_NUMERIC=en_US.UTF-8`).
+A launch on a package copy without the sibling fixture gave the one failed
+read row and no other; its `work/test.md` (Test 3) records both.
 
 ## Related guidance
 

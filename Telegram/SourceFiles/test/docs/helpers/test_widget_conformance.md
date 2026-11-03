@@ -1215,15 +1215,20 @@ which `report.mjs` turned into the report. Its `work/test.md` records the
 commands and readings and its `work/discrepancies-v0.5.0.md` the per-ID
 report; the smoke above was pre-review validation, not campaign evidence.
 
-Not yet executed: the paint-policy read of
-`test_widget_conformance_paint_policy.{h,cpp}` and its first-stage call,
-added by `2026/11/02/report-the-desktop-conformance-at-widget-sandbox-v0-6-0`.
-That task's pre-review Debug build is to compile and link them, and its
-`v0.6.0` campaign on a Release build without LTO, with the harness, is to
-run them in every launch's first stage, with one launch on a package copy
-without the sibling fixture as the read failure's negative control; its
-evidence records what ran. Until then this page claims no run of the
-paint-policy rows through this pack.
+Executed for the `v0.6.0` adaptation (the paint-policy read of
+`test_widget_conformance_paint_policy.{h,cpp}` and its first-stage call),
+by `2026/11/02/report-the-desktop-conformance-at-widget-sandbox-v0-6-0`:
+the macOS arm64 Debug `Telegram` build compiled and linked them, and its
+`v0.6.0` campaign on the Release build without LTO, with the harness, ran
+them in the first stage of every launch: all 93 rows (92 entries and the
+coverage row) of the pin's `paint-policy.json` passed in each of its
+eight launches (the four merged into the report and the four they
+replaced), and one launch on a package copy without the
+sibling `core/` failed only the read row, "the fixture file was read"
+(`No such file or directory`), which `selfCheck.failed` named. Its merged
+run file holds 184 runs (133 auto and 51 visual); its `work/test.md`
+records the commands and readings and its `work/discrepancies-v0.6.0.md`
+the per-ID report.
 
 The [desktop stop](#preconditions-and-limits) reading of
 `test_widget_conformance_stop.{h,cpp}`, its `RecordLog()` call, the
