@@ -107,8 +107,8 @@ QString SizeLimitText(int64 limit) {
 	const auto mb = (limit / (1024 * 1024));
 	const auto gb = (mb / 1024);
 	return (gb > 0)
-		? (QString::number(gb) + " GB")
-		: (QString::number(mb) + " MB");
+		? (QString::number(gb) + ' ' + tr::lng_size_gigabytes(tr::now))
+		: (QString::number(mb) + ' ' + tr::lng_size_megabytes(tr::now));
 }
 
 size_type TimeLimitInDays(int index) {
@@ -283,9 +283,10 @@ not_null<Ui::SlideWrap<Ui::VerticalLayout>*> AddIslandWrap(
 	}
 	const auto tenthGb = size * 10 / kGigabyte;
 	return QString::number(tenthGb / 10)
-		+ '.'
+		+ QLocale().decimalPoint()
 		+ QString::number(tenthGb % 10)
-		+ u" GB"_q;
+		+ ' '
+		+ tr::lng_size_gigabytes(tr::now);
 }
 
 class CompleteParticles final {
@@ -958,7 +959,7 @@ void LocalStorage::Chart::paintEvent(QPaintEvent *e) {
 
 	const auto number = QString::number(
 		(_total + kMegabyte - 1) / kMegabyte);
-	const auto unit = u"MB"_q;
+	const auto unit = tr::lng_size_megabytes(tr::now);
 	const auto sizeFont = st::localStorageChartSizeFont;
 	const auto unitFont = st::localStorageChartUnitFont;
 	const auto blockHeight = sizeFont->height + unitFont->height;

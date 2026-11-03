@@ -133,6 +133,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_years_badge#one" = "{count}y";
 "lng_years_badge#other" = "{count}y";
 
+"lng_size_bytes" = "B";
+"lng_size_kilobytes" = "KB";
+"lng_size_megabytes" = "MB";
+"lng_size_gigabytes" = "GB";
+
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";
 "lng_box_yes" = "Yes";
