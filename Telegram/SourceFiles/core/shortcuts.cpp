@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_possible_keys.h"
 #include "core/application.h"
 #include "core/version.h"
+#include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "window/window_controller.h"
@@ -1112,7 +1113,28 @@ bool AllowWithoutModifiers(int key) {
 }
 
 QString ToDisplayString(const QKeySequence &sequence) {
-	auto result = sequence.toString();
+	static const auto names = QRegularExpression(
+		u"(?<=^|[+ ])(Up|Down|Left|Right|Space)(?=$|[+,])"_q);
+	auto result = QString();
+	const auto text = sequence.toString();
+	auto from = 0;
+	auto matches = names.globalMatch(text);
+	while (matches.hasNext()) {
+		const auto match = matches.next();
+		const auto name = match.capturedView(1);
+		result += QStringView(text).mid(from, match.capturedStart() - from);
+		result += (name == u"Up"_q)
+			? QString(QChar(0x2191))
+			: (name == u"Down"_q)
+			? QString(QChar(0x2193))
+			: (name == u"Left"_q)
+			? QString(QChar(0x2190))
+			: (name == u"Right"_q)
+			? QString(QChar(0x2192))
+			: tr::lng_keys_legend_space(tr::now);
+		from = match.capturedEnd();
+	}
+	result += QStringView(text).mid(from);
 	if (!Platform::IsMac()) {
 		return result;
 	}
