@@ -96,6 +96,7 @@ private:
 	Dialogs::MainList _chatsList;
 
 	QString _name;
+	int _nameVersion = 1;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
 
