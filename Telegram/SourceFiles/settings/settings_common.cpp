@@ -463,6 +463,7 @@ object_ptr<Button> CreateButtonWithIcon(
 		IconDescriptor &&descriptor) {
 	auto result = object_ptr<Button>(parent, std::move(text), st);
 	const auto button = result.data();
+	button->setAllowTextLines();
 	if (descriptor) {
 		AddButtonIcon(button, st, std::move(descriptor));
 	}
@@ -492,41 +493,55 @@ void CreateRightLabel(
 		button.get(),
 		st.rightLabel);
 	name->show();
+	const auto layout = [=, &st](const QString &buttonText) {
+		const auto full = button->width()
+			- st.padding.left()
+			- st.padding.right()
+			- st::settingsButtonRightSkip;
+		const auto textWidth = st.style.font->width(buttonText);
+		const auto natural = name->textMaxWidth();
+
+		// WHY: the value is never cut for a long label: the label wraps
+		// instead (when the button allows it), and only a value wider
+		// than half of the row gets elided.
+		name->resizeToNaturalWidth((textWidth + natural <= full)
+			? natural
+			: std::max(full - textWidth, full / 2));
+		auto padding = st.padding;
+		padding.setRight(padding.right()
+			+ st::settingsButtonRightSkip
+			+ name->width());
+		button->setPaddingOverride(padding);
+		const auto single = st.padding.top()
+			+ st.height
+			+ st.padding.bottom();
+		name->moveToRight(
+			st::settingsButtonRightSkip,
+			st.padding.top() + (button->height() - single) / 2);
+	};
 	if (v::text::is_plain(label)) {
 		rpl::combine(
-			button->widthValue(),
+			button->sizeValue(),
 			std::move(buttonText),
 			v::text::take_plain(std::move(label))
-		) | rpl::on_next([=, &st](
-				int width,
+		) | rpl::on_next([=](
+				QSize,
 				const QString &button,
 				const QString &text) {
-			const auto available = width
-				- st.padding.left()
-				- st.padding.right()
-				- st.style.font->width(button)
-				- st::settingsButtonRightSkip;
 			name->setText(text);
-			name->resizeToNaturalWidth(available);
-			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+			layout(button);
 		}, name->lifetime());
 	} else if (v::text::is_marked(label)) {
 		rpl::combine(
-			button->widthValue(),
+			button->sizeValue(),
 			std::move(buttonText),
 			v::text::take_marked(std::move(label))
-		) | rpl::on_next([=, &st](
-				int width,
+		) | rpl::on_next([=](
+				QSize,
 				const QString &button,
 				const TextWithEntities &text) {
-			const auto available = width
-				- st.padding.left()
-				- st.padding.right()
-				- st.style.font->width(button)
-				- st::settingsButtonRightSkip;
 			name->setMarkedText(text, context);
-			name->resizeToNaturalWidth(available);
-			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+			layout(button);
 		}, name->lifetime());
 	}
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);

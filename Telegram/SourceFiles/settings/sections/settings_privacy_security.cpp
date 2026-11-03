@@ -383,6 +383,7 @@ void OpenFileConfirmationsBox(not_null<Ui::GenericBox*> box) {
 		tr::lng_settings_edit_ip_confirm(),
 		st::settingsButtonNoIcon
 	))->toggleOn(rpl::single(settings->ipRevealWarning()));
+	ip->setAllowTextLines();
 	Ui::AddSkip(layout);
 	Ui::AddDividerText(layout, tr::lng_settings_edit_ip_confirm_about());
 
