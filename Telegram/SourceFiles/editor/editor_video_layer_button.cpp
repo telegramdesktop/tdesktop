@@ -14,10 +14,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_editor.h"
 #include "ui/ui_utility.h"
 
+#include <QtGui/QPainterPath>
+
 namespace Editor {
 namespace {
 
 constexpr auto kTooltipDelay = crl::time(1000);
+constexpr auto kBadgeHaloTopLeft = QPointF(12., 11.);
+constexpr auto kBadgeHaloSide = 15.;
+constexpr auto kIconViewBoxSide = 24.;
 
 } // namespace
 
@@ -98,18 +103,41 @@ void VideoLayerButton::paintEvent(QPaintEvent *e) {
 			{ ring / 2., ring / 2., ring / 2., ring / 2. }));
 		p.setPen(Qt::NoPen);
 	}
-	const auto &lockedIcon = isOver()
-		? st::photoEditorVideoLayerIconOver
-		: st::photoEditorVideoLayerIcon;
+	const auto &body = isOver()
+		? st::photoEditorVideoLayerIconBodyOver
+		: st::photoEditorVideoLayerIconBody;
+	const auto &badge = isOver()
+		? st::photoEditorVideoLayerIconBadgeOver
+		: st::photoEditorVideoLayerIconBadge;
 	const auto &activeIcon = st::photoEditorVideoLayerIconActive;
 
+	const auto paintLocked = [&](float64 opacity) {
+		const auto factor = body.width() / kIconViewBoxSide;
+		auto excluded = QPainterPath();
+		excluded.addRect(rect());
+		auto halo = QPainterPath();
+		halo.addEllipse(QRectF(
+			QPointF(
+				(rect().width() - body.width()) / 2.,
+				(rect().height() - body.height()) / 2.)
+				+ kBadgeHaloTopLeft * factor,
+			QSizeF(kBadgeHaloSide, kBadgeHaloSide) * factor));
+		p.save();
+		p.setOpacity(opacity);
+		p.setClipPath(excluded.subtracted(halo));
+		body.paintInCenter(p, rect());
+		p.restore();
+		p.setOpacity(opacity);
+		badge.paintInCenter(p, rect());
+		p.setOpacity(1.);
+	};
+
 	if (activeProgress <= 0.) {
-		lockedIcon.paintInCenter(p, rect());
+		paintLocked(1.);
 	} else if (activeProgress >= 1.) {
 		activeIcon.paintInCenter(p, rect());
 	} else {
-		p.setOpacity(1. - activeProgress);
-		lockedIcon.paintInCenter(p, rect());
+		paintLocked(1. - activeProgress);
 		p.setOpacity(activeProgress);
 		activeIcon.paintInCenter(p, rect());
 		p.setOpacity(1.);

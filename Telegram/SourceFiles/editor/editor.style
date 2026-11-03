@@ -260,8 +260,10 @@ photoEditorAudioDiscRing: 2px;
 photoEditorAudioDiscRingFg: mediaviewControlFg;
 photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButtonIconFg }};
 photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
-photoEditorVideoLayerIcon: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFg }};
-photoEditorVideoLayerIconOver: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFgOver }};
+photoEditorVideoLayerIconBody: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFg }};
+photoEditorVideoLayerIconBodyOver: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFgOver }};
+photoEditorVideoLayerIconBadge: icon {{ "photo_editor/video_locked_badge-24x24", photoEditorButtonIconFg }};
+photoEditorVideoLayerIconBadgeOver: icon {{ "photo_editor/video_locked_badge-24x24", photoEditorButtonIconFgOver }};
 photoEditorVideoLayerIconActive: icon {{ "photo_editor/video_unlocked-24x24", photoEditorButtonIconFgActive }};
 photoEditorMenuDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 photoEditorMediaMenu: PopupMenu(photoEditorCropRatioMenu) {
