@@ -679,6 +679,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_languages" = "Language";
 "lng_languages_none" = "No languages found.";
+"lng_languages_custom" = "Custom lang pack";
 "lng_languages_count#one" = "{count} language";
 "lng_languages_count#other" = "{count} languages";
 "lng_sure_save_language" = "Telegram will restart in order to change the language";

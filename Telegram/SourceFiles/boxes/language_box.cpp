@@ -277,8 +277,8 @@ std::pair<Languages, Languages> PrepareLists() {
 	if (recent.empty() || recent.front().id != current) {
 		if (ranges::find(official, current, projId) == end(official)) {
 			const auto generate = [&] {
-				const auto name = (current == "#custom")
-					? "Custom lang pack"
+				const auto name = (current == Lang::CustomLanguageId())
+					? tr::lng_languages_custom(tr::now)
 					: Lang::GetInstance().name();
 				return Language{
 					current,
