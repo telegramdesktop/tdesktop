@@ -19,9 +19,16 @@ widget-sandbox's `packages/core/tests/unit/paint-policy.test.ts` and
 twidget's `Tests/TwidgetCoreTests/paint_policy_tests.cpp` run upstream;
 Telegram builds neither of them.
 
-Callers: the evidence overlay of
+Callers: the conformance pack's first stage, the retained caller
+([test_widget_conformance](test_widget_conformance.md#verification)). Its
+`RunPaintPolicyFixture()` of `test_widget_conformance_paint_policy.cpp`
+reads the fixture at the cleaned path of
+`../core/tests/fixtures/paint-policy.json` relative to the pack's
+`package`, so every launch of the pack runs it on its pin's bytes, and
+takes each row as one Check; a fixture it cannot open or read gives one
+failed row instead. The evidence overlay of
 `2026/11/02/stop-widgets-past-the-heavy-box-limit-with-a-v0-6-0-twidgetcore`,
-which added it. A later pin move runs it again on its tag's bytes.
+which added it, was its first caller.
 
 Use something else when the question is what a live widget does: whether
 its renderer reported, whether its host stopped it, which picture it kept.
@@ -34,8 +41,8 @@ renderer, host or widget.
 
 - **Pure.** Synchronous, on any thread; it needs no `Test::Active()`,
   session, window or file. The caller reads the fixture bytes, normally from
-  the pinned `Telegram/ThirdParty/widget-sandbox` submodule, keeps them and
-  records which file and revision it read.
+  the pinned `Telegram/ThirdParty/widget-sandbox` submodule, and keeps them;
+  which file and revision it read is the caller's evidence to record.
 - **Harness builds only.** Defined in Debug and in
   `TDESKTOP_RELEASE_TEST_HARNESS` builds; a build without the harness leaves
   it undefined.
@@ -149,11 +156,20 @@ the named rows for four mutated copies: a later check's `stop` set to `null`
 in "the first verdict sticks" (that case alone), a later check's `heavy`
 changed in "a theme change recomputes every box" (that case alone), an
 unknown step kind with an unknown top-level key and `reports` removed (case
-1 and the coverage row), and unparsable bytes (the coverage row alone). Its
-run in the app on the `v0.6.0` bytes, with a mutated copy as the negative
-control, is that task's evidence and recorded there. The `reports` limit
-above stays: those rows test the mirror and the glue's encoding, not the
-host's parser.
+1 and the coverage row), and unparsable bytes (the coverage row alone). In
+that task's Debug app, its overlay's stage passed all 93 rows on the
+`v0.6.0` bytes (`LC_NUMERIC=en_US.UTF-8`), and a mutated copy changed only
+the row of case 16, "the first verdict sticks", to failing; its
+`work/test.md` (Test 4) records both. The `reports` limit above stays:
+those rows test the mirror and the glue's encoding, not the host's parser,
+whichever caller runs them.
+
+Not yet executed: the retained conformance caller. The pre-review Debug
+build of `2026/11/02/report-the-desktop-conformance-at-widget-sandbox-v0-6-0`
+is to compile and link it, and that task's `v0.6.0` campaign on a Release
+build without LTO, with the harness, is to run these rows in every launch's
+first stage, and the one failed read row in a launch on a package copy
+without the sibling fixture; its evidence records what ran.
 
 ## Related guidance
 
@@ -161,4 +177,5 @@ host's parser.
 `RunWidgetConformanceProbeCheck()`, the precedent for a shared-fixture
 check); [test_widget_host](test_widget_host.md) (host diagnostics and
 death); [test_widget_conformance](test_widget_conformance.md) (the
-`auto/37` to `auto/43` widgets through the chat list).
+retained caller, and the `auto/37` to `auto/43` widgets through the chat
+list).

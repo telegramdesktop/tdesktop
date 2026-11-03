@@ -66,7 +66,12 @@ struct WidgetConformanceArgs {
 // Appends the runner, after an overlay's session and chats-loaded waits.
 // During the call it only reads manifest.json, probe-fixture.json and the
 // selected tests' HTML from |package|, selects the runs and registers its
-// stages and its Runner::onFinish release. The runs: for each selected
+// stages and its Runner::onFinish release. Its first stage, the
+// self-check, later reads one file of the same pin outside |package|,
+// its sibling ../core/tests/fixtures/paint-policy.json, and makes each
+// row of RunWidgetPaintPolicyCheck() (test_widget_paint_policy.h) on its
+// bytes one Check; a missing or unreadable fixture is one failed Check
+// of that stage, which skips no run. The runs: for each selected
 // theme, light first, every selected manifest entry in manifest order, at
 // 390 CSS px. An auto entry runs in both themes whatever its manifest
 // themes, except the dark start of auto/20-client-behaviour and an entry

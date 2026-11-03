@@ -2207,6 +2207,8 @@ PRIVATE
     test/test_widget_conformance_hosts.h
     test/test_widget_conformance_input.cpp
     test/test_widget_conformance_input.h
+    test/test_widget_conformance_paint_policy.cpp
+    test/test_widget_conformance_paint_policy.h
     test/test_widget_conformance_pictures.cpp
     test/test_widget_conformance_pictures.h
     test/test_widget_conformance_state.h

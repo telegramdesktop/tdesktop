@@ -17,6 +17,8 @@ Internal to it, documented below:
 [test_widget_conformance_hosts.h](../../test_widget_conformance_hosts.h)
 ([the content safe area](#readings-and-refusals) and the host reading
 control of [verification](#verification)),
+[test_widget_conformance_paint_policy.h](../../test_widget_conformance_paint_policy.h)
+(the paint-policy fixture's read for [verification](#verification)),
 [test_widget_conformance_pictures.h](../../test_widget_conformance_pictures.h)
 ([pictures](#pictures)) and
 [test_widget_conformance_stop.h](../../test_widget_conformance_stop.h)
@@ -49,7 +51,9 @@ and reruns of it at a widget-sandbox or twidget pin move, such as
 `2026/10/26/report-the-desktop-conformance-at-widget-sandbox-v0-2-2` at
 `v0.2.3` and
 `2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`
-at `v0.5.0`, on a Release build without LTO.
+at `v0.5.0` and
+`2026/11/02/report-the-desktop-conformance-at-widget-sandbox-v0-6-0` at
+`v0.6.0`, on a Release build without LTO.
 
 Use something else when:
 
@@ -120,7 +124,11 @@ Use something else when:
   `manifest.json`, `probe-fixture.json` and each selected entry's HTML, and
   nothing else; `refs/`, `catalogue.json`, `run.schema.json` and `tools/`
   are the report's. A missing or invalid manifest or probe fixture refuses
-  every run by name before anything is injected. A selected entry that is
+  every run by name before anything is injected. The first stage reads one
+  more file of the same pin, outside the package: its sibling
+  `../core/tests/fixtures/paint-policy.json`, for the paint-policy rows of
+  [verification](#verification); a missing or unreadable one fails one
+  Check of that stage and refuses no run. A selected entry that is
   malformed (no id, set, file or light/dark themes, `widths` without 390,
   actions that are not objects, a host check that is not an object with an
   id, a stage without a name, themes or a rect in whole CSS px, a `message`
@@ -134,9 +142,9 @@ Use something else when:
   the tag and the twidget pin, and an empty one fails a Check.
 - **The matrix.** The task's matrix is every auto entry in both themes,
   whatever its manifest `themes`, at 390 CSS px, and every visual entry only
-  in its manifest themes. At `v0.5.0` that is 60 auto and 47 visual entries
-  (21 visual and 26 client SDK): 120 requested auto runs. Three runs are
-  omitted in every launch (`elsewhere` false). One is
+  in its manifest themes. At `v0.6.0` that is 115 entries, 68 auto and 47
+  visual (21 visual and 26 client SDK): 136 requested auto runs. Three runs
+  are omitted in every launch (`elsewhere` false). One is
   `auto/20-client-behaviour` in dark, while its manifest entry still gives
   the reason - its id, `themes: ["light"]` and a first action switching the
   chat to dark. Its scenario starts in light and switches dark and back
@@ -147,14 +155,15 @@ Use something else when:
   `auto/26-context-preview` in both themes, whose message is a preview the
   desktop does not build ([message contexts](#message-contexts)). The run
   file's `omittedRuns` and `notes` state each omission, its reason and that
-  a file with every other auto run has 117 auto runs, not the 120 of the
-  requested 60 x 2: a departure from that criterion, never to be reported as
+  a file with every other auto run has 133 auto runs, not the 136 of the
+  requested 68 x 2: a departure from that criterion, never to be reported as
   meeting it without this reconciliation; `matrix.permanentAutoOmissions`
-  and `matrix.fullAutoRuns` count the same from the manifest. 56 of the 58
-  dark auto runs are of light-only entries; they go beyond `CLIENTS.md`'s
-  loop over each entry's own themes (62 auto runs at `v0.5.0`), `report.mjs`
-  counts their checks and skips their stages by each stage's own themes,
-  and `matrix.extraDark` and a note say so. The visual set gives 47 light
+  and `matrix.fullAutoRuns` count the same from the manifest. The 133 are
+  67 light and 66 dark runs, and 64 of the 66 dark ones are of light-only
+  entries; they go beyond `CLIENTS.md`'s loop over each entry's own themes
+  (70 auto runs at `v0.6.0`), `report.mjs` counts their checks and skips
+  their stages by each stage's own themes, and `matrix.extraDark` and a
+  note say so. The visual set gives 47 light
   and 4 dark runs, 51 visual runs. A run the launch's chat cannot host is
   omitted from that launch only, `elsewhere` true, and subtracts nothing
   from the matrix; a note states the launch's share for its selection
@@ -193,15 +202,17 @@ Use something else when:
   wait with that outcome, recorded and not refused: the report judges what the
   widget published, and a dead or unloaded run fails every check. After the
   actions the runner waits up to 10 s for `done`. An entry with `stops`
-  (`auto/31`-`auto/35` at `v0.5.0`) waits for its widget's death instead, as
-  `CLIENTS.md`'s step 4 asks: no status ends its wait, so a widget its host
-  never stops publishes `done` and the wait runs to the 20 s bound, and only
-  a fatal `frozen`, a stopped or failed runtime or the message gone end it
-  sooner.
-  Its `dead` keeps its usual source, the `Died: ` reason of the host's fresh
-  or final summary (`WidgetDiagnostics::dead` verbatim, cut at 240
-  characters), never the localized stopped label; whether it starts with
-  the entry's `stops` is `report.mjs`'s judgement alone.
+  (twelve at `v0.6.0`: `auto/31`-`auto/35` and `auto/38`-`auto/44`) waits
+  for its widget's death instead, as `CLIENTS.md`'s step 4 asks: no status
+  ends its wait, so a widget its host never stops publishes `done` and the
+  wait runs to the 20 s bound, and only a fatal `frozen`, a stopped or
+  failed runtime or the message gone end it sooner.
+  Its `dead` keeps its usual sources: the `Died: ` reason of the host's
+  fresh or final summary (`WidgetDiagnostics::dead` verbatim, cut at 240
+  characters), and only when the summary gives no reason but `terminated`,
+  the desktop's own stop ([desktop stops](#preconditions-and-limits));
+  never the localized stopped label. Whether it starts with the entry's
+  `stops` is `report.mjs`'s judgement alone.
 - **Desktop stops.** A stop the desktop decided itself, such as a paint
   bound's refusal of the widget's frames, reaches no host death: the
   summary has no `Died: ` line or, once the retired host is gone,
@@ -252,7 +263,7 @@ Use something else when:
   ([message contexts](#message-contexts)). Its text is the entry's id, the
   caption below the widget (`WidgetFixtureMessage::caption`), but for an
   entry with `safeArea` (`auto/36-safe-area` and `visual/17-time-corner` at
-  `v0.5.0`), whose message has no text: the caption puts the message's time
+  `v0.6.0`), whose message has no text: the caption puts the message's time
   in its own line below the widget, so the desktop itself gives the host
   `CLIENTS.md`'s all-0 content safe area, while an uncaptioned message's
   host gets the band and corner the desktop passes for a widget with no
@@ -309,7 +320,11 @@ run file, then run `node <package>/tools/report.mjs --out <dir>
 Every stage name, Check and Note of the pack starts `widget conformance: `,
 after `palette switch: ` or `palette restore: ` in the palette helpers'
 stages; the show helper's stages are `show in chat list: widget conformance
-<key> <what>`. A run's key is `<id>|<theme>|390`. In order:
+<key> <what>`; the first stage takes the rows of the tap's, the played
+bot's, the probe fixture's and the paint-policy fixture's checks under their
+own names, such as `widget ops self-check: ` and `paint policy fixture: `
+([verification](#verification)). A run's key is `<id>|<theme>|390`. In
+order:
 
 - `tap, result reader, summary reader and run file self-check`, `report the
   package, the selection and the output`;
@@ -1045,7 +1060,19 @@ The pack's first stage runs, as Checks: `RunWidgetOpsSelfCheck()` (its
 scanner control is the leak scan's control in the totals);
 `RunWidgetBotSelfCheck()` ([test_widget_bot](test_widget_bot.md#verification));
 `RunWidgetConformanceProbeCheck()` on the package's `probe-fixture.json`
-([test_widget_ops](test_widget_ops.md)); two result-reader controls on
+([test_widget_ops](test_widget_ops.md)); the paint-policy fixture's rows
+verbatim (`RunPaintPolicyFixture()` of
+`test_widget_conformance_paint_policy.cpp`: `RunWidgetPaintPolicyCheck()`
+([test_widget_paint_policy](test_widget_paint_policy.md)) on the bytes of
+`package`'s sibling `../core/tests/fixtures/paint-policy.json`, read by its
+cleaned path, the same pin's `packages/core/tests/fixtures/paint-policy.json`;
+at `v0.6.0` 93 rows, the 92 entry rows in fixture order - constants 2,
+shadows 13, boxes 31, hidesSubtree 4, animations 14, messages 2, reports 6,
+cases 20 - and the coverage row; a `package` that is not an absolute path,
+or a fixture that cannot be opened or read, gives one failed row instead,
+`paint policy fixture: the fixture file was read`, with the path and the
+error; empty or unparsable bytes give the checker's coverage row alone,
+failed); two result-reader controls on
 literal readings (this run's value taken with its checks verbatim once per
 generation and serial; another run's id, text that is no JSON object and
 checks that are no array refused, and a newer host's clear leaving no
@@ -1181,10 +1208,22 @@ recorded in its `work/smoke.md`: `CheckHostReadings()`, then in
 two captioned runs got all 0 and the two `safeArea` entries `bottom` 26
 with `cornerRight` 118, which `auto/36-safe-area` read back.
 
-Not yet executed: that task's full `v0.5.0` campaign - the whole matrix
-with its actions, crops and pictures, its run files and the report - whose
-results go into that task's `work/test.md`; the smoke above is pre-review
-validation, not campaign evidence.
+That task's full `v0.5.0` campaign ran afterwards on its Release build
+without LTO, with the harness: four counted launches, merged into one run
+file of 168 runs (117 auto and 51 visual) with their crops and pictures,
+which `report.mjs` turned into the report. Its `work/test.md` records the
+commands and readings and its `work/discrepancies-v0.5.0.md` the per-ID
+report; the smoke above was pre-review validation, not campaign evidence.
+
+Not yet executed: the paint-policy read of
+`test_widget_conformance_paint_policy.{h,cpp}` and its first-stage call,
+added by `2026/11/02/report-the-desktop-conformance-at-widget-sandbox-v0-6-0`.
+That task's pre-review Debug build is to compile and link them, and its
+`v0.6.0` campaign on a Release build without LTO, with the harness, is to
+run them in every launch's first stage, with one launch on a package copy
+without the sibling fixture as the read failure's negative control; its
+evidence records what ran. Until then this page claims no run of the
+paint-policy rows through this pack.
 
 The [desktop stop](#preconditions-and-limits) reading of
 `test_widget_conformance_stop.{h,cpp}`, its `RecordLog()` call, the

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_conformance_bridge.h"
 #include "test/test_widget_conformance_context.h"
 #include "test/test_widget_conformance_hosts.h"
+#include "test/test_widget_conformance_paint_policy.h"
 #include "test/test_widget_conformance_pictures.h"
 #include "test/test_widget_conformance_state.h"
 #include "test/test_widget_conformance_stop.h"
@@ -2208,9 +2209,10 @@ void PrepareOutput(ConformanceState &state) {
 [[nodiscard]] WidgetOpsSelfCheckRow CheckTotalsCoverage();
 
 // The tap's own scanner checks, the played bot's, the tap's probe-fixture
-// checks, then the pure result reader, summary reader, observation, run
-// file, message context and bot table, selection, host reading, desktop
-// stop, picture and totals controls; every row is one Check.
+// checks, the pin's paint-policy fixture rows, then the pure result
+// reader, summary reader, observation, run file, message context and bot
+// table, selection, host reading, desktop stop, picture and totals
+// controls; every row is one Check.
 void RunSelfChecks(ConformanceState &state) {
 	auto failed = QStringList();
 	auto count = 0;
@@ -2240,6 +2242,9 @@ void RunSelfChecks(ConformanceState &state) {
 			: RunWidgetConformanceProbeCheck(state.probeFixture)) {
 			take(row);
 		}
+	}
+	for (const auto &row : RunPaintPolicyFixture(state.args.package)) {
+		take(row);
 	}
 	for (const auto &row : CheckResultReader()) {
 		take(row);
