@@ -1108,8 +1108,18 @@ void Stories::sendRequest(
 		}
 		upload->requestId = 0;
 		const auto storyId = StoryIdFromUpdates(result);
+		const auto peer = upload->story.peer;
 		_session->api().applyUpdates(result);
-		finish(upload, storyId);
+		auto &stories = _session->data().stories();
+		if (stories.source(peer->id)) {
+			finish(upload, storyId);
+			return;
+		}
+		stories.requestPeerStories(peer, [=] {
+			if (const auto upload = find(id)) {
+				finish(upload, storyId);
+			}
+		});
 	};
 	const auto fail = [=](const MTP::Error &error) {
 		const auto upload = find(id);
