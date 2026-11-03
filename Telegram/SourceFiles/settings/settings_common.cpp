@@ -500,24 +500,37 @@ void CreateRightLabel(
 			- st::settingsButtonRightSkip;
 		const auto textWidth = st.style.font->width(buttonText);
 		const auto natural = name->textMaxWidth();
+		auto widestWord = 0;
+		for (const auto &word : buttonText.split(' ', Qt::SkipEmptyParts)) {
+			widestWord = std::max(widestWord, st.style.font->width(word));
+		}
 
 		// WHY: the value is never cut for a long label: the label wraps
-		// instead (when the button allows it), and only a value wider
-		// than half of the row gets elided.
-		name->resizeToNaturalWidth((textWidth + natural <= full)
+		// instead (when the button allows it), keeping its widest word and
+		// a third of the row, or the value moves under it when even that fails.
+		const auto labelMin = std::max(widestWord, full / 3);
+		const auto sideBySide = (textWidth + natural <= full)
+			|| (natural <= full - labelMin);
+		name->resizeToNaturalWidth(sideBySide
 			? natural
-			: std::max(full - textWidth, full / 2));
+			: (full + st.padding.right()));
 		auto padding = st.padding;
-		padding.setRight(padding.right()
-			+ st::settingsButtonRightSkip
-			+ name->width());
+		if (sideBySide) {
+			padding.setRight(padding.right()
+				+ st::settingsButtonRightSkip
+				+ name->width());
+		} else {
+			padding.setBottom(padding.bottom() + name->height());
+		}
 		button->setPaddingOverride(padding);
 		const auto single = st.padding.top()
 			+ st.height
 			+ st.padding.bottom();
 		name->moveToRight(
 			st::settingsButtonRightSkip,
-			st.padding.top() + (button->height() - single) / 2);
+			(sideBySide
+				? (st.padding.top() + (button->height() - single) / 2)
+				: (button->height() - st.padding.bottom() - name->height())));
 	};
 	if (v::text::is_plain(label)) {
 		rpl::combine(
