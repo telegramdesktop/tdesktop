@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_chat_participant_status.h"
-#include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
 #include "mtproto/sender.h"
 #include "settings/settings_type.h"
@@ -30,6 +28,7 @@ enum class WindowLayout;
 namespace Data {
 struct StoriesContext;
 struct DrawToReplyRequest;
+struct ReportInput;
 class SavedMessages;
 enum class StorySourcesList : uchar;
 } // namespace Data
