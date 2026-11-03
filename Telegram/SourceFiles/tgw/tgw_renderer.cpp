@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <mutex>
 
+#include "styles/style_basic.h"
+
 namespace Tgw {
 
 class HostLink final : public std::enable_shared_from_this<HostLink> {
@@ -60,6 +62,8 @@ constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
 constexpr auto kPaintBoundsKind = "paint-bounds";
 constexpr auto kMinWakeDelay = crl::time(1);
 constexpr auto kMaxWakeDelay = crl::time(std::numeric_limits<int>::max());
+// Mirrors lib_ui's private kAnimationTick, the cadence every clock runs at.
+constexpr auto kHeldTick = crl::time(1000) / st::universalDuration;
 constexpr auto kTouchDown = 0;
 constexpr auto kTouchMove = 1;
 constexpr auto kTouchUp = 2;
@@ -490,8 +494,9 @@ RendererCore::RendererCore(double width, double dpr)
 	dpr,
 	false,
 	_backend.get()))
-, _clock([=] { return step(); })
-, _wake([=] { wake(); }) {
+, _clock([=](crl::time now) { return step(now); })
+, _wake([=] { wake(); })
+, _heldTimer([=] { releaseHeld(); refreshClock(); }) {
 }
 
 RendererCore::~RendererCore() {
@@ -999,6 +1004,10 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 	if (_stopped) {
 		return;
 	} else if (type == "requestFrame") {
+		if (_held) {
+			dropHeld();
+			_clock.stop();
+		}
 		_frameRequested = true;
 		refreshClock();
 		return;
@@ -1013,6 +1022,12 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
+	const auto quiet = (type == "ops")
+		&& canTick()
+		&& !_clock.animating()
+		&& !_frameRequested
+		&& !_renderer->wants_tick();
+	const auto builds = _renderer->stats().builds;
 	_backend->beginCanvasBatch();
 	auto out = _renderer->receive(message);
 	auto changes = Changes();
@@ -1040,6 +1055,15 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 	}
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
+	}
+	// WHY: a clock started for the held part of a flush first ticks on the
+	// next event-loop turn, building it before the later parts arrive and
+	// laying the document out twice, so held work waits one cadence tick.
+	if (quiet
+		&& (_renderer->stats().builds == builds)
+		&& _renderer->wants_tick()) {
+		_held = Held{ .since = crl::now(), .builds = builds };
+		_heldTimer.callOnce(kHeldTick);
 	}
 	finish(out, changes);
 }
@@ -1205,6 +1229,7 @@ void RendererCore::refreshClock() {
 			_clock.start();
 		}
 	} else {
+		dropHeld();
 		_clock.stop();
 		scheduleWake();
 	}
@@ -1221,15 +1246,39 @@ void RendererCore::scheduleWake() {
 	}
 }
 
-bool RendererCore::step() {
+void RendererCore::dropHeld() {
+	_held = std::nullopt;
+	_heldTimer.cancel();
+}
+
+void RendererCore::releaseHeld() {
+	dropHeld();
+	_stepBusy = false;
+	if (clockWanted()) {
+		tick();
+	}
+}
+
+bool RendererCore::step(crl::time now) {
 	_stepBusy = canTick()
 		&& (_frameRequested || _renderer->wants_tick());
 	if (!_stepBusy) {
+		dropHeld();
 		scheduleWake();
 		return false;
+	} else if (!_held) {
+		tick();
+		return true;
+	} else if ((_held->builds == _renderer->stats().builds)
+		&& (now < _held->since + kHeldTick)) {
+		return true;
 	}
-	tick();
-	return true;
+	releaseHeld();
+	if (clockWanted()) {
+		return true;
+	}
+	scheduleWake();
+	return false;
 }
 
 void RendererCore::wake() {

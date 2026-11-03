@@ -158,6 +158,10 @@ private:
 		QPointF position;
 		bool pressed = false;
 	};
+	struct Held {
+		crl::time since = 0;
+		int builds = 0;
+	};
 
 	void hostLoaded();
 	void hostMessage(const twidget::Json &message);
@@ -182,7 +186,9 @@ private:
 	[[nodiscard]] bool clockWanted() const;
 	void refreshClock();
 	void scheduleWake();
-	[[nodiscard]] bool step();
+	void dropHeld();
+	void releaseHeld();
+	[[nodiscard]] bool step(crl::time now);
 	void wake();
 	void tick();
 
@@ -198,6 +204,8 @@ private:
 	std::unique_ptr<twlite::Renderer> _renderer;
 	Ui::Animations::Basic _clock;
 	base::Timer _wake;
+	base::Timer _heldTimer;
+	std::optional<Held> _held;
 	QImage _frame;
 	QSize _frameSize;
 	QSize _frameArea;
