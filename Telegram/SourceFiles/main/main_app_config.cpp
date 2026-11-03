@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
+#include "test/test_l10n_seams.h"
 #include "ui/chat/chat_style.h"
 
 namespace Main {
@@ -417,6 +418,9 @@ bool AppConfig::getBool(const QString &key, bool fallback) const {
 }
 
 double AppConfig::getDouble(const QString &key, double fallback) const {
+	if (const auto value = Test::OverrideAppConfigDouble(key)) {
+		return *value;
+	}
 	return getValue(key, [&](const MTPJSONValue &value) {
 		return value.match([&](const MTPDjsonNumber &data) {
 			return data.vvalue().v;

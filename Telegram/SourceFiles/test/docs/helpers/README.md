@@ -18,6 +18,7 @@ should call.
 | [test_log_lines](test_log_lines.md) | Self-test | Self-test for one physical record per log call |
 | [test_text_reads](test_text_reads.md) | API | Space-normalized text assertions |
 | [test_lang_pack](test_lang_pack.md) | API | Temporary language overrides and restoration |
+| [test_l10n_seams](test_l10n_seams.md) | Internal dependency | Phrase-read observer and app-config limit override for the localization capture |
 | [test_probe](test_probe.md) | API | Windowed observations and correlated requests |
 | [test_expiry_window](test_expiry_window.md) | API | Served-expiry observations bound to a live owner, generation and link; frozen cutoff windows and boundary polls with named refusals |
 | [test_widgets](test_widgets.md) | API | Typed discovery, a button's own disabled state, live publications and input events |
