@@ -1987,6 +1987,7 @@ PRIVATE
     settings/settings_power_saving.h
     settings/sections/settings_premium.cpp
     settings/sections/settings_premium.h
+    settings/sections/settings_premium_common.h
     settings/settings_privacy_controllers.cpp
     settings/settings_privacy_controllers.h
     settings/settings_scale_preview.cpp
