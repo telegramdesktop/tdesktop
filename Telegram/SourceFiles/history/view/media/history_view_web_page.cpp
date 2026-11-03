@@ -693,7 +693,7 @@ QSize WebPage::countOptimalSize() {
 	const auto articleMinHeight = siteNameHeight
 		+ titleMinHeight
 		+ descriptionMinHeight;
-	const auto articlePhotoMaxWidth = _asArticle
+	const auto articlePhotoMaxWidth = asArticle()
 		? (st::webPagePhotoDelta
 			+ std::max(
 				ArticleThumbWidth(_data->photo, articleMinHeight),
