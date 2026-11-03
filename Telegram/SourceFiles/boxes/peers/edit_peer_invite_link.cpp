@@ -609,16 +609,12 @@ void Controller::setupAboveJoinedWidget() {
 			auto p = QPainter(&userpic);
 			emptyUserpic.paintCircle(p, 0, 0, st.photoSize, st.photoSize);
 
-			auto svg = QSvgRenderer(u":/gui/links_subscription.svg"_q);
 			const auto size = st.photoSize / 4. * 3.;
-			const auto r = QRectF(
+			PaintSubscriptionBadge(p, QRectF(
 				(st.photoSize - size) / 2.,
 				(st.photoSize - size) / 2.,
 				size,
-				size);
-			p.setPen(st::historyPeerUserpicFg);
-			p.setBrush(Qt::NoBrush);
-			svg.render(&p, r);
+				size));
 		}
 		name->setMarkedText(
 			st.nameStyle,
@@ -1096,6 +1092,32 @@ Main::Session &SingleRowController::session() const {
 }
 
 } // namespace
+
+void PaintSubscriptionBadge(QPainter &p, const QRectF &rect) {
+	const auto part = [&](
+			const QString &file,
+			std::optional<QRectF> clip) {
+		auto svg = QSvgRenderer(file);
+		if (clip) {
+			p.save();
+			p.setClipRect(*clip, Qt::IntersectClip);
+		}
+		svg.render(&p, rect);
+		if (clip) {
+			p.restore();
+		}
+	};
+	const auto band = [&](qreal from, qreal till) {
+		return QRectF(
+			rect.x(),
+			rect.y() + rect.height() * from,
+			rect.width(),
+			rect.height() * (till - from));
+	};
+	part(u":/gui/links_subscription_arc.svg"_q, band(0., 37. / 72.));
+	part(u":/gui/links_subscription_dashes.svg"_q, band(28. / 72., 1.));
+	part(u":/gui/links_subscription.svg"_q, std::nullopt);
+}
 
 bool IsExpiredLink(const Api::InviteLink &data, TimeId now) {
 	return (data.expireDate > 0 && data.expireDate <= now)
