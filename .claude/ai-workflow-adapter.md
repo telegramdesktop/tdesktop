@@ -178,8 +178,9 @@ leaf:
   `git switch` to an existing compatible local branch. Never switch onto or off
   a project branch (one named by a live project's slug): the owner checks those
   out, and a project task's performer syncs it with `project-sync` and
-  `project-push` itself. Never ask a performer or leaf Agent to integrate
-  history beyond that sync.
+  `project-push` itself. The shared skill's creation of a project branch that
+  exists nowhere is the only exception. Never ask a performer or leaf Agent to
+  integrate history beyond that sync.
 - When a synchronous performer returns the shared pre-Phase-1 lineage stop,
   switch safely in the parent and resume that Agent id when Claude exposes one.
   If it exposes no resumable id, start one replacement performer only after the
