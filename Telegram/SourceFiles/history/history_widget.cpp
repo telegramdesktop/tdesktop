@@ -10678,25 +10678,6 @@ void HistoryWidget::processReply() {
 			_processingReplyTo.messageId.msg,
 			processContinue());
 		return;
-#if 0 // Now we can "reply" to old legacy group messages.
-	} else if (_processingReplyItem->history() == _migrated) {
-		if (_processingReplyItem->isService()) {
-			controller()->showToast(tr::lng_reply_cant(tr::now));
-		} else {
-			const auto itemId = _processingReplyItem->fullId();
-			controller()->show(
-				Ui::MakeConfirmBox({
-					.text = tr::lng_reply_cant_forward(),
-					.confirmed = crl::guard(this, [=] {
-						controller()->content()->setForwardDraft(
-							_history,
-							{ .ids = { 1, itemId } });
-					}),
-					.confirmText = tr::lng_selected_forward(),
-				}));
-		}
-		return processCancel();
-#endif
 	} else if (!_processingReplyItem->isRegular()
 		&& !CanReplyToEphemeral(_processingReplyItem)) {
 		return processCancel();
