@@ -202,6 +202,10 @@ public:
 	[[nodiscard]] bool isQuitPrevent();
 	void markAsRead(FullStoryId id, bool viewed);
 
+	[[nodiscard]] StoryId viewedSelfTill() const;
+	void setViewedSelfTill(StoryId tillId);
+	[[nodiscard]] rpl::producer<> viewedSelfTillChanged() const;
+
 	void toggleHidden(
 		PeerId peerId,
 		bool hidden,
@@ -440,6 +444,7 @@ private:
 
 	rpl::event_stream<PeerId> _sourceChanged;
 	rpl::event_stream<PeerId> _itemsChanged;
+	rpl::event_stream<> _viewedSelfTillChanged;
 
 	std::unordered_map<PeerId, Set> _archive;
 	std::unordered_map<PeerId, Set> _saved;
@@ -477,6 +482,7 @@ private:
 	int _preloadingMainSourcesCounter = 0;
 
 	base::flat_map<PeerId, StoryId> _readTill;
+	StoryId _viewedSelfTill = 0;
 	base::flat_set<FullStoryId> _pendingReadTillItems;
 	base::flat_map<not_null<PeerData*>, RecentState> _pendingPeerRecentState;
 	mtpRequestId _readTillsRequestId = 0;

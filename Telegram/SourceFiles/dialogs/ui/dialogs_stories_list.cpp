@@ -146,6 +146,7 @@ void List::showContent(Content &&content) {
 			item.element.unreadCount = element.unreadCount;
 			item.element.hasVideoStream = element.hasVideoStream;
 			item.element.mine = element.mine;
+			item.element.mineUnread = element.mineUnread;
 			item.element.uploading = element.uploading;
 			item.element.uploadFailed = element.uploadFailed;
 			item.element.uploadProgress = element.uploadProgress;
@@ -607,7 +608,8 @@ void List::paint(
 		const auto smallHasVideoStream = small
 			&& small->element.hasVideoStream;
 		const auto smallUnread = smallHasVideoStream
-			|| (small && small->element.unreadCount);
+			|| (small && small->element.unreadCount)
+			|| (small && small->element.mineUnread);
 		const auto fullHasVideoStream = itemFull
 			&& itemFull->element.hasVideoStream;
 		const auto fullUnreadCount = fullHasVideoStream
@@ -795,7 +797,9 @@ void List::paint(
 				st::dialogsUnreadBgMuted->b,
 				lineRead,
 				false);
-			if (itemFull->element.mine && itemFull->element.count > 0) {
+			if (itemFull->element.mine
+				&& itemFull->element.mineUnread
+				&& itemFull->element.count > 0) {
 				itemFull->segments.back().width = 0.;
 			}
 			Ui::PaintOutlineSegments(
@@ -806,6 +810,7 @@ void List::paint(
 		}
 		if (itemFull
 			&& itemFull->element.mine
+			&& itemFull->element.mineUnread
 			&& itemFull->element.count > 0) {
 			const auto morph = finishMorphProgress(single.id, now);
 			gradient.setStart(userpic.topRight());

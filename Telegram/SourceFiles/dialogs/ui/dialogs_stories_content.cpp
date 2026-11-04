@@ -92,6 +92,11 @@ Content State::next() {
 			.hasVideoStream = info.hasVideoStream ? 1U : 0U,
 			.skipSmall = peer->isSelf() ? 1U : 0U,
 			.mine = peer->isSelf() ? 1U : 0U,
+			.mineUnread = (peer->isSelf()
+				&& !source->ids.empty()
+				&& source->ids.back().id > _data->viewedSelfTill())
+				? 1U
+				: 0U,
 		});
 	}
 	if (_list == Data::StorySourcesList::NotHidden) {
@@ -113,6 +118,7 @@ void State::applyUploads(Content &result) {
 			100));
 		if (i != end(result.elements)) {
 			i->uploading = 1;
+			i->mineUnread = 1;
 			i->uploadFailed = upload.error.isEmpty() ? 0U : 1U;
 			i->uploadProgress = progress;
 			continue;
@@ -132,6 +138,7 @@ void State::applyUploads(Content &result) {
 			.thumbnail = std::move(userpic),
 			.skipSmall = peer->isSelf() ? 1U : 0U,
 			.mine = peer->isSelf() ? 1U : 0U,
+			.mineUnread = 1U,
 			.uploading = 1,
 			.uploadFailed = upload.error.isEmpty() ? 0U : 1U,
 			.uploadProgress = progress,
@@ -153,7 +160,8 @@ rpl::producer<Content> ContentForSession(
 			rpl::empty
 		) | rpl::then(rpl::merge(
 			stories->sourcesChanged(list),
-			session->api().stories().uploadsChanges()
+			session->api().stories().uploadsChanges(),
+			stories->viewedSelfTillChanged()
 		)) | rpl::on_next([=] {
 			consumer.put_next(state->next());
 		}, result);

@@ -40,6 +40,7 @@ struct Element {
 	uint32 hasVideoStream : 1 = 0;
 	uint32 skipSmall : 1 = 0;
 	uint32 mine : 1 = 0;
+	uint32 mineUnread : 1 = 0;
 	uint32 uploading : 1 = 0;
 	uint32 uploadFailed : 1 = 0;
 	uint32 uploadProgress : 7 = 0;
