@@ -314,6 +314,7 @@ PreviewWrap::PreviewWrap(
 	_style->apply(_theme.get());
 
 	_fake->setName(peer->name(), QString());
+	_fake->setBarSettings(0); // With unknown settings links stay hidden.
 	std::move(colorIndexValue) | rpl::on_next([=](uint8 index) {
 		if (index != kUnsetColorIndex) {
 			_fake->changeColorIndex(index);
