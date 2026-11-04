@@ -74,6 +74,7 @@ constexpr auto kRasterCells = 256.;
 constexpr auto kRasterBand = 37.;
 constexpr auto kRasterBands = 39.;
 constexpr auto kRasterAttempts = 8.;
+constexpr auto kMapperMargin = 1024.;
 // WHY: gray_find_cell() walks a sorted row list per record; Qt rounds to 26.6.
 // Nonzero rises need that rounding slack before the 256-subpixel cell bound.
 // Win64's first two pools hold 148 and 489 cells, fewer than this Mac's.
@@ -215,6 +216,10 @@ public:
 	[[nodiscard]] float64 clampedSpans() const;
 	[[nodiscard]] float64 density() const;
 	[[nodiscard]] float64 rowCells() const;
+	[[nodiscard]] float64 alignedSpans() const;
+	[[nodiscard]] float64 alignedRowSpans() const;
+	[[nodiscard]] float64 verticalRows() const;
+	[[nodiscard]] float64 verticalEdges() const;
 	[[nodiscard]] float64 coverage() const;
 	[[nodiscard]] QRectF extent() const;
 	[[nodiscard]] QRectF anchors() const;
@@ -229,7 +234,8 @@ private:
 		float64 density,
 		float64 top,
 		float64 bottom,
-		float64 rise);
+		float64 rise,
+		QPointF along = QPointF());
 	void move(QPointF to);
 	void line(QPointF to);
 	void curve(QPointF b, QPointF c, QPointF d);
@@ -249,6 +255,7 @@ private:
 	const float64 _reach = 0.;
 	const bool _roundJoin = false;
 	const Qt::PenCapStyle _cap = Qt::FlatCap;
+	bool _aligned = false;
 	float64 _quarter = -1.;
 	float64 _edges = 0.;
 	float64 _spans = 0.;
@@ -257,6 +264,10 @@ private:
 	float64 _clampedSpans = 0.;
 	float64 _density = 0.;
 	float64 _rowCells = 0.;
+	float64 _alignedSpans = 0.;
+	float64 _alignedRowSpans = 0.;
+	float64 _verticalRows = 0.;
+	float64 _verticalEdges = 0.;
 	Bounds _controls;
 	Bounds _anchors;
 	QPointF _start;
@@ -451,6 +462,15 @@ private:
 	const auto c = transform.m21();
 	const auto d = transform.m22();
 	return (std::hypot(a + d, c - b) + std::hypot(a - d, b + c)) / 2.;
+}
+
+[[nodiscard]] bool KeepsAxes(const QTransform &transform) {
+	return (transform.m12() == 0.)
+		&& (transform.m21() == 0.)
+		&& (transform.m13() == 0.)
+		&& (transform.m23() == 0.)
+		&& (transform.m33() == 1.)
+		&& (transform.type() < QTransform::TxProject);
 }
 
 [[nodiscard]] float64 Spread(const QMarginsF &reach) {
@@ -1235,17 +1255,46 @@ void Include(Bounds &bounds, QPointF point) {
 	const auto splits = 2. * failing * std::ceil(cells / kRasterCells);
 	const auto passes = attempts * std::min(2. * rows, bands + splits);
 	const auto levels = std::ceil(std::log2(rows)) + 1.;
-	const auto deep = 4. * outline.rowSpans() + (2. * levels + 2.) * iterated;
-	const auto shallow = std::exp2(failing + 2.)
-		/ std::min(kRasterBand, rows)
-		* outline.rowSpans()
-		+ (2. * failing + 2.) * iterated;
-	const auto overlap = clipping
-		? std::numeric_limits<float64>::infinity()
-		: attempts * std::min(deep, shallow);
+	const auto overlap = [&](float64 visibleSpans, float64 rowSpans) {
+		const auto deep = 4. * rowSpans + (2. * levels + 2.) * visibleSpans;
+		const auto shallow = std::exp2(failing + 2.)
+			/ std::min(kRasterBand, rows)
+			* rowSpans
+			+ (2. * failing + 2.) * visibleSpans;
+		return attempts * std::min(deep, shallow);
+	};
+	const auto full = std::min(
+		passes * iterated,
+		clipping
+			? std::numeric_limits<float64>::infinity()
+			: overlap(iterated, outline.rowSpans()));
+	// WHY: gray_render_line() walks an exactly vertical edge only over its
+	// band's rows and a horizontal one as one cell, unless QOutlineMapper
+	// first clipped an outline reaching kMapperMargin past the device.
+	const auto grown = frame.adjusted(
+		-kMapperMargin,
+		-kMapperMargin,
+		kMapperMargin,
+		kMapperMargin);
+	// QOutlineMapper also clamps its grown device rect to kCoordinateLimit.
+	const auto most = kCoordinateLimit - 2. * kMapperMargin;
+	auto lowered = full;
+	if (!clipping
+		&& frame.width() <= most
+		&& frame.height() <= most
+		&& grown.contains(extent)
+		&& outline.alignedSpans() > 0.) {
+		const auto rest = std::max(iterated - outline.alignedSpans(), 0.);
+		const auto crossed = std::max(
+			outline.rowSpans() - outline.alignedRowSpans(),
+			0.);
+		lowered = std::min(passes * rest, overlap(rest, crossed))
+			+ std::min(passes, attempts * levels) * outline.verticalRows()
+			+ 3. * passes * outline.verticalEdges();
+	}
 	const auto pixels = std::min(rows * columns, outline.coverage());
 	return passes * edges
-		+ std::min(passes * iterated, overlap)
+		+ std::min(full, lowered)
 		+ pixels * pixelWeight
 		+ clip
 		+ visits * rowCells;
@@ -1821,7 +1870,8 @@ Outline::Outline(
 , _width(size.width())
 , _height(size.height())
 , _threshold(threshold)
-, _limit(limit) {
+, _limit(limit)
+, _aligned(KeepsAxes(device)) {
 }
 
 Outline::Outline(
@@ -1840,10 +1890,36 @@ Outline::Outline(
 , _deviceRadius(_radius * MaxStretch(device))
 , _reach(StrokeReach(pen.widthF(), pen.miterLimit()) * MaxStretch(device))
 , _roundJoin(pen.joinStyle() == Qt::RoundJoin)
-, _cap(pen.capStyle()) {
+, _cap(pen.capStyle())
+, _aligned(KeepsAxes(device)
+	&& !pen.isCosmetic()
+	&& pen.widthF() > 0.
+	&& (_cap == Qt::FlatCap || _cap == Qt::SquareCap)
+	&& _deviceRadius >= 1.) {
 }
 
 bool Outline::add(const QPainterPath &path) {
+	if (_stroke && _aligned) {
+		const auto exact = [](float64 value) {
+			const auto subpixels = value * kOutlineSubpixels;
+			return (std::abs(value) <= kCoordinateLimit)
+				&& (subpixels == std::trunc(subpixels));
+		};
+		const auto elements = path.elementCount();
+		// QStroker's sides stay exact only for isolated 1/64-grid axis lines.
+		_aligned = exact(_radius) && (elements % 2 == 0);
+		for (auto i = 0; _aligned && i != elements; i += 2) {
+			const auto &from = path.elementAt(i);
+			const auto &to = path.elementAt(i + 1);
+			_aligned = from.isMoveTo()
+				&& to.isLineTo()
+				&& ((from.x == to.x) != (from.y == to.y))
+				&& exact(from.x)
+				&& exact(from.y)
+				&& exact(to.x)
+				&& exact(to.y);
+		}
+	}
 	for (auto i = 0, count = path.elementCount(); i != count; ++i) {
 		const auto &element = path.elementAt(i);
 		switch (element.type) {
@@ -1895,6 +1971,22 @@ float64 Outline::rowCells() const {
 	return _rowCells;
 }
 
+float64 Outline::alignedSpans() const {
+	return _alignedSpans;
+}
+
+float64 Outline::alignedRowSpans() const {
+	return _alignedRowSpans;
+}
+
+float64 Outline::verticalRows() const {
+	return _verticalRows;
+}
+
+float64 Outline::verticalEdges() const {
+	return _verticalEdges;
+}
+
 float64 Outline::coverage() const {
 	return _stroke
 		? (_spans * (_deviceRadius + 1.))
@@ -1938,15 +2030,17 @@ void Outline::count(
 		float64 density,
 		float64 top,
 		float64 bottom,
-		float64 rise) {
+		float64 rise,
+		QPointF along) {
 	_edges += edges;
 	_spans += spans;
 	_clampedSpans += clamped;
 	const auto from = std::max(top - _reach, 0.);
 	const auto till = std::min(bottom + _reach, _height);
 	if (from <= till) {
+		const auto rows = std::ceil(till) - std::floor(from) + 1.;
 		_visibleSpans += spans;
-		_rowSpans += spans * (std::ceil(till) - std::floor(from) + 1.);
+		_rowSpans += spans * rows;
 		_density += density;
 		const auto padded = (rise > 0.)
 			? (rise + 1. / kOutlineSubpixels)
@@ -1954,6 +2048,14 @@ void Outline::count(
 		_rowCells += std::min(
 			density,
 			edges * (kRowSubpixels * std::min(padded, 1.) + 2.));
+		if (_aligned && ((along.x() == 0.) != (along.y() == 0.))) {
+			_alignedSpans += spans;
+			_alignedRowSpans += spans * rows;
+			if (along.x() == 0.) {
+				_verticalRows += edges * rows;
+				_verticalEdges += edges;
+			}
+		}
 	}
 }
 
@@ -1979,7 +2081,15 @@ void Outline::line(QPointF to) {
 		/ std::max(bottom - top, 1.)
 		+ 2.;
 	if (!_stroke) {
-		count(1., span + 1., inside + 1., slope, top, bottom, bottom - top);
+		count(
+			1.,
+			span + 1.,
+			inside + 1.,
+			slope,
+			top,
+			bottom,
+			bottom - top,
+			direction);
 	} else if (!direction.isNull()) {
 		join(direction);
 		count(
@@ -1989,7 +2099,8 @@ void Outline::line(QPointF to) {
 			2. * slope,
 			top,
 			bottom,
-			bottom - top);
+			bottom - top,
+			direction);
 		_last = direction;
 	}
 	_point = to;
@@ -2140,7 +2251,8 @@ void Outline::finish() {
 				slope,
 				top,
 				bottom,
-				bottom - top);
+				bottom - top,
+				_start - _point);
 		}
 	} else if (_first) {
 		if (_point == _start) {
