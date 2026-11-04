@@ -40,8 +40,6 @@ RateTranscribe::RateTranscribe(
 	st::defaultRippleAnimation)) {
 	setAcceptBoth(true);
 
-	fitToMenuWidth();
-
 	enableMouseSelecting();
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
@@ -160,6 +158,8 @@ RateTranscribe::RateTranscribe(
 			_selectedButton = SelectedButton::None;
 		}
 	}, lifetime());
+
+	fitToMenuWidth();
 }
 
 not_null<QAction*> RateTranscribe::action() const {
