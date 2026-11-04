@@ -157,12 +157,7 @@ void PrepareStoryTask::finish() {
 }
 
 [[nodiscard]] MTPMediaArea LocationToMTP(const Data::StoryLocation &data) {
-	if (data.queryId) {
-		return MTP_inputMediaAreaVenue(
-			AreaCoordinatesToMTP(data.area),
-			MTP_long(data.queryId),
-			MTP_string(data.inlineResultId));
-	} else if (!data.venueId.isEmpty()) {
+	if (!data.venueId.isEmpty()) {
 		return MTP_mediaAreaVenue(
 			AreaCoordinatesToMTP(data.area),
 			data.point.toMTP(),

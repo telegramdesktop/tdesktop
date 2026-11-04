@@ -92,8 +92,6 @@ StoryAreas CollectStoryAreas(not_null<const Scene*> scene, QSize canvas) {
 				.provider = data.provider,
 				.venueId = data.venueId,
 				.venueType = data.venueType,
-				.queryId = data.queryId,
-				.inlineResultId = data.inlineResultId,
 			});
 		} else if (item->type() == ItemWeather::Type) {
 			const auto weather = static_cast<ItemWeather*>(item.get());

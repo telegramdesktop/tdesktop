@@ -134,8 +134,6 @@ constexpr auto kNoFile = -1;
 		{ u"provider"_q, data.provider },
 		{ u"venueId"_q, data.venueId },
 		{ u"venueType"_q, data.venueType },
-		{ u"queryId"_q, qint64(data.queryId) },
-		{ u"inlineResultId"_q, data.inlineResultId },
 	};
 }
 
@@ -150,8 +148,6 @@ constexpr auto kNoFile = -1;
 		.provider = object[u"provider"_q].toString(),
 		.venueId = object[u"venueId"_q].toString(),
 		.venueType = object[u"venueType"_q].toString(),
-		.queryId = uint64(object[u"queryId"_q].toInteger()),
-		.inlineResultId = object[u"inlineResultId"_q].toString(),
 	};
 }
 
