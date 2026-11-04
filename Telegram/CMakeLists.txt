@@ -222,6 +222,8 @@ PRIVATE
     api/api_statistics_sender.h
     api/api_stickers_creator.cpp
     api/api_stickers_creator.h
+    api/api_stories.cpp
+    api/api_stories.h
     api/api_suggest_post.cpp
     api/api_suggest_post.h
     api/api_text_entities.cpp
@@ -405,8 +407,16 @@ PRIVATE
     boxes/send_files_box.h
     boxes/send_files_box_reply_header.cpp
     boxes/send_files_box_reply_header.h
+    boxes/send_story_box.cpp
+    boxes/send_story_box.h
+    boxes/send_story_row.cpp
+    boxes/send_story_row.h
     boxes/share_box.cpp
     boxes/share_box.h
+    boxes/story_drafts_box.cpp
+    boxes/story_drafts_box.h
+    boxes/story_privacy_box.cpp
+    boxes/story_privacy_box.h
     boxes/star_gift_auction_box.cpp
     boxes/star_gift_auction_box.h
     boxes/star_gift_box.cpp
@@ -829,6 +839,10 @@ PRIVATE
     data/data_stories_ids.h
     data/data_story.cpp
     data/data_story.h
+    data/data_story_drafts.cpp
+    data/data_story_edit_sources.cpp
+    data/data_story_edit_sources.h
+    data/data_story_drafts.h
     data/data_streaming.cpp
     data/data_streaming.h
     data/data_thread.cpp
@@ -920,8 +934,8 @@ PRIVATE
     editor/controllers/stickers_panel_controller.h
     editor/editor_audio_timeline.cpp
     editor/editor_audio_timeline.h
-    editor/editor_keys_legend.cpp
-    editor/editor_keys_legend.h
+    editor/editor_caption_bar.cpp
+    editor/editor_caption_bar.h
     editor/editor_link_box.cpp
     editor/editor_link_box.h
     editor/editor_message_render.cpp
@@ -932,6 +946,10 @@ PRIVATE
     editor/editor_message_video.h
     editor/editor_paint.cpp
     editor/editor_paint.h
+    editor/editor_story_areas.cpp
+    editor/editor_story_areas.h
+    editor/editor_weather.cpp
+    editor/editor_weather.h
     editor/photo_editor.cpp
     editor/photo_editor.h
     editor/photo_editor_content.cpp
@@ -940,18 +958,16 @@ PRIVATE
     editor/photo_editor_controls.h
     editor/photo_editor_layer_widget.cpp
     editor/photo_editor_layer_widget.h
+    editor/scene/scene_draft.cpp
+    editor/scene/scene_draft.h
     editor/scene/scene_item_message.cpp
     editor/scene/scene_item_message.h
+    editor/scene/scene_item_reaction.cpp
+    editor/scene/scene_item_reaction.h
     editor/scene/scene_item_sticker.cpp
     editor/scene/scene_item_sticker.h
-    editor/scene/scene_item_video.cpp
-    editor/scene/scene_item_video.h
-    editor/video/video_clip.cpp
-    editor/video/video_clip.h
     editor/video/video_editor.cpp
     editor/video/video_editor.h
-    editor/video/video_editor_common.cpp
-    editor/video/video_editor_common.h
     editor/video/video_editor_layer.cpp
     editor/video/video_editor_layer.h
     editor/video/video_editor_quality.cpp
@@ -1607,6 +1623,8 @@ PRIVATE
     media/stories/media_stories_delegate.h
     media/stories/media_stories_header.cpp
     media/stories/media_stories_header.h
+    media/stories/media_stories_post.cpp
+    media/stories/media_stories_post.h
     media/stories/media_stories_reactions.cpp
     media/stories/media_stories_reactions.h
     media/stories/media_stories_recent_views.cpp
@@ -1652,8 +1670,6 @@ PRIVATE
     media/streaming/media_streaming_video_track.cpp
     media/streaming/media_streaming_video_track.h
     media/streaming/media_streaming_native_frame_mac.h
-    media/media_video_encode.cpp
-    media/media_video_encode.h
     media/media_video_frames.cpp
     media/media_video_frames.h
     media/view/media_view_group_thumbs.cpp

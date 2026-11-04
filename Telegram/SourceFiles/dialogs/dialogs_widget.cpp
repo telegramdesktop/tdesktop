@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "dialogs/ui/chat_search_in.h"
 #include "dialogs/ui/dialogs_stories_content.h"
+#include "media/stories/media_stories_post.h"
 #include "dialogs/ui/dialogs_stories_list.h"
 #include "dialogs/ui/dialogs_suggestions.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
@@ -1832,7 +1833,23 @@ void Widget::setupStories() {
 
 	_stories->clicks(
 	) | rpl::on_next([=](uint64 id) {
-		controller()->openPeerStories(PeerId(int64(id)), currentSource());
+		const auto peerId = PeerId(int64(id));
+		const auto peer = session().data().peer(peerId);
+		if (Media::Stories::CanPostStory(peer)
+			&& peer->isSelf()
+			&& !session().data().stories().source(peerId)) {
+			Media::Stories::PostStory(controller(), peer);
+		} else {
+			controller()->openPeerStories(peerId, currentSource());
+		}
+	}, lifetime());
+
+	_stories->addStoryClicks(
+	) | rpl::on_next([=](uint64 id) {
+		const auto peer = session().data().peer(PeerId(int64(id)));
+		if (Media::Stories::CanPostStory(peer)) {
+			Media::Stories::PostStory(controller(), peer);
+		}
 	}, lifetime());
 
 	_stories->showMenuRequests(
@@ -3895,6 +3912,7 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 		const auto thread = suggestionsCoverList()
 			? _suggestions->updateFromParentDrag(global)
 			: _inner->updateFromParentDrag(global);
+		_stories->dragLeft();
 		e->setDropAction(thread ? Qt::CopyAction : Qt::IgnoreAction);
 	} else {
 		if (_dragForward) {
@@ -3904,9 +3922,33 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 			_suggestions->dragLeft();
 		}
 		_inner->dragLeft();
-		e->setDropAction(Qt::IgnoreAction);
+		if (!updateStoriesDrag(e)) {
+			e->setDropAction(Qt::IgnoreAction);
+		}
 	}
 	e->accept();
+}
+
+bool Widget::updateStoriesDrag(not_null<QDragMoveEvent*> e) {
+	if (_stories->isHidden()) {
+		return false;
+	}
+	const auto peer = session().data().peer(session().userPeerId());
+	if (!Media::Stories::CanPostStory(peer)) {
+		return false;
+	}
+	if (!_stories->geometry().contains(e->pos())) {
+		_stories->dragLeft();
+		return false;
+	}
+	if (!Storage::IsAcceptableStoryDragState(
+			Storage::ComputeMimeDataState(e->mimeData()))) {
+		_stories->dragLeft();
+		return false;
+	}
+	_stories->updateFromParentDrag(mapToGlobal(e->pos()));
+	e->setDropAction(Qt::CopyAction);
+	return true;
 }
 
 void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
@@ -3919,6 +3961,7 @@ void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
 		_suggestions->dragLeft();
 	}
 	_inner->dragLeft();
+	_stories->dragLeft();
 	e->accept();
 }
 
@@ -3938,6 +3981,7 @@ void Widget::dropEvent(QDropEvent *e) {
 
 	_chooseByDragTimer.cancel();
 	if (_scroll->geometry().contains(e->pos())) {
+		_stories->dragLeft();
 		const auto globalPosition = mapToGlobal(e->pos());
 		const auto thread = suggestionsCoverList()
 			? _suggestions->updateFromParentDrag(globalPosition)
@@ -3959,6 +4003,25 @@ void Widget::dropEvent(QDropEvent *e) {
 			controller()->widget()->raise();
 			controller()->widget()->activateWindow();
 		}
+	} else if (!_stories->isHidden()
+		&& _stories->geometry().contains(e->pos())) {
+		const auto id = _stories->finishDropAt(mapToGlobal(e->pos()));
+		const auto peer = id
+			? session().data().peer(PeerId(int64(id)))
+			: nullptr;
+		if (peer
+			&& Media::Stories::CanPostStory(peer)
+			&& Storage::IsAcceptableStoryDragState(
+				Storage::ComputeMimeDataState(e->mimeData()))) {
+			e->setDropAction(Qt::CopyAction);
+			e->accept();
+			Media::Stories::PostStoryWithMimeData(
+				controller(),
+				peer,
+				e->mimeData());
+			return;
+		}
+		e->setDropAction(Qt::IgnoreAction);
 	}
 }
 

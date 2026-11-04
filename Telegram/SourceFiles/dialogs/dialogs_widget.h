@@ -162,6 +162,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	[[nodiscard]] bool updateStoriesDrag(not_null<QDragMoveEvent*> e);
 	struct SearchProcessState {
 		base::flat_map<QString, MTPmessages_Messages> cache;
 		base::flat_map<mtpRequestId, QString> queries;

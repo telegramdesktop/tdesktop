@@ -21,7 +21,12 @@ class RpWidget;
 
 namespace Editor {
 
+inline const auto kRaiseZOrderSequence = QKeySequence("ctrl+]");
+inline const auto kLowerZOrderSequence = QKeySequence("ctrl+[");
+
 class ItemCanvas;
+class ItemLocation;
+class ItemReaction;
 class ItemShape;
 class ItemText;
 class NumberedItem;
@@ -66,6 +71,20 @@ public:
 
 	[[nodiscard]] std::vector<ItemPtr> items(
 		Qt::SortOrder order = Qt::DescendingOrder) const;
+	void renderBaked(
+		QPainter *p,
+		const QRectF &target,
+		const QRectF &source = QRectF());
+	[[nodiscard]] auto reactionPickRequests() const
+	-> rpl::producer<not_null<ItemReaction*>>;
+	void requestReactionPick(not_null<ItemReaction*> item);
+	[[nodiscard]] rpl::producer<> canvasPresses() const;
+	[[nodiscard]] rpl::producer<Qt::MouseButton> canvasReleases() const;
+	[[nodiscard]] rpl::producer<> itemContextMenuRequests() const;
+	void noteItemContextMenu();
+	[[nodiscard]] auto locationPickRequests() const
+	-> rpl::producer<not_null<ItemLocation*>>;
+	void requestLocationPick(not_null<ItemLocation*> item);
 	[[nodiscard]] bool hasAnimatedItems() const;
 	[[nodiscard]] bool hasAnimatedResult() const;
 	[[nodiscard]] bool hasSoundResult() const;
@@ -120,6 +139,9 @@ public:
 
 	void performUndo();
 	void performRedo();
+	void raiseItem(not_null<ItemBase*> item);
+	void lowerItem(not_null<ItemBase*> item);
+	void pinToBottom(not_null<ItemBase*> item);
 
 	void save(SaveState state);
 	void restore(SaveState state);
@@ -160,6 +182,7 @@ private:
 		Qt::KeyboardModifiers modifiers);
 	void applyDraftFrame(float64 width, float64 height);
 	void finishShapeDrawing(bool apply);
+	void changeItemZOrder(not_null<ItemBase*> item, int step);
 	[[nodiscard]] std::shared_ptr<ItemShape> createShape(
 		int size,
 		const QPointF &center) const;
@@ -177,7 +200,6 @@ private:
 	StickyGuide _stickyGuideX;
 	StickyGuide _stickyGuideY;
 
-	float64 _lastLineZ = 0.;
 	float64 _currentZoom = 1.;
 	int _itemNumber = 0;
 
@@ -194,6 +216,11 @@ private:
 	rpl::event_stream<QColor> _textItemSelections;
 	rpl::event_stream<> _textItemDeselections;
 	rpl::event_stream<QColor> _shapeItemSelections;
+	rpl::event_stream<not_null<ItemReaction*>> _reactionPickRequests;
+	rpl::event_stream<not_null<ItemLocation*>> _locationPickRequests;
+	rpl::event_stream<> _canvasPresses;
+	rpl::event_stream<Qt::MouseButton> _canvasReleases;
+	rpl::event_stream<> _itemContextMenuRequests;
 	rpl::event_stream<> _shapeItemDeselections;
 	rpl::event_stream<bool> _pendingShapeStates;
 	rpl::event_stream<std::shared_ptr<VideoClip>> _videoClipSelections;

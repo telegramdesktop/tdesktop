@@ -158,6 +158,7 @@ EmojiPan {
 	photoButtonIcon: icon;
 	audioButtonIcon: icon;
 	linkButtonIcon: icon;
+	locationButtonIcon: icon;
 	colorAll: IconButton;
 	colorAllLabel: FlatLabel;
 	removeSet: IconButton;
@@ -641,7 +642,15 @@ stickersPhotoButtonHeight: 36px;
 stickersPhotoButtonRadius: 8px;
 stickersPhotoButtonPadding: margins(6px, 0px, 12px, 0px);
 stickersPhotoButtonIconSkip: 4px;
+stickersPhotoButtonEmojiSize: 24px;
 stickersPhotoButtonFont: font(14px bold);
+stickersWidgetReactionIcon: 20px;
+stickersReactionCloud: 32px;
+stickersReactionCloudShift: point(-2px, -1px);
+stickersReactionBubble: 10px;
+stickersReactionBubbleShift: point(11px, 9px);
+stickersReactionDot: 4px;
+stickersReactionDotShift: point(17px, 15px);
 stickersPhotoButtonSkip: 10px;
 mediaPreviewPhotoSkip: 48px;
 
@@ -852,6 +861,7 @@ defaultEmojiPan: EmojiPan {
 	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
 	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
 	linkButtonIcon: icon {{ "limits/links", windowFg }};
+	locationButtonIcon: icon {{ "chat/filled_location", windowFg }};
 	colorAll: emojiPanColorAll;
 	colorAllLabel: emojiPanColorAllLabel;
 	removeSet: stickerPanRemoveSet;

@@ -23,6 +23,29 @@ StealthBoxStyle {
 	logoBg: color;
 }
 
+storiesDiscardPromptBottomSkip: 14px;
+
+storiesDiscardPromptTitle: FlatLabel(boxTitle) {
+	textFg: mediaviewMenuFg;
+}
+storiesDiscardPromptText: FlatLabel(boxLabel) {
+	textFg: mediaviewMenuFg;
+}
+storiesDiscardPromptButton: RoundButton(defaultLightButton) {
+	textBg: mediaviewMenuBg;
+	textBgOver: mediaviewMenuBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: mediaviewMenuBgRipple;
+	}
+}
+storiesDiscardPromptAttention: RoundButton(attentionBoxButton) {
+	textBg: mediaviewMenuBg;
+	textBgOver: mediaviewMenuBgOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: mediaviewMenuBgRipple;
+	}
+}
+
 storiesStealthStyleDefault: StealthBoxStyle {
 	box: Box(defaultBox) {
 		buttonPadding: margins(10px, 10px, 10px, 10px);

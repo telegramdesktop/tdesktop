@@ -105,96 +105,6 @@ TLInputRules RulesToTL(const UserPrivacy::Rule &rule) {
 	return MTP_vector<MTPInputPrivacyRule>(std::move(result));
 }
 
-UserPrivacy::Rule TLToRules(const TLRules &rules, Data::Session &owner) {
-	// This is simplified version of privacy rules interpretation.
-	// But it should be fine for all the apps
-	// that use the same subset of features.
-	using Option = UserPrivacy::Option;
-	auto result = UserPrivacy::Rule();
-	auto optionSet = false;
-	const auto setOption = [&](Option option) {
-		if (optionSet) {
-			return;
-		}
-		optionSet = true;
-		result.option = option;
-	};
-	auto &always = result.always.peers;
-	auto &never = result.never.peers;
-	const auto feed = [&](const MTPPrivacyRule &rule) {
-		rule.match([&](const MTPDprivacyValueAllowAll &) {
-			setOption(Option::Everyone);
-		}, [&](const MTPDprivacyValueAllowContacts &) {
-			setOption(Option::Contacts);
-		}, [&](const MTPDprivacyValueAllowCloseFriends &) {
-			setOption(Option::CloseFriends);
-		}, [&](const MTPDprivacyValueAllowPremium &) {
-			result.always.premiums = true;
-		}, [&](const MTPDprivacyValueAllowBots &) {
-			result.always.miniapps = true;
-		}, [&](const MTPDprivacyValueDisallowBots &) {
-			result.never.miniapps = true;
-		}, [&](const MTPDprivacyValueAllowUsers &data) {
-			const auto &users = data.vusers().v;
-			always.reserve(always.size() + users.size());
-			for (const auto &userId : users) {
-				const auto user = owner.user(UserId(userId.v));
-				if (!base::contains(never, user)
-					&& !base::contains(always, user)) {
-					always.emplace_back(user);
-				}
-			}
-		}, [&](const MTPDprivacyValueAllowChatParticipants &data) {
-			const auto &chats = data.vchats().v;
-			always.reserve(always.size() + chats.size());
-			for (const auto &chatId : chats) {
-				const auto chat = owner.chatLoaded(chatId);
-				const auto peer = chat
-					? static_cast<PeerData*>(chat)
-					: owner.channelLoaded(chatId);
-				if (peer
-					&& !base::contains(never, peer)
-					&& !base::contains(always, peer)) {
-					always.emplace_back(peer);
-				}
-			}
-		}, [&](const MTPDprivacyValueDisallowContacts &) {
-			// Not supported
-		}, [&](const MTPDprivacyValueDisallowAll &) {
-			setOption(Option::Nobody);
-		}, [&](const MTPDprivacyValueDisallowUsers &data) {
-			const auto &users = data.vusers().v;
-			never.reserve(never.size() + users.size());
-			for (const auto &userId : users) {
-				const auto user = owner.user(UserId(userId.v));
-				if (!base::contains(always, user)
-					&& !base::contains(never, user)) {
-					never.emplace_back(user);
-				}
-			}
-		}, [&](const MTPDprivacyValueDisallowChatParticipants &data) {
-			const auto &chats = data.vchats().v;
-			never.reserve(never.size() + chats.size());
-			for (const auto &chatId : chats) {
-				const auto chat = owner.chatLoaded(chatId);
-				const auto peer = chat
-					? static_cast<PeerData*>(chat)
-					: owner.channelLoaded(chatId);
-				if (peer
-					&& !base::contains(always, peer)
-					&& !base::contains(never, peer)) {
-					never.emplace_back(peer);
-				}
-			}
-		});
-	};
-	for (const auto &rule : rules.v) {
-		feed(rule);
-	}
-	feed(MTP_privacyValueDisallowAll()); // Disallow by default.
-	return result;
-}
-
 MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 	using Key = UserPrivacy::Key;
 	switch (key) {
@@ -327,7 +237,7 @@ void UserPrivacy::reload(Key key) {
 
 void UserPrivacy::pushPrivacy(Key key, const TLRules &rules) {
 	const auto &saved
-		= (_privacyValues[key] = TLToRules(rules, _session->data()));
+		= (_privacyValues[key] = PrivacyRulesFromTL(rules, _session->data()));
 	const auto i = _privacyChanges.find(key);
 	if (i != end(_privacyChanges)) {
 		i->second.fire_copy(saved);
@@ -340,6 +250,94 @@ auto UserPrivacy::value(Key key) -> rpl::producer<UserPrivacy::Rule> {
 	} else {
 		return _privacyChanges[key].events();
 	}
+}
+
+UserPrivacy::Rule PrivacyRulesFromTL(
+		const MTPVector<MTPPrivacyRule> &rules,
+		Data::Session &owner) {
+	using Option = UserPrivacy::Option;
+	auto result = UserPrivacy::Rule();
+	auto optionSet = false;
+	const auto setOption = [&](Option option) {
+		if (optionSet) {
+			return;
+		}
+		optionSet = true;
+		result.option = option;
+	};
+	auto &always = result.always.peers;
+	auto &never = result.never.peers;
+	const auto feed = [&](const MTPPrivacyRule &rule) {
+		rule.match([&](const MTPDprivacyValueAllowAll &) {
+			setOption(Option::Everyone);
+		}, [&](const MTPDprivacyValueAllowContacts &) {
+			setOption(Option::Contacts);
+		}, [&](const MTPDprivacyValueAllowCloseFriends &) {
+			setOption(Option::CloseFriends);
+		}, [&](const MTPDprivacyValueAllowPremium &) {
+			result.always.premiums = true;
+		}, [&](const MTPDprivacyValueAllowBots &) {
+			result.always.miniapps = true;
+		}, [&](const MTPDprivacyValueDisallowBots &) {
+			result.never.miniapps = true;
+		}, [&](const MTPDprivacyValueAllowUsers &data) {
+			const auto &users = data.vusers().v;
+			always.reserve(always.size() + users.size());
+			for (const auto &userId : users) {
+				const auto user = owner.user(UserId(userId.v));
+				if (!base::contains(never, user)
+					&& !base::contains(always, user)) {
+					always.emplace_back(user);
+				}
+			}
+		}, [&](const MTPDprivacyValueAllowChatParticipants &data) {
+			const auto &chats = data.vchats().v;
+			always.reserve(always.size() + chats.size());
+			for (const auto &chatId : chats) {
+				const auto chat = owner.chatLoaded(chatId);
+				const auto peer = chat
+					? static_cast<PeerData*>(chat)
+					: owner.channelLoaded(chatId);
+				if (peer
+					&& !base::contains(never, peer)
+					&& !base::contains(always, peer)) {
+					always.emplace_back(peer);
+				}
+			}
+		}, [&](const MTPDprivacyValueDisallowContacts &) {
+		}, [&](const MTPDprivacyValueDisallowAll &) {
+			setOption(Option::Nobody);
+		}, [&](const MTPDprivacyValueDisallowUsers &data) {
+			const auto &users = data.vusers().v;
+			never.reserve(never.size() + users.size());
+			for (const auto &userId : users) {
+				const auto user = owner.user(UserId(userId.v));
+				if (!base::contains(always, user)
+					&& !base::contains(never, user)) {
+					never.emplace_back(user);
+				}
+			}
+		}, [&](const MTPDprivacyValueDisallowChatParticipants &data) {
+			const auto &chats = data.vchats().v;
+			never.reserve(never.size() + chats.size());
+			for (const auto &chatId : chats) {
+				const auto chat = owner.chatLoaded(chatId);
+				const auto peer = chat
+					? static_cast<PeerData*>(chat)
+					: owner.channelLoaded(chatId);
+				if (peer
+					&& !base::contains(always, peer)
+					&& !base::contains(never, peer)) {
+					never.emplace_back(peer);
+				}
+			}
+		});
+	};
+	for (const auto &rule : rules.v) {
+		feed(rule);
+	}
+	feed(MTP_privacyValueDisallowAll());
+	return result;
 }
 
 } // namespace Api

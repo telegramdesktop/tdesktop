@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_loader_local.h"
 
+#include "logs.h"
 #include "storage/cache/storage_cache_types.h"
 
 #include <QtCore/QBuffer>
+#include <QtCore/QFile>
 
 namespace Media {
 namespace Streaming {
@@ -30,6 +32,13 @@ LoaderLocal::LoaderLocal(std::unique_ptr<QIODevice> device)
 	Expects(_device != nullptr);
 
 	if (!_size || !_device->open(QIODevice::ReadOnly)) {
+		const auto file = qobject_cast<const QFile*>(_device.get());
+		LOG(("Streaming Error: local loader failed, path: %1, size: %2, "
+			"opened: %3, error: %4"
+			).arg(file ? file->fileName() : QString()
+			).arg(_size
+			).arg(_device->isOpen()
+			).arg(_device->errorString()));
 		fail();
 	}
 }
@@ -44,6 +53,9 @@ int64 LoaderLocal::size() const {
 
 void LoaderLocal::load(int64 offset) {
 	if (_device->pos() != offset && !_device->seek(offset)) {
+		LOG(("Streaming Error: local loader seek %1 failed: %2"
+			).arg(offset
+			).arg(_device->errorString()));
 		fail();
 		return;
 	}
@@ -51,6 +63,12 @@ void LoaderLocal::load(int64 offset) {
 	if (result.isEmpty()
 		|| ((result.size() != kPartSize)
 			&& (offset + result.size() != size()))) {
+		LOG(("Streaming Error: local loader short read at %1: %2 of %3, "
+			"error: %4"
+			).arg(offset
+			).arg(result.size()
+			).arg(kPartSize
+			).arg(_device->errorString()));
 		fail();
 		return;
 	}

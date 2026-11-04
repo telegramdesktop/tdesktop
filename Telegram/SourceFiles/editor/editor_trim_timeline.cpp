@@ -201,7 +201,7 @@ TrimTimeline::TrimTimeline(
 		: limit;
 	_cover = std::clamp(descriptor.cover, _from, _till);
 	const auto &font = st::videoTimelineDurationStyle.font;
-	const auto separator = QString::fromUtf8(" – ");
+	const auto separator = u" \u2013 "_q;
 	if (_trimOnly) {
 		_labelWidth = font->width(
 			Stamp(_duration) + separator + Stamp(_duration));
@@ -264,7 +264,7 @@ QRect TrimTimeline::labelRect() const {
 TrimTimeline::DurationLabel TrimTimeline::durationLabel() const {
 	const auto text = (_till - _from >= _duration)
 		? Stamp(_till - _from)
-		: (Stamp(_from) + QString::fromUtf8(" – ") + Stamp(_till));
+		: (Stamp(_from) + u" \u2013 "_q + Stamp(_till));
 	const auto label = labelRect();
 	const auto &font = st::videoTimelineDurationStyle.font;
 	const auto width = font->width(text);
@@ -342,7 +342,7 @@ QRect TrimTimeline::durationFieldRect() const {
 
 QString TrimTimeline::durationEditText() const {
 	return Stamp(_from, kStampPrecision)
-		+ QString::fromUtf8(" – ")
+		+ u" \u2013 "_q
 		+ Stamp(_till, kStampPrecision);
 }
 

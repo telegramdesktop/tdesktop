@@ -85,6 +85,7 @@ class ConfirmPhone;
 class PeerPhoto;
 class PeerColors;
 class ShareThemes;
+class Stories;
 class Polls;
 class TodoLists;
 class RichTasks;
@@ -465,6 +466,7 @@ public:
 	[[nodiscard]] Api::ReadMetrics &readMetrics();
 	[[nodiscard]] Api::ConfirmPhone &confirmPhone();
 	[[nodiscard]] Api::PeerPhoto &peerPhoto();
+	[[nodiscard]] Api::Stories &stories();
 	[[nodiscard]] Api::Polls &polls();
 	[[nodiscard]] Api::TodoLists &todoLists();
 	[[nodiscard]] Api::RichTasks &richTasks();
@@ -848,6 +850,7 @@ private:
 	const std::unique_ptr<Api::ReadMetrics> _readMetrics;
 	const std::unique_ptr<Api::ConfirmPhone> _confirmPhone;
 	const std::unique_ptr<Api::PeerPhoto> _peerPhoto;
+	const std::unique_ptr<Api::Stories> _stories;
 	const std::unique_ptr<Api::Polls> _polls;
 	const std::unique_ptr<Api::TodoLists> _todoLists;
 	const std::unique_ptr<Api::RichTasks> _richTasks;

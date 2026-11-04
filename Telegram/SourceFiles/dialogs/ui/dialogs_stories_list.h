@@ -39,6 +39,11 @@ struct Element {
 	uint32 unreadCount : 15 = 0;
 	uint32 hasVideoStream : 1 = 0;
 	uint32 skipSmall : 1 = 0;
+	uint32 mine : 1 = 0;
+	uint32 mineUnread : 1 = 0;
+	uint32 uploading : 1 = 0;
+	uint32 uploadFailed : 1 = 0;
+	uint32 uploadProgress : 7 = 0;
 
 	friend inline bool operator==(
 		const Element &a,
@@ -94,6 +99,7 @@ public:
 	}
 	void setShowTitle(bool shown);
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
+	[[nodiscard]] rpl::producer<uint64> addStoryClicks() const;
 	[[nodiscard]] rpl::producer<ShowMenuRequest> showMenuRequests() const;
 	[[nodiscard]] rpl::producer<bool> toggleExpandedRequests() const;
 	//[[nodiscard]] rpl::producer<> entered() const;
@@ -104,6 +110,9 @@ public:
 
 	[[nodiscard]] bool toggledHidden() const;
 	void setToggledHidden(bool hiddenInstant, bool hiddenAnimated);
+	void updateFromParentDrag(QPoint globalPos);
+	void dragLeft();
+	[[nodiscard]] uint64 finishDropAt(QPoint globalPos);
 
 private:
 	struct Layout;
@@ -128,6 +137,13 @@ private:
 	};
 
 	void showContent(Content &&content);
+	void paintAddBadge(QPainter &p, uint64 id, const QRectF &userpic) const;
+	void updateUploadAnimation();
+	void stepUploadAnimation(crl::time now);
+	[[nodiscard]] float64 uploadShownProgress(uint64 id, crl::time now) const;
+	[[nodiscard]] float64 finishMorphProgress(uint64 id, crl::time now) const;
+	[[nodiscard]] float64 failFadeProgress(uint64 id, crl::time now) const;
+	[[nodiscard]] float64 badgeFadeProgress(uint64 id, crl::time now) const;
 	void validateTitle();
 	//void enterEventHook(QEnterEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -157,6 +173,7 @@ private:
 	void updateTooltipGeometry();
 	[[nodiscard]] TextWithEntities computeTooltipText() const;
 	void toggleTooltip(bool fast);
+	[[nodiscard]] bool overMineElement();
 
 	bool checkForFullState();
 	void setState(State state);
@@ -177,6 +194,8 @@ private:
 	Content _content;
 	Data _data;
 	rpl::event_stream<uint64> _clicks;
+	rpl::event_stream<uint64> _addStoryClicks;
+	mutable std::optional<std::pair<uint64, QRectF>> _addBadge;
 	rpl::event_stream<ShowMenuRequest> _showMenuRequests;
 	rpl::event_stream<bool> _toggleExpandedRequests;
 	//rpl::event_stream<> _entered;
@@ -205,6 +224,19 @@ private:
 	Ui::Animations::Simple _expandedAnimation;
 	Ui::Animations::Simple _expandCatchUpAnimation;
 	Ui::Animations::Simple _hiddenAnimation;
+
+	struct UploadProgress {
+		float64 from = 0.;
+		float64 to = 0.;
+		crl::time started = 0;
+		bool finishing = false;
+		float64 startFrom = 0.;
+	};
+	base::flat_map<uint64, UploadProgress> _uploadProgress;
+	base::flat_map<uint64, crl::time> _failFade;
+	base::flat_map<uint64, crl::time> _badgeFade;
+	Ui::Animations::Basic _uploadAnimation;
+	crl::time _uploadStarted = 0;
 	float64 _lastRatio = 0.;
 	int _lastExpandedHeight = 0;
 	bool _hiddenAnimated : 1 = false;
@@ -218,6 +250,7 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+	bool _dragOverBadge = false;
 
 	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
 

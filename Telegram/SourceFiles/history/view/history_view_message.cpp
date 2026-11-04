@@ -3176,6 +3176,8 @@ void Message::paintRichText(
 		std::clamp(viewportClip.bottom() + 1, 0, visibleHeight));
 	auto articleContext = Iv::Markdown::MarkdownArticlePaintContext(
 		context).translated(-rect.topLeft());
+	articleContext.suppressInteractiveControls
+		= (Message::context() == HistoryView::Context::MediaEditor);
 	if (context.messageSelection && context.messageSelection->isRichPage()) {
 		articleContext.selectionState.selection
 			= context.messageSelection->richPage.selection;

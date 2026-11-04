@@ -73,6 +73,12 @@ photoEditorPaintModeButton: IconButton(photoEditorRotateButton) {
 }
 photoEditorPaintIconActive: icon {{ "photo_editor/paint", photoEditorButtonIconFgActive }};
 
+photoEditorSaveButton: IconButton(photoEditorRotateButton) {
+	icon: icon {{ "mediaview/download", photoEditorButtonIconFg }};
+	iconOver: icon {{ "mediaview/download", photoEditorButtonIconFgOver }};
+}
+photoEditorButtonDisabledOpacity: 0.35;
+
 photoEditorUndoButton: IconButton(photoEditorRotateButton) {
 	icon: icon {{ "menu/tabs_undo-24x24", photoEditorButtonIconFg }};
 	iconOver: icon {{ "menu/tabs_undo-24x24", photoEditorButtonIconFgOver }};
@@ -254,6 +260,11 @@ photoEditorAudioDiscRing: 2px;
 photoEditorAudioDiscRingFg: mediaviewControlFg;
 photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButtonIconFg }};
 photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
+photoEditorVideoLayerIconBody: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFg }};
+photoEditorVideoLayerIconBodyOver: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFgOver }};
+photoEditorVideoLayerIconBadge: icon {{ "photo_editor/video_locked_badge-24x24", photoEditorButtonIconFg }};
+photoEditorVideoLayerIconBadgeOver: icon {{ "photo_editor/video_locked_badge-24x24", photoEditorButtonIconFgOver }};
+photoEditorVideoLayerIconActive: icon {{ "photo_editor/video_unlocked-24x24", photoEditorButtonIconFgActive }};
 photoEditorMenuDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 photoEditorMediaMenu: PopupMenu(photoEditorCropRatioMenu) {
 	scrollPadding: margins(0px, 3px, 0px, 8px);
@@ -381,12 +392,84 @@ videoEditorPlayBadgeBg: mediaviewCaptionBg;
 videoEditorAbout: FlatLabel(photoEditorAbout) {
 }
 videoEditorAboutMargin: margins(10px, 10px, 10px, 0px);
+videoEditorBarButtonRippleSkip: 5px;
+videoEditorCaptionSkip: 8px;
+
+storyCaptionBg: storiesComposeBg;
+storyCaptionRadius: 21px;
+storyCaptionHeightMin: 42px;
+storyCaptionEmojiLeft: 0px;
+storyCaptionFieldSkip: 2px;
+storyCaptionPeriodSize: 42px;
+storyCaptionPeriodRipple: 36px;
+storyCaptionPeriodDiameter: 21px;
+storyCaptionPeriodStroke: 2px;
+storyCaptionPeriodFg: storiesComposeWhiteText;
+storyCaptionPeriodFont: font(11px semibold);
+storyCaptionField: InputField(defaultInputField) {
+	style: boxTextStyle;
+	textMargins: margins(0px, 0px, 0px, 0px);
+	textAlign: align(left);
+	textFg: storiesComposeWhiteText;
+	textBg: transparent;
+	textBgActive: transparent;
+	heightMin: 20px;
+	heightMax: 108px;
+	placeholderFg: storiesComposeGrayText;
+	placeholderFgActive: storiesComposeGrayText;
+	placeholderFgError: storiesComposeGrayText;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+	menu: storiesPopupMenu;
+}
+storyCaptionEmoji: EmojiButton(storiesAttachEmoji) {
+	bg: transparent;
+	lineFgOver: storiesComposeWhiteText;
+	inner: IconButton(storiesAttachEmojiInner) {
+		icon: icon {{ "chat/input_smile_face", storiesComposeGrayIcon }};
+		iconOver: icon {{ "chat/input_smile_face", storiesComposeWhiteText }};
+		rippleAreaPosition: point(0px, 0px);
+		rippleAreaSize: 42px;
+	}
+}
+storyCaptionRound: IconButton(storiesAttach) {
+	icon: icon {{ "chat/input_video", storiesComposeGrayIcon }};
+	iconOver: icon {{ "chat/input_video", storiesComposeWhiteText }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 42px;
+}
+storyRecordDotLeft: 21px;
+storyRecordDotRadius: 5px;
+storyRecordDotFg: attentionButtonFg;
+storyRecordTimerLeft: 33px;
+storyRecordFont: font(15px semibold);
+storyRecordTimerFg: storiesComposeWhiteText;
+storyRecordCancelPadding: 12px;
+storyRecordCancelFg: storiesComposeGrayText;
+storyRecordButtonRadius: 20px;
+storyRecordButtonLevelRadius: 15px;
+storyRecordButtonMaxRadius: 27px;
+storyRecordButtonBg: storiesComposeBlue;
+storyRecordButtonFg: storiesComposeWhiteText;
+storyRecordStopSize: 10px;
+storyRecordStopRadius: 3px;
+storyRecordMinorBlobMinRadius: 35px;
+storyRecordMinorBlobMaxRadius: 42px;
+storyRecordMajorBlobMinRadius: 35px;
+storyRecordMajorBlobMaxRadius: 40px;
 
 photoEditorMessageReferenceWidth: 600px;
 photoEditorLinkPreviewMargin: margins(24px, 12px, 24px, 6px);
 photoEditorLinkPreviewMaxHeight: 320px;
 photoEditorLinkPreviewPadding: 12px;
 photoEditorLinkPillIcon: icon {{ "photo_editor/link", windowFg }};
+photoEditorLocationPillIcon: icon {{ "chat/filled_location", windowFg }};
 photoEditorLinkThemeSize: 36px;
 photoEditorLinkThemeIconSize: 28px;
 photoEditorLinkThemeSkip: 6px;
@@ -397,3 +480,10 @@ photoEditorLinkLoadingLine: 10px;
 photoEditorLinkLoadingSkip: 8px;
 photoEditorLinkLoadingQuote: 3px;
 photoEditorLinkLoadingQuoteSkip: 8px;
+photoEditorEnhanceTitleMinSize: 16px;
+photoEditorEnhanceTitleMaxSize: 36px;
+photoEditorEnhanceValueMinSize: 30px;
+photoEditorEnhanceValueMaxSize: 60px;
+photoEditorEnhanceShadowShift: 2px;
+photoEditorEnhanceShadow: mediaviewControlBg;
+photoEditorEnhanceFg: windowFgActive;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "data/data_boosts.h"
 #include "info/info_controller.h" // Key
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/tabs/info_profile_tab_top_bar_bindings.h"
@@ -15,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
+
+namespace Api {
+class Boosts;
+} // namespace Api
 
 namespace Data {
 class ForumTopic;
@@ -91,6 +96,13 @@ class StatusLabel;
 class TopBarActionButton;
 
 struct TopBarActionButtonStyle;
+
+enum class TopBarAction : quint64 {
+	AddStory = (1 << 0),
+};
+
+[[nodiscard]] bool TopBarActionHidden(TopBarAction action);
+void SetTopBarActionHidden(TopBarAction action, bool hidden);
 
 class TopBar final : public Ui::RpWidget {
 public:
@@ -185,6 +197,11 @@ private:
 		not_null<Window::SessionController*> controller,
 		Fn<void()> showSavedMusic);
 	void applyPillsReserve(int reserve);
+	void openBoostsSectionForStory(
+		not_null<Window::SessionController*> controller);
+	void setupStoryDrop(
+		not_null<TopBarActionButton*> button,
+		not_null<Window::SessionController*> controller);
 	void searchInCommunity(not_null<Window::SessionController*> controller);
 	void finalizeActions(
 		const std::vector<not_null<TopBarActionButton*>> &buttons);
@@ -364,6 +381,7 @@ private:
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabSearchToggle;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabGroupToggle;
 	base::unique_qptr<Ui::PopupMenu> _peerMenu;
+	base::unique_qptr<Ui::PopupMenu> _actionContextMenu;
 
 	Ui::RpWidget *_actionMore = nullptr;
 
@@ -392,6 +410,9 @@ private:
 	std::vector<Ui::OutlineSegment> _storySegments;
 	bool _hasStories = false;
 	bool _hasLiveStories = false;
+	Api::Boosts *_boostsApi = nullptr;
+	std::optional<Data::BoostStatus> _boostsStatus;
+	rpl::variable<bool> _storyBoostsLoading = false;
 
 	std::optional<uint8> _localColorProfileIndex;
 	std::optional<DocumentId> _localPatternEmojiId;

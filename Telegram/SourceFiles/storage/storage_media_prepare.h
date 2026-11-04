@@ -47,6 +47,7 @@ enum class MimeDataState {
 	int previewWidth,
 	bool premium);
 [[nodiscard]] MimeDataState ComputeMimeDataState(const QMimeData *data);
+[[nodiscard]] bool IsAcceptableStoryDragState(MimeDataState state);
 [[nodiscard]] bool ValidatePhotoEditorMediaDragData(
 	not_null<const QMimeData*> data,
 	bool composeAnimated,

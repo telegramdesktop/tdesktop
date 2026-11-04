@@ -2632,7 +2632,7 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			.chooseLabel = tr::lng_maps_point_send(),
 			.callback = crl::guard(this, [=](
 					Data::LocationPoint point,
-					QString) {
+					Core::GeoAddress) {
 				applyGeo(point.lat(), point.lon());
 			}),
 			.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },

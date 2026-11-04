@@ -99,6 +99,22 @@ QColor ItemShape::color() const {
 	return _color;
 }
 
+ShapeType ItemShape::shapeType() const {
+	return _shape;
+}
+
+float64 ItemShape::strokeWidth() const {
+	return _strokeWidth;
+}
+
+bool ItemShape::fill() const {
+	return _fill;
+}
+
+float64 ItemShape::bend() const {
+	return _bend;
+}
+
 void ItemShape::setColor(const QColor &color) {
 	_color = color;
 	update();

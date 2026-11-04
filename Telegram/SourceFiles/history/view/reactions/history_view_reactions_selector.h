@@ -103,6 +103,7 @@ public:
 	void setSpecialExpandTopSkip(int skip);
 	void setBubbleUp(bool bubbleUp);
 	void setExpandDown(bool expandDown);
+	void setLowersAfterAppearance(bool low);
 	void initGeometry(int innerTop);
 	void beforeDestroy();
 
@@ -151,6 +152,7 @@ private:
 
 	void showEvent(QShowEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -243,6 +245,7 @@ private:
 	bool _small = false;
 	bool _over = false;
 	bool _low = false;
+	bool _lowersAfterAppearance = false;
 	bool _bubbleUp = false;
 	bool _expandDown = false;
 

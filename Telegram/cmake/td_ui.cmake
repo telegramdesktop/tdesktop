@@ -180,10 +180,18 @@ PRIVATE
     editor/controllers/undo_controller.h
     editor/editor_audio_disc_button.cpp
     editor/editor_audio_disc_button.h
+    editor/editor_video_layer_button.cpp
+    editor/editor_video_layer_button.h
     editor/editor_audio_menu.cpp
     editor/editor_audio_menu.h
     editor/editor_crop.cpp
     editor/editor_crop.h
+    editor/editor_enhance.cpp
+    editor/editor_enhance.h
+    editor/editor_enhance_indicator.cpp
+    editor/editor_enhance_indicator.h
+    editor/editor_keys_legend.cpp
+    editor/editor_keys_legend.h
     editor/editor_link_pill.cpp
     editor/editor_link_pill.h
     editor/editor_layer_widget.cpp
@@ -193,6 +201,8 @@ PRIVATE
     editor/photo_editor_common.cpp
     editor/photo_editor_common.h
     editor/photo_editor_inner_common.h
+    editor/editor_round_record_button.cpp
+    editor/editor_round_record_button.h
     editor/scene/scene.cpp
     editor/scene/scene.h
     editor/scene/scene_item_animated.cpp
@@ -207,14 +217,25 @@ PRIVATE
     editor/scene/scene_item_line.h
     editor/scene/scene_item_link.cpp
     editor/scene/scene_item_link.h
+    editor/scene/scene_item_location.cpp
+    editor/scene/scene_item_location.h
     editor/scene/scene_item_shape.cpp
     editor/scene/scene_item_shape.h
     editor/scene/scene_item_text.cpp
     editor/scene/scene_item_text.h
+    editor/scene/scene_item_video.cpp
+    editor/scene/scene_item_video.h
+    editor/scene/scene_item_weather.cpp
+    editor/scene/scene_item_weather.h
     editor/scene/scene_emoji_document.cpp
     editor/scene/scene_emoji_document.h
     editor/scene/scene_text_editing.cpp
     editor/scene/scene_text_editing.h
+
+    editor/video/video_clip.cpp
+    editor/video/video_clip.h
+    editor/video/video_editor_common.cpp
+    editor/video/video_editor_common.h
 
     ui/boxes/about_cocoon_box.h
     ui/boxes/about_cocoon_box.cpp
@@ -288,6 +309,11 @@ PRIVATE
     media/media_common.h
     media/media_video_canvas.cpp
     media/media_video_canvas.h
+    media/media_video_encode.cpp
+    media/media_video_encode.h
+
+    media/stories/media_stories_discard_prompt.cpp
+    media/stories/media_stories_discard_prompt.h
 
     menu/gift_resale_filter.cpp
     menu/gift_resale_filter.h

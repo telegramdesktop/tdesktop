@@ -153,6 +153,46 @@ private:
 	std::vector<Target> _targets;
 };
 
+class ItemZOrder final : public ItemAction {
+public:
+	struct Target {
+		std::shared_ptr<NumberedItem> item;
+		float64 before = 0.;
+		float64 after = 0.;
+	};
+
+	explicit ItemZOrder(std::vector<Target> targets)
+	: _targets(std::move(targets)) {
+	}
+
+	void apply() override {
+		for (const auto &target : _targets) {
+			target.item->setZValue(target.after);
+		}
+	}
+
+	void revert() override {
+		for (const auto &target : _targets) {
+			target.item->setZValue(target.before);
+		}
+	}
+
+	void restore(SaveState state) override {
+		if (!hasState(state)) {
+			return;
+		}
+		ItemAction::restore(state);
+		if (isNormalStatus()) {
+			apply();
+		} else if (isUndidStatus()) {
+			revert();
+		}
+	}
+
+private:
+	std::vector<Target> _targets;
+};
+
 bool SkipMouseEvent(not_null<QGraphicsSceneMouseEvent*> event) {
 	return event->isAccepted() || (event->button() == Qt::RightButton);
 }
@@ -162,6 +202,7 @@ constexpr auto kShapeSnapAngle = 45.;
 constexpr auto kDraftShapeOpacity = 0.5;
 constexpr auto kStickyGuideDuration = crl::time(150);
 constexpr auto kItemsBaseZ = 9000.;
+constexpr auto kOverlayZ = 1e6;
 
 } // namespace
 
@@ -170,7 +211,7 @@ public:
 	explicit StickyGuidesItem(not_null<Scene*> scene)
 	: _scene(scene) {
 		setAcceptedMouseButtons(Qt::NoButton);
-		setZValue(kItemsBaseZ - 1.);
+		setZValue(kOverlayZ);
 	}
 
 	QRectF boundingRect() const override {
@@ -247,7 +288,6 @@ Scene::Scene(const QRectF &rect)
 					maskPos,
 					std::move(targets));
 				addItem(eraser);
-				_canvas->setZValue(++_lastLineZ);
 			}
 			return;
 		}
@@ -323,15 +363,15 @@ Scene::Scene(const QRectF &rect)
 			const auto item = std::make_shared<ItemLine>(
 				std::move(blurPixmap));
 			item->setPos(maskPos);
+			item->setZValue((*_lastZ)++);
 			addItem(item);
-			_canvas->setZValue(++_lastLineZ);
 			return;
 		}
 		const auto item = std::make_shared<ItemLine>(
 			std::move(content.pixmap));
 		item->setPos(content.position);
+		item->setZValue((*_lastZ)++);
 		addItem(item);
-		_canvas->setZValue(++_lastLineZ);
 	}, _lifetime);
 
 	QObject::connect(
@@ -462,15 +502,18 @@ void Scene::mousePressEvent(QGraphicsSceneMouseEvent *event) {
 		_textEdit->finishEditing(true);
 		QGraphicsScene::mousePressEvent(event);
 		capturePlacements();
+		_canvasPresses.fire({});
 		return;
 	}
 
 	QGraphicsScene::mousePressEvent(event);
 	capturePlacements();
+	_canvasPresses.fire({});
 	if (SkipMouseEvent(event)
 		|| !_canvas->drawableRect().contains(event->scenePos())) {
 		return;
 	}
+	_canvas->setZValue(*_lastZ);
 	_canvas->handleMousePressEvent(event);
 }
 
@@ -585,6 +628,7 @@ void Scene::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
 	}
 	QGraphicsScene::mouseReleaseEvent(event);
 	commitPlacements();
+	_canvasReleases.fire_copy(event->button());
 	if (SkipMouseEvent(event) || _textEdit->editing()) {
 		return;
 	}
@@ -800,6 +844,57 @@ void Scene::setSelectedTextColor(const QColor &color) {
 			static_cast<ItemText*>(item)->setColor(color);
 		}
 	}
+}
+
+void Scene::renderBaked(
+		QPainter *p,
+		const QRectF &target,
+		const QRectF &source) {
+	auto hidden = std::vector<QGraphicsItem*>();
+	for (const auto &item : _items) {
+		if (item->isVisible() && !item->bakes()) {
+			item->setVisible(false);
+			hidden.push_back(item.get());
+		}
+	}
+	render(p, target, source);
+	for (const auto item : hidden) {
+		item->setVisible(true);
+	}
+}
+
+auto Scene::reactionPickRequests() const
+-> rpl::producer<not_null<ItemReaction*>> {
+	return _reactionPickRequests.events();
+}
+
+void Scene::requestReactionPick(not_null<ItemReaction*> item) {
+	_reactionPickRequests.fire_copy(item);
+}
+
+rpl::producer<> Scene::canvasPresses() const {
+	return _canvasPresses.events();
+}
+
+rpl::producer<Qt::MouseButton> Scene::canvasReleases() const {
+	return _canvasReleases.events();
+}
+
+rpl::producer<> Scene::itemContextMenuRequests() const {
+	return _itemContextMenuRequests.events();
+}
+
+void Scene::noteItemContextMenu() {
+	_itemContextMenuRequests.fire({});
+}
+
+auto Scene::locationPickRequests() const
+-> rpl::producer<not_null<ItemLocation*>> {
+	return _locationPickRequests.events();
+}
+
+void Scene::requestLocationPick(not_null<ItemLocation*> item) {
+	_locationPickRequests.fire_copy(item);
 }
 
 void Scene::setSelectedShapeBrush(
@@ -1119,6 +1214,59 @@ void Scene::performRedo() {
 			checkDurationsLink();
 		}
 	}
+}
+
+void Scene::raiseItem(not_null<ItemBase*> item) {
+	changeItemZOrder(item, 1);
+}
+
+void Scene::lowerItem(not_null<ItemBase*> item) {
+	changeItemZOrder(item, -1);
+}
+
+void Scene::pinToBottom(not_null<ItemBase*> item) {
+	item->setZValue(kItemsBaseZ - 1.);
+}
+
+void Scene::changeItemZOrder(not_null<ItemBase*> item, int step) {
+	if (item->isBackground()) {
+		return;
+	}
+	const auto z = item->zValue();
+	auto best = ItemPtr();
+	for (const auto &candidate : _items) {
+		if (candidate.get() == item
+			|| candidate->asAction()
+			|| !candidate->isNormalStatus()
+			|| ((candidate->type() >= ItemBase::Type)
+				&& static_cast<const ItemBase*>(
+					candidate.get())->isBackground())) {
+			continue;
+		}
+		const auto candidateZ = candidate->zValue();
+		const auto closer = (step > 0)
+			? (candidateZ > z)
+			: (candidateZ < z);
+		if (!closer) {
+			continue;
+		} else if (!best
+			|| (step > 0
+				? (candidateZ < best->zValue())
+				: (candidateZ > best->zValue()))) {
+			best = candidate;
+		}
+	}
+	if (!best) {
+		return;
+	}
+	const auto bestZ = best->zValue();
+	best->setZValue(z);
+	item->setZValue(bestZ);
+	addItem(std::make_shared<ItemZOrder>(
+		std::vector<ItemZOrder::Target>{
+			{ .item = itemShared(item), .before = z, .after = bestZ },
+			{ .item = best, .before = bestZ, .after = z },
+		}));
 }
 
 void Scene::capturePlacements() {

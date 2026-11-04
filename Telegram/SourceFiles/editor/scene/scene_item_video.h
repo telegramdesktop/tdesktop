@@ -27,6 +27,7 @@ public:
 	[[nodiscard]] bool hasContent() const override;
 	[[nodiscard]] QByteArray content() const override;
 	[[nodiscard]] crl::time loopDuration() const override;
+	[[nodiscard]] bool roundVideo() const override;
 	[[nodiscard]] VideoTrim trim() const override;
 	void releasePlayers() override;
 	void setStatus(Status status) override;
@@ -35,9 +36,18 @@ public:
 	int type() const override;
 	[[nodiscard]] VideoClip *videoClip() override;
 
+	void keepInitialState();
+	[[nodiscard]] bool atInitialState() const;
+
+	void setBackground(bool background);
+	[[nodiscard]] bool isBackground() const override;
+	void setBackgroundLocked(bool locked);
+	[[nodiscard]] bool isBackgroundLocked() const override;
+
 protected:
 	[[nodiscard]] Media::Encode::AnimatedEntity::Kind entityKind()
 		const override;
+	[[nodiscard]] QString entityPath() const override;
 	void fillContextMenu(not_null<Ui::PopupMenu*> menu) override;
 	void performFlip() override;
 	std::shared_ptr<ItemBase> duplicate(ItemBase::Data data) const override;
@@ -46,8 +56,13 @@ private:
 	const std::unique_ptr<VideoClip> _clip;
 	const QSize _frameSize;
 	QImage _image;
+	std::optional<Placement> _initialPlacement;
+	VideoClip::State _initialState;
+	bool _hasInitial = false;
 	VideoClip::State _saved;
 	VideoClip::State _kept;
+	bool _isBackground = false;
+	bool _isLocked = true;
 
 };
 

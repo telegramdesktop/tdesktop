@@ -115,4 +115,13 @@ std::shared_ptr<Info::Memento> Make(not_null<PeerData*> peer) {
 			std::make_shared<Memento>(peer)));
 }
 
+std::shared_ptr<Info::Memento> Make(
+		not_null<PeerData*> peer,
+		Data::BoostStatus status) {
+	auto memento = std::make_shared<Memento>(peer);
+	memento->setState(std::move(status));
+	return std::make_shared<Info::Memento>(
+		std::vector<std::shared_ptr<ContentMemento>>(1, std::move(memento)));
+}
+
 } // namespace Info::Boosts

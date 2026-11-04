@@ -229,6 +229,7 @@ struct MarkdownArticlePaintContext final : Ui::ChatPaintContext {
 	int hiddenSegmentIndex = -1;
 	bool debugBlockGeometry = false;
 	bool bubbleGradient = false;
+	bool suppressInteractiveControls = false;
 	RichButtonLoading buttonLoading;
 	RichButtonLoadingCoverage buttonLoadingCoverage;
 	double mediaPixelScale = 1.;

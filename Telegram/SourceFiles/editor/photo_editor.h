@@ -18,7 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 class LayerManager;
 class LayerWidget;
+class RoundVideoRecorder;
 class Show;
+template <typename Widget>
+class FadeWrap;
 } // namespace Ui
 
 namespace ChatHelpers {
@@ -31,6 +34,7 @@ class Controller;
 
 namespace Editor {
 
+class CaptionBar;
 class ColorPicker;
 class PhotoEditorContent;
 class PhotoEditorControls;
@@ -56,19 +60,38 @@ public:
 	void save();
 	[[nodiscard]] rpl::producer<PhotoModifications> doneRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<PhotoModifications> saveRequests() const;
+	void setSaveEnabled(bool enabled);
+
+	[[nodiscard]] TextWithTags caption() const;
+	[[nodiscard]] int period() const;
+	[[nodiscard]] bool edited() const;
+	[[nodiscard]] PhotoModifications collect();
 
 private:
 	void keyPressEvent(QKeyEvent *e) override;
 	void keyReleaseEvent(QKeyEvent *e) override;
 	void updateColorPickerVisibility(anim::type animated);
+	void done();
+	void toggleRoundRecording();
+	void startRoundRecording();
+	void stopRoundRecording(bool save);
+	void layoutContent();
+	[[nodiscard]] QMargins contentMargins() const;
 
 	PhotoModifications _modifications;
+	const int _initialAngle = 0;
+	const bool _initialFlipped = false;
 
 	const std::unique_ptr<Ui::LayerManager> _layers;
 	const std::shared_ptr<Controllers> _controllers;
 
 	base::unique_qptr<PhotoEditorContent> _content;
 	base::unique_qptr<PhotoEditorControls> _controls;
+	base::unique_qptr<Ui::FadeWrap<CaptionBar>> _captionBar;
+	std::unique_ptr<Ui::RoundVideoRecorder> _roundRecorder;
+	rpl::lifetime _roundLifetime;
+	bool _roundRecording = false;
 	std::array<Brush, 5> _brushes;
 	Brush::Tool _brushTool = Brush::Tool::Pen;
 	bool _shapesFilled = false;
@@ -88,6 +111,9 @@ private:
 	bool _colorLineShown = false;
 	rpl::event_stream<PhotoModifications> _done;
 	rpl::event_stream<> _cancel;
+	const bool _hasSaveButton = false;
+	bool _saveEnabled = true;
+	rpl::event_stream<PhotoModifications> _save;
 
 };
 

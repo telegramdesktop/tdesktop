@@ -98,6 +98,7 @@ private:
 	rpl::variable<bool> _hasPinnedToBottom;
 	rpl::variable<bool> _emptyAlbumShown;
 	bool _shown = false;
+	bool _bottomNear = false;
 	std::unique_ptr<FlexibleScrollHelper> _flexibleScrollHelper;
 
 };

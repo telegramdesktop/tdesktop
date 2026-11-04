@@ -100,6 +100,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "info/statistics/info_statistics_widget.h"
 #include "info/stories/info_stories_widget.h"
+#include "media/stories/media_stories_post.h"
+#include "boxes/story_drafts_box.h"
 #include "data/components/scheduled_messages.h"
 #include "data/components/welcome_messages.h"
 #include "data/notify/data_notify_settings.h"
@@ -307,6 +309,8 @@ private:
 	void addToggleMuteSubmenu(bool addSeparator);
 	void addSupportInfo();
 	void addInfo();
+	void addPostStory();
+	void addStoryDrafts();
 	void addStoryArchive();
 	void addNewWindow(bool addSeparator = true);
 	void addUngroup();
@@ -654,6 +658,30 @@ void Filler::addInfo() {
 			}
 		}
 	}, infoPeer->isUser() ? &st::menuIconProfile : &st::menuIconInfo);
+}
+
+void Filler::addPostStory() {
+	if (!_peer
+		|| _topic
+		|| _sublist
+		|| !Media::Stories::CanPostStory(_peer)) {
+		return;
+	}
+	const auto controller = _controller;
+	const auto peer = _peer;
+	_addAction(tr::lng_story_post_button(tr::now), [=] {
+		Media::Stories::PostStory(controller, peer);
+	}, &st::menuIconStoryPost);
+}
+
+void Filler::addStoryDrafts() {
+	if (!_peer || _topic || _sublist || !_peer->isSelf()) {
+		return;
+	}
+	const auto controller = _controller;
+	_addAction(tr::lng_story_drafts_button(tr::now), [=] {
+		ShowStoryDraftsBox(controller);
+	}, &st::menuIconStoriesSavedSection);
 }
 
 void Filler::addStoryArchive() {
@@ -1940,6 +1968,8 @@ void Filler::fillHistoryActions() {
 	addInfo();
 	addViewAsTopics();
 	addManageChat();
+	addPostStory();
+	addStoryDrafts();
 	addStoryArchive();
 	addSupportInfo();
 	addBoostChat();
@@ -1968,6 +1998,8 @@ void Filler::fillProfileActions() {
 	addSendGift();
 	addSendMoney();
 	addViewStatistics();
+	addPostStory();
+	addStoryDrafts();
 	addStoryArchive();
 	addManageChat();
 	addSetPersonalChannel();

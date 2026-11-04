@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/rect_part.h"
+#include "ui/text/text_entity.h"
 #include "ui/widgets/separate_panel.h"
 #include "webview/webview_common.h"
 #include <crl/crl_time.h>
@@ -103,6 +104,13 @@ struct RequestChatRequest {
 	Fn<void(QString)> callback;
 };
 
+struct ShareStoryRequest {
+	QString mediaUrl;
+	TextWithTags caption;
+	QString widgetLinkUrl;
+	QString widgetLinkName;
+};
+
 class Delegate {
 public:
 	[[nodiscard]] virtual Webview::ThemeParams botThemeParams() = 0;
@@ -137,6 +145,7 @@ public:
 	virtual void botSendPreparedMessage(
 		SendPreparedMessageRequest request) = 0;
 	virtual void botRequestChat(RequestChatRequest request) = 0;
+	virtual void botShareToStory(ShareStoryRequest request) = 0;
 	virtual void botVerifyAge(int age) = 0;
 	virtual void botOpenTermsOfService() = 0;
 	virtual void botOpenPrivacyPolicy() = 0;
@@ -287,7 +296,7 @@ private:
 	void openInvoice(const QJsonObject &args);
 	void openPopup(const QJsonObject &args);
 	void openScanQrPopup(const QJsonObject &args);
-	void openShareStory(const QJsonObject &args);
+	void processShareToStory(const QJsonObject &args);
 	void requestWriteAccess();
 	void replyRequestWriteAccess(bool allowed);
 	void requestPhone();

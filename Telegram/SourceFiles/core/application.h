@@ -314,6 +314,7 @@ public:
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation);
 	[[nodiscard]] bool uploadPreventsQuit();
+	[[nodiscard]] bool storyPostPreventsQuit();
 	[[nodiscard]] bool downloadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();

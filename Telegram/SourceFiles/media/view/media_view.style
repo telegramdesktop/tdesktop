@@ -670,6 +670,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		storiesComposeWhiteText
 	}};
 	linkButtonIcon: icon {{ "limits/links", storiesComposeWhiteText }};
+	locationButtonIcon: icon {{ "chat/filled_location", storiesComposeWhiteText }};
 	menu: storiesPopupMenuWithIcons;
 	menuAttention: storiesMenuWithIconsAttention;
 	expandedSeparator: mediaviewWideMenuSeparator;
@@ -1024,6 +1025,7 @@ storiesReactionsPan: EmojiPan(storiesEmojiPan) {
 
 storiesReactionsWidth: 210px;
 storiesReactionsBottomSkip: 29px;
+storiesEditorReactionsSkip: 4px;
 storiesReactionsAddedTop: 200px;
 storiesLikeReactionsPosition: point(85px, 30px);
 
@@ -1215,6 +1217,71 @@ storiesStealthStyle: StealthBoxStyle {
 	featureNextIcon: icon{{ "stories/stealth_25m", storiesComposeBlue }};
 	logoIcon: icon{{ "stories/stealth_logo", storiesComposeWhiteText }};
 	logoBg: storiesComposeBlue;
+}
+
+storiesSendStoryRadio: Radio(defaultRadio) {
+	untoggledFg: storiesComposeGrayText;
+	toggledFg: storiesComposeBlue;
+}
+storiesSendStoryRowStyle: SendStoryRowStyle {
+	radio: storiesSendStoryRadio;
+	titleFg: storiesComposeWhiteText;
+	subtitleFg: storiesComposeGrayText;
+	subtitleLinkFg: storiesComposeBlue;
+	dividerBg: storiesComposeBgOver;
+	ripple: storiesComposeRipple;
+}
+storiesPeersChooserItem: PeerListItem(defaultPeerListItem) {
+	button: OutlineButton(defaultPeerListButton) {
+		textBg: storiesComposeBg;
+		textBgOver: storiesComposeBgOver;
+		textFg: storiesComposeGrayText;
+		textFgOver: storiesComposeGrayText;
+		ripple: storiesComposeRipple;
+	}
+	disabledCheckFg: groupCallMemberNotJoinedStatus;
+	checkbox: groupCallMembersListCheckbox;
+	nameFg: storiesComposeWhiteText;
+	nameFgChecked: storiesComposeWhiteText;
+	statusFg: storiesComposeGrayText;
+	statusFgOver: storiesComposeGrayText;
+	statusFgActive: groupCallMemberActiveStatus;
+}
+storiesPeersChooserList: PeerList(defaultPeerList) {
+	bg: storiesComposeBg;
+	about: FlatLabel(defaultPeerListAbout) {
+		textFg: groupCallMemberNotJoinedStatus;
+	}
+	item: storiesPeersChooserItem;
+}
+storiesSendStoryBoxStyle: SendStoryBoxStyle {
+	box: Box(storiesStealthBox) {
+		buttonWide: true;
+		buttonPadding: margins(16px, 12px, 16px, 12px);
+		button: RoundButton(defaultBoxButton) {
+			height: 42px;
+			radius: 21px;
+			textTop: 12px;
+			style: semiboldTextStyle;
+
+			textFg: storiesComposeWhiteText;
+			textFgOver: storiesComposeWhiteText;
+			numbersTextFg: storiesComposeWhiteText;
+			numbersTextFgOver: storiesComposeWhiteText;
+			textBg: storiesComposeBlue;
+			textBgOver: storiesComposeBlue;
+
+			ripple: universalRippleAnimation;
+		}
+	}
+	close: storiesStealthBoxClose;
+	subsectionTitle: FlatLabel(defaultSubsectionTitle) {
+		textFg: storiesComposeBlue;
+	}
+	dividerText: groupCallDividerLabel;
+	row: storiesSendStoryRowStyle;
+	peerList: storiesPeersChooserList;
+	multiSelect: groupCallMultiSelect;
 }
 
 storiesViewsPosition: point(4px, 29px);

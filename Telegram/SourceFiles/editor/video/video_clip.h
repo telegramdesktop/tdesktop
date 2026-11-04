@@ -20,6 +20,9 @@ struct VideoClipSource {
 	QImage thumbnail;
 	crl::time duration = 0;
 	bool hasAudio = false;
+	VideoTrim initialTrim;
+	float64 initialVolume = 1.;
+	bool round = false;
 };
 
 class VideoClip final {
@@ -27,6 +30,8 @@ public:
 	struct State {
 		VideoTrim trim;
 		float64 volume = 1.;
+
+		friend inline bool operator==(const State &, const State &) = default;
 	};
 
 	VideoClip(std::shared_ptr<VideoClipSource> source, Fn<void()> repaint);

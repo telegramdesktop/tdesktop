@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/style/style_core_types.h"
+
 namespace Editor {
 
 struct LinkPreview {
@@ -26,13 +28,26 @@ enum class LinkStyle : uchar {
 	Framed,
 	SemiTransparent,
 	Opaque,
+	Plain,
+};
+
+enum class PillTextFit : uchar {
+	Truncate,
+	Scale,
 };
 
 class LinkPill final {
 public:
-	LinkPill(const LinkPreview &link, float64 density, int maxWidth);
+	LinkPill(
+		const LinkPreview &link,
+		float64 density,
+		int maxWidth,
+		const style::icon *customIcon = nullptr,
+		PillTextFit fit = PillTextFit::Truncate);
 
 	[[nodiscard]] static float64 DensityFor(int canvasWidth);
+	[[nodiscard]] static LinkStyle NextStyle(LinkStyle style);
+	[[nodiscard]] static LinkStyle PreviousStyle(LinkStyle style);
 
 	[[nodiscard]] QSizeF size() const;
 	[[nodiscard]] LinkStyle style() const;
@@ -47,11 +62,12 @@ private:
 
 	float64 _density = 1.;
 	style::font _font;
-	QString _text;
-	int _textWidth = 0;
+	QStringList _lines;
+	float64 _textScale = 1.;
 	QSizeF _size;
 	QImage _icon;
 	LinkStyle _style = LinkStyle::Framed;
+	const style::icon *_customIcon = nullptr;
 
 };
 

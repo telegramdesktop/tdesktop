@@ -105,7 +105,7 @@ using Ui::KeysLegend::DeleteKey;
 	} else {
 		result.rows = {
 			{
-				{ WheelKey() },
+				{ Gesture(CtrlKey(), Wheel()) },
 				tr::lng_photo_editor_keys_canvas_zoom(tr::now),
 			},
 			{
@@ -113,6 +113,13 @@ using Ui::KeysLegend::DeleteKey;
 				tr::lng_photo_editor_keys_canvas_pan(tr::now),
 			},
 		};
+		if (context.storyPhoto
+			&& (context.mode == PhotoEditorMode::Mode::Transform)) {
+			result.rows.push_back({
+				{ WheelKey() },
+				tr::lng_photo_editor_keys_enhance(tr::now),
+			});
+		}
 	}
 	result.rows.push_back({
 		{ CtrlKey(), u"V"_q },
@@ -170,6 +177,14 @@ using Ui::KeysLegend::DeleteKey;
 				tr::lng_photo_editor_keys_objects_flip(tr::now),
 			},
 			{
+				{ CtrlKey(), u"]"_q },
+				tr::lng_photo_editor_keys_objects_raise(tr::now),
+			},
+			{
+				{ CtrlKey(), u"["_q },
+				tr::lng_photo_editor_keys_objects_lower(tr::now),
+			},
+			{
 				{ DeleteKey() },
 				tr::lng_photo_editor_keys_objects_delete(tr::now),
 			},
@@ -203,13 +218,14 @@ using Ui::KeysLegend::DeleteKey;
 
 [[nodiscard]] std::vector<Section> Sections(
 		const KeysLegendContext &context) {
-	auto result = (context.mode == PhotoEditorMode::Mode::Transform)
-		? std::vector<Section>{ CropSection(context) }
-		: std::vector<Section>{
+	auto result = (context.canvasMode
+		|| (context.mode != PhotoEditorMode::Mode::Transform))
+		? std::vector<Section>{
 			CanvasSection(context),
 			ShapesSection(),
 			ObjectsSection(),
-		};
+		}
+		: std::vector<Section>{ CropSection(context) };
 	if (context.timeline
 		&& (context.mode == PhotoEditorMode::Mode::Paint)) {
 		result.push_back(TimelineSection());

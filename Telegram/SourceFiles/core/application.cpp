@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_integration.h"
 #include "history/history.h"
 #include "apiwrap.h"
+#include "api/api_stories.h"
 #include "api/api_updates.h"
 #include "calls/calls_instance.h"
 #include "countries/countries_manager.h"
@@ -1200,6 +1201,30 @@ bool Application::uploadPreventsQuit() {
 	return false;
 }
 
+bool Application::storyPostPreventsQuit() {
+	if (!_domain->started()) {
+		return false;
+	}
+	for (const auto &[index, account] : _domain->accounts()) {
+		if (!account->sessionExists()) {
+			continue;
+		}
+		auto &session = account->session();
+		if (session.api().stories().posting()) {
+			session.api().stories().stopPostingWithConfirmation([=] {
+				for (const auto &[index, account] : _domain->accounts()) {
+					if (account->sessionExists()) {
+						account->session().api().stories().cancelPosting();
+					}
+				}
+				Quit();
+			});
+			return true;
+		}
+	}
+	return false;
+}
+
 bool Application::downloadPreventsQuit() {
 	if (_downloadManager->loadingInProgress()) {
 		_downloadManager->loadingStopWithConfirmation([=] { Quit(); });
@@ -1210,6 +1235,7 @@ bool Application::downloadPreventsQuit() {
 
 bool Application::preventsQuit(QuitReason reason) {
 	if (exportPreventsQuit()
+		|| storyPostPreventsQuit()
 		|| uploadPreventsQuit()
 		|| downloadPreventsQuit()) {
 		return true;

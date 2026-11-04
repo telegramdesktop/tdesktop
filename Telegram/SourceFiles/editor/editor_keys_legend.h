@@ -22,6 +22,8 @@ struct KeysLegendContext {
 	PhotoEditorMode::Mode mode = PhotoEditorMode::Mode::Transform;
 	bool fixedCrop = false;
 	bool timeline = false;
+	bool canvasMode = false;
+	bool storyPhoto = false;
 };
 
 class KeysLegendButton final

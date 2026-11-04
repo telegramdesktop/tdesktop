@@ -7,7 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_stories.h"
 
+#include "data/data_story_edit_sources.h"
+#include "data/data_story_drafts.h"
+#include "base/const_string.h"
 #include "base/unixtime.h"
+#include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "core/application.h"
 #include "data/components/top_peers.h"
@@ -31,6 +35,7 @@ namespace Data {
 namespace {
 
 constexpr auto kMaxResolveTogether = 100;
+constexpr auto kViewedSelfTillPref = "stories_viewed_self_till"_cs;
 constexpr auto kIgnorePreloadAroundIfLoaded = 15;
 constexpr auto kPreloadAroundCount = 30;
 constexpr auto kMarkAsReadDelay = 3 * crl::time(1000);
@@ -190,6 +195,8 @@ Stories::Stories(not_null<Session*> owner)
 , _incrementViewsTimer([=] { sendIncrementViewsRequests(); })
 , _pollingTimer([=] { sendPollingRequests(); })
 , _pollingViewsTimer([=] { sendPollingViewsRequests(); }) {
+	_viewedSelfTill = session().local().readPref<QByteArray>(
+		kViewedSelfTillPref).toInt();
 	crl::on_main(this, [=] {
 		session().changes().peerUpdates(
 			Data::PeerUpdate::Flag::Rights
@@ -220,6 +227,20 @@ Stories::Stories(not_null<Session*> owner)
 Stories::~Stories() {
 	Expects(_pollingSettings.empty());
 	Expects(_pollingViews.empty());
+}
+
+StoryEditSources &Stories::editSources() {
+	if (!_editSources) {
+		_editSources = std::make_unique<StoryEditSources>(&session());
+	}
+	return *_editSources;
+}
+
+StoryDrafts &Stories::drafts() {
+	if (!_drafts) {
+		_drafts = std::make_unique<StoryDrafts>(&session());
+	}
+	return *_drafts;
 }
 
 void Stories::clear() {
@@ -1230,6 +1251,7 @@ void Stories::loadAround(FullStoryId id, StoriesContext context) {
 
 void Stories::markAsRead(FullStoryId id, bool viewed) {
 	if (id.peer == _owner->session().userPeerId()) {
+		setViewedSelfTill(id.story);
 		return;
 	}
 	const auto maybeStory = lookup(id);
@@ -1251,6 +1273,25 @@ void Stories::markAsRead(FullStoryId id, bool viewed) {
 	}
 	_markReadPending.emplace(id.peer);
 	_markReadTimer.callOnce(kMarkAsReadDelay);
+}
+
+StoryId Stories::viewedSelfTill() const {
+	return _viewedSelfTill;
+}
+
+void Stories::setViewedSelfTill(StoryId tillId) {
+	if (tillId <= _viewedSelfTill) {
+		return;
+	}
+	_viewedSelfTill = tillId;
+	session().local().writePref<QByteArray>(
+		kViewedSelfTillPref,
+		QByteArray::number(tillId));
+	_viewedSelfTillChanged.fire({});
+}
+
+rpl::producer<> Stories::viewedSelfTillChanged() const {
+	return _viewedSelfTillChanged.events();
 }
 
 bool Stories::bumpReadTill(PeerId peerId, StoryId maxReadTill) {
