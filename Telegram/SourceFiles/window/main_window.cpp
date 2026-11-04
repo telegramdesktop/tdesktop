@@ -1045,11 +1045,10 @@ void MainWindow::rememberOwnBodyMargins(QRect inner) {
 
 void MainWindow::recoverOwnGeometry() {
 	const auto normal = normalGeometry();
-	// Windows shifts it by the maximized frame, X11 can give the maximized.
-	const auto unreliable = (isMaximized()
-		|| isFullScreen()
-		|| positionMaximized())
-		&& ((normal == geometry()) != Platform::IsWindows());
+	const auto unreliable = (isMaximized() || isFullScreen())
+		// Windows shifts it by the maximized frame, X11 can give the maximized.
+		? ((normal == geometry()) != Platform::IsWindows())
+		: positionMaximized();
 	if (!normal.isValid() || unreliable) {
 		return;
 	}
