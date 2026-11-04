@@ -74,6 +74,13 @@ constexpr auto kRasterCells = 256.;
 constexpr auto kRasterBand = 37.;
 constexpr auto kRasterBands = 39.;
 constexpr auto kRasterAttempts = 8.;
+// WHY: gray_find_cell() walks a sorted row list per record; Qt rounds to 26.6.
+// Nonzero rises need that rounding slack before the 256-subpixel cell bound.
+// Win64's first two pools hold 148 and 489 cells, fewer than this Mac's.
+constexpr auto kFirstPoolCells = 148.;
+constexpr auto kSecondPoolCells = 489.;
+constexpr auto kRowSubpixels = 256.;
+constexpr auto kOutlineSubpixels = 64.;
 constexpr auto kGradientPixel = 8.;
 
 struct CornerRadius {
@@ -207,6 +214,7 @@ public:
 	[[nodiscard]] float64 rowSpans() const;
 	[[nodiscard]] float64 clampedSpans() const;
 	[[nodiscard]] float64 density() const;
+	[[nodiscard]] float64 rowCells() const;
 	[[nodiscard]] float64 coverage() const;
 	[[nodiscard]] QRectF extent() const;
 	[[nodiscard]] QRectF anchors() const;
@@ -220,12 +228,13 @@ private:
 		float64 clamped,
 		float64 density,
 		float64 top,
-		float64 bottom);
+		float64 bottom,
+		float64 rise);
 	void move(QPointF to);
 	void line(QPointF to);
 	void curve(QPointF b, QPointF c, QPointF d);
 	void join(QPointF direction);
-	void cap(QPointF at);
+	void cap(QPointF at, QPointF direction);
 	void finish();
 	[[nodiscard]] float64 quarter();
 
@@ -247,6 +256,7 @@ private:
 	float64 _rowSpans = 0.;
 	float64 _clampedSpans = 0.;
 	float64 _density = 0.;
+	float64 _rowCells = 0.;
 	Bounds _controls;
 	Bounds _anchors;
 	QPointF _start;
@@ -256,6 +266,7 @@ private:
 	std::optional<QPointF> _first;
 	std::optional<QPointF> _last;
 	bool _valid = true;
+	bool _curved = false;
 
 };
 
@@ -1187,6 +1198,7 @@ void Include(Bounds &bounds, QPointF point) {
 	auto spans = outline.spans();
 	auto iterated = outline.visibleSpans();
 	auto density = std::min(columns + 2., outline.density());
+	auto rowCells = std::min(columns + 2., outline.rowCells());
 	auto clip = 0.;
 	const auto clipping = BeyondRaster(extent);
 	if (clipping) {
@@ -1196,12 +1208,19 @@ void Include(Bounds &bounds, QPointF point) {
 			: std::min(spans, kClipEdges * edges * kEdgeSpanLimit);
 		edges *= kClipEdges;
 		density = columns + 2.;
+		rowCells = density;
 	}
-	const auto attempts = (density > kRasterCells)
-		? std::min(
-			kRasterAttempts,
-			1. + std::ceil(std::log2(density / kRasterCells)))
-		: 1.;
+	const auto attempts = std::max(
+		(density > kRasterCells)
+			? std::min(
+				kRasterAttempts,
+				1. + std::ceil(std::log2(density / kRasterCells)))
+			: 1.,
+		(rowCells > kSecondPoolCells + 2.)
+			? 3.
+			: (rowCells > kFirstPoolCells + 2.)
+			? 2.
+			: 1.);
 	const auto bands = std::clamp(
 		std::floor(rows / kRasterBand),
 		1.,
@@ -1212,6 +1231,7 @@ void Include(Bounds &bounds, QPointF point) {
 		? std::min(std::ceil(std::log2(crowded)), std::ceil(std::log2(first)))
 		: 0.;
 	const auto cells = std::min(rows * (columns + 2.), edges + spans);
+	const auto visits = edges + spans;
 	const auto splits = 2. * failing * std::ceil(cells / kRasterCells);
 	const auto passes = attempts * std::min(2. * rows, bands + splits);
 	const auto levels = std::ceil(std::log2(rows)) + 1.;
@@ -1227,7 +1247,8 @@ void Include(Bounds &bounds, QPointF point) {
 	return passes * edges
 		+ std::min(passes * iterated, overlap)
 		+ pixels * pixelWeight
-		+ clip;
+		+ clip
+		+ visits * rowCells;
 }
 
 [[nodiscard]] ShadowSource OuterShadow(
@@ -1870,6 +1891,10 @@ float64 Outline::density() const {
 	return _density;
 }
 
+float64 Outline::rowCells() const {
+	return _rowCells;
+}
+
 float64 Outline::coverage() const {
 	return _stroke
 		? (_spans * (_deviceRadius + 1.))
@@ -1912,7 +1937,8 @@ void Outline::count(
 		float64 clamped,
 		float64 density,
 		float64 top,
-		float64 bottom) {
+		float64 bottom,
+		float64 rise) {
 	_edges += edges;
 	_spans += spans;
 	_clampedSpans += clamped;
@@ -1922,6 +1948,12 @@ void Outline::count(
 		_visibleSpans += spans;
 		_rowSpans += spans * (std::ceil(till) - std::floor(from) + 1.);
 		_density += density;
+		const auto padded = (rise > 0.)
+			? (rise + 1. / kOutlineSubpixels)
+			: rise;
+		_rowCells += std::min(
+			density,
+			edges * (kRowSubpixels * std::min(padded, 1.) + 2.));
 	}
 }
 
@@ -1931,7 +1963,7 @@ void Outline::move(QPointF to) {
 	_startMapped = _mapped = map(to);
 	Include(_anchors, _mapped);
 	if (!_stroke) {
-		count(1., 0., 0., 0., _mapped.y(), _mapped.y());
+		count(1., 0., 0., 0., _mapped.y(), _mapped.y(), 0.);
 	}
 }
 
@@ -1947,7 +1979,7 @@ void Outline::line(QPointF to) {
 		/ std::max(bottom - top, 1.)
 		+ 2.;
 	if (!_stroke) {
-		count(1., span + 1., inside + 1., slope, top, bottom);
+		count(1., span + 1., inside + 1., slope, top, bottom, bottom - top);
 	} else if (!direction.isNull()) {
 		join(direction);
 		count(
@@ -1956,7 +1988,8 @@ void Outline::line(QPointF to) {
 			2. * (inside + 3. * _deviceRadius + 1.),
 			2. * slope,
 			top,
-			bottom);
+			bottom,
+			bottom - top);
 		_last = direction;
 	}
 	_point = to;
@@ -1964,6 +1997,7 @@ void Outline::line(QPointF to) {
 }
 
 void Outline::curve(QPointF b, QPointF c, QPointF d) {
+	_curved = true;
 	const auto a = _point;
 	const auto points = std::array{ a, b, c, d };
 	const auto mapped = std::array{ _mapped, map(b), map(c), map(d) };
@@ -1995,7 +2029,8 @@ void Outline::curve(QPointF b, QPointF c, QPointF d) {
 			std::min(polygon, across) + pieces,
 			sideways + 2. * pieces,
 			top,
-			bottom);
+			bottom,
+			bottom - top);
 	} else if (const auto start = Tangent(a, { b, c, d })) {
 		const auto turn = PolygonTurn(points);
 		const auto offset = 2. * turn * std::sqrt(_radius / (3. * _threshold));
@@ -2008,7 +2043,8 @@ void Outline::curve(QPointF b, QPointF c, QPointF d) {
 			2. * (std::min(length, kOffsetSweeps * across) + side),
 			2. * (sideways + 1.5 * turn * _deviceRadius + 2. * side),
 			top,
-			bottom);
+			bottom,
+			bottom - top + 2. * _reach);
 		_last = -*Tangent(d, { c, b, a });
 	}
 	_point = d;
@@ -2026,7 +2062,7 @@ void Outline::join(QPointF direction) {
 		const auto miter = std::tan(std::min(turn, kMiterTurn) / 2.);
 		const auto tip = _deviceRadius * (1. + miter);
 		const auto spans = 4. + 3. * _deviceRadius + 3. * std::min(_reach, tip);
-		count(4., spans, spans, spans + 4., y, y);
+		count(4., spans, spans, spans + 4., y, y, 2. * _reach);
 		return;
 	}
 	const auto shortest = std::min(
@@ -2042,23 +2078,49 @@ void Outline::join(QPointF direction) {
 		+ 3. * _deviceRadius
 		+ pieces
 		+ 1.5 * sweep * _deviceRadius;
-	count(3. + pieces, spans, spans, spans + 3. + pieces, y, y);
+	count(3. + pieces, spans, spans, spans + 3. + pieces, y, y, 2. * _reach);
 }
 
-void Outline::cap(QPointF at) {
+void Outline::cap(QPointF at, QPointF direction) {
 	switch (_cap) {
 	case Qt::RoundCap: {
 		const auto pieces = 2. * quarter();
 		const auto spans = pieces + 1.5 * M_PI * _deviceRadius;
-		count(pieces, spans, spans, spans + pieces, at.y(), at.y());
+		count(
+			pieces,
+			spans,
+			spans,
+			spans + pieces,
+			at.y(),
+			at.y(),
+			2. * _reach);
 	} break;
 	case Qt::SquareCap: {
 		const auto spans = 6. * _deviceRadius + 3.;
-		count(3., spans, spans, spans + 3., at.y(), at.y());
+		count(3., spans, spans, spans + 3., at.y(), at.y(), 2. * _reach);
 	} break;
 	default: {
+		const auto length = std::hypot(direction.x(), direction.y());
+		const auto end = QPointF(
+			-direction.y() / length,
+			direction.x() / length) * (2. * _radius);
+		const auto across = std::abs(
+			_device.m11() * end.x() + _device.m21() * end.y());
+		const auto down = std::abs(
+			_device.m12() * end.x() + _device.m22() * end.y());
+		const auto straight = !_curved
+			&& std::isfinite(across)
+			&& std::isfinite(down)
+			&& (across > 0. || down > 0.);
 		const auto spans = 3. * _deviceRadius + 1.;
-		count(1., spans, spans, spans + 1., at.y(), at.y());
+		count(
+			1.,
+			spans,
+			spans,
+			spans + 1.,
+			at.y(),
+			at.y(),
+			straight ? std::min(across, down) : (2. * _reach));
 	} break;
 	}
 }
@@ -2077,17 +2139,19 @@ void Outline::finish() {
 				clamped(_mapped, _startMapped) + 1.,
 				slope,
 				top,
-				bottom);
+				bottom,
+				bottom - top);
 		}
 	} else if (_first) {
 		if (_point == _start) {
 			join(*_first);
 		} else {
-			cap(_startMapped);
-			cap(_mapped);
+			cap(_startMapped, *_first);
+			cap(_mapped, *_last);
 		}
 	}
 	_first = _last = std::nullopt;
+	_curved = false;
 }
 
 float64 Outline::quarter() {
