@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <limits>
 #include <memory>
 
+#ifdef ShellExecute
+#undef ShellExecute // shellapi.h would rename the IShellDispatch2 method
+#endif // ShellExecute
+
 bool _debug = false;
 
 wstring updaterName, updaterDir, updateTo, exeName, customWorkingDir, customKeyFile;
@@ -817,7 +821,7 @@ int APIENTRY wWinMain(HINSTANCE instance, HINSTANCE prevInstance, LPWSTR cmdPara
 		}
 	}
 	if (!executed) {
-		ShellExecute(
+		ShellExecuteW(
 			0,
 			0,
 			(updateTo + exeName).c_str(),

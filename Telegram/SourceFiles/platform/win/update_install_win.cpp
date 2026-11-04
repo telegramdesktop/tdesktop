@@ -99,6 +99,7 @@ public:
 
 private:
 	QFile _file;
+	bool _open = false;
 
 };
 
@@ -129,11 +130,11 @@ void LocalFreer::operator()(void *memory) const {
 
 InstallLog::InstallLog(const QString &path) : _file(path) {
 	DeleteFileW(Native(path).c_str());
-	_file.open(QIODevice::WriteOnly | QIODevice::NewOnly);
+	_open = _file.open(QIODevice::WriteOnly | QIODevice::NewOnly);
 }
 
 void InstallLog::write(const QString &line) {
-	if (_file.isOpen()) {
+	if (_open) {
 		_file.write(line.toUtf8() + '\n');
 		_file.flush();
 	}
@@ -141,7 +142,7 @@ void InstallLog::write(const QString &line) {
 
 void InstallLog::relay(const QString &path) {
 	auto file = QFile(path);
-	if (!_file.isOpen() || !file.open(QIODevice::ReadOnly)) {
+	if (!_open || !file.open(QIODevice::ReadOnly)) {
 		return;
 	}
 	auto content = file.read(kMaxDiagnosticBytes + 2);
