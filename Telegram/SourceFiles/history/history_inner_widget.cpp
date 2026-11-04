@@ -2494,6 +2494,11 @@ std::unique_ptr<QMimeData> HistoryInner::prepareDrag() {
 }
 
 void HistoryInner::performDrag() {
+	// Fades started below must tick inside the drag's nested event loop.
+	Ui::Animations::Manager::SetScheduleWithInvokeQueued(true);
+	const auto guard = gsl::finally([] {
+		Ui::Animations::Manager::SetScheduleWithInvokeQueued(false);
+	});
 	if (auto mimeData = prepareDrag()) {
 		// This call enters event loop and can destroy any QObject.
 		_reactionsManager->updateButton({});
