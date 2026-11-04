@@ -7,8 +7,8 @@ Source contract: [test_l10n_seams.h](../../test_l10n_seams.h).
 
 ## Use when
 
-Only the localization capture in `test/l10n` (built with
-`-D TDESKTOP_L10N_CAPTURE=ON`, see `test/l10n/README.md`) installs these. It
+Only the localization capture from the l10n-tdesktop repository (built with
+`-D TDESKTOP_L10N_CAPTURE=<its path>`) installs these. It
 needs to know which phrases a screen read, it forces app config values (limits
 so that every plural form of a language appears on some screen, and flags or
 strings a screen depends on), and it keeps its screens from writing to the
@@ -43,7 +43,7 @@ later main-thread turn (`crl::on_main`), never inside the call. Answer with
 `DeliverControlledRpcSuccess` or `DeliverControlledRpcError` from
 [test_rpc_fixture](test_rpc_fixture.md); a held request nobody answers waits
 forever. The capture's holder (`Kit::Requests` in
-`test/l10n/l10n_synthetic_requests.cpp`) answers what a screen registered,
+`l10n_synthetic_requests.cpp` in l10n-tdesktop) answers what a screen registered,
 passes reads, fails requests about its fake peers locally, and fails every
 other request with `400 L10N_BLOCKED`, recording it for the screen. It never
 holds a `messages.getPeerDialogs` batch, which would leave real histories

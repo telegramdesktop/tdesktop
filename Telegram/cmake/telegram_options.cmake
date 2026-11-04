@@ -61,6 +61,8 @@ if (TDESKTOP_RELEASE_TEST_HARNESS)
     target_compile_definitions(Telegram PRIVATE $<$<CONFIG:Release>:TDESKTOP_RELEASE_TEST_HARNESS>)
 endif()
 
+set(TDESKTOP_L10N_CAPTURE "" CACHE PATH "Path to an l10n-tdesktop checkout, compiles its localization capture into the -testagent harness.")
+
 option(DESKTOP_APP_DISABLE_SWIFT6 "Disable local on-device translation (build without Swift 6 on macOS)." OFF)
 if (DESKTOP_APP_DISABLE_SWIFT6)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_SWIFT6)
