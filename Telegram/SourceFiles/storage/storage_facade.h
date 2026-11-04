@@ -10,10 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/producer.h>
 #include "base/enum_mask.h"
 
-namespace Data {
-struct MessagesResult;
-} // namespace Data
-
 namespace Storage {
 
 struct SparseIdsListResult;
