@@ -84,6 +84,11 @@ public:
 		Core::WindowPosition position) const;
 	[[nodiscard]] Core::WindowPosition countPositionForSave();
 	void applySavedPosition(const Core::WindowPosition &position);
+	void savePosition(Qt::WindowState state = Qt::WindowActive);
+	void savePositionToSettings();
+	[[nodiscard]] bool positionMaximized() const {
+		return _ownPosition.maximized != 0;
+	}
 
 	void init();
 
@@ -146,7 +151,6 @@ public:
 	}
 
 protected:
-	void savePosition(Qt::WindowState state = Qt::WindowActive);
 	void handleStateChanged(Qt::WindowState state);
 	void handleActiveChanged(bool active);
 	void handleVisibleChanged(bool visible);
@@ -201,6 +205,9 @@ private:
 	[[nodiscard]] Core::WindowPosition nextInitialChildPosition(
 		SeparateId childId);
 	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
+	void rememberOwnGeometry(QRect geometry);
+	void rememberOwnBodyMargins(QRect inner);
+	void recoverOwnGeometry();
 
 	bool computeIsActive() const;
 
@@ -220,6 +227,8 @@ private:
 	rpl::event_stream<> _imeCompositionStartReceived;
 
 	bool _maximizedBeforeHide = false;
+	Core::WindowPosition _ownPosition;
+	QMargins _ownBodyMargins;
 
 	QPoint _lastMyChildCreatePosition;
 	int _lastChildIndex = 0;

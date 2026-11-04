@@ -1389,7 +1389,11 @@ bool Application::openCustomUrl(
 }
 
 void Application::preventOrInvoke(Fn<void()> &&callback) {
-	_lastActivePrimaryWindow->preventOrInvoke(std::move(callback));
+	if (_lastActivePrimaryWindow) {
+		_lastActivePrimaryWindow->preventOrInvoke(std::move(callback));
+	} else {
+		callback();
+	}
 }
 
 void Application::updateWindowTitles() {
@@ -1523,9 +1527,9 @@ void Application::localPasscodeChanged() {
 	checkAutoLock(crl::now());
 }
 
-bool Application::savingPositionFor(
+bool Application::isWindowInSettings(
 		not_null<Window::Controller*> window) const {
-	return !_windowInSettings || (_windowInSettings == window);
+	return (_windowInSettings == window);
 }
 
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
@@ -1594,6 +1598,14 @@ not_null<Window::Controller*> Application::ensureSeparateWindowFor(
 	}
 	result->firstShow();
 	result->finishFirstShow();
+	if (result->isPrimary()) {
+		if (!_lastActivePrimaryWindow) {
+			_lastActivePrimaryWindow = result;
+		}
+		if (!_windowInSettings) {
+			setWindowInSettings(result);
+		}
+	}
 	return activate(result);
 }
 
@@ -1727,6 +1739,41 @@ void Application::setLastActiveWindow(Window::Controller *window) {
 	}, _floatPlayerDelegateLifetime);
 }
 
+void Application::setWindowInSettings(Window::Controller *window) {
+	Expects(!window || window->isPrimary());
+
+	if (_windowInSettings == window) {
+		return;
+	}
+	if (window) {
+		window->widget()->savePosition();
+	}
+	_windowInSettings = window;
+	if (window) {
+		window->widget()->savePositionToSettings();
+	}
+}
+
+Window::Controller *Application::nextPrimaryWindow(
+		not_null<Window::Controller*> closing) const {
+	const auto eligible = [&](not_null<Window::Controller*> window) {
+		return (window != closing)
+			&& window->isPrimary()
+			&& !_closingAsyncWindows.contains(window);
+	};
+	for (const auto &window : ranges::views::reverse(_windowStack)) {
+		if (eligible(window)) {
+			return window;
+		}
+	}
+	for (const auto &window : ranges::views::values(_windows)) {
+		if (eligible(window.get())) {
+			return window.get();
+		}
+	}
+	return nullptr;
+}
+
 void Application::closeWindow(not_null<Window::Controller*> window) {
 	if (_savedWindows) {
 		_savedWindows->windowClosed(window);
@@ -1748,11 +1795,12 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 		: nullptr;
 	Assert(next != window);
 
+	const auto nextPrimary = nextPrimaryWindow(window);
 	if (_lastActivePrimaryWindow == window) {
-		_lastActivePrimaryWindow = next;
+		_lastActivePrimaryWindow = nextPrimary;
 	}
 	if (_windowInSettings == window) {
-		_windowInSettings = next;
+		setWindowInSettings(nextPrimary);
 	}
 	if (stackIt != end(_windowStack)) {
 		_windowStack.erase(stackIt);

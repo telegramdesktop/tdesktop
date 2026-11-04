@@ -587,6 +587,12 @@ void MainWindow::init() {
 }
 
 void MainWindow::handleStateChanged(Qt::WindowState state) {
+	if (state != Qt::WindowMinimized) {
+		_ownPosition.maximized = (state == Qt::WindowMaximized) ? 1 : 0;
+		if (isHidden()) {
+			_maximizedBeforeHide = positionMaximized();
+		}
+	}
 	stateChangedHook(state);
 	updateControlsGeometry();
 	if (state == Qt::WindowMinimized) {
@@ -620,7 +626,7 @@ void MainWindow::handleVisibleChanged(bool visible) {
 			setWindowState(Qt::WindowMaximized);
 		}
 	} else {
-		_maximizedBeforeHide = Core::App().settings().windowPosition().maximized;
+		_maximizedBeforeHide = positionMaximized();
 	}
 
 	handleVisibleChangedHook(visible);
@@ -827,22 +833,32 @@ QRect MainWindow::countInitialGeometry(WindowPosition position) {
 
 void MainWindow::firstShow() {
 	updateMinimumSize();
+	const auto position = initialPosition();
+	_ownPosition.maximized = position.maximized ? 1 : 0;
 	if (initGeometryFromSystem()) {
 		show();
+		const auto inner = body()->mapToGlobal(body()->rect());
+		rememberOwnGeometry(inner);
+		rememberOwnBodyMargins(inner);
 		return;
 	}
-	const auto geometry = countInitialGeometry(initialPosition());
+	const auto geometry = countInitialGeometry(position);
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4"
 		).arg(geometry.x()
 		).arg(geometry.y()
 		).arg(geometry.width()
 		).arg(geometry.height()));
+	rememberOwnGeometry(geometry);
 	setGeometry(geometry);
+	rememberOwnBodyMargins(geometry);
 	show();
 }
 
 void MainWindow::positionUpdated() {
 	_positionUpdatedTimer.callOnce(kSaveWindowPositionTimeout);
+	if (Platform::IsWindows()) {
+		InvokeQueued(this, [=] { recoverOwnGeometry(); });
+	}
 }
 
 void MainWindow::setPositionInited() {
@@ -946,7 +962,8 @@ void MainWindow::savePosition(Qt::WindowState state) {
 		return;
 	}
 
-	if (state == Qt::WindowActive) {
+	const auto settled = (state == Qt::WindowActive);
+	if (settled) {
 		state = windowHandle()->windowState();
 	}
 	if (state == Qt::WindowMinimized) {
@@ -955,48 +972,89 @@ void MainWindow::savePosition(Qt::WindowState state) {
 	if (const auto saved = Core::App().savedWindows()) {
 		saved->scheduleSave();
 	}
-	if (!Core::App().savingPositionFor(&controller())) {
-		return;
-	}
-
-	const auto &savedPosition = Core::App().settings().windowPosition();
-	auto realPosition = savedPosition;
 
 	if (state == Qt::WindowMaximized) {
-		realPosition.maximized = 1;
+		_ownPosition.maximized = 1;
 		DEBUG_LOG(("Window Pos: Saving maximized position."));
 	} else {
-		auto r = body()->mapToGlobal(body()->rect());
-		realPosition.x = r.x();
-		realPosition.y = r.y();
-		realPosition.w = r.width() - (_rightColumn ? _rightColumn->width() : 0);
-		realPosition.h = r.height();
-		realPosition.scale = cScale();
-		realPosition.maximized = 0;
-		realPosition.moncrc = 0;
-
-		DEBUG_LOG(("Window Pos: Saving non-maximized position: %1, %2, %3, %4").arg(realPosition.x).arg(realPosition.y).arg(realPosition.w).arg(realPosition.h));
-		realPosition = withScreenInPosition(realPosition);
-	}
-	if (realPosition.w >= st::windowMinWidth && realPosition.h >= st::windowMinHeight) {
-		if (realPosition.x != savedPosition.x
-			|| realPosition.y != savedPosition.y
-			|| realPosition.w != savedPosition.w
-			|| realPosition.h != savedPosition.h
-			|| realPosition.scale != savedPosition.scale
-			|| realPosition.moncrc != savedPosition.moncrc
-			|| realPosition.maximized != savedPosition.maximized) {
-			DEBUG_LOG(("Window Pos: Writing: %1, %2, %3, %4 (scale %5%, maximized %6)")
-				.arg(realPosition.x)
-				.arg(realPosition.y)
-				.arg(realPosition.w)
-				.arg(realPosition.h)
-				.arg(realPosition.scale)
-				.arg(Logs::b(realPosition.maximized)));
-			Core::App().settings().setWindowPosition(realPosition);
-			Core::App().saveSettingsDelayed();
+		const auto r = body()->mapToGlobal(body()->rect());
+		if (settled) {
+			rememberOwnBodyMargins(r);
 		}
+		_ownPosition.maximized = 0;
+		rememberOwnGeometry(QRect(
+			r.x(),
+			r.y(),
+			r.width() - (_rightColumn ? _rightColumn->width() : 0),
+			r.height()));
+
+		DEBUG_LOG(("Window Pos: Saving non-maximized position: %1, %2, %3, %4"
+			).arg(_ownPosition.x
+			).arg(_ownPosition.y
+			).arg(_ownPosition.w
+			).arg(_ownPosition.h));
+		_ownPosition = withScreenInPosition(_ownPosition);
 	}
+	savePositionToSettings();
+}
+
+void MainWindow::savePositionToSettings() {
+	if (isMaximized() || isHidden() || isMinimized()) {
+		recoverOwnGeometry();
+	}
+	if (!Core::App().isWindowInSettings(&controller())
+		|| _ownPosition.w < st::windowMinWidth
+		|| _ownPosition.h < st::windowMinHeight
+		|| _ownPosition == Core::App().settings().windowPosition()) {
+		return;
+	}
+	DEBUG_LOG(("Window Pos: Writing: %1, %2, %3, %4 (scale %5%, maximized %6)")
+		.arg(_ownPosition.x)
+		.arg(_ownPosition.y)
+		.arg(_ownPosition.w)
+		.arg(_ownPosition.h)
+		.arg(_ownPosition.scale)
+		.arg(Logs::b(_ownPosition.maximized)));
+	Core::App().settings().setWindowPosition(_ownPosition);
+	Core::App().saveSettingsDelayed();
+}
+
+void MainWindow::rememberOwnGeometry(QRect geometry) {
+	_ownPosition.moncrc = 0;
+	_ownPosition.scale = cScale();
+	_ownPosition.x = geometry.x();
+	_ownPosition.y = geometry.y();
+	_ownPosition.w = geometry.width();
+	_ownPosition.h = geometry.height();
+}
+
+void MainWindow::rememberOwnBodyMargins(QRect inner) {
+	if (windowState() & ~Qt::WindowActive) {
+		return;
+	}
+	const auto outer = geometry();
+	_ownBodyMargins = QMargins(
+		inner.x() - outer.x(),
+		inner.y() - outer.y(),
+		(outer.x() + outer.width()) - (inner.x() + inner.width()),
+		(outer.y() + outer.height()) - (inner.y() + inner.height()));
+}
+
+void MainWindow::recoverOwnGeometry() {
+	const auto normal = normalGeometry();
+	// Windows shifts it by the maximized frame, X11 can give the maximized.
+	const auto unreliable = (isMaximized() || isFullScreen())
+		&& ((normal == geometry()) != Platform::IsWindows());
+	if (!normal.isValid() || unreliable) {
+		return;
+	}
+	const auto inner = normal.marginsRemoved(_ownBodyMargins);
+	rememberOwnGeometry(QRect(
+		inner.x(),
+		inner.y(),
+		inner.width() - (_rightColumn ? _rightColumn->width() : 0),
+		inner.height()));
+	_ownPosition = withScreenInPosition(_ownPosition);
 }
 
 WindowPosition MainWindow::withScreenInPosition(
@@ -1019,7 +1077,11 @@ WindowPosition MainWindow::countPositionForSave() {
 	if (windowScreen) {
 		result.moncrc = Platform::ScreenNameChecksum(windowScreen->name());
 	}
-	if (state == Qt::WindowMaximized || state == Qt::WindowFullScreen) {
+	const auto rememberedMaximized = positionMaximized()
+		&& (isHidden() || state == Qt::WindowMinimized);
+	if (state == Qt::WindowMaximized
+		|| state == Qt::WindowFullScreen
+		|| rememberedMaximized) {
 		result.maximized = 1;
 		const auto normal = normalGeometry();
 		result.x = normal.x() - screenGeometry.x();
@@ -1053,6 +1115,9 @@ void MainWindow::applySavedPosition(const Core::WindowPosition &position) {
 		}
 		setGeometry(geometry);
 	}
+	_ownPosition.maximized = position.maximized ? 1 : 0;
+	rememberOwnGeometry(geometry);
+	_maximizedBeforeHide = positionMaximized();
 }
 
 bool MainWindow::minimizeToTray() {

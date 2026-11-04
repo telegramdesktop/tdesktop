@@ -118,7 +118,7 @@ void MainWindow::applyInitialWorkMode() {
 	workmodeUpdated(workMode);
 
 	if (controller().isPrimary()) {
-		if (Core::App().settings().windowPosition().maximized) {
+		if (positionMaximized()) {
 			DEBUG_LOG(("Window Pos: First show, setting maximized."));
 			setWindowState(Qt::WindowMaximized);
 		}
