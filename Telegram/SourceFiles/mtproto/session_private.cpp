@@ -2563,7 +2563,10 @@ bool SessionPrivate::destroyOldEnoughPersistentKey() {
 }
 
 DcType SessionPrivate::tryAcquireKeyCreation() {
-	if (_keyCreator) {
+	if (_keyCreator
+		|| (_keyId
+			&& _realDcType == DcType::MediaCluster
+			&& _currentDcType == DcType::Regular)) {
 		return _currentDcType;
 	} else if (_instance->isKeysDestroyer()) {
 		return _realDcType;
