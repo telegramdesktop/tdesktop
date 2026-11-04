@@ -15,6 +15,12 @@ namespace {
 void (*LangReadObserver)(ushort key) = nullptr;
 std::optional<double> (*AppConfigDoubleOverride)(const QString &key)
 	= nullptr;
+std::optional<bool> (*AppConfigBoolOverride)(const QString &key) = nullptr;
+std::optional<QString> (*AppConfigStringOverride)(const QString &key)
+	= nullptr;
+bool (*RequestHolder)(
+	not_null<MTP::Instance*> instance,
+	const MTP::details::SerializedRequest &request) = nullptr;
 
 } // namespace
 
@@ -30,6 +36,24 @@ std::optional<double> OverrideAppConfigDouble(const QString &key) {
 		: std::nullopt;
 }
 
+std::optional<bool> OverrideAppConfigBool(const QString &key) {
+	return AppConfigBoolOverride
+		? AppConfigBoolOverride(key)
+		: std::nullopt;
+}
+
+std::optional<QString> OverrideAppConfigString(const QString &key) {
+	return AppConfigStringOverride
+		? AppConfigStringOverride(key)
+		: std::nullopt;
+}
+
+bool HoldRequest(
+		not_null<MTP::Instance*> instance,
+		const MTP::details::SerializedRequest &request) {
+	return RequestHolder && RequestHolder(instance, request);
+}
+
 void SetLangReadObserver(void (*observer)(ushort key)) {
 	LangReadObserver = observer;
 }
@@ -37,6 +61,22 @@ void SetLangReadObserver(void (*observer)(ushort key)) {
 void SetAppConfigDoubleOverride(
 		std::optional<double> (*override)(const QString &key)) {
 	AppConfigDoubleOverride = override;
+}
+
+void SetAppConfigBoolOverride(
+		std::optional<bool> (*override)(const QString &key)) {
+	AppConfigBoolOverride = override;
+}
+
+void SetAppConfigStringOverride(
+		std::optional<QString> (*override)(const QString &key)) {
+	AppConfigStringOverride = override;
+}
+
+void SetRequestHolder(bool (*holder)(
+		not_null<MTP::Instance*> instance,
+		const MTP::details::SerializedRequest &request)) {
+	RequestHolder = holder;
 }
 
 } // namespace Test
@@ -50,6 +90,20 @@ void NoteLangRead(ushort) {
 
 std::optional<double> OverrideAppConfigDouble(const QString &) {
 	return std::nullopt;
+}
+
+std::optional<bool> OverrideAppConfigBool(const QString &) {
+	return std::nullopt;
+}
+
+std::optional<QString> OverrideAppConfigString(const QString &) {
+	return std::nullopt;
+}
+
+bool HoldRequest(
+		not_null<MTP::Instance*>,
+		const MTP::details::SerializedRequest &) {
+	return false;
 }
 
 } // namespace Test

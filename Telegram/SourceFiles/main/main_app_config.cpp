@@ -408,6 +408,9 @@ auto AppConfig::getValue(const QString &key, Extractor &&extractor) const {
 }
 
 bool AppConfig::getBool(const QString &key, bool fallback) const {
+	if (const auto value = Test::OverrideAppConfigBool(key)) {
+		return *value;
+	}
 	return getValue(key, [&](const MTPJSONValue &value) {
 		return value.match([&](const MTPDjsonBool &data) {
 			return mtpIsTrue(data.vvalue());
@@ -433,6 +436,9 @@ double AppConfig::getDouble(const QString &key, double fallback) const {
 QString AppConfig::getString(
 		const QString &key,
 		const QString &fallback) const {
+	if (const auto value = Test::OverrideAppConfigString(key)) {
+		return *value;
+	}
 	return getValue(key, [&](const MTPJSONValue &value) {
 		return value.match([&](const MTPDjsonString &data) {
 			return qs(data.vvalue());
