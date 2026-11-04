@@ -588,7 +588,8 @@ void ShowAgeVerificationRequired(
 		}
 		const auto has = Core::App().mediaDevices().recordAvailability();
 		const auto available = Webview::Availability();
-		const auto bot = (*state->bot)->asUser();
+		const auto peer = *state->bot;
+		const auto bot = peer ? peer->asUser() : nullptr;
 		if (available.error == Webview::Available::Error::None
 			&& has == Webrtc::RecordAvailability::VideoAndAudio
 			&& sensitive->canChangeCurrent()
