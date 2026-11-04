@@ -251,7 +251,16 @@ void CompleteAfterSessionDrain(not_null<Runner*> runner, crl::time left) {
 	};
 }
 
+[[nodiscard]] std::vector<Fn<bool(not_null<Runner*>)>> &ScenarioProviders() {
+	static auto result = std::vector<Fn<bool(not_null<Runner*>)>>();
+	return result;
+}
+
 } // namespace
+
+void RegisterScenarioProvider(Fn<bool(not_null<Runner*>)> provider) {
+	ScenarioProviders().push_back(std::move(provider));
+}
 
 void Runner::add(Stage stage) {
 	Expects(!_started);
@@ -557,7 +566,13 @@ void Start() {
 	}
 	Started = true;
 	static auto runner = Runner();
-	SetupScenario(&runner);
+	const auto provided = ranges::any_of(ScenarioProviders(), [](
+			const Fn<bool(not_null<Runner*>)> &provider) {
+		return provider(&runner);
+	});
+	if (!provided) {
+		SetupScenario(&runner);
+	}
 	if (runner.empty()) {
 		Note(u"no scenario registered"_q);
 		return;
