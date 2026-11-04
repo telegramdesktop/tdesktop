@@ -26,8 +26,9 @@ LottieCustomEmoji::LottieCustomEmoji(
 	: (Unexpected("LottieCustomEmoji: descriptor.name or descriptor.path"),
 		QString()))
 , _width(descriptor.sizeOverride.width())
-, _icon(Lottie::MakeIcon(std::move(descriptor)))
 , _repaint(std::move(repaint)) {
+	descriptor.untracked = true;
+	_icon = Lottie::MakeIcon(std::move(descriptor));
 	if (!_width && _icon && _icon->valid()) {
 		_width = _icon->width();
 		startAnimation();

@@ -260,8 +260,6 @@ void SettingsBox(
 		std::unique_ptr<Webrtc::DeviceResolver> deviceId;
 		std::unique_ptr<Webrtc::AudioInputTester> micTester;
 		Ui::LevelMeter *micTestLevel = nullptr;
-		float micLevel = 0.;
-		Ui::Animations::Simple micLevelAnimation;
 		base::Timer levelUpdateTimer;
 		bool generatingLink = false;
 	};
@@ -365,12 +363,9 @@ void SettingsBox(
 		state->micTestLevel->resize(QSize(0, st::defaultLevelMeter.height));
 
 		state->levelUpdateTimer.setCallback([=] {
-			const auto was = state->micLevel;
-			state->micLevel = state->micTester->getAndResetLevel();
-			state->micLevelAnimation.start([=] {
-				state->micTestLevel->setValue(
-					state->micLevelAnimation.value(state->micLevel));
-			}, was, state->micLevel, kMicTestAnimationDuration);
+			state->micTestLevel->animateTo(
+				state->micTester->getAndResetLevel(),
+				kMicTestAnimationDuration);
 		});
 
 		Ui::AddSkip(layout);

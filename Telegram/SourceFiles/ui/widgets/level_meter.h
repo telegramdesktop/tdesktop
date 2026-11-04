@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace style {
@@ -19,14 +20,19 @@ class LevelMeter : public RpWidget {
 public:
 	LevelMeter(QWidget *parent, const style::LevelMeter &st);
 
-	void setValue(float value);
+	void animateTo(float value, crl::time duration);
+	void stopAnimation();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	bool animationCallback(crl::time now);
+
 	const style::LevelMeter &_st;
-	float _value = 0.0f;
+	anim::value _value;
+	crl::time _duration = 0;
+	Animations::Basic _animation;
 
 };
 

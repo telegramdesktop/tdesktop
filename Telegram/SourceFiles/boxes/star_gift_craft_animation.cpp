@@ -1376,6 +1376,7 @@ void SetupCraftProgressTitle(
 		.name = u"craft_progress"_q,
 		.sizeOverride = iconSize,
 		.limitFps = true,
+		.untracked = true,
 	});
 	const auto icon = owned.get();
 	iconWidget->lifetime().add([kept = std::move(owned)] {});

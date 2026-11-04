@@ -1566,10 +1566,16 @@ void MessagesUi::setupPinnedWidget() {
 
 	struct Animation {
 		base::Timer seconds;
-		Ui::Animations::Simple smooth;
+		crl::time smoothDuration = 0;
+		Ui::Animations::Basic smooth; // Simple would pause mtproto delivery
 		bool requiresSmooth = false;
 	};
 	const auto animation = _pinned->lifetime().make_state<Animation>();
+	animation->smooth.init([=](crl::time now) {
+		_pinned->update();
+		const auto time = now - animation->smooth.started();
+		return !anim::Disabled() && (time < animation->smoothDuration);
+	});
 	animation->seconds.setCallback([=] {
 		const auto now = crl::now();
 		auto smooth = false;
@@ -1585,9 +1591,8 @@ void MessagesUi::setupPinnedWidget() {
 			}
 		}
 		if (smooth && !anim::Disabled()) {
-			animation->smooth.start([=] {
-				_pinned->update();
-			}, 0., 1., 900.);
+			animation->smoothDuration = crl::time(900) * anim::SlowMultiplier();
+			animation->smooth.start();
 		} else {
 			_pinned->update();
 		}

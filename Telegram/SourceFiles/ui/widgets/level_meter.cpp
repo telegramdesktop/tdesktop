@@ -14,12 +14,34 @@ namespace Ui {
 
 LevelMeter::LevelMeter(QWidget *parent, const style::LevelMeter &st)
 : RpWidget(parent)
-, _st(st) {
+, _st(st)
+, _animation([=](crl::time now) {
+	return animationCallback(now);
+}) {
 }
 
-void LevelMeter::setValue(float value) {
-	_value = value;
+void LevelMeter::animateTo(float value, crl::time duration) {
+	_value.start(value);
+	_duration = duration * anim::SlowMultiplier();
+	_animation.start();
+}
+
+void LevelMeter::stopAnimation() {
+	_animation.stop();
+}
+
+bool LevelMeter::animationCallback(crl::time now) {
+	const auto time = now - _animation.started();
+	const auto dt = anim::Disabled()
+		? 1.
+		: (time / float64(_duration));
+	if (dt >= 1.) {
+		_value.finish();
+	} else {
+		_value.update(dt, anim::linear);
+	}
 	repaint();
+	return (dt < 1.);
 }
 
 void LevelMeter::paintEvent(QPaintEvent* event) {
@@ -32,10 +54,11 @@ void LevelMeter::paintEvent(QPaintEvent* event) {
 	const auto inactiveFg = _st.inactiveFg;
 	const auto radius = _st.lineWidth / 2;
 	const auto rect = QRect(0, 0, _st.lineWidth, height());
+	const auto value = float(_value.current());
 	p.setBrush(activeFg);
 	for (auto i = 0; i < _st.lineCount; ++i) {
 		const auto valueAtLine = (float64)(i + 1) / _st.lineCount;
-		if (valueAtLine > _value) {
+		if (valueAtLine > value) {
 			p.setBrush(inactiveFg);
 		}
 		p.drawRoundedRect(

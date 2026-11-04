@@ -115,8 +115,6 @@ void InitCaptureButton(
 		std::unique_ptr<Webrtc::DeviceResolver> deviceId;
 		std::unique_ptr<Webrtc::AudioInputTester> tester;
 		base::Timer timer;
-		Ui::Animations::Simple animation;
-		float level = 0.;
 	};
 	const auto level = container->add(
 		object_ptr<Ui::LevelMeter>(
@@ -127,11 +125,9 @@ void InitCaptureButton(
 	level->resize(QSize(0, st::defaultLevelMeter.height));
 
 	state->timer.setCallback([=] {
-		const auto was = state->level;
-		state->level = state->tester->getAndResetLevel();
-		state->animation.start([=] {
-			level->setValue(state->animation.value(state->level));
-		}, was, state->level, kMicTestAnimationDuration);
+		level->animateTo(
+			state->tester->getAndResetLevel(),
+			kMicTestAnimationDuration);
 	});
 	testingMicrophone->value() | rpl::on_next([=](bool testing) {
 		if (testing) {
@@ -144,7 +140,7 @@ void InitCaptureButton(
 			state->timer.callEach(kMicTestUpdateInterval);
 		} else {
 			state->timer.cancel();
-			state->animation.stop();
+			level->stopAnimation();
 			state->tester = nullptr;
 			state->deviceId = nullptr;
 		}

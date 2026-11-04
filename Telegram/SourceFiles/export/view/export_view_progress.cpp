@@ -41,7 +41,9 @@ private:
 		base::unique_qptr<Ui::FadeWrap<Ui::FlatLabel>> info;
 
 		float64 value = 0.;
-		Ui::Animations::Simple progress;
+		float64 progressFrom = 0.;
+		crl::time progressStarted = 0;
+		crl::time progressDuration = 0;
 
 		bool hiding = true;
 		Ui::Animations::Simple opacity;
@@ -54,6 +56,13 @@ private:
 	void instanceOpacityCallback(base::weak_qptr<Ui::FlatLabel> label);
 	void removeOldInstance(base::weak_qptr<Ui::FlatLabel> label);
 	void paintInstance(QPainter &p, const Instance &data);
+	[[nodiscard]] bool progressAnimating(
+		const Instance &data,
+		crl::time now) const;
+	[[nodiscard]] float64 shownProgress(
+		const Instance &data,
+		crl::time now) const;
+	bool progressAnimationCallback(crl::time now);
 
 	void updateControlsGeometry(int newWidth);
 	void updateInstanceGeometry(const Instance &instance, int newWidth);
@@ -61,12 +70,16 @@ private:
 	Content::Row _data;
 	Instance _current;
 	std::vector<Instance> _old;
+	Ui::Animations::Basic _progressAnimation;
 
 };
 
 ProgressWidget::Row::Row(QWidget *parent, Content::Row &&data)
 : RpWidget(parent)
-, _data(std::move(data)) {
+, _data(std::move(data))
+, _progressAnimation([=](crl::time now) {
+	return progressAnimationCallback(now);
+}) {
 	fillCurrentInstance();
 }
 
@@ -83,7 +96,7 @@ void ProgressWidget::Row::updateData(Content::Row &&data) {
 		_current.info->entity()->setText(_data.info);
 		setInstanceProgress(_current, _data.progress);
 		if (nowId != wasId) {
-			_current.progress.stop();
+			_current.progressDuration = 0;
 		}
 	}
 	updateControlsGeometry(width());
@@ -122,22 +135,23 @@ void ProgressWidget::Row::hideCurrentInstance() {
 	setInstanceProgress(_current, 1.);
 	toggleInstance(_current, false);
 	_old.push_back(std::move(_current));
+	_current.progressDuration = 0;
 }
 
 void ProgressWidget::Row::setInstanceProgress(
 		Instance &instance,
 		float64 progress) {
-	if (_current.value < progress) {
-		_current.progress.start(
-			[=] { update(); },
-			_current.value,
-			progress,
-			st::exportProgressDuration,
-			anim::sineInOut);
-	} else if (_current.value > progress) {
-		_current.progress.stop();
+	if (instance.value < progress) {
+		const auto now = crl::now();
+		instance.progressFrom = shownProgress(instance, now);
+		instance.progressStarted = now;
+		instance.progressDuration = st::exportProgressDuration
+			* anim::SlowMultiplier();
+		_progressAnimation.start();
+	} else if (instance.value > progress) {
+		instance.progressDuration = 0;
 	}
-	_current.value = progress;
+	instance.value = progress;
 }
 
 void ProgressWidget::Row::toggleInstance(Instance &instance, bool shown) {
@@ -208,7 +222,7 @@ void ProgressWidget::Row::paintInstance(QPainter &p, const Instance &data) {
 
 	const auto thickness = st::exportProgressWidth;
 	const auto top = height() - thickness;
-	const auto progress = data.progress.value(data.value);
+	const auto progress = shownProgress(data, crl::now());
 	const auto till = int(base::SafeRound(progress * width()));
 	if (till > 0) {
 		p.fillRect(0, top, till, thickness, st::exportProgressFg);
@@ -217,6 +231,40 @@ void ProgressWidget::Row::paintInstance(QPainter &p, const Instance &data) {
 		const auto left = width() - till;
 		p.fillRect(till, top, left, thickness, st::exportProgressBg);
 	}
+}
+
+bool ProgressWidget::Row::progressAnimating(
+		const Instance &data,
+		crl::time now) const {
+	return !anim::Disabled()
+		&& (now - data.progressStarted < data.progressDuration);
+}
+
+float64 ProgressWidget::Row::shownProgress(
+		const Instance &data,
+		crl::time now) const {
+	if (!progressAnimating(data, now)) {
+		return data.value;
+	}
+	const auto time = now - data.progressStarted;
+	return data.progressFrom + anim::sineInOut(
+		data.value - data.progressFrom,
+		float64(time) / data.progressDuration);
+}
+
+bool ProgressWidget::Row::progressAnimationCallback(crl::time now) {
+	update();
+	auto animating = false;
+	const auto advance = [&](Instance &instance) {
+		if (progressAnimating(instance, now)) {
+			animating = true;
+		} else {
+			instance.progressDuration = 0;
+		}
+	};
+	advance(_current);
+	ranges::for_each(_old, advance);
+	return animating;
 }
 
 void ProgressWidget::Row::updateControlsGeometry(int newWidth) {

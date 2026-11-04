@@ -1129,7 +1129,10 @@ RoundVideoRecorder::RoundVideoRecorder(
 	_gradientFg.color(),
 	[=] { _preview->update(); })
 , _preview(std::make_unique<RpWidget>(_descriptor.container))
-, _private(MinithumbSize()) {
+, _private(MinithumbSize())
+, _progressAnimation([=](crl::time now) {
+	return progressAnimationCallback(now);
+}) {
 	setup();
 }
 
@@ -1173,13 +1176,13 @@ void RoundVideoRecorder::progressTo(float64 progress) {
 	if (_progress == progress || _paused) {
 		return;
 	} else if (_progressReceived) {
-		_progressAnimation.start(
-			[=] { _preview->update(); },
-			_progress,
-			progress,
-			kUpdateEach * 1.1);
+		_progressShown.start(progress);
+		_progressDuration = (kUpdateEach * 11 / 10) * anim::SlowMultiplier();
+		_progressAnimation.start();
 	} else {
 		_progressReceived = true;
+		_progressAnimation.stop();
+		_progressShown = anim::value(progress, progress);
 		_fadeContentAnimation.start(
 			[=] { _preview->update(); },
 			0.,
@@ -1188,6 +1191,20 @@ void RoundVideoRecorder::progressTo(float64 progress) {
 	}
 	_progress = progress;
 	_preview->update();
+}
+
+bool RoundVideoRecorder::progressAnimationCallback(crl::time now) {
+	const auto time = now - _progressAnimation.started();
+	const auto dt = anim::Disabled()
+		? 1.
+		: (time / float64(_progressDuration));
+	if (dt >= 1.) {
+		_progressShown.finish();
+	} else {
+		_progressShown.update(dt, anim::linear);
+	}
+	_preview->update();
+	return (dt < 1.);
 }
 
 void RoundVideoRecorder::preparePlaceholder(const QImage &placeholder) {
@@ -1370,7 +1387,7 @@ void RoundVideoRecorder::setup() {
 			const auto add = _progressStroke * 3 / 2.;
 			const auto full = arc::kFullLength;
 			const auto length = int(base::SafeRound(
-				_progressAnimation.value(_progress) * full));
+				_progressShown.current() * full));
 			p.drawArc(
 				QRectF(inner).marginsAdded({ add, add, add, add }),
 				(full / 4) - length,
