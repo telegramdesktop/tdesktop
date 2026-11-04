@@ -1212,7 +1212,7 @@ PeerListContent::PeerListContent(
 		if (update.flags & UpdateFlag::BarSettings) {
 			const auto byPeer = _rowsByPeer.find(update.peer);
 			if (byPeer != _rowsByPeer.cend()) {
-				for (const auto row : byPeer->second) {
+				for (const auto &row : byPeer->second) {
 					_rowsScrollCache.invalidate(row->id());
 					updateRow(row);
 				}

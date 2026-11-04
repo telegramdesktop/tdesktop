@@ -708,7 +708,7 @@ void System::clearReadIncoming(
 	}
 	if (_manager) {
 		// Newest first, so the custom popup queue never promotes a hidden one.
-		for (const auto item : ranges::views::reverse(hide)) {
+		for (const auto &item : ranges::views::reverse(hide)) {
 			_manager->clearFromItem(item);
 		}
 	}
