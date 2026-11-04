@@ -7686,6 +7686,64 @@ class ProjectBranchTest(unittest.TestCase):
 		git(path, "submodule", "update", "--quiet", "--init")
 		return path
 
+	ON_DEMAND_FETCHES = {
+		"GIT_CONFIG_COUNT": "4",
+		"GIT_CONFIG_KEY_3": "fetch.recurseSubmodules",
+		"GIT_CONFIG_VALUE_3": "on-demand",
+	}
+
+	def make_nested_module(self, name):
+		module = self.root / f"{name}.git"
+		nested = self.root / f"{name}-nested.git"
+		for bare in (module, nested):
+			git(
+				self.root, "init", "--quiet", "--bare",
+				"--initial-branch=master", str(bare),
+			)
+		seed_nested = self.root / f"seed-{name}-nested"
+		git_repo(seed_nested)
+		write_file(seed_nested, "nested.txt", "nested\n")
+		git(seed_nested, "add", "nested.txt")
+		git(seed_nested, "commit", "-m", "Create nested module")
+		git(seed_nested, "push", "--quiet", str(nested), "HEAD:refs/heads/master")
+		seed = self.root / f"seed-{name}"
+		git_repo(seed)
+		git(seed, "submodule", "add", "--quiet", str(nested), "packages/x/N")
+		git(seed, "commit", "-m", "Record nested module")
+		git(seed, "push", "--quiet", str(module), "HEAD:refs/heads/master")
+		return module, nested
+
+	def publish_nested_module(self, branch, path, name):
+		work = self.root / f"publish-{branch}"
+		git(
+			self.root, "clone", "--quiet", "--branch", PROJECT,
+			str(self.private), str(work),
+		)
+		git(work, "submodule", "add", "--quiet", str(self.root / f"{name}.git"), path)
+		git(work, "commit", "-m", f"Record {path}")
+		git(work, "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}")
+
+	def move_nested_module(self, branch, path):
+		work = Path(tempfile.mkdtemp(prefix="move-", dir=self.root))
+		git(
+			self.root, "clone", "--quiet", "--recurse-submodules", "--branch", branch,
+			str(self.private), str(work),
+		)
+		module = work / path
+		nested = module / "packages/x/N"
+		git(nested, "checkout", "--quiet", "--detach", "origin/master")
+		write_file(nested, f"{work.name}.txt", "advance\n")
+		git(nested, "add", f"{work.name}.txt")
+		git(nested, "commit", "-m", "Advance nested module")
+		git(nested, "push", "--quiet", "origin", "HEAD:refs/heads/master")
+		git(module, "add", "packages/x/N")
+		git(module, "commit", "-m", "Move nested module")
+		git(module, "push", "--quiet", "origin", "HEAD:refs/heads/master")
+		git(work, "add", path)
+		git(work, "commit", "-m", f"Move {path}")
+		git(work, "push", "--quiet", "origin", f"HEAD:refs/heads/{branch}")
+		return tuple(git(repo, "rev-parse", "HEAD") for repo in (work, module, nested))
+
 	def run_task(self, handler, source, slot, tag, **arguments):
 		config = {
 			"source_root": str(source),
@@ -8829,6 +8887,328 @@ class ProjectBranchTest(unittest.TestCase):
 		config = {"source_root": str(first)}
 		report = workspace.source_lineage_report(config, slot, TASK_A)
 		self.assertEqual(report["compatible_local_branches"], [])
+
+	def test_another_branchs_nested_submodule_does_not_stop_a_sync(self):
+		for mode in ("on-demand", "true"):
+			with self.subTest(recursion=mode):
+				other = f"other-{mode}"
+				tag = f"xps-{mode}"
+				module_remote, _ = self.make_nested_module(other)
+				self.publish_nested_module(other, "a/S", other)
+				module_head = git(module_remote, "rev-parse", "refs/heads/master")
+				source = self.clone(tag)
+				slot = project_slot(self.root, TASK_A, tag)
+				git(source, "checkout", "--quiet", "--detach", f"private/{other}")
+				git(source, "submodule", "update", "--quiet", "--init", "--recursive")
+				git(source, "checkout", "--quiet", PROJECT)
+				shutil.rmtree(source / "a/S")
+				retained = source / ".git/modules/a/S"
+				self.assertIsNone(workspace.gitlink_at(source, "HEAD", "a/S"))
+				self.assertTrue((retained / "modules/packages/x/N").is_dir())
+				self.assertEqual(workspace.source_changed_paths(source), [])
+
+				def retained_commit(revision):
+					return workspace.run_git(
+						self.root, f"--git-dir={retained}", "--work-tree=.",
+						"rev-parse", "--verify", "--quiet", f"{revision}^{{commit}}",
+						check=False,
+					).stdout.strip()
+
+				begin_task(source, TASK_A)
+				commit_task(source, TASK_A, f"{tag}.txt")
+				head = git(source, "rev-parse", "HEAD")
+				preference = {**self.ON_DEMAND_FETCHES, "GIT_CONFIG_VALUE_3": mode}
+				for command in (self.sync, self.push):
+					other_tip, module_tip, _ = self.move_nested_module(other, "a/S")
+					with mock.patch.dict(os.environ, preference):
+						command(source, slot, tag, TASK_A)
+					self.assertEqual(
+						git(source, "rev-parse", f"refs/remotes/private/{other}"),
+						other_tip,
+					)
+					self.assertEqual(git(source, "rev-parse", "HEAD"), head)
+					self.assertEqual(retained_commit("HEAD"), module_head)
+					self.assertEqual(retained_commit(module_tip), "")
+					self.assertFalse((source / "a/S").exists())
+				self.assertEqual(
+					git(self.private, "rev-parse", f"refs/heads/{PROJECT}"), head,
+				)
+
+	def test_moved_pins_arrive_without_recursive_fetches(self):
+		self.make_nested_module("S")
+		self.publish_nested_module(PROJECT, "lib/S", "S")
+		first = self.clone("first")
+		second = self.clone("second")
+		for checkout in (first, second):
+			git(checkout, "submodule", "update", "--quiet", "--init", "--recursive")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		begin_task(first, TASK_A)
+		commit_task(first, TASK_A, "own.txt")
+		self.assertEqual(workspace.submodule_ranges(
+			first, git(first, "rev-parse", "HEAD^"), [git(first, "rev-parse", "HEAD")],
+		), {})
+		source_tip, module_tip, nested_tip = self.move_nested_module(PROJECT, "lib/S")
+
+		with mock.patch.dict(os.environ, self.ON_DEMAND_FETCHES):
+			workspace.fetch_remote(first, "private")
+		self.assertIsNone(workspace.resolved_ref(first / "lib/S", module_tip))
+		with mock.patch.dict(os.environ, self.ON_DEMAND_FETCHES):
+			result = self.sync(first, slot, "xps-first", TASK_A)
+		self.assertTrue(result["synced"])
+		self.assertEqual((first / "own.txt").read_text(encoding="utf-8"), "own.txt\n")
+		self.assertEqual(git(first, "rev-parse", "HEAD^"), source_tip)
+		self.assertEqual(
+			git(first, "rev-parse", f"refs/remotes/private/{PROJECT}"), source_tip,
+		)
+
+		self.assertIsNone(workspace.resolved_ref(second / "lib/S", module_tip))
+		with mock.patch.dict(os.environ, self.ON_DEMAND_FETCHES), mock.patch.object(
+			workspace, "repository_config", return_value={"ai_main": str(slot)},
+		):
+			self.assertTrue(workspace.update_project_branch(None, second))
+		self.assertEqual(git(second, "rev-parse", "HEAD"), source_tip)
+
+		for checkout in (first, second):
+			self.assertEqual(git(checkout / "lib/S", "rev-parse", "HEAD"), module_tip)
+			self.assertEqual(
+				git(checkout / "lib/S/packages/x/N", "rev-parse", "HEAD"), nested_tip,
+			)
+			self.assertEqual(workspace.mismatched_submodules(checkout), [])
+			self.assertEqual(workspace.source_changed_paths(checkout), [])
+
+	def test_worktree_protection_fetches_a_target_without_recursion(self):
+		module_remote, nested_remote = self.make_nested_module("S")
+		self.publish_nested_module(PROJECT, "lib/S", "S")
+		source = self.clone("source")
+		git(source, "submodule", "update", "--quiet", "--init", "--recursive")
+		module = source / "lib/S"
+		nested = module / "packages/x/N"
+		module_head = git(module, "rev-parse", "HEAD")
+		nested_head = git(nested, "rev-parse", "HEAD")
+		scratch = module / "scratch"
+		git(nested_remote, "worktree", "add", "--quiet", "--detach", str(scratch), nested_head)
+		self.assertEqual(workspace.registered_nested_worktrees(module), ["scratch"])
+
+		self.move_nested_module(PROJECT, "lib/S")
+		target = git(module_remote, "rev-parse", "refs/heads/master")
+		nested_target = git(nested_remote, "rev-parse", "refs/heads/master")
+		self.assertIsNone(workspace.resolved_ref(module, target))
+		self.assertIsNone(workspace.resolved_ref(nested, nested_target))
+
+		with mock.patch.dict(os.environ, self.ON_DEMAND_FETCHES):
+			workspace.protect_worktrees_from_submodule_target(module, target)
+		self.assertEqual(workspace.resolved_ref(module, target), target)
+		self.assertIsNone(workspace.resolved_ref(nested, nested_target))
+		self.assertEqual(git(module, "rev-parse", "HEAD"), module_head)
+		self.assertEqual(git(nested, "rev-parse", "HEAD"), nested_head)
+		self.assertEqual(git(scratch, "rev-parse", "HEAD"), nested_head)
+		self.assertEqual((scratch / "nested.txt").read_text(encoding="utf-8"), "nested\n")
+
+	def test_nested_pins_remain_mergeable_during_project_sync(self):
+		module_remote, nested_remote = self.make_nested_module("S")
+		self.publish_nested_module(PROJECT, "lib/S", "S")
+		source = self.clone("source")
+		git(source, "submodule", "update", "--quiet", "--init", "--recursive")
+		slot = project_slot(self.root, TASK_A, "xps-source")
+		begin_task(source, TASK_A)
+		module = source / "lib/S"
+		nested = module / "packages/x/N"
+		write_file(nested, "task-nested.txt", "task\n")
+		git(nested, "add", "task-nested.txt")
+		git(nested, "commit", "-m", "Advance nested module in the task")
+		git(nested, "push", "--quiet", "origin", "HEAD:refs/heads/master")
+		published_nested = git(nested, "rev-parse", "HEAD")
+		write_file(module, "own-module.txt", "own module\n")
+		git(module, "add", "own-module.txt", "packages/x/N")
+		git(module, "commit", "-m", "Record the nested advance")
+		git(source, "add", "lib/S")
+		commit_task(source, TASK_A, "own.txt")
+
+		source_tip, module_tip, nested_tip = self.move_nested_module(PROJECT, "lib/S")
+		self.assertEqual(git(nested_remote, "rev-parse", f"{nested_tip}^"), published_nested)
+		self.assertIsNone(workspace.resolved_ref(nested, nested_tip))
+
+		with mock.patch.dict(os.environ, self.ON_DEMAND_FETCHES):
+			result = self.sync(source, slot, "xps-source", TASK_A)
+		self.assertTrue(result["synced"])
+		head = git(source, "rev-parse", "HEAD")
+		pin = git(source, "rev-parse", "HEAD:lib/S")
+		self.assertEqual(git(source, "rev-parse", "HEAD^"), source_tip)
+		self.assertEqual(git(source, "show", "HEAD:own.txt"), "own.txt")
+		self.assertEqual(git(module, "rev-parse", f"{pin}^"), module_tip)
+		self.assertEqual(git(module, "show", f"{pin}:own-module.txt"), "own module")
+		self.assertEqual(git(module, "rev-parse", f"{pin}:packages/x/N"), nested_tip)
+		self.assertEqual(git(module, "rev-parse", "HEAD"), pin)
+		self.assertEqual(git(nested, "rev-parse", "HEAD"), nested_tip)
+		self.assertEqual(workspace.mismatched_submodules(source), [])
+		self.assertEqual(workspace.source_changed_paths(source), [])
+
+		with mock.patch.dict(os.environ, self.ON_DEMAND_FETCHES):
+			pushed = self.push(source, slot, "xps-source", TASK_A)
+		self.assertEqual(pushed["submodules"], ["lib/S"])
+		self.assertEqual(git(self.private, "rev-parse", f"refs/heads/{PROJECT}"), head)
+		self.assertEqual(git(module_remote, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	def test_syncing_a_removed_submodule_leaves_the_checkout_clean(self):
+		source = self.clone("source")
+		slot = project_slot(self.root, TASK_A, "xps-source")
+		begin_task(source, TASK_A)
+		git(source, "rm", "--quiet", "dep")
+		commit_task(source, TASK_A, "own.txt")
+		self.assertEqual(workspace.source_changed_paths(source), [])
+
+		peer = self.clone("peer")
+		write_file(peer, "incoming.txt", "incoming\n")
+		git(peer, "add", "incoming.txt")
+		git(peer, "commit", "-m", "Advance source")
+		git(peer, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		incoming = git(peer, "rev-parse", "HEAD")
+
+		result = self.sync(source, slot, "xps-source", TASK_A)
+		self.assertTrue(result["synced"])
+		self.assertEqual(git(source, "rev-parse", "HEAD^"), incoming)
+		self.assertTrue((source / "own.txt").is_file())
+		self.assertIsNone(workspace.gitlink_at(source, "HEAD", "dep"))
+		self.assertEqual(workspace.source_changed_paths(source), [])
+		self.assertFalse((source / "dep").exists())
+
+		self.push(source, slot, "xps-source", TASK_A)
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(source, "rev-parse", "HEAD"),
+		)
+
+	def test_syncing_a_removed_nested_submodule_leaves_the_checkout_clean(self):
+		module_remote, _ = self.make_nested_module("S")
+		self.publish_nested_module(PROJECT, "lib/S", "S")
+		source = self.clone("source")
+		git(source, "submodule", "update", "--quiet", "--init", "--recursive")
+		slot = project_slot(self.root, TASK_A, "xps-source")
+		begin_task(source, TASK_A)
+		module = source / "lib/S"
+		git(module, "rm", "--quiet", "packages/x/N")
+		git(module, "commit", "-m", "Remove nested module")
+		git(source, "add", "lib/S")
+		commit_task(source, TASK_A, "own.txt")
+		self.assertEqual(workspace.source_changed_paths(source), [])
+
+		peer = self.clone("peer")
+		peer_module = peer / "lib/S"
+		write_file(peer_module, "incoming-module.txt", "incoming\n")
+		git(peer_module, "add", "incoming-module.txt")
+		git(peer_module, "commit", "-m", "Advance module")
+		git(peer_module, "push", "--quiet", "origin", "HEAD:refs/heads/master")
+		incoming = git(peer_module, "rev-parse", "HEAD")
+		git(peer, "add", "lib/S")
+		git(peer, "commit", "-m", "Advance source")
+		git(peer, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+
+		result = self.sync(source, slot, "xps-source", TASK_A)
+		self.assertTrue(result["synced"])
+		pin = git(source, "rev-parse", "HEAD:lib/S")
+		self.assertEqual(git(module, "rev-parse", f"{pin}^"), incoming)
+		self.assertEqual(git(module, "rev-parse", "HEAD"), pin)
+		self.assertIsNone(workspace.gitlink_at(module, pin, "packages/x/N"))
+		self.assertTrue((source / "own.txt").is_file())
+		self.assertTrue((module / "incoming-module.txt").is_file())
+		self.assertEqual(workspace.source_changed_paths(module), [])
+		self.assertEqual(workspace.source_changed_paths(source), [])
+		self.assertFalse((module / "packages/x/N").exists())
+
+		pushed = self.push(source, slot, "xps-source", TASK_A)
+		self.assertEqual(pushed["submodules"], ["lib/S"])
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(source, "rev-parse", "HEAD"),
+		)
+		self.assertEqual(git(module_remote, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
+	@unittest.skipIf(os.name == "nt", "Requires unprivileged directory symlinks")
+	def test_a_symlink_replaced_by_a_nested_submodule_keeps_other_checkouts_untouched(self):
+		for has_origin in (True, False):
+			with self.subTest(external_origin=has_origin):
+				self.setUp()
+				seed_external = self.root / "seed-external"
+				git_repo(seed_external)
+				write_file(seed_external, "external.txt", "external\n")
+				git(seed_external, "add", "external.txt")
+				git(seed_external, "commit", "-m", "Create external checkout")
+				external_remote = self.root / "external.git"
+				git(self.root, "clone", "--quiet", "--bare", str(seed_external), str(external_remote))
+				external = self.root / "external"
+				git(self.root, "clone", "--quiet", str(external_remote), str(external))
+
+				baseline = self.clone("baseline")
+				(baseline / "dep/nested").symlink_to(external, target_is_directory=True)
+				git(baseline / "dep", "add", "nested")
+				git(baseline / "dep", "commit", "-m", "Track the external checkout")
+				git(baseline / "dep", "push", "--quiet", "origin", "HEAD:refs/heads/master")
+				git(baseline, "add", "dep")
+				git(baseline, "commit", "-m", "Advance module baseline")
+				git(baseline, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+
+				source = self.clone("source")
+				module = source / "dep"
+				slot = project_slot(self.root, TASK_A, "xps-source")
+				begin_task(source, TASK_A)
+				commit_task(source, TASK_A, "own.txt", "own-module.txt")
+				self.assertTrue((module / "nested").is_symlink())
+				self.assertEqual(workspace.source_changed_paths(source), [])
+
+				_, nested_remote = self.make_nested_module("new")
+				nested_pin = git(nested_remote, "rev-parse", "refs/heads/master")
+				peer = self.clone("peer")
+				git(peer / "dep", "rm", "--quiet", "nested")
+				git(peer / "dep", "submodule", "add", "--quiet", str(nested_remote), "nested")
+				git(peer / "dep", "commit", "-m", "Replace the symlink with a nested module")
+				git(peer / "dep", "push", "--quiet", "origin", "HEAD:refs/heads/master")
+				git(peer, "add", "dep")
+				git(peer, "commit", "-m", "Advance module")
+				git(peer, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+				module_tip = git(peer / "dep", "rev-parse", "HEAD")
+				source_tip = git(peer, "rev-parse", "HEAD")
+
+				newer = None
+				if has_origin:
+					write_file(seed_external, "newer.txt", "newer\n")
+					git(seed_external, "add", "newer.txt")
+					git(seed_external, "commit", "-m", "Advance external origin")
+					git(seed_external, "push", "--quiet", str(external_remote), "HEAD")
+					newer = git(seed_external, "rev-parse", "HEAD")
+					self.assertIsNone(workspace.resolved_ref(external, newer))
+				else:
+					git(external, "remote", "remove", "origin")
+				self.assertIsNone(workspace.resolved_ref(external, nested_pin))
+
+				def external_state():
+					return git(external, "rev-parse", "HEAD"), git(external, "for-each-ref")
+
+				external_before = external_state()
+
+				result = self.sync(source, slot, "xps-source", TASK_A)
+				self.assertTrue(result["synced"])
+				pin = git(source, "rev-parse", "HEAD:dep")
+				self.assertEqual(git(source, "rev-parse", "HEAD^"), source_tip)
+				self.assertEqual(git(module, "rev-parse", f"{pin}^"), module_tip)
+				self.assertEqual(git(module, "show", f"{pin}:own-module.txt"), "own-module.txt")
+				self.assertEqual(workspace.gitlink_at(module, pin, "nested"), nested_pin)
+				self.assertTrue((module / "nested").is_dir())
+				self.assertFalse((module / "nested").is_symlink())
+				self.assertEqual(git(module / "nested", "rev-parse", "HEAD"), nested_pin)
+				self.assertEqual(workspace.source_changed_paths(module), [])
+				self.assertEqual(workspace.source_changed_paths(source), [])
+				self.assertEqual(workspace.mismatched_submodules(source), [])
+				self.assertEqual(external_state(), external_before)
+				if newer is not None:
+					self.assertIsNone(workspace.resolved_ref(external, newer))
+
+				pushed = self.push(source, slot, "xps-source", TASK_A)
+				self.assertEqual(pushed["submodules"], ["dep"])
+				self.assertEqual(
+					git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+					git(source, "rev-parse", "HEAD"),
+				)
+				self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
 
 
 class RoutingRevisionTest(unittest.TestCase):

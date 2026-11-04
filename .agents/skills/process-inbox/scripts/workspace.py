@@ -707,6 +707,11 @@ def is_linked_worktree(source, path):
 	)
 
 
+def is_foreign_checkout(source, path):
+	module = Path(source) / path
+	return module.resolve() != module or is_linked_worktree(source, path + "/")
+
+
 def indexed_gitlinks(source):
 	result = {}
 	for entry in literal_paths(source, "ls-files", "--stage"):
@@ -748,7 +753,7 @@ def source_local_changes(source):
 	))
 	for path in gitlinks:
 		module = Path(source) / path
-		if module.resolve() != module or is_linked_worktree(source, path + "/"):
+		if is_foreign_checkout(source, path):
 			dirty.add(path)
 		elif (module / ".git").exists():
 			dirty.update(
@@ -802,7 +807,7 @@ def protect_worktrees_from_submodule_target(module, revision):
 	if not worktrees:
 		return
 	if run_git(module, "cat-file", "-e", revision + "^{commit}", check=False).returncode:
-		run_git(module, "fetch")
+		run_git(module, "fetch", "--no-recurse-submodules")
 	for entry in literal_paths(module, "ls-tree", "-r", revision):
 		metadata, path = entry.split("\t", 1)
 		mode = metadata.split()[0]
@@ -821,7 +826,7 @@ def protect_worktrees_from_submodule_target(module, revision):
 def update_source_submodules(source):
 	for path, revision in indexed_gitlinks(source).items():
 		module = Path(source) / path
-		if module.resolve() != module or is_linked_worktree(source, path + "/"):
+		if is_foreign_checkout(source, path):
 			raise WorkspaceError("Submodule checkout is owned by another path: " + str(module))
 		if (module / ".git").exists() and resolved_ref(module, "HEAD") != revision:
 			protect_worktrees_from_submodule_target(module, revision)
@@ -2332,7 +2337,7 @@ def ensure_task_branch(config, slot, task):
 
 
 def fetch_remote(repo, remote):
-	run_git(repo, "fetch", "--quiet", remote)
+	run_git(repo, "fetch", "--quiet", "--no-recurse-submodules", remote)
 
 
 def tree_gitlinks(repo, revision):
@@ -2500,6 +2505,7 @@ def replay_project_history(source, commits, onto, ranges, targets, branch, origi
 			touched.append(
 				(module, current_branch(module), resolved_ref(module, "HEAD"))
 			)
+			fetch_nested_pins(module, target)
 			_, mapping = replay_commits(
 				module, linear_commits(module, older, newer), target,
 			)
@@ -2601,6 +2607,20 @@ def module_branch_tips(source, paths, project, tips):
 			fetch_remote(module, "origin")
 			tips[path] = remote_branch_tip(module, "origin", project)
 	return tips
+
+
+def fetch_nested_pins(module, revision):
+	"""Fetch nested repositories lacking a pin of revision, for gitlink merges."""
+	current = indexed_gitlinks(module)
+	for path, pin in tree_gitlinks(module, revision).items():
+		nested = module / path
+		if (
+			path in current
+			and not is_foreign_checkout(module, path)
+			and (nested / ".git").exists()
+			and resolved_ref(nested, pin) is None
+		):
+			fetch_remote(nested, "origin")
 
 
 def recorded_modules(source, task_id):
