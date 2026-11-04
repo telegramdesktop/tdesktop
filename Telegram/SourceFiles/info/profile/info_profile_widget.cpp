@@ -328,31 +328,8 @@ void Widget::showSearch() {
 }
 
 rpl::producer<QString> Widget::title() {
-	if (const auto topic = controller()->key().topic()) {
-		return topic->peer()->isBot()
-			? tr::lng_info_thread_title()
-			: tr::lng_info_topic_title();
-	} else if (controller()->key().sublist()
-		&& controller()->key().sublist()->parentChat()) {
-		return tr::lng_profile_direct_messages();
-	}
-	const auto peer = controller()->key().peer();
-	if (controller()->key().savedMessages()) {
-		return tr::lng_saved_messages();
-	} else if (const auto user = peer->asUser()) {
-		return (user->isBot() && !user->isSupport())
-			? tr::lng_info_bot_title()
-			: tr::lng_info_user_title();
-	} else if (const auto channel = peer->asChannel()) {
-		return channel->isMonoforum()
-			? tr::lng_profile_direct_messages()
-			: channel->isMegagroup()
-			? tr::lng_info_group_title()
-			: tr::lng_info_channel_title();
-	} else if (peer->isChat()) {
-		return tr::lng_info_group_title();
-	}
-	Unexpected("Bad peer type in Info::TitleValue()");
+	// Profile sections draw their own top bar, it never asks for this.
+	return rpl::never<QString>();
 }
 
 rpl::producer<Dialogs::Stories::Content> Widget::titleStories() {

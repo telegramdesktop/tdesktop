@@ -3096,12 +3096,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				: item->replyToTop();
 			const auto phrase = topicRootId
 				? tr::lng_replies_view_topic(tr::now)
-				: (repliesCount > 0)
-				? tr::lng_replies_view(
+				: tr::lng_replies_view(
 					tr::now,
 					lt_count,
-					repliesCount)
-				: tr::lng_replies_view_thread(tr::now);
+					repliesCount);
 			_menu->addAction(phrase, [=] {
 				controller->showRepliesForMessage(
 					_history,

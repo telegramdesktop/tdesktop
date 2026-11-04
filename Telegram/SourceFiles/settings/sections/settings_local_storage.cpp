@@ -1454,9 +1454,7 @@ QPoint LocalStorage::Row::prepareRippleStartPosition() const {
 
 QString LocalStorage::Row::sizeText(
 		const Database::TaggedSummary &data) const {
-	return data.totalSize
-		? Ui::FormatSizeText(data.totalSize)
-		: tr::lng_local_storage_empty(tr::now);
+	return Ui::FormatSizeText(data.totalSize);
 }
 
 LocalStorage::LocalStorage(

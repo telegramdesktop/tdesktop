@@ -960,12 +960,10 @@ QString Poll::Footer::linkButtonText() const {
 	const auto votedPublic = _owner->_voted
 		&& (_owner->_flags & PollData::Flag::PublicVotes);
 	return (_owner->showVotes() || votedPublic)
-		? ((_owner->_flags & PollData::Flag::PublicVotes)
-			? tr::lng_polls_view_votes(
-				tr::now,
-				lt_count,
-				_owner->_totalVotes)
-			: tr::lng_polls_view_results(tr::now))
+		? tr::lng_polls_view_votes(
+			tr::now,
+			lt_count,
+			_owner->_totalVotes)
 		: tr::lng_polls_submit_votes(tr::now);
 }
 

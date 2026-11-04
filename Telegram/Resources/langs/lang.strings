@@ -1165,7 +1165,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_privacy" = "Privacy and Security";
 
 "lng_local_storage_title" = "Local storage";
-"lng_local_storage_empty" = "No cached files";
 "lng_local_storage_image#one" = "{count} image";
 "lng_local_storage_image#other" = "{count} images";
 "lng_local_storage_sticker#one" = "{count} sticker";
@@ -1289,7 +1288,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_disable" = "Disable proxy";
 "lng_proxy_use_system_settings" = "Use system proxy settings";
 "lng_proxy_use_custom" = "Use custom proxy";
-"lng_proxy_use_for_calls" = "Use proxy for calls";
 "lng_proxy_auto_switch" = "Auto-switch proxies";
 "lng_proxy_auto_switch_about" = "You can choose how quickly the app should auto-connect to the nearest active proxy if the current one stops working.";
 "lng_proxy_auto_switch_timeout#one" = "{count} s";
@@ -1867,12 +1865,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_info_hours_next_day" = "{time} (next day)";
 "lng_info_hours_local_time" = "local time";
 "lng_info_hours_my_time" = "my time";
-"lng_info_user_title" = "User Info";
-"lng_info_bot_title" = "Bot Info";
-"lng_info_group_title" = "Group Info";
-"lng_info_channel_title" = "Channel Info";
-"lng_info_topic_title" = "Topic Info";
-"lng_info_thread_title" = "Thread Info";
 "lng_profile_send_message" = "Send Message";
 "lng_profile_open_app" = "Open App";
 "lng_profile_open_app_short" = "Open";
@@ -1940,7 +1932,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_media_type_saved" = "Saved";
 "lng_profile_tab_set_as_main" = "Set as Main Tab";
 "lng_polls_search_none" = "No polls found";
-"lng_media_type_rounds" = "Video messages";
 "lng_media_zoom_in" = "Zoom In";
 "lng_media_zoom_out" = "Zoom Out";
 "lng_media_saved_music_your" = "Your playlist";
@@ -3186,7 +3177,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_new_chat" = "New Chat";
 "lng_bot_new_thread_title" = "New Thread";
 "lng_bot_new_thread_about" = "Type any message to create a new thread.";
-"lng_bot_show_threads_list" = "Show Threads List";
 "lng_bot_off_thread_ph" = "Off-thread message";
 
 "lng_attach_failed" = "Failed";
@@ -5053,7 +5043,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_replies_view#one" = "View {count} Reply";
 "lng_replies_view#other" = "View {count} Replies";
-"lng_replies_view_thread" = "View Thread";
 "lng_replies_header#one" = "{count} reply";
 "lng_replies_header#other" = "{count} replies";
 "lng_replies_header_none" = "Replies";
@@ -5496,7 +5485,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_animated_reaction" = "This reaction is from the **{name}** pack.";
 "lng_context_animated_emoji_preview" = "This emoji is from the **{name}** pack.";
 "lng_context_animated_tag" = "This tag is from **{name} pack**.";
-"lng_context_animated_reactions" = "Reactions contain emoji from **{name} pack**.";
 "lng_context_animated_reactions_many#one" = "Reactions contain emoji from **{count} pack**.";
 "lng_context_animated_reactions_many#other" = "Reactions contain emoji from **{count} packs**.";
 "lng_context_animated_poll_option" = "This option contains emoji from **{name} pack**.";
@@ -6034,7 +6022,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sr_message_column_spoiler" = "Spoiler";
 "lng_sr_message_column_dice" = "Dice";
 "lng_sr_message_column_giveaway" = "Giveaway";
-"lng_sr_message_column_gift" = "Gift";
 "lng_sr_message_column_todo_title" = "Todo title";
 "lng_sr_message_column_todo_items" = "Todo items";
 "lng_sr_message_column_factcheck" = "Fact check";
@@ -6045,10 +6032,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sr_message_spoiler" = "Hidden media";
 "lng_sr_message_todo_completed" = "Completed";
 "lng_sr_message_todo_not_completed" = "Not completed";
-"lng_sr_message_gift_premium#one" = "Premium gift, {count} day";
-"lng_sr_message_gift_premium#other" = "Premium gift, {count} days";
-"lng_sr_message_gift_credits#one" = "Star gift, {count} star";
-"lng_sr_message_gift_credits#other" = "Star gift, {count} stars";
 "lng_sr_message_invoice_paid" = "Paid";
 "lng_sr_message_invoice_unpaid" = "Unpaid";
 
@@ -6136,7 +6119,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_formatting_subscript" = "Subscript";
 "lng_menu_formatting_superscript" = "Superscript";
 "lng_menu_formatting_marked" = "Marked";
-"lng_menu_formatting_plain_text" = "Plain text";
 "lng_menu_formatting_date" = "Date";
 "lng_menu_formatting_link_create" = "Create link";
 "lng_menu_formatting_link_edit" = "Edit link";
@@ -7473,7 +7455,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_polls_answers_none" = "No answers";
 "lng_polls_submit_votes" = "Vote";
 "lng_polls_view_stats" = "View Stats";
-"lng_polls_view_results" = "View results";
 "lng_polls_stats_title" = "Poll Stats";
 "lng_polls_view_votes#one" = "View Votes ({count})";
 "lng_polls_view_votes#other" = "View Votes ({count})";
@@ -8013,7 +7994,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_voice_speed_super_fast" = "Super fast";
 
 "lng_view_button_user" = "Send message";
-"lng_view_button_bot" = "View bot";
 "lng_view_button_group" = "View group";
 "lng_view_button_channel" = "View channel";
 "lng_view_button_bot_app" = "Launch";
