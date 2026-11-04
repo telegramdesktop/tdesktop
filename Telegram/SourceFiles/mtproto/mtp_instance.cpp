@@ -111,6 +111,7 @@ public:
 	void cancel(mtpRequestId requestId);
 	[[nodiscard]] int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
 	void killSession(ShiftedDcId shiftedDcId);
+	void killSessionsByShift(int shift);
 	void stopSession(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
 	void logout(Fn<void()> done);
@@ -709,6 +710,20 @@ void Instance::Private::killSession(ShiftedDcId shiftedDcId) {
 		Assert(i->second.get() != _mainSession);
 	}
 	scheduleSessionDestroy(shiftedDcId);
+}
+
+void Instance::Private::killSessionsByShift(int shift) {
+	Expects(shift > 0);
+
+	auto selected = std::vector<ShiftedDcId>();
+	for (const auto &[shiftedDcId, session] : _sessions) {
+		if (GetDcIdShift(shiftedDcId) == shift) {
+			selected.push_back(shiftedDcId);
+		}
+	}
+	for (const auto shiftedDcId : selected) {
+		killSession(shiftedDcId);
+	}
 }
 
 void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
@@ -1435,6 +1450,14 @@ void Instance::Private::failOverAuthImports(ShiftedDcId shiftedDcId) {
 		}
 		const auto requestId = i->first;
 		const auto dcId = i->second;
+
+		// A due retry would recreate the session before the queued restart.
+		_delayedRequests.erase(
+			ranges::remove(
+				_delayedRequests,
+				requestId,
+				[](const auto &entry) { return entry.first; }),
+			end(_delayedRequests));
 		i = _authImportRequests.erase(i);
 		InvokeQueued(_instance, [=] {
 			restartAuthImport(dcId, requestId);
@@ -2064,6 +2087,10 @@ int32 Instance::state(mtpRequestId requestId) { // < 0 means waiting for such co
 
 void Instance::killSession(ShiftedDcId shiftedDcId) {
 	_private->killSession(shiftedDcId);
+}
+
+void Instance::killSessionsByShift(int shift) {
+	_private->killSessionsByShift(shift);
 }
 
 void Instance::stopSession(ShiftedDcId shiftedDcId) {

@@ -174,6 +174,13 @@ Session::~Session() {
 	if (_myKeyCreation != CreatingKeyType::None) {
 		releaseKeyCreationOnFail();
 	}
+
+	// Wake key waiters even if the worker released creation before the kill.
+	const auto dcId = _dc->id();
+	const auto instance = _instance;
+	InvokeQueued(instance, [instance, dcId] {
+		instance->dcTemporaryKeyChanged(dcId);
+	});
 }
 
 void Session::watchDcKeyChanges() {
@@ -184,9 +191,10 @@ void Session::watchDcKeyChanges() {
 		DEBUG_LOG(("AuthKey Info: dcTemporaryKeyChanged in Session %1"
 			).arg(_shiftedDcId));
 		if (const auto captured = _private) {
-			InvokeQueued(captured, [=] {
+			const auto shiftedDcId = _shiftedDcId;
+			InvokeQueued(captured, [captured, shiftedDcId] {
 				DEBUG_LOG(("AuthKey Info: calling Connection::updateAuthKey in Session %1"
-					).arg(_shiftedDcId));
+					).arg(shiftedDcId));
 				captured->updateAuthKey();
 			});
 		}

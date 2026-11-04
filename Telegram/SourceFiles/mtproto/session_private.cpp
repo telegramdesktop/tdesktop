@@ -186,11 +186,22 @@ SessionPrivate::SessionPrivate(
 }
 
 SessionPrivate::~SessionPrivate() {
+	const auto hadKeyCreator = (_keyCreator != nullptr);
 	releaseKeyCreationOnFail();
 	doDisconnect();
 
 	Expects(!_connection);
 	Expects(_testConnections.empty());
+
+	if (hadKeyCreator) {
+		const auto bareDcId = BareDcId(_shiftedDcId);
+		const auto dcId = isTemporaryDcId(bareDcId)
+			? getRealIdFromTemporaryDcId(bareDcId)
+			: bareDcId;
+		InvokeQueued(_instance, [instance = _instance, dcId] {
+			instance->dcTemporaryKeyChanged(dcId);
+		});
+	}
 }
 
 void SessionPrivate::appendTestConnection(
@@ -2513,13 +2524,12 @@ void SessionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying."
 			).arg(_shiftedDcId));
 		_instance->keyWasPossiblyDestroyed(_shiftedDcId);
-	} else if (noMediaKeyWithExistingRegularKey()) {
-		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey() for media, "
-			"but someone has created regular, trying to acquire."));
+	} else if (!_keyCreator) {
 		const auto dcType = tryAcquireKeyCreation();
 		if (_keyCreator && dcType != _currentDcType) {
 			DEBUG_LOG(("AuthKey Info: "
 				"Dc type changed for creation, restarting."));
+			_currentDcType = dcType;
 			restart();
 			return;
 		}
@@ -2535,12 +2545,6 @@ void SessionPrivate::applyAuthKey(AuthKeyPtr &&encryptionKey) {
 		DEBUG_LOG(("AuthKey Info: No key in updateAuthKey(), "
 			"but someone is creating already, waiting."));
 	}
-}
-
-bool SessionPrivate::noMediaKeyWithExistingRegularKey() const {
-	return (TemporaryKeyTypeByDcType(_currentDcType)
-			== TemporaryKeyType::MediaCluster)
-		&& _sessionData->getTemporaryKey(TemporaryKeyType::Regular);
 }
 
 bool SessionPrivate::destroyOldEnoughPersistentKey() {

@@ -173,7 +173,6 @@ private:
 	void clearUnboundKeyCreator();
 	void releaseKeyCreationOnFail();
 	void applyAuthKey(AuthKeyPtr &&encryptionKey);
-	[[nodiscard]] bool noMediaKeyWithExistingRegularKey() const;
 	bool destroyOldEnoughPersistentKey();
 
 	void setCurrentKeyId(uint64 newKeyId);
