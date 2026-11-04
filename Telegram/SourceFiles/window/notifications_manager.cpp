@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "ui/text/text_utilities.h"
+#include "ui/emoji_config.h"
 #include "platform/platform_specific.h"
 
 #include <QtGui/QWindow>
@@ -117,6 +118,12 @@ base::options::toggle HideReplyButtonOption({
 [[nodiscard]] QString PlaceholderReactionText() {
 	static const auto result = QString::fromUtf8("\xf0\x9f\x92\xad");
 	return result;
+}
+
+[[nodiscard]] QString WithEmojiPresentation(const QString &text) {
+	auto length = 0;
+	const auto emoji = Ui::Emoji::Find(text, &length);
+	return (emoji && length == text.size()) ? emoji->text() : text;
 }
 
 [[nodiscard]] QString TextWithForwardedChar(
@@ -1223,12 +1230,14 @@ TextWithEntities Manager::ComposeReactionEmoji(
 		not_null<Main::Session*> session,
 		const Data::ReactionId &reaction) {
 	if (const auto emoji = std::get_if<QString>(&reaction.data)) {
-		return TextWithEntities{ *emoji };
+		return TextWithEntities{ WithEmojiPresentation(*emoji) };
 	}
 	const auto id = v::get<DocumentId>(reaction.data);
 	const auto document = session->data().document(id);
 	const auto sticker = document->sticker();
-	const auto text = sticker ? sticker->alt : PlaceholderReactionText();
+	const auto text = sticker
+		? WithEmojiPresentation(sticker->alt)
+		: PlaceholderReactionText();
 	return TextWithEntities{
 		text,
 		{
@@ -1287,7 +1296,7 @@ TextWithEntities Manager::ComposeReactionNotification(
 				lt_reaction,
 				reactionWithEntities,
 				lt_emoji,
-				tr::marked(sticker->alt),
+				tr::marked(WithEmojiPresentation(sticker->alt)),
 				tr::marked);
 		}
 		return simple(tr::lng_reaction_document);
