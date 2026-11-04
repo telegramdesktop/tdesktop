@@ -20,6 +20,8 @@ constexpr auto kMaxFrameBytes = int64(64 * 1024 * 1024);
 constexpr auto kMaxLayerBytes = int64(128 * 1024 * 1024);
 constexpr auto kMaxLayerWork = int64(256 * 1024 * 1024);
 constexpr auto kMaxFilterWork = int64(1 << 23);
+constexpr auto kFilterWorkRatio = 2.;
+constexpr auto kMaxFilterWorkRatio = 4.;
 constexpr auto kFilterPassWork = int64(4096);
 constexpr auto kMaxFilterScratch = int64(64 * 1024 * 1024);
 constexpr auto kPixelBytes = 4;
@@ -344,7 +346,8 @@ private:
 	size_t _group = 0;
 	int64 _layerBytes = 0;
 	int64 _layerWork = 0;
-	int64 _filterWork = kMaxFilterWork;
+	int64 _maxFilterWork = 0;
+	int64 _filterWork = 0;
 	int64 _shadowWork = kMaxShadowWork;
 	int _hidden = 0;
 	bool _pathClips = false;
@@ -365,6 +368,17 @@ private:
 
 [[nodiscard]] int64 LayerBytes(QSize size) {
 	return int64(size.width()) * size.height() * kPixelBytes;
+}
+
+// WHY: higher interface scales multiply device-pixel work by area.
+// Keep the ratio-2 allowance below that ratio and cap its growth at the
+// calibrated maximum to bound the work admitted on each frame.
+[[nodiscard]] int64 FilterWorkBound(float64 cssToDevice) {
+	const auto factor = std::clamp(
+		cssToDevice,
+		kFilterWorkRatio,
+		kMaxFilterWorkRatio) / kFilterWorkRatio;
+	return int64(kMaxFilterWork * factor * factor);
 }
 
 [[nodiscard]] QRectF DeviceLimit(const QPaintDevice &device) {
@@ -2104,7 +2118,9 @@ Executor::Executor(
 		const QtBackend &backend,
 		float64 scale)
 : _root(root)
-, _backend(backend) {
+, _backend(backend)
+, _maxFilterWork(FilterWorkBound(scale))
+, _filterWork(_maxFilterWork) {
 	PrepareHints(_root);
 	_root.scale(scale, scale);
 }
@@ -2730,8 +2746,8 @@ bool Executor::admitFilter(const FilterCost &cost, int64 bytes) {
 	if (cost.work > _filterWork) {
 		return exceed(PaintLimit(
 			u"filter work of %1 units in one frame"_q.arg(
-				kMaxFilterWork - _filterWork + cost.work),
-			kMaxFilterWork));
+				_maxFilterWork - _filterWork + cost.work),
+			_maxFilterWork));
 	} else if (cost.scratch > kMaxFilterScratch) {
 		return exceed(PaintLimit(
 			u"filter scratch of %1 bytes in one filter pass"_q.arg(
