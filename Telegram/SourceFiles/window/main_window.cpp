@@ -587,11 +587,14 @@ void MainWindow::init() {
 }
 
 void MainWindow::handleStateChanged(Qt::WindowState state) {
-	if (state != Qt::WindowMinimized) {
-		_ownPosition.maximized = (state == Qt::WindowMaximized) ? 1 : 0;
-		if (isHidden()) {
-			_maximizedBeforeHide = positionMaximized();
+	if (isHidden()) {
+		// A withdrawn window can flip to no state on X11, keep what it had.
+		if (state == Qt::WindowMaximized) {
+			_ownPosition.maximized = 1;
+			_maximizedBeforeHide = true;
 		}
+	} else if (state != Qt::WindowMinimized) {
+		_ownPosition.maximized = (state == Qt::WindowMaximized) ? 1 : 0;
 	}
 	stateChangedHook(state);
 	updateControlsGeometry();
@@ -1043,7 +1046,9 @@ void MainWindow::rememberOwnBodyMargins(QRect inner) {
 void MainWindow::recoverOwnGeometry() {
 	const auto normal = normalGeometry();
 	// Windows shifts it by the maximized frame, X11 can give the maximized.
-	const auto unreliable = (isMaximized() || isFullScreen())
+	const auto unreliable = (isMaximized()
+		|| isFullScreen()
+		|| positionMaximized())
 		&& ((normal == geometry()) != Platform::IsWindows());
 	if (!normal.isValid() || unreliable) {
 		return;
