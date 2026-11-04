@@ -549,11 +549,11 @@ void Session::tryToReceive() {
 		DEBUG_LOG(("Session Error: can't receive in a killed session"));
 		return;
 	}
-	if (paused()) {
-		_needToReceive = true;
-		return;
-	}
 	while (true) {
+		if (paused()) {
+			_needToReceive = true;
+			return;
+		}
 		auto lock = QWriteLocker(_data->haveReceivedMutex());
 		const auto messages = base::take(_data->haveReceivedMessages());
 		lock.unlock();

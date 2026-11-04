@@ -371,10 +371,12 @@ void Application::run() {
 	}, _lifetime);
 
 	style::ShortAnimationPlaying(
-	) | rpl::on_next([=](bool playing) {
+	) | rpl::combine_previous(
+		false
+	) | rpl::on_next([=](bool was, bool playing) {
 		if (playing) {
 			MTP::details::pause();
-		} else {
+		} else if (was) {
 			MTP::details::unpause();
 		}
 	}, _lifetime);
