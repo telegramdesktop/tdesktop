@@ -51,12 +51,11 @@ void SessionData::withSession(Callback &&callback) {
 }
 
 void SessionData::notifyConnectionInited(const SessionOptions &options) {
-	// #TODO race
-	const auto current = this->options();
-	if (current.cloudLangCode == _options.cloudLangCode
-		&& current.systemLangCode == _options.systemLangCode
-		&& current.langPackName == _options.langPackName
-		&& current.proxy == _options.proxy) {
+	QReadLocker optionsLock(&_optionsLock);
+	if (options.cloudLangCode == _options.cloudLangCode
+		&& options.systemLangCode == _options.systemLangCode
+		&& options.langPackName == _options.langPackName
+		&& options.proxy == _options.proxy) {
 		QMutexLocker lock(&_ownerMutex);
 		if (_owner) {
 			_owner->notifyDcConnectionInited();
@@ -259,6 +258,7 @@ void Session::refreshOptions() {
 }
 
 void Session::reInitConnection() {
+	refreshOptions();
 	setConnectionNotInited();
 	restart();
 }
