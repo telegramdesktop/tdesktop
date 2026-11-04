@@ -7,18 +7,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor.h"
 
+#include "calls/calls_instance.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "api/api_stories.h"
 #include "editor/color_picker.h"
 #include "editor/controllers/controllers.h"
+#include "editor/editor_caption_bar.h"
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
+#include "lang/lang_keys.h"
+#include "media/audio/media_audio_capture.h"
+#include "ui/controls/round_video_recorder.h"
+#include "webrtc/webrtc_video_track.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/layer_widget.h"
+#include "ui/wrap/fade_wrap.h"
 #include "styles/style_calls.h"
 #include "styles/style_editor.h"
+
+#include <tgcalls/VideoCaptureInterface.h>
 
 namespace Editor {
 namespace {
@@ -26,6 +36,24 @@ namespace {
 constexpr auto kPrecision = 100000;
 constexpr auto kBrushesVersion = -2;
 constexpr auto kDefaultBrushSizeRatio = 0.9;
+
+constexpr auto kMaxRecordingAmplitude = 1800.;
+
+[[nodiscard]] float64 RecordingAmplitude(
+		const ::Media::Capture::Chunk &chunk) {
+	const auto &samples = chunk.samples;
+	const auto count = int(samples.size() / sizeof(int16));
+	if (!count) {
+		return 0.;
+	}
+	const auto data = reinterpret_cast<const int16*>(samples.constData());
+	auto sum = 0.;
+	for (const auto value : gsl::make_span(data, count)) {
+		sum += float64(value) * value;
+	}
+	const auto amplitude = std::sqrt(sum / count) / 2.;
+	return std::clamp(amplitude / kMaxRecordingAmplitude, 0., 1.);
+}
 
 [[nodiscard]] std::unique_ptr<Ui::LayerManager> MakeLayers(
 		not_null<Ui::RpWidget*> parent) {
@@ -284,13 +312,16 @@ PhotoEditor::PhotoEditor(
 	EditorData data)
 : RpWidget(parent)
 , _modifications(std::move(modifications))
+, _initialAngle(_modifications.angle)
+, _initialFlipped(_modifications.flipped)
 , _layers(MakeLayers(this))
 , _controllers(std::make_shared<Controllers>(
 	sessionShow
 		? std::make_unique<StickersPanelController>(
 			this,
 			sessionShow,
-			data.composeSound)
+			data.composeSound,
+			data.story.has_value())
 		: nullptr,
 	std::make_unique<UndoController>(),
 	show,
@@ -309,6 +340,11 @@ PhotoEditor::PhotoEditor(
 	data,
 	photo->size(),
 	Deserialize(Core::App().settings().photoEditorBrush()).fillShapes))
+, _captionBar(data.story
+	? base::make_unique_q<Ui::FadeWrap<CaptionBar>>(
+		this,
+		object_ptr<CaptionBar>(this, this, *data.story))
+	: nullptr)
 , _brushes(Deserialize(Core::App().settings().photoEditorBrush()).brushes)
 , _brushTool(Deserialize(Core::App().settings().photoEditorBrush()).tool)
 , _shapesFilled(
@@ -318,9 +354,13 @@ PhotoEditor::PhotoEditor(
 	this,
 	std::move(show),
 	_brushes,
-	_brushTool)) {
+	_brushTool))
+, _hasSaveButton(data.hasSaveButton || data.story.has_value()) {
 	_modifications.cropType = data.cropType;
 	_modifications.cropMode = data.cropMode;
+	if (data.story && !data.story->videoObject.empty()) {
+		_content->addVideoObject(std::move(data.story->videoObject));
+	}
 
 	events(
 	) | rpl::on_next([=](not_null<QEvent*> e) {
@@ -334,8 +374,31 @@ PhotoEditor::PhotoEditor(
 		if (size.isEmpty()) {
 			return;
 		}
-		_content->setGeometry(rect() - st::photoEditorContentMargins);
+		layoutContent();
 	}, lifetime());
+	if (_captionBar) {
+		const auto bar = _captionBar->entity();
+		bar->heightValue() | rpl::skip(1) | rpl::on_next([=] {
+			layoutContent();
+		}, bar->lifetime());
+		bar->submits() | rpl::on_next([=] {
+			if (_mode.current().mode == PhotoEditorMode::Mode::Transform) {
+				done();
+			}
+		}, bar->lifetime());
+		bar->cancels() | rpl::on_next([=] {
+			setFocus();
+		}, bar->lifetime());
+		bar->roundRequests() | rpl::on_next([=] {
+			toggleRoundRecording();
+		}, bar->lifetime());
+		bar->roundStopRequests() | rpl::on_next([=] {
+			stopRoundRecording(true);
+		}, bar->lifetime());
+		bar->roundCancelRequests() | rpl::on_next([=] {
+			stopRoundRecording(false);
+		}, bar->lifetime());
+	}
 
 	_content->videoClipSelections(
 	) | rpl::on_next([=](std::shared_ptr<VideoClip> clip) {
@@ -432,6 +495,11 @@ PhotoEditor::PhotoEditor(
 	) | rpl::on_next([=](const PhotoEditorMode &mode) {
 		_content->applyMode(mode);
 		_controls->applyMode(mode);
+		if (_captionBar) {
+			_captionBar->toggle(
+				(mode.mode == PhotoEditorMode::Mode::Transform),
+				anim::type::normal);
+		}
 	}, lifetime());
 
 	_controls->rotateRequests(
@@ -463,6 +531,9 @@ PhotoEditor::PhotoEditor(
 		_controls->paintModeRequests(),
 		_content->paintModeRequests()
 	) | rpl::on_next([=] {
+		if (_roundRecording) {
+			return;
+		}
 		_mode = PhotoEditorMode{
 			.mode = PhotoEditorMode::Mode::Paint,
 			.action = PhotoEditorMode::Action::None,
@@ -514,19 +585,14 @@ PhotoEditor::PhotoEditor(
 	_controls->doneRequests(
 	) | rpl::on_next([=] {
 		_controls->commitTimelineEdits();
-		const auto mode = _mode.current().mode;
-		if (mode == PhotoEditorMode::Mode::Paint) {
-			_mode = PhotoEditorMode{
-				.mode = PhotoEditorMode::Mode::Transform,
-				.action = PhotoEditorMode::Action::Save,
-			};
-		} else if (mode == PhotoEditorMode::Mode::Transform) {
-			_mode = PhotoEditorMode{
-				.mode = PhotoEditorMode::Mode::Out,
-				.action = PhotoEditorMode::Action::Save,
-			};
-			save();
-		}
+		done();
+	}, lifetime());
+
+	_controls->saveRequests(
+	) | rpl::on_next([=] {
+		_controls->commitTimelineEdits();
+		_content->save(_modifications);
+		_save.fire_copy(_modifications);
 	}, lifetime());
 
 	_controls->cancelRequests(
@@ -538,11 +604,15 @@ PhotoEditor::PhotoEditor(
 				.action = PhotoEditorMode::Action::Discard,
 			};
 		} else if (mode == PhotoEditorMode::Mode::Transform) {
-			_mode = PhotoEditorMode{
-				.mode = PhotoEditorMode::Mode::Out,
-				.action = PhotoEditorMode::Action::Discard,
-			};
-			_cancel.fire({});
+			if (_captionBar) {
+				_cancel.fire({});
+			} else {
+				_mode = PhotoEditorMode{
+					.mode = PhotoEditorMode::Mode::Out,
+					.action = PhotoEditorMode::Action::Discard,
+				};
+				_cancel.fire({});
+			}
 		}
 	}, lifetime());
 
@@ -652,9 +722,23 @@ PhotoEditor::PhotoEditor(
 PhotoEditor::~PhotoEditor() {
 	// ~Paint fires shape tool states, don't handle them in a dying widget.
 	lifetime().destroy();
+	stopRoundRecording(false);
 }
 
 void PhotoEditor::keyPressEvent(QKeyEvent *e) {
+	if (_roundRecording && e->key() == Qt::Key_Escape) {
+		stopRoundRecording(false);
+		return;
+	}
+	if (_hasSaveButton
+		&& _saveEnabled
+		&& !_roundRecording
+		&& e->matches(QKeySequence::Save)) {
+		_controls->commitTimelineEdits();
+		_content->save(_modifications);
+		_save.fire_copy(_modifications);
+		return;
+	}
 	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
 	if (!_colorPicker->preventHandleKeyPress()) {
 		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
@@ -681,12 +765,187 @@ void PhotoEditor::save() {
 	_done.fire_copy(_modifications);
 }
 
+void PhotoEditor::done() {
+	const auto mode = _mode.current().mode;
+	if (_roundRecording) {
+		return;
+	} else if (mode == PhotoEditorMode::Mode::Paint) {
+		_mode = PhotoEditorMode{
+			.mode = PhotoEditorMode::Mode::Transform,
+			.action = PhotoEditorMode::Action::Save,
+		};
+	} else if (mode != PhotoEditorMode::Mode::Transform) {
+		return;
+	} else if (_captionBar) {
+		_content->save(_modifications);
+		_done.fire_copy(_modifications);
+	} else {
+		_mode = PhotoEditorMode{
+			.mode = PhotoEditorMode::Mode::Out,
+			.action = PhotoEditorMode::Action::Save,
+		};
+		save();
+	}
+}
+
+TextWithTags PhotoEditor::caption() const {
+	return _captionBar ? _captionBar->entity()->caption() : TextWithTags();
+}
+
+int PhotoEditor::period() const {
+	return _captionBar ? _captionBar->entity()->period() : 0;
+}
+
+void PhotoEditor::toggleRoundRecording() {
+	if (_roundRecording) {
+		stopRoundRecording(true);
+	} else {
+		startRoundRecording();
+	}
+}
+
+void PhotoEditor::startRoundRecording() {
+	if (_roundRecorder || !_captionBar) {
+		return;
+	}
+	const auto hidden = [=](not_null<Ui::RoundVideoRecorder*> which) {
+		if (_roundRecorder.get() == which) {
+			_roundRecorder = nullptr;
+		}
+	};
+	auto capturer = Core::App().calls().getVideoCapture();
+	auto track = std::make_shared<Webrtc::VideoTrack>(
+		Webrtc::VideoState::Active);
+	capturer->setOutput(track->sink());
+	capturer->setPreferredAspectRatio(1.);
+	_roundLifetime = track->stateValue(
+	) | rpl::on_next([=](Webrtc::VideoState state) {
+		capturer->setState((state == Webrtc::VideoState::Active)
+			? tgcalls::VideoState::Active
+			: tgcalls::VideoState::Inactive);
+	});
+	_roundRecorder = std::make_unique<Ui::RoundVideoRecorder>(
+		Ui::RoundVideoRecorderDescriptor{
+			.container = this,
+			.hiding = [](not_null<Ui::RoundVideoRecorder*>) {},
+			.hidden = hidden,
+			.capturer = std::move(capturer),
+			.track = std::move(track),
+		});
+	_roundRecording = true;
+	_captionBar->entity()->setRoundRecording(true);
+	const auto processor = _roundRecorder->audioChunkProcessor();
+	const auto weak = base::make_weak(this);
+	::Media::Capture::instance()->start([=](::Media::Capture::Chunk chunk) {
+		const auto amplitude = RecordingAmplitude(chunk);
+		crl::on_main(weak, [=] {
+			if (_captionBar) {
+				_captionBar->entity()->setRoundRecordingAmplitude(amplitude);
+			}
+		});
+		processor(std::move(chunk));
+	});
+	_roundRecorder->updated(
+	) | rpl::on_next_error([=](const Ui::RoundVideoRecorder::Update &update) {
+		if (update.finished) {
+			stopRoundRecording(true);
+		}
+	}, [=](Ui::RoundVideoRecorder::Error) {
+		stopRoundRecording(false);
+		_controllers->show->showToast(
+			tr::lng_story_round_failed(tr::now));
+	}, _roundLifetime);
+}
+
+void PhotoEditor::stopRoundRecording(bool save) {
+	if (!_roundRecording) {
+		return;
+	}
+	_roundRecording = false;
+	if (_captionBar) {
+		_captionBar->entity()->setRoundRecording(false);
+	}
+	if (const auto recorder = _roundRecorder.get()) {
+		if (save) {
+			const auto weak = base::make_weak(this);
+			recorder->hide([=](Ui::RoundVideoResult data) {
+				crl::on_main(weak, [=, data = std::move(data)]() mutable {
+					if (data.content.isEmpty()) {
+						return;
+					}
+					_mode = PhotoEditorMode{
+						.mode = PhotoEditorMode::Mode::Paint,
+						.action = PhotoEditorMode::Action::None,
+					};
+					_content->addRoundVideo(
+						std::move(data.content),
+						data.duration);
+				});
+			});
+		} else {
+			recorder->hide();
+		}
+	}
+	::Media::Capture::instance()->stop();
+}
+
+bool PhotoEditor::edited() const {
+	return (_modifications.angle != _initialAngle)
+		|| (_modifications.flipped != _initialFlipped)
+		|| _content->edited();
+}
+
+PhotoModifications PhotoEditor::collect() {
+	_content->save(_modifications);
+	return _modifications;
+}
+
+void PhotoEditor::layoutContent() {
+	_content->setGeometry(rect() - contentMargins());
+	if (!_captionBar) {
+		return;
+	}
+	const auto barWidth = std::min(
+		int(st::photoEditorButtonBarWidth),
+		width());
+	_captionBar->resizeToWidth(barWidth);
+	const auto top = height()
+		- st::photoEditorControlsBottomSkip
+		- st::photoEditorButtonBarHeight
+		- st::photoEditorControlsCenterSkip
+		- _captionBar->height();
+	_captionBar->moveToLeft((width() - barWidth) / 2, top);
+	_captionBar->entity()->updateRecordButtonGeometry();
+}
+
+QMargins PhotoEditor::contentMargins() const {
+	auto result = QMargins(st::photoEditorContentMargins);
+	if (_captionBar) {
+		const auto slot = st::photoEditorControlsHeight
+			- st::photoEditorControlsBottomSkip
+			- st::photoEditorButtonBarHeight
+			- st::photoEditorControlsCenterSkip;
+		result.setBottom(result.bottom()
+			+ std::max(_captionBar->height() - slot, 0));
+	}
+	return result;
+}
+
 rpl::producer<PhotoModifications> PhotoEditor::doneRequests() const {
 	return _done.events();
 }
 
 rpl::producer<> PhotoEditor::cancelRequests() const {
 	return _cancel.events();
+}
+
+rpl::producer<PhotoModifications> PhotoEditor::saveRequests() const {
+	return _save.events();
+}
+
+void PhotoEditor::setSaveEnabled(bool enabled) {
+	_saveEnabled = enabled;
+	_controls->setSaveEnabled(enabled);
 }
 
 void InitEditorLayer(

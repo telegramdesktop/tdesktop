@@ -283,6 +283,26 @@ int AppConfig::storiesAlbumLimit() const {
 	return get<int>(u"stories_album_stories_limit"_q, 1000);
 }
 
+bool AppConfig::storiesPostingAvailable() const {
+	const auto value = get<QString>(u"stories_posting"_q, u"enabled"_q);
+	return (value != u"disabled"_q);
+}
+
+bool AppConfig::storiesPostingPremiumOnly() const {
+	const auto value = get<QString>(u"stories_posting"_q, u"enabled"_q);
+	return (value == u"premium"_q);
+}
+
+bool AppConfig::storiesEntitiesPremiumOnly() const {
+	const auto value = get<QString>(u"stories_entities"_q, u"premium"_q);
+	return (value == u"premium"_q);
+}
+
+bool AppConfig::storiesEntitiesAvailable() const {
+	const auto value = get<QString>(u"stories_entities"_q, u"premium"_q);
+	return (value != u"disabled"_q);
+}
+
 int AppConfig::groupCallMessageLengthLimit() const {
 	return get<int>(u"group_call_message_length_limit"_q, 128);
 }

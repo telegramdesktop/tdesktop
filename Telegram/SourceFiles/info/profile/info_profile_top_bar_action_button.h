@@ -42,6 +42,7 @@ public:
 	void finishAnimating();
 	void setText(const QString &text);
 	void setStyle(const TopBarActionButtonStyle &style);
+	void setDragHover(bool hover);
 
 	~TopBarActionButton();
 
@@ -70,6 +71,7 @@ private:
 	QColor _bgColor;
 	std::optional<QColor> _fgColor;
 	std::optional<QColor> _rippleColor;
+	bool _dragHover = false;
 	Ui::Animations::Simple _overAnimation;
 
 };

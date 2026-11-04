@@ -13,32 +13,47 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
+#include "core/shortcuts.h"
+#include "data/data_location.h"
 #include "data/data_peer.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/stickers/data_stickers.h"
 #include "editor/controllers/controllers.h"
 #include "editor/editor_link_box.h"
 #include "editor/editor_message_render.h"
 #include "editor/editor_message_source.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
+#include "editor/scene/scene_item_line.h"
 #include "editor/scene/scene_item_link.h"
+#include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_message.h"
+#include "editor/scene/scene_item_reaction.h"
 #include "editor/scene/scene_item_shape.h"
 #include "editor/scene/scene_item_sticker.h"
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
+#include "editor/scene/scene_item_weather.h"
+#include "editor/scene/scene_draft.h"
 #include "editor/scene/scene.h"
+#include "editor/editor_weather.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
+#include "media/media_video_frames.h"
 #include "platform/platform_file_utilities.h"
+#include "storage/storage_account.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/controls/location_picker.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+
+#include <QtGui/QGuiApplication>
 #include "window/themes/window_theme.h"
 #include "styles/style_editor.h"
 
@@ -56,6 +71,12 @@ constexpr auto kMinBrush = 1.;
 constexpr auto kShapeSizeRatio = 2. / 5.;
 constexpr auto kMediaSizeRatio = 1. / 2.;
 constexpr auto kImageMaxSizeRatio = 4.;
+
+constexpr auto kRoundVideoSideRatio = 0.43;
+constexpr auto kRoundVideoRight = 16.;
+constexpr auto kRoundVideoTop = 72.;
+constexpr auto kAndroidDpPerWidth = 360.;
+constexpr auto kRoundVideoThumbnailSide = 400;
 
 constexpr auto kMessageMaxWidthRatio = 0.88;
 constexpr auto kMessageMaxHeightRatio = 0.7;
@@ -206,6 +227,18 @@ Paint::Paint(
 			};
 		})));
 
+	Shortcuts::Requests(
+	) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
+		request->check(Shortcuts::Command::ShowChatPreview, 2)
+			&& request->handle([=] {
+				const auto item = _scene->focusItem();
+				if (item && (item->type() >= ItemBase::Type)) {
+					_scene->raiseItem(static_cast<ItemBase*>(item));
+				}
+				return true;
+			});
+	}, lifetime());
+
 	if (controllers->stickersPanelController) {
 		using ShowRequest = StickersPanelController::ShowRequest;
 
@@ -218,6 +251,12 @@ Paint::Paint(
 				controllers->stickersPanelController->audioRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->linkRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->locationRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->weatherRequests(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				controllers->stickersPanelController->reactionRequests(
 				) | rpl::map_to(ShowRequest::HideAnimated)));
 
 		controllers->stickersPanelController->stickerChosen(
@@ -240,6 +279,64 @@ Paint::Paint(
 		controllers->stickersPanelController->linkRequests(
 		) | rpl::on_next([=] {
 			chooseLink(QString());
+		}, lifetime());
+
+		controllers->stickersPanelController->reactionRequests(
+		) | rpl::on_next([=](Data::ReactionId reaction) {
+			addStoryReaction(reaction);
+		}, lifetime());
+
+		controllers->stickersPanelController->locationRequests(
+		) | rpl::on_next([=] {
+			chooseLocation();
+		}, lifetime());
+
+		controllers->stickersPanelController->weatherRequests(
+		) | rpl::on_next([=] {
+			chooseWeather();
+		}, lifetime());
+
+		_scene->reactionPickRequests(
+		) | rpl::on_next([=](not_null<ItemReaction*> item) {
+			_pickingReaction = _scene->itemShared(item);
+			controllers->stickersPanelController->showReactionsSelector(
+				reactionItemRect(item));
+		}, lifetime());
+
+		_scene->canvasPresses(
+		) | rpl::on_next([=] {
+			controllers->stickersPanelController->hideReactionsSelector();
+		}, lifetime());
+
+		_scene->canvasReleases(
+		) | rpl::on_next([=](Qt::MouseButton button) {
+			if (button == Qt::LeftButton) {
+				updateReactionSelector();
+			}
+		}, lifetime());
+
+		_scene->itemContextMenuRequests(
+		) | rpl::on_next([=] {
+			controllers->stickersPanelController->hideReactionsSelector();
+		}, lifetime());
+
+		QObject::connect(
+			_scene.get(),
+			&QGraphicsScene::selectionChanged,
+			this,
+			[=] { updateReactionSelector(); });
+
+		_scene->locationPickRequests(
+		) | rpl::on_next([=](not_null<ItemLocation*> item) {
+			chooseLocation(item.get());
+		}, lifetime());
+
+		controllers->stickersPanelController->reactionPicked(
+		) | rpl::on_next([=](Data::ReactionId reaction) {
+			const auto item = _pickingReaction.lock();
+			if (item && (item->type() == ItemReaction::Type)) {
+				static_cast<ItemReaction*>(item.get())->setReaction(reaction);
+			}
 		}, lifetime());
 	}
 
@@ -495,6 +592,18 @@ std::shared_ptr<Scene> Paint::saveScene() const {
 	return (_scene->items().empty() && !_scene->audio())
 		? nullptr
 		: _scene;
+}
+
+bool Paint::hasItems() const {
+	return !_scene->items().empty();
+}
+
+void Paint::resetSceneBaseline() {
+	_sceneBaseline = SceneFingerprint(_scene.get());
+}
+
+bool Paint::sceneChanged() const {
+	return SceneFingerprint(_scene.get()) != _sceneBaseline;
 }
 
 void Paint::restoreScene() {
@@ -839,6 +948,10 @@ void Paint::chooseLink(const QString &url, ItemBase *editing) {
 	}));
 }
 
+void Paint::addStoryLink(LinkPreview link) {
+	addLinkItem(std::move(link), std::nullopt);
+}
+
 void Paint::applyLinkResult(
 		LinkBoxResult &&result,
 		std::weak_ptr<NumberedItem> editing) {
@@ -873,6 +986,182 @@ void Paint::readMediaFile(const QString &path, const QByteArray &content) {
 			Storage::PhotoEditorMedia &&media) {
 		addMedia(std::move(media));
 	}));
+}
+
+void Paint::addStoryReaction(Data::ReactionId reaction) {
+	const auto controller = _controllers->stickersPanelController.get();
+	if (!controller || reaction.empty()) {
+		return;
+	}
+	auto data = itemBaseData();
+	data.size = std::min(data.size, _imageSize.width() / 3);
+	addMediaItem(std::make_shared<ItemReaction>(
+		&controller->session(),
+		reaction,
+		false,
+		std::move(data)));
+	Ui::PostponeCall(this, [=] { updateReactionSelector(); });
+}
+
+void Paint::updateReactionSelector() {
+	const auto controller = _controllers->stickersPanelController.get();
+	if (!controller) {
+		return;
+	}
+	ItemReaction *picked = nullptr;
+	for (const auto item : _scene->selectedItems()) {
+		if (item->type() == ItemReaction::Type) {
+			picked = static_cast<ItemReaction*>(item);
+			break;
+		}
+	}
+	if (!picked || QGuiApplication::mouseButtons() != Qt::NoButton) {
+		controller->hideReactionsSelector();
+		return;
+	}
+	_pickingReaction = _scene->itemShared(picked);
+	controller->showReactionsSelector(reactionItemRect(picked));
+}
+
+QRect Paint::reactionItemRect(not_null<ItemReaction*> item) const {
+	const auto rect = item->contentRect();
+	return QRect(
+		_view->viewport()->mapToGlobal(_view->mapFromScene(
+			item->mapToScene(rect.topLeft()))),
+		_view->viewport()->mapToGlobal(_view->mapFromScene(
+			item->mapToScene(rect.bottomRight())))
+	).normalized();
+}
+
+void Paint::addStoryLocation(
+		LocationData location,
+		std::optional<QPointF> position) {
+	auto data = itemBaseData();
+	data.size = std::max(
+		int(std::ceil(ItemLocation::MakePill(location, _imageSize)
+			.size().width())),
+		1);
+	if (position) {
+		data.x = int(position->x());
+		data.y = int(position->y());
+	}
+	const auto item = std::make_shared<ItemLocation>(
+		std::move(location),
+		std::move(data));
+	item->setEditCallback(crl::guard(this, [=](
+			not_null<ItemLocation*> item) {
+		chooseLocation(item.get());
+	}));
+	addMediaItem(item);
+}
+
+void Paint::chooseLocation(ItemBase *editing) {
+	const auto session = Paint::session();
+	if (!session) {
+		return;
+	}
+	const auto weak = editing
+		? std::weak_ptr(_scene->itemShared(editing))
+		: std::weak_ptr<NumberedItem>();
+	Ui::LocationPicker::Show({
+		.parent = this,
+		.config = Ui::ResolveMapsConfig(session),
+		.chooseLabel = tr::lng_stories_location_add(),
+		.callback = crl::guard(this, [=](
+				Data::LocationPoint point,
+				Core::GeoAddress address) {
+			const auto title = !address.city.isEmpty()
+				? (address.country.isEmpty()
+					? address.city
+					: address.city + u", "_q + address.country)
+				: address.name;
+			applyLocationResult(LocationData{
+				.lat = point.lat(),
+				.lon = point.lon(),
+				.title = title,
+				.address = address.name,
+				.countryIso2 = address.countryIso2,
+				.city = address.city,
+			}, weak);
+		}),
+		.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
+		.storageId = session->local().resolveStorageIdBots(),
+		.closeRequests = death(),
+	});
+}
+
+void Paint::applyLocationResult(
+		LocationData data,
+		std::weak_ptr<NumberedItem> editing) {
+	const auto strong = editing.lock();
+	const auto raw = (strong
+		&& strong->isNormalStatus()
+		&& strong->type() == ItemLocation::Type)
+		? static_cast<ItemLocation*>(strong.get())
+		: nullptr;
+	if (raw) {
+		raw->setLocation(std::move(data));
+		return;
+	}
+	const auto position = strong
+		? std::make_optional(strong->scenePos())
+		: std::nullopt;
+	if (strong) {
+		_scene->removeItem(strong);
+	}
+	addStoryLocation(std::move(data), position);
+}
+
+void Paint::addStoryWeather(
+		WeatherData weather,
+		std::optional<QPointF> position) {
+	auto data = itemBaseData();
+	data.size = std::max(
+		int(std::ceil(ItemWeather::PillSize(weather, _imageSize).width())),
+		1);
+	if (position) {
+		data.x = int(position->x());
+		data.y = int(position->y());
+	}
+	addMediaItem(std::make_shared<ItemWeather>(
+		std::move(weather),
+		std::move(data)));
+}
+
+void Paint::chooseWeather() {
+	const auto session = Paint::session();
+	if (!session) {
+		return;
+	}
+	for (const auto &item : _scene->items(Qt::AscendingOrder)) {
+		if (item->isNormalStatus() && item->type() == ItemWeather::Type) {
+			_scene->clearSelection();
+			item->setSelected(true);
+			return;
+		}
+	}
+	const auto done = crl::guard(this, [=](WeatherInfo info) {
+		addStoryWeather(WeatherData{
+			.emoji = info.emoji,
+			.celsius = info.celsius,
+		});
+	});
+	const auto fail = crl::guard(this, [=] {
+		_controllers->show->showToast(tr::lng_story_weather_failed(tr::now));
+	});
+	for (const auto &item : _scene->items(Qt::AscendingOrder)) {
+		if (item->isNormalStatus() && item->type() == ItemLocation::Type) {
+			const auto &location = static_cast<ItemLocation*>(
+				item.get())->location();
+			FetchWeather(
+				session,
+				QPointF(location.lat, location.lon),
+				done,
+				fail);
+			return;
+		}
+	}
+	FetchWeatherForCurrentLocation(session, done, fail);
 }
 
 void Paint::choosePhotoFile() {
@@ -953,7 +1242,7 @@ void Paint::addMedia(Storage::PhotoEditorMedia &&media) {
 
 void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 	const auto data = mediaItemData(media.image.size());
-	addMediaItem(std::make_shared<ItemVideo>(
+	auto item = std::make_shared<ItemVideo>(
 		std::make_shared<VideoClipSource>(VideoClipSource{
 			.path = std::move(media.videoPath),
 			.content = std::move(media.videoContent),
@@ -961,7 +1250,378 @@ void Paint::addVideoItem(Storage::PhotoEditorMedia &&media) {
 			.duration = media.videoDuration,
 			.hasAudio = media.videoHasAudio && _composeSound,
 		}),
-		data));
+		data);
+	item->keepInitialState();
+	addMediaItem(std::move(item));
+}
+
+void Paint::selectVideoObject() {
+	for (const auto &item : _scene->items()) {
+		if (item->videoClip() && item->isNormalStatus()) {
+			_scene->clearSelection();
+			item->setSelected(true);
+			item->setFocus();
+			_view->setFocus();
+			return;
+		}
+	}
+}
+ItemVideo *Paint::backgroundVideo() const {
+	for (const auto &item : _scene->items()) {
+		if ((item->type() == ItemVideo::Type) && item->isNormalStatus()) {
+			const auto video = static_cast<ItemVideo*>(item.get());
+			if (video->isBackground()) {
+				return video;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void Paint::setBackgroundVideoLocked(bool locked) {
+	if (const auto video = backgroundVideo()) {
+		video->setBackgroundLocked(locked);
+		if (!locked) {
+			_scene->clearSelection();
+			video->setSelected(true);
+			video->setFocus();
+			_view->setFocus();
+		} else {
+			_scene->clearSelection();
+		}
+	}
+}
+
+bool Paint::isBackgroundVideoLocked() const {
+	if (const auto video = backgroundVideo()) {
+		return video->isBackgroundLocked();
+	}
+	return false;
+}
+void Paint::addStoryVideoObject(StoryVideoObject &&object) {
+	const auto thumbnail = object.thumbnail;
+	auto source = std::make_shared<VideoClipSource>(VideoClipSource{
+		.path = object.path,
+		.content = std::move(object.content),
+		.thumbnail = std::move(object.thumbnail),
+		.duration = object.duration,
+		.hasAudio = object.hasAudio && _composeSound,
+		.initialTrim = { .from = object.from, .till = object.till },
+		.initialVolume = object.volume,
+	});
+	auto data = mediaItemData(thumbnail.size());
+	data.maxSizeRatio = kImageMaxSizeRatio;
+	data.flipped = object.flipped;
+	if (object.size <= 0.
+		&& !_scene->canvasRect().isEmpty()
+		&& (_transform.zoom > 0.)) {
+		const auto canvas = _scene->canvasRect();
+		const auto aspect = thumbnail.height() / float64(thumbnail.width());
+		const auto margin = st::photoEditorItemHandleSize
+			/ (_transform.zoom * 2.);
+		const auto width = std::min(canvas.width(), canvas.height() / aspect)
+			+ 2. * margin * std::max(1. / aspect, 1.);
+		data.size = int(width);
+		const auto center = canvas.center();
+		data.x = center.x();
+		data.y = center.y();
+	}
+	auto item = std::make_shared<ItemVideo>(std::move(source), data);
+	item->setBackground(true);
+	item->setBackgroundLocked(true);
+	_scene->pinToBottom(item.get());
+	if (object.size > 0.) {
+		auto placement = item->placement();
+		placement.position = object.position;
+		placement.size = object.size;
+		placement.scale = object.scale;
+		placement.rotation = object.rotation;
+		item->applyPlacement(placement);
+	}
+	item->keepInitialState();
+	addMediaItem(std::move(item));
+}
+
+void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
+	const auto parsed = ParseSceneItems(items, std::move(file));
+	auto data = itemBaseData();
+	data.initialZoom = _scene->currentZoom();
+	const auto controllersSession = session();
+	for (const auto &sticker : parsed.stickers) {
+		const auto document = controllersSession
+			? controllersSession->data().document(sticker.documentId).get()
+			: nullptr;
+		if (!document || document->isNull()) {
+			resolveStorySticker(sticker);
+			continue;
+		}
+		auto itemData = data;
+		auto item = std::make_shared<ItemSticker>(
+			document,
+			std::move(itemData));
+		item->applyPlacement(sticker.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &text : parsed.texts) {
+		auto itemData = data;
+		auto item = std::make_shared<ItemText>(
+			text.text,
+			text.color,
+			text.fontSize,
+			text.style,
+			text.typeface,
+			text.alignment,
+			_imageSize,
+			std::move(itemData));
+		item->applyPlacement(text.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &shape : parsed.shapes) {
+		auto itemData = data;
+		auto item = std::make_shared<ItemShape>(
+			shape.shape,
+			shape.color,
+			shape.strokeWidth,
+			shape.fill,
+			std::move(itemData));
+		item->applyPlacement(shape.placement);
+		item->setBend(shape.bend);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &image : parsed.images) {
+		if (image.file.isEmpty()) {
+			continue;
+		}
+		auto loaded = QImage(image.file);
+		loaded.setDevicePixelRatio(image.dpr);
+		auto itemData = data;
+		auto item = std::make_shared<ItemImage>(
+			Ui::PixmapFromImage(std::move(loaded)),
+			std::move(itemData));
+		item->applyPlacement(image.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &line : parsed.lines) {
+		if (line.file.isEmpty()) {
+			continue;
+		}
+		auto loaded = QImage(line.file);
+		loaded.setDevicePixelRatio(line.dpr);
+		auto item = std::make_shared<ItemLine>(
+			Ui::PixmapFromImage(std::move(loaded)));
+		item->setPos(line.position);
+		item->setZValue(line.z);
+		_scene->addItem(std::move(item));
+	}
+	for (const auto &message : parsed.messages) {
+		const auto history = controllersSession
+			? controllersSession->data().message(
+				PeerId(message.peerBare),
+				MsgId(message.msgBare))
+			: nullptr;
+		if (!history) {
+			continue;
+		}
+		auto source = std::make_shared<MessageSource>(history);
+		auto renderer = std::make_unique<MessageRenderer>(source);
+		renderer->setDark(message.dark);
+		auto placement = message.placement;
+		auto itemData = data;
+		if (placement.size <= 0.) {
+			itemData = messageItemData(renderer->size());
+			itemData.initialZoom = data.initialZoom;
+			placement.size = itemData.size;
+		}
+		if (placement.aspectRatio <= 0.) {
+			const auto bubble = renderer->size();
+			placement.aspectRatio = bubble.isEmpty()
+				? 1.
+				: (bubble.height() / float64(bubble.width()));
+		}
+		auto item = std::make_shared<ItemMessage>(
+			std::move(source),
+			std::move(renderer),
+			std::move(itemData),
+			message.dark,
+			MessageVideoOptions{
+				.play = _composeAnimated,
+				.sound = _composeSound,
+			});
+		item->setEditCallback(crl::guard(this, [=](
+				not_null<ItemMessage*> item) {
+			const auto &link = item->source()->link();
+			chooseLink(link ? link->url : QString(), item);
+		}));
+		item->applyPlacement(placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &video : parsed.videos) {
+		if (video.file.isEmpty()) {
+			continue;
+		}
+		const auto thumbnail = Media::Video::ExtractFrame(
+			video.file,
+			QByteArray(),
+			0,
+			QSize(kRoundVideoThumbnailSide, kRoundVideoThumbnailSide));
+		auto itemData = mediaItemData(thumbnail.size());
+		itemData.initialZoom = data.initialZoom;
+		itemData.maxSizeRatio = kImageMaxSizeRatio;
+		auto item = std::make_shared<ItemVideo>(
+			std::make_shared<VideoClipSource>(VideoClipSource{
+				.path = video.file,
+				.thumbnail = std::move(thumbnail),
+				.duration = video.duration,
+				.hasAudio = video.hasAudio && _composeSound,
+				.initialTrim = { .from = video.from, .till = video.till },
+				.initialVolume = video.volume,
+				.round = video.round,
+			}),
+			std::move(itemData));
+		item->applyPlacement(video.placement);
+		item->keepInitialState();
+		addMediaItem(std::move(item));
+	}
+	for (const auto &link : parsed.links) {
+		auto itemData = data;
+		itemData.size = std::max(
+			int(std::ceil(ItemLink::MakePill(link.preview, _imageSize)
+				.size().width())),
+			1);
+		auto item = std::make_shared<ItemLink>(
+			link.preview,
+			std::move(itemData));
+		item->setStyle(link.style);
+		item->setEditCallback(crl::guard(this, [=](not_null<ItemLink*> item) {
+			chooseLink(item->link().url, item);
+		}));
+		item->applyPlacement(link.placement);
+		addMediaItem(std::move(item));
+	}
+	const auto controller = _controllers->stickersPanelController.get();
+	if (!parsed.reactions.empty() && controller) {
+		for (const auto &reaction : parsed.reactions) {
+			if (reaction.reaction.empty()) {
+				continue;
+			}
+			auto itemData = data;
+			itemData.size = std::min(itemData.size, _imageSize.width() / 3);
+			auto item = std::make_shared<ItemReaction>(
+				&controller->session(),
+				reaction.reaction,
+				reaction.dark,
+				std::move(itemData));
+			item->applyPlacement(reaction.placement);
+			addMediaItem(std::move(item));
+		}
+	}
+	for (const auto &location : parsed.locations) {
+		auto itemData = data;
+		itemData.size = std::max(
+			int(std::ceil(ItemLocation::MakePill(
+				location.location,
+				_imageSize).size().width())),
+			1);
+		auto item = std::make_shared<ItemLocation>(
+			location.location,
+			std::move(itemData));
+		item->setStyle(location.style);
+		item->setEditCallback(crl::guard(this, [=](
+				not_null<ItemLocation*> item) {
+			chooseLocation(item.get());
+		}));
+		item->applyPlacement(location.placement);
+		addMediaItem(std::move(item));
+	}
+	for (const auto &weather : parsed.weather) {
+		auto itemData = data;
+		itemData.size = std::max(
+			int(std::ceil(ItemWeather::PillSize(weather.weather, _imageSize)
+				.width())),
+			1);
+		auto item = std::make_shared<ItemWeather>(
+			weather.weather,
+			std::move(itemData));
+		item->applyPlacement(weather.placement);
+		addMediaItem(std::move(item));
+	}
+	_scene->clearSelection();
+	*_scene->lastZ() = std::max(*_scene->lastZ(), parsed.maxZ() + 1.);
+}
+
+void Paint::resolveStorySticker(const SceneItemSticker &sticker) {
+	const auto session = this->session();
+	if (!session || sticker.setShortName.isEmpty()) {
+		return;
+	}
+	session->api().request(MTPmessages_GetStickerSet(
+		MTP_inputStickerSetShortName(MTP_string(sticker.setShortName)),
+		MTP_int(0)
+	)).done(crl::guard(this, [=](const MTPmessages_StickerSet &result) {
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			session->data().stickers().feedSetFull(data);
+		}, [&](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: "
+				"Unexpected messages.stickerSetNotModified for a draft."));
+		});
+		addResolvedStorySticker(sticker);
+	})).send();
+}
+
+void Paint::addResolvedStorySticker(const SceneItemSticker &sticker) {
+	const auto session = this->session();
+	const auto document = session
+		? session->data().document(sticker.documentId).get()
+		: nullptr;
+	if (!document || document->isNull()) {
+		return;
+	}
+	const auto pristine = !sceneChanged();
+	auto data = itemBaseData();
+	auto item = std::make_shared<ItemSticker>(
+		document,
+		std::move(data));
+	item->applyPlacement(sticker.placement);
+	addMediaItem(std::move(item));
+	if (pristine) {
+		keepResult();
+		resetSceneBaseline();
+	}
+}
+
+void Paint::addStoryAudio(AudioTrack track, bool selected) {
+	if (track.empty() || (track.duration <= 0)) {
+		return;
+	}
+	_scene->setAudio(std::make_shared<AudioTrack>(std::move(track)));
+	_scene->setAudioSelected(selected);
+}
+
+void Paint::addRoundVideo(QByteArray content, crl::time duration) {
+	if (content.isEmpty()) {
+		return;
+	}
+	const auto thumbnail = Media::Video::ExtractFrame(
+		QString(),
+		content,
+		0,
+		QSize(kRoundVideoThumbnailSide, kRoundVideoThumbnailSide));
+	const auto scene = _scene->sceneRect().size();
+	const auto density = scene.width() / kAndroidDpPerWidth;
+	const auto side = int(std::floor(scene.width() * kRoundVideoSideRatio));
+	auto data = itemBaseData();
+	data.size = side;
+	data.x = int(scene.width() - side / 2. - kRoundVideoRight * density);
+	data.y = int(kRoundVideoTop * density + side / 2.);
+	data.contentMargins = false;
+	addMediaItem(std::make_shared<ItemVideo>(
+		std::make_shared<VideoClipSource>(VideoClipSource{
+			.content = std::move(content),
+			.thumbnail = thumbnail,
+			.duration = duration,
+			.round = true,
+		}),
+		std::move(data)));
 }
 
 void Paint::addImageItem(QImage &&image) {
@@ -984,8 +1644,10 @@ void Paint::addMediaItem(std::shared_ptr<ItemBase> item) {
 	disarmShapeTool();
 	_scene->addItem(item);
 	_scene->clearSelection();
-	item->setSelected(true);
-	item->setFocus();
+	if (!item->isBackgroundLocked()) {
+		item->setSelected(true);
+		item->setFocus();
+	}
 	_view->setFocus();
 }
 
@@ -1130,10 +1792,12 @@ bool Paint::eventFilter(QObject *obj, QEvent *e) {
 			return true;
 		}
 		const auto step = delta / float64(QWheelEvent::DefaultDeltasPerStep);
-		zoomCanvas(
-			std::pow(kCanvasZoomStep, step),
-			wheel->position().toPoint(),
-			false);
+		if (wheel->modifiers().testFlag(Qt::ControlModifier)) {
+			zoomCanvas(
+				std::pow(kCanvasZoomStep, step),
+				wheel->position().toPoint(),
+				false);
+		}
 		return true;
 	} else if (e->type() == QEvent::NativeGesture) {
 		const auto gesture = static_cast<QNativeGestureEvent*>(e);

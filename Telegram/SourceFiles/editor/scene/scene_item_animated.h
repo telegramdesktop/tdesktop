@@ -21,6 +21,7 @@ public:
 	[[nodiscard]] virtual QByteArray content() const = 0;
 	[[nodiscard]] virtual crl::time loopDuration() const = 0;
 	[[nodiscard]] virtual VideoTrim trim() const;
+	[[nodiscard]] virtual bool roundVideo() const;
 	virtual void releasePlayers() = 0;
 	ItemAnimated *asAnimated() override;
 
@@ -30,6 +31,7 @@ public:
 protected:
 	[[nodiscard]] virtual Media::Encode::AnimatedEntity::Kind entityKind()
 		const = 0;
+	[[nodiscard]] virtual QString entityPath() const;
 	[[nodiscard]] virtual QRectF entityRect() const;
 	[[nodiscard]] QRectF visibleRect() const override;
 

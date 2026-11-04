@@ -9,16 +9,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "data/data_types.h"
+#include "editor/scene/scene_item_location.h"
+#include "editor/scene/scene_item_weather.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
 #include "editor/photo_editor_common.h"
+#include "data/data_message_reaction_id.h"
 #include "editor/photo_editor_inner_common.h"
 #include "editor/scene/scene_item_base.h"
 #include "media/media_video_canvas.h"
 
 class QGraphicsItem;
 class QGraphicsView;
+class QJsonArray;
 class QKeyEvent;
 
 namespace Main {
@@ -34,7 +38,10 @@ namespace Editor {
 struct Controllers;
 struct LinkBoxResult;
 struct LinkPreview;
+struct SceneItemSticker;
 class MessageSource;
+class ItemReaction;
+class ItemVideo;
 class Scene;
 class VideoClip;
 
@@ -51,6 +58,9 @@ public:
 	~Paint() override;
 
 	[[nodiscard]] std::shared_ptr<Scene> saveScene() const;
+	[[nodiscard]] bool hasItems() const;
+	void resetSceneBaseline();
+	[[nodiscard]] bool sceneChanged() const;
 	void restoreScene();
 
 	void applyTransform(
@@ -106,6 +116,15 @@ public:
 	void paintCanvas(QPainter &p) const;
 	void paintImage(QPainter &p, const QPixmap &image) const;
 	void resetView();
+	void addStoryVideoObject(StoryVideoObject &&object);
+	void addStoryItems(const QJsonArray &items, Fn<QString(int index)> file);
+	void addStoryLink(LinkPreview link);
+	void addStoryAudio(AudioTrack track, bool selected);
+	void selectVideoObject();
+	void addRoundVideo(QByteArray content, crl::time duration);
+	[[nodiscard]] ItemVideo *backgroundVideo() const;
+	void setBackgroundVideoLocked(bool locked);
+	[[nodiscard]] bool isBackgroundVideoLocked() const;
 
 	bool zoomSceneItems(float64 wheelDelta, bool fine = false);
 	bool zoomSceneItemsByFactor(float64 factor);
@@ -113,6 +132,9 @@ public:
 	[[nodiscard]] QPointF mapWidgetDeltaToScene(QPoint delta) const;
 
 private:
+	void resolveStorySticker(const SceneItemSticker &sticker);
+	void addResolvedStorySticker(const SceneItemSticker &sticker);
+
 	bool eventFilter(QObject *obj, QEvent *e) override;
 	void updateViewGeometry();
 	void zoomCanvas(float64 factor, QPoint viewportPoint, bool animated);
@@ -128,6 +150,8 @@ private:
 	ItemBase::Data itemBaseData() const;
 	ItemBase::Data mediaItemData(QSize mediaSize) const;
 	ItemBase::Data messageItemData(QSize bubbleSize) const;
+	void updateReactionSelector();
+	[[nodiscard]] QRect reactionItemRect(not_null<ItemReaction*> item) const;
 	void addMediaItem(std::shared_ptr<ItemBase> item);
 	void addMessages(const MessageIdsList &ids);
 	void addMessageItem(
@@ -139,6 +163,18 @@ private:
 		LinkPreview link,
 		std::optional<QPointF> position = std::nullopt);
 	void chooseLink(const QString &url, ItemBase *editing = nullptr);
+	void addStoryReaction(Data::ReactionId reaction);
+	void addStoryLocation(
+		LocationData location,
+		std::optional<QPointF> position = std::nullopt);
+	void chooseLocation(ItemBase *editing = nullptr);
+	void addStoryWeather(
+		WeatherData weather,
+		std::optional<QPointF> position = std::nullopt);
+	void chooseWeather();
+	void applyLocationResult(
+		LocationData data,
+		std::weak_ptr<NumberedItem> editing);
 	void applyLinkResult(
 		LinkBoxResult &&result,
 		std::weak_ptr<NumberedItem> editing);
@@ -157,6 +193,7 @@ private:
 
 	const std::shared_ptr<Controllers> _controllers;
 	const std::shared_ptr<Scene> _scene;
+	std::weak_ptr<NumberedItem> _pickingReaction;
 	const base::unique_qptr<QGraphicsView> _view;
 	QPointer<QWidget> _viewport;
 	const QSize _imageSize;
@@ -193,6 +230,7 @@ private:
 
 	rpl::variable<bool> _hasUndo = true;
 	rpl::variable<bool> _hasRedo = true;
+	uint64 _sceneBaseline = 0;
 	rpl::variable<bool> _textEditing = false;
 	base::Timer _textBakeTimer;
 

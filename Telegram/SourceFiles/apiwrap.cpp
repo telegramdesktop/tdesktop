@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_media.h"
 #include "api/api_peer_colors.h"
 #include "api/api_peer_photo.h"
+#include "api/api_stories.h"
 #include "api/api_polls.h"
 #include "api/api_sending.h"
 #include "api/api_text_entities.h"
@@ -260,6 +261,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _readMetrics(std::make_unique<Api::ReadMetrics>(this))
 , _confirmPhone(std::make_unique<Api::ConfirmPhone>(this))
 , _peerPhoto(std::make_unique<Api::PeerPhoto>(this))
+, _stories(std::make_unique<Api::Stories>(this))
 , _polls(std::make_unique<Api::Polls>(this))
 , _todoLists(std::make_unique<Api::TodoLists>(this))
 , _richTasks(std::make_unique<Api::RichTasks>(this))
@@ -5897,6 +5899,10 @@ Api::ConfirmPhone &ApiWrap::confirmPhone() {
 
 Api::PeerPhoto &ApiWrap::peerPhoto() {
 	return *_peerPhoto;
+}
+
+Api::Stories &ApiWrap::stories() {
+	return *_stories;
 }
 
 Api::Polls &ApiWrap::polls() {

@@ -17,6 +17,7 @@ namespace FFmpeg {
 class FrameGenerator final : public Ui::FrameGenerator {
 public:
 	explicit FrameGenerator(const QByteArray &bytes);
+	explicit FrameGenerator(const QString &path);
 	~FrameGenerator();
 
 	int count() override;

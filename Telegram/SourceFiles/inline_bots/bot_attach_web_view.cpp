@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
+#include "media/stories/media_stories_post.h"
 #include "payments/payments_checkout_process.h"
 #include "payments/payments_non_panel_process.h"
 #include "settings/sections/settings_premium.h"
@@ -281,18 +282,6 @@ constexpr auto kPopularAppBotsLimit = 100;
 	}, [&](const MTPDjoinChatBotResultWebView &) {
 		return QString();
 	});
-}
-
-[[nodiscard]] Ui::LocationPickerConfig ResolveMapsConfig(
-		not_null<Main::Session*> session) {
-	const auto &appConfig = session->appConfig();
-	auto map = appConfig.get<base::flat_map<QString, QString>>(
-		u"tdesktop_config_map"_q,
-		base::flat_map<QString, QString>());
-	return {
-		.mapsToken = map[u"maps"_q],
-		.geoToken = map[u"geo"_q],
-	};
 }
 
 [[nodiscard]] Window::SessionController *WindowForThread(
@@ -2238,6 +2227,26 @@ void WebViewInstance::botRequestChat(
 	}).send();
 }
 
+void WebViewInstance::botShareToStory(
+		Ui::BotWebView::ShareStoryRequest request) {
+	const auto controller = _context.controller.get();
+	if (!controller || !_panel) {
+		return;
+	}
+	if (!request.mediaUrl.startsWith(u"https://"_q, Qt::CaseInsensitive)) {
+		_parentShow->showToast(tr::lng_bot_share_story_failed(tr::now));
+		return;
+	}
+	Media::Stories::PostStoryFromWebApp(
+		not_null(controller),
+		{
+			.mediaUrl = std::move(request.mediaUrl),
+			.caption = std::move(request.caption),
+			.widgetLinkUrl = std::move(request.widgetLinkUrl),
+			.widgetLinkName = std::move(request.widgetLinkName),
+		});
+}
+
 void WebViewInstance::botSetEmojiStatus(
 		Ui::BotWebView::SetEmojiStatusRequest request) {
 	const auto bot = _bot;
@@ -3032,7 +3041,7 @@ void ChooseAndSendLocation(
 		state->send = nullptr;
 		Api::SendLocation(action, point.lat(), point.lon());
 	};
-	const auto callback = [=](Data::LocationPoint point, QString) {
+	const auto callback = [=](Data::LocationPoint point, Core::GeoAddress) {
 		state->send(point, action);
 	};
 	const auto picker = Ui::LocationPicker::Show({
@@ -3126,7 +3135,7 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	}
 	const auto session = &controller->session();
 	const auto locationType = ChatRestriction::SendOther;
-	const auto config = ResolveMapsConfig(session);
+	const auto config = Ui::ResolveMapsConfig(session);
 	if (Data::CanSendAnyOf(peer, locationType, false)
 		&& Ui::LocationPicker::Available(config)) {
 		raw->addAction(tr::lng_maps_point(tr::now), [=] {

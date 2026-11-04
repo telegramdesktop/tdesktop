@@ -39,6 +39,7 @@ bool VideoEdited(
 		|| audioChanged
 		|| geometry.angle
 		|| geometry.flipped
+		|| !modifications.canvasMediaRect.isEmpty()
 		|| (geometry.crop.isValid() && (geometry.crop != full))
 		|| (modifications.from > 0)
 		|| ((modifications.till > 0) && (modifications.till < duration));
@@ -70,6 +71,8 @@ Media::Encode::VideoSource ComposeVideoSource(
 		.coverPosition = (coverNeeded
 			? modifications.cover
 			: crl::time(-1)),
+		.canvas = data.canvas,
+		.canvasMediaRect = modifications.canvasMediaRect,
 	};
 }
 
@@ -78,7 +81,8 @@ QImage ExtractCoverImage(
 		const QByteArray &content,
 		const VideoModifications &modifications,
 		QSize dimensions,
-		int side) {
+		int side,
+		const VideoEditorData *data) {
 	if (dimensions.isEmpty() || side <= 0) {
 		return {};
 	}
@@ -110,7 +114,28 @@ QImage ExtractCoverImage(
 			std::max(int(base::SafeRound(crop.width() * scale)), 1),
 			std::max(int(base::SafeRound(crop.height() * scale)), 1));
 	}
-	return ImageModified(std::move(frame), mods);
+	auto result = ImageModified(std::move(frame), mods);
+	if (data && data->canvas && !data->exactSize.isEmpty()) {
+		const auto &exact = data->exactSize;
+		const auto canvas = QSize(
+			side,
+			side * exact.height() / exact.width());
+		const auto k = canvas.width() / float64(exact.width());
+		const auto &media = modifications.canvasMediaRect;
+		const auto placement = media.isEmpty()
+			? QRect()
+			: QRectF(
+				media.x() * k,
+				media.y() * k,
+				media.width() * k,
+				media.height() * k).toRect();
+		result = Media::Encode::FitOnCanvas(
+			result,
+			canvas,
+			*data->canvas,
+			placement);
+	}
+	return result;
 }
 
 } // namespace Editor

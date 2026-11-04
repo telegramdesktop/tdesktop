@@ -390,6 +390,7 @@ infoProfileTopBarActionButtonLottieSize: infoProfileTopBarActionButtonIconSize -
 infoProfileTopBarActionButtonIconTop: 6px;
 infoProfileTopBarActionButtonTextTop: infoProfileTopBarActionButtonIconSize + infoProfileTopBarActionButtonIconTop + 1px;
 infoProfileTopBarActionButtonTextSkip: 4px;
+infoProfileTopBarActionButtonDragBorder: 2px;
 infoProfileTopBarActionButtonFont: font(11px);
 
 infoProfileTopBarActionButtonsPadding: margins(18px, 0px, 18px, 16px);
@@ -1313,6 +1314,24 @@ collectionAddIcon: IconEmoji {
 	icon: icon {{ "settings/plus", windowFgActive }};
 	padding: margins(1px, -2px, 1px, 0px);
 }
+storiesAddPostIcon: IconEmoji {
+	icon: icon {{ "profile/add_story", windowFgActive }};
+	padding: margins(1px, -2px, 6px, 0px);
+}
+storiesBottomButton: RoundButton(defaultActiveButton) {
+	height: 40px;
+	textTop: 10px;
+	width: -40px;
+	style: semiboldTextStyle;
+}
+storiesBottomButtonShadow: BoxShadow {
+	blurRadius: 8px;
+	offset: point(0px, 2px);
+	opacity: 0.18;
+}
+storiesBottomButtonHalo: 4px;
+storiesBottomButtonBottom: 8px;
+storiesBottomButtonRevealAfter: 120px;
 collectionEditBox: Box(defaultBox) {
 	buttonPadding: margins(16px, 12px, 16px, 12px);
 	buttonHeight: 42px;
@@ -1364,6 +1383,7 @@ peerQrEmojiPan: EmojiPan(statusEmojiPan) {
 	photoButtonIcon: icon {{ "photo_editor/camera-24x24", windowFg }};
 	audioButtonIcon: icon {{ "photo_editor/widget_music", windowFg }};
 	linkButtonIcon: icon {{ "limits/links", windowFg }};
+	locationButtonIcon: icon {{ "chat/filled_location", windowFg }};
 }
 peerQrEmojiBadgeSize: 14px;
 peerQrEmojiBadgeInset: 6px;

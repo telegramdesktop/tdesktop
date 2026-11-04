@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_common.h"
 
+#include "editor/editor_enhance.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_animated.h"
 #include "editor/video/video_clip.h"
@@ -33,7 +34,7 @@ constexpr auto kAnimatedMinDuration = crl::time(1000);
 	if (scene) {
 		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 		PainterHighQualityEnabler hq(p);
-		scene->render(&p, QRectF(result.rect()), QRectF(crop));
+		scene->renderBaked(&p, QRectF(result.rect()), QRectF(crop));
 	}
 	return result;
 }
@@ -107,6 +108,9 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 	if (!mods) {
 		return image;
 	}
+	if (mods.enhance > 0) {
+		image = EnhanceImage(std::move(image), mods.enhance);
+	}
 	const auto expanded = mods.crop.isValid()
 		&& !image.rect().contains(mods.crop);
 	if (mods.paint && !expanded) {
@@ -118,7 +122,7 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 		Painter p(&image);
 		PainterHighQualityEnabler hq(p);
 
-		mods.paint->render(&p, image.rect());
+		mods.paint->renderBaked(&p, image.rect());
 	}
 	auto cropped = expanded
 		? ExpandCanvas(image, mods.crop, mods.paint.get())
@@ -148,9 +152,17 @@ QImage ImageModified(QImage image, const PhotoModifications &mods) {
 
 Media::Encode::Job ComposeAnimatedJob(
 		const QImage &image,
-		const PhotoModifications &mods) {
+		const PhotoModifications &mods,
+		ComposeAnimatedOptions options) {
 	Expects(mods.paint != nullptr);
 	Expects(!image.isNull());
+
+	const auto maxSide = options.maxSide
+		? float64(options.maxSide)
+		: kAnimatedMaxSide;
+	const auto maxDuration = options.maxDuration
+		? options.maxDuration
+		: crl::time(0);
 
 	const auto scene = mods.paint.get();
 	const auto crop = mods.crop.isValid()
@@ -173,8 +185,8 @@ Media::Encode::Job ComposeAnimatedJob(
 		return {};
 	}
 	const auto fit = std::min({
-		kAnimatedMaxSide / rotated.width(),
-		kAnimatedMaxSide / rotated.height(),
+		maxSide / rotated.width(),
+		maxSide / rotated.height(),
 		1.,
 	});
 	const auto target = QSize(
@@ -222,7 +234,7 @@ Media::Encode::Job ComposeAnimatedJob(
 		{
 			auto p = Painter(&layer);
 			PainterHighQualityEnabler hq(p);
-			scene->render(&p, QRectF(layer.rect()), QRectF(crop));
+			scene->renderBaked(&p, QRectF(layer.rect()), QRectF(crop));
 		}
 		for (const auto item : normal) {
 			item->setVisible(true);
@@ -240,12 +252,17 @@ Media::Encode::Job ComposeAnimatedJob(
 			continue;
 		}
 		auto entity = animated->animatedEntity(sceneToCanvas);
-		if (entity.bytes.isEmpty()) {
+		if (entity.bytes.isEmpty() && entity.path.isEmpty()) {
 			run.push_back(item);
 			continue;
 		}
 		flushRun();
 		const auto clip = item->videoClip();
+		if (entity.round && !clip) {
+			music.push_back({
+				.path = entity.path,
+				.bytes = entity.bytes });
+		}
 		const auto loop = animated->loopDuration();
 		if (clip && (loop > 0)) {
 			entity.till = entity.from + loop;
@@ -253,6 +270,7 @@ Media::Encode::Job ComposeAnimatedJob(
 		if (clip && clip->sounding()) {
 			const auto trim = clip->trim();
 			music.push_back({
+				.path = entity.path,
 				.bytes = entity.bytes,
 				.from = trim.from,
 				.till = trim.from + loop,
@@ -283,7 +301,9 @@ Media::Encode::Job ComposeAnimatedJob(
 		Media::Encode::DominantCanvasBackground(image));
 	job.source = Media::Encode::StillSource{
 		.base = std::move(base),
-		.duration = std::max(longest, kAnimatedMinDuration),
+		.duration = maxDuration
+			? std::clamp(longest, kAnimatedMinDuration, maxDuration)
+			: std::max(longest, kAnimatedMinDuration),
 		.fps = kAnimatedFps,
 		.music = std::move(music),
 	};
@@ -292,7 +312,15 @@ Media::Encode::Job ComposeAnimatedJob(
 }
 
 bool PhotoModifications::empty() const {
-	return !angle && !flipped && !crop.isValid() && !paint;
+	const auto hasPaint = paint
+		&& (paint->audio()
+			|| ranges::any_of(paint->items(), &NumberedItem::isNormalStatus));
+	return !angle
+		&& !flipped
+		&& !crop.isValid()
+		&& !hasPaint
+		&& canvasMediaRect.isEmpty()
+		&& !enhance;
 }
 
 PhotoModifications::operator bool() const {

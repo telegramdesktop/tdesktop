@@ -10,14 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
+#include "editor/editor_enhance.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
 #include "media/media_video_canvas.h"
 #include "ui/image/image.h"
 
+#include <QtGui/QPixmap>
+
 namespace Editor {
 
 class AudioDiscButton;
+class EnhanceIndicator;
+class VideoLayerButton;
 class Crop;
 class VideoClip;
 class Paint;
@@ -31,6 +36,7 @@ public:
 		PhotoModifications modifications,
 		std::shared_ptr<Controllers> controllers,
 		EditorData data);
+	~PhotoEditorContent();
 
 	void applyModifications(PhotoModifications modifications);
 	void applyMode(const PhotoEditorMode &mode);
@@ -71,11 +77,15 @@ public:
 	void setExpansionRoom(bool room);
 	void save(PhotoModifications &modifications);
 
+	[[nodiscard]] bool edited() const;
+
 	bool handleKeyPress(not_null<QKeyEvent*> e);
 
 	void setupDragArea();
 	void addMimeData(not_null<const QMimeData*> data);
 	bool pasteFromClipboard();
+	void addVideoObject(StoryVideoObject &&object);
+	void addRoundVideo(QByteArray content, crl::time duration);
 
 	[[nodiscard]] rpl::producer<QRect> innerRect() const {
 		return _innerRect.value();
@@ -95,13 +105,40 @@ private:
 	void updateAudioDisc();
 	void updateAudioDiscGeometry();
 
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
+	bool eventHook(QEvent *e) override;
+
+	[[nodiscard]] bool canvasMode() const;
+	[[nodiscard]] bool canvasGesturesActive() const;
+	[[nodiscard]] QRectF canvasBasePlacement() const;
+	[[nodiscard]] QRectF canvasMediaRect() const;
+	[[nodiscard]] float64 canvasScale() const;
+	[[nodiscard]] bool canvasMoved() const;
+	void restoreCanvasPlacement(QRect rect);
+	void layoutCanvasMedia(QRect canvas);
+	void clampCanvasShift();
+	void zoomCanvas(float64 factor, QPoint about);
+	void canvasChanged();
+	void adjustEnhance(int delta);
+	[[nodiscard]] const QPixmap &enhancedCanvasPix(QSize size);
+	void recomposeCanvas();
+	void paintCanvas(QPainter &p);
+	void updateVideoLayerButton();
+	void updateVideoLayerButtonGeometry();
+
 	const QSize _photoSize;
 	const bool _fixedCrop = false;
 	const bool _composeAnimated = false;
+	std::optional<StoryVideoObject> _pendingVideo;
+	bool _selectVideoInPaint = false;
 	const base::unique_qptr<Paint> _paint;
 	const base::unique_qptr<Crop> _crop;
 	const base::unique_qptr<AudioDiscButton> _audioDisc;
-	const std::shared_ptr<Image> _photo;
+	const base::unique_qptr<VideoLayerButton> _videoLayerButton;
+	std::shared_ptr<Image> _photo;
 	const Media::Encode::CanvasBackground _background;
 
 	rpl::variable<QRect> _innerRect;
@@ -121,6 +158,30 @@ private:
 	bool _roomRequested = false;
 	bool _dragging = false;
 	bool _animateLayout = false;
+
+	const std::shared_ptr<Image> _canvasMedia;
+	const Media::Encode::CanvasBackground _canvasBackground;
+	QRect _canvasMediaDisplay;
+	QRect _canvasFrameRect;
+	QTransform _canvasMediaMatrix;
+	float64 _canvasZoom = 1.;
+	QPointF _canvasShift;
+	float64 _initialCanvasZoom = 1.;
+	QPointF _initialCanvasShift;
+	std::optional<QRect> _canvasRestored;
+	QPointF _canvasDragShift;
+	std::optional<QPoint> _canvasPress;
+	bool _canvasMoved = false;
+	bool _canvasDirty = false;
+
+	bool _storyPhoto = false;
+	int _enhance = 0;
+	int _initialEnhance = 0;
+	EnhanceLut _enhanceLut;
+	std::unique_ptr<EnhanceIndicator> _enhanceIndicator;
+	QPixmap _enhancedPixmap;
+	int _enhancedPixmapAmount = -1;
+	QSize _enhancedPixmapSize;
 
 };
 

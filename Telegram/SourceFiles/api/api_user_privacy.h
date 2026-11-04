@@ -15,6 +15,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Data {
+class Session;
+} // namespace Data
+
 namespace Api {
 
 class UserPrivacy final {
@@ -81,5 +85,9 @@ private:
 	MTP::Sender _api;
 
 };
+
+[[nodiscard]] UserPrivacy::Rule PrivacyRulesFromTL(
+	const MTPVector<MTPPrivacyRule> &rules,
+	Data::Session &owner);
 
 } // namespace Api

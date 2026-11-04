@@ -150,6 +150,16 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 
 } // namespace
 
+bool IsAcceptableStoryDragState(MimeDataState state) {
+	using State = MimeDataState;
+	return state == State::Image
+		|| state == State::Media
+		|| state == State::PhotoFiles
+		|| state == State::PhotoFilesArchive
+		|| state == State::MediaFiles
+		|| state == State::MediaFilesArchive;
+}
+
 bool ValidatePhotoEditorMediaDragData(
 		not_null<const QMimeData*> data,
 		bool composeAnimated,
@@ -635,7 +645,8 @@ bool ApplyModifications(PreparedList &list, bool composeAnimated) {
 						const auto entity
 							= std::get_if<Media::Encode::AnimatedEntity>(
 								&layer);
-						return entity && !entity->bytes.isEmpty();
+						return entity && (!entity->bytes.isEmpty()
+							|| !entity->path.isEmpty());
 					});
 			if (animated) {
 				file.animationJob = std::make_shared<Media::Encode::Job>(

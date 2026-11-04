@@ -113,6 +113,18 @@ void TopBarActionButton::setStyle(const TopBarActionButtonStyle &style) {
 	update();
 }
 
+void TopBarActionButton::setDragHover(bool hover) {
+	if (_dragHover == hover) {
+		return;
+	}
+	_dragHover = hover;
+	_overAnimation.start(
+		[=] { update(); },
+		_dragHover ? 0. : 1.,
+		_dragHover ? 1. : 0.,
+		st::universalDuration);
+}
+
 void TopBarActionButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 
@@ -127,13 +139,26 @@ void TopBarActionButton::paintEvent(QPaintEvent *e) {
 		p.drawRoundedRect(rect(), st::boxRadius, st::boxRadius);
 
 		const auto hovered = _rippleColor
-			? _overAnimation.value(isOver() ? 1. : 0.)
+			? _overAnimation.value((isOver() || _dragHover) ? 1. : 0.)
 			: 0.;
 		if (hovered > 0.) {
 			p.setOpacity(progress * hovered);
 			p.setBrush(*_rippleColor);
 			p.drawRoundedRect(rect(), st::boxRadius, st::boxRadius);
 			p.setOpacity(progress);
+		}
+		if (_dragHover) {
+			const auto border = st::infoProfileTopBarActionButtonDragBorder;
+			const auto half = border / 2.;
+			p.setPen(QPen(
+				_fgColor ? *_fgColor : st::windowBoldFg->c,
+				border));
+			p.setBrush(Qt::NoBrush);
+			p.drawRoundedRect(
+				QRectF(rect()).marginsRemoved(
+					{ half, half, half, half }),
+				st::boxRadius - half,
+				st::boxRadius - half);
 		}
 	}
 

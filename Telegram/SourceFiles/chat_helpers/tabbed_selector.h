@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 #include "chat_helpers/compose/compose_features.h"
+#include "data/data_message_reaction_id.h"
 #include "ui/rp_widget.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
@@ -151,8 +152,12 @@ public:
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<InlineChosen> inlineResultChosen() const;
 	[[nodiscard]] rpl::producer<> photoRequests() const;
+	[[nodiscard]] auto reactionRequests() const
+		-> rpl::producer<Data::ReactionId>;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
+	[[nodiscard]] rpl::producer<> locationRequests() const;
+	[[nodiscard]] rpl::producer<> weatherRequests() const;
 
 	[[nodiscard]] rpl::producer<> cancelled() const;
 	[[nodiscard]] rpl::producer<> checkForHide() const;

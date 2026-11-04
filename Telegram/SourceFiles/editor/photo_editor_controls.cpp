@@ -544,6 +544,47 @@ private:
 
 };
 
+class SaveButton final
+	: public Ui::IconButton
+	, public Ui::AbstractTooltipShower {
+public:
+	explicit SaveButton(QWidget *parent)
+	: IconButton(parent, st::photoEditorSaveButton) {
+		events(
+		) | rpl::on_next([=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::Enter) {
+				Ui::Tooltip::Show(1000, this);
+			} else if (event->type() == QEvent::Leave) {
+				Ui::Tooltip::Hide();
+			}
+		}, lifetime());
+	}
+	void setSaveEnabled(bool enabled) {
+		setEnabled(enabled);
+		if (enabled) {
+			setIconColorOverride(std::nullopt);
+		} else {
+			auto color = st::photoEditorButtonIconFg->c;
+			color.setAlphaF(
+				color.alphaF() * st::photoEditorButtonDisabledOpacity);
+			setIconColorOverride(color);
+		}
+	}
+
+	QString tooltipText() const override {
+		return isEnabled()
+			? tr::lng_story_save_file(tr::now)
+			: tr::lng_story_preparing_video(tr::now);
+	}
+	QPoint tooltipPos() const override {
+		return QCursor::pos();
+	}
+	bool tooltipWindowActive() const override {
+		return Ui::AppInFocus() && Ui::InFocusChain(window());
+	}
+
+};
+
 class TextToolButton final : public Ui::AbstractButton {
 public:
 	TextToolButton(not_null<QWidget*> parent)
@@ -586,6 +627,8 @@ PhotoEditorControls::PhotoEditorControls(
 , _imageSize(imageSize)
 , _originalRatio(data.originalRatio)
 , _fixedCrop(data.fixedCrop)
+, _canvasMode(data.story && !data.story->canvasMedia.isNull())
+, _storyPhoto(data.story && data.story->videoObject.empty())
 , _bg(st::roundedBg)
 , _buttonHeight(st::photoEditorButtonBarHeight)
 , _transformButtons(base::make_unique_q<ButtonBar>(this, _bg))
@@ -625,6 +668,9 @@ PhotoEditorControls::PhotoEditorControls(
 	? base::make_unique_q<Ui::IconButton>(
 		_transformButtons,
 		st::photoEditorCornersButton)
+	: nullptr)
+, _saveButton((data.hasSaveButton || data.story.has_value())
+	? base::make_unique_q<SaveButton>(_transformButtons)
 	: nullptr)
 , _transformDone(base::make_unique_q<EdgeButton>(
 	_transformButtons,
@@ -679,6 +725,8 @@ PhotoEditorControls::PhotoEditorControls(
 		.mode = _mode.current().mode,
 		.fixedCrop = _fixedCrop,
 		.timeline = _videoTimelineShown || _audioTimelineShown,
+		.canvasMode = _canvasMode,
+		.storyPhoto = _storyPhoto,
 	};
 })) {
 
@@ -1135,6 +1183,18 @@ rpl::producer<> PhotoEditorControls::cancelRequests() const {
 		return (key == Qt::Key_Escape)
 			&& !_toggledBarAnimation.animating();
 	}) | rpl::to_empty);
+}
+
+rpl::producer<> PhotoEditorControls::saveRequests() const {
+	return _saveButton
+		? (_saveButton->clicks() | rpl::to_empty)
+		: (rpl::never<>() | rpl::type_erased);
+}
+
+void PhotoEditorControls::setSaveEnabled(bool enabled) {
+	if (const auto button = static_cast<SaveButton*>(_saveButton.get())) {
+		button->setSaveEnabled(enabled);
+	}
 }
 
 rpl::producer<float64> PhotoEditorControls::aspectRatioChanges() const {

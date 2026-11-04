@@ -1549,6 +1549,22 @@ void Settings::writePrefImpl<int>(std::string_view key, int value) {
 }
 
 template <>
+std::optional<quint64> Settings::readPrefImpl<quint64>(std::string_view key) {
+	if (const auto data = readPrefGeneric(key)) {
+		auto ok = false;
+		if (const auto result = data->toULongLong(&ok); ok) {
+			return result;
+		}
+	}
+	return {};
+}
+
+template <>
+void Settings::writePrefImpl<quint64>(std::string_view key, quint64 value) {
+	writePrefGeneric(key, QByteArray::number(value));
+}
+
+template <>
 std::optional<QByteArray> Settings::readPrefImpl<QByteArray>(
 		std::string_view key) {
 	return readPrefGeneric(key);

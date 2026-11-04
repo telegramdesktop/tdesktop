@@ -58,6 +58,8 @@ public:
 	virtual void save(SaveState state);
 	virtual void restore(SaveState state);
 	virtual bool hasState(SaveState state) const;
+
+	[[nodiscard]] virtual bool bakes() const;
 private:
 	int _number = 0;
 	Status _status = Status::Normal;
@@ -110,9 +112,13 @@ public:
 
 	void updateZoom(float64 zoom);
 
+	[[nodiscard]] QRectF contentRect() const;
+
 	[[nodiscard]] virtual Placement placement() const;
 	virtual void applyPlacement(const Placement &placement);
 
+	[[nodiscard]] virtual bool isBackground() const;
+	[[nodiscard]] virtual bool isBackgroundLocked() const;
 	bool hasState(SaveState state) const override;
 	void save(SaveState state) override;
 	void restore(SaveState state) override;
@@ -138,9 +144,10 @@ protected:
 	virtual void actionFlip();
 	void actionDelete();
 	void actionDuplicate();
+	void actionRaise();
+	void actionLower();
 	void raiseToTop();
 
-	QRectF contentRect() const;
 	QRectF innerRect() const;
 	[[nodiscard]] QRectF fittedRect(QSizeF size) const;
 	[[nodiscard]] virtual QRectF visibleRect() const;

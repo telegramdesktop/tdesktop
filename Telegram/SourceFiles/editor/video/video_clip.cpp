@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video/video_timeline.h"
 #include "ui/image/image_prepare.h"
 
+#include <QtCore/QFile>
+
 namespace Editor {
 
 VideoClip::VideoClip(
@@ -23,6 +25,8 @@ VideoClip::VideoClip(
 	_player->repaints(
 	) | rpl::on_next(std::move(repaint), _lifetime);
 	_player->start();
+	setTrim(_source->initialTrim);
+	setVolume(_source->initialVolume);
 }
 
 VideoClip::~VideoClip() = default;
@@ -106,7 +110,7 @@ void VideoClip::restore(const State &state) {
 }
 
 bool VideoClip::animated() const {
-	return _player->valid() || _released;
+	return hasContent() || _released;
 }
 
 bool VideoClip::hasContent() const {

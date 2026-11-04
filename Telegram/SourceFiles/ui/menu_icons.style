@@ -116,6 +116,10 @@ menuIconChatBubble: icon {{ "menu/chat_bubble", menuIconColor }};
 menuIconPhone: icon {{ "menu/phone", menuIconColor }};
 menuIconChannel: icon {{ "menu/channel", menuIconColor }};
 menuIconStoriesSavedSection: icon {{ "menu/stories_saved_section", menuIconColor }};
+menuIconStoriesAdd: icon {{ "menu/stories_add", menuIconColor }};
+menuIconStoryPost: icon {{ "menu/add_story", menuIconColor }};
+menuIconStoriesArchived: icon {{ "menu/stories_archived", menuIconColor }};
+menuIconStoriesPosted: icon {{ "menu/stories_posted", menuIconColor }};
 menuIconStoriesArchiveSection: icon {{ "menu/stories_archive_section", menuIconColor }};
 menuIconStoriesSave: icon {{ "menu/stories_save", menuIconColor }};
 menuIconStoriesArchive: icon {{ "menu/archive", menuIconColor }};
@@ -262,12 +266,14 @@ mediaMenuIconBlock: icon {{ "menu/block", mediaviewMenuFg }};
 
 mediaMenuIconFlip: icon {{ "menu/flip", mediaviewMenuFg }};
 mediaMenuIconEdit: icon {{ "menu/edit", mediaviewMenuFg }};
+mediaMenuIconPrivacy: icon {{ "menu/lock", mediaviewMenuFg }};
 mediaMenuIconNightMode: icon {{ "menu/night_mode", mediaviewMenuFg }};
 mediaMenuIconFont: icon {{ "menu/fonts", mediaviewMenuFg }};
 mediaMenuIconTextStylePlain: icon {{ "menu/text_style_plain-22x22", mediaviewMenuFg, point(0px, 2px) }};
 mediaMenuIconTextStyleFramed: icon {{ "menu/text_style_framed-22x22", mediaviewMenuFg, point(0px, 2px) }};
 mediaMenuIconTextStyleSemiTransparent: icon {{ "menu/text_style_semi-22x22", mediaviewMenuFg, point(0px, 2px) }};
 mediaMenuIconTextStyleOpaque: icon {{ "menu/text_style_opaque-22x22", mediaviewMenuFg, point(0px, 2px) }};
+mediaMenuIconLocation: icon {{ "menu/rich/location-24x24", mediaviewMenuFg }};
 
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};

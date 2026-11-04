@@ -326,6 +326,8 @@ private:
 		Ui::BotWebView::SendPreparedMessageRequest request) override;
 	void botRequestChat(
 		Ui::BotWebView::RequestChatRequest request) override;
+	void botShareToStory(
+		Ui::BotWebView::ShareStoryRequest request) override;
 	void botSetEmojiStatus(
 		Ui::BotWebView::SetEmojiStatusRequest request) override;
 	void botDownloadFile(

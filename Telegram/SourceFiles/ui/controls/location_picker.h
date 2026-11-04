@@ -17,6 +17,10 @@ namespace Data {
 class LocationPoint;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Webview {
 class Window;
 } // namespace Webview
@@ -32,6 +36,9 @@ struct LocationPickerConfig {
 	QString geoToken;
 };
 
+[[nodiscard]] LocationPickerConfig ResolveMapsConfig(
+	not_null<Main::Session*> session);
+
 class LocationPicker final : public base::has_weak_ptr {
 public:
 	struct Descriptor {
@@ -39,7 +46,7 @@ public:
 		LocationPickerConfig config;
 		rpl::producer<QString> chooseLabel;
 		Core::GeoLocation initial;
-		Fn<void(Data::LocationPoint point, QString address)> callback;
+		Fn<void(Data::LocationPoint point, Core::GeoAddress address)> callback;
 		Fn<void()> quit;
 		Webview::StorageId storageId;
 		rpl::producer<> closeRequests;
@@ -67,7 +74,7 @@ private:
 	void mapReady();
 
 	LocationPickerConfig _config;
-	Fn<void(Data::LocationPoint, QString)> _callback;
+	Fn<void(Data::LocationPoint, Core::GeoAddress)> _callback;
 	Fn<void()> _quit;
 	std::unique_ptr<SeparatePanel> _window;
 	not_null<RpWidget*> _body;
@@ -86,7 +93,9 @@ private:
 	Core::GeoLocation _geocoderResolvePostponed;
 	Core::GeoLocation _geocoderResolvingFor;
 	QString _geocoderSavedAddress;
+	Core::GeoAddress _geocoderSavedFull;
 	rpl::variable<QString> _geocoderAddress;
+	Core::GeoAddress _geocoderFull;
 
 	rpl::lifetime _lifetime;
 

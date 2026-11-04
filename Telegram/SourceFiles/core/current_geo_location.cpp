@@ -135,6 +135,26 @@ void ResolveLocationAddressGeneric(
 		const auto feature = features.at(0).toObject();
 		const auto properties = feature["properties"].toObject();
 		const auto context = properties["context"].toObject();
+		const auto nameIn = [&](std::vector<QString> keys) {
+			for (const auto &key : keys) {
+				const auto value = context[key];
+				if (value.isObject()) {
+					const auto name = value.toObject()["name"].toString();
+					if (!name.isEmpty()) {
+						return name;
+					}
+				}
+			}
+			return QString();
+		};
+		const auto country = nameIn({ u"country"_q });
+		const auto countryIso2 = [&] {
+			const auto value = context[u"country"_q];
+			return value.isObject()
+				? value.toObject()[u"country_code"_q].toString()
+				: QString();
+		}();
+		const auto city = nameIn({ u"place"_q, u"region"_q });
 		auto names = QStringList();
 		auto add = [&](std::vector<QString> keys) {
 			for (const auto &key : keys) {
@@ -151,7 +171,12 @@ void ResolveLocationAddressGeneric(
 		add({ /*u"address"_q, u"street"_q, */u"neighborhood"_q });
 		add({ u"place"_q, u"region"_q });
 		add({ u"country"_q });
-		finishWith({ .name = names.join(", ") });
+		finishWith({
+			.name = names.join(", "),
+			.countryIso2 = countryIso2,
+			.country = country,
+			.city = city,
+		});
 	});
 	QObject::connect(reply, &QNetworkReply::errorOccurred, [=] {
 		destroyReplyDelayed(reply);

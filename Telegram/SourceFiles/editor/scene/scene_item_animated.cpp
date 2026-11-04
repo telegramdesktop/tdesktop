@@ -17,8 +17,16 @@ ItemAnimated *ItemAnimated::asAnimated() {
 	return this;
 }
 
+QString ItemAnimated::entityPath() const {
+	return QString();
+}
+
 VideoTrim ItemAnimated::trim() const {
 	return {};
+}
+
+bool ItemAnimated::roundVideo() const {
+	return false;
 }
 
 Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
@@ -39,14 +47,17 @@ Media::Encode::AnimatedEntity ItemAnimated::animatedEntity(
 	const auto size = inner.size() * scale;
 	const auto center = composed.map(inner.center());
 	const auto segment = trim();
+	const auto path = entityPath();
 	return {
 		.kind = entityKind(),
-		.bytes = content(),
+		.path = path,
+		.bytes = path.isEmpty() ? content() : QByteArray(),
 		.geometry = QRectF(
 			center - QPointF(size.width() / 2., size.height() / 2.),
 			size),
 		.rotation = rotation,
 		.flipped = mirrored,
+		.round = roundVideo(),
 		.from = segment.from,
 		.till = segment.till,
 	};
