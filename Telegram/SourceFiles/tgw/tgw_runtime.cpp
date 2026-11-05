@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
+#include "core/src/renderer.h"
 #include "core/application.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -33,7 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_wallet.h"
 #include "twidget/sdk_policy.h"
 #include "twidget/widget_host.h"
-#include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
 #include "wallet/wallet_panel.h"
 

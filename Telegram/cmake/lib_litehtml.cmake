@@ -6,7 +6,7 @@
 
 # litehtml as forked in ThirdParty/twidget: the HTML and CSS layout engine
 # for interactive HTML messages, with the fork's document patching, pixel
-# snapping, SVG, grid and effects, plus the shared lhx sanitizer policy.
+# snapping, SVG, grid and effects.
 # Only the portable C++ core is built; twidget's Objective-C++ and Swift
 # layers are Apple renderers, replaced on our side by a Qt one.
 # There is no packaged branch: no distribution ships this fork.
@@ -16,8 +16,7 @@ init_target(lib_litehtml cxx_std_17 "(external)")
 
 add_library(tdesktop::lib_litehtml ALIAS lib_litehtml)
 
-set(litehtml_root ${third_party_loc}/twidget/Sources/LiteHTML)
-set(litehtml_loc ${litehtml_root}/litehtml)
+set(litehtml_loc ${third_party_loc}/twidget/litehtml)
 
 if (NOT EXISTS ${litehtml_loc}/src/document.cpp)
     message(FATAL_ERROR "twidget sources are missing, run 'git submodule update --init --recursive'.")
@@ -49,18 +48,10 @@ file(GLOB litehtml_sources CONFIGURE_DEPENDS
 
 target_sources(lib_litehtml PRIVATE ${litehtml_sources})
 
-nice_target_sources(lib_litehtml ${litehtml_root}/core
-PRIVATE
-    lhx_painter.h
-    lhx_sanitizer.cpp
-    lhx_sanitizer.h
-)
-
 target_include_directories(lib_litehtml
 PUBLIC
     ${litehtml_loc}/include
     ${litehtml_loc}/include/litehtml
-    ${litehtml_root}/core
 PRIVATE
     ${litehtml_loc}/gumbo-include
 )

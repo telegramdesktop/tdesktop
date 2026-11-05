@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 
 #include "base/platform/base_platform_info.h"
+#include "core/src/renderer.h"
 #include "tgw/tgw_backend.h"
 #include "tgw/tgw_cursor.h"
 #include "tgw/tgw_painter.h"
@@ -15,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
 #include "twidget/widget_host.h"
-#include "TwidgetCore/src/renderer.h"
 #include "ui/style/style_core_scale.h"
 
 #include <mutex>

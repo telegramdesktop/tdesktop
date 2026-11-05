@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
+#include "core/src/paint_policy.h"
 #include "twidget/json.h"
 #include "twidget/renderer.h"
-#include "TwidgetCore/src/paint_policy.h"
 
 #include <QtCore/QStringList>
 

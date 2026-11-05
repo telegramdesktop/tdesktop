@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_backend.h"
 
+#include "core/src/css.h"
+#include "core/src/png.h"
 #include "tgw/tgw_canvas.h"
 #include "tgw/tgw_emoji.h"
-#include "TwidgetCore/src/css.h"
-#include "TwidgetCore/src/png.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageReader>

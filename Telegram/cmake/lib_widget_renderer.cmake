@@ -4,7 +4,7 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# TwidgetCore from ThirdParty/twidget (Sources/TwidgetCore/src), the renderer
+# TwidgetCore from ThirdParty/twidget (core/src), the renderer
 # core twidget's platforms share: it applies validated widget operations to a
 # document laid out by twidget's litehtml fork, answers layout queries, runs
 # animations, canvas, input and text selection, and records a display list the
@@ -14,7 +14,7 @@
 # The profile's UA layer (tables.uaStylesheet of widget-sandbox's
 # packages/core/profile.json) is generated at configure time into
 # tw_ua_stylesheet.h, as twidget's own CMakeLists does.
-# Consumers include its headers as "TwidgetCore/src/<name>.h".
+# Consumers include its headers as "core/src/<name>.h".
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_widget_renderer STATIC)
@@ -23,8 +23,8 @@ init_target(lib_widget_renderer "(external)")
 add_library(tdesktop::lib_widget_renderer ALIAS lib_widget_renderer)
 
 set(widget_sandbox_root ${third_party_loc}/widget-sandbox)
-set(widget_renderer_root ${third_party_loc}/twidget/Sources)
-set(widget_renderer_loc ${widget_renderer_root}/TwidgetCore/src)
+set(widget_renderer_root ${third_party_loc}/twidget)
+set(widget_renderer_loc ${widget_renderer_root}/core/src)
 
 if (NOT EXISTS ${widget_renderer_loc}/renderer.cpp)
     message(FATAL_ERROR "twidget sources are missing, run 'git submodule update --init --recursive'.")

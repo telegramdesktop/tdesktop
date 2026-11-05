@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "TwidgetCore/src/display_list.h"
+#include "core/src/display_list.h"
 
 #include <QtCore/QString>
 #include <QtGui/QImage>

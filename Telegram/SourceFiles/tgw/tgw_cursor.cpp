@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_cursor.h"
 
+#include "core/src/computed_style.h"
+#include "core/src/renderer.h"
 #include "twidget/gesture_policy.h"
-#include "TwidgetCore/src/computed_style.h"
-#include "TwidgetCore/src/renderer.h"
 
 #include <litehtml.h>
 

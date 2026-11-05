@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "TwidgetCore/src/backend.h"
+#include "core/src/backend.h"
 
 #include <QtGui/QFontMetricsF>
 

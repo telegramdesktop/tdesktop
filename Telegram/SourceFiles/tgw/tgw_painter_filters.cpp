@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_painter_filters.h"
 
-#include "TwidgetCore/src/filters.h"
+#include "core/src/filters.h"
 
 #include <QtGui/QPainter>
 
