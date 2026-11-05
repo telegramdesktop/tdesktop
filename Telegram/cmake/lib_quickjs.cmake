@@ -97,12 +97,3 @@ else()
         -w
     )
 endif()
-
-if (LINUX)
-    find_package(Threads REQUIRED)
-    target_link_libraries(lib_quickjs
-    PUBLIC
-        m
-        Threads::Threads
-    )
-endif()
