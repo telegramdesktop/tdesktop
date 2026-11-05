@@ -60,7 +60,7 @@ static_assert(kMaxMessageBytes >= kMaxFrameMessageBytes);
 	return result.toString(QUrl::FullyEncoded);
 }
 
-#ifndef NDEBUG
+#ifdef _DEBUG
 [[nodiscard]] QByteArray RestrictionsProbeScript() {
 	return R"JS((()=>{try{
 const probe=w=>typeof w.RTCPeerConnection==='undefined'&&typeof w.WebTransport==='undefined'&&typeof w.WebAssembly==='undefined';
@@ -71,7 +71,7 @@ try{ok=ok&&!!frame.contentWindow&&probe(frame.contentWindow)}finally{frame.remov
 window.external.invoke('d'+(ok?'1':'0'));
 }catch(error){window.external.invoke('d0')}})())JS";
 }
-#endif // !NDEBUG
+#endif // _DEBUG
 
 [[nodiscard]] QByteArray BridgeScript() {
 	return R"JS((()=>{
@@ -253,7 +253,7 @@ void WebviewCarrier::handleMessage(
 		}
 		probeRestrictions();
 		return;
-#ifndef NDEBUG
+#ifdef _DEBUG
 	case 'd':
 		if (data != "d1") {
 			LOG(("Web Proxy Error: "
@@ -261,7 +261,7 @@ void WebviewCarrier::handleMessage(
 				).arg(QString::fromUtf8(data)));
 		}
 		return;
-#endif // !NDEBUG
+#endif // _DEBUG
 	case 'f':
 		fail("bridge script failure");
 		return;
@@ -346,13 +346,13 @@ void WebviewCarrier::extendHandshake() {
 }
 
 void WebviewCarrier::probeRestrictions() {
-#ifndef NDEBUG
+#ifdef _DEBUG
 	if (_probed) {
 		return;
 	}
 	_probed = true;
 	_window->eval(RestrictionsProbeScript());
-#endif // !NDEBUG
+#endif // _DEBUG
 }
 
 void WebviewCarrier::handleBinary(QByteArray frame) {
