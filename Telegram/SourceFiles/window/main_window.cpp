@@ -831,8 +831,7 @@ void MainWindow::firstShow() {
 		show();
 		return;
 	}
-	const auto position = initialPosition();
-	const auto geometry = countInitialGeometry(position);
+	const auto geometry = countInitialGeometry(initialPosition());
 	DEBUG_LOG(("Window Pos: Setting first %1, %2, %3, %4"
 		).arg(geometry.x()
 		).arg(geometry.y()
@@ -840,23 +839,6 @@ void MainWindow::firstShow() {
 		).arg(geometry.height()));
 	setGeometry(geometry);
 	show();
-
-	InvokeQueued(this, [=] {
-		const auto counted = countInitialGeometry(position);
-		if (counted != geometry) {
-			DEBUG_LOG(("Window Pos: Correcting first %1, %2, %3, %4 "
-				"to %5, %6, %7, %8"
-				).arg(geometry.x()
-				).arg(geometry.y()
-				).arg(geometry.width()
-				).arg(geometry.height()
-				).arg(counted.x()
-				).arg(counted.y()
-				).arg(counted.width()
-				).arg(counted.height()));
-			setGeometry(counted);
-		}
-	});
 }
 
 void MainWindow::positionUpdated() {
