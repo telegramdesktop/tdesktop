@@ -152,7 +152,21 @@ Telegram/build/docker/centos_env/build_debug.sh
 cmake --build "l:\Telegram\tx64\out" --config Debug --target Telegram
 ```
 
-**Never build Release** - it's extremely heavy and not needed for testing changes.
+**Test changes with Debug builds.** Build Release only to measure
+performance, and only without link-time optimization: `out/CMakeCache.txt`
+must read `DESKTOP_APP_ENABLE_LTO:BOOL=OFF` before the build, and nothing may
+configure it ON. Build it with:
+
+```bash
+cmake --build out --config Release --target Telegram
+```
+
+The app lands in `out/Release`. To drive it with the `-testagent` harness,
+follow "Release builds with the harness" in
+`Telegram/SourceFiles/test/docs/launch.md`; on macOS reconfigure with
+`env -u QT cmake -S . -B out -DTDESKTOP_RELEASE_TEST_HARNESS=ON`, and switch it
+back OFF the same way when the measurement is done. A Release build never
+replaces the Debug build that proves a change compiles.
 
 **On macOS, never run an Xcode clean against `out/`** - not `--target clean`,
 not `--clean-first` with any target, not `xcodebuild ... clean` and not a
@@ -308,8 +322,9 @@ user to close that checkout's Telegram/debugger before rebuilding.
 
 ## Best Practices
 
-1. **Always use Debug builds** - Release builds are extremely heavy
-2. **Don't build Release configuration** - it's too heavy for testing
+1. **Always use Debug builds** to build and test changes
+2. **Build Release only to measure performance**, without LTO, as
+   "### Build Commands" describes
 
 ## Remote CI Build Validation (private-ci)
 
