@@ -81,9 +81,6 @@ if (WIN32)
         src/icu_intl.cpp
     )
     target_link_libraries(lib_widget_sandbox PUBLIC bcrypt icu)
-elseif (LINUX)
-    find_package(Threads REQUIRED)
-    target_link_libraries(lib_widget_sandbox PUBLIC Threads::Threads)
 endif()
 
 if (MSVC)
