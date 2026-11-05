@@ -30,6 +30,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+[[nodiscard]] QString DraftSubtitle(
+		const Data::StoryDraft &draft,
+		const QString &peerName) {
+	if (!peerName.isEmpty()) {
+		return peerName;
+	} else if (!draft.caption.text.isEmpty()) {
+		return draft.caption.text;
+	}
+	return draft.video
+		? tr::lng_story_draft_video(tr::now)
+		: tr::lng_story_draft_photo(tr::now);
+}
+
 class DraftRow final : public Ui::RippleButton {
 public:
 	DraftRow(
@@ -61,18 +74,10 @@ DraftRow::DraftRow(
 , _remove(base::make_unique_q<Ui::IconButton>(this, st::stickersRemove))
 , _title(
 	st::storyRowTitleStyle,
-	(draft.caption.text.isEmpty()
-		? (draft.video
-			? tr::lng_story_draft_video(tr::now)
-			: tr::lng_story_draft_photo(tr::now))
-		: draft.caption.text))
+	langDateTime(base::unixtime::parse(draft.date)))
 , _subtitle(
 	st::storyRowSubtitleStyle,
-	(peerName.isEmpty()
-		? langDateTime(base::unixtime::parse(draft.date))
-		: langDateTime(base::unixtime::parse(draft.date))
-		+ u" \u00B7 "_q
-		+ peerName)) {
+	DraftSubtitle(draft, peerName)) {
 	_remove->show();
 }
 
