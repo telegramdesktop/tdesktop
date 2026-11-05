@@ -17,8 +17,7 @@ public:
 	static std::unique_ptr<AbstractSocket> Create(
 		not_null<QThread*> thread,
 		const bytes::vector &secret,
-		const QNetworkProxy &proxy,
-		bool protocolForFiles);
+		const QNetworkProxy &proxy);
 
 	void setDebugId(const QString &id) {
 		_debugId = id;
@@ -59,9 +58,6 @@ public:
 	[[nodiscard]] virtual QString debugPostfix() const = 0;
 
 protected:
-	static const int kFilesSendBufferSize = 2 * 1024 * 1024;
-	static const int kFilesReceiveBufferSize = 2 * 1024 * 1024;
-
 	void logError(int errorCode, const QString &errorText);
 
 	QString _debugId;

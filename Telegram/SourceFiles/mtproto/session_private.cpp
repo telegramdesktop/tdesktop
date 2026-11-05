@@ -248,17 +248,9 @@ void SessionPrivate::appendTestConnection(
 		});
 	});
 
-	const auto protocolForFiles = isMediaClusterDcId(_shiftedDcId)
-		//|| isUploadDcId(_shiftedDcId)
-		|| (_realDcType == DcType::Cdn);
 	const auto protocolDcId = getProtocolDcId();
 	InvokeQueued(_testConnections.back().data, [=] {
-		weak->connectToServer(
-			ip,
-			port,
-			protocolSecret,
-			protocolDcId,
-			protocolForFiles);
+		weak->connectToServer(ip, port, protocolSecret, protocolDcId);
 	});
 }
 

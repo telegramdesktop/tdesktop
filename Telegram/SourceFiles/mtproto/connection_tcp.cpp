@@ -507,8 +507,7 @@ void TcpConnection::connectToServer(
 		const QString &address,
 		int port,
 		const bytes::vector &protocolSecret,
-		int16 protocolDcId,
-		bool protocolForFiles) {
+		int16 protocolDcId) {
 	if (_status == Status::Finished) {
 		// Queued connectToServer() may arrive after disconnectFromServer().
 		return;
@@ -537,8 +536,7 @@ void TcpConnection::connectToServer(
 		: AbstractSocket::Create(
 			thread(),
 			secret,
-			ToNetworkProxy(_proxy),
-			protocolForFiles);
+			ToNetworkProxy(_proxy));
 	_protocolDcId = protocolDcId;
 
 	const auto postfix = _socket->debugPostfix();

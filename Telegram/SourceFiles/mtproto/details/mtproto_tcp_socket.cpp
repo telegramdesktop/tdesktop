@@ -13,21 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace MTP::details {
 
-TcpSocket::TcpSocket(
-	not_null<QThread*> thread,
-	const QNetworkProxy &proxy,
-	bool protocolForFiles)
+TcpSocket::TcpSocket(not_null<QThread*> thread, const QNetworkProxy &proxy)
 : AbstractSocket(thread) {
 	_socket.moveToThread(thread);
 	_socket.setProxy(proxy);
-	if (protocolForFiles) {
-		_socket.setSocketOption(
-			QAbstractSocket::SendBufferSizeSocketOption,
-			kFilesSendBufferSize);
-		_socket.setSocketOption(
-			QAbstractSocket::ReceiveBufferSizeSocketOption,
-			kFilesReceiveBufferSize);
-	}
 	const auto wrap = [&](auto handler) {
 		return [=](auto &&...args) {
 			InvokeQueued(this, [=] { handler(args...); });

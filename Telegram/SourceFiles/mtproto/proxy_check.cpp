@@ -84,8 +84,7 @@ void StartProxyCheck(
 			proxy.host,
 			proxy.port,
 			secret,
-			dcId,
-			false);
+			dcId);
 		return;
 	}
 	const auto options = mtproto->dcOptions().lookup(
@@ -104,8 +103,7 @@ void StartProxyCheck(
 			QString::fromStdString(endpoint.ip),
 			endpoint.port,
 			endpoint.secret,
-			dcId,
-			false);
+			dcId);
 	};
 	tryConnect(v4, Variants::IPv4);
 	tryConnect(v6, Variants::IPv6);

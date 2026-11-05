@@ -15,16 +15,11 @@ namespace MTP::details {
 std::unique_ptr<AbstractSocket> AbstractSocket::Create(
 		not_null<QThread*> thread,
 		const bytes::vector &secret,
-		const QNetworkProxy &proxy,
-		bool protocolForFiles) {
+		const QNetworkProxy &proxy) {
 	if (secret.size() >= 21 && secret[0] == bytes::type(0xEE)) {
-		return std::make_unique<TlsSocket>(
-			thread,
-			secret,
-			proxy,
-			protocolForFiles);
+		return std::make_unique<TlsSocket>(thread, secret, proxy);
 	} else {
-		return std::make_unique<TcpSocket>(thread, proxy, protocolForFiles);
+		return std::make_unique<TcpSocket>(thread, proxy);
 	}
 }
 
