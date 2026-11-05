@@ -1914,7 +1914,7 @@ void ApiWrap::messagesCountLoaded(int localSplitIndex, int count) {
 	}
 
 	auto startInfo = _chatProcess->info;
-	if (_settings->hasDateLimits() && !startInfo.onlyMyMessages) {
+	if (_settings->hasDateLimits()) {
 		for (auto &count : startInfo.messagesCountPerSplit) {
 			count = 0;
 		}
@@ -2329,8 +2329,8 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(SinglePeerLowerBoundOffsetDate(*_settings)), // min_date
-			MTP_int(_settings->singlePeerTill), // max_date
+			MTP_int(0), // min_date: Filtering after pagination can hide the cursor.
+			MTP_int(0), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
 			MTP_int(limit),
@@ -2386,15 +2386,15 @@ void ApiWrap::startMessagesSlice(Data::MessagesSlice &&slice) {
 		: static_cast<AbstractMessagesProcess*>(_chatProcess.get());
 	Expects(!process->slice.has_value());
 
-	const auto reachedUpperBound = TrimMessagesSliceByDateRange(
-		slice,
-		*_settings);
-	if (reachedUpperBound) {
-		process->lastSlice = true;
-	}
-
 	if (slice.list.empty()) {
 		process->lastSlice = true;
+	} else {
+		if (_chatProcess) {
+			_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
+		}
+		if (TrimMessagesSliceByDateRange(slice, *_settings)) {
+			process->lastSlice = true;
+		}
 	}
 	process->slice = std::move(slice);
 	process->hydrationIndex = 0;
@@ -2876,7 +2876,6 @@ void ApiWrap::finishMessagesSlice() {
 
 	auto slice = *base::take(_chatProcess->slice);
 	if (!slice.list.empty()) {
-		_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
 		const auto splitIndex = _chatProcess->info.splits[
 			_chatProcess->localSplitIndex];
 		if (splitIndex < 0) {
