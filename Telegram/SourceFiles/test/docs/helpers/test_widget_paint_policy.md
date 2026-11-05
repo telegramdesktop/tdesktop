@@ -11,12 +11,12 @@ A task moves twidget or widget-sandbox, or touches the heavy-box limit, and
 has to show that widget-sandbox's shared fixture
 `packages/core/tests/fixtures/paint-policy.json` passes against the rule
 Telegram links: TwidgetCore's `twlite::paint`
-(`Sources/TwidgetCore/src/paint_policy.{h,cpp}`, compiled into
+(`core/src/paint_policy.{h,cpp}`, compiled into
 `lib_widget_renderer`) and the glue's `paintLimitFromCode()`,
 `paintLimitCode()`, `paintLimitMessage()` and `Renderer::limitExceeded()`
 (`twidget/renderer.h`). It is the desktop's run of the fixture that
 widget-sandbox's `packages/core/tests/unit/paint-policy.test.ts` and
-twidget's `Tests/TwidgetCoreTests/paint_policy_tests.cpp` run upstream;
+twidget's `tests/paint_policy_tests.cpp` run upstream;
 Telegram builds neither of them.
 
 Callers: the conformance pack's first stage, the retained caller

@@ -934,7 +934,7 @@ to the chat's own `HistoryInner`, spaced in real time by a `base::Timer`.
 Only the action stages use it. A held button needs the widget core's clock to
 run while it is down, and TwidgetCore keeps only a pointer's latest move until
 its next frame (twidget's `docs/TWIDGET_CORE.md`,
-`Sources/TwidgetCore/src/renderer.cpp`), so
+`core/src/renderer.cpp`), so
 `Test::Drag`'s synchronous burst reaches a widget as one move. Taps, the
 wheel and keys stay with [test_widgets](test_widgets.md#input-helpers).
 
