@@ -2526,6 +2526,11 @@ void ListWidget::performDrag() {
 		}
 	}
 
+	// Running animations must keep ticking inside the drag's loop.
+	Ui::Animations::Manager::SetScheduleWithInvokeQueued(true);
+	const auto guard = gsl::finally([] {
+		Ui::Animations::Manager::SetScheduleWithInvokeQueued(false);
+	});
 	// This call enters event loop and can destroy any QObject.
 	_controller->parentController()->widget()->launchDrag(
 		std::move(mimeData),
