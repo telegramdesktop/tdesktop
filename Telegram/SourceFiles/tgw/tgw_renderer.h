@@ -26,6 +26,7 @@ struct WidgetRequestOutcome;
 
 namespace twlite {
 class Renderer;
+struct Command;
 } // namespace twlite
 
 namespace Tgw {
@@ -192,6 +193,12 @@ private:
 	void wake();
 	void tick();
 
+	[[nodiscard]] std::optional<QString> repaintFrame(
+		const std::vector<twlite::Command> &list,
+		QRect area,
+		Images::CornersMaskRef corners,
+		QSize card);
+
 	void finish(const std::vector<twidget::Json> &out, Changes changes);
 	[[nodiscard]] Changes forwardAll(const std::vector<twidget::Json> &out);
 	[[nodiscard]] Changes applySize(const twidget::Json &message);
@@ -233,6 +240,7 @@ private:
 	bool _stopFatal = false;
 	bool _onScreen = false;
 	bool _frameRequested = false;
+	bool _frameRepaintable = false;
 	bool _idleRequest = false;
 	bool _stepBusy = false;
 

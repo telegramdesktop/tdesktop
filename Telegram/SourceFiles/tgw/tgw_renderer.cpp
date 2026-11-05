@@ -144,31 +144,41 @@ private:
 			|| (std::abs(frame.height() - card.height()) <= ratio));
 }
 
+[[nodiscard]] QRect CornerPatch(
+		Images::CornersMaskRef corners,
+		int index,
+		QSize card) {
+	const auto mask = corners.p[index];
+	if (!mask
+		|| (mask->width() > card.width())
+		|| (mask->height() > card.height())) {
+		return QRect();
+	}
+	const auto right = (index == Images::kTopRight)
+		|| (index == Images::kBottomRight);
+	const auto bottom = (index == Images::kBottomLeft)
+		|| (index == Images::kBottomRight);
+	return QRect(
+		QPoint(
+			right ? (card.width() - mask->width()) : 0,
+			bottom ? (card.height() - mask->height()) : 0),
+		mask->size());
+}
+
 [[nodiscard]] QImage RoundFrame(
 		QImage &&frame,
 		Images::CornersMaskRef corners,
-		QSize card) {
+		QSize card,
+		std::optional<QRect> repainted = std::nullopt) {
 	const auto bounds = QRect(QPoint(), frame.size());
 	for (auto i = 0; i != 4; ++i) {
-		const auto mask = corners.p[i];
-		if (!mask
-			|| (mask->width() > card.width())
-			|| (mask->height() > card.height())) {
-			continue;
-		}
-		const auto right = (i == Images::kTopRight)
-			|| (i == Images::kBottomRight);
-		const auto bottom = (i == Images::kBottomLeft)
-			|| (i == Images::kBottomRight);
-		const auto patch = QRect(
-			QPoint(
-				right ? (card.width() - mask->width()) : 0,
-				bottom ? (card.height() - mask->height()) : 0),
-			mask->size());
+		const auto patch = CornerPatch(corners, i, card);
 		const auto target = patch.intersected(bounds);
-		if (target.isEmpty()) {
+		if (target.isEmpty()
+			|| (repainted && !repainted->contains(target))) {
 			continue;
 		}
+		const auto mask = corners.p[i];
 		const auto part = (target == patch)
 			? *mask
 			: mask->copy(target.translated(-patch.topLeft()));
@@ -177,6 +187,70 @@ private:
 		frame = Images::Round(std::move(frame), single, target);
 	}
 	return std::move(frame);
+}
+
+// WHY: a widget may report damage of any size, so it is bounded before it
+// meets an int, and one rectangle grown over the corner patches it touches
+// keeps antialiased edges and masked corners as a whole paint makes them.
+[[nodiscard]] std::optional<QRect> RepaintArea(
+		const std::vector<twlite::Rect> &damage,
+		float64 cssToDevice,
+		Images::CornersMaskRef corners,
+		QSize card,
+		QSize frame) {
+	const auto bounds = QRect(QPoint(), frame);
+	const auto reach = QRectF(bounds).adjusted(-1., -1., 1., 1.);
+	auto result = QRect();
+	for (const auto &rect : damage) {
+		const auto mapped = QRectF(
+			rect.x * cssToDevice,
+			rect.y * cssToDevice,
+			rect.w * cssToDevice,
+			rect.h * cssToDevice);
+		if (!std::isfinite(mapped.x())
+			|| !std::isfinite(mapped.y())
+			|| !std::isfinite(mapped.width())
+			|| !std::isfinite(mapped.height())) {
+			return std::nullopt;
+		}
+		const auto shown = mapped.intersected(reach);
+		if (!shown.isEmpty()) {
+			result |= shown.toAlignedRect().adjusted(-1, -1, 1, 1);
+		}
+	}
+	result &= bounds;
+	for (auto grown = !result.isEmpty(); grown;) {
+		grown = false;
+		for (auto i = 0; i != 4; ++i) {
+			const auto patch = CornerPatch(corners, i, card).intersected(
+				bounds);
+			if (!patch.isEmpty()
+				&& result.intersects(patch)
+				&& !result.contains(patch)) {
+				result |= patch;
+				grown = true;
+			}
+		}
+	}
+	return result;
+}
+
+// Backdrops read the pixels under them; nested filters damage too little.
+[[nodiscard]] bool RepaintsInPlace(const twlite::DisplayList &list) {
+	auto filters = 0;
+	for (const auto &command : list) {
+		switch (command.kind) {
+		case twlite::Cmd::Backdrop: return false;
+		case twlite::Cmd::FilterPush:
+			if (++filters > 1) {
+				return false;
+			}
+			break;
+		case twlite::Cmd::FilterPop: filters = std::max(filters - 1, 0); break;
+		default: break;
+		}
+	}
+	return true;
 }
 
 [[nodiscard]] crl::time WakeDelay(double seconds) {
@@ -918,6 +992,7 @@ const QImage &RendererCore::frame(
 	const auto settled = (_renderer->stats().builds != builds);
 	if (!FitsCard(size, card, ratio, autoHeight)) {
 		// A size the list has not laid out yet keeps this card's picture.
+		_frameRepaintable = false;
 		if (settled) {
 			flushQueued();
 		}
@@ -926,21 +1001,36 @@ const QImage &RendererCore::frame(
 		}
 		return _frame;
 	}
-	auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());
-	const auto refused = !painted.limit.isEmpty();
-	if (!refused || !fits()) {
-		_frame = std::move(painted.image);
-		if (!_frame.isNull()) {
-			_frame = RoundFrame(std::move(_frame), corners, card);
-			_frame.setDevicePixelRatio(ratio);
+	const auto inPlace = RepaintsInPlace(list);
+	auto damage = std::vector<twlite::Rect>();
+	const auto area = (inPlace
+		&& _frameRepaintable
+		&& fits()
+		&& (_frameSize == size)
+		&& (_frame.size() == size)
+		&& _renderer->damage(damage))
+		? RepaintArea(damage, _renderer->dpr(), corners, card, size)
+		: std::nullopt;
+	auto limit = area ? repaintFrame(list, *area, corners, card) : std::nullopt;
+	if (!limit) {
+		auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());
+		limit = std::move(painted.limit);
+		if (limit->isEmpty() || !fits()) {
+			_frame = std::move(painted.image);
+			if (!_frame.isNull()) {
+				_frame = RoundFrame(std::move(_frame), corners, card);
+				_frame.setDevicePixelRatio(ratio);
+			}
 		}
 	}
+	const auto refused = !limit->isEmpty();
+	_frameRepaintable = inPlace && !refused && !_frame.isNull();
 	_frameSize = size;
 	_frameCorners = corners;
 	_frameArea = cardArea;
 	if (refused && !_detached && !_stopped) {
-		_link->diag(kPaintBoundsKind, painted.limit.toStdString());
-		stop(std::move(painted.limit), true);
+		_link->diag(kPaintBoundsKind, limit->toStdString());
+		stop(std::move(*limit), true);
 		refreshClock();
 		notifyPosted(Change::Stopped | Change::Repaint);
 	}
@@ -950,16 +1040,46 @@ const QImage &RendererCore::frame(
 	return _frame;
 }
 
+std::optional<QString> RendererCore::repaintFrame(
+		const std::vector<twlite::Command> &list,
+		QRect area,
+		Images::CornersMaskRef corners,
+		QSize card) {
+	if (area.isEmpty()) {
+		return QString();
+	}
+	const auto ratio = _frame.devicePixelRatio();
+	_frame.setDevicePixelRatio(1.);
+	const auto backup = _frame.copy(area);
+	auto result = RepaintFrame(
+		list,
+		*_backend,
+		_frame,
+		area,
+		_renderer->dpr());
+	if (result && result->isEmpty()) {
+		_frame = RoundFrame(std::move(_frame), corners, card, area);
+	} else {
+		auto p = QPainter(&_frame);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.drawImage(area.topLeft(), backup);
+	}
+	_frame.setDevicePixelRatio(ratio);
+	return result;
+}
+
 void RendererCore::dropFrame() {
 	_frame = QImage();
 	_frameSize = QSize();
 	_frameArea = QSize();
 	_frameCorners = Images::CornersMaskRef();
+	_frameRepaintable = false;
 }
 
 void RendererCore::refreshFrame() {
 	// A paint-stopped core's replay is refused, so its last picture stays.
 	_frameSize = QSize();
+	_frameRepaintable = false;
 }
 
 void RendererCore::takeFrameFrom(RendererCore &other) {
@@ -967,6 +1087,8 @@ void RendererCore::takeFrameFrom(RendererCore &other) {
 	_frameSize = base::take(other._frameSize);
 	_frameArea = base::take(other._frameArea);
 	_frameCorners = base::take(other._frameCorners);
+	_frameRepaintable = false;
+	other._frameRepaintable = false;
 }
 
 rpl::producer<RendererCore::Changes> RendererCore::updates() const {

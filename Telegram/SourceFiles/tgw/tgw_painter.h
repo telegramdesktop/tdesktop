@@ -95,4 +95,12 @@ struct PaintedFrame {
 	QSize deviceSize,
 	float64 cssToDevice);
 
+// The limit, empty when painted, nullopt when |frame| took no painter.
+[[nodiscard]] std::optional<QString> RepaintFrame(
+	const twlite::DisplayList &list,
+	const QtBackend &backend,
+	QImage &frame,
+	QRect area,
+	float64 cssToDevice);
+
 } // namespace Tgw
