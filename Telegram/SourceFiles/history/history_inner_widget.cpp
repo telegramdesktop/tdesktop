@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element_overlay.h"
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/view/history_view_top_peers_selector.h"
+#include "history/view/history_view_touch_speed.h"
 #include "history/history_inner_widget_accessibility.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -1978,60 +1979,13 @@ void HistoryInner::onTouchScrollTimer() {
 }
 
 void HistoryInner::touchUpdateSpeed() {
-	const auto nowTime = crl::now();
-	if (_touchPrevPosValid) {
-		const int elapsed = nowTime - _touchSpeedTime;
-		if (elapsed) {
-			const QPoint newPixelDiff = (_touchPos - _touchPrevPos);
-			const QPoint pixelsPerSecond = newPixelDiff * (1000 / elapsed);
-
-			// fingers are inacurates, we ignore small changes to avoid stopping the autoscroll because
-			// of a small horizontal offset when scrolling vertically
-			const int newSpeedY = (std::abs(pixelsPerSecond.y())
-				> Ui::kFingerAccuracyThreshold)
-				? pixelsPerSecond.y()
-				: 0;
-			const int newSpeedX = (std::abs(pixelsPerSecond.x())
-				> Ui::kFingerAccuracyThreshold)
-				? pixelsPerSecond.x()
-				: 0;
-			if (_touchScrollState == Ui::TouchScrollState::Auto) {
-				const int oldSpeedY = _touchSpeed.y();
-				const int oldSpeedX = _touchSpeed.x();
-				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
-					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
-					_touchSpeed.setY(std::clamp(
-						(oldSpeedY + (newSpeedY / 4)),
-						-Ui::kMaxScrollAccelerated,
-						+Ui::kMaxScrollAccelerated));
-					_touchSpeed.setX(std::clamp(
-						(oldSpeedX + (newSpeedX / 4)),
-						-Ui::kMaxScrollAccelerated,
-						+Ui::kMaxScrollAccelerated));
-				} else {
-					_touchSpeed = QPoint();
-				}
-			} else {
-				// we average the speed to avoid strange effects with the last delta
-				if (!_touchSpeed.isNull()) {
-					_touchSpeed.setX(std::clamp(
-						(_touchSpeed.x() / 4) + (newSpeedX * 3 / 4),
-						-Ui::kMaxScrollFlick,
-						+Ui::kMaxScrollFlick));
-					_touchSpeed.setY(std::clamp(
-						(_touchSpeed.y() / 4) + (newSpeedY * 3 / 4),
-						-Ui::kMaxScrollFlick,
-						+Ui::kMaxScrollFlick));
-				} else {
-					_touchSpeed = QPoint(newSpeedX, newSpeedY);
-				}
-			}
-		}
-	} else {
-		_touchPrevPosValid = true;
-	}
-	_touchSpeedTime = nowTime;
-	_touchPrevPos = _touchPos;
+	HistoryView::UpdateTouchSpeed(
+		_touchSpeed,
+		_touchSpeedTime,
+		_touchPrevPos,
+		_touchPrevPosValid,
+		_touchPos,
+		_touchScrollState);
 }
 
 void HistoryInner::touchResetSpeed() {

@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element_overlay.h"
 #include "data/data_poll.h"
 #include "history/view/history_view_top_peers_selector.h"
+#include "history/view/history_view_touch_speed.h"
 #include "history/view/history_view_quick_action.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -4736,12 +4737,18 @@ void ListWidget::onTouchScrollTimer() {
 	}
 }
 
-void ListWidget::touchUpdateSpeed() {
+void UpdateTouchSpeed(
+		QPoint &speed,
+		crl::time &speedTime,
+		QPoint &prevPos,
+		bool &prevPosValid,
+		QPoint pos,
+		Ui::TouchScrollState state) {
 	const auto nowTime = crl::now();
-	if (_touchPrevPosValid) {
-		const int elapsed = nowTime - _touchSpeedTime;
+	if (prevPosValid) {
+		const int elapsed = nowTime - speedTime;
 		if (elapsed) {
-			const QPoint newPixelDiff = (_touchPos - _touchPrevPos);
+			const QPoint newPixelDiff = (pos - prevPos);
 			const QPoint pixelsPerSecond = newPixelDiff * (1000 / elapsed);
 
 			// fingers are inacurates, we ignore small changes to avoid stopping the autoscroll because
@@ -4754,43 +4761,53 @@ void ListWidget::touchUpdateSpeed() {
 				> Ui::kFingerAccuracyThreshold)
 				? pixelsPerSecond.x()
 				: 0;
-			if (_touchScrollState == Ui::TouchScrollState::Auto) {
-				const int oldSpeedY = _touchSpeed.y();
-				const int oldSpeedX = _touchSpeed.x();
+			if (state == Ui::TouchScrollState::Auto) {
+				const int oldSpeedY = speed.y();
+				const int oldSpeedX = speed.x();
 				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
 					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
-					_touchSpeed.setY(std::clamp(
+					speed.setY(std::clamp(
 						(oldSpeedY + (newSpeedY / 4)),
 						-Ui::kMaxScrollAccelerated,
 						+Ui::kMaxScrollAccelerated));
-					_touchSpeed.setX(std::clamp(
+					speed.setX(std::clamp(
 						(oldSpeedX + (newSpeedX / 4)),
 						-Ui::kMaxScrollAccelerated,
 						+Ui::kMaxScrollAccelerated));
 				} else {
-					_touchSpeed = QPoint();
+					speed = QPoint();
 				}
 			} else {
 				// we average the speed to avoid strange effects with the last delta
-				if (!_touchSpeed.isNull()) {
-					_touchSpeed.setX(std::clamp(
-						(_touchSpeed.x() / 4) + (newSpeedX * 3 / 4),
+				if (!speed.isNull()) {
+					speed.setX(std::clamp(
+						(speed.x() / 4) + (newSpeedX * 3 / 4),
 						-Ui::kMaxScrollFlick,
 						+Ui::kMaxScrollFlick));
-					_touchSpeed.setY(std::clamp(
-						(_touchSpeed.y() / 4) + (newSpeedY * 3 / 4),
+					speed.setY(std::clamp(
+						(speed.y() / 4) + (newSpeedY * 3 / 4),
 						-Ui::kMaxScrollFlick,
 						+Ui::kMaxScrollFlick));
 				} else {
-					_touchSpeed = QPoint(newSpeedX, newSpeedY);
+					speed = QPoint(newSpeedX, newSpeedY);
 				}
 			}
 		}
 	} else {
-		_touchPrevPosValid = true;
+		prevPosValid = true;
 	}
-	_touchSpeedTime = nowTime;
-	_touchPrevPos = _touchPos;
+	speedTime = nowTime;
+	prevPos = pos;
+}
+
+void ListWidget::touchUpdateSpeed() {
+	UpdateTouchSpeed(
+		_touchSpeed,
+		_touchSpeedTime,
+		_touchPrevPos,
+		_touchPrevPosValid,
+		_touchPos,
+		_touchScrollState);
 }
 
 void ListWidget::touchResetSpeed() {
