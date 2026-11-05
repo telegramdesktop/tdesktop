@@ -92,6 +92,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_panel.h"
 #include "webrtc/webrtc_environment.h"
 #include "webview/webview_interface.h"
+#include "window/window_columns.h"
 #include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
@@ -1532,6 +1533,12 @@ bool Application::isWindowInSettings(
 	return (_windowInSettings == window);
 }
 
+void Application::reseedWindowInSettings() {
+	if (_windowInSettings) {
+		_windowInSettings->columns().seedFromSettings();
+	}
+}
+
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 	if (Quitting() || !_lastActiveWindow) {
 		return false;
@@ -1751,6 +1758,8 @@ void Application::setWindowInSettings(Window::Controller *window) {
 	_windowInSettings = window;
 	if (window) {
 		window->widget()->savePositionToSettings();
+		window->columns().writeToSettings();
+		saveSettingsDelayed();
 	}
 }
 

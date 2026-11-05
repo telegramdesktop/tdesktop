@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "core/application.h"
-#include "core/core_settings.h"
 #include "data/components/gift_auctions.h"
 #include "data/components/promo_suggestions.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
@@ -21,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "ui/ui_utility.h"
 #include "ui/wrap/slide_wrap.h"
+#include "window/window_columns.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_basic.h"
@@ -44,7 +44,7 @@ Fn<void()> ExpandChatsListCallback(not_null<Ui::RpWidget*> widget) {
 		const auto nochat = !controller->mainSectionShown();
 		const auto body = controller->widget()->bodyWidget()->width()
 			- controller->filtersWidth();
-		Core::App().settings().updateDialogsWidthRatio(
+		controller->columns().updateDialogsWidthRatio(
 			st::columnMinimalWidthLeft / float64(std::max(body, 1)),
 			nochat);
 		Core::App().saveSettingsDelayed();

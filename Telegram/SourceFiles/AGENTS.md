@@ -174,7 +174,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 
 ### window — window shell and navigation
 - Paths: `SourceFiles/window/`, `SourceFiles/mainwidget*`, `SourceFiles/mainwindow*`, `SourceFiles/boxes/abstract_box*`, `SourceFiles/dialogs/ui/restore_windows_offer*`, `SourceFiles/ui/controls/window_*`, `SourceFiles/ui/controls/title_sub_widget*`
-- OS windows and their controllers, `SessionController` showing chats, sections, layers and boxes, section mementos and slide animations, the main menu, folders sidebar, saved windows, chat switching and previews, the connecting widget and lock screens. It must not own chat action menus or notifications.
+- OS windows and their controllers, each controller's own `Columns` with `Core::Settings` as the main role window's persisted copy, `SessionController` showing chats, sections, layers and boxes, section mementos and slide animations, the main menu, folders sidebar, saved windows, chat switching and previews, the connecting widget and lock screens. It must not own chat action menus or notifications.
 
 ### notifications — notification system
 - Paths: `SourceFiles/window/notifications_*`

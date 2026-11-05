@@ -171,6 +171,7 @@ public:
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
 	[[nodiscard]] bool isWindowInSettings(
 		not_null<Window::Controller*> window) const;
+	void reseedWindowInSettings();
 	[[nodiscard]] Window::Controller *findWindow(
 		not_null<QWidget*> widget) const;
 	[[nodiscard]] Window::Controller *activeWindow() const;

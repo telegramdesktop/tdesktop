@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_auction_box.h"
 #include "window/window_chat_preview.h"
 #include "window/window_chat_switch_process.h"
+#include "window/window_columns.h"
 #include "window/window_controller.h"
 #include "window/window_filters_menu.h"
 #include "window/section_widget.h"
@@ -684,19 +685,19 @@ void OpenPeerWithSidebar(
 		std::optional<Storage::SharedMediaType> media,
 		const SectionShow &params,
 		MsgId msgId) {
-	auto &settings = Core::App().settings();
-	const auto tabbedPinned = settings.tabbedSelectorSectionEnabled();
-	settings.setThirdSectionInfoEnabled(true);
+	const auto controller = navigation->parentController();
+	auto &columns = controller->columns();
+	const auto tabbedPinned = columns.tabbedSelectorSectionEnabled();
+	columns.setThirdSectionInfoEnabled(true);
 	if (tabbedPinned) {
-		settings.setTabbedSelectorSectionEnabled(true);
+		columns.setTabbedSelectorSectionEnabled(true);
 	}
 	Core::App().saveSettingsDelayed();
-	const auto controller = navigation->parentController();
 	if (!controller->adaptive().isThreeColumn()) {
 		controller->resizeForThirdSection();
 	}
 	if (tabbedPinned) {
-		settings.setTabbedReplacedWithInfo(true);
+		columns.setTabbedReplacedWithInfo(true);
 	}
 	if (const auto forum = peer->forum()) {
 		controller->showForum(forum, params, msgId);
@@ -707,6 +708,7 @@ void OpenPeerWithSidebar(
 		? std::make_shared<Info::Memento>(peer, Info::Section(*media))
 		: Info::Memento::Default(peer);
 	navigation->showSection(std::move(memento), params.withThirdColumn());
+	controller->updateColumnLayout();
 }
 
 } // namespace
@@ -2827,8 +2829,9 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 		if (bodyWidth < minimalThreeColumnWidth()) {
 			return true;
 		}
-		if (!Core::App().settings().tabbedSelectorSectionEnabled()
-			&& !Core::App().settings().thirdSectionInfoEnabled()) {
+		if (_extendingForThirdSection
+			|| (!columns().tabbedSelectorSectionEnabled()
+				&& !columns().thirdSectionInfoEnabled())) {
 			return true;
 		}
 		return false;
@@ -2862,8 +2865,7 @@ int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
 		return 0;
 	}
 	const auto nochat = !mainSectionShown();
-	const auto width = bodyWidth
-		* Core::App().settings().dialogsWidthRatio(nochat);
+	const auto width = bodyWidth * columns().dialogsWidthRatio(nochat);
 	auto result = int(base::SafeRound(width));
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
@@ -2871,7 +2873,7 @@ int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
 }
 
 int SessionController::countThirdColumnWidthFromRatio(int bodyWidth) const {
-	auto result = Core::App().settings().thirdColumnWidth();
+	auto result = columns().thirdColumnWidth();
 	accumulate_max(result, st::columnMinimalWidthThird);
 	accumulate_min(result, st::columnMaximalWidthThird);
 	return result;
@@ -2922,7 +2924,6 @@ void SessionController::resizeForThirdSection() {
 		return;
 	}
 
-	auto &settings = Core::App().settings();
 	auto layout = computeColumnLayout();
 	const auto oneColumn
 		= (layout.windowLayout == Adaptive::WindowLayout::OneColumn);
@@ -2931,12 +2932,10 @@ void SessionController::resizeForThirdSection() {
 	const auto deficit = oneColumn
 		? (minimalThreeColumnWidth() - layout.bodyWidth)
 		: 0;
-	auto tabbedSelectorSectionEnabled
-		= settings.tabbedSelectorSectionEnabled();
-	auto thirdSectionInfoEnabled
-		= settings.thirdSectionInfoEnabled();
-	settings.setTabbedSelectorSectionEnabled(false);
-	settings.setThirdSectionInfoEnabled(false);
+	_extendingForThirdSection = true;
+	const auto guard = gsl::finally([&] {
+		_extendingForThirdSection = false;
+	});
 
 	auto wanted = countThirdColumnWidthFromRatio(layout.bodyWidth) + deficit;
 	auto minimal = deficit ? deficit : st::columnMinimalWidthThird;
@@ -2957,54 +2956,48 @@ void SessionController::resizeForThirdSection() {
 		return widget()->tryToExtendWidthBy(minimal);
 	}();
 	if (extendedBy) {
-		if (extendBy != settings.thirdColumnWidth()) {
-			settings.setThirdColumnWidth(std::max(
+		if (extendBy != columns().thirdColumnWidth()) {
+			columns().setThirdColumnWidth(std::max(
 				extendBy - deficit,
 				st::columnMinimalWidthThird));
 		}
 		const auto nochat = !mainSectionShown();
 		auto newBodyWidth = layout.bodyWidth + extendedBy;
-		auto currentRatio = settings.dialogsWidthRatio(nochat);
-		settings.updateDialogsWidthRatio(
+		auto currentRatio = columns().dialogsWidthRatio(nochat);
+		columns().updateDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth,
 			nochat);
 	}
 	auto savedValue = (extendedBy == extendBy && !oneColumn)
 		? -1
 		: extendedBy;
-	settings.setThirdSectionExtendedBy(savedValue);
-
-	settings.setTabbedSelectorSectionEnabled(
-		tabbedSelectorSectionEnabled);
-	settings.setThirdSectionInfoEnabled(
-		thirdSectionInfoEnabled);
+	columns().setThirdSectionExtendedBy(savedValue);
 }
 
 void SessionController::closeThirdSection() {
-	auto &settings = Core::App().settings();
 	auto newWindowSize = widget()->size();
 	auto layout = computeColumnLayout();
 	if (layout.windowLayout == Adaptive::WindowLayout::ThreeColumn) {
 		const auto nochat = !mainSectionShown();
 		auto noResize = widget()->isFullScreen()
 			|| widget()->isMaximized();
-		auto savedValue = settings.thirdSectionExtendedBy();
+		auto savedValue = columns().thirdSectionExtendedBy();
 		auto extendedBy = (savedValue == -1)
 			? layout.thirdWidth
 			: savedValue;
 		auto newBodyWidth = noResize
 			? layout.bodyWidth
 			: (layout.bodyWidth - extendedBy);
-		auto currentRatio = settings.dialogsWidthRatio(nochat);
-		settings.updateDialogsWidthRatio(
+		auto currentRatio = columns().dialogsWidthRatio(nochat);
+		columns().updateDialogsWidthRatio(
 			(currentRatio * layout.bodyWidth) / newBodyWidth,
 			nochat);
 		newWindowSize = QSize(
 			widget()->width() + (newBodyWidth - layout.bodyWidth),
 			widget()->height());
 	}
-	settings.setTabbedSelectorSectionEnabled(false);
-	settings.setThirdSectionInfoEnabled(false);
+	columns().setTabbedSelectorSectionEnabled(false);
+	columns().setThirdSectionInfoEnabled(false);
 	Core::App().saveSettingsDelayed();
 	if (widget()->size() != newWindowSize) {
 		widget()->resize(newWindowSize);
@@ -3539,6 +3532,10 @@ void SessionController::showNewChannel() {
 
 Window::Adaptive &SessionController::adaptive() const {
 	return _window->adaptive();
+}
+
+Window::Columns &SessionController::columns() const {
+	return _window->columns();
 }
 
 void SessionController::setConnectingBottomSkip(int skip) {

@@ -848,6 +848,7 @@ void reset() {
 	Window::Theme::Background()->reset();
 	_oldSettingsVersion = 0;
 	Core::App().settings().resetOnLastLogout();
+	Core::App().reseedWindowInSettings();
 	writeSettings();
 }
 

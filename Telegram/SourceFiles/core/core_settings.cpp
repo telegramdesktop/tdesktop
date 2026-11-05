@@ -1572,79 +1572,22 @@ QString Settings::getSoundPath(const QString &key) const {
 void Settings::setTabbedSelectorSectionEnabled(bool enabled) {
 	_tabbedSelectorSectionEnabled = enabled;
 	if (enabled) {
-		setThirdSectionInfoEnabled(false);
+		_thirdSectionInfoEnabled = false;
 	}
-	setTabbedReplacedWithInfo(false);
-}
-
-rpl::producer<bool> Settings::tabbedReplacedWithInfoValue() const {
-	return _tabbedReplacedWithInfoValue.events_starting_with(
-		tabbedReplacedWithInfo());
 }
 
 void Settings::setThirdSectionInfoEnabled(bool enabled) {
-	if (_thirdSectionInfoEnabled != enabled) {
-		_thirdSectionInfoEnabled = enabled;
-		if (enabled) {
-			setTabbedSelectorSectionEnabled(false);
-		}
-		setTabbedReplacedWithInfo(false);
-		_thirdSectionInfoEnabledValue.fire_copy(enabled);
+	_thirdSectionInfoEnabled = enabled;
+	if (enabled) {
+		_tabbedSelectorSectionEnabled = false;
 	}
 }
 
-rpl::producer<bool> Settings::thirdSectionInfoEnabledValue() const {
-	return _thirdSectionInfoEnabledValue.events_starting_with(
-		thirdSectionInfoEnabled());
-}
-
-void Settings::setTabbedReplacedWithInfo(bool enabled) {
-	if (_tabbedReplacedWithInfo != enabled) {
-		_tabbedReplacedWithInfo = enabled;
-		_tabbedReplacedWithInfoValue.fire_copy(enabled);
-	}
-}
-
-void Settings::updateDialogsWidthRatio(float64 ratio, bool nochat) {
-	const auto changeWithChat = !nochat
-		|| (dialogsWithChatWidthRatio() > 0)
-		|| _dialogsWidthSetToZeroWithoutChat;
-	const auto changedWithChat = changeWithChat
-		&& (dialogsWithChatWidthRatio() != ratio);
-
-	const auto changeNoChat = nochat
-		|| (dialogsWithChatWidthRatio() != ratio);
-	const auto changedNoChat = changeNoChat
-		&& (dialogsNoChatWidthRatio() != ratio);
-
-	if (changedWithChat) {
-		_dialogsWidthSetToZeroWithoutChat = nochat && !(ratio > 0);
+void Settings::updateDialogsWidthRatio(float64 ratio) {
+	if (_dialogsWithChatWidthRatio.current() != ratio) {
 		_dialogsWithChatWidthRatio = ratio;
-	}
-	if (changedNoChat) {
 		_dialogsNoChatWidthRatio = ratio;
 	}
-}
-
-float64 Settings::dialogsWidthRatio(bool nochat) const {
-	const auto withchat = dialogsWithChatWidthRatio();
-	return (!nochat || withchat > 0) ? withchat : dialogsNoChatWidthRatio();
-}
-
-float64 Settings::dialogsWithChatWidthRatio() const {
-	return _dialogsWithChatWidthRatio.current();
-}
-
-rpl::producer<float64> Settings::dialogsWithChatWidthRatioChanges() const {
-	return _dialogsWithChatWidthRatio.changes();
-}
-
-float64 Settings::dialogsNoChatWidthRatio() const {
-	return _dialogsNoChatWidthRatio.current();
-}
-
-rpl::producer<float64> Settings::dialogsNoChatWidthRatioChanges() const {
-	return _dialogsNoChatWidthRatio.changes();
 }
 
 void Settings::setThirdColumnWidth(int width) {
@@ -1662,12 +1605,24 @@ rpl::producer<QString> Settings::deviceModelChanges() const {
 	});
 }
 
-int Settings::thirdColumnWidth() const {
-	return _thirdColumnWidth.current();
+WindowColumns Settings::windowColumns() const {
+	return {
+		.dialogsWithChatWidthRatio = _dialogsWithChatWidthRatio.current(),
+		.dialogsNoChatWidthRatio = _dialogsNoChatWidthRatio.current(),
+		.thirdColumnWidth = _thirdColumnWidth.current(),
+		.thirdSectionExtendedBy = _thirdSectionExtendedBy,
+		.tabbedSelectorSectionEnabled = _tabbedSelectorSectionEnabled,
+		.thirdSectionInfoEnabled = _thirdSectionInfoEnabled,
+	};
 }
 
-rpl::producer<int> Settings::thirdColumnWidthChanges() const {
-	return _thirdColumnWidth.changes();
+void Settings::setWindowColumns(const WindowColumns &columns) {
+	_dialogsWithChatWidthRatio = columns.dialogsWithChatWidthRatio;
+	_dialogsNoChatWidthRatio = columns.dialogsNoChatWidthRatio;
+	_thirdColumnWidth = columns.thirdColumnWidth;
+	_thirdSectionExtendedBy = columns.thirdSectionExtendedBy;
+	_tabbedSelectorSectionEnabled = columns.tabbedSelectorSectionEnabled;
+	_thirdSectionInfoEnabled = columns.thirdSectionInfoEnabled;
 }
 
 const std::vector<RecentEmoji> &Settings::recentEmoji() const {
@@ -1938,7 +1893,6 @@ void Settings::resetOnLastLogout() {
 	_dialogsNoChatWidthRatio = DefaultDialogsWidthRatio(); // per-window
 	_thirdColumnWidth = kDefaultThirdColumnWidth; // p-w
 	_notifyFromAll = true;
-	_tabbedReplacedWithInfo = false; // per-window
 	_hiddenGroupCallTooltips = 0;
 	_storiesClickTooltipHidden = false;
 	_ttlVoiceClickTooltipHidden = false;
