@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_story_box.h"
+#include "boxes/story_drafts_box.h"
 
 #include "base/random.h"
 #include "base/variant.h"
@@ -93,6 +94,17 @@ constexpr auto kDraftThumbnailSide = 320;
 [[nodiscard]] Data::StoryDrafts &Drafts(
 		not_null<Window::SessionController*> controller) {
 	return controller->session().data().stories().drafts();
+}
+
+[[nodiscard]] bool HasDraftsForPeer(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
+	const auto self = controller->session().userPeerId();
+	return ranges::any_of(
+		Drafts(controller).list(),
+		[&](const Data::StoryDraft &draft) {
+			return (draft.peer ? draft.peer : self) == peer->id;
+		});
 }
 
 void SaveStoryDraft(
@@ -1143,7 +1155,8 @@ void ChooseStoryMedia(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		StoryEditorSetup setup,
-		StoryEditorDone done) {
+		StoryEditorDone done,
+		Fn<void()> selected) {
 	const auto parent = controller->widget();
 	const auto premium = controller->session().premium();
 	const auto callback = crl::guard(controller, [=](
@@ -1161,6 +1174,9 @@ void ChooseStoryMedia(
 			st::sendMediaPreviewSize,
 			premium);
 		if (list) {
+			if (selected) {
+				selected();
+			}
 			EditStoryFile(controller, std::move(*list), setup, done);
 		}
 	});
@@ -1237,11 +1253,22 @@ void PostStory(
 		if (ctx.setLoading) {
 			ctx.setLoading(false);
 		}
-		ChooseStoryMedia(
-			controller,
-			peer,
-			StoryEditorSetup{ .peer = peer->id },
-			ShowSendBoxWhenEdited(controller, peer, 0));
+		const auto start = crl::guard(controller, [=](Fn<void()> selected) {
+			ChooseStoryMedia(
+				controller,
+				peer,
+				StoryEditorSetup{ .peer = peer->id },
+				ShowSendBoxWhenEdited(controller, peer, 0),
+				std::move(selected));
+		});
+		if (HasDraftsForPeer(controller, peer)) {
+			ShowStoryDraftsBox(controller, {
+				.peer = peer,
+				.chooseMedia = start,
+			});
+		} else {
+			start(nullptr);
+		}
 	}));
 }
 

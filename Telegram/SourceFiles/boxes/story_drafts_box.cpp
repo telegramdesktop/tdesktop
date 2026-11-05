@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/story_drafts_box.h"
 
 #include "base/unixtime.h"
+#include "base/weak_ptr.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/text/text.h"
 #include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
@@ -156,20 +158,33 @@ void DraftRow::paintEvent(QPaintEvent *e) {
 
 void StoryDraftsBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionController*> controller) {
-	box->setTitle(tr::lng_story_drafts_title());
+		not_null<Window::SessionController*> controller,
+		StoryDraftsBoxArgs args) {
+	const auto choosing = (args.chooseMedia != nullptr);
+	box->setTitle(choosing
+		? tr::lng_story_post_title()
+		: tr::lng_story_drafts_title());
 	box->setWidth(st::boxWideWidth);
+	if (choosing) {
+		box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+	}
 
 	const auto drafts = &controller->session().data().stories().drafts();
 	const auto self = controller->session().userPeerId();
 	const auto content = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box),
 		QMargins());
-	const auto hadDrafts = box->lifetime().make_state<bool>(true);
 	const auto rebuild = [=] {
 		content->clear();
-		auto &list = drafts->list();
-		for (const auto &draft : list) {
+		if (choosing) {
+			Ui::AddSubsectionTitle(content, tr::lng_story_drafts_title());
+		}
+		auto count = 0;
+		for (const auto &draft : drafts->list()) {
+			const auto peerId = draft.peer ? draft.peer : self;
+			if (args.peer && peerId != args.peer->id) {
+				continue;
+			}
 			const auto id = draft.id;
 			const auto peerName = (draft.peer && draft.peer != self)
 				? controller->session().data().peer(draft.peer)->name()
@@ -183,9 +198,10 @@ void StoryDraftsBox(
 			row->removeRequests() | rpl::on_next([=] {
 				drafts->remove(id);
 			}, row->lifetime());
+			++count;
 		}
-		if (list.empty()) {
-			if (*hadDrafts) {
+		if (!count) {
+			if (!choosing) {
 				box->closeBox();
 				return;
 			}
@@ -196,19 +212,30 @@ void StoryDraftsBox(
 					st::boxDividerLabel),
 				st::boxRowPadding);
 		}
-		*hadDrafts = !list.empty();
 	};
-	*hadDrafts = !drafts->list().empty();
 	rebuild();
 	drafts->changes() | rpl::on_next([=] {
 		crl::on_main(box, rebuild);
 	}, box->lifetime());
 
-	box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	if (choosing) {
+		const auto choose = args.chooseMedia;
+		box->addButton(tr::lng_story_choose_media(), [=] {
+			choose([weak = base::make_weak(box)] {
+				if (const auto strong = weak.get()) {
+					strong->closeBox();
+				}
+			});
+		});
+	} else {
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	}
 }
 
 } // namespace
 
-void ShowStoryDraftsBox(not_null<Window::SessionController*> controller) {
-	controller->show(Box(StoryDraftsBox, controller));
+void ShowStoryDraftsBox(
+		not_null<Window::SessionController*> controller,
+		StoryDraftsBoxArgs args) {
+	controller->show(Box(StoryDraftsBox, controller, std::move(args)));
 }

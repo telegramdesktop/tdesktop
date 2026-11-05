@@ -66,7 +66,8 @@ void ChooseStoryMedia(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	StoryEditorSetup setup,
-	StoryEditorDone done);
+	StoryEditorDone done,
+	Fn<void()> selected = nullptr);
 
 struct CanSendStoryErrorContext {
 	Fn<void(bool)> setLoading;
