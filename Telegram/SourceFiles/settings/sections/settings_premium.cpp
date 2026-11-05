@@ -1246,7 +1246,6 @@ public:
 
 private:
 	void setupContent();
-	void setupSwipeBack();
 
 	std::shared_ptr<PremiumState> _state;
 
@@ -1271,7 +1270,7 @@ Premium::Premium(
 	.radioGroup = std::make_shared<Ui::RadiobuttonGroup>(),
 })) {
 	setupContent();
-	setupSwipeBack();
+	SetupSectionSwipeBack(this, &_showBack);
 	controller->session().api().premium().reload();
 }
 
@@ -1295,46 +1294,6 @@ void Premium::setStepDataReference(std::any &data) {
 		) | rpl::map_to(true);
 		_wrap = std::move(my->wrapValue);
 	}
-}
-
-void Premium::setupSwipeBack() {
-	using namespace Ui::Controls;
-
-	auto swipeBackData = lifetime().make_state<SwipeBackResult>();
-
-	auto update = [=](SwipeContextData data) {
-		if (data.translation > 0) {
-			if (!swipeBackData->callback) {
-				(*swipeBackData) = SetupSwipeBack(
-					this,
-					[]() -> std::pair<QColor, QColor> {
-						return {
-							st::historyForwardChooseBg->c,
-							st::historyForwardChooseFg->c,
-						};
-					});
-			}
-			swipeBackData->callback(data);
-			return;
-		} else if (swipeBackData->lifetime) {
-			(*swipeBackData) = {};
-		}
-	};
-
-	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
-		return (data.direction == Qt::RightToLeft)
-			? DefaultSwipeBackHandlerFinishData([=] {
-				_showBack.fire({});
-			})
-			: SwipeHandlerFinishData();
-	};
-
-	SetupSwipeHandler({
-		.widget = this,
-		.scroll = v::null,
-		.update = std::move(update),
-		.init = std::move(init),
-	});
 }
 
 void Premium::setupContent() {
@@ -2126,6 +2085,48 @@ void SetupPinnedSubscribeButton(
 		button->moveToLeft(padding.left(), padding.top());
 		button->setVisible(!premium && premiumPossible);
 	}, button->lifetime());
+}
+
+void SetupSectionSwipeBack(
+		not_null<Ui::RpWidget*> section,
+		not_null<rpl::event_stream<>*> showBack) {
+	using namespace Ui::Controls;
+
+	auto swipeBackData = section->lifetime().make_state<SwipeBackResult>();
+
+	auto update = [=](SwipeContextData data) {
+		if (data.translation > 0) {
+			if (!swipeBackData->callback) {
+				(*swipeBackData) = SetupSwipeBack(
+					section,
+					[]() -> std::pair<QColor, QColor> {
+						return {
+							st::historyForwardChooseBg->c,
+							st::historyForwardChooseFg->c,
+						};
+					});
+			}
+			swipeBackData->callback(data);
+			return;
+		} else if (swipeBackData->lifetime) {
+			(*swipeBackData) = {};
+		}
+	};
+
+	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
+		return (data.direction == Qt::RightToLeft)
+			? DefaultSwipeBackHandlerFinishData([=] {
+				showBack->fire({});
+			})
+			: SwipeHandlerFinishData();
+	};
+
+	SetupSwipeHandler({
+		.widget = section,
+		.scroll = v::null,
+		.update = std::move(update),
+		.init = std::move(init),
+	});
 }
 
 std::vector<PremiumFeature> PremiumFeaturesOrder(

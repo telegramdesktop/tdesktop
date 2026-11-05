@@ -41,8 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_common_session.h"
 #include "settings/sections/settings_premium.h"
-#include "ui/controls/swipe_handler.h"
-#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -548,7 +546,6 @@ public:
 
 private:
 	void setupContent();
-	void setupSwipeBack();
 
 	std::shared_ptr<BusinessState> _state;
 	QPointer<Ui::GradientButton> _subscribe;
@@ -571,7 +568,7 @@ Business::Business(
 , _state(std::make_shared<BusinessState>())
 , _radioGroup(std::make_shared<Ui::RadiobuttonGroup>()) {
 	setupContent();
-	setupSwipeBack();
+	SetupSectionSwipeBack(this, &_showBack);
 	controller->session().api().premium().reload();
 }
 
@@ -596,46 +593,6 @@ void Business::setStepDataReference(std::any &data) {
 		) | rpl::map_to(true);
 		_wrap = std::move(my->wrapValue);
 	}
-}
-
-void Business::setupSwipeBack() {
-	using namespace Ui::Controls;
-
-	auto swipeBackData = lifetime().make_state<SwipeBackResult>();
-
-	auto update = [=](SwipeContextData data) {
-		if (data.translation > 0) {
-			if (!swipeBackData->callback) {
-				(*swipeBackData) = SetupSwipeBack(
-					this,
-					[]() -> std::pair<QColor, QColor> {
-						return {
-							st::historyForwardChooseBg->c,
-							st::historyForwardChooseFg->c,
-						};
-					});
-			}
-			swipeBackData->callback(data);
-			return;
-		} else if (swipeBackData->lifetime) {
-			(*swipeBackData) = {};
-		}
-	};
-
-	auto init = [=](Ui::Controls::SwipeHandlerInitData data) {
-		return (data.direction == Qt::RightToLeft)
-			? DefaultSwipeBackHandlerFinishData([=] {
-				_showBack.fire({});
-			})
-			: SwipeHandlerFinishData();
-	};
-
-	SetupSwipeHandler({
-		.widget = this,
-		.scroll = v::null,
-		.update = std::move(update),
-		.init = std::move(init),
-	});
 }
 
 void Business::setupContent() {

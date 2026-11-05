@@ -42,4 +42,8 @@ void SetupPinnedSubscribeButton(
 	not_null<::Main::Session*> session,
 	rpl::producer<> showFinished);
 
+void SetupSectionSwipeBack(
+	not_null<Ui::RpWidget*> section,
+	not_null<rpl::event_stream<>*> showBack);
+
 } // namespace Settings
