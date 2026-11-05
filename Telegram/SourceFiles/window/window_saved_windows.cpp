@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/layer_widget.h"
 #include "ui/ui_utility.h"
 #include "ui/wrap/fade_wrap.h"
+#include "window/window_columns.h"
 #include "window/window_controller.h"
 #include "window/window_restore_shell.h"
 #include "window/window_session_controller.h"
@@ -54,6 +55,10 @@ constexpr auto kMaxSavedWindows = 64;
 constexpr auto kMaxSavedChats = 64;
 constexpr auto kMaxClosedWindows = 16;
 constexpr auto kVersion = 4;
+constexpr auto kColumnsFormat = qint32(1);
+constexpr auto kColumnsPresent = qint32(1);
+constexpr auto kColumnsTabbed = qint32(2);
+constexpr auto kColumnsInfo = qint32(4);
 constexpr auto kPrefKey = std::string_view("windows_state");
 constexpr auto kRestoreKey = std::string_view("windows_state.restore");
 constexpr auto kAskedKey = std::string_view("windows_state.asked");
@@ -141,6 +146,96 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 		&& SameChat(a.thread, b.thread);
 }
 
+[[nodiscard]] bool ValidPosition(const Core::WindowPosition &position) {
+	return (position.w > 0) && (position.h > 0);
+}
+
+struct StoredColumns {
+	qint32 flags = 0;
+	qint32 withChatRatio = 0;
+	qint32 noChatRatio = 0;
+	qint32 thirdColumnWidth = 0;
+	qint32 thirdSectionExtendedBy = 0;
+};
+
+[[nodiscard]] qint32 SerializeRatio(float64 ratio) {
+	return qint32(std::clamp(
+		int(base::SafeRound(ratio * 1000000)),
+		0,
+		1000000));
+}
+
+[[nodiscard]] StoredColumns StoredFromColumns(
+		const std::optional<Core::WindowColumns> &columns) {
+	if (!columns) {
+		return {};
+	}
+	return {
+		.flags = kColumnsPresent
+			| (columns->tabbedSelectorSectionEnabled ? kColumnsTabbed : 0)
+			| (columns->thirdSectionInfoEnabled ? kColumnsInfo : 0),
+		.withChatRatio = SerializeRatio(columns->dialogsWithChatWidthRatio),
+		.noChatRatio = SerializeRatio(columns->dialogsNoChatWidthRatio),
+		.thirdColumnWidth = columns->thirdColumnWidth,
+		.thirdSectionExtendedBy = columns->thirdSectionExtendedBy,
+	};
+}
+
+[[nodiscard]] std::vector<StoredColumns> ReadStoredColumns(
+		QDataStream &stream,
+		int count) {
+	if (stream.atEnd()) {
+		return {};
+	}
+	auto format = qint32();
+	auto storedCount = qint32();
+	stream >> format >> storedCount;
+	if (stream.status() != QDataStream::Ok
+		|| format != kColumnsFormat
+		|| storedCount != count) {
+		return {};
+	}
+	auto result = std::vector<StoredColumns>(count);
+	for (auto &stored : result) {
+		stream >> stored.flags
+			>> stored.withChatRatio
+			>> stored.noChatRatio
+			>> stored.thirdColumnWidth
+			>> stored.thirdSectionExtendedBy;
+	}
+	if (stream.status() != QDataStream::Ok) {
+		return {};
+	}
+	return result;
+}
+
+[[nodiscard]] std::optional<Core::WindowColumns> ColumnsFromStored(
+		const StoredColumns &stored,
+		const Core::WindowPosition &position) {
+	if (!(stored.flags & kColumnsPresent)) {
+		return std::nullopt;
+	}
+	const auto ratio = [](qint32 value) {
+		return std::clamp(value / 1000000., 0., 1.);
+	};
+	const auto withChat = ratio(stored.withChatRatio);
+	const auto info = (stored.flags & kColumnsInfo) != 0;
+	const auto tabbed = (stored.flags & kColumnsTabbed) != 0;
+	const auto extendedBy = stored.thirdSectionExtendedBy;
+	const auto validExtendedBy = (extendedBy >= -1)
+		&& (extendedBy < position.w);
+	return Core::WindowColumns{
+		.dialogsWithChatWidthRatio = withChat,
+		.dialogsNoChatWidthRatio = (withChat > 0)
+			? withChat
+			: ratio(stored.noChatRatio),
+		.thirdColumnWidth = std::max(stored.thirdColumnWidth, 0),
+		.thirdSectionExtendedBy = validExtendedBy ? extendedBy : 0,
+		.tabbedSelectorSectionEnabled = tabbed && !info,
+		.thirdSectionInfoEnabled = info,
+	};
+}
+
 [[nodiscard]] QByteArray Serialize(const std::vector<SavedWindow> &list) {
 	auto result = QByteArray();
 	{
@@ -176,6 +271,15 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 					<< qint32(chat.section);
 			}
 		}
+		stream << kColumnsFormat << qint32(list.size());
+		for (const auto &window : list) {
+			const auto stored = StoredFromColumns(window.columns);
+			stream << stored.flags
+				<< stored.withChatRatio
+				<< stored.noChatRatio
+				<< stored.thirdColumnWidth
+				<< stored.thirdSectionExtendedBy;
+		}
 	}
 	return result;
 }
@@ -198,7 +302,9 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 		return {};
 	}
 	auto result = std::vector<SavedWindow>();
+	auto rawIndices = std::vector<int>();
 	result.reserve(count);
+	rawIndices.reserve(count);
 	for (auto i = 0; i != count; ++i) {
 		auto accountIndex = qint32();
 		auto userPeer = quint64();
@@ -311,6 +417,15 @@ constexpr auto kAskedKey = std::string_view("windows_state.asked");
 			continue;
 		}
 		result.push_back(std::move(window));
+		rawIndices.push_back(i);
+	}
+	const auto stored = ReadStoredColumns(stream, count);
+	if (!stored.empty()) {
+		for (auto i = 0, size = int(result.size()); i != size; ++i) {
+			result[i].columns = ColumnsFromStored(
+				stored[rawIndices[i]],
+				result[i].position);
+		}
 	}
 	return result;
 }
@@ -504,6 +619,7 @@ QByteArray SavedWindows::collect() const {
 		} else if (step->created) {
 			if (const auto window = _app->windowFor(step->createdId)) {
 				copy.position = window->widget()->countPositionForSave();
+				copy.columns = window->columns().state();
 			}
 		}
 		appendPending(copy);
@@ -563,6 +679,7 @@ std::optional<SavedWindow> SavedWindows::serializeWindow(
 		}
 	}
 	result.position = window->widget()->countPositionForSave();
+	result.columns = window->columns().state();
 	if (ReplayableType(id.type)) {
 		result.chats = controller->content()->chatStackForSave();
 		if (result.chats.size() > kMaxSavedChats) {
@@ -850,6 +967,11 @@ void SavedWindows::discardRestore() {
 	_deadShells.clear();
 	_restoring = false;
 	_restoreFinished = true;
+}
+
+void SavedWindows::resetOnLastLogout() {
+	discardRestore();
+	_closed.clear();
 }
 
 void SavedWindows::stashUndecided() {
@@ -1450,7 +1572,7 @@ void SavedWindows::createWindow(const Step &step) {
 	const auto position = step.shell
 		? step.shell->countPositionForSave()
 		: data.position;
-	const auto validPosition = (position.w > 0) && (position.h > 0);
+	const auto validPosition = ValidPosition(position);
 	const auto wasActive = _app->activeWindow();
 	const auto activeShell = [&]() -> RestoreShell* {
 		for (const auto &other : _steps) {
@@ -1468,9 +1590,14 @@ void SavedWindows::createWindow(const Step &step) {
 	const auto keepActive = step.shell && !step.shell->isActiveWindow();
 	if (!existed && validPosition) {
 		_restorePosition = position;
+		_restoreColumns = data.columns;
 	}
 	const auto window = _app->ensureSeparateWindowFor(id, showAtMsgId);
 	_restorePosition = std::nullopt;
+	_restoreColumns = std::nullopt;
+	if (existed && validPosition && data.columns) {
+		applyColumns(window, *data.columns);
+	}
 	if (step.shell) {
 		const auto widget = window->widget().get();
 		const auto swap = step.shell->countPositionForSave();
@@ -1497,12 +1624,17 @@ void SavedWindows::ensureStepWindow(
 		SeparateId id,
 		Core::WindowPosition position) {
 	const auto existed = (_app->separateWindowFor(id) != nullptr);
-	const auto validPosition = (position.w > 0) && (position.h > 0);
+	const auto validPosition = ValidPosition(position);
 	if (!existed && validPosition) {
 		_restorePosition = position;
+		_restoreColumns = step->data.columns;
 	}
 	const auto window = _app->ensureSeparateWindowFor(id);
 	_restorePosition = std::nullopt;
+	_restoreColumns = std::nullopt;
+	if (existed && validPosition && step->data.columns) {
+		applyColumns(window, *step->data.columns);
+	}
 	if (existed && validPosition) {
 		window->widget()->applySavedPosition(position);
 	} else if (!existed && position.maximized) {
@@ -1519,6 +1651,18 @@ void SavedWindows::ensureStepWindow(
 			abortStep(step, false);
 		}
 	}));
+}
+
+void SavedWindows::applyColumns(
+		not_null<Controller*> window,
+		const Core::WindowColumns &columns) {
+	if (!window->columns().applySaved(columns)) {
+		return;
+	}
+	if (const auto content = window->widget()->sessionContent()) {
+		content->columnsRestored();
+	}
+	_app->saveSettingsDelayed();
 }
 
 void SavedWindows::replayChats(
@@ -1642,8 +1786,27 @@ auto SavedWindows::restorePositionFor(SeparateId id)
 -> std::optional<Core::WindowPosition> {
 	if (auto position = base::take(_restorePosition)) {
 		return position;
-	} else if (_restoreFinished || !id) {
-		return std::nullopt;
+	}
+	const auto record = pendingRecordFor(id);
+	return (record && ValidPosition(record->position))
+		? std::make_optional(record->position)
+		: std::nullopt;
+}
+
+std::optional<Core::WindowColumns> SavedWindows::restoreColumnsFor(
+		SeparateId id) {
+	if (auto columns = base::take(_restoreColumns)) {
+		return columns;
+	}
+	const auto record = pendingRecordFor(id);
+	return (record && ValidPosition(record->position))
+		? record->columns
+		: std::nullopt;
+}
+
+const SavedWindow *SavedWindows::pendingRecordFor(SeparateId id) const {
+	if (_restoreFinished || !id) {
+		return nullptr;
 	}
 	auto accountIndex = -1;
 	for (const auto &entry : _app->domain().accounts()) {
@@ -1653,7 +1816,7 @@ auto SavedWindows::restorePositionFor(SeparateId id)
 		}
 	}
 	if (accountIndex < 0) {
-		return std::nullopt;
+		return nullptr;
 	}
 	const auto session = id.account->maybeSession();
 	const auto userPeer = session ? session->userPeerId().value : 0;
@@ -1669,32 +1832,24 @@ auto SavedWindows::restorePositionFor(SeparateId id)
 			&& window.sharedMediaType == int(id.sharedMediaType)
 			&& SameChat(window.thread, thread);
 	};
-	const auto take = [](const SavedWindow &window)
-	-> std::optional<Core::WindowPosition> {
-		return (window.position.w > 0 && window.position.h > 0)
-			? std::make_optional(window.position)
-			: std::nullopt;
-	};
 	const auto find = [&](const std::vector<SavedWindow> &list)
-	-> std::optional<std::optional<Core::WindowPosition>> {
+	-> const SavedWindow* {
 		for (const auto &window : list) {
 			if (matches(window)) {
-				return take(window);
+				return &window;
 			}
 		}
-		return std::nullopt;
+		return nullptr;
 	};
 	for (const auto &step : _steps) {
 		if (!step->created && matches(step->data)) {
-			return take(step->data);
+			return &step->data;
 		}
 	}
-	if (auto position = find(_toRestore)) {
-		return *position;
-	} else if (auto position = find(_undecided)) {
-		return *position;
+	if (const auto window = find(_toRestore)) {
+		return window;
 	}
-	return std::nullopt;
+	return find(_undecided);
 }
 
 } // namespace Window

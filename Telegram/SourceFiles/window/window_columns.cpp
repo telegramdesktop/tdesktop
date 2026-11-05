@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_columns.h"
 
 #include "core/application.h"
+#include "window/window_controller.h"
+#include "window/window_saved_windows.h"
 
 namespace Window {
 
@@ -17,6 +19,11 @@ Columns::Columns(not_null<Controller*> window)
 	_state.tabbedSelectorSectionEnabled = false;
 	_state.thirdSectionInfoEnabled = false;
 	_state.thirdSectionExtendedBy = 0;
+	if (const auto saved = Core::App().savedWindows()) {
+		if (const auto columns = saved->restoreColumnsFor(window->id())) {
+			seed(*columns);
+		}
+	}
 }
 
 void Columns::updateDialogsWidthRatio(float64 ratio, bool nochat) {
@@ -147,16 +154,69 @@ rpl::producer<int> Columns::thirdColumnWidthChanges() const {
 	return _thirdColumnWidthChanges.events();
 }
 
-void Columns::seedFromSettings() {
-	_state = Core::App().settings().windowColumns();
+const Core::WindowColumns &Columns::state() const {
+	return _state;
+}
+
+bool Columns::applySaved(const Core::WindowColumns &state) {
+	if (_state == state) {
+		return false;
+	}
+	const auto was = std::exchange(_state, state);
+	const auto now = _state;
 	_dialogsWidthSetToZeroWithoutChat = false;
-	_tabbedReplacedWithInfo = false;
+	writeToSettings();
+	setTabbedReplacedWithInfo(false);
+	if (was.dialogsWithChatWidthRatio != now.dialogsWithChatWidthRatio) {
+		_dialogsWithChatWidthRatioChanges.fire_copy(
+			now.dialogsWithChatWidthRatio);
+	}
+	if (was.dialogsNoChatWidthRatio != now.dialogsNoChatWidthRatio) {
+		_dialogsNoChatWidthRatioChanges.fire_copy(
+			now.dialogsNoChatWidthRatio);
+	}
+	if (was.thirdSectionInfoEnabled != now.thirdSectionInfoEnabled) {
+		_thirdSectionInfoEnabledValue.fire_copy(now.thirdSectionInfoEnabled);
+	}
+	if (was.thirdColumnWidth != now.thirdColumnWidth) {
+		_thirdColumnWidthChanges.fire_copy(now.thirdColumnWidth);
+	}
+	return true;
+}
+
+void Columns::seedFromSettings() {
+	seed(Core::App().settings().windowColumns());
+}
+
+void Columns::seedFirstWindow() {
+	const auto saved = Core::App().savedWindows();
+	const auto id = _window->id();
+	const auto columns = saved ? saved->restoreColumnsFor(id) : std::nullopt;
+	if (!columns) {
+		seedFromSettings();
+		return;
+	}
+	seed(*columns);
+	writeToSettings();
+	Core::App().saveSettingsDelayed();
+	const auto widget = _window->widget();
+	if (widget->positionInited()) {
+		if (const auto position = saved->restorePositionFor(id)) {
+			widget->applySavedPosition(*position);
+		}
+	}
 }
 
 void Columns::writeToSettings() const {
 	if (Core::App().isWindowInSettings(_window)) {
 		Core::App().settings().setWindowColumns(_state);
 	}
+}
+
+void Columns::seed(const Core::WindowColumns &state) {
+	_state = state;
+	_dialogsWidthSetToZeroWithoutChat = false;
+	_tabbedReplacedWithInfo = false;
 }
 
 } // namespace Window

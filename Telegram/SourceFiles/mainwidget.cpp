@@ -1929,6 +1929,12 @@ void MainWidget::updateColumnLayout() {
 	updateWindowAdaptiveLayout();
 }
 
+void MainWidget::columnsRestored() {
+	destroyThirdSection();
+	_thirdShadow.destroy();
+	updateControlsGeometry();
+}
+
 Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::SectionWidget *section) {
 	Expects(_thirdSection != nullptr);
 

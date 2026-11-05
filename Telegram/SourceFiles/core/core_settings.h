@@ -69,6 +69,10 @@ struct WindowColumns {
 	int thirdSectionExtendedBy = -1;
 	bool tabbedSelectorSectionEnabled = false;
 	bool thirdSectionInfoEnabled = true;
+
+	friend inline constexpr bool operator==(
+		WindowColumns,
+		WindowColumns) = default;
 };
 
 struct WindowTitleContent {

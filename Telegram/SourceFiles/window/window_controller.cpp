@@ -168,7 +168,7 @@ void Controller::showAccount(
 	Core::App().checkWindowId(this);
 
 	if (!prevAccount && Core::App().isWindowInSettings(this)) {
-		_columns->seedFromSettings();
+		_columns->seedFirstWindow();
 	}
 
 	if (!isPrimary()) {

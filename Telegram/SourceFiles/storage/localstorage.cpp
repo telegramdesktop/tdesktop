@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "window/themes/window_theme.h"
+#include "window/window_saved_windows.h"
 #include "lang/lang_instance.h"
 
 #include <QtCore/QDirIterator>
@@ -849,6 +850,9 @@ void reset() {
 	_oldSettingsVersion = 0;
 	Core::App().settings().resetOnLastLogout();
 	Core::App().reseedWindowInSettings();
+	if (const auto saved = Core::App().savedWindows()) {
+		saved->resetOnLastLogout();
+	}
 	writeSettings();
 }
 

@@ -69,6 +69,7 @@ struct SavedWindow {
 	Core::WindowPosition position;
 	QString title;
 	std::vector<SavedChat> chats;
+	std::optional<Core::WindowColumns> columns;
 };
 
 class SavedWindows final : public base::has_weak_ptr {
@@ -88,9 +89,12 @@ public:
 	void windowClosed(not_null<Controller*> window);
 	bool reopenLastClosed();
 	bool closeActiveShell();
+	void resetOnLastLogout();
 
 	[[nodiscard]] auto restorePositionFor(SeparateId id)
 	-> std::optional<Core::WindowPosition>;
+	[[nodiscard]] std::optional<Core::WindowColumns> restoreColumnsFor(
+		SeparateId id);
 
 private:
 	struct Step;
@@ -128,6 +132,9 @@ private:
 		not_null<Step*> step,
 		SeparateId id,
 		Core::WindowPosition position);
+	void applyColumns(
+		not_null<Controller*> window,
+		const Core::WindowColumns &columns);
 	void replayChats(
 		not_null<Controller*> window,
 		not_null<SessionController*> controller,
@@ -139,6 +146,7 @@ private:
 		PeerId peerId,
 		Fn<void(PeerData*)> done);
 
+	[[nodiscard]] const SavedWindow *pendingRecordFor(SeparateId id) const;
 	[[nodiscard]] Main::Session *sessionFor(const SavedWindow &data) const;
 	[[nodiscard]] not_null<BatchResolve*> ensureBatchResolve(
 		not_null<Main::Session*> session);
@@ -163,6 +171,7 @@ private:
 		Main::Session*,
 		std::unique_ptr<BatchResolve>> _batches;
 	std::optional<Core::WindowPosition> _restorePosition;
+	std::optional<Core::WindowColumns> _restoreColumns;
 	Fn<void()> _hideOffer;
 	int _stepIdCounter = 0;
 	bool _domainReady = false;

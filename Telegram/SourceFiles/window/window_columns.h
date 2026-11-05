@@ -41,10 +41,16 @@ public:
 	[[nodiscard]] int thirdColumnWidth() const;
 	[[nodiscard]] rpl::producer<int> thirdColumnWidthChanges() const;
 
+	[[nodiscard]] const Core::WindowColumns &state() const;
+	bool applySaved(const Core::WindowColumns &state);
+
 	void seedFromSettings();
+	void seedFirstWindow();
 	void writeToSettings() const;
 
 private:
+	void seed(const Core::WindowColumns &state);
+
 	const not_null<Controller*> _window;
 	Core::WindowColumns _state;
 	bool _dialogsWidthSetToZeroWithoutChat = false;
