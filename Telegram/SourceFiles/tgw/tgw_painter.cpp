@@ -544,6 +544,21 @@ private:
 		: QRectF();
 }
 
+// WHY: glyphs may overhang their line box, so a run is skipped only when
+// its box grown by a whole line on every side still misses the clip.
+[[nodiscard]] bool TextMayReachClip(
+		const QPainter &painter,
+		const twlite::Command &command) {
+	const auto box = ToRect(command.rect);
+	if (box.isEmpty()
+		|| (painter.combinedTransform().type() >= QTransform::TxProject)) {
+		return true;
+	}
+	const auto margin = box.height();
+	return painter.clipBoundingRect().intersects(
+		box.adjusted(-margin, -margin, margin, margin));
+}
+
 [[nodiscard]] QPen StrokePen(twlite::Color color, float width) {
 	return QPen(
 		ToColor(color),
@@ -2454,11 +2469,14 @@ void Executor::drawText(const twlite::Command &command) {
 		|| !reachable(baseline)) {
 		return;
 	}
+	auto &p = painter();
+	if (p.hasClipping() && !TextMayReachClip(p, command)) {
+		return;
+	}
 	const auto text = QString::fromUtf8(
 		command.text.data(),
 		int(command.text.size()));
 	const auto cells = FindEmojiCells(text);
-	auto &p = painter();
 	p.save();
 	p.translate(baseline);
 	if (font->scale != 1.) {
