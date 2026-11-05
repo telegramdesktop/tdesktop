@@ -96,7 +96,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 
 ### storage/local — encrypted local persistence
 - Paths: `SourceFiles/storage/storage_account*`, `SourceFiles/storage/storage_domain*`, `SourceFiles/storage/localstorage*`, `SourceFiles/storage/details/`, `SourceFiles/storage/serialize_*`
-- The tdata of accounts and the domain, the settings scheme, serializers and file locks. It must not own file transfer.
+- The tdata of accounts and the domain, the settings scheme and serializers. It must not own file transfer.
 
 ### storage/transfer — downloads and uploads
 - Paths: `SourceFiles/storage/`, `SourceFiles/ui/image/image_location*`
