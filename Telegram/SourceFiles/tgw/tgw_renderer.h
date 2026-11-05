@@ -128,6 +128,7 @@ public:
 		Images::CornersMaskRef corners,
 		QSize cardArea,
 		bool autoHeight);
+	[[nodiscard]] int64 frameBytes() const;
 	void dropFrame();
 	void refreshFrame();
 	void takeFrameFrom(RendererCore &other);

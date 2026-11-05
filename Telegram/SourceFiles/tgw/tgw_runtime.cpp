@@ -61,6 +61,9 @@ struct MessageMemory {
 namespace {
 
 constexpr auto kMaxAlive = 8;
+// WHY: a card scrolled back into view shows its kept picture instead of
+// painting it again in the middle of the scroll, within this many bytes.
+constexpr auto kKeptPictureBytes = int64(48) * 1024 * 1024;
 constexpr auto kMaxCrashes = 2;
 constexpr auto kMaxNotes = 100;
 constexpr auto kMaxLogLine = 240;
@@ -146,6 +149,7 @@ struct Registry {
 	Fn<void()> exitRetry;
 	rpl::lifetime applicationLifetime;
 	uint64 hiddenSerial = 0;
+	uint64 keptSerial = 0;
 	uint64 queueSerial = 0;
 	uint64 hostSerial = 0;
 	uint64 requestSerial = 0;
@@ -886,6 +890,7 @@ void Runtime::setWindow(not_null<QWidget*> window) {
 }
 
 void Runtime::painted() {
+	_keptSerial = 0;
 	if (heavy() || (stopped() && _displayDeferred)) {
 		if (!_visible) {
 			PostCheck();
@@ -912,8 +917,34 @@ void Runtime::unload() {
 	if (wasHeavy) {
 		addNote(u"Released with the unloaded messages."_q);
 	}
-	if (_still) {
-		_still->dropFrame();
+	if (_still && _still->frameBytes()) {
+		_keptSerial = ++Runtimes().keptSerial;
+		TrimKeptPictures();
+	}
+}
+
+void Runtime::TrimKeptPictures() {
+	auto kept = std::vector<not_null<Runtime*>>();
+	auto bytes = int64();
+	for (const auto &runtime : Runtimes().list) {
+		if (runtime->_keptSerial && runtime->_still) {
+			kept.push_back(runtime);
+			bytes += runtime->_still->frameBytes();
+		}
+	}
+	if (bytes <= kKeptPictureBytes) {
+		return;
+	}
+	ranges::sort(kept, ranges::less(), [](not_null<Runtime*> runtime) {
+		return runtime->_keptSerial;
+	});
+	for (const auto &runtime : kept) {
+		bytes -= runtime->_still->frameBytes();
+		runtime->_still->dropFrame();
+		runtime->_keptSerial = 0;
+		if (bytes <= kKeptPictureBytes) {
+			break;
+		}
 	}
 }
 
@@ -1591,6 +1622,7 @@ void Runtime::coreUpdated(
 		renderer->takeFrameFrom(*_still);
 	}
 	_still = nullptr;
+	_keptSerial = 0;
 	if (finished) {
 		markHeight(true);
 	}

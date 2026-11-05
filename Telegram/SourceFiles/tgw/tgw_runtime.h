@@ -141,6 +141,7 @@ private:
 	static void ThemeDone(const std::shared_ptr<Host> &host);
 	static void WalletAvailabilityChanged(not_null<Main::Session*> session);
 	[[nodiscard]] static Runtime *FindVictim();
+	static void TrimKeptPictures();
 
 	[[nodiscard]] bool currentContent() const;
 	[[nodiscard]] bool crashedOut() const;
@@ -230,6 +231,7 @@ private:
 	std::optional<int> _shownHeight;
 	const uint64 _contentSerial = 0;
 	uint64 _hiddenSerial = 0;
+	uint64 _keptSerial = 0;
 	uint64 _queueSerial = 0;
 	uint64 _lastHost = 0;
 	uint64 _summaryHost = 0;

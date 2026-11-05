@@ -976,7 +976,8 @@ const QImage &RendererCore::frame(
 			&& (_frame.devicePixelRatio() == ratio)
 			&& FitsCard(_frame.size(), card, ratio, autoHeight);
 	};
-	if (!_renderer->dirty()
+	// A released core shows its last picture, whatever build it holds.
+	if ((_detached || !_renderer->dirty())
 		&& (_frameSize == DeviceSize(*_renderer))
 		&& (_frameCorners == corners)
 		&& (_frameArea == cardArea)
@@ -1066,6 +1067,10 @@ std::optional<QString> RendererCore::repaintFrame(
 	}
 	_frame.setDevicePixelRatio(ratio);
 	return result;
+}
+
+int64 RendererCore::frameBytes() const {
+	return _frame.sizeInBytes();
 }
 
 void RendererCore::dropFrame() {
