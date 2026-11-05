@@ -1,3 +1,7 @@
+7.4 (05.11.26)
+
+- HTML widgets in bots.
+
 7.3.5 (03.11.26)
 
 - Ask for camera and microphone access in mini apps on Windows and macOS.
