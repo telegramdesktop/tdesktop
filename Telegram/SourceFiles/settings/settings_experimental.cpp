@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/vertical_list.h"
 #include "ui/gl/gl_detection.h"
+#include "ui/glass/glass_option.h"
 #include "ui/chat/chat_style_radius.h"
 #include "ui/controls/compose_ai_button_factory.h"
 #include "base/options.h"
@@ -442,6 +443,7 @@ void SetupExperimental(
 		{
 			u"Interface"_q,
 			{
+				Glass::kOptionLiquidGlass,
 				Core::kOptionFractionalScalingEnabled,
 				Core::kOptionHighDpiDownscale,
 				Ui::GL::kOptionUseQtRhi,

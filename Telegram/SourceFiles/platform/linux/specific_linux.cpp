@@ -695,6 +695,10 @@ bool SkipTaskbarSupported() {
 	return false;
 }
 
+GlassCapabilities QueryGlassCapabilities() {
+	return {};
+}
+
 QString ExecutablePathForShortcuts() {
 	if (Core::UpdaterDisabled()) {
 		const auto &arguments = Core::Launcher::Instance().arguments();
