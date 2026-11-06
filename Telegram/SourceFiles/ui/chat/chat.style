@@ -631,6 +631,9 @@ whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 }
 reactionPreviewInMenuSize: 120px;
 reactionPreviewInMenuSkip: 8px;
+reactionPreviewPackLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 1px;
+}
 whoReadNameWithDateTop: 3px;
 whoReadDateTop: 20px;
 whoReadDateSkip: 15px;

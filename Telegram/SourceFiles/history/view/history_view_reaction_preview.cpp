@@ -255,7 +255,8 @@ bool ShowReactionPreview(
 					: tr::lng_context_animated_reaction)(
 						lt_name,
 						rpl::single(Ui::Text::Colorized(packName)),
-						tr::rich));
+						tr::rich),
+				st::reactionPreviewPackLabel);
 			state->label->setAttribute(Qt::WA_TransparentForMouseEvents);
 			const auto backgroundRaw = state->background.get();
 			const auto labelRaw = state->label.get();
@@ -300,7 +301,7 @@ bool ShowReactionPreview(
 		if (backgroundRaw && labelRaw) {
 			const auto maxLabelWidth = labelRaw->textMaxWidth() / 2;
 			labelRaw->resizeToWidth(maxLabelWidth);
-			const auto labelHeight = labelRaw->height() * 2;
+			const auto labelHeight = labelRaw->height();
 			const auto padding = st::msgServicePadding;
 			const auto innerWidth = maxLabelWidth + rect::m::sum::h(padding);
 			const auto innerHeight = labelHeight + rect::m::sum::v(padding);
