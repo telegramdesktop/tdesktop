@@ -207,6 +207,8 @@ private:
 	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
 	void rememberOwnGeometry(QRect geometry);
 	void rememberOwnBodyMargins(QRect inner);
+	void rememberOwnNormalGeometry();
+	void resetOwnNormalGeometry();
 	void recoverOwnGeometry();
 
 	bool computeIsActive() const;
@@ -229,6 +231,8 @@ private:
 	bool _maximizedBeforeHide = false;
 	Core::WindowPosition _ownPosition;
 	QMargins _ownBodyMargins;
+	QRect _ownNormalGeometry;
+	QRect _ownNormalBeforeResize;
 
 	QPoint _lastMyChildCreatePosition;
 	int _lastChildIndex = 0;

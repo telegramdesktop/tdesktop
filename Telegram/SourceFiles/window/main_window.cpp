@@ -861,6 +861,8 @@ void MainWindow::positionUpdated() {
 	_positionUpdatedTimer.callOnce(kSaveWindowPositionTimeout);
 	if (Platform::IsWindows()) {
 		InvokeQueued(this, [=] { recoverOwnGeometry(); });
+	} else if (Platform::IsX11()) {
+		rememberOwnNormalGeometry();
 	}
 }
 
@@ -985,6 +987,7 @@ void MainWindow::savePosition(Qt::WindowState state) {
 			rememberOwnBodyMargins(r);
 		}
 		_ownPosition.maximized = 0;
+		resetOwnNormalGeometry();
 		rememberOwnGeometry(QRect(
 			r.x(),
 			r.y(),
@@ -1043,10 +1046,32 @@ void MainWindow::rememberOwnBodyMargins(QRect inner) {
 		(outer.y() + outer.height()) - (inner.y() + inner.height()));
 }
 
+void MainWindow::rememberOwnNormalGeometry() {
+	if (isHidden() || (windowState() & ~Qt::WindowActive)) {
+		return;
+	}
+	const auto now = geometry();
+	if (now.size() != _ownNormalGeometry.size()) {
+		_ownNormalBeforeResize = _ownNormalGeometry;
+	}
+	_ownNormalGeometry = now;
+}
+
+void MainWindow::resetOwnNormalGeometry() {
+	_ownNormalGeometry = geometry();
+	_ownNormalBeforeResize = QRect();
+}
+
 void MainWindow::recoverOwnGeometry() {
-	const auto normal = normalGeometry();
-	const auto unreliable = (isMaximized() || isFullScreen())
-		// Windows shifts it by the maximized frame, X11 can give the maximized.
+	const auto full = isMaximized() || isFullScreen();
+	const auto reported = normalGeometry();
+	const auto remembered = base::take(_ownNormalBeforeResize);
+	// X11 can give the maximized, take what it had before that configure.
+	const auto normal = (full && Platform::IsX11() && (reported == geometry()))
+		? remembered
+		: reported;
+	const auto unreliable = full
+		// Windows shifts it by the maximized frame.
 		? ((normal == geometry()) != Platform::IsWindows())
 		: positionMaximized();
 	if (!normal.isValid() || unreliable) {
@@ -1112,12 +1137,14 @@ void MainWindow::applySavedPosition(const Core::WindowPosition &position) {
 	const auto state = handle ? handle->windowState() : Qt::WindowNoState;
 	if (position.maximized) {
 		setGeometry(geometry);
+		resetOwnNormalGeometry();
 		setWindowState(Qt::WindowMaximized);
 	} else {
 		if (state == Qt::WindowMaximized || state == Qt::WindowFullScreen) {
 			setWindowState(Qt::WindowNoState);
 		}
 		setGeometry(geometry);
+		resetOwnNormalGeometry();
 	}
 	_ownPosition.maximized = position.maximized ? 1 : 0;
 	rememberOwnGeometry(geometry);
