@@ -85,6 +85,8 @@ struct Article {
 	std::vector<SelectableSegment> segments;
 };
 
+[[nodiscard]] QString NumbersText(const std::vector<int> &numbers);
+[[nodiscard]] QString RectText(QRect rect);
 void SetLeaf(Ui::Text::String &leaf, const QString &text);
 [[nodiscard]] PreparedEditBlockPath RootPath(int index);
 [[nodiscard]] PreparedEditBlockPath ChildPath(int parent, int index);
@@ -106,5 +108,8 @@ void SetLeaf(Ui::Text::String &leaf, const QString &text);
 [[nodiscard]] std::vector<Check> TableChecks();
 [[nodiscard]] std::vector<Check> CodeChecks();
 [[nodiscard]] std::vector<Check> RichCopyChecks();
+[[nodiscard]] std::vector<Check> LayoutChecks();
+[[nodiscard]] std::vector<Check> LayoutTableChecks();
+[[nodiscard]] std::vector<Check> RetainedLayoutChecks();
 
 } // namespace Iv::Markdown::Tests

@@ -69,6 +69,9 @@ namespace {
 		TableChecks,
 		CodeChecks,
 		RichCopyChecks,
+		LayoutChecks,
+		LayoutTableChecks,
+		RetainedLayoutChecks,
 	};
 	auto passed = 0;
 	auto total = 0;
@@ -107,13 +110,18 @@ int main(int argc, char *argv[]) {
 	qputenv("QT_QPA_PLATFORM", "offscreen");
 	auto app = QGuiApplication(argc, argv);
 
-	const auto resources = base::Platform::BundledResourcesPath()
-		+ u"/lib_ui.rcc"_q;
-	if (!QFile::exists(resources)) {
-		std::printf(
-			"FAIL setup.resources: missing %s\n",
-			resources.toUtf8().constData());
-		return 2;
+	const auto resources = std::array{
+		u"/lib_ui.rcc"_q,
+		u"/external_microtex_bundled.rcc"_q,
+	};
+	for (const auto &resource : resources) {
+		const auto path = base::Platform::BundledResourcesPath() + resource;
+		if (!QFile::exists(path)) {
+			std::printf(
+				"FAIL setup.resources: missing %s\n",
+				path.toUtf8().constData());
+			return 2;
+		}
 	}
 	style::SetDevicePixelRatio(1);
 	style::internal::StartFonts();
