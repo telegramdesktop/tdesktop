@@ -208,6 +208,11 @@ private:
 
 	base::Timer _positionUpdatedTimer;
 	bool _positionInited = false;
+	Core::WindowPosition _restoredPosition;
+	QRect _restoredGeometry;
+	base::Timer _restoringPositionTimer;
+	bool _restoringPosition = false;
+	int _restoreAttempts = 0;
 
 	object_ptr<Ui::PlainShadow> _titleShadow = { nullptr };
 	object_ptr<Ui::RpWidget> _outdated;
