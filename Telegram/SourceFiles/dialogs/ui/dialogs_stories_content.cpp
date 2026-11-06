@@ -98,10 +98,17 @@ rpl::producer<Content> ContentForSession(
 		auto result = rpl::lifetime();
 		const auto stories = &session->data().stories();
 		const auto state = result.make_state<State>(stories, list);
-		rpl::single(
-			rpl::empty
-		) | rpl::then(
-			stories->sourcesChanged(list)
+		rpl::merge(
+			rpl::single(rpl::empty) | rpl::then(
+				stories->sourcesChanged(list)
+			),
+			session->changes().realtimeNameUpdates(
+			) | rpl::filter([=](const Data::NameUpdate &update) {
+				return ranges::contains(
+					stories->sources(list),
+					update.peer->id,
+					&Data::StoriesSourceInfo::id);
+			}) | rpl::to_empty
 		) | rpl::on_next([=] {
 			consumer.put_next(state->next());
 		}, result);
