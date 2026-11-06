@@ -1365,6 +1365,7 @@ historyMessagesTTL: IconButtonWithText {
 	textAlign: align(left);
 
 	font: font(10px semibold);
+	minFontSize: 7px;
 }
 historyReplaceMedia: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_replace", windowBgActive }};

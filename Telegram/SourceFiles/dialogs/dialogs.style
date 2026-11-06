@@ -201,6 +201,7 @@ dialogsCommunityBadgeLine: 1px;
 
 dialogsTTLBadgeSize: 20px;
 dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
+dialogsTTLBadgeMinFont: font(7px semibold);
 // Relative to a photo place, not a whole userpic place.
 dialogsTTLBadgeSkip: point(1px, 1px);
 dialogsCommunityHiddenBadgeIcon: icon{{ "community/requests_hidden", premiumButtonFg }};

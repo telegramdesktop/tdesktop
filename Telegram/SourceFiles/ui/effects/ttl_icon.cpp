@@ -12,17 +12,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 namespace Ui {
+namespace {
+
+[[nodiscard]] style::font FittingFont(const QString &text, int width) {
+	const auto &font = st::dialogsScamFont;
+	if (font->width(text) <= width) {
+		return font;
+	}
+	const auto min = st::dialogsTTLBadgeMinFont->size();
+	for (auto size = font->size() - 1; size >= min; --size) {
+		auto smaller = style::font(size, font->flags(), font->family());
+		if (smaller->width(text) <= width) {
+			return smaller;
+		}
+	}
+	return style::font();
+}
+
+} // namespace
 
 void PaintTimerIcon(
 		QPainter &p,
 		const QRect &innerRect,
 		const QString &text,
 		const QColor &color) {
-	p.setFont(st::dialogsScamFont);
+	const auto font = FittingFont(text, innerRect.width());
+	p.setFont(font ? font : st::dialogsScamFont);
 	p.setPen(color);
 	p.drawText(
 		innerRect,
-		(text.size() > 2) ? text.mid(0, 2) : text,
+		(font || text.size() <= 2) ? text : text.mid(0, 2),
 		style::al_center);
 
 	constexpr auto kPenWidth = 1.5;
