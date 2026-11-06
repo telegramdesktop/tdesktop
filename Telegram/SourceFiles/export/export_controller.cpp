@@ -207,6 +207,9 @@ ControllerObject::ControllerObject(
 	state.checked = false;
 	state.requesting = false;
 	state.singlePeer = peer;
+	state.singleTopicRootId = topicRootId;
+	state.singleTopicPeerId = peerId;
+	state.singleTopicTitle = topicTitle;
 	setState(std::move(state));
 }
 
@@ -437,8 +440,11 @@ void ControllerObject::initialize() {
 }
 
 void ControllerObject::initialized(const ApiWrap::StartInfo &info) {
-	if (ioCatchError(_writer->start(_settings, _environment, &_stats))) {
-		return;
+	if (_settings.onlySingleTopic()
+		|| !(_settings.types & Settings::Type::AnyChatsMask)) {
+		if (ioCatchError(_writer->start(_settings, _environment, &_stats))) {
+			return;
+		}
 	}
 	fillSubstepsInSteps(info);
 	exportNext();
@@ -452,7 +458,22 @@ void ControllerObject::collectDialogsList() {
 		}
 		return true;
 	}, [=](Data::DialogsInfo &&result) {
+		if (stopped()) {
+			return;
+		}
 		_dialogsInfo = std::move(result);
+		_settings.splitTopics = _settings.onlySinglePeer()
+			&& (_settings.splitTopics
+				|| ranges::any_of(_dialogsInfo.chats, [](const auto &dialog) {
+					return dialog.isForum;
+				}));
+		if (ioCatchError(_writer->start(_settings, _environment, &_stats))) {
+			return;
+		}
+		const auto count = int(_dialogsInfo.chats.size() + _dialogsInfo.left.size());
+		auto &substeps = _substepsInStep[static_cast<int>(Step::Dialogs)];
+		_substepsTotal += count - substeps;
+		substeps = count;
 		exportNext();
 	});
 }
@@ -599,6 +620,9 @@ void ControllerObject::exportNextDialog() {
 			setState(stateDialogs(DownloadProgress()));
 			return true;
 		}, [=](DownloadProgress progress) {
+			if (progress.itemCount) {
+				_messagesCount = _messagesWritten + progress.itemCount;
+			}
 			setState(stateDialogs(progress));
 			return true;
 		}, [=](Data::MessagesSlice &&result) {
@@ -743,6 +767,8 @@ void ControllerObject::fillMessagesState(
 		? ProcessingState::EntityType::RepliesMessages
 		: (dialog->type == Data::DialogInfo::Type::VerifyCodes)
 		? ProcessingState::EntityType::VerifyCodes
+		: dialog->topicRootId
+		? ProcessingState::EntityType::Topic
 		: ProcessingState::EntityType::Chat;
 	result.itemIndex = _messagesWritten + progress.itemIndex;
 	result.itemCount = std::max(_messagesCount, result.itemIndex);
@@ -776,6 +802,10 @@ void ControllerObject::exportTopic() {
 		PeerId(_topicPeerId),
 		_settings.singlePeer,
 		_topicRootId,
+		u"chats/chat_%1/topic_%2/"_q
+			.arg(_topicPeerId)
+			.arg(_topicRootId),
+		false,
 		[=](int count) {
 			_messagesWritten = 0;
 			_messagesCount = count;
