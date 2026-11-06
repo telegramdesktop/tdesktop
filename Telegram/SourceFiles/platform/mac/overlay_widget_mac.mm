@@ -8,11 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/mac/overlay_widget_mac.h"
 
 #include "base/object_ptr.h"
+#include "base/qt_signal_producer.h"
 #include "ui/platform/ui_platform_window_title.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/rp_window.h"
+
 #include "styles/style_media_view.h"
 
+#include <QtGui/QGuiApplication>
 #include <QtGui/QWindow>
 #include <Cocoa/Cocoa.h>
 
@@ -52,8 +55,10 @@ struct MacOverlayWidgetHelper::Data {
 	rpl::variable<bool> maximized = false;
 	rpl::event_stream<> clearStateRequests;
 	bool anyOver = false;
+	bool fileDialogShown = false;
 	NSWindow * __weak native = nil;
 	rpl::variable<int> topNotchSkip;
+	rpl::lifetime lifetime;
 };
 
 MacOverlayWidgetHelper::MacOverlayWidgetHelper(
@@ -66,6 +71,14 @@ MacOverlayWidgetHelper::MacOverlayWidgetHelper(
 	_data->buttonClose = create(window, Control::Close);
 	_data->buttonMinimize = create(window, Control::Minimize);
 	_data->buttonMaximize = create(window, Control::Maximize);
+	base::qt_signal_producer(
+		qGuiApp,
+		&QGuiApplication::applicationStateChanged
+	) | rpl::on_next([=] {
+		if (!_data->window->isHidden()) {
+			updateWindowLevel();
+		}
+	}, _data->lifetime);
 }
 
 MacOverlayWidgetHelper::~MacOverlayWidgetHelper() = default;
@@ -80,7 +93,7 @@ void MacOverlayWidgetHelper::activate(Control control) {
 }
 
 void MacOverlayWidgetHelper::beforeShow(bool fullscreen) {
-	_data->window->setAttribute(Qt::WA_MacAlwaysShowToolWindow, !fullscreen);
+	_data->window->setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	_data->window->windowHandle()->setFlag(Qt::FramelessWindowHint, fullscreen);
 	updateStyles(fullscreen);
 	clearState();
@@ -117,19 +130,43 @@ void MacOverlayWidgetHelper::updateNativeMovable() {
 	}
 }
 
-void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
-	_data->maximized = fullscreen;
-
+void MacOverlayWidgetHelper::updateWindowLevel() {
 	resolveNative();
 	if (!_data->native) {
 		return;
 	}
 
-	const auto window = _data->native;
-	const auto level = !fullscreen
+	const auto active = (QGuiApplication::applicationState()
+		== Qt::ApplicationActive);
+	const auto elevated = _data->maximized.current() && active;
+	const auto level = !elevated
 		? NSNormalWindowLevel
+		: _data->fileDialogShown
+		? NSModalPanelWindowLevel
 		: NSPopUpMenuWindowLevel;
+	const auto window = _data->native;
+	if ([window level] == level) {
+		return;
+	}
 	[window setLevel:level];
+	if (!active
+		&& !_data->window->isHidden()
+		&& [window isVisible]
+		&& ![window isMiniaturized]
+		&& ![NSApp isHidden]) {
+		// AppKit needs reordering after a level change for mouse activation.
+		[window orderFront:nil];
+	}
+}
+
+void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
+	_data->maximized = fullscreen;
+	updateWindowLevel();
+	if (!_data->native) {
+		return;
+	}
+
+	const auto window = _data->native;
 
 	// Fullscreen overlay: follow the currently active Space on activation.
 	// Windowed overlay: behave like a normal tool panel, so the user can move
@@ -142,7 +179,7 @@ void MacOverlayWidgetHelper::updateStyles(bool fullscreen) {
 	}
 	[window setCollectionBehavior:behavior];
 
-	[window setHidesOnDeactivate:!_data->window->testAttribute(Qt::WA_MacAlwaysShowToolWindow)];
+	[window setHidesOnDeactivate:NO];
 	[window setTitleVisibility:NSWindowTitleHidden];
 	[window setTitlebarAppearsTransparent:YES];
 	[window setStyleMask:[window styleMask] | NSWindowStyleMaskFullSizeContentView];
@@ -177,15 +214,9 @@ void MacOverlayWidgetHelper::refreshButtons(bool fullscreen) {
 }
 
 void MacOverlayWidgetHelper::notifyFileDialogShown(bool shown) {
-	resolveNative();
-	if (_data->native && !_data->window->isHidden()) {
-		const auto level = [_data->native level];
-		if (level != NSNormalWindowLevel) {
-			const auto level = shown
-				? NSModalPanelWindowLevel
-				: NSPopUpMenuWindowLevel;
-			[_data->native setLevel:level];
-		}
+	_data->fileDialogShown = shown;
+	if (!_data->window->isHidden()) {
+		updateWindowLevel();
 	}
 }
 
