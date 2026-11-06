@@ -222,7 +222,9 @@ void PeerListsBox::keyPressEvent(QKeyEvent *e) {
 				i = from;
 			}
 			for (; i != till; ++i) {
-				const auto result = i->content->selectSkip(rows);
+				const auto result = i->content->selectSkip(
+					rows,
+					PeerListContent::Announce::Always);
 				if (result.shouldMoveTo - result.reallyMovedTo >= rows) {
 					continue;
 				} else if (result.reallyMovedTo >= result.shouldMoveTo) {
@@ -233,7 +235,9 @@ void PeerListsBox::keyPressEvent(QKeyEvent *e) {
 			}
 		} else {
 			for (++i; i != from;) {
-				const auto result = (--i)->content->selectSkip(rows);
+				const auto result = (--i)->content->selectSkip(
+					rows,
+					PeerListContent::Announce::Always);
 				if (result.shouldMoveTo - result.reallyMovedTo <= rows) {
 					continue;
 				} else if (result.reallyMovedTo <= result.shouldMoveTo) {
