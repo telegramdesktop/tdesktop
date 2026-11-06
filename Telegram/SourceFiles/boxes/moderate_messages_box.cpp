@@ -1321,6 +1321,9 @@ void CreateModerateMessagesBox(
 				options.banUser,
 				st::defaultBoxCheckbox),
 			st::boxRowPadding + buttonPadding);
+		if (isSingle) {
+			ban->setAllowTextLines();
+		}
 		const auto controller = box->lifetime().make_state<Controller>(
 			Controller::Data{ .participants = participants });
 		Ui::AddExpandablePeerList(ban, controller, inner);
