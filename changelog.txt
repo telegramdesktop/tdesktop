@@ -1,3 +1,8 @@
+7.4.1 (06.11.26)
+
+- Fix crash on launch on some Windows systems.
+- Bug fixes and other minor improvements.
+
 7.4 (05.11.26)
 
 - HTML widgets in bots.
