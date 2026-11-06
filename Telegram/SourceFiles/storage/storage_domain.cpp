@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/version.h"
 #include "storage/details/storage_file_utilities.h"
 #include "storage/serialize_common.h"
+#include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_config.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
@@ -674,6 +675,24 @@ Domain::StartModernResult Domain::startModern(
 	}
 	_owner->activateFromStorage(active);
 
+	// Panic passcode (optional, added later for backward compat).
+	if (!info.stream.atEnd()) {
+		QByteArray panicSalt;
+		info.stream >> panicSalt;
+		if (!panicSalt.isEmpty()
+			&& panicSalt.size() == LocalEncryptSaltSize
+			&& !info.stream.atEnd()) {
+			auto panicKeyData = Serialize::read<MTP::AuthKey::Data>(
+				info.stream);
+			if (info.stream.status() == QDataStream::Ok) {
+				_panicPasscodeKeySalt = panicSalt;
+				_panicPasscodeKey = std::make_shared<MTP::AuthKey>(
+					panicKeyData);
+				_hasPanicPasscode = true;
+			}
+		}
+	}
+
 	Ensures(!sessions.empty());
 	return StartModernResult::Success;
 }
@@ -700,6 +719,11 @@ QByteArray Domain::prepareAccountsInfo() const {
 		info.stream << qint32(index);
 	}
 	info.stream << qint32(_owner->activeForStorage());
+	// Panic passcode: written at the end for backward compatibility.
+	info.stream << _panicPasscodeKeySalt;
+	if (_hasPanicPasscode && !_panicPasscodeKeySalt.isEmpty()) {
+		_panicPasscodeKey->write(info.stream);
+	}
 	return PrepareEncrypted(info, _localKey);
 }
 
@@ -1111,6 +1135,44 @@ void Domain::clearPasscodeAfterReset() {
 	_keyDataDirty = false;
 	_verificationNonce = 0;
 
+	_passcodeKeyChanged.fire({});
+}
+
+bool Domain::hasPanicPasscode() const {
+	return _hasPanicPasscode;
+}
+
+bool Domain::checkPanicPasscode(const QByteArray &passcode) const {
+	if (!_hasPanicPasscode
+		|| _panicPasscodeKeySalt.isEmpty()
+		|| !_panicPasscodeKey) {
+		return false;
+	}
+	const auto checkKey = CreateLocalKey(passcode, _panicPasscodeKeySalt);
+	return checkKey->equals(_panicPasscodeKey);
+}
+
+void Domain::setPanicPasscode(const QByteArray &passcode) {
+	Expects(!passcode.isEmpty());
+	Expects(_localKey != nullptr);
+
+	_panicPasscodeKeySalt.resize(LocalEncryptSaltSize);
+	base::RandomFill(
+		_panicPasscodeKeySalt.data(),
+		_panicPasscodeKeySalt.size());
+	_panicPasscodeKey = CreateLocalKey(passcode, _panicPasscodeKeySalt);
+	_hasPanicPasscode = true;
+
+	writeAccounts();
+	_passcodeKeyChanged.fire({});
+}
+
+void Domain::clearPanicPasscode() {
+	_hasPanicPasscode = false;
+	_panicPasscodeKeySalt.clear();
+	_panicPasscodeKey = nullptr;
+
+	writeAccounts();
 	_passcodeKeyChanged.fire({});
 }
 
