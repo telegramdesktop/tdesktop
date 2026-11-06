@@ -370,6 +370,32 @@ Session::Session(not_null<Main::Session*> session)
 	setupPeerNameViewer();
 	setupUserIsContactViewer();
 
+	session->changes().peerUpdates(
+		PeerUpdate::Flag::VerifyInfo
+	) | rpl::on_next([=](const PeerUpdate &update) {
+		auto affected = std::vector<base::weak_ptr<ViewElement>>();
+		for (const auto &[item, views] : _views) {
+			for (const auto &view : views) {
+				if (view->displayFrom() == update.peer
+					&& view->displayFromName()
+					&& view->hasBubble()) {
+					view->setPendingResize();
+					affected.push_back(base::make_weak(view.get()));
+				}
+			}
+		}
+		for (const auto &weak : affected) {
+			if (const auto view = weak.get()) {
+				requestViewRepaint(view);
+				if (view->pendingResize()) {
+					requestViewResize(view);
+				} else {
+					notifyViewLayoutChange(view);
+				}
+			}
+		}
+	}, _lifetime);
+
 	_chatsList.unreadStateChanges(
 	) | rpl::on_next([=] {
 		notifyUnreadBadgeChanged();
