@@ -97,7 +97,7 @@ struct PaidMediaData {
 }
 
 void AddTerms(
-		not_null<Ui::BoxContent*> box,
+		not_null<Ui::GenericBox*> box,
 		not_null<Ui::RpWidget*> button,
 		const style::Box &stBox) {
 	const auto terms = Ui::CreateChild<Ui::FlatLabel>(
@@ -112,6 +112,7 @@ void AddTerms(
 			}),
 			tr::rich),
 		st::inviteLinkSubscribeBoxTerms);
+	terms->resizeToWidth(box->width() - rect::m::sum::h(st::boxRowPadding));
 	const auto &buttonPadding = stBox.buttonPadding;
 	const auto style = box->lifetime().make_state<style::Box>(style::Box{
 		.buttonPadding = buttonPadding + QMargins(0, 0, 0, terms->height()),
