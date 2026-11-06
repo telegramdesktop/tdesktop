@@ -3877,7 +3877,8 @@ void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	} else if (ComputeMimeDataState(data) != MimeDataState::None) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
-	} else if (data->hasText()) {
+	} else if (data->hasText()
+		&& !data->hasFormat(u"application/x-telegram-dialog"_q)) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
 	}
@@ -3947,6 +3948,7 @@ void Widget::dropEvent(QDropEvent *e) {
 			e->accept();
 			const auto data = e->mimeData();
 			if (!data->hasFormat(u"application/x-td-forward"_q)
+				&& !data->hasFormat(u"application/x-telegram-dialog"_q)
 				&& ComputeMimeDataState(data) == MimeDataState::None
 				&& data->hasText()) {
 				controller()->content()->textDrop(thread, data);
