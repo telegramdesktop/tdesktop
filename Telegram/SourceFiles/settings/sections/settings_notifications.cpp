@@ -998,6 +998,24 @@ void BuildGlobalNotificationsSection(SectionBuilder &builder) {
 		.keywords = { u"sound"_q, u"audio"_q, u"mute"_q },
 	});
 
+	const auto inChatSounds = builder.addButton({
+		.id = u"notifications/in-chat-sounds"_q,
+		.title = tr::lng_settings_in_chat_sounds(),
+		.icon = { &st::menuIconSoundOn },
+		.toggled = rpl::single(
+			Core::App().settings().inChatSounds()
+		) | rpl::type_erased,
+		.keywords = { u"sound"_q, u"chat"_q, u"send"_q, u"receive"_q },
+	});
+	if (inChatSounds) {
+		inChatSounds->toggledChanges(
+		) | rpl::filter([](bool checked) {
+			return (checked != Core::App().settings().inChatSounds());
+		}) | rpl::on_next([](bool checked) {
+			Core::App().settings().setInChatSounds(checked);
+		}, inChatSounds->lifetime());
+	}
+
 	builder.add([session](const WidgetContext &ctx) {
 		Ui::AddRingtonesVolumeSlider(
 			ctx.container,
