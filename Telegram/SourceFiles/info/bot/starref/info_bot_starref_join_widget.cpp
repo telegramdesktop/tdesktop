@@ -807,7 +807,9 @@ void InnerWidget::setupSort(not_null<Ui::RpWidget*> label) {
 		};
 		for (const auto order : orders) {
 			const auto chosen = (order == _sort.current());
-			menu->addAction(phrase(order).text, crl::guard(this, [=] {
+			const auto text = phrase(order).text;
+			const auto item = text.left(1).toUpper() + text.mid(1);
+			menu->addAction(item, crl::guard(this, [=] {
 				_sort = order;
 			}), chosen ? &st::mediaPlayerMenuCheck : nullptr);
 		}
