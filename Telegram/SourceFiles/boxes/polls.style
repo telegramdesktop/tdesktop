@@ -237,6 +237,9 @@ createPollLinkUrlField: InputField(dialogsFilter) {
 	placeholderMargins: margins(0px, 0px, 2px, 0px);
 	heightMin: 36px;
 }
+createPollLinkDescription: FlatLabel(defaultFlatLabel) {
+	minWidth: 1px;
+}
 
 createTodoOptionField: InputField(createPollOptionField) {
 	textMargins: margins(22px, 11px, 68px, 11px);

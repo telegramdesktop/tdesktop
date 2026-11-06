@@ -29,7 +29,7 @@ void AddPollOptionLinkBox(
 		object_ptr<Ui::FlatLabel>(
 			content,
 			tr::lng_polls_create_option_link_description(),
-			st::defaultFlatLabel),
+			st::createPollLinkDescription),
 		st::boxRowPadding);
 	Ui::AddSkip(content);
 	Ui::AddSkip(content);
