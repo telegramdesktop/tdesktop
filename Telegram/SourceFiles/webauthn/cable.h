@@ -24,6 +24,8 @@ enum class Outcome {
 	Failed,
 };
 
+inline constexpr auto kMaxLoginAssertions = size_t(16);
+
 struct RegisterRequest {
 	std::string rpId;
 	std::string rpName;
@@ -48,11 +50,23 @@ struct LoginRequest {
 	int timeoutMs = 90000;
 };
 
+struct LoginAssertion {
+	Bytes credentialId;
+	Bytes authData;
+	Bytes signature;
+	Bytes userHandle;
+	std::string userName;
+	std::string userDisplayName;
+};
+
 struct LoginResult {
 	Bytes credentialId;
 	Bytes authData;
 	Bytes signature;
 	Bytes userHandle;
+	std::string userName;
+	std::string userDisplayName;
+	std::vector<LoginAssertion> assertions;
 	Outcome outcome = Outcome::Failed;
 };
 
