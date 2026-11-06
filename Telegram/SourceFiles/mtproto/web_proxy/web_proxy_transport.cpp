@@ -1677,6 +1677,7 @@ port.onmessage=e=>{if(e.data instanceof ArrayBuffer){if(local.readyState===WebSo
  if(e.data&&e.data.t==='status'){const s=e.data.state;state.textContent=s==='connected'?'Connected. Keep this tab open.':s==='failed'?'The proxy site is unavailable.':'Connecting to the proxy site…';if(local.readyState===WebSocket.OPEN)local.send(JSON.stringify(e.data));return}
  if(e.data&&e.data.t==='traffic'){const up=e.data.up,down=e.data.down;if(Number.isSafeInteger(up)&&up>=0&&Number.isSafeInteger(down)&&down>=0){traffic.up+=up;traffic.down+=down}return}
  if(e.data&&e.data.t==='close'){state.textContent='The proxy site closed the connection.';local.close()}}
+addEventListener('beforeunload',event=>{if(local.readyState===WebSocket.OPEN)event.preventDefault()});
 addEventListener('pagehide',stopRtc,{once:true});
 addEventListener('pageshow',startRtc);
 })();
