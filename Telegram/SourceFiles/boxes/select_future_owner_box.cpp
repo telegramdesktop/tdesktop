@@ -456,9 +456,14 @@ void SelectFutureOwnerbox(
 				) | rpl::filter_size() | rpl::on_next([=](QSize s) {
 					state->noLists->setMinimalHeight(s.height() / 3);
 					state->noLists->resizeToWidth(s.width() / 3 * 2);
+				}, state->noLists->lifetime());
+				rpl::combine(
+					selectBox->sizeValue(),
+					state->noLists->sizeValue()
+				) | rpl::on_next([=](QSize outer, QSize inner) {
 					state->noLists->moveToLeft(
-						(s.width() - state->noLists->width()) / 2,
-						(s.height() - state->noLists->height()) / 2);
+						(outer.width() - inner.width()) / 2,
+						(outer.height() - inner.height()) / 2);
 				}, state->noLists->lifetime());
 				crl::on_main(state->noLists.get(), [=] {
 					state->noLists->animate();
