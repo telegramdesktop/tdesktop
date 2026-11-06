@@ -1149,7 +1149,7 @@ void GiveawayInfoBox(
 		: (rpl::producer<TextWithEntities>)(nullptr);
 
 	if (resultText) {
-		const auto &st = st::changePhoneDescription;
+		const auto &st = st::giveawayResultLabel;
 		const auto skip = st.style.font->height * 0.5;
 		auto label = object_ptr<Ui::FlatLabel>(
 			box.get(),
@@ -1162,7 +1162,7 @@ void GiveawayInfoBox(
 			object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 				box.get(),
 				std::move(label),
-				QMargins(0, skip, 0, skip)),
+				QMargins(skip, skip, skip, skip)),
 			style::al_justify);
 		result->paintRequest() | rpl::on_next([=] {
 			auto p = QPainter(result);

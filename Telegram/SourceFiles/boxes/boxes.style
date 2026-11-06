@@ -348,6 +348,9 @@ changePhoneDescription: FlatLabel(defaultFlatLabel) {
 	align: align(top);
 	textFg: windowSubTextFg;
 }
+giveawayResultLabel: FlatLabel(changePhoneDescription) {
+	minWidth: 1px;
+}
 changePhoneDescriptionPadding: margins(0px, 1px, 0px, 8px);
 changePhoneIconPadding: margins(0px, 39px, 0px, 5px);
 changePhoneLabel: FlatLabel(defaultFlatLabel) {
