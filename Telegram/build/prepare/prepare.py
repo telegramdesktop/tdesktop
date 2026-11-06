@@ -6,6 +6,7 @@ scriptPath = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(scriptPath + '/..')
 import qt_version
 import build_mac
+import msvc
 
 def finish(code):
     global executePath
@@ -236,6 +237,8 @@ def computeCacheKey(stage):
         stage['version'],
         stage['commands']
     ]
+    if winarm and stage['name'] == 'ffmpeg':
+        objects.append('MSVC=' + str(stage['msvc_version']))
     for pattern in stage['dependencies']:
         pathlist = glob.glob(os.path.join(libsDir, pattern))
         items = [pattern]
@@ -373,7 +376,9 @@ def printCommands(commands):
     print(commands, end='')
     print('--------------------------------------------------------------------------------')
 
-def run(commands):
+def run(commands, env = None):
+    if env is None:
+        env = modifiedEnv
     printCommands(commands)
     if win:
         if os.path.exists("command.bat"):
@@ -381,14 +386,14 @@ def run(commands):
         with open("command.bat", 'w') as file:
             file.write('@echo OFF\r\nset "NoDefaultCurrentDirectoryInExePath="\r\n' + winFailOnEach(commands))
         batPath = os.path.abspath("command.bat")
-        result = subprocess.run(batPath, shell=True, env=modifiedEnv).returncode == 0
+        result = subprocess.run(batPath, shell=True, env=env).returncode == 0
         if result and os.path.exists("command.bat"):
             os.remove("command.bat")
         return result
     elif re.search(r'\%', commands):
         error('Bad command: ' + commands)
     else:
-        return subprocess.run("set -e\n" + commands, shell=True, env=modifiedEnv).returncode == 0
+        return subprocess.run("set -e\n" + commands, shell=True, env=env).returncode == 0
 
 # Thanks https://stackoverflow.com/a/510364
 class _Getch:
@@ -449,6 +454,12 @@ def runStages():
     for stage in stages:
         if len(onlyStages) > 0 and not stage['name'] in onlyStages:
             continue
+        stageEnvironment = modifiedEnv
+        if winarm and stage['name'] == 'ffmpeg':
+            try:
+                stageEnvironment, stage['msvc_version'] = msvc.ffmpeg_environment(modifiedEnv)
+            except RuntimeError as exception:
+                error(str(exception))
         index = index + 1
         version = ('#' + str(stage['version'])) if (stage['version'] != '0') else ''
         prefix = '[' + str(index) + '/' + str(count) + '](' + stage['location'] + '/' + stage['name'] + version + ')'
@@ -494,7 +505,7 @@ def runStages():
         clearCacheKey(stage)
         print('BUILDING:')
         os.chdir(stage['directory'])
-        if not run(commands):
+        if not run(commands, stageEnvironment):
             print(prefix + ': FAILED')
             finish(1)
         writeCacheKey(stage)
