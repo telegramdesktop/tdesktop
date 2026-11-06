@@ -700,7 +700,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	case QEvent::Move:
 	case QEvent::Resize: {
 		if (object == this) {
-			positionUpdated();
+			positionUpdated(e->spontaneous());
 		}
 	} break;
 	}

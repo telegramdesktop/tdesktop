@@ -105,7 +105,7 @@ public:
 	bool positionInited() const {
 		return _positionInited;
 	}
-	void positionUpdated();
+	void positionUpdated(bool spontaneous = true);
 
 	void showRightColumn(object_ptr<Ui::RpWidget> widget);
 	int maximalExtendBy() const;
@@ -207,8 +207,7 @@ private:
 	[[nodiscard]] QRect countInitialGeometry(Core::WindowPosition position);
 	void rememberOwnGeometry(QRect geometry);
 	void rememberOwnBodyMargins(QRect inner);
-	void rememberOwnNormalGeometry();
-	void resetOwnNormalGeometry();
+	void rememberOwnRequestedGeometry();
 	void recoverOwnGeometry();
 
 	bool computeIsActive() const;
@@ -231,8 +230,7 @@ private:
 	bool _maximizedBeforeHide = false;
 	Core::WindowPosition _ownPosition;
 	QMargins _ownBodyMargins;
-	QRect _ownNormalGeometry;
-	QRect _ownNormalBeforeResize;
+	QRect _ownRequestedGeometry;
 
 	QPoint _lastMyChildCreatePosition;
 	int _lastChildIndex = 0;
