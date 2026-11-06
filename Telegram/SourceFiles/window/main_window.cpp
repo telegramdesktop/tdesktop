@@ -1109,7 +1109,13 @@ WindowPosition MainWindow::countPositionForSave() {
 		|| state == Qt::WindowFullScreen
 		|| rememberedMaximized) {
 		result.maximized = 1;
-		const auto normal = normalGeometry();
+		auto normal = QRect();
+		if (state == Qt::WindowFullScreen) {
+			normal = normalGeometry();
+		} else {
+			recoverOwnGeometry();
+			normal = _ownPosition.rect();
+		}
 		result.x = normal.x() - screenGeometry.x();
 		result.y = normal.y() - screenGeometry.y();
 		result.w = normal.width();
