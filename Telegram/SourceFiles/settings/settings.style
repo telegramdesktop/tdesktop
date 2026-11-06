@@ -544,6 +544,7 @@ settingsSearchResultNoIcon: SettingsButton(settingsSearchResult) {
 	padding: margins(22px, 4px, 22px, 4px);
 }
 settingsSearchResultDetails: FlatLabel(settingsNotificationTypeDetails) {
+	maxHeight: 20px;
 }
 settingsSearchNoResults: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;

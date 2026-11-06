@@ -120,9 +120,13 @@ void SetupCheckIcon(
 		subtitle,
 		st::settingsSearchResultDetails);
 	details->show();
-	details->moveToLeft(
-		st.padding.left(),
-		st.padding.top() + st.height - details->height());
+	button->widthValue() | rpl::on_next([=](int width) {
+		const auto available = width - st.padding.left() - st.padding.right();
+		details->resizeToWidth(std::min(details->textMaxWidth(), available));
+		details->moveToLeft(
+			st.padding.left(),
+			st.padding.top() + st.height - details->height());
+	}, details->lifetime());
 	details->setAttribute(Qt::WA_TransparentForMouseEvents);
 	return button;
 }
