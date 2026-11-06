@@ -194,6 +194,7 @@ void AddressChips::paintTexts(QPainter &p, QRect line) const {
 	p.save();
 	ApplyChipsGeometry(p, *geometry);
 	p.setFont(font);
+	p.setLayoutDirection(Qt::LeftToRight);
 	for (auto i = 0; i != int(_texts.size()); ++i) {
 		const auto &text = _texts[i];
 		const auto width = font->width(text);
