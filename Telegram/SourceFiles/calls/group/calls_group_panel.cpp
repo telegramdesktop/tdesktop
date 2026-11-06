@@ -2643,6 +2643,7 @@ void Panel::updateButtonsGeometry() {
 		const auto addSkip = st::callMuteButtonSmall.active.outerRadius;
 		const auto muteSize = _mute->innerSize().width() + 2 * addSkip;
 		const auto skip = st::groupCallButtonSkipSmall;
+		_mute->setLabelsMaxWidth(0);
 		const auto fullWidth = (rtmp
 			? (_settings->width() + skip)
 			: (_screenShare->width() + skip
@@ -2799,6 +2800,9 @@ void Panel::updateButtonsGeometry() {
 			? (nextButtonLeft + single + buttonSkip + addSkip)
 			: (nextButtonLeft + addSkip);
 		_mute->moveInner({ muteButtonLeft, muteTop });
+		_mute->setLabelsMaxWidth(muteSize
+			+ 2 * buttonSkip
+			- st::callMuteButton.labelAdditional);
 		toggle(_wideMenu, false);
 		toggle(_callShare, true);
 		if (_callShare) {

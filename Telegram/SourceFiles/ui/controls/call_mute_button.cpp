@@ -643,10 +643,22 @@ void CallMuteButton::refreshLabels() {
 		return size.width();
 	}) | rpl::distinct_until_changed(
 	) | rpl::on_next([=](int w) {
-		_centerLabel->setMaxWidth(w);
-		_label->setMaxWidth(w);
-		_sublabel->setMaxWidth(w);
+		const auto labels = std::max(w, _labelsMaxWidth);
+		_centerLabel->setMaxWidth(labels);
+		_label->setMaxWidth(labels);
+		_sublabel->setMaxWidth(labels);
 	}, _centerLabel->lifetime());
+}
+
+void CallMuteButton::setLabelsMaxWidth(int width) {
+	if (_labelsMaxWidth == width) {
+		return;
+	}
+	_labelsMaxWidth = width;
+	const auto labels = std::max(_content->width(), _labelsMaxWidth);
+	_centerLabel->setMaxWidth(labels);
+	_label->setMaxWidth(labels);
+	_sublabel->setMaxWidth(labels);
 }
 
 void CallMuteButton::refreshIcons() {

@@ -75,6 +75,7 @@ public:
 
 	[[nodiscard]] QSize innerSize() const;
 	void moveInner(QPoint position);
+	void setLabelsMaxWidth(int width);
 
 	void shake();
 
@@ -175,6 +176,7 @@ private:
 	base::unique_qptr<AnimatedLabel> _label;
 	base::unique_qptr<AnimatedLabel> _sublabel;
 	int _labelShakeShift = 0;
+	int _labelsMaxWidth = 0;
 
 	RadialInfo _radialInfo;
 	std::unique_ptr<InfiniteRadialAnimation> _radial;
