@@ -126,7 +126,9 @@ QString langDayOfMonthFull(const QDate &date) {
 QString langDayOfMonthShort(const QDate &date) {
 	auto day = date.day();
 	return langDateMaybeWithYear(date, [&](int month, int year) {
-		return QLocale().toString(date, QLocale::ShortFormat);
+		return QLocale().toString(
+			date,
+			QLocale::ShortFormat).replace(QChar(' '), QChar(0x00A0));
 	}, [day](int month, int year) {
 		return tr::lng_month_day(
 			tr::now,
