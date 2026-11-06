@@ -149,6 +149,7 @@ private:
 
 	void startRecording();
 	void prepareOnSendPress();
+	void installRecordingKeyFilter();
 	void applyListenTrimForResume();
 	void clearResumePrefix();
 	void clearResumeState();
