@@ -2336,7 +2336,7 @@ MenuItemReading ReadMenuItem(
 	result.popup = popupMenu;
 	result.menu = menu;
 	auto match = static_cast<Ui::Menu::ItemBase*>(nullptr);
-	for (const auto action : menu->actions()) {
+	for (const auto &action : menu->actions()) {
 		if (action->isSeparator()) {
 			continue;
 		} else if (const auto item = menu->itemForAction(action)) {

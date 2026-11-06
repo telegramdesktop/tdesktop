@@ -1353,7 +1353,7 @@ void BuildPair(
 		QPoint cursor) {
 	const auto titleRoom = st::defaultActiveButton.height;
 	auto column = QSize();
-	for (const auto window : windows) {
+	for (const auto &window : windows) {
 		const auto size = window->size();
 		column = QSize(
 			std::max(column.width(), size.width()),
@@ -1361,7 +1361,7 @@ void BuildPair(
 	}
 	auto position = FarCorner(available, column, cursor);
 	const auto bounds = QRect(position, column);
-	for (const auto window : windows) {
+	for (const auto &window : windows) {
 		const auto size = window->size();
 		position.ry() += titleRoom;
 		window->setGeometry(QRect(position, size));
