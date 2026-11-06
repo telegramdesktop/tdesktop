@@ -89,6 +89,48 @@ Settings::Type SettingsFromDialogsType(Data::DialogInfo::Type type) {
 	return Settings::Type(0);
 }
 
+[[nodiscard]] int SinglePeerLowerBoundOffsetDate(const Settings &settings) {
+	return (settings.singlePeerFrom > 0)
+		? (settings.singlePeerFrom - 1)
+		: 0;
+}
+
+[[nodiscard]] bool TrimMessagesSliceByDateRange(
+		Data::MessagesSlice &slice,
+		const Settings &settings) {
+	// Topic pagination needs the unfiltered root, cursor and message count.
+	if (settings.onlySingleTopic()) {
+		return false;
+	}
+	auto &list = slice.list;
+
+	// Export slices are processed oldest-to-newest, so messages older than
+	// the requested range are grouped at the front, newer ones at the back.
+	auto from = 0;
+	const auto size = int(list.size());
+	while (from < size
+		&& settings.singlePeerFrom > 0
+		&& list[from].date < settings.singlePeerFrom) {
+		++from;
+	}
+
+	auto till = size;
+	while (till > from
+		&& settings.singlePeerTill > 0
+		&& list[till - 1].date >= settings.singlePeerTill) {
+		--till;
+	}
+
+	const auto reachedUpperBound = (till < size);
+	if (till < size) {
+		list.erase(begin(list) + till, end(list));
+	}
+	if (from > 0) {
+		list.erase(begin(list), begin(list) + from);
+	}
+	return reachedUpperBound;
+}
+
 MediaSettings::Type DocumentMediaType(const Data::Document &document) {
 	using Type = MediaSettings::Type;
 	if (document.isSticker) {
@@ -1819,6 +1861,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 	requestChatMessages(
 		_chatProcess->info.splits[localSplitIndex],
 		0, // offset_id
+		0, // offset_date
 		0, // add_offset
 		1, // limit
 		[=](const MTPmessages_Messages &result) {
@@ -1840,7 +1883,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 		}
 		const auto skipSplit = !Data::SingleMessageAfter(
 			result,
-			_settings->singlePeerFrom);
+			SinglePeerLowerBoundOffsetDate(*_settings));
 		if (skipSplit) {
 			// No messages from the requested range, skip this split.
 			messagesCountLoaded(localSplitIndex, 0);
@@ -1863,6 +1906,7 @@ void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
 	requestChatMessages(
 		_chatProcess->info.splits[localSplitIndex],
 		1, // offset_id
+		0, // offset_date
 		-1, // add_offset
 		1, // limit
 		[=](const MTPmessages_Messages &result) {
@@ -1882,7 +1926,16 @@ void ApiWrap::messagesCountLoaded(int localSplitIndex, int count) {
 	_chatProcess->info.messagesCountPerSplit[localSplitIndex] = count;
 	if (localSplitIndex + 1 < _chatProcess->info.splits.size()) {
 		requestMessagesCount(localSplitIndex + 1);
-	} else if (_chatProcess->start(_chatProcess->info)) {
+		return;
+	}
+
+	auto startInfo = _chatProcess->info;
+	if (_settings->hasDateLimits()) {
+		for (auto &count : startInfo.messagesCountPerSplit) {
+			count = 0;
+		}
+	}
+	if (_chatProcess->start(startInfo)) {
 		requestMessagesSlice();
 	}
 }
@@ -2272,9 +2325,15 @@ void ApiWrap::requestMessagesSlice() {
 		startMessagesSlice({});
 		return;
 	}
+	// messages.search has no offset_date equivalent, so only jump directly to
+	// the lower bound for the normal getHistory-based traversal.
+	const auto fromLowerDateBound = (_chatProcess->largestIdPlusOne == 1)
+		&& !_chatProcess->info.onlyMyMessages
+		&& (_settings->singlePeerFrom > 0);
 	requestChatMessages(
 		_chatProcess->info.splits[_chatProcess->localSplitIndex],
-		_chatProcess->largestIdPlusOne,
+		fromLowerDateBound ? 0 : _chatProcess->largestIdPlusOne,
+		fromLowerDateBound ? SinglePeerLowerBoundOffsetDate(*_settings) : 0,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
 		[=](const MTPmessages_Messages &result) {
@@ -2299,6 +2358,7 @@ void ApiWrap::requestMessagesSlice() {
 void ApiWrap::requestChatMessages(
 		int splitIndex,
 		int offsetId,
+		int offsetDate,
 		int addOffset,
 		int limit,
 		FnMut<void(MTPmessages_Messages&&)> done) {
@@ -2330,7 +2390,7 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(0), // min_date
+			MTP_int(0), // min_date: Filtering after pagination can hide the cursor.
 			MTP_int(0), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
@@ -2343,7 +2403,7 @@ void ApiWrap::requestChatMessages(
 		splitRequest(realSplitIndex, MTPmessages_GetHistory(
 			realPeerInput,
 			MTP_int(offsetId),
-			MTP_int(0), // offset_date
+			MTP_int(offsetDate),
 			MTP_int(addOffset),
 			MTP_int(limit),
 			MTP_int(0), // max_id
@@ -2359,9 +2419,15 @@ void ApiWrap::requestChatMessages(
 					// Perhaps we just left / were kicked from channel.
 					// Just switch to only my messages.
 					_chatProcess->info.onlyMyMessages = true;
+					if (offsetDate != 0) {
+						_chatProcess->largestIdPlusOne = 1;
+						requestMessagesSlice();
+						return true;
+					}
 					requestChatMessages(
 						splitIndex,
 						offsetId,
+						offsetDate,
 						addOffset,
 						limit,
 						base::take(_chatProcess->requestDone));
@@ -2383,6 +2449,13 @@ void ApiWrap::startMessagesSlice(Data::MessagesSlice &&slice) {
 
 	if (slice.list.empty()) {
 		process->lastSlice = true;
+	} else {
+		if (_chatProcess) {
+			_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
+		}
+		if (TrimMessagesSliceByDateRange(slice, *_settings)) {
+			process->lastSlice = true;
+		}
 	}
 	process->slice = std::move(slice);
 	process->hydrationIndex = 0;
@@ -2864,7 +2937,6 @@ void ApiWrap::finishMessagesSlice() {
 
 	auto slice = *base::take(_chatProcess->slice);
 	if (!slice.list.empty()) {
-		_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
 		const auto splitIndex = _chatProcess->info.splits[
 			_chatProcess->localSplitIndex];
 		if (splitIndex < 0) {
@@ -3379,7 +3451,9 @@ bool ApiWrap::processFileLoad(
 		: story
 		? story->file().size
 		: file.size;
-	if (message && Data::SkipMessageByDate(*message, *_settings)) {
+	if (message
+		&& message->date > 0
+		&& Data::SkipMessageByDate(*message, *_settings)) {
 		file.skipReason = SkipReason::DateLimits;
 		return true;
 	} else if (!story && (_settings->media.types & type) != type) {
