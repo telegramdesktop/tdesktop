@@ -497,19 +497,19 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 	const auto totalInnerChecks = state->innerChecks.size();
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		button,
-		rpl::combine(
-			std::move(buttonLabel),
-			state->anyChanges.events_starting_with(
-				rpl::empty_value()
-			) | rpl::map(countChecked)
-		) | rpl::map([=](const QString &t, int checked) {
-			auto count = tr::bold("  "
-				+ QString::number(checked)
+		std::move(buttonLabel),
+		st::rightsButtonNameLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto counter = Ui::CreateChild<Ui::FlatLabel>(
+		button,
+		state->anyChanges.events_starting_with(
+			rpl::empty_value()
+		) | rpl::map(countChecked) | rpl::map([=](int checked) {
+			return tr::bold(QString::number(checked)
 				+ '/'
 				+ QString::number(totalInnerChecks));
-			return TextWithEntities::Simple(t).append(std::move(count));
 		}));
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	counter->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto arrow = Ui::CreateChild<Ui::RpWidget>(button);
 	{
 		const auto &icon = st::permissionsExpandIcon;
@@ -538,19 +538,33 @@ not_null<Ui::RpWidget*> AddInnerToggle(
 		const auto labelRight = s.width() - toggleButton->width();
 
 		const auto arrowSkip = st::rightsButtonArrowSkip;
-		label->resizeToWidth(
-			labelRight - labelLeft - arrow->width() - arrowSkip);
+		const auto counterSkip = 2 * counter->st().style.font->bold()->spacew;
+		const auto available = labelRight
+			- labelLeft
+			- arrow->width()
+			- arrowSkip;
+		counter->resizeToNaturalWidth(available);
+		label->resizeToWidth(std::max(
+			std::min(
+				label->textMaxWidth(),
+				available - counterSkip - counter->width()),
+			0));
 		label->moveToLeft(
 			labelLeft,
 			(s.height() - label->height()) / 2);
+		const auto counterLeft = labelLeft + label->width() + counterSkip;
+		counter->moveToLeft(
+			counterLeft,
+			(s.height() - counter->height()) / 2);
 		arrow->moveToLeft(
 			std::min(
-				labelLeft + label->textMaxWidth() + arrowSkip,
+				counterLeft + counter->width() + arrowSkip,
 				labelRight - arrow->width()),
 			(s.height() - arrow->height()) / 2);
 	};
 	rpl::merge(
 		button->sizeValue() | rpl::to_empty,
+		label->naturalWidthValue() | rpl::to_empty,
 		state->anyChanges.events_starting_with(rpl::empty_value())
 	) | rpl::on_next([=] {
 		reposition();

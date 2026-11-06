@@ -34,6 +34,9 @@ rightsButton: SettingsButton(defaultSettingsButton) {
 }
 rightsButtonToggleWidth: 70px;
 rightsButtonArrowSkip: 5px;
+rightsButtonNameLabel: FlatLabel(defaultFlatLabel) {
+	maxHeight: 20px;
+}
 rightsDividerMargin: margins(0px, 0px, 0px, 20px);
 rightsHeaderMargin: margins(22px, 13px, 22px, 7px);
 rightsToggleMargin: margins(22px, 8px, 22px, 8px);
