@@ -219,7 +219,10 @@ private:
 	};
 	p.setFont(st.style.font);
 	p.setPen(st.textFg);
-	fillName({ tr::lng_filters_all(tr::now) });
+	fillName(tr::lng_filters_all(tr::now, tr::marked));
+	if (state->string.maxWidth() > available) {
+		fillName(tr::lng_filters_all_short(tr::now, tr::marked));
+	}
 	paintName(p, st::filterLinkPreviewAllTop);
 	fillName(title);
 
