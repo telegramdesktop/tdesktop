@@ -42,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Dialogs {
 namespace {
 
+constexpr auto kButtonLayoutPasses = 8;
+
 [[nodiscard]] QString FormatUnconfirmedAuthMessage(
 		const std::vector<Data::UnreviewedAuth> &list) {
 	if (list.empty()) {
@@ -435,21 +437,43 @@ void TopBarSuggestionContent::setRightButton(
 		sizeValue(),
 		_rightButton->sizeValue()
 	) | rpl::on_next([=](QSize outer, QSize inner) {
-		const auto cardHeight = _geometry.cardInnerHeight
-			? _geometry.cardInnerHeight
-			: (outer.height() - rect::m::sum::v(margins));
-		const auto verticalGap = (cardHeight - inner.height()) / 2;
-		const auto rightInset = _geometry.rightInset
-			? _geometry.rightInset
-			: (margins.right() + verticalGap);
 		_rightButton->moveToRight(
-			rightInset,
-			margins.top() + verticalGap,
+			rightButtonInset(outer.height()),
+			margins.top() + rightButtonVerticalGap(outer.height()),
 			outer.width());
 	}, _rightButton->lifetime());
 	_rightButton->setFullRadius(true);
 	_rightButton->setClickedCallback(std::move(callback));
 	_rightButton->show();
+	_rightButton->widthValue() | rpl::on_next([=] {
+		if (width() > 0) {
+			resizeToWidth(width());
+		}
+		update();
+	}, _rightButton->lifetime());
+}
+
+int TopBarSuggestionContent::rightButtonVerticalGap(int outerHeight) const {
+	const auto &margins = st::dialogsTopBarSuggestionMargins;
+	const auto cardHeight = _geometry.cardInnerHeight
+		? _geometry.cardInnerHeight
+		: (outerHeight - rect::m::sum::v(margins));
+	return (cardHeight - _rightButton->height()) / 2;
+}
+
+int TopBarSuggestionContent::rightButtonInset(int outerHeight) const {
+	return _geometry.rightInset
+		? _geometry.rightInset
+		: (st::dialogsTopBarSuggestionMargins.right()
+			+ rightButtonVerticalGap(outerHeight));
+}
+
+int TopBarSuggestionContent::rightButtonSkip(int outerHeight) const {
+	return _rightButton
+		? (rightButtonInset(outerHeight)
+			+ _rightButton->width()
+			+ st::dialogsTopBarSuggestionMargins.right())
+		: 0;
 }
 
 void TopBarSuggestionContent::setRightBadge(rpl::producer<int> count) {
@@ -549,16 +573,21 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 			: 0)
 		- leftPadding
 		- rightPadding;
-	const auto availableWidth = availableWidthNoPhoto
+	const auto availableWidthNoButton = availableWidthNoPhoto
 		- (_rightHide ? _rightHide->width() : 0)
 		- (_rightBadgeText.isEmpty() ? 0 : _rightBadgeSize.width());
+	const auto availableWidth = _rightButton
+		? std::min(
+			availableWidthNoButton,
+			outer.width() - rightButtonSkip(outer.height()) - leftPadding)
+		: availableWidthNoButton;
 	const auto titleRight = leftPadding;
 	const auto hasSecondLineTitle = availableWidth < _contentTitle.maxWidth();
 	const auto paused = On(PowerSaving::kEmojiChat)
 		|| (_emojiPaused && _emojiPaused());
 	p.setPen(st::windowActiveTextFg);
 	p.setPen(st::windowFg);
-	{
+	if (availableWidth > 0) {
 		const auto left = leftPadding;
 		const auto top = topPadding;
 		_contentTitle.draw(p, {
@@ -571,7 +600,7 @@ void TopBarSuggestionContent::draw(QPainter &p) {
 			.elisionLines = hasSecondLineTitle ? 2 : 1,
 		});
 	}
-	{
+	if (availableWidth > 0) {
 		const auto left = leftPadding;
 		const auto top = hasSecondLineTitle
 			? (topPadding
@@ -697,16 +726,53 @@ int TopBarSuggestionContent::resizeGetHeight(int newWidth) {
 		return int(base::SafeRound(
 			withMargins * (1. - _collapseProgress)));
 	}
-	const auto topPadding = st::msgReplyPadding.top();
-	const auto bottomPadding = st::msgReplyPadding.top();
 	const auto availableWidthNoPhoto = newWidth
 		- rect::m::sum::h(margins)
 		- (_rightArrow
 			? (_rightArrow->width() / 4 * 3) // Takes full height.
 			: 0)
 		- _leftPadding;
-	const auto availableWidth = availableWidthNoPhoto
+	const auto availableWidthNoButton = availableWidthNoPhoto
 		- (_rightHide ? _rightHide->width() : 0);
+	if (!_rightButton) {
+		return int(base::SafeRound(
+			fullHeightFor(availableWidthNoButton)
+				* (1. - _collapseProgress)));
+	}
+	const auto availableFor = [&](int outerHeight) {
+		return std::min(
+			availableWidthNoButton,
+			newWidth
+				- rightButtonSkip(outerHeight)
+				- margins.left()
+				- _leftPadding);
+	};
+	// The button inset grows with the height, which can wrap more text.
+	auto outerHeight = height();
+	auto settled = false;
+	for (auto i = 0; i != kButtonLayoutPasses; ++i) {
+		const auto available = availableFor(outerHeight);
+		const auto full = fullHeightFor(available);
+		if (full == outerHeight) {
+			settled = (available > 0);
+			break;
+		}
+		outerHeight = full;
+	}
+	if (!settled) {
+		const auto tallest = (_geometry.cardInnerHeight
+			? _geometry.cardInnerHeight
+			: st::sponsoredMessageBarMaxHeight) + rect::m::sum::v(margins);
+		const auto available = availableFor(tallest);
+		outerHeight = (available > 0) ? fullHeightFor(available) : tallest;
+	}
+	return int(base::SafeRound(outerHeight * (1. - _collapseProgress)));
+}
+
+int TopBarSuggestionContent::fullHeightFor(int availableWidth) const {
+	const auto &margins = st::dialogsTopBarSuggestionMargins;
+	const auto topPadding = st::msgReplyPadding.top();
+	const auto bottomPadding = st::msgReplyPadding.top();
 	if (availableWidth <= 0) {
 		return topPadding + bottomPadding + rect::m::sum::v(margins);
 	}
@@ -739,8 +805,7 @@ int TopBarSuggestionContent::resizeGetHeight(int newWidth) {
 	const auto capped = std::min(
 		natural,
 		st::sponsoredMessageBarMaxHeight);
-	const auto withMargins = capped + rect::m::sum::v(margins);
-	return int(base::SafeRound(withMargins * (1. - _collapseProgress)));
+	return capped + rect::m::sum::v(margins);
 }
 
 void TopBarSuggestionContent::setCollapseProgress(

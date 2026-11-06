@@ -125,6 +125,10 @@ protected:
 private:
 	void draw(QPainter &p);
 	void releaseCollapseSnapshot();
+	[[nodiscard]] int rightButtonVerticalGap(int outerHeight) const;
+	[[nodiscard]] int rightButtonInset(int outerHeight) const;
+	[[nodiscard]] int rightButtonSkip(int outerHeight) const;
+	[[nodiscard]] int fullHeightFor(int availableWidth) const;
 
 	const style::TextStyle &_titleSt;
 	const style::TextStyle &_contentTitleSt;
