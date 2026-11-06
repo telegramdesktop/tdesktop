@@ -2469,6 +2469,8 @@ PRIVATE
     wallet/wallet_phrase_shares.h
     wallet/wallet_rates.cpp
     wallet/wallet_rates.h
+    wallet/wallet_row_address_chips.cpp
+    wallet/wallet_row_address_chips.h
     wallet/wallet_send_preparation.cpp
     wallet/wallet_send_preparation.h
     wallet/wallet_session.cpp
