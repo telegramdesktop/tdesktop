@@ -3169,7 +3169,7 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 		rpl::duplicate(text),
 		std::move(labelText),
 		button->widthValue()
-	) | rpl::on_next([&st, label](
+	) | rpl::on_next([&st, label, button](
 			const QString &text,
 			const TextWithEntities &labelText,
 			int width) {
@@ -3179,11 +3179,25 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 			- st.button.style.font->width(text)
 			- st.labelPosition.x();
 		const auto required = label->textMaxWidth();
-		label->resizeToWidth(std::min(required, available));
-		label->moveToRight(
-			st.labelPosition.x(),
-			st.labelPosition.y(),
-			width);
+		auto padding = st.button.padding;
+		if (required <= available) {
+			label->resizeToWidth(required);
+			label->moveToRight(
+				st.labelPosition.x(),
+				st.labelPosition.y(),
+				width);
+		} else {
+			// WHY: a value that does not fit beside the name goes under it.
+			label->resizeToWidth(std::min(
+				required,
+				width - st.button.padding.left() - st.labelPosition.x()));
+			label->moveToRight(
+				st.labelPosition.x(),
+				st.button.padding.top() + st.button.height,
+				width);
+			padding.setBottom(padding.bottom() + label->height());
+		}
+		button->setPaddingOverride(padding);
 	}, label->lifetime());
 
 	if (badge) {
