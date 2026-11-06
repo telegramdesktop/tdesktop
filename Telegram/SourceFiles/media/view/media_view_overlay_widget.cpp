@@ -7581,18 +7581,21 @@ void OverlayWidget::handleWheelEvent(not_null<QWheelEvent*> e) {
 		&& ((e->source() == Qt::MouseEventNotSynthesized)
 			|| (e->source() == Qt::MouseEventSynthesizedBySystem));
 	const auto anchor = zoomAnchor(e->globalPosition());
-	_verticalWheelDelta += angle.y();
+	const auto zoom = e->modifiers().testFlag(Qt::ControlModifier);
+	_verticalWheelDelta += zoom
+		? angle.y()
+		: std::clamp(angle.y(), -step, step);
 	while (std::abs(_verticalWheelDelta) >= step) {
 		if (_verticalWheelDelta < 0) {
 			_verticalWheelDelta += step;
-			if (e->modifiers().testFlag(Qt::ControlModifier)) {
+			if (zoom) {
 				zoomOut(anchor);
 			} else if (acceptForJump) {
 				moveToNext(1);
 			}
 		} else {
 			_verticalWheelDelta -= step;
-			if (e->modifiers().testFlag(Qt::ControlModifier)) {
+			if (zoom) {
 				zoomIn(anchor);
 			} else if (acceptForJump) {
 				moveToNext(-1);
