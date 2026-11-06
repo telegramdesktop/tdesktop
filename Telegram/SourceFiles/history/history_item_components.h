@@ -626,6 +626,7 @@ private:
 		~Button();
 
 		Ui::Text::String text = { 1 };
+		Ui::Text::String textWithoutIcon = { 1 };
 		QRect rect;
 		int characters = 0;
 		float64 howMuchOver = 0.;
