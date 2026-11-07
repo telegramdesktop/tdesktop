@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "base/platform/base_platform_file_utilities.h"
+#include "iv/editor/iv_editor_page_table_grid.h"
 #include "iv/editor/iv_editor_state.h"
 #include "lang/lang_keys.h"
 #include "ui/style/style_core.h"
@@ -42,7 +43,9 @@ using Iv::Markdown::PreparedEditDropTarget;
 using Iv::Markdown::PreparedEditListItemDropTarget;
 using Iv::Markdown::PreparedEditSelection;
 using Iv::Markdown::PreparedEditSelectionKind;
+using Iv::Markdown::PreparedEditTableCellRange;
 using Iv::Markdown::PreparedEditTextDropTarget;
+using Iv::Markdown::PrepareTableRenderLimitsForRichMessage;
 
 using Action = State::BoundaryTarget::Action;
 using Block = RichPage::Block;
@@ -72,6 +75,7 @@ struct Fixture {
 	bool temporaryParagraph = false;
 	const char *text = nullptr;
 	const char *state = nullptr;
+	const char *grid = nullptr;
 };
 
 struct Start {
@@ -89,6 +93,7 @@ struct RemovalCase {
 	const char *state = nullptr;
 	const char *leaves = nullptr;
 	const char *spans = nullptr;
+	const char *grid = nullptr;
 };
 
 struct Outcome {
@@ -324,6 +329,30 @@ void AppendLeaves(
 	return rows.join('|');
 }
 
+[[nodiscard]] QString GridText(
+		const RichPage &page,
+		const RichMessageLimits &limits) {
+	const auto renderLimits = PrepareTableRenderLimitsForRichMessage(limits);
+	auto cells = QStringList();
+	for (const auto &block : page.blocks) {
+		if (block.kind != BlockKind::Table) {
+			continue;
+		}
+		const auto grid = BuildTableGrid(block, renderLimits);
+		for (const auto &reference : grid.cells) {
+			const auto &cell = block.tableRows[reference.rowIndex].cells[
+				reference.cellIndex];
+			cells.push_back(u"%1@r%2-%3c%4-%5"_q
+				.arg(QuotedText(cell.text))
+				.arg(reference.rowFrom)
+				.arg(reference.rowTill)
+				.arg(reference.columnFrom)
+				.arg(reference.columnTill));
+		}
+	}
+	return cells.join(' ');
+}
+
 [[nodiscard]] QString StateText(const State &state) {
 	return u"%1=%2%3 ; %4"_q.arg(
 		QString::number(state.activeTextOrdinal()),
@@ -524,6 +553,15 @@ void Expect::page(
 	return Framed(Table(title, rows));
 }
 
+[[nodiscard]] RichPage WithDecoratedCell(RichPage page, int row, int cell) {
+	auto &decorated = page.blocks.front().tableRows[row].cells[cell];
+	decorated.text.text = tr::bold(decorated.text.text.text);
+	decorated.header = true;
+	decorated.alignment = RichPage::TableAlignment::Center;
+	decorated.verticalAlignment = RichPage::TableVerticalAlignment::Middle;
+	return page;
+}
+
 constexpr auto kFlat4 = Fixture{
 	.name = "flat4",
 	.page = [] { return Flat({ u"A"_q, u"B"_q, u"C"_q, u"D"_q }); },
@@ -611,6 +649,8 @@ constexpr auto kRowMerged = Fixture{
 	},
 	.text = R"(T"T"{"a" "m"*r2 "b"|"c" "d"})",
 	.state = R"(0=text:0"T" ; live T0 nodes=6)",
+	.grid = R"("a"@r0-1c0-1 "m"@r0-2c1-2 "b"@r0-1c2-3)"
+		R"( "c"@r1-2c0-1 "d"@r1-2c2-3)",
 };
 constexpr auto kRowSpanRows = Fixture{
 	.name = "rowSpanRows",
@@ -623,6 +663,130 @@ constexpr auto kRowSpanRows = Fixture{
 	},
 	.text = R"(T"T"{"a"*r2 "b"|"c"|"d" "e"})",
 	.state = R"(0=text:0"T" ; live T0 nodes=6)",
+	.grid = R"("a"@r0-2c0-1 "b"@r0-1c1-2 "c"@r1-2c1-2)"
+		R"( "d"@r2-3c0-1 "e"@r2-3c1-2)",
+};
+constexpr auto kRowSpanThree = Fixture{
+	.name = "rowSpanThree",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"a"_q, 1, 3 }, { u"b"_q } },
+			{ { u"c"_q } },
+			{ { u"d"_q } },
+			{ { u"e"_q }, { u"f"_q } },
+		}) });
+	},
+	.text = R"(T"T"{"a"*r3 "b"|"c"|"d"|"e" "f"})",
+	.state = R"(0=text:0"T" ; live T0 nodes=7)",
+	.grid = R"("a"@r0-3c0-1 "b"@r0-1c1-2 "c"@r1-2c1-2 "d"@r2-3c1-2)"
+		R"( "e"@r3-4c0-1 "f"@r3-4c1-2)",
+};
+constexpr auto kEmptyTarget = Fixture{
+	.name = "emptyTarget",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"a"_q, 2, 3 }, { u"x"_q } },
+			{ { u"b"_q, 1, 2 } },
+			{},
+		}) });
+	},
+	.text = R"(T"T"{"a"*c2*r3 "x"|"b"*r2|})",
+	.state = R"(0=text:0"T" ; live T0 nodes=4)",
+	.grid = R"("a"@r0-3c0-2 "x"@r0-1c2-3 "b"@r1-3c2-3)",
+};
+constexpr auto kTrailingSpans = Fixture{
+	.name = "trailingSpans",
+	.page = [] {
+		return WithDecoratedCell(
+			Page({ Table(u"T"_q, {
+				{ { u"p"_q, 1, 3 }, { u"q"_q }, { u"r"_q }, { u"s"_q } },
+				{ { u"x"_q }, { u"a"_q, 1, 2 }, { u"b"_q, 1, 2 } },
+				{ { u"c"_q } },
+			}) }),
+			1,
+			1);
+	},
+	.text = R"(T"T"{"p"*r3 "q" "r" "s"|"x" "a"*r2 "b"*r2|"c"})",
+	.state = R"(0=text:0"T" ; live T0 nodes=9)",
+	.grid = R"("p"@r0-3c0-1 "q"@r0-1c1-2 "r"@r0-1c2-3 "s"@r0-1c3-4)"
+		R"( "x"@r1-2c1-2 "a"@r1-3c2-3 "b"@r1-3c3-4 "c"@r2-3c1-2)",
+};
+constexpr auto kSpanGap = Fixture{
+	.name = "spanGap",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"x"_q }, { u"a"_q, 1, 2 } },
+			{},
+		}) });
+	},
+	.text = R"(T"T"{"x" "a"*r2|})",
+	.state = R"(0=text:0"T" ; live T0 nodes=3)",
+	.grid = R"("x"@r0-1c0-1 "a"@r0-2c1-2)",
+};
+constexpr auto kUnorderedTarget = Fixture{
+	.name = "unorderedTarget",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"x"_q }, { u"m"_q, 1, 2 }, { u"y"_q }, { u"z"_q } },
+			{ { u"w"_q, 2 }, { u"v"_q } },
+		}) });
+	},
+	.text = R"(T"T"{"x" "m"*r2 "y" "z"|"w"*c2 "v"})",
+	.state = R"(0=text:0"T" ; live T0 nodes=7)",
+	.grid = R"("x"@r0-1c0-1 "m"@r0-2c1-2 "y"@r0-1c2-3 "z"@r0-1c3-4)"
+		R"( "w"@r1-2c2-4 "v"@r1-2c0-1)",
+};
+constexpr auto kLongSpan = Fixture{
+	.name = "longSpan",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"a"_q, 1, 99 }, { u"b"_q } },
+			{ { u"c"_q } },
+		}) });
+	},
+	.text = R"(T"T"{"a"*r99 "b"|"c"})",
+	.state = R"(0=text:0"T" ; live T0 nodes=4)",
+	.grid = R"("a"@r0-2c0-1 "b"@r0-1c1-2 "c"@r1-2c1-2)",
+};
+constexpr auto kUnplacedSpan = Fixture{
+	.name = "unplacedSpan",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"x"_q }, { u"a"_q, 1, 2 } },
+			{ { u"c"_q } },
+		}) });
+	},
+	.limits = { .maxTableCols = 1 },
+	.text = R"(T"T"{"x" "a"*r2|"c"})",
+	.state = R"(0=text:0"T" ; live T0 nodes=4)",
+	.grid = R"("x"@r0-1c0-1 "c"@r1-2c0-1)",
+};
+constexpr auto kOmittedSpan = Fixture{
+	.name = "omittedSpan",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"x"_q, 20 }, { u"a"_q, 1, 3 } },
+			{},
+			{ { u"d"_q } },
+		}) });
+	},
+	.text = R"(T"T"{"x"*c20 "a"*r3||"d"})",
+	.state = R"(0=text:0"T" ; live T0 nodes=4)",
+	.grid = R"("x"@r0-1c0-20 "d"@r2-3c0-1)",
+};
+constexpr auto kOmittedSpanOneColumn = Fixture{
+	.name = "omittedSpanOneColumn",
+	.page = [] {
+		return Page({ Table(u"T"_q, {
+			{ { u"x"_q }, { u"a"_q, 1, 3 } },
+			{},
+			{ { u"d"_q } },
+		}) });
+	},
+	.limits = { .maxTableCols = 1 },
+	.text = R"(T"T"{"x" "a"*r3||"d"})",
+	.state = R"(0=text:0"T" ; live T0 nodes=4)",
+	.grid = R"("x"@r0-1c0-1 "d"@r2-3c0-1)",
 };
 constexpr auto kTwoLists = Fixture{
 	.name = "twoLists",
@@ -635,6 +799,21 @@ constexpr auto kTwoLists = Fixture{
 	},
 	.text = R"(L["a0" "a1"] P"M" L["b0" "b1"])",
 	.state = kTwoListsAtA0,
+};
+constexpr auto kListFirst = Fixture{
+	.name = "listFirst",
+	.page = [] {
+		return Page({
+			List({
+				Item(u"i0"_q),
+				Item(u"i1"_q, Paragraphs({ u"x1"_q })),
+				Item(u"i2"_q),
+			}),
+			Paragraph(u"C"_q),
+		});
+	},
+	.text = R"(L["i0" "i1"{P"x1"} "i2"] P"C")",
+	.state = R"(0=item:0#0"i0" ; live L0 P1 nodes=5)",
 };
 constexpr auto kMixedLists = Fixture{
 	.name = "mixedLists",
@@ -940,10 +1119,42 @@ void CheckRemoval(Expect &expect, State &state, const RemovalCase &test) {
 	if (test.spans) {
 		expect.text("prepared spans", PreparedSpans(state), Latin(test.spans));
 	}
+	if (test.grid) {
+		expect.text(
+			"grid",
+			GridText(state.richPage(), test.start.fixture.limits),
+			Latin(test.grid));
+	}
 	if (!test.returned) {
 		ExpectPageObject(expect, state, before, false);
 		ExpectEqualState(expect, state, before);
 	}
+}
+
+void CheckMenuRemoval(Expect &expect, State &state, const RemovalCase &test) {
+	const auto &start = test.start;
+	auto twin = MakeState(start.fixture);
+	if (!Activate(expect, twin, start.fixture, start.active)) {
+		return;
+	}
+	CheckRemoval(expect, twin, test);
+	const auto &rows = start.selection.tableRows;
+	auto range = PreparedEditTableCellRange{
+		.block = rows.block,
+		.rowFrom = rows.from,
+		.rowTill = rows.till,
+		.columnFrom = 0,
+		.columnTill = 1,
+	};
+	range.columnTill = state.tableSelectionInfo(range).totalColumns;
+	const auto removed = state.removeTableRows(range);
+	expect.same(
+		"menu removed",
+		removed,
+		removed ? u"yes"_q : u"no"_q,
+		u"yes"_q);
+	expect.page("menu page", state.richPage(), twin.richPage());
+	expect.text("menu state", StateText(state), StateText(twin));
 }
 
 void ExpectDestination(
@@ -1065,7 +1276,17 @@ template <typename Case>
 		kColMerged,
 		kRowMerged,
 		kRowSpanRows,
+		kRowSpanThree,
+		kEmptyTarget,
+		kTrailingSpans,
+		kSpanGap,
+		kUnorderedTarget,
+		kLongSpan,
+		kUnplacedSpan,
+		kOmittedSpan,
+		kOmittedSpanOneColumn,
 		kTwoLists,
+		kListFirst,
 		kMixedLists,
 		kWithU,
 		kQuoteDepth,
@@ -1089,6 +1310,12 @@ template <typename Case>
 			fixture.state,
 			nullptr,
 			fixture.temporaryParagraph);
+		if (fixture.grid) {
+			expect.text(
+				"grid",
+				GridText(state.richPage(), fixture.limits),
+				Latin(fixture.grid));
+		}
 	}
 	return report;
 }
@@ -1165,43 +1392,43 @@ template <typename Case>
 		{
 			.start = { "R10", kFlat4, 3, Blocks(Root(), 0, 1) },
 			.forward = false,
-			.returned = 0,
+			.returned = 2,
 			.page = Flat({ u"B"_q, u"C"_q, u"D"_q }),
-			.state = R"(0=text:0"B" ; live P0 P1 P2 nodes=3)",
+			.state = R"(2=text:2"D" ; live P0 P1 P2 nodes=3)",
 		},
 	});
 }
 
-[[nodiscard]] Report RemovalBlocksStalePlannedFocus() {
+[[nodiscard]] Report RemovalBlocksLeadingPlannedFocus() {
 	const auto lastThree = Flat({ u"C"_q, u"D"_q, u"E"_q });
 	return RunRemovals({
 		{
 			.start = { "R11", kFlat4, 0, Blocks(Root(), 0, 1) },
 			.forward = false,
-			.returned = 1,
+			.returned = 0,
 			.page = Flat({ u"B"_q, u"C"_q, u"D"_q }),
-			.state = R"(1=text:1"C" ; live P0 P1 P2 nodes=3)",
+			.state = R"(0=text:0"B" ; live P0 P1 P2 nodes=3)",
 		},
 		{
 			.start = { "R12", kFlat5, 2, Blocks(Root(), 0, 2) },
 			.forward = false,
-			.returned = 2,
+			.returned = 0,
 			.page = lastThree,
-			.state = R"(2=text:2"E" ; live P0 P1 P2 nodes=3)",
+			.state = R"(0=text:0"C" ; live P0 P1 P2 nodes=3)",
 		},
 		{
 			.start = { "R13", kFlat5, 0, Blocks(Root(), 0, 2) },
 			.forward = false,
-			.returned = 2,
+			.returned = 0,
 			.page = lastThree,
-			.state = R"(2=text:2"E" ; live P0 P1 P2 nodes=3)",
+			.state = R"(0=text:0"C" ; live P0 P1 P2 nodes=3)",
 		},
 		{
 			.start = { "R14", kFlat5, 4, Blocks(Root(), 0, 2) },
 			.forward = false,
-			.returned = 0,
+			.returned = 2,
 			.page = lastThree,
-			.state = R"(0=text:0"C" ; live P0 P1 P2 nodes=3)",
+			.state = R"(2=text:2"E" ; live P0 P1 P2 nodes=3)",
 		},
 	});
 }
@@ -1318,6 +1545,57 @@ template <typename Case>
 	});
 }
 
+[[nodiscard]] Report RemovalListItemsLeadingPlannedFocus() {
+	const auto lastItems = Page({
+		List({
+			Item(u"i1"_q, Paragraphs({ u"x1"_q })),
+			Item(u"i2"_q),
+		}),
+		Paragraph(u"C"_q),
+	});
+	const auto withoutList = Page({
+		Paragraph(u"M"_q),
+		List({ u"b0"_q, u"b1"_q }),
+	});
+	return RunRemovals({
+		{
+			.start = { "R68", kListFirst, 3, Items(0, 0, 1) },
+			.forward = false,
+			.returned = 2,
+			.page = lastItems,
+			.state = R"(2=item:0#1"i2" ; live L0 P1 nodes=4)",
+		},
+		{
+			.start = { "R69", kListFirst, 0, Items(0, 0, 1) },
+			.forward = false,
+			.returned = 0,
+			.page = lastItems,
+			.state = R"(0=item:0#0"i1" ; live L0 P1 nodes=4)",
+		},
+		{
+			.start = { "R70", kListFirst, 2, Items(0, 0, 1) },
+			.forward = false,
+			.returned = 1,
+			.page = lastItems,
+			.state = R"(1=text:0.0/0"x1" ; live L0 P1 nodes=4)",
+		},
+		{
+			.start = { "R71", kTwoLists, 2, Items(0, 0, 2) },
+			.forward = false,
+			.returned = 0,
+			.page = withoutList,
+			.state = R"(0=text:0"M" ; live P0 L1 nodes=3)",
+		},
+		{
+			.start = { "R72", kTwoLists, 1, Items(0, 0, 2) },
+			.forward = false,
+			.returned = 0,
+			.page = withoutList,
+			.state = R"(0=text:0"M" ; live P0 L1 nodes=3)",
+		},
+	});
+}
+
 [[nodiscard]] Report RemovalListItemChildren() {
 	return RunRemovals({
 		{
@@ -1395,18 +1673,186 @@ template <typename Case>
 	});
 }
 
+[[nodiscard]] RemovalCase RowSpanMovedRemoval(const char *id) {
+	return {
+		.start = { id, kRowSpanRows, 0, Rows(0, 0, 1) },
+		.returned = 1,
+		.page = Page({ Table(u"T"_q, {
+			{ { u"a"_q }, { u"c"_q } },
+			{ { u"d"_q }, { u"e"_q } },
+		}) }),
+		.state = R"(1=cell:0#0,0"a" ; live T0 nodes=5)",
+		.spans = "1x1 1x1|1x1 1x1",
+		.grid = R"("a"@r0-1c0-1 "c"@r0-1c1-2 "d"@r1-2c0-1 "e"@r1-2c1-2)",
+	};
+}
+
+[[nodiscard]] RemovalCase RowSpanShortenedRemoval(const char *id) {
+	return {
+		.start = { id, kRowSpanRows, 0, Rows(0, 1, 2) },
+		.returned = 3,
+		.page = Page({ Table(u"T"_q, {
+			{ { u"a"_q }, { u"b"_q } },
+			{ { u"d"_q }, { u"e"_q } },
+		}) }),
+		.state = R"(3=cell:0#1,0"d" ; live T0 nodes=5)",
+		.spans = "1x1 1x1|1x1 1x1",
+		.grid = R"("a"@r0-1c0-1 "b"@r0-1c1-2 "d"@r1-2c0-1 "e"@r1-2c1-2)",
+	};
+}
+
+[[nodiscard]] RemovalCase OmittedSpanRemoval(const char *id) {
+	return {
+		.start = { id, kOmittedSpan, 0, Rows(0, 0, 1) },
+		.returned = 1,
+		.page = Page({ Table(u"T"_q, {
+			{ { QString() }, { u"a"_q, 1, 2 } },
+			{ { u"d"_q } },
+		}) }),
+		.state = R"(1=cell:0#0,0"" ; live T0 nodes=4)",
+		.spans = "1x1 1x2|1x1",
+		.grid = R"(""@r0-1c0-1 "a"@r0-2c1-2 "d"@r1-2c0-1)",
+	};
+}
+
 [[nodiscard]] Report RemovalTableRowsMerged() {
 	return RunRemovals({
+		RowSpanMovedRemoval("R40"),
+		RowSpanShortenedRemoval("R73"),
 		{
-			.start = { "R40", kRowSpanRows, 0, Rows(0, 0, 1) },
+			.start = { "R74", kRowSpanThree, 0, Rows(0, 1, 2) },
+			.returned = 3,
+			.page = Page({ Table(u"T"_q, {
+				{ { u"a"_q, 1, 2 }, { u"b"_q } },
+				{ { u"d"_q } },
+				{ { u"e"_q }, { u"f"_q } },
+			}) }),
+			.state = R"(3=cell:0#1,0"d" ; live T0 nodes=6)",
+			.spans = "1x2 1x1|1x1|1x1 1x1",
+			.grid = R"("a"@r0-2c0-1 "b"@r0-1c1-2 "d"@r1-2c1-2)"
+				R"( "e"@r2-3c0-1 "f"@r2-3c1-2)",
+		},
+		{
+			.start = { "R75", kRowSpanThree, 0, Rows(0, 0, 1) },
 			.returned = 1,
 			.page = Page({ Table(u"T"_q, {
-				{ { u"c"_q } },
-				{ { u"d"_q }, { u"e"_q } },
+				{ { u"a"_q, 1, 2 }, { u"c"_q } },
+				{ { u"d"_q } },
+				{ { u"e"_q }, { u"f"_q } },
+			}) }),
+			.state = R"(1=cell:0#0,0"a" ; live T0 nodes=6)",
+			.spans = "1x2 1x1|1x1|1x1 1x1",
+			.grid = R"("a"@r0-2c0-1 "c"@r0-1c1-2 "d"@r1-2c1-2)"
+				R"( "e"@r2-3c0-1 "f"@r2-3c1-2)",
+		},
+		{
+			.start = { "R76", kRowMerged, 0, Rows(0, 0, 1) },
+			.returned = 1,
+			.page = Page({ Table(u"T"_q, {
+				{ { u"c"_q }, { u"m"_q }, { u"d"_q } },
 			}) }),
 			.state = R"(1=cell:0#0,0"c" ; live T0 nodes=4)",
+			.spans = "1x1 1x1 1x1",
+			.grid = R"("c"@r0-1c0-1 "m"@r0-1c1-2 "d"@r0-1c2-3)",
+		},
+		{
+			.start = { "R77", kRowSpanThree, 0, Rows(0, 1, 3) },
+			.returned = 3,
+			.page = Page({ Table(u"T"_q, {
+				{ { u"a"_q }, { u"b"_q } },
+				{ { u"e"_q }, { u"f"_q } },
+			}) }),
+			.state = R"(3=cell:0#1,0"e" ; live T0 nodes=5)",
+			.spans = "1x1 1x1|1x1 1x1",
+			.grid = R"("a"@r0-1c0-1 "b"@r0-1c1-2 "e"@r1-2c0-1 "f"@r1-2c1-2)",
+		},
+		{
+			.start = { "R80", kEmptyTarget, 0, Rows(0, 0, 2) },
+			.returned = 1,
+			.page = Page({ Table(u"T"_q, {
+				{ { u"a"_q, 2 }, { u"b"_q } },
+			}) }),
+			.state = R"(1=cell:0#0,0"a" ; live T0 nodes=3)",
+			.spans = "2x1 1x1",
+			.grid = R"("a"@r0-1c0-2 "b"@r0-1c2-3)",
+		},
+		{
+			.start = { "R81", kTrailingSpans, 0, Rows(0, 1, 2) },
+			.returned = 5,
+			.page = WithDecoratedCell(
+				Page({ Table(u"T"_q, {
+					{ { u"p"_q, 1, 2 }, { u"q"_q }, { u"r"_q }, { u"s"_q } },
+					{ { u"c"_q }, { u"a"_q }, { u"b"_q } },
+				}) }),
+				1,
+				1),
+			.state = R"(5=cell:0#1,0"c" ; live T0 nodes=8)",
+			.spans = "1x2 1x1 1x1 1x1|1x1 1x1 1x1",
+			.grid = R"("p"@r0-2c0-1 "q"@r0-1c1-2 "r"@r0-1c2-3 "s"@r0-1c3-4)"
+				R"( "c"@r1-2c1-2 "a"@r1-2c2-3 "b"@r1-2c3-4)",
+		},
+		{
+			.start = { "R82", kSpanGap, 0, Rows(0, 0, 1) },
+			.returned = 1,
+			.page = Page({ Table(u"T"_q, {
+				{ { QString() }, { u"a"_q } },
+			}) }),
+			.state = R"(1=cell:0#0,0"" ; live T0 nodes=3)",
+			.spans = "1x1 1x1",
+			.grid = R"(""@r0-1c0-1 "a"@r0-1c1-2)",
+		},
+		{
+			.start = { "R83", kUnorderedTarget, 0, Rows(0, 0, 1) },
+			.returned = 1,
+			.page = Page({ Table(u"T"_q, {
+				{ { u"v"_q }, { u"m"_q }, { u"w"_q, 2 } },
+			}) }),
+			.state = R"(1=cell:0#0,0"v" ; live T0 nodes=4)",
+			.spans = "1x1 1x1 2x1",
+			.grid = R"("v"@r0-1c0-1 "m"@r0-1c1-2 "w"@r0-1c2-4)",
+		},
+		{
+			.start = { "R84", kLongSpan, 0, Rows(0, 0, 1) },
+			.returned = 1,
+			.page = Page({ Table(u"T"_q, {
+				{ { u"a"_q, 1, 98 }, { u"c"_q } },
+			}) }),
+			.state = R"(1=cell:0#0,0"a" ; live T0 nodes=3)",
+			.spans = "1x1 1x1",
+			.grid = R"("a"@r0-1c0-1 "c"@r0-1c1-2)",
+		},
+		{
+			.start = { "R85", kUnplacedSpan, 0, Rows(0, 0, 1) },
+			.returned = 1,
+			.page = Page({ Table(u"T"_q, {
+				{ { u"c"_q }, { u"a"_q } },
+			}) }),
+			.state = R"(1=cell:0#0,0"c" ; live T0 nodes=3)",
+			.spans = "1x1",
+			.grid = R"("c"@r0-1c0-1)",
+		},
+		OmittedSpanRemoval("R86"),
+		{
+			.start = { "R87", kOmittedSpanOneColumn, 0, Rows(0, 0, 1) },
+			.returned = 1,
+			.page = Page({ Table(u"T"_q, {
+				{ { QString() }, { u"a"_q, 1, 2 } },
+				{ { u"d"_q } },
+			}) }),
+			.state = R"(1=cell:0#0,0"" ; live T0 nodes=4)",
+			.spans = "1x1|1x1",
+			.grid = R"(""@r0-1c0-1 "d"@r1-2c0-1)",
 		},
 	});
+}
+
+[[nodiscard]] Report RemovalTableRowsMenu() {
+	const auto cases = std::vector<RemovalCase>{
+		RowSpanMovedRemoval("R78"),
+		RowSpanShortenedRemoval("R79"),
+		OmittedSpanRemoval("R88"),
+	};
+	return RunCases(cases, CheckMenuRemoval);
 }
 
 [[nodiscard]] Report RemovalTableColumns() {
@@ -2144,12 +2590,20 @@ template <typename Case>
 		{ "removal.blocks.range-and-direction", RemovalBlocksRangeAndDirection },
 		{ "removal.blocks.active-leaf-kept", RemovalBlocksActiveLeafKept },
 		{ "removal.blocks.active-leaf-removed", RemovalBlocksActiveLeafRemoved },
-		{ "removal.blocks.stale-planned-focus", RemovalBlocksStalePlannedFocus },
+		{
+			"removal.blocks.leading-planned-focus",
+			RemovalBlocksLeadingPlannedFocus,
+		},
 		{ "removal.quote-children", RemovalQuoteChildren },
 		{ "removal.list-items", RemovalListItems },
+		{
+			"removal.list-items.leading-planned-focus",
+			RemovalListItemsLeadingPlannedFocus,
+		},
 		{ "removal.list-item-children", RemovalListItemChildren },
 		{ "removal.table-rows", RemovalTableRows },
 		{ "removal.table-rows-merged", RemovalTableRowsMerged },
+		{ "removal.table-rows-menu", RemovalTableRowsMenu },
 		{ "removal.table-columns", RemovalTableColumns },
 		{ "removal.table-columns-whole", RemovalTableColumnsWhole },
 		{ "removal.table-columns-merged", RemovalTableColumnsMerged },

@@ -52,6 +52,8 @@ PRIVATE
     iv/editor/iv_editor_page_path.h
     iv/editor/iv_editor_page_table_grid.cpp
     iv/editor/iv_editor_page_table_grid.h
+    iv/editor/iv_editor_page_table_remove.cpp
+    iv/editor/iv_editor_page_table_remove.h
     iv/editor/iv_editor_prepared_selection.cpp
     iv/editor/iv_editor_prepared_selection.h
     iv/editor/iv_editor_structure_menu.cpp
