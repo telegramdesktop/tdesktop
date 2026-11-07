@@ -904,7 +904,7 @@ void EditAllowedReactionsBox(
 			(*reactionsLimit) = limit;
 		};
 		const auto current = args.allowed.maxCount
-			? std::clamp(1, args.allowed.maxCount, max)
+			? std::clamp(args.allowed.maxCount, 1, max)
 			: max / 2;
 		slider->setPseudoDiscrete(
 			max,
