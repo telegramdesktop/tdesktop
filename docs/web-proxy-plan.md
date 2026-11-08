@@ -53,12 +53,8 @@ The initial draft left several architectural choices open. They are now fixed:
    and single-label names are rejected. `port` is fixed to `443`; `password` stores
    the MTProxy secret; `user` stores the optional base path slug (§3.1).
    Operators should publish WEB hostnames in ACE (`xn--…`)
-   form: ACE input round-trips unchanged on every platform, while a hand-typed
-   Unicode host is mapped by the Qt version the build ships (IDNA2003/nameprep
-   on the Qt 5.15 Windows builds, UTS #46 nontransitional on Qt 6), so hosts
-   containing deviation characters (`ß`, `ς`, ZWJ, ZWNJ) or characters newer
-   than Unicode 3.2 can normalise to different strings — and therefore different
-   capabilities — per platform.
+   form: ACE input round-trips unchanged, while a hand-typed Unicode host is
+   mapped by Qt (UTS #46 nontransitional).
 5. WEB entries are entered manually or imported from `tg://webproxy` /
    `https://t.me/webproxy` links (see §11); there is no `tg://proxy?…` form.
 6. Inactive WEB entries are not checked and are removed from proxy rotation's
