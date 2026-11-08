@@ -74,7 +74,7 @@ Version **1.8.15** was the last that supports older systems
 
 ## Build instructions
 
-* [Windows (32-bit and 64-bit)][win]
+* [Windows][win]
 * [macOS][mac]
 * [GNU/Linux using Docker][linux]
 
