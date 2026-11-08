@@ -1957,27 +1957,6 @@ release:
     lipo -create Release.arm64/libtg_owt.a Release.x86_64/libtg_owt.a -output Release/libtg_owt.a
 """)
 
-stage('ada', """
-    git clone -b v3.2.9 https://github.com/ada-url/ada.git
-    cd ada
-win:
-    cmake -B out . ^
-        -D ADA_TESTING=OFF ^
-        -D ADA_TOOLS=OFF ^
-        -D ADA_INCLUDE_URL_PATTERN=OFF ^
-        -D CMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded$<$<CONFIG:Debug>:Debug>"
-    cmake --build out --config Debug
-    cmake --build out --config Release
-mac:
-    CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
-        -D ADA_TESTING=OFF \\
-        -D ADA_TOOLS=OFF \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
-        -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
-    cmake --build build
-    cmake --install build
-""")
-
 stage('tde2e', """
     git clone https://github.com/tdlib/td.git tde2e
     cd tde2e

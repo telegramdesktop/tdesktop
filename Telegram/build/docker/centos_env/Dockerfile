@@ -965,17 +965,6 @@ cd ..
 rm -rf tg_owt
 EOF
 
-FROM builder AS ada
-RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v3.2.9 --depth=1 https://github.com/ada-url/ada.git
-cd ada
-cmake -B build . -DADA_TESTING=OFF -DADA_TOOLS=OFF -DADA_INCLUDE_URL_PATTERN=OFF
-cmake --build build
-DESTDIR=/usr/src/ada-cache cmake --install build
-cd ..
-rm -rf ada
-EOF
-
 FROM builder AS tde2e
 COPY --link --from=zlib /usr/src/zlib-cache /
 COPY --link --from=openssl /usr/src/openssl-cache /
@@ -1083,7 +1072,6 @@ COPY --link --from=qt /usr/src/qt-cache /
 COPY --link --from=boost /usr/src/boost-cache /
 COPY --link --from=breakpad /usr/src/breakpad-cache /
 COPY --link --from=webrtc /usr/src/webrtc-cache /
-COPY --link --from=ada /usr/src/ada-cache /
 COPY --link --from=tde2e /usr/src/tde2e-cache /
 COPY --link --from=tdesktop_rust /usr/src/tdesktop_rust-cache /
 
