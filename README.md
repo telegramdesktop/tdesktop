@@ -65,7 +65,6 @@ Version **1.8.15** was the last that supports older systems
 * QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
 * CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
 * Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
-* Ada ([Apache License 2.0](https://github.com/ada-url/ada/blob/main/LICENSE-APACHE))
 * zxcvbn-c ([MIT License](https://github.com/tsyrogit/zxcvbn-c/blob/master/LICENSE.txt))
 * twidget ([BSD 3-Clause License](https://github.com/TelegramMessenger/twidget/blob/main/LICENSE))
 * litehtml ([BSD 3-Clause License](https://github.com/litehtml/litehtml/blob/master/LICENSE))

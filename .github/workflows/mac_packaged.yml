@@ -82,7 +82,7 @@ jobs:
 
       - name: First set up.
         run: |
-          libs="ada-url ffmpeg@6 jpeg-xl libavif libheif minizip openal-soft openh264 openssl opus qtbase qtimageformats qtshadertools qtsvg xz"
+          libs="ffmpeg@6 jpeg-xl libavif libheif minizip openal-soft openh264 openssl opus qtbase qtimageformats qtshadertools qtsvg xz"
           brew update
           brew upgrade || true
           brew install autoconf automake boost cmake libtool ninja pkg-config python $libs

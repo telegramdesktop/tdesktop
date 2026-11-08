@@ -86,7 +86,6 @@ parts:
         ln -sfn "$RELATIVE" "$DEST"
       done
     after:
-      - ada
       - avif
       - ffmpeg
       - minizip
@@ -131,20 +130,6 @@ parts:
       cp -r . "$CRAFT_STAGE/patches"
     override-prime: |
       rm -rf patches
-
-  ada:
-    source: https://github.com/ada-url/ada.git
-    source-depth: 1
-    source-tag: v3.2.9
-    plugin: cmake
-    cmake-generator: Ninja
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DADA_TESTING=OFF
-      - -DADA_TOOLS=OFF
-      - -DADA_INCLUDE_URL_PATTERN=OFF
-    prime: [-./*]
 
   avif:
     source: https://github.com/AOMediaCodec/libavif.git
