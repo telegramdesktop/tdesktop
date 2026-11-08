@@ -48,12 +48,6 @@ elif officialTarget in ['winarm', 'uwparm']:
 if not qt_version.resolve(arch):
     error('Unsupported platform.')
 
-if 'qt6' in arguments:
-    arguments.remove('qt6')
-
-if 'qt5' in arguments:
-    arguments.remove('qt5')
-
 if officialTarget != '':
     officialApiIdFile = scriptPath + '/../../DesktopPrivate/custom_api_id.h'
     if not os.path.isfile(officialApiIdFile):

@@ -133,24 +133,9 @@ jobs:
         id: cache-libs
         uses: actions/cache/restore@v6
         with:
-          path: |
-            ${{ env.LibrariesPath }}\*
-            !${{ env.LibrariesPath }}\cache_keys
-            !${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\*
-            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          path: ${{ env.LibrariesPath }}
           key: ${{ runner.OS }}-win7gate-release-libs-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.OS }}-win7gate-release-libs-
-
-      - name: Qt cache.
-        id: cache-qt
-        uses: actions/cache/restore@v6
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ runner.OS }}-win7gate-release-qt-${{ env.CACHE_KEY }}
-          restore-keys: ${{ runner.OS }}-win7gate-release-qt-
 
       - name: Reset pruned Rust source stages.
         shell: bash
@@ -180,22 +165,8 @@ jobs:
         if: steps.cache-libs.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
         with:
-          path: |
-            ${{ env.LibrariesPath }}\*
-            !${{ env.LibrariesPath }}\cache_keys
-            !${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\*
-            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
+          path: ${{ env.LibrariesPath }}
           key: ${{ steps.cache-libs.outputs.cache-primary-key }}
-
-      - name: Save Qt cache.
-        if: steps.cache-qt.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v6
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: ${{ steps.cache-qt.outputs.cache-primary-key }}
 
       - name: Stub private packer keys.
         shell: bash
@@ -241,7 +212,7 @@ jobs:
           {
             echo "commit $(git rev-parse HEAD)"
             echo "prepare_cache_key $CACHE_KEY"
-            echo "qt $(grep -A6 "elif sys.platform == 'win32'" "$TBUILD/$REPO_NAME/Telegram/build/qt_version.py" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | tail -1)"
+            echo "qt $(grep -oE '[0-9]+\.[0-9]+\.[0-9]+' "$TBUILD/$REPO_NAME/Telegram/build/qt_version.py")"
             echo "patches $(git -C "$LibrariesPath/patches" rev-parse HEAD 2>/dev/null || echo missing)"
             echo "qt6_windows7 $(git -C "$LibrariesPath/qt6_windows7" rev-parse HEAD 2>/dev/null || echo missing)"
             echo "qtbase $(git -C "$LibrariesPath/qt_6.12.0/qtbase" rev-parse HEAD 2>/dev/null || echo missing)"

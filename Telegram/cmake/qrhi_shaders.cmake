@@ -7,10 +7,6 @@ if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/shaders")
     return()
 endif()
 
-if (QT_VERSION_MAJOR LESS 6)
-    return()
-endif()
-
 find_program(QSB_EXECUTABLE qsb
     HINTS
         "${QT_DIR}/../../../libexec"
