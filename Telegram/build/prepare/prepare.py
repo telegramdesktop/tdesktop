@@ -60,8 +60,6 @@ thirdPartyDir = os.path.realpath(os.path.join(rootDir, 'ThirdParty'))
 usedPrefix = os.path.realpath(os.path.join(libsDir, 'local'))
 
 optionsList = [
-    'qt5',
-    'qt6',
     'skip-release',
     'build-stackwalk',
     'qt-asserts',
@@ -1606,7 +1604,7 @@ release:
     lipo -create Release.arm64/libcrashpad_client.a Release.x86_64/libcrashpad_client.a -output Release/libcrashpad_client.a
 """)
 
-if win and qt >= '6':
+if win:
     # Windows 7 and 8 support for qtbase, and the ANGLE backend Qt 6 dropped.
     stage('qt6_windows7', """
 win32_win64:
@@ -1629,84 +1627,12 @@ release:
     cmake --build out --config Release
 """)
 
-if qt < '6':
-    stage('qt_' + qt, """
-    git clone -b v$QT-lts-lgpl https://github.com/qt/qt5.git qt_$QT
-    cd qt_$QT
-    git submodule update --init --recursive --progress qtbase qtimageformats qtsvg
-depends:patches/qtbase_""" + qt + """/*.patch
-depends:patches/qtsvg_""" + qt + """/*.patch
-win:
-    cd qtbase
-    setlocal enabledelayedexpansion
-    for /r %%i in (..\\..\\patches\\qtbase_%QT%\\*) do (
-        git apply %%i -v
-        if errorlevel 1 (
-            echo ERROR: Applying patch %%~nxi failed!
-            exit /b 1
-        )
-    )
-    cd ..\\qtsvg
-    for %%i in (..\\..\\patches\\qtsvg_%QT%\\*) do git apply %%i -v || exit /b 1
-    cd ..
-
-    SET CONFIGURATIONS=-debug
-release:
-    SET CONFIGURATIONS=-debug-and-release
-win:
-    """ + removeDir('"%LIBS_DIR%\\Qt-' + qt + '"') + """
-    SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
-    SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
-    SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
-    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
-    SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
-    SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
-    SET WEBP_DIR=%LIBS_DIR%\\libwebp
-    configure -prefix "%LIBS_DIR%\\Qt-%QT%" ^
-        %CONFIGURATIONS% ^
-        -force-debug-info ^
-        -opensource ^
-        -confirm-license ^
-        -static ^
-        -static-runtime ^
-        -opengl es2 -no-angle ^
-        -I "%ANGLE_DIR%\\include" ^
-        -D "KHRONOS_STATIC=" ^
-        -D "DESKTOP_APP_QT_STATIC_ANGLE=" ^
-        QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\libzsd.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\libzs.lib d3d9.lib dxgi.lib dxguid.lib" ^
-        -egl ^
-        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\\Debug\\libzsd.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        QMAKE_LIBS_EGL_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\\Release\\libzs.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
-        -openssl-linked ^
-        -I "%OPENSSL_DIR%\\include" ^
-        OPENSSL_LIBS_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libssl.lib %OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
-        OPENSSL_LIBS_RELEASE="%OPENSSL_LIBS_DIR%\\libssl.lib %OPENSSL_LIBS_DIR%\\libcrypto.lib Ws2_32.lib Gdi32.lib Advapi32.lib Crypt32.lib User32.lib" ^
-        -I "%MOZJPEG_DIR%" ^
-        LIBJPEG_LIBS_DEBUG="%MOZJPEG_DIR%\\Debug\\jpeg-static.lib" ^
-        LIBJPEG_LIBS_RELEASE="%MOZJPEG_DIR%\\Release\\jpeg-static.lib" ^
-        -system-webp ^
-        -I "%WEBP_DIR%\\src" ^
-        -L "%WEBP_DIR%\\out\\release-static\\$X8664\\lib" ^
-        -mp ^
-        -no-feature-netlistmgr ^
-        -nomake examples ^
-        -nomake tests ^
-        -platform win32-msvc
-
-    rem jom -jN occasionally fails to create the shared mkspecs\\modules-inst
-    rem directory due to a race in qmake's mkpath under parallel builds; the
-    rem build is incremental, so simply retrying picks up where it stopped.
-    jom -j%NUMBER_OF_PROCESSORS% || jom -j%NUMBER_OF_PROCESSORS%
-    jom -j%NUMBER_OF_PROCESSORS% install
-""")
-else: # qt > '6'
-    qtAngleCmake = os.path.realpath(os.path.join(
-        scriptPath, '../../../cmake/external/angle/qt.cmake')).replace('\\', '/')
-    # checkouts share Libraries, so the cache key gets the content, not the path
-    modifiedEnv['QT_ANGLE_CMAKE'] = qtAngleCmake
-    branch = 'v$QT' + ('-lts-lgpl' if qt.startswith('6.2.') else '')
-    stage('qt_' + qt, """
+qtAngleCmake = os.path.realpath(os.path.join(
+    scriptPath, '../../../cmake/external/angle/qt.cmake')).replace('\\', '/')
+# checkouts share Libraries, so the cache key gets the content, not the path
+modifiedEnv['QT_ANGLE_CMAKE'] = qtAngleCmake
+branch = 'v$QT' + ('-lts-lgpl' if qt.startswith('6.2.') else '')
+stage('qt_' + qt, """
     git clone -b """ + branch + """ https://github.com/qt/qt5.git qt_$QT
     cd qt_$QT
     git submodule update --init --recursive --progress qtbase qtimageformats qtshadertools qtsvg

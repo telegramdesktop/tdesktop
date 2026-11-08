@@ -2724,11 +2724,8 @@ if (WIN32)
     #     $<IF:${release},"Appending compatibility manifest.","Finalizing build.">
     # )
 
-    if (QT_VERSION LESS 6 OR DESKTOP_APP_WIN7_BASELINE)
-        target_link_libraries(Telegram PRIVATE desktop-app::win_directx_helper)
-    endif()
-
     if (DESKTOP_APP_WIN7_BASELINE)
+        target_link_libraries(Telegram PRIVATE desktop-app::win_directx_helper)
         # ANGLE loads d3dcompiler_47.dll from modules folder next to exe.
         if (build_win64)
             set(d3d_modules_subdir x64)
@@ -2747,14 +2744,11 @@ if (WIN32)
             "Copying d3dcompiler_47.dll for ANGLE."
         VERBATIM
         )
-    endif()
-
-    target_link_options(Telegram PRIVATE /PDBPAGESIZE:8192)
-
-    if (DESKTOP_APP_WIN7_BASELINE)
         # The loader reads the subsystem version as the minimal Windows.
         target_link_options(Telegram PRIVATE /SUBSYSTEM:WINDOWS,6.01)
     endif()
+
+    target_link_options(Telegram PRIVATE /PDBPAGESIZE:8192)
 elseif (APPLE)
     if (NOT DESKTOP_APP_USE_PACKAGED)
         target_link_libraries(Telegram PRIVATE desktop-app::external_iconv)
@@ -2939,9 +2933,43 @@ if (MSVC)
         # Keep delay-load protection across Qt variants with different imports.
         /IGNORE:4199
     )
-    if (NOT DESKTOP_APP_WIN7_PROBE)
+    if (DESKTOP_APP_WIN7_PROBE)
+        # Delay-load only Win8+ api-sets; other imports resolve at load time.
         target_link_options(Telegram
         PRIVATE
+            /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-File-l1-1-0.dll
+            # WindowsApp.lib binds LoadLibraryExA here; delay-load self-recurses.
+            /DELAYLOAD:API-MS-Win-Core-Localization-l1-2-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
+        )
+    else()
+        target_link_options(Telegram
+        PRIVATE
+            /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-File-l1-1-0.dll
+            # Not delayed: WindowsApp.lib binds LoadLibraryExA here, and
+            # __delayLoadHelper2 calls it to resolve delayed imports -- self-recurses.
+            /DELAYLOAD:API-MS-Win-Core-Localization-l1-2-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-1.dll
+            /DELAYLOAD:API-MS-Win-Core-ProcessThreads-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-Synch-l1-2-0.dll # Synchronization.lib
+            /DELAYLOAD:API-MS-Win-Core-SysInfo-l1-1-0.dll
+            # /DELAYLOAD:API-MS-Win-Core-Timezone-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
+            /DELAYLOAD:API-MS-Win-Security-CryptoAPI-l1-1-0.dll
+            # /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll # We shadowed GetDpiForMonitor
             /DELAYLOAD:secur32.dll
             /DELAYLOAD:winmm.dll
             /DELAYLOAD:ws2_32.dll
@@ -2969,64 +2997,22 @@ if (MSVC)
             /DELAYLOAD:wtsapi32.dll
             /DELAYLOAD:propsys.dll
             /DELAYLOAD:uiautomationcore.dll
+            /DELAYLOAD:authz.dll
+            /DELAYLOAD:comdlg32.dll
+            /DELAYLOAD:dwrite.dll
+            /DELAYLOAD:dxgi.dll
+            /DELAYLOAD:d3d9.dll
+            /DELAYLOAD:d3d11.dll
+            /DELAYLOAD:d3d12.dll
+            /DELAYLOAD:setupapi.dll
+            /DELAYLOAD:winhttp.dll
             /DELAYLOAD:icu.dll
         )
     endif()
-    if (QT_VERSION GREATER 6)
-        if (NOT build_winarm)
-            target_link_options(Telegram PRIVATE
-                /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
-            )
-        endif()
-
-        if (DESKTOP_APP_WIN7_PROBE)
-        # Delay-load only Win8+ api-sets; other imports resolve at load time.
-        target_link_options(Telegram
-        PRIVATE
-            /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
-            /DELAYLOAD:API-MS-Win-Core-File-l1-1-0.dll
-            # WindowsApp.lib binds LoadLibraryExA here; delay-load self-recurses.
-            /DELAYLOAD:API-MS-Win-Core-Localization-l1-2-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-1.dll
-            /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
+    if (NOT build_winarm)
+        target_link_options(Telegram PRIVATE
+            /DELAYLOAD:API-MS-Win-EventLog-Legacy-l1-1-0.dll
         )
-        else()
-        target_link_options(Telegram
-        PRIVATE
-            /DELAYLOAD:API-MS-Win-Core-Console-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Fibers-l2-1-1.dll
-            /DELAYLOAD:API-MS-Win-Core-File-l1-1-0.dll
-            # Not delayed: WindowsApp.lib binds LoadLibraryExA here, and
-            # __delayLoadHelper2 calls it to resolve delayed imports -- self-recurses.
-            /DELAYLOAD:API-MS-Win-Core-Localization-l1-2-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Memory-l1-1-1.dll
-            /DELAYLOAD:API-MS-Win-Core-ProcessThreads-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-Synch-l1-2-0.dll # Synchronization.lib
-            /DELAYLOAD:API-MS-Win-Core-SysInfo-l1-1-0.dll
-            # /DELAYLOAD:API-MS-Win-Core-Timezone-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-WinRT-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-WinRT-Error-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Core-WinRT-String-l1-1-0.dll
-            /DELAYLOAD:API-MS-Win-Security-CryptoAPI-l1-1-0.dll
-            # /DELAYLOAD:API-MS-Win-Shcore-Scaling-l1-1-1.dll # We shadowed GetDpiForMonitor
-            /DELAYLOAD:authz.dll # Authz.lib
-            /DELAYLOAD:comdlg32.dll
-            /DELAYLOAD:dwrite.dll # DWrite.lib
-            /DELAYLOAD:dxgi.dll # DXGI.lib
-            /DELAYLOAD:d3d9.dll # D3D9.lib
-            /DELAYLOAD:d3d11.dll # D3D11.lib
-            /DELAYLOAD:d3d12.dll # D3D12.lib
-            /DELAYLOAD:setupapi.dll # SetupAPI.lib
-            /DELAYLOAD:winhttp.dll
-        )
-        endif()
     endif()
 endif()
 
