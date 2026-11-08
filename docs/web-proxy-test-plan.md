@@ -149,8 +149,8 @@ state. Inactive WEB rows must never start a proxy checker, WebView, or browser t
 Repeat once with an IDN hostname on a TLD that Qt renders in Unicode (`.de` or
 `.com`, e.g. `bücher.de`, not `.example`): the entry is stored as `xn--bcher-kva.de`,
 the hidden WebView connects, and the capability derived for it is byte-identical on
-a Qt 5.15 Windows build and a Qt 6 macOS/Linux build. Also confirm that
-`xn--strae-oqa.example` is stored unchanged on both.
+Windows, macOS and Linux builds. Also confirm that `xn--strae-oqa.example` is stored
+unchanged on all of them.
 
 Repeat once with a profile secret that is valid MTProxy syntax but is not configured
 on staging. The ordinary-site fallback must match other root responses. The row must
