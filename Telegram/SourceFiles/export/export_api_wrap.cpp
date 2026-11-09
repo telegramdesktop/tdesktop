@@ -1848,6 +1848,7 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 		0, // offset_date
 		0, // add_offset
 		1, // limit
+		MessageDateLimits::Ignore,
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -1881,7 +1882,9 @@ void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
 	Expects(_chatProcess != nullptr);
 	Expects(localSplitIndex < _chatProcess->info.splits.size());
 
-	if (_settings->singlePeerTill <= 0) {
+	// Unbounded sender search may not expose the true oldest message.
+	if (_settings->singlePeerTill <= 0
+		|| _chatProcess->info.onlyMyMessages) {
 		messagesCountLoaded(localSplitIndex, count);
 		return;
 	}
@@ -1893,12 +1896,12 @@ void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
 		0, // offset_date
 		-1, // add_offset
 		1, // limit
+		MessageDateLimits::Ignore,
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
-		const auto skipSplit = !Data::SingleMessageBefore(
-			result,
-			_settings->singlePeerTill);
+		const auto skipSplit = !_chatProcess->info.onlyMyMessages
+			&& !Data::SingleMessageBefore(result, _settings->singlePeerTill);
 		messagesCountLoaded(localSplitIndex, skipSplit ? 0 : count);
 	});
 }
@@ -2275,6 +2278,7 @@ void ApiWrap::requestMessagesSlice() {
 		fromLowerDateBound ? SinglePeerLowerBoundOffsetDate(*_settings) : 0,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
+		MessageDateLimits::Apply,
 		[=](const MTPmessages_Messages &result) {
 		Expects(_chatProcess != nullptr);
 
@@ -2282,7 +2286,8 @@ void ApiWrap::requestMessagesSlice() {
 			error("Unexpected messagesNotModified received.");
 		}, [&](const auto &data) {
 			if constexpr (MTPDmessages_messages::Is<decltype(data)>()) {
-				_chatProcess->lastSlice = true;
+				_chatProcess->lastSlice = !(_chatProcess->info.onlyMyMessages
+					&& _settings->hasDateLimits());
 			}
 			startMessagesSlice(Data::ParseMessagesSlice(
 				_chatProcess->context,
@@ -2300,13 +2305,34 @@ void ApiWrap::requestChatMessages(
 		int offsetDate,
 		int addOffset,
 		int limit,
+		MessageDateLimits dateLimits,
 		FnMut<void(MTPmessages_Messages&&)> done) {
 	Expects(_chatProcess != nullptr);
 
+	const auto applyDateLimits = _chatProcess->info.onlyMyMessages
+		&& (dateLimits == MessageDateLimits::Apply)
+		&& _settings->hasDateLimits();
 	_chatProcess->requestDone = std::move(done);
 	const auto doneHandler = [=](MTPmessages_Messages &&result) {
 		Expects(_chatProcess != nullptr);
 
+		if (applyDateLimits && result.match(
+				[](const MTPDmessages_messagesNotModified &) {
+			return false;
+		}, [](const auto &data) {
+			return data.vmessages().v.isEmpty();
+		})) {
+			// Date filtering can hide an empty page's pagination cursor.
+			requestChatMessages(
+				splitIndex,
+				offsetId,
+				offsetDate,
+				addOffset,
+				limit,
+				MessageDateLimits::Ignore,
+				base::take(_chatProcess->requestDone));
+			return;
+		}
 		base::take(_chatProcess->requestDone)(std::move(result));
 	};
 	const auto splitsCount = int(_splits.size());
@@ -2329,8 +2355,10 @@ void ApiWrap::requestChatMessages(
 			MTPVector<MTPReaction>(), // saved_reaction
 			MTPint(), // top_msg_id
 			MTP_inputMessagesFilterEmpty(),
-			MTP_int(0), // min_date: Filtering after pagination can hide the cursor.
-			MTP_int(0), // max_date
+			MTP_int(applyDateLimits
+				? SinglePeerLowerBoundOffsetDate(*_settings)
+				: 0), // min_date
+			MTP_int(applyDateLimits ? _settings->singlePeerTill : 0), // max_date
 			MTP_int(offsetId),
 			MTP_int(addOffset),
 			MTP_int(limit),
@@ -2369,6 +2397,7 @@ void ApiWrap::requestChatMessages(
 						offsetDate,
 						addOffset,
 						limit,
+						dateLimits,
 						base::take(_chatProcess->requestDone));
 					return true;
 				}

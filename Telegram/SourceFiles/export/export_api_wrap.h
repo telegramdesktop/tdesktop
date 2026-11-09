@@ -139,6 +139,10 @@ private:
 	struct AbstractMessagesProcess;
 	struct ChatProcess;
 	struct TopicProcess;
+	enum class MessageDateLimits {
+		Ignore,
+		Apply,
+	};
 
 	void startMainSession(FnMut<void()> done);
 	void sendNextStartRequest();
@@ -215,6 +219,7 @@ private:
 		int offsetDate,
 		int addOffset,
 		int limit,
+		MessageDateLimits dateLimits,
 		FnMut<void(MTPmessages_Messages&&)> done);
 	void startMessagesSlice(Data::MessagesSlice &&slice);
 	void resumeMessagesSlice();
