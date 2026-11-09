@@ -3634,7 +3634,9 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	block->contentRect = QRect(left, top, visibleWidth, height);
 	block->overflowed = (block->textWidth > visibleWidth);
 	block->horizontalScrollMax = scrollOwner
-		? std::max(block->textWidth - visibleWidth, 0)
+		? std::max(
+			std::min(displayLeaf.maxWidth(), block->textWidth) - visibleWidth,
+			0)
 		: 0;
 	if (scrollOwner) {
 		block->scrollViewportRect = block->contentRect;
@@ -3705,7 +3707,9 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		context);
 	block->overflowed = (block->textWidth > viewportWidth);
 	block->horizontalScrollMax = scrollOwner
-		? std::max(block->textWidth - viewportWidth, 0)
+		? std::max(
+			std::min(displayLeaf.maxWidth(), block->textWidth) - viewportWidth,
+			0)
 		: 0;
 	const auto outerHeight = padding.top()
 		+ height

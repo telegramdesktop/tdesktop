@@ -57,6 +57,7 @@ void SetupSwipeBackSection(
 		.update = std::move(update),
 		.init = std::move(init),
 		.dontStart = list->touchMaybeSelectingValue(),
+		.handoff = list->touchSwipeHandoff(),
 	});
 }
 

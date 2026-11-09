@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "wallet/wallet_content.h"
@@ -42,6 +43,10 @@ struct AppIcon {
 	WebFileLocation location;
 	QImage image;
 	Data::CloudFile file;
+};
+
+struct HeaderIcon : AppIcon {
+	std::shared_ptr<Ui::DynamicImage> userpic;
 };
 
 struct State {
@@ -490,7 +495,12 @@ auto AddTonConnectHeader(
 			container,
 			st::walletConnectIconSize),
 		st::walletConnectIconMargin);
-	const auto icon = row->lifetime().make_state<AppIcon>();
+	const auto icon = row->lifetime().make_state<HeaderIcon>();
+	row->lifetime().add([=] {
+		if (icon->userpic) {
+			icon->userpic->subscribeToUpdates(nullptr);
+		}
+	});
 	row->paintRequest(
 	) | rpl::on_next([=](QRect clip) {
 		const auto size = row->height();
@@ -499,7 +509,11 @@ auto AddTonConnectHeader(
 			return;
 		}
 		auto p = QPainter(row);
-		PaintIcon(p, disc, icon->image);
+		if (icon->userpic) {
+			p.drawImage(disc, icon->userpic->image(size));
+		} else {
+			PaintIcon(p, disc, icon->image);
+		}
 	}, row->lifetime());
 
 	const auto &loading = st::walletBusyBoxLoading;
@@ -530,7 +544,17 @@ auto AddTonConnectHeader(
 		}
 		domain->toggle(!now.domain.isEmpty(), animated);
 		spinner->setVisible(now.loading);
-		if (icon->location != now.icon) {
+		if (icon->userpic != now.userpic) {
+			if (icon->userpic) {
+				icon->userpic->subscribeToUpdates(nullptr);
+			}
+			icon->userpic = now.userpic;
+			if (icon->userpic) {
+				icon->userpic->subscribeToUpdates([=] { row->update(); });
+			}
+			row->update();
+		}
+		if (!icon->userpic && icon->location != now.icon) {
 			icon->location = now.icon;
 			LoadIcon(icon, session, st::walletConnectIconSize, [=] {
 				row->update();
@@ -542,12 +566,16 @@ auto AddTonConnectHeader(
 TonConnectButtons SetTonConnectButtons(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<QString> secondary,
-		rpl::producer<QString> primary) {
+		rpl::producer<QString> primary,
+		Fn<void()> close) {
 	Expects(secondary || primary);
 
+	if (!close) {
+		close = [=] { box->closeBox(); };
+	}
 	box->clearButtons();
 	// clearButtons() drops the close button too.
-	box->addTopButton(st::boxTitleClose, [=] { box->closeBox(); });
+	box->addTopButton(st::boxTitleClose, std::move(close));
 
 	const auto pair = (secondary && primary);
 	const auto edge = box->getDelegate()->style().buttonPadding.right();

@@ -993,16 +993,6 @@ bool PeerData::hideEmojiStatus() const {
 	return settings && (*settings & PeerBarSetting::ReportSpam);
 }
 
-bool PeerData::keepIncomingUnread() const {
-	if (const auto to = migrateTo()) {
-		return to->keepIncomingUnread();
-	}
-	// WHY: unknown settings hold too, as every reading host requests them
-	// and requestPeerSettings() always ends with known settings.
-	const auto settings = barSettings();
-	return !settings || (*settings & PeerBarSetting::ReportSpam);
-}
-
 QString PeerData::requestChatTitle() const {
 	return _barDetails ? _barDetails->requestChatTitle : QString();
 }

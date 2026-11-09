@@ -89,8 +89,10 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 - A project task starts only on a checkout whose current branch is the
   project's slug, and a standalone task only on a branch that is not a live
   project's; `start` and `retry` refuse otherwise. Never switch branches for
-  it: the owner checks project branches out. Report the refusal as a
-  pre-phase routing stop.
+  it: the owner checks existing project branches out. Report the refusal as a
+  pre-phase routing stop. A branch that exists nowhere is the exception: create
+  it under [Create a missing project branch](../continue/SKILL.md#create-a-missing-project-branch)
+  and continue.
 - Inspect `task.md` for approved source-task prerequisites in addition to
   `depends_on`. Before a `start`, or a `retry` whose task retains no source
   work, on a project branch first run `workspace.py source-prepare`, which

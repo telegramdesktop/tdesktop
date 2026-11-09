@@ -863,7 +863,9 @@ void SettingsWidget::addSizeSlider(
 		return data.media.sizeLimit;
 	}) | rpl::on_next([=](int64 sizeLimit) {
 		const auto limit = sizeLimit / kMegabyte;
-		const auto size = QString::number(limit) + " MB";
+		const auto size = QString::number(limit)
+			+ ' '
+			+ tr::lng_size_megabytes(tr::now);
 		const auto text = tr::lng_export_option_size_limit(
 			tr::now,
 			lt_size,

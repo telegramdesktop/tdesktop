@@ -21,7 +21,7 @@ jobs:
           body="$(gh pr view "$PR_NUMBER" -R "$REPOSITORY" --json body --jq .body)"
 
           if echo "$body" | grep -qiE \
-            '!\[[^]]*\]\([^)]*\)|https?://[^ )]+\.(png|jpe?g|gif|webp|mp4|mov|webm)|https?://github\.com/[^ )]+/attachments/|screenshot|video|recording|demonstration'; then
+            '!\[[^]]*\]\([^)]*\)|https?://[^ )]+\.(png|jpe?g|gif|webp|mp4|mov|webm)|https?://github\.com/[^ )]+/attachments/|https?://github\.com/user-attachments/|screenshot|video|recording|demonstration'; then
             echo "Evidence found, nothing to do."
             exit 0
           fi
@@ -29,6 +29,12 @@ jobs:
           if gh pr view "$PR_NUMBER" -R "$REPOSITORY" --json labels \
             --jq '.labels[].name' | grep -Fxq 'waiting for answer'; then
             echo "Already labeled, nothing to do."
+            exit 0
+          fi
+
+          if gh api --paginate "repos/$REPOSITORY/issues/$PR_NUMBER/comments?per_page=100" \
+            --jq '.[] | select(.user.login == "github-actions[bot]") | .body' | grep -qi 'does not include a screenshot or a video'; then
+            echo "Already warned, nothing to do."
             exit 0
           fi
 

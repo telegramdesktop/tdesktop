@@ -38,7 +38,9 @@ the parent may make only the shared safe switch to an existing compatible local
 branch, never onto or off a project branch, and then resume the returned
 performer. After Phase 1, let the performer
 publish a task-local Block and continue non-dependent batch work. Never create,
-route, or execute branch-integration work as a queue task.
+route, or execute branch-integration work as a queue task. Creating a project
+branch that exists nowhere is the shared skill's separate step, not one of these
+switches.
 
 Apply the shared skill's pending-task consolidation phase too. Recover an
 older `pending_consolidations` marker or consolidate newly routed tasks in one

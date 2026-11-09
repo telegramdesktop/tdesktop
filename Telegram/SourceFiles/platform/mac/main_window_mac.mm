@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "main/main_session.h"
+#include "history/admin_log/history_admin_log_inner.h"
+#include "history/view/history_view_list_widget.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "main/main_account.h"
@@ -313,7 +315,11 @@ void MainWindow::updateDockCounter() {
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
-		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || dynamic_cast<HistoryInner*>(obj)) {
+		if (qobject_cast<QLineEdit*>(obj)
+			|| qobject_cast<QTextEdit*>(obj)
+			|| dynamic_cast<HistoryInner*>(obj)
+			|| dynamic_cast<HistoryView::ListWidget*>(obj)
+			|| dynamic_cast<AdminLog::InnerWidget*>(obj)) {
 			updateGlobalMenu();
 		}
 	}

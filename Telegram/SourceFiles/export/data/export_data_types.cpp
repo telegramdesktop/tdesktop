@@ -2366,6 +2366,8 @@ Media ParseMedia(
 		result.content = ParsePaidMedia(context, data, folder, date);
 	}, [](const MTPDmessageMediaVideoStream &data) {
 		// Live stories.
+	}, [](const MTPDmessageMediaWidget &data) {
+		// #TODO widgets
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }
@@ -3615,7 +3617,18 @@ Utf8String FormatGramsAmount(int64 nanos) {
 }
 
 Utf8String FormatFileSize(int64 size) {
-	return Ui::FormatSizeText(size).toUtf8();
+	// Exports are written in English and off the main thread.
+	const auto tenths = [](int64 value) {
+		return QByteArray::number(value / 10)
+			+ '.'
+			+ QByteArray::number(value % 10);
+	};
+	if (size >= 1024 * 1024) {
+		return tenths(size * 10 / (1024 * 1024)) + " MB";
+	} else if (size >= 1024) {
+		return tenths(size * 10 / 1024) + " KB";
+	}
+	return QByteArray::number(size) + " B";
 }
 
 Utf8String FormatDuration(int64 seconds) {

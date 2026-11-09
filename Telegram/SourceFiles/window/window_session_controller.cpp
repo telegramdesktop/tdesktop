@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_chat_participant_status.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -63,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
 #include "data/data_replies_list.h"
+#include "data/data_report.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
 #include "data/data_web_page.h"
@@ -473,6 +475,9 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 }
 
 void SessionNavigation::fullInfoLoadedHook(not_null<PeerData*> peer) {
+	if (_waitingBotMenuApp && _waitingBotMenuApp == peer.get()) {
+		openBotMenuApp(_waitingBotMenuApp);
+	}
 	if (!_waitingDirectChannel || _waitingDirectChannel != peer) {
 		return;
 	}
@@ -480,6 +485,30 @@ void SessionNavigation::fullInfoLoadedHook(not_null<PeerData*> peer) {
 	const auto monoforum = peer->broadcastMonoforum();
 	const auto open = monoforum ? monoforum : peer.get();
 	showPeerHistory(open, SectionShow::Way::Forward, ShowAtUnreadMsgId);
+}
+
+void SessionNavigation::openBotMenuApp(not_null<UserData*> bot) {
+	if (!bot->isFullLoaded()) {
+		_waitingBotMenuApp = bot;
+		bot->updateFull();
+		return;
+	}
+	_waitingBotMenuApp = nullptr;
+	const auto url = bot->isBot()
+		? bot->botInfo->botMenuButtonUrl
+		: QString();
+	if (url.isEmpty()) {
+		return;
+	}
+	bot->session().attachWebView().open({
+		.bot = bot,
+		.context = {
+			.controller = parentController(),
+			.action = Api::SendAction(bot->owner().history(bot)),
+		},
+		.button = { .url = url.toUtf8() },
+		.source = InlineBots::WebViewSourceBotMenu(),
+	});
 }
 
 void SessionNavigation::resolvePhone(
@@ -889,6 +918,14 @@ void SessionNavigation::showPeerByLinkResolved(
 					attachBotUsername,
 					info.attachBotToggleCommand.value_or(QString()),
 					info.botAppFullScreen);
+			});
+		} else if (bot
+			&& info.attachBotMainOpen
+			&& !bot->botInfo->hasMainApp
+			&& bot->isLoaded()) {
+			crl::on_main(this, [=] {
+				showPeerHistory(peer, params, msgId);
+				openBotMenuApp(bot);
 			});
 		} else if (bot && info.attachBotMainOpen) {
 			const auto startCommand = info.attachBotToggleCommand.value_or(
@@ -2324,7 +2361,14 @@ bool SessionController::showForumInDifferentWindow(
 	if (windowId().forum() == forum) {
 		return false;
 	}
-	const auto window = Core::App().windowForShowingForum(forum);
+	const auto found = Core::App().windowForShowingForum(forum);
+
+	// A separate chat window has no chats list to show the topics in.
+	const auto window = (found
+		&& params.forceTopicsList
+		&& !found->id().hasChatsList())
+		? nullptr
+		: found;
 	if (window == _window) {
 		return false;
 	} else if (window) {

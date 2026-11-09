@@ -106,6 +106,7 @@ private:
 		Geo,
 		Venue,
 		Game,
+		Widget,
 	};
 
 	friend class internal::SendData;

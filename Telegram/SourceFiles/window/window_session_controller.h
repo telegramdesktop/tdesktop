@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_chat_participant_status.h"
-#include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
 #include "mtproto/sender.h"
 #include "settings/settings_type.h"
@@ -30,6 +28,7 @@ enum class WindowLayout;
 namespace Data {
 struct StoriesContext;
 struct DrawToReplyRequest;
+struct ReportInput;
 class SavedMessages;
 enum class StorySourcesList : uchar;
 } // namespace Data
@@ -382,6 +381,7 @@ private:
 	void joinVoiceChatFromLink(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
+	void openBotMenuApp(not_null<UserData*> bot);
 
 	void applyBoost(
 		not_null<ChannelData*> channel,
@@ -400,6 +400,7 @@ private:
 	QString _contactToken;
 	Fn<void(not_null<PeerData*>)> _contactTokenDone;
 	PeerData *_waitingDirectChannel = nullptr;
+	UserData *_waitingBotMenuApp = nullptr;
 
 	History *_showingRepliesHistory = nullptr;
 	MsgId _showingRepliesRootId = 0;

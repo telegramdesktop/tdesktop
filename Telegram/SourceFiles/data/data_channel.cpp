@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
 #include "storage/storage_account.h"
+#include "tgw/tgw_storage.h"
 #include "ui/unread_badge.h"
 #include "window/notifications_manager.h"
 
@@ -1342,6 +1343,7 @@ void ApplyChannelUpdate(
 	}
 
 	channel->setAvailableMinId(update.vavailable_min_id().value_or_empty());
+	Tgw::ClearHistoryStorage(session, channel->id, channel->availableMinId());
 	auto canViewAdmins = channel->canViewAdmins();
 	auto canViewMembers = channel->canViewMembers();
 	auto canEditStickers = channel->canEditStickers();

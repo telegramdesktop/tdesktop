@@ -3254,28 +3254,6 @@ State::BoundaryTarget State::boundaryTargetForLeaf(
 			}
 		}
 	}
-	const auto prioritizeStructuralStep = [&](const BoundaryTarget &target) {
-		if (target.action != BoundaryAction::StructuralSelection) {
-			return false;
-		}
-		switch (target.structuralSelection.kind) {
-		case PreparedEditSelectionKind::Blocks:
-			if (const auto range = validateBlockRange(
-					target.structuralSelection.blocks)) {
-				return leafWillBeRemoved(leaf, *range);
-			}
-			break;
-		case PreparedEditSelectionKind::ListItems:
-			if (const auto range = validateListItemRange(
-					target.structuralSelection.listItems)) {
-				return leafWillBeRemoved(leaf, *range);
-			}
-			break;
-		default:
-			break;
-		}
-		return false;
-	};
 	const auto removeDirectly = allowRemoveDirectly
 		&& descriptor
 		&& removalTargetIsEmpty(descriptor->removalTarget)
@@ -3293,10 +3271,8 @@ State::BoundaryTarget State::boundaryTargetForLeaf(
 			const auto next = (i + 1 < count)
 				? steps[i + 1]
 				: BoundaryTarget();
-			if (prioritizeStructuralStep(next)) {
-				return next;
-			}
-			if (removeDirectly) {
+			if (removeDirectly
+				&& next.action != BoundaryAction::StructuralSelection) {
 				return {
 					.action = BoundaryAction::RemoveActiveOwner,
 				};
@@ -4496,6 +4472,30 @@ State::ParagraphBoundaryJoinResult State::joinActiveParagraphBoundary(
 			},
 		};
 	});
+}
+
+State::LeafPath State::shiftLeafAfterRemovedSelection(
+		const Markdown::PreparedEditSelection &selection,
+		LeafPath leaf) const {
+	if (selection.kind != PreparedEditSelectionKind::Blocks) {
+		return leaf;
+	}
+	const auto range = validateBlockRange(selection.blocks);
+	if (!range || leafWillBeRemoved(leaf, *range)) {
+		return leaf;
+	}
+	auto shifted = leaf.block;
+	for (auto i = range->till; i != range->from;) {
+		--i;
+		if (!ShiftBlockPathAfterRemovedBlock(shifted, BlockPath{
+				.container = range->container,
+				.index = i,
+			})) {
+			return leaf;
+		}
+	}
+	leaf.block = shifted;
+	return leaf;
 }
 
 std::optional<int> State::removeStructuralSelection(

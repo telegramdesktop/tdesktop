@@ -404,6 +404,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 
 	applyIsMy(data.is_my());
 	setClosed(data.is_closed());
+	setHidden(data.is_hidden());
 
 	if (!min) {
 		owner().setPinnedFromEntryList(this, data.is_pinned());

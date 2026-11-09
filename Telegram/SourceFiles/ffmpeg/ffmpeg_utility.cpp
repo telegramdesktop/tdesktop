@@ -275,6 +275,14 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		} else if (type != AV_HWDEVICE_TYPE_NONE && !InitHw(context, type)) {
 			continue;
 		}
+#ifdef Q_OS_WIN
+		if (format == AV_PIX_FMT_DXVA2_VLD
+			&& (context->pix_fmt == AV_PIX_FMT_D3D11
+				|| context->pix_fmt == AV_PIX_FMT_D3D11VA_VLD)) {
+			// DXVA2 init locks as D3D11 by the pix_fmt left from a re-init.
+			context->pix_fmt = AV_PIX_FMT_NONE;
+		}
+#endif // Q_OS_WIN
 		return format;
 	}
 	enum AVPixelFormat result = AV_PIX_FMT_NONE;

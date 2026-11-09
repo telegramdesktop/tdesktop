@@ -508,7 +508,6 @@ public:
 	void clearPaysPerMessage();
 	[[nodiscard]] bool hideLinks() const;
 	[[nodiscard]] bool hideEmojiStatus() const;
-	[[nodiscard]] bool keepIncomingUnread() const;
 	[[nodiscard]] QString requestChatTitle() const;
 	[[nodiscard]] TimeId requestChatDate() const;
 	[[nodiscard]] UserData *businessBot() const;

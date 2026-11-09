@@ -191,8 +191,6 @@ constexpr auto kLogEntryPreviewLines = 2;
 		? tr::lng_view_button_voice_chat_channel(tr::now)
 		: (type == WebPageType::ConferenceCall)
 		? tr::lng_view_button_call(tr::now)
-		: (type == WebPageType::Bot)
-		? tr::lng_view_button_bot(tr::now)
 		: (type == WebPageType::User)
 		? tr::lng_view_button_user(tr::now)
 		: (type == WebPageType::BotApp)
@@ -239,7 +237,6 @@ constexpr auto kLogEntryPreviewLines = 2;
 		|| (type == WebPageType::ChannelBoost)
 		|| (type == WebPageType::ChannelWithRequest)
 		|| (type == WebPageType::Giftcode)
-		// || (type == WebPageType::Bot)
 		|| (type == WebPageType::User)
 		|| (type == WebPageType::VoiceChat)
 		|| (type == WebPageType::Livestream)
@@ -693,7 +690,7 @@ QSize WebPage::countOptimalSize() {
 	const auto articleMinHeight = siteNameHeight
 		+ titleMinHeight
 		+ descriptionMinHeight;
-	const auto articlePhotoMaxWidth = _asArticle
+	const auto articlePhotoMaxWidth = asArticle()
 		? (st::webPagePhotoDelta
 			+ std::max(
 				ArticleThumbWidth(_data->photo, articleMinHeight),
@@ -1786,7 +1783,9 @@ bool WebPage::toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const {
 	return _attach && _attach->toggleSelectionByHandlerClick(p);
 }
 
-bool WebPage::allowTextSelectionByHandler(const ClickHandlerPtr &p) const {
+bool WebPage::allowTextSelectionByHandler(
+		const ClickHandlerPtr &p,
+		bool fromTouch) const {
 	return (p == _openl);
 }
 

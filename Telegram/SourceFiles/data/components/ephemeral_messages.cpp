@@ -285,30 +285,7 @@ void EphemeralMessages::apply(const MTPDupdateEditEphemeralMessage &update) {
 		item->applyContent(ContentFromEphemeral(_session, item, data));
 		return;
 	}
-	auto edition = HistoryMessageEdition();
-	edition.isEditHide = true;
-	edition.editDate = -1;
-	edition.useSameViews = true;
-	edition.useSameForwards = true;
-	edition.useSameReplies = true;
-	edition.useSameReactions = true;
-	edition.useSameSuggest = true;
-	edition.textWithEntities = {
-		qs(data.vmessage()),
-		Api::EntitiesFromMTP(
-			_session,
-			data.ventities().value_or_empty()),
-	};
-	edition.replyMarkup = HistoryMessageMarkupData(data.vreply_markup());
-	edition.mtpMedia = data.vmedia();
-	edition.invertMedia = data.is_invert_media();
-	if (const auto richMessage = data.vrich_message()) {
-		edition.richPage = Iv::ParseRichPage(
-			_session,
-			*richMessage,
-			Iv::RichParseMode::Quotable);
-	}
-	item->applyEdition(std::move(edition));
+	ApplyEphemeralEdition(_session, item, data);
 }
 
 void EphemeralMessages::apply(

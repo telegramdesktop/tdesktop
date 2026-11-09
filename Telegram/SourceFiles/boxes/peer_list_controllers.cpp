@@ -62,6 +62,51 @@ namespace {
 constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 constexpr auto kSearchPerPage = 50;
 
+void ShowChooseTopicBox(
+		not_null<PeerListController*> controller,
+		base::weak_ptr<base::has_weak_ptr> guard,
+		not_null<Data::Forum*> forum,
+		not_null<FnMut<void(not_null<Data::Thread*>)>*> storedCallback,
+		not_null<const Fn<bool(not_null<Data::Thread*>)>*> storedFilter) {
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
+	auto callback = [=](not_null<Data::Thread*> thread) {
+		const auto exists = guard.get();
+		if (!exists) {
+			if (*weak) {
+				(*weak)->closeBox();
+			}
+			return;
+		}
+		auto onstack = std::move(*storedCallback);
+		onstack(thread);
+		if (guard) {
+			*storedCallback = std::move(onstack);
+		} else if (*weak) {
+			(*weak)->closeBox();
+		}
+	};
+	const auto filter = [=](not_null<Data::Thread*> thread) {
+		return guard && (!*storedFilter || (*storedFilter)(thread));
+	};
+	auto owned = Box<PeerListBox>(
+		std::make_unique<ChooseTopicBoxController>(
+			forum,
+			std::move(callback),
+			filter),
+		[=](not_null<PeerListBox*> box) {
+			box->addButton(tr::lng_cancel(), [=] {
+				box->closeBox();
+			});
+
+			forum->destroyed(
+			) | rpl::on_next([=] {
+				box->closeBox();
+			}, box->lifetime());
+		});
+	*weak = owned.data();
+	controller->delegate()->peerListUiShow()->showBox(std::move(owned));
+}
+
 } // namespace
 
 Data::CommunityInfo *JoinedCommunityChats(not_null<PeerData*> peer) {
@@ -889,43 +934,7 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 	auto guard = base::make_weak(this);
 	const auto peer = row->peer();
 	if (const auto forum = peer->forum()) {
-		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
-		auto callback = [=](not_null<Data::Thread*> thread) {
-			const auto exists = guard.get();
-			if (!exists) {
-				if (*weak) {
-					(*weak)->closeBox();
-				}
-				return;
-			}
-			auto onstack = std::move(_callback);
-			onstack(thread);
-			if (guard) {
-				_callback = std::move(onstack);
-			} else if (*weak) {
-				(*weak)->closeBox();
-			}
-		};
-		const auto filter = [=](not_null<Data::Thread*> thread) {
-			return guard && (!_filter || _filter(thread));
-		};
-		auto owned = Box<PeerListBox>(
-			std::make_unique<ChooseTopicBoxController>(
-				forum,
-				std::move(callback),
-				filter),
-			[=](not_null<PeerListBox*> box) {
-				box->addButton(tr::lng_cancel(), [=] {
-					box->closeBox();
-				});
-
-				forum->destroyed(
-				) | rpl::on_next([=] {
-					box->closeBox();
-				}, box->lifetime());
-			});
-		*weak = owned.data();
-		delegate()->peerListUiShow()->showBox(std::move(owned));
+		ShowChooseTopicBox(this, guard, forum, &_callback, &_filter);
 		return;
 	} else if (const auto monoforum = peer->monoforum()) {
 		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
@@ -1127,7 +1136,9 @@ void ChooseTopicSearchController::searchOnServer() {
 		}
 		delegate()->peerListSearchRefreshRows();
 	}).fail([=] {
+		_requestId = 0;
 		_allLoaded = true;
+		delegate()->peerListSearchRefreshRows();
 	}).send();
 }
 
@@ -1484,43 +1495,7 @@ void ChooseCommunityChatBoxController::rowClicked(not_null<PeerListRow*> row) {
 	auto guard = base::make_weak(this);
 	const auto peer = row->peer();
 	if (const auto forum = peer->forum()) {
-		const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
-		auto callback = [=](not_null<Data::Thread*> thread) {
-			const auto exists = guard.get();
-			if (!exists) {
-				if (*weak) {
-					(*weak)->closeBox();
-				}
-				return;
-			}
-			auto onstack = std::move(_callback);
-			onstack(thread);
-			if (guard) {
-				_callback = std::move(onstack);
-			} else if (*weak) {
-				(*weak)->closeBox();
-			}
-		};
-		const auto filter = [=](not_null<Data::Thread*> thread) {
-			return guard && (!_filter || _filter(thread));
-		};
-		auto owned = Box<PeerListBox>(
-			std::make_unique<ChooseTopicBoxController>(
-				forum,
-				std::move(callback),
-				filter),
-			[=](not_null<PeerListBox*> box) {
-				box->addButton(tr::lng_cancel(), [=] {
-					box->closeBox();
-				});
-
-				forum->destroyed(
-				) | rpl::on_next([=] {
-					box->closeBox();
-				}, box->lifetime());
-			});
-		*weak = owned.data();
-		delegate()->peerListUiShow()->showBox(std::move(owned));
+		ShowChooseTopicBox(this, guard, forum, &_callback, &_filter);
 		return;
 	}
 	auto onstack = base::take(_callback);

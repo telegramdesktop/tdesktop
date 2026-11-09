@@ -571,7 +571,16 @@ int Inner::refreshInlineRows(PeerData *queryPeer, UserData *bot, const CacheEntr
 			return item != nullptr;
 		}) | ranges::to<std::vector<not_null<ItemBase*>>>;
 
-		_mosaic.addItems(resultItems);
+		auto pending = std::vector<not_null<ItemBase*>>();
+		for (const auto &item : resultItems) {
+			if (item->isFullLine()) {
+				_mosaic.addItems(base::take(pending));
+				_mosaic.addItems({ item });
+			} else {
+				pending.push_back(item);
+			}
+		}
+		_mosaic.addItems(pending);
 		added = resultItems.size();
 		preloadImages();
 	}

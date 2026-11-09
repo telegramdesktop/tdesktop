@@ -86,6 +86,22 @@ QImage EmojiImageLoader::prepare(EmojiPtr emoji) const {
 	return result;
 }
 
+QImage EmojiImageLoader::prepareWithoutOutline(EmojiPtr emoji) const {
+	if (!_images->ensureLoaded()) {
+		return QImage();
+	}
+	const auto factor = style::DevicePixelRatio();
+	auto result = QImage(
+		QSize(st::largeEmojiSize, st::largeEmojiSize) * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	result.fill(Qt::transparent);
+	{
+		QPainter p(&result);
+		_images->draw(p, emoji, st::largeEmojiSize * factor, 0, 0);
+	}
+	return result;
+}
+
 void EmojiImageLoader::switchTo(std::shared_ptr<UniversalImages> images) {
 	_images = std::move(images);
 }

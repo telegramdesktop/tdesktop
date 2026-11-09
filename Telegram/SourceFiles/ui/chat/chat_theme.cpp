@@ -31,6 +31,7 @@ constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
 constexpr auto kBackgroundFadeDuration = crl::time(200);
 constexpr auto kMinimumTiledSize = 512;
 constexpr auto kMaxSize = 2960;
+constexpr auto kBackgroundAverageSize = 512;
 constexpr auto kMaxContrastValue = 21.;
 constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 
@@ -103,6 +104,9 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 				request.area * ratio,
 				Qt::IgnoreAspectRatio,
 				Qt::SmoothTransformation);
+		if (gradient.isNull()) {
+			result.fill(Qt::transparent);
+		}
 		result.setDevicePixelRatio(ratio);
 		auto giftArea = QRect();
 		float64 giftRotation = 0.;
@@ -246,6 +250,72 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 			.y = rects.to.y(),
 		};
 	}
+}
+
+[[nodiscard]] QColor CountStraightAverageColor(const QImage &image) {
+	const auto premultiplied = image.convertToFormat(
+		QImage::Format_ARGB32_Premultiplied);
+	auto red = uint64();
+	auto green = uint64();
+	auto blue = uint64();
+	auto alpha = uint64();
+	const auto width = premultiplied.width();
+	const auto height = premultiplied.height();
+	for (auto y = 0; y != height; ++y) {
+		const auto line = reinterpret_cast<const QRgb*>(
+			premultiplied.constScanLine(y));
+		for (auto x = 0; x != width; ++x) {
+			const auto pixel = line[x];
+			red += qRed(pixel);
+			green += qGreen(pixel);
+			blue += qBlue(pixel);
+			alpha += qAlpha(pixel);
+		}
+	}
+	if (!alpha) {
+		return QColor(0, 0, 0, 0);
+	}
+	const auto straight = [&](uint64 sum) {
+		return int((sum * 255 + alpha / 2) / alpha);
+	};
+	const auto count = uint64(width) * height;
+	return QColor(
+		straight(red),
+		straight(green),
+		straight(blue),
+		int((alpha + count / 2) / count));
+}
+
+[[nodiscard]] std::optional<QColor> CountBackgroundAverage(
+		const ChatThemeBackground &background) {
+	if (background.colorForFill) {
+		return background.colorForFill;
+	}
+	const auto &source = background.prepared.isNull()
+		? background.gradientForFill
+		: background.prepared;
+	if (source.isNull()) {
+		return std::nullopt;
+	}
+	const auto large = (source.width() > kBackgroundAverageSize)
+		|| (source.height() > kBackgroundAverageSize);
+	const auto tiled = background.tile && !background.isPattern;
+	const auto pixels = (large && !tiled)
+		? source.size().scaled(
+			kBackgroundAverageSize,
+			kBackgroundAverageSize,
+			Qt::KeepAspectRatio)
+		: source.size();
+	const auto ratio = style::DevicePixelRatio();
+	const auto cached = CacheBackground({
+		.background = background,
+		.area = QSize(
+			std::max(pixels.width() / ratio, 1),
+			std::max(pixels.height() / ratio, 1)),
+	});
+	return cached.waitingForNegativePattern
+		? QColor(0, 0, 0)
+		: CountStraightAverageColor(cached.image);
 }
 
 } // namespace
@@ -518,6 +588,7 @@ void ChatTheme::adjust(const style::color &my, const style::colorizer &by) {
 
 void ChatTheme::setBackground(ChatThemeBackground &&background) {
 	_mutableBackground = std::move(background);
+	_backgroundAverage = CountBackgroundAverage(_mutableBackground);
 	_backgroundState = {};
 	_backgroundNext = {};
 	_backgroundFade.stop();
@@ -534,6 +605,7 @@ void ChatTheme::updateBackgroundImageFrom(ChatThemeBackground &&background) {
 	_mutableBackground.giftId = background.giftId;
 	_mutableBackground.preparedForTiled = std::move(
 		background.preparedForTiled);
+	_backgroundAverage = CountBackgroundAverage(_mutableBackground);
 	if (!_backgroundState.now.pixmap.isNull()) {
 		if (_cacheBackgroundTimer) {
 			_cacheBackgroundTimer->cancel();
@@ -555,10 +627,13 @@ void ChatTheme::setBubblesBackground(QImage image) {
 	_bubblesBackgroundPrepared = std::move(image);
 	if (_bubblesBackgroundPrepared.isNull()) {
 		_bubblesBackgroundPattern = nullptr;
+		_bubblesBackgroundAverage = std::nullopt;
 		// setBubblesBackground called only from background thread.
 		//_repaintBackgroundRequests.fire({});
 		return;
 	}
+	_bubblesBackgroundAverage = CountStraightAverageColor(
+		_bubblesBackgroundPrepared);
 	_bubblesBackground = CacheBackground({
 		.background = {
 			.prepared = _bubblesBackgroundPrepared,
@@ -609,6 +684,8 @@ ChatPaintContext ChatTheme::preparePaintContext(
 	return {
 		.st = st,
 		.bubblesPattern = _bubblesBackgroundPattern.get(),
+		.bubblesPatternAverage = _bubblesBackgroundAverage,
+		.backgroundAverage = _backgroundAverage,
 		.viewport = viewport,
 		.area = area,
 		.clip = clip,

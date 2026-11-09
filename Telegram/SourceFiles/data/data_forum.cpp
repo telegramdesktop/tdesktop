@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/input_field.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "tgw/tgw_storage.h"
 #include "window/window_session_controller.h"
 #include "window/notifications_manager.h"
 
@@ -216,6 +217,7 @@ void Forum::requestTopics() {
 }
 
 void Forum::applyTopicDeleted(MsgId rootId) {
+	Tgw::ClearTopicStorage(_history, rootId);
 	_topicsDeleted.emplace(rootId);
 
 	const auto i = _topics.find(rootId);

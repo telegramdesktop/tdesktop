@@ -72,7 +72,8 @@ Viewport::Viewport(
 
 Viewport::~Viewport() {
 	if (_borrowed) {
-		if (_opengl) {
+		// QRhi sets _opengl too, but must drop its QRhi cleanup callback.
+		if (_opengl && !_qrhi) {
 			const auto w = static_cast<QOpenGLWidget*>(widget().get());
 			w->makeCurrent();
 			const auto context = w->context();
@@ -1015,7 +1016,7 @@ void Viewport::ensureBorrowedRenderer() {
 
 void Viewport::ensureBorrowedCleared() {
 	Expects(_borrowed != nullptr);
-	Expects(!_opengl);
+	Expects(!_opengl || _qrhi);
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (const auto rhi = base::take(_borrowedRhi)) {

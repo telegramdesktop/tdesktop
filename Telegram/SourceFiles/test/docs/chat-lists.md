@@ -36,9 +36,17 @@ and prove the candidate owns the message:
 - accept a candidate only when its own lookup answers for the exact message:
   `list->viewByPosition(item->position())` must return an `Element` whose
   `data()` is that item and whose `delegate()` is that same list;
-- scroll with the product's own entry points, `showThread` and then the list's
-  `showAtPosition`; decide where the row sits with the list's public
-  `elementIntersectsRange(view, from, till)`, and frame it with
+- navigate with the product's own entry points, `showThread` and then the
+  list's `showAtPosition`, to load and slice around the message; once the list
+  shows its own view, put that view (or a rectangle in it) wholly in view,
+  laid out, painted, ready and optionally hovered before input with
+  `Test::AppendShowInChatList` ([test_chat_show](helpers/test_chat_show.md)),
+  not a local scroll-and-wait; to put several messages wholly in view
+  together or wholly out of it and prove they stayed for a window,
+  `Test::AppendPlaceInChatList` with `Test::AppendStayedInChatList`
+  ([test_chat_show_place](helpers/test_chat_show_place.md)); decide where
+  the row sits with the list's
+  public `elementIntersectsRange(view, from, till)`, and frame it with
   `Test::CaptureMappedRect`.
 
 `item->mainView()` is not the `Element` the visible section owns, so it is
@@ -67,8 +75,11 @@ section, a `ChatWidget` whose constructor `ChatWidget::ChatWidget`
 With it off, the window's own `HistoryWidget` builds a `HistoryInner` in
 `HistoryWidget::showHistory` (`history/history_widget.cpp`).
 
-The option is off by default and the same gate serves every window, the
-primary one included. It decides for an ordinary History only: forum topics
+The option is on by default (`OptionUseNewChatView` in `mainwidget.cpp` has
+`.defaultValue = true`), and the same gate serves every window, the primary
+one included. An explicit `false` for it in `tdata/experimental_options.json`
+or a runtime change can leave it off; the read/set/restore idiom below guards
+those cases. It decides for an ordinary History only: forum topics
 and sublists take their own `ChatMemento` routes, `SessionNavigation::showTopic`
 and `showSublist`, whatever its value, and `SessionController::showPeerHistory`
 opens a community's info instead. `MainWidget::showHistory` returns

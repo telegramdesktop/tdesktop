@@ -180,7 +180,7 @@ void InnerWidget::peerListFinishSelectedRowsBunch() {
 
 void InnerWidget::peerListSetDescription(
 		object_ptr<Ui::FlatLabel> description) {
-	description.destroy();
+	_list->setDescription(std::move(description));
 }
 
 std::shared_ptr<Main::SessionShow> InnerWidget::peerListUiShow() {

@@ -159,6 +159,19 @@ def run_git_process(arguments, **options):
 		raise_pending_termination()
 
 
+def enable_git_long_paths(environment):
+	# Queue evidence paths can pass Windows' 260-character limit under the
+	# longer worktree roots. Give every git child long-path support without
+	# writing it into a git config; git ignores the key elsewhere.
+	count = int(environment.get("GIT_CONFIG_COUNT") or 0)
+	for index in range(count):
+		if environment.get(f"GIT_CONFIG_KEY_{index}", "").lower() == "core.longpaths":
+			return
+	environment[f"GIT_CONFIG_KEY_{count}"] = "core.longpaths"
+	environment[f"GIT_CONFIG_VALUE_{count}"] = "true"
+	environment["GIT_CONFIG_COUNT"] = str(count + 1)
+
+
 def run_git(path, *args, check=True):
 	result = run_git_process(
 		["git", "-C", str(path), *args],
@@ -2001,6 +2014,12 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 		dependency for dependency, commits in tips.items()
 		if not commits or not any(is_ancestor(source, commit) for commit in commits)
 	]
+	witnesses = {}
+	for dependency in missing:
+		witness = lineage_witness(source, states, dependency)
+		if witness is not None:
+			witnesses[dependency] = witness
+	missing = [dependency for dependency in missing if dependency not in witnesses]
 	branches = run_git(
 		source,
 		"for-each-ref",
@@ -2030,8 +2049,25 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 		"required_source_tasks": required,
 		"missing_source_tasks": missing,
 		"unavailable_source_tasks": missing_history,
+		"witnessed_source_tasks": witnesses,
 		"compatible_local_branches": compatible,
 	}
+
+
+def lineage_witness(source, states, dependency):
+	# A history rewrite can fold a task's commit into later work: an approved
+	# task built on it whose own commit is on HEAD shows its change is there.
+	for state in states.values():
+		if (
+			state["status"] == "approved"
+			and dependency in state["depends_on"]
+			and any(
+				is_ancestor(source, commit)
+				for commit in task_tip_commits(source, state["id"])
+			)
+		):
+			return state["id"]
+	return None
 
 
 def is_ancestor(source, older, newer="HEAD"):
@@ -7546,6 +7582,7 @@ def parse_args():
 
 def main():
 	args = parse_args()
+	enable_git_long_paths(os.environ)
 	try:
 		args.handler(args)
 	except (OSError, ValueError, WorkspaceError) as error:

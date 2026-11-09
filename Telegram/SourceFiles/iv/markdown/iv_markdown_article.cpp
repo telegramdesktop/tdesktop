@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_scale.h"
 #include "ui/text/text_extended_data.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/scroll_math.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/dynamic_image.h"
 
@@ -1189,43 +1190,6 @@ void RebuildVisibleSegmentLookup(
 		.kind = PreparedLinkKind::ToggleDetails,
 		.target = segment.block->anchorId,
 	};
-}
-
-[[nodiscard]] int ComputeScrollTo(
-		int toFrom,
-		int toTill,
-		int toMin,
-		int toMax,
-		int current,
-		int size) {
-	if (toFrom < toMin) {
-		toFrom = toMin;
-	} else if (toFrom > toMax) {
-		toFrom = toMax;
-	}
-	const auto exact = (toTill < 0);
-
-	const auto curBottom = current + size;
-	auto scToFrom = toFrom;
-	if (!exact && toFrom >= current) {
-		if (toTill < toFrom) {
-			toTill = toFrom;
-		}
-		if (toTill <= curBottom) {
-			return current;
-		}
-
-		scToFrom = toTill - size;
-		if (scToFrom > toFrom) {
-			scToFrom = toFrom;
-		}
-		if (scToFrom == current) {
-			return current;
-		}
-	} else {
-		scToFrom = toFrom;
-	}
-	return scToFrom;
 }
 
 [[nodiscard]] QRect LogicalTextRectForSegment(const SelectableSegment &segment) {
@@ -6551,7 +6515,7 @@ bool MarkdownArticle::Impl::revealSegment(int segmentIndex) {
 	const auto toLeft = logicalRect.x()
 		+ owner.horizontalScrollLeft
 		- owner.scrollLogicalContentRect.x();
-	const auto left = ComputeScrollTo(
+	const auto left = Ui::ComputeScrollTo(
 		toLeft,
 		toLeft + logicalRect.width(),
 		0,

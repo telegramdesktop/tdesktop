@@ -74,7 +74,6 @@ public:
 		bool selected = false;
 		bool deleted = false;
 		bool supportsShare = false;
-		bool supportsCalls = false;
 		bool web = false;
 		bool canOpenBrowser = false;
 		ItemState state = ItemState::Checking;
@@ -91,7 +90,6 @@ public:
 	object_ptr<Ui::BoxContent> editItemBox(int id);
 	object_ptr<Ui::BoxContent> addNewItemBox();
 	bool setProxySettings(ProxyData::Settings value);
-	void setProxyForCalls(bool enabled);
 	void setProxyRotationEnabled(bool enabled);
 	void setProxyRotationTimeout(int value);
 	void setTryIPv6(bool enabled);

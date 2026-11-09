@@ -11,12 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_section.h"
+#include "info/media/info_media_provider.h"
 #include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/ui_utility.h"
 #include "data/data_document.h"
-#include "data/data_media_types.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "storage/storage_shared_media.h"
 #include "layout/layout_selection.h"
-#include "styles/style_overview.h"
 
 namespace Info::GlobalMedia {
 namespace {
@@ -640,72 +639,16 @@ std::unique_ptr<Media::BaseLayout> Provider::createLayout(
 	if (!item) {
 		return nullptr;
 	}
-	const auto getPhoto = [&]() -> PhotoData* {
-		if (const auto media = item->media()) {
-			return media->photo();
-		}
-		return nullptr;
-	};
-	const auto getFile = [&]() -> DocumentData* {
-		if (const auto media = item->media()) {
-			return media->document();
-		}
-		return nullptr;
-	};
-
-	const auto &songSt = st::overviewFileLayout;
-	using namespace Overview::Layout;
-	const auto options = [&] {
-		const auto media = item->media();
-		return MediaOptions{ .spoiler = media && media->hasSpoiler() };
-	};
 	switch (type) {
 	case Type::Photo:
-		if (const auto photo = getPhoto()) {
-			return std::make_unique<Photo>(
-				delegate,
-				item,
-				photo,
-				options());
-		}
-		return nullptr;
 	case Type::GIF:
-		if (const auto file = getFile()) {
-			return std::make_unique<Gif>(delegate, item, file);
-		}
-		return nullptr;
 	case Type::Video:
-		if (const auto file = getFile()) {
-			return std::make_unique<Video>(delegate, item, file, options());
-		}
-		return nullptr;
 	case Type::File:
-		if (const auto file = getFile()) {
-			return std::make_unique<Document>(
-				delegate,
-				item,
-				DocumentFields{ .document = file },
-				songSt);
-		}
-		return nullptr;
 	case Type::MusicFile:
-		if (const auto file = getFile()) {
-			return std::make_unique<Document>(
-				delegate,
-				item,
-				DocumentFields{ .document = file },
-				songSt);
-		}
-		return nullptr;
 	case Type::RoundVoiceFile:
-		if (const auto file = getFile()) {
-			return std::make_unique<Voice>(delegate, item, file, songSt);
-		}
-		return nullptr;
 	case Type::Link:
-		return std::make_unique<Link>(delegate, item, item->media());
 	case Type::RoundFile:
-		return nullptr;
+		return Media::CreateLayout(delegate, item, type);
 	}
 	Unexpected("Type in ListWidget::createLayout()");
 }

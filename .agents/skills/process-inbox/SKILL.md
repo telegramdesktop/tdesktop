@@ -292,6 +292,13 @@ launches with `-testagent -noupdate`, so no task needs to require either flag.
 Every such criterion costs a performer real time and proves nothing about the
 product.
 
+Keep test fixtures, one-off tooling and harness work proportionate: their
+acceptance is that the tool runs and produces the needed result. Do not turn
+words like "repeatable" or "reliable" into extra criteria such as second runs,
+byte-identical reruns, read-back verification or invite links unless the
+request names them. A one-time setup the owner can do by hand in minutes is not
+a task at all; say so in the receipt instead.
+
 Plan a harness or testing-infrastructure task for its consumers. Say in
 `task.md` that it is harness work, and name the tasks, tests or agents that
 will use it. Write its acceptance as the few results those consumers need,

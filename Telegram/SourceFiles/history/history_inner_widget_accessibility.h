@@ -53,7 +53,6 @@ enum class MessageSubItem : int {
 	Spoiler,
 	Dice,
 	Giveaway,
-	Gift,
 	TodoTitle,
 	TodoItems,
 	Factcheck,

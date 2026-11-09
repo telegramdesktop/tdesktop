@@ -219,6 +219,8 @@ struct ChatPaintHighlight {
 struct ChatPaintContext {
 	not_null<const ChatStyle*> st;
 	const BubblePattern *bubblesPattern = nullptr;
+	std::optional<QColor> bubblesPatternAverage;
+	std::optional<QColor> backgroundAverage;
 	ReactionPaintInfo *reactionInfo = nullptr;
 	QRect viewport;
 	QRect area;

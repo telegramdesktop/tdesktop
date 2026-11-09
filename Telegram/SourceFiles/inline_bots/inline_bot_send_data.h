@@ -378,5 +378,27 @@ private:
 
 };
 
+class SendWidget final : public SendDataCommon {
+public:
+	SendWidget(
+		not_null<Main::Session*> session,
+		const MTPDbotInlineMessageWidget &data);
+
+	bool isValid() const override;
+
+	SentMessageFields getSentMessageFields() const override;
+
+	not_null<HistoryItem*> makeMessage(
+		const Result *owner,
+		not_null<History*> history,
+		HistoryItemCommonFields &&fields) const override;
+
+private:
+	MTPMessageMedia _media;
+	TextWithEntities _caption;
+	bool _invertMedia = false;
+
+};
+
 } // namespace internal
 } // namespace InlineBots

@@ -578,7 +578,9 @@ void VideoEditor::showGifTooltip() {
 		const auto text = tr::marked(tr::lng_video_editor_gif_too_large(
 			tr::now,
 			lt_size,
-			QString::number(kMaxGifSize / (1024 * 1024)) + u" MB"_q));
+			(QString::number(kMaxGifSize / (1024 * 1024))
+				+ ' '
+				+ tr::lng_size_megabytes(tr::now))));
 		_gifTooltip = base::make_unique_q<Ui::ImportantTooltip>(
 			parent,
 			Ui::MakeNiceTooltipLabel(

@@ -219,6 +219,7 @@ private:
 	ChatThemeKey _key;
 	std::unique_ptr<style::palette> _palette;
 	ChatThemeBackground _mutableBackground;
+	std::optional<QColor> _backgroundAverage;
 	BackgroundState _backgroundState;
 	Animations::Simple _backgroundFade;
 	CacheBackgroundRequest _backgroundCachingRequest;
@@ -230,6 +231,7 @@ private:
 
 	CachedBackground _bubblesBackground;
 	QImage _bubblesBackgroundPrepared;
+	std::optional<QColor> _bubblesBackgroundAverage;
 	CacheBackgroundRequest _bubblesCachingRequest;
 	QSize _cacheBubblesArea;
 	crl::time _lastBubblesAreaChangeTime = 0;

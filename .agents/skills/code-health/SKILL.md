@@ -154,7 +154,19 @@ python3 .agents/skills/code-health/scripts/health.py verify --base <base> <findi
 ```
 
 `check` compares the change with its own base, so no stored baseline is
-needed; untracked files count as added. Errors: a new include into a CMake
+needed; untracked files count as added. It also reads changed top-level
+`Telegram/lib_*` submodules: their current working trees, including commits
+beyond the pin, edits and untracked files, are compared with their pins at
+the superproject base, and findings use `Telegram/lib_*/...` paths. An added
+submodule's files count as new. A changed submodule with no checkout or a
+base pin unavailable locally is named under warnings. With `--staged`,
+only gitlinks changed in the superproject index are named instead of
+reading submodule content; run without `--staged` to check that content.
+A read gap suppresses the clean line but does not itself change the exit
+code, including under `--strict`; inspect the named submodule or rerun with
+its base available before treating it as checked. Run from the
+superproject; `--repo` on a submodule without a `Telegram/` folder refuses
+in one line. Errors: a new include into a CMake
 target the including target does not link, when no include between those two
 targets exists yet, or a new file over the size limit. Warnings: one more
 include across an already crossed target pair, growing a file that is

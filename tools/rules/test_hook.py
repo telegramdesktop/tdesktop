@@ -39,18 +39,16 @@ class EditHook(unittest.TestCase):
         code, why = edit("// the server rejects more,\n// so we stop\nf();\n")
         self.assertEqual(code, 2)
         self.assertIn("2-line comment: a comment is one line", why)
-        self.assertIn("// WHY:", why)
+        self.assertIn("reference URL", why)
 
-    def test_why_block_of_three_passes(self):
-        self.assertEqual(edit("// WHY: a\n// b\n// c\nf();\n")[0], 0)
+    def test_url_block_passes(self):
+        self.assertEqual(edit("// the scheme, see\n"
+            "// https://core.telegram.org\nf();\n")[0], 0)
 
-    def test_why_block_of_four_fails(self):
-        code, why = edit("// WHY: a\n// b\n// c\n// d\nf();\n")
-        self.assertEqual(code, 2)
-        self.assertIn("4-line comment: a // WHY: block runs 3 lines", why)
-
-    def test_why_marker_must_open_the_block(self):
-        self.assertEqual(edit("// a\n// WHY: b\nf();\n")[0], 2)
+    def test_long_url_block_passes(self):
+        self.assertEqual(edit(
+            "// a\n// b\n// https://core.telegram.org\n// c\n// d\nf();\n")[0],
+            0)
 
     def test_commented_out_code_is_a_comment(self):
         self.assertEqual(edit("//foo();\n//bar();\n//baz();\n")[0], 2)
@@ -135,6 +133,9 @@ class Repository:
         self.git("init", "-q")
         self.git("config", "user.email", "t@t")
         self.git("config", "user.name", "t")
+        os.makedirs(os.path.join(self.path, "hooks"))
+        # Machine-wide hooks have no say in this disposable repository.
+        self.git("config", "core.hooksPath", "hooks")
 
     def git(self, *arguments):
         return subprocess.run(["git", *arguments], cwd=self.path, check=True,
@@ -210,20 +211,15 @@ class StagedHook(unittest.TestCase):
         self.assertIn("a.cpp:4: a comment is one line", why)
         self.assertNotIn("budget", why)
 
-    def test_one_why_block_on_top_of_budget(self):
-        code, why = self.stage({"a.cpp": "// one\n\n// two\n\n// three\n\n"
-            "// WHY: a\n// b\n// c\nint a() {\n\treturn 1;\n}\n"})
-        self.assertEqual(code, 1)
-        self.assertIn("adds 3 comment lines", why)
-        code, why = self.stage({"a.cpp": "// one\n\n// two\n\n// WHY: a\n"
-            "// b\n// c\nint a() {\n\treturn 1;\n}\n"})
+    def test_url_block_is_free(self):
+        code, why = self.stage({"a.cpp": "// one\n\n// two\n\n// the docs\n"
+            "// https://core.telegram.org\nint a() {\n\treturn 1;\n}\n"})
         self.assertEqual(code, 0, why)
 
-    def test_second_why_block_fails(self):
-        code, why = self.stage({"a.cpp": "// WHY: a\n// b\nint a() {\n"
-            "\treturn 1;\n}\n// WHY: c\n// d\n"})
-        self.assertEqual(code, 1)
-        self.assertIn("takes 2 // WHY: exceptions; 1 is the budget", why)
+    def test_url_block_over_budget_is_free(self):
+        code, why = self.stage({"a.cpp": "// one\n// two\n// the docs\n"
+            "// https://core.telegram.org\nint a() {\n\treturn 1;\n}\n"})
+        self.assertEqual(code, 0, why)
 
     def test_long_block_is_named_by_line(self):
         code, why = self.stage({"a.cpp": "int a() {\n\treturn 1;\n}\n\n"

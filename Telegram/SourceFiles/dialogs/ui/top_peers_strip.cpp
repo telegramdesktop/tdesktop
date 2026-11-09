@@ -380,6 +380,9 @@ void TopPeersStrip::stripMouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePosition = e->globalPos();
 	const auto guard = gsl::finally([&] {
 		_mouseDownPosition = std::nullopt;
+
+		// Opening a chat from _clicks could start dragging reentrantly.
+		_dragging = false;
 	});
 
 	const auto pressed = clearPressed();

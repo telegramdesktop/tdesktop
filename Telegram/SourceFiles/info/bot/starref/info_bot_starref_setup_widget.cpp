@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/controls/slider_tick_labels.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -294,16 +295,22 @@ private:
 	labels->widthValue() | rpl::on_next([=](int outer) {
 		const auto shift = sliderStyle->seekSize.width() / 2;
 		const auto available = outer - sliderStyle->seekSize.width();
+		auto centers = std::vector<int>();
+		auto widths = std::vector<int>();
 		for (auto i = 0; i != state->labels.size(); ++i) {
-			const auto label = state->labels[i];
-			const auto width = label->width();
-			const auto half = width / 2;
+			const auto width = state->labels[i]->width();
 			const auto progress = (i / float64(valuesCount - 1));
 			const auto left = int(base::SafeRound(progress * available));
-			label->moveToLeft(
-				std::max(std::min(shift + left - half, outer - width), 0),
-				0,
-				outer);
+			centers.push_back(shift + left);
+			widths.push_back(width);
+		}
+		const auto lefts = Ui::LayoutSliderTickLabels(
+			centers,
+			widths,
+			outer,
+			labelStyle->style.font->spacew);
+		for (auto i = 0; i != state->labels.size(); ++i) {
+			state->labels[i]->moveToLeft(lefts[i], 0, outer);
 		}
 	}, slider->lifetime());
 	labels->resize(

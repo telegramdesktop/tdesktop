@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "tgw/tgw_storage.h"
 #include "window/notifications_manager.h"
 
 namespace Data {
@@ -521,6 +522,7 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 }
 
 void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
+	Tgw::ClearSublistStorage(this, sublistPeer->id);
 	const auto i = _sublists.find(sublistPeer);
 	if (i == end(_sublists)) {
 		return;

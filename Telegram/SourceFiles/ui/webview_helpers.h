@@ -12,16 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_proxy_data.h"
 #include "webview/webview_interface.h"
 
-namespace tr {
-template <typename ...Tags>
-struct phrase;
-} // namespace tr
-
 namespace Ui {
 
 [[nodiscard]] QByteArray ComputeStyles(
 	const base::flat_map<QByteArray, const style::color*> &colors,
-	const base::flat_map<QByteArray, tr::phrase<>> &phrases,
 	int zoom,
 	bool nightTheme = false);
 

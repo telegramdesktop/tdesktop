@@ -330,6 +330,36 @@ struct PatternColors {
 	return points;
 }
 
+Ui::RpWidget *SetupTabBarBackground(
+		not_null<Ui::FadeWrap<Ui::RpWidget>*> bar,
+		const style::color &bg,
+		const bool &roundEdges) {
+	bar->setDuration(st::infoTopBarDuration);
+	bar->toggle(false, anim::type::instant);
+
+	const auto inner = bar->entity();
+	inner->paintRequest(
+	) | rpl::on_next([=, &bg, &roundEdges] {
+		auto p = QPainter(inner);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto radius = roundEdges ? st::boxRadius : 0;
+		p.setPen(Qt::NoPen);
+		p.setBrush(bg);
+		p.drawRoundedRect(
+			inner->rect() + QMargins(0, 0, 0, radius),
+			radius,
+			radius);
+		const auto line = st::lineWidth;
+		p.fillRect(
+			0,
+			inner->height() - line,
+			inner->width(),
+			line,
+			st::shadowFg);
+	}, inner->lifetime());
+	return inner;
+}
+
 } // namespace
 
 TopBar::TopBar(
@@ -2291,29 +2321,7 @@ void TopBar::createTabSelectionBar() {
 		this,
 		object_ptr<Ui::RpWidget>(this));
 	const auto bar = _tabSelectionBar.data();
-	bar->setDuration(st::infoTopBarDuration);
-	bar->toggle(false, anim::type::instant);
-
-	const auto inner = bar->entity();
-	inner->paintRequest(
-	) | rpl::on_next([=] {
-		auto p = QPainter(inner);
-		auto hq = PainterHighQualityEnabler(p);
-		const auto radius = _roundEdges ? st::boxRadius : 0;
-		p.setPen(Qt::NoPen);
-		p.setBrush(_st.bg);
-		p.drawRoundedRect(
-			inner->rect() + QMargins(0, 0, 0, radius),
-			radius,
-			radius);
-		const auto line = st::lineWidth;
-		p.fillRect(
-			0,
-			inner->height() - line,
-			inner->width(),
-			line,
-			st::shadowFg);
-	}, inner->lifetime());
+	const auto inner = SetupTabBarBackground(bar, _st.bg, _roundEdges);
 
 	const auto forwardAction = [=](SelectionAction action) {
 		if (const auto onstack = _tabSelectionAction) {
@@ -2465,30 +2473,10 @@ void TopBar::showTabSearch() {
 		_tabSearchBar.create(
 			this,
 			object_ptr<Ui::RpWidget>(this));
-		const auto bar = _tabSearchBar.data();
-		bar->setDuration(st::infoTopBarDuration);
-		bar->toggle(false, anim::type::instant);
-
-		const auto inner = bar->entity();
-		inner->paintRequest(
-		) | rpl::on_next([=] {
-			auto p = QPainter(inner);
-			auto hq = PainterHighQualityEnabler(p);
-			const auto radius = _roundEdges ? st::boxRadius : 0;
-			p.setPen(Qt::NoPen);
-			p.setBrush(_st.bg);
-			p.drawRoundedRect(
-				inner->rect() + QMargins(0, 0, 0, radius),
-				radius,
-				radius);
-			const auto line = st::lineWidth;
-			p.fillRect(
-				0,
-				inner->height() - line,
-				inner->width(),
-				line,
-				st::shadowFg);
-		}, inner->lifetime());
+		const auto inner = SetupTabBarBackground(
+			_tabSearchBar.data(),
+			_st.bg,
+			_roundEdges);
 
 		_tabSearchField = Ui::CreateChild<Ui::InputField>(
 			inner,

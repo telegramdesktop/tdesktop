@@ -364,6 +364,7 @@ historyCallLeft: 16px;
 historyCallTop: 9px;
 historyCallStatusTop: 29px;
 historyCallStatusSkip: 4px;
+historyCallIconSkip: 8px;
 historyCallArrowPosition: point(-1px, 1px);
 
 HistoryFileLayout {

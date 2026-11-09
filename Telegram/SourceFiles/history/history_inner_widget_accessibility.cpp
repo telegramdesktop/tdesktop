@@ -221,29 +221,6 @@ QString MessageAccessibilityName(
 			mediaParts.push_back(invoice->currency
 				+ u" "_q
 				+ QString::number(invoice->amount / 100.0, 'f', 2));
-		} else if (const auto gift = media->gift()) {
-			switch (gift->type) {
-			case Data::GiftType::Premium:
-				mediaParts.push_back(
-					tr::lng_sr_message_gift_premium(
-						tr::now,
-						lt_count,
-						gift->count));
-				break;
-			case Data::GiftType::Credits:
-			case Data::GiftType::StarGift:
-				mediaParts.push_back(
-					tr::lng_sr_message_gift_credits(
-						tr::now,
-						lt_count,
-						gift->count));
-				break;
-			default:
-				if (!gift->giftTitle.isEmpty()) {
-					mediaParts.push_back(gift->giftTitle);
-				}
-				break;
-			}
 		} else if (const auto todolist = media->todolist()) {
 			if (!todolist->title.text.isEmpty()) {
 				mediaParts.push_back(todolist->title.text);
@@ -452,8 +429,6 @@ QString MessageSubItemLabel(MessageSubItem item) {
 		return tr::lng_sr_message_column_dice(tr::now);
 	case MessageSubItem::Giveaway:
 		return tr::lng_sr_message_column_giveaway(tr::now);
-	case MessageSubItem::Gift:
-		return tr::lng_sr_message_column_gift(tr::now);
 	case MessageSubItem::TodoTitle:
 		return tr::lng_sr_message_column_todo_title(tr::now);
 	case MessageSubItem::TodoItems:
@@ -1043,34 +1018,6 @@ QString MessageSubItemValue(
 			return parts.join(u", "_q);
 		}
 		return {};
-	}
-	case MessageSubItem::Gift: {
-		const auto media = data->media();
-		if (!media) {
-			return {};
-		}
-		const auto gift = media->gift();
-		if (!gift) {
-			return {};
-		}
-		switch (gift->type) {
-		case Data::GiftType::Premium:
-			return tr::lng_sr_message_gift_premium(
-				tr::now,
-				lt_count,
-				gift->count);
-		case Data::GiftType::Credits:
-		case Data::GiftType::StarGift:
-			return tr::lng_sr_message_gift_credits(
-				tr::now,
-				lt_count,
-				gift->count);
-		default:
-			if (!gift->giftTitle.isEmpty()) {
-				return gift->giftTitle;
-			}
-			return {};
-		}
 	}
 	case MessageSubItem::TodoTitle: {
 		const auto media = data->media();

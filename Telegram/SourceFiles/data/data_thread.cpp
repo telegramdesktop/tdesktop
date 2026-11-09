@@ -157,13 +157,15 @@ void Thread::clearNotifications() {
 	_notifications.clear();
 }
 
-void Thread::clearIncomingNotifications() {
+void Thread::clearIncomingNotifications(
+		Fn<bool(not_null<HistoryItem*>)> filter) {
 	if (!peer()->isSelf()) {
-		const auto proj = [](ItemNotification notification) {
-			return notification.item->out();
+		const auto incoming = [&](ItemNotification notification) {
+			return !notification.item->out()
+				&& (!filter || filter(notification.item));
 		};
 		_notifications.erase(
-			ranges::remove(_notifications, false, proj),
+			ranges::remove_if(_notifications, incoming),
 			end(_notifications));
 	}
 }

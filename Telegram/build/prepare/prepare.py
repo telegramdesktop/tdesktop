@@ -6,6 +6,7 @@ scriptPath = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(scriptPath + '/..')
 import qt_version
 import build_mac
+import msvc
 
 def finish(code):
     global executePath
@@ -236,6 +237,8 @@ def computeCacheKey(stage):
         stage['version'],
         stage['commands']
     ]
+    if winarm and stage['name'] == 'ffmpeg':
+        objects.append('MSVC=' + str(stage['msvc_version']))
     for pattern in stage['dependencies']:
         pathlist = glob.glob(os.path.join(libsDir, pattern))
         items = [pattern]
@@ -373,7 +376,9 @@ def printCommands(commands):
     print(commands, end='')
     print('--------------------------------------------------------------------------------')
 
-def run(commands):
+def run(commands, env = None):
+    if env is None:
+        env = modifiedEnv
     printCommands(commands)
     if win:
         if os.path.exists("command.bat"):
@@ -381,14 +386,14 @@ def run(commands):
         with open("command.bat", 'w') as file:
             file.write('@echo OFF\r\nset "NoDefaultCurrentDirectoryInExePath="\r\n' + winFailOnEach(commands))
         batPath = os.path.abspath("command.bat")
-        result = subprocess.run(batPath, shell=True, env=modifiedEnv).returncode == 0
+        result = subprocess.run(batPath, shell=True, env=env).returncode == 0
         if result and os.path.exists("command.bat"):
             os.remove("command.bat")
         return result
     elif re.search(r'\%', commands):
         error('Bad command: ' + commands)
     else:
-        return subprocess.run("set -e\n" + commands, shell=True, env=modifiedEnv).returncode == 0
+        return subprocess.run("set -e\n" + commands, shell=True, env=env).returncode == 0
 
 # Thanks https://stackoverflow.com/a/510364
 class _Getch:
@@ -449,6 +454,12 @@ def runStages():
     for stage in stages:
         if len(onlyStages) > 0 and not stage['name'] in onlyStages:
             continue
+        stageEnvironment = modifiedEnv
+        if winarm and stage['name'] == 'ffmpeg':
+            try:
+                stageEnvironment, stage['msvc_version'] = msvc.ffmpeg_environment(modifiedEnv)
+            except RuntimeError as exception:
+                error(str(exception))
         index = index + 1
         version = ('#' + str(stage['version'])) if (stage['version'] != '0') else ''
         prefix = '[' + str(index) + '/' + str(count) + '](' + stage['location'] + '/' + stage['name'] + version + ')'
@@ -494,7 +505,7 @@ def runStages():
         clearCacheKey(stage)
         print('BUILDING:')
         os.chdir(stage['directory'])
-        if not run(commands):
+        if not run(commands, stageEnvironment):
             print(prefix + ': FAILED')
             finish(1)
         writeCacheKey(stage)
@@ -521,7 +532,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 13b4eb3dc1b8ef404b4ab04750e0fd7aafbe06c2
+    git checkout a59fc82462fb2987e9f0ee1498e2db694410ae81
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -1023,8 +1034,13 @@ mac:
 """)
 
 stage('libjxl', """
-    git clone -b v0.12.0 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    git clone -b v0.12.0 --recursive https://github.com/libjxl/libjxl.git
     cd libjxl
+    cd third_party
+    cd brotli
+    git checkout v1.2.1
+    cd ..
+    cd ..
 """ + setVar("cmake_defines", """
     -DBUILD_SHARED_LIBS=OFF
     -DBUILD_TESTING=OFF
@@ -1173,6 +1189,13 @@ stage('regex', """
 stage('ffmpeg', """
     git clone -b n8.1.3 https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
+depends:patches/ffmpeg/*.patch
+win:
+    for %%i in (..\\patches\\ffmpeg\\*.patch) do (
+        git apply "%%i" || exit /b 1
+    )
+mac:
+    find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -0 git apply
 win:
 depends:patches/ffmpeg.patch
     git apply ../patches/ffmpeg.patch
@@ -1836,7 +1859,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 49ceed3985d8626b3a24bdb14d9c593a115cc6e8
+    git checkout 020feec5c040fdae2cf752c2c2be62ddde7c236d
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg

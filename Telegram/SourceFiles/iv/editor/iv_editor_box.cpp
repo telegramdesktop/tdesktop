@@ -94,7 +94,6 @@ enum class ToolbarActionId : uchar {
 	Subscript,
 	Superscript,
 	Marked,
-	PlainText,
 	Heading,
 	Link,
 	Math,
@@ -154,8 +153,6 @@ enum class ToolbarActionId : uchar {
 		return tr::lng_menu_formatting_superscript(tr::now);
 	case ToolbarActionId::Marked:
 		return tr::lng_menu_formatting_marked(tr::now);
-	case ToolbarActionId::PlainText:
-		return tr::lng_menu_formatting_plain_text(tr::now);
 	case ToolbarActionId::Heading:
 		return tr::lng_article_insert_heading(tr::now);
 	case ToolbarActionId::Link:

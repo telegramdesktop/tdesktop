@@ -74,11 +74,14 @@ std::shared_ptr<Result> Result::Create(
 			{ u"geo"_q, Type::Geo },
 			{ u"game"_q, Type::Game },
 		};
-		const auto type = data.match([](const auto &data) {
-			return qs(data.vtype());
+		return data.match([](const auto &data) {
+			const auto &message = data.vsend_message();
+			if (message.type() == mtpc_botInlineMessageWidget) {
+				return Type::Widget;
+			}
+			const auto i = kStringToTypeMap.find(qs(data.vtype()));
+			return (i != kStringToTypeMap.end()) ? i->second : Type::Unknown;
 		});
-		const auto i = kStringToTypeMap.find(type);
-		return (i != kStringToTypeMap.end()) ? i->second : Type::Unknown;
 	}();
 	if (type == Type::Unknown) {
 		return nullptr;
@@ -274,6 +277,10 @@ std::shared_ptr<Result> Result::Create(
 			qs(data.vmessage()),
 			Api::EntitiesFromMTP(session, data.ventities().value_or_empty()),
 			false);
+	}, [&](const MTPDbotInlineMessageWidget &data) {
+		result->sendData = std::make_unique<internal::SendWidget>(
+			session,
+			data);
 	});
 
 	if (!result->sendData || !result->sendData->isValid()) {

@@ -1,0 +1,8 @@
+<RCC>
+  <qresource prefix="/tgw">
+    <file alias="sandbox-bundle.js">../../../ThirdParty/widget-sandbox/packages/desktop/WidgetJS/sandbox-bundle.js</file>
+    <file alias="sandbox-bundle.qbc">../../../ThirdParty/widget-sandbox/packages/desktop/WidgetJS/sandbox-bundle.qbc</file>
+    <file alias="validator-bundle.js">../../../ThirdParty/widget-sandbox/packages/desktop/WidgetJS/validator-bundle.js</file>
+    <file alias="validator-bundle.qbc">../../../ThirdParty/widget-sandbox/packages/desktop/WidgetJS/validator-bundle.qbc</file>
+  </qresource>
+</RCC>

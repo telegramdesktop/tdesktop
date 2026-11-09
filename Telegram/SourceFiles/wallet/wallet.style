@@ -297,6 +297,9 @@ walletRowItemMarkOut: IconEmoji(walletRowItemMarkIn) {
 walletChipTopSkip: 12px;
 walletChipTextSkip: 12px;
 walletChipPadding: margins(0px, 0px, 12px, 0px);
+walletRowAddressChipInset: 4px;
+walletRowAddressChipSkip: 3px;
+walletRowAddressChipRadius: 4px;
 
 walletDetailsBox: Box(giveawayGiftCodeBox) {
 	bg: windowBgOver;

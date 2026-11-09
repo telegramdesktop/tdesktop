@@ -87,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_folder_archive.h"
 #include "storage/localstorage.h"
 #include "payments/payments_checkout_process.h"
+#include "tgw/tgw_runtime.h"
 #include "export/export_manager.h"
 #include "wallet/wallet_panel.h"
 #include "webrtc/webrtc_environment.h"
@@ -2023,6 +2024,9 @@ void QuitAttempt() {
 bool Application::readyToQuit() {
 	auto prevented = false;
 	if (_calls->isQuitPrevent()) {
+		prevented = true;
+	}
+	if (Tgw::Runtime::IsQuitPrevent()) {
 		prevented = true;
 	}
 	if (_domain->started()) {

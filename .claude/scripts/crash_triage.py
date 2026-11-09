@@ -8,6 +8,7 @@ signature so each distinct crash is investigated exactly once.
 Subcommands
     ledger  show what past runs already decided
     record  write one group's verdict into the ledger
+    rekey   move ledger entries to the keys today's signature() gives them
     claim   move the pending triples out of all/ into a timestamped run folder
     scan    classify, cluster, write index/groups into the run folder
     show    print one group's representative report and member ids
@@ -22,6 +23,7 @@ Everything is stdlib-only and never touches the git working tree.
 """
 
 import argparse
+import copy
 import datetime
 import hashlib
 import json
@@ -279,22 +281,54 @@ MSVC_SCOPE = re.compile(r"'::`\d+'::|[`\']")
 # carry in their template arguments, so mine through them.
 NOT_APP = ("std::", "__gnu", "__cxx", "_Func", "_Function", "_Invoker",
            "__pstl", "gnu_cxx", "rpl::", "crl::", "gsl::")
+# A plain C function: the name right before its argument list, or the whole
+# symbol when the dump printed no argument list at all.
+C_FUNCTION = re.compile(r"([A-Za-z_][A-Za-z0-9_]*)\s*\(|^([A-Za-z_][A-Za-z0-9_]*)$")
+# The C runtime and Qt's failure reporting linked into the app: a throw, an
+# allocation, a jump, a copy, a fatal message. They say how the app failed,
+# not where, so they stay glue.
+APP_GLUE = re.compile(
+    r"^(_|errno$|operator$|new$|delete$|CxxThrowException$|(set|long)jmp$"
+    r"|internal_|mem(cpy|move|set|cmp)$|str(len|cmp|ncmp|cpy|ncpy|chr|str)$"
+    r"|(m|c|re)alloc$|free$|qBadAlloc$|qt_message|qt_assert|qt_check_pointer"
+    r"|qFatal$|qTerminate$)")
 
 
-def canonical(frame):
+def app_modules(binary):
+    """Module names the app's own code (FFmpeg, dav1d etc. included) runs in."""
+    names = {"Telegram", "Telegram.exe"}
+    if binary:
+        names.add(binary)
+        names.add(re.sub(r"\.app$", "", binary))
+    return names
+
+
+def canonical(frame, app=()):
     """A toolchain-independent name for one frame, or None for pure glue.
 
     std:: forwarding frames carry the real callee inside their template
     arguments, so they are mined rather than dropped; a frame that is still
     nothing but standard-library plumbing after mining returns None.
+
+    C functions linked into the app binary (FFmpeg, dav1d, ...) are kept by
+    name. Dropping them as glue left codec crashes keyed on nothing but
+    `kernel32.dll+?`, which merged unrelated crashes in the ledger. C names
+    from system libraries stay glue: on macOS every abort is `__pthread_kill`.
     """
     text = frame.symbol or frame.raw
     text = MSVC_LAMBDA.sub("<lambda>", text)
     text = GCC_LAMBDA.sub("<lambda>", text)
     text = MSVC_SCOPE.sub("", text)
+    qualified = False
     for m in QUALIFIED.finditer(text):
+        qualified = True
         name = m.group(0)
         if not name.startswith(NOT_APP):
+            return name
+    if frame.symbol and not qualified and frame.module in app:
+        m = C_FUNCTION.search(frame.symbol.replace("static ", ""))
+        name = m and (m.group(1) or m.group(2))
+        if name and not APP_GLUE.search(name):
             return name
     if frame.symbol:
         return None
@@ -316,6 +350,20 @@ def collapse(keys):
 # stack. These three fire from the reporter itself, so they are not.
 GENERIC_ASSERTION = re.compile(
     r"crash_reports\.cpp:|Pure virtual function called|^Unexpected: Unknown")
+
+# A checked expression inside a header - `ptr_ != nullptr` in gsl's pointers,
+# a container's bounds check - fails for every caller of that helper, so it
+# names the helper rather than the bug. An Unexpected("...") message names its
+# own bug wherever it lives.
+HEADER_EXPRESSION = re.compile(r'^".*"\s+(\S+):\d+\s*$')
+SOURCE_FILE = re.compile(r"\.(cpp|cc|cxx|c|mm|m)$")
+
+
+def generic_assertion(assertion):
+    if GENERIC_ASSERTION.search(assertion):
+        return True
+    m = HEADER_EXPRESSION.search(assertion)
+    return bool(m) and not SOURCE_FILE.search(m.group(1))
 
 GPU_MODULES = re.compile(
     r"(atio|amdvlk|amdxc|nvoglv|nvwgf2|nvd3d|nvcuda|igd|igvk|ig9|ig11"
@@ -341,13 +389,14 @@ def signature(rep):
         trimmed = frames
 
     assertion = rep["header"].get("Assertion", "")
-    keys = collapse([k for k in (canonical(f) for f in trimmed) if k])
+    app = app_modules(rep["header"].get("Binary", ""))
+    keys = collapse([k for k in (canonical(f, app) for f in trimmed) if k])
     if not keys:
         keys = collapse([f.func() for f in trimmed])
     loose = " | ".join(keys[:3])
     exact = " | ".join(f.precise() for f in trimmed[:6])
 
-    if assertion and not GENERIC_ASSERTION.search(assertion):
+    if assertion and not generic_assertion(assertion):
         # A named assertion is the same bug on every platform and in every
         # caller, so the stack must not split it.
         key = assertion
@@ -513,6 +562,10 @@ def cmd_claim(args):
 
 DEFAULT_LEDGER = "~/Telegram/Crashes/triage-ledger.json"
 
+# Bump whenever signature() starts keying reports differently: the next scan
+# then moves every ledger entry to the key its own reports get now.
+SIGNATURE_VERSION = 2
+
 
 def stable_key(raw_key):
     """A signature hash that survives a version bump.
@@ -536,6 +589,131 @@ def load_ledger(path):
         return {}
 
 
+def git_ok(repo, *args):
+    try:
+        return subprocess.run(
+            ["git", "-C", repo] + list(args),
+            capture_output=True).returncode == 0
+    except FileNotFoundError:
+        return False
+
+
+_RUN_VERSIONS = {}
+
+
+def run_version(backups, run):
+    """The release a past run triaged, from that run's own groups.json."""
+    if run not in _RUN_VERSIONS:
+        version = None
+        path = os.path.join(os.path.expanduser(backups), run, "triage",
+                            "groups.json")
+        try:
+            with open(path) as fh:
+                accepted = json.load(fh).get("accepted_versions") or []
+            version = min(accepted) if accepted else None
+        except (OSError, ValueError):
+            pass
+        _RUN_VERSIONS[run] = version
+    return _RUN_VERSIONS[run]
+
+
+def decided_version(entry, backups):
+    if entry.get("version"):
+        return entry["version"]
+    found = [run_version(backups, run) for run in entry.get("runs", [])]
+    found = [v for v in found if v]
+    return max(found) if found else None
+
+
+def recurring(entry, version, repo, tag, backups):
+    """Whether a fix in the ledger is contradicted by this release's reports.
+
+    A crash that still arrives from a release newer than the one its fix was
+    decided for was not fixed, whatever the ledger says. The only exception is
+    a fix commit that provably has not shipped in the tag yet. An old entry
+    whose release is unknown, or whose commit no longer exists (rebased), is
+    reopened: a needless investigation is cheaper than a silently hidden crash.
+    """
+    if entry.get("verdict") != "fixed" and not entry.get("commit"):
+        return False
+    decided = decided_version(entry, backups)
+    if decided is not None and decided >= version:
+        return False
+    commit = entry.get("commit")
+    if (commit
+            and git_ok(repo, "cat-file", "-e", commit + "^{commit}")
+            and not git_ok(repo, "merge-base", "--is-ancestor", commit, tag)):
+        return False
+    return True
+
+
+def entry_reports(entry, key, backups):
+    """The reports an entry was decided on: its representatives."""
+    if entry.get("reports"):
+        return entry["reports"]
+    found = []
+    for run in entry.get("runs", []):
+        path = os.path.join(os.path.expanduser(backups), run, "triage",
+                            "groups.json")
+        try:
+            with open(path) as fh:
+                groups = json.load(fh)["groups"]
+        except (OSError, ValueError, KeyError):
+            continue
+        found += [os.path.join(os.path.expanduser(backups), run,
+                               "log_%s.txt" % g["representative"])
+                  for g in groups if g.get("key") == key]
+    return found
+
+
+def rekey(data, backups):
+    """Moves every entry to the key that today's signature() gives the
+    reports it was decided on. An entry for a coarse old key that now splits
+    keeps its verdict only for the representative that was investigated.
+    """
+    out = {}
+    moved = 0
+    for key, entry in data.items():
+        if key.startswith("_"):
+            continue
+        reports = entry_reports(entry, key, backups)
+        if reports:
+            entry["reports"] = reports
+        if not entry.get("version"):
+            version = decided_version(entry, backups)
+            if version:
+                entry["version"] = version
+        targets = set()
+        for path in reports:
+            rep = parse_log(path) if os.path.exists(path) else None
+            if rep and rep["frames"]:
+                targets.add(stable_key(signature(rep)[0]))
+        targets = sorted(targets) or [key]
+        if targets != [key]:
+            moved += 1
+        for target in targets:
+            mine, theirs = copy.deepcopy(entry), out.get(target)
+            if theirs is not None:
+                order = lambda e: (e.get("version") or 0, e.get("last_seen", ""))
+                if order(theirs) > order(mine):
+                    mine, theirs = theirs, mine
+                mine.setdefault("history", []).append({
+                    k: theirs[k] for k in ("verdict", "commit", "note", "label")
+                    if theirs.get(k)})
+            out[target] = mine
+    out["_signature"] = SIGNATURE_VERSION
+    return out, moved
+
+
+def cmd_rekey(args):
+    data = load_ledger(args.ledger)
+    data, moved = rekey(data, args.backups)
+    save_ledger(args.ledger, data)
+    print("ledger re-keyed for signature v%d: %d of %d entries moved" % (
+        SIGNATURE_VERSION, moved, len(data) - 1))
+    return 0
+
+
 def save_ledger(path, data):
     path = os.path.expanduser(path)
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -550,8 +728,8 @@ def cmd_ledger(args):
     if not data:
         print("ledger is empty (%s)" % os.path.expanduser(args.ledger))
         return 0
-    rows = sorted(data.items(), key=lambda kv: kv[1].get("last_seen", ""),
-                  reverse=True)
+    rows = sorted(((k, v) for k, v in data.items() if not k.startswith("_")),
+                  key=lambda kv: kv[1].get("last_seen", ""), reverse=True)
     print("%-12s  %-16s  %-6s  %s" % ("key", "verdict", "seen", "signature"))
     for key, entry in rows:
         print("%-12s  %-16s  %-6d  %s" % (
@@ -573,9 +751,17 @@ def cmd_record(args):
     key = group["key"]
     stamp = datetime.datetime.now().astimezone().strftime("%Y-%m-%d")
     entry = data.get(key, {"first_seen": stamp, "seen": 0, "runs": []})
+    if entry.get("verdict") and entry.get("label") != payload["label"]:
+        # Decided again for a newer release: keep what was decided before.
+        entry.setdefault("history", []).append({
+            k: entry[k] for k in ("verdict", "commit", "note", "label")
+            if entry.get(k)})
+        entry.pop("commit", None)
     entry["signature"] = (group["assertion"] + " || " if group["assertion"]
                           else "") + group["signature"]
     entry["verdict"] = args.verdict
+    entry["label"] = payload["label"]
+    entry["version"] = min(payload["accepted_versions"])
     entry["last_seen"] = stamp
     entry["seen"] = entry.get("seen", 0) + group["count"]
     if args.note:
@@ -585,6 +771,11 @@ def cmd_record(args):
     run = os.path.basename(os.path.dirname(os.path.expanduser(args.out).rstrip("/")))
     if run and run not in entry["runs"]:
         entry["runs"].append(run)
+    # What a later rekey re-signs, so a changed signature keeps this verdict.
+    report = os.path.join(payload["crashes"],
+                          "log_%s.txt" % group["representative"])
+    entry["reports"] = [r for r in entry.get("reports", []) if r != report]
+    entry["reports"].append(report)
     data[key] = entry
     save_ledger(args.ledger, data)
     print("recorded %s %s -> %s" % (args.gid, key, args.verdict))
@@ -716,16 +907,29 @@ def cmd_scan(args):
             g["rep"], g["trimmed"] = rep, trimmed
 
     ledger = load_ledger(args.ledger)
+    if ledger and ledger.get("_signature") != SIGNATURE_VERSION:
+        ledger, moved = rekey(ledger, args.backups)
+        save_ledger(args.ledger, ledger)
+        print("ledger re-keyed for signature v%d: %d entries moved" % (
+            SIGNATURE_VERSION, moved))
+    version = min(accepted)
     ordered = sorted(groups.values(), key=lambda g: -len(g["members"]))
     for g in ordered:
         g["key"] = stable_key(g["raw_key"])
         g["known"] = ledger.get(g["key"])
+        g["previous"] = None
+        if g["known"] and recurring(
+                g["known"], version, repo, label, args.backups):
+            g["previous"], g["known"] = g["known"], None
+            g["tags"]["recurring"] = len(g["members"])
     # Groups still needing a decision come first and keep the low numbers.
     ordered.sort(key=lambda g: (g["known"] is not None, -len(g["members"])))
     for i, g in enumerate(ordered, 1):
         g["gid"] = "G%02d" % i
     fresh = [g for g in ordered if g["known"] is None]
+    again = [g for g in fresh if g["previous"]]
     known = [g for g in ordered if g["known"] is not None]
+    known_reports = sum(len(g["members"]) for g in known)
 
     # ---- index.tsv -------------------------------------------------------
     with open(os.path.join(out, "index.tsv"), "w") as fh:
@@ -764,9 +968,16 @@ def cmd_scan(args):
     for kind in ("usable", "no-frames", "unsymbolized", "old-version"):
         lines.append("| %s | %d |" % (kind, len(buckets[kind])))
     lines.append("| **distinct groups** | **%d** |" % len(ordered))
-    lines.append("| of those, new | %d |" % len(fresh))
-    lines.append("| of those, already in the ledger | %d |" % len(known))
+    lines.append("| of those, new | %d |" % (len(fresh) - len(again)))
+    lines.append("| of those, recurring after a fix | %d |" % len(again))
+    lines.append("| of those, already in the ledger | %d (%d reports) |" % (
+        len(known), known_reports))
     lines.append("")
+    if again:
+        lines.append("Recurring groups were recorded as fixed for an older "
+                     "release, yet still crash in %s: that fix did not cover "
+                     "them, so they are investigated again." % label)
+        lines.append("")
     if known:
         lines.append("Groups %s..%s were decided in an earlier run; they are "
                      "listed at the end and need no fresh investigation."
@@ -791,6 +1002,8 @@ def cmd_scan(args):
         if g["known"]:
             lines.append("- **already decided**: %s (%s)" % (
                 g["known"].get("verdict", "?"), g["known"].get("note", "")))
+        if g["previous"]:
+            lines.append("- **recurring**: %s" % previous_text(g["previous"]))
         lines.append("- key: `%s`" % g["key"])
         lines.append("- representative: `log_%s.txt`  (uptime %s)" % (
             rep["id"], rep["uptime"] or "?"))
@@ -828,6 +1041,7 @@ def cmd_scan(args):
             "gid": g["gid"],
             "key": g["key"],
             "known": g["known"],
+            "previous": g["previous"],
             "count": len(g["members"]),
             "machines": len(g["users"]),
             "assertion": g["assertion"],
@@ -846,8 +1060,10 @@ def cmd_scan(args):
         label, ", ".join(str(v) for v in sorted(accepted))))
     for kind in ("usable", "no-frames", "unsymbolized", "old-version"):
         print("  %-13s %4d" % (kind, len(buckets[kind])))
-    print("  %-13s %4d  (%d new, %d already in the ledger)" % (
-        "groups", len(ordered), len(fresh), len(known)))
+    print("  %-13s %4d  (%d new, %d recurring after a fix, %d already in "
+          "the ledger with %d reports)" % (
+              "groups", len(ordered), len(fresh) - len(again), len(again),
+              len(known), known_reports))
     print("wrote %s/{index.tsv,groups.md,groups.json}" % out)
     return 0
 
@@ -855,6 +1071,14 @@ def cmd_scan(args):
 # --------------------------------------------------------------------------
 # show / sweep
 # --------------------------------------------------------------------------
+
+def previous_text(entry):
+    return "recorded %s%s%s -- %s" % (
+        entry.get("verdict", "?"),
+        " for " + entry["label"] if entry.get("label") else "",
+        " by " + entry["commit"] if entry.get("commit") else "",
+        entry.get("note", ""))
+
 
 def load_payload(out):
     with open(os.path.join(out, "groups.json")) as fh:
@@ -886,6 +1110,11 @@ def cmd_show(args):
         if g.get("known"):
             print("ALREADY DECIDED in an earlier run: %s -- %s" % (
                 g["known"].get("verdict", "?"), g["known"].get("note", "")))
+        if g.get("previous"):
+            print("RECURRING: %s" % previous_text(g["previous"]))
+            print("It still crashes in %s, so that diagnosis did not cover "
+                  "these reports; investigate them from scratch."
+                  % payload["label"])
         print("members: %s" % " ".join(g["members"]))
         print("all member logs: %s/log_<id>.txt" % payload["crashes"])
         print("=" * 78)
@@ -991,6 +1220,11 @@ def main():
     s.add_argument("--commit", default="")
     s.add_argument("--ledger", default=DEFAULT_LEDGER)
     s.set_defaults(func=cmd_record)
+
+    s = sub.add_parser("rekey", help="move ledger entries to today's keys")
+    s.add_argument("--backups", default="~/Telegram/Crashes/backup")
+    s.add_argument("--ledger", default=DEFAULT_LEDGER)
+    s.set_defaults(func=cmd_rekey)
 
     s = sub.add_parser("claim", help="rotate all/ into a fresh run folder")
     s.add_argument("--crashes", default="~/Telegram/Crashes/all")

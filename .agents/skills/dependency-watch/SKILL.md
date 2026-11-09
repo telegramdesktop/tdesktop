@@ -1,6 +1,6 @@
 ---
 name: dependency-watch
-description: Audit Telegram Desktop dependencies on freshly fetched origin/dev for releases and security fixes, including upstream lag and backport candidates in patched forks. Use for the daily dependency monitor or an explicitly requested dependency report.
+description: Audit Telegram Desktop dependencies on freshly fetched origin/dev for releases and security fixes, including upstream lag and backport candidates in patched forks. Use for the scheduled dependency monitor or an explicitly requested dependency report.
 ---
 
 # Dependency watch
@@ -28,9 +28,14 @@ Candidates are navigation aids, not a complete parsed dependency inventory.
 Inspect the full union of prepare, Docker, Snap, Qt selection, workflow and
 package/lock files. Snapshot gitlinks and `.gitmodules` identify exact submodule
 revisions; inspect their dependency declarations recursively, especially CMake,
-WebRTC, codecs, and bundled image/font/compression/crypto libraries. Add newly
-discovered dependencies on every run; never restrict coverage to yesterday's
-list. Distinguish shipped libraries, system-provided components and build tools.
+WebRTC, widget runtimes, codecs, and bundled image/font/compression/crypto
+libraries.
+Read the CMake bindings as well as gitlinks: copied source directories have no
+submodule entry, and nested gitlinks are not enumerated by the root snapshot.
+Trace the exact source directories and generated resources actually compiled.
+Add newly discovered dependencies on every run; never restrict coverage to
+yesterday's list. Distinguish shipped libraries, system-provided components and
+build tools.
 
 Read repository history at the snapshot commit to explain divergent pins and
 holds. Derive platform conditions from the recipes. A library disabled in one
@@ -89,14 +94,17 @@ Track Docker base images, mutable package installs and Snap runtime/content snap
 as separate update/rebuild concerns even when no source pin changed.
 
 Read [forks.md](references/forks.md) when checking patched or copied upstreams;
-always apply it to `tg_owt` and `tg_angle` when present in the snapshot.
+always apply it to `tg_owt` and `tg_angle` when present in the snapshot. When
+`twidget`, `widget-sandbox`, or QuickJS is present, also read
+[widgets.md](references/widgets.md). QuickJS monitoring must include original
+upstream commits and open bug reports/PRs, not only release tags or CVEs.
 
 ## Incremental work and evidence
 
 On the first audit establish a baseline across all discovered dependencies.
 On subsequent runs reuse verified source mappings, imported revisions and
-backport evidence, but refresh release/advisory metadata daily even if `origin/dev`
-did not move. Recheck evidence when a pin, patch set, relevant code, upstream fix
+backport evidence, but refresh release/advisory metadata on every scheduled run
+even if `origin/dev` did not move. Recheck evidence when a pin, patch set, relevant code, upstream fix
 or advisory changes. First inspect high-exposure libraries and existing urgent
 findings, then finish the rest. Follow API pagination; conditional requests and
 cached Git objects can reduce work without skipping unresolved history.
