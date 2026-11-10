@@ -22,6 +22,10 @@ proxyTryIPv6Padding: margins(22px, 8px, 22px, 5px);
 proxyRowPadding: margins(22px, 8px, 8px, 8px);
 proxyRowIconSkip: 32px;
 proxyRowSkip: 2px;
+proxyRowSelectingSkipRight: 22px;
+proxyRowCheck: RoundCheckbox(defaultPeerListCheck) {
+	border: overviewCheckBgActive;
+}
 proxyRowRipple: defaultRippleAnimationBgOver;
 proxyRowTitleFg: windowFg;
 proxyRowTitlePalette: TextPalette(defaultTextPalette) {

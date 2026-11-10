@@ -25,7 +25,15 @@ constexpr auto kMaxFrameInterval = crl::time(64);
 	return (QGuiApplication::mouseButtons() & Qt::LeftButton) != 0;
 }
 
-[[nodiscard]] int DeltaOutside(QRect visible, int y) {
+[[nodiscard]] float64 SpeedForDelta(int delta) {
+	return (delta > 0)
+		? std::min(delta * 3 / 20 + 1, kMaxSpeed)
+		: std::max(delta * 3 / 20 - 1, -kMaxSpeed);
+}
+
+} // namespace
+
+int SelectingScrollDelta(QRect visible, int y) {
 	return visible.isEmpty()
 		? 0
 		: (y < visible.top())
@@ -35,17 +43,10 @@ constexpr auto kMaxFrameInterval = crl::time(64);
 		: 0;
 }
 
-[[nodiscard]] float64 SpeedForDelta(int delta) {
-	return (delta > 0)
-		? std::min(delta * 3 / 20 + 1, kMaxSpeed)
-		: std::max(delta * 3 / 20 - 1, -kMaxSpeed);
-}
-
-} // namespace
-
 void SetupSelectingScroll(
 		not_null<RpWidget*> widget,
-		Fn<void(int pixels)> scrollBy) {
+		Fn<void(int pixels)> scrollBy,
+		Fn<int(QPoint globalPosition)> delta) {
 	Expects(scrollBy != nullptr);
 
 	struct State {
@@ -95,11 +96,13 @@ void SetupSelectingScroll(
 			stop();
 		} else if (type == QEvent::MouseMove) {
 			const auto mouse = static_cast<QMouseEvent*>(event.get());
-			check((mouse->buttons() & Qt::LeftButton)
-				? DeltaOutside(
+			check(!(mouse->buttons() & Qt::LeftButton)
+				? 0
+				: delta
+				? delta(mouse->globalPosition().toPoint())
+				: SelectingScrollDelta(
 					widget->visibleRegion().boundingRect(),
-					mouse->pos().y())
-				: 0);
+					mouse->pos().y()));
 		}
 		return base::EventFilterResult::Continue;
 	});

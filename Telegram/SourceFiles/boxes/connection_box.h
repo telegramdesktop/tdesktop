@@ -82,9 +82,11 @@ public:
 
 	void deleteItem(int id);
 	void deleteItems();
+	void deleteItems(const base::flat_set<int> &ids);
 	void restoreItem(int id);
 	void shareItem(int id, bool qr);
 	void shareItems();
+	void shareItems(const base::flat_set<int> &ids);
 	void applyItem(int id);
 	void openBrowser(int id);
 	object_ptr<Ui::BoxContent> editItemBox(int id);
