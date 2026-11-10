@@ -35,4 +35,7 @@ void FillSourceMenu(
 	not_null<Window::SessionController*> controller,
 	const ShowMenuRequest &request);
 
+[[nodiscard]] bool AddStoryButtonHidden();
+void SetAddStoryButtonHidden(bool hidden);
+
 } // namespace Dialogs::Stories

@@ -189,6 +189,7 @@ public:
 		StorySourcesList list) const;
 	[[nodiscard]] rpl::producer<> sourcesChanged(
 		StorySourcesList list) const;
+	[[nodiscard]] bool sourcesKnown(StorySourcesList list) const;
 	[[nodiscard]] rpl::producer<PeerId> sourceChanged() const;
 	[[nodiscard]] rpl::producer<PeerId> itemsChanged() const;
 

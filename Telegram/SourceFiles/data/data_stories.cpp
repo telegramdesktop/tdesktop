@@ -754,6 +754,7 @@ void Stories::loadMore(StorySourcesList list) {
 		MTP_string(_sourcesStates[index])
 	)).done([=](const MTPstories_AllStories &result) {
 		_loadMoreRequestId[index] = 0;
+		const auto wasKnown = sourcesKnown(list);
 
 		result.match([&](const MTPDstories_allStories &data) {
 			_owner->processUsers(data.vusers());
@@ -769,6 +770,9 @@ void Stories::loadMore(StorySourcesList list) {
 		result.match([&](const auto &data) {
 			apply(data.vstealth_mode());
 		});
+		if (!wasKnown && sourcesKnown(list)) {
+			_sourcesChanged[index].fire({});
+		}
 
 		preloadListsMore();
 	}).fail([=] {
@@ -1158,6 +1162,11 @@ const std::vector<StoriesSourceInfo> &Stories::sources(
 
 rpl::producer<> Stories::sourcesChanged(StorySourcesList list) const {
 	return _sourcesChanged[static_cast<int>(list)].events();
+}
+
+bool Stories::sourcesKnown(StorySourcesList list) const {
+	const auto index = static_cast<int>(list);
+	return _sourcesLoaded[index] || !_sourcesStates[index].isEmpty();
 }
 
 rpl::producer<PeerId> Stories::sourceChanged() const {

@@ -27,6 +27,22 @@ dialogsLock: IconButton {
 }
 dialogsUnlockIcon: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFg }};
 dialogsUnlockIconOver: icon {{ "dialogs/dialogs_lock_on", dialogsMenuIconFgOver }};
+dialogsAddStory: IconButton {
+	width: 26px;
+	height: 26px;
+
+	icon: icon {{ "profile/add_story-18x18", dialogsMenuIconFg }};
+	iconOver: icon {{ "profile/add_story-18x18", dialogsMenuIconFgOver }};
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 26px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}
+dialogsAddStoryRight: 4px;
+dialogsAddStoryMenuSkip: 4px;
 dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "top_bar_search", menuIconFg }};
 	iconOver: icon {{ "top_bar_search", menuIconFgOver }};

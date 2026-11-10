@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/story_drafts_box.h"
 
 #include "base/unixtime.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -40,6 +42,7 @@ namespace Dialogs::Stories {
 namespace {
 
 constexpr auto kShownLastCount = 3;
+constexpr auto kAddStoryButtonHiddenPref = "dialogs-add-story-hidden"_cs;
 
 class State final {
 public:
@@ -314,6 +317,11 @@ void FillSourceMenu(
 		add(tr::lng_stories_my_title(tr::now), [=] {
 			controller->showSection(Info::Stories::Make(peer));
 		}, &st::menuIconStoriesSavedSection);
+		if (AddStoryButtonHidden()) {
+			add(tr::lng_profile_action_return_story_button(tr::now), [] {
+				SetAddStoryButtonHidden(false);
+			}, &st::menuIconStoryPost);
+		}
 	} else {
 		const auto group = peer->isMegagroup();
 		const auto channel = peer->isChannel();
@@ -359,6 +367,14 @@ void FillSourceMenu(
 			}, &st::menuIconUnarchive);
 		}
 	}
+}
+
+bool AddStoryButtonHidden() {
+	return Core::App().settings().readPref<bool>(kAddStoryButtonHiddenPref);
+}
+
+void SetAddStoryButtonHidden(bool hidden) {
+	Core::App().settings().writePref<bool>(kAddStoryButtonHiddenPref, hidden);
 }
 
 } // namespace Dialogs::Stories

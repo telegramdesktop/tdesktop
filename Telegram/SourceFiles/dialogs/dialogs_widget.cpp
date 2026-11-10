@@ -36,6 +36,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/chat_filters_tabs_strip.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -44,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/more_chats_bar.h"
+#include "ui/controls/button_context_menu.h"
 #include "ui/controls/download_bar.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/controls/swipe_handler.h"
@@ -55,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "main/main_domain.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "api/api_authorizations.h"
@@ -98,6 +102,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs_widget.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
 
 #include <QtCore/QMimeData>
@@ -241,6 +246,9 @@ Widget::Widget(
 , _lockUnlock(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsLock))
+, _addStory(
+	_searchControls,
+	object_ptr<Ui::IconButton>(this, st::dialogsAddStory))
 , _chatsFilterForTopBarSuggestion(controller->activeChatsFilterCurrent())
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
@@ -287,6 +295,7 @@ Widget::Widget(
 	}, _innerList->lifetime());
 	_scrollToTop->raise();
 	_lockUnlock->toggle(false, anim::type::instant);
+	_addStory->toggle(false, anim::type::instant);
 
 	_inner->updated(
 	) | rpl::on_next([=] {
@@ -514,6 +523,7 @@ Widget::Widget(
 	setupShortcuts();
 	if (_stories) {
 		setupStories();
+		setupAddStory();
 	}
 
 	_searchForNarrowLayout->setAccessibleName(tr::lng_dlg_filter(tr::now));
@@ -1673,6 +1683,40 @@ void Widget::setupStories() {
 	}, lifetime());
 }
 
+void Widget::setupAddStory() {
+	const auto button = _addStory->entity();
+	button->setAccessibleName(tr::lng_story_add_button(tr::now));
+	button->setClickedCallback([=] {
+		const auto self = session().user();
+		if (Media::Stories::CanPostStory(self)) {
+			Media::Stories::PostStory(controller(), self);
+		}
+	});
+	Ui::SetupButtonContextMenu(button, &st::popupMenuWithIcons, [=](
+			not_null<Ui::PopupMenu*> menu) {
+		menu->addAction(tr::lng_translate_menu_hide(tr::now), [=] {
+			Stories::SetAddStoryButtonHidden(true);
+			updateAddStoryVisibility(anim::type::normal);
+		}, &st::menuIconStealth);
+		menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+	}, [=](not_null<Ui::PopupMenu*> menu) {
+		const auto extend = Ui::BoxShadow::ExtendFor(menu->st().shadow);
+		return Ui::PopupMenu::ConstrainToParentScreen(
+			menu,
+			button->mapToGlobal(QPoint(
+				button->width() + extend.right(),
+				button->height() + st::dialogsAddStoryMenuSkip)));
+	});
+
+	rpl::merge(
+		session().data().stories().sourcesChanged(
+			Data::StorySourcesList::NotHidden),
+		session().appConfig().refreshed()
+	) | rpl::on_next([=] {
+		updateAddStoryVisibility(anim::type::normal);
+	}, _addStory->lifetime());
+}
+
 void Widget::storiesToggleExplicitExpand(bool expand) {
 	if (_storiesExplicitExpand == expand) {
 		if (!expand && _scroll->position().overscroll < 0) {
@@ -1822,6 +1866,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		updateLockUnlockVisibility(fast
 			? anim::type::instant
 			: anim::type::normal);
+		updateAddStoryVisibility(fast
+			? anim::type::instant
+			: anim::type::normal);
 		updateJumpToDateVisibility(fast);
 		updateSearchFromVisibility(fast);
 	}
@@ -1855,6 +1902,20 @@ void Widget::updateLockUnlockPosition() {
 	_lockUnlock->move(
 		right - _lockUnlock->width(),
 		st::dialogsFilterPadding.y());
+}
+
+void Widget::updateAddStoryPosition() {
+	if (_addStory->isHidden()) {
+		return;
+	}
+	const auto right = _search->x()
+		+ _search->width()
+		- (_lockUnlock->toggled()
+			? _lockUnlock->width()
+			: st::dialogsAddStoryRight);
+	_addStory->move(
+		right - _addStory->width(),
+		_search->y() + (_search->height() - _addStory->height()) / 2);
 }
 
 void Widget::updateHasFocus(not_null<QWidget*> focused) {
@@ -2729,6 +2790,7 @@ void Widget::stopWidthAnimation() {
 
 void Widget::updateStoriesVisibility() {
 	updateLockUnlockVisibility(anim::type::normal);
+	updateAddStoryVisibility(anim::type::normal);
 	if (!_stories) {
 		return;
 	}
@@ -4453,6 +4515,35 @@ void Widget::updateLockUnlockVisibility(anim::type animated) {
 	}
 }
 
+void Widget::updateAddStoryVisibility(anim::type animated) {
+	if (_showAnimation) {
+		return;
+	}
+	const auto showingSuggestions = !_widthAnimationCache.isNull()
+		&& _suggestions
+		&& _hidingSuggestions.empty();
+	const auto hiddenInstant = !_stories
+		|| _openedForum
+		|| showingSuggestions
+		|| _childList
+		|| !_stories->empty()
+		|| !session().data().stories().sourcesKnown(
+			Data::StorySourcesList::NotHidden)
+		|| !Media::Stories::CanPostStory(session().user())
+		|| Stories::AddStoryButtonHidden();
+	const auto hiddenAnimated = _searchHasFocus
+		|| _searchSuggestionsLocked
+		|| !_searchState.query.isEmpty()
+		|| _searchState.inChat;
+	const auto hidden = hiddenInstant || hiddenAnimated;
+	if (_addStory->toggled() == hidden) {
+		_addStory->toggle(
+			!hidden,
+			hiddenInstant ? anim::type::instant : animated);
+		updateAddStoryPosition();
+	}
+}
+
 void Widget::updateLoadMoreChatsVisibility() {
 	if (_showAnimation || !_loadMoreChats) {
 		return;
@@ -4598,6 +4689,7 @@ void Widget::updateControlsGeometry() {
 	}
 
 	updateLockUnlockPosition();
+	updateAddStoryPosition();
 
 	auto bottomSkip = 0;
 	const auto putBottomButton = [&](auto &button) {
