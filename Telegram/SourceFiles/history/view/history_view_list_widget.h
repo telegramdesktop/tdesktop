@@ -1082,7 +1082,7 @@ private:
 	CursorState _mouseCursorState = CursorState();
 	TextState _mouseTextAnchor;
 	bool _pressWasInactive = false;
-	bool _overSenderUserpic = false;
+	FullMsgId _overSenderUserpicItemId;
 	bool _mouseActive = false;
 
 	bool _selectEnabled = false;

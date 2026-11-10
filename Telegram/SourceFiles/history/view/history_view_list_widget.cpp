@@ -4518,7 +4518,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	const auto linkPhoneNumber = link
 		? link->property(kPhoneNumberLinkProperty).toString()
 		: QString();
-	const auto linkUserpicPeerId = (link && _overSenderUserpic)
+	const auto linkUserpicPeerId = (link && _overSenderUserpicItemId)
 		? PeerId(link->property(kPeerLinkPeerIdProperty).toULongLong())
 		: PeerId();
 	_whoReactedMenuLifetime.destroy();
@@ -4569,12 +4569,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (_menu) {
 			Window::AddSenderUserpicModerateAction(
 				controller(),
-				[&] {
-					const auto contextY = _visibleTop
-						+ mapFromGlobal(e->globalPos()).y();
-					const auto contextView = strictFindItemByY(contextY);
-					return contextView ? contextView->data().get() : overItem;
-				}(),
+				session().data().message(_overSenderUserpicItemId),
 				Ui::Menu::CreateAddActionCallback(_menu.get()));
 			_menu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomLeft);
 			_menu->popup(e->globalPos());
@@ -5640,7 +5635,7 @@ void ListWidget::mouseActionUpdate() {
 	auto inTextSelection = (_overState.pointState != PointState::Outside)
 		&& (_overState.itemId == _pressState.itemId)
 		&& hasSelectedText();
-	auto dragStateUserpic = false;
+	auto dragStateUserpicItemId = FullMsgId();
 	const auto overReplyBtn = replyBtnView && replyBtnState.link;
 	const auto overReaction = reactionView && reactionState.link;
 	if (overReaction) {
@@ -5794,7 +5789,7 @@ void ListWidget::mouseActionUpdate() {
 						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
 							dragState = TextState(nullptr, view->fromPhotoLink());
 							dragState.cursor = CursorState::FromPhoto;
-							dragStateUserpic = true;
+							dragStateUserpicItemId = view->data()->fullId();
 							_overItemExact = nullptr;
 							lnkhost = view;
 							return false;
@@ -5806,7 +5801,7 @@ void ListWidget::mouseActionUpdate() {
 		}
 	}
 	const auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
-	_overSenderUserpic = dragStateUserpic;
+	_overSenderUserpicItemId = dragStateUserpicItemId;
 	if (lnkChanged || dragState.cursor != _mouseCursorState) {
 		Ui::Tooltip::Hide();
 	}
