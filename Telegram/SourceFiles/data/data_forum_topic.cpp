@@ -350,7 +350,8 @@ void ForumTopic::setRealRootId(MsgId realId) {
 	if (_rootId != realId) {
 		_rootId = realId;
 		_lastKnownServerMessageId = realId;
-		_replies = std::make_shared<RepliesList>(history(), _rootId);
+		_replies = std::make_shared<RepliesList>(history(), _rootId, this);
+		_replies->markJustCreated();
 		if (_sendActionPainter) {
 			_sendActionPainter->setTopic(nullptr);
 		}

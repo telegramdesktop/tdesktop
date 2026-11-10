@@ -617,6 +617,7 @@ void Forum::created(MsgId rootId, MsgId realId) {
 			realId,
 			std::move(topic)
 		).first->second->setRealRootId(realId);
+		requestTopic(realId);
 
 		reorderLastTopics();
 	}
