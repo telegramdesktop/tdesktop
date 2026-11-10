@@ -185,6 +185,7 @@ bool SameServedStarGift(const StarGift &a, const StarGift &b) {
 			unique.canBeTheme,
 			unique.crafted,
 			unique.burned,
+			unique.onchainSale,
 			unique.model,
 			unique.pattern,
 			unique.backdrop,
@@ -302,7 +303,11 @@ rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(
 						? Flag()
 						: Flag::f_attributes)
 					| (filter.forCraft ? Flag::f_for_craft : Flag())
-					| (filter.starsOnly ? Flag::f_stars_only : Flag())),
+					| (filter.starsOnly ? Flag::f_stars_only : Flag())
+					| (filter.tonOnly ? Flag::f_ton_only : Flag())
+					| ((filter.fragmentOnly && !filter.forCraft)
+						? Flag::f_fragment_only
+						: Flag())),
 				MTP_long(filter.attributesHash),
 				MTP_long(giftId),
 				MTP_vector_from_range(filter.attributes

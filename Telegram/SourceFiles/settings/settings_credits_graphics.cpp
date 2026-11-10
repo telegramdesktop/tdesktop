@@ -1761,7 +1761,9 @@ void GenericCreditsEntryBody(
 		&& starGiftSender;
 	const auto canConvert = forConvert && !timeExceeded;
 	const auto inResale = uniqueGift && (uniqueGift->starsForResale > 0);
-	const auto canBuyResold = inResale && (e.bareGiftOwnerId != selfPeerId);
+	const auto canBuyResold = inResale
+		&& !uniqueGift->onchainSale
+		&& (e.bareGiftOwnerId != selfPeerId);
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto isPrize = e.bareGiveawayMsgId > 0;
 	const auto starGiftSticker = (isStarGift && e.bareGiftStickerId)
@@ -2897,6 +2899,7 @@ void GlobalStarGiftBox(
 	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	const auto hostId = data.unique ? data.unique->hostId.value : 0;
+	const auto onchainSale = data.unique && data.unique->onchainSale;
 	Settings::GenericCreditsEntryBox(
 		box,
 		show,
@@ -2905,7 +2908,8 @@ void GlobalStarGiftBox(
 			.bareGiftStickerId = data.document->id,
 			.bareGiftOwnerId = ownerId,
 			.bareGiftHostId = hostId,
-			.bareGiftResaleRecipientId = ((resale.recipientId != selfId)
+			.bareGiftResaleRecipientId = ((!onchainSale
+				&& (resale.recipientId != selfId))
 				? resale.recipientId.value
 				: 0),
 			.stargiftId = data.id,

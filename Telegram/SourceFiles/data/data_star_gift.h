@@ -136,6 +136,7 @@ struct UniqueGift {
 	bool canBeTheme = false;
 	bool crafted = false;
 	bool burned = false;
+	bool onchainSale = false;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;
@@ -405,6 +406,8 @@ struct ResaleGiftsFilter {
 	ResaleGiftsSort sort = ResaleGiftsSort::Price;
 	bool forCraft = false;
 	bool starsOnly = false;
+	bool tonOnly = false;
+	bool fragmentOnly = false;
 
 	friend inline bool operator==(
 		const ResaleGiftsFilter &,

@@ -4583,8 +4583,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_resale_sort_price" = "Sort by Price";
 "lng_gift_resale_sort_date" = "Sort by Date";
 "lng_gift_resale_sort_number" = "Sort by Number";
-"lng_gift_resale_all_listings" = "All Listings";
-"lng_gift_resale_stars_only" = "For Stars Only";
+"lng_gift_resale_for_grams" = "For Grams";
+"lng_gift_resale_for_stars" = "For Stars";
+"lng_gift_resale_from_fragment" = "From Fragment";
 "lng_gift_resale_filter_all" = "Select All";
 "lng_gift_resale_model" = "Model";
 "lng_gift_resale_models#one" = "{count} Model";

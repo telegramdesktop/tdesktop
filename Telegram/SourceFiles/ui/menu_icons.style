@@ -222,6 +222,8 @@ menuIconPendingRequests: icon {{ "menu/pending_requests-24x24", menuIconColor }}
 menuIconRemovedUsers: icon {{ "menu/removed_users-24x24", menuIconColor }};
 menuIconWelcomeMessage: icon {{ "menu/welcome_message-24x24", menuIconColor }};
 menuIconStar: icon {{ "menu/star", menuIconColor }};
+menuIconGrams: icon {{ "payments/ton_emoji-18x18", menuIconColor, point(3px, 2px) }};
+menuIconFragment: icon {{ "fragment", menuIconColor }};
 
 menuIconTTL: icon {{ "menu/auto_delete", menuIconColor }};
 

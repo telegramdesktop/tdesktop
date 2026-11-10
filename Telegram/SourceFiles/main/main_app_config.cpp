@@ -187,6 +187,10 @@ int AppConfig::giftResaleNanoTonThousandths() const {
 	return get<int>(u"ton_stargift_resale_commission_permille"_q, 800);
 }
 
+bool AppConfig::giftResaleFragmentEnabled() const {
+	return get<bool>(u"stargifts_fragment_resale_enabled"_q, false);
+}
+
 int AppConfig::pollOptionsLimit() const {
 	return get<int>(u"poll_answers_max"_q, 12);
 }

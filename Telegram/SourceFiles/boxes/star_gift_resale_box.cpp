@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/peer_gifts/info_peer_gifts_common.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "menu/gift_resale_filter.h"
 #include "ui/layers/generic_box.h"
@@ -85,7 +86,8 @@ struct ResaleTabs {
 [[nodiscard]] ResaleTabs MakeResaleTabs(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const ResaleGiftsDescriptor &info,
-		rpl::producer<ResaleGiftsFilter> filter) {
+		rpl::producer<ResaleGiftsFilter> filter,
+		bool fragmentAvailable) {
 	auto widget = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = widget.data();
 
@@ -261,17 +263,25 @@ struct ResaleTabs {
 				sort(ResaleGiftsSort::Number);
 			}, &st::menuIconOrderNumber, is(ResaleGiftsSort::Number));
 			menu->addSeparator();
-			const auto starsOnly = state->filter.current().starsOnly;
-			actionWithIcon(tr::lng_gift_resale_all_listings(tr::now), [=] {
+			const auto current = state->filter.current();
+			actionWithIcon(tr::lng_gift_resale_for_grams(tr::now), [=] {
 				modify([&](ResaleGiftsFilter &filter) {
-					filter.starsOnly = false;
+					filter.tonOnly = !filter.tonOnly;
 				});
-			}, &st::menuIconTopics, !starsOnly);
-			actionWithIcon(tr::lng_gift_resale_stars_only(tr::now), [=] {
+			}, &st::menuIconGrams, current.tonOnly);
+			actionWithIcon(tr::lng_gift_resale_for_stars(tr::now), [=] {
 				modify([&](ResaleGiftsFilter &filter) {
-					filter.starsOnly = true;
+					filter.starsOnly = !filter.starsOnly;
 				});
-			}, &st::menuIconStar, starsOnly);
+			}, &st::menuIconStar, current.starsOnly);
+			if (fragmentAvailable) {
+				const auto text = tr::lng_gift_resale_from_fragment(tr::now);
+				actionWithIcon(text, [=] {
+					modify([&](ResaleGiftsFilter &filter) {
+						filter.fragmentOnly = !filter.fragmentOnly;
+					});
+				}, &st::menuIconFragment, current.fragmentOnly);
+			}
 		} else {
 			const auto now = state->filter.current().attributes;
 			const auto type = IndexToType(index);
@@ -547,20 +557,11 @@ void GiftResaleBox(
 	}, content->lifetime());
 
 	struct State {
-		rpl::variable<bool> starsOnly;
 		int lastMinHeight = 0;
 	};
 	const auto state = content->lifetime().make_state<State>();
 
 	box->addButton(tr::lng_create_group_back(), [=] { box->closeBox(); });
-
-	const auto filter = box->addLeftButton(rpl::single(QString()), [=] {
-		state->starsOnly = !state->starsOnly.current();
-	});
-	filter->setText(rpl::conditional(
-		state->starsOnly.value(),
-		tr::lng_gift_resale_all_listings(),
-		tr::lng_gift_resale_stars_only()));
 
 	box->heightValue() | rpl::on_next([=](int height) {
 		if (height > state->lastMinHeight) {
@@ -574,7 +575,6 @@ void GiftResaleBox(
 		peer,
 		content,
 		std::move(descriptor),
-		&state->starsOnly,
 		nullptr,
 		false,
 		[=](int count) {
@@ -594,7 +594,6 @@ void AddResaleGiftsList(
 		not_null<PeerData*> peer,
 		not_null<VerticalLayout*> container,
 		Data::ResaleGiftsDescriptor descriptor,
-		rpl::variable<bool> *starsOnly,
 		Fn<void(std::shared_ptr<Data::UniqueGift>)> bought,
 		bool forCraft,
 		Fn<void(int)> countChanged) {
@@ -610,34 +609,15 @@ void AddResaleGiftsList(
 	state->filter = ResaleGiftsFilter{ .forCraft = forCraft };
 	state->data = std::move(descriptor);
 
+	const auto fragmentAvailable = !forCraft
+		&& peer->isSelf()
+		&& window->session().appConfig().giftResaleFragmentEnabled();
 	auto tabs = MakeResaleTabs(
 		window->uiShow(),
 		state->data,
-		state->filter.value());
+		state->filter.value(),
+		fragmentAvailable);
 	state->filter = std::move(tabs.filter);
-	if (starsOnly) {
-		starsOnly->changes(
-		) | rpl::on_next([=](bool value) {
-			auto f = state->filter.current();
-			if (f.starsOnly != value) {
-				f.starsOnly = value;
-				state->filter = f;
-			}
-		}, container->lifetime());
-
-		state->filter.changes(
-		) | rpl::on_next([=](const ResaleGiftsFilter &f) {
-			if (starsOnly->current() != f.starsOnly) {
-				*starsOnly = f.starsOnly;
-			}
-		}, container->lifetime());
-
-		if (starsOnly->current()) {
-			auto f = state->filter.current();
-			f.starsOnly = true;
-			state->filter = f;
-		}
-	}
 	if (forCraft) {
 		const auto skip = st::giftBoxResaleTabsMargin.top()
 			- st::giftBoxTabsMargin.bottom();
@@ -723,11 +703,12 @@ void AddResaleGiftsList(
 		const auto selfId = window->session().userPeerId();
 		for (const auto &gift : state->data.list) {
 			const auto mine = (gift.unique->ownerId == selfId);
-			if (mine && forCraft) {
+			if (forCraft && (mine || gift.unique->onchainSale)) {
 				continue;
 			}
 			result.list.push_back(Info::PeerGifts::GiftTypeStars{
 				.info = gift,
+				.forceTon = gift.unique->onchainSale,
 				.resale = true,
 				.mine = mine,
 				});

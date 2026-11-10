@@ -733,7 +733,6 @@ void ShowSelectGiftBox(
 				session->user(),
 				box->verticalLayout(),
 				state->resale,
-				nullptr,
 				got,
 				true);
 		}
