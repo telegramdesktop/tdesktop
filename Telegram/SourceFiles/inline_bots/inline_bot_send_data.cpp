@@ -89,9 +89,11 @@ Data::SendError SendRichMessage::getErrorOnSend(
 }
 
 QString SendRichMessage::getLayoutDescription(const Result *owner) const {
-	return _summary.text.isEmpty()
-		? SendData::getLayoutDescription(owner)
-		: _summary.text;
+	auto result = SendData::getLayoutDescription(owner);
+	if (result.isEmpty()) {
+		return _summary.text;
+	}
+	return result;
 }
 
 SendDataCommon::SentMessageFields SendGeo::getSentMessageFields() const {
