@@ -367,7 +367,7 @@ bool RoundVideoRecorder::Private::initVideo() {
 	_videoCodec->width = kSide;
 	_videoCodec->height = kSide;
 	_videoCodec->time_base = AVRational{ 1, 1'000'000 }; // Microseconds.
-	_videoCodec->framerate = AVRational{ 0, 1 }; // Variable frame rate.
+	_videoCodec->framerate = AVRational{ 60, 1 }; // Rate control hint, pts stay variable.
 	_videoCodec->pix_fmt = AV_PIX_FMT_YUV420P;
 	_videoCodec->bit_rate = kVideoBitRate;
 
