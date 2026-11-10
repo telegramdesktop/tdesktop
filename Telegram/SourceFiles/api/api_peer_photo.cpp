@@ -391,44 +391,58 @@ void PeerPhoto::uploadWithVideo(
 	_uploadProgress.fire({ peer, 0. });
 
 	const auto source = photo.video;
-	crl::async([=, weak = base::make_weak(_session.get())] {
-		auto lastReported = -1.;
-		auto result = Media::Encode::TranscodeVideo(*source, [&](
-				float64 value) {
-			if (value - lastReported >= 0.01 || value >= 1.) {
-				lastReported = value;
-				crl::on_main(weak, [=] {
-					const auto i = _uploads.find(fakeId);
-					if (i != end(_uploads) && i->second.transcoding) {
-						_uploadProgress.fire({
-							i->second.peer,
-							value * kTranscodeShare,
-						});
-					}
-				});
+	auto image = base::take(photo.image);
+	crl::async([=, weak = base::make_weak(_session.get())]() mutable {
+		auto prepared = PreparedVideo();
+		if (Media::Encode::CanSkipTranscode(*source)) {
+			auto file = QFile(source->path);
+			if (file.open(QIODevice::ReadOnly)) {
+				prepared = {
+					.content = file.readAll(),
+					.cover = std::move(image),
+					.coverOffset = std::max(
+						source->coverPosition,
+						crl::time(0)),
+				};
 			}
-			return !cancel->load();
-		});
-		crl::on_main([=, result = std::move(result)]() mutable {
-			if (!weak.get()) {
-				if (!result.path.isEmpty()) {
-					QFile::remove(result.path);
+		} else {
+			auto lastReported = -1.;
+			auto result = Media::Encode::TranscodeVideo(*source, [&](
+					float64 value) {
+				if (value - lastReported >= 0.01 || value >= 1.) {
+					lastReported = value;
+					crl::on_main(weak, [=] {
+						const auto i = _uploads.find(fakeId);
+						if (i != end(_uploads) && i->second.transcoding) {
+							_uploadProgress.fire({
+								i->second.peer,
+								value * kTranscodeShare,
+							});
+						}
+					});
 				}
-				return;
+				return !cancel->load();
+			});
+			if (!result.path.isEmpty()) {
+				auto file = QFile(result.path);
+				if (file.open(QIODevice::ReadOnly)) {
+					prepared = {
+						.content = file.readAll(),
+						.cover = std::move(result.cover),
+						.coverOffset = result.coverOffset,
+					};
+				}
+				file.close();
+				QFile::remove(result.path);
 			}
-			videoTranscoded(fakeId, std::move(result));
+		}
+		crl::on_main(weak, [=, prepared = std::move(prepared)]() mutable {
+			videoPrepared(fakeId, std::move(prepared));
 		});
 	});
 }
 
-void PeerPhoto::videoTranscoded(
-		FullMsgId msgId,
-		Media::Encode::TranscodeResult &&result) {
-	const auto guard = gsl::finally([&] {
-		if (!result.path.isEmpty()) {
-			QFile::remove(result.path);
-		}
-	});
+void PeerPhoto::videoPrepared(FullMsgId msgId, PreparedVideo &&video) {
 	const auto i = _uploads.find(msgId);
 	if (i == end(_uploads) || !i->second.transcoding) {
 		return;
@@ -437,23 +451,10 @@ void PeerPhoto::videoTranscoded(
 	value.transcoding = false;
 	value.cancelTranscode = nullptr;
 
-	const auto fail = [&] {
+	if (video.content.isEmpty() || video.cover.isNull()) {
 		const auto peer = value.peer;
 		clearUpload(msgId);
 		_uploadFailed.fire_copy(peer);
-	};
-	if (result.empty() || result.cover.isNull()) {
-		fail();
-		return;
-	}
-	auto content = QByteArray();
-	auto file = QFile(result.path);
-	if (file.open(QIODevice::ReadOnly)) {
-		content = file.readAll();
-	}
-	file.close();
-	if (content.isEmpty()) {
-		fail();
 		return;
 	}
 
@@ -462,7 +463,7 @@ void PeerPhoto::videoTranscoded(
 		peer->id,
 		_session->data().nextLocalMessageId());
 	value.videoId = videoId;
-	value.videoStartTs = result.coverOffset / 1000.;
+	value.videoStartTs = video.coverOffset / 1000.;
 	value.waitingPhoto = true;
 	value.waitingVideo = true;
 	_videoToPhotoId.emplace(videoId, msgId);
@@ -470,10 +471,10 @@ void PeerPhoto::videoTranscoded(
 	const auto prepared = PreparePeerPhoto(
 		_api.instance().mainDcId(),
 		peer->id,
-		std::move(result.cover));
+		std::move(video.cover));
 	value.photoId = prepared->thumbId;
 	_session->uploader().upload(msgId, prepared);
-	_session->uploader().upload(videoId, PreparePeerVideo(content));
+	_session->uploader().upload(videoId, PreparePeerVideo(video.content));
 }
 
 void PeerPhoto::checkVideoUploadDone(FullMsgId msgId) {

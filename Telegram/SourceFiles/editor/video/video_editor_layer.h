@@ -25,7 +25,7 @@ namespace Editor {
 
 struct VideoEditorDescriptor;
 
-inline constexpr auto kProfileVideoSide = 800;
+inline constexpr auto kProfileVideoSide = 640;
 inline constexpr auto kProfileVideoMaxDuration = crl::time(9600);
 inline constexpr auto kProfileVideoMinDuration = crl::time(1000);
 inline constexpr auto kProfileVideoFps = 30.;

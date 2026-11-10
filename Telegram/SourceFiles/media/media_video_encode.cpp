@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/media_video_encode.h"
 
+#include "core/mime_type.h"
 #include "core/private_temp_directory.h"
 #include "ffmpeg/ffmpeg_bytes_io_wrap.h"
 #include "ffmpeg/ffmpeg_frame_generator.h"
@@ -1973,6 +1974,51 @@ bool IsFaststartMp4(const QString &path) {
 		}
 	}
 	return false;
+}
+
+bool CanSkipTranscode(const VideoSource &source) {
+	if (source.path.isEmpty()
+		|| !source.bytes.isEmpty()
+		|| (source.mode != VideoSource::Mode::Mp4)
+		|| NormalizeAngle(source.rotation)
+		|| source.flipped
+		|| (source.from > 0)
+		|| source.canvas
+		|| !source.canvasMediaRect.isEmpty()
+		|| !source.music.empty()
+		|| (Core::MimeTypeForFile(QFileInfo(source.path)).name()
+			!= u"video/mp4"_q)) {
+		return false;
+	}
+	const auto info = ProbeSource(source.path);
+	if (info.empty()
+		|| !info.videoH264
+		|| !info.videoYuv420
+		|| info.rotation
+		|| (info.display != EvenSize(info.display))
+		|| (info.duration <= 0)
+		|| (info.videoBitrate <= 0)) {
+		return false;
+	}
+	const auto halfFrame = crl::time(500. / SanitizedFps(info.fps));
+	const auto full = QRect(QPoint(), info.display);
+	const auto shorter = std::min(
+		info.display.width(),
+		info.display.height());
+	const auto audioChanged = info.hasAudio
+		? (source.removeAudio || !info.audioRemuxable)
+		: source.silentAudio;
+	if ((source.crop.isValid() && (source.crop != full))
+		|| ((source.till > 0) && (source.till + halfFrame < info.duration))
+		|| audioChanged
+		|| ((source.fpsLimit > 0.) && (info.fps > source.fpsLimit * 1.05))
+		|| (!source.exactSize.isEmpty() && (info.display != source.exactSize))
+		|| ((source.targetShorterSide > 0)
+			&& (shorter > source.targetShorterSide))
+		|| (info.videoBitrate > TargetBitrate(info.display, info.fps))) {
+		return false;
+	}
+	return IsFaststartMp4(source.path);
 }
 
 int64 EstimateTranscodedSize(

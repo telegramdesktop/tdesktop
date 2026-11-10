@@ -23,7 +23,6 @@ class Session;
 
 namespace Media::Encode {
 struct VideoSource;
-struct TranscodeResult;
 } // namespace Media::Encode
 
 namespace Api {
@@ -110,6 +109,11 @@ private:
 		mtpRequestId requestId = 0;
 	};
 
+	struct PreparedVideo {
+		QByteArray content;
+		QImage cover;
+		crl::time coverOffset = 0;
+	};
 	struct ReadyFiles {
 		std::optional<MTPInputFile> file;
 		std::optional<MTPVideoSize> videoSize;
@@ -127,9 +131,7 @@ private:
 		UserPhoto &&photo,
 		UploadType type,
 		Fn<void()> done);
-	void videoTranscoded(
-		FullMsgId msgId,
-		Media::Encode::TranscodeResult &&result);
+	void videoPrepared(FullMsgId msgId, PreparedVideo &&video);
 	void checkVideoUploadDone(FullMsgId msgId);
 	void clearUpload(FullMsgId msgId);
 

@@ -172,6 +172,8 @@ struct TranscodeResult {
 
 [[nodiscard]] bool IsFaststartMp4(const QString &path);
 
+[[nodiscard]] bool CanSkipTranscode(const VideoSource &source);
+
 // Zero when nothing can be guessed.
 [[nodiscard]] int64 EstimateTranscodedSize(
 	const VideoSource &source,
