@@ -289,15 +289,15 @@ bool UserpicButton::hasPersonalPhotoLocally() const {
 }
 
 void UserpicButton::setClickHandlerByRole() {
-	requestSuggestAvailability();
-
 	switch (_role) {
 	case Role::ChoosePhoto:
 	case Role::ChangePhoto:
+		requestSuggestAvailability();
 		addClickHandler([=] { choosePhotoLocally(); });
 		break;
 
 	case Role::OpenPhoto:
+		requestSuggestAvailability();
 		addClickHandler([=] { openPeerPhoto(); });
 		break;
 	}
