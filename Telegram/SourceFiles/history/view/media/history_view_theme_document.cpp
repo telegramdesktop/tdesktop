@@ -47,6 +47,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 
+#include <QtCore/QDateTime>
+
 namespace HistoryView {
 namespace {
 
@@ -927,12 +929,17 @@ void GiftServiceBox::armOnchainOfferTick() {
 		return;
 	}
 	constexpr auto kSecond = crl::time(1000);
+	constexpr auto kNewSecondMargin = crl::time(5);
+	// Sample the phase first, so a second ending in between reads as stale.
+	const auto phase = QDateTime::currentMSecsSinceEpoch() % kSecond;
 	const auto offer = _parent->data()->Get<HistoryServiceGiftOnchainOffer>();
 	const auto left = offer
 		? GiftOnchainOfferTimeLeft(offer, base::unixtime::now())
 		: TimeId();
 	_changeTimer.setCallback([=] { _changes.fire({}); });
-	_changeTimer.callOnce((left == _shownLeft) ? kSecond : 0);
+	_changeTimer.callOnce(
+		((left == _shownLeft) ? (kSecond - phase + kNewSecondMargin) : 0),
+		Qt::PreciseTimer);
 }
 
 bool GiftServiceBox::hideServiceText() {
