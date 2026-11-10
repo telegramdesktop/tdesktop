@@ -209,12 +209,14 @@ private:
 		int splitIndex);
 
 	void requestMessagesCount(int localSplitIndex);
+	void requestMessagesCountFromDate(int localSplitIndex, int count);
 	void checkFirstMessageDate(int localSplitIndex, int count);
 	void messagesCountLoaded(int localSplitIndex, int count);
 	void requestMessagesSlice();
 	void requestChatMessages(
 		int splitIndex,
 		int offsetId,
+		int offsetDate,
 		int addOffset,
 		int limit,
 		FnMut<void(MTPmessages_Messages&&)> done);
