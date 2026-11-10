@@ -3765,6 +3765,7 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 			? _suggestions->updateFromParentDrag(global)
 			: _inner->updateFromParentDrag(global);
 		_stories->dragLeft();
+		addStoryDragLeft();
 		e->setDropAction(thread ? Qt::CopyAction : Qt::IgnoreAction);
 	} else {
 		if (_dragForward) {
@@ -3774,7 +3775,9 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 			_suggestions->dragLeft();
 		}
 		_inner->dragLeft();
-		if (!updateStoriesDrag(e)) {
+		const auto stories = updateStoriesDrag(e);
+		const auto addStory = updateAddStoryDrag(e);
+		if (!stories && !addStory) {
 			e->setDropAction(Qt::IgnoreAction);
 		}
 	}
@@ -3803,6 +3806,30 @@ bool Widget::updateStoriesDrag(not_null<QDragMoveEvent*> e) {
 	return true;
 }
 
+bool Widget::addStoryDragAccepted(not_null<QDropEvent*> e) const {
+	return _addStory->toggled()
+		&& !_addStory->isHidden()
+		&& _addStory->geometry().translated(
+			_searchControls->pos()).contains(e->pos())
+		&& Media::Stories::CanPostStory(session().user())
+		&& Storage::IsAcceptableStoryDragState(
+			Storage::ComputeMimeDataState(e->mimeData()));
+}
+
+bool Widget::updateAddStoryDrag(not_null<QDragMoveEvent*> e) {
+	if (!addStoryDragAccepted(e)) {
+		addStoryDragLeft();
+		return false;
+	}
+	_addStory->entity()->setForceRippled(true);
+	e->setDropAction(Qt::CopyAction);
+	return true;
+}
+
+void Widget::addStoryDragLeft() {
+	_addStory->entity()->setForceRippled(false);
+}
+
 void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
 	if (_dragForward) {
 		updateDragInScroll(false);
@@ -3814,6 +3841,7 @@ void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
 	}
 	_inner->dragLeft();
 	_stories->dragLeft();
+	addStoryDragLeft();
 	e->accept();
 }
 
@@ -3832,7 +3860,16 @@ void Widget::dropEvent(QDropEvent *e) {
 	using namespace Storage;
 
 	_chooseByDragTimer.cancel();
-	if (_scroll->geometry().contains(e->pos())) {
+	const auto addStory = addStoryDragAccepted(e);
+	addStoryDragLeft();
+	if (addStory) {
+		e->setDropAction(Qt::CopyAction);
+		e->accept();
+		Media::Stories::PostStoryWithMimeData(
+			controller(),
+			session().user(),
+			e->mimeData());
+	} else if (_scroll->geometry().contains(e->pos())) {
 		_stories->dragLeft();
 		const auto globalPosition = mapToGlobal(e->pos());
 		const auto thread = suggestionsCoverList()

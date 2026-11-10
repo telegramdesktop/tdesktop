@@ -164,6 +164,10 @@ protected:
 
 private:
 	[[nodiscard]] bool updateStoriesDrag(not_null<QDragMoveEvent*> e);
+	[[nodiscard]] bool addStoryDragAccepted(
+		not_null<QDropEvent*> e) const;
+	[[nodiscard]] bool updateAddStoryDrag(not_null<QDragMoveEvent*> e);
+	void addStoryDragLeft();
 	struct SearchProcessState {
 		base::flat_map<QString, MTPmessages_Messages> cache;
 		base::flat_map<mtpRequestId, QString> queries;
