@@ -1282,6 +1282,8 @@ PRIVATE
     history/history.h
     history/history_drag_area.cpp
     history/history_drag_area.h
+    history/history_gift_onchain_offer.cpp
+    history/history_gift_onchain_offer.h
     history/history_item.cpp
     history/history_item.h
     history/history_item_bot_invite.cpp

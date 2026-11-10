@@ -112,6 +112,12 @@ void CheckPollVoteNotificationSchedule(
 	const TextWithEntities &text = TextWithEntities());
 [[nodiscard]] TextWithEntities UnsupportedMessageText();
 
+[[nodiscard]] QString PrepareGramAmountText(int64 nanos);
+[[nodiscard]] TextWithEntities PrepareGramAmountWithFiat(
+	not_null<Main::Session*> session,
+	int64 nanos,
+	TextWithEntities amount);
+
 void RequestDependentMessageItem(
 	not_null<HistoryItem*> item,
 	PeerId peerId,

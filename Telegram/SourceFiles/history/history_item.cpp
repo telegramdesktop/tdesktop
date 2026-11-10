@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "history/history_gift_onchain_offer.h"
 #include "history/history_item_bot_invite.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
@@ -26,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_page_blocks.h"
 #include "iv/iv_rich_page.h"
 #include "mtproto/mtproto_config.h"
-#include "ui/controls/ton_common.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text/text_utilities.h"
@@ -41,7 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "core/application.h"
 #include "wallet/wallet_address.h"
-#include "wallet/wallet_fiat.h"
 #include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect.h"
@@ -5023,10 +5022,11 @@ TextWithEntities HistoryItem::notificationText(
 		}
 		return TextWithEntities();
 	}();
-	// A transfer's amount and comment are never a login code.
+	// Gram transfers and on-chain gift offers never carry a login code.
 	if (options.spoilerLoginCode
 		&& !out()
-		&& !Has<HistoryServiceGramTransfer>()) {
+		&& !Has<HistoryServiceGramTransfer>()
+		&& !Has<HistoryServiceGiftOnchainOffer>()) {
 		const auto peer = history()->peer;
 		if (peer->isNotificationsUser()) {
 			result = SpoilerLoginCode(std::move(result), kMinLoginCode);
@@ -6088,6 +6088,11 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 			? SuggestRefundType::Expired
 			: SuggestRefundType::User;
 		finish->price = CreditsAmountFromTL(data.vprice());
+	} else if (type == mtpc_messageActionStarGiftOnchainOffer) {
+		UpdateComponents(HistoryServiceGiftOnchainOffer::Bit());
+		FillGiftOnchainOffer(
+			this,
+			action.c_messageActionStarGiftOnchainOffer());
 	} else if (type == mtpc_messageActionNoForwardsToggle) {
 		AddComponents(HistoryServiceNoForwardsToggle::Bit());
 	} else if (type == mtpc_messageActionNoForwardsRequest) {
@@ -6472,6 +6477,10 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareTonConnectRequest = [&](const MTPDmessageActionWalletTonConnectRequest &) {
 		return prepareTonConnectRequestText();
+	};
+
+	auto prepareStarGiftOnchainOffer = [&](const MTPDmessageActionStarGiftOnchainOffer &) {
+		return PrepareGiftOnchainOfferText(this);
 	};
 
 	auto prepareNoPaidMessagesTokenUsed = [this](const MTPDmessageActionNoPaidMessagesTokenUsed &) {
@@ -8102,7 +8111,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareGramTransfer,
 		prepareTonConnectRequest,
 		prepareNoPaidMessagesTokenUsed,
-		PrepareEmptyText<MTPDmessageActionStarGiftOnchainOffer>,
+		prepareStarGiftOnchainOffer,
 		prepareBotInvite,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
@@ -8440,6 +8449,8 @@ void HistoryItem::processAction(const MTPMessageAction &action) {
 					.type = Data::GiftType::GiftOffer,
 				});
 		}
+	}, [&](const MTPDmessageActionStarGiftOnchainOffer &) {
+		_media = CreateGiftOnchainOfferMedia(this);
 	}, [](const auto &) {
 	});
 }
@@ -8804,27 +8815,10 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 	if (!transfer) {
 		return result;
 	}
-	auto amount = tr::lng_action_gram_transfer_amount(
-		tr::now,
-		lt_count,
-		transfer->amount / float64(Ui::kNanosInOne),
-		lt_amount,
-		tr::marked(Ui::FormatTonAmount(transfer->amount).full),
-		tr::marked);
-	const auto usdPerGram = history()->session().appConfig().get<float64>(
-		u"ton_usd_rate"_q,
-		0.);
-	if (usdPerGram > 0.) {
-		amount = tr::lng_action_gram_transfer_amount_fiat(
-			tr::now,
-			lt_amount,
-			amount,
-			lt_fiat,
-			tr::marked(Wallet::FormatFiat(
-				transfer->amount,
-				Wallet::FiatRate{ u"USD"_q, usdPerGram })),
-			tr::marked);
-	}
+	auto amount = PrepareGramAmountWithFiat(
+		&history()->session(),
+		transfer->amount,
+		tr::marked(PrepareGramAmountText(transfer->amount)));
 	const auto hidden = history()->peer->isNotificationsUser();
 	auto name = tr::marked();
 	if (!hidden) {

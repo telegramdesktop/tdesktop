@@ -909,6 +909,25 @@ struct HistoryServiceTonConnectRequest
 	bool declined = false;
 };
 
+struct HistoryServiceGiftOnchainOffer
+: RuntimeComponent<HistoryServiceGiftOnchainOffer, HistoryItem> {
+	std::shared_ptr<Data::UniqueGift> gift;
+	QString address;
+	uint64 offerId = 0;
+	int64 amount = 0;
+	std::optional<int64> buyerRefund;
+	std::optional<int64> fine;
+	TimeId expiresAt = 0;
+	int feeBps = 0;
+	bool accepted : 1 = false;
+	bool declined : 1 = false;
+	bool cancelled : 1 = false;
+	bool expired : 1 = false;
+	bool settled : 1 = false;
+	bool buyer : 1 = false;
+	bool cancelling : 1 = false;
+};
+
 enum class HistorySelfDestructType {
 	Photo,
 	Video,

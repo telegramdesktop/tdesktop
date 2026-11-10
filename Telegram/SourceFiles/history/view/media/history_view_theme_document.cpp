@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/background_preview_box.h"
 #include "history/history.h"
+#include "history/history_gift_onchain_offer.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
@@ -27,7 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_url.h"
 #include "core/click_handler_types.h"
 #include "core/local_url_handlers.h"
+#include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_tag.h"
 #include "main/main_session.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -79,6 +82,33 @@ namespace {
 	) | rpl::map([peer, paper = *paper] {
 		return WallPaperRevertable(peer, paper);
 	});
+}
+
+[[nodiscard]] Info::PeerGifts::GiftBadge OnchainOfferRibbon(
+		const Data::UniqueGift &unique,
+		not_null<const HistoryServiceGiftOnchainOffer*> offer) {
+	const auto white = QColor(255, 255, 255);
+	const auto state = ComputeGiftOnchainOfferState(
+		offer,
+		base::unixtime::now());
+	const auto accepted = (state == GiftOnchainOfferState::Accepted);
+	if (accepted && !offer->buyer) {
+		return {
+			.text = tr::lng_gift_sold_tag(tr::now),
+			.bg1 = Info::PeerGifts::BurnedBadgeBg(),
+			.fg = white,
+			.small = true,
+		};
+	}
+	return {
+		.text = (accepted
+			? tr::lng_gift_bought_tag(tr::now)
+			: (QChar('#') + Lang::FormatCountDecimal(unique.number))),
+		.bg1 = unique.backdrop.edgeColor,
+		.bg2 = unique.backdrop.patternColor,
+		.fg = white,
+		.small = true,
+	};
 }
 
 } // namespace
@@ -641,6 +671,13 @@ TextWithEntities GiftServiceBox::title() {
 }
 
 TextWithEntities GiftServiceBox::subtitle() {
+	if (_data.type == Data::GiftType::OnchainOffer) {
+		const auto item = _parent->data();
+		const auto offer = item->Get<HistoryServiceGiftOnchainOffer>();
+		const auto now = base::unixtime::now();
+		_shownLeft = offer ? GiftOnchainOfferTimeLeft(offer, now) : 0;
+		return GiftOnchainOfferCardText(item, now);
+	}
 	const auto giftName = tr::bold(Data::UniqueGiftName(*_data.unique));
 	if (_data.type == Data::GiftType::GiftOffer) {
 		const auto item = _parent->data();
@@ -765,14 +802,16 @@ void GiftServiceBox::clearKeyboard() {
 }
 
 rpl::producer<> GiftServiceBox::changes() {
-	if (_data.type != Data::GiftType::GiftOffer) {
+	if (_data.type != Data::GiftType::GiftOffer
+		&& _data.type != Data::GiftType::OnchainOffer) {
 		return nullptr;
 	}
 	return _changes.events();
 }
 
 rpl::producer<QString> GiftServiceBox::button() {
-	if (_data.type == Data::GiftType::GiftOffer) {
+	if (_data.type == Data::GiftType::GiftOffer
+		|| _data.type == Data::GiftType::OnchainOffer) {
 		return nullptr;
 	}
 	return tr::lng_sticker_premium_view();
@@ -848,6 +887,52 @@ void GiftServiceBox::draw(
 	} else {
 		ensureStickerCreated();
 	}
+	if (_data.type == Data::GiftType::OnchainOffer) {
+		paintOnchainOfferRibbon(p, geometry);
+		armOnchainOfferTick();
+	}
+}
+
+void GiftServiceBox::paintOnchainOfferRibbon(
+		QPainter &p,
+		const QRect &geometry) {
+	const auto offer = _parent->data()->Get<HistoryServiceGiftOnchainOffer>();
+	if (!offer) {
+		return;
+	}
+	const auto badge = OnchainOfferRibbon(*_data.unique, offer);
+	if (_ribbonCache.isNull() || _ribbonText != badge.text) {
+		_ribbonText = badge.text;
+		_ribbonCache = Info::PeerGifts::ValidateRotatedBadge(
+			badge,
+			QMargins());
+	}
+	const auto overhang = st::lineWidth;
+	const auto ratio = _ribbonCache.devicePixelRatio();
+	const auto ribbonWidth = _ribbonCache.width() / ratio;
+	p.save();
+	p.setClipRect(
+		geometry.marginsAdded({ overhang, overhang, overhang, overhang }),
+		Qt::IntersectClip);
+	p.drawImage(
+		QPointF(
+			geometry.x() + geometry.width() + overhang - ribbonWidth,
+			geometry.y() - overhang),
+		_ribbonCache);
+	p.restore();
+}
+
+void GiftServiceBox::armOnchainOfferTick() {
+	if (!_shownLeft || _changeTimer.isActive()) {
+		return;
+	}
+	constexpr auto kSecond = crl::time(1000);
+	const auto offer = _parent->data()->Get<HistoryServiceGiftOnchainOffer>();
+	const auto left = offer
+		? GiftOnchainOfferTimeLeft(offer, base::unixtime::now())
+		: TimeId();
+	_changeTimer.setCallback([=] { _changes.fire({}); });
+	_changeTimer.callOnce((left == _shownLeft) ? kSecond : 0);
 }
 
 bool GiftServiceBox::hideServiceText() {

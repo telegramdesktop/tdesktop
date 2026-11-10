@@ -36,11 +36,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "iv/iv_rich_page.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "menu/menu_sponsored.h"
 #include "platform/platform_notifications_manager.h"
+#include "wallet/wallet_fiat.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
@@ -51,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_account.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/emoji_stake_box.h" // InsufficientTonBox
+#include "ui/controls/ton_common.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -1460,6 +1463,36 @@ bool CanHoldItemNotification(not_null<const HistoryItem*> item) {
 	result.entities.push_front(
 		EntityInText(EntityType::Italic, 0, result.text.size()));
 	return result;
+}
+
+QString PrepareGramAmountText(int64 nanos) {
+	return tr::lng_action_gram_transfer_amount(
+		tr::now,
+		lt_count,
+		nanos / float64(Ui::kNanosInOne),
+		lt_amount,
+		Ui::FormatTonAmount(nanos).full);
+}
+
+TextWithEntities PrepareGramAmountWithFiat(
+		not_null<Main::Session*> session,
+		int64 nanos,
+		TextWithEntities amount) {
+	const auto usdPerGram = session->appConfig().get<float64>(
+		u"ton_usd_rate"_q,
+		0.);
+	if (usdPerGram > 0.) {
+		return tr::lng_action_gram_transfer_amount_fiat(
+			tr::now,
+			lt_amount,
+			std::move(amount),
+			lt_fiat,
+			tr::marked(Wallet::FormatFiat(
+				nanos,
+				Wallet::FiatRate{ u"USD"_q, usdPerGram })),
+			tr::marked);
+	}
+	return amount;
 }
 
 void ShowTrialTranscribesToast(int left, TimeId until) {

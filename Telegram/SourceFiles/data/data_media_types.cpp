@@ -2856,7 +2856,8 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 				.hideServiceText = true,
 			});
 	} else if (_data.type == GiftType::ChatTheme
-		|| _data.type == GiftType::GiftOffer) {
+		|| _data.type == GiftType::GiftOffer
+		|| _data.type == GiftType::OnchainOffer) {
 		return std::make_unique<HistoryView::ServiceBox>(
 			message,
 			std::make_unique<HistoryView::GiftServiceBox>(message, this));
