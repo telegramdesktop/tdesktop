@@ -40,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/effects/slide_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/more_chats_bar.h"
@@ -451,6 +450,7 @@ Widget::Widget(
 , _lockUnlock(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsLock))
+, _chatsFilterForTopBarSuggestion(controller->activeChatsFilterCurrent())
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
 , _stories((_layout != Layout::Child)
@@ -1287,7 +1287,7 @@ void Widget::setupTopBarSuggestions() {
 			: owner->chatsListLoadedEvents()
 		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
 			auto on = rpl::combine(
-				controller()->activeChatsFilter(),
+				_chatsFilterForTopBarSuggestion.value(),
 				_openedFolderOrForum.value(),
 				_searchStateForTopBarSuggestion.events_starting_with(
 					!_searchState.query.isEmpty()),
@@ -2609,6 +2609,7 @@ void Widget::showSearchInTopBar(anim::type animated) {
 
 void Widget::switchToChatsFilter(FilterId id) {
 	const auto was = _inner->filterId();
+	_chatsFilterForTopBarSuggestion = id;
 	const auto animated = (was != id)
 		&& !isHidden()
 		&& !_showAnimation
@@ -2628,6 +2629,7 @@ void Widget::switchToChatsFilter(FilterId id) {
 		? st::dialogsFilterSwipeSlideDuration
 		: st::dialogsFilterSlideDuration;
 	_chatsFilterSlideCanvas = nullptr;
+	_innerList->resizeToWidth(_scroll->width());
 	auto wasCache = grabForChatsFilterSlide();
 	_inner->switchToFilter(id);
 	if (_inner->filterId() == was) {
@@ -2666,23 +2668,23 @@ void Widget::startChatsFilterSlide(
 	canvas->setAttribute(Qt::WA_OpaquePaintEvent);
 	canvas->setGeometry(_scroll->geometry());
 	const auto animation
-		= canvas->lifetime().make_state<Ui::SlideAnimation>();
-	animation->setSnapshots(std::move(wasCache), std::move(nowCache));
+		= canvas->lifetime().make_state<Window::SlideAnimation>();
+	animation->setDirection(slideLeft
+		? Window::SlideDirection::FromLeft
+		: Window::SlideDirection::FromRight);
+	animation->setPixmaps(std::move(wasCache), std::move(nowCache));
+	animation->setDuration(duration);
 	canvas->paintOn([=](QPainter &p) {
 		p.fillRect(canvas->rect(), st::dialogsBg);
-		animation->paintFrame(p, 0, 0, canvas->width());
+		animation->paintContents(p);
 	});
 	canvas->show();
 	if (_connecting) {
 		_connecting->raise();
 	}
-	animation->start(slideLeft, [=] {
-		if (animation->animating()) {
-			canvas->update();
-		} else {
-			_chatsFilterSlideCanvas = nullptr;
-		}
-	}, duration);
+	animation->setRepaintCallback([=] { canvas->update(); });
+	animation->setFinishedCallback([=] { _chatsFilterSlideCanvas = nullptr; });
+	animation->start();
 }
 
 QPixmap Widget::grabForFolderSlideAnimation() {
