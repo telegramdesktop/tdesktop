@@ -939,7 +939,12 @@ Every task belongs to a project, and every project is performed on the branch
 named by its slug, in tdesktop and in each top-level submodule the project
 changes; several checkouts may work on one project at once. The scheduler, or
 `perform-task` itself, ran `project-switch` before the task started, so the
-checkout is already on that branch. A nested submodule's commit must already
+checkout is already on that branch. When that switch rebased the branch onto
+a new base (`base_refresh`, or `Rebased onto:` from the scheduler), the
+first Debug build after Phase 1 may expose breakage the rebase brought in:
+fix it in its own commit, with this task's trailer and a plain
+`Fix build after rebasing onto <base>.`-style subject, before the task's own
+changes. A nested submodule's commit must already
 be on one of its remote branches; `project-push` refuses otherwise. Every
 approval pushes: before publishing a task's `Approve` (a legacy task without a
 project skips these steps):

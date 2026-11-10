@@ -89,11 +89,13 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 - Every task runs on its project's branch, and `start` and `retry` refuse
   any other. The owner never switches branches by hand: before a `start`, a
   `retry`, or resuming an `in-progress` task, run
-  `workspace.py project-switch --project <slug>` as
+  `workspace.py project-switch --project <slug> --task <full-task-id>` with
+  the task's `--require` arguments, as
   [Switch to the project branch](../continue/SKILL.md#switch-to-the-project-branch)
   describes, unless a `continue` scheduler already did for this task. It
-  publishes the branch being left, then lines the project branch up with
-  `private/<slug>`, or starts it from `private/alpha`. When it refuses
+  publishes the branch being left, lines the project branch up with
+  `private/<slug>` or starts it from `private/alpha`, and rebases a branch
+  that skipped a release or lacks the task's prerequisites. When it refuses
   uncommitted changes of unknown origin, ask the owner what to do with them:
   in an interactive invocation ask directly, in a `continue` delegation
   return the refusal so the scheduler asks. A legacy task without a project

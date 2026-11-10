@@ -183,10 +183,12 @@ leaf:
   branch-sync task at this boundary.
 - The parent scheduler owns every branch switch, and the owner never checks a
   branch out by hand. Before each Start, Retry, or resume it runs the shared
-  `workspace.py project-switch --project <slug>` for the task's project, which
-  publishes the branch being left, enters the project branch at
-  `private/<slug>` or `private/alpha`, and replays and pushes local commits
-  that never landed. Never use a bare `git switch` onto or off a project branch
+  `workspace.py project-switch --project <slug> --task <id>` for the task's
+  project, which publishes the branch being left, enters the project branch
+  at `private/<slug>` or `private/alpha`, replays and pushes local commits
+  that never landed, and rebases a branch that skipped a release or lacks the
+  task's prerequisites onto `origin/dev` or `private/alpha`. Never use a bare
+  `git switch` onto or off a project branch
   (one named by a live project's slug). When `project-switch` refuses
   uncommitted changes before the run has started a task, ask the owner with
   `AskUserQuestion` as the shared skill describes; later in the run, save them

@@ -32,9 +32,10 @@ carrier first so the helper transfers its sealed source state; do not reset or
 checkpoint that work.
 
 Switch branches in this parent scheduler with the shared
-`workspace.py project-switch --project <slug>` before each task's Start,
-Retry, or resume, as the shared skill's "Switch to the project branch"
-describes; the owner never checks a branch out by hand. When it refuses
+`workspace.py project-switch --project <slug> --task <id>` before each task's
+Start, Retry, or resume, as the shared skill's "Switch to the project branch"
+describes, including its base refresh of a stale branch; the owner never
+checks a branch out by hand. When it refuses
 uncommitted changes of unknown origin before any task of this run has started,
 ask the owner with `AskUserQuestion` what to do with them.
 

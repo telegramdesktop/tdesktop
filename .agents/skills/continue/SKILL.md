@@ -183,10 +183,11 @@ switch also brings it up to date:
 
 ```bash
 python3 .agents/skills/process-inbox/scripts/workspace.py project-switch \
-  --project <slug>
+  --project <slug> --task <task-id> [--require <explicit-source-task-id> ...]
 ```
 
-The helper never leaves work behind:
+Pass the same `--require` arguments as the task's source-lineage gate. The
+helper never leaves work behind:
 
 1. It refuses uncommitted source changes, and a submodule checked out at a
    commit no remote has, because nothing tells whose they are. The exception is
@@ -208,6 +209,23 @@ The helper never leaves work behind:
    when the project has no remote branch yet. A local branch that diverged
    without commits of its own is reset there. Local commits that never landed
    are replayed on top and pushed. The submodules follow the new pins.
+4. It refreshes a stale project branch before the task starts
+   (`base_refresh`). A branch without the newest `vX.Y.Z` release tag of
+   `origin/dev` skipped a release, and moves onto `origin/dev`, or onto
+   `private/alpha` when only alpha keeps what the project needs. A branch
+   without approved source work the task requires moves onto
+   `private/alpha`. The project's own commits move: those whose trailer names
+   one of its tasks, and those without a trailer that neither `origin/dev`
+   nor `private/alpha` has. Other tasks' commits and the old base are
+   replaced by the new base, and commits it already has are dropped. The
+   branch is force-pushed with leases, submodule branches included. A base
+   is used only when it brings what is missing and has every prerequisite of
+   the task and of every project task the branch carries, so a move never
+   drops code the project builds on, and never when the branch already
+   contains it. A release-only refresh waits while another checkout has a
+   task of the project in progress (`deferred_for`). When no base qualifies,
+   the branch stays and the source-lineage gate decides. A failed rebase or
+   push leaves the branch as it was and reports `error`.
 
 When it refuses uncommitted changes before this run has started any task,
 that is the startup question: show the owner the paths and ask whether to save
@@ -223,8 +241,14 @@ intent, as the `/rebase` skill does, then rerun. Any other refusal, such as
 the branch being checked out in another worktree, leaves that task for a later
 invocation; report it and continue with tasks of other projects.
 
-Record the switches for the report: each branch published on the way, and
-each project branch entered, created or reset.
+Record the switches for the report: each branch published on the way, each
+project branch entered, created or reset, and each base refresh with its new
+base, reason and `previous_tip`, the undo path for its force push. A base
+refresh `error`, such as a replay conflict, leaves the branch as it was:
+report it, and run the task on the unchanged branch when its source-lineage
+gate passes, otherwise leave it for the owner. Pass a refresh to the
+performer as
+`Rebased onto: <base>`, so it builds the rebased branch first.
 
 ## Freeze the invocation batch
 
@@ -255,9 +279,11 @@ An active task with owned work resumes as it is and meets newer project
 commits at its own `project-sync`.
 
 Before freezing the batch, inspect every prospective initial task's `task.md`
-and dependencies for approved tasks whose shipped code is a prerequisite. For
-each prospective task of the checked-out project, and each legacy task without
-a project, run:
+and dependencies for approved tasks whose shipped code is a prerequisite;
+explicit ones become `--require` arguments for both `project-switch` and the
+gate. A task of a project is checked only after its `project-switch`, which
+may first rebase its branch onto a base that has the prerequisite. For each
+prospective legacy task without a project, run:
 
 ```bash
 python3 .agents/skills/process-inbox/scripts/workspace.py source-lineage \
@@ -273,10 +299,11 @@ depends on it still has its own commit on `HEAD`, the gate counts the
 prerequisite as present and names that witness in `witnessed_source_tasks`.
 
 If any task checked at this startup gate reports `current_satisfies: false`,
-leave it out of the frozen batch and continue with the rest. Tasks of other
-projects are checked after their switch, right before their Start. Report the
-branch, missing source task ids, and unavailable commits in the run's report:
-the prerequisite lives on another branch, and bringing it over is the owner's
+leave it out of the frozen batch and continue with the rest. Report the
+branch, missing source task ids, and unavailable commits in the run's report.
+A project task whose gate still fails after its switch's base refresh needs
+work that neither `origin/dev` nor `private/alpha` has: the prerequisite
+lives on another project branch, and bringing it over is the owner's
 integration of that branch. Never create or route an integration task, and
 never cherry-pick or merge for it. The exception is an already-active task
 whose saved artifacts prove Phase 1 completed: it has crossed the task

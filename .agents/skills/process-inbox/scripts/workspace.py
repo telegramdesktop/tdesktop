@@ -1977,50 +1977,18 @@ def task_has_retained_source_change(slot, state):
 	return outcomes != ["already-satisfied"]
 
 
-def source_lineage_report(config, slot, task_id, extra_requirements=()):
+def source_lineage_report(config, slot, task_id, extra_requirements=(), revision="HEAD"):
 	states = load_states(slot)
 	task = states.get(task_id)
 	if task is None:
 		raise WorkspaceError(f"Task does not exist: {task_id}")
-	superseded = load_superseded(slot)
-	retired = load_retired(slot)
-	required = []
-	unfinished = []
-	for dependency in (*task["depends_on"], *extra_requirements):
-		if dependency in retired:
-			continue
-		resolved = resolve_task_id(states, superseded, dependency)["id"]
-		state = states[resolved]
-		if state["status"] != "approved":
-			if resolved not in unfinished:
-				unfinished.append(resolved)
-			continue
-		if not task_has_retained_source_change(slot, state) or resolved in required:
-			continue
-		required.append(resolved)
-
 	source = Path(config["source_root"])
-	tips = {}
-	for dependency in required:
-		commits = task_tip_commits(source, dependency)
-		carried_from = states[dependency]["carried_from"]
-		if not commits and carried_from is not None:
-			commits = task_tip_commits(source, carried_from)
-		tips[dependency] = commits
-	missing_history = [
-		dependency for dependency, commits in tips.items()
-		if not commits
-	]
-	missing = [
-		dependency for dependency, commits in tips.items()
-		if not commits or not any(is_ancestor(source, commit) for commit in commits)
-	]
-	witnesses = {}
-	for dependency in missing:
-		witness = lineage_witness(source, states, dependency)
-		if witness is not None:
-			witnesses[dependency] = witness
-	missing = [dependency for dependency in missing if dependency not in witnesses]
+	required, unfinished, missing_history, missing, witnesses, tips = (
+		lineage_presence(
+			source, slot, states,
+			(*task["depends_on"], *extra_requirements), revision,
+		)
+	)
 	branches = run_git(
 		source,
 		"for-each-ref",
@@ -2055,7 +2023,57 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 	}
 
 
-def lineage_witness(source, states, dependency):
+def lineage_presence(source, slot, states, dependencies, revision):
+	"""Which approved source work among dependencies revision has.
+
+	Returns the required ids, unfinished ids, ids with no commit anywhere,
+	ids revision lacks, witnesses that stand in for a folded commit, and the
+	tip commits of each required id.
+	"""
+	superseded = load_superseded(slot)
+	retired = load_retired(slot)
+	required = []
+	unfinished = []
+	for dependency in dependencies:
+		if dependency in retired:
+			continue
+		resolved = resolve_task_id(states, superseded, dependency)["id"]
+		state = states[resolved]
+		if state["status"] != "approved":
+			if resolved not in unfinished:
+				unfinished.append(resolved)
+			continue
+		if not task_has_retained_source_change(slot, state) or resolved in required:
+			continue
+		required.append(resolved)
+
+	tips = {}
+	for dependency in required:
+		commits = task_tip_commits(source, dependency)
+		carried_from = states[dependency]["carried_from"]
+		if not commits and carried_from is not None:
+			commits = task_tip_commits(source, carried_from)
+		tips[dependency] = commits
+	missing_history = [
+		dependency for dependency, commits in tips.items()
+		if not commits
+	]
+	missing = [
+		dependency for dependency, commits in tips.items()
+		if not commits or not any(
+			is_ancestor(source, commit, revision) for commit in commits
+		)
+	]
+	witnesses = {}
+	for dependency in missing:
+		witness = lineage_witness(source, states, dependency, revision)
+		if witness is not None:
+			witnesses[dependency] = witness
+	missing = [dependency for dependency in missing if dependency not in witnesses]
+	return required, unfinished, missing_history, missing, witnesses, tips
+
+
+def lineage_witness(source, states, dependency, revision="HEAD"):
 	# A history rewrite can fold a task's commit into later work: an approved
 	# task built on it whose own commit is on HEAD shows its change is there.
 	for state in states.values():
@@ -2063,7 +2081,7 @@ def lineage_witness(source, states, dependency):
 			state["status"] == "approved"
 			and dependency in state["depends_on"]
 			and any(
-				is_ancestor(source, commit)
+				is_ancestor(source, commit, revision)
 				for commit in task_tip_commits(source, state["id"])
 			)
 		):
@@ -3082,6 +3100,282 @@ def enter_project_branch(source, slug):
 	return result
 
 
+PUBLIC_REMOTE = "origin"
+PUBLIC_BASE_BRANCH = "dev"
+RELEASE_TAG_PATTERN = re.compile(r"v\d+\.\d+\.\d+")
+
+
+def latest_release_tag(source):
+	"""The newest vX.Y.Z tag on the public base branch, or None."""
+	base = remote_branch_tip(source, PUBLIC_REMOTE, PUBLIC_BASE_BRANCH)
+	if base is None:
+		return None
+	for tag in run_git(
+		source, "tag", "--list", "v*", "--merged", base, "--sort=-v:refname",
+	).stdout.split():
+		if RELEASE_TAG_PATTERN.fullmatch(tag):
+			return tag
+	return None
+
+
+def project_task_ids(roots, slug):
+	"""Every task id, live or retired, whose record in roots names the project."""
+	result = set()
+	for root in roots:
+		result.update(
+			task["id"] for task in load_states(root).values()
+			if task["project"] == slug
+		)
+		for records in (load_superseded(root), load_splits(root)):
+			result.update(
+				task_id for task_id, record in records.items()
+				if record.get("project") == slug
+			)
+	return result
+
+
+def commit_records(source, span):
+	"""(commit, subject, task id or None) for each commit of span, oldest first."""
+	result = []
+	for entry in run_git(
+		source, "log", "--reverse", "--format=%H%x00%s%x00%B%x01", span,
+	).stdout.split("\x01"):
+		entry = entry.strip("\n")
+		if not entry:
+			continue
+		commit, subject, body = entry.split("\x00", 2)
+		lines = body.rstrip("\n").split("\n")
+		task = None
+		if (
+			len(lines) == 3 and lines[0] and not lines[1]
+			and lines[2].startswith("Task: ")
+		):
+			task = lines[2][len("Task: "):]
+		result.append((commit, subject, task))
+	return result
+
+
+def push_rebased_project(source, slug, head, lease, tag):
+	"""Publish a rebased project branch the way project-push --rewritten does.
+
+	New submodule commits go first to this checkout's staging branch, so every
+	pin is fetchable, then tdesktop moves under its lease, then the submodule
+	project branches under theirs.
+	"""
+	publications = module_publications(source, head, slug)
+	staging = f"_staging/{slug}/{tag}"
+	tips = {}
+	for path, module, pin, contained in publications:
+		fetch_remote(module, "origin")
+		tips[path] = remote_branch_tip(module, "origin", slug)
+		if not contained:
+			push_branch(module, "origin", pin, staging, force=True, retry="project-switch")
+	push_branch(source, MIRROR_REMOTE, head, slug, lease=lease, retry="project-switch")
+	pushed = []
+	for path, module, pin, contained in publications:
+		tip = tips[path]
+		if tip == pin or (tip is None and contained):
+			continue
+		push_branch(module, "origin", pin, slug, lease=tip, retry="project-switch")
+		pushed.append(path)
+	return pushed
+
+
+def project_branch_commits(source, head, fork, own, bases):
+	"""The project's own commits of fork..head, oldest first.
+
+	A commit whose `Task:` trailer names one of the project's tasks is the
+	project's, and one naming another task belongs to the old base. A commit
+	without a trailer belongs to the old base when one of bases has it, by
+	reachability, patch or subject, and is the project's otherwise, such as a
+	commit the owner made on the project branch.
+	"""
+	known = []
+	for base in dict.fromkeys(bases):
+		known.append((
+			set(run_git(
+				source, "rev-list", f"{fork}..{head}", "--not", base,
+			).stdout.split()),
+			{
+				line[2:] for line in run_git(
+					source, "cherry", base, head,
+				).stdout.splitlines()
+				if line.startswith("- ")
+			},
+			set(run_git(
+				source, "log", "--format=%s", f"{head}..{base}",
+			).stdout.splitlines()),
+		))
+	result = []
+	for commit, subject, task in commit_records(source, f"{fork}..{head}"):
+		if task is not None:
+			if task in own:
+				result.append((commit, subject, task))
+			continue
+		if not any(
+			commit not in unreachable or commit in equivalent or subject in subjects
+			for unreachable, equivalent, subjects in known
+		):
+			result.append((commit, subject, task))
+	return result
+
+
+def rebase_project_branch(source, own, slug, onto, bases, tag):
+	"""Replay the checked-out project branch's own commits onto onto and push.
+
+	Everything else between the old and the new base is replaced by the new
+	base. A project commit the new base already has, by patch or by the same
+	subject and trailer, is not replayed. A failed push restores the branch.
+	"""
+	head = resolved_ref(source, "HEAD")
+	fork = run_git(source, "merge-base", onto, head, check=False).stdout.strip()
+	if not fork:
+		raise WorkspaceError(f"Branch {slug} shares no history with its new base")
+	if run_git(source, "rev-list", "--merges", f"{fork}..{head}").stdout.strip():
+		raise WorkspaceError(
+			f"Branch {slug} has merge commits; project branches stay linear"
+		)
+	total = len(run_git(source, "rev-list", f"{fork}..{head}").stdout.split())
+	project = project_branch_commits(source, head, fork, own, [onto, *bases])
+	integrated = {
+		(subject, task)
+		for _, subject, task in commit_records(source, f"{fork}..{onto}")
+		if task is not None
+	}
+	equivalent = {
+		line[2:] for line in run_git(source, "cherry", onto, head).stdout.splitlines()
+		if line.startswith("- ")
+	}
+	commits = [
+		commit for commit, subject, task in project
+		if commit not in equivalent
+		and (task is None or (subject, task) not in integrated)
+	]
+	lease = remote_branch_tip(source, MIRROR_REMOTE, slug)
+	try:
+		if commits:
+			older = resolved_ref(source, f"{commits[0]}^")
+			ranges = submodule_ranges(source, older, commits)
+			new_head, _ = rewrite_project_history(
+				source,
+				commits,
+				onto,
+				ranges,
+				{path: gitlink_at(source, onto, path) for path in ranges},
+			)
+		else:
+			protect_worktrees_from_submodule_target(source, onto)
+			run_git(source, "reset", "--quiet", "--hard", onto)
+			update_source_submodules(source)
+			new_head = onto
+		submodules = push_rebased_project(source, slug, new_head, lease, tag)
+	except BaseException:
+		if resolved_ref(source, "HEAD") != head:
+			protect_worktrees_from_submodule_target(source, head)
+			run_git(source, "reset", "--quiet", "--hard", head)
+			update_source_submodules(source)
+		raise
+	return {
+		"replayed": len(commits),
+		"already_in_base": len(project) - len(commits),
+		"old_base_replaced": total - len(project),
+		"previous_tip": head,
+		"submodules": submodules,
+	}
+
+
+def refresh_project_base(config, slot, source, slug, task_id, requires):
+	"""Rebase the checked-out project branch before a task when it is stale.
+
+	A branch without the newest release tag of the public base branch skipped
+	a release, and origin/dev or private/alpha brings that release. A branch
+	that lacks approved source work the task requires moves onto
+	private/alpha. A base is used only when the branch does not already
+	contain it, it brings what is missing, and it has every prerequisite of
+	the task and of the project's carried tasks, so a move never drops code
+	the project builds on; origin/dev is tried first for a skipped release.
+	A release-only move waits while another checkout has a task of the project
+	in progress. Returns None when the branch is current, otherwise what was
+	found and done, with an error instead when the rebase or push failed and
+	the branch was left as it was.
+	"""
+	release = None
+	if PUBLIC_REMOTE in run_git(source, "remote").stdout.split():
+		fetch_remote(source, PUBLIC_REMOTE)
+		release = latest_release_tag(source)
+	skipped = release is not None and not is_ancestor(source, release, "HEAD")
+	states = load_states(slot)
+	needs = ()
+	if task_id is not None:
+		if task_id not in states:
+			raise WorkspaceError(f"Task does not exist: {task_id}")
+		needs = (*states[task_id]["depends_on"], *requires)
+
+	def missing(dependencies, revision):
+		return lineage_presence(source, slot, states, dependencies, revision)[3]
+
+	lacking = missing(needs, "HEAD")
+	if not skipped and not lacking:
+		return None
+	result = {
+		"skipped_release": release if skipped else None,
+		"missing_source_tasks": lacking,
+		"onto": None,
+	}
+	own = project_task_ids([slot, Path(config["ai_main"])], slug)
+	carried_needs = (*needs, *(
+		dependency for state in states.values()
+		if state["id"] in own and state["status"] in ("approved", "in-progress")
+		for dependency in state["depends_on"]
+	))
+	absent_here = set(missing(carried_needs, "HEAD"))
+	bases = {
+		f"{PUBLIC_REMOTE}/{PUBLIC_BASE_BRANCH}": remote_branch_tip(
+			source, PUBLIC_REMOTE, PUBLIC_BASE_BRANCH,
+		),
+		f"{MIRROR_REMOTE}/{PROJECT_BASE_BRANCH}": remote_branch_tip(
+			source, MIRROR_REMOTE, PROJECT_BASE_BRANCH,
+		),
+	}
+	order = list(bases) if skipped else [f"{MIRROR_REMOTE}/{PROJECT_BASE_BRANCH}"]
+	chosen = None
+	for name in order:
+		tip = bases[name]
+		if tip is None or is_ancestor(source, tip, "HEAD"):
+			continue
+		if not (lacking or (skipped and is_ancestor(source, release, tip))):
+			continue
+		if [
+			dependency for dependency in missing(carried_needs, tip)
+			if dependency not in own or dependency in absent_here
+		]:
+			continue
+		chosen = (name, tip)
+		break
+	if chosen is None:
+		return result
+	elsewhere = sorted(
+		task["id"] for task in states.values()
+		if task["project"] == slug
+		and task["status"] == "in-progress"
+		and task["claimed_by"] != config["checkout_tag"]
+	)
+	if elsewhere and not lacking:
+		result["deferred_for"] = elsewhere
+		return result
+	try:
+		result.update(rebase_project_branch(
+			source, own, slug, chosen[1],
+			[tip for tip in bases.values() if tip is not None],
+			config["checkout_tag"],
+		))
+	except WorkspaceError as error:
+		result["error"] = str(error)
+		return result
+	result["onto"] = chosen[0]
+	return result
+
+
 def command_project_switch(args):
 	"""Move this checkout onto a project's branch without leaving work behind.
 
@@ -3089,8 +3383,11 @@ def command_project_switch(args):
 	onto private/<branch> and pushed. The project branch is then taken from
 	private/<slug>, or from private/alpha while the project has no remote
 	branch, with any local commits that never landed replayed on top and
-	pushed. A task this checkout owns keeps its branch as it is. Uncommitted
-	changes stop the switch, because nothing tells whose they are.
+	pushed. Before a task starts, a branch that skipped a release or lacks
+	what --task requires is rebased and force-pushed, see
+	refresh_project_base. A task this checkout owns keeps its branch as it
+	is. Uncommitted changes stop the switch, because nothing tells whose they
+	are.
 	"""
 	config = worktree_config(args, create=True)
 	source = Path(config["source_root"]).resolve()
@@ -3168,6 +3465,10 @@ def command_project_switch(args):
 		update_source_submodules(source)
 	else:
 		result.update(enter_project_branch(source, slug))
+		result["base_refresh"] = refresh_project_base(
+			config, slot, source, slug,
+			getattr(args, "task", None), getattr(args, "require", None) or [],
+		)
 	print(json.dumps(result, indent=2, sort_keys=True))
 
 
@@ -7717,6 +8018,8 @@ def parse_args():
 	project_switch = subparsers.add_parser("project-switch")
 	add_common_arguments(project_switch)
 	project_switch.add_argument("--project", required=True)
+	project_switch.add_argument("--task")
+	project_switch.add_argument("--require", action="append", default=[])
 	project_switch.set_defaults(handler=command_project_switch)
 
 	wip_save = subparsers.add_parser("wip-save")

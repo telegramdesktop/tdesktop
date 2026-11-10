@@ -7873,7 +7873,7 @@ class ProjectBranchTest(unittest.TestCase):
 				write_project(slot, slug)
 		return slot
 
-	def switch(self, source, slot, project, tag="xps-first"):
+	def switch(self, source, slot, project, tag="xps-first", task=None):
 		config = {
 			"source_root": str(source),
 			"slot_worktree": str(slot),
@@ -7881,7 +7881,223 @@ class ProjectBranchTest(unittest.TestCase):
 			"checkout_tag": tag,
 		}
 		with mock.patch.object(workspace, "worktree_config", return_value=config):
-			return run_command(workspace.command_project_switch, project=project)
+			return run_command(
+				workspace.command_project_switch,
+				project=project, task=task, require=[],
+			)
+
+	def public_init(self):
+		"""Start a public dev branch at alpha's current commit, tagged v1.0.0."""
+		public = self.root / "public.git"
+		base = self.root / "public-work"
+		if not public.exists():
+			subprocess.run(
+				[
+					"git", "init", "--quiet", "--bare", "--initial-branch=dev",
+					str(public),
+				],
+				check=True,
+			)
+			subprocess.run(
+				[
+					"git", "clone", "--quiet", "--branch", "alpha",
+					str(self.private), str(base),
+				],
+				check=True,
+			)
+			git(base, "tag", "v1.0.0")
+			git(base, "push", "--quiet", str(public), "HEAD:refs/heads/dev", "v1.0.0")
+		return public, base
+
+	def public_release(self, *clones, version="v1.0.1", alpha=True):
+		"""Release on the public dev branch and put alpha's private work on it."""
+		public, base = self.public_init()
+		write_file(base, f"{version}.txt", f"{version}\n")
+		git(base, "add", f"{version}.txt")
+		git(base, "commit", "--quiet", "-m", f"Version {version}.")
+		git(base, "tag", version)
+		git(base, "push", "--quiet", str(public), "HEAD:refs/heads/dev", version)
+		release = git(base, "rev-parse", "HEAD")
+		if alpha:
+			write_file(base, "private.txt", "private\n")
+			git(base, "add", "private.txt")
+			git(base, "commit", "--quiet", "-m", "Private alpha work")
+			git(base, "push", "--quiet", str(self.private), "HEAD:refs/heads/alpha")
+			git(base, "reset", "--quiet", "--hard", release)
+		for clone in clones:
+			git(clone, "remote", "add", "origin", str(public))
+		return release
+
+	def test_switch_moves_a_project_that_skipped_a_release_onto_dev(self):
+		first = self.clone("first")
+		slot = self.switch_slot()
+		write_project_task(slot, TASK_A, PROJECT, "approved", "2026-10-28")
+		commit_task(first, TASK_A, "first.txt", "first-module.txt")
+		git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		release = self.public_release(first)
+
+		refresh = self.switch(first, slot, PROJECT)["base_refresh"]
+		self.assertEqual(refresh["onto"], "origin/dev")
+		self.assertEqual(refresh["skipped_release"], "v1.0.1")
+		self.assertEqual(refresh["replayed"], 1)
+		self.assertEqual(refresh["submodules"], ["dep"])
+		self.assertEqual(git(first, "rev-parse", "HEAD^"), release)
+		self.assertEqual(git(first, "log", "-1", "--format=%s"), "Add first.txt")
+		self.assertEqual(self.shared_tip(), git(first, "rev-parse", "HEAD"))
+		self.assertEqual(
+			git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(first, "rev-parse", "HEAD:dep"),
+		)
+		self.assertFalse((first / "private.txt").exists())
+		self.assertEqual(workspace.source_changed_paths(first), [])
+		self.assertIsNone(self.switch(first, slot, PROJECT)["base_refresh"])
+
+	def test_switch_moves_a_project_onto_alpha_when_its_task_needs_it(self):
+		first = self.clone("first")
+		slot = self.switch_slot()
+		prerequisite = "2026/10/27/add-the-shared-helper"
+		write_project_task(slot, prerequisite, "null", "approved", "2026-10-27")
+		write_project_task(slot, TASK_A, PROJECT, "approved", "2026-10-28")
+		follow_up = write_project_task(slot, TASK_B, PROJECT, "todo", "2026-10-28")
+		state = follow_up / "state.yaml"
+		state.write_text(
+			state.read_text(encoding="utf-8").replace(
+				"depends_on: []", f"depends_on: [{prerequisite}]",
+			),
+			encoding="utf-8",
+		)
+		commit_task(first, TASK_A, "first.txt")
+		git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		git(first, "switch", "--quiet", "--no-track", "-c", "work", "private/alpha")
+		write_file(first, "shared.txt", "shared\n")
+		git(first, "add", "shared.txt")
+		git(first, "commit", "--quiet", "-m", f"Add the shared helper\n\nTask: {prerequisite}")
+		write_file(first, "first.txt", "first, adapted\n")
+		git(first, "add", "first.txt")
+		git(first, "commit", "--quiet", "-m", f"Add first.txt\n\nTask: {TASK_A}")
+		git(first, "push", "--quiet", "private", "HEAD:refs/heads/alpha")
+		git(first, "switch", "--quiet", PROJECT)
+		alpha = self.shared_tip("alpha")
+
+		refresh = self.switch(first, slot, PROJECT, task=TASK_B)["base_refresh"]
+		self.assertEqual(refresh["missing_source_tasks"], [prerequisite])
+		self.assertEqual(refresh["onto"], "private/alpha")
+		self.assertEqual(refresh["replayed"], 0)
+		self.assertEqual(refresh["already_in_base"], 1)
+		self.assertEqual(git(first, "rev-parse", "HEAD"), alpha)
+		self.assertEqual(self.shared_tip(), alpha)
+		self.assertEqual((first / "first.txt").read_text(), "first, adapted\n")
+		self.assertIsNone(
+			self.switch(first, slot, PROJECT, task=TASK_B)["base_refresh"],
+		)
+
+	def alpha_commits(self, source, *commits):
+		"""Push commits on top of private/alpha, each (file, message)."""
+		git(source, "switch", "--quiet", "--no-track", "-c", "work", "private/alpha")
+		for name, message in commits:
+			write_file(source, name, f"{name}\n")
+			git(source, "add", name)
+			git(source, "commit", "--quiet", "-m", message)
+		git(source, "push", "--quiet", "private", "HEAD:refs/heads/alpha")
+		git(source, "switch", "--quiet", PROJECT)
+		git(source, "fetch", "--quiet", "private")
+
+	def test_switch_moves_only_the_projects_commits_onto_dev(self):
+		first = self.clone("first")
+		slot = self.switch_slot()
+		self.public_init()
+		other = "2026/10/27/do-other-project-work"
+		write_project_task(slot, TASK_A, PROJECT, "approved", "2026-10-28")
+		write_project_task(slot, TASK_B, PROJECT, "approved", "2026-10-28")
+		write_project_task(slot, other, "ui", "approved", "2026-10-27")
+		self.alpha_commits(
+			first,
+			("first.txt", f"Add first.txt\n\nTask: {TASK_A}"),
+			("other.txt", f"Other project work\n\nTask: {other}"),
+			("private.txt", "Owner private work"),
+		)
+		git(first, "reset", "--quiet", "--hard", "private/alpha")
+		commit_task(first, TASK_B, "second.txt")
+		git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		release = self.public_release(first, alpha=False)
+
+		refresh = self.switch(first, slot, PROJECT)["base_refresh"]
+		self.assertEqual(refresh["onto"], "origin/dev")
+		self.assertEqual(refresh["replayed"], 2)
+		self.assertEqual(refresh["old_base_replaced"], 2)
+		self.assertEqual(git(first, "rev-parse", "HEAD~2"), release)
+		self.assertEqual(
+			git(first, "log", "--format=%s", "-2").splitlines(),
+			["Add second.txt", "Add first.txt"],
+		)
+		for name in ("other.txt", "private.txt"):
+			self.assertFalse((first / name).exists(), name)
+
+	def test_switch_keeps_the_base_a_carried_task_builds_on(self):
+		first = self.clone("first")
+		slot = self.switch_slot()
+		self.public_init()
+		helper = "2026/10/27/add-the-shared-helper"
+		write_project_task(slot, helper, "null", "approved", "2026-10-27")
+		built = write_project_task(slot, TASK_A, PROJECT, "approved", "2026-10-28")
+		state = built / "state.yaml"
+		state.write_text(
+			state.read_text(encoding="utf-8").replace(
+				"depends_on: []", f"depends_on: [{helper}]",
+			),
+			encoding="utf-8",
+		)
+		write_project_task(slot, TASK_B, PROJECT, "todo", "2026-10-28")
+		self.alpha_commits(first, ("shared.txt", f"Add the shared helper\n\nTask: {helper}"))
+		git(first, "reset", "--quiet", "--hard", "private/alpha")
+		commit_task(first, TASK_A, "first.txt")
+		git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		self.public_release(first, alpha=False)
+		shared = self.shared_tip()
+
+		for _ in range(2):
+			refresh = self.switch(first, slot, PROJECT, task=TASK_B)["base_refresh"]
+			self.assertEqual(refresh["skipped_release"], "v1.0.1")
+			self.assertIsNone(refresh["onto"])
+			self.assertEqual(self.shared_tip(), shared)
+		self.assertTrue((first / "shared.txt").is_file())
+
+	def test_switch_restores_the_branch_when_the_rebased_push_fails(self):
+		first = self.clone("first")
+		slot = self.switch_slot()
+		write_project_task(slot, TASK_A, PROJECT, "approved", "2026-10-28")
+		commit_task(first, TASK_A, "first.txt")
+		git(first, "push", "--quiet", "private", f"HEAD:refs/heads/{PROJECT}")
+		self.public_release(first)
+		head = git(first, "rev-parse", "HEAD")
+		push = workspace.push_branch
+
+		def rejected(repo, remote, revision, branch, **options):
+			if remote == "private" and branch == PROJECT and revision != head:
+				raise workspace.WorkspaceError("Pushing net was rejected")
+			return push(repo, remote, revision, branch, **options)
+
+		with mock.patch.object(workspace, "push_branch", side_effect=rejected):
+			refresh = self.switch(first, slot, PROJECT)["base_refresh"]
+		self.assertIn("rejected", refresh["error"])
+		self.assertIsNone(refresh["onto"])
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(git(first, "branch", "--show-current"), PROJECT)
+		self.assertEqual(self.shared_tip(), head)
+		self.assertEqual(self.switch(first, slot, PROJECT)["base_refresh"]["onto"], "origin/dev")
+
+	def test_switch_waits_with_a_release_move_while_the_project_runs_elsewhere(self):
+		first = self.clone("first")
+		slot = self.switch_slot()
+		write_project_task(slot, TASK_B, PROJECT, "in-progress", "2026-10-28")
+		head = git(first, "rev-parse", "HEAD")
+		self.public_release(first)
+
+		refresh = self.switch(first, slot, PROJECT)["base_refresh"]
+		self.assertEqual(refresh["deferred_for"], [TASK_B])
+		self.assertIsNone(refresh["onto"])
+		self.assertEqual(git(first, "rev-parse", "HEAD"), head)
+		self.assertEqual(self.shared_tip(), head)
 
 	def shared_tip(self, branch=PROJECT):
 		return git(self.private, "rev-parse", f"refs/heads/{branch}")

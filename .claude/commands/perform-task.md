@@ -21,7 +21,7 @@ exclusively AI workflow or infrastructure, and forbid it for product or mixed
 commits.
 
 Before `start`, `retry`, or resuming, run the shared
-`workspace.py project-switch --project <slug>` for the task's project unless
+`workspace.py project-switch --project <slug> --task <id>` for the task's project unless
 the `continue` scheduler says it already did; the owner never switches
 branches by hand. When it refuses uncommitted changes of unknown origin, ask
 the owner with `AskUserQuestion` in an interactive invocation, or return the
