@@ -1714,12 +1714,20 @@ void SavedWindows::replayChats(
 			&& entries.front().thread == windowThread)) {
 		return;
 	}
+	const auto &first = entries.front();
+	const auto overWindowChat = alreadyShown
+		&& (controller->activeChatCurrent().thread() == windowThread)
+		&& (first.section == SavedChatSection::Chat)
+		&& !first.rootId
+		&& (first.thread->asHistory() != nullptr)
+		&& (first.thread != windowThread);
 	const auto makeParams = [](SectionShow::Way way) {
 		auto params = SectionShow(
 			way,
 			anim::type::instant,
 			anim::activation::background);
 		params.allowDuplicateInStack = true;
+		params.preferCurrentWindow = true;
 		return params;
 	};
 	if (window->id().hasChatsList()
@@ -1730,7 +1738,7 @@ void SavedWindows::replayChats(
 			makeParams(SectionShow::Way::ClearStack));
 	}
 	for (auto i = 0, size = int(entries.size()); i != size; ++i) {
-		const auto params = makeParams(i
+		const auto params = makeParams((i || overWindowChat)
 			? SectionShow::Way::Forward
 			: SectionShow::Way::ClearStack);
 		const auto thread = entries[i].thread;
