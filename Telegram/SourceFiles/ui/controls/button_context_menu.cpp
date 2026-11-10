@@ -40,7 +40,8 @@ void KeepHoveredWhileShown(
 void SetupButtonContextMenu(
 		not_null<RippleButton*> button,
 		not_null<const style::PopupMenu*> st,
-		Fn<void(not_null<PopupMenu*>)> fill) {
+		Fn<void(not_null<PopupMenu*>)> fill,
+		Fn<QPoint(not_null<PopupMenu*>)> position) {
 	Expects(fill != nullptr);
 
 	const auto state = button->lifetime().make_state<State>();
@@ -68,7 +69,9 @@ void SetupButtonContextMenu(
 					Qt::NoButton);
 			}
 		});
-		state->menu->popup(QCursor::pos());
+		state->menu->popup(position
+			? position(state->menu.get())
+			: QCursor::pos());
 	}, button->lifetime());
 }
 
