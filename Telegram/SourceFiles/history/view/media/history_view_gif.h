@@ -166,7 +166,6 @@ private:
 	[[nodiscard]] bool autoplayEligible(bool fullFeatured) const;
 	[[nodiscard]] bool autoplayUnderCursor() const;
 	[[nodiscard]] bool underCursor(bool fullFeatured) const;
-	[[nodiscard]] int maxInlineArea() const;
 	[[nodiscard]] bool canPlayInline() const;
 	[[nodiscard]] float64 revealedProgress() const;
 
