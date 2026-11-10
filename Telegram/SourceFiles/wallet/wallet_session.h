@@ -16,12 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "gram/api/gram_api_account.h"
 #include "gram/api/gram_api_nft.h"
 #include "mtproto/sender.h"
-#include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
 #include "wallet/wallet_collectible_record.h"
 #include "wallet/wallet_custody.h"
-#include "wallet/wallet_engine.h"
-#include "wallet/wallet_stream.h"
 #include "wallet/wallet_transfer_store.h"
 #include "wallet/wallet_unlock.h"
 
@@ -49,8 +46,11 @@ class Engine;
 class Onramp;
 class OwnCard;
 class Rates;
+enum class SecretReadFailure : uchar;
 class Session;
 struct ShareFetch;
+class Stream;
+struct StreamRefresh;
 class TonConnect;
 enum class TonConnectAccess : uchar;
 struct TonConnectAppRequest;
@@ -393,11 +393,21 @@ struct TransferReceipt {
 struct TonConnectSendResult {
 	QString signedBoc;
 	SendError error = SendError::None;
+	QByteArray messageHash;
 };
 
 struct TonConnectSendLink {
 	std::string operationId;
 	Fn<bool(const QString &signedBoc)> handoff;
+};
+
+struct TonConnectSignature {
+	QByteArray body;
+	QByteArray signature;
+	QByteArray publicKey;
+	QString address;
+	QByteArray stateInit;
+	TimeId timestamp = 0;
 };
 
 enum class TonConnectSendFate : uchar {
@@ -738,13 +748,14 @@ public:
 		TonConnectResponse response,
 		Fn<void(QByteArray)> done,
 		Fn<void()> fail);
+	// An empty key (no dApp session) names the wallet; null data signs nothing.
 	void signTonConnectData(
 		KeyAuthorization auth,
 		TonConnectKey key,
 		QString requestId,
 		std::shared_ptr<const TonConnectSignData> data,
 		QString domain,
-		Fn<void(QByteArray)> done,
+		Fn<void(TonConnectSignature)> done,
 		Fn<void(TonConnectKeyError)> fail);
 	[[nodiscard]] bool rotationOffered();
 	void quoteRotationFee(KeyAuthorization auth, Fn<void(FeeResult)> done);

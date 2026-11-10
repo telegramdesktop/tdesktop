@@ -37,7 +37,7 @@ TTLButton::TTLButton(
 		peer,
 		Data::PeerUpdate::Flag::MessagesTTL
 	) | rpl::on_next([=] {
-		_button.setText(Ui::FormatTTLTiny(peer->messagesTTL()));
+		_button.setText(Ui::FormatTTLBadge(peer->messagesTTL()));
 	}, _button.lifetime());
 }
 

@@ -139,8 +139,10 @@ project branch, that project's tasks (so "all pending tasks" there means the
 project's pending tasks); elsewhere, standalone tasks. Report every selected
 task the branch cannot start with the branch it needs. A specification that
 names a project whose branch is not checked out stops at startup with that
-report: the owner checks project branches out, and the scheduler never
-switches onto or off one. Several checkouts may run the same project at once.
+report: the owner checks existing project branches out, and the scheduler never
+switches onto or off one. A branch that exists nowhere yet is the exception, see
+[Create a missing project branch](#create-a-missing-project-branch). Several
+checkouts may run the same project at once.
 
 The specification may also ask to rebase the project onto a base branch, such
 as `origin/dev` or `private/alpha`. Record it as `base_rebase` and pass
@@ -171,6 +173,31 @@ only one shared task at a time, finish or exceptionally block it, refresh
 canonical state, then select another recorded id. Always resume this
 checkout's `in-progress` task before other recorded work, unless the user
 expressly asks to stop or reassign it.
+
+### Create a missing project branch
+
+When the specification selects tasks that all belong to one live project, and
+that project's branch exists nowhere, create the branch and continue instead of
+stopping. Nowhere means no local `<slug>` branch and no `refs/heads/<slug>` in
+`git ls-remote --heads` on any remote. A project branch that exists anywhere is
+still the owner's to check out.
+
+Stop with the report above when a remote cannot be reached, when the current
+branch is another live project's, whose commits are not this project's base, or
+when `source-prepare` refuses the checkout. An active or split-required task
+comes first: create the branch once this checkout has finished that work, before
+the next Start.
+
+After `source-prepare` passes, fetch `origin` and `private` and pick the base:
+
+- `origin/dev` or `private/alpha` when `HEAD` is an ancestor of it, so this
+  checkout could fast-forward there. When both qualify, take the one that
+  contains the other, or `origin/dev` when they have diverged.
+- Otherwise the current commit.
+
+Run `git switch --no-track -c <slug> <base>`, run `source-prepare` again to
+bring the submodules to the new commit, and refresh `queue`. Record the slug and
+base for the report. The first `project-push` publishes the branch to `private`.
 
 ## Freeze the invocation batch
 
@@ -213,7 +240,10 @@ python3 .agents/skills/process-inbox/scripts/workspace.py source-lineage \
 `depends_on` requirements are included automatically. Pass `--require` for an
 explicit source prerequisite named in `task.md` that old routing failed to put
 in `depends_on`. Unfinished dependencies remain a readiness concern and appear
-separately; this gate checks the history of approved source work.
+separately; this gate checks the history of approved source work. A rewrite can
+fold a prerequisite's commit into later work: when an approved task that
+depends on it still has its own commit on `HEAD`, the gate counts the
+prerequisite as present and names that witness in `witnessed_source_tasks`.
 
 If any prospective task reports `current_satisfies: false` at this startup
 gate, leave it out of the frozen batch and continue with the rest; do not
@@ -791,7 +821,8 @@ consolidation records, refresh canonical state, and only then select more work.
 
 ## Report
 
-Return one compact summary: the specification, invocation mode, initial
+Return one compact summary: the specification, invocation mode, any project
+branch created and its base, initial
 batch ids, discovered ids added to the batch, inbox receipt if processed,
 tasks approved, exceptionally blocked tasks with exact unverified behavior and retry status, recorded tasks
 left queued, unrelated new tasks deferred to the next invocation, routed

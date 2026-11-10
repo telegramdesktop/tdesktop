@@ -1301,9 +1301,7 @@ void GiveawayInfoBox(
 					tr::bold(channel->name()),
 					tr::rich));
 		} else if (info.tooEarlyDate) {
-			const auto channel = controller->session().data().channel(
-				info.adminChannelId);
-			text.append("\n\n").append((channel->isMegagroup()
+			text.append("\n\n").append((group
 				? tr::lng_prizes_how_no_joined_group
 				: tr::lng_prizes_how_no_joined)(
 					tr::now,

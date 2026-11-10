@@ -62,6 +62,19 @@ struct WindowPosition {
 	WindowPosition position,
 	const QString &name);
 
+struct WindowColumns {
+	float64 dialogsWithChatWidthRatio = 0.;
+	float64 dialogsNoChatWidthRatio = 0.;
+	int thirdColumnWidth = 0;
+	int thirdSectionExtendedBy = -1;
+	bool tabbedSelectorSectionEnabled = false;
+	bool thirdSectionInfoEnabled = true;
+
+	friend inline constexpr bool operator==(
+		WindowColumns,
+		WindowColumns) = default;
+};
+
 struct WindowTitleContent {
 	bool hideChatName : 1 = false;
 	bool hideAccountName : 1 = false;
@@ -657,26 +670,11 @@ public:
 	void setMainMenuAccountsShown(bool value) {
 		_mainMenuAccountsShown = value;
 	}
-	[[nodiscard]] bool tabbedSelectorSectionEnabled() const {
-		return _tabbedSelectorSectionEnabled;
-	}
 	void setTabbedSelectorSectionEnabled(bool enabled);
-	[[nodiscard]] bool thirdSectionInfoEnabled() const {
-		return _thirdSectionInfoEnabled;
-	}
 	void setThirdSectionInfoEnabled(bool enabled);
-	[[nodiscard]] rpl::producer<bool> thirdSectionInfoEnabledValue() const;
-	[[nodiscard]] int thirdSectionExtendedBy() const {
-		return _thirdSectionExtendedBy;
-	}
 	void setThirdSectionExtendedBy(int savedValue) {
 		_thirdSectionExtendedBy = savedValue;
 	}
-	[[nodiscard]] bool tabbedReplacedWithInfo() const {
-		return _tabbedReplacedWithInfo;
-	}
-	void setTabbedReplacedWithInfo(bool enabled);
-	[[nodiscard]] rpl::producer<bool> tabbedReplacedWithInfoValue() const;
 	void setFloatPlayerColumn(Window::Column column) {
 		_floatPlayerColumn = column;
 	}
@@ -697,17 +695,10 @@ public:
 		_recordVideoMessages = value;
 	}
 
-	void updateDialogsWidthRatio(float64 ratio, bool nochat);
-	[[nodiscard]] float64 dialogsWidthRatio(bool nochat) const;
-
-	[[nodiscard]] float64 dialogsWithChatWidthRatio() const;
-	[[nodiscard]] rpl::producer<float64> dialogsWithChatWidthRatioChanges() const;
-	[[nodiscard]] float64 dialogsNoChatWidthRatio() const;
-	[[nodiscard]] rpl::producer<float64> dialogsNoChatWidthRatioChanges() const;
-
+	void updateDialogsWidthRatio(float64 ratio);
 	void setThirdColumnWidth(int width);
-	[[nodiscard]] int thirdColumnWidth() const;
-	[[nodiscard]] rpl::producer<int> thirdColumnWidthChanges() const;
+	[[nodiscard]] WindowColumns windowColumns() const;
+	void setWindowColumns(const WindowColumns &columns);
 	void setNotifyFromAll(bool value) {
 		_notifyFromAll = value;
 	}
@@ -1150,7 +1141,6 @@ private:
 	Window::Column _floatPlayerColumn = Window::Column(); // per-window
 	RectPart _floatPlayerCorner = RectPart(); // per-window
 	bool _thirdSectionInfoEnabled = true; // per-window
-	rpl::event_stream<bool> _thirdSectionInfoEnabledValue; // per-window
 	int _thirdSectionExtendedBy = -1; // per-window
 	rpl::variable<float64> _dialogsWithChatWidthRatio; // per-window
 	rpl::variable<float64> _dialogsNoChatWidthRatio; // per-window
@@ -1204,14 +1194,10 @@ private:
 		= Ui::ChatsFiltersTabsMode::Default;
 	base::flat_map<QByteArray, QByteArray> _prefs;
 
-	bool _tabbedReplacedWithInfo = false; // per-window
-	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window
-
 	rpl::event_stream<> _saveDelayed;
 	float64 _rememberedSongVolume = kDefaultVolume;
 	bool _rememberedSoundNotifyFromTray = false;
 	bool _rememberedFlashBounceNotifyFromTray = false;
-	bool _dialogsWidthSetToZeroWithoutChat = false;
 
 	bool _recordVideoMessages = false;
 

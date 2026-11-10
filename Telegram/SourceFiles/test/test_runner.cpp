@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_runner.h"
 
@@ -141,7 +141,7 @@ void StartChatsLoadedWait(
 		return;
 	}
 	Core::App().domain().activeSessionValue(
-	) | rpl::map([](Main::Session *session) {
+	) | rpl::map([](Main::Session *session) -> rpl::producer<Data::Folder*> {
 		if (!session) {
 			return rpl::never<Data::Folder*>();
 		}
@@ -251,7 +251,16 @@ void CompleteAfterSessionDrain(not_null<Runner*> runner, crl::time left) {
 	};
 }
 
+[[nodiscard]] std::vector<Fn<bool(not_null<Runner*>)>> &ScenarioProviders() {
+	static auto result = std::vector<Fn<bool(not_null<Runner*>)>>();
+	return result;
+}
+
 } // namespace
+
+void RegisterScenarioProvider(Fn<bool(not_null<Runner*>)> provider) {
+	ScenarioProviders().push_back(std::move(provider));
+}
 
 void Runner::add(Stage stage) {
 	Expects(!_started);
@@ -557,7 +566,13 @@ void Start() {
 	}
 	Started = true;
 	static auto runner = Runner();
-	SetupScenario(&runner);
+	const auto provided = ranges::any_of(ScenarioProviders(), [](
+			const Fn<bool(not_null<Runner*>)> &provider) {
+		return provider(&runner);
+	});
+	if (!provided) {
+		SetupScenario(&runner);
+	}
 	if (runner.empty()) {
 		Note(u"no scenario registered"_q);
 		return;
@@ -666,7 +681,7 @@ void AppendFinishReleaseSelfTest(
 
 } // namespace Test
 
-#else // _DEBUG
+#else // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_agent.h"
 
@@ -677,4 +692,4 @@ void Start() {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

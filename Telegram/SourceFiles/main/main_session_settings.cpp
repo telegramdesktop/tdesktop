@@ -204,6 +204,7 @@ void SessionSettings::addFromSerialized(
 	}
 
 	auto &app = Core::App().settings();
+	const auto appColumns = app.windowColumns();
 
 	QDataStream stream(serialized);
 	stream.setVersion(QDataStream::Qt_5_1);
@@ -220,9 +221,9 @@ void SessionSettings::addFromSerialized(
 	base::flat_set<PeerId> groupEmojiSectionHidden;
 	qint32 appThirdSectionInfoEnabled = 0;
 	qint32 legacySmallDialogsList = 0;
-	float64 appDialogsWidthRatio = app.dialogsWidthRatio(false);
-	int appThirdColumnWidth = app.thirdColumnWidth();
-	int appThirdSectionExtendedBy = app.thirdSectionExtendedBy();
+	float64 appDialogsWidthRatio = appColumns.dialogsWithChatWidthRatio;
+	int appThirdColumnWidth = appColumns.thirdColumnWidth;
+	int appThirdSectionExtendedBy = appColumns.thirdSectionExtendedBy;
 	qint32 appSendFilesWay = app.sendFilesWay().serialize();
 	qint32 legacyCallsPeerToPeer = qint32(0);
 	qint32 appSendSubmitWay = static_cast<qint32>(app.sendSubmitWay());
@@ -881,7 +882,7 @@ void SessionSettings::addFromSerialized(
 		case RectPart::BottomRight: app.setFloatPlayerCorner(uncheckedCorner); break;
 		}
 		app.setThirdSectionInfoEnabled(appThirdSectionInfoEnabled);
-		app.updateDialogsWidthRatio(appDialogsWidthRatio, false);
+		app.updateDialogsWidthRatio(appDialogsWidthRatio);
 		app.setThirdColumnWidth(appThirdColumnWidth);
 		app.setThirdSectionExtendedBy(appThirdSectionExtendedBy);
 	}

@@ -21,6 +21,8 @@ class Session;
 
 namespace Wallet {
 
+struct EngineError;
+
 enum class GiftDepositError : uchar {
 	None,
 	Request,

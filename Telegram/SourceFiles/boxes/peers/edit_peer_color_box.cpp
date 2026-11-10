@@ -314,6 +314,7 @@ PreviewWrap::PreviewWrap(
 	_style->apply(_theme.get());
 
 	_fake->setName(peer->name(), QString());
+	_fake->setBarSettings(0); // With unknown settings links stay hidden.
 	std::move(colorIndexValue) | rpl::on_next([=](uint8 index) {
 		if (index != kUnsetColorIndex) {
 			_fake->changeColorIndex(index);
@@ -1563,6 +1564,48 @@ void ProcessButton(not_null<Ui::RoundButton*> button) {
 	crl::on_main(button, [=] { button->raise(); });
 }
 
+void SetApplyButtonText(
+		not_null<Ui::RoundButton*> button,
+		not_null<PeerData*> peer,
+		const Data::UniqueGift *buy,
+		rpl::producer<QString> applyText) {
+	if (!buy) {
+		button->setText(rpl::combine(
+			std::move(applyText),
+			Data::AmPremiumValue(&peer->session())
+		) | rpl::map([=](const QString &text, bool premium) {
+			auto result = TextWithEntities();
+			if (!premium && peer->isSelf()) {
+				result.append(Ui::Text::IconEmoji(&st::giftBoxLock));
+			}
+			result.append(text);
+			return result;
+		}));
+	} else if (buy->onlyAcceptTon) {
+		button->setText(rpl::single(QString()));
+		Ui::SetButtonTwoLabels(
+			button,
+			tr::lng_gift_buy_resale_button(
+				lt_cost,
+				rpl::single(Data::FormatGiftResaleTon(*buy)),
+				tr::marked),
+			tr::lng_gift_buy_resale_equals(
+				lt_cost,
+				rpl::single(Ui::Text::IconEmoji(
+					&st::starIconEmojiSmall
+				).append(Lang::FormatCountDecimal(buy->starsForResale))),
+				tr::marked),
+			st::resaleButtonTitle,
+			st::resaleButtonSubtitle);
+	} else {
+		button->setText(tr::lng_gift_buy_resale_button(
+			lt_cost,
+			rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji).append(
+				Lang::FormatCountDecimal(buy->starsForResale))),
+			tr::marked));
+	}
+}
+
 void CreateBoostLevelContainer(
 		not_null<Ui::VerticalLayout*> container,
 		int levelHint,
@@ -2085,41 +2128,11 @@ void EditPeerColorSection(
 		while (!button->children().isEmpty()) {
 			delete button->children().first();
 		}
-		if (!buy) {
-			button->setText(rpl::combine(
-				tr::lng_settings_color_apply(),
-				Data::AmPremiumValue(&peer->session())
-			) | rpl::map([=](const QString &text, bool premium) {
-				auto result = TextWithEntities();
-				if (!premium && peer->isSelf()) {
-					result.append(Ui::Text::IconEmoji(&st::giftBoxLock));
-				}
-				result.append(text);
-				return result;
-			}));
-		} else if (buy->onlyAcceptTon) {
-			button->setText(rpl::single(QString()));
-			Ui::SetButtonTwoLabels(
-				button,
-				tr::lng_gift_buy_resale_button(
-					lt_cost,
-					rpl::single(Data::FormatGiftResaleTon(*buy)),
-					tr::marked),
-				tr::lng_gift_buy_resale_equals(
-					lt_cost,
-					rpl::single(Ui::Text::IconEmoji(
-						&st::starIconEmojiSmall
-					).append(Lang::FormatCountDecimal(buy->starsForResale))),
-					tr::marked),
-				st::resaleButtonTitle,
-				st::resaleButtonSubtitle);
-		} else {
-			button->setText(tr::lng_gift_buy_resale_button(
-				lt_cost,
-				rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji).append(
-					Lang::FormatCountDecimal(buy->starsForResale))),
-				tr::marked));
-		}
+		SetApplyButtonText(
+			button,
+			peer,
+			buy,
+			tr::lng_settings_color_apply());
 	}, button->lifetime());
 }
 
@@ -2357,43 +2370,13 @@ void EditPeerProfileColorSection(
 		while (!button->children().isEmpty()) {
 			delete button->children().first();
 		}
-		if (!buy) {
-			button->setText(rpl::combine(
-				(id.collectible
-					? tr::lng_settings_color_wear()
-					: tr::lng_settings_color_apply()),
-				Data::AmPremiumValue(&peer->session())
-			) | rpl::map([=](const QString &text, bool premium) {
-				auto result = TextWithEntities();
-				if (!premium && peer->isSelf()) {
-					result.append(Ui::Text::IconEmoji(&st::giftBoxLock));
-				}
-				result.append(text);
-				return result;
-			}));
-		} else if (buy->onlyAcceptTon) {
-			button->setText(rpl::single(QString()));
-			Ui::SetButtonTwoLabels(
-				button,
-				tr::lng_gift_buy_resale_button(
-					lt_cost,
-					rpl::single(Data::FormatGiftResaleTon(*buy)),
-					tr::marked),
-				tr::lng_gift_buy_resale_equals(
-					lt_cost,
-					rpl::single(Ui::Text::IconEmoji(
-						&st::starIconEmojiSmall
-					).append(Lang::FormatCountDecimal(buy->starsForResale))),
-					tr::marked),
-				st::resaleButtonTitle,
-				st::resaleButtonSubtitle);
-		} else {
-			button->setText(tr::lng_gift_buy_resale_button(
-				lt_cost,
-				rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji).append(
-					Lang::FormatCountDecimal(buy->starsForResale))),
-				tr::marked));
-		}
+		SetApplyButtonText(
+			button,
+			peer,
+			buy,
+			(id.collectible
+				? tr::lng_settings_color_wear()
+				: tr::lng_settings_color_apply()));
 	}, button->lifetime());
 }
 

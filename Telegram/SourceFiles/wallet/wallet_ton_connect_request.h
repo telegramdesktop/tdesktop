@@ -27,6 +27,10 @@ class SessionController;
 
 namespace Wallet {
 
+struct FeeResult;
+struct PreparedSend;
+struct TonConnectRequestBoxState;
+
 class TonConnectRequests final : public base::has_weak_ptr {
 public:
 	TonConnectRequests(
@@ -41,6 +45,9 @@ public:
 		not_null<Window::SessionController*> controller,
 		const QString &dappClientId);
 	void stop();
+
+	[[nodiscard]] bool showing() const;
+	void hold(rpl::lifetime &lifetime);
 
 private:
 	class Flow;
@@ -111,9 +118,17 @@ private:
 	bool _recoveryPolling = false;
 	mtpRequestId _pendingRequestId = 0;
 	uint64 _order = 0;
+	int _held = 0;
 	bool _stopped = false;
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] std::shared_ptr<const PreparedSend> ApplyTonConnectPreview(
+	not_null<Main::Session*> session,
+	FeeResult result,
+	rpl::variable<TonConnectRequestBoxState> &state,
+	rpl::lifetime &idle,
+	Fn<void()> retry);
 
 } // namespace Wallet

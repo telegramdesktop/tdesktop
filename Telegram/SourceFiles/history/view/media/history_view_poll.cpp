@@ -960,12 +960,10 @@ QString Poll::Footer::linkButtonText() const {
 	const auto votedPublic = _owner->_voted
 		&& (_owner->_flags & PollData::Flag::PublicVotes);
 	return (_owner->showVotes() || votedPublic)
-		? ((_owner->_flags & PollData::Flag::PublicVotes)
-			? tr::lng_polls_view_votes(
-				tr::now,
-				lt_count,
-				_owner->_totalVotes)
-			: tr::lng_polls_view_results(tr::now))
+		? tr::lng_polls_view_votes(
+			tr::now,
+			lt_count,
+			_owner->_totalVotes)
 		: tr::lng_polls_submit_votes(tr::now);
 }
 
@@ -3122,6 +3120,7 @@ void Poll::Options::updateAnswers() {
 		});
 		return;
 	}
+	const auto has = _owner->hasHeavyPart();
 	_answers = ranges::views::all(options) | ranges::views::transform([&](
 			const QByteArray &option) {
 		auto result = Answer();
@@ -3159,6 +3158,10 @@ void Poll::Options::updateAnswers() {
 	});
 
 	resetAnswersAnimation();
+
+	if (has && !_owner->hasHeavyPart()) {
+		_owner->_parent->checkHeavyPart();
+	}
 }
 
 ClickHandlerPtr Poll::Options::createAnswerClickHandler(
@@ -3426,6 +3429,7 @@ void Poll::Options::updateAnswerVotes() {
 			gsl::make_span(PercentsStorage).subspan(0, count));
 	}
 
+	const auto has = _owner->hasHeavyPart();
 	for (auto &answer : _answers) {
 		const auto i = ranges::find(
 			_owner->_poll->answers,
@@ -3439,6 +3443,9 @@ void Poll::Options::updateAnswerVotes() {
 			PercentsStorage[index],
 			maxVotes,
 			showPercent);
+	}
+	if (has && !_owner->hasHeavyPart()) {
+		_owner->_parent->checkHeavyPart();
 	}
 }
 

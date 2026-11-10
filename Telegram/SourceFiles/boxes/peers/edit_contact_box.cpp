@@ -256,9 +256,9 @@ private:
 	Ui::InputField *_notesField = nullptr;
 	Ui::InputField *_firstNameField = nullptr;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
-	base::unique_qptr<Ui::PopupMenu> _photoMenu;
 	std::unique_ptr<Ui::AnimatedIcon> _suggestIcon;
 	std::unique_ptr<Ui::AnimatedIcon> _cameraIcon;
+	base::unique_qptr<Ui::PopupMenu> _photoMenu;
 	Ui::RpWidget *_suggestIconWidget = nullptr;
 	Ui::RpWidget *_cameraIconWidget = nullptr;
 	QString _phone;

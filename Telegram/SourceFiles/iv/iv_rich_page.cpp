@@ -3198,7 +3198,7 @@ TextWithEntities FlattenRichPageSummary(
 		bool emptyFallback) {
 	auto result = tr::marked();
 	auto contributionCount = 0;
-	const Block *soleTable = nullptr;
+	auto soleTable = (const Block*)nullptr;
 	for (const auto &block : page.blocks) {
 		const auto previousSize = result.text.size();
 		AppendSummaryBlock(&result, block, true);

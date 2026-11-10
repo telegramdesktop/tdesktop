@@ -9,12 +9,15 @@ can require preserving a large patch set. Report these separately.
 | --- | --- | --- | --- |
 | tg_owt | https://github.com/desktop-app/tg_owt | https://webrtc.googlesource.com/src/ | Source import commits, Chromium M-number, DEPS, nested gitlinks, original revision or commit-position trailers |
 | tg_angle | https://github.com/desktop-app/tg_angle | https://chromium.googlesource.com/angle/angle/ | Source import commits, Chromium M-number, version/commit metadata, DEPS, README.chromium |
+| QuickJS | https://github.com/TelegramMessenger/quickjs | https://github.com/quickjs-ng/quickjs | Nested widget-sandbox gitlink, shared Git ancestry, engine version and bytecode format, local allocator/compiler/runtime changes |
+| litehtml | https://github.com/TelegramMessenger/twidget | https://github.com/litehtml/litehtml | Copied litehtml directory, import history and source comparison; include its bundled Gumbo parser |
 
 These mappings seed discovery, not fixed baselines. The initial local inspection
 found import subjects mentioning WebRTC M123 and ANGLE M115. Establish the
 baseline again from the exact fork pins in each fetched Telegram snapshot.
-`tg_angle` is selected by prepare's Windows Qt 5 path; inspect current Qt
-selection and supported builds before deciding which users are exposed.
+For ANGLE, inspect current Windows Qt selection, compatibility patches and
+supported builds before deciding which users are exposed; do not assume that
+dropping Qt 5 drops ANGLE. For widget dependencies read [widgets.md](widgets.md).
 
 ## Establish comparable revisions
 
@@ -67,8 +70,8 @@ depends on a broad refactor, state that; do not describe it as a trivial
 cherry-pick. This monitor proposes backports but does not apply them.
 
 Persist the mapped baseline, scanned ranges, stable/development heads,
-unresolved candidates and per-fix evidence. Scan new upstream history daily and
-revisit new advisories even when their fix commits predate the last scan. Keep
+unresolved candidates and per-fix evidence. Scan new upstream history on every
+run and revisit new advisories even when their fix commits predate the last scan. Keep
 unexamined portions of the old tail visible until reviewed. An upstream-age
 entry alone belongs in "Review someday"; identified missing applicable security
 fixes belong in "Most pressing updates pending".

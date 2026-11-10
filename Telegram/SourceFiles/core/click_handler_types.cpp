@@ -752,7 +752,7 @@ void MentionClickHandler::onClick(ClickContext context) const {
 			: Core::App().activeWindow()
 			? Core::App().activeWindow()->sessionController()
 			: nullptr;
-		if (use) {
+		if (use && !Wallet::OpenWalletInsteadOfOldBot(use, _tag.mid(1))) {
 			use->showPeerByLink(Window::PeerByLinkInfo{
 				.usernameOrId = _tag.mid(1),
 				.resolveType = Window::ResolveType::Mention,

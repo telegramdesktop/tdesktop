@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/components/ephemeral_messages.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
+#include "data/data_report.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"

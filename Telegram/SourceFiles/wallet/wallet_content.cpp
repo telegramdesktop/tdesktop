@@ -122,6 +122,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_palette.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_row_address_chips.h"
 #include "wallet/wallet_send_preparation.h"
 #include "wallet/wallet_sending_effects.h"
 #include "wallet/wallet_session.h"
@@ -1249,6 +1250,7 @@ enum class RowAvatar {
 
 struct HistoryRowContent {
 	QString title;
+	QString address;
 	QString subtitle;
 	QString date;
 	int64 amountNano = 0;
@@ -1507,6 +1509,7 @@ struct HistoryRowText {
 	Ui::Text::String date;
 	Ui::Text::String major;
 	Ui::Text::String minor;
+	std::optional<AddressChips> address;
 	bool subtitleShown = false;
 	bool chip = false;
 };
@@ -1551,6 +1554,7 @@ struct HistoryRowText {
 		.major = HistoryRowLabelText(
 			st::walletRowAmountMajorLabel,
 			amount.major),
+		.address = AddressChips::FromAddress(content.address),
 		.subtitleShown = !content.subtitle.isEmpty(),
 		.chip = content.itemAmount,
 	};
@@ -1574,11 +1578,13 @@ struct HistoryRowText {
 			text.major.maxWidth() + text.minor.maxWidth()),
 		0);
 	auto result = ComputeHistoryRowLayout({
-		.title = HistoryRowLabelHeight(
-			st::walletRowTitleLabel,
-			text.title,
-			titleWidth,
-			true),
+		.title = (text.address
+			? LabelLineHeight(st::walletRowTitleLabel)
+			: HistoryRowLabelHeight(
+				st::walletRowTitleLabel,
+				text.title,
+				titleWidth,
+				true)),
 		.subtitle = (text.subtitleShown
 			? std::make_optional(HistoryRowLabelHeight(
 				st::walletRowSubtitleLabel,
@@ -1646,18 +1652,18 @@ class HistoryRowButton final : public Ui::SettingsButton {
 public:
 	using Ui::SettingsButton::SettingsButton;
 
-	void setPaintUnderRipple(Fn<void(Painter&)> paint);
+	void addPaintUnderRipple(Fn<void(Painter&)> paint);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	Fn<void(Painter&)> _paintUnderRipple;
+	std::vector<Fn<void(Painter&)>> _paintUnderRipple;
 
 };
 
-void HistoryRowButton::setPaintUnderRipple(Fn<void(Painter&)> paint) {
-	_paintUnderRipple = std::move(paint);
+void HistoryRowButton::addPaintUnderRipple(Fn<void(Painter&)> paint) {
+	_paintUnderRipple.push_back(std::move(paint));
 	update();
 }
 
@@ -1665,8 +1671,8 @@ void HistoryRowButton::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
 	const auto over = (isOver() || isDown()) && !isDisabled();
 	paintBg(p, e->rect(), over);
-	if (_paintUnderRipple) {
-		_paintUnderRipple(p);
+	for (const auto &paint : _paintUnderRipple) {
+		paint(p);
 	}
 	paintRipple(p, 0, 0);
 	const auto outerw = width();
@@ -1823,7 +1829,7 @@ void AddHistoryRowChip(
 		PaintHistoryRowChipArtwork(p, chip->width(), *state, media);
 		PaintHistoryRowChipText(p, chip->width(), *state);
 	}, chip->lifetime());
-	button->setPaintUnderRipple([=](Painter &p) {
+	button->addPaintUnderRipple([=](Painter &p) {
 		const auto origin = Ui::MapFrom(button, chip, QPoint());
 		p.translate(origin);
 		PaintHistoryRowChipPlate(p, chip->width(), *state);
@@ -1873,13 +1879,14 @@ not_null<Ui::RpWidget*> AddHistoryRow(
 			content.pending,
 			content.failed);
 	}
-	const auto title = inner->add(
-		object_ptr<Ui::FlatLabel>(
-			inner,
-			content.title,
-			st::walletRowTitleLabel),
-		{ 0, 0, HistoryRowTitleSkip(major->width() + minor->width()), 0 });
-	title->setBreakEverywhere(true);
+	const auto title = AddHistoryRowTitle(
+		inner,
+		content.title,
+		content.address,
+		LabelLineHeight(st::walletRowTitleLabel),
+		{ 0, 0, HistoryRowTitleSkip(major->width() + minor->width()), 0 },
+		button,
+		[=](auto paint) { button->addPaintUnderRipple(std::move(paint)); });
 	auto subtitle = (Ui::FlatLabel*)nullptr;
 	if (!content.subtitle.isEmpty()) {
 		Ui::AddSkip(inner, st::walletRowSkip);
@@ -2989,15 +2996,21 @@ void SendingHistoryRow::paintTexts(
 		? int(base::SafeRound(layout.textWidth
 			+ (target.textWidth - layout.textWidth) * progress.amount))
 		: layout.textWidth;
-	line(
-		_text.title,
-		_layout.title,
-		settle ? &settle->text.title : nullptr,
-		settle ? settle->layout.title : HistoryRowLine(),
-		settle && (settle->content.title == _content.title),
-		st::walletRowTitleLabel,
-		true,
-		titleWidth);
+	const auto titleHeight = LabelLineHeight(st::walletRowTitleLabel);
+	PaintSendingRowTitle(
+		p,
+		myrtlrect(left, _layout.title.top, titleWidth, titleHeight),
+		_text.address,
+		settle ? &settle->text.address : nullptr,
+		(settle
+			&& (settle->content.title == _content.title)
+			&& (settle->content.address == _content.address)),
+		progress.label,
+		[&](bool next, float64 opacity) {
+			const auto &text = next ? settle->text.title : _text.title;
+			const auto at = next ? settle->layout.title : _layout.title;
+			draw(text, st::walletRowTitleLabel, at, true, titleWidth, opacity);
+		});
 	line(
 		_text.subtitle,
 		_layout.subtitle,
@@ -3213,6 +3226,9 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 		const auto kindText = CollectibleRowKindText(item);
 		const auto titleIsKind = !telegram && !peer && !hasCounterparty;
 		const auto statusText = RowStatusSubtitle(item.status);
+		const auto titleAddress = (!peer && domain.isEmpty() && hasCounterparty)
+			? CounterpartyAddress(item)
+			: QString();
 		return {
 			.title = (telegram
 				? tr::lng_wallet_row_telegram(tr::now)
@@ -3221,8 +3237,9 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 				: !domain.isEmpty()
 				? domain
 				: hasCounterparty
-				? ShortAddressForm(CounterpartyAddress(item))
+				? ShortAddressForm(titleAddress)
 				: kindText),
+			.address = titleAddress,
 			.subtitle = (!statusText.isEmpty()
 				? statusText
 				: titleIsKind
@@ -3327,14 +3344,16 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 		: item.incoming
 		? tr::lng_wallet_row_deposit(tr::now)
 		: tr::lng_wallet_row_withdrawal(tr::now);
+	const auto titleAddress = (hasCounterparty && domain.isEmpty())
+		? (transfer ? address : CounterpartyAddress(item))
+		: QString();
 	return {
 		.title = (hasCounterparty
 			? (!domain.isEmpty()
 				? domain
-				: ShortAddressForm(transfer
-					? address
-					: CounterpartyAddress(item)))
+				: ShortAddressForm(titleAddress))
 			: kindText),
+		.address = titleAddress,
 		.subtitle = (!statusText.isEmpty()
 			? statusText
 			: hasCounterparty

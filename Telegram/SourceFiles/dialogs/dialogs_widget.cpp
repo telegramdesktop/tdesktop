@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/ui_integration.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
+#include "window/window_columns.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_slide_animation.h"
@@ -4054,7 +4055,7 @@ void Widget::showForum(
 		|| OptionForumHideChatsList.value()) {
 		changeOpenedForum(forum, params.animated);
 		return;
-	} else if (Core::App().settings().dialogsWidthRatio(nochat) == 0.) {
+	} else if (controller()->columns().dialogsWidthRatio(nochat) == 0.) {
 		changeOpenedForum(forum, params.animated);
 		_childListPostponed = true;
 		return;
@@ -4555,7 +4556,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
 	if (_childListPostponed) {
 		const auto nochat = !controller()->mainSectionShown();
-		if (Core::App().settings().dialogsWidthRatio(nochat) > 0.) {
+		if (controller()->columns().dialogsWidthRatio(nochat) > 0.) {
 			const auto forum = not_null(_openedForum);
 			changeOpenedForum(nullptr, anim::type::instant);
 			showForum(

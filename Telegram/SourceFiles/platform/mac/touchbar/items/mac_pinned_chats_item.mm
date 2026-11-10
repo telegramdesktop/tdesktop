@@ -756,6 +756,9 @@ NSRect PeerRectByIndex(int index) {
 
 	const auto active = Core::App().activePrimaryWindow();
 	const auto controller = active ? active->sessionController() : nullptr;
+	if (!controller) {
+		return;
+	}
 	const auto openFolder = [=] {
 		const auto folder = _session->data().folderLoaded(Data::Folder::kId);
 		if (folder && controller) {

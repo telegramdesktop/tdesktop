@@ -37,8 +37,8 @@ constexpr auto kSuppressRatioSong = 0.05;
 constexpr auto kWaveformCounterBufferSize = 256 * 1024;
 
 QMutex AudioMutex;
-ALCdevice *AudioDevice = nullptr;
-ALCcontext *AudioContext = nullptr;
+auto AudioDevice = (ALCdevice*)nullptr;
+auto AudioContext = (ALCcontext*)nullptr;
 Webrtc::DeviceResolvedId AudioDeviceLastUsedId{
 	.type = Webrtc::DeviceType::Playback
 };
@@ -52,7 +52,7 @@ namespace Media {
 namespace Audio {
 namespace {
 
-Player::Mixer *MixerInstance = nullptr;
+auto MixerInstance = (Player::Mixer*)nullptr;
 
 // Thread: Any.
 bool ContextErrorHappened() {

@@ -176,6 +176,14 @@ private:
 // copy registers nothing.
 void SetupScenario(not_null<Runner*> runner);
 
+// A permanent scenario module that is compiled in only on request (such as
+// the localization capture behind TDESKTOP_L10N_CAPTURE) registers itself
+// here from a static initializer. Start() asks each provider in turn; the
+// first one that returns true has registered its stages, and SetupScenario
+// is not called. A provider returns false when its own switch (usually an
+// environment variable) is not set.
+void RegisterScenarioProvider(Fn<bool(not_null<Runner*>)> provider);
+
 // The finish-release hook measuring itself. One Runner calls finish() once,
 // so the overlay selects the path. Timeout and Watchdog emit a harness FAIL
 // by construction. registerRelease=false is the timeout control that leaves

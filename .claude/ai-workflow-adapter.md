@@ -35,6 +35,15 @@ This file adapts harness mechanics and removes unnecessary text normalization.
   loops for phase leaves. Codex native wait and runtime-status controls do
   not apply in Claude Code. Leaves owe final artifacts and a compact result,
   with no heartbeat files or periodic progress reports.
+- Some Claude Code builds run every `Agent` call in the background: the call
+  returns at once with an agent id, and the leaf's result arrives later as a
+  task notification. There the notification is the completion signal and its
+  text is the leaf's report. Keep the turn open until it arrives, because a
+  performer that ends its turn while a leaf runs stops the task. When nothing
+  else is pending, a short foreground Bash `sleep` of a few minutes only keeps
+  the turn open; never read the leaf's artifacts or transcript while it runs.
+  Validate the artifacts when the notification arrives, as for a synchronous
+  return.
 - A leaf's return value IS its report. Never tell a leaf to send its findings
   back through `SendMessage`, and never wait on one to do so. A leaf has no
   address for its parent: an agent *type* such as `general-purpose` is not a
@@ -178,8 +187,9 @@ leaf:
   `git switch` to an existing compatible local branch. Never switch onto or off
   a project branch (one named by a live project's slug): the owner checks those
   out, and a project task's performer syncs it with `project-sync` and
-  `project-push` itself. Never ask a performer or leaf Agent to integrate
-  history beyond that sync.
+  `project-push` itself. The shared skill's creation of a project branch that
+  exists nowhere is the only exception. Never ask a performer or leaf Agent to
+  integrate history beyond that sync.
 - When a synchronous performer returns the shared pre-Phase-1 lineage stop,
   switch safely in the parent and resume that Agent id when Claude exposes one.
   If it exposes no resumable id, start one replacement performer only after the

@@ -73,6 +73,7 @@ bool SavedSublist::inMonoforum() const {
 void SavedSublist::apply(const SublistReadTillUpdate &update) {
 	if (update.out) {
 		setOutboxReadTill(update.readTillId);
+		return;
 	} else if (update.readTillId >= _inboxReadTillId) {
 		setInboxReadTill(
 			update.readTillId,
@@ -86,6 +87,9 @@ void SavedSublist::apply(const SublistReadTillUpdate &update) {
 				_unreadCount.current(),
 				_inboxReadTillId));
 	}
+	Core::App().notifications().clearReadFromSublist(
+		this,
+		update.readTillId);
 }
 
 void SavedSublist::apply(const MessageUpdate &update) {

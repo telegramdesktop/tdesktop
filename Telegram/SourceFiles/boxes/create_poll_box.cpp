@@ -2630,9 +2630,10 @@ object_ptr<Ui::RpWidget> CreatePollBox::setupContent() {
 			.parent = _controller->widget().get(),
 			.config = config,
 			.chooseLabel = tr::lng_maps_point_send(),
-			.session = session,
-			.callback = crl::guard(this, [=](Data::InputVenue venue) {
-				applyGeo(venue.lat, venue.lon);
+			.callback = crl::guard(this, [=](
+					Data::LocationPoint point,
+					QString) {
+				applyGeo(point.lat(), point.lon());
 			}),
 			.quit = [] { Shortcuts::Launch(Shortcuts::Command::Quit); },
 			.storageId = session->local().resolveStorageIdBots(),

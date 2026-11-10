@@ -941,7 +941,6 @@ ChatWidget::ChatWidget(
 		_peer,
 		PeerUpdateFlag::BarSettings
 	) | rpl::on_next([=] {
-		checkActivation();
 		_inner->update();
 	}, lifetime());
 
@@ -1464,6 +1463,7 @@ Data::ForumTopic *ChatWidget::resolvedTopic() {
 void ChatWidget::refreshCanSendMessages() {
 	_canSendMessagesLifetime.destroy();
 	const auto apply = [=](bool can) {
+		can = can && !monoforumReplyRequired();
 		const auto changed = (_canSendMessages != can);
 		_canSendMessages = can;
 		_bottom->setCanSendMessages(can);
@@ -1537,9 +1537,11 @@ void ChatWidget::setupComposeControls() {
 			Data::PeerUpdate::Flag::Rights),
 		Data::CanSendAnythingValue(_peer),
 		std::move(replyThreadChanges),
-		std::move(topicClosedChanges)
+		std::move(topicClosedChanges),
+		_composeControls->editMsgIdValue()
 	) | rpl::map([=](
 			const Main::FreezeInfo &info,
+			auto,
 			auto,
 			auto,
 			auto,
@@ -1552,23 +1554,18 @@ void ChatWidget::setupComposeControls() {
 				.type = Controls::WriteRestrictionType::Frozen,
 			};
 		}
+		if (monoforumReplyRequired()) {
+			return Controls::WriteRestriction{
+				.text = tr::lng_monoforum_choose_to_reply(tr::now),
+				.type = Controls::WriteRestrictionType::Rights,
+			};
+		}
 		const auto allWithoutPolls = Data::AllSendRestrictions()
 			& ~ChatRestriction::SendPolls;
 		const auto topic = resolvedTopic();
 		const auto canSendAnything = topic
 			? Data::CanSendAnyOf(topic, allWithoutPolls)
 			: Data::CanSendAnyOf(_peer, allWithoutPolls);
-		const auto channel = _peer->asChannel();
-		if ((mode() == Mode::History)
-			&& !canSendAnything
-			&& _peer->amMonoforumAdmin()
-			&& channel
-			&& !channel->monoforumDisabled()) {
-			return Controls::WriteRestriction{
-				.text = tr::lng_monoforum_choose_to_reply(tr::now),
-				.type = Controls::WriteRestrictionType::Rights,
-			};
-		}
 		auto topicRestriction = (!resolvedTopicRootId()
 			|| !topic
 			|| topic->canToggleClosed()
@@ -1643,6 +1640,7 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->editMsgIdValue(
 	) | rpl::skip(1) | rpl::on_next([=](FullMsgId) {
+		refreshCanSendMessages();
 		updateBotKeyboard();
 	}, lifetime());
 
@@ -1721,6 +1719,9 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->fileChosen(
 	) | rpl::on_next([=](ChatHelpers::FileChosen data) {
+		if (monoforumReplyMissing()) {
+			return;
+		}
 		controller()->hideLayer(anim::type::normal);
 		controller()->sendingAnimation().appendSending(
 			data.messageSendingFrom);
@@ -1740,6 +1741,9 @@ void ChatWidget::setupComposeControls() {
 
 	_composeControls->inlineResultChosen(
 	) | rpl::on_next([=](ChatHelpers::InlineChosen chosen) {
+		if (monoforumReplyMissing()) {
+			return;
+		}
 		controller()->sendingAnimation().appendSending(
 			chosen.messageSendingFrom);
 		const auto localId = chosen.messageSendingFrom.localId;
@@ -1769,6 +1773,7 @@ void ChatWidget::setupComposeControls() {
 			}
 		}
 		_inner->sendingLandingUserScroll();
+		Tgw::ListScroll::Input(_inner.data());
 		_scroll->keyPressEvent(e);
 	}, lifetime());
 
@@ -1776,6 +1781,7 @@ void ChatWidget::setupComposeControls() {
 	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
 		if (!_inner->lastMessageEditRequestNotify()) {
 			_inner->sendingLandingUserScroll();
+			Tgw::ListScroll::Input(_inner.data());
 			_scroll->keyPressEvent(e);
 		}
 	}, lifetime());
@@ -1990,6 +1996,7 @@ void ChatWidget::setupSwipeReplyAndBack() {
 		.update = std::move(update),
 		.init = std::move(init),
 		.dontStart = _inner->touchMaybeSelectingValue(),
+		.handoff = _inner->touchSwipeHandoff(),
 		.skipWheelEvent = [=](not_null<QWheelEvent*> event) {
 			const auto delta = Ui::ScrollDelta(event);
 			if (std::abs(delta.x()) <= std::abs(delta.y())) {
@@ -2005,6 +2012,9 @@ void ChatWidget::setupSwipeReplyAndBack() {
 void ChatWidget::chooseAttach(
 		std::optional<bool> overrideSendImagesAsPhotos) {
 	_choosingAttach = false;
+	if (monoforumReplyRequired()) {
+		return;
+	}
 	if (!session().ephemeralMessages().isEphemeralBotReply(
 			replyTo().messageId)) {
 		if (const auto error = Data::AnyFileRestrictionError(_peer)) {
@@ -2109,7 +2119,7 @@ bool ChatWidget::confirmSendingFiles(
 		const QString &insertTextOnCancel) {
 	if (_composeControls->confirmMediaEdit(list)) {
 		return true;
-	} else if (showSendingFilesError(list)) {
+	} else if (monoforumReplyMissing() || showSendingFilesError(list)) {
 		return false;
 	}
 
@@ -2165,7 +2175,7 @@ bool ChatWidget::checkSendPayment(
 void ChatWidget::sendingFilesConfirmed(
 		std::shared_ptr<Ui::PreparedBundle> bundle,
 		Api::SendOptions options) {
-	if (showSendingFilesError(*bundle)) {
+	if (monoforumReplyMissing() || showSendingFilesError(*bundle)) {
 		return;
 	}
 	const auto ephemeralReply = session().ephemeralMessages()
@@ -2299,6 +2309,9 @@ void ChatWidget::checkReplyReturns() {
 void ChatWidget::uploadFile(
 		const QByteArray &fileContent,
 		SendMediaType type) {
+	if (monoforumReplyMissing()) {
+		return;
+	}
 	session().api().sendFile(fileContent, type, prepareSendAction({}));
 }
 
@@ -2424,7 +2437,9 @@ void ChatWidget::sendVoice(const ComposeControls::VoiceToSend &data) {
 }
 
 void ChatWidget::send(Api::SendOptions options) {
-	if (const auto page = _composeControls->shownRichMessage()) {
+	if (monoforumReplyMissing()) {
+		return;
+	} else if (const auto page = _composeControls->shownRichMessage()) {
 		sendRichDraft(page, options);
 		return;
 	}
@@ -3247,6 +3262,9 @@ void ChatWidget::sendExistingPhoto(not_null<PhotoData*> photo) {
 bool ChatWidget::sendExistingPhoto(
 		not_null<PhotoData*> photo,
 		Api::SendOptions options) {
+	if (monoforumReplyMissing()) {
+		return false;
+	}
 	const auto ephemeralReply = session().ephemeralMessages()
 		.isEphemeralBotReply(replyTo().messageId);
 	const auto error = !ephemeralReply
@@ -3309,7 +3327,8 @@ void ChatWidget::sendInlineResult(
 		not_null<UserData*> bot,
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId) {
-	if (ShowEphemeralReplyTextOnlyError(
+	if (monoforumReplyMissing()
+		|| ShowEphemeralReplyTextOnlyError(
 			controller()->uiShow(),
 			&session(),
 			replyTo().messageId)) {
@@ -3349,7 +3368,7 @@ SendMenu::Details ChatWidget::sendMenuDetails() const {
 	using Type = SendMenu::Type;
 	const auto ephemeralReply = session().ephemeralMessages()
 		.isEphemeralBotReply(replyTo().messageId);
-	const auto type = ephemeralReply
+	const auto type = (monoforumReplyMissing() || ephemeralReply)
 		? Type::Disabled
 		: (mode() != Mode::History)
 		? ((_topic && !_peer->starsPerMessageChecked())
@@ -3835,6 +3854,9 @@ void ChatWidget::showAtEnd() {
 
 void ChatWidget::finishSending(const Api::SendOptions &options) {
 	_composeControls->hidePanelsAnimated();
+	if (_supportAutocomplete) {
+		_supportAutocomplete->hide();
+	}
 	//if (_previewData && _previewData->pendingTill) previewCancel();
 	doSetInnerFocus();
 	if (!options.scheduled && !_inner->sendingLandingAtBottom()) {
@@ -3850,9 +3872,6 @@ void ChatWidget::finishSending(const Api::SendOptions &options) {
 }
 
 void ChatWidget::setupSendingLanding() {
-	_scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
-		return _inner->processSendingLandingWheel(e);
-	});
 	for (const auto child : _scroll->children()) {
 		if (const auto bar = dynamic_cast<Ui::ElasticScrollBar*>(child)) {
 			base::install_event_filter(bar, [=](not_null<QEvent*> e) {
@@ -3970,6 +3989,9 @@ QPixmap ChatWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 	updateControlsVisibility();
 	if (params.fromBottom && _subsectionTabs) {
 		_subsectionTabs->hide();
+	}
+	if (_supportAutocomplete) {
+		_supportAutocomplete->hide();
 	}
 	auto result = Ui::GrabWidget(this);
 	if (hideTopBarShadow) {
@@ -4755,11 +4777,12 @@ void ChatWidget::showFinishedHook() {
 			_inner->setFocus();
 		}
 		_composeControls->hide();
-		if (_supportAutocomplete) {
-			_supportAutocomplete->hide();
-		}
 	} else {
 		_composeControls->showFinished();
+	}
+	if (_supportAutocomplete) {
+		// showChildren() reveals it, but only the Tab request may open it.
+		_supportAutocomplete->hide();
 	}
 	_inner->showFinished();
 	updateSubsectionTabsGeometry();
@@ -6014,11 +6037,6 @@ Ui::ChatPaintContext ChatWidget::listPreparePaintContext(
 	return context;
 }
 
-bool ChatWidget::listMarkingContentRead() {
-	return WindowListDelegate::listMarkingContentRead()
-		&& !_peer->keepIncomingUnread();
-}
-
 base::unique_qptr<Ui::PopupMenu> ChatWidget::listFillSenderUserpicMenu(
 		PeerId userpicPeerId) {
 	const auto searchInEntry = _topic
@@ -6179,7 +6197,9 @@ void ChatWidget::clearSelected() {
 
 void ChatWidget::setupDragArea() {
 	const auto filter = [=](const auto &d) {
-		if (!_history || _composeControls->isRecording()) {
+		if (!_history
+			|| _composeControls->isRecording()
+			|| monoforumReplyRequired()) {
 			return false;
 		}
 		return CanSendResolved(

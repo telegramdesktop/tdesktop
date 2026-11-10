@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_session.h"
+#include "ui/controls/slider_tick_labels.h"
 #include "ui/effects/toggle_arrow.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -824,6 +825,7 @@ void AddSlowmodeLabels(
 	const auto labels = container->add(
 		object_ptr<Ui::FixedHeightWidget>(container, st::normalFont->height),
 		st::slowmodeLabelsMargin);
+	auto list = std::vector<not_null<Ui::LabelSimple*>>();
 	for (auto i = 0; i != kSlowmodeValues; ++i) {
 		const auto seconds = SlowmodeDelayByIndex(i);
 		const auto label = Ui::CreateChild<Ui::LabelSimple>(
@@ -836,16 +838,20 @@ void AddSlowmodeLabels(
 				: (seconds < 3600)
 				? tr::lng_minutes_tiny(tr::now, lt_count, seconds / 60)
 				: tr::lng_hours_tiny(tr::now, lt_count,seconds / 3600)));
-		rpl::combine(
-			labels->widthValue(),
-			label->widthValue()
-		) | rpl::on_next([=](int outer, int inner) {
-			const auto skip = st::localStorageLimitMargin;
-			const auto size = st::localStorageLimitSlider.seekSize;
-			const auto available = outer
-				- skip.left()
-				- skip.right()
-				- size.width();
+		list.push_back(label);
+	}
+	labels->widthValue(
+	) | rpl::on_next([=](int outer) {
+		const auto skip = st::localStorageLimitMargin;
+		const auto size = st::localStorageLimitSlider.seekSize;
+		const auto available = outer
+			- skip.left()
+			- skip.right()
+			- size.width();
+		auto centers = std::vector<int>();
+		auto widths = std::vector<int>();
+		for (auto i = 0; i != kSlowmodeValues; ++i) {
+			const auto inner = list[i]->width();
 			const auto shift = (i == 0)
 				? -(size.width() / 2)
 				: (i + 1 == kSlowmodeValues)
@@ -855,9 +861,18 @@ void AddSlowmodeLabels(
 				+ (size.width() / 2)
 				+ (i * available) / (kSlowmodeValues - 1)
 				+ shift;
-			label->moveToLeft(left, 0, outer);
-		}, label->lifetime());
-	}
+			centers.push_back(left + inner / 2);
+			widths.push_back(inner);
+		}
+		const auto lefts = Ui::LayoutSliderTickLabels(
+			centers,
+			widths,
+			outer,
+			st::slowmodeLabel.font->spacew);
+		for (auto i = 0; i != kSlowmodeValues; ++i) {
+			list[i]->moveToLeft(lefts[i], 0, outer);
+		}
+	}, labels->lifetime());
 }
 
 rpl::producer<int> AddSlowmodeSlider(

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "ui/controls/swipe_handler.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_history.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget_accessibility.h"
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
+#include "tgw/tgw_scroll.h"
 
 struct ClickHandlerContext;
 struct HistorySelectedTextParts;
@@ -72,6 +74,13 @@ namespace HistoryView::ReplyButton {
 class Manager;
 struct ButtonParameters;
 } // namespace HistoryView::ReplyButton
+
+namespace Tgw {
+class ListSelection;
+class ListTouch;
+class WidgetSelection;
+class WidgetTouch;
+} // namespace Tgw
 
 namespace Window {
 struct SectionShow;
@@ -382,6 +391,7 @@ public:
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 	[[nodiscard]] Iv::RichPageBlocksSlice getSelectedRichBlocks() const;
+	[[nodiscard]] bool canCopySelected() const;
 	void copySelectedText(bool withImageText = false);
 	[[nodiscard]] MessageIdsList getSelectedIds() const;
 	[[nodiscard]] SelectedItems getSelectedItems() const;
@@ -389,6 +399,8 @@ public:
 		not_null<HistoryItem*> item) const;
 	[[nodiscard]] MessageSelection getSelectedTextSelection(
 		not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool hasWidgetSelection(
+		not_null<const HistoryItem*> item) const;
 	void clearSelected();
 	void clearTextSelection();
 	void cancelSelection();
@@ -404,6 +416,7 @@ public:
 
 	void touchScrollUpdated(const QPoint &screenPos);
 	[[nodiscard]] rpl::producer<bool> touchMaybeSelectingValue() const;
+	[[nodiscard]] Ui::Controls::SwipeHandoff touchSwipeHandoff();
 
 	[[nodiscard]] std::optional<int> skippedAtTop() const;
 	[[nodiscard]] std::optional<int> skippedAtBottom() const;
@@ -622,6 +635,10 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
+	friend class Tgw::ListScroll;
+	friend class Tgw::ListSelection;
+	friend class Tgw::ListTouch;
+
 	[[nodiscard]] static int SelectionViewOffset(
 		not_null<const ListWidget*> inner,
 		not_null<const Element*> view);
@@ -733,7 +750,8 @@ private:
 
 	void mouseActionStart(
 		const QPoint &globalPosition,
-		Qt::MouseButton button);
+		Qt::MouseButton button,
+		bool fromTouch = false);
 	void mouseActionUpdate(const QPoint &globalPosition);
 	void mouseActionUpdate();
 	void mouseActionFinish(
@@ -791,6 +809,7 @@ private:
 		int to,
 		Data::MessagePosition position,
 		anim::type animated,
+		Fn<std::optional<int>()> placement = nullptr,
 		crl::time duration = 0);
 	enum class AnimatedScroll {
 		Full,
@@ -802,6 +821,7 @@ private:
 		Data::MessagePosition attachPosition,
 		int delta,
 		AnimatedScroll type,
+		Fn<std::optional<int>()> placement = nullptr,
 		crl::time duration = 0);
 
 	void trySwitchToWordSelection();
@@ -1028,6 +1048,7 @@ private:
 	Element *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 	ScrollTopState _scrollTopState;
+	Tgw::ScrollFlight _scrollToFlight;
 	Ui::Animations::Simple _scrollToAnimation;
 	bool _scrollToBottomAnimation = false;
 	Fn<bool()> _overrideInitialScroll;
@@ -1115,6 +1136,8 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	rpl::variable<bool> _touchMaybeSelecting;
 	base::Timer _touchSelectTimer;
+	std::unique_ptr<Tgw::WidgetTouch> _widgetTouch;
+	std::unique_ptr<Tgw::WidgetSelection> _widgetSelection;
 
 	Ui::DraggingScrollManager _selectScroll;
 

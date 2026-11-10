@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_tag.h" // kTextCommandLangTag.
 #include "base/platform/base_platform_info.h"
 #include "base/qthelp_regex.h"
+#include "test/test_l10n_seams.h"
 
 #include "lang_auto_counts.h" // kKeysCount, kTagsCount.
 
@@ -805,6 +806,7 @@ QString GetNonDefaultValue(const QByteArray &key) {
 namespace details {
 
 QString Current(ushort key) {
+	Test::NoteLangRead(key);
 	return GetInstance().getValue(key);
 }
 

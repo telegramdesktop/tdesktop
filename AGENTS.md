@@ -152,7 +152,21 @@ Telegram/build/docker/centos_env/build_debug.sh
 cmake --build "l:\Telegram\tx64\out" --config Debug --target Telegram
 ```
 
-**Never build Release** - it's extremely heavy and not needed for testing changes.
+**Test changes with Debug builds.** Build Release only to measure
+performance, and only without link-time optimization: `out/CMakeCache.txt`
+must read `DESKTOP_APP_ENABLE_LTO:BOOL=OFF` before the build, and nothing may
+configure it ON. Build it with:
+
+```bash
+cmake --build out --config Release --target Telegram
+```
+
+The app lands in `out/Release`. To drive it with the `-testagent` harness,
+follow "Release builds with the harness" in
+`Telegram/SourceFiles/test/docs/launch.md`; on macOS reconfigure with
+`env -u QT cmake -S . -B out -DTDESKTOP_RELEASE_TEST_HARNESS=ON`, and switch it
+back OFF the same way when the measurement is done. A Release build never
+replaces the Debug build that proves a change compiles.
 
 **On macOS, never run an Xcode clean against `out/`** - not `--target clean`,
 not `--clean-first` with any target, not `xcodebuild ... clean` and not a
@@ -308,8 +322,9 @@ user to close that checkout's Telegram/debugger before rebuilding.
 
 ## Best Practices
 
-1. **Always use Debug builds** - Release builds are extremely heavy
-2. **Don't build Release configuration** - it's too heavy for testing
+1. **Always use Debug builds** to build and test changes
+2. **Build Release only to measure performance**, without LTO, as
+   "### Build Commands" describes
 
 ## Remote CI Build Validation (private-ci)
 
@@ -411,9 +426,9 @@ is in `.agents/skills/code-health/SKILL.md`.
 
 ## Coding Style
 
-**Comments are rationed:**
+**Comments:**
 
-A comment is one line; two or three only when the block opens with `// WHY:`. A commit may add two comment lines plus one such exception, and a trailing comment is a line too; only `} // namespace X` closers and `#endif // X` labels are free. Say why, never what. Hooks enforce it, and `Telegram/SourceFiles/test/` is exempt.
+Add no comments. A one-line comment carrying a reason is acceptable, at most two such lines per commit; anything longer only to carry a reference URL. `Telegram/SourceFiles/test/` is exempt.
 
 Do not remove existing comments just to satisfy this rule. Preserve comments unless your change makes them incorrect or truly obsolete; when moving or refactoring code, move the useful comment with it. Inline comments that label positional arguments for generated or schema-driven APIs (for example TL/MTP constructors) are useful because the field names are not visible in the call itself.
 
@@ -433,11 +448,9 @@ if (user->isPremium()) {
 // ACCEPTABLE - one line, and it carries a reason:
 _limit = kDefaultLimit; // the server rejects anything larger
 
-// ACCEPTABLE - the exception: opens with WHY, three lines at most,
-// once per commit.
-// WHY: the server sends the id before the peer exists, so the row is
-// created empty and filled on the next update, or the list flickers
-// on every reconnect.
+// ACCEPTABLE - longer, and it carries a reference URL:
+// The flag is ignored until the server rolls out the scheme
+// described at https://core.telegram.org/api/updates
 ```
 
 **Style and formatting rules** are in `REVIEW.md` — see that file for empty-line-before-closing-brace, operator placement in multi-line expressions, if-with-initializer, and other mechanical style rules.

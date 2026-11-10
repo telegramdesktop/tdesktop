@@ -45,7 +45,6 @@ struct ConfigFields {
 	QString autologinToken;
 
 	QString gifSearchUsername;
-	QString venueSearchUsername;
 };
 
 class Config final {

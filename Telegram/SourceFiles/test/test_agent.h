@@ -9,7 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Test {
 
-// True only in a Debug build launched with -testagent.
+// True only in a build with the harness (Debug, or Release configured with
+// TDESKTOP_RELEASE_TEST_HARNESS) launched with -testagent.
 [[nodiscard]] bool Active();
 
 // Applies TDESKTOP_TEST_* environment overrides (interface scale).
@@ -56,7 +57,7 @@ struct GramAccountFixture {
 
 // The two copies GramAccount() reads and the writers below write: the
 // marked live copy in the portable folder and the golden sibling. Paths
-// only; nothing is opened. Empty outside a Debug build.
+// only; nothing is opened. Empty in a build without the harness.
 [[nodiscard]] QString GramAccountLivePath();
 [[nodiscard]] QString GramAccountGoldenPath();
 

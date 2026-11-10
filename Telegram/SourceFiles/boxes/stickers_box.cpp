@@ -2470,8 +2470,8 @@ void StickersBox::Inner::rebuild(bool masks) {
 			: stickers.setsOrder().empty();
 		_megagroupSubTitle->setText(usingFeatured
 			? (_megagroupSetEmoji
-				? tr::lng_stickers_group_from_featured(tr::now)
-				: tr::lng_emoji_group_from_featured(tr::now))
+				? tr::lng_emoji_group_from_featured(tr::now)
+				: tr::lng_stickers_group_from_featured(tr::now))
 			: _megagroupSetEmoji
 			? tr::lng_emoji_group_from_your(tr::now)
 			: tr::lng_stickers_group_from_your(tr::now));

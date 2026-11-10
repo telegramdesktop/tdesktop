@@ -31,6 +31,7 @@ inline const QString kCreditsCurrency = u"XTR"_q;
 [[nodiscard]] QString FormatTTL(float64 ttl);
 [[nodiscard]] QString FormatTTLAfter(float64 ttl);
 [[nodiscard]] QString FormatTTLTiny(float64 ttl);
+[[nodiscard]] QString FormatTTLBadge(float64 ttl);
 [[nodiscard]] QString FormatMuteFor(float64 sec);
 [[nodiscard]] QString FormatMuteForTiny(float64 sec);
 [[nodiscard]] QString FormatResetCloudPasswordIn(float64 sec);

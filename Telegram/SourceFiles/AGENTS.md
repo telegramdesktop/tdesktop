@@ -174,7 +174,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 
 ### window — window shell and navigation
 - Paths: `SourceFiles/window/`, `SourceFiles/mainwidget*`, `SourceFiles/mainwindow*`, `SourceFiles/boxes/abstract_box*`, `SourceFiles/dialogs/ui/restore_windows_offer*`, `SourceFiles/ui/controls/window_*`, `SourceFiles/ui/controls/title_sub_widget*`
-- OS windows and their controllers, `SessionController` showing chats, sections, layers and boxes, section mementos and slide animations, the main menu, folders sidebar, saved windows, chat switching and previews, the connecting widget and lock screens. It must not own chat action menus or notifications.
+- OS windows and their controllers, each controller's own `Columns` with `Core::Settings` as the main role window's persisted copy, `SessionController` showing chats, sections, layers and boxes, section mementos and slide animations, the main menu, folders sidebar, saved windows, chat switching and previews, the connecting widget and lock screens. It must not own chat action menus or notifications.
 
 ### notifications — notification system
 - Paths: `SourceFiles/window/notifications_*`
@@ -391,4 +391,4 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 ### test — test tooling
 - Paths: `SourceFiles/test/`, `SourceFiles/tests/`
 - Start with the short `test/README.md`; helper contracts and task-specific guides live under `test/docs/`. New or changed helper documentation follows `test/docs/adding-helpers.md`.
-- The Debug-only `-testagent` harness (scenario runner, evidence log, session and RPC fixtures, widget probes and pixel captures, wallet fixtures and the secrecy scan) and the standalone unit tests for the text engine and the updater. Product code must not depend on it. Today it also exposes hooks that `core/application.cpp`, `data_document.cpp`, `mtp_instance.cpp` and `platform_file_utilities.cpp` call directly; those belong behind seams owned by the calling areas.
+- The `-testagent` harness (scenario runner, evidence log, session and RPC fixtures, widget probes and pixel captures, wallet fixtures and the secrecy scan) and the standalone unit tests for the text engine and the updater. The harness is compiled in Debug and, with the `TDESKTOP_RELEASE_TEST_HARNESS` CMake option, in Release. Product code must not depend on it. Today it also exposes hooks that `core/application.cpp`, `data_document.cpp`, `mtp_instance.cpp`, `platform_file_utilities.cpp` and `tgw_runtime.cpp` call directly; those belong behind seams owned by the calling areas.

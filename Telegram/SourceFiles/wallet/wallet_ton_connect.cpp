@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_ton_connect.h"
 
 #include "base/timer.h"
+#include "gram/gram_boc.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "main/main_session.h"
@@ -15,17 +16,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/delayed_activation.h"
 #include "wallet/wallet_content.h"
+#include "wallet/wallet_engine.h"
 #include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_ton_connect_box.h"
 #include "wallet/wallet_ton_connect_request.h"
 #include "window/window_session_controller.h"
 
+#include "wallet_engine.hpp"
+
 #include <QtCore/QUrl>
+
+#include <limits>
 
 namespace Wallet {
 namespace {
 
+namespace engine = wallet_engine;
 using BoxPhase = TonConnectBoxPhase;
 
 constexpr auto kWalletResolveTimeout = 20 * crl::time(1000);
@@ -136,6 +143,36 @@ constexpr auto kBidiControls = std::array{
 		|| !info.clientId.compare(key.clientId, Qt::CaseInsensitive);
 }
 
+[[nodiscard]] std::vector<TonConnectSignDataField> DecodedCellFields(
+		engine::TonConnectDerivedSession &session,
+		const std::string &schema,
+		const std::string &cell) {
+	using Decoding = engine::TonConnectSignDataCellDecoding;
+	auto result = std::vector<TonConnectSignDataField>();
+	try {
+		const auto decoding = session.decode_sign_data_cell(schema, cell);
+		const auto decoded = std::get_if<Decoding::kDecoded>(
+			&decoding.get_variant());
+		if (!decoded) {
+			return result;
+		}
+		result.reserve(decoded->fields.size());
+		for (const auto &field : decoded->fields) {
+			result.push_back({
+				.depth = int(std::min(
+					field.depth,
+					uint32_t(std::numeric_limits<int>::max()))),
+				.name = QString::fromStdString(field.name),
+				.value = QString::fromStdString(field.value),
+			});
+		}
+	} catch (...) {
+		// Display only: a failed decode must not cost the request its answer.
+		return {};
+	}
+	return result;
+}
+
 } // namespace
 
 class TonConnect::Connect final : public base::has_weak_ptr {
@@ -225,6 +262,88 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+std::optional<TonConnectTransfer> TonConnectTransferFromEngine(
+		const engine::SendRequest &request) {
+	auto result = TonConnectTransfer{
+		.request = std::make_shared<const engine::SendRequest>(request),
+	};
+	for (const auto &message : request.intent.messages) {
+		const auto &amount = message.amount.get_variant();
+		const auto exact = std::get_if<engine::SendAmount::kExact>(&amount);
+		const auto nano = exact
+			? DecimalInt64(exact->nanograms)
+			: std::optional<int64>();
+		if (!nano
+			|| *nano < 0
+			|| *nano > std::numeric_limits<int64>::max() - result.totalNano) {
+			return std::nullopt;
+		}
+		result.totalNano += *nano;
+		auto entry = TonConnectMessage{
+			.destination = QString::fromStdString(message.destination),
+			.amountNano = *nano,
+			.deploys = message.state_init.has_value(),
+		};
+		const auto &body = message.body.get_variant();
+		const auto comment = std::get_if<
+			engine::SendMessageBody::kComment>(&body);
+		const auto raw = std::get_if<
+			engine::SendMessageBody::kRawPayload>(&body);
+		if (comment) {
+			entry.comment = QString::fromStdString(comment->text);
+		} else if (raw) {
+			const auto boc = QString::fromStdString(raw->boc);
+			if (const auto text = Gram::TextCommentFromBoc(boc)) {
+				entry.comment = *text;
+			} else {
+				entry.payload = boc;
+			}
+		}
+		result.messages.push_back(std::move(entry));
+	}
+	const auto &expiration = request.intent.expiration.get_variant();
+	const auto until = std::get_if<
+		engine::SendExpiration::kExact>(&expiration);
+	if (until) {
+		result.validUntil = TimeId(std::min<uint64>(
+			until->unix_timestamp,
+			std::numeric_limits<TimeId>::max()));
+	}
+	return result;
+}
+
+TonConnectSignData TonConnectSignDataFromEngine(
+		engine::TonConnectDerivedSession *session,
+		const engine::TonConnectSignDataRequest &request) {
+	using Payload = engine::TonConnectSignDataPayload;
+	using Type = TonConnectSignDataType;
+	auto result = TonConnectSignData{
+		.request = std::make_shared<const engine::TonConnectSignDataRequest>(
+			request),
+	};
+	std::visit([&](const auto &data) {
+		using T = std::decay_t<decltype(data)>;
+		if constexpr (std::is_same_v<T, Payload::kText>) {
+			result.type = Type::Text;
+			result.data = QString::fromStdString(data.text);
+		} else if constexpr (std::is_same_v<T, Payload::kBinary>) {
+			result.type = Type::Binary;
+			result.data = QString::fromStdString(data.bytes);
+		} else if constexpr (std::is_same_v<T, Payload::kCell>) {
+			result.type = Type::Cell;
+			result.data = QString::fromStdString(data.cell);
+			result.schema = QString::fromStdString(data.schema);
+			if (session) {
+				result.fields = DecodedCellFields(
+					*session,
+					data.schema,
+					data.cell);
+			}
+		}
+	}, request.payload.get_variant());
+	return result;
+}
 
 QString TonConnectHost(const QString &url) {
 	const auto parsed = QUrl(url, QUrl::StrictMode);

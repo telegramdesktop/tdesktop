@@ -62,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_html_tags.h"
 #include "ui/text/text_utilities.h"
@@ -148,7 +149,7 @@ namespace {
 
 constexpr auto kRetainedLeafFieldLimit = 50;
 constexpr auto kTooltipDelay = 1000;
-thread_local Widget *PreservingExternalFieldRestore = nullptr;
+thread_local auto PreservingExternalFieldRestore = (Widget*)nullptr;
 using ToolbarFormatAction = Widget::ToolbarFormatAction;
 using ToolbarLinkMode = Widget::ToolbarLinkMode;
 using TextFormattingAction = State::TextFormattingAction;
@@ -265,6 +266,38 @@ struct SplitCommittedFieldOffset {
 		};
 	}
 	return std::nullopt;
+}
+
+[[nodiscard]] auto CaptureCommittedFieldSelection(
+		const Ui::InputField &field,
+		const State &state,
+		const Widget &widget,
+		int (Widget::*richOffset)(const TextWithEntities &, int) const)
+-> std::optional<CommittedFieldSelectionCapture> {
+	if (field.isHidden()
+		|| (state.activeFieldMode() != State::FieldMode::Rich)) {
+		return std::optional<CommittedFieldSelectionCapture>();
+	}
+	const auto leaf = state.activeLeafPath();
+	if (!leaf) {
+		return std::optional<CommittedFieldSelectionCapture>();
+	}
+	const auto text = ConvertEditorTagsToRichText(
+		field.getTextWithAppliedMarkdown());
+	const auto cursor = field.textCursor();
+	const auto length = int(text.text.size());
+	return std::make_optional(CommittedFieldSelectionCapture{
+		.leaf = *leaf,
+		.text = text,
+		.anchorOffset = std::clamp(
+			(widget.*richOffset)(text, cursor.anchor()),
+			0,
+			length),
+		.cursorOffset = std::clamp(
+			(widget.*richOffset)(text, cursor.position()),
+			0,
+			length),
+	});
 }
 
 [[nodiscard]] std::optional<CommittedFieldSelectionRestore>
@@ -8382,32 +8415,11 @@ std::optional<PreparedEditHit> Widget::boundaryHitFromTarget(
 }
 
 bool Widget::enterStructuralSelectionFromField(bool forward, bool page) {
-	const auto committedSelection = [&]() {
-		if (_field->isHidden()
-			|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto leaf = _state->activeLeafPath();
-		if (!leaf) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto text = ConvertEditorTagsToRichText(
-			_field->getTextWithAppliedMarkdown());
-		const auto cursor = _field->textCursor();
-		const auto length = int(text.text.size());
-		return std::make_optional(CommittedFieldSelectionCapture{
-			.leaf = *leaf,
-			.text = text,
-			.anchorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.anchor()),
-				0,
-				length),
-			.cursorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.position()),
-				0,
-				length),
-		});
-	}();
+	const auto committedSelection = CaptureCommittedFieldSelection(
+		*_field,
+		*_state,
+		*this,
+		&Widget::richOffsetForFieldOffset);
 	const auto committed = commitInlineFieldForClose();
 	if (committed == ApplyResult::Failed) {
 		return false;
@@ -9424,32 +9436,11 @@ bool Widget::moveListItemDepth(bool deeper) {
 
 bool Widget::removeBoundaryOwner(bool forward) {
 	auto handled = false;
-	const auto committedSelection = [&]() {
-		if (_field->isHidden()
-			|| (_state->activeFieldMode() != State::FieldMode::Rich)) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto leaf = _state->activeLeafPath();
-		if (!leaf) {
-			return std::optional<CommittedFieldSelectionCapture>();
-		}
-		const auto text = ConvertEditorTagsToRichText(
-			_field->getTextWithAppliedMarkdown());
-		const auto cursor = _field->textCursor();
-		const auto length = int(text.text.size());
-		return std::make_optional(CommittedFieldSelectionCapture{
-			.leaf = *leaf,
-			.text = text,
-			.anchorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.anchor()),
-				0,
-				length),
-			.cursorOffset = std::clamp(
-				richOffsetForFieldOffset(text, cursor.position()),
-				0,
-				length),
-		});
-	}();
+	const auto committedSelection = CaptureCommittedFieldSelection(
+		*_field,
+		*_state,
+		*this,
+		&Widget::richOffsetForFieldOffset);
 	beginArticleRelayoutDeferral();
 	const auto relayoutGuard = gsl::finally([&] {
 		endArticleRelayoutDeferral();
@@ -11241,26 +11232,28 @@ void Widget::removeStructuralSelectionAndReposition(bool forward) {
 	const auto origin = [&]() -> std::optional<BoundarySelectionOrigin> {
 		if (_boundarySelectionOrigin
 			&& _boundarySelectionOrigin->forward == forward) {
-			return _boundarySelectionOrigin;
+			auto result = *_boundarySelectionOrigin;
+			result.leafSelection.leaf = _state->shiftLeafAfterRemovedSelection(
+				_structuralSelection,
+				result.leafSelection.leaf);
+			return result;
 		}
 		return std::nullopt;
 	}();
+	const auto historyIndex = _historyIndex;
 	const auto target = removeCurrentStructuralSelection(forward);
 	if (hasStructuralSelection()) {
 		return;
 	}
-	if (origin) {
-		const auto ordinal = _state->textOrdinalForLeafPath(
-			origin->leafSelection.leaf);
-		if (ordinal >= 0 && ordinal < _state->textNodeCount()) {
-			activateTextOrdinal(
-				ordinal,
-				origin->leafSelection.anchorOffset,
-				origin->leafSelection.cursorOffset);
-			return;
-		}
-	}
-	if (target) {
+	const auto originOrdinal = origin
+		? _state->textOrdinalForLeafPath(origin->leafSelection.leaf)
+		: -1;
+	if (originOrdinal >= 0 && originOrdinal < _state->textNodeCount()) {
+		activateTextOrdinal(
+			originOrdinal,
+			origin->leafSelection.anchorOffset,
+			origin->leafSelection.cursorOffset);
+	} else if (target) {
 		if (forward) {
 			activateTextOrdinal(*target, 0);
 		} else {
@@ -11268,6 +11261,11 @@ void Widget::removeStructuralSelectionAndReposition(bool forward) {
 		}
 	} else {
 		activateInitialNode();
+	}
+	if (_historyIndex != historyIndex
+		&& _historyIndex >= 0
+		&& _historyIndex < int(_history.size())) {
+		_history[_historyIndex].viewState = captureHistoryViewState();
 	}
 }
 

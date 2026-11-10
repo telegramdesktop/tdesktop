@@ -2899,7 +2899,8 @@ void Controller::saveForum() {
 	_api.request(MTPchannels_ToggleForum(
 		channel->inputChannel(),
 		MTP_bool(*_savingData.forum),
-		MTP_bool(*_savingData.forum && *_savingData.forumTabs)
+		MTP_bool(*_savingData.forum && *_savingData.forumTabs),
+		MTP_bool(false)
 	)).done([=](const MTPUpdates &result) {
 		const auto weak = base::make_weak(this);
 		channel->session().api().applyUpdates(result);

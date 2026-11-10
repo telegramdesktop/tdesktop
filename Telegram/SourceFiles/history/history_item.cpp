@@ -87,6 +87,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "payments/payments_non_panel_process.h" // ProcessNonPanelPaymentFormFactory.
 #include "platform/platform_notifications_manager.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
+#include "tgw/tgw_media.h"
 
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
@@ -559,6 +560,10 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 	}, [](const MTPDmessageMediaVideoStream &) -> Result {
 		// Live stories.
 		return nullptr;
+	}, [&](const MTPDmessageMediaWidget &media) -> Result {
+		return std::make_unique<Tgw::WidgetMedia>(
+			item,
+			Tgw::ParseWidgetFields(media));
 	}, [](const MTPDmessageMediaEmpty &) -> Result {
 		return nullptr;
 	}, [](const MTPDmessageMediaUnsupported &) -> Result {
@@ -752,7 +757,10 @@ HistoryItem::HistoryItem(
 	auto config = CreateConfig();
 
 	const auto originalMedia = original->media();
-	const auto dropForwardInfo = fields.ignoreForwardFrom
+	// drop_author never applies to widgets: the server keeps their header.
+	const auto ignoreForwardFrom = fields.ignoreForwardFrom
+		&& !dynamic_cast<const Tgw::WidgetMedia*>(originalMedia);
+	const auto dropForwardInfo = ignoreForwardFrom
 		|| original->computeDropForwardedInfo();
 	const auto topicRootId = fields.replyTo.topicRootId;
 	config.reply.messageId = config.reply.topMessageId = topicRootId;
@@ -2390,22 +2398,24 @@ void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
 
+MsgId HistoryItem::notificationTopicRootId() const {
+	const auto rootId = topicRootId();
+	// A bot has no General topic, enforcing one would list it empty.
+	const auto botGeneral = (rootId == Data::ForumTopic::kGeneralId)
+		&& _history->peer->isBot();
+	return (_history->asForum() && !botGeneral) ? rootId : MsgId();
+}
+
 not_null<Data::Thread*> HistoryItem::notificationThread() const {
-	if (const auto rootId = topicRootId()) {
-		if (const auto forum = _history->asForum()) {
-			if (!_history->peer->isBot()) {
-				return forum->enforceTopicFor(rootId);
-			}
-		}
+	if (const auto rootId = notificationTopicRootId()) {
+		return _history->asForum()->enforceTopicFor(rootId);
 	}
 	return _history;
 }
 
 Data::Thread *HistoryItem::maybeNotificationThread() const {
-	if (const auto rootId = topicRootId()) {
-		if (const auto forum = _history->asForum()) {
-			return forum->topicFor(rootId);
-		}
+	if (const auto rootId = notificationTopicRootId()) {
+		return _history->asForum()->topicFor(rootId);
 	}
 	return _history;
 }
@@ -8636,12 +8646,10 @@ PreparedServiceText HistoryItem::preparePinnedText() {
 			tr::marked);
 	} else {
 		result.links.push_back(fromLink());
-		result.text = tr::lng_action_pinned_media(
+		result.text = tr::lng_action_pinned_deleted(
 			tr::now,
 			lt_from,
 			fromLinkText(), // Link 1.
-			lt_media,
-			{ .text = tr::lng_deleted_message(tr::now) },
 			tr::marked);
 	}
 	return result;

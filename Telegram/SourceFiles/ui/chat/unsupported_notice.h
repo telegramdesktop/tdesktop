@@ -30,13 +30,36 @@ public:
 		const ChatPaintContext &context,
 		QRect cardRect,
 		RippleAnimation *ripple) const;
+	void paintInBubble(
+		Painter &p,
+		const ChatPaintContext &context,
+		QRect cardRect,
+		RippleAnimation *ripple) const;
+
+	void buttonPressedChanged(
+		std::unique_ptr<RippleAnimation> &ripple,
+		bool pressed,
+		QPoint origin,
+		Fn<void()> repaint) const;
 
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int height() const;
 	[[nodiscard]] QRect buttonRect() const;
-	[[nodiscard]] QSize buttonSize() const;
 
 private:
+	struct Colors {
+		QColor bg;
+		QColor fg;
+		QColor text;
+	};
+
+	void paintColored(
+		Painter &p,
+		const ChatPaintContext &context,
+		QRect cardRect,
+		RippleAnimation *ripple,
+		const Colors &colors) const;
+
 	Text::String _title;
 	Text::String _text;
 	Text::String _button;

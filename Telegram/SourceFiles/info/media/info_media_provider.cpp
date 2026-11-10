@@ -495,6 +495,13 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	if (!item) {
 		return nullptr;
 	}
+	return CreateLayout(delegate, item, type);
+}
+
+std::unique_ptr<BaseLayout> CreateLayout(
+		not_null<Overview::Layout::Delegate*> delegate,
+		not_null<HistoryItem*> item,
+		Type type) {
 	const auto getPhoto = [&]() -> PhotoData* {
 		if (const auto media = item->media()) {
 			return media->photo();

@@ -55,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
+#include "history/history_location_manager.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/view/reactions/history_view_reactions_list.h"
 #include "info/bot/earn/info_bot_earn_widget.h"
@@ -2761,9 +2762,7 @@ Section DetailsFiller::makeTopicsList(not_null<Data::Forum*> forum) {
 	raw->toggleOn(rpl::duplicate(showTopicsVisible));
 	AddMainButton(
 		raw->entity(),
-		(forum->peer()->isBot()
-			? tr::lng_bot_show_threads_list()
-			: tr::lng_forum_show_topics_list()),
+		tr::lng_forum_show_topics_list(),
 		std::move(showTopicsVisible),
 		callback,
 		nullptr,

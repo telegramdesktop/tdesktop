@@ -48,6 +48,17 @@ void DownloadPathBox::prepare() {
 		radioChanged(value);
 	});
 
+	const auto radioWidth = st::boxWideWidth
+		- st::boxPadding.left()
+		- st::boxOptionListPadding.left()
+		- st::boxPadding.right();
+	for (const auto radio : { _default.data(), _temp.data(), _dir.data() }) {
+		if (radio) {
+			radio->setAllowTextLines();
+			radio->resizeToWidth(radioWidth);
+		}
+	}
+
 	_pathLink->addClickHandler([=] { editPath(); });
 	if (!_path.isEmpty() && _path != FileDialog::Tmp()) {
 		setPathText(QDir::toNativeSeparators(_path));

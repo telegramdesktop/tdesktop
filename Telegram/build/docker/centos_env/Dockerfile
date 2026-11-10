@@ -161,7 +161,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin 13b4eb3dc1b8ef404b4ab04750e0fd7aafbe06c2
+git fetch --depth=1 origin a59fc82462fb2987e9f0ee1498e2db694410ae81
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -212,7 +212,7 @@ EOF
 
 FROM builder AS brotli
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b v1.2.0 --depth=1 https://github.com/google/brotli.git
+git clone -b v1.2.1 --depth=1 https://github.com/google/brotli.git
 cd brotli
 cmake -B build . -DBUILD_SHARED_LIBS=OFF -DBROTLI_DISABLE_TESTS=ON
 cmake --build build
@@ -285,13 +285,14 @@ cd ..
 rm -rf openh264
 EOF
 
-FROM builder AS vpx
+FROM patches AS vpx
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init libvpx
 cd libvpx
 git remote add origin https://github.com/webmproject/libvpx.git
 git fetch --depth=1 origin 12f3a2ac603e8f10742105519e0cd03c3b8f71dd
 git reset --hard FETCH_HEAD
+find ../patches/libvpx -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply
 CFLAGS="$CFLAGS -fno-lto" CXXFLAGS="$CXXFLAGS -fno-lto" ./configure \
 	--disable-examples \
 	--disable-unit-tests \
@@ -595,7 +596,7 @@ make -C nv-codec-headers DESTDIR=/usr/src/nv-codec-headers-cache install
 rm -rf nv-codec-headers
 EOF
 
-FROM builder AS ffmpeg
+FROM patches AS ffmpeg
 COPY --link --from=opus /usr/src/opus-cache /
 COPY --link --from=openh264 /usr/src/openh264-cache /
 COPY --link --from=dav1d /usr/src/dav1d-cache /
@@ -607,6 +608,7 @@ COPY --link --from=nv-codec-headers /usr/src/nv-codec-headers-cache /
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b n8.1.3 --depth=1 https://github.com/FFmpeg/FFmpeg.git
 cd FFmpeg
+find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply
 ./configure \
 	--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
 	--extra-cxxflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
@@ -953,7 +955,7 @@ RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tg_owt
 cd tg_owt
 git remote add origin https://github.com/desktop-app/tg_owt.git
-git fetch --depth=1 origin 49ceed3985d8626b3a24bdb14d9c593a115cc6e8
+git fetch --depth=1 origin 020feec5c040fdae2cf752c2c2be62ddde7c236d
 git reset --hard FETCH_HEAD
 git submodule update --init --recursive --depth=1
 cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON

@@ -28,6 +28,7 @@ enum class CursorState : char {
 	Forwarded,
 	FromPhoto,
 	LogAdminService,
+	Default,
 };
 
 struct TextState {
@@ -84,6 +85,7 @@ struct StateRequest {
 enum class InfoDisplayType : char {
 	Default,
 	Image,
+	ImageLeftToRight,
 	Background,
 };
 

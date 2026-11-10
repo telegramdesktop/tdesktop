@@ -21,6 +21,13 @@ stages (`addRecovery`, see
 `onFinish` release hook (and its finish-release self-test), watchdog
 (`TDESKTOP_TEST_WATCHDOG` in seconds) and termination.
 
+A permanent scenario module that is compiled only on request, such as the
+localization capture from the l10n-tdesktop repository, registers itself from a static
+initializer with `RegisterScenarioProvider`. `Start()` asks each provider in
+turn; the first that returns true has appended its stages and the overlay's
+`SetupScenario` is not called. A provider returns false when its own switch,
+usually an environment variable, is not set.
+
 ## The stage contract
 
 `Runner` executes each `Stage` as three distinct operations:

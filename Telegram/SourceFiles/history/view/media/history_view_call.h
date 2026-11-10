@@ -51,6 +51,7 @@ private:
 
 	QString _text;
 	QString _status;
+	int _textWidth = 0;
 
 	ClickHandlerPtr _link;
 

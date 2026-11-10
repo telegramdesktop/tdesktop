@@ -316,6 +316,10 @@ def command_area(args):
 
 
 def command_check(args):
+    if not (Path(args.repo) / 'Telegram').is_dir():
+        print(f'{args.repo} has no Telegram folder; run check from the superproject, '
+              'which reads changed Telegram/lib_* submodules itself.', file=sys.stderr)
+        return 2
     tree = sources.from_worktree(args.repo)
     if args.staged:
         for status, path in review.changed(tree.repo, args.base, True):

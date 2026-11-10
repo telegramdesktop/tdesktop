@@ -338,6 +338,12 @@ Assess the plan:
    - New files are not the problem: a focused file bounding a coherent role
      beats both growing a mega-module and scattering through one; judge
      whether the boundary does work, not whether it is new.
+   - Proportionality: size the plan to the request, not to how rigorous it
+     could be. Test fixtures, one-off tooling and harness-only work get the
+     smallest thing that produces the requested result; repeatability,
+     determinism, safety gates, read-back verification and validation that
+     the request does not name come out of the plan. A plan whose machinery
+     is several times what the result needs is `Approach: rejected`.
    - Harness code: check the plan's `Code:` line against its planned paths;
      any product path makes it `Code: product`. This is harness or testing
      code no user runs, so for `Code: harness` judge the plan against the
@@ -357,7 +363,12 @@ Assess the plan:
    necessary combination. Apply the revert test and remove unrelated checks.
    Preserve deep app testing when behavior lives in Telegram, and require tight
    captures for visible claims. Do not require Telegram for an isolated probe or
-   build-stage claim it cannot strengthen.
+   build-stage claim it cannot strengthen. For test fixtures and one-off
+   tooling, the evidence is that it ran and produced the requested result.
+   List every external prerequisite the evidence relies on (accounts and their
+   servers, server-side limits a run consumes, credentials, external files or
+   devices) under `## Prerequisites` in test-design.md with a cheap read-only
+   probe for each.
 7. Phase sizing: Each phase should be implementable by a single agent in one
    session. If a phase has more than about 8-10 substantive code changes, split
    the phase. Then assess the task as a whole: several well-sized phases do not

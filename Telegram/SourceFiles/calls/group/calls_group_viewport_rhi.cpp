@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_members_row.h"
 #include "webrtc/webrtc_video_track.h"
 #include "media/view/media_view_pip.h"
-#include "media/streaming/media_streaming_utility.h"
 #include "ui/rhi/rhi_shader.h"
 #include "ui/painter.h"
 #include "data/data_peer.h"
@@ -29,7 +28,6 @@ namespace {
 using namespace Ui::GL;
 
 constexpr auto kNoiseTextureSize = 256;
-constexpr auto kBlurTextureSizeFactor = 4.;
 constexpr auto kBlurOpacity = 0.65f;
 
 // The NDC Y flip stays at offset 12 in every block, see NdcFlipY().
@@ -82,50 +80,6 @@ static_assert(sizeof(ImageUniforms) == 16);
 		-1.f,  1.f * flipY, 0.f, 0.f,
 		 1.f,  1.f * flipY, 1.f, 0.f,
 	} };
-}
-
-[[nodiscard]] bool UseExpandForCamera(QSize original, QSize viewport) {
-	using namespace ::Media::Streaming;
-	return DecideFrameResize(viewport, original).expanding;
-}
-
-[[nodiscard]] QSize NonEmpty(QSize size) {
-	return QSize(std::max(size.width(), 1), std::max(size.height(), 1));
-}
-
-[[nodiscard]] QSize CountBlurredSize(
-		QSize unscaled,
-		QSize outer,
-		float factor) {
-	factor *= kBlurTextureSizeFactor;
-	const auto area = outer / int(base::SafeRound(factor * cScale() / 100));
-	const auto scaled = unscaled.scaled(area, Qt::KeepAspectRatio);
-	return (scaled.width() > unscaled.width()
-		|| scaled.height() > unscaled.height())
-		? unscaled
-		: NonEmpty(scaled);
-}
-
-[[nodiscard]] QSize InterpolateScaledSize(
-		QSize unscaled,
-		QSize size,
-		float64 ratio) {
-	if (ratio == 0.) {
-		return NonEmpty(unscaled.scaled(size, Qt::KeepAspectRatio));
-	} else if (ratio == 1.) {
-		return NonEmpty(unscaled.scaled(
-			size,
-			Qt::KeepAspectRatioByExpanding));
-	}
-	const auto notExpanded = NonEmpty(unscaled.scaled(
-		size,
-		Qt::KeepAspectRatio));
-	const auto expanded = NonEmpty(unscaled.scaled(
-		size,
-		Qt::KeepAspectRatioByExpanding));
-	return QSize(
-		anim::interpolate(notExpanded.width(), expanded.width(), ratio),
-		anim::interpolate(notExpanded.height(), expanded.height(), ratio));
 }
 
 [[nodiscard]] std::array<std::array<float, 2>, 4> CountTexCoords(
@@ -1602,7 +1556,7 @@ void Viewport::RendererRhi::drawControls(
 		const auto pauseIconTop = !_owner->wide()
 			? (y + (height - st::groupCallPaused.height()) / 2)
 			: (pausedSpace < 3 * st::semiboldFont->height)
-			? (pausedSpace / 3)
+			? (y + (pausedSpace / 3))
 			: std::min(
 				y + (height / 2) - pauseIconSkip,
 				(nameTop

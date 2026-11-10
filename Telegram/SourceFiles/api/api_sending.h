@@ -18,10 +18,6 @@ class PhotoData;
 class DocumentData;
 struct FilePrepareResult;
 
-namespace Data {
-struct InputVenue;
-} // namespace Data
-
 namespace Main {
 class Session;
 } // namespace Main
@@ -55,8 +51,6 @@ bool SendDice(MessageToSend &message);
 // for a local sending message, because we can't request
 // map thumbnail in messages history without access hash.
 void SendLocation(SendAction action, float64 lat, float64 lon);
-
-void SendVenue(SendAction action, Data::InputVenue venue);
 
 void FillMessagePostFlags(
 	const SendAction &action,

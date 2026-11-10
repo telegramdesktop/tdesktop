@@ -182,13 +182,13 @@ bool UnsafeShowOpenWithDropdown(const QString &filepath) {
 
 	auto result = false;
 	std::vector<OpenWithApp> handlers;
-	IShellItem* pItem = nullptr;
+	auto pItem = (IShellItem*)nullptr;
 	if (SUCCEEDED(Dlls::SHCreateItemFromParsingName(wstringPath.c_str(), nullptr, IID_PPV_ARGS(&pItem)))) {
-		IEnumAssocHandlers *assocHandlers = nullptr;
+		auto assocHandlers = (IEnumAssocHandlers*)nullptr;
 		if (SUCCEEDED(pItem->BindToHandler(nullptr, BHID_EnumAssocHandlers, IID_PPV_ARGS(&assocHandlers)))) {
 			HRESULT hr = S_FALSE;
 			do {
-				IAssocHandler *handler = nullptr;
+				auto handler = (IAssocHandler*)nullptr;
 				ULONG ulFetched = 0;
 				hr = assocHandlers->Next(1, &handler, &ulFetched);
 				if (FAILED(hr) || hr == S_FALSE || !ulFetched) break;

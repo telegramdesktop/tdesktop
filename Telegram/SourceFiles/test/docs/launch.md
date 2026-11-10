@@ -71,3 +71,38 @@ rejected and the hold is kept. Off macOS nothing reads
 Read [input targeting](helpers/test_widgets.md#input-helpers) for the actual
 event route, [window exposure](helpers/test_window_exposure.md) for painting
 and [console state](helpers/test_console_lock.md) when diagnosing a refusal.
+
+## Release builds with the harness
+
+The harness is compiled in Debug builds. The CMake option
+`TDESKTOP_RELEASE_TEST_HARNESS`, OFF by default, also compiles it into the
+Release configuration, for local measurements of an optimized build: it
+defines `TDESKTOP_RELEASE_TEST_HARNESS` for the whole Telegram target in
+Release only, so Debug, MinSizeRel and RelWithDebInfo stay unchanged.
+Configuring it ON together with `DESKTOP_APP_ENABLE_LTO`, the official release
+builds' setting, fails; such a binary is never shipped. Switch it by
+reconfiguring the existing tree, and back OFF when done:
+
+```
+C:\Telegram\ThirdParty\CMake\bin\cmake.exe -S <source> -B <source>\out -DTDESKTOP_RELEASE_TEST_HARNESS=ON
+C:\Telegram\ThirdParty\CMake\bin\cmake.exe -S <source> -B <source>\out -DTDESKTOP_RELEASE_TEST_HARNESS=OFF
+```
+
+The definition is on every Release compile command, so the first Release
+build after either switch rebuilds every Telegram object.
+
+- Harness translation units are gated
+  `#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS`. An overlay
+  hunk in a product file must use the same condition to be compiled in such a
+  build; one under `#ifdef _DEBUG` is left out.
+- `test_wallet_ready.cpp` stays Debug-only: it calls the Debug-only
+  `Wallet::Session::debugClearNetworkState()`.
+- Where a harness header says "Debug build", "Debug-only" or "the Release
+  branch", read a build with the harness and one without it.
+- `out/Release` has no golden folder: launch with `workspace.py test-run
+  --portable-root <dir>`, with `<dir>/test_TelegramForcePortable` copied from
+  the Debug golden (`.agents/shared/test-loop.md`, wallet-custody limit
+  included).
+- `-testagent` turns on debug logging and the deadlock detector's ping thread
+  in every configuration (`core/launcher.cpp`, `core/sandbox.cpp`), an
+  observer cost inside any measurement.

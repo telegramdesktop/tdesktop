@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
+#include "tgw/tgw_runtime.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
 #include "core/crash_reports.h"
@@ -267,7 +268,7 @@ int Sandbox::stopRunningInstance() {
 void Sandbox::QuitWhenStarted() {
 	if (!QApplication::instance() || !Instance()._started) {
 		QuitOnStartRequested = true;
-	} else {
+	} else if (!Tgw::Runtime::IsExitPrevent(QuitWhenStarted)) {
 		// WHY: quit() on macOS since Qt 6.0 routes through [NSApp terminate:],
 		// and since Qt 6.7 even exit() emits aboutToQuit synchronously, which
 		// destroys windows mid-dispatch. So exit(0), deferred one loop tick.
@@ -361,10 +362,11 @@ Sandbox::~Sandbox() {
 
 bool Sandbox::event(QEvent *e) {
 	if (e->type() == QEvent::Quit) {
-		if (Quitting()) {
+		if (!Quitting()) {
+			Quit(QuitReason::QtQuitEvent);
+		} else if (!Tgw::Runtime::IsExitPrevent(QuitWhenStarted)) {
 			return QCoreApplication::event(e);
 		}
-		Quit(QuitReason::QtQuitEvent);
 		e->ignore();
 		return false;
 	} else if (e->type() == QEvent::Close) {

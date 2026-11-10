@@ -18,6 +18,7 @@ should call.
 | [test_log_lines](test_log_lines.md) | Self-test | Self-test for one physical record per log call |
 | [test_text_reads](test_text_reads.md) | API | Space-normalized text assertions |
 | [test_lang_pack](test_lang_pack.md) | API | Temporary language overrides and restoration |
+| [test_l10n_seams](test_l10n_seams.md) | Internal dependency | Phrase-read observer, app-config overrides and the request holder for the localization capture |
 | [test_probe](test_probe.md) | API | Windowed observations and correlated requests |
 | [test_expiry_window](test_expiry_window.md) | API | Served-expiry observations bound to a live owner, generation and link; frozen cutoff windows and boundary polls with named refusals |
 | [test_widgets](test_widgets.md) | API | Typed discovery, a button's own disabled state, live publications and input events |
@@ -25,6 +26,7 @@ should call.
 | [test_queued_drag](test_queued_drag.md) | API | Deliver queued drag starts before the synthetic release |
 | [test_qpa_mouse](test_qpa_mouse.md) | API | Mouse press, move and release through Qt's platform layer and window routing, for widgets that grab the mouse; a drag stage that waits for queued work before its release and leaves no button, grab or hover |
 | [test_qpa_mouse_self_test](test_qpa_mouse_self_test.md) | Self-test | Self-test for QPA grab routing, the drag stage's wait and refusals, coordinates, double clicks and clean end state |
+| [test_touch](test_touch.md) | API | Registered touchscreen and touchpad input through Qt's platform layer |
 | [test_text_drop](test_text_drop.md) | Self-test | Self-test for text-drop routing |
 | [test_clipboard](test_clipboard.md) | API | Clipboard round-trip and classified read-back |
 | [test_console_lock](test_console_lock.md) | API | Current console-lock classification |
@@ -51,6 +53,17 @@ should call.
 | [test_panel](test_panel.md) | API | Separate-panel discovery, show-cache readiness and typed fixture sizing |
 | [test_menu](test_menu.md) | API | Same-turn menu readings, actions, keyboard activation of accessible custom rows, and captures |
 | [test_chat_menu](test_chat_menu.md) | API | Attribute chat-list context menus to the exact message |
+| [test_chat_show](test_chat_show.md) | API | Show a chat-list message wholly in view, painted, ready and hovered before input |
+| [test_chat_show_self_test](test_chat_show_self_test.md) | Self-test | Self-test for chat-list show acceptance, re-correction and named refusals |
+| [test_chat_show_place](test_chat_show_place.md) | API | Place several chat-list messages wholly in or out of view together, gated by geometry and a fresh visibility reading, and prove they stayed for a window |
+| [test_widget_ops](test_widget_ops.md) | API | Tap a widget message's validated ops: the `--attacks` leak scan, its renderer's `limit` reports, the latest conformance result, every `data-stress` value with its receipt, the newest host's batch counts, scheme and theme message |
+| [test_widget_paint_policy](test_widget_paint_policy.md) | API | Run widget-sandbox's `paint-policy.json` against the heavy-box rule and limit glue Telegram compiles, one row per entry, without the app's state |
+| [test_widget_host](test_widget_host.md) | API | Override a widget message's host measurement options and record what its host got and reported: applied options, stats, nodes, load, verbatim death with its time, diag counts and error logs, one record per host; and its renderer core's work, timed by a disposable overlay's scopes |
+| [test_widget_attacks](test_widget_attacks.md) | API | Run widget-sandbox's attack corpus through the chat list with tapped ops, one click each and loopback network controls |
+| [test_widget_bot](test_widget_bot.md) | API | Answer an armed widget message's bot requests from a table at the runtime's request seam, with a record per message |
+| [test_widget_conformance](test_widget_conformance.md) | API | Run widget-sandbox's conformance sets through the chat list in a one-column window on its own screen, with real input, 2x stage crops and requested whole-card pictures, into the run file `report.mjs` reads |
+| [test_widget_stress](test_widget_stress.md) | API | Run widget-sandbox's stress kit through the chat list, one widget alive at a time in a one-column window on the fastest screen, with frame, renderer, host and widget readings per level, into the run file of one pass that `report.mjs` reads |
+| [test_widget_fixture](test_widget_fixture.md) | Internal dependency | Shared live-chat fixture of the widget stage packs: gates, local widget messages with their media fields, cards, a watched core's stop the desktop decided itself, runtime log, controls, the primary window's one-column placement and release |
 | [test_messages](test_messages.md) | API | Observe matching sent server messages |
 | [test_history_fixtures](test_history_fixtures.md) | API | Lifetime-owned history service-message fixtures |
 | [test_notify_override](test_notify_override.md) | API | Local notify-setting override and restoration |
