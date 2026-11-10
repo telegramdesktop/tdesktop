@@ -984,6 +984,7 @@ def publish_worktree(config, worktree_key, branch_key, label, validate=None):
 				"AI state conflicts with newer master; the worktree commits were preserved. "
 				+ (rebase.stderr.strip() or rebase.stdout.strip())
 			)
+		ensure_new_tasks_have_projects(worktree)
 		if validate is not None:
 			validate(worktree)
 		if has_origin(main):
@@ -2269,8 +2270,9 @@ def command_source_mark_green(args):
 
 # Every project is performed on a branch named by its slug: in tdesktop on
 # the private remote, and under the same name on the origin of every
-# submodule the project changes. Standalone tasks start only from branches
-# that are not a live project's.
+# submodule the project changes. Every new task belongs to a project, and
+# project-switch moves a checkout between project branches. Legacy tasks
+# without a project start only from branches that are not a live project's.
 
 def current_branch(source):
 	if source is None:
@@ -2300,14 +2302,14 @@ def ensure_task_branch(config, slot, task):
 	if project is not None:
 		if branch != project:
 			raise WorkspaceError(
-				f"{task['id']} belongs to project {project}: check out branch "
-				f"{project} in this checkout to start it (current branch: "
+				f"{task['id']} belongs to project {project}: run project-switch "
+				f"--project {project} first (current branch: "
 				f"{branch or 'detached HEAD'})"
 			)
 	elif branch in live_project_slugs(slot):
 		raise WorkspaceError(
-			f"{task['id']} is standalone work, but branch {branch} belongs to "
-			f"project {branch}; start it from a non-project branch"
+			f"{task['id']} is legacy work without a project, but branch {branch} "
+			f"belongs to project {branch}; start it from a non-project branch"
 		)
 
 
@@ -2747,7 +2749,9 @@ def command_project_sync(args):
 	}, indent=2, sort_keys=True))
 
 
-def push_branch(repo, remote, revision, branch, lease=None, force=False):
+def push_branch(
+		repo, remote, revision, branch, lease=None, force=False,
+		retry="project-sync"):
 	arguments = ["push", "--quiet", remote]
 	if force:
 		arguments.insert(1, "--force")
@@ -2758,7 +2762,7 @@ def push_branch(repo, remote, revision, branch, lease=None, force=False):
 	)
 	if push.returncode:
 		raise WorkspaceError(
-			f"Pushing {branch} from {repo} was rejected; rerun project-sync: "
+			f"Pushing {branch} from {repo} was rejected; rerun {retry}: "
 			+ (push.stderr.strip() or push.stdout.strip())
 		)
 
@@ -2895,6 +2899,325 @@ def command_project_push(args):
 		"submodules": sorted(modules),
 		"base_fix_pushed": bool(args.base_fix),
 	}, indent=2, sort_keys=True))
+
+
+PROJECT_BASE_BRANCH = "alpha"
+
+
+def checked_out_elsewhere(source, branch):
+	"""Other worktrees of source's repository that have branch checked out."""
+	source = Path(source).resolve()
+	result = []
+	worktree = None
+	for line in run_git(source, "worktree", "list", "--porcelain").stdout.splitlines():
+		if line.startswith("worktree "):
+			worktree = Path(line[len("worktree "):]).resolve()
+		elif line == f"branch refs/heads/{branch}" and worktree != source:
+			result.append(str(worktree))
+	return result
+
+
+def local_branch_work(source, revision, onto, refs):
+	"""The commits of revision that onto lacks, oldest first.
+
+	They start where revision last left one of the remote-tracking refs, the
+	branch's own first and then the base it was created from, as their reflogs
+	record it, so a remote branch rewritten or rewound since then does not
+	bring its old commits back as local work. Without such a record the local
+	commits are known only when onto is an ancestor of revision.
+	"""
+	fork = None
+	for ref in refs:
+		fork = run_git(
+			source, "merge-base", "--fork-point", ref, revision, check=False,
+		).stdout.strip() or None
+		if fork is not None:
+			break
+	if fork is None:
+		if not is_ancestor(source, onto, revision):
+			raise WorkspaceError(
+				f"Cannot tell which commits of {revision} are local: no reflog of "
+				+ " or ".join(refs)
+				+ " records where it forked; ask the owner what to do with them"
+			)
+		fork = onto
+	span = [f"{fork}..{revision}", "--not", onto]
+	if run_git(source, "rev-list", "--merges", *span).stdout.strip():
+		raise WorkspaceError(
+			f"{revision} has local merge commits; project branches stay linear"
+		)
+	return run_git(source, "rev-list", "--reverse", *span).stdout.split()
+
+
+def publish_module_pins(source, head, branch, project):
+	"""Push the submodule commits head pins that no remote branch has yet.
+
+	On a project branch each goes to the submodule's origin branch named like
+	the tdesktop branch, which also moves forward when it already exists, as
+	project-push keeps a project's submodule branches. Another branch has no
+	such submodule branches, so a pin no remote has stops it instead.
+	"""
+	pushed = []
+	for path, module, pin, contained in module_publications(source, head, branch):
+		if not project:
+			if contained:
+				continue
+			raise WorkspaceError(
+				f"Branch {branch} pins a {path} commit on no remote branch; ask "
+				"the owner where it belongs before switching"
+			)
+		fetch_remote(module, "origin")
+		tip = remote_branch_tip(module, "origin", branch)
+		if tip is None:
+			if contained:
+				continue
+		elif tip == pin or is_ancestor(module, pin, tip):
+			continue
+		elif not is_ancestor(module, tip, pin):
+			raise WorkspaceError(
+				f"{path} branch {branch} on origin has commits the tdesktop branch "
+				"does not pin; bring them in before switching"
+			)
+		push_branch(module, "origin", pin, branch, retry="project-switch")
+		pushed.append(path)
+	return pushed
+
+
+def publish_checked_out_branch(source, branch, base, reset):
+	"""Line branch, checked out in source, up with private/<branch>.
+
+	Local commits private/<branch> lacks are replayed on top of it, or on
+	private/<base> while private/<branch> does not exist, together with their
+	submodule commits, and pushed to private/<branch>. Without such commits,
+	reset moves the branch to that tip. Without a base, a branch private
+	lacks is pushed as it is.
+	"""
+	project = base is not None
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, branch)
+	name = branch if remote_tip is not None else base
+	onto = remote_tip
+	if onto is None and project:
+		onto = remote_branch_tip(source, MIRROR_REMOTE, base)
+		if onto is None:
+			raise WorkspaceError(f"{MIRROR_REMOTE}/{base} does not exist")
+	head = resolved_ref(source, "HEAD")
+	result = {
+		"branch": branch,
+		"onto": None if onto is None else f"{MIRROR_REMOTE}/{name}",
+		"replayed": 0,
+		"reset": False,
+		"pushed": False,
+		"submodules": [],
+	}
+	if not project:
+		publish_module_pins(source, head, branch, project)
+	if onto is None:
+		if run_git(
+			source, "rev-list", "HEAD", "--not",
+			f"--remotes={MIRROR_REMOTE}", "--remotes=origin",
+		).stdout.strip():
+			push_branch(source, MIRROR_REMOTE, head, branch, retry="project-switch")
+			result["pushed"] = True
+		return result
+	refs = [f"refs/remotes/{MIRROR_REMOTE}/{name}"]
+	if project and base != name:
+		refs.append(f"refs/remotes/{MIRROR_REMOTE}/{base}")
+	commits = [] if is_ancestor(source, "HEAD", onto) else local_branch_work(
+		source, "HEAD", onto, refs,
+	)
+	if not commits:
+		if reset and head != onto:
+			protect_worktrees_from_submodule_target(source, onto)
+			run_git(source, "reset", "--quiet", "--hard", onto)
+			update_source_submodules(source)
+			result["reset"] = True
+		return result
+	older = resolved_ref(source, f"{commits[0]}^")
+	if older != onto:
+		ranges = submodule_ranges(source, older, commits)
+		head, _ = rewrite_project_history(
+			source,
+			commits,
+			onto,
+			ranges,
+			{path: gitlink_at(source, onto, path) for path in ranges},
+		)
+		result["replayed"] = len(commits)
+	result["submodules"] = publish_module_pins(source, head, branch, project)
+	push_branch(
+		source, MIRROR_REMOTE, head, branch, lease=remote_tip,
+		retry="project-switch",
+	)
+	result["pushed"] = True
+	return result
+
+
+def enter_project_branch(source, slug):
+	"""Check out slug at what other checkouts published, keeping local work."""
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, slug)
+	name = slug if remote_tip is not None else PROJECT_BASE_BRANCH
+	onto = remote_branch_tip(source, MIRROR_REMOTE, name)
+	if onto is None:
+		raise WorkspaceError(f"{MIRROR_REMOTE}/{name} does not exist")
+	local = resolved_ref(source, f"refs/heads/{slug}")
+	refs = [f"refs/remotes/{MIRROR_REMOTE}/{name}"]
+	if name != PROJECT_BASE_BRANCH:
+		refs.append(f"refs/remotes/{MIRROR_REMOTE}/{PROJECT_BASE_BRANCH}")
+	moved = False
+	if current_branch(source) != slug:
+		keep = local is not None and not is_ancestor(source, local, onto) and bool(
+			local_branch_work(source, local, onto, refs)
+		)
+		target = local if keep else onto
+		protect_worktrees_from_submodule_target(source, target)
+		if keep:
+			run_git(source, "switch", "--quiet", slug)
+		else:
+			run_git(source, "switch", "--quiet", "--no-track", "-C", slug, onto)
+			moved = local is not None and local != onto
+		update_source_submodules(source)
+	result = publish_checked_out_branch(source, slug, PROJECT_BASE_BRANCH, reset=True)
+	result["created"] = local is None
+	result["reset"] = result["reset"] or moved
+	return result
+
+
+def command_project_switch(args):
+	"""Move this checkout onto a project's branch without leaving work behind.
+
+	The branch being left is published first: its local commits are replayed
+	onto private/<branch> and pushed. The project branch is then taken from
+	private/<slug>, or from private/alpha while the project has no remote
+	branch, with any local commits that never landed replayed on top and
+	pushed. A task this checkout owns keeps its branch as it is. Uncommitted
+	changes stop the switch, because nothing tells whose they are.
+	"""
+	config = worktree_config(args, create=True)
+	source = Path(config["source_root"]).resolve()
+	slot = Path(config["slot_worktree"])
+	slug = args.project
+	live = live_project_slugs(config["ai_main"]) | live_project_slugs(slot)
+	if slug not in live:
+		raise WorkspaceError(f"{slug!r} is not a live project")
+	owned = [
+		task for task in load_states(slot).values()
+		if task["claimed_by"] == config["checkout_tag"] and (
+			task["status"] in ("in-progress", "split-required")
+			or (task["status"] == "todo" and task["carried_from"] is not None)
+		)
+	]
+	for task in owned:
+		if task["project"] != slug:
+			raise WorkspaceError(
+				f"This checkout's {task['status']} task {task['id']} runs on "
+				+ (
+					f"branch {task['project']}" if task["project"]
+					else "a non-project branch"
+				)
+				+ "; finish it before switching"
+			)
+	previous = current_branch(source)
+	result = {
+		"project": slug,
+		"previous_branch": previous,
+		"left": None,
+		"kept_active_work": bool(owned),
+	}
+	if owned and previous == slug:
+		print(json.dumps(result, indent=2, sort_keys=True))
+		return
+	unknown = source_local_changes(source) + [
+		f"{path} (checked-out commit on no remote branch)"
+		for path in unpublished_submodule_heads(source)
+	]
+	if unknown:
+		raise WorkspaceError(
+			"Uncommitted source changes of unknown origin; ask the owner what to "
+			"do with them before switching:\n" + "\n".join(unknown)
+		)
+	holders = checked_out_elsewhere(source, slug)
+	if holders:
+		raise WorkspaceError(f"Branch {slug} is checked out in {holders[0]}")
+	if owned and resolved_ref(source, f"refs/heads/{slug}") is None:
+		raise WorkspaceError(
+			f"This checkout's task {owned[0]['id']} has no local branch {slug}"
+		)
+	if MIRROR_REMOTE not in run_git(source, "remote").stdout.split():
+		raise WorkspaceError(f"Project branches need a {MIRROR_REMOTE} remote")
+	prepare_source(source)
+	fetch_remote(source, MIRROR_REMOTE)
+	if previous is None:
+		if run_git(
+			source, "rev-list", "HEAD", "--not",
+			f"--remotes={MIRROR_REMOTE}", "--remotes=origin",
+		).stdout.strip():
+			raise WorkspaceError(
+				"The detached HEAD has commits no remote branch has; ask the owner "
+				"what to do with them before switching"
+			)
+	elif previous != slug:
+		result["left"] = publish_checked_out_branch(
+			source,
+			previous,
+			PROJECT_BASE_BRANCH if previous in live else None,
+			reset=False,
+		)
+	if owned:
+		protect_worktrees_from_submodule_target(source, f"refs/heads/{slug}")
+		run_git(source, "switch", "--quiet", slug)
+		update_source_submodules(source)
+	else:
+		result.update(enter_project_branch(source, slug))
+	print(json.dumps(result, indent=2, sort_keys=True))
+
+
+def unpublished_submodule_heads(repo):
+	"""Submodules checked out at a commit off their pin that no remote has."""
+	result = []
+	for path, pin in indexed_gitlinks(repo).items():
+		module = Path(repo) / path
+		if (
+			module.resolve() != module
+			or is_linked_worktree(repo, path + "/")
+			or not (module / ".git").exists()
+		):
+			continue
+		head = resolved_ref(module, "HEAD")
+		if head is not None and head != pin and not run_git(
+			module, "branch", "--remotes", "--contains", head, check=False,
+		).stdout.strip():
+			result.append(path)
+		result.extend(
+			f"{path}/{nested}" for nested in unpublished_submodule_heads(module)
+		)
+	return result
+
+
+def ensure_new_tasks_have_projects(worktree):
+	"""Every task a publication adds names a live project.
+
+	The implementation carrier of a legacy split source without a project is
+	the exception: its retained work stays on the branch it was begun on.
+	"""
+	missing = []
+	for path in literal_paths(
+		worktree, "diff", "--name-only", "--no-renames", "--diff-filter=A",
+		"master...HEAD",
+	):
+		if not (path.startswith("tasks/") and path.endswith("/state.yaml")):
+			continue
+		task = load_state(worktree, worktree / path)
+		project = task["project"]
+		if project is None and task["carried_from"] is not None:
+			continue
+		if project is None or not (
+			worktree / "projects" / project / "project.md"
+		).is_file():
+			missing.append(f"{task['id']} ({project or 'no project'})")
+	if missing:
+		raise WorkspaceError(
+			"Every new task must belong to a live project: " + ", ".join(missing)
+		)
 
 
 def wip_repositories(repo):
@@ -7390,6 +7713,11 @@ def parse_args():
 	project_push.add_argument("--base-fix", metavar="COMMIT")
 	project_push.add_argument("--base", metavar="REMOTE/BRANCH")
 	project_push.set_defaults(handler=command_project_push)
+
+	project_switch = subparsers.add_parser("project-switch")
+	add_common_arguments(project_switch)
+	project_switch.add_argument("--project", required=True)
+	project_switch.set_defaults(handler=command_project_switch)
 
 	wip_save = subparsers.add_parser("wip-save")
 	add_common_arguments(wip_save)

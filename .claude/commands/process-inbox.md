@@ -11,10 +11,11 @@ with the Claude adapter's delegation and text-handling substitutions. Process
 the ignored inbox associated with the current Telegram Desktop checkout. Route
 and plan tasks only; do not implement, build, or test them.
 
-Preserve the shared skill's project-continuity bias. A request derived from
-existing project work stays in that project unless it passes the skill's
-affirmative independence test; shared or cross-surface files alone do not make
-it standalone.
+Every task goes into a project; there are no standalone tasks. Preserve the
+shared skill's project-continuity bias. A request derived from existing
+project work stays in that project unless it passes the skill's affirmative
+independence test; shared or cross-surface files alone do not move it to
+another project.
 
 Apply the shared receipt-only disposition to requests whose sole purpose is
 moving an existing commit between branches. Never create backport,
