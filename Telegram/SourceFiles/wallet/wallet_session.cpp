@@ -1827,7 +1827,20 @@ void SetDirectedAmount(
 				result.kind = TransferItem::Kind::Onramp;
 				result.provider = provider;
 			}
-		}, [](const MTPDwalletTransactionPeerOnchainGift &) {
+		}, [&](const MTPDwalletTransactionPeerOnchainGift &data) {
+			switch (data.vaction().type()) {
+			case mtpc_walletOnchainGiftActionBuy:
+				result.onchainGift = TransferOnchainGift::Buy;
+				break;
+			case mtpc_walletOnchainGiftActionList:
+				result.onchainGift = TransferOnchainGift::List;
+				break;
+			case mtpc_walletOnchainGiftActionDelist:
+				result.onchainGift = TransferOnchainGift::Delist;
+				break;
+			default:
+				break;
+			}
 		}, [](const MTPDwalletTransactionPeerUnsupported &) {
 			// Nothing is written, because the defaults are the row: a
 			// Kind::Transfer with no counterparty renders through
@@ -8476,6 +8489,7 @@ bool HistoryTransferHidden(const TransferItem &item, int64 minNanos) {
 	const auto transfer = (item.kind == Kind::Transfer)
 		|| (item.kind == Kind::PeerTransfer);
 	return transfer
+		&& (item.onchainGift == TransferOnchainGift::None)
 		&& TransferMagnitudeBelowMinimum(item.amountNano, minNanos);
 }
 

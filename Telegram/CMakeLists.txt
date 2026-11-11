@@ -2565,6 +2565,8 @@ PRIVATE
     wallet/wallet_key_protection.h
     wallet/wallet_move_to_gifts.cpp
     wallet/wallet_move_to_gifts.h
+    wallet/wallet_onchain_gift_presentation.cpp
+    wallet/wallet_onchain_gift_presentation.h
     wallet/wallet_onramp.cpp
     wallet/wallet_onramp.h
     wallet/wallet_own_card.cpp

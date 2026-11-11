@@ -119,6 +119,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_gift_move_presentation.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_move_to_gifts.h"
+#include "wallet/wallet_onchain_gift_presentation.h"
 #include "wallet/wallet_onramp.h"
 #include "wallet/wallet_palette.h"
 #include "wallet/wallet_rates.h"
@@ -1260,6 +1261,7 @@ struct HistoryRowContent {
 	RowAvatar avatar = RowAvatar::Out;
 	PeerData *peer = nullptr;
 	bool itemAmount = false;
+	TransferOnchainGift onchainGift = TransferOnchainGift::None;
 	QString collectible;
 	std::optional<CollectibleRecord> collectibleRecord;
 
@@ -1702,6 +1704,9 @@ void PaintHistoryRowChipArtwork(
 		int outerWidth,
 		const HistoryRowChipState &state,
 		const std::shared_ptr<CollectibleMedia> &media) {
+	if (state.key.isEmpty()) {
+		return;
+	}
 	const auto side = st::walletRowIconSize;
 	const auto radius = st::walletCollectibleThumbRadius;
 	const auto rtl = style::RightToLeft();
@@ -1728,11 +1733,12 @@ void PaintHistoryRowChipText(
 		int outerWidth,
 		const HistoryRowChipState &state) {
 	const auto side = st::walletRowIconSize;
+	const auto artwork = state.key.isEmpty() ? 0 : side;
 	const auto plate = std::min(state.natural, outerWidth);
 	const auto rtl = style::RightToLeft();
 	const auto plateLeft = rtl ? (outerWidth - plate) : 0;
 	const auto available = plate
-		- side
+		- artwork
 		- st::walletChipTextSkip
 		- st::walletChipPadding.right();
 	if (available <= 0) {
@@ -1740,7 +1746,7 @@ void PaintHistoryRowChipText(
 	}
 	const auto textLeft = rtl
 		? (plateLeft + st::walletChipPadding.right())
-		: (side + st::walletChipTextSkip);
+		: (artwork + st::walletChipTextSkip);
 	const auto titleHeight = st::walletCollectibleTitleStyle.font->height;
 	const auto subtitleHeight = st::walletRowDateLabel.style.font->height;
 	const auto top = (side
@@ -1767,15 +1773,20 @@ void PaintHistoryRowChipText(
 void TrackHistoryRowChip(
 		not_null<HistoryRowChipState*> state,
 		std::shared_ptr<CollectibleMedia> media,
-		QString address,
-		const std::optional<CollectibleRecord> &record,
+		const HistoryRowContent &content,
 		Fn<void()> repaint,
 		rpl::lifetime &lifetime) {
+	const auto &address = content.collectible;
+	const auto &record = content.collectibleRecord;
+	const auto action = content.onchainGift;
+	const auto amountNano = content.amountNano;
 	const auto served = record && record->gift;
 	const auto key = served ? media->resolveServed(*record) : address;
 	state->key = key;
 	const auto refresh = [=] {
-		const auto view = media->view(key);
+		const auto view = key.isEmpty()
+			? CollectibleView{ .name = tr::lng_wallet_chip_gift(tr::now) }
+			: media->view(key);
 		state->kind = view.kind;
 		using Kind = Gram::NftKind;
 		state->title.setMarkedText(
@@ -1785,10 +1796,12 @@ void TrackHistoryRowChip(
 				: (view.kind == Kind::TelegramNumber)
 				? Ui::Text::Semibold(Ui::FormatPhone(view.key))
 				: CollectibleTitleText(view)));
-		state->subtitle.setText(
-			st::walletRowDateLabel.style,
-			CollectibleKindText(view));
-		state->natural = st::walletRowIconSize
+		SetCollectibleChipSubtitle(
+			state->subtitle,
+			view,
+			action,
+			amountNano);
+		state->natural = (key.isEmpty() ? 0 : st::walletRowIconSize)
 			+ st::walletChipTextSkip
 			+ std::max(state->title.maxWidth(), state->subtitle.maxWidth())
 			+ st::walletChipPadding.right();
@@ -1801,7 +1814,7 @@ void TrackHistoryRowChip(
 	) | rpl::filter(mine) | rpl::on_next(refresh, lifetime);
 	media->repaint(
 	) | rpl::filter(mine) | rpl::on_next(repaint, lifetime);
-	if (!served) {
+	if (!served && !key.isEmpty()) {
 		media->resolveBackground(address);
 	}
 	refresh();
@@ -1811,8 +1824,7 @@ void AddHistoryRowChip(
 		not_null<Ui::VerticalLayout*> inner,
 		not_null<HistoryRowButton*> button,
 		std::shared_ptr<CollectibleMedia> media,
-		QString address,
-		const std::optional<CollectibleRecord> &record) {
+		const HistoryRowContent &content) {
 	Ui::AddSkip(inner, st::walletChipTopSkip);
 	const auto chip = inner->add(object_ptr<Ui::FixedHeightWidget>(
 		inner,
@@ -1838,8 +1850,7 @@ void AddHistoryRowChip(
 	TrackHistoryRowChip(
 		state,
 		media,
-		address,
-		record,
+		content,
 		repaint,
 		chip->lifetime());
 }
@@ -1903,12 +1914,7 @@ not_null<Ui::RpWidget*> AddHistoryRow(
 		st::walletRowDateLabel));
 	const auto hasChip = content.itemAmount && (media != nullptr);
 	if (hasChip) {
-		AddHistoryRowChip(
-			inner,
-			button,
-			media,
-			content.collectible,
-			content.collectibleRecord);
+		AddHistoryRowChip(inner, button, media, content);
 	}
 
 	const auto circle = Ui::CreateChild<Ui::RpWidget>(wrap);
@@ -2335,8 +2341,7 @@ void SendingHistoryRow::setContent(HistoryRowContent content) {
 			TrackHistoryRowChip(
 				&_chip,
 				_media,
-				_content.collectible,
-				_content.collectibleRecord,
+				_content,
 				[=] { _surface->update(); },
 				_chipLifetime);
 		}
@@ -3214,47 +3219,49 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 	const auto date = item.date
 		? langDateTime(base::unixtime::parse(*item.date))
 		: QString();
-	if (ShowsCollectible(item)) {
-		const auto telegram = ShowsGiftMove(item);
+	if (ShowsCollectible(item) || ShowsOnchainGift(item)) {
+		const auto look = ComputeCollectibleRowLook(item);
+		const auto service = !look.service.isEmpty();
 		const auto peer = item.counterpartyPeer
 			? session->data().peerLoaded(PeerId(item.counterpartyPeer))
 			: nullptr;
-		const auto hasCounterparty = !telegram && !item.counterparty.isEmpty();
+		const auto hasCounterparty = !service && !item.counterparty.isEmpty();
 		const auto domain = hasCounterparty
 			? item.counterpartyName.trimmed()
 			: QString();
-		const auto kindText = CollectibleRowKindText(item);
-		const auto titleIsKind = !telegram && !peer && !hasCounterparty;
+		const auto titleIsKind = !service && !peer && !hasCounterparty;
 		const auto statusText = RowStatusSubtitle(item.status);
 		const auto titleAddress = (!peer && domain.isEmpty() && hasCounterparty)
 			? CounterpartyAddress(item)
 			: QString();
 		return {
-			.title = (telegram
-				? tr::lng_wallet_row_telegram(tr::now)
+			.title = (service
+				? look.service
 				: peer
 				? peer->name()
 				: !domain.isEmpty()
 				? domain
 				: hasCounterparty
 				? ShortAddressForm(titleAddress)
-				: kindText),
+				: look.kind),
 			.address = titleAddress,
 			.subtitle = (!statusText.isEmpty()
 				? statusText
 				: titleIsKind
 				? QString()
-				: kindText),
+				: look.kind),
 			.date = date,
-			.incoming = item.incoming,
+			.amountNano = look.amountNano,
+			.incoming = look.incoming,
 			.failed = (item.status == TransferItem::Status::Failure),
 			.avatar = (peer
 				? RowAvatar::Peer
-				: item.incoming
+				: look.incoming
 				? RowAvatar::In
 				: RowAvatar::Out),
 			.peer = peer,
 			.itemAmount = true,
+			.onchainGift = item.onchainGift,
 			.collectible = item.collectible,
 			.collectibleRecord = item.collectibleRecord,
 		};
@@ -3815,6 +3822,7 @@ namespace {
 		const TransferItem &a,
 		const TransferItem &b) {
 	return (ShowsCollectible(a) == ShowsCollectible(b))
+		&& (a.onchainGift == b.onchainGift)
 		&& (a.collectible == b.collectible)
 		&& (a.collectibleRecord == b.collectibleRecord)
 		&& (a.amountNano == b.amountNano)
@@ -3881,27 +3889,6 @@ void ShowNetworkFeesAbout(
 			GaslessDailyTransfers(session)),
 		.title = tr::lng_wallet_fees_title(),
 	}));
-}
-
-[[nodiscard]] TextWithEntities GramMark(
-		Ui::Text::CustomEmojiHelper &helper,
-		const style::font &font) {
-	auto descriptor = Ui::Text::PaletteDependentEmoji{
-		.factory = [=] {
-			return Ui::Earn::IconCurrencyTwoTone(
-				font,
-				st::windowActiveTextFg->c);
-		},
-	};
-	const auto image = descriptor.factory();
-	const auto alignedTop = Ui::Earn::AlignedMarkTop(font, image);
-	const auto emojiY = (font->height - st::emojiSize) / 2;
-	const auto lineShift = Ui::Fixed(font->ascent) - font->fascent;
-	const auto naturalTop = (lineShift + emojiY).toInt()
-		+ Ui::Emoji::GetCustomSkipNormal();
-	const auto marginTop = int(base::SafeRound(alignedTop - naturalTop));
-	descriptor.margin = QMargins(0, marginTop, 0, 0);
-	return helper.paletteDependent(std::move(descriptor));
 }
 
 // A transaction a message named is served after the box is already open, so
@@ -4051,6 +4038,27 @@ void AddPeerCounterpartyRows(
 
 } // namespace
 
+TextWithEntities GramMark(
+		Ui::Text::CustomEmojiHelper &helper,
+		const style::font &font) {
+	auto descriptor = Ui::Text::PaletteDependentEmoji{
+		.factory = [=] {
+			return Ui::Earn::IconCurrencyTwoTone(
+				font,
+				st::windowActiveTextFg->c);
+		},
+	};
+	const auto image = descriptor.factory();
+	const auto alignedTop = Ui::Earn::AlignedMarkTop(font, image);
+	const auto emojiY = (font->height - st::emojiSize) / 2;
+	const auto lineShift = Ui::Fixed(font->ascent) - font->fascent;
+	const auto naturalTop = (lineShift + emojiY).toInt()
+		+ Ui::Emoji::GetCustomSkipNormal();
+	const auto marginTop = int(base::SafeRound(alignedTop - naturalTop));
+	descriptor.margin = QMargins(0, marginTop, 0, 0);
+	return helper.paletteDependent(std::move(descriptor));
+}
+
 not_null<Ui::TableLayout*> AddDetailsTableFrame(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto wrap = container->add(
@@ -4137,14 +4145,16 @@ void AddDetailsTable(
 	}
 	const auto pending
 		= (item.status == TransferItem::Status::Pending);
-	// An incoming transfer was paid for by whoever sent it, and what the
-	// wallet spends to receive one is a few nanograms, so the row is left
-	// out entirely and nothing is waited for on its behalf.
-	if (!item.incoming) {
+	const auto onchain = ShowsOnchainGift(item);
+	// An incoming transfer was paid for by whoever sent it and costs a few
+	// nanograms to receive, so no fee row is shown or waited for; an on-chain
+	// gift action is the wallet's own, so its fee is shown, even a zero one.
+	if (!item.incoming || onchain) {
 		if (fee != DetailsFee::Known) {
 			AddPendingFeeTableRow(table, fee);
 		} else if (!pending
-			&& (item.gasless || (item.feeNano && *item.feeNano > 0))) {
+			&& (item.gasless
+				|| (item.feeNano && (*item.feeNano > 0 || onchain)))) {
 			AddFeeTableRow(table, box->uiShow(), session, item);
 		}
 	}
@@ -5094,7 +5104,9 @@ void WalletTransactionBox(
 		const auto headerBottomSkip = HasDetailsComment(state->item)
 			? (st::walletDetailsAmountBottomSkip / 2)
 			: st::walletDetailsAmountBottomSkip;
-		if (ShowsCollectible(state->item)) {
+		const auto onchain = ShowsOnchainGift(state->item);
+		const auto collectible = ShowsCollectible(state->item);
+		if (collectible) {
 			if (!state->media) {
 				state->media = std::make_shared<CollectibleMedia>(session);
 			}
@@ -5104,8 +5116,15 @@ void WalletTransactionBox(
 				session,
 				state->media,
 				state->item,
-				headerBottomSkip);
-		} else {
+				onchain ? 0 : headerBottomSkip);
+		}
+		if (onchain) {
+			const auto skip = (state->item.amountNano != 0)
+				? st::walletDetailsOnchainAmountSkip
+				: headerBottomSkip;
+			AddOnchainGiftPill(header, state->item, skip);
+		}
+		if (onchain ? (state->item.amountNano != 0) : !collectible) {
 			AddDetailsAmountHeader(
 				header,
 				state->item,

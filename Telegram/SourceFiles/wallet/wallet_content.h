@@ -40,6 +40,10 @@ namespace Ui::Menu {
 struct MenuCallback;
 } // namespace Ui::Menu
 
+namespace Ui::Text {
+class CustomEmojiHelper;
+} // namespace Ui::Text
+
 namespace Wallet {
 
 struct CardLook;
@@ -162,6 +166,10 @@ void AddAddressPlate(
 	not_null<QWidget*> parent,
 	object_ptr<Ui::RpWidget> content,
 	const style::color &bg);
+
+[[nodiscard]] TextWithEntities GramMark(
+	Ui::Text::CustomEmojiHelper &helper,
+	const style::font &font);
 
 [[nodiscard]] not_null<Ui::TableLayout*> AddDetailsTableFrame(
 	not_null<Ui::VerticalLayout*> container);

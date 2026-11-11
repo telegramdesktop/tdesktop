@@ -376,6 +376,8 @@ walletDetailsCollectionLabel: FlatLabel(defaultFlatLabel) {
 }
 walletDetailsCollectionArrow: icon{{ "dialogs/dialogs_topic_arrow", windowSubTextFg }};
 walletDetailsCollectionArrowSkip: 4px;
+walletDetailsOnchainPillSkip: walletDetailsCollectionSkip;
+walletDetailsOnchainAmountSkip: walletDetailsAmountBottomSkip;
 walletCommentLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 128px;
 }

@@ -194,6 +194,13 @@ struct BackupDisableApproval {
 	int networkGeneration = 0;
 };
 
+enum class TransferOnchainGift : uchar {
+	None,
+	Buy,
+	List,
+	Delist,
+};
+
 struct TransferItem {
 	enum class Source {
 		Unknown,
@@ -224,6 +231,7 @@ struct TransferItem {
 	Kind kind = Kind::Transfer;
 	bool incoming = false;
 	TransferGiftMove giftMove = TransferGiftMove::None;
+	TransferOnchainGift onchainGift = TransferOnchainGift::None;
 	QString counterparty;
 	bool counterpartyBounceable = false; // as served or as sent, raw is UQ
 	QString counterpartyName;
