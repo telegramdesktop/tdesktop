@@ -89,6 +89,7 @@ jobs:
         with:
           submodules: recursive
           path: TBuild/${{ env.REPO_NAME }}
+          # Keep checkout inside the TBuild symlink created by the first step.
 
       - name: First set up.
         shell: bash
