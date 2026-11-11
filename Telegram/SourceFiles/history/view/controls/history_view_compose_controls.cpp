@@ -3130,7 +3130,11 @@ void ComposeControls::initKeyHandler() {
 			(keyEvent->modifiers()
 				& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier)));
 		if (key == Qt::Key_O && isCtrl) {
-			_attachRequests.fire({});
+			if (isEditingMessage() && _replaceMedia) {
+				startMediaReplace();
+			} else {
+				_attachRequests.fire({});
+			}
 			return;
 		}
 		if (key == Qt::Key_Up && !hasModifiers) {
@@ -5976,18 +5980,22 @@ bool ComposeControls::updateReplaceMediaButton() {
 	const auto hideDuration = st::historyReplaceMedia.ripple.hideDuration;
 	_replaceMedia->setClickedCallback([=] {
 		base::call_delayed(hideDuration, _wrap.get(), [=] {
-			const auto queryToEdit = _header->queryToEdit();
-			EditCaptionBox::StartMediaReplace(
-				_regularWindow,
-				_editingId,
-				_field->getTextWithTags(),
-				_header->suggestOptions(),
-				queryToEdit.spoilered,
-				queryToEdit.options.invertCaption,
-				crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
+			startMediaReplace();
 		});
 	});
 	return true;
+}
+
+void ComposeControls::startMediaReplace() {
+	const auto queryToEdit = _header->queryToEdit();
+	EditCaptionBox::StartMediaReplace(
+		_regularWindow,
+		_editingId,
+		_field->getTextWithTags(),
+		_header->suggestOptions(),
+		queryToEdit.spoilered,
+		queryToEdit.options.invertCaption,
+		crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
 }
 
 void ComposeControls::cancelEditMessage() {

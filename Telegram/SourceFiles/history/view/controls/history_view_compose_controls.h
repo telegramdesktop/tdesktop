@@ -415,6 +415,7 @@ private:
 		not_null<Ui::RpWidget*> button,
 		Fn<void(Api::SendOptions)> send);
 	bool updateReplaceMediaButton();
+	void startMediaReplace();
 	void updateOuterGeometry(QRect rect);
 	void paintBackground(QPainter &p, QRect full, QRect clip);
 
