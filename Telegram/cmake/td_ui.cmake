@@ -161,6 +161,8 @@ PRIVATE
     dialogs/ui/chat_search_empty.h
     dialogs/ui/chat_search_in.cpp
     dialogs/ui/chat_search_in.h
+    dialogs/ui/dialogs_bottom_button.cpp
+    dialogs/ui/dialogs_bottom_button.h
     dialogs/ui/dialogs_pill.cpp
     dialogs/ui/dialogs_pill.h
     dialogs/ui/dialogs_quick_action_context.h
