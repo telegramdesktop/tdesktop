@@ -797,7 +797,9 @@ void AddTermsTable(
 	}
 }
 
-not_null<Ui::SlideWrap<Ui::FlatLabel>*> AddFeeLine(
+} // namespace
+
+not_null<Ui::SlideWrap<Ui::FlatLabel>*> AddGiftOnchainFeeLine(
 		not_null<Ui::GenericBox*> box,
 		rpl::producer<int64> fee) {
 	const auto wrap = box->addRow(
@@ -817,9 +819,10 @@ not_null<Ui::SlideWrap<Ui::FlatLabel>*> AddFeeLine(
 	return wrap;
 }
 
-not_null<Ui::SlideWrap<Ui::VerticalLayout>*> AddInsufficientBlock(
+auto AddGiftOnchainInsufficientBlock(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session)
+-> not_null<Ui::SlideWrap<Ui::VerticalLayout>*> {
 	const auto wrap = box->addRow(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			box,
@@ -856,7 +859,7 @@ not_null<Ui::SlideWrap<Ui::VerticalLayout>*> AddInsufficientBlock(
 	return wrap;
 }
 
-void AddSellSpinner(
+void AddGiftOnchainBusySpinner(
 		not_null<Ui::RoundButton*> button,
 		rpl::producer<bool> busy) {
 	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
@@ -871,6 +874,8 @@ void AddSellSpinner(
 			: std::optional<QColor>());
 	}, button->lifetime());
 }
+
+namespace {
 
 void ConfirmSaleBox(
 		not_null<Ui::GenericBox*> box,
@@ -900,8 +905,8 @@ void ConfirmSaleBox(
 	AddTermsTable(box, show, terms);
 	box->addSkip(st::walletConnectCardMargin.bottom()
 		- st::giveawayGiftCodeTableMargin.bottom());
-	const auto fee = AddFeeLine(box, flow->feeValue());
-	const auto insufficient = AddInsufficientBlock(box, session);
+	const auto fee = AddGiftOnchainFeeLine(box, flow->feeValue());
+	const auto insufficient = AddGiftOnchainInsufficientBlock(box, session);
 
 	const auto sell = box->addButton(tr::lng_gift_transfer_sell(), [=] {
 		flow->sell();
@@ -915,7 +920,7 @@ void ConfirmSaleBox(
 		tr::lng_suggest_action_decline(),
 		[=] { flow->decline(); },
 		st::attentionBoxButton);
-	AddSellSpinner(
+	AddGiftOnchainBusySpinner(
 		sell.data(),
 		flow->phaseValue(
 		) | rpl::map(SaleBusy) | rpl::distinct_until_changed());

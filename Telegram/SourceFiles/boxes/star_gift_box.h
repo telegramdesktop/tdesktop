@@ -123,6 +123,14 @@ void UpdateGiftSellPrice(
 	std::shared_ptr<Data::UniqueGift> unique,
 	Data::SavedStarGiftId savedId,
 	CreditsAmount price);
+void UniqueGiftSellBox(
+	not_null<GenericBox*> box,
+	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Data::UniqueGift> unique,
+	Data::SavedStarGiftId savedId,
+	int price,
+	Settings::GiftWearBoxStyleOverride st,
+	Fn<void(int64 nanoTon, Fn<void()> invalid)> onchain);
 void ShowUniqueGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> unique,

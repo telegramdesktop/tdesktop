@@ -4590,6 +4590,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sell_toast" = "{name} is now for sale!";
 "lng_gift_sell_updated" = "Sale price for {name} was updated.";
 "lng_gift_sell_removed" = "{name} is removed from sale.";
+"lng_gift_sell_onchain_confirm" = "Put {name} on sale for {price}?";
+"lng_gift_sell_onchain_listing_fee" = "Listing fee";
+"lng_gift_sell_onchain_unlist_fee" = "Unlisting fee";
+"lng_gift_sell_onchain_toast" = "{name} is on sale for {price}.";
+"lng_gift_sell_onchain_unlist_first" = "{name} is already on sale. Unlist it first, then put it on sale at the new price.";
+"lng_gift_sell_onchain_already_sent" = "This operation has already been sent.";
 "lng_gift_menu_show" = "Show";
 "lng_gift_menu_hide" = "Hide";
 "lng_gift_menu_delete" = "Delete Gift";

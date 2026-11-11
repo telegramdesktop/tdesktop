@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 #include "boxes/star_gift_craft_box.h"
 #include "boxes/star_gift_onchain_buy_box.h"
+#include "boxes/star_gift_onchain_sale_box.h"
 #include "boxes/star_gift_resale_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -1289,6 +1290,23 @@ void FillUniqueGiftMenu(
 			}
 		}, st.theme ? st.theme : &st::menuIconChangeColors);
 	}
+	const auto own = Ui::LookupOwnOnchainGift(session, *unique);
+	if (own != Ui::OwnOnchainGift::None) {
+		const auto listed = (own == Ui::OwnOnchainGift::Listed);
+		const auto editPrice = (listed
+			? tr::lng_gift_transfer_update
+			: tr::lng_gift_transfer_sell)(tr::now);
+		menu->addAction(editPrice, [=] {
+			Ui::ShowOnchainGiftSellBox(show, unique, st.giftWearBox
+				? *st.giftWearBox
+				: GiftWearBoxStyleOverride());
+		}, st.resell ? st.resell : &st::menuIconTagSell);
+		if (listed) {
+			menu->addAction(tr::lng_gift_transfer_unlist(tr::now), [=] {
+				Ui::ShowOnchainGiftUnlistBox(show, unique);
+			}, st.unlist ? st.unlist : &st::menuIconTagRemove);
+		}
+	}
 	const auto owner = unique->ownerId
 		? show->session().data().peer(unique->ownerId).get()
 		: (PeerData*)nullptr;
@@ -1343,7 +1361,7 @@ void FillUniqueGiftMenu(
 			}, st.wear ? st.wear : &st::menuIconNftWear);
 		}
 	}
-	if (ShowResellButton(&show->session(), e)) {
+	if (owner && ShowResellButton(&show->session(), e)) {
 		const auto can = CanResellGift(&show->session(), e);
 		const auto inResale = (unique->starsForResale > 0);
 		const auto editPrice = (inResale
@@ -1765,8 +1783,12 @@ void GenericCreditsEntryBody(
 	const auto canBuyResold = inResale
 		&& !uniqueGift->onchainSale
 		&& (e.bareGiftOwnerId != selfPeerId);
+	const auto ownOnchain = uniqueGift
+		? Ui::LookupOwnOnchainGift(session, *uniqueGift)
+		: Ui::OwnOnchainGift::None;
 	const auto canBuyOnchain = uniqueGift
-		&& Ui::CanBuyOnchainGift(session, *uniqueGift);
+		&& Ui::CanBuyOnchainGift(session, *uniqueGift)
+		&& (ownOnchain != Ui::OwnOnchainGift::Listed);
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto isPrize = e.bareGiveawayMsgId > 0;
 	const auto starGiftSticker = (isStarGift && e.bareGiftStickerId)

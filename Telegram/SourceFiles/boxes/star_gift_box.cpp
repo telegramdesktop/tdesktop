@@ -3083,7 +3083,8 @@ void UniqueGiftSellBox(
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		int price,
-		Settings::GiftWearBoxStyleOverride st) {
+		Settings::GiftWearBoxStyleOverride st,
+		Fn<void(int64 nanoTon, Fn<void()> invalid)> onchain) {
 	const auto session = &show->session();
 	const auto &appConfig = session->appConfig();
 	const auto starsMin = appConfig.giftResaleStarsMin();
@@ -3098,9 +3099,13 @@ void UniqueGiftSellBox(
 		rpl::event_stream<> errors;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->onlyTon = unique->onlyAcceptTon;
-	const auto priceNow = Data::UniqueGiftResaleAsked(*unique);
-	state->price = priceNow
+	state->onlyTon = onchain || unique->onlyAcceptTon;
+	const auto priceNow = !onchain
+		? Data::UniqueGiftResaleAsked(*unique)
+		: unique->onchainSale
+		? Data::UniqueGiftResaleTon(*unique)
+		: CreditsAmount();
+	state->price = (priceNow || onchain)
 		? priceNow
 		: price
 		? CreditsAmount(price)
@@ -3140,7 +3145,9 @@ void UniqueGiftSellBox(
 		state->errors.events() | rpl::map_to(false)
 	) | rpl::start_spawning(box->lifetime());
 	auto text = rpl::duplicate(goods) | rpl::map([=](bool good) {
-		const auto value = state->computePrice();
+		const auto value = onchain
+			? std::optional<CreditsAmount>()
+			: state->computePrice();
 		const auto amount = value ? value->value() : 0.;
 		const auto tonMin = nanoTonMin / float64(Ui::kNanosInOne);
 		const auto enough = value
@@ -3192,25 +3199,27 @@ void UniqueGiftSellBox(
 
 	Ui::AddSkip(container);
 	Ui::AddSkip(container);
-	box->addRow(object_ptr<Ui::PlainShadow>(box));
-	Ui::AddSkip(container);
-	Ui::AddSkip(container);
+	if (!onchain) {
+		box->addRow(object_ptr<Ui::PlainShadow>(box));
+		Ui::AddSkip(container);
+		Ui::AddSkip(container);
 
-	const auto onlyTon = box->addRow(
-		object_ptr<Ui::Checkbox>(
-			box,
-			tr::lng_gift_sell_only_ton(tr::now),
-			state->onlyTon.current(),
-			st::defaultCheckbox));
-	state->onlyTon = onlyTon->checkedValue();
+		const auto onlyTon = box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box,
+				tr::lng_gift_sell_only_ton(tr::now),
+				state->onlyTon.current(),
+				st::defaultCheckbox));
+		state->onlyTon = onlyTon->checkedValue();
 
-	Ui::AddSkip(container);
-	box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			tr::lng_gift_sell_only_ton_about(tr::rich),
-			st::boxDividerLabel));
-	Ui::AddSkip(container);
+		Ui::AddSkip(container);
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				tr::lng_gift_sell_only_ton_about(tr::rich),
+				st::boxDividerLabel));
+		Ui::AddSkip(container);
+	}
 
 	rpl::duplicate(goods) | rpl::on_next([=](bool good) {
 		details->setTextColorOverride(
@@ -3219,8 +3228,12 @@ void UniqueGiftSellBox(
 
 	const auto submit = [=] {
 		const auto value = state->computePrice();
-		if (!value) {
+		if (!value || (onchain && !*value)) {
 			state->errors.fire({});
+			return;
+		} else if (onchain) {
+			const auto nanos = value->whole() * Ui::kNanosInOne + value->nano();
+			onchain(nanos, crl::guard(box, [=] { state->errors.fire({}); }));
 			return;
 		}
 		box->closeBox();
@@ -3229,7 +3242,7 @@ void UniqueGiftSellBox(
 	std::move(
 		priceInput.submits
 	) | rpl::on_next(submit, details->lifetime());
-	auto submitText = priceNow
+	auto submitText = (priceNow || (onchain && unique->onchainSale))
 		? tr::lng_gift_sell_update()
 		: tr::lng_gift_sell_put();
 	box->addButton(std::move(submitText), submit);
@@ -3246,7 +3259,8 @@ void ShowUniqueGiftSellBox(
 	const auto session = &show->session();
 	const auto &title = unique->title;
 	InvokeWithUniqueGiftResellPrice(session, title, [=](int price) {
-		show->show(Box(UniqueGiftSellBox, show, unique, savedId, price, st));
+		show->show(
+			Box(UniqueGiftSellBox, show, unique, savedId, price, st, nullptr));
 	});
 }
 
