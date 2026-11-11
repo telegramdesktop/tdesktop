@@ -215,6 +215,17 @@ TimeId GiftOnchainOfferTimeLeft(
 	return (state == State::Open) ? (offer->expiresAt - now) : TimeId();
 }
 
+bool CanWithdrawGiftOnchainOffer(
+		not_null<const HistoryItem*> item,
+		TimeId now) {
+	const auto offer = item->Get<HistoryServiceGiftOnchainOffer>();
+	return offer
+		&& offer->gift
+		&& offer->buyer
+		&& item->isRegular()
+		&& (ComputeGiftOnchainOfferState(offer, now) == State::Open);
+}
+
 PreparedServiceText PrepareGiftOnchainOfferText(
 		not_null<const HistoryItem*> item) {
 	auto result = PreparedServiceText();

@@ -176,7 +176,7 @@ private:
 	void clearKeyboard();
 	void paintOnchainOfferRibbon(QPainter &p, const QRect &geometry);
 	void armOnchainOfferTick();
-	void removeReview();
+	void removeButton();
 
 	const not_null<Element*> _parent;
 	const Data::GiftCode &_data;
@@ -187,6 +187,7 @@ private:
 	QString _ribbonText;
 	bool _backroundPatterned = false;
 	bool _review = false;
+	bool _withdraw = false;
 	TimeId _shownLeft = 0;
 	mutable std::optional<Sticker> _sticker;
 	rpl::event_stream<> _changes;

@@ -928,6 +928,7 @@ struct HistoryServiceGiftOnchainOffer
 	bool settled : 1 = false;
 	bool buyer : 1 = false;
 	bool cancelling : 1 = false;
+	bool withdrawing : 1 = false;
 };
 
 enum class HistorySelfDestructType {

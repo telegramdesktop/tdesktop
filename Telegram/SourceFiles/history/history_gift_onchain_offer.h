@@ -39,6 +39,9 @@ void FillGiftOnchainOffer(
 [[nodiscard]] TimeId GiftOnchainOfferTimeLeft(
 	not_null<const HistoryServiceGiftOnchainOffer*> offer,
 	TimeId now);
+[[nodiscard]] bool CanWithdrawGiftOnchainOffer(
+	not_null<const HistoryItem*> item,
+	TimeId now);
 
 [[nodiscard]] PreparedServiceText PrepareGiftOnchainOfferText(
 	not_null<const HistoryItem*> item);

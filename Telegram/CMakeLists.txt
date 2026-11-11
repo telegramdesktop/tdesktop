@@ -450,6 +450,8 @@ PRIVATE
     boxes/star_gift_craft_box.h
     boxes/star_gift_onchain_buy_box.cpp
     boxes/star_gift_onchain_buy_box.h
+    boxes/star_gift_onchain_withdraw_box.cpp
+    boxes/star_gift_onchain_withdraw_box.h
     boxes/star_gift_preview_box.cpp
     boxes/star_gift_preview_box.h
     boxes/star_gift_resale_box.cpp

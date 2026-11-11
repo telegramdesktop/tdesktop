@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/background_preview_box.h"
 #include "boxes/gift_onchain_offer_box.h"
+#include "boxes/star_gift_onchain_withdraw_box.h"
 #include "history/history.h"
 #include "history/history_gift_onchain_offer.h"
 #include "history/history_item.h"
@@ -659,7 +660,11 @@ GiftServiceBox::GiftServiceBox(
 : _parent(parent)
 , _data(*gift->gift())
 , _review((_data.type == Data::GiftType::OnchainOffer)
-	&& OnchainOfferReviewable(parent->data(), base::unixtime::now())) {
+	&& OnchainOfferReviewable(parent->data(), base::unixtime::now()))
+, _withdraw((_data.type == Data::GiftType::OnchainOffer)
+	&& CanWithdrawGiftOnchainOffer(
+		parent->data(),
+		base::unixtime::now())) {
 }
 
 GiftServiceBox::~GiftServiceBox() = default;
@@ -689,8 +694,9 @@ TextWithEntities GiftServiceBox::subtitle() {
 		const auto offer = item->Get<HistoryServiceGiftOnchainOffer>();
 		const auto now = base::unixtime::now();
 		_shownLeft = offer ? GiftOnchainOfferTimeLeft(offer, now) : 0;
-		if (_review && !OnchainOfferReviewable(item, now)) {
-			removeReview();
+		if ((_review && !OnchainOfferReviewable(item, now))
+			|| (_withdraw && !CanWithdrawGiftOnchainOffer(item, now))) {
+			removeButton();
 		}
 		return GiftOnchainOfferCardText(item, now);
 	}
@@ -828,6 +834,8 @@ rpl::producer<> GiftServiceBox::changes() {
 rpl::producer<QString> GiftServiceBox::button() {
 	if (_review) {
 		return tr::lng_action_gift_onchain_offer_review();
+	} else if (_withdraw) {
+		return tr::lng_gift_onchain_offer_withdraw();
 	} else if (_data.type == Data::GiftType::GiftOffer
 		|| _data.type == Data::GiftType::OnchainOffer) {
 		return nullptr;
@@ -841,10 +849,20 @@ ClickHandlerPtr GiftServiceBox::createViewLink() {
 }
 
 ClickHandlerPtr GiftServiceBox::createButtonLink() {
-	if (!_review) {
+	const auto item = _parent->data();
+	const auto itemId = item->fullId();
+	if (_withdraw) {
+		const auto session = &item->history()->session();
+		return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto controller = my.sessionWindow.get();
+			if (controller && (&controller->session() == session)) {
+				Ui::WithdrawOnchainGiftOffer(controller->uiShow(), itemId);
+			}
+		});
+	} else if (!_review) {
 		return createViewLink();
 	}
-	const auto itemId = _parent->data()->fullId();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
@@ -978,8 +996,9 @@ void GiftServiceBox::armOnchainOfferTick() {
 		Qt::PreciseTimer);
 }
 
-void GiftServiceBox::removeReview() {
+void GiftServiceBox::removeButton() {
 	_review = false;
+	_withdraw = false;
 	crl::on_main(this, [=] {
 		const auto item = _parent->data();
 		item->history()->owner().requestItemViewRefresh(item);

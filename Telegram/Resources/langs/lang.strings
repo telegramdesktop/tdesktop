@@ -4337,6 +4337,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_buy_onchain_error" = "Please try again later.";
 "lng_gift_buy_onchain_done" = "The gift will appear in {path} and on your profile once the purchase is confirmed.";
 "lng_gift_buy_onchain_already_sent" = "This purchase has already been sent.";
+"lng_gift_onchain_offer_withdraw" = "Withdraw";
+"lng_gift_onchain_offer_withdraw_for" = "Withdraw for {amount}";
+"lng_gift_onchain_offer_withdraw_title" = "Withdraw Offer?";
+"lng_gift_onchain_offer_withdraw_fine" = "Withdrawing early costs {amount}.";
+"lng_gift_onchain_offer_withdraw_rest" = "The rest of your {amount} will be returned to you.";
+"lng_gift_onchain_offer_withdraw_error" = "Please try again later.";
 "lng_gift_sent_title" = "Gift Sent!";
 "lng_gift_sent_resale_done" = "{user} has been notified about your gift.";
 "lng_gift_sent_resale_done_self" = "{gift} is now yours.";
