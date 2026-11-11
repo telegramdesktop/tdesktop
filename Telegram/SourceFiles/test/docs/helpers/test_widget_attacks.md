@@ -67,7 +67,7 @@ Use something else when:
   the audit: the remaining files are not run, by name.
 - **Time.** Per file about 4-8 s in Debug for a healthy widget, and about
   70 s for one that reaches every bound (8 s layout, two 10 s shows, 25 s
-  load, the 1.5 s watch, 3 s log, 10 s barrier). The runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most 600 s)
+  load, the 1.5 s watch, 3 s log, 10 s barrier). The runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most 3600 s)
   is a real process-lifetime limit: split the corpus over launches with
   `only`, each with its own controls and teardown, and keep one accepted
   attempt per file name.

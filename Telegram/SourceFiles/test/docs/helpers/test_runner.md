@@ -18,8 +18,21 @@ first-class gated skips (`skipReason`), an inherited fixture gate for a
 composed group of stages (`addGated`) with explicitly declared restoration
 stages (`addRecovery`, see
 [gated groups and recovery stages](#gated-groups-and-recovery-stages)),
-`onFinish` release hook (and its finish-release self-test), watchdog
-(`TDESKTOP_TEST_WATCHDOG` in seconds) and termination.
+`onFinish` release hook (and its finish-release self-test), the scenario
+watchdog and termination.
+
+`Runner::start()` arms one wall-clock watchdog for the whole scenario, 120 s
+by default. `TDESKTOP_TEST_WATCHDOG` overrides it in whole seconds, `1..3600`
+(up to an hour). Any other non-empty value (`0`, a negative or non-numeric
+value, one above 3600, or a millisecond-shaped value such as `600000`) writes
+`NOTE: TDESKTOP_TEST_WATCHDOG rejected: <value>` and arms the default. The
+row after `SCENARIO_START`, or after the rejection row when there is one, is
+`NOTE: TDESKTOP_TEST_WATCHDOG=[<value>] applied: <N>s source=<default|environment>`.
+A launch that arms more than the default passes `test-run` a `--deadline`
+above the watchdog and a `--quiet` above its longest silent stage, for
+example `--env TDESKTOP_TEST_WATCHDOG=2400 --deadline 2600 --quiet 500`;
+otherwise `test-run` kills it first and the run has no `SCENARIO_RESULT` and
+no `TEST_COMPLETE` ([failure diagnosis](../diagnostics.md)).
 
 A permanent scenario module that is compiled only on request, such as the
 localization capture from the l10n-tdesktop repository, registers itself from a static

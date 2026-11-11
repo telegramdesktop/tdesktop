@@ -31,7 +31,7 @@ namespace {
 
 constexpr auto kTickInterval = crl::time(50);
 constexpr auto kDefaultWatchdogSeconds = 120;
-constexpr auto kMaxWatchdogSeconds = 600;
+constexpr auto kMaxWatchdogSeconds = 3600;
 constexpr auto kAbortAfterQuit = 10 * crl::time(1000);
 
 // The fuse records a blocked launch inside the fused

@@ -249,7 +249,7 @@ Use something else when:
   sequence, 4 s per palette settle, 4 s theme and visibility waits, 10 s done,
   3 s log, 10 s host barrier, each with `kDefaultStageTimeout` more as the
   stage timeout. The runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most
-  600 s) is a real process-lifetime limit ([scenario design](../scenarios.md)).
+  3600 s) is a real process-lifetime limit ([scenario design](../scenarios.md)).
   When one launch cannot hold the selection, split it with `themes`, `sets`
   or `ids`, each launch with its own fresh output directory. A run file holds
   only its launch's runs and its notes say the selection was narrowed;
@@ -483,7 +483,7 @@ scroll. A list or scroll gone, or 8 s without that, ends it unaccepted.
 Each snapshot and band therefore costs at least 3.35 s: launch 1 of
 `2026/10/26/report-the-desktop-conformance-at-widget-sandbox-v0-2-2`
 (16 snapshots and 8 bands) about 80 s more, still under the 600 s
-watchdog. The reading is the snapshot's
+watchdog that launch armed. The reading is the snapshot's
 `dateWait`: `{finished: false}` until it ended, then `finished`, `hidden`,
 `shownTop`, `top` (the last reading), `changes`, `stillMs`, `neededMs`,
 `waitedMs` and `detail`.

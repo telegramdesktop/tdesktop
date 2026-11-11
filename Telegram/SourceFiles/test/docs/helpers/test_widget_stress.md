@@ -61,7 +61,8 @@ Use something else when:
   files are not results.
 - **One load per launch.** A launch may name several loads, but a ladder of
   nine levels already takes about three minutes; keep one load per launch
-  under the 600 s watchdog and let the driver merge the launches.
+  under the runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most 3600 s) and
+  let the driver merge the launches.
 - **Renderer timing overlay.** The renderer figures need the disposable
   `tgw_renderer.cpp` hunk of [test_widget_host](test_widget_host.md#the-overlay),
   kept in the campaign's overlay with the scenario and never committed.
