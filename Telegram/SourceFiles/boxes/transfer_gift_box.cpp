@@ -511,25 +511,13 @@ void ExportOnBlockchain(
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> CollectiblesPathText() {
-	const auto prefixed = [](not_null<const style::IconEmoji*> emoji) {
-		return rpl::map([=](const QString &text) {
-			return Ui::Text::IconEmoji(emoji).append(' ').append(text);
-		});
-	};
-	const auto arrow = Ui::Text::IconEmoji(&st::giftMoveToWalletArrowEmoji);
-	return tr::lng_gift_transfer_to_wallet_path_icons(
-		lt_menu,
-		rpl::single(Ui::Text::IconEmoji(&st::giftMoveToWalletMenuEmoji)),
-		lt_arrow,
-		rpl::single(arrow),
-		lt_money,
-		tr::lng_wallet_menu() | prefixed(&st::giftMoveToWalletMoneyEmoji),
-		lt_arrow_next,
-		rpl::single(arrow),
-		lt_collectibles,
-		tr::lng_wallet_rows_collectibles(
-		) | prefixed(&st::giftMoveToWalletCollectiblesEmoji),
-		tr::marked);
+	return rpl::single(
+		rpl::empty
+	) | rpl::then(
+		Lang::Updated()
+	) | rpl::map([] {
+		return WalletCollectiblesPath();
+	});
 }
 
 void MoveToWalletBox(
@@ -1263,32 +1251,10 @@ void BuyResaleGift(
 		if (failure) {
 			paymentDone(*failure, nullptr);
 		} else if (price != was) {
-			const auto cost = price.ton()
-				? Ui::Text::IconEmoji(&st::tonIconEmoji).append(
-					Lang::FormatCreditsAmountDecimal(price))
-				: Ui::Text::IconEmoji(&st::starIconEmoji).append(
-					Lang::FormatCountDecimal(price.whole()));
-			const auto cancelled = [=](Fn<void()> close) {
-				close();
+			const auto cancelled = [=] {
 				paymentDone(Payments::CheckoutResult::Cancelled, nullptr);
 			};
-			show->show(Ui::MakeConfirmBox({
-				.text = tr::lng_gift_buy_price_change_text(
-					tr::now,
-					lt_price,
-					Ui::Text::Wrapped(cost, EntityType::Bold),
-					tr::marked),
-				.confirmed = [=](Fn<void()> close) {
-					close();
-					submit();
-				},
-				.cancelled = cancelled,
-				.confirmText = tr::lng_gift_buy_resale_button(
-					lt_cost,
-					rpl::single(cost),
-					tr::marked),
-				.title = tr::lng_gift_buy_price_change_title(),
-			}));
+			show->show(MakeResaleGiftPriceChangeBox(price, submit, cancelled));
 		} else {
 			submit();
 		}
@@ -1428,6 +1394,37 @@ base::weak_qptr<Ui::GenericBox> ShowBuyResaleGiftConfirm(
 
 } // namespace
 
+object_ptr<Ui::GenericBox> MakeResaleGiftPriceChangeBox(
+		CreditsAmount price,
+		Fn<void()> confirmed,
+		Fn<void()> cancelled) {
+	const auto cost = price.ton()
+		? Ui::Text::IconEmoji(&st::tonIconEmoji).append(
+			Lang::FormatCreditsAmountDecimal(price))
+		: Ui::Text::IconEmoji(&st::starIconEmoji).append(
+			Lang::FormatCountDecimal(price.whole()));
+	return Ui::MakeConfirmBox({
+		.text = tr::lng_gift_buy_price_change_text(
+			tr::now,
+			lt_price,
+			Ui::Text::Wrapped(cost, EntityType::Bold),
+			tr::marked),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			confirmed();
+		},
+		.cancelled = [=](Fn<void()> close) {
+			close();
+			cancelled();
+		},
+		.confirmText = tr::lng_gift_buy_resale_button(
+			lt_cost,
+			rpl::single(cost),
+			tr::marked),
+		.title = tr::lng_gift_buy_price_change_title(),
+	});
+}
+
 void PaintGiftMoveUserpic(
 		Painter &p,
 		int x,
@@ -1512,6 +1509,32 @@ void ShowGiftMovedToast(
 		},
 		tr::lng_gift_transfer_to_wallet_view(),
 		std::move(view));
+}
+
+TextWithEntities WalletCollectiblesPath() {
+	const auto prefixed = [](
+			not_null<const style::IconEmoji*> emoji,
+			const QString &text) {
+		return Ui::Text::IconEmoji(emoji).append(' ').append(text);
+	};
+	const auto arrow = Ui::Text::IconEmoji(&st::giftMoveToWalletArrowEmoji);
+	return tr::lng_gift_transfer_to_wallet_path_icons(
+		tr::now,
+		lt_menu,
+		Ui::Text::IconEmoji(&st::giftMoveToWalletMenuEmoji),
+		lt_arrow,
+		arrow,
+		lt_money,
+		prefixed(
+			&st::giftMoveToWalletMoneyEmoji,
+			tr::lng_wallet_menu(tr::now)),
+		lt_arrow_next,
+		arrow,
+		lt_collectibles,
+		prefixed(
+			&st::giftMoveToWalletCollectiblesEmoji,
+			tr::lng_wallet_rows_collectibles(tr::now)),
+		tr::marked);
 }
 
 void RequestWithGiftPassword(

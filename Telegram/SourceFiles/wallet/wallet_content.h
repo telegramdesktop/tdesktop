@@ -29,6 +29,7 @@ class SessionShow;
 
 namespace Ui {
 class FlatLabel;
+class GenericBox;
 class RpWidget;
 class SeparatePanel;
 class Show;
@@ -237,6 +238,10 @@ void ShowWalletConflict(
 [[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano);
 void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show);
 void ShowWalletHowItWorks(std::shared_ptr<Main::SessionShow> show);
+void ShowWalletReceiveBox(
+	not_null<Main::Session*> session,
+	std::shared_ptr<Ui::Show> show);
+void CloseByOutsideClick(not_null<Ui::GenericBox*> box);
 
 // The message, then the error type a real user's report should carry.
 [[nodiscard]] QString ErrorWithType(

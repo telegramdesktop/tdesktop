@@ -4697,17 +4697,6 @@ void WalletReceiveBox(
 	}, buy->lifetime());
 }
 
-void ShowWalletReceiveBox(
-		not_null<Main::Session*> session,
-		std::shared_ptr<Ui::Show> show) {
-	auto &wallet = session->wallet();
-	const auto address = wallet.addressFriendly(false);
-	if (address.size() != kAddressLength) {
-		return;
-	}
-	show->showBox(Box(WalletReceiveBox, session, address));
-}
-
 [[nodiscard]] Ui::LayerStackWidget *BoxLayerStack(
 		not_null<Ui::GenericBox*> box) {
 	auto stack = (Ui::LayerStackWidget*)nullptr;
@@ -4717,6 +4706,8 @@ void ShowWalletReceiveBox(
 	}
 	return stack;
 }
+
+} // namespace
 
 void CloseByOutsideClick(not_null<Ui::GenericBox*> box) {
 	const auto layer = box->parentWidget();
@@ -4735,6 +4726,8 @@ void CloseByOutsideClick(not_null<Ui::GenericBox*> box) {
 		return base::EventFilterResult::Cancel;
 	});
 }
+
+namespace {
 
 void AddWalletFeaturesBody(
 		not_null<Ui::GenericBox*> box,
@@ -6106,6 +6099,17 @@ void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show) {
 
 void ShowWalletHowItWorks(std::shared_ptr<Main::SessionShow> show) {
 	show->showBox(Box(WalletHowItWorksBox, &show->session()));
+}
+
+void ShowWalletReceiveBox(
+		not_null<Main::Session*> session,
+		std::shared_ptr<Ui::Show> show) {
+	auto &wallet = session->wallet();
+	const auto address = wallet.addressFriendly(false);
+	if (address.size() != kAddressLength) {
+		return;
+	}
+	show->showBox(Box(WalletReceiveBox, session, address));
 }
 
 QString ErrorWithType(const QString &message, const QString &error) {

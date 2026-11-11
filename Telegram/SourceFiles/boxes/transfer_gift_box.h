@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+
 struct HistoryMessageSuggestion;
 class Painter;
 
@@ -30,6 +32,7 @@ class Error;
 namespace Ui {
 class BoxContent;
 class ChatTheme;
+class GenericBox;
 class Show;
 } // namespace Ui
 
@@ -65,6 +68,11 @@ void ShowBuyResaleGiftBox(
 	bool forceTon,
 	not_null<PeerData*> to,
 	Fn<void(bool ok)> closeParentBox);
+
+[[nodiscard]] object_ptr<Ui::GenericBox> MakeResaleGiftPriceChangeBox(
+	CreditsAmount price,
+	Fn<void()> confirmed,
+	Fn<void()> cancelled);
 
 bool ShowResaleGiftLater(
 	std::shared_ptr<ChatHelpers::Show> show,
@@ -109,6 +117,7 @@ void ShowGiftMovedToast(
 	not_null<DocumentData*> sticker,
 	TextWithEntities text,
 	Fn<void()> view);
+[[nodiscard]] TextWithEntities WalletCollectiblesPath();
 
 struct GiftPasswordStep {
 	Fn<void(

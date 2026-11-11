@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "boxes/star_gift_box.h"
 #include "boxes/star_gift_craft_box.h"
+#include "boxes/star_gift_onchain_buy_box.h"
 #include "boxes/star_gift_resale_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
@@ -1764,6 +1765,8 @@ void GenericCreditsEntryBody(
 	const auto canBuyResold = inResale
 		&& !uniqueGift->onchainSale
 		&& (e.bareGiftOwnerId != selfPeerId);
+	const auto canBuyOnchain = uniqueGift
+		&& Ui::CanBuyOnchainGift(session, *uniqueGift);
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto isPrize = e.bareGiveawayMsgId > 0;
 	const auto starGiftSticker = (isStarGift && e.bareGiftStickerId)
@@ -2576,6 +2579,11 @@ void GenericCreditsEntryBody(
 					e.giftResaleForceTon,
 					to,
 					crl::guard(box, [=](bool) { box->closeBox(); }));
+			} else if (canBuyOnchain) {
+				Ui::ShowBuyOnchainGiftBox(
+					show,
+					e.uniqueGift,
+					crl::guard(box, [=] { box->closeBox(); }));
 			} else if (canUpgrade || canGiftUpgrade) {
 				upgrade();
 			} else if (canToggle && !e.savedToProfile) {
@@ -2611,6 +2619,11 @@ void GenericCreditsEntryBody(
 						Lang::FormatCountDecimal(uniqueGift->starsForResale))),
 					tr::marked));
 			}
+		} else if (canBuyOnchain) {
+			button->setText(tr::lng_gift_buy_resale_button(
+				lt_cost,
+				rpl::single(Data::FormatGiftResaleTon(*uniqueGift)),
+				tr::marked));
 		} else if (showNextToUpgrade) {
 			const auto session = &show->session();
 			const auto sticker = e.nextToUpgradeStickerId
