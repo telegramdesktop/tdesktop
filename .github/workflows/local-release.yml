@@ -26,15 +26,20 @@ jobs:
         run: |
           $run = $null
           for ($i = 0; $i -lt 180; $i++) {
-            $runs = gh run list --repo "${{ github.repository }}" --workflow win.yml --branch feature/local-web-admin --limit 10 --json databaseId,status,conclusion,createdAt | ConvertFrom-Json
+            $runs = gh run list --repo "${{ github.repository }}" --workflow win.yml --branch feature/local-web-admin --limit 10 --json databaseId,createdAt | ConvertFrom-Json
             if ($runs.Count -gt 0) {
               $run = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
-              Write-Host "Windows build run $($run.databaseId): $($run.status) / $($run.conclusion)"
-              if ($run.status -eq "completed") { break }
+              $jobs = gh api "repos/${{ github.repository }}/actions/runs/$($run.databaseId)/jobs" --jq '.jobs[] | select(.name == "Windows (x64)") | [.status,.conclusion] | @tsv'
+              if ($jobs) {
+                $parts = $jobs -split "`t"
+                Write-Host "Windows x64 job: $($parts[0]) / $($parts[1])"
+                if ($parts[1] -eq "success") { break }
+                if ($parts[1] -eq "failure" -or $parts[1] -eq "cancelled") { throw "Windows x64 build failed: $($parts[1])" }
+              }
             }
             Start-Sleep -Seconds 60
           }
-          if ($null -eq $run -or $run.status -ne "completed" -or $run.conclusion -ne "success") {
+          if ($null -eq $run -or !$jobs -or $parts[1] -ne "success") {
             throw "Windows x64 build did not finish successfully within 3 hours."
           }
           "WINDOWS_RUN_ID=$($run.databaseId)" | Out-File -FilePath $env:GITHUB_ENV -Append
