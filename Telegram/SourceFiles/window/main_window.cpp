@@ -1133,8 +1133,19 @@ void MainWindow::applySavedPosition(const Core::WindowPosition &position) {
 	const auto handle = windowHandle();
 	const auto state = handle ? handle->windowState() : Qt::WindowNoState;
 	if (position.maximized) {
-		setGeometry(geometry);
-		setWindowState(Qt::WindowMaximized);
+		const auto shown = !isHidden() && (state == Qt::WindowMaximized);
+		const auto target = QGuiApplication::screenAt(geometry.center());
+		const auto placed = shown
+			&& (_ownPosition.rect() == geometry)
+			&& (!target || target == screen());
+		if (!placed) {
+			if (shown) {
+				// Moved while shown maximized it stays maximized at that size.
+				setWindowState(Qt::WindowNoState);
+			}
+			setGeometry(geometry);
+			setWindowState(Qt::WindowMaximized);
+		}
 	} else {
 		if (state == Qt::WindowMaximized || state == Qt::WindowFullScreen) {
 			setWindowState(Qt::WindowNoState);
