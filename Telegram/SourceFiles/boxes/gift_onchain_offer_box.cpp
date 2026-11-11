@@ -735,43 +735,6 @@ void SaleFlow::stop() {
 		st::giveawayGiftMessage);
 }
 
-void AddArtwork(
-		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session,
-		const OfferTerms &terms) {
-	using namespace Info::PeerGifts;
-
-	const auto delegate = box->lifetime().make_state<Delegate>(
-		session,
-		GiftButtonMode::Minimal);
-	const auto size = delegate->buttonSize();
-	const auto extend = delegate->buttonExtend();
-	const auto holder = box->addRow(
-		object_ptr<Ui::FixedHeightWidget>(
-			box,
-			extend.top() + size.height() + extend.bottom()),
-		QMargins(0, st::boxPadding.top(), 0, 0));
-	const auto button = Ui::CreateChild<GiftButton>(holder, delegate);
-	button->setAttribute(Qt::WA_TransparentForMouseEvents);
-	button->setDescriptor(GiftTypeStars{
-		.info = {
-			.id = terms.gift->id,
-			.unique = terms.gift,
-			.document = terms.gift->model.document,
-			.limitedLeft = terms.limitedLeft,
-			.limitedCount = terms.limitedCount,
-		},
-		.mine = true,
-	}, GiftButtonMode::Minimal);
-	button->setPlayback(GiftButtonPlayback::Once);
-	holder->widthValue() | rpl::on_next([=](int width) {
-		const auto left = (width - size.width()) / 2;
-		button->setGeometry(
-			QRect(QPoint(left, extend.top()), size),
-			extend);
-	}, holder->lifetime());
-}
-
 void AddTermsTable(
 		not_null<Ui::GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -798,6 +761,45 @@ void AddTermsTable(
 }
 
 } // namespace
+
+void AddGiftOnchainArtwork(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		std::shared_ptr<Data::UniqueGift> gift,
+		int limitedCount,
+		int limitedLeft) {
+	using namespace Info::PeerGifts;
+
+	const auto delegate = box->lifetime().make_state<Delegate>(
+		session,
+		GiftButtonMode::Minimal);
+	const auto size = delegate->buttonSize();
+	const auto extend = delegate->buttonExtend();
+	const auto holder = box->addRow(
+		object_ptr<Ui::FixedHeightWidget>(
+			box,
+			extend.top() + size.height() + extend.bottom()),
+		QMargins(0, st::boxPadding.top(), 0, 0));
+	const auto button = Ui::CreateChild<GiftButton>(holder, delegate);
+	button->setAttribute(Qt::WA_TransparentForMouseEvents);
+	button->setDescriptor(GiftTypeStars{
+		.info = {
+			.id = gift->id,
+			.unique = gift,
+			.document = gift->model.document,
+			.limitedLeft = limitedLeft,
+			.limitedCount = limitedCount,
+		},
+		.mine = true,
+	}, GiftButtonMode::Minimal);
+	button->setPlayback(GiftButtonPlayback::Once);
+	holder->widthValue() | rpl::on_next([=](int width) {
+		const auto left = (width - size.width()) / 2;
+		button->setGeometry(
+			QRect(QPoint(left, extend.top()), size),
+			extend);
+	}, holder->lifetime());
+}
 
 not_null<Ui::SlideWrap<Ui::FlatLabel>*> AddGiftOnchainFeeLine(
 		not_null<Ui::GenericBox*> box,
@@ -885,7 +887,12 @@ void ConfirmSaleBox(
 	const auto flow = box->lifetime().make_state<SaleFlow>(box, show, terms);
 	box->setWidth(st::boxWideWidth);
 
-	AddArtwork(box, session, terms);
+	AddGiftOnchainArtwork(
+		box,
+		session,
+		terms.gift,
+		terms.limitedCount,
+		terms.limitedLeft);
 	box->addRow(
 		object_ptr<Ui::FlatLabel>(
 			box,

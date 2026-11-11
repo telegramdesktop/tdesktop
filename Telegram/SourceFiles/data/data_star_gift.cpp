@@ -178,6 +178,7 @@ bool SameServedStarGift(const StarGift &a, const StarGift &b) {
 			unique.releasedBy,
 			unique.themeUser,
 			unique.nanoTonForResale,
+			unique.nanoTonMinOffer,
 			unique.starsForResale,
 			unique.starsMinOffer,
 			unique.craftChancePermille,

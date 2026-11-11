@@ -25,4 +25,6 @@ namespace Wallet {
 	const style::FlatLabel &st,
 	Fn<void()> clicked);
 
+[[nodiscard]] QString FormatAddressGroups(const QString &address);
+
 } // namespace Wallet

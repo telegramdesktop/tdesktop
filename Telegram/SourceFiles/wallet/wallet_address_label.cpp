@@ -37,14 +37,19 @@ private:
 
 };
 
+[[nodiscard]] QStringList AddressGroups(const QString &address) {
+	auto result = QStringList();
+	for (auto offset = 0; offset < address.size(); offset += kAddressGroup) {
+		result.append(address.mid(offset, kAddressGroup));
+	}
+	return result;
+}
+
 [[nodiscard]] QStringList DetailsAddressLines(
 		const QString &address,
 		const style::font &font,
 		int width) {
-	auto groups = QStringList();
-	for (auto offset = 0; offset < address.size(); offset += kAddressGroup) {
-		groups.append(address.mid(offset, kAddressGroup));
-	}
+	const auto groups = AddressGroups(address);
 	const auto count = int(groups.size());
 	for (auto lines = 1; lines <= count; ++lines) {
 		auto result = QStringList();
@@ -122,6 +127,10 @@ object_ptr<Ui::FlatLabel> MakeAddressLabel(
 		const style::FlatLabel &st,
 		Fn<void()> clicked) {
 	return object_ptr<AddressLabel>(parent, address, st, std::move(clicked));
+}
+
+QString FormatAddressGroups(const QString &address) {
+	return AddressGroups(address).join(QChar(' '));
 }
 
 } // namespace Wallet

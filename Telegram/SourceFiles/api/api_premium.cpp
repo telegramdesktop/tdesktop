@@ -1006,6 +1006,8 @@ std::optional<Data::StarGift> FromTL(
 				.releasedBy = releasedBy,
 				.themeUser = themeUser,
 				.nanoTonForResale = FindTonForResale(data.vresell_amount()),
+				.nanoTonMinOffer = int64(
+					data.voffer_min_amount().value_or_empty()),
 				.craftChancePermille
 					= data.vcraft_chance_permille().value_or_empty(),
 				.starsForResale = FindStarsForResale(data.vresell_amount()),

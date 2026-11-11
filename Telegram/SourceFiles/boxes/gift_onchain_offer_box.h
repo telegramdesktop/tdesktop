@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Data {
+struct UniqueGift;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -28,6 +32,12 @@ void ShowGiftOnchainOfferReview(
 	not_null<Window::SessionController*> controller,
 	FullMsgId itemId);
 
+void AddGiftOnchainArtwork(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session,
+	std::shared_ptr<Data::UniqueGift> gift,
+	int limitedCount,
+	int limitedLeft);
 [[nodiscard]] not_null<Ui::SlideWrap<Ui::FlatLabel>*> AddGiftOnchainFeeLine(
 	not_null<Ui::GenericBox*> box,
 	rpl::producer<int64> fee);

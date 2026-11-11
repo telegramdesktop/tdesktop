@@ -127,6 +127,7 @@ struct UniqueGift {
 	PeerData *releasedBy = nullptr;
 	PeerData *themeUser = nullptr;
 	int64 nanoTonForResale = -1;
+	int64 nanoTonMinOffer = 0;
 	int craftChancePermille = 0;
 	int starsForResale = -1;
 	int starsForTransfer = -1;

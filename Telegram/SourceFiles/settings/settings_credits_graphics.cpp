@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 #include "boxes/star_gift_craft_box.h"
 #include "boxes/star_gift_onchain_buy_box.h"
+#include "boxes/star_gift_onchain_offer_buy_box.h"
 #include "boxes/star_gift_onchain_sale_box.h"
 #include "boxes/star_gift_resale_box.h"
 #include "boxes/transfer_gift_box.h"
@@ -932,6 +933,7 @@ not_null<Ui::RpWidget*> AddBalanceWidget(
 			(state->label.style()->font->height
 				+ state->count.style()->font->height));
 	};
+	resize();
 	std::move(
 		balanceValue
 	) | rpl::on_next([=](CreditsAmount value) {
@@ -1306,6 +1308,12 @@ void FillUniqueGiftMenu(
 				Ui::ShowOnchainGiftUnlistBox(show, unique);
 			}, st.unlist ? st.unlist : &st::menuIconTagRemove);
 		}
+	} else if (Ui::CanOfferOnchainGift(session, *unique)) {
+		const auto count = e.limitedCount;
+		const auto left = e.limitedLeft;
+		menu->addAction(tr::lng_gift_offer_button(tr::now), [=] {
+			Ui::ShowOnchainGiftOfferBox(show, unique, count, left);
+		}, st.offer ? st.offer : &st::menuIconEarn);
 	}
 	const auto owner = unique->ownerId
 		? show->session().data().peer(unique->ownerId).get()
