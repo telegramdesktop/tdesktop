@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
+
 namespace ChatHelpers {
 class Show;
 } // namespace ChatHelpers
@@ -21,6 +23,10 @@ class Session;
 
 namespace Ui {
 
+struct OnchainBuyMemory final : base::has_weak_ptr {
+	bool withdrawalDisabled = false;
+};
+
 [[nodiscard]] bool CanBuyOnchainGift(
 	not_null<Main::Session*> session,
 	const Data::UniqueGift &gift);
@@ -28,6 +34,7 @@ namespace Ui {
 void ShowBuyOnchainGiftBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> gift,
+	base::weak_ptr<OnchainBuyMemory> memory,
 	Fn<void()> bought);
 
 } // namespace Ui

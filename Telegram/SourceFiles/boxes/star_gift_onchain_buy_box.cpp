@@ -7,20 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/star_gift_onchain_buy_box.h"
 
+#include "api/api_earn.h"
 #include "api/api_premium.h"
 #include "base/timer.h"
 #include "boxes/peers/replace_boost_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "data/components/credits.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "data/data_user.h"
+#include "history/history_item_helpers.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -35,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_send_preparation.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_session_served.h"
+#include "window/window_session_controller.h"
 
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
@@ -52,7 +57,11 @@ constexpr auto kWalletWait = 15 * crl::time(1000);
 enum class Stage : uchar {
 	Waiting,
 	Estimating,
+	Assessing,
 	Ready,
+	Offering,
+	Withdrawing,
+	Funding,
 	Buying,
 	Rereading,
 	Repricing,
@@ -84,6 +93,7 @@ public:
 		not_null<GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
+		base::weak_ptr<OnchainBuyMemory> memory,
 		Fn<void()> bought);
 	~OnchainPurchase();
 
@@ -101,6 +111,9 @@ public:
 private:
 	[[nodiscard]] bool current() const;
 	[[nodiscard]] bool idle() const;
+	[[nodiscard]] bool assessable() const;
+	[[nodiscard]] bool offerable() const;
+	[[nodiscard]] bool covers(int64 earnings) const;
 	[[nodiscard]] SendError walletRefusal() const;
 	[[nodiscard]] bool walletUsable();
 	[[nodiscard]] Completion completion() const;
@@ -111,7 +124,25 @@ private:
 	void waited();
 	void preflight();
 	void preflighted(Wallet::FeeResult result);
-	void settle(SendError error, std::optional<int64> fee);
+	void settle(
+		SendError error,
+		std::optional<int64> fee,
+		std::optional<int64> spend);
+	void requestEarnings();
+	void earningsLoaded(int64 earnings);
+	void ready();
+	void offer();
+	void showOffer();
+	void offerCancelled();
+	void offerProceeded(int64 earnings);
+	void withdraw(
+		not_null<Window::SessionController*> window,
+		int64 earnings);
+	void withdrawn();
+	void awaitFunds();
+	void earningsUnavailable();
+	void withdrawalEnded();
+	void recheck();
 	void buy();
 	void request();
 	void answered(
@@ -147,6 +178,7 @@ private:
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Data::UniqueGift> _gift;
 	const Fn<void()> _bought;
+	const base::weak_ptr<OnchainBuyMemory> _memory;
 	const not_null<Main::Session*> _session;
 	const base::weak_ptr<Main::Session> _weakSession;
 	const not_null<Wallet::Session*> _wallet;
@@ -160,7 +192,10 @@ private:
 	Wallet::KeyAuthorization _authorization;
 	std::string _operationId;
 	base::weak_qptr<GenericBox> _priceBox;
+	base::weak_qptr<GenericBox> _earningsBox;
 	Fn<void()> _afterPreflight;
+	std::optional<int64> _spend;
+	std::optional<int64> _earnings;
 	rpl::variable<int64> _price;
 	rpl::variable<std::optional<int64>> _fee;
 	rpl::variable<QString> _refusal;
@@ -171,11 +206,15 @@ private:
 	Stage _stage = Stage::Waiting;
 	uint64 _owner = 0;
 	mtpRequestId _requestId = 0;
+	mtpRequestId _earningsRequestId = 0;
 	int _retries = 0;
 	bool _waitArmed = false;
 	bool _signingArmed = false;
 	bool _stale = false;
 	bool _polling = false;
+	bool _offer = false;
+	bool _earningsDone = false;
+	bool _funding = false;
 	rpl::lifetime _trackLifetime;
 	rpl::lifetime _lifetime;
 	// WHY: last, so the key ladder cancelled first finds the rest alive.
@@ -213,6 +252,32 @@ private:
 		: (fee > balance - value)
 		? SendError::InsufficientFees
 		: SendError::None;
+}
+
+[[nodiscard]] bool EarningsCoverShortfall(
+		int64 value,
+		int64 spend,
+		int64 balance,
+		int64 earnings) {
+	if (spend <= 0
+		|| balance < 0
+		|| earnings <= 0
+		|| earnings > std::numeric_limits<int64>::max() - balance
+		|| FundsRefusal(value, spend, balance) == SendError::None) {
+		return false;
+	}
+	return FundsRefusal(value, spend, balance + earnings) == SendError::None;
+}
+
+[[nodiscard]] int64 AvailableEarnings(
+		const MTPpayments_StarsRevenueStats &result) {
+	const auto &status = result.data().vstatus().data();
+	const auto amount = CreditsAmountFromTL(status.vavailable_balance());
+	if (!amount.ton()) {
+		return 0;
+	}
+	const auto nanos = amount.whole() * kNanosInOne + amount.nano();
+	return std::max(nanos, int64(0));
 }
 
 [[nodiscard]] TextWithEntities GramCost(int64 nanos) {
@@ -299,11 +364,13 @@ OnchainPurchase::OnchainPurchase(
 	not_null<GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> gift,
+	base::weak_ptr<OnchainBuyMemory> memory,
 	Fn<void()> bought)
 : _box(box)
 , _show(std::move(show))
 , _gift(std::move(gift))
 , _bought(std::move(bought))
+, _memory(std::move(memory))
 , _session(&_show->session())
 , _weakSession(base::make_weak(_session))
 , _wallet(&_session->wallet())
@@ -359,7 +426,9 @@ void OnchainPurchase::press() {
 	_busy = true;
 	_retries = 0;
 	refresh();
-	if (base::take(_stale)) {
+	if (_offer) {
+		offer();
+	} else if (base::take(_stale)) {
 		_afterPreflight = [=] { buy(); };
 		_error = SendError::None;
 		_fee = std::nullopt;
@@ -386,7 +455,32 @@ bool OnchainPurchase::current() const {
 }
 
 bool OnchainPurchase::idle() const {
-	return (_stage == Stage::Estimating) || (_stage == Stage::Ready);
+	return (_stage == Stage::Estimating)
+		|| (_stage == Stage::Assessing)
+		|| (_stage == Stage::Ready);
+}
+
+bool OnchainPurchase::assessable() const {
+	const auto memory = _memory.get();
+	return Insufficient(_error)
+		&& _spend.has_value()
+		&& memory
+		&& !memory->withdrawalDisabled
+		&& !_earningsDone
+		&& _show->canResolveWindow();
+}
+
+bool OnchainPurchase::offerable() const {
+	return _earnings.has_value() && covers(*_earnings);
+}
+
+bool OnchainPurchase::covers(int64 earnings) const {
+	return assessable()
+		&& EarningsCoverShortfall(
+			_price.current(),
+			*_spend,
+			_wallet->balanceNano(),
+			earnings);
 }
 
 SendError OnchainPurchase::walletRefusal() const {
@@ -440,7 +534,7 @@ void OnchainPurchase::subscribe() {
 	}, _lifetime);
 	_wallet->balanceNanoValue(
 	) | rpl::skip(1) | rpl::filter([=] {
-		return idle();
+		return idle() || (_stage == Stage::Funding);
 	}) | rpl::on_next([=] {
 		_fee = std::nullopt;
 		walletChanged();
@@ -506,11 +600,20 @@ void OnchainPurchase::wait() {
 void OnchainPurchase::waited() {
 	if (_stage == Stage::Waiting) {
 		openMoney();
+	} else if (_stage == Stage::Funding) {
+		walletChanged();
 	}
 }
 
 void OnchainPurchase::preflight() {
+	if (_funding && !_waitArmed) {
+		_waitTimer.cancel();
+	}
 	_stage = Stage::Estimating;
+	_spend = std::nullopt;
+	if (base::take(_offer)) {
+		_error = SendError::None;
+	}
 	refresh();
 	_wallet->estimateServed(
 		_owner,
@@ -546,22 +649,215 @@ void OnchainPurchase::preflighted(Wallet::FeeResult result) {
 		const auto fee = (error == SendError::None)
 			? std::make_optional(result.feeNano)
 			: std::nullopt;
-		settle(error, fee);
+		const auto spend = Insufficient(error)
+			? result.shortfallFeeNano
+			: std::nullopt;
+		settle(error, fee, spend);
 	}
 }
 
-void OnchainPurchase::settle(SendError error, std::optional<int64> fee) {
+void OnchainPurchase::settle(
+		SendError error,
+		std::optional<int64> fee,
+		std::optional<int64> spend) {
 	_waitArmed = false;
 	_waitTimer.cancel();
 	_retries = 0;
 	_stale = false;
-	_stage = Stage::Ready;
 	_error = error;
+	_spend = spend;
+	if (_funding && Insufficient(error)) {
+		awaitFunds();
+		return;
+	}
+	_funding = false;
 	_fee = fee;
+	if (assessable() && !_earnings) {
+		_stage = Stage::Assessing;
+		refresh();
+		requestEarnings();
+	} else {
+		ready();
+	}
+}
+
+void OnchainPurchase::requestEarnings() {
+	if (!current()) {
+		close();
+		return;
+	} else if (_earningsRequestId) {
+		return;
+	}
+	using Flag = MTPpayments_getStarsRevenueStats::Flag;
+	_earningsRequestId = _api.request(MTPpayments_GetStarsRevenueStats(
+		MTP_flags(Flag::f_ton),
+		MTP_inputPeerSelf()
+	)).done([=](const MTPpayments_StarsRevenueStats &result) {
+		_earningsRequestId = 0;
+		earningsLoaded(AvailableEarnings(result));
+	}).fail([=] {
+		_earningsRequestId = 0;
+		earningsLoaded(0);
+	}).handleAllErrors().send();
+}
+
+void OnchainPurchase::earningsLoaded(int64 earnings) {
+	if (_stage == Stage::Closed) {
+		return;
+	}
+	_earnings = earnings;
+	if (_stage != Stage::Assessing && _stage != Stage::Offering) {
+		return;
+	} else if (!current()) {
+		close();
+	} else if (_stage == Stage::Offering) {
+		showOffer();
+	} else {
+		ready();
+	}
+}
+
+void OnchainPurchase::ready() {
+	_stage = Stage::Ready;
+	_offer = offerable();
+	if (_offer) {
+		_fee = _spend;
+	}
 	refresh();
 	if (const auto continuation = base::take(_afterPreflight)) {
 		continuation();
 	}
+}
+
+void OnchainPurchase::offer() {
+	_stage = Stage::Offering;
+	refresh();
+	requestEarnings();
+}
+
+void OnchainPurchase::showOffer() {
+	if (!offerable()) {
+		recheck();
+		return;
+	}
+	const auto earnings = *_earnings;
+	const auto proceed = crl::guard(this, [=] {
+		offerProceeded(earnings);
+	});
+	const auto cancel = crl::guard(this, [=] {
+		offerCancelled();
+	});
+	_earningsBox = _show->show(MakeConfirmBox({
+		.text = tr::lng_gift_buy_onchain_earnings_text(
+			tr::now,
+			lt_amount,
+			tr::bold(PrepareGramAmountText(earnings)),
+			tr::marked),
+		.confirmed = Fn<void(Fn<void()>)>([=](Fn<void()> close) {
+			close();
+			proceed();
+		}),
+		.cancelled = Fn<void(Fn<void()>)>([=](Fn<void()> close) {
+			close();
+			cancel();
+		}),
+		.confirmText = tr::lng_gift_buy_onchain_earnings_proceed(),
+		.title = tr::lng_gift_buy_onchain_earnings_title(),
+	}));
+	if (const auto box = _earningsBox.get()) {
+		Wallet::CloseByOutsideClick(box);
+	}
+}
+
+void OnchainPurchase::offerCancelled() {
+	if (_stage != Stage::Offering) {
+		return;
+	}
+	_earningsBox = nullptr;
+	recheck();
+}
+
+void OnchainPurchase::offerProceeded(int64 earnings) {
+	if (_stage != Stage::Offering) {
+		return;
+	}
+	_earningsBox = nullptr;
+	if (!current()) {
+		close();
+		return;
+	}
+	const auto window = covers(earnings) ? _show->resolveWindow() : nullptr;
+	if (!window || (&window->session() != _session)) {
+		recheck();
+		return;
+	}
+	withdraw(window, earnings);
+}
+
+void OnchainPurchase::withdraw(
+		not_null<Window::SessionController*> window,
+		int64 earnings) {
+	_stage = Stage::Withdrawing;
+	refresh();
+	const auto session = _weakSession;
+	const auto memory = _memory;
+	const auto done = crl::guard(this, [=] { withdrawn(); });
+	const auto unavailable = crl::guard(this, [=] { earningsUnavailable(); });
+	const auto ended = crl::guard(this, [=] { withdrawalEnded(); });
+	Api::WithdrawEarningsToWallet(window, _box, earnings, {
+		.withdrawn = [=] {
+			if (const auto strong = session.get()) {
+				strong->credits().tonLoad(true);
+			}
+			done();
+		},
+		.disabled = [=] {
+			if (const auto strong = memory.get()) {
+				strong->withdrawalDisabled = true;
+			}
+			unavailable();
+		},
+		.failed = ended,
+		.dismissed = ended,
+	});
+}
+
+void OnchainPurchase::withdrawn() {
+	if (_stage != Stage::Withdrawing) {
+		return;
+	}
+	_earningsDone = true;
+	_earnings = std::nullopt;
+	_funding = true;
+	_stage = Stage::Funding;
+	_afterPreflight = [=] { buy(); };
+	_fee = std::nullopt;
+	walletChanged();
+}
+
+void OnchainPurchase::awaitFunds() {
+	_stage = Stage::Funding;
+	_fee = _spend;
+	refresh();
+	_waitTimer.callOnce(kWalletWait);
+}
+
+void OnchainPurchase::earningsUnavailable() {
+	if (_stage == Stage::Withdrawing) {
+		abandon(_error);
+	}
+}
+
+void OnchainPurchase::withdrawalEnded() {
+	if (_stage == Stage::Withdrawing) {
+		recheck();
+	}
+}
+
+void OnchainPurchase::recheck() {
+	stopAttempt();
+	_fee = std::nullopt;
+	walletChanged();
 }
 
 void OnchainPurchase::buy() {
@@ -905,6 +1201,7 @@ void OnchainPurchase::abandon(SendError error) {
 	_stage = Stage::Ready;
 	_error = error;
 	_fee = std::nullopt;
+	_offer = false;
 	_stale = !Insufficient(error);
 	refresh();
 }
@@ -912,6 +1209,9 @@ void OnchainPurchase::abandon(SendError error) {
 void OnchainPurchase::stopAttempt() {
 	_signingWait.cancel();
 	_signingArmed = false;
+	if (base::take(_funding) && !_waitArmed) {
+		_waitTimer.cancel();
+	}
 	_afterPreflight = nullptr;
 	_served = std::nullopt;
 	_prepared = nullptr;
@@ -959,15 +1259,20 @@ void OnchainPurchase::resolve() {
 
 void OnchainPurchase::refresh() {
 	const auto funds = Insufficient(_error);
-	_short = funds;
+	_short = funds
+		&& !_offer
+		&& !_funding
+		&& (_stage != Stage::Assessing);
 	_refusal = (funds || _error == SendError::None)
 		? QString()
 		: RefusalText(_error);
 	_pressable = (_stage == Stage::Ready)
 		&& !_busy.current()
-		&& !funds
-		&& (_stale
-			|| ((_error == SendError::None) && _fee.current().has_value()));
+		&& (_offer
+			|| (!funds
+				&& (_stale
+					|| ((_error == SendError::None)
+						&& _fee.current().has_value()))));
 }
 
 void OnchainPurchase::openMoney() {
@@ -1014,16 +1319,22 @@ void OnchainPurchase::closing() {
 	_waitTimer.cancel();
 	_signingWait.cancel();
 	_api.request(base::take(_requestId)).cancel();
+	_api.request(base::take(_earningsRequestId)).cancel();
 	if (_weakSession) {
 		_wallet->cancelFeeEstimate(_owner);
 	}
 	stopPolling();
+	_funding = false;
 	_afterPreflight = nullptr;
 	_served = std::nullopt;
 	_prepared = nullptr;
 	_authorization = {};
 	const auto weak = base::make_weak(this);
+	const auto earningsBox = _earningsBox;
 	if (const auto strong = _priceBox.get()) {
+		strong->closeBox();
+	}
+	if (const auto strong = earningsBox.get()) {
 		strong->closeBox();
 	}
 	if (weak) {
@@ -1041,11 +1352,13 @@ void OnchainBuyBox(
 		not_null<GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
+		base::weak_ptr<OnchainBuyMemory> memory,
 		Fn<void()> bought) {
 	const auto purchase = box->lifetime().make_state<OnchainPurchase>(
 		box,
 		show,
 		gift,
+		std::move(memory),
 		std::move(bought));
 	const auto &padding = st::boxPadding;
 	const auto margins = QMargins(padding.left(), 0, padding.right(), 0);
@@ -1193,6 +1506,7 @@ bool CanBuyOnchainGift(
 void ShowBuyOnchainGiftBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
+		base::weak_ptr<OnchainBuyMemory> memory,
 		Fn<void()> bought) {
 	if (!show
 		|| !show->valid()
@@ -1207,7 +1521,12 @@ void ShowBuyOnchainGiftBox(
 		Wallet::ShowWallet(session);
 		return;
 	}
-	show->show(Box(OnchainBuyBox, show, std::move(gift), std::move(bought)));
+	show->show(Box(
+		OnchainBuyBox,
+		show,
+		std::move(gift),
+		std::move(memory),
+		std::move(bought)));
 }
 
 } // namespace Ui

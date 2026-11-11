@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class ChannelData;
 
 namespace Ui {
+class BoxContent;
 class RippleButton;
 class Show;
 } // namespace Ui
@@ -41,5 +42,18 @@ void HandleWalletWithdrawalButton(
 	not_null<Ui::RippleButton*> button,
 	Fn<CreditsAmount()> available,
 	Fn<void()> withdrawn);
+
+struct WalletWithdrawal final {
+	Fn<void()> withdrawn;
+	Fn<void()> disabled;
+	Fn<void()> failed;
+	Fn<void()> dismissed;
+};
+
+void WithdrawEarningsToWallet(
+	not_null<Window::SessionController*> window,
+	not_null<Ui::BoxContent*> confirmation,
+	int64 nanos,
+	WalletWithdrawal withdrawal);
 
 } // namespace Api

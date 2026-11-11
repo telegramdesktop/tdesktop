@@ -4337,6 +4337,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_buy_onchain_error" = "Please try again later.";
 "lng_gift_buy_onchain_done" = "The gift will appear in {path} and on your profile once the purchase is confirmed.";
 "lng_gift_buy_onchain_already_sent" = "This purchase has already been sent.";
+"lng_gift_buy_onchain_earnings_title" = "Use Gram Earnings?";
+"lng_gift_buy_onchain_earnings_text" = "{amount} will be moved from Gram Earnings to your balance and used to buy this gift.";
+"lng_gift_buy_onchain_earnings_proceed" = "Proceed";
 "lng_gift_onchain_offer_withdraw" = "Withdraw";
 "lng_gift_onchain_offer_withdraw_for" = "Withdraw for {amount}";
 "lng_gift_onchain_offer_withdraw_title" = "Withdraw Offer?";

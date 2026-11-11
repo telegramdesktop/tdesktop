@@ -209,30 +209,65 @@ void ShowWithdrawnToast(
 		});
 }
 
-void WithdrawToWalletFailed(
-		std::shared_ptr<Ui::Show> show,
-		const MTP::Error &error,
-		Fn<void()> fragment) {
-	if (MTP::IgnoreError(error)) {
-		return;
-	}
-	const auto &type = error.type();
+[[nodiscard]] bool WithdrawalDisabled(const MTP::Error &error) {
 	const auto disabled = std::array{
 		u"API_WITHDRAWAL_FEATURE_DISABLED"_q,
 		u"FEATURE_DISABLED"_q,
 	};
+	return !MTP::IgnoreError(error)
+		&& ranges::contains(disabled, error.type());
+}
+
+void ShowWithdrawToWalletError(
+		const std::shared_ptr<Ui::Show> &show,
+		const MTP::Error &error) {
+	if (MTP::IgnoreError(error)) {
+		return;
+	}
+	const auto &type = error.type();
 	const auto tooSmall = std::array{
 		u"AVAILABLE_BALANCE_TOO_SMALL"_q,
 		u"AMOUNT_TOO_SMALL"_q,
 	};
-	if (ranges::contains(disabled, type)) {
-		fragment();
-	} else if (ranges::contains(tooSmall, type)) {
+	if (ranges::contains(tooSmall, type)) {
 		show->showToast(tr::lng_channel_earn_out_amount_too_small(tr::now));
 	} else {
 		LOG(("API Error: Withdraw to wallet failed with %1.").arg(type));
 		show->showToast(tr::lng_credits_currency_withdraw_error(tr::now));
 	}
+}
+
+void WithdrawToWalletFailed(
+		std::shared_ptr<Ui::Show> show,
+		const MTP::Error &error,
+		Fn<void()> fragment) {
+	if (WithdrawalDisabled(error)) {
+		fragment();
+	} else {
+		ShowWithdrawToWalletError(show, error);
+	}
+}
+
+void SendWithdrawToWallet(
+		not_null<Main::Session*> session,
+		const QByteArray &tmpPassword,
+		Fn<void()> done,
+		Fn<void(const MTP::Error &)> fail) {
+	using Flag = MTPpayments_withdrawStarsRevenueToWallet::Flag;
+	session->api().request(MTPpayments_WithdrawStarsRevenueToWallet(
+		MTP_flags(Flag::f_ton),
+		MTP_inputPeerSelf(),
+		MTP_long(0), // amount
+		MTP_bytes(tmpPassword)
+	)).done([=](const MTPBool &result) {
+		if (mtpIsTrue(result)) {
+			done();
+		} else {
+			fail(MTP::Error::Local(
+				u"STARS_REVENUE_WITHDRAW_FALSE"_q,
+				u"payments.withdrawStarsRevenueToWallet returned false"_q));
+		}
+	}).fail(fail).handleAllErrors().send();
 }
 
 void WithdrawToWalletBox(
@@ -249,9 +284,6 @@ void WithdrawToWalletBox(
 	const auto show = window->uiShow();
 	const auto weakSession = base::make_weak(session);
 	const auto weakBox = base::make_weak(box);
-	const auto falseError = MTP::Error::Local(
-		u"STARS_REVENUE_WITHDRAW_FALSE"_q,
-		u"payments.withdrawStarsRevenueToWallet returned false"_q);
 
 	box->setTitle(tr::lng_credits_currency_withdraw_title(
 		lt_amount,
@@ -274,19 +306,11 @@ void WithdrawToWalletBox(
 			const QByteArray &tmpPassword,
 			Fn<void()> done,
 			Fn<void(const MTP::Error &)> fail) {
-		using Flag = MTPpayments_withdrawStarsRevenueToWallet::Flag;
-		session->api().request(MTPpayments_WithdrawStarsRevenueToWallet(
-			MTP_flags(Flag::f_ton),
-			MTP_inputPeerSelf(),
-			MTP_long(0), // amount
-			MTP_bytes(tmpPassword)
-		)).done([=](const MTPBool &result) {
-			if (mtpIsTrue(result)) {
-				done();
-			} else {
-				fail(falseError);
-			}
-		}).fail(fail).handleAllErrors().send();
+		SendWithdrawToWallet(
+			session,
+			tmpPassword,
+			std::move(done),
+			std::move(fail));
 	};
 	const auto succeeded = [=] {
 		if (const auto strong = weakBox.get()) {
@@ -394,6 +418,50 @@ void HandleWalletWithdrawalButton(
 			nanos,
 			fallback,
 			refresh));
+	});
+}
+
+void WithdrawEarningsToWallet(
+		not_null<Window::SessionController*> window,
+		not_null<Ui::BoxContent*> confirmation,
+		int64 nanos,
+		WalletWithdrawal withdrawal) {
+	Expects(withdrawal.withdrawn && withdrawal.disabled && withdrawal.failed);
+
+	const auto session = &window->session();
+	const auto show = window->uiShow();
+	const auto weakSession = base::make_weak(session);
+	const auto withdrawn = std::move(withdrawal.withdrawn);
+	const auto disabled = std::move(withdrawal.disabled);
+	const auto failed = std::move(withdrawal.failed);
+	const auto send = [=](
+			const QByteArray &tmpPassword,
+			Fn<void()> done,
+			Fn<void(const MTP::Error &)> fail) {
+		const auto reported = [=](const MTP::Error &error) {
+			if (WithdrawalDisabled(error)) {
+				disabled();
+			}
+			fail(error);
+		};
+		SendWithdrawToWallet(session, tmpPassword, std::move(done), reported);
+	};
+	RequestWithGiftPassword(window, confirmation, {
+		.send = send,
+		.succeeded = [=] {
+			withdrawn();
+			if (show->valid()) {
+				ShowWithdrawnToast(show, weakSession, nanos);
+			}
+		},
+		.failed = [=](const MTP::Error &error) {
+			if (!WithdrawalDisabled(error)) {
+				ShowWithdrawToWalletError(show, error);
+				failed();
+			}
+		},
+		.dismissed = std::move(withdrawal.dismissed),
+		.closeOnFail = true,
 	});
 }
 

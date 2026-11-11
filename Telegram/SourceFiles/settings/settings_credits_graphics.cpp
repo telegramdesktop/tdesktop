@@ -1789,6 +1789,9 @@ void GenericCreditsEntryBody(
 	const auto canBuyOnchain = uniqueGift
 		&& Ui::CanBuyOnchainGift(session, *uniqueGift)
 		&& (ownOnchain != Ui::OwnOnchainGift::Listed);
+	const auto onchainMemory = canBuyOnchain
+		? box->lifetime().make_state<Ui::OnchainBuyMemory>()
+		: nullptr;
 	const auto &stUser = st::boostReplaceUserpic;
 	const auto isPrize = e.bareGiveawayMsgId > 0;
 	const auto starGiftSticker = (isStarGift && e.bareGiftStickerId)
@@ -2605,6 +2608,7 @@ void GenericCreditsEntryBody(
 				Ui::ShowBuyOnchainGiftBox(
 					show,
 					e.uniqueGift,
+					base::make_weak(onchainMemory),
 					crl::guard(box, [=] { box->closeBox(); }));
 			} else if (canUpgrade || canGiftUpgrade) {
 				upgrade();
