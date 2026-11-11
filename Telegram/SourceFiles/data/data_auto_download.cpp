@@ -70,7 +70,11 @@ Type AutoPlayTypeFromDocument(not_null<DocumentData*> document) {
 		Source source,
 		Type type) {
 	const auto user = data.bytesLimit(source, type);
-	return (user > 0) ? user : Defaults().bytesLimit(source, type);
+	if (user > 0) {
+		return user;
+	}
+	const auto fallback = Defaults().bytesLimit(source, type);
+	return (fallback > 0) ? fallback : kDefaultMaxSize;
 }
 
 [[nodiscard]] bool ForceAllowed(
