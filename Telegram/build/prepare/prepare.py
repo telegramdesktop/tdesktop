@@ -466,7 +466,9 @@ def runStages():
         print(prefix + ': ', end = '', flush=True)
         stage['key'] = computeCacheKey(stage)
         commands = removeDir(stage['name']) + '\n' + stage['commands']
-        checkResult = 'Forced' if len(onlyStages) > 0 else checkCacheKey(stage)
+        # A selected stage must still honor its cache key. This lets CI split
+        # preparation into small, restartable groups without rebuilding good stages.
+        checkResult = checkCacheKey(stage)
         if checkResult == 'Good':
             print('SKIPPING')
             continue
