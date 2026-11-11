@@ -2,7 +2,7 @@ name: Windows.
 
 concurrency:
   group: tdesktop-windows-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 on:
   push:
@@ -165,9 +165,32 @@ jobs:
           key: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-${{ env.CACHE_KEY }}
           restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-${{ matrix.qt || 'qt' }}-
 
-      - name: Libraries.
+      # Keep dependency preparation in visible phases. The prepare.py stage
+      # cache keys are checked on every invocation, so completed stages are reused.
+      - name: Dependencies 1/5 - bootstrap tools and LZMA
+        timeout-minutes: 90
         run: |
-          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent ${{ matrix.qt }}
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent patches msys64 python NuGet jom gyp rust lzma
+
+      - name: Dependencies 2/5 - compression, image and crypto foundations
+        timeout-minutes: 90
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent zlib mozjpeg openssl3 opus rnnoise
+
+      - name: Dependencies 3/5 - media codecs
+        timeout-minutes: 120
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent dav1d openh264 libavif libwebp libjxl libvpx liblcms2 nv-codec-headers regex ffmpeg libheif openal-soft
+
+      - name: Dependencies 4/5 - crash reporting and Qt
+        timeout-minutes: 120
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent breakpad crashpad qt6_windows7 tg_angle qt_6.11.2
+
+      - name: Dependencies 5/5 - Telegram-specific libraries
+        timeout-minutes: 120
+        run: |
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent tg_owt ada tde2e tlottie wallet-engine tdesktop_rust
 
       - name: Read configuration matrix.
         shell: bash
