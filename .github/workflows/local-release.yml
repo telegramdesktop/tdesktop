@@ -1,0 +1,68 @@
+name: Package Windows release
+
+on:
+  workflow_run:
+    workflows: ["Windows."]
+    types: [completed]
+    branches: [feature/local-web-admin]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  package:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: windows-latest
+    steps:
+      - name: Checkout exact build revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Download Windows x64 executable
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+          name: Telegram x64
+          path: package/Telegram
+
+      - name: Assemble ZIP
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force package/local-admin | Out-Null
+          Copy-Item local-admin/server.py package/local-admin/
+          Copy-Item local-admin/index.html package/local-admin/
+          Copy-Item local-admin/account.html package/local-admin/
+          Copy-Item local-admin/README.md package/local-admin/
+          Copy-Item local-admin/requirements.txt package/local-admin/
+          @'
+          @echo off
+          cd /d "%~dp0"
+          if "%ADMIN_PASSWORD%"=="" (
+            echo Set ADMIN_PASSWORD first, or the server will generate a temporary password.
+          )
+          py -3 server.py
+          pause
+          '@ | Set-Content -Encoding ascii package/local-admin/start-windows.bat
+          @'
+          @echo off
+          start "" http://127.0.0.1:8765
+          '@ | Set-Content -Encoding ascii package/local-admin/open-admin.bat
+          @'
+          @echo off
+          start "" http://127.0.0.1:8765/account
+          '@ | Set-Content -Encoding ascii package/local-admin/open-account.bat
+          if (!(Test-Path package/Telegram/Telegram.exe)) { throw "Telegram.exe was not found in the Windows x64 build artifact." }
+          Get-ChildItem package -Recurse | Select-Object FullName,Length
+          Compress-Archive -Path package/* -DestinationPath LocalAssets-Windows-x64.zip -CompressionLevel Optimal
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: pwsh
+        run: |
+          $tag = "local-assets-" + $env:BUILD_SHA.Substring(0,12)
+          gh release create $tag LocalAssets-Windows-x64.zip --repo "${{ github.repository }}" --title "Local Assets Windows x64" --notes "Windows x64 Telegram Desktop executable plus browser-based local admin panel and local server. The admin server binds to 127.0.0.1. Local Stars, usernames and +888 identifiers are independent platform assets, not official Telegram assets."
