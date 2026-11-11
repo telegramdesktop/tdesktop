@@ -2,10 +2,9 @@ name: MacOS.
 
 on:
   push:
-    branches-ignore:
-      - feature/local-web-admin
     # Pushes to the canary or private-ci branches run their own workflows.
     branches-ignore:
+      - feature/local-web-admin
       - public-canary
       - private-canary
       - 'private-ci/**'
