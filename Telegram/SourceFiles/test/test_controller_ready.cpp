@@ -335,7 +335,7 @@ struct RefusedTarget {
 	Core::App().enumerateWindows([&](not_null<Window::Controller*> window) {
 		result.registry.push_back(window.get());
 	});
-	for (const auto window : Core::App().windowStack()) {
+	for (const auto &window : Core::App().windowStack()) {
 		result.activation.push_back(window.get());
 	}
 	result.activePrimary = Core::App().activePrimaryWindow();
