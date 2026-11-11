@@ -198,6 +198,7 @@ public:
 	[[nodiscard]] bool blockActionExpandsToActiveLine(
 		InsertBlockType type) const;
 	[[nodiscard]] bool isActiveTopLevelParagraph() const;
+	[[nodiscard]] bool activeParagraphAllowsInsertShortcuts() const;
 	[[nodiscard]] bool isActiveTopLevelParagraphOrHeading() const;
 	[[nodiscard]] bool hasActiveListItemSurface() const;
 	[[nodiscard]] bool hasActiveListItemExtraLine() const;
