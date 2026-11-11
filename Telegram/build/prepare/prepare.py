@@ -1722,8 +1722,6 @@ win_asserts:
 win:
     """ + removeDir('"%LIBS_DIR%\\Qt' + qt + '"') + """
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
-    SET OPENSSL_DIR=%LIBS_DIR%\\openssl3
-    SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
     SET WEBP_DIR=%LIBS_DIR%\\libwebp
     SET LCMS2_DIR=%LIBS_DIR%\\liblcms2
@@ -1736,7 +1734,7 @@ win:
         -static ^
         -static-runtime ^
         -feature-c++20 ^
-        -openssl linked ^
+        -no-openssl ^
         -system-webp ^
         -system-zlib ^
         -system-libjpeg ^
@@ -1755,12 +1753,6 @@ win32_win64:
         -D CMAKE_PROJECT_QtBase_INCLUDE:FILEPATH="%QT_ANGLE_CMAKE%" ^
         -D DESKTOP_APP_ANGLE_DIR:PATH="%LIBS_DIR%\\tg_angle" ^
 win:
-        -D OPENSSL_FOUND=1 ^
-        -D OPENSSL_INCLUDE_DIR="%OPENSSL_DIR%\\include" ^
-        -D LIB_EAY_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libcrypto.lib" ^
-        -D SSL_EAY_DEBUG="%OPENSSL_LIBS_DIR%.dbg\\libssl.lib" ^
-        -D LIB_EAY_RELEASE="%OPENSSL_LIBS_DIR%\\libcrypto.lib" ^
-        -D SSL_EAY_RELEASE="%OPENSSL_LIBS_DIR%\\libssl.lib" ^
         -D JPEG_FOUND=1 ^
         -D JPEG_INCLUDE_DIR="%MOZJPEG_DIR%" ^
         -D JPEG_LIBRARY_DEBUG="%MOZJPEG_DIR%\\Debug\\jpeg-static.lib" ^
