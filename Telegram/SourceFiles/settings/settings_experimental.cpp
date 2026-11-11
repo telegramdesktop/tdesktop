@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/number_input.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
@@ -36,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "export/export_api_wrap.h"
 #include "ffmpeg/ffmpeg_utility.h"
 #include "history/history_item_components.h"
 #include "history/view/controls/compose_controls_common.h"
@@ -189,6 +191,66 @@ void SetupCopyDeepLink(
 	return button;
 }
 
+void ExportDownloadCountBox(not_null<Ui::GenericBox*> box) {
+	auto &option = base::options::lookup<int>(
+		Export::kOptionExportFasterDownloadCount);
+	box->setTitle(rpl::single(option.name()));
+	const auto field = box->addRow(object_ptr<Ui::NumberInput>(
+		box,
+		st::defaultInputField,
+		rpl::single(u"1–64"_q),
+		QString::number(std::clamp(
+			option.value(),
+			1,
+			Export::kExportDownloadRequestsMax)),
+		Export::kExportDownloadRequestsMax));
+	field->selectAll();
+	box->setFocusCallback([=] {
+		field->setFocusFast();
+	});
+	const auto save = [=, &option] {
+		const auto value = field->getLastText().toInt();
+		if (value < 1 || value > Export::kExportDownloadRequestsMax) {
+			field->showError();
+			return;
+		}
+		option.set(value);
+		box->closeBox();
+	};
+	QObject::connect(field, &Ui::NumberInput::submitted, box, save);
+	box->addButton(tr::lng_settings_save(), save);
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
+}
+
+QString AddExportDownloadCount(
+		not_null<Window::Controller*> window,
+		not_null<Ui::VerticalLayout*> container,
+		Fn<void(const QString&, not_null<QWidget*>)> registerHighlight) {
+	auto &option = base::options::lookup<int>(
+		Export::kOptionExportFasterDownloadCount);
+	const auto label = [&option] {
+		return QString::number(std::clamp(
+			option.value(),
+			1,
+			Export::kExportDownloadRequestsMax));
+	};
+	const auto button = AddButtonWithLabel(
+		container,
+		rpl::single(option.name()),
+		rpl::single(label()) | rpl::then(option.changes() | rpl::map(label)),
+		st::settingsButtonNoIcon);
+	button->addClickHandler([=] {
+		window->show(Box(ExportDownloadCountBox));
+	});
+	SetupCopyDeepLink(window, button, option.id());
+	if (registerHighlight) {
+		registerHighlight(u"experimental/"_q + option.id(), button);
+	}
+	return option.name() + ' ' + option.description();
+}
+
 QString AddOption(
 		not_null<Window::Controller*> window,
 		not_null<Ui::VerticalLayout*> container,
@@ -261,7 +323,13 @@ QString AddOption(
 		}
 	}, inner->lifetime());
 
-	const auto searchable = name + ' ' + description;
+	auto searchable = name + ' ' + description;
+	if (option.id() == QLatin1String(Export::kOptionExportFasterDownload)) {
+		searchable += ' ' + AddExportDownloadCount(
+			window,
+			inner,
+			registerHighlight);
+	}
 	const auto terms = SearchWords(searchable);
 	std::move(
 		query
@@ -428,6 +496,7 @@ void SetupExperimental(
 				Media::Player::kOptionDisableAutoplayNext,
 				Window::kOptionExternalMediaViewer,
 				FFmpeg::kOptionFFmpegMultiThread,
+				Export::kOptionExportFasterDownload,
 			}
 		},
 		{
