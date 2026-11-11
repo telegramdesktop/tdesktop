@@ -179,19 +179,29 @@ leaf:
 - The parent `continue` command runs the startup `source-lineage` scan before
   freezing the batch. A mismatched task stays out of the batch and its lineage
   JSON goes into the run's report; the rest of the batch proceeds. Do not
-  switch branches, or perform or route a cherry-pick, rebase, merge, backport,
-  forward-port, or branch-sync task at this boundary.
-- Once the batch is frozen, the parent scheduler owns the shared skill's safe
-  pre-Phase-1 branch switch. Use Bash only for the required cleanliness,
-  recovery-ref, process, and `git worktree list --porcelain` checks and for
-  `git switch` to an existing compatible local branch. Never switch onto or off
-  a project branch (one named by a live project's slug): the owner checks those
-  out, and a project task's performer syncs it with `project-sync` and
-  `project-push` itself. The shared skill's creation of a project branch that
-  exists nowhere is the only exception. Never ask a performer or leaf Agent to
-  integrate history beyond that sync.
-- When a synchronous performer returns the shared pre-Phase-1 lineage stop,
-  switch safely in the parent and resume that Agent id when Claude exposes one.
+  perform or route a cherry-pick, rebase, merge, backport, forward-port, or
+  branch-sync task at this boundary.
+- The parent scheduler owns every branch switch, and the owner never checks a
+  branch out by hand. Before each Start, Retry, or resume it runs the shared
+  `workspace.py project-switch --project <slug> --task <id>` for the task's
+  project, which publishes the branch being left, enters the project branch
+  at `private/<slug>` or `private/alpha`, replays and pushes local commits
+  that never landed, and rebases a branch that skipped a release or lacks the
+  task's prerequisites onto `origin/dev` or `private/alpha`. Never use a bare
+  `git switch` onto or off a project branch
+  (one named by a live project's slug). When `project-switch` refuses
+  uncommitted changes before the run has started a task, ask the owner with
+  `AskUserQuestion` as the shared skill describes; later in the run, save them
+  with `wip-save` and continue. For a legacy task without a project, the
+  parent may still make the shared safe pre-Phase-1 switch to an existing
+  compatible non-project local branch, using Bash only for the required
+  cleanliness, recovery-ref, and `git worktree list --porcelain` checks and for
+  `git switch`. A task's performer syncs and pushes its project branch with
+  `project-sync` and `project-push` itself; never ask a performer or leaf
+  Agent to integrate history beyond that.
+- When a synchronous performer returns the shared pre-Phase-1 lineage stop for
+  a legacy task, switch safely in the parent and resume that Agent id when
+  Claude exposes one.
   If it exposes no resumable id, start one replacement performer only after the
   returned worker and repository checks prove there are no phase artifacts,
   source refs, overlay, or writes. This is a clean setup retry, not a second

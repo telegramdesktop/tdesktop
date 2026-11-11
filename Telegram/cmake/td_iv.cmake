@@ -52,6 +52,8 @@ PRIVATE
     iv/editor/iv_editor_page_path.h
     iv/editor/iv_editor_page_table_grid.cpp
     iv/editor/iv_editor_page_table_grid.h
+    iv/editor/iv_editor_page_table_remove.cpp
+    iv/editor/iv_editor_page_table_remove.h
     iv/editor/iv_editor_prepared_selection.cpp
     iv/editor/iv_editor_prepared_selection.h
     iv/editor/iv_editor_structure_menu.cpp
@@ -191,18 +193,43 @@ if (APPLE AND NOT DESKTOP_APP_USE_PACKAGED
     add_executable(td_iv_article_test)
     init_non_host_target(td_iv_article_test "(iv)")
 
-    target_precompile_headers(td_iv_article_test PRIVATE ${src_loc}/iv/iv_pch.h)
+    target_precompile_headers(td_iv_article_test
+    PRIVATE
+        ${src_loc}/iv/iv_pch.h
+        ${src_loc}/tests/test_iv_editor_state_pch.h
+    )
     nice_target_sources(td_iv_article_test ${src_loc}
     PRIVATE
+        api/api_bot.h
+        core/click_handler_types.h
+        data/data_location.cpp
+        data/data_location.h
+        data/data_session.h
+        data/data_types.h
+        history/history_item_reply_markup.cpp
+        history/history_item_reply_markup.h
+        history/history_location_manager.cpp
+        history/history_location_manager.h
+        iv/iv_rich_page.cpp
+        iv/iv_rich_page.h
         iv/iv_rich_page_quote.cpp
+        iv/iv_rich_page_quote.h
         iv/markdown/tests/iv_markdown_article_code_tests.cpp
+        iv/markdown/tests/iv_markdown_article_layout_retained_tests.cpp
+        iv/markdown/tests/iv_markdown_article_layout_table_tests.cpp
+        iv/markdown/tests/iv_markdown_article_layout_tests.cpp
+        iv/markdown/tests/iv_markdown_article_layout_tests.h
         iv/markdown/tests/iv_markdown_article_range_tests.cpp
         iv/markdown/tests/iv_markdown_article_rich_copy_tests.cpp
         iv/markdown/tests/iv_markdown_article_segment_tests.cpp
         iv/markdown/tests/iv_markdown_article_table_tests.cpp
         iv/markdown/tests/iv_markdown_article_tests.cpp
         iv/markdown/tests/iv_markdown_article_tests.h
+        iv/markdown/tests/iv_markdown_article_tests_app_symbols.cpp
         iv/markdown/tests/iv_markdown_article_tests_main.cpp
+        settings.h
+        tests/test_iv_editor_state_pch.h
+        ui/image/image_location.h
     )
 
     if (DESKTOP_APP_RELEASE_QT)
@@ -217,7 +244,10 @@ if (APPLE AND NOT DESKTOP_APP_USE_PACKAGED
     target_link_libraries(td_iv_article_test
     PRIVATE
         tdesktop::td_iv
+        tdesktop::td_lang
+        tdesktop::td_ui
         desktop-app::lib_spellcheck
+        desktop-app::lib_storage
         desktop-app::lib_webview
         $<TARGET_OBJECTS:Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin_init>
         ${td_iv_article_test_offscreen_archive}
@@ -235,6 +265,7 @@ if (APPLE AND NOT DESKTOP_APP_USE_PACKAGED
             "$<TARGET_FILE_DIR:td_iv_article_test>/Contents/Resources"
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${CMAKE_BINARY_DIR}/lib_ui.rcc"
+            "${CMAKE_BINARY_DIR}/external_microtex_bundled.rcc"
             "$<TARGET_FILE_DIR:td_iv_article_test>/Contents/Resources/"
         VERBATIM
     )

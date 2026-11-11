@@ -86,19 +86,23 @@ Inspect the resolved task, readiness, `other_active_task`, status, and owner.
 - If it is owned by another checkout, stop. Cross-checkout restart is a rare
   explicit human reassignment, never an implicit steal.
 - If its dependencies are unfinished, report them and stop without starting.
-- A project task starts only on a checkout whose current branch is the
-  project's slug, and a standalone task only on a branch that is not a live
-  project's; `start` and `retry` refuse otherwise. Never switch branches for
-  it: the owner checks existing project branches out. Report the refusal as a
-  pre-phase routing stop. A branch that exists nowhere is the exception: create
-  it under [Create a missing project branch](../continue/SKILL.md#create-a-missing-project-branch)
-  and continue.
+- Every task runs on its project's branch, and `start` and `retry` refuse
+  any other. The owner never switches branches by hand: before a `start`, a
+  `retry`, or resuming an `in-progress` task, run
+  `workspace.py project-switch --project <slug> --task <full-task-id>` with
+  the task's `--require` arguments, as
+  [Switch to the project branch](../continue/SKILL.md#switch-to-the-project-branch)
+  describes, unless a `continue` scheduler already did for this task. It
+  publishes the branch being left, lines the project branch up with
+  `private/<slug>` or starts it from `private/alpha`, and rebases a branch
+  that skipped a release or lacks the task's prerequisites. When it refuses
+  uncommitted changes of unknown origin, ask the owner what to do with them:
+  in an interactive invocation ask directly, in a `continue` delegation
+  return the refusal so the scheduler asks. A legacy task without a project
+  runs on any branch that is not a live project's, as before.
 - Inspect `task.md` for approved source-task prerequisites in addition to
-  `depends_on`. Before a `start`, or a `retry` whose task retains no source
-  work, on a project branch first run `workspace.py source-prepare`, which
-  fast-forwards the branch to the work other checkouts published. A task that
-  is already `in-progress` resumes as it is; its work meets newer project
-  commits at `project-sync`. Then
+  `depends_on`. A task that is already `in-progress` resumes as it is; its
+  work meets newer project commits at `project-sync`. Then
   run `workspace.py source-lineage --task <full-task-id>`
   with one `--require <source-task-id>` for each explicit prerequisite. Require
   `current_satisfies: true` before Phase 1. For `start` or `retry`, pass the same
@@ -207,9 +211,9 @@ desired outcome was already present may finish without a source commit only
 after the same general review and evidence loop prove
 `Outcome: already-satisfied`.
 
-A project task syncs its work onto the shared project branch before its
-`Approve`, as `pipeline.md` "Project branches" describes; several checkouts
-may be working on the same project.
+Every task syncs its work onto the shared project branch and pushes it before
+its `Approve`, as `pipeline.md` "Project branches" describes; several
+checkouts may be working on the same project.
 
 Only a genuine exhausted task blocker produces a
 canonical `Block <full-task-id>` commit. In a `continue` run a `Block` sets
@@ -221,9 +225,9 @@ Never wait on the owner. A `continue` run often has nobody at the computer,
 so the performer and its leaves never ask the owner a question. Decide from
 the task, the project description and repository precedent, prefer existing
 behavior, record the question, the choice and the alternatives in
-`work/decisions.md`, and continue. A decision that should bind later tasks
-also goes into `work/project-amendment.md`. The owner reviews decisions
-afterwards; overturning one becomes a new task.
+`work/decisions.md`, and continue. The owner reviews decisions afterwards;
+overturning one becomes a new task. The one question asked before a task
+starts is what to do with uncommitted source of unknown origin.
 
 A repeated evidence setup failure is not exhausted recovery by itself. Follow
 the shared directness ladder: forbid the failed command, fixture, probe, or
@@ -257,7 +261,8 @@ The global stops that remain are a server scheme mismatch (the server rejects
 the client's constructors, for example `INPUT_CONSTRUCTOR_INVALID`, or answers
 with constructors the client cannot parse: the owner must update the scheme)
 and a missing golden test account that cannot be recreated unattended. Dirty
-source the run cannot account for is never a reason to stop: save it with
+source the run cannot account for, once the task has started, is never a
+reason to stop: save it with
 `workspace.py wip-save --reason "<what is unknown>"`, which commits it to a
 new side branch `wip/<branch>/<checkout-tag>/<time>` (tdesktop on `private`,
 submodules on their `origin`) and leaves the checkout clean, name that branch

@@ -34,6 +34,7 @@ public:
 	void apply(const MessageUpdate &update);
 	void apply(const TopicUpdate &update);
 	void applyDifferenceTooLong();
+	void markJustCreated();
 
 	[[nodiscard]] rpl::producer<MessagesSlice> source(
 		MessagePosition aroundId,

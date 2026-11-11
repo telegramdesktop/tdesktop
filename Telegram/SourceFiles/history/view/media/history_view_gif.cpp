@@ -74,8 +74,7 @@ namespace {
 
 constexpr auto kMaxGifForwardedBarLines = 4;
 constexpr auto kUseNonBlurredThreshold = 240;
-constexpr auto kMaxInlineArea = 1920 * 1080;
-constexpr auto kMaxInstantViewInlineArea = 1920 * 1920;
+constexpr auto kMaxInlineArea = 1920 * 1920;
 constexpr auto kSeekPreviewInterval = crl::time(100);
 
 using ::Media::ValidFrameSize;
@@ -333,18 +332,12 @@ DocumentData *Gif::ChooseInlineQuality(
 	return result;
 }
 
-int Gif::maxInlineArea() const {
-	return IsHostedInstantViewMedia(_parent)
-		? kMaxInstantViewInlineArea
-		: kMaxInlineArea;
-}
-
 bool Gif::canPlayInline() const {
 	return !_inlineOverCap
 		&& ChooseInlineQuality(
 			_data,
 			_realParent,
-			maxInlineArea(),
+			kMaxInlineArea,
 			Core::App().settings().videoQuality()) != nullptr;
 }
 
@@ -2529,7 +2522,7 @@ void Gif::createStreamedPlayer() {
 	const auto chosen = ChooseInlineQuality(
 		_data,
 		_realParent,
-		maxInlineArea(),
+		kMaxInlineArea,
 		quality);
 	if (!chosen || (_streamed && _streamed->chosen == chosen)) {
 		return;
@@ -2663,7 +2656,7 @@ void Gif::streamingReady(::Media::Streaming::Information &&info) {
 	const auto effective = measured.isEmpty()
 		? InlineFrameSize(chosen)
 		: measured;
-	if (!ValidFrameSize(effective, maxInlineArea())) {
+	if (!ValidFrameSize(effective, kMaxInlineArea)) {
 		// A document with no VideoData can't remember the measurement,
 		// so the refusal is remembered on the element instead. Such a
 		// document never has a quality list, so nothing to step down to.

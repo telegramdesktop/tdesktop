@@ -162,7 +162,11 @@ RecentViews::RecentViews(not_null<Controller*> controller)
 : _controller(controller) {
 }
 
-RecentViews::~RecentViews() = default;
+RecentViews::~RecentViews() {
+	if (_menu) {
+		_menu->setDestroyedCallback(nullptr);
+	}
+}
 
 void RecentViews::show(
 		RecentViewsData data,

@@ -31,16 +31,23 @@ replacements. When retained implementation exists, start the checkout-owned
 carrier first so the helper transfers its sealed source state; do not reset or
 checkpoint that work.
 
+Switch branches in this parent scheduler with the shared
+`workspace.py project-switch --project <slug> --task <id>` before each task's
+Start, Retry, or resume, as the shared skill's "Switch to the project branch"
+describes, including its base refresh of a stale branch; the owner never
+checks a branch out by hand. When it refuses
+uncommitted changes of unknown origin before any task of this run has started,
+ask the owner with `AskUserQuestion` what to do with them.
+
 Apply the shared source-lineage gate in this parent scheduler. Before batch
 freeze, a task missing an approved prerequisite stays out of the batch, with
-the exact branch and compatible-branch report in the run's report. After freeze but before Phase 1,
-the parent may make only the shared safe switch to an existing compatible local
-branch, never onto or off a project branch, and then resume the returned
-performer. After Phase 1, let the performer
+the exact branch report in the run's report. A task of a project whose gate
+fails after its switch waits for a later invocation. For a legacy task without
+a project, after freeze but before Phase 1, the parent may make the shared safe
+switch to an existing compatible non-project local branch and then resume the
+returned performer. After Phase 1, let the performer
 publish a task-local Block and continue non-dependent batch work. Never create,
-route, or execute branch-integration work as a queue task. Creating a project
-branch that exists nowhere is the shared skill's separate step, not one of these
-switches.
+route, or execute branch-integration work as a queue task.
 
 Apply the shared skill's pending-task consolidation phase too. Recover an
 older `pending_consolidations` marker or consolidate newly routed tasks in one

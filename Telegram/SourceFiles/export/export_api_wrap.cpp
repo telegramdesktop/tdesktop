@@ -98,10 +98,6 @@ Settings::Type SettingsFromDialogsType(Data::DialogInfo::Type type) {
 [[nodiscard]] bool TrimMessagesSliceByDateRange(
 		Data::MessagesSlice &slice,
 		const Settings &settings) {
-	// Topic pagination needs the unfiltered root, cursor and message count.
-	if (settings.onlySingleTopic()) {
-		return false;
-	}
 	auto &list = slice.list;
 
 	// Export slices are processed oldest-to-newest, so messages older than
@@ -1890,7 +1886,46 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 			messagesCountLoaded(localSplitIndex, 0);
 			return;
 		}
+		requestMessagesCountFromDate(localSplitIndex, count);
+	});
+}
+
+void ApiWrap::requestMessagesCountFromDate(int localSplitIndex, int count) {
+	Expects(_chatProcess != nullptr);
+	Expects(localSplitIndex < _chatProcess->info.splits.size());
+
+	if (!_settings->onlySinglePeer()
+		|| _settings->singlePeerFrom <= 0
+		|| _chatProcess->info.onlyMyMessages) {
 		checkFirstMessageDate(localSplitIndex, count);
+		return;
+	}
+
+	// Request the count of messages sent since the requested date,
+	// messages sent exactly at offset_date are counted as older ones.
+	requestChatMessages(
+		_chatProcess->info.splits[localSplitIndex],
+		0, // offset_id
+		SinglePeerLowerBoundOffsetDate(*_settings), // offset_date
+		0, // add_offset
+		1, // limit
+		MessageDateLimits::Ignore,
+		[=](const MTPmessages_Messages &result) {
+		Expects(_chatProcess != nullptr);
+
+		if (_chatProcess->info.onlyMyMessages) {
+			checkFirstMessageDate(localSplitIndex, count);
+			return;
+		}
+		const auto countFromDate = result.match([&](
+				const MTPDmessages_messagesSlice &data) {
+			return data.voffset_id_offset().value_or(count);
+		}, [&](const MTPDmessages_channelMessages &data) {
+			return data.voffset_id_offset().value_or(count);
+		}, [&](const auto &data) {
+			return count;
+		});
+		checkFirstMessageDate(localSplitIndex, countFromDate);
 	});
 }
 
@@ -1933,7 +1968,8 @@ void ApiWrap::messagesCountLoaded(int localSplitIndex, int count) {
 	}
 
 	auto startInfo = _chatProcess->info;
-	if (_settings->hasDateLimits()) {
+	if (_settings->hasDateLimits()
+		&& (!_settings->onlySinglePeer() || startInfo.onlyMyMessages)) {
 		for (auto &count : startInfo.messagesCountPerSplit) {
 			count = 0;
 		}
@@ -2328,15 +2364,14 @@ void ApiWrap::requestMessagesSlice() {
 		startMessagesSlice({});
 		return;
 	}
-	// messages.search has no offset_date equivalent, so only jump directly to
-	// the lower bound for the normal getHistory-based traversal.
-	const auto fromLowerDateBound = (_chatProcess->largestIdPlusOne == 1)
-		&& !_chatProcess->info.onlyMyMessages
-		&& (_settings->singlePeerFrom > 0);
+	const auto offsetDate = (_chatProcess->largestIdPlusOne == 1
+		&& !_chatProcess->info.onlyMyMessages)
+		? SinglePeerLowerBoundOffsetDate(*_settings)
+		: 0;
 	requestChatMessages(
 		_chatProcess->info.splits[_chatProcess->localSplitIndex],
-		fromLowerDateBound ? 0 : _chatProcess->largestIdPlusOne,
-		fromLowerDateBound ? SinglePeerLowerBoundOffsetDate(*_settings) : 0,
+		_chatProcess->largestIdPlusOne,
+		offsetDate,
 		-kMessagesSliceLimit,
 		kMessagesSliceLimit,
 		MessageDateLimits::Apply,
@@ -2430,7 +2465,7 @@ void ApiWrap::requestChatMessages(
 	} else {
 		splitRequest(realSplitIndex, MTPmessages_GetHistory(
 			realPeerInput,
-			MTP_int(offsetId),
+			MTP_int(offsetDate ? 0 : offsetId),
 			MTP_int(offsetDate),
 			MTP_int(addOffset),
 			MTP_int(limit),
@@ -2447,15 +2482,10 @@ void ApiWrap::requestChatMessages(
 					// Perhaps we just left / were kicked from channel.
 					// Just switch to only my messages.
 					_chatProcess->info.onlyMyMessages = true;
-					if (offsetDate != 0) {
-						_chatProcess->largestIdPlusOne = 1;
-						requestMessagesSlice();
-						return true;
-					}
 					requestChatMessages(
 						splitIndex,
 						offsetId,
-						offsetDate,
+						0, // offset_date
 						addOffset,
 						limit,
 						dateLimits,
@@ -2478,11 +2508,11 @@ void ApiWrap::startMessagesSlice(Data::MessagesSlice &&slice) {
 
 	if (slice.list.empty()) {
 		process->lastSlice = true;
-	} else {
-		if (_chatProcess) {
-			_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
-		}
-		if (TrimMessagesSliceByDateRange(slice, *_settings)) {
+	} else if (_chatProcess) {
+		_chatProcess->largestIdPlusOne = slice.list.back().id + 1;
+		if ((!_settings->onlySinglePeer()
+				|| _chatProcess->info.onlyMyMessages)
+			&& TrimMessagesSliceByDateRange(slice, *_settings)) {
 			process->lastSlice = true;
 		}
 	}

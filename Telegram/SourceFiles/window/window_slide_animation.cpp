@@ -181,6 +181,10 @@ void SlideAnimation::setWithFade(bool withFade) {
 	_withFade = withFade;
 }
 
+void Window::SlideAnimation::setDuration(crl::time duration) {
+	_duration = duration;
+}
+
 void SlideAnimation::setRepaintCallback(RepaintCallback &&callback) {
 	_repaintCallback = std::move(callback);
 }
@@ -202,7 +206,7 @@ void SlideAnimation::start() {
 	const auto curve = fromBottom ? anim::easeOutQuint : transition();
 	const auto duration = fromBottom
 		? (st::slideDuration * 2)
-		: st::slideDuration;
+		: (_duration ? _duration : st::slideDuration);
 	_animation.start(
 		[this] { animationCallback(); },
 		fromLeft ? 1. : 0.,

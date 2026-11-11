@@ -20,6 +20,13 @@ decide it per commit, require it only when all changes and the purpose are
 exclusively AI workflow or infrastructure, and forbid it for product or mixed
 commits.
 
+Before `start`, `retry`, or resuming, run the shared
+`workspace.py project-switch --project <slug> --task <id>` for the task's project unless
+the `continue` scheduler says it already did; the owner never switches
+branches by hand. When it refuses uncommitted changes of unknown origin, ask
+the owner with `AskUserQuestion` in an interactive invocation, or return the
+refusal to the scheduler in a delegated one.
+
 Apply the shared source-lineage gate before Phase 1 and pass explicit source
 task requirements to `start` or `retry`. A pre-Phase-1 mismatch returns the
 clean routing stop to the caller without integrating history or publishing a

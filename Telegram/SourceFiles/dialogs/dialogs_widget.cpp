@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_chat_section.h"
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_group_call_bar.h"
 #include "history/view/history_view_requests_bar.h"
@@ -41,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/effects/slide_animation.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/more_chats_bar.h"
@@ -63,7 +61,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "chat_helpers/message_field.h"
 #include "core/application.h"
-#include "core/ui_integration.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "window/window_columns.h"
@@ -80,7 +77,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
@@ -102,7 +98,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs_widget.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
-#include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QMimeData>
 #include <QtGui/QTextBlock>
@@ -455,6 +450,7 @@ Widget::Widget(
 , _lockUnlock(
 	_searchControls,
 	object_ptr<Ui::IconButton>(this, st::dialogsLock))
+, _chatsFilterForTopBarSuggestion(controller->activeChatsFilterCurrent())
 , _scroll(this)
 , _scrollToTop(_scroll, st::dialogsToUp)
 , _stories((_layout != Layout::Child)
@@ -1291,7 +1287,7 @@ void Widget::setupTopBarSuggestions() {
 			: owner->chatsListLoadedEvents()
 		) | rpl::filter(_1 == nullptr) | rpl::map([=] {
 			auto on = rpl::combine(
-				controller()->activeChatsFilter(),
+				_chatsFilterForTopBarSuggestion.value(),
 				_openedFolderOrForum.value(),
 				_searchStateForTopBarSuggestion.events_starting_with(
 					!_searchState.query.isEmpty()),
@@ -2613,6 +2609,7 @@ void Widget::showSearchInTopBar(anim::type animated) {
 
 void Widget::switchToChatsFilter(FilterId id) {
 	const auto was = _inner->filterId();
+	_chatsFilterForTopBarSuggestion = id;
 	const auto animated = (was != id)
 		&& !isHidden()
 		&& !_showAnimation
@@ -2632,6 +2629,7 @@ void Widget::switchToChatsFilter(FilterId id) {
 		? st::dialogsFilterSwipeSlideDuration
 		: st::dialogsFilterSlideDuration;
 	_chatsFilterSlideCanvas = nullptr;
+	_innerList->resizeToWidth(_scroll->width());
 	auto wasCache = grabForChatsFilterSlide();
 	_inner->switchToFilter(id);
 	if (_inner->filterId() == was) {
@@ -2670,23 +2668,23 @@ void Widget::startChatsFilterSlide(
 	canvas->setAttribute(Qt::WA_OpaquePaintEvent);
 	canvas->setGeometry(_scroll->geometry());
 	const auto animation
-		= canvas->lifetime().make_state<Ui::SlideAnimation>();
-	animation->setSnapshots(std::move(wasCache), std::move(nowCache));
+		= canvas->lifetime().make_state<Window::SlideAnimation>();
+	animation->setDirection(slideLeft
+		? Window::SlideDirection::FromLeft
+		: Window::SlideDirection::FromRight);
+	animation->setPixmaps(std::move(wasCache), std::move(nowCache));
+	animation->setDuration(duration);
 	canvas->paintOn([=](QPainter &p) {
 		p.fillRect(canvas->rect(), st::dialogsBg);
-		animation->paintFrame(p, 0, 0, canvas->width());
+		animation->paintContents(p);
 	});
 	canvas->show();
 	if (_connecting) {
 		_connecting->raise();
 	}
-	animation->start(slideLeft, [=] {
-		if (animation->animating()) {
-			canvas->update();
-		} else {
-			_chatsFilterSlideCanvas = nullptr;
-		}
-	}, duration);
+	animation->setRepaintCallback([=] { canvas->update(); });
+	animation->setFinishedCallback([=] { _chatsFilterSlideCanvas = nullptr; });
+	animation->start();
 }
 
 QPixmap Widget::grabForFolderSlideAnimation() {
@@ -3878,7 +3876,8 @@ void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	} else if (ComputeMimeDataState(data) != MimeDataState::None) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
-	} else if (data->hasText()) {
+	} else if (data->hasText()
+		&& !data->hasFormat(u"application/x-telegram-dialog"_q)) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
 	}
@@ -3948,6 +3947,7 @@ void Widget::dropEvent(QDropEvent *e) {
 			e->accept();
 			const auto data = e->mimeData();
 			if (!data->hasFormat(u"application/x-td-forward"_q)
+				&& !data->hasFormat(u"application/x-telegram-dialog"_q)
 				&& ComputeMimeDataState(data) == MimeDataState::None
 				&& data->hasText()) {
 				controller()->content()->textDrop(thread, data);

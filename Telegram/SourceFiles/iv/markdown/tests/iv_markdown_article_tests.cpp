@@ -35,14 +35,6 @@ constexpr auto kWordJoiner = 0x2060;
 	return result.append(u"\""_q);
 }
 
-[[nodiscard]] QString NumbersText(const std::vector<int> &numbers) {
-	auto parts = QStringList();
-	for (const auto number : numbers) {
-		parts.push_back(QString::number(number));
-	}
-	return u"["_q + parts.join(u","_q) + u"]"_q;
-}
-
 [[nodiscard]] QString SelectionText(std::optional<TextSelection> selection) {
 	return selection
 		? u"[%1,%2)"_q.arg(selection->from).arg(selection->to)
@@ -55,14 +47,6 @@ constexpr auto kWordJoiner = 0x2060;
 		.arg(selection.from.offset)
 		.arg(selection.to.segment)
 		.arg(selection.to.offset);
-}
-
-[[nodiscard]] QString RectText(QRect rect) {
-	return u"(%1,%2,%3,%4)"_q
-		.arg(rect.x())
-		.arg(rect.y())
-		.arg(rect.width())
-		.arg(rect.height());
 }
 
 [[nodiscard]] QString EntityName(EntityType type) {
@@ -100,6 +84,22 @@ constexpr auto kWordJoiner = 0x2060;
 }
 
 } // namespace
+
+QString NumbersText(const std::vector<int> &numbers) {
+	auto parts = QStringList();
+	for (const auto number : numbers) {
+		parts.push_back(QString::number(number));
+	}
+	return u"["_q + parts.join(u","_q) + u"]"_q;
+}
+
+QString RectText(QRect rect) {
+	return u"(%1,%2,%3,%4)"_q
+		.arg(rect.x())
+		.arg(rect.y())
+		.arg(rect.width())
+		.arg(rect.height());
+}
 
 void Expect::flag(const QString &what, bool got, bool expected) {
 	if (got != expected) {

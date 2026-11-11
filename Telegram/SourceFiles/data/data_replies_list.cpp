@@ -521,6 +521,17 @@ void RepliesList::applyDifferenceTooLong() {
 	}
 }
 
+void RepliesList::markJustCreated() {
+	Expects(!_creating);
+
+	_skippedBefore = _skippedAfter = 0;
+	_list.clear();
+	if (lookupRoot()) {
+		_list.push_back(_rootId);
+	}
+	_fullCount = int(_list.size());
+}
+
 void RepliesList::changeUnreadCountByPost(MsgId id, int delta) {
 	if (!_inboxReadTillId) {
 		setUnreadCount(std::nullopt);

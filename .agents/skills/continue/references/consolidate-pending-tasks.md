@@ -65,16 +65,16 @@ history is wrong even when its conclusion is right.
 
 Partition all mergeable work by this exact key:
 
-1. the same project slug, or `project: null` for every member;
+1. the same project slug;
 2. the same scheduler membership: every member is in the current batch, or no
    member is in it.
 
 A task whose `task.md` has a `## Code health` section is never a candidate:
-its class sizes its batch.
+its class sizes its batch. A legacy task without a project is never a
+candidate either.
 
-Never merge across projects, between a project and standalone work, or across
-the frozen-batch boundary. Named projects and standalone work are separate
-lineages even when their files overlap. Every unfinished task uses
+Never merge across projects or across the frozen-batch boundary. Projects are
+separate lineages even when their files overlap. Every unfinished task uses
 `type: implement`; historical approved task types never enter a candidate set.
 
 A candidate must be `status: todo`, `claimed_by: null`, with `claimed_at`,
@@ -170,7 +170,7 @@ project: project-slug
 content_sha256: <helper-output>
 ```
 
-Use `type: implement` and `project: null` where appropriate. The queue sees
+Use `type: implement` and the members' project. The queue sees
 only directories with `state.yaml`, while the workspace resolver follows
 `superseded.yaml` chains. This preserves old receipt links, deduplication paths,
 human bookmarks, original wording, and inputs without leaving duplicate live
