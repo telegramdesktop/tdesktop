@@ -14,6 +14,13 @@ preflight, owned paths, the commit contract, `result.md` and `finish`. The
 classes and their proofs are defined in
 `.agents/skills/code-health/references/classes.md`.
 
+A batch shares one final build, check and independent review. Recheck and
+record the proof for every named finding or clone family, retaining an
+explicit resolved/Dropped disposition for each. When one item is dropped,
+restore only that item's changes and preserve the other retained items;
+overlapping edits require checking the combined diff again. Batch size and
+any named areas follow the task's owner-authorized scope and classes.md.
+
 ## Bounds
 
 An item stays in the lane only while it is exactly its class:
@@ -42,7 +49,7 @@ An item stays in the lane only while it is exactly its class:
   removed code used.
 
 An item that cannot stay within these bounds is dropped, not forced: restore
-its files and record it under `Dropped:` with the reason. Dropping is the
+only its changes and record it under `Dropped:` with the reason. Dropping is the
 normal outcome for a false candidate, such as a function a platform file still
 calls, copies that differ in logic, or a move that needs edits. Never
 continue a dropped item in the full pipeline inside this task; the scan

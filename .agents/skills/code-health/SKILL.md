@@ -190,14 +190,19 @@ area; surveys and task planners start there.
 
 ## Proposals
 
-Select at most five proposals per run, and stop when ten code-health tasks
-are already open in the queue (`task.md` with a `## Code health` section and
-an open status).
+Prefer substantial, coherent batches over one request per finding (owner
+decision, 2026-10-28). Select at most twenty proposals per run, leaving at
+most forty outstanding requests in total: open code-health tasks (`task.md`
+with a `## Code health` section and an open status) plus routed requests
+still in the inbox. Count a processed request only once. These are ceilings,
+not quotas; size the work by its shared proof and review boundary.
 
 - Skip findings whose files are named in an in-progress task's `task.md`
   or in this checkout's own `work/owned-paths.txt` (other checkouts publish
   theirs only at approval), findings already named by an open code-health
-  task, and findings an approved code-health task listed under `Dropped:` in
+  task or pending inbox request, findings already implemented by approved
+  work awaiting integration into the scanned ref, and findings an approved
+  code-health task listed under `Dropped:` in
   its `work/result.md` in the last 180 days, unless their metric has since
   doubled or the class bounds changed in a way that removes the reason.
 - Prefer, in order: Q0 deletions; Q1 for heavy headers and oversized files
@@ -205,7 +210,15 @@ an open status).
   tests for hot untested areas, Q4 and Q5 are proposed only when their
   preconditions in `classes.md` hold, and never routed without the owner's
   word.
-- One proposal is one class in one area, batched as `classes.md` says.
+- One proposal is one class and one coherent cleanup, batched as
+  `classes.md` says. Q0 may span named areas when the candidates share the
+  same remaining build consumer and independent deletion proof. Q2 batches
+  related clone families in one area. List every finding and its paths;
+  never turn a batch into an open-ended cleanup or mix classes.
+- Combine compatible small candidates before routing. A lone small item
+  waits for a compatible batch unless its urgency or independent payoff
+  justifies a separate task. Preserve already claimed work; consolidate
+  unprocessed requests only with their identities and original scope intact.
 - Weigh areas by agent cost: high median hours or review rounds per task
   means structure is slowing every task there.
 - Code unchanged for 180 days gets only Q0 and Q3 proposals.
@@ -221,7 +234,7 @@ off, with the finding's numbers.>
 ## Code health
 
 - Class: Q<n>
-- Area: <area>
+- Area: <area, or comma-separated atlas areas for a Q0 batch>
 - Findings: <ledger ids>
 - Metric: <before> -> <target>
 - Proof: <the class proof, as commands>
@@ -240,7 +253,9 @@ through `process-inbox`. When this invocation is authorized to route (the
 scheduled run, invoked with `route`, or the owner's request), append the
 proposals the trust rules at the end of `classes.md` allow to
 `../ai-tdesktop/inbox/inbox.md` as separate requests, and report the rest for
-the owner. Never route a class an audit has suspended in that area.
+the owner. For a batch, check ownership, deduplication, Dropped exclusions
+and audit suspension for every item and every named area before routing.
+Remove an ineligible item from the batch; batching never bypasses its hold.
 
 ## Audit
 
@@ -253,8 +268,9 @@ one: on Claude Code a Codex CLI leaf under
 --sandbox read-only`); otherwise a fresh native agent. Mechanical tasks had one
 reviewer, so this sample is their second look. Record the result in
 `audits.json` in `health_state`, with suspended class and area pairs. A
-failed audit suspends routing of that class in that area and becomes an
-ordinary repair task.
+failed audit suspends routing of that class in the area of the failed item
+and becomes an ordinary repair task. Audit the whole selected batch and its
+per-item proof; do not sample just one convenient item inside it.
 
 ## Report contract
 
@@ -270,7 +286,11 @@ empty:
    blocked or deferred helper review; unavailable usage is not zero use.
 2. **Trends**: changes in the totals since the previous run and over 30 days,
    the five areas with the highest agent cost, and progress of open
-   code-health tasks. Include helper count, source lines, mandatory README
+   code-health tasks. Distinguish executable requests from raw findings,
+   approved work awaiting source integration, excluded candidates and work
+   awaiting tests or owner decisions. Report findings covered per batch,
+   rather than presenting the raw ledger count as a task or completion-time
+   estimate. Include helper count, source lines, mandatory README
    bytes, on-demand documentation bytes and retention-candidate changes; the
    first run of these metrics is a baseline, not growth from zero.
 

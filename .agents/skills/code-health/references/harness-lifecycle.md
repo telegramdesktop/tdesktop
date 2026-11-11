@@ -19,7 +19,7 @@ stable findings into the normal ledger:
   reaches 8 KiB, is missing, or modules lack their indexed on-demand page.
 
 Both are `decision` findings until review establishes an appropriate task
-class. They share the existing five-proposal/ten-open-task budget,
+class. They share the proposal and outstanding-request budget in SKILL.md,
 deduplication, active ownership, dropped-finding and audit-suspension rules.
 An unchanged candidate is the same finding, not another daily request.
 

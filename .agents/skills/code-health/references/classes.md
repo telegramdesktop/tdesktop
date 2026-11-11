@@ -55,7 +55,13 @@ compatibility paths, and the styles and language keys only that code used.
   reviewer searches platform files again. A platform-specific file is removed only when its platform's
   build can be run or the symbol is provably unreferenced by name in every
   source and generated input.
-- Batch: up to ten candidates of one area in one task.
+- Batch: up to twenty-five named candidates in one deletion task. Prefer
+  one area; compatible small deletions may span explicitly listed atlas
+  areas when they share a remaining build consumer and one independent
+  review can cover them. Prove absence separately for each candidate and
+  build every affected target. Keep unrelated feature work and active owned
+  files out. One final build/check/review may cover the retained batch; one
+  candidate failing proof is dropped without discarding the other items.
 - Review: the mechanical lane's single review.
 
 ## Q1 — move
@@ -84,7 +90,12 @@ passing its own values. Copies whose logic differs are Q4.
 
 - Proof: Debug build, `health.py check` clean, and `health.py verify`
   reporting the clone resolved.
-- Batch: one clone family.
+- Batch: up to eight related clone families in one area and bounded module
+  or caller group. Use one final build/check/review for the retained batch,
+  with copy equivalence and `verify` results recorded per family. Overlapping
+  scanner identities for the same copies are one family, not separate work.
+  Each family keeps its own ordinary helper; batching does not justify a
+  generic framework, new templates, changed logic or unrelated file sweeps.
 - Review: the mechanical lane's single review.
 
 ## Q3 — pin behavior with tests
