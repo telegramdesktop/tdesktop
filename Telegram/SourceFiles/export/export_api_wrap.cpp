@@ -1855,7 +1855,8 @@ void ApiWrap::requestMessagesCountFromDate(int localSplitIndex, int count) {
 	Expects(_chatProcess != nullptr);
 	Expects(localSplitIndex < _chatProcess->info.splits.size());
 
-	if (_settings->singlePeerFrom <= 0) {
+	if (_settings->singlePeerFrom <= 0
+		|| _chatProcess->info.onlyMyMessages) {
 		checkFirstMessageDate(localSplitIndex, count);
 		return;
 	}
