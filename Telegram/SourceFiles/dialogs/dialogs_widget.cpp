@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/more_chats_bar.h"
+#include "ui/color_contrast.h"
 #include "ui/controls/download_bar.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/controls/swipe_handler.h"
@@ -287,6 +288,7 @@ private:
 	const style::icon &_icon;
 	const style::icon &_iconOver;
 	const bool _hasTextIcon;
+	bool _quiet = false;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
 
 	QImage _textIcon;
@@ -312,7 +314,10 @@ Widget::BottomButton::BottomButton(
 		rpl::single(rpl::empty_value()) | rpl::then(
 			style::PaletteChanged()
 		) | rpl::on_next([this] {
-			_textIcon = UpdateIcon();
+			_quiet = !Ui::IsLightBackground(st::dialogsBg->c);
+			_textIcon = _quiet
+				? style::colorizeImage(UpdateIcon(), st::groupCallLive1)
+				: UpdateIcon();
 		}, lifetime());
 	}
 }
@@ -352,7 +357,12 @@ void Widget::BottomButton::paintEvent(QPaintEvent *e) {
 
 	auto r = QRect(0, height() - _st.height, width(), _st.height);
 
-	if (_hasTextIcon) {
+	if (_hasTextIcon && _quiet) {
+		p.fillRect(r, over ? st::dialogsRippleBg : st::dialogsBgOver);
+		if (!isDisabled()) {
+			paintRipple(p, 0, 0, &st::universalRippleAnimation.color->c);
+		}
+	} else if (_hasTextIcon) {
 		auto gradient = QLinearGradient(0, 0, width(), 0);
 		gradient.setStops({
 			{ 0., st::groupCallLive1->c },
@@ -392,6 +402,15 @@ void Widget::BottomButton::paintEvent(QPaintEvent *e) {
 				r.y(),
 				textWidth,
 				r.height());
+			if (_quiet) {
+				const auto left = rect.x() + iconSize.width() + skip;
+				auto gradient = QLinearGradient(left, 0, left + textWidth, 0);
+				gradient.setStops({
+					{ 0., st::groupCallLive1->c },
+					{ 1., st::groupCallLive2->c },
+				});
+				p.setPen(QPen(QBrush(std::move(gradient)), 1.));
+			}
 			p.drawText(
 				rect.translated(iconSize.width() + skip, 0),
 				_text,
