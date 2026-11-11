@@ -3899,7 +3899,15 @@ void TopBar::paintStoryOutline(QPainter &p, const QRect &geometry) {
 		padding + outlineWidth / 2,
 		padding + outlineWidth / 2);
 
-	Ui::PaintOutlineSegments(p, outlineRect, _storySegments);
+	if (_peer->isForum() || _source == Source::Community) {
+		const auto radius = geometry.width()
+			* Ui::ForumUserpicRadiusMultiplier()
+			+ padding
+			+ outlineWidth / 2;
+		Ui::PaintOutlineSegments(p, outlineRect, radius, _storySegments);
+	} else {
+		Ui::PaintOutlineSegments(p, outlineRect, _storySegments);
+	}
 
 	if (_hasLiveStories) {
 		const auto outline = _edgeColor.current().value_or(
