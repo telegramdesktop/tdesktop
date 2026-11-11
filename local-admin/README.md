@@ -41,4 +41,4 @@ python server.py
 
 ## Windows ZIP release
 
-The repository workflow `Package Windows release` packages the Windows x64 `Telegram.exe` together with this local server and browser panel into `LocalAssets-Windows-x64.zip`, then publishes it as a GitHub Release after the x64 build succeeds.
+The `Windows.` workflow builds the x64 executable and, in the same workflow run and for the same commit, packages `Telegram.exe` with this local server and browser panel into `LocalAssets-Windows-x64.zip`. A commit-specific GitHub Release is published only after the Windows x64 build and ZIP verification succeed.

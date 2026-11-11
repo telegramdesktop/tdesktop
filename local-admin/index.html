@@ -38,7 +38,8 @@ async function act(path,body){try{await api(path,"POST",body);await loadUsers();
 function changeStars(){if(!selected)return;act("/api/users/"+selected.id+"/stars",{amount:Number($("starAmount").value),note:$("starNote").value})}
 function saveUsername(){if(selected)act("/api/users/"+selected.id+"/username",{username:$("usernameInput").value})}
 function clearUsername(){if(selected){$("usernameInput").value="";saveUsername()}}
-function saveNumber(){if(selected)act("/api/users/"+selected.id+"/number",{number:$("numberInput").value})}\nfunction generateNumber(){if(selected)act("/api/users/"+selected.id+"/number",{generate:true})}
+function saveNumber(){if(selected)act("/api/users/"+selected.id+"/number",{number:$("numberInput").value})}
+function generateNumber(){if(selected)act("/api/users/"+selected.id+"/number",{generate:true})}
 function clearNumber(){if(selected)act("/api/users/"+selected.id+"/number",{number:""})}
 async function newCode(){if(!selected)return;try{const d=await api("/api/users/"+selected.id+"/otp","POST",{});message("otpBox","КОД ВХОДА: "+d.verification_code+"\nДействует 10 минут.")}catch(e){alert(e.message)}}
 async function toggleActive(){if(selected)act("/api/users/"+selected.id+"/active",{active:!selected.active})}

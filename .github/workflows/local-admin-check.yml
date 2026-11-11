@@ -1,20 +1,48 @@
 name: Local admin checks
+
 on:
   push:
     branches: [feature/local-web-admin]
     paths:
       - 'local-admin/**'
       - '.github/workflows/local-admin-check.yml'
+  pull_request:
+    branches: [feature/local-web-admin]
+    paths:
+      - 'local-admin/**'
+      - '.github/workflows/local-admin-check.yml'
   workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-admin-check-\${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  smoke-test:
+  checks:
+    name: Python, HTML JavaScript and API tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Compile Python
-        run: python -m py_compile local-admin/server.py local-admin/smoke_test.py
+        run: python -m py_compile local-admin/server.py local-admin/smoke_test.py local-admin/check_html.py
+
+      - name: Check inline JavaScript in both pages
+        run: python local-admin/check_html.py
+
       - name: Run local API smoke test
         run: python local-admin/smoke_test.py
