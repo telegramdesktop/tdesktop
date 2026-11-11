@@ -185,7 +185,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin b72b403a6a98d76cf24c3faefd0cb28469d4c595
+git fetch --depth=1 origin 8a28b8433af70771c3d101c776ad837a94bd47ec
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
