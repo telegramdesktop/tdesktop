@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "boxes/background_preview_box.h"
+#include "boxes/gift_onchain_offer_box.h"
 #include "history/history.h"
 #include "history/history_gift_onchain_offer.h"
 #include "history/history_item.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/effects/premium_stars.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/top_background_gradient.h"
@@ -111,6 +113,13 @@ namespace {
 		.fg = white,
 		.small = true,
 	};
+}
+
+[[nodiscard]] bool OnchainOfferReviewable(
+		not_null<const HistoryItem*> item,
+		TimeId now) {
+	const auto offer = item->Get<HistoryServiceGiftOnchainOffer>();
+	return offer && GiftOnchainOfferReviewable(offer, now);
 }
 
 } // namespace
@@ -648,7 +657,9 @@ GiftServiceBox::GiftServiceBox(
 	not_null<Element*> parent,
 	not_null<Data::MediaGiftBox*> gift)
 : _parent(parent)
-, _data(*gift->gift()) {
+, _data(*gift->gift())
+, _review((_data.type == Data::GiftType::OnchainOffer)
+	&& OnchainOfferReviewable(parent->data(), base::unixtime::now())) {
 }
 
 GiftServiceBox::~GiftServiceBox() = default;
@@ -678,6 +689,9 @@ TextWithEntities GiftServiceBox::subtitle() {
 		const auto offer = item->Get<HistoryServiceGiftOnchainOffer>();
 		const auto now = base::unixtime::now();
 		_shownLeft = offer ? GiftOnchainOfferTimeLeft(offer, now) : 0;
+		if (_review && !OnchainOfferReviewable(item, now)) {
+			removeReview();
+		}
 		return GiftOnchainOfferCardText(item, now);
 	}
 	const auto giftName = tr::bold(Data::UniqueGiftName(*_data.unique));
@@ -812,7 +826,9 @@ rpl::producer<> GiftServiceBox::changes() {
 }
 
 rpl::producer<QString> GiftServiceBox::button() {
-	if (_data.type == Data::GiftType::GiftOffer
+	if (_review) {
+		return tr::lng_action_gift_onchain_offer_review();
+	} else if (_data.type == Data::GiftType::GiftOffer
 		|| _data.type == Data::GiftType::OnchainOffer) {
 		return nullptr;
 	}
@@ -824,8 +840,28 @@ ClickHandlerPtr GiftServiceBox::createViewLink() {
 		u"tg://nft?slug="_q + _data.unique->slug);
 }
 
+ClickHandlerPtr GiftServiceBox::createButtonLink() {
+	if (!_review) {
+		return createViewLink();
+	}
+	const auto itemId = _parent->data()->fullId();
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			ShowGiftOnchainOfferReview(controller, itemId);
+		}
+	});
+}
+
 int GiftServiceBox::buttonSkip() {
 	return st::msgServiceGiftBoxButtonMargins.top();
+}
+
+std::optional<Ui::Premium::MiniStarsType> GiftServiceBox::buttonMinistars() {
+	if (!_review) {
+		return std::nullopt;
+	}
+	return Ui::Premium::MiniStarsType::SlowDiamondStars;
 }
 
 void GiftServiceBox::cacheUniqueBackground(int width, int height) {
@@ -940,6 +976,14 @@ void GiftServiceBox::armOnchainOfferTick() {
 	_changeTimer.callOnce(
 		((left == _shownLeft) ? (kSecond - phase + kNewSecondMargin) : 0),
 		Qt::PreciseTimer);
+}
+
+void GiftServiceBox::removeReview() {
+	_review = false;
+	crl::on_main(this, [=] {
+		const auto item = _parent->data();
+		item->history()->owner().requestItemViewRefresh(item);
+	});
 }
 
 bool GiftServiceBox::hideServiceText() {

@@ -42,7 +42,7 @@ ServiceBox::ServiceBox(
 : Media(parent)
 , _parent(parent)
 , _content(std::move(content))
-, _button({ .link = _content->createViewLink() })
+, _button({ .link = _content->createButtonLink() })
 , _maxWidth(_content->width()
 	- st::msgPadding.left()
 	- st::msgPadding.right())

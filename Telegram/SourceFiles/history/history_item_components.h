@@ -919,6 +919,8 @@ struct HistoryServiceGiftOnchainOffer
 	std::optional<int64> fine;
 	TimeId expiresAt = 0;
 	int feeBps = 0;
+	int limitedCount = 0;
+	int limitedLeft = 0;
 	bool accepted : 1 = false;
 	bool declined : 1 = false;
 	bool cancelled : 1 = false;

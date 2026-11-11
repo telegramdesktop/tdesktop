@@ -370,6 +370,8 @@ PRIVATE
     boxes/edit_todo_list_box.h
     boxes/gift_credits_box.cpp
     boxes/gift_credits_box.h
+    boxes/gift_onchain_offer_box.cpp
+    boxes/gift_onchain_offer_box.h
     boxes/gift_premium_box.cpp
     boxes/gift_premium_box.h
     boxes/keys_legend.cpp

@@ -484,6 +484,8 @@ using SpinnerState = Data::GiftUpgradeSpinner::State;
 	return result;
 }
 
+} // namespace
+
 void AddUniqueGiftPropertyRows(
 		not_null<Ui::RpWidget*> container,
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -611,6 +613,8 @@ void AddUniqueGiftPropertyRows(
 			SpinnerState::FinishedBackdrop),
 		margin);
 }
+
+namespace {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeStarGiftStarsValue(
 		not_null<Ui::TableLayout*> table,

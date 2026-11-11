@@ -161,6 +161,8 @@ void FillGiftOnchainOffer(
 		&item->history()->session(),
 		action.vgift());
 	offer->gift = gift ? gift->unique : nullptr;
+	offer->limitedCount = gift ? gift->limitedCount : 0;
+	offer->limitedLeft = gift ? gift->limitedLeft : 0;
 	offer->address = qs(action.voffer_address());
 	offer->offerId = action.voffer_id().v;
 	offer->amount = int64(action.vamount().v);
@@ -196,6 +198,14 @@ GiftOnchainOfferState ComputeGiftOnchainOfferState(
 		return State::PastExpiry;
 	}
 	return State::Open;
+}
+
+bool GiftOnchainOfferReviewable(
+		not_null<const HistoryServiceGiftOnchainOffer*> offer,
+		TimeId now) {
+	return offer->gift
+		&& !offer->buyer
+		&& (ComputeGiftOnchainOfferState(offer, now) == State::Open);
 }
 
 TimeId GiftOnchainOfferTimeLeft(

@@ -2842,6 +2842,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_onchain_offer_bought" = "You bought {name} for {amount}.";
 "lng_action_gift_onchain_offer_refund" = "You were refunded {amount}.";
 "lng_action_gift_onchain_offer_fine" = "A fine of {amount} was withheld.";
+"lng_action_gift_onchain_offer_review" = "Review";
 "lng_action_suggested_photo_me" = "You suggested this photo for {user}'s Telegram profile.";
 "lng_action_suggested_photo" = "{user} suggests this photo for your Telegram profile.";
 "lng_action_suggested_photo_button" = "View Photo";
@@ -4558,6 +4559,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_offer_table_offer" = "Offer";
 "lng_gift_offer_table_fee" = "Fee";
 "lng_gift_offer_table_duration" = "Duration";
+"lng_gift_onchain_offer_confirm_title" = "Confirm Sale";
+"lng_gift_onchain_offer_confirm_text" = "Sell {name} for {amount}?";
+"lng_gift_onchain_offer_network_fee" = "Network fee: {amount}.";
+"lng_gift_onchain_offer_decline_sure" = "Decline this offer? The buyer will get their Grams back.";
+"lng_gift_onchain_offer_on_sale" = "{name} is on sale. Unlist it before accepting an offer.";
 "lng_gift_sell_unlist_title" = "Unlist {name}";
 "lng_gift_sell_unlist_sure" = "Are you sure you want to unlist your gift?";
 "lng_gift_sell_title" = "Price in Stars";

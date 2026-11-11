@@ -34,6 +34,8 @@ struct CreditsEntryBoxStyleOverrides;
 namespace Ui {
 class Show;
 class GenericBox;
+class RpWidget;
+class TableLayout;
 class VerticalLayout;
 } // namespace Ui
 
@@ -78,6 +80,12 @@ void AddTransferGiftTable(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,
 	std::shared_ptr<Data::UniqueGift> unique);
+void AddUniqueGiftPropertyRows(
+	not_null<Ui::RpWidget*> container,
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<Ui::TableLayout*> table,
+	std::shared_ptr<Data::UniqueGift> unique,
+	std::shared_ptr<Data::GiftUpgradeSpinner> spinner);
 void AddCreditsHistoryEntryTable(
 	std::shared_ptr<ChatHelpers::Show> show,
 	not_null<Ui::VerticalLayout*> container,

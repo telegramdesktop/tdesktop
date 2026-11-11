@@ -54,6 +54,9 @@ public:
 		const PaintContext &context,
 		const QRect &geometry) = 0;
 	[[nodiscard]] virtual ClickHandlerPtr createViewLink() = 0;
+	[[nodiscard]] virtual ClickHandlerPtr createButtonLink() {
+		return createViewLink();
+	}
 	[[nodiscard]] virtual ClickHandlerPtr authorLink() {
 		return nullptr;
 	}

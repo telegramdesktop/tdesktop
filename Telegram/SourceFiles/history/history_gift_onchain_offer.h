@@ -33,6 +33,9 @@ void FillGiftOnchainOffer(
 [[nodiscard]] GiftOnchainOfferState ComputeGiftOnchainOfferState(
 	not_null<const HistoryServiceGiftOnchainOffer*> offer,
 	TimeId now);
+[[nodiscard]] bool GiftOnchainOfferReviewable(
+	not_null<const HistoryServiceGiftOnchainOffer*> offer,
+	TimeId now);
 [[nodiscard]] TimeId GiftOnchainOfferTimeLeft(
 	not_null<const HistoryServiceGiftOnchainOffer*> offer,
 	TimeId now);
