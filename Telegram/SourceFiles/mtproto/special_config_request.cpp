@@ -352,7 +352,7 @@ void SpecialConfigRequest::handleHeaderUnixtime(
 	}
 	const auto date = QString::fromLatin1([&] {
 		for (const auto &pair : reply->rawHeaderPairs()) {
-			if (pair.first == "Date") {
+			if (pair.first == "date") {
 				return pair.second;
 			}
 		}
