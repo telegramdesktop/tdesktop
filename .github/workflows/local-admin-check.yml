@@ -1,0 +1,20 @@
+name: Local admin checks
+on:
+  push:
+    branches: [feature/local-web-admin]
+    paths:
+      - 'local-admin/**'
+      - '.github/workflows/local-admin-check.yml'
+  workflow_dispatch:
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Compile Python
+        run: python -m py_compile local-admin/server.py local-admin/smoke_test.py
+      - name: Run local API smoke test
+        run: python local-admin/smoke_test.py
