@@ -5469,7 +5469,7 @@ void ApiWrap::sendMultiPaidMedia(
 	const auto groupId = album->groupId;
 	auto &options = album->options;
 	const auto randomId = album->items.front().randomId;
-	auto medias = album->items | ranges::view::transform([](
+	auto medias = album->items | ranges::views::transform([](
 			const SendingAlbum::Item &part) {
 		Assert(part.media.has_value());
 		return MTPInputMedia(part.media->data().vmedia());

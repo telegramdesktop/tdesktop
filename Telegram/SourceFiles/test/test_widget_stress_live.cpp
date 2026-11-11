@@ -868,7 +868,6 @@ void ReleaseOnTop(LiveState &state) {
 	switch (type) {
 	case QSurface::RasterSurface: return u"RasterSurface"_q;
 	case QSurface::OpenGLSurface: return u"OpenGLSurface"_q;
-	case QSurface::RasterGLSurface: return u"RasterGLSurface"_q;
 	case QSurface::OpenVGSurface: return u"OpenVGSurface"_q;
 	case QSurface::VulkanSurface: return u"VulkanSurface"_q;
 	case QSurface::MetalSurface: return u"MetalSurface"_q;

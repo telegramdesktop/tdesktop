@@ -1172,7 +1172,7 @@ void Selector::createList() {
 	if (!_reactions.stickers.empty()) {
 		auto descriptors = ranges::views::all(
 			_reactions.stickers
-		) | ranges::view::transform([](const Data::Reaction &reaction) {
+		) | ranges::views::transform([](const Data::Reaction &reaction) {
 			return ChatHelpers::StickerCustomRecentDescriptor{
 				reaction.selectAnimation,
 				reaction.title

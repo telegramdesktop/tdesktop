@@ -96,8 +96,8 @@ namespace Media {
 	auto durationPts = int64(0);
 	auto copied = 0;
 
-	auto packet = AVPacket();
-	av_init_packet(&packet);
+	auto packetWrap = Packet();
+	auto &packet = packetWrap.fields();
 	while (true) {
 		error = AvErrorWrap(av_read_frame(input.get(), &packet));
 		if (error.code() == AVERROR_EOF) {
@@ -299,8 +299,8 @@ namespace Media {
 		auto firstDts = int64(AV_NOPTS_VALUE);
 		auto sourceEndPts = offsetPts;
 
-		auto packet = AVPacket();
-		av_init_packet(&packet);
+		auto packetWrap = Packet();
+		auto &packet = packetWrap.fields();
 		while (true) {
 			auto error = AvErrorWrap(av_read_frame(input, &packet));
 			if (error.code() == AVERROR_EOF) {

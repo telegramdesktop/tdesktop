@@ -3435,7 +3435,10 @@ struct UpgradeArgs : StarGiftUpgradeArgs {
 					if (!indices.empty()) {
 						return;
 					}
-					indices = ranges::views::ints(0) | ranges::views::take(
+					indices = ranges::views::ints(
+						0,
+						ranges::unreachable
+					) | ranges::views::take(
 						v.size()
 					) | ranges::to_vector;
 					ranges::shuffle(indices);
