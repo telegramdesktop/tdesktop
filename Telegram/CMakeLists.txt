@@ -2597,6 +2597,8 @@ PRIVATE
     wallet/wallet_session_deposit.h
     wallet/wallet_session_gift_moves.cpp
     wallet/wallet_session_gift_moves.h
+    wallet/wallet_session_onchain_gifts.cpp
+    wallet/wallet_session_onchain_gifts.h
     wallet/wallet_session_served.cpp
     wallet/wallet_session_served.h
     wallet/wallet_session_waits.cpp

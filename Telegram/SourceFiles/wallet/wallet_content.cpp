@@ -1912,7 +1912,9 @@ not_null<Ui::RpWidget*> AddHistoryRow(
 		inner,
 		content.date,
 		st::walletRowDateLabel));
-	const auto hasChip = content.itemAmount && (media != nullptr);
+	const auto hasChip = (content.itemAmount
+		|| (content.onchainGift != TransferOnchainGift::None))
+		&& (media != nullptr);
 	if (hasChip) {
 		AddHistoryRowChip(inner, button, media, content);
 	}
@@ -3260,7 +3262,7 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 				? RowAvatar::In
 				: RowAvatar::Out),
 			.peer = peer,
-			.itemAmount = true,
+			.itemAmount = look.itemAmount,
 			.onchainGift = item.onchainGift,
 			.collectible = item.collectible,
 			.collectibleRecord = item.collectibleRecord,
@@ -3948,13 +3950,7 @@ void AddFeeTableRow(
 		});
 	} else {
 		value = FiatRateValue(session) | rpl::map([=](const FiatRate &rate) {
-			auto result = diamond;
-			result.append(QChar(' '));
-			result.append(Ui::FormatTonAmount(feeNano).full);
-			result.append(QChar(' '));
-			result.append(Ui::Text::Colorized(
-				FormatFiat(feeNano, rate, kFeeFiatDecimals, true)));
-			return result;
+			return GramValueText(diamond, feeNano, rate, kFeeFiatDecimals);
 		});
 	}
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
@@ -4059,6 +4055,20 @@ TextWithEntities GramMark(
 	return helper.paletteDependent(std::move(descriptor));
 }
 
+TextWithEntities GramValueText(
+		const TextWithEntities &mark,
+		int64 amountNano,
+		const FiatRate &rate,
+		int fiatDecimals) {
+	auto result = mark;
+	result.append(QChar(' '));
+	result.append(Ui::FormatTonAmount(amountNano).full);
+	result.append(QChar(' '));
+	result.append(Ui::Text::Colorized(
+		FormatFiat(amountNano, rate, fiatDecimals, true)));
+	return result;
+}
+
 not_null<Ui::TableLayout*> AddDetailsTableFrame(
 		not_null<Ui::VerticalLayout*> container) {
 	const auto wrap = container->add(
@@ -4111,6 +4121,8 @@ void AddDetailsTable(
 			tr::lng_wallet_row_key_change(tr::marked));
 	} else if (ShowsGiftMove(item)) {
 		AddGiftMoveDetailsRows(table, item);
+	} else if (ShowsOnchainOffer(item)) {
+		AddOnchainOfferDetailsRows(table, box->uiShow(), session, item);
 	} else if (peer) {
 		AddPeerCounterpartyRows(box, table, show, peer, item);
 	} else if (!item.counterparty.isEmpty()) {

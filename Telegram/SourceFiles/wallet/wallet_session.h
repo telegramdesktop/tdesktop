@@ -199,6 +199,25 @@ enum class TransferOnchainGift : uchar {
 	Buy,
 	List,
 	Delist,
+	OfferCreate,
+	OfferAcceptBuyer,
+	OfferAcceptSeller,
+	OfferCancel,
+	OfferDecline,
+	OfferExpire,
+};
+
+struct TransferOnchainOffer {
+	std::optional<int64> priceNano;
+	std::optional<int64> fundingNano;
+	std::optional<int64> serviceFeeNano;
+	std::optional<int64> refundNano;
+	std::optional<int64> fineNano;
+	std::optional<TimeId> expiresAt;
+
+	friend bool operator==(
+		const TransferOnchainOffer &,
+		const TransferOnchainOffer &) = default;
 };
 
 struct TransferItem {
@@ -232,6 +251,7 @@ struct TransferItem {
 	bool incoming = false;
 	TransferGiftMove giftMove = TransferGiftMove::None;
 	TransferOnchainGift onchainGift = TransferOnchainGift::None;
+	TransferOnchainOffer onchainOffer;
 	QString counterparty;
 	bool counterpartyBounceable = false; // as served or as sent, raw is UQ
 	QString counterpartyName;

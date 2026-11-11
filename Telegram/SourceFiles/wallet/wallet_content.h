@@ -50,6 +50,7 @@ namespace Wallet {
 struct CardLook;
 class CommentScope;
 class CollectibleMedia;
+struct FiatRate;
 class WindowPalette;
 struct KeyAuthorization;
 struct TransferItem;
@@ -171,6 +172,12 @@ void AddAddressPlate(
 [[nodiscard]] TextWithEntities GramMark(
 	Ui::Text::CustomEmojiHelper &helper,
 	const style::font &font);
+
+[[nodiscard]] TextWithEntities GramValueText(
+	const TextWithEntities &mark,
+	int64 amountNano,
+	const FiatRate &rate,
+	int fiatDecimals);
 
 [[nodiscard]] not_null<Ui::TableLayout*> AddDetailsTableFrame(
 	not_null<Ui::VerticalLayout*> container);

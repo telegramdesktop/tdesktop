@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_rates.h"
 #include "wallet/wallet_session_deposit.h"
 #include "wallet/wallet_session_gift_moves.h"
+#include "wallet/wallet_session_onchain_gifts.h"
 #include "wallet/wallet_session_served.h"
 #include "wallet/wallet_session_waits.h"
 #include "wallet/wallet_stream.h"
@@ -1829,19 +1830,7 @@ void SetDirectedAmount(
 				result.provider = provider;
 			}
 		}, [&](const MTPDwalletTransactionPeerOnchainGift &data) {
-			switch (data.vaction().type()) {
-			case mtpc_walletOnchainGiftActionBuy:
-				result.onchainGift = TransferOnchainGift::Buy;
-				break;
-			case mtpc_walletOnchainGiftActionList:
-				result.onchainGift = TransferOnchainGift::List;
-				break;
-			case mtpc_walletOnchainGiftActionDelist:
-				result.onchainGift = TransferOnchainGift::Delist;
-				break;
-			default:
-				break;
-			}
+			ReadOnchainGiftAction(result, data.vaction());
 		}, [](const MTPDwalletTransactionPeerUnsupported &) {
 			// Nothing is written, because the defaults are the row: a
 			// Kind::Transfer with no counterparty renders through
@@ -8416,6 +8405,7 @@ std::optional<TransferItem> Session::sendingTransaction(
 	const auto candidate = [&](const TransferItem &item) {
 		return !item.incoming
 			&& item.kind != TransferItem::Kind::KeyChange
+			&& item.onchainGift == result.onchainGift
 			&& !item.id.isEmpty()
 			&& item.walletIdentity == result.walletIdentity
 			&& same(item)

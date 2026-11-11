@@ -7,7 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui {
+class Show;
+class TableLayout;
 class VerticalLayout;
 } // namespace Ui
 
@@ -26,9 +32,11 @@ struct CollectibleRowLook {
 	QString kind;
 	int64 amountNano = 0;
 	bool incoming = false;
+	bool itemAmount = true;
 };
 
 [[nodiscard]] bool ShowsOnchainGift(const TransferItem &item);
+[[nodiscard]] bool ShowsOnchainOffer(const TransferItem &item);
 [[nodiscard]] CollectibleRowLook ComputeCollectibleRowLook(
 	const TransferItem &item);
 
@@ -42,5 +50,11 @@ void AddOnchainGiftPill(
 	not_null<Ui::VerticalLayout*> layout,
 	const TransferItem &item,
 	int bottomSkip);
+
+void AddOnchainOfferDetailsRows(
+	not_null<Ui::TableLayout*> table,
+	std::shared_ptr<Ui::Show> show,
+	not_null<Main::Session*> session,
+	const TransferItem &item);
 
 } // namespace Wallet
