@@ -91,6 +91,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/unread_badge.h"
+#include "boxes/contacts_box.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "boxes/peers/edit_forum_topic_box.h"

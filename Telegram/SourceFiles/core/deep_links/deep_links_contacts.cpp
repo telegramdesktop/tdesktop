@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/deep_links/deep_links_router.h"
 
-#include "boxes/peer_list_controllers.h"
+#include "boxes/contacts_box.h"
 #include "window/window_session_controller.h"
 
 namespace Core::DeepLinks {

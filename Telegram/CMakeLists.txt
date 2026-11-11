@@ -338,6 +338,8 @@ PRIVATE
     boxes/choose_filter_box.h
     boxes/connection_box.cpp
     boxes/connection_box.h
+    boxes/contacts_box.cpp
+    boxes/contacts_box.h
     boxes/create_poll_box.cpp
     boxes/create_poll_box.h
     boxes/delete_messages_box.cpp

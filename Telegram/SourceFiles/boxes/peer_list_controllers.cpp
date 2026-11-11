@@ -49,7 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/outline_segments.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/window_separate_id.h"
-#include "window/window_session_controller.h" // showAddContact()
+#include "window/window_session_controller.h" // showPeerHistory()
 #include "base/unixtime.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
@@ -115,77 +115,6 @@ Data::CommunityInfo *JoinedCommunityChats(not_null<PeerData*> peer) {
 		? channel->communityInfo()
 		: nullptr;
 	return (info && !info->histories().empty()) ? info : nullptr;
-}
-
-object_ptr<Ui::BoxContent> PrepareContactsBox(
-		not_null<Window::SessionController*> window) {
-	using Mode = ContactsBoxController::SortMode;
-	class Controller final : public ContactsBoxController {
-	public:
-		using ContactsBoxController::ContactsBoxController;
-
-		[[nodiscard]] rpl::producer<not_null<PeerData*>> wheelClicks() const {
-			return _wheelClicks.events();
-		}
-
-	protected:
-		std::unique_ptr<PeerListRow> createRow(
-				not_null<UserData*> user) override {
-			return !user->isSelf()
-				? ContactsBoxController::createRow(user)
-				: nullptr;
-		}
-
-		void rowMiddleClicked(
-				not_null<PeerListRow*> row) override {
-			_wheelClicks.fire(row->peer());
-		}
-
-	private:
-		rpl::event_stream<not_null<PeerData*>> _wheelClicks;
-
-	};
-	auto controller = std::make_unique<Controller>(
-		&window->session());
-	controller->setStyleOverrides(&st::contactsWithStories);
-	controller->setStoriesShown(true);
-	controller->setSectionHeadersShown(true);
-	const auto raw = controller.get();
-	auto init = [=](not_null<PeerListBox*> box) {
-		struct State {
-			QPointer<::Ui::IconButton> toggleSort;
-			rpl::variable<Mode> mode = Mode::Online;
-			::Ui::Animations::Simple scrollAnimation;
-		};
-
-		const auto state = box->lifetime().make_state<State>();
-		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
-		box->addLeftButton(
-			tr::lng_profile_add_contact(),
-			[=] { window->showAddContact(); });
-		state->toggleSort = box->addTopButton(st::contactsSortButton, [=] {
-			const auto online = (state->mode.current() == Mode::Online);
-			const auto mode = online ? Mode::Alphabet : Mode::Online;
-			state->mode = mode;
-			raw->setSortMode(mode);
-			state->toggleSort->setIconOverride(
-				online ? &st::contactsSortOnlineIcon : nullptr,
-				online ? &st::contactsSortOnlineIconOver : nullptr);
-		});
-		raw->setSortMode(Mode::Online);
-
-		raw->wheelClicks() | rpl::on_next([=](not_null<PeerData*> p) {
-			window->showInNewWindow(p);
-		}, box->lifetime());
-
-		raw->setShowFinishedCallback([=] {
-			window->checkHighlightControl(
-				u"contacts/sort"_q,
-				state->toggleSort,
-				{ .rippleShape = true });
-		});
-	};
-	return Box<PeerListBox>(std::move(controller), std::move(init));
 }
 
 QBrush PeerListStoriesGradient(const style::PeerList &st) {

@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_inner.h"
 #include "history/view/history_view_list_widget.h"
 #include "history/history_inner_widget.h"
-#include "boxes/peer_list_controllers.h"
+#include "boxes/contacts_box.h"
 #include "boxes/about_box.h"
 #include "lang/lang_keys.h"
 #include "base/platform/base_platform_info.h"

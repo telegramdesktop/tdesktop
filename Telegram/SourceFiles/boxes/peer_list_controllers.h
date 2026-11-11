@@ -40,8 +40,6 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-[[nodiscard]] object_ptr<Ui::BoxContent> PrepareContactsBox(
-	not_null<Window::SessionController*> sessionController);
 [[nodiscard]] QBrush PeerListStoriesGradient(const style::PeerList &st);
 
 struct PeerListStoriesCounts {

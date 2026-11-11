@@ -2523,6 +2523,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_failed_add_not_mutual" = "Sorry, if a person is no longer part of a group, you need to add each other to your respective contact lists to be able to add them back.\n\nNote that they could still join via the group's invite link as long as they are not in the Removed users list.";
 
 "lng_sure_delete_contact" = "Are you sure you want to delete {contact} from your contact list?";
+"lng_sure_delete_contacts#one" = "Are you sure you want to delete {count} contact from your contact list?";
+"lng_sure_delete_contacts#other" = "Are you sure you want to delete {count} contacts from your contact list?";
 "lng_sure_delete_history" = "Are you sure you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
 "lng_sure_delete_group_history" = "Are you sure you want to delete all messages in \"{group}\"?\n\nThis action cannot be undone.";
 "lng_sure_delete_channel_history" = "Are you sure you want to delete all messages in \"{channel}\"?\n\n**This action cannot be undone.**";
@@ -5841,6 +5843,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_contacts_stories_status#other" = "{count} stories";
 "lng_contacts_stories_status_new#one" = "{count} new story";
 "lng_contacts_stories_status_new#other" = "{count} new stories";
+"lng_contacts_selected#one" = "{count} contact selected";
+"lng_contacts_selected#other" = "{count} contacts selected";
 "lng_contact_not_joined" = "Unfortunately {name} has not joined Telegram yet, but you can send them an invitation.\n\nWe will notify you when any of your contacts join Telegram.";
 "lng_try_other_contact" = "Try someone else";
 "lng_create_group_link" = "Link";
