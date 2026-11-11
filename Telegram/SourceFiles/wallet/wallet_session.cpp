@@ -190,6 +190,7 @@ struct Session::PreviewState : base::has_weak_ptr {
 		std::shared_ptr<const wallet_engine::SendIntent> intent;
 		std::shared_ptr<const wallet_engine::NftTransferIntent> nft;
 		FeeResult result;
+		std::optional<int64> servedBalance;
 		Stage stage = Stage::Encrypting;
 		bool finished = false;
 		bool cancelIssued = false;
@@ -9038,6 +9039,9 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 		: std::make_shared<const engine::SendIntent>(
 			IntentFromArgs(active.request.args, std::move(body)));
 	active.stage = PreviewState::Flight::Stage::Previewing;
+	if (served) {
+		active.servedBalance = _balanceNano.current();
+	}
 	const auto client = active.request.client;
 	const auto deposit = !active.request.args.payload.isEmpty();
 	const auto item = active.request.args.collectible;
@@ -9086,6 +9090,9 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			.error = (deposit && GiftDepositRejected(error))
 				? SendError::CollectibleRejected
 				: SendErrorFrom(error),
+			.shortfallFeeNano = served
+				? ServedShortfallFee(error)
+				: std::nullopt,
 		});
 	});
 }
@@ -9179,6 +9186,12 @@ void Session::settlePreview() {
 			return;
 		} else if (error != SendError::None) {
 			flight.result = FeeResult{ .error = error };
+		} else if (flight.servedBalance
+			&& *flight.servedBalance != _balanceNano.current()) {
+			const auto i = _preview->owners.find(flight.request.owner);
+			flight.request.revision = ++i->second;
+			enqueuePreview(std::move(flight.request));
+			return;
 		} else if (flight.result.error == SendError::None
 			&& flight.intent
 			&& !flight.cancelIssued

@@ -348,6 +348,7 @@ struct PreparedSend;
 struct FeeResult {
 	int64 feeNano = 0;
 	SendError error = SendError::None;
+	std::optional<int64> shortfallFeeNano;
 	// Null for a private comment priced without the key: a fee, no transfer.
 	std::shared_ptr<const PreparedSend> prepared;
 	std::shared_ptr<const TonConnectEmulation> emulation;

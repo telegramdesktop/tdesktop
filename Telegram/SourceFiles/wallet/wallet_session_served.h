@@ -18,6 +18,8 @@ struct WalletClient;
 
 namespace Wallet {
 
+struct EngineError;
+
 struct ServedInitState {
 	QByteArray code;
 	QByteArray data;
@@ -123,6 +125,7 @@ private:
 	const wallet_engine::SendPreview &preview,
 	const ServedPreparation &preparation,
 	int64 balanceNano);
+[[nodiscard]] std::optional<int64> ServedShortfallFee(const EngineError &error);
 
 void SettleServed(ServedAnswer &answer, SendError error);
 

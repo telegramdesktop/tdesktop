@@ -184,6 +184,12 @@ void AppendPart(QByteArray &to, const QByteArray &part) {
 		: SendError::None;
 }
 
+[[nodiscard]] std::optional<int64> PositiveFee(
+		const std::optional<engine::UnsignedDecimalString> &value) {
+	const auto fee = value ? DecimalInt64(*value) : std::nullopt;
+	return (fee && *fee > 0) ? fee : std::nullopt;
+}
+
 [[nodiscard]] ServedResult ServedResultFrom(
 		const ServedAnswer &answer,
 		SendError error) {
@@ -358,6 +364,7 @@ engine::SendPreview PreviewServed(
 		const ServedPreparation &preparation) {
 	auto preview = client.preview_send(engine::SendPreviewRequest{
 		.intent = *preparation.intent,
+		.estimate_shortfall = true,
 	});
 	if (preparation.gaslessMessages) {
 		client.preview_sign_message(engine::SendPreviewRequest{
@@ -383,8 +390,27 @@ FeeResult ServedFeeResult(
 		*fee,
 		balanceNano);
 	return (refusal != SendError::None)
-		? FeeResult{ .error = refusal }
+		? FeeResult{
+			.error = refusal,
+			.shortfallFeeNano = (*fee > 0) ? fee : std::nullopt,
+		}
 		: FeeResult{ .feeNano = *fee };
+}
+
+std::optional<int64> ServedShortfallFee(const EngineError &error) {
+	if (!error.underlying) {
+		return std::nullopt;
+	}
+	try {
+		std::rethrow_exception(error.underlying);
+	} catch (const engine::wallet_client_error::InsufficientBalance &e) {
+		return PositiveFee(e.operation_fee_nanograms);
+	} catch (const engine::wallet_client_error
+			::InsufficientBalanceForFees &e) {
+		return PositiveFee(e.operation_fee_nanograms);
+	} catch (...) {
+	}
+	return std::nullopt;
 }
 
 void SettleServed(ServedAnswer &answer, SendError error) {
