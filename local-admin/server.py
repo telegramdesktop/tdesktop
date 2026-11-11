@@ -16,6 +16,7 @@ if not ADMIN_PASSWORD:
     print("\n[LOCAL ADMIN] Temporary admin password (save it):", ADMIN_PASSWORD, "\n")
 ADMIN_HASH = hashlib.sha256(ADMIN_PASSWORD.encode()).hexdigest()
 SESSIONS = {}
+USER_SESSIONS = {}
 LOGIN_ATTEMPTS = {}
 
 def db():
@@ -76,6 +77,10 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = urlparse(self.path).path
+        if path == "/account":
+            data = (ROOT / "account.html").read_bytes()
+            self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
+            self.send_header("Content-Length",str(len(data))); self.end_headers(); self.wfile.write(data); return
         if path in ("/", "/index.html"):
             data = (ROOT / "index.html").read_bytes()
             self.send_response(200); self.send_header("Content-Type","text/html; charset=utf-8")
@@ -84,6 +89,13 @@ class Handler(BaseHTTPRequestHandler):
             return self.send_json(200, {"ok": True, "mode": "local-only"})
         if not self.admin():
             return self.send_json(401, {"error":"Требуется вход администратора"})
+        if path == "/api/user/me":
+            token = self.headers.get("Authorization","").removeprefix("Bearer ").strip()
+            if token not in USER_SESSIONS or USER_SESSIONS[token][1] <= time.time():
+                return self.send_json(401, {"error":"Войдите как пользователь"})
+            with db() as c:
+                u = c.execute("SELECT * FROM users WHERE id=?",(USER_SESSIONS[token][0],)).fetchone()
+            return self.send_json(200, {"user":safe_user(u)})
         if path == "/api/users":
             with db() as c:
                 rows = c.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
@@ -160,10 +172,10 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send_json(200, {"username":name or None})
                 if action == "number":
                     number = str(data.get("number","")).strip()
-                    if not number: number = "+888" + "".join(str(secrets.randbelow(10)) for _ in range(8))
-                    if not re.fullmatch(r"\+888[0-9]{8,12}",number):
+                    if data.get("generate"): number = "+888" + "".join(str(secrets.randbelow(10)) for _ in range(8))
+                    if number and not re.fullmatch(r"\+888[0-9]{8,12}",number):
                         return self.send_json(400, {"error":"Внутренний номер должен иметь формат +888 и 8–12 цифр"})
-                    try: c.execute("UPDATE users SET virtual_number=? WHERE id=?",(number,uid))
+                    try: c.execute("UPDATE users SET virtual_number=? WHERE id=?",(number or None,uid))
                     except sqlite3.IntegrityError: return self.send_json(409, {"error":"Этот номер уже занят"})
                     return self.send_json(200, {"virtual_number":number})
                 if action == "otp":
@@ -181,17 +193,19 @@ class Handler(BaseHTTPRequestHandler):
                 u = c.execute("SELECT * FROM users WHERE phone=?",(phone,)).fetchone()
                 if not u or not u["active"] or u["otp_expires"] < now or not hmac.compare_digest(u["otp_hash"],hashlib.sha256(code.encode()).hexdigest()):
                     return self.send_json(401, {"error":"Неверный или просроченный код"})
-                token = secrets.token_urlsafe(32); SESSIONS["user:"+token] = now+86400
+                token = secrets.token_urlsafe(32); USER_SESSIONS[token] = (u["id"], now+86400)
+                c.execute("UPDATE users SET otp_hash=?,otp_expires=? WHERE id=?",
+                          (hashlib.sha256(secrets.token_bytes(32)).hexdigest(),0,u["id"]))
                 return self.send_json(200, {"token":token,"user":safe_user(u)})
         if path == "/api/store/buy":
             token = self.headers.get("Authorization","").removeprefix("Bearer ").strip()
-            if token not in SESSIONS or SESSIONS[token] <= time.time() or not token.startswith("user:"):
+            if token not in USER_SESSIONS or USER_SESSIONS[token][1] <= time.time():
                 return self.send_json(401, {"error":"Войдите как пользователь"})
             item = str(data.get("item",""))
             catalog = {"theme_dark":("Тёмная тема",25),"username_style":("Оформление профиля",50),"profile_badge":("Значок профиля",100)}
             if item not in catalog: return self.send_json(400, {"error":"Товар не найден"})
             title,cost = catalog[item]
-            uid = int(data.get("user_id",0))
+            uid = USER_SESSIONS[token][0]
             with db() as c:
                 u = c.execute("SELECT * FROM users WHERE id=?",(uid,)).fetchone()
                 if not u or u["stars"] < cost: return self.send_json(400, {"error":"Недостаточно Stars"})
