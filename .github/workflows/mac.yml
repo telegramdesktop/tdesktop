@@ -2,6 +2,8 @@ name: MacOS.
 
 on:
   push:
+    branches-ignore:
+      - feature/local-web-admin
     # Pushes to the canary or private-ci branches run their own workflows.
     branches-ignore:
       - public-canary
@@ -25,6 +27,8 @@ on:
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/configure.bat'
   pull_request:
+    branches-ignore:
+      - feature/local-web-admin
     paths-ignore:
       - 'docs/**'
       - '**.md'

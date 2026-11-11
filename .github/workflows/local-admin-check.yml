@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: local-admin-check-\${{ github.ref }}
+  group: local-admin-check-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
