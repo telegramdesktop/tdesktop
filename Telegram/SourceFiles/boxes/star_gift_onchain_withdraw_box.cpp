@@ -26,6 +26,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_session_served.h"
 
+#include "styles/style_layers.h"
+
 namespace Ui {
 namespace {
 
@@ -437,6 +439,7 @@ void WithdrawOfferBox(
 			lt_amount,
 			rpl::single(PrepareGramAmountText(fine)))
 		: tr::lng_gift_onchain_offer_withdraw();
+	box->setWidth(st::boxWideWidth);
 	ConfirmBox(box, {
 		.text = WithdrawText(fine, amount),
 		.confirmed = Fn<void()>(crl::guard(withdrawal, [=] {
