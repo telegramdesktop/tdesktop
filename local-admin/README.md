@@ -37,3 +37,8 @@ python server.py
 ## Важно
 
 Сервис привязывается только к `127.0.0.1`. Не выставляй порт 8765 в интернет и не используй эту систему для доступа к чужим Telegram-аккаунтам. Коды входа — локальные коды нашей платформы; SMS не отправляются. Stars, username и +888 — внутренние активы этой платформы, они не действуют в официальном Telegram.
+
+
+## Windows ZIP release
+
+The repository workflow `Package Windows release` packages the Windows x64 `Telegram.exe` together with this local server and browser panel into `LocalAssets-Windows-x64.zip`, then publishes it as a GitHub Release after the x64 build succeeds.
