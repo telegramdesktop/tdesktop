@@ -1,10 +1,12 @@
 name: Package Windows release
 
 on:
-  workflow_run:
-    workflows: ["Windows."]
-    types: [completed]
+  push:
     branches: [feature/local-web-admin]
+    paths:
+      - 'local-admin/**'
+      - '.github/workflows/local-release.yml'
+  workflow_dispatch:
 
 permissions:
   actions: read
@@ -12,21 +14,38 @@ permissions:
 
 jobs:
   package:
-    if: github.event.workflow_run.conclusion == 'success'
     runs-on: windows-latest
     steps:
-      - name: Checkout exact build revision
+      - name: Checkout release sources
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Wait for Windows x64 build
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $run = $null
+          for ($i = 0; $i -lt 180; $i++) {
+            $runs = gh run list --repo "${{ github.repository }}" --workflow win.yml --branch feature/local-web-admin --limit 10 --json databaseId,status,conclusion,createdAt | ConvertFrom-Json
+            if ($runs.Count -gt 0) {
+              $run = $runs | Sort-Object createdAt -Descending | Select-Object -First 1
+              Write-Host "Windows build run $($run.databaseId): $($run.status) / $($run.conclusion)"
+              if ($run.status -eq "completed") { break }
+            }
+            Start-Sleep -Seconds 60
+          }
+          if ($null -eq $run -or $run.status -ne "completed" -or $run.conclusion -ne "success") {
+            throw "Windows x64 build did not finish successfully within 3 hours."
+          }
+          "WINDOWS_RUN_ID=$($run.databaseId)" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Download Windows x64 executable
-        uses: actions/download-artifact@v4
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          run-id: ${{ github.event.workflow_run.id }}
-          name: Telegram x64
-          path: package/Telegram
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh run download $env:WINDOWS_RUN_ID --repo "${{ github.repository }}" --name "Telegram x64" --dir package/Telegram
+          if (!(Test-Path package/Telegram/Telegram.exe)) { throw "Telegram.exe is missing from build artifact." }
 
       - name: Assemble ZIP
         shell: pwsh
@@ -54,15 +73,21 @@ jobs:
           @echo off
           start "" http://127.0.0.1:8765/account
           '@ | Set-Content -Encoding ascii package/local-admin/open-account.bat
-          if (!(Test-Path package/Telegram/Telegram.exe)) { throw "Telegram.exe was not found in the Windows x64 build artifact." }
+          @'
+          @echo off
+          set /p ADMIN_PASSWORD=Enter admin password:
+          cd /d "%~dp0"
+          py -3 server.py
+          pause
+          '@ | Set-Content -Encoding ascii package/local-admin/start-with-password.bat
           Get-ChildItem package -Recurse | Select-Object FullName,Length
           Compress-Archive -Path package/* -DestinationPath LocalAssets-Windows-x64.zip -CompressionLevel Optimal
 
       - name: Publish GitHub Release
+        shell: pwsh
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BUILD_SHA: ${{ github.event.workflow_run.head_sha }}
-        shell: pwsh
+          BUILD_SHA: ${{ github.sha }}
         run: |
           $tag = "local-assets-" + $env:BUILD_SHA.Substring(0,12)
-          gh release create $tag LocalAssets-Windows-x64.zip --repo "${{ github.repository }}" --title "Local Assets Windows x64" --notes "Windows x64 Telegram Desktop executable plus browser-based local admin panel and local server. The admin server binds to 127.0.0.1. Local Stars, usernames and +888 identifiers are independent platform assets, not official Telegram assets."
+          gh release create $tag LocalAssets-Windows-x64.zip --repo "${{ github.repository }}" --title "Local Assets Windows x64" --notes "Windows x64 Telegram Desktop executable plus browser-based local admin panel and local server. Admin binds to 127.0.0.1. Stars, usernames and +888 identifiers are local platform assets, not official Telegram assets."
