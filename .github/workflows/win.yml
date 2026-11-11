@@ -170,7 +170,7 @@ jobs:
       - name: Dependencies 1/5 - bootstrap tools and LZMA
         timeout-minutes: 90
         run: |
-          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release cache-selected silent patches msys64 python NuGet jom gyp rust lzma
+          %TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release cache-selected silent patches msys64 gas-preprocessor python NuGet jom gyp rust lzma
 
       - name: Dependencies 2/5 - compression, image and crypto foundations
         timeout-minutes: 90
