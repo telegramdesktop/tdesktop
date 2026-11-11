@@ -275,7 +275,7 @@ PeerData *readPeer(
 				: Data::LastseenStatus::FromLegacy(lastseen));
 			user->setIsContact(contact == 1);
 			user->setBotInfoVersion(botInfoVersion);
-			if (user->isBot() && user->botInfo) {
+			if (user->isBot()) {
 				user->botInfo->supportsGuestChat = (supportsGuestChat == 1);
 			}
 			if (!inlinePlaceholder.isEmpty() && user->isBot()) {
