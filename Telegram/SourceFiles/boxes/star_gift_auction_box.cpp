@@ -1264,7 +1264,8 @@ void AuctionGotGiftsBox(
 							return;
 						}
 						indices = ranges::views::ints(
-							0
+							0,
+							ranges::unreachable
 						) | ranges::views::take(
 							v.size()
 						) | ranges::to_vector;

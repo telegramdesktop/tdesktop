@@ -5,8 +5,6 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#define OPENSSL_SUPPRESS_DEPRECATED
-
 #include "webauthn/cable_core.h"
 
 #include <openssl/aes.h>

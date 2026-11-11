@@ -122,7 +122,7 @@ std::vector<not_null<PeerData*>> TopPeers::list() const {
 	_session->local().readSearchSuggestions();
 
 	return _list
-		| ranges::view::transform(&TopPeer::peer)
+		| ranges::views::transform(&TopPeer::peer)
 		| ranges::to_vector;
 }
 

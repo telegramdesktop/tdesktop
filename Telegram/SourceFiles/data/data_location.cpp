@@ -87,7 +87,7 @@ uint64 LocationPoint::accessHash() const {
 }
 
 size_t LocationPoint::hash() const {
-	return QtPrivate::QHashCombine().operator()(
+	return qHashMulti(
 		std::hash<float64>()(_lat),
 		_lon);
 }
