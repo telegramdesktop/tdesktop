@@ -87,8 +87,6 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length",str(len(data))); self.end_headers(); self.wfile.write(data); return
         if path == "/api/health":
             return self.send_json(200, {"ok": True, "mode": "local-only"})
-        if not self.admin():
-            return self.send_json(401, {"error":"Требуется вход администратора"})
         if path == "/api/user/me":
             token = self.headers.get("Authorization","").removeprefix("Bearer ").strip()
             if token not in USER_SESSIONS or USER_SESSIONS[token][1] <= time.time():
@@ -97,6 +95,8 @@ class Handler(BaseHTTPRequestHandler):
                 u = c.execute("SELECT * FROM users WHERE id=?",(USER_SESSIONS[token][0],)).fetchone()
             return self.send_json(200, {"user":safe_user(u)})
         if path == "/api/users":
+            if not self.admin():
+                return self.send_json(401, {"error":"Требуется вход администратора"})
             with db() as c:
                 rows = c.execute("SELECT * FROM users ORDER BY id DESC").fetchall()
                 users = [safe_user(x) for x in rows]
@@ -104,6 +104,8 @@ class Handler(BaseHTTPRequestHandler):
                     u["last_transactions"] = [dict(x) for x in c.execute(
                       "SELECT kind,amount,note,created_at FROM ledger WHERE user_id=? ORDER BY id DESC LIMIT 5",(u["id"],))]
             return self.send_json(200, {"users":users})
+        if not self.admin():
+            return self.send_json(401, {"error":"Требуется вход администратора"})
         if path.startswith("/api/users/") and path.endswith("/history"):
             try: uid = int(path.split("/")[3])
             except: return self.send_json(400, {"error":"Некорректный ID"})
