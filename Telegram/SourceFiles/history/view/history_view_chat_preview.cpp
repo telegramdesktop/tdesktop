@@ -409,7 +409,15 @@ void Item::setupTop() {
 			_session->data().sendActionManager().animationUpdated(
 			) | rpl::filter([=](const AnimationUpdate &update) {
 				return update.thread == weakThread.get();
-			}) | rpl::on_next(refreshStatus, status->lifetime());
+			}) | rpl::on_next([=](const AnimationUpdate &update) {
+				if (update.textUpdated) {
+					refreshStatus();
+				} else {
+					_top->update(
+						update.rect.translated(
+							st::previewTop.statusPosition));
+				}
+			}, status->lifetime());
 		}
 	}
 	const auto userpic = topic
