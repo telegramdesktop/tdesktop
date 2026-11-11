@@ -47,6 +47,10 @@ class Onramp;
 class OwnCard;
 class Rates;
 enum class SecretReadFailure : uchar;
+struct ServedAnswer;
+class ServedClaims;
+struct ServedOperation;
+struct ServedResult;
 class Session;
 struct ShareFetch;
 class Stream;
@@ -152,6 +156,9 @@ enum class SendError {
 	// been delivered. The engine's resolver settles it later; a
 	// surface presents it as pending, never as sent, never as failed.
 	SubmissionUnknown,
+	NoWallet,
+	WalletNotReady,
+	UnsupportedSendMode,
 };
 
 enum class CommentRecipient {
@@ -863,6 +870,10 @@ public:
 		uint64 owner,
 		std::shared_ptr<const TonConnectTransfer> transfer,
 		Fn<void(FeeResult)> done);
+	void estimateServed(
+		uint64 owner,
+		const ServedOperation &operation,
+		Fn<void(FeeResult)> done);
 	// |started| fires as the transfer leaves, with its chat message if any.
 	void send(
 		KeyAuthorization auth,
@@ -879,6 +890,10 @@ public:
 		TonConnectSendLink link,
 		Fn<void(TonConnectSendResult)> done,
 		Fn<void(SendError)> settled = nullptr);
+	void sendServed(
+		KeyAuthorization auth,
+		std::shared_ptr<const PreparedSend> prepared,
+		Fn<void(ServedResult)> done);
 	[[nodiscard]] SendState sendState() const;
 	[[nodiscard]] rpl::producer<SendState> sendStateValue() const;
 	[[nodiscard]] std::optional<PendingSendInfo> pendingSend() const;
@@ -1149,7 +1164,8 @@ private:
 		Fn<void(SendError)> done,
 		Fn<void(SendStarted)> started,
 		Fn<void(TonConnectSendResult)> tonConnect,
-		TonConnectSendLink tonConnectLink);
+		TonConnectSendLink tonConnectLink,
+		std::shared_ptr<ServedAnswer> servedAnswer = nullptr);
 	[[nodiscard]] bool submissionCurrent(
 		const std::string &operationId,
 		const std::shared_ptr<const PreparedSend> &prepared) const;
@@ -1366,6 +1382,7 @@ private:
 		Fn<void(SendStarted)> started;
 		Fn<void(TonConnectSendResult)> tonConnect;
 		Fn<bool(const QString &)> tonConnectHandoff;
+		std::shared_ptr<ServedAnswer> served;
 		FullMsgId draft;
 		QByteArray normal;
 		TimeId posted = 0;
@@ -1377,6 +1394,7 @@ private:
 		TransferSubmissionState &submission,
 		SendError error);
 	std::optional<TransferSubmissionState> _submission;
+	const std::unique_ptr<ServedClaims> _servedClaims;
 	std::optional<SubmittedTransferStore> _submittedTransferStore;
 	bool _submittedTransfersDirty = false;
 	std::vector<SubmittedTransfer> _submitted;

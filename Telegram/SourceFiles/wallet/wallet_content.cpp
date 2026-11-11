@@ -6063,7 +6063,12 @@ QString SendErrorText(SendError error, int64 minTransferNano) {
 	case SendError::Rejected:
 	case SendError::DataInvalid:
 	case SendError::CollectibleRejected:
+	case SendError::UnsupportedSendMode:
 		return tr::lng_wallet_send_error_failed(tr::now);
+	case SendError::NoWallet:
+		return tr::lng_wallet_unavailable(tr::now);
+	case SendError::WalletNotReady:
+		return tr::lng_wallet_state_error(tr::now);
 	case SendError::CollectibleUnavailable:
 		return tr::lng_wallet_collectible_not_owned(tr::now);
 	case SendError::KeyChanged:
@@ -8315,6 +8320,9 @@ void WalletSendBox(
 					case SendError::CollectibleRejected:
 					case SendError::Silent:
 					case SendError::SubmissionUnknown:
+					case SendError::NoWallet:
+					case SendError::WalletNotReady:
+					case SendError::UnsupportedSendMode:
 						fail(result.error);
 						return;
 					}
