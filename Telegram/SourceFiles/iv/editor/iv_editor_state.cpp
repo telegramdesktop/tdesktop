@@ -3350,6 +3350,41 @@ bool State::isActiveTopLevelParagraphOrHeading() const {
 			|| (owner->kind == BlockKind::Footer));
 }
 
+bool State::isActiveInsertableParagraph() const {
+	const auto descriptor = textNode(_activeTextOrdinal);
+	if (!descriptor) {
+		return false;
+	}
+	const auto &leaf = descriptor->leaf;
+	const auto owner = block(leaf.block);
+	if (!owner) {
+		return false;
+	} else if (leaf.kind == LeafKind::ListItemText) {
+		if (owner->kind != BlockKind::List) {
+			return false;
+		}
+	} else if (leaf.kind != LeafKind::BlockText
+		|| owner->kind != BlockKind::Paragraph) {
+		return false;
+	}
+	auto container = leaf.block.container;
+	while (!container.steps.empty()) {
+		const auto step = container.steps.back();
+		container.steps.pop_back();
+		const auto parent = block({
+			.container = container,
+			.index = step.blockIndex,
+		});
+		const auto expected = (step.kind == BlockContainerKind::BlockChildren)
+			? BlockKind::Details
+			: BlockKind::List;
+		if (!parent || parent->kind != expected) {
+			return false;
+		}
+	}
+	return true;
+}
+
 bool State::hasActiveListItemSurface() const {
 	return activeListItemSurface().has_value();
 }

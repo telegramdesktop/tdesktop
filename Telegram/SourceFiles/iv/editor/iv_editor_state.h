@@ -199,6 +199,7 @@ public:
 		InsertBlockType type) const;
 	[[nodiscard]] bool isActiveTopLevelParagraph() const;
 	[[nodiscard]] bool isActiveTopLevelParagraphOrHeading() const;
+	[[nodiscard]] bool isActiveInsertableParagraph() const;
 	[[nodiscard]] bool hasActiveListItemSurface() const;
 	[[nodiscard]] bool hasActiveListItemExtraLine() const;
 	[[nodiscard]] bool activeSurfaceAllowsSeparateLineFormula() const;
