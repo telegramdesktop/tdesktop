@@ -14,6 +14,10 @@ class RippleButton;
 class Show;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Api {
 
 void RestrictSponsored(
@@ -31,5 +35,11 @@ void HandleWithdrawalButton(
 	RewardReceiver receiver,
 	not_null<Ui::RippleButton*> button,
 	std::shared_ptr<Ui::Show> show);
+
+void HandleWalletWithdrawalButton(
+	not_null<Window::SessionController*> window,
+	not_null<Ui::RippleButton*> button,
+	Fn<CreditsAmount()> available,
+	Fn<void()> withdrawn);
 
 } // namespace Api

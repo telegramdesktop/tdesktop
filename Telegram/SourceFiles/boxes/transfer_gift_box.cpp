@@ -122,17 +122,6 @@ private:
 
 };
 
-struct GiftPasswordStep {
-	Fn<void(
-		const QByteArray &tmpPassword,
-		Fn<void()> done,
-		Fn<void(const MTP::Error &)> fail)> send;
-	Fn<void()> boxShown;
-	Fn<void()> succeeded;
-	Fn<void(const MTP::Error &)> failed;
-	Fn<void()> dismissed;
-};
-
 class GiftPasswordFlow final
 	: public std::enable_shared_from_this<GiftPasswordFlow> {
 public:
@@ -203,11 +192,11 @@ void ConfirmExportBox(
 	});
 }
 
-// WHY: a gift call carries only the temporary password, so a password
-// error from it means the server refused that temporary password.
+// WHY: the guarded call's only credential is its temporary password.
 [[nodiscard]] bool TmpPasswordRefused(const QString &type) {
 	const auto refusals = std::array{
 		u"TMP_PASSWORD_INVALID"_q,
+		u"TMP_PASSWORD_REQUIRED"_q,
 		u"PASSWORD_HASH_INVALID"_q,
 		u"SRP_PASSWORD_CHANGED"_q,
 	};
@@ -260,7 +249,7 @@ void GiftPasswordFlow::waitForState() {
 	_waiting = true;
 	base::call_delayed(
 		kPasswordStateTimeout,
-		_confirmation.get(),
+		_handedOff ? _box.get() : _confirmation.get(),
 		[self = shared_from_this()] { self->stateTimeout(); });
 	session->api().cloudPassword().reload([weak = weak_from_this()](
 			std::optional<Core::CloudPasswordState> state) {
@@ -362,7 +351,12 @@ void GiftPasswordFlow::requestTmpPassword(
 		const Core::CloudPasswordResult &check,
 		base::weak_qptr<PasscodeBox> box) {
 	const auto session = _session.get();
-	if (!session || !canPrompt() || _issuing || _sending || _done) {
+	if (!session
+		|| !canPrompt()
+		|| _waiting
+		|| _issuing
+		|| _sending
+		|| _done) {
 		return;
 	}
 	_issuing = true;
@@ -446,9 +440,13 @@ void GiftPasswordFlow::giftFailed(
 	if (refused && session) {
 		session->dropTmpPassword(tmpPassword);
 	}
+	const auto reask = refused
+		&& (stored || type.startsWith(u"TMP_PASSWORD_"_q));
 	if (_abandoned) {
 		return;
-	} else if (refused && stored && canPrompt()) {
+	} else if (_step.closeOnFail && MTP::IgnoreError(error)) {
+		fail(error);
+	} else if (reask && canPrompt()) {
 		waitForState();
 	} else if (!canPrompt() || !showPrePasswordBox(type)) {
 		fail(error);
@@ -456,20 +454,15 @@ void GiftPasswordFlow::giftFailed(
 }
 
 void GiftPasswordFlow::fail(const MTP::Error &error) {
+	if (_step.closeOnFail) {
+		_done = true;
+		if (const auto strong = _box.get()) {
+			strong->closeBox();
+		}
+	}
 	if (_show->valid()) {
 		_step.failed(error);
 	}
-}
-
-void RequestWithGiftPassword(
-		not_null<Window::SessionController*> window,
-		not_null<Ui::BoxContent*> confirmation,
-		GiftPasswordStep step) {
-	const auto flow = std::make_shared<GiftPasswordFlow>(
-		window,
-		confirmation,
-		std::move(step));
-	flow->start();
 }
 
 void ExportOnBlockchain(
@@ -1457,29 +1450,23 @@ void PaintGiftMoveUserpic(
 	icon.paintInCenter(p, QRect(x, y, size, size));
 }
 
-void ShowGiftMovedToast(
+void ShowToastWithAction(
 		std::shared_ptr<Ui::Show> show,
-		not_null<DocumentData*> sticker,
-		TextWithEntities text,
-		Fn<void()> view) {
+		Ui::Toast::Config &&config,
+		rpl::producer<QString> action,
+		Fn<void()> callback) {
 	const auto &st = st::historyPremiumToast;
 	const auto &viewSt = st::historyPremiumViewSet;
-	const auto label = tr::lng_gift_transfer_to_wallet_view(tr::now);
-	const auto side = Ui::Emoji::GetCustomSizeLarge();
-	const auto rightSkip = viewSt.style.font->width(label)
-		- viewSt.width
-		- st.padding.right();
-	const auto weak = show->showToast(Ui::Toast::Config{
-		.text = std::move(text),
-		.iconContent = Ui::MakeCustomEmojiToastIcon(
-			&sticker->session(),
-			sticker->id,
-			QSize(side, side)),
-		.padding = rpl::single(QMargins(0, 0, rightSkip, 0)),
-		.st = &st,
-		.acceptinput = true,
-		.duration = kMovedToWalletToastDuration,
+	const auto font = viewSt.style.font;
+	const auto skip = viewSt.width + st.padding.right();
+	config.padding = rpl::duplicate(
+		action
+	) | rpl::map([=](const QString &label) {
+		return QMargins(0, 0, font->width(label) - skip, 0);
 	});
+	config.st = &st;
+	config.acceptinput = true;
+	const auto weak = show->showToast(std::move(config));
 	const auto strong = weak.get();
 	if (!strong) {
 		return;
@@ -1487,14 +1474,14 @@ void ShowGiftMovedToast(
 	const auto widget = strong->widget();
 	const auto button = Ui::CreateChild<Ui::RoundButton>(
 		widget.get(),
-		tr::lng_gift_transfer_to_wallet_view(),
+		std::move(action),
 		viewSt);
 	button->show();
 	button->setClickedCallback([=] {
 		if (const auto strong = weak.get()) {
 			strong->hideAnimated();
 		}
-		view();
+		callback();
 	});
 	rpl::combine(
 		widget->sizeValue(),
@@ -1505,6 +1492,37 @@ void ShowGiftMovedToast(
 			(outer.height() - inner.height()) / 2,
 			outer.width());
 	}, widget->lifetime());
+}
+
+void ShowGiftMovedToast(
+		std::shared_ptr<Ui::Show> show,
+		not_null<DocumentData*> sticker,
+		TextWithEntities text,
+		Fn<void()> view) {
+	const auto side = Ui::Emoji::GetCustomSizeLarge();
+	ShowToastWithAction(
+		std::move(show),
+		Ui::Toast::Config{
+			.text = std::move(text),
+			.iconContent = Ui::MakeCustomEmojiToastIcon(
+				&sticker->session(),
+				sticker->id,
+				QSize(side, side)),
+			.duration = kMovedToWalletToastDuration,
+		},
+		tr::lng_gift_transfer_to_wallet_view(),
+		std::move(view));
+}
+
+void RequestWithGiftPassword(
+		not_null<Window::SessionController*> window,
+		not_null<Ui::BoxContent*> confirmation,
+		GiftPasswordStep step) {
+	const auto flow = std::make_shared<GiftPasswordFlow>(
+		window,
+		confirmation,
+		std::move(step));
+	flow->start();
 }
 
 void ShowTransferToBox(

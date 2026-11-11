@@ -3553,9 +3553,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_credits_summary_about" = "Buy Stars to unlock content and services in miniapps on Telegram.";
 "lng_credits_currency_summary_title" = "Gram Balance";
 "lng_credits_currency_summary_about" = "Offer Grams to submit post suggestions to channels on Telegram.";
-"lng_credits_currency_summary_subtitle" = "You can withdraw your Grams using Fragment.";
 "lng_credits_currency_summary_in_button" = "Top-up via Fragment";
 "lng_credits_currency_summary_in_subtitle" = "You can top-up your Grams balance via Fragment.";
+"lng_credits_currency_withdraw_title" = "Withdraw {amount}";
+"lng_credits_currency_withdraw_text" = "The Grams will go to your self-custodial wallet ({menu} {arrow} {money}).";
+"lng_credits_currency_withdraw_button" = "Withdraw";
+"lng_credits_currency_withdraw_sent" = "{amount} Sent";
+"lng_credits_currency_withdraw_sent_path" = "Check {menu} {arrow} {money}";
+"lng_credits_currency_withdraw_open" = "Open";
+"lng_credits_currency_withdraw_error" = "Please try again later.";
 "lng_credits_summary_options_subtitle" = "Choose package";
 "lng_credits_summary_options_credits#one" = "{count} Star";
 "lng_credits_summary_options_credits#other" = "{count} Stars";

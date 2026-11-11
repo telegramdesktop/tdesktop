@@ -103,9 +103,10 @@ rpl::producer<CreditsAmount> Credits::balanceValue() const {
 }
 
 void Credits::tonLoad(bool force) {
-	if (_tonRequestId
-		|| (!force
-			&& _tonLastLoaded
+	if (force) {
+		_session->api().request(base::take(_tonRequestId)).cancel();
+	} else if (_tonRequestId
+		|| (_tonLastLoaded
 			&& _tonLastLoaded + kReloadThreshold > crl::now())) {
 		return;
 	}

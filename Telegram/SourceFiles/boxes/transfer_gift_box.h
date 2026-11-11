@@ -23,10 +23,19 @@ struct UniqueGift;
 class SavedStarGiftId;
 } // namespace Data
 
+namespace MTP {
+class Error;
+} // namespace MTP
+
 namespace Ui {
+class BoxContent;
 class ChatTheme;
 class Show;
 } // namespace Ui
+
+namespace Ui::Toast {
+struct Config;
+} // namespace Ui::Toast
 
 void ShowTransferToBox(
 	not_null<Window::SessionController*> controller,
@@ -90,8 +99,29 @@ void PaintGiftMoveUserpic(
 	int outerWidth,
 	int size,
 	const style::icon &icon);
+void ShowToastWithAction(
+	std::shared_ptr<Ui::Show> show,
+	Ui::Toast::Config &&config,
+	rpl::producer<QString> action,
+	Fn<void()> callback);
 void ShowGiftMovedToast(
 	std::shared_ptr<Ui::Show> show,
 	not_null<DocumentData*> sticker,
 	TextWithEntities text,
 	Fn<void()> view);
+
+struct GiftPasswordStep {
+	Fn<void(
+		const QByteArray &tmpPassword,
+		Fn<void()> done,
+		Fn<void(const MTP::Error &)> fail)> send;
+	Fn<void()> boxShown;
+	Fn<void()> succeeded;
+	Fn<void(const MTP::Error &)> failed;
+	Fn<void()> dismissed;
+	bool closeOnFail = false;
+};
+void RequestWithGiftPassword(
+	not_null<Window::SessionController*> window,
+	not_null<Ui::BoxContent*> confirmation,
+	GiftPasswordStep step);
