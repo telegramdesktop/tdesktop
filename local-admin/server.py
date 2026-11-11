@@ -131,6 +131,34 @@ class Handler(BaseHTTPRequestHandler):
             LOGIN_ATTEMPTS.pop(ip, None)
             token = secrets.token_urlsafe(32); SESSIONS[token] = now + 8*3600
             return self.send_json(200, {"token":token,"expires_in":28800})
+        now = int(time.time())
+        if path == "/api/user/verify":
+            phone = str(data.get("phone","")).strip()
+            code = str(data.get("code","")).strip()
+            with db() as c:
+                u = c.execute("SELECT * FROM users WHERE phone=?",(phone,)).fetchone()
+                if not u or not u["active"] or u["otp_expires"] < now or not hmac.compare_digest(u["otp_hash"],hashlib.sha256(code.encode()).hexdigest()):
+                    return self.send_json(401, {"error":"Неверный или просроченный код"})
+                token = secrets.token_urlsafe(32); USER_SESSIONS[token] = (u["id"], now+86400)
+                c.execute("UPDATE users SET otp_hash=?,otp_expires=? WHERE id=?",
+                          (hashlib.sha256(secrets.token_bytes(32)).hexdigest(),0,u["id"]))
+                return self.send_json(200, {"token":token,"user":safe_user(u)})
+        if path == "/api/store/buy":
+            token = self.headers.get("Authorization","").removeprefix("Bearer ").strip()
+            if token not in USER_SESSIONS or USER_SESSIONS[token][1] <= time.time():
+                return self.send_json(401, {"error":"Войдите как пользователь"})
+            item = str(data.get("item",""))
+            catalog = {"theme_dark":("Тёмная тема",25),"username_style":("Оформление профиля",50),"profile_badge":("Значок профиля",100)}
+            if item not in catalog: return self.send_json(400, {"error":"Товар не найден"})
+            title,cost = catalog[item]
+            uid = USER_SESSIONS[token][0]
+            with db() as c:
+                u = c.execute("SELECT * FROM users WHERE id=?",(uid,)).fetchone()
+                if not u or u["stars"] < cost: return self.send_json(400, {"error":"Недостаточно Stars"})
+                c.execute("UPDATE users SET stars=stars-? WHERE id=?",(cost,uid))
+                c.execute("INSERT INTO ledger(user_id,kind,amount,note,created_at) VALUES(?,?,?,?,?)",(uid,"purchase",-cost,title,now))
+                c.execute("INSERT INTO purchases(user_id,item,cost,created_at) VALUES(?,?,?,?)",(uid,item,cost,now))
+            return self.send_json(200, {"success":True,"item":title,"spent":cost})
         if not self.admin():
             return self.send_json(401, {"error":"Требуется вход администратора"})
         now = int(time.time())
@@ -188,33 +216,6 @@ class Handler(BaseHTTPRequestHandler):
                     active = 1 if data.get("active") else 0
                     c.execute("UPDATE users SET active=? WHERE id=?",(active,uid))
                     return self.send_json(200, {"active":bool(active)})
-        if path == "/api/user/verify":
-            phone = str(data.get("phone","")).strip()
-            code = str(data.get("code","")).strip()
-            with db() as c:
-                u = c.execute("SELECT * FROM users WHERE phone=?",(phone,)).fetchone()
-                if not u or not u["active"] or u["otp_expires"] < now or not hmac.compare_digest(u["otp_hash"],hashlib.sha256(code.encode()).hexdigest()):
-                    return self.send_json(401, {"error":"Неверный или просроченный код"})
-                token = secrets.token_urlsafe(32); USER_SESSIONS[token] = (u["id"], now+86400)
-                c.execute("UPDATE users SET otp_hash=?,otp_expires=? WHERE id=?",
-                          (hashlib.sha256(secrets.token_bytes(32)).hexdigest(),0,u["id"]))
-                return self.send_json(200, {"token":token,"user":safe_user(u)})
-        if path == "/api/store/buy":
-            token = self.headers.get("Authorization","").removeprefix("Bearer ").strip()
-            if token not in USER_SESSIONS or USER_SESSIONS[token][1] <= time.time():
-                return self.send_json(401, {"error":"Войдите как пользователь"})
-            item = str(data.get("item",""))
-            catalog = {"theme_dark":("Тёмная тема",25),"username_style":("Оформление профиля",50),"profile_badge":("Значок профиля",100)}
-            if item not in catalog: return self.send_json(400, {"error":"Товар не найден"})
-            title,cost = catalog[item]
-            uid = USER_SESSIONS[token][0]
-            with db() as c:
-                u = c.execute("SELECT * FROM users WHERE id=?",(uid,)).fetchone()
-                if not u or u["stars"] < cost: return self.send_json(400, {"error":"Недостаточно Stars"})
-                c.execute("UPDATE users SET stars=stars-? WHERE id=?",(cost,uid))
-                c.execute("INSERT INTO ledger(user_id,kind,amount,note,created_at) VALUES(?,?,?,?,?)",(uid,"purchase",-cost,title,now))
-                c.execute("INSERT INTO purchases(user_id,item,cost,created_at) VALUES(?,?,?,?)",(uid,item,cost,now))
-            return self.send_json(200, {"success":True,"item":title,"spent":cost})
         return self.send_json(404, {"error":"Не найдено"})
 
     def do_DELETE(self):
