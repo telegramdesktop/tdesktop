@@ -1535,12 +1535,18 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		const auto yShown = [&](int y) {
 			return (_visibleAreaBottom >= y && _visibleAreaTop <= y);
 		};
+		const auto unreadShown = [&] {
+			return _history->peer->isBroadcast()
+				? yShown(top + height * 4 / 5)
+				: (_visibleAreaBottom > top
+					&& _visibleAreaTop < top + height);
+		};
 		const auto markShown = isSponsored
 			? view->markSponsoredViewed(_visibleAreaBottom - top)
 			: withReaction
 			? yShown(top + context.reactionInfo->position.y())
 			: isUnread
-			? yShown(top + height)
+			? unreadShown()
 			: yShown(top + height / 2);
 		if (markShown) {
 			if (isSponsored) {

@@ -3581,13 +3581,18 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		const auto yShown = [&](int y) {
 			return (_visibleBottom >= y && _visibleTop <= y);
 		};
+		const auto unreadShown = [&] {
+			return item->history()->peer->isBroadcast()
+				? yShown(top + height * 4 / 5)
+				: (_visibleBottom > top && _visibleTop < top + height);
+		};
 		const auto markShown = (_context != Context::ChatPreview)
 			&& (isSponsored
 				? view->markSponsoredViewed(_visibleBottom - top)
 				: withReaction
 				? yShown(top + context.reactionInfo->position.y())
 				: isUnread
-				? yShown(top + height)
+				? unreadShown()
 				: yShown(top + height / 2));
 		if (markShown) {
 			if (isSponsored) {
