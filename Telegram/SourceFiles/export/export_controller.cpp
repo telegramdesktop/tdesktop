@@ -599,6 +599,9 @@ void ControllerObject::exportNextDialog() {
 			setState(stateDialogs(DownloadProgress()));
 			return true;
 		}, [=](DownloadProgress progress) {
+			if (progress.messagesCountUnknown) {
+				_messagesCount = 0;
+			}
 			setState(stateDialogs(progress));
 			return true;
 		}, [=](Data::MessagesSlice &&result) {

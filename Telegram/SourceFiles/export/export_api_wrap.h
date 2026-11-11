@@ -76,6 +76,7 @@ public:
 		int itemIndex = 0;
 		int64 ready = 0;
 		int64 total = 0;
+		bool messagesCountUnknown = false;
 	};
 	void requestUserpics(
 		FnMut<bool(Data::UserpicsInfo&&)> start,
@@ -214,8 +215,24 @@ private:
 
 	void requestMessagesCount(int localSplitIndex);
 	void requestMessagesCountFromDate(int localSplitIndex, int count);
-	void checkFirstMessageDate(int localSplitIndex, int count);
-	void messagesCountLoaded(int localSplitIndex, int count);
+	void requestDatedAccountMessagesCount(
+		int localSplitIndex,
+		int count,
+		bool fromCoversSplit,
+		int tillOffsetDate);
+	void requestMessagesCountAtDate(
+		int localSplitIndex,
+		int offsetDate,
+		std::optional<int> expectedCount,
+		Fn<void(std::optional<int>)> done);
+	void checkFirstMessageDate(
+		int localSplitIndex,
+		int count,
+		Fn<void(int, bool)> done);
+	void messagesCountLoaded(
+		int localSplitIndex,
+		int count,
+		std::optional<int> rangeCount = {});
 	void requestMessagesSlice();
 	void requestChatMessages(
 		int splitIndex,
@@ -224,7 +241,8 @@ private:
 		int addOffset,
 		int limit,
 		MessageDateLimits dateLimits,
-		FnMut<void(MTPmessages_Messages&&)> done);
+		FnMut<void(MTPmessages_Messages&&)> done,
+		Fn<void()> onProbeFailure = {});
 	void startMessagesSlice(Data::MessagesSlice &&slice);
 	void resumeMessagesSlice();
 	void hydrateMessageDone(

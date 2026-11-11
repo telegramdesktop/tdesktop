@@ -630,6 +630,7 @@ struct ApiWrap::AbstractMessagesProcess {
 
 struct ApiWrap::ChatProcess : AbstractMessagesProcess {
 	Data::DialogInfo info;
+	std::vector<std::optional<int>> rangeCounts;
 
 	FnMut<bool(const Data::DialogInfo &)> start;
 
@@ -1886,6 +1887,36 @@ void ApiWrap::requestMessagesCount(int localSplitIndex) {
 			messagesCountLoaded(localSplitIndex, 0);
 			return;
 		}
+		if (!_settings->onlySinglePeer()
+			&& _settings->hasDateLimits()
+			&& !_chatProcess->info.onlyMyMessages) {
+			const auto exact = result.match([](const auto &data) {
+				if constexpr (MTPDmessages_messagesSlice::Is<decltype(data)>()
+					|| MTPDmessages_channelMessages::Is<decltype(data)>()) {
+					return !data.is_inexact();
+				}
+				return true;
+			});
+			const auto till = _settings->singlePeerTill;
+			const auto tillOffsetDate = (till > 0
+				&& Data::SingleMessageAfter(result, till - 1))
+				? (till - 1)
+				: 0;
+			checkFirstMessageDate(localSplitIndex, count, [=](
+					int count,
+					bool fromCoversSplit) {
+				if (exact && count > 0 && !_chatProcess->info.onlyMyMessages) {
+					requestDatedAccountMessagesCount(
+						localSplitIndex,
+						count,
+						fromCoversSplit,
+						tillOffsetDate);
+				} else {
+					messagesCountLoaded(localSplitIndex, count);
+				}
+			});
+			return;
+		}
 		requestMessagesCountFromDate(localSplitIndex, count);
 	});
 }
@@ -1894,49 +1925,114 @@ void ApiWrap::requestMessagesCountFromDate(int localSplitIndex, int count) {
 	Expects(_chatProcess != nullptr);
 	Expects(localSplitIndex < _chatProcess->info.splits.size());
 
+	const auto done = [=](int count) {
+		checkFirstMessageDate(localSplitIndex, count, [=](int count, bool) {
+			messagesCountLoaded(localSplitIndex, count);
+		});
+	};
 	if (!_settings->onlySinglePeer()
 		|| _settings->singlePeerFrom <= 0
 		|| _chatProcess->info.onlyMyMessages) {
-		checkFirstMessageDate(localSplitIndex, count);
+		done(count);
 		return;
 	}
 
 	// Request the count of messages sent since the requested date,
 	// messages sent exactly at offset_date are counted as older ones.
+	requestMessagesCountAtDate(
+		localSplitIndex,
+		SinglePeerLowerBoundOffsetDate(*_settings),
+		std::nullopt,
+		[=](std::optional<int> offset) {
+			done(_chatProcess->info.onlyMyMessages
+				? count
+				: offset.value_or(count));
+		});
+}
+
+void ApiWrap::requestDatedAccountMessagesCount(
+		int localSplitIndex,
+		int count,
+		bool fromCoversSplit,
+		int tillOffsetDate) {
+	const auto fromDone = [=](std::optional<int> fromCount) {
+		if (!fromCount || !tillOffsetDate) {
+			messagesCountLoaded(localSplitIndex, count, fromCount);
+			return;
+		}
+		requestMessagesCountAtDate(
+			localSplitIndex,
+			tillOffsetDate,
+			count,
+			[=](std::optional<int> tillCount) {
+				messagesCountLoaded(
+					localSplitIndex,
+					count,
+					(tillCount && *tillCount <= *fromCount)
+						? std::optional(*fromCount - *tillCount)
+						: std::nullopt);
+			});
+	};
+	const auto fromOffsetDate = SinglePeerLowerBoundOffsetDate(*_settings);
+	if (!fromCoversSplit && fromOffsetDate > 0) {
+		requestMessagesCountAtDate(
+			localSplitIndex,
+			fromOffsetDate,
+			count,
+			fromDone);
+	} else {
+		fromDone(count);
+	}
+}
+
+void ApiWrap::requestMessagesCountAtDate(
+		int localSplitIndex,
+		int offsetDate,
+		std::optional<int> expectedCount,
+		Fn<void(std::optional<int>)> done) {
+	Expects(_chatProcess != nullptr);
+	auto onProbeFailure = Fn<void()>();
+	if (expectedCount) {
+		onProbeFailure = [=] { done(std::nullopt); };
+	}
 	requestChatMessages(
 		_chatProcess->info.splits[localSplitIndex],
 		0, // offset_id
-		SinglePeerLowerBoundOffsetDate(*_settings), // offset_date
+		offsetDate,
 		0, // add_offset
 		1, // limit
 		MessageDateLimits::Ignore,
 		[=](const MTPmessages_Messages &result) {
-		Expects(_chatProcess != nullptr);
-
-		if (_chatProcess->info.onlyMyMessages) {
-			checkFirstMessageDate(localSplitIndex, count);
-			return;
-		}
-		const auto countFromDate = result.match([&](
-				const MTPDmessages_messagesSlice &data) {
-			return data.voffset_id_offset().value_or(count);
-		}, [&](const MTPDmessages_channelMessages &data) {
-			return data.voffset_id_offset().value_or(count);
-		}, [&](const auto &data) {
-			return count;
-		});
-		checkFirstMessageDate(localSplitIndex, countFromDate);
-	});
+			done(result.match([&](const auto &data) -> std::optional<int> {
+				if constexpr (MTPDmessages_messagesSlice::Is<decltype(data)>()
+					|| MTPDmessages_channelMessages::Is<decltype(data)>()) {
+					const auto offset = data.voffset_id_offset();
+					if (offset && (!expectedCount
+						|| (!data.is_inexact()
+							&& !data.vmessages().v.isEmpty()
+							&& data.vcount().v == *expectedCount
+							&& offset->v >= 0
+							&& offset->v <= *expectedCount))) {
+						return offset->v;
+					}
+				}
+				return std::nullopt;
+			}));
+		},
+		std::move(onProbeFailure));
 }
 
-void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
+void ApiWrap::checkFirstMessageDate(
+		int localSplitIndex,
+		int count,
+		Fn<void(int, bool)> done) {
 	Expects(_chatProcess != nullptr);
 	Expects(localSplitIndex < _chatProcess->info.splits.size());
 
 	// Unbounded sender search may not expose the true oldest message.
 	if (_settings->singlePeerTill <= 0
 		|| _chatProcess->info.onlyMyMessages) {
-		messagesCountLoaded(localSplitIndex, count);
+		done(count, false);
 		return;
 	}
 
@@ -1953,25 +2049,41 @@ void ApiWrap::checkFirstMessageDate(int localSplitIndex, int count) {
 
 		const auto skipSplit = !_chatProcess->info.onlyMyMessages
 			&& !Data::SingleMessageBefore(result, _settings->singlePeerTill);
-		messagesCountLoaded(localSplitIndex, skipSplit ? 0 : count);
+		const auto fromCoversSplit = Data::SingleMessageAfter(
+			result,
+			SinglePeerLowerBoundOffsetDate(*_settings));
+		done(skipSplit ? 0 : count, fromCoversSplit);
 	});
 }
 
-void ApiWrap::messagesCountLoaded(int localSplitIndex, int count) {
+void ApiWrap::messagesCountLoaded(
+		int localSplitIndex,
+		int count,
+		std::optional<int> rangeCount) {
 	Expects(_chatProcess != nullptr);
 	Expects(localSplitIndex < _chatProcess->info.splits.size());
 
 	_chatProcess->info.messagesCountPerSplit[localSplitIndex] = count;
+	const auto dated = _settings->hasDateLimits();
+	const auto datedAccount = dated && !_settings->onlySinglePeer();
+	if (datedAccount) {
+		_chatProcess->rangeCounts.push_back(
+			count ? rangeCount : std::optional(0));
+	}
 	if (localSplitIndex + 1 < _chatProcess->info.splits.size()) {
 		requestMessagesCount(localSplitIndex + 1);
 		return;
 	}
 
 	auto startInfo = _chatProcess->info;
-	if (_settings->hasDateLimits()
-		&& (!_settings->onlySinglePeer() || startInfo.onlyMyMessages)) {
-		for (auto &count : startInfo.messagesCountPerSplit) {
-			count = 0;
+	if (dated && (datedAccount || startInfo.onlyMyMessages)) {
+		const auto &counts = _chatProcess->rangeCounts;
+		const auto known = datedAccount && !startInfo.onlyMyMessages
+			&& ranges::all_of(counts, [](auto count) {
+				return count.has_value();
+			});
+		for (auto i = size_t(0); i != startInfo.messagesCountPerSplit.size(); ++i) {
+			startInfo.messagesCountPerSplit[i] = known ? *counts[i] : 0;
 		}
 	}
 	if (_chatProcess->start(startInfo)) {
@@ -2402,7 +2514,8 @@ void ApiWrap::requestChatMessages(
 		int addOffset,
 		int limit,
 		MessageDateLimits dateLimits,
-		FnMut<void(MTPmessages_Messages&&)> done) {
+		FnMut<void(MTPmessages_Messages&&)> done,
+		Fn<void()> onProbeFailure) {
 	Expects(_chatProcess != nullptr);
 
 	const auto applyDateLimits = _chatProcess->info.onlyMyMessages
@@ -2475,6 +2588,10 @@ void ApiWrap::requestChatMessages(
 		)).fail([=](const MTP::Error &error) {
 			Expects(_chatProcess != nullptr);
 
+			if (onProbeFailure) {
+				onProbeFailure();
+				return true;
+			}
 			if (error.type() == u"CHANNEL_PRIVATE"_q) {
 				if (realPeerInput.type() == mtpc_inputPeerChannel
 					&& !_chatProcess->info.onlyMyMessages) {
@@ -2482,6 +2599,13 @@ void ApiWrap::requestChatMessages(
 					// Perhaps we just left / were kicked from channel.
 					// Just switch to only my messages.
 					_chatProcess->info.onlyMyMessages = true;
+					if (dateLimits == MessageDateLimits::Apply
+						&& _settings->hasDateLimits()
+						&& !_chatProcess->fileProgress(DownloadProgress{
+							.messagesCountUnknown = true,
+						})) {
+						return true;
+					}
 					requestChatMessages(
 						splitIndex,
 						offsetId,
