@@ -149,9 +149,8 @@ void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
 			<< quint32(user->lastseen().serialize())
 			<< qint32(user->isContact() ? 1 : 0)
 			<< qint32(user->isBot() ? user->botInfo->version : -1)
-			<< qint32(user->isBot()
-				&& user->botInfo
-				&& user->botInfo->supportsGuestChat);
+			<< qint32(user->isBot() 
+			    && user->botInfo->supportsGuestChat);
 	} else if (const auto chat = peer->asChat()) {
 		auto field1 = qint32(uint32(chat->creator.bare & 0xFFFFFFFFULL));
 		auto field2 = qint32(uint32(chat->creator.bare >> 32) << 8);
