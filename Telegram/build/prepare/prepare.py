@@ -63,6 +63,7 @@ optionsList = [
     'qt5',
     'qt6',
     'skip-release',
+    'cache-selected',
     'build-stackwalk',
     'qt-asserts',
 ]
@@ -466,9 +467,10 @@ def runStages():
         print(prefix + ': ', end = '', flush=True)
         stage['key'] = computeCacheKey(stage)
         commands = removeDir(stage['name']) + '\n' + stage['commands']
-        # A selected stage must still honor its cache key. This lets CI split
-        # preparation into small, restartable groups without rebuilding good stages.
-        checkResult = checkCacheKey(stage)
+        # CI can opt into cache-aware stage selection while the default explicit
+        # stage argument keeps its original force-rebuild behavior.
+        checkResult = ('Forced' if len(onlyStages) > 0 and 'cache-selected' not in options
+            else checkCacheKey(stage))
         if checkResult == 'Good':
             print('SKIPPING')
             continue
