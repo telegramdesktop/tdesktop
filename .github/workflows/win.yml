@@ -255,6 +255,7 @@ jobs:
           retention-days: 1
 
 
+  # Package only the executable produced by the Windows job in this exact run.
   package:
     name: Package Windows x64 ZIP
     if: github.event_name == 'push' && github.ref == 'refs/heads/feature/local-web-admin'
