@@ -115,7 +115,7 @@ private:
 	bool signingReady);
 [[nodiscard]] SendError ServedBalanceRefusal(
 	const ServedPreparation &preparation,
-	int64 feeNano,
+	int64 spendNano,
 	int64 balanceNano);
 
 [[nodiscard]] wallet_engine::SendPreview PreviewServed(

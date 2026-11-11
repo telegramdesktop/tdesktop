@@ -348,12 +348,12 @@ SendError ServedSendRefusal(
 
 SendError ServedBalanceRefusal(
 		const ServedPreparation &preparation,
-		int64 feeNano,
+		int64 spendNano,
 		int64 balanceNano) {
 	if (preparation.normalValue > balanceNano
 		|| preparation.gaslessValue > balanceNano) {
 		return SendError::InsufficientBalance;
-	} else if (feeNano > balanceNano - preparation.normalValue) {
+	} else if (spendNano > balanceNano - preparation.normalValue) {
 		return SendError::InsufficientFees;
 	}
 	return SendError::None;
@@ -381,20 +381,17 @@ FeeResult ServedFeeResult(
 		const engine::SendPreview &preview,
 		const ServedPreparation &preparation,
 		int64 balanceNano) {
-	const auto fee = DecimalInt64(preview.emulation.wallet_fees_nanograms);
-	if (!fee || *fee < 0) {
+	const auto spend = PositiveFee(preview.operation_spend_nanograms);
+	if (!spend) {
 		return { .error = SendError::Failed };
 	}
 	const auto refusal = ServedBalanceRefusal(
 		preparation,
-		*fee,
+		*spend,
 		balanceNano);
 	return (refusal != SendError::None)
-		? FeeResult{
-			.error = refusal,
-			.shortfallFeeNano = (*fee > 0) ? fee : std::nullopt,
-		}
-		: FeeResult{ .feeNano = *fee };
+		? FeeResult{ .error = refusal, .shortfallFeeNano = spend }
+		: FeeResult{ .feeNano = *spend };
 }
 
 std::optional<int64> ServedShortfallFee(const EngineError &error) {
@@ -404,10 +401,10 @@ std::optional<int64> ServedShortfallFee(const EngineError &error) {
 	try {
 		std::rethrow_exception(error.underlying);
 	} catch (const engine::wallet_client_error::InsufficientBalance &e) {
-		return PositiveFee(e.operation_fee_nanograms);
+		return PositiveFee(e.operation_spend_nanograms);
 	} catch (const engine::wallet_client_error
 			::InsufficientBalanceForFees &e) {
-		return PositiveFee(e.operation_fee_nanograms);
+		return PositiveFee(e.operation_spend_nanograms);
 	} catch (...) {
 	}
 	return std::nullopt;

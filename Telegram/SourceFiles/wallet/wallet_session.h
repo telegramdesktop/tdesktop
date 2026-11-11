@@ -346,6 +346,7 @@ struct GaslessTerms {
 struct PreparedSend;
 
 struct FeeResult {
+	// Served: both fees are the whole spend beyond the value; else the fee.
 	int64 feeNano = 0;
 	SendError error = SendError::None;
 	std::optional<int64> shortfallFeeNano;
