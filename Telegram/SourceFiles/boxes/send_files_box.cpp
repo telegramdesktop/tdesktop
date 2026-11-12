@@ -162,7 +162,11 @@ void RenameFileBox(
 		field->setFocusFast();
 	});
 	const auto save = [=] {
-		const auto newName = field->getLastText().trimmed();
+		auto newName = field->getLastText().trimmed();
+		if (!extension.isEmpty()
+			&& newName.endsWith(extension, Qt::CaseInsensitive)) {
+			newName.chop(extension.size());
+		}
 		if (newName.isEmpty()) {
 			field->showError();
 			return;
