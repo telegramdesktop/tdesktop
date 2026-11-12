@@ -868,12 +868,7 @@ infoStoriesAboutArchive: FlatLabel(defaultFlatLabel) {
 }
 infoStoriesAboutArchivePadding: margins(22px, 12px, 22px, 12px);
 
-editPeerBottomButtonsLayoutMargins: margins(0px, 7px, 0px, 0px);
-
 editPeerTopButtonsLayoutSkip: 5px;
-editPeerTopButtonsLayoutSkipToBottom: 5px;
-
-editPeerTopButtonsLayoutSkipCustomBottom: 5px;
 
 editPeerHistoryVisibilityTopSkip: 8px;
 
@@ -899,7 +894,7 @@ editPeerDescription: InputField(defaultInputField) {
 
 	heightMin: 32px;
 }
-editPeerDescriptionMargins: margins(22px, 3px, 22px, 2px);
+editPeerDescriptionMargins: margins(22px, 3px, 22px, 4px);
 editPeerPrivaciesMargins: margins(15px, 7px, 22px, 0px);
 editPeerPrivacyBottomSkip: 16px;
 editPeerPrivacyLabel: FlatLabel(defaultFlatLabel) {

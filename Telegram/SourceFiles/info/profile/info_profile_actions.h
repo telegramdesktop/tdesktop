@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
-#include "info/profile/info_profile_section_stack.h"
+#include "ui/wrap/vertical_blocks.h"
 
 namespace Ui {
 class RpWidget;
@@ -31,9 +31,9 @@ extern const char kOptionShowChannelJoinedBelowAbout[];
 
 struct Origin;
 
-object_ptr<Ui::RpWidget> SetupActions(
+void AddActionsBlocks(
+	Ui::VerticalBlocks blocks,
 	not_null<Controller*> controller,
-	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer);
 
 object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
@@ -41,8 +41,8 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer);
 
-void BuildProfileDetailsSections(
-	SectionStack &stack,
+void AddDetailsBlocks(
+	Ui::VerticalBlocks blocks,
 	not_null<Controller*> controller,
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,

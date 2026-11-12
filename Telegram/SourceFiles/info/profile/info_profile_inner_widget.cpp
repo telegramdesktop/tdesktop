@@ -169,15 +169,20 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		}
 	}
 
-	auto stack = SectionStack(result.data());
+	const auto skip = st::infoProfileSkip;
+	Ui::AddSkip(result.data(), skip);
+	auto blocks = Ui::VerticalBlocks(result.data(), {
+		.skip = skip,
+		.duration = st::infoSlideDuration,
+	});
 	if (_topic && _topic->creating()) {
-		stack.finalize();
+		Ui::AddSkip(result.data(), skip);
 		return result;
 	}
 
 	if (!_savedMessages) {
-		BuildProfileDetailsSections(
-			stack,
+		AddDetailsBlocks(
+			blocks,
 			_controller,
 			_peer,
 			_topic,
@@ -199,11 +204,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			sharedTracker);
 		const auto raw = sharedMediaWidget.data();
 		_sharedMediaWrap = raw;
-		stack.addPlainSeparator();
-		stack.add(Section{
-			.widget = std::move(sharedMediaWidget),
-			.shown = raw->toggledValue(),
-		});
+		blocks.addSeparator();
+		blocks.add(std::move(sharedMediaWidget));
 	}
 
 	const auto addTabsHost = [&] {
@@ -312,11 +314,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 				(request.ymax < 0) ? -1 : (request.ymax + shift),
 			});
 		}, raw->lifetime());
-		stack.addPlainSeparator();
-		stack.add(Section{
-			.widget = std::move(tabsHost),
-			.shown = raw->heightValue() | rpl::map(_1 > 0),
-		});
+		blocks.addSeparator();
+		blocks.add(std::move(tabsHost));
 	};
 	if (_topic || _sublist || _savedMessages) {
 		if (tabs) {
@@ -327,28 +326,16 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 				_tabsDocked = true;
 			}
 		}
-		stack.finalize();
+		Ui::AddSkip(result.data(), skip);
 		return result;
 	}
-	if (auto manage = SetupChannelMembersAndManage(
-			_controller,
-			result.data(),
-			_peer)) {
-		const auto raw = static_cast<Ui::SlideWrap<Ui::RpWidget>*>(
-			manage.data());
-		stack.addPlainSeparator();
-		stack.add(Section{
-			.widget = std::move(manage),
-			.shown = raw->toggledValue(),
-		});
-	}
-	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
-		stack.addPlainSeparator();
-		stack.add(Section{
-			.widget = std::move(actions),
-			.shown = rpl::single(true),
-		});
-	}
+	blocks.addSeparator();
+	blocks.add(SetupChannelMembersAndManage(
+		_controller,
+		result.data(),
+		_peer));
+	blocks.addSeparator();
+	AddActionsBlocks(blocks, _controller, _peer);
 	if ((_peer->isChat() || _peer->isMegagroup())
 		&& !_peer->isMonoforum()) {
 		auto shown = [&]() -> rpl::producer<bool> {
@@ -359,17 +346,17 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 				return !inTab;
 			});
 		}();
-		stack.addPlainSeparator();
-		stack.add(makeMembersSection(result.data(), std::move(shown)));
+		blocks.addSeparator();
+		blocks.add(makeMembersPart(result.data(), std::move(shown)));
 	}
 	if (tabs) {
 		addTabsHost();
 	}
-	stack.finalize();
+	Ui::AddSkip(result.data(), skip);
 	return result;
 }
 
-Section InnerWidget::makeMembersSection(
+Ui::VerticalBlocks::Part InnerWidget::makeMembersPart(
 		not_null<QWidget*> parent,
 		rpl::producer<bool> shown) {
 	auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
@@ -406,7 +393,7 @@ Section InnerWidget::makeMembersSection(
 			*toggled = (count > 0);
 		}, _members->lifetime());
 	}, raw->lifetime());
-	return Section{
+	return {
 		.widget = std::move(wrap),
 		.shown = raw->toggledValue(),
 	};

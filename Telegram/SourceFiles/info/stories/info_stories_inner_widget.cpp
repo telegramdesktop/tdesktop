@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_actions.h"
 #include "info/profile/info_profile_icon.h"
-#include "info/profile/info_profile_section_stack.h"
 #include "info/profile/info_profile_top_bar.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_widget.h"
@@ -306,38 +305,29 @@ void InnerWidget::startTop() {
 void InnerWidget::createProfileTop() {
 	startTop();
 
-	using namespace Profile;
-	auto stack = SectionStack(_top);
-	BuildProfileDetailsSections(
-		stack,
+	const auto skip = st::infoProfileSkip;
+	Ui::AddSkip(_top, skip);
+	auto blocks = Ui::VerticalBlocks(_top, {
+		.skip = skip,
+		.duration = st::infoSlideDuration,
+	});
+	Profile::AddDetailsBlocks(
+		blocks,
 		_controller,
 		_peer,
 		nullptr,
 		nullptr,
 		{ v::null });
 
-	stack.addPlainSeparator();
-	auto buttons = std::vector<not_null<Ui::SlideWrap<>*>>();
-	const auto addButton = [&](object_ptr<Ui::SlideWrap<>> button) {
-		if (!button) {
-			return;
-		}
-		const auto raw = button.data();
-		stack.add({
-			.widget = std::move(button),
-			.shown = raw->toggledValue(),
-		});
-		buttons.push_back(raw);
-	};
-	addButton(makeGiftsButton());
-	addButton(makePostButton());
-	addButton(makeArchiveButton());
-	addButton(makeRecentButton());
-	stack.finalize();
+	blocks.addSeparator();
 	// Layout insertion shows even wrappers whose initial toggle is off.
-	for (const auto &button : buttons) {
-		button->finishAnimating();
+	blocks.add(makeGiftsButton())->finishAnimating();
+	if (auto post = makePostButton()) {
+		blocks.add(std::move(post))->finishAnimating();
 	}
+	blocks.add(makeArchiveButton())->finishAnimating();
+	blocks.add(makeRecentButton())->finishAnimating();
+	Ui::AddSkip(_top, skip);
 
 	finalizeTop(false);
 }

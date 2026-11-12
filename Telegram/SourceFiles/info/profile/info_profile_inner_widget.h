@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
-#include "info/profile/info_profile_section_stack.h"
+#include "ui/wrap/vertical_blocks.h"
 #include "ui/rp_widget.h"
 
 namespace Data {
@@ -86,7 +86,7 @@ private:
 	object_ptr<RpWidget> setupContent(
 		not_null<RpWidget*> parent,
 		Origin origin);
-	[[nodiscard]] Section makeMembersSection(
+	[[nodiscard]] Ui::VerticalBlocks::Part makeMembersPart(
 		not_null<QWidget*> parent,
 		rpl::producer<bool> shown);
 
