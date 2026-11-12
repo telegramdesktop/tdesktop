@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_resale_box.h"
 
 #include "boxes/star_gift_box.h"
+#include "boxes/star_gift_onchain_buy_box.h"
+#include "boxes/star_gift_onchain_sale_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "core/ui_integration.h"
@@ -29,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+#include "wallet/wallet_session.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
@@ -522,6 +525,17 @@ struct ResaleTabs {
 	};
 }
 
+[[nodiscard]] bool HiddenInCraftList(
+		not_null<Main::Session*> session,
+		const Data::UniqueGift &gift) {
+	if (gift.ownerId == session->userPeerId()) {
+		return true;
+	} else if (gift.fixedSale) {
+		return LookupOwnOnchainGift(session, gift) != OwnOnchainGift::None;
+	}
+	return gift.onchainSale;
+}
+
 void GiftResaleBox(
 		not_null<GenericBox*> box,
 		not_null<Window::SessionController*> window,
@@ -612,6 +626,8 @@ void AddResaleGiftsList(
 		rpl::variable<ResaleGiftsFilter> filter;
 		rpl::variable<bool> empty = true;
 		rpl::lifetime loading;
+		OnchainBuyMemory onchainMemory;
+		base::flat_set<QString> acceptedOnchainSlugs;
 		int lastMinHeight = 0;
 	};
 	const auto state = container->lifetime().make_state<State>();
@@ -621,8 +637,7 @@ void AddResaleGiftsList(
 	const auto fragmentAvailable = !forCraft
 		&& peer->isSelf()
 		&& window->session().appConfig().giftResaleFragmentEnabled();
-	const auto fixedSaleAvailable = !forCraft
-		&& peer->isSelf()
+	const auto fixedSaleAvailable = peer->isSelf()
 		&& window->session().appConfig().giftResaleFixedSaleEnabled();
 	auto tabs = MakeResaleTabs(
 		window->uiShow(),
@@ -689,6 +704,13 @@ void AddResaleGiftsList(
 		state->updated.fire({});
 	}, container->lifetime());
 
+	if (forCraft && fixedSaleAvailable) {
+		session->wallet().transferWalletIdentityChanges(
+		) | rpl::on_next([=] {
+			state->updated.fire({});
+		}, container->lifetime());
+	}
+
 	using Descriptor = Info::PeerGifts::GiftDescriptor;
 	auto customHandler = Fn<void(Descriptor)>();
 	if (bought) {
@@ -697,6 +719,17 @@ void AddResaleGiftsList(
 			Expects(v::is<StarGift>(descriptor));
 
 			const auto unique = v::get<StarGift>(descriptor).info.unique;
+			if (forCraft && unique->fixedSale) {
+				ShowBuyOnchainGiftBox(
+					window->uiShow(),
+					unique,
+					base::make_weak(&state->onchainMemory),
+					crl::guard(container, [=] {
+						state->acceptedOnchainSlugs.emplace(unique->slug);
+						state->updated.fire({});
+					}));
+				return;
+			}
 			const auto done = crl::guard(container, [=](bool ok) {
 				if (ok) {
 					bought(unique);
@@ -717,7 +750,9 @@ void AddResaleGiftsList(
 		for (const auto &gift : state->data.list) {
 			const auto mine = (gift.unique->ownerId == selfId);
 			const auto onchain = Data::UniqueGiftOnchainSale(*gift.unique);
-			if (forCraft && (mine || onchain)) {
+			if (forCraft
+				&& (state->acceptedOnchainSlugs.contains(gift.unique->slug)
+					|| HiddenInCraftList(session, *gift.unique))) {
 				continue;
 			}
 			result.list.push_back(Info::PeerGifts::GiftTypeStars{

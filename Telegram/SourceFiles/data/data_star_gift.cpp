@@ -353,7 +353,7 @@ rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(
 					| ((filter.fragmentOnly && !filter.forCraft)
 						? Flag::f_fragment_only
 						: Flag())
-					| ((filter.fixedSaleOnly && !filter.forCraft)
+					| (filter.fixedSaleOnly
 						? Flag::f_fixed_sale_only
 						: Flag())),
 				MTP_long(filter.attributesHash),
