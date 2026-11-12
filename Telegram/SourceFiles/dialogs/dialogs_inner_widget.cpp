@@ -2695,6 +2695,7 @@ bool InnerWidget::addQuickActionRipple(
 		.sizeOverride = Size(st::dialogsQuickActionSize),
 	});
 	context->action = action;
+	context->label = type;
 	context->icon->jumpTo(context->icon->framesCount() - 1, [=] {
 		const auto size = QSize(
 			st::dialogsQuickActionRippleSize,
@@ -2719,10 +2720,7 @@ bool InnerWidget::addQuickActionRipple(
 							p,
 							Rect(size),
 							context->icon.get(),
-							ResolveQuickDialogLabel(
-								history,
-								action,
-								_filterId));
+							type);
 					}),
 				std::move(updateCallback));
 		}
@@ -6676,6 +6674,7 @@ bool InnerWidget::prepareQuickAction(
 		.sizeOverride = Size(st::dialogsQuickActionSize),
 	});
 	context->action = action;
+	context->label = type;
 	return true;
 }
 

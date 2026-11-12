@@ -1024,10 +1024,7 @@ void PaintRow(
 			swipeTranslation,
 			geometry.height());
 		p.setClipRect(swipeActionRect);
-		const auto labelType = ResolveQuickDialogLabel(
-			history,
-			context.quickActionContext->action,
-			context.filter);
+		const auto labelType = context.quickActionContext->label;
 		p.fillRect(swipeActionRect, ResolveQuickActionBg(labelType));
 		if (context.quickActionContext->data.reachRatio) {
 			p.setPen(Qt::NoPen);
@@ -1063,11 +1060,7 @@ void PaintRow(
 	}
 	if (const auto quick = context.quickActionContext;
 			quick && quick->ripple && quick->rippleFg) {
-		const auto labelType = ResolveQuickDialogLabel(
-			history,
-			context.quickActionContext->action,
-			context.filter);
-		const auto ripple = ResolveQuickActionBg(labelType);
+		const auto ripple = ResolveQuickActionBg(quick->label);
 		const auto size = st::dialogsQuickActionRippleSize;
 		const auto x = geometry.width() - size;
 		quick->ripple->paint(p, x, 0, size, &ripple->c);

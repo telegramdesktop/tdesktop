@@ -42,6 +42,7 @@ struct QuickActionContext {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
 	std::unique_ptr<Ui::RippleAnimation> rippleFg;
 	QuickDialogAction action;
+	QuickDialogActionLabel label = QuickDialogActionLabel::Disabled;
 	crl::time finishedAt = 0;
 };
 
