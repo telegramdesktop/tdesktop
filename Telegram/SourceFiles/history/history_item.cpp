@@ -8815,9 +8815,8 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 			tr::marked);
 	}
 	const auto hidden = history()->peer->isNotificationsUser();
-	const auto provider = out() ? QString() : transfer->onrampProvider;
 	auto name = tr::marked();
-	if (!hidden && provider.isEmpty()) {
+	if (!hidden) {
 		const auto counterparty = out() ? history()->peer : from();
 		const auto user = history()->owner().userLoaded(
 			peerToUser(counterparty->id));
@@ -8832,15 +8831,7 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 				address->testnet));
 		}
 	}
-	if (!provider.isEmpty()) {
-		result.text = tr::lng_action_gram_transfer_topped_up(
-			tr::now,
-			lt_amount,
-			amount,
-			lt_provider,
-			tr::marked(provider),
-			tr::marked);
-	} else if (hidden && !out()) {
+	if (hidden && !out()) {
 		result.text = tr::lng_action_gram_transfer_received_unknown(
 			tr::now,
 			lt_amount,
