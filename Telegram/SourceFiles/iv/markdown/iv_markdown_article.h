@@ -440,6 +440,7 @@ public:
 		int current);
 	[[nodiscard]] auto searchSources() const
 	-> std::vector<MarkdownArticleSearchSource>;
+	[[nodiscard]] rpl::producer<> searchSourcesChanges() const;
 	void updatePreparedLeaf(
 		const PreparedEditLeafSource &source,
 		const MarkdownArticleContent &prepared);

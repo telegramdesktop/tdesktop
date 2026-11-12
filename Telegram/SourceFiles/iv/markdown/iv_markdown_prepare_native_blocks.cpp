@@ -1319,7 +1319,10 @@ void ClearPreparedEditSources(std::vector<PreparedBlock> *blocks) {
 	block.pullquote = data.pullquote;
 	const auto collapsible = RichBlockquoteIsCollapsible(data);
 	const auto atomic = collapsible && data.collapsed && state->editMode;
-	if (collapsible && (data.collapsed || state->editMode)) {
+	const auto toggleable = state->editMode
+		? collapsible
+		: (data.collapsed && !data.pullquote);
+	if (toggleable) {
 		block.collapseToggleId = NativeIvQuoteToggleId(state);
 		block.collapsed = data.collapsed;
 	}

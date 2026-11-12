@@ -690,19 +690,6 @@ void ApplyMessageSkipBlock(not_null<LaidOutBlock*> block, QSize skip) {
 	}
 }
 
-[[nodiscard]] int LeafCollapsedLineBottom(
-		const Ui::Text::String &leaf,
-		int width,
-		int lines) {
-	if (lines <= 0) {
-		return 0;
-	}
-	const auto geometry = leaf.countLinesGeometry(width);
-	return (lines < int(geometry.size()))
-		? geometry[lines - 1].bottom
-		: 0;
-}
-
 [[nodiscard]] QRect PaddedBand(
 		int left,
 		int width,
@@ -3622,12 +3609,11 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		context);
 	const auto clipped = prepared.quoteAuthor
 		? 0
-		: LeafCollapsedLineBottom(
+		: ConsumeQuoteFoldLines(
+			context.quoteFold,
 			displayLeaf,
-			block->textWidth,
-			context.collapsibleQuoteLines);
-	block->collapsedLinesExceeded = (clipped > 0);
-	if (clipped > 0 && context.collapsibleQuoteCollapsed) {
+			block->textWidth);
+	if (clipped > 0 && context.quoteFold->collapsed) {
 		height = std::min(height, clipped);
 	}
 	block->textRect = QRect(left, top, block->textWidth, height);

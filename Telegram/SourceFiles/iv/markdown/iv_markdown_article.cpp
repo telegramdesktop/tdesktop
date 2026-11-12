@@ -3185,7 +3185,10 @@ void ConsiderStructuralListItemDropTargets(
 	}
 	for (auto &block : *blocks) {
 		auto result = MarkdownArticleAnchorExpansion();
-		if (PreparedBlockHasAnchor(block, anchorId)) {
+		const auto fold = (block.kind == PreparedBlockKind::Quote)
+			&& !block.collapseToggleId.isEmpty();
+		const auto target = PreparedBlockHasAnchor(block, anchorId);
+		if (target) {
 			result.found = true;
 			if (!expandTarget) {
 				return result;
@@ -3197,7 +3200,8 @@ void ConsiderStructuralListItemDropTargets(
 				expandTarget);
 		}
 		if (result.found) {
-			if (block.kind == PreparedBlockKind::Details
+			if ((block.kind == PreparedBlockKind::Details
+					|| (fold && !target))
 				&& block.collapsed) {
 				block.collapsed = false;
 				result.changed = true;
@@ -3223,29 +3227,6 @@ void ConsiderStructuralListItemDropTargets(
 		}
 	}
 	return nullptr;
-}
-
-void AppendPreparedBlocksText(
-		const std::vector<PreparedBlock> &blocks,
-		QString *to) {
-	const auto append = [&](const QString &text) {
-		if (text.isEmpty()) {
-			return;
-		}
-		if (!to->isEmpty()) {
-			to->append('\n');
-		}
-		to->append(text);
-	};
-	for (const auto &block : blocks) {
-		append(block.text.text);
-		for (const auto &row : block.tableRows) {
-			for (const auto &cell : row.cells) {
-				append(cell.text.text);
-			}
-		}
-		AppendPreparedBlocksText(block.children, to);
-	}
 }
 
 void ClearColorizedFormulaImages(std::vector<LaidOutBlock> *blocks) {
@@ -3760,6 +3741,7 @@ public:
 		int current);
 	[[nodiscard]] auto searchSources() const
 	-> std::vector<MarkdownArticleSearchSource>;
+	[[nodiscard]] rpl::producer<> searchSourcesChanges() const;
 	void updatePreparedLeaf(
 		const PreparedEditLeafSource &source,
 		const MarkdownArticleContent &prepared);
@@ -4177,6 +4159,7 @@ private:
 	std::vector<std::pair<QString, int>> _anchors;
 	std::vector<SelectableSegment> _segments;
 	std::vector<MarkdownArticleSearchMatch> _searchMatches;
+	rpl::event_stream<> _searchSourcesChanges;
 	int _currentSearchMatch = -1;
 	std::optional<LogicalVisibleRange> _visibleRange;
 	SegmentSpan _visibleSegmentSpan;
@@ -4328,7 +4311,20 @@ auto MarkdownArticle::Impl::searchSources() const
 		}
 		result.push_back(std::move(source));
 	}
+	auto folds = std::vector<QuoteFoldHiddenRange>();
+	CollectQuoteFoldHiddenRanges(_content.blocks.blocks, _blocks, &folds);
+	for (const auto &fold : folds) {
+		if (fold.segmentIndex < int(result.size())) {
+			auto &source = result[fold.segmentIndex];
+			source.detailsAnchorId = fold.toggleId;
+			AppendPreparedBlocksText(fold.blocks, &source.hiddenText);
+		}
+	}
 	return result;
+}
+
+rpl::producer<> MarkdownArticle::Impl::searchSourcesChanges() const {
+	return _searchSourcesChanges.events();
 }
 
 void MarkdownArticle::Impl::updatePreparedLeaf(
@@ -4972,10 +4968,13 @@ MarkdownArticleAnchorExpansion MarkdownArticle::Impl::expandDetailsToAnchor(
 
 MarkdownArticleAnchorExpansion MarkdownArticle::Impl::expandDetailsBlock(
 		const QString &anchorId) {
-	const auto result = ExpandDetailsToAnchor(
-		&_content.blocks.blocks,
-		anchorId,
-		true);
+	auto result = ExpandQuoteFold(&_content.blocks.blocks, anchorId);
+	if (!result.found) {
+		result = ExpandDetailsToAnchor(
+			&_content.blocks.blocks,
+			anchorId,
+			true);
+	}
 	if (result.changed) {
 		invalidateLayout();
 	}
@@ -6726,6 +6725,7 @@ void MarkdownArticle::Impl::finalizeRelayout(int heightBottom) {
 	rebuildVisibleSegmentLookup();
 	_nextFormattedDateUpdate = CountBlocksFormattedDateUpdate(_blocks);
 	refreshMediaBlockBubbleRounding();
+	_searchSourcesChanges.fire({});
 }
 
 int MarkdownArticle::Impl::inlineButtonWidthCap() const {
@@ -6980,6 +6980,10 @@ void MarkdownArticle::setSearchMatches(
 auto MarkdownArticle::searchSources() const
 -> std::vector<MarkdownArticleSearchSource> {
 	return _impl->searchSources();
+}
+
+rpl::producer<> MarkdownArticle::searchSourcesChanges() const {
+	return _impl->searchSourcesChanges();
 }
 
 void MarkdownArticle::updatePreparedLeaf(

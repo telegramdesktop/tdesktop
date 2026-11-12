@@ -1402,6 +1402,11 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 					*caption))
 				: FailedSerializeBlock();
 		}
+		using Flag = MTPDpageBlockBlockquoteBlocks::Flag;
+		auto flags = MTPDpageBlockBlockquoteBlocks::Flags();
+		if (block.collapsed) {
+			flags |= Flag::f_collapsed;
+		}
 		auto blocks = QVector<MTPPageBlock>();
 		if (HasRichTextContent(block.text)
 			&& !AppendSerializedParagraphBlock(
@@ -1422,7 +1427,7 @@ void TrimEmptyParagraphEdges(std::vector<Block> *blocks) {
 			context);
 		return caption
 			? SuccessfulSerializeBlock(MTP_pageBlockBlockquoteBlocks(
-				MTP_flags(0),
+				MTP_flags(flags),
 				MTP_vector<MTPPageBlock>(std::move(blocks)),
 				*caption))
 			: FailedSerializeBlock();

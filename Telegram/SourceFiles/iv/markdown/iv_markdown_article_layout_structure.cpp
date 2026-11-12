@@ -215,8 +215,7 @@ void PrepareNestedContext(
 	context->articleLeft = left;
 	context->articleWidth = std::max(width, 1);
 	context->listItemContentShift = 0;
-	context->collapsibleQuoteLines = 0;
-	context->collapsibleQuoteCollapsed = false;
+	context->quoteFold = nullptr;
 }
 
 [[nodiscard]] bool TextEmptyForLayout(
@@ -2583,6 +2582,9 @@ int LayoutBlocks(
 		if (HideEmptyQuoteAuthorBlock(block, blockContext)) {
 			blocks->push_back(HiddenQuoteAuthorBlock(block));
 			continue;
+		} else if (QuoteFoldHidesBlock(context.quoteFold, block)) {
+			blocks->push_back(LaidOutBlock());
+			continue;
 		}
 		if (previous && !anchorOnly) {
 			y += BlockSkip(*previous, block, context, st);
@@ -3045,9 +3047,12 @@ int LayoutBlocks(
 	childContext.hideEmptyQuoteAuthor = QuoteBodyEmptyForLayout(
 		prepared,
 		childContext);
+	auto fold = QuoteFold{
+		.remainingLines = Ui::Text::kQuoteCollapsedLines,
+		.collapsed = prepared.collapsed,
+	};
 	if (!prepared.collapseToggleId.isEmpty()) {
-		childContext.collapsibleQuoteLines = Ui::Text::kQuoteCollapsedLines;
-		childContext.collapsibleQuoteCollapsed = prepared.collapsed;
+		childContext.quoteFold = &fold;
 	}
 	const auto childBottom = layoutNestedBlocks(
 		prepared.children,
@@ -3067,9 +3072,7 @@ int LayoutBlocks(
 	block->collapsedAtomic = context.editMode
 		&& prepared.collapsed
 		&& !prepared.collapseToggleId.isEmpty();
-	block->collapsedLinesExceeded = !block->children.empty()
-		&& !block->children.front().quoteAuthor
-		&& block->children.front().collapsedLinesExceeded;
+	block->collapsedLinesExceeded = fold.exceeded;
 	const auto contentHeight = std::max(
 		*childBottom - contentTop,
 		prepared.children.empty()
@@ -3866,6 +3869,10 @@ int LayoutBlocks(
 		if (HideEmptyQuoteAuthorBlock(preparedBlock, blockContext)) {
 			live = HiddenQuoteAuthorBlock(preparedBlock);
 			continue;
+		} else if (context.quoteFold
+			&& (live.outer.isNull()
+				|| QuoteFoldHidesBlock(context.quoteFold, preparedBlock))) {
+			return std::nullopt;
 		}
 		if (previous && !anchorOnly) {
 			y += BlockSkip(*previous, preparedBlock, context, st);

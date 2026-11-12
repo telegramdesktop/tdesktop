@@ -99,6 +99,7 @@ PRIVATE
     iv/markdown/iv_markdown_article_paint.h
     iv/markdown/iv_markdown_article_quote.cpp
     iv/markdown/iv_markdown_article_quote.h
+    iv/markdown/iv_markdown_article_quote_fold.cpp
     iv/markdown/iv_markdown_article_scroll_forwarder.cpp
     iv/markdown/iv_markdown_article_scroll_forwarder.h
     iv/markdown/iv_markdown_article_selection.cpp

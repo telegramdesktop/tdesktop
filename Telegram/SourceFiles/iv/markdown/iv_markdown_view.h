@@ -53,6 +53,8 @@ struct MarkdownArticleSearchSource;
 
 [[nodiscard]] auto MarkdownPreviewSearchSources(Ui::RpWidget *preview)
 -> std::vector<MarkdownArticleSearchSource>;
+[[nodiscard]] rpl::producer<> MarkdownPreviewSearchSourcesChanges(
+	Ui::RpWidget *preview);
 bool ExpandMarkdownPreviewDetails(
 	Ui::RpWidget *preview,
 	const QString &anchorId);

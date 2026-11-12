@@ -99,6 +99,7 @@ private:
 	int _searchDesiredCurrent = 0;
 	bool _searchDesiredActivate = false;
 	bool _searchScanInFlight = false;
+	bool _searchResolving = false;
 
 };
 
