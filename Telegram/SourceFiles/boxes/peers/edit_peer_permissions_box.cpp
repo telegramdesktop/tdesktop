@@ -882,7 +882,7 @@ void AddSlowmodeLabels(
 			centers,
 			widths,
 			outer,
-			st::slowmodeLabel.font->spacew);
+			3 * st::slowmodeLabel.font->spacew);
 		for (auto i = 0; i != kSlowmodeValues; ++i) {
 			list[i]->moveToLeft(lefts[i], 0, outer);
 		}

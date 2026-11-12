@@ -308,7 +308,7 @@ private:
 			centers,
 			widths,
 			outer,
-			labelStyle->style.font->spacew);
+			3 * labelStyle->style.font->spacew);
 		for (auto i = 0; i != state->labels.size(); ++i) {
 			state->labels[i]->moveToLeft(lefts[i], 0, outer);
 		}
