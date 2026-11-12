@@ -64,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_bot.h"
 #include "api/api_chat_participants.h"
 #include "api/api_editing.h"
+#include "api/api_forward_reply.h"
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "boxes/premium_preview_box.h"
@@ -1658,6 +1659,11 @@ void ChatWidget::setupComposeControls() {
 		send(options);
 	}, lifetime());
 
+	_composeControls->replyToForwardRequests(
+	) | rpl::on_next([=] {
+		sendReplyToForward({});
+	}, lifetime());
+
 	_composeControls->scrollToMaxRequests(
 	) | rpl::on_next([=](Api::SendOptions options) {
 		send(options);
@@ -2620,6 +2626,38 @@ void ChatWidget::sendRichDraftWithoutFormatting(
 		options,
 		nullptr);
 	_composeControls->applyCloudDraft();
+}
+
+void ChatWidget::sendReplyToForward(Api::SendOptions options) {
+	if (!_canSendMessages || monoforumReplyMissing()) {
+		return;
+	}
+	const auto action = prepareSendAction(options);
+	const auto withPaymentApproved = [=](int approved) {
+		auto copy = options;
+		copy.starsApproved = approved;
+		sendReplyToForward(copy);
+	};
+	const auto sent = Api::SendForwardWithReply({
+		.show = controller()->uiShow(),
+		.action = action,
+		.text = _composeControls->getTextWithAppliedMarkdown(),
+		.webPage = _composeControls->webPageDraft(),
+		.checkPayment = [=](int messagesCount) {
+			return checkSendPayment(
+				messagesCount,
+				action.options,
+				withPaymentApproved);
+		},
+		.forwarded = crl::guard(this, [=](FullMsgId id) {
+			replyToMessage(FullReplyTo{ .messageId = id });
+		}),
+	});
+	if (sent) {
+		_cornerButtons.clearReplyReturns();
+		_composeControls->clear();
+		finishSending(options);
+	}
 }
 
 void ChatWidget::sendTextWithTags(

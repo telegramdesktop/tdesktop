@@ -352,7 +352,8 @@ public:
 	void forwardMessages(
 		Data::ResolvedForwardDraft &&draft,
 		SendAction action,
-		FnMut<void()> &&successCallback = nullptr);
+		FnMut<void()> &&successCallback = nullptr,
+		Fn<void(const MessageIdsList&)> sentCallback = nullptr);
 	void shareContact(
 		const QString &phone,
 		const QString &firstName,

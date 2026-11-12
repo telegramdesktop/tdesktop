@@ -380,6 +380,7 @@ private:
 		bool useCurrentWebPageDraft,
 		Api::SendOptions options,
 		Fn<void()> done);
+	void sendReplyToForward(Api::SendOptions options);
 	void sendRichDraft(
 		std::shared_ptr<const Iv::RichPage> page,
 		Api::SendOptions options);

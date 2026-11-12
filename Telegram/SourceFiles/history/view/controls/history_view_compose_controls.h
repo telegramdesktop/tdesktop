@@ -221,6 +221,7 @@ public:
 	[[nodiscard]] rpl::producer<> replyCancelled() const;
 	[[nodiscard]] rpl::producer<> replyCancelledExternal() const;
 	[[nodiscard]] rpl::producer<Api::SendOptions> sendRequests() const;
+	[[nodiscard]] rpl::producer<> replyToForwardRequests() const;
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
@@ -426,6 +427,7 @@ private:
 	[[nodiscard]] SendMenu::Details sendMenuDetails() const;
 	[[nodiscard]] SendMenu::Details saveMenuDetails() const;
 	[[nodiscard]] SendMenu::Details sendButtonMenuDetails() const;
+	[[nodiscard]] bool canReplyToForward() const;
 	[[nodiscard]] Api::SendOptions adjustedSupportSendOptions(
 		Qt::KeyboardModifiers modifiers) const;
 
@@ -627,6 +629,7 @@ private:
 	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;
+	rpl::event_stream<> _replyToForwardRequests;
 	rpl::event_stream<Qt::KeyboardModifiers> _fieldSubmits;
 	rpl::event_stream<Api::SendOptions> _scrollToMaxRequests;
 	rpl::event_stream<> _cancelRequests;

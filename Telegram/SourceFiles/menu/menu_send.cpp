@@ -766,6 +766,12 @@ FillMenuResult FillSendMenu(
 				details); },
 			&icons.menuWhenOnline);
 	}
+	if (sending && details.replyToForward) {
+		menu->addAction(
+			tr::lng_send_reply_to_forward(tr::now),
+			[=] { action({ .type = ActionType::ReplyToForward }, details); },
+			&icons.menuReply);
+	}
 
 	if ((type != Type::Disabled)
 		&& ((details.spoiler != SpoilerState::None)

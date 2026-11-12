@@ -4922,6 +4922,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stop_button" = "Stop";
 "lng_schedule_button" = "Schedule";
 "lng_send_silent_message" = "Send without sound";
+"lng_send_reply_to_forward" = "Reply to forward";
 "lng_schedule_message" = "Schedule message";
 "lng_reminder_message" = "Set a reminder";
 "lng_schedule_title" = "Send this message on...";

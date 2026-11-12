@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
+#include "api/api_forward_reply.h"
 #include "api/api_global_privacy.h"
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
@@ -2215,6 +2216,10 @@ rpl::producer<Api::SendOptions> ComposeControls::sendRequests() const {
 	});
 }
 
+rpl::producer<> ComposeControls::replyToForwardRequests() const {
+	return _replyToForwardRequests.events();
+}
+
 rpl::producer<VoiceToSend> ComposeControls::sendVoiceRequests() const {
 	return _voiceRecordBar->sendVoiceRequests();
 }
@@ -4180,6 +4185,8 @@ void ComposeControls::setupSendMenu(
 			|| action.type == ActionType::EditCover
 			|| action.type == ActionType::RemoveCover) {
 			_header->mediaEditManagerApply(action);
+		} else if (action.type == ActionType::ReplyToForward) {
+			_replyToForwardRequests.fire({});
 		} else {
 			if (action.type != ActionType::Send
 				&& _showScheduleSendError
@@ -4192,7 +4199,12 @@ void ComposeControls::setupSendMenu(
 	SendMenu::SetupMenuAndShortcuts(
 		button,
 		_show,
-		[=] { return sendButtonMenuDetails(); },
+		[=] {
+			auto result = sendButtonMenuDetails();
+			result.replyToForward = (button == _send.get())
+				&& canReplyToForward();
+			return result;
+		},
 		sendAction,
 		&_st.tabbed.menu,
 		&_st.tabbed.icons);
@@ -4978,6 +4990,17 @@ SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 		result.effectAllowed = false;
 	}
 	return result;
+}
+
+bool ComposeControls::canReplyToForward() const {
+	return _replyToForwardRequests.has_consumers()
+		&& _history
+		&& !shownRichMessage()
+		&& !showStopButton()
+		&& !_voiceRecordBar->isListenState()
+		&& !_history->peer->slowmodeApplied()
+		&& (computeSendButtonType() == Ui::SendButton::Type::Send)
+		&& Api::CanReplyToForward(forwardItems());
 }
 
 void ComposeControls::updateSendButtonType() {
