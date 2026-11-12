@@ -392,6 +392,8 @@ infoProfileTopBarActionButtonTextTop: infoProfileTopBarActionButtonIconSize + in
 infoProfileTopBarActionButtonTextSkip: 4px;
 infoProfileTopBarActionButtonDragBorder: 2px;
 infoProfileTopBarActionButtonFont: font(11px);
+infoProfileTopBarActionButtonMinFontSize: 9px;
+infoProfileTopBarActionButtonTextPadding: 4px;
 
 infoProfileTopBarActionButtonsPadding: margins(18px, 0px, 18px, 16px);
 infoProfileTopBarActionButtonsHeight: infoProfileTopBarActionButtonSize + infoProfileTopBarActionButtonsPadding.topBottom;
