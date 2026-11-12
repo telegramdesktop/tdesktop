@@ -1300,6 +1300,8 @@ PRIVATE
     history/history_location_manager.h
     history/history_streamed_drafts.cpp
     history/history_streamed_drafts.h
+    history/history_top_message_hint.cpp
+    history/history_top_message_hint.h
     history/history_translation.cpp
     history/history_translation.h
     history/history_unread_things.cpp

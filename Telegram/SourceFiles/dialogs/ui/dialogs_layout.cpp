@@ -412,6 +412,20 @@ void PaintCommunityEntryText(
 	});
 }
 
+[[nodiscard]] bool PreviewInCanonicalTopic(
+		not_null<const HistoryItem*> preview,
+		const HistoryItem *canonical,
+		bool forum) {
+	if (preview.get() == canonical) {
+		return true;
+	} else if (!canonical || preview->isFakeHistoryItem()) {
+		return false;
+	}
+	return forum
+		? (preview->topicRootId() == canonical->topicRootId())
+		: (preview->sublistPeerId() == canonical->sublistPeerId());
+}
+
 enum class Flag {
 	SavedMessages    = 0x008,
 	RepliesMessages  = 0x010,
@@ -569,6 +583,10 @@ void PaintRow(
 
 	const auto promoted = (history && history->useTopPromotion())
 		&& !context.search;
+	const auto hintDateShown = !fakeRow
+		&& !promoted
+		&& history
+		&& history->topMessageHintDate();
 	const auto verifyInfo = (from
 		&& (!from->isSelf()
 			|| (!(flags & Flag::SavedMessages) && !(flags & Flag::MyNotes))))
@@ -767,6 +785,10 @@ void PaintRow(
 			});
 		}
 	} else if (!item) {
+		if (hintDateShown) {
+			PaintDialogDate(p, entry, fakeRow, date, rectForName, context);
+		}
+
 		auto availableWidth = namewidth;
 		if (const auto used = PaintRightButton(p, context)) {
 			availableWidth -= used;
@@ -810,17 +832,22 @@ void PaintRow(
 		}
 
 		paintItemCallback(nameleft, namewidth);
-	} else if (entry->isPinnedDialog(context.filter)
-		&& (context.filter || !entry->fixedOnTopIndex())) {
-		auto &icon = ThreeStateIcon(
-			st::dialogsPinnedIcon,
-			context.active,
-			context.selected);
-		icon.paint(
-			p,
-			context.width - context.st->padding.right() - icon.width(),
-			texttop,
-			context.width);
+	} else {
+		if (hintDateShown) {
+			PaintDialogDate(p, entry, fakeRow, date, rectForName, context);
+		}
+		if (entry->isPinnedDialog(context.filter)
+			&& (context.filter || !entry->fixedOnTopIndex())) {
+			auto &icon = ThreeStateIcon(
+				st::dialogsPinnedIcon,
+				context.active,
+				context.selected);
+			icon.paint(
+				p,
+				context.width - context.st->padding.right() - icon.width(),
+				texttop,
+				context.width);
+		}
 	}
 	const auto sendStateIcon = [&]() -> const style::icon* {
 		if (!thread) {
@@ -840,7 +867,10 @@ void PaintRow(
 			}
 		} else if (item && !item->isEmpty() && item->needCheck()) {
 			if (!item->isSending() && !item->hasFailed()) {
-				if (item->unread(thread)) {
+				const auto unread = (history && !fakeRow)
+					? history->chatListPreviewMessageUnread(item)
+					: item->unread(thread);
+				if (unread) {
 					return &ThreeStateIcon(
 						st::dialogsSentIcon,
 						context.active,
@@ -1133,7 +1163,10 @@ void RowPainter::Paint(
 	const auto peer = history ? history->peer.get() : nullptr;
 	const auto badgesState = entry->chatListBadgesState();
 	entry->chatListPreloadData(); // Allow chat list message resolve.
-	const auto item = entry->chatListMessage();
+	const auto canonicalItem = entry->chatListMessage();
+	const auto item = history
+		? history->chatListPreviewMessage()
+		: canonicalItem;
 	const auto cloudDraft = [&]() -> const Data::Draft*{
 		if (!thread) {
 			return nullptr;
@@ -1154,7 +1187,10 @@ void RowPainter::Paint(
 	const auto displayDate = [&]() -> TimeId {
 		const auto itemDate = item ? item->date() : TimeId(0);
 		const auto draftDate = cloudDraft ? cloudDraft->date : TimeId(0);
-		return std::max(itemDate, draftDate);
+		const auto hintDate = history
+			? history->topMessageHintDate()
+			: TimeId(0);
+		return std::max({ itemDate, draftDate, hintDate });
 	}();
 	const auto displayPinnedIcon = badgesState.empty()
 		&& entry->isPinnedDialog(context.filter)
@@ -1225,15 +1261,20 @@ void RowPainter::Paint(
 			const auto monoforum = (peer && context.st->topicsHeight)
 				? peer->monoforum()
 				: nullptr;
-			if (!view->prepared(item, forum, monoforum)) {
+			const auto plain = (forum || monoforum)
+				&& !PreviewInCanonicalTopic(
+					item,
+					canonicalItem,
+					forum != nullptr);
+			if (plain || !view->prepared(item, forum, monoforum)) {
 				view->prepare(
 					item,
-					forum,
-					monoforum,
+					plain ? nullptr : forum,
+					plain ? nullptr : monoforum,
 					[=] { entry->updateChatListEntry(); },
 					{});
 			}
-			if (forum || monoforum) {
+			if ((forum || monoforum) && !plain) {
 				rect.setHeight(context.st->topicsHeight + rect.height());
 			}
 			view->paint(p, rect, context);

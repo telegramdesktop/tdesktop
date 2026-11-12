@@ -129,6 +129,9 @@ private:
 	void feedChannelDifference(
 		not_null<ChannelData*> channel,
 		const MTPDupdates_channelDifference &data);
+	void applyChannelTopMessageHint(
+		not_null<ChannelData*> channel,
+		const MTPDupdateChannelTooLong &data);
 
 	void mtpUpdateReceived(const MTPUpdates &updates);
 	void mtpNewSessionCreated();

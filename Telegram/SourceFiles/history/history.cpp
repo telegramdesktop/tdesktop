@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/history_streamed_drafts.h"
+#include "history/history_top_message_hint.h"
 #include "history/history_translation.h"
 #include "history/history_unread_things.h"
 #include "iv/editor/iv_editor_session.h"
@@ -215,6 +216,9 @@ void History::setHasPendingResizedItems() {
 }
 
 void History::itemRemoved(not_null<HistoryItem*> item) {
+	if (const auto hint = _topMessageHint.get()) {
+		hint->itemRemoved(item);
+	}
 	if (item == _joinedMessage) {
 		_joinedMessage = nullptr;
 	} else if (item == _newPeerNameChange) {
@@ -2664,7 +2668,7 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 }
 
 TimeId History::adjustedChatListTimeId() const {
-	const auto result = chatListTimeId();
+	const auto result = std::max(chatListTimeId(), topMessageHintDate());
 	if (const auto channel = peer->asChannel()) {
 		if (channel->isCommunity()) {
 			if (const auto info = channel->communityInfo()) {
@@ -3152,6 +3156,9 @@ void History::setLastServerMessage(HistoryItem *item) {
 
 void History::setLastMessage(HistoryItem *item) {
 	if (_lastMessage && *_lastMessage == item) {
+		if (const auto hint = _topMessageHint.get()) {
+			hint->lastMessageSet(item, false);
+		}
 		return;
 	}
 	_lastMessage = item;
@@ -3168,6 +3175,9 @@ void History::setLastMessage(HistoryItem *item) {
 		if (!chatListMessageKnown()) {
 			setFakeChatListMessage();
 		}
+	}
+	if (const auto hint = _topMessageHint.get()) {
+		hint->lastMessageSet(item, true);
 	}
 }
 
@@ -3498,6 +3508,9 @@ void History::unknownMessageDeleted(MsgId messageId) {
 		.arg(peer->id.value & PeerId::kChatTypeMask)
 		.arg(messageId.bare));
 	_unknownDeletedMessages[messageId] = base::unixtime::now();
+	if (const auto hint = _topMessageHint.get()) {
+		hint->unknownMessageDeleted(messageId);
+	}
 	if (_inboxReadBefore && messageId >= *_inboxReadBefore) {
 		owner().histories().requestDialogEntry(this);
 	}
@@ -4498,6 +4511,7 @@ void History::clear(ClearType type, bool markEmpty) {
 			messages->removeAll();
 		}
 		clearLastKeyboard();
+		clearTopMessageHint();
 	}
 
 	if (const auto chat = peer->asChat()) {
@@ -4513,6 +4527,9 @@ void History::clear(ClearType type, bool markEmpty) {
 
 void History::clearUpTill(MsgId availableMinId) {
 	Tgw::ClearHistoryStorage(this, availableMinId);
+	if (const auto hint = _topMessageHint.get()) {
+		hint->clearedUpTill(availableMinId);
+	}
 	auto remove = std::vector<not_null<HistoryItem*>>();
 	remove.reserve(_items.size());
 	for (const auto &item : _items) {

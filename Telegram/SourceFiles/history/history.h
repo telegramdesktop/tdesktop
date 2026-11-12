@@ -24,6 +24,7 @@ struct HistoryItemCommonFields;
 struct HistoryMessageMarkupData;
 class HistoryMainElementDelegateMixin;
 class HistoryStreamedDrafts;
+class HistoryTopMessageHint;
 struct LanguageId;
 
 namespace Data {
@@ -261,6 +262,11 @@ public:
 	void unknownMessageDeleted(MsgId messageId);
 	[[nodiscard]] bool isUnknownMessageDeleted(MsgId messageId) const;
 	void applyDialogTopMessage(MsgId topMessageId);
+	[[nodiscard]] bool applyTopMessageHint(MsgId id, TimeId date);
+	[[nodiscard]] bool topMessageHintActive(MsgId id) const;
+	void topMessageHintLoaded(MsgId id, const MTPMessage *message);
+	void clearTopMessageHint();
+	[[nodiscard]] TimeId topMessageHintDate() const;
 	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
 	void applyDialogFields(
@@ -416,6 +422,9 @@ public:
 	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
 	bool chatListMessageKnown() const override;
+	[[nodiscard]] HistoryItem *chatListPreviewMessage() const;
+	[[nodiscard]] bool chatListPreviewMessageUnread(
+		not_null<const HistoryItem*> item);
 	const QString &chatListName() const override;
 	const QString &chatListNameSortKey() const override;
 	int chatListNameVersion() const override;
@@ -520,6 +529,7 @@ public:
 
 private:
 	friend class HistoryBlock;
+	friend class HistoryTopMessageHint;
 
 	enum class Flag : ushort {
 		HasPendingResizedItems = (1 << 0),
@@ -696,6 +706,7 @@ private:
 
 	std::unique_ptr<Data::HistoryMessages> _messages;
 	std::unique_ptr<HistoryStreamedDrafts> _streamedDrafts;
+	std::unique_ptr<HistoryTopMessageHint> _topMessageHint;
 
 	// This almost always is equal to _lastMessage. The only difference is
 	// for a group that migrated to a supergroup. Then _lastMessage can

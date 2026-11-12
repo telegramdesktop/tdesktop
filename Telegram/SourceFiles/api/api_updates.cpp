@@ -231,6 +231,28 @@ bool HasForceLogoutNotification(const MTPUpdates &updates) {
 	return false;
 }
 
+[[nodiscard]] const MTPMessage *ProcessTopMessageReply(
+		not_null<Data::Session*> owner,
+		const MTPmessages_Messages &result,
+		PeerId peerId,
+		MsgId id) {
+	return result.match([](const MTPDmessages_messagesNotModified &)
+	-> const MTPMessage* {
+		return nullptr;
+	}, [&](const auto &data) -> const MTPMessage* {
+		owner->processUsers(data.vusers());
+		owner->processChats(data.vchats());
+		for (const auto &message : data.vmessages().v) {
+			if ((message.type() != mtpc_messageEmpty)
+				&& (IdFromMessage(message) == id)
+				&& (PeerFromMessage(message) == peerId)) {
+				return &message;
+			}
+		}
+		return nullptr;
+	});
+}
+
 } // namespace
 
 Updates::Updates(not_null<Main::Session*> session)
@@ -438,6 +460,11 @@ void Updates::channelDifferenceDone(
 		feedChannelDifference(channel, data);
 		channel->ptsInit(data.vpts().v);
 	});
+	if (isFinal) {
+		if (const auto history = session().data().historyLoaded(channel->id)) {
+			history->clearTopMessageHint();
+		}
+	}
 
 	channel->ptsSetRequesting(false);
 
@@ -483,6 +510,35 @@ void Updates::channelDifferenceFail(
 		error.type(),
 		error.description()));
 	failDifferenceStartTimerFor(channel);
+}
+
+void Updates::applyChannelTopMessageHint(
+		not_null<ChannelData*> channel,
+		const MTPDupdateChannelTooLong &data) {
+	const auto id = MsgId(data.vlast_msg_id().value_or_empty());
+	const auto date = TimeId(data.vlast_msg_date().value_or_empty());
+	if (!IsServerMsgId(id) || (date <= 0) || !channel->amIn()) {
+		return;
+	}
+	const auto history = session().data().historyLoaded(channel->id);
+	if (!history || !history->applyTopMessageHint(id, date)) {
+		return;
+	}
+	api().request(MTPchannels_GetMessages(
+		channel->inputChannel(),
+		MTP_vector<MTPInputMessage>(1, MTP_inputMessageID(MTP_int(id)))
+	)).done([=](const MTPmessages_Messages &result) {
+		const auto message = history->topMessageHintActive(id)
+			? ProcessTopMessageReply(
+				&history->owner(),
+				result,
+				history->peer->id,
+				id)
+			: nullptr;
+		history->topMessageHintLoaded(id, message);
+	}).fail([=] {
+		history->topMessageHintLoaded(id, nullptr);
+	}).send();
 }
 
 void Updates::stateDone(const MTPupdates_State &state) {
@@ -2593,6 +2649,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			if (!pts || channel->pts() < pts->v) {
 				getChannelDifference(channel);
 			}
+			applyChannelTopMessageHint(channel, d);
 		}
 	} break;
 
