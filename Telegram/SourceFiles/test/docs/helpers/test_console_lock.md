@@ -51,16 +51,20 @@ console: <row>` for a `locked` reading in a Windows build only
 (`Platform::IsWindows() && reading.locked()`) and an empty string for every
 other reading and on every other platform, so it can be (part of) a stage's
 `skipReason`; `unknown` and `not-applicable` never gate. So the gates keyed on
-it stay Windows-only - `AppendClipboardRoundTripSelfTest`'s live arm,
-`AppendPopupMenuCaptureSelfTest`'s across-turn stages and every campaign leg
-gated the same way - because those are the legs a locked Windows console
-breaks: no process on its desktop can open the clipboard, and Qt closes a
-shown popup on `ApplicationDeactivate`. A locked macOS console did not close
+it stay Windows-only - `AppendClipboardRoundTripSelfTest`'s live arm and every
+campaign clipboard leg gated the same way - because that is the leg a locked
+Windows console breaks: no process on its desktop can open the clipboard. A
+popup held open across turns is not gated: Qt closes a shown popup on
+`ApplicationDeactivate` there, and a scenario keeps it open with
+`Test::ArmPopupHold` ([popup hold reference](test_popup_hold.md)) instead,
+printing this reading beside the hold's count, as
+`AppendPopupMenuCaptureSelfTest` does. A locked macOS console did not close
 the popup: a packed launch with `CGSSessionScreenIsLocked` true ran
 `AppendPopupMenuCaptureSelfTest` with 0 FAIL
 (`2026/10/06/add-a-post-paint-capture-sampler-to-the-harness`, `work/test.md`,
-Test 2). On macOS the reading is printed in those places and gates nothing; a
-check that a locked macOS console does break gates on `locked()` itself, as
+Test 2), so the hold acts only in a Windows build. On macOS the reading is
+printed in those places and gates nothing; a check that a locked macOS
+console does break gates on `locked()` itself, as
 `AppendKeepWindowExposedSelfTest` does. Not `Core::App().screenIsLocked()`,
 which is not consulted on any platform: a product flag set only by
 notifications that arrive after the launch (`WM_WTSSESSION_CHANGE`, the
@@ -69,16 +73,17 @@ xdg-desktop-portal Inhibit monitor's `screensaver-active`), so it reads false
 on a console already locked at launch; not the input desktop's name
 (`OpenInputDesktop` named it `Default` on a locked Windows 11 console); not an
 `OpenClipboard` attempt (the measurement a clipboard check makes). Read by
-`AppendClipboardRoundTrip`'s `read-*` refusal, by the gates of
-`AppendClipboardRoundTripSelfTest`'s live arm and
-`AppendPopupMenuCaptureSelfTest`'s across-turn stages, by
+`AppendClipboardRoundTrip`'s `read-*` refusal, by the gate of
+`AppendClipboardRoundTripSelfTest`'s live arm, by
+`AppendPopupMenuCaptureSelfTest`'s `open` stage and teardown, which print it
+beside the popup hold's arm and count, by
 `AppendKeepWindowExposedSelfTest`'s lock `N/A` and its control's
 `screenLocked=`, and into the printed `screenLocked` of
 `ReadMainWindowMarking` and of the animation-clock window reading
-(`test_animation_clock.h`); a campaign gates its own clipboard or
-popup-capture legs on it the same way (its judging stage's `skipReason`,
-`CapturePopupMenu`'s `skipReason`), Windows-only through the same gate. It has
-no self-test of its own: on Windows those two self-tests' gated and ungated
-rows, and on macOS the window-exposure lock `N/A` and the marking-read and
-animation-clock `screenLocked=` rows, each beside an independent reading of
-the console, confirm it.
+(`test_animation_clock.h`); a campaign gates its own clipboard leg on it the
+same way (its judging stage's `skipReason`), Windows-only through the same
+gate, and prints it beside its own popup hold's count. It has no self-test of
+its own: on Windows the clipboard self-test's gated and ungated rows and the
+popup-capture self-test's printed rows, and on macOS the window-exposure lock
+`N/A` and the marking-read and animation-clock `screenLocked=` rows, each
+beside an independent reading of the console, confirm it.

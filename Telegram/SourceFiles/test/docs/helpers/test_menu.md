@@ -15,13 +15,21 @@ Same-turn menu readings, actions and captures. Read the contract below and the s
 Deterministic `Ui::PopupMenu` capture whose readiness is content identity
 only, its `showingContent` reading, and its own self-test. `CapturePopupMenu`
 takes an optional trailing `skipReason` that gates both stages it appends, the
-opener and the capture; left empty the helper is unchanged. The self-test
-reads `Test::ReadConsoleLock()` (`test_console_lock.h`) right before it pops
-its menu and when each stage that needs the menu open across turns begins,
-keeping the first locked reading, so on a locked Windows console the
-`popup_menu_open` capture, `close`, and the `popup_menu_reopened` opener and
-capture are `TEST_RESULT: N/A` naming the lock while `open`, `refusal text`
-and the teardown run and decide. The context-menu reader beside it:
+opener and the capture; left empty the helper is unchanged. A locked Windows
+console is no reason to skip a popup-capture leg: arm `Test::ArmPopupHold`
+([popup hold reference](test_popup_hold.md)) before the menu opens and
+release it after the last leg that needs it open across turns. The self-test
+is the hold's standing check: its `open` stage arms it with the label
+`popup-menu-self-test` right before it pops its menu and Notes the
+`Test::ReadConsoleLock()` row (`test_console_lock.h`) it read there, so on a
+locked Windows console the `popup_menu_open` capture, `close`, and the
+`popup_menu_reopened` opener and capture run and decide as on an unlocked
+one. Its teardown hides and destroys the fixture, releases the hold and
+Notes `popup menu self-test: popup hold released, deactivations stopped=<n> -
+CONSOLE_LOCK: ...`; `Runner::onFinish` releases the hold when a timeout skips
+the teardown. No Check asserts a nonzero count, which depends on the console.
+It holds and releases its own arm, so a campaign appends it outside its own
+popup hold. The context-menu reader beside it:
 `OpenContextMenu(receiver, point, reason)` snapshots every live
 `Ui::PopupMenu` in the application (`QApplication::allWidgets()`, held as
 `QPointer`s, so a menu at a reused address never reads as an old one), sends

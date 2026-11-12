@@ -99,19 +99,23 @@ namespace Test {
 // session ids. They are never read or printed: every row is published with
 // task evidence.
 //
-// Which gates. ConsoleLockGate answers only in a Windows build. The legs it
-// gates break there: no process on a locked Windows console's desktop can
-// open the clipboard, and Qt closes a popup held open across turns on
-// ApplicationDeactivate. A locked macOS console does not close a shown
-// popup: in 2026/10/06/add-a-post-paint-capture-sampler-to-the-harness
+// Which gates. ConsoleLockGate answers only in a Windows build. The leg it
+// gates breaks there: no process on a locked Windows console's desktop can
+// open the clipboard (AppendClipboardRoundTripSelfTest's live arm). A popup
+// held open across turns is not gated: Qt closes it on
+// ApplicationDeactivate there, and a scenario keeps it open with
+// Test::ArmPopupHold (test_popup_hold.h) instead, printing this reading
+// beside the hold's count, as AppendPopupMenuCaptureSelfTest does. A locked
+// macOS console does not close a shown popup: in
+// 2026/10/06/add-a-post-paint-capture-sampler-to-the-harness
 // (work/test.md, Test 2) a packed launch with CGSSessionScreenIsLocked true
-// ran AppendPopupMenuCaptureSelfTest with 0 FAIL. So on macOS a locked
-// reading is printed and never gates those legs. A check that a locked
-// macOS console does break gates on locked() itself
-// (AppendKeepWindowExposedSelfTest); one where the lock only names a cause
-// reads locked() into a printed field (ReadMainWindowMarking, the
-// animation-clock window reading). Elsewhere the reading is
-// not-applicable, nothing is read and no gate fires.
+// ran AppendPopupMenuCaptureSelfTest with 0 FAIL, so the hold acts only in
+// a Windows build, and on macOS a locked reading is printed and gates
+// nothing. A check that a locked macOS console does break gates on
+// locked() itself (AppendKeepWindowExposedSelfTest); one where the lock
+// only names a cause reads locked() into a printed field
+// (ReadMainWindowMarking, the animation-clock window reading). Elsewhere
+// the reading is not-applicable, nothing is read and no gate fires.
 //
 // Only a Locked reading ever gates (ConsoleLockGate); Unknown and
 // NotApplicable never do.
