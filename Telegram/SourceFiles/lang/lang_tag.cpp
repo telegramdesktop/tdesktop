@@ -1023,7 +1023,7 @@ PluralResult Plural(
 		}
 		return { shift, QString::number(round) };
 	}
-	return { shift, FormatDouble(value) };
+	return { shift, FormatDouble(value).replace('.', QLocale().decimalPoint()) };
 }
 
 void UpdatePluralRules(const QString &languageId) {

@@ -131,7 +131,7 @@ void SaveCallMessagesEnabled(
 		: tr::lng_group_call_ptt_delay_s(
 			tr::now,
 			lt_amount,
-			QString::number(delay / 1000., 'f', 2));
+			QLocale().toString(delay / 1000., 'f', 2));
 }
 
 object_ptr<ShareBox> ShareInviteLinkBox(

@@ -78,7 +78,9 @@ void Dice::updateOutcomeMessage() {
 	const auto displayNano = won ? _outcomeNanoTon : _outcomeStakeNanoTon;
 	const auto amount = tr::marked(QString::fromUtf8("\xf0\x9f\x92\x8e")
 		+ " "
-		+ QString::number(displayNano / 1e9));
+		+ QString::number(displayNano / 1e9).replace(
+			'.',
+			QLocale().decimalPoint()));
 	const auto text = out
 		? (won
 			? tr::lng_action_stake_game_won_you
