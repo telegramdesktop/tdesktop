@@ -386,7 +386,7 @@ void start() {
 	QDir().mkpath(cWorkingDir() + u"tdata"_q);
 
 	launcher.workingFolderReady();
-	CrashReports::StartCatching();
+	const auto crashCatchingWarning = CrashReports::StartCatching();
 
 	if (!LogsData->openMain()) {
 		delete LogsData;
@@ -405,6 +405,9 @@ void start() {
 	LOG(("Initial working dir: %1").arg(launcher.initialWorkingDir()));
 	LOG(("Working dir: %1").arg(cWorkingDir()));
 	LOG(("Command line: %1").arg(launcher.arguments().join(' ')));
+	if (!crashCatchingWarning.isEmpty()) {
+		LOG((crashCatchingWarning));
+	}
 
 	if (!LogsData) {
 		LOG(("FATAL: Could not open '%1' for writing log!"

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "core/launcher.h"
 
+#include <iterator>
 #include <signal.h>
 #include <new>
 #include <mutex>
@@ -320,7 +321,7 @@ QString PlatformString() {
 	Unexpected("Platform in CrashReports::PlatformString.");
 }
 
-void StartCatching() {
+QString StartCatching() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 	ProcessAnnotations["Binary"] = cExeName().toUtf8().constData();
 	ProcessAnnotations["ApiId"] = QString::number(ApiId).toUtf8().constData();
@@ -337,8 +338,16 @@ void StartCatching() {
 	QDir().mkpath(dumpspath);
 
 #ifdef Q_OS_WIN
+	// Breakpad formats each minidump path into a fixed MAX_PATH buffer.
+	constexpr auto kMinidumpNameSize = std::size(
+		L"\\00000000-0000-0000-0000-000000000000.dmp");
+	const auto path = dumpspath.toStdWString();
+	if (path.size() + kMinidumpNameSize > MAX_PATH) {
+		return u"WARNING: Crash catching is disabled, "
+			"dumps path is too long: %1"_q.arg(dumpspath);
+	}
 	BreakpadExceptionHandler = new google_breakpad::ExceptionHandler(
-		dumpspath.toStdWString(),
+		path,
 		google_breakpad::ExceptionHandler::FilterCallback(nullptr),
 		DumpCallback,
 		(void*)nullptr, // callback_context
@@ -388,6 +397,7 @@ void StartCatching() {
 	);
 #endif // else for Q_OS_WIN || Q_OS_MACOS
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS
+	return QString();
 }
 
 void FinishCatching() {
