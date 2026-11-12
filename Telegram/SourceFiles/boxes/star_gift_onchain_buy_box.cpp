@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "base/timer.h"
 #include "boxes/peers/replace_boost_box.h"
+#include "boxes/star_gift_onchain_sale_box.h"
 #include "boxes/transfer_gift_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/components/credits.h"
@@ -20,18 +21,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
-#include "lang/lang_tag.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
-#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_key_protection.h"
@@ -42,7 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 
 #include "styles/style_chat_helpers.h"
-#include "styles/style_credits.h"
+#include "styles/style_giveaway.h"
 #include "styles/style_layers.h"
 #include "styles/style_wallet.h"
 #include "styles/style_widgets.h"
@@ -53,6 +54,7 @@ namespace {
 using Wallet::SendError;
 
 constexpr auto kWalletWait = 15 * crl::time(1000);
+constexpr auto kFixedSaleGasAllowance = int64(100'000'000);
 
 enum class Stage : uchar {
 	Waiting,
@@ -98,6 +100,11 @@ public:
 	~OnchainPurchase();
 
 	[[nodiscard]] rpl::producer<int64> priceValue() const;
+	[[nodiscard]] rpl::producer<int64> totalValue() const;
+	[[nodiscard]] rpl::producer<int64> gasValue() const;
+	[[nodiscard]] rpl::producer<int64> royaltyValue() const;
+	[[nodiscard]] rpl::producer<QString> feePercentValue() const;
+	[[nodiscard]] rpl::producer<bool> fixedValue() const;
 	[[nodiscard]] rpl::producer<std::optional<int64>> feeValue() const;
 	[[nodiscard]] rpl::producer<bool> shortValue() const;
 	[[nodiscard]] rpl::producer<QString> refusalValue() const;
@@ -148,10 +155,11 @@ private:
 	void answered(
 		const MTPpayments_StarGiftOnchainSalePayload &answer,
 		int64 expected);
+	void fixedAnswered(Wallet::ServedOperation operation);
 	void reread();
 	void reloaded(const MTPpayments_UniqueStarGift &result);
 	void failed(const MTP::Error &error, const QString &method);
-	void repriced(int64 price, const QString &address);
+	void repriced(const Data::UniqueGift &gift, int64 cost);
 	void prepare();
 	void prepared(Wallet::FeeResult result);
 	void authorize();
@@ -196,7 +204,12 @@ private:
 	Fn<void()> _afterPreflight;
 	std::optional<int64> _spend;
 	std::optional<int64> _earnings;
+	int64 _cost = 0;
 	rpl::variable<int64> _price;
+	rpl::variable<int64> _total;
+	rpl::variable<int64> _gas;
+	rpl::variable<int> _feeBps;
+	rpl::variable<bool> _fixed;
 	rpl::variable<std::optional<int64>> _fee;
 	rpl::variable<QString> _refusal;
 	rpl::variable<bool> _short = false;
@@ -278,12 +291,6 @@ private:
 	}
 	const auto nanos = amount.whole() * kNanosInOne + amount.nano();
 	return std::max(nanos, int64(0));
-}
-
-[[nodiscard]] TextWithEntities GramCost(int64 nanos) {
-	return Text::IconEmoji(&st::tonIconEmoji).append(
-		Lang::FormatCreditsAmountDecimal(
-			CreditsAmount(0, nanos, CreditsType::Ton)));
 }
 
 [[nodiscard]] QString RefusalText(SendError error) {
@@ -378,7 +385,11 @@ OnchainPurchase::OnchainPurchase(
 , _waitTimer([=] { waited(); })
 , _signingWait([=] { signingWaited(); })
 , _address(_gift->giftAddress)
-, _price(_gift->nanoTonForResale) {
+, _cost(Data::UniqueGiftBuyerPays(*_gift).value_or(0))
+, _price(_gift->nanoTonForResale)
+, _total(_cost)
+, _feeBps(_gift->fixedSale ? Data::FixedSaleFeeBps(*_gift) : 0)
+, _fixed(_gift->fixedSale) {
 }
 
 OnchainPurchase::~OnchainPurchase() {
@@ -387,6 +398,33 @@ OnchainPurchase::~OnchainPurchase() {
 
 rpl::producer<int64> OnchainPurchase::priceValue() const {
 	return _price.value();
+}
+
+rpl::producer<int64> OnchainPurchase::totalValue() const {
+	return _total.value();
+}
+
+rpl::producer<int64> OnchainPurchase::gasValue() const {
+	return _gas.value();
+}
+
+rpl::producer<int64> OnchainPurchase::royaltyValue() const {
+	return rpl::combine(
+		_price.value(),
+		_feeBps.value()
+	) | rpl::map([](int64 price, int feeBps) {
+		return Data::PriceWithSaleFee(price, feeBps).value_or(price) - price;
+	});
+}
+
+rpl::producer<QString> OnchainPurchase::feePercentValue() const {
+	return _feeBps.value() | rpl::map([](int feeBps) {
+		return QString::number(feeBps / 100.) + '%';
+	});
+}
+
+rpl::producer<bool> OnchainPurchase::fixedValue() const {
+	return _fixed.value();
 }
 
 rpl::producer<std::optional<int64>> OnchainPurchase::feeValue() const {
@@ -477,7 +515,7 @@ bool OnchainPurchase::offerable() const {
 bool OnchainPurchase::covers(int64 earnings) const {
 	return assessable()
 		&& EarningsCoverShortfall(
-			_price.current(),
+			_total.current(),
 			*_spend,
 			_wallet->balanceNano(),
 			earnings);
@@ -620,7 +658,7 @@ void OnchainPurchase::preflight() {
 		Wallet::ServedOperation{
 			.messages = { Wallet::ServedMessage{
 				.destination = _address,
-				.value = _price.current(),
+				.value = _total.current(),
 			} },
 		},
 		crl::guard(this, [=](Wallet::FeeResult result) {
@@ -879,14 +917,16 @@ void OnchainPurchase::buy() {
 		return;
 	}
 	const auto funds = FundsRefusal(
-		_price.current(),
+		_total.current(),
 		*fee,
 		_wallet->balanceNano());
 	if (funds != SendError::None) {
 		abandon(funds);
-		return;
+	} else if (_served) {
+		prepare();
+	} else {
+		request();
 	}
-	request();
 }
 
 void OnchainPurchase::request() {
@@ -917,13 +957,11 @@ void OnchainPurchase::answered(
 	if (_stage != Stage::Buying) {
 		return;
 	}
+	auto operation = Wallet::ServedOperationFromSale(answer);
 	if (answer.type() == mtpc_payments_starGiftOnchainFixedSalePayload) {
-		LOG(("API Error: payments.buyStarGiftOnchain answered "
-			"payments.starGiftOnchainFixedSalePayload."));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		fixedAnswered(std::move(operation));
 		return;
 	}
-	auto operation = Wallet::ServedOperationFromSale(answer);
 	const auto &message = operation.messages.front();
 	if (message.value != expected || !message.body.isEmpty()) {
 		LOG(("API Error: payments.buyStarGiftOnchain answered %1 "
@@ -936,6 +974,32 @@ void OnchainPurchase::answered(
 	}
 	_served = std::move(operation);
 	prepare();
+}
+
+void OnchainPurchase::fixedAnswered(Wallet::ServedOperation operation) {
+	const auto &messages = operation.messages;
+	const auto &gasless = operation.gaslessMessages;
+	const auto value = messages.empty() ? int64(0) : messages.front().value;
+	if (messages.size() != 1 || !gasless.empty() || value <= 0) {
+		LOG(("API Error: payments.buyStarGiftOnchain answered a fixed sale "
+			"with %1 messages and %2 gasless, valued %3."
+			).arg(messages.size()
+			).arg(gasless.size()
+			).arg(value));
+		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return;
+	}
+	_served = std::move(operation);
+	_total = value;
+	_gas = std::max(value - _cost, int64(0));
+	if (value - _cost <= kFixedSaleGasAllowance) {
+		prepare();
+		return;
+	}
+	_afterPreflight = nullptr;
+	_busy = false;
+	_fee = std::nullopt;
+	walletChanged();
 }
 
 void OnchainPurchase::reread() {
@@ -974,21 +1038,22 @@ void OnchainPurchase::reloaded(const MTPpayments_UniqueStarGift &result) {
 	}
 	const auto parsed = Api::FromTL(_session, data.vgift());
 	const auto unique = parsed ? parsed->unique : nullptr;
+	const auto cost = unique
+		? Data::UniqueGiftBuyerPays(*unique)
+		: std::nullopt;
 	if (!unique
 		|| (unique->slug != _gift->slug)
-		|| !unique->onchainSale
-		|| unique->fixedSale
-		|| (unique->nanoTonForResale <= 0)) {
+		|| !Data::UniqueGiftOnchainSale(*unique)
+		|| (unique->nanoTonForResale <= 0)
+		|| !cost) {
 		closeWithToast(tr::lng_gift_buy_onchain_not_for_sale(tr::now));
 		return;
 	}
-	const auto price = unique->nanoTonForResale;
-	const auto address = unique->giftAddress;
 	_stage = Stage::Repricing;
 	refresh();
 	_priceBox = _show->show(MakeResaleGiftPriceChangeBox(
-		CreditsAmount(0, price, CreditsType::Ton),
-		crl::guard(this, [=] { repriced(price, address); }),
+		CreditsAmount(0, *cost, CreditsType::Ton),
+		crl::guard(this, [=] { repriced(*unique, *cost); }),
 		crl::guard(this, [=] {
 			if (_stage == Stage::Repricing) {
 				close();
@@ -1009,7 +1074,9 @@ void OnchainPurchase::failed(const MTP::Error &error, const QString &method) {
 		u"STARGIFT_ONCHAIN_NOT_FOR_SALE"_q,
 		u"STARGIFT_ONCHAIN_ITEM_NOT_FOUND"_q,
 	};
-	if (ranges::contains(gone, type)) {
+	const auto inactive = _fixed.current()
+		&& (type == u"STARGIFT_ONCHAIN_SALE_INACTIVE"_q);
+	if (inactive || ranges::contains(gone, type)) {
 		closeWithToast(tr::lng_gift_buy_onchain_not_for_sale(tr::now));
 	} else {
 		LOG(("API Error: %1 failed with %2.").arg(method, type));
@@ -1017,16 +1084,22 @@ void OnchainPurchase::failed(const MTP::Error &error, const QString &method) {
 	}
 }
 
-void OnchainPurchase::repriced(int64 price, const QString &address) {
+void OnchainPurchase::repriced(const Data::UniqueGift &gift, int64 cost) {
 	if (_stage != Stage::Repricing) {
 		return;
 	}
 	_priceBox = nullptr;
 	_afterPreflight = [=] { buy(); };
-	_address = address;
+	_address = gift.giftAddress;
+	_served = std::nullopt;
 	_error = SendError::None;
 	_fee = std::nullopt;
-	_price = price;
+	_fixed = gift.fixedSale;
+	_feeBps = gift.fixedSale ? Data::FixedSaleFeeBps(gift) : 0;
+	_price = gift.nanoTonForResale;
+	_cost = cost;
+	_total = cost;
+	_gas = 0;
 	walletChanged();
 }
 
@@ -1220,7 +1293,12 @@ void OnchainPurchase::stopAttempt() {
 		_waitTimer.cancel();
 	}
 	_afterPreflight = nullptr;
-	_served = std::nullopt;
+	if (base::take(_served)) {
+		_total = _cost;
+		_gas = 0;
+		_fee = std::nullopt;
+		_spend = std::nullopt;
+	}
 	_prepared = nullptr;
 	_authorization = {};
 	_busy = false;
@@ -1355,6 +1433,62 @@ void OnchainPurchase::stopPolling() {
 	}
 }
 
+void AddPurchaseTerms(
+		not_null<GenericBox*> box,
+		not_null<OnchainPurchase*> purchase) {
+	const auto terms = box->addRow(
+		object_ptr<SlideWrap<TableLayout>>(
+			box,
+			object_ptr<TableLayout>(box, st::giveawayGiftCodeTable),
+			st::giveawayGiftCodeTableMargin),
+		style::margins());
+	const auto table = terms->entity();
+	const auto gram = [=](rpl::producer<int64> value) {
+		return object_ptr<FlatLabel>(
+			table,
+			std::move(value) | rpl::map([](int64 nanos) {
+				return Data::FormatGiftResaleTon(nanos);
+			}),
+			st::giveawayGiftMessage);
+	};
+	AddTableRow(
+		table,
+		tr::lng_gift_resale_price(),
+		gram(purchase->priceValue()));
+	AddTableRow(
+		table,
+		tr::lng_gift_buy_onchain_platform_fee(),
+		MakeMultilineValueWithSmallButton(
+			table,
+			gram(purchase->royaltyValue()).release(),
+			purchase->feePercentValue()
+		).widget);
+	AddTableRow(
+		table,
+		tr::lng_gift_buy_onchain_total(),
+		gram(purchase->totalValue()));
+	const auto gas = table->lifetime().make_state<RpWidget*>(nullptr);
+	purchase->gasValue() | rpl::on_next([=](int64 nanos) {
+		if (nanos > 0 && !*gas) {
+			auto label = object_ptr<FlatLabel>(
+				table,
+				tr::lng_gift_buy_onchain_gas(),
+				table->st().defaultLabel);
+			*gas = label.data();
+			table->insertRow(
+				table->rowsCount() - 1,
+				std::move(label),
+				gram(purchase->gasValue()),
+				st::giveawayGiftCodeLabelMargin,
+				st::giveawayGiftCodeValueMargin);
+		} else if (nanos <= 0 && *gas) {
+			delete base::take(*gas);
+		}
+	}, table->lifetime());
+	terms->toggleOn(purchase->fixedValue());
+	terms->finishAnimating();
+}
+
 void OnchainBuyBox(
 		not_null<GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
@@ -1376,7 +1510,7 @@ void OnchainBuyBox(
 			gift,
 			show->session().user()),
 		QMargins(0, padding.top(), 0, 0));
-	auto price = purchase->priceValue() | rpl::map([](int64 nanos) {
+	auto total = purchase->totalValue() | rpl::map([](int64 nanos) {
 		return nanos / float64(kNanosInOne);
 	});
 	box->addRow(
@@ -1388,11 +1522,12 @@ void OnchainBuyBox(
 				lt_price,
 				tr::lng_action_gift_for_ton(
 					lt_count_decimal,
-					std::move(price),
+					std::move(total),
 					tr::bold),
 				tr::marked),
 			st::boxLabel),
 		QMargins(padding.left(), padding.top(), padding.right(), 0));
+	AddPurchaseTerms(box, purchase);
 
 	auto feeAmount = purchase->feeValue(
 	) | rpl::filter([](std::optional<int64> fee) {
@@ -1463,11 +1598,11 @@ void OnchainBuyBox(
 	const auto buy = box->addButton(
 		rpl::single(QString()),
 		crl::guard(purchase, [=] { purchase->press(); })).data();
-	buy->setText(purchase->priceValue(
+	buy->setText(purchase->totalValue(
 	) | rpl::map([](int64 nanos) {
 		return tr::lng_gift_buy_resale_button(
 			lt_cost,
-			rpl::single(GramCost(nanos)),
+			rpl::single(Data::FormatGiftResaleTon(nanos)),
 			tr::marked);
 	}) | rpl::flatten_latest());
 	const auto loading = Info::Statistics::InfiniteRadialAnimationWidget(
@@ -1502,13 +1637,15 @@ void OnchainBuyBox(
 bool CanBuyOnchainGift(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	return gift.onchainSale
-		&& !gift.fixedSale
+	return Data::UniqueGiftOnchainSale(gift)
 		&& (gift.nanoTonForResale > 0)
+		&& Data::UniqueGiftBuyerPays(gift).has_value()
 		&& !gift.slug.isEmpty()
 		&& (gift.ownerId != session->userPeerId())
 		&& session->appConfig().walletAvailable()
-		&& !session->supportMode();
+		&& !session->supportMode()
+		&& (!gift.fixedSale
+			|| (LookupOwnOnchainGift(session, gift) == OwnOnchainGift::None));
 }
 
 void ShowBuyOnchainGiftBox(

@@ -3102,7 +3102,7 @@ void UniqueGiftSellBox(
 	state->onlyTon = onchain || unique->onlyAcceptTon;
 	const auto priceNow = !onchain
 		? Data::UniqueGiftResaleAsked(*unique)
-		: unique->onchainSale
+		: Data::UniqueGiftOnchainSale(*unique)
 		? Data::UniqueGiftResaleTon(*unique)
 		: CreditsAmount();
 	state->price = (priceNow || onchain)
@@ -3242,7 +3242,8 @@ void UniqueGiftSellBox(
 	std::move(
 		priceInput.submits
 	) | rpl::on_next(submit, details->lifetime());
-	auto submitText = (priceNow || (onchain && unique->onchainSale))
+	auto submitText = (priceNow
+		|| (onchain && Data::UniqueGiftOnchainSale(*unique)))
 		? tr::lng_gift_sell_update()
 		: tr::lng_gift_sell_put();
 	box->addButton(std::move(submitText), submit);

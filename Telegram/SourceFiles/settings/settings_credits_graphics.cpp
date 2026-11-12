@@ -1300,7 +1300,7 @@ void FillUniqueGiftMenu(
 		}, st.theme ? st.theme : &st::menuIconChangeColors);
 	}
 	const auto own = Ui::LookupOwnOnchainGift(session, *unique);
-	if (own != Ui::OwnOnchainGift::None) {
+	if (Ui::HasOnchainSaleEntries(own)) {
 		const auto listed = (own == Ui::OwnOnchainGift::Listed);
 		const auto editPrice = (listed
 			? tr::lng_gift_transfer_update
@@ -2661,9 +2661,10 @@ void GenericCreditsEntryBody(
 					tr::marked));
 			}
 		} else if (canBuyOnchain) {
+			const auto cost = Data::UniqueGiftBuyerPays(*uniqueGift);
 			button->setText(tr::lng_gift_buy_resale_button(
 				lt_cost,
-				rpl::single(Data::FormatGiftResaleTon(*uniqueGift)),
+				rpl::single(Data::FormatGiftResaleTon(*cost)),
 				tr::marked));
 		} else if (showNextToUpgrade) {
 			const auto session = &show->session();

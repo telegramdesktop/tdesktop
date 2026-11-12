@@ -87,11 +87,18 @@ struct SaleArgs {
 
 struct SaleCompletion {
 	SaleKind kind = SaleKind::List;
+	bool fixed = false;
 	std::shared_ptr<ChatHelpers::Show> show;
 	std::shared_ptr<Data::UniqueGift> gift;
 	int64 price = 0;
+	QString saleAddress;
 	base::weak_qptr<GenericBox> priceBox;
 	base::weak_ptr<Main::Session> session;
+};
+
+struct FixedSaleListings {
+	base::flat_set<QString> pendingSlugs;
+	base::flat_set<QString> saleAddresses;
 };
 
 class OnchainSale final : public base::has_weak_ptr {
@@ -100,6 +107,9 @@ public:
 	~OnchainSale();
 
 	[[nodiscard]] rpl::producer<int64> amountValue() const;
+	[[nodiscard]] rpl::producer<bool> fixedValue() const;
+	[[nodiscard]] int feeBps() const;
+	[[nodiscard]] std::optional<int64> buyersPay() const;
 	[[nodiscard]] rpl::producer<std::optional<int64>> feeValue() const;
 	[[nodiscard]] rpl::producer<bool> insufficientValue() const;
 	[[nodiscard]] rpl::producer<QString> refusalValue() const;
@@ -116,6 +126,7 @@ private:
 	[[nodiscard]] SaleCompletion completion() const;
 	void request();
 	void answered(const MTPpayments_StarGiftOnchainSalePayload &result);
+	void fixedAnswered(Wallet::ServedOperation operation);
 	void failed(const MTP::Error &error);
 	void unlistFirst();
 	void reestimate();
@@ -149,12 +160,14 @@ private:
 	const not_null<Wallet::Session*> _wallet;
 	MTP::Sender _api;
 	base::Timer _waitTimer;
+	const int _feeBps = 0;
 	std::optional<Wallet::ServedOperation> _operation;
 	std::shared_ptr<const Wallet::PreparedSend> _prepared;
 	Wallet::KeyAuthorization _authorization;
 	std::string _operationId;
 	rpl::variable<Stage> _stage = Stage::Idle;
 	rpl::variable<int64> _amount = 0;
+	rpl::variable<bool> _fixed = false;
 	rpl::variable<std::optional<int64>> _fee;
 	rpl::variable<SendError> _error = SendError::None;
 	uint64 _owner = 0;
@@ -171,10 +184,23 @@ private:
 
 };
 
+[[nodiscard]] FixedSaleListings &SessionFixedSaleListings(
+		not_null<Main::Session*> session) {
+	static auto Map = base::flat_map<
+		not_null<Main::Session*>,
+		FixedSaleListings>();
+	auto i = Map.find(session);
+	if (i == end(Map)) {
+		i = Map.emplace(session, FixedSaleListings()).first;
+		session->lifetime().add([=] { Map.remove(session); });
+	}
+	return i->second;
+}
+
 [[nodiscard]] Ownership LookupOwnership(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	if (gift.ownerId
+	if ((gift.ownerId && !gift.fixedSale)
 		|| gift.ownerAddress.isEmpty()
 		|| gift.slug.isEmpty()
 		|| gift.burned
@@ -191,8 +217,10 @@ private:
 		return Ownership::Unknown;
 	}
 	const auto wallet = Wallet::CanonicalAddress(*own);
-	return (!wallet.isEmpty()
+	const auto &sales = SessionFixedSaleListings(session).saleAddresses;
+	return ((!wallet.isEmpty()
 		&& owner.compare(wallet, Qt::CaseInsensitive) == 0)
+		|| sales.contains(owner))
 		? Ownership::Own
 		: Ownership::Other;
 }
@@ -212,6 +240,25 @@ private:
 	}
 	const auto text = Wallet::SendErrorText(error, 0);
 	return text.isEmpty() ? tr::lng_gift_buy_onchain_error(tr::now) : text;
+}
+
+[[nodiscard]] int BuyersFeeBps(SaleKind kind, const Data::UniqueGift &gift) {
+	return (kind == SaleKind::Change && gift.fixedSale)
+		? Data::FixedSaleFeeBps(gift)
+		: Data::kFixedSaleFeeBps;
+}
+
+[[nodiscard]] std::optional<int64> MessagesValue(
+		const std::vector<Wallet::ServedMessage> &messages) {
+	auto result = int64(0);
+	for (const auto &message : messages) {
+		const auto room = std::numeric_limits<int64>::max() - result;
+		if (message.value < 0 || message.value > room) {
+			return std::nullopt;
+		}
+		result += message.value;
+	}
+	return result;
 }
 
 [[nodiscard]] QString RequestMethod(SaleKind kind) {
@@ -250,12 +297,14 @@ private:
 	const auto name = Data::UniqueGiftName(*completion.gift);
 	switch (completion.kind) {
 	case SaleKind::List:
-		return tr::lng_gift_sell_onchain_toast(
-			tr::now,
-			lt_name,
-			name,
-			lt_price,
-			PrepareGramAmountText(completion.price));
+		return (completion.fixed
+			? tr::lng_gift_sell_onchain_pending
+			: tr::lng_gift_sell_onchain_toast)(
+				tr::now,
+				lt_name,
+				name,
+				lt_price,
+				PrepareGramAmountText(completion.price));
 	case SaleKind::Change:
 		return tr::lng_gift_sell_updated(tr::now, lt_name, name);
 	case SaleKind::Unlist:
@@ -270,11 +319,22 @@ void ApplySale(const SaleCompletion &completion) {
 		return;
 	}
 	const auto &gift = completion.gift;
-	if (completion.kind == SaleKind::Unlist) {
+	const auto pending = completion.fixed
+		&& (completion.kind == SaleKind::List);
+	if (pending) {
+		auto &listings = SessionFixedSaleListings(session);
+		listings.pendingSlugs.emplace(gift->slug);
+		const auto address = Wallet::CanonicalAddress(completion.saleAddress);
+		if (!address.isEmpty()) {
+			listings.saleAddresses.emplace(address);
+		}
+	} else if (completion.kind == SaleKind::Unlist) {
 		gift->starsForResale = 0;
 		gift->nanoTonForResale = 0;
 		gift->onlyAcceptTon = false;
 		gift->onchainSale = false;
+		gift->fixedSale = false;
+		SessionFixedSaleListings(session).pendingSlugs.remove(gift->slug);
 	} else {
 		const auto price = CreditsAmount(
 			0,
@@ -283,12 +343,16 @@ void ApplySale(const SaleCompletion &completion) {
 		gift->starsForResale = StarsFromTon(session, price).whole();
 		gift->nanoTonForResale = completion.price;
 		gift->onlyAcceptTon = true;
-		gift->onchainSale = true;
+		if (!gift->fixedSale) {
+			gift->onchainSale = true;
+		}
 	}
-	session->data().notifyGiftUpdate({
-		.slug = gift->slug,
-		.action = Data::GiftUpdate::Action::ResaleChange,
-	});
+	if (!pending) {
+		session->data().notifyGiftUpdate({
+			.slug = gift->slug,
+			.action = Data::GiftUpdate::Action::ResaleChange,
+		});
+	}
 	if (const auto box = completion.priceBox.get()) {
 		box->closeBox();
 	}
@@ -346,6 +410,29 @@ void AddGramRow(
 		helper.context());
 }
 
+void FillSaleTerms(
+		not_null<TableLayout*> table,
+		SaleKind kind,
+		int64 price,
+		std::optional<int64> buyers,
+		int64 amount) {
+	if (kind != SaleKind::Unlist) {
+		AddGramRow(table, tr::lng_gift_resale_price(), rpl::single(price));
+	}
+	if (buyers) {
+		AddGramRow(
+			table,
+			tr::lng_gift_sell_onchain_buyers_pay(),
+			rpl::single(*buyers));
+	}
+	AddGramRow(
+		table,
+		((kind == SaleKind::Unlist)
+			? tr::lng_gift_sell_onchain_unlist_fee()
+			: tr::lng_gift_sell_onchain_listing_fee()),
+		rpl::single(amount));
+}
+
 OnchainSale::OnchainSale(not_null<GenericBox*> box, SaleArgs args)
 : _box(box)
 , _args(std::move(args))
@@ -353,7 +440,8 @@ OnchainSale::OnchainSale(not_null<GenericBox*> box, SaleArgs args)
 , _weakSession(base::make_weak(_session))
 , _wallet(&_session->wallet())
 , _api(&_session->mtp())
-, _waitTimer([=] { waited(); }) {
+, _waitTimer([=] { waited(); })
+, _feeBps(BuyersFeeBps(_args.kind, *_args.gift)) {
 }
 
 OnchainSale::~OnchainSale() {
@@ -362,6 +450,18 @@ OnchainSale::~OnchainSale() {
 
 rpl::producer<int64> OnchainSale::amountValue() const {
 	return _amount.value();
+}
+
+rpl::producer<bool> OnchainSale::fixedValue() const {
+	return _fixed.value();
+}
+
+int OnchainSale::feeBps() const {
+	return _feeBps;
+}
+
+std::optional<int64> OnchainSale::buyersPay() const {
+	return Data::PriceWithSaleFee(_args.price, _feeBps);
 }
 
 rpl::producer<std::optional<int64>> OnchainSale::feeValue() const {
@@ -459,9 +559,11 @@ bool OnchainSale::walletReady() const {
 SaleCompletion OnchainSale::completion() const {
 	return {
 		.kind = _args.kind,
+		.fixed = _fixed.current(),
 		.show = _args.show,
 		.gift = _args.gift,
 		.price = _args.price,
+		.saleAddress = (_operation ? _operation->saleAddress : QString()),
 		.priceBox = _args.priceBox,
 		.session = _weakSession,
 	};
@@ -498,14 +600,11 @@ void OnchainSale::answered(
 	if (_stage.current() != Stage::Requesting) {
 		return;
 	}
+	auto operation = Wallet::ServedOperationFromSale(result);
 	if (result.type() == mtpc_payments_starGiftOnchainFixedSalePayload) {
-		LOG(("API Error: %1 answered "
-			"payments.starGiftOnchainFixedSalePayload."
-			).arg(RequestMethod(_args.kind)));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		fixedAnswered(std::move(operation));
 		return;
 	}
-	auto operation = Wallet::ServedOperationFromSale(result);
 	const auto &message = operation.messages.front();
 	const auto amount = message.value;
 	if (message.destination.isEmpty() || amount <= 0) {
@@ -516,6 +615,29 @@ void OnchainSale::answered(
 		return;
 	}
 	_operation = std::move(operation);
+	_amount = amount;
+	_stage = Stage::Estimating;
+	estimate();
+}
+
+void OnchainSale::fixedAnswered(Wallet::ServedOperation operation) {
+	const auto amount = MessagesValue(operation.messages).value_or(0);
+	const auto gasless = MessagesValue(operation.gaslessMessages);
+	const auto listing = (_args.kind != SaleKind::Unlist);
+	if (amount <= 0
+		|| !gasless
+		|| (*gasless > amount)
+		|| (listing && !buyersPay())) {
+		LOG(("API Error: %1 answered a malformed fixed sale "
+			"(%2 messages, price %3)."
+			).arg(RequestMethod(_args.kind)
+			).arg(operation.messages.size()
+			).arg(_args.price));
+		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return;
+	}
+	_operation = std::move(operation);
+	_fixed = true;
 	_amount = amount;
 	_stage = Stage::Estimating;
 	estimate();
@@ -590,7 +712,11 @@ void OnchainSale::estimated(Wallet::FeeResult result) {
 	const auto error = (result.error == SendError::None && !result.prepared)
 		? SendError::Failed
 		: result.error;
-	if (error != SendError::None) {
+	if (error == SendError::DataInvalid && _fixed.current()) {
+		LOG(("Wallet Error: %1 answered a fixed sale "
+			"the wallet cannot prepare.").arg(RequestMethod(_args.kind)));
+		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+	} else if (error != SendError::None) {
 		refused(error);
 	} else if (stage == Stage::Estimating
 		|| _fee.current() != result.feeNano) {
@@ -916,20 +1042,39 @@ void OnchainSaleBox(not_null<GenericBox*> box, SaleArgs args) {
 			object_ptr<TableLayout>(box, st::defaultTable),
 			padding),
 		style::margins());
-	if (kind != SaleKind::Unlist) {
-		AddGramRow(
+	rpl::combine(
+		sale->amountValue(),
+		sale->fixedValue()
+	) | rpl::filter([](int64 amount, bool) {
+		return amount > 0;
+	}) | rpl::take(1) | rpl::on_next([=](int64 amount, bool fixed) {
+		const auto listing = fixed && (kind != SaleKind::Unlist);
+		FillSaleTerms(
 			terms->entity(),
-			tr::lng_gift_resale_price(),
-			rpl::single(price));
-	}
-	AddGramRow(
-		terms->entity(),
-		((kind == SaleKind::Unlist)
-			? tr::lng_gift_sell_onchain_unlist_fee()
-			: tr::lng_gift_sell_onchain_listing_fee()),
-		sale->amountValue());
+			kind,
+			price,
+			listing ? sale->buyersPay() : std::nullopt,
+			amount);
+	}, terms->lifetime());
 	terms->toggleOn(sale->amountValue() | rpl::map(rpl::mappers::_1 > 0));
 	box->addSkip(st::walletConnectCardMargin.bottom() - padding.bottom());
+	if (kind != SaleKind::Unlist) {
+		const auto percent = QString::number(sale->feeBps() / 100.) + '%';
+		const auto caption = box->addRow(
+			object_ptr<SlideWrap<FlatLabel>>(
+				box,
+				object_ptr<FlatLabel>(
+					box,
+					tr::lng_gift_sell_onchain_buyers_fee(
+						lt_percent,
+						rpl::single(percent)),
+					st::walletConnectCaptionLabel),
+				st::walletConnectCaptionMargin),
+			style::margins(),
+			style::al_top);
+		caption->entity()->setTryMakeSimilarLines(true);
+		caption->toggleOn(sale->fixedValue());
+	}
 
 	const auto fee = AddGiftOnchainFeeLine(
 		box,
@@ -980,12 +1125,19 @@ void OnchainSaleBox(not_null<GenericBox*> box, SaleArgs args) {
 OwnOnchainGift LookupOwnOnchainGift(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	return (gift.fixedSale
-		|| (LookupOwnership(session, gift) != Ownership::Own))
-		? OwnOnchainGift::None
-		: gift.onchainSale
-		? OwnOnchainGift::Listed
+	if (LookupOwnership(session, gift) != Ownership::Own) {
+		return OwnOnchainGift::None;
+	} else if (Data::UniqueGiftOnchainSale(gift)) {
+		return OwnOnchainGift::Listed;
+	}
+	const auto &pending = SessionFixedSaleListings(session).pendingSlugs;
+	return pending.contains(gift.slug)
+		? OwnOnchainGift::Pending
 		: OwnOnchainGift::Held;
+}
+
+bool HasOnchainSaleEntries(OwnOnchainGift own) {
+	return (own == OwnOnchainGift::Held) || (own == OwnOnchainGift::Listed);
 }
 
 void ShowOnchainGiftSellBox(
@@ -995,8 +1147,8 @@ void ShowOnchainGiftSellBox(
 	if (!show
 		|| !show->valid()
 		|| !gift
-		|| (LookupOwnOnchainGift(&show->session(), *gift)
-			== OwnOnchainGift::None)) {
+		|| !HasOnchainSaleEntries(
+			LookupOwnOnchainGift(&show->session(), *gift))) {
 		return;
 	}
 	struct Dialog {
@@ -1009,7 +1161,9 @@ void ShowOnchainGiftSellBox(
 			return;
 		}
 		dialog->confirmation = show->show(Box(OnchainSaleBox, SaleArgs{
-			.kind = (gift->onchainSale ? SaleKind::Change : SaleKind::List),
+			.kind = (Data::UniqueGiftOnchainSale(*gift)
+				? SaleKind::Change
+				: SaleKind::List),
 			.show = show,
 			.gift = gift,
 			.price = nanos,
@@ -1033,8 +1187,8 @@ void ShowOnchainGiftUnlistBox(
 	if (!show
 		|| !show->valid()
 		|| !gift
-		|| (LookupOwnOnchainGift(&show->session(), *gift)
-			== OwnOnchainGift::None)) {
+		|| !HasOnchainSaleEntries(
+			LookupOwnOnchainGift(&show->session(), *gift))) {
 		return;
 	}
 	show->show(Box(OnchainSaleBox, SaleArgs{

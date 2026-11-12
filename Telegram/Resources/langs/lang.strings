@@ -4340,6 +4340,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_buy_onchain_earnings_title" = "Use Gram Earnings?";
 "lng_gift_buy_onchain_earnings_text" = "{amount} will be moved from Gram Earnings to your balance and used to buy this gift.";
 "lng_gift_buy_onchain_earnings_proceed" = "Proceed";
+"lng_gift_buy_onchain_platform_fee" = "Platform fee";
+"lng_gift_buy_onchain_gas" = "Gas";
+"lng_gift_buy_onchain_total" = "Total";
 "lng_gift_onchain_offer_withdraw" = "Withdraw";
 "lng_gift_onchain_offer_withdraw_for" = "Withdraw for {amount}";
 "lng_gift_onchain_offer_withdraw_title" = "Withdraw Offer?";
@@ -4614,7 +4617,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sell_onchain_confirm" = "Put {name} on sale for {price}?";
 "lng_gift_sell_onchain_listing_fee" = "Listing fee";
 "lng_gift_sell_onchain_unlist_fee" = "Unlisting fee";
+"lng_gift_sell_onchain_buyers_pay" = "Buyers pay";
+"lng_gift_sell_onchain_buyers_fee" = "Buyers pay a {percent} fee on top of the price.";
 "lng_gift_sell_onchain_toast" = "{name} is on sale for {price}.";
+"lng_gift_sell_onchain_pending" = "{name} will go on sale for {price} once the network confirms the listing.";
 "lng_gift_sell_onchain_unlist_first" = "{name} is already on sale. Unlist it first, then put it on sale at the new price.";
 "lng_gift_sell_onchain_already_sent" = "This operation has already been sent.";
 "lng_gift_menu_show" = "Show";

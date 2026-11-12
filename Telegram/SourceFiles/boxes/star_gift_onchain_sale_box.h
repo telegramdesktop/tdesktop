@@ -28,12 +28,14 @@ namespace Ui {
 enum class OwnOnchainGift : uchar {
 	None,
 	Held,
+	Pending,
 	Listed,
 };
 
 [[nodiscard]] OwnOnchainGift LookupOwnOnchainGift(
 	not_null<Main::Session*> session,
 	const Data::UniqueGift &gift);
+[[nodiscard]] bool HasOnchainSaleEntries(OwnOnchainGift own);
 
 void ShowOnchainGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,

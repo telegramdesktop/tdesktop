@@ -26,6 +26,7 @@ namespace {
 constexpr auto kMyGiftsPerPage = 50;
 constexpr auto kResaleGiftsPerPage = 50;
 constexpr auto kCraftGiftsPerPage = 50;
+constexpr auto kBasisPointsInOne = int64(10'000);
 
 [[nodiscard]] MTPStarGiftAttributeId AttributeToTL(GiftAttributeId id) {
 	switch (id.type) {
@@ -135,16 +136,53 @@ CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift) {
 		: UniqueGiftResaleStars(gift);
 }
 
+int FixedSaleFeeBps(const UniqueGift &gift) {
+	return gift.feeBps.value_or(kFixedSaleFeeBps);
+}
+
+std::optional<int64> PriceWithSaleFee(int64 price, int feeBps) {
+	if (price < 0 || feeBps < 0) {
+		return std::nullopt;
+	} else if (!feeBps) {
+		return price;
+	}
+	const auto room = std::numeric_limits<int64>::max() - price;
+	const auto whole = price / kBasisPointsInOne;
+	if (whole > room / feeBps) {
+		return std::nullopt;
+	}
+	const auto part = price % kBasisPointsInOne;
+	const auto fee = whole * feeBps
+		+ (part * feeBps + kBasisPointsInOne - 1) / kBasisPointsInOne;
+	if (fee > room) {
+		return std::nullopt;
+	}
+	return price + fee;
+}
+
+std::optional<int64> UniqueGiftBuyerPays(const UniqueGift &gift) {
+	return PriceWithSaleFee(
+		gift.nanoTonForResale,
+		gift.fixedSale ? FixedSaleFeeBps(gift) : 0);
+}
+
 TextWithEntities FormatGiftResaleStars(const UniqueGift &gift) {
 	return Ui::Text::IconEmoji(
 		&st::starIconEmoji
 	).append(Lang::FormatCountDecimal(gift.starsForResale));
 }
 
-TextWithEntities FormatGiftResaleTon(const UniqueGift &gift) {
+TextWithEntities FormatGiftResaleTon(int64 nanos) {
 	return Ui::Text::IconEmoji(
 		&st::tonIconEmoji
-	).append(Lang::FormatCreditsAmountDecimal(UniqueGiftResaleTon(gift)));
+	).append(Lang::FormatCreditsAmountDecimal(CreditsAmount(
+		nanos / Ui::kNanosInOne,
+		nanos % Ui::kNanosInOne,
+		CreditsType::Ton)));
+}
+
+TextWithEntities FormatGiftResaleTon(const UniqueGift &gift) {
+	return FormatGiftResaleTon(gift.nanoTonForResale);
 }
 
 TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift) {
@@ -185,6 +223,7 @@ bool SameServedStarGift(const StarGift &a, const StarGift &b) {
 			unique.nanoTonMinOffer,
 			unique.starsForResale,
 			unique.starsMinOffer,
+			unique.feeBps,
 			unique.craftChancePermille,
 			unique.onlyAcceptTon,
 			unique.canBeTheme,

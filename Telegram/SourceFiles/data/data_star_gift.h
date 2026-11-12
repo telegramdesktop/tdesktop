@@ -132,6 +132,7 @@ struct UniqueGift {
 	int starsForResale = -1;
 	int starsForTransfer = -1;
 	int starsMinOffer = -1;
+	std::optional<int> feeBps;
 	int number = 0;
 	bool onlyAcceptTon = false;
 	bool canBeTheme = false;
@@ -160,7 +161,15 @@ struct UniqueGift {
 [[nodiscard]] CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift);
 [[nodiscard]] CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift);
 
+inline constexpr auto kFixedSaleFeeBps = 200;
+
+[[nodiscard]] int FixedSaleFeeBps(const UniqueGift &gift);
+[[nodiscard]] std::optional<int64> PriceWithSaleFee(int64 price, int feeBps);
+[[nodiscard]] std::optional<int64> UniqueGiftBuyerPays(
+	const UniqueGift &gift);
+
 [[nodiscard]] TextWithEntities FormatGiftResaleStars(const UniqueGift &gift);
+[[nodiscard]] TextWithEntities FormatGiftResaleTon(int64 nanos);
 [[nodiscard]] TextWithEntities FormatGiftResaleTon(const UniqueGift &gift);
 [[nodiscard]] TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift);
 

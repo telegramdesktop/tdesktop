@@ -1012,6 +1012,9 @@ std::optional<Data::StarGift> FromTL(
 					= data.vcraft_chance_permille().value_or_empty(),
 				.starsForResale = FindStarsForResale(data.vresell_amount()),
 				.starsMinOffer = data.voffer_min_stars().value_or(-1),
+				.feeBps = (data.vfee_bps()
+					? std::make_optional(data.vfee_bps()->v)
+					: std::nullopt),
 				.number = data.vnum().v,
 				.onlyAcceptTon = data.is_resale_ton_only(),
 				.canBeTheme = data.is_theme_available(),
