@@ -456,6 +456,8 @@ PRIVATE
     boxes/star_gift_onchain_offer_confirm_box.h
     boxes/star_gift_onchain_sale_box.cpp
     boxes/star_gift_onchain_sale_box.h
+    boxes/star_gift_onchain_signing.cpp
+    boxes/star_gift_onchain_signing.h
     boxes/star_gift_onchain_withdraw_box.cpp
     boxes/star_gift_onchain_withdraw_box.h
     boxes/star_gift_preview_box.cpp

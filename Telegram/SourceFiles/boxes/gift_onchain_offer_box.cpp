@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/weak_qptr.h"
 #include "boxes/gift_premium_box.h"
+#include "boxes/star_gift_onchain_signing.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -26,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
-#include "main/session/session_show.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/table_rows.h"
@@ -41,10 +41,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_panel.h"
-#include "wallet/wallet_send_preparation.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_session_served.h"
-#include "wallet/wallet_unlock.h"
 #include "window/window_session_controller.h"
 
 #include "styles/style_chat_helpers.h"
@@ -101,6 +99,7 @@ public:
 private:
 	[[nodiscard]] bool cardCurrent() const;
 	[[nodiscard]] bool current() const;
+	[[nodiscard]] bool usable(Ui::OnchainSigningCheck check);
 	void declineConfirmed(Fn<void()> close);
 	void declined();
 	void declineFailed(const MTP::Error &error);
@@ -111,14 +110,7 @@ private:
 	void accept();
 	void accepted(const MTPpayments_StarGiftOnchainOfferTx &result);
 	void acceptFailed(const MTP::Error &error);
-	void estimate();
-	void estimated(Wallet::FeeResult result);
-	[[nodiscard]] bool retry();
-	void acquireKey();
-	void keyReady(Wallet::KeyAuthorization auth);
-	void submit();
-	void awaitSigning();
-	void sent(Wallet::ServedResult result);
+	void ended(Wallet::ServedOutcome outcome);
 	void refused(SendError error);
 	void fail(const QString &diagnostic, bool keepAnswer);
 	void toReview();
@@ -136,23 +128,14 @@ private:
 	rpl::variable<SalePhase> _phase = SalePhase::Review;
 	SalePhase _declineFrom = SalePhase::Review;
 	base::weak_qptr<Ui::GenericBox> _declineBox;
-	rpl::variable<std::optional<int64>> _fee;
 	std::optional<Wallet::ServedOperation> _operation;
-	std::shared_ptr<const Wallet::PreparedSend> _prepared;
-	Wallet::KeyAuthorization _authorization;
 	TimeId _answerExpiresAt = 0;
 	mtpRequestId _acceptRequestId = 0;
-	uint64 _previewOwner = 0;
-	int _refusals = 0;
 	bool _polling = false;
 	base::Timer _waitTimer;
-	base::Timer _signingWait;
 	rpl::lifetime _waitLifetime;
-	rpl::lifetime _signingLifetime;
-	rpl::lifetime _previewLifetime;
 	rpl::lifetime _lifetime;
-	// Last, so the key ladder cancelled first finds the rest alive.
-	rpl::lifetime _keyLifetime;
+	Ui::OnchainSigning _signing;
 
 };
 
@@ -232,19 +215,55 @@ SaleFlow::SaleFlow(
 , _waitTimer([=] {
 	fail(u"Wallet Error: Gift offer sale timed out on the wallet."_q, true);
 })
-, _signingWait([=] {
-	fail(u"Wallet Error: Gift offer sale timed out on signing."_q, true);
+, _signing({
+	.box = box,
+	.show = _show,
+	.order = Ui::OnchainSigningOrder::ConfirmFee,
+	.route = Ui::OnchainSigningRoute::Flow,
+	.wait = Ui::OnchainSigningWait::Signing,
+	.current = [=] { return _weakSession && current(); },
+	.usable = [=](Ui::OnchainSigningCheck check) { return usable(check); },
+	.refused = [=](SendError error) { refused(error); },
+	.rejected = [=](const QString &type) {
+		fail(
+			u"Wallet Error: Gift offer sale rejected with %1."_q.arg(type),
+			false);
+	},
+	.duplicate = [=] { ended(Wallet::ServedOutcome::Duplicate); },
+	.uncertain = [=] { ended(Wallet::ServedOutcome::Uncertain); },
+	.completion = [=]() -> Fn<void()> {
+		return [show = _show] {
+			show->showToast(
+				tr::lng_action_gift_onchain_offer_selling(tr::now));
+		};
+	},
+	.timedOut = [=] {
+		fail(u"Wallet Error: Gift offer sale timed out on signing."_q, true);
+	},
+	.closing = [=] { stop(); },
 }) {
 	_box->boxClosing() | rpl::on_next([=] {
-		stop();
+		_signing.closing();
 	}, _lifetime);
 	_session->data().itemRemoved(_terms.itemId) | rpl::on_next([=] {
 		closeBoxes();
 	}, _lifetime);
+	_signing.busyValue(
+	) | rpl::filter(
+		!rpl::mappers::_1
+	) | rpl::on_next([=] {
+		_phase = SalePhase::Confirm;
+	}, _lifetime);
+	_signing.sendingValue(
+	) | rpl::filter(
+		rpl::mappers::_1
+	) | rpl::on_next([=] {
+		_phase = SalePhase::Sending;
+	}, _lifetime);
 }
 
 SaleFlow::~SaleFlow() {
-	stop();
+	_signing.closing();
 }
 
 rpl::producer<SalePhase> SaleFlow::phaseValue() const {
@@ -254,7 +273,7 @@ rpl::producer<SalePhase> SaleFlow::phaseValue() const {
 }
 
 rpl::producer<int64> SaleFlow::feeValue() const {
-	return _fee.value() | rpl::filter_optional();
+	return _signing.feeValue() | rpl::filter_optional();
 }
 
 bool SaleFlow::closable() const {
@@ -269,10 +288,9 @@ void SaleFlow::sell() {
 		closeBoxes();
 		return;
 	}
-	_refusals = 0;
 	if (phase == SalePhase::Confirm) {
 		_phase = SalePhase::Signing;
-		estimate();
+		_signing.confirm();
 	} else {
 		_phase = SalePhase::Preparing;
 		waitWallet();
@@ -304,6 +322,14 @@ bool SaleFlow::cardCurrent() const {
 bool SaleFlow::current() const {
 	return cardCurrent()
 		&& (!_operation || base::unixtime::now() < _answerExpiresAt);
+}
+
+bool SaleFlow::usable(Ui::OnchainSigningCheck check) {
+	if (check != Ui::OnchainSigningCheck::Submit || current()) {
+		return true;
+	}
+	closeBoxes();
+	return false;
 }
 
 void SaleFlow::declineConfirmed(Fn<void()> close) {
@@ -394,7 +420,7 @@ void SaleFlow::walletReady() {
 	if (!current()) {
 		closeBoxes();
 	} else if (_operation) {
-		estimate();
+		_signing.quote(*_operation);
 	} else {
 		accept();
 	}
@@ -438,7 +464,7 @@ void SaleFlow::accepted(const MTPpayments_StarGiftOnchainOfferTx &result) {
 		closeBoxes();
 		return;
 	}
-	estimate();
+	_signing.quote(*_operation);
 }
 
 void SaleFlow::acceptFailed(const MTP::Error &error) {
@@ -464,149 +490,10 @@ void SaleFlow::acceptFailed(const MTP::Error &error) {
 	}
 }
 
-void SaleFlow::estimate() {
-	if (!_previewOwner) {
-		_previewOwner = _wallet->createPreviewOwner(_previewLifetime);
-	}
-	_wallet->estimateServed(
-		_previewOwner,
-		*_operation,
-		crl::guard(this, [=](Wallet::FeeResult result) {
-			estimated(std::move(result));
-		}));
-}
-
-void SaleFlow::estimated(Wallet::FeeResult result) {
-	const auto phase = _phase.current();
-	if (phase != SalePhase::Preparing && phase != SalePhase::Signing) {
-		return;
-	} else if (!current()) {
-		closeBoxes();
-		return;
-	}
-	const auto error = (result.error == SendError::None && !result.prepared)
-		? SendError::Failed
-		: result.error;
-	if (error == SendError::QuoteExpired && retry()) {
-		return;
-	} else if (error != SendError::None) {
-		refused(error);
-		return;
-	} else if (phase == SalePhase::Preparing
-		|| _fee.current() != result.feeNano) {
-		_authorization = {};
-		_fee = result.feeNano;
-		_phase = SalePhase::Confirm;
-		return;
-	}
-	_prepared = std::move(result.prepared);
-	if (_authorization.valid()) {
-		submit();
-	} else {
-		acquireKey();
-	}
-}
-
-bool SaleFlow::retry() {
-	if (++_refusals > Wallet::kSendRefusalRetries) {
-		return false;
-	}
-	_prepared = nullptr;
-	estimate();
-	return true;
-}
-
-void SaleFlow::acquireKey() {
-	_keyLifetime.destroy();
-	const auto weak = base::make_weak(this);
-	Wallet::AcquireWalletKey(
-		Main::MakeSessionShow(_box->uiShow(), _session),
-		[=] {
-			return weak
-				&& (weak->_phase.current() == SalePhase::Signing)
-				&& weak->current();
-		},
-		_keyLifetime,
-		crl::guard(this, [=](Wallet::KeyAuthorization auth) {
-			keyReady(std::move(auth));
-		}));
-}
-
-void SaleFlow::keyReady(Wallet::KeyAuthorization auth) {
-	if (_phase.current() != SalePhase::Signing) {
-		return;
-	} else if (!current()) {
-		closeBoxes();
-	} else if (!auth.valid()) {
-		_prepared = nullptr;
-		_phase = SalePhase::Confirm;
-	} else {
-		_authorization = std::move(auth);
-		submit();
-	}
-}
-
-void SaleFlow::submit() {
-	if (_phase.current() != SalePhase::Signing) {
-		return;
-	} else if (!current()) {
-		closeBoxes();
-		return;
-	} else if (!_wallet->signingReady()) {
-		awaitSigning();
-		return;
-	}
-	const auto refusal = _wallet->sendRefusal(_prepared, _authorization);
-	if ((refusal == SendError::QuoteExpired
-		|| refusal == SendError::SigningUnavailable)
-		&& retry()) {
-		return;
-	} else if (refusal != SendError::None) {
-		refused(refusal);
-		return;
-	}
-	_phase = SalePhase::Sending;
-	_wallet->sendServed(
-		base::take(_authorization),
-		base::take(_prepared),
-		crl::guard(this, [=](Wallet::ServedResult result) {
-			sent(std::move(result));
-		}));
-}
-
-void SaleFlow::awaitSigning() {
-	if (_signingWait.isActive()) {
-		return;
-	}
-	_signingLifetime.destroy();
-	_signingWait.callOnce(Wallet::kSigningReadyTimeout);
-	_wallet->signingReadyValue(
-	) | rpl::filter(
-		rpl::mappers::_1
-	) | rpl::take(1) | rpl::on_next([=] {
-		_signingWait.cancel();
-		submit();
-	}, _signingLifetime);
-}
-
-void SaleFlow::sent(Wallet::ServedResult result) {
-	using Outcome = Wallet::ServedOutcome;
-	if (_phase.current() != SalePhase::Sending) {
-		return;
-	} else if (result.outcome == Outcome::Accepted) {
-		finish(tr::lng_action_gift_onchain_offer_selling(tr::now));
-	} else if (result.outcome == Outcome::Refused) {
-		refused(result.refusal);
-	} else if (result.outcome == Outcome::Rejected) {
-		fail(
-			u"Wallet Error: Gift offer sale rejected with %1."_q.arg(
-				result.errorType),
-			false);
-	} else {
-		LOG(("Wallet Error: Gift offer sale ended with outcome %1."
-			).arg(int(result.outcome)));
-		finish(tr::lng_credits_currency_withdraw_error(tr::now));
-	}
+void SaleFlow::ended(Wallet::ServedOutcome outcome) {
+	LOG(("Wallet Error: Gift offer sale ended with outcome %1."
+		).arg(int(outcome)));
+	finish(tr::lng_credits_currency_withdraw_error(tr::now));
 }
 
 void SaleFlow::refused(SendError error) {
@@ -641,11 +528,7 @@ void SaleFlow::toReview() {
 
 void SaleFlow::release() {
 	stopWaiting();
-	_signingWait.cancel();
-	_signingLifetime.destroy();
-	_prepared = nullptr;
-	_authorization = {};
-	_fee = std::nullopt;
+	_signing.stop();
 }
 
 void SaleFlow::finish(const QString &text) {
@@ -655,23 +538,18 @@ void SaleFlow::finish(const QString &text) {
 }
 
 void SaleFlow::closeBoxes() {
-	const auto box = _box;
-	stop();
-	box->closeBox();
+	_signing.close();
 }
 
 void SaleFlow::stop() {
 	_phase = SalePhase::Done;
 	release();
-	_previewLifetime.destroy();
-	_previewOwner = 0;
 	if (_weakSession) {
 		_session->api().request(base::take(_acceptRequestId)).cancel();
 		if (base::take(_polling)) {
 			_wallet->stopPolling();
 		}
 	}
-	_keyLifetime.destroy();
 	if (const auto box = _declineBox.get()) {
 		box->closeBox();
 	}

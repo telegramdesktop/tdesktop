@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_onchain_withdraw_box.h"
 
 #include "apiwrap.h"
-#include "base/timer.h"
 #include "base/unixtime.h"
+#include "boxes/star_gift_onchain_signing.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_session.h"
 #include "history/history_gift_onchain_offer.h"
@@ -21,8 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "wallet/wallet_content.h"
-#include "wallet/wallet_panel.h"
-#include "wallet/wallet_send_preparation.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_session_served.h"
 
@@ -32,15 +30,6 @@ namespace Ui {
 namespace {
 
 using Wallet::SendError;
-
-enum class Stage : uchar {
-	Confirming,
-	Preparing,
-	Authorizing,
-	Waiting,
-	Sending,
-	Closed,
-};
 
 struct WithdrawalTerms {
 	Wallet::ServedOperation operation;
@@ -99,40 +88,18 @@ public:
 private:
 	[[nodiscard]] bool current() const;
 	[[nodiscard]] bool offerUsable();
-	void prepare();
-	void prepared(Wallet::FeeResult result);
-	void authorize();
-	void authorized(Wallet::KeyAuthorization auth);
-	void awaitWallet();
-	void waited();
-	void submit();
-	void sent(Wallet::ServedResult result);
 	void refused(SendError error);
-	void stopAttempt();
-	void openMoney();
-	void keyChanged();
-	void closeWithToast(const QString &text);
-	void close();
-	void closing();
+	void duplicate();
+	void uncertain();
+	void release();
 
-	const not_null<GenericBox*> _box;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const not_null<Main::Session*> _session;
 	const base::weak_ptr<Main::Session> _weakSession;
-	const not_null<Wallet::Session*> _wallet;
 	const FullMsgId _itemId;
 	const Wallet::ServedOperation _operation;
 	const TimeId _expiresAt = 0;
-	base::Timer _waitTimer;
-	std::shared_ptr<const Wallet::PreparedSend> _prepared;
-	Wallet::KeyAuthorization _authorization;
-	Stage _stage = Stage::Confirming;
-	uint64 _owner = 0;
-	int _retries = 0;
-	bool _submitted = false;
-	rpl::lifetime _lifetime;
-	// WHY: last, so the key ladder cancelled first finds the rest alive.
-	rpl::lifetime _keyLifetime;
+	OnchainSigning _signing;
 
 };
 
@@ -142,50 +109,44 @@ OnchainOfferWithdrawal::OnchainOfferWithdrawal(
 	FullMsgId itemId,
 	Wallet::ServedOperation operation,
 	TimeId expiresAt)
-: _box(box)
-, _show(std::move(show))
+: _show(std::move(show))
 , _session(&_show->session())
 , _weakSession(base::make_weak(_session))
-, _wallet(&_session->wallet())
 , _itemId(itemId)
 , _operation(std::move(operation))
 , _expiresAt(expiresAt)
-, _waitTimer([=] { waited(); }) {
+, _signing({
+	.box = box,
+	.show = _show,
+	.order = OnchainSigningOrder::SamePress,
+	.route = OnchainSigningRoute::Money,
+	.wait = OnchainSigningWait::Estimate,
+	.current = [=] { return current(); },
+	.usable = [=](OnchainSigningCheck) { return offerUsable(); },
+	.error = tr::lng_gift_onchain_offer_withdraw_error,
+	.transfer = u"the on-chain offer withdrawal"_q,
+	.refused = [=](SendError error) { refused(error); },
+	.duplicate = [=] { duplicate(); },
+	.uncertain = [=] { uncertain(); },
+	.closing = [=] { release(); },
+}) {
 	SetWithdrawing(_session, _itemId, true);
 }
 
 OnchainOfferWithdrawal::~OnchainOfferWithdrawal() {
-	closing();
+	_signing.closing();
 }
 
 void OnchainOfferWithdrawal::start() {
-	_owner = _wallet->createPreviewOwner(_lifetime);
-	_box->boxClosing() | rpl::on_next([=] {
-		closing();
-	}, _lifetime);
-	rpl::merge(
-		_wallet->presenceValue() | rpl::skip(1) | rpl::to_empty,
-		_wallet->custodyUpdates(),
-		_wallet->transferWalletIdentityChanges(),
-		_wallet->signingReadyValue() | rpl::skip(1) | rpl::to_empty
-	) | rpl::filter([=] {
-		return (_stage == Stage::Waiting);
-	}) | rpl::on_next([=] {
-		prepare();
-	}, _lifetime);
+	_signing.start();
 }
 
 void OnchainOfferWithdrawal::press() {
-	if (_stage != Stage::Confirming) {
-		return;
-	}
-	_retries = 0;
-	prepare();
+	_signing.sign(_operation);
 }
 
 bool OnchainOfferWithdrawal::current() const {
-	return (_stage != Stage::Closed)
-		&& _weakSession
+	return _weakSession
 		&& _show->valid()
 		&& (&_show->session() == _session);
 }
@@ -194,231 +155,42 @@ bool OnchainOfferWithdrawal::offerUsable() {
 	const auto now = base::unixtime::now();
 	const auto item = current() ? _session->data().message(_itemId) : nullptr;
 	if (!item || !CanWithdrawGiftOnchainOffer(item, now)) {
-		close();
+		_signing.close();
 		return false;
 	} else if ((_expiresAt > 0) && (now >= _expiresAt)) {
 		LOG(("Wallet Error: the prepared on-chain offer withdrawal "
 			"has expired."));
-		closeWithToast(tr::lng_gift_onchain_offer_withdraw_error(tr::now));
+		_signing.closeWithToast(
+			tr::lng_gift_onchain_offer_withdraw_error(tr::now));
 		return false;
 	}
 	return true;
 }
 
-void OnchainOfferWithdrawal::prepare() {
-	if (!offerUsable()) {
-		return;
-	} else if (_authorization.valid() && !_wallet->signingReady()) {
-		awaitWallet();
-		return;
-	}
-	_waitTimer.cancel();
-	_stage = Stage::Preparing;
-	_prepared = nullptr;
-	_wallet->estimateServed(
-		_owner,
-		_operation,
-		crl::guard(this, [=](Wallet::FeeResult result) {
-			prepared(std::move(result));
-		}));
-}
-
-void OnchainOfferWithdrawal::prepared(Wallet::FeeResult result) {
-	if (_stage != Stage::Preparing) {
-		return;
-	}
-	const auto error = (result.error == SendError::None && !result.prepared)
-		? SendError::Failed
-		: result.error;
-	if (error != SendError::None) {
-		refused(error);
-		return;
-	} else if (!current()) {
-		close();
-		return;
-	}
-	_prepared = std::move(result.prepared);
-	if (_authorization.valid()) {
-		submit();
-	} else {
-		authorize();
-	}
-}
-
-void OnchainOfferWithdrawal::authorize() {
-	_keyLifetime.destroy();
-	_stage = Stage::Authorizing;
-	const auto weak = base::make_weak(this);
-	Wallet::AcquireWalletKey(
-		_show,
-		[=] {
-			return weak
-				&& (weak->_stage == Stage::Authorizing)
-				&& weak->current();
-		},
-		_keyLifetime,
-		crl::guard(this, [=](Wallet::KeyAuthorization auth) {
-			authorized(std::move(auth));
-		}));
-}
-
-void OnchainOfferWithdrawal::authorized(Wallet::KeyAuthorization auth) {
-	if (_stage != Stage::Authorizing) {
-		return;
-	} else if (!auth.valid()) {
-		stopAttempt();
-		return;
-	}
-	_authorization = std::move(auth);
-	prepare();
-}
-
-void OnchainOfferWithdrawal::awaitWallet() {
-	_stage = Stage::Waiting;
-	if (!_waitTimer.isActive()) {
-		_waitTimer.callOnce(Wallet::kSigningReadyTimeout);
-	}
-	_wallet->refreshState();
-}
-
-void OnchainOfferWithdrawal::waited() {
-	if (_stage == Stage::Waiting) {
-		openMoney();
-	}
-}
-
-void OnchainOfferWithdrawal::submit() {
-	if (!offerUsable()) {
-		return;
-	}
-	_stage = Stage::Sending;
-	_submitted = true;
-	_wallet->sendServed(
-		_authorization,
-		base::take(_prepared),
-		crl::guard(this, [=](Wallet::ServedResult result) {
-			if (_stage == Stage::Sending) {
-				sent(std::move(result));
-			}
-		}));
-}
-
-void OnchainOfferWithdrawal::sent(Wallet::ServedResult result) {
-	using Wallet::ServedOutcome;
-	switch (result.outcome) {
-	case ServedOutcome::Accepted:
-		close();
-		return;
-	case ServedOutcome::Uncertain:
-		LOG(("Wallet Info: the on-chain offer withdrawal is pending."));
-		close();
-		return;
-	case ServedOutcome::Duplicate:
-		LOG(("Wallet Error: the on-chain offer withdrawal was already sent."));
-		close();
-		return;
-	case ServedOutcome::Rejected:
-		_submitted = false;
-		if (result.refusal == SendError::KeyChanged) {
-			keyChanged();
-		} else if (result.refusal == SendError::Silent) {
-			close();
-		} else {
-			LOG(("API Error: wallet.sendTransfer for the on-chain offer "
-				"withdrawal failed with %1.").arg(result.errorType));
-			closeWithToast(
-				tr::lng_gift_onchain_offer_withdraw_error(tr::now));
-		}
-		return;
-	case ServedOutcome::Refused:
-		_submitted = false;
-		refused(result.refusal);
-		return;
-	}
-}
-
 void OnchainOfferWithdrawal::refused(SendError error) {
-	if (error == SendError::KeyChanged) {
-		keyChanged();
-	} else if (error == SendError::NoWallet
-		|| error == SendError::SigningUnavailable) {
-		openMoney();
-	} else if (error == SendError::WalletNotReady) {
-		if (++_retries <= Wallet::kSendRefusalRetries) {
-			awaitWallet();
-		} else {
-			openMoney();
-		}
-	} else if (error == SendError::QuoteExpired
-		&& ++_retries <= Wallet::kSendRefusalRetries) {
-		prepare();
-	} else if (error == SendError::Silent) {
-		close();
-	} else if (error == SendError::InsufficientBalance
+	if (error == SendError::InsufficientBalance
 		|| error == SendError::InsufficientFees) {
-		closeWithToast(Wallet::SendErrorText(error, 0));
+		_signing.closeWithToast(Wallet::SendErrorText(error, 0));
 	} else {
-		closeWithToast(tr::lng_gift_onchain_offer_withdraw_error(tr::now));
+		_signing.closeWithToast(
+			tr::lng_gift_onchain_offer_withdraw_error(tr::now));
 	}
 }
 
-void OnchainOfferWithdrawal::stopAttempt() {
-	_waitTimer.cancel();
-	_prepared = nullptr;
-	_authorization = {};
-	_stage = Stage::Confirming;
+void OnchainOfferWithdrawal::duplicate() {
+	LOG(("Wallet Error: the on-chain offer withdrawal was already sent."));
+	_signing.close();
 }
 
-void OnchainOfferWithdrawal::openMoney() {
-	const auto session = _session;
-	const auto valid = current();
-	close();
-	if (valid) {
-		Wallet::ShowWallet(session);
-	}
+void OnchainOfferWithdrawal::uncertain() {
+	LOG(("Wallet Info: the on-chain offer withdrawal is pending."));
+	_signing.close();
 }
 
-void OnchainOfferWithdrawal::keyChanged() {
-	const auto show = _show;
-	const auto valid = current();
-	close();
-	if (valid) {
-		Wallet::ShowWalletKeyChanged(show);
+void OnchainOfferWithdrawal::release() {
+	if (_weakSession && !_signing.submitted()) {
+		SetWithdrawing(_session, _itemId, false);
 	}
-}
-
-void OnchainOfferWithdrawal::closeWithToast(const QString &text) {
-	const auto show = _show;
-	const auto valid = current();
-	close();
-	if (valid) {
-		show->showToast(text);
-	}
-}
-
-void OnchainOfferWithdrawal::close() {
-	const auto box = base::make_weak(_box);
-	closing();
-	if (const auto strong = box.get()) {
-		strong->closeBox();
-	}
-}
-
-void OnchainOfferWithdrawal::closing() {
-	if (_stage == Stage::Closed) {
-		return;
-	}
-	_stage = Stage::Closed;
-	_waitTimer.cancel();
-	if (_weakSession) {
-		_wallet->cancelFeeEstimate(_owner);
-		if (!_submitted) {
-			SetWithdrawing(_session, _itemId, false);
-		}
-	}
-	_prepared = nullptr;
-	_authorization = {};
-	_keyLifetime.destroy();
 }
 
 void WithdrawOfferBox(

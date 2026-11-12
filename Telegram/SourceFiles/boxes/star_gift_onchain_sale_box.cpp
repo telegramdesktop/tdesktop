@@ -7,19 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/star_gift_onchain_sale_box.h"
 
-#include "base/timer.h"
-#include "base/timer_rpl.h"
 #include "base/weak_ptr.h"
 #include "base/weak_qptr.h"
 #include "boxes/gift_onchain_offer_box.h"
 #include "boxes/star_gift_box.h"
+#include "boxes/star_gift_onchain_signing.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
 #include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
-#include "main/session/session_show.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
@@ -35,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_key_protection.h"
-#include "wallet/wallet_send_preparation.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_session_served.h"
 
@@ -48,26 +45,10 @@ namespace {
 
 using Wallet::SendError;
 
-constexpr auto kWalletRetryDelay = crl::time(1000);
-
 enum class SaleKind : uchar {
 	List,
 	Change,
 	Unlist,
-};
-
-enum class Stage : uchar {
-	Idle,
-	Requesting,
-	Estimating,
-	Ready,
-	Confirming,
-	Waiting,
-	Authorizing,
-	Signing,
-	Sending,
-	Tracking,
-	Closed,
 };
 
 enum class Ownership : uchar {
@@ -122,65 +103,32 @@ private:
 	[[nodiscard]] bool current() const;
 	[[nodiscard]] Ownership ownership() const;
 	[[nodiscard]] bool usable();
-	[[nodiscard]] bool walletReady() const;
 	[[nodiscard]] SaleCompletion completion() const;
 	void request();
 	void answered(const MTPpayments_StarGiftOnchainSalePayload &result);
 	void fixedAnswered(Wallet::ServedOperation operation);
+	void quote();
 	void failed(const MTP::Error &error);
 	void unlistFirst();
-	void reestimate();
-	void estimate();
-	void estimated(Wallet::FeeResult result);
-	[[nodiscard]] bool retry();
+	[[nodiscard]] SendError estimated(const Wallet::FeeResult &result);
 	void refused(SendError error);
-	void abandon(SendError error);
-	void ready();
-	void awaitWallet();
-	void resume();
-	void waited();
-	void stopWaiting();
-	void authorize();
-	void authorized(Wallet::KeyAuthorization auth);
-	void submit();
-	void sent(Wallet::ServedResult result);
-	void accepted();
 	void duplicate();
-	void track(const std::string &operationId);
-	void resolve();
-	void keyChanged();
-	void closeWithToast(const QString &text);
-	void close();
 	void closing();
 
-	const not_null<GenericBox*> _box;
 	const SaleArgs _args;
 	const not_null<Main::Session*> _session;
 	const base::weak_ptr<Main::Session> _weakSession;
 	const not_null<Wallet::Session*> _wallet;
 	MTP::Sender _api;
-	base::Timer _waitTimer;
 	const int _feeBps = 0;
 	std::optional<Wallet::ServedOperation> _operation;
-	std::shared_ptr<const Wallet::PreparedSend> _prepared;
-	Wallet::KeyAuthorization _authorization;
-	std::string _operationId;
-	rpl::variable<Stage> _stage = Stage::Idle;
+	rpl::variable<bool> _requesting = false;
 	rpl::variable<int64> _amount = 0;
 	rpl::variable<bool> _fixed = false;
-	rpl::variable<std::optional<int64>> _fee;
 	rpl::variable<SendError> _error = SendError::None;
-	uint64 _owner = 0;
 	mtpRequestId _requestId = 0;
-	int _retries = 0;
-	Stage _resume = Stage::Idle;
-	bool _waitArmed = false;
 	bool _polling = false;
-	rpl::lifetime _waitLifetime;
-	rpl::lifetime _trackLifetime;
-	rpl::lifetime _lifetime;
-	// WHY: last, so the key ladder cancelled first finds the rest alive.
-	rpl::lifetime _keyLifetime;
+	OnchainSigning _signing;
 
 };
 
@@ -223,10 +171,6 @@ private:
 		|| sales.contains(owner))
 		? Ownership::Own
 		: Ownership::Other;
-}
-
-[[nodiscard]] bool Busy(Stage stage) {
-	return (stage != Stage::Idle) && (stage != Stage::Ready);
 }
 
 [[nodiscard]] bool Insufficient(SendError error) {
@@ -434,18 +378,42 @@ void FillSaleTerms(
 }
 
 OnchainSale::OnchainSale(not_null<GenericBox*> box, SaleArgs args)
-: _box(box)
-, _args(std::move(args))
+: _args(std::move(args))
 , _session(&_args.show->session())
 , _weakSession(base::make_weak(_session))
 , _wallet(&_session->wallet())
 , _api(&_session->mtp())
-, _waitTimer([=] { waited(); })
-, _feeBps(BuyersFeeBps(_args.kind, *_args.gift)) {
+, _feeBps(BuyersFeeBps(_args.kind, *_args.gift))
+, _signing({
+	.box = box,
+	.show = _args.show,
+	.order = OnchainSigningOrder::ConfirmFee,
+	.route = OnchainSigningRoute::InBox,
+	.wait = OnchainSigningWait::Confirmation,
+	.current = [=] { return current(); },
+	.usable = [=](OnchainSigningCheck) { return usable(); },
+	.signable = [=] { return (ownership() == Ownership::Own); },
+	.request = [=] { request(); },
+	.estimated = [=](const Wallet::FeeResult &result) {
+		return estimated(result);
+	},
+	.error = tr::lng_gift_buy_onchain_error,
+	.subject = u"the transfer for "_q + RequestMethod(_args.kind),
+	.transfer = RequestMethod(_args.kind),
+	.quoted = [=] { _error = SendError::None; },
+	.refused = [=](SendError error) { refused(error); },
+	.duplicate = [=] { duplicate(); },
+	.completion = [=]() -> Fn<void()> {
+		return [data = completion()] {
+			CompleteSale(data);
+		};
+	},
+	.closing = [=] { closing(); },
+}) {
 }
 
 OnchainSale::~OnchainSale() {
-	closing();
+	_signing.closing();
 }
 
 rpl::producer<int64> OnchainSale::amountValue() const {
@@ -465,7 +433,7 @@ std::optional<int64> OnchainSale::buyersPay() const {
 }
 
 rpl::producer<std::optional<int64>> OnchainSale::feeValue() const {
-	return _fee.value();
+	return _signing.feeValue();
 }
 
 rpl::producer<bool> OnchainSale::insufficientValue() const {
@@ -477,43 +445,37 @@ rpl::producer<QString> OnchainSale::refusalValue() const {
 }
 
 rpl::producer<bool> OnchainSale::busyValue() const {
-	return _stage.value(
-	) | rpl::filter(
-		rpl::mappers::_1 != Stage::Closed
-	) | rpl::map(Busy) | rpl::distinct_until_changed();
+	return rpl::combine(
+		_requesting.value(),
+		_signing.busyValue()
+	) | rpl::map(
+		rpl::mappers::_1 || rpl::mappers::_2
+	) | rpl::distinct_until_changed();
 }
 
 void OnchainSale::start() {
-	_owner = _wallet->createPreviewOwner(_lifetime);
+	_signing.start();
 	_polling = true;
 	_wallet->startPolling();
-	_box->boxClosing() | rpl::on_next([=] {
-		closing();
-	}, _lifetime);
 	if (_args.kind != SaleKind::Unlist) {
-		_stage = Stage::Requesting;
 		request();
 	}
 }
 
 void OnchainSale::press() {
-	const auto stage = _stage.current();
-	if (Busy(stage)) {
+	if (_requesting.current() || _signing.busy()) {
 		return;
 	}
-	_retries = 0;
 	_error = SendError::None;
-	if (stage == Stage::Idle) {
-		_stage = Stage::Requesting;
-		request();
+	if (_operation) {
+		_signing.confirm();
 	} else {
-		reestimate();
+		request();
 	}
 }
 
 bool OnchainSale::current() const {
-	return (_stage.current() != Stage::Closed)
-		&& _weakSession
+	return _weakSession
 		&& _args.show->valid()
 		&& (&_args.show->session() == _session);
 }
@@ -524,36 +486,20 @@ Ownership OnchainSale::ownership() const {
 
 bool OnchainSale::usable() {
 	if (!current()) {
-		close();
+		_signing.close();
 		return false;
 	}
 	const auto ownership = this->ownership();
 	if (ownership == Ownership::Unknown) {
-		awaitWallet();
+		_signing.awaitWallet();
 		return false;
 	} else if (ownership == Ownership::Other) {
 		LOG(("Wallet Error: the wallet no longer holds %1 for %2."
 			).arg(_args.gift->slug, RequestMethod(_args.kind)));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
 		return false;
 	}
 	return true;
-}
-
-bool OnchainSale::walletReady() const {
-	using Wallet::DeviceMode;
-	using Wallet::Presence;
-	if (_wallet->presenceCurrent() != Presence::Ready) {
-		return false;
-	} else if (_resume == Stage::Requesting) {
-		return true;
-	} else if (!_wallet->transferWalletIdentity()) {
-		return false;
-	} else if (_resume != Stage::Signing) {
-		return true;
-	}
-	return (_wallet->deviceCustodyState().mode == DeviceMode::Full)
-		&& _wallet->signingReady();
 }
 
 SaleCompletion OnchainSale::completion() const {
@@ -570,6 +516,7 @@ SaleCompletion OnchainSale::completion() const {
 }
 
 void OnchainSale::request() {
+	_requesting = true;
 	if (!usable()) {
 		return;
 	}
@@ -597,7 +544,7 @@ void OnchainSale::request() {
 
 void OnchainSale::answered(
 		const MTPpayments_StarGiftOnchainSalePayload &result) {
-	if (_stage.current() != Stage::Requesting) {
+	if (!_requesting.current()) {
 		return;
 	}
 	auto operation = Wallet::ServedOperationFromSale(result);
@@ -611,13 +558,12 @@ void OnchainSale::answered(
 		LOG(("API Error: %1 answered a malformed sale payload (amount %2)."
 			).arg(RequestMethod(_args.kind)
 			).arg(amount));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
 		return;
 	}
 	_operation = std::move(operation);
 	_amount = amount;
-	_stage = Stage::Estimating;
-	estimate();
+	quote();
 }
 
 void OnchainSale::fixedAnswered(Wallet::ServedOperation operation) {
@@ -633,27 +579,34 @@ void OnchainSale::fixedAnswered(Wallet::ServedOperation operation) {
 			).arg(RequestMethod(_args.kind)
 			).arg(operation.messages.size()
 			).arg(_args.price));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
 		return;
 	}
 	_operation = std::move(operation);
 	_fixed = true;
 	_amount = amount;
-	_stage = Stage::Estimating;
-	estimate();
+	quote();
+}
+
+void OnchainSale::quote() {
+	const auto weak = base::make_weak(this);
+	_signing.quote(*_operation);
+	if (weak) {
+		_requesting = false;
+	}
 }
 
 void OnchainSale::failed(const MTP::Error &error) {
-	if (_stage.current() != Stage::Requesting) {
+	if (!_requesting.current()) {
 		return;
 	}
 	const auto &type = error.type();
 	const auto listing = (_args.kind != SaleKind::Unlist);
 	if (MTP::IgnoreError(error)) {
-		close();
+		_signing.close();
 	} else if (listing && type == u"STARGIFT_ONCHAIN_PRICE_INVALID"_q) {
 		const auto invalid = _args.invalid;
-		close();
+		_signing.close();
 		if (invalid) {
 			invalid();
 		}
@@ -661,12 +614,12 @@ void OnchainSale::failed(const MTP::Error &error) {
 		unlistFirst();
 	} else if (!listing && type == u"STARGIFT_ONCHAIN_SALE_INACTIVE"_q) {
 		const auto completion = this->completion();
-		close();
+		_signing.close();
 		ApplySale(completion);
 	} else {
 		LOG(("API Error: %1 failed with %2."
 			).arg(RequestMethod(_args.kind), type));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
 	}
 }
 
@@ -675,347 +628,44 @@ void OnchainSale::unlistFirst() {
 	const auto gift = _args.gift;
 	const auto priceBox = _args.priceBox;
 	const auto valid = current();
-	close();
+	_signing.close();
 	if (valid) {
 		ShowUnlistFirst(show, gift, priceBox);
 	}
 }
 
-void OnchainSale::reestimate() {
-	_stage = _fee.current().has_value()
-		? Stage::Confirming
-		: Stage::Estimating;
-	estimate();
-}
-
-void OnchainSale::estimate() {
-	if (!usable()) {
-		return;
-	}
-	_prepared = nullptr;
-	_wallet->estimateServed(
-		_owner,
-		*_operation,
-		crl::guard(this, [=](Wallet::FeeResult result) {
-			estimated(std::move(result));
-		}));
-}
-
-void OnchainSale::estimated(Wallet::FeeResult result) {
-	const auto stage = _stage.current();
-	if (stage != Stage::Estimating && stage != Stage::Confirming) {
-		return;
-	} else if (!current()) {
-		close();
-		return;
-	}
-	const auto error = (result.error == SendError::None && !result.prepared)
-		? SendError::Failed
-		: result.error;
-	if (error == SendError::DataInvalid && _fixed.current()) {
+SendError OnchainSale::estimated(const Wallet::FeeResult &result) {
+	if (result.error == SendError::DataInvalid && _fixed.current()) {
 		LOG(("Wallet Error: %1 answered a fixed sale "
 			"the wallet cannot prepare.").arg(RequestMethod(_args.kind)));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
-	} else if (error != SendError::None) {
-		refused(error);
-	} else if (stage == Stage::Estimating
-		|| _fee.current() != result.feeNano) {
-		_error = SendError::None;
-		_fee = result.feeNano;
-		ready();
-	} else {
-		_prepared = std::move(result.prepared);
-		if (_authorization.valid()) {
-			_stage = Stage::Signing;
-			submit();
-		} else {
-			authorize();
-		}
+		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
 	}
-}
-
-bool OnchainSale::retry() {
-	if (++_retries > Wallet::kSendRefusalRetries) {
-		return false;
-	}
-	reestimate();
-	return true;
+	return SendError::None;
 }
 
 void OnchainSale::refused(SendError error) {
-	if (error == SendError::QuoteExpired && retry()) {
-		return;
-	} else if (error == SendError::WalletNotReady
-		&& (_waitArmed || ++_retries <= Wallet::kSendRefusalRetries)) {
-		awaitWallet();
-	} else if (error == SendError::KeyChanged) {
-		keyChanged();
-	} else if (error == SendError::Silent) {
-		close();
-	} else {
-		abandon(error);
-	}
-}
-
-void OnchainSale::abandon(SendError error) {
-	_fee = std::nullopt;
 	_error = error;
-	ready();
-}
-
-void OnchainSale::ready() {
-	stopWaiting();
-	_prepared = nullptr;
-	_authorization = {};
-	_stage = _operation ? Stage::Ready : Stage::Idle;
-}
-
-void OnchainSale::awaitWallet() {
-	const auto stage = _stage.current();
-	if (stage != Stage::Waiting) {
-		_resume = stage;
-		_stage = Stage::Waiting;
-	}
-	if (!_waitArmed) {
-		_waitArmed = true;
-		_waitTimer.callOnce(Wallet::kSigningReadyTimeout);
-		_wallet->refreshState();
-	} else if (!_waitTimer.isActive()) {
-		waited();
-		return;
-	}
-	_waitLifetime.destroy();
-	rpl::merge(
-		_wallet->presenceValue() | rpl::skip(1) | rpl::to_empty,
-		_wallet->transferWalletIdentityChanges(),
-		_wallet->custodyUpdates(),
-		_wallet->signingReadyValue() | rpl::skip(1) | rpl::to_empty,
-		base::timer_once(kWalletRetryDelay)
-	) | rpl::filter([=] {
-		return walletReady();
-	}) | rpl::take(1) | rpl::on_next([=] {
-		resume();
-	}, _waitLifetime);
-}
-
-void OnchainSale::resume() {
-	if (_stage.current() != Stage::Waiting) {
-		return;
-	}
-	const auto stage = _resume;
-	_stage = stage;
-	if (stage == Stage::Requesting) {
-		request();
-	} else if (stage == Stage::Signing) {
-		submit();
-	} else {
-		estimate();
-	}
-}
-
-void OnchainSale::waited() {
-	if (_stage.current() == Stage::Waiting) {
-		abandon(SendError::WalletNotReady);
-	}
-}
-
-void OnchainSale::stopWaiting() {
-	_waitArmed = false;
-	_waitTimer.cancel();
-	_waitLifetime.destroy();
-}
-
-void OnchainSale::authorize() {
-	if (!usable()) {
-		return;
-	}
-	stopWaiting();
-	_keyLifetime.destroy();
-	_stage = Stage::Authorizing;
-	const auto weak = base::make_weak(this);
-	Wallet::AcquireWalletKey(
-		Main::MakeSessionShow(_box->uiShow(), _session),
-		[=] {
-			return weak
-				&& (weak->_stage.current() == Stage::Authorizing)
-				&& weak->current()
-				&& (weak->ownership() == Ownership::Own);
-		},
-		_keyLifetime,
-		crl::guard(this, [=](Wallet::KeyAuthorization auth) {
-			authorized(std::move(auth));
-		}));
-}
-
-void OnchainSale::authorized(Wallet::KeyAuthorization auth) {
-	if (_stage.current() != Stage::Authorizing) {
-		return;
-	} else if (!current()) {
-		close();
-	} else if (!auth.valid()) {
-		ready();
-	} else {
-		_authorization = std::move(auth);
-		_stage = Stage::Signing;
-		submit();
-	}
-}
-
-void OnchainSale::submit() {
-	if (_stage.current() != Stage::Signing || !usable()) {
-		return;
-	} else if (!_wallet->signingReady()) {
-		awaitWallet();
-		return;
-	}
-	const auto refusal = _wallet->sendRefusal(_prepared, _authorization);
-	if (refusal == SendError::SigningUnavailable && retry()) {
-		return;
-	} else if (refusal != SendError::None) {
-		refused(refusal);
-		return;
-	}
-	stopWaiting();
-	_stage = Stage::Sending;
-	const auto weak = base::make_weak(this);
-	const auto completion = this->completion();
-	_wallet->sendServed(
-		_authorization,
-		base::take(_prepared),
-		crl::guard(_session, [=](Wallet::ServedResult result) {
-			const auto strong = weak.get();
-			if (strong && strong->_stage.current() == Stage::Sending) {
-				strong->sent(std::move(result));
-			} else if (result.outcome == Wallet::ServedOutcome::Accepted) {
-				CompleteSale(completion);
-			}
-		}));
-}
-
-void OnchainSale::sent(Wallet::ServedResult result) {
-	using Wallet::ServedOutcome;
-	switch (result.outcome) {
-	case ServedOutcome::Accepted:
-		accepted();
-		return;
-	case ServedOutcome::Uncertain:
-		_authorization = {};
-		track(result.operationId);
-		return;
-	case ServedOutcome::Duplicate:
-		duplicate();
-		return;
-	case ServedOutcome::Rejected:
-		if (result.refusal == SendError::KeyChanged) {
-			keyChanged();
-		} else if (result.refusal == SendError::Silent) {
-			close();
-		} else {
-			LOG(("API Error: wallet.sendTransfer for %1 failed with %2."
-				).arg(RequestMethod(_args.kind), result.errorType));
-			abandon(result.refusal);
-		}
-		return;
-	case ServedOutcome::Refused:
-		_stage = Stage::Confirming;
-		refused(result.refusal);
-		return;
-	}
-}
-
-void OnchainSale::accepted() {
-	const auto completion = this->completion();
-	close();
-	CompleteSale(completion);
+	_requesting = false;
 }
 
 void OnchainSale::duplicate() {
 	LOG(("Wallet Error: the transfer for %1 was already sent."
 		).arg(RequestMethod(_args.kind)));
 	const auto priceBox = _args.priceBox;
-	closeWithToast(tr::lng_gift_sell_onchain_already_sent(tr::now));
+	_signing.closeWithToast(tr::lng_gift_sell_onchain_already_sent(tr::now));
 	if (const auto strong = priceBox.get()) {
 		strong->closeBox();
 	}
 }
 
-void OnchainSale::track(const std::string &operationId) {
-	if (operationId.empty()) {
-		LOG(("Wallet Error: the transfer for %1 is uncertain "
-			"without an operation id.").arg(RequestMethod(_args.kind)));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
-		return;
-	}
-	_operationId = operationId;
-	_stage = Stage::Tracking;
-	_wallet->historyUpdates() | rpl::on_next([=] {
-		resolve();
-	}, _trackLifetime);
-	resolve();
-}
-
-void OnchainSale::resolve() {
-	using Status = Wallet::TransferItem::Status;
-	if (_stage.current() != Stage::Tracking) {
-		return;
-	}
-	const auto item = _wallet->trackedTransaction(_operationId);
-	if (!item || item->status == Status::Pending) {
-		return;
-	} else if (item->status == Status::Success) {
-		accepted();
-	} else {
-		LOG(("Wallet Error: the transfer for %1 failed."
-			).arg(RequestMethod(_args.kind)));
-		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
-	}
-}
-
-void OnchainSale::keyChanged() {
-	const auto show = _args.show;
-	const auto valid = current();
-	close();
-	if (valid) {
-		Wallet::ShowWalletKeyChanged(show);
-	}
-}
-
-void OnchainSale::closeWithToast(const QString &text) {
-	const auto show = _args.show;
-	const auto valid = current();
-	close();
-	if (valid) {
-		show->showToast(text);
-	}
-}
-
-void OnchainSale::close() {
-	const auto box = base::make_weak(_box);
-	closing();
-	if (const auto strong = box.get()) {
-		strong->closeBox();
-	}
-}
-
 void OnchainSale::closing() {
-	if (_stage.current() == Stage::Closed) {
-		return;
-	}
-	_stage = Stage::Closed;
-	_waitTimer.cancel();
 	if (_weakSession) {
 		_api.request(base::take(_requestId)).cancel();
-		_wallet->cancelFeeEstimate(_owner);
 		if (base::take(_polling)) {
 			_wallet->stopPolling();
 		}
 	}
-	_waitLifetime.destroy();
-	_trackLifetime.destroy();
 	_operation = std::nullopt;
-	_prepared = nullptr;
-	_authorization = {};
-	_keyLifetime.destroy();
 }
 
 void OnchainSaleBox(not_null<GenericBox*> box, SaleArgs args) {
