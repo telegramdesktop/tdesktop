@@ -67,6 +67,19 @@ QString ReportPath;
 auto ReportFile = (FILE*)nullptr;
 int ReportFileNo = 0;
 
+#ifdef Q_OS_WIN
+[[nodiscard]] std::wstring ReportPathNative() {
+	auto result = ReportPath.toStdWString();
+	if (result.size() < MAX_PATH) {
+		return result;
+	}
+	result = QDir::toNativeSeparators(ReportPath).toStdWString();
+	return result.starts_with(L"\\\\")
+		? (L"\\\\?\\UNC" + result.substr(1))
+		: (L"\\\\?\\" + result);
+}
+#endif // Q_OS_WIN
+
 void SafeWriteChar(char ch) {
 	if (!ReportFile) return;
 
@@ -416,7 +429,7 @@ StartResult Start() {
 
 #ifdef Q_OS_WIN
 	auto f = (FILE*)nullptr;
-	if (_wfopen_s(&f, ReportPath.toStdWString().c_str(), L"rb") != 0) {
+	if (_wfopen_s(&f, ReportPathNative().c_str(), L"rb") != 0) {
 		f = nullptr;
 	} else {
 #else // !Q_OS_WIN
@@ -448,7 +461,7 @@ Status Restart() {
 	}
 
 #ifdef Q_OS_WIN
-	if (_wfopen_s(&ReportFile, ReportPath.toStdWString().c_str(), L"wb") != 0) {
+	if (_wfopen_s(&ReportFile, ReportPathNative().c_str(), L"wb") != 0) {
 		ReportFile = nullptr;
 	}
 #else // Q_OS_WIN
@@ -501,7 +514,7 @@ void Finish() {
 		ReportFile = nullptr;
 
 #ifdef Q_OS_WIN
-		_wunlink(ReportPath.toStdWString().c_str());
+		_wunlink(ReportPathNative().c_str());
 #else // Q_OS_WIN
 		unlink(ReportPath.toUtf8().constData());
 #endif // else for Q_OS_WIN
