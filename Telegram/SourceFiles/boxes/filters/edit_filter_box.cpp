@@ -881,7 +881,7 @@ void EditFilterBox(
 		};
 		const auto upperTitle = [=] {
 			auto value = state->title.current();
-			value.text = value.text.toUpper();
+			value.text = Ui::Text::Upper(value.text);
 			return value;
 		};
 		state->title.changes(

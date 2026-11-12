@@ -260,14 +260,14 @@ QSize Contact::countOptimalSize() {
 	if (mediaEditor) {
 		_mainButton.link = nullptr;
 	} else if (_contact) {
-		const auto message = tr::lng_contact_send_message(tr::now).toUpper();
+		const auto message = tr::lng_contact_send_message(tr::now, tr::upper);
 		_buttons.push_back({
 			message,
 			st::semiboldFont->width(message),
 			SendMessageClickHandler(_contact),
 		});
 		if (!_contact->isContact()) {
-			const auto add = tr::lng_contact_add(tr::now).toUpper();
+			const auto add = tr::lng_contact_add(tr::now, tr::upper);
 			_buttons.push_back({
 				add,
 				st::semiboldFont->width(add),
@@ -276,7 +276,7 @@ QSize Contact::countOptimalSize() {
 		}
 		_mainButton.link = _buttons.front().link;
 	} else if (vcardBoxFactory) {
-		const auto view = tr::lng_contact_details_button(tr::now).toUpper();
+		const auto view = tr::lng_contact_details_button(tr::now, tr::upper);
 		_buttons.push_back({
 			view,
 			st::semiboldFont->width(view),

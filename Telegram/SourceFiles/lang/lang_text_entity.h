@@ -39,19 +39,16 @@ namespace details {
 
 struct UpperProjection {
 	[[nodiscard]] QString operator()(const QString &value) const {
-		return value.toUpper();
-	}
-	[[nodiscard]] QString operator()(QString &&value) const {
-		return std::move(value).toUpper();
+		return Ui::Text::Upper(value);
 	}
 	[[nodiscard]] TextWithEntities operator()(
 			const TextWithEntities &value) const {
-		return { value.text.toUpper(), value.entities };
+		return { Ui::Text::Upper(value.text), value.entities };
 	}
 	[[nodiscard]] TextWithEntities operator()(
 			TextWithEntities &&value) const {
 		return {
-			std::move(value.text).toUpper(),
+			Ui::Text::Upper(value.text),
 			std::move(value.entities) };
 	}
 };

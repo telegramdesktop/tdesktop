@@ -1073,7 +1073,7 @@ StickersListWidget::MakeMediaButtons(
 			const style::icon *icon) {
 		auto button = MediaButton{
 			.kind = kind,
-			.text = text.toUpper(),
+			.text = Ui::Text::Upper(text),
 			.icon = icon,
 		};
 		button.textWidth = st::stickersPhotoButtonFont->width(button.text);

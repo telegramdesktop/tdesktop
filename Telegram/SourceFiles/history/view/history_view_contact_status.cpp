@@ -312,16 +312,16 @@ ContactStatus::Bar::Bar(
 	st::historyContactStatusButton)
 , _unarchive(
 	this,
-	tr::lng_new_contact_unarchive(tr::now).toUpper(),
+	tr::lng_new_contact_unarchive(tr::now, tr::upper),
 	st::historyContactStatusButton)
 , _unarchiveIcon(MakeIconButton(this, st::menuIconUnarchive))
 , _block(
 	this,
-	tr::lng_new_contact_block(tr::now).toUpper(),
+	tr::lng_new_contact_block(tr::now, tr::upper),
 	st::historyContactStatusBlock)
 , _share(
 	this,
-	tr::lng_new_contact_share(tr::now).toUpper(),
+	tr::lng_new_contact_share(tr::now, tr::upper),
 	st::historyContactStatusButton)
 , _report(
 	this,
@@ -421,8 +421,8 @@ void ContactStatus::Bar::showState(
 	_emojiStatusInfo->setVisible(has);
 	_addWithName = (type == Type::Add);
 	_report->setText((type == Type::ReportSpam)
-		? tr::lng_report_spam_and_leave(tr::now).toUpper()
-		: tr::lng_report_spam(tr::now).toUpper());
+		? tr::lng_report_spam_and_leave(tr::now, tr::upper)
+		: tr::lng_report_spam(tr::now, tr::upper));
 	_requestChatInfo->setMarkedText(
 		(state.requestChatIsBroadcast
 			? tr::lng_new_contact_from_request_channel
@@ -480,16 +480,17 @@ rpl::producer<> ContactStatus::Bar::setBotPhotoClicks() const {
 
 void ContactStatus::Bar::refreshAddText(int newWidth) {
 	const auto compose = [](const QString &name) {
-		return tr::lng_new_contact_add_name(tr::now, lt_user, name).toUpper();
+		return Ui::Text::Upper(
+			tr::lng_new_contact_add_name(tr::now, lt_user, name));
 	};
-	auto text = tr::lng_new_contact_add(tr::now).toUpper();
+	auto text = tr::lng_new_contact_add(tr::now, tr::upper);
 	auto elided = false;
 	if (_addWithName) {
 		const auto font = st::historyContactStatusButton.font;
 		const auto available = newWidth
 			- _close->width()
 			- 2 * st::historyContactStatusMinSkip;
-		const auto name = _name.toUpper();
+		const auto name = Ui::Text::Upper(_name);
 		text = compose(name);
 		if (available > 0 && font->width(text) > available) {
 			elided = true;

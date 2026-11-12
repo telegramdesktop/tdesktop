@@ -617,11 +617,11 @@ void PinnedWidget::setMessagesCount(int count) {
 void PinnedWidget::refreshClearButtonText() {
 	const auto can = _history->peer->canPinMessages();
 	_clearButton->setText(can
-		? tr::lng_pinned_unpin_all(
+		? Ui::Text::Upper(tr::lng_pinned_unpin_all(
 			tr::now,
 			lt_count,
-			std::max(_messagesCount, 1)).toUpper()
-		: tr::lng_pinned_hide_all(tr::now).toUpper());
+			std::max(_messagesCount, 1)))
+		: tr::lng_pinned_hide_all(tr::now, tr::upper));
 }
 
 void PinnedWidget::updateControlsGeometry() {

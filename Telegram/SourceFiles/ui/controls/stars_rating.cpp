@@ -339,7 +339,7 @@ void AboutRatingBox(
 			const QString &text,
 			const style::RoundButton &st) {
 		return helper.paletteDependent(
-			Text::CustomEmojiTextBadge(text.toUpper(), st));
+			Text::CustomEmojiTextBadge(Text::Upper(text), st));
 	};
 	const auto makeActive = [&](const QString &text) {
 		return makeBadge(text, st::customEmojiTextBadge);

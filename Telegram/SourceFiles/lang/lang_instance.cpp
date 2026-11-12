@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/serialize_common.h"
 #include "storage/localstorage.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_file_parser.h"
 #include "lang/lang_tag.h" // kTextCommandLangTag.
 #include "base/platform/base_platform_info.h"
@@ -571,6 +572,7 @@ void Instance::fillFromCustomContent(
 	_pluralId = PluralCodeForCustom(absolutePath, relativePath);
 	_name = _nativeName = QString();
 	loadFromCustomContent(absolutePath, relativePath, content);
+	updatePluralRules();
 	updateChoosingStickerReplacement();
 
 	_idChanges.fire_copy(_id);
@@ -758,6 +760,7 @@ void Instance::updatePluralRules() {
 			: LanguageIdOrDefault(_id);
 	}
 	UpdatePluralRules(_pluralId);
+	Ui::Text::SetUpperLanguage(_pluralId);
 }
 
 void Instance::resetValue(const QByteArray &key) {

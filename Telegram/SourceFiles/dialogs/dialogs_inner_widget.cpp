@@ -5982,7 +5982,7 @@ QImage *InnerWidget::cacheChatsFilterTag(
 	auto colorIndex = -1;
 	if (filter.id()) {
 		roundedText = filter.title().text;
-		roundedText.text = roundedText.text.toUpper();
+		roundedText.text = Ui::Text::Upper(roundedText.text);
 		if (filter.colorIndex()) {
 			colorIndex = *(filter.colorIndex());
 		}

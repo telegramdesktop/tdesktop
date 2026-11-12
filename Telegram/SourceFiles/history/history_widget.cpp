@@ -309,19 +309,19 @@ HistoryWidget::HistoryWidget(
 	st::historyDiscardRichDraftButton))
 , _unblock(
 	this,
-	tr::lng_unblock_button(tr::now).toUpper(),
+	tr::lng_unblock_button(tr::now, tr::upper),
 	st::historyUnblock)
 , _botStart(
 	this,
-	tr::lng_bot_start(tr::now).toUpper(),
+	tr::lng_bot_start(tr::now, tr::upper),
 	st::historyComposeButton)
 , _joinChannel(
 	this,
-	tr::lng_profile_join_channel(tr::now).toUpper(),
+	tr::lng_profile_join_channel(tr::now, tr::upper),
 	st::historyComposeButton)
 , _muteUnmute(
 	this,
-	tr::lng_channel_mute(tr::now).toUpper(),
+	tr::lng_channel_mute(tr::now, tr::upper),
 	st::historyComposeButton)
 , _reportMessages(this, QString(), st::historyComposeButton)
 , _attachToggle(this, st::historyAttach)
@@ -1286,11 +1286,11 @@ Dialogs::EntryState HistoryWidget::computeDialogsEntryState() const {
 
 void HistoryWidget::refreshJoinChannelText() {
 	if (const auto channel = _peer ? _peer->asChannel() : nullptr) {
-		_joinChannel->setText((channel->isBroadcast()
+		_joinChannel->setText(Ui::Text::Upper(channel->isBroadcast()
 			? tr::lng_profile_join_channel(tr::now)
 			: (channel->requestToJoin() && !channel->amCreator())
 			? tr::lng_profile_apply_to_join_group(tr::now)
-			: tr::lng_profile_join_group(tr::now)).toUpper());
+			: tr::lng_profile_join_group(tr::now)));
 	}
 }
 
@@ -3521,11 +3521,11 @@ void HistoryWidget::showHistory(
 	initFieldAutocomplete();
 
 	if (_peer) {
-		_unblock->setText(((_peer->isUser()
+		_unblock->setText(Ui::Text::Upper((_peer->isUser()
 			&& _peer->asUser()->isBot()
 			&& !_peer->asUser()->isSupport())
 				? tr::lng_restart_button(tr::now)
-				: tr::lng_unblock_button(tr::now)).toUpper());
+				: tr::lng_unblock_button(tr::now)));
 	}
 
 	_nonEmptySelection = false;
@@ -4044,9 +4044,9 @@ void HistoryWidget::updateNotifyControls() {
 		return;
 	}
 
-	_muteUnmute->setText((_history->muted()
+	_muteUnmute->setText(Ui::Text::Upper(_history->muted()
 		? tr::lng_channel_unmute(tr::now)
-		: tr::lng_channel_mute(tr::now)).toUpper());
+		: tr::lng_channel_mute(tr::now)));
 	if (!session().data().notifySettings().silentPostsUnknown(_peer)) {
 		if (_silent) {
 			_silent->setChecked(

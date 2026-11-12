@@ -1009,7 +1009,8 @@ GramTransferCardPart::GramTransferCardPart(
 	SignedAmount(_origin.action.amount, _origin.action.outgoing))
 , _address(FriendlyAddress(_origin.action.address))
 , _identity(
-	ReadableIdentity(_origin.view->data(), !_address.isEmpty()).toUpper())
+	Ui::Text::Upper(
+		ReadableIdentity(_origin.view->data(), !_address.isEmpty())))
 , _ribbonTextWidth(_origin.action.outgoing ? OutgoingRibbonTextWidth() : 0) {
 	adopt(std::move(handover));
 	watchRead();
