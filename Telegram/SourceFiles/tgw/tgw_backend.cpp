@@ -363,10 +363,12 @@ void AppendPngChunk(
 	auto compressed = QByteArray();
 	auto at = qsizetype(kPngSignature.size());
 	while (at + kPngChunkFrame <= bytes.size()) {
-		const auto size = qsizetype(ReadUInt32(bytes, at));
-		if (size > bytes.size() - at - kPngChunkFrame) {
+		const auto length = ReadUInt32(bytes, at);
+		const auto left = bytes.size() - at - kPngChunkFrame;
+		if (uint64(length) > uint64(left)) {
 			break;
 		}
+		const auto size = qsizetype(length);
 		const auto chunk = bytes.mid(at + 4, 4);
 		if (chunk == "IEND") {
 			break;

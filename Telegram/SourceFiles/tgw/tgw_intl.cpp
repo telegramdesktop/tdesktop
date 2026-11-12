@@ -819,6 +819,13 @@ bool BasicCanConvert(const twidget::Json &value) {
 		|| seconds >= std::ldexp(1., Limits::digits)) {
 		return false;
 	}
+#ifdef Q_OS_WIN
+	// The CRT treats a time past the year 3000 as an invalid parameter.
+	constexpr auto kMaxCrtSeconds = 32535215999.;
+	if (seconds < 0 || seconds > kMaxCrtSeconds) {
+		return false;
+	}
+#endif // Q_OS_WIN
 	const auto time = time_t(seconds);
 	auto parts = tm();
 #ifdef Q_OS_WIN
