@@ -30,6 +30,8 @@ public:
 	void updateVisibility(bool buttonShown);
 	void updateGeometry();
 	void raise();
+	void hideFast();
+	void showFinished();
 
 private:
 	const not_null<Ui::RpWidget*> _button;

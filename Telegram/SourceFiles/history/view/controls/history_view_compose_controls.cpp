@@ -2421,6 +2421,12 @@ void ComposeControls::showStarted() {
 	if (_autocomplete) {
 		_autocomplete->hideFast();
 	}
+	if (_aiTooltipManager) {
+		_aiTooltipManager->hideFast();
+	}
+	if (_sendAsFileTooltipManager) {
+		_sendAsFileTooltipManager->hideFast();
+	}
 	_wrap->hide();
 	if (_writeRestricted) {
 		_writeRestricted->hide();
@@ -2449,10 +2455,10 @@ void ComposeControls::showFinished() {
 	_expand->raise();
 	_discardRichDraft->raise();
 	if (_aiTooltipManager) {
-		_aiTooltipManager->raise();
+		_aiTooltipManager->showFinished();
 	}
 	if (_sendAsFileTooltipManager) {
-		_sendAsFileTooltipManager->raise();
+		_sendAsFileTooltipManager->showFinished();
 	}
 	_voiceRecordBar->orderControls();
 }
@@ -2472,6 +2478,12 @@ void ComposeControls::raisePanels() {
 	}
 	if (_emojiSuggestions) {
 		_emojiSuggestions->raise();
+	}
+	if (_aiTooltipManager) {
+		_aiTooltipManager->raise();
+	}
+	if (_sendAsFileTooltipManager) {
+		_sendAsFileTooltipManager->raise();
 	}
 }
 
@@ -4627,7 +4639,7 @@ void ComposeControls::initAiButton() {
 	});
 
 	_aiTooltipManager = std::make_unique<Controls::AiTooltipManager>(
-		_wrap.get(),
+		_parent,
 		_aiButton,
 		tr::lng_ai_compose_tooltip(tr::rich),
 		"ai_compose_tooltip_hidden"_cs,
@@ -4649,7 +4661,7 @@ void ComposeControls::initSendAsFileButton() {
 	});
 
 	_sendAsFileTooltipManager = std::make_unique<Controls::AiTooltipManager>(
-		_wrap.get(),
+		_parent,
 		_sendAsFile,
 		tr::lng_send_as_file_tooltip(tr::rich),
 		"send_as_file_tooltip_hidden"_cs,
@@ -5621,6 +5633,12 @@ void ComposeControls::updateOuterGeometry(QRect rect) {
 	}
 	if (_attachBotsMenu) {
 		_attachBotsMenu->moveToLeft(0, bottom - _attachBotsMenu->height());
+	}
+	if (_aiTooltipManager) {
+		_aiTooltipManager->updateGeometry();
+	}
+	if (_sendAsFileTooltipManager) {
+		_sendAsFileTooltipManager->updateGeometry();
 	}
 }
 
