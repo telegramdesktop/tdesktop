@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/const_string.h"
 #include "lang/lang_file_parser.h"
 #include "ui/integration.h"
+#include "ui/text/text_utilities.h"
 
 #include <QtCore/QLocale>
 
@@ -151,11 +152,13 @@ QString langMonthOfYearFull(int month, int year) {
 }
 
 QString langMonthFull(const QDate &date) {
-	return langDateMaybeWithYear(date, [](int month, int year) {
+	const auto text = langDateMaybeWithYear(date, [](int month, int year) {
 		return langMonthOfYearFull(month, year);
 	}, [](int month, int year) {
 		return Month(month)(tr::now);
 	});
+	// The month heads a section, even where months are lowercase.
+	return Ui::Text::Capitalized(text);
 }
 
 QString langDayOfWeek(int index) {

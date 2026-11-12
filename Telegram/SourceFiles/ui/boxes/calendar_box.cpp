@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/layers/generic_box.h"
 #include "ui/dynamic_image.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
@@ -41,6 +42,12 @@ constexpr auto kJumpDelay = 2 * crl::time(1000);
 // QDate -> 0..6
 [[nodiscard]] int DayOfWeekIndex(const QDate &date, int firstDayOfWeek) {
 	return (kDaysInWeek + date.dayOfWeek() - firstDayOfWeek) % kDaysInWeek;
+}
+
+// The month titles the view, even where months are lowercase.
+[[nodiscard]] QString MonthTitle(QDate month) {
+	return Text::Capitalized(
+		langMonthOfYearFull(month.month(), month.year()));
 }
 
 void FillMonthYearPicker(
@@ -618,7 +625,7 @@ CalendarBox::FloatingDate::FloatingDate(
 		st::roundedBg)) {
 	_context->monthValue(
 	) | rpl::on_next([=](QDate month) {
-		_text = langMonthOfYearFull(month.month(), month.year());
+		_text = MonthTitle(month);
 		const auto width = st::msgServiceFont->width(_text);
 		const auto rect = QRect(0, 0, width, st::msgServiceFont->height);
 		_widget.resize(rect.marginsAdded(st::msgServicePadding).size());
@@ -1187,7 +1194,7 @@ CalendarBox::Title::Title(
 }
 
 void CalendarBox::Title::setTextFromMonth(QDate month) {
-	setText(langMonthOfYearFull(month.month(), month.year()));
+	setText(MonthTitle(month));
 }
 
 void CalendarBox::Title::setText(QString text) {
