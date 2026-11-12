@@ -621,6 +621,12 @@ void PeerShortInfoCover::refreshBarImages() {
 }
 
 void PeerShortInfoCover::refreshLabelsGeometry() {
+	const auto statusWidth = _st.size - _st.statusPosition.x();
+	_name->resizeToWidth(_st.size - _st.namePosition.x());
+	_status->resizeToWidth(statusWidth);
+	if (_additionalStatus) {
+		_additionalStatus->resizeToWidth(statusWidth);
+	}
 	const auto statusTop = _st.size
 		- _st.statusPosition.y()
 		- _status->height();
