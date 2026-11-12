@@ -1102,6 +1102,9 @@ void ProcessReceivedSubscriptions(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &e) {
 	const auto unique = e.uniqueGift.get();
+	if (unique && unique->fixedSale) {
+		return false;
+	}
 	const auto host = (unique && unique->hostId)
 		? session->data().peer(unique->hostId).get()
 		: (unique && unique->ownerId)
@@ -1120,6 +1123,9 @@ void ProcessReceivedSubscriptions(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &e) {
 	const auto unique = e.uniqueGift.get();
+	if (unique && unique->fixedSale) {
+		return false;
+	}
 	const auto owner = (unique && unique->ownerId)
 		? session->data().peer(unique->ownerId).get()
 		: nullptr;
@@ -1161,7 +1167,8 @@ void ProcessReceivedSubscriptions(
 	return owner
 		&& owner->isUser()
 		&& !owner->isSelf()
-		&& (unique->starsMinOffer >= 0);
+		&& (unique->starsMinOffer >= 0)
+		&& !unique->fixedSale;
 	// Currently we're not making offers for channel gifts.
 	// (owner->isChannel() && !owner->asChannel()->canTransferGifts());
 }
@@ -1789,7 +1796,7 @@ void GenericCreditsEntryBody(
 	const auto canConvert = forConvert && !timeExceeded;
 	const auto inResale = uniqueGift && (uniqueGift->starsForResale > 0);
 	const auto canBuyResold = inResale
-		&& !uniqueGift->onchainSale
+		&& !Data::UniqueGiftOnchainSale(*uniqueGift)
 		&& (e.bareGiftOwnerId != selfPeerId);
 	const auto ownOnchain = uniqueGift
 		? Ui::LookupOwnOnchainGift(session, *uniqueGift)
@@ -2946,7 +2953,8 @@ void GlobalStarGiftBox(
 	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	const auto hostId = data.unique ? data.unique->hostId.value : 0;
-	const auto onchainSale = data.unique && data.unique->onchainSale;
+	const auto onchainSale = data.unique
+		&& Data::UniqueGiftOnchainSale(*data.unique);
 	Settings::GenericCreditsEntryBox(
 		box,
 		show,

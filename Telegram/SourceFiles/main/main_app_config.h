@@ -103,6 +103,7 @@ public:
 	[[nodiscard]] int64 giftResaleNanoTonMax() const;
 	[[nodiscard]] int giftResaleNanoTonThousandths() const;
 	[[nodiscard]] bool giftResaleFragmentEnabled() const;
+	[[nodiscard]] bool giftResaleFixedSaleEnabled() const;
 	[[nodiscard]] bool giftOnchainOffersEnabled() const;
 
 	[[nodiscard]] int pollOptionsLimit() const;

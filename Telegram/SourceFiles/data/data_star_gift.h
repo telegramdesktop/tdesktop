@@ -138,6 +138,7 @@ struct UniqueGift {
 	bool crafted = false;
 	bool burned = false;
 	bool onchainSale = false;
+	bool fixedSale = false;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;
@@ -152,6 +153,8 @@ struct UniqueGift {
 
 [[nodiscard]] QString UniqueGiftName(const UniqueGift &gift);
 [[nodiscard]] QString UniqueGiftName(const QString &title, int number);
+
+[[nodiscard]] bool UniqueGiftOnchainSale(const UniqueGift &gift);
 
 [[nodiscard]] CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift);
 [[nodiscard]] CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift);
@@ -409,6 +412,7 @@ struct ResaleGiftsFilter {
 	bool starsOnly = false;
 	bool tonOnly = false;
 	bool fragmentOnly = false;
+	bool fixedSaleOnly = false;
 
 	friend inline bool operator==(
 		const ResaleGiftsFilter &,

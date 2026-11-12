@@ -980,7 +980,8 @@ void OnchainSaleBox(not_null<GenericBox*> box, SaleArgs args) {
 OwnOnchainGift LookupOwnOnchainGift(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	return (LookupOwnership(session, gift) != Ownership::Own)
+	return (gift.fixedSale
+		|| (LookupOwnership(session, gift) != Ownership::Own))
 		? OwnOnchainGift::None
 		: gift.onchainSale
 		? OwnOnchainGift::Listed

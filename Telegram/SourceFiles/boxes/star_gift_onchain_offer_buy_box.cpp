@@ -589,7 +589,7 @@ bool CanOfferOnchainGift(
 		&& !gift.giftAddress.isEmpty()
 		&& !gift.slug.isEmpty()
 		&& !gift.burned
-		&& !gift.onchainSale
+		&& !Data::UniqueGiftOnchainSale(gift)
 		&& session->appConfig().walletAvailable()
 		&& !session->supportMode()
 		&& session->appConfig().giftOnchainOffersEnabled()

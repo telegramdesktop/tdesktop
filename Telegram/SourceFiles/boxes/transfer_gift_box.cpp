@@ -1926,7 +1926,7 @@ void ShowBuyResaleGiftBox(
 		bool forceTon,
 		not_null<PeerData*> to,
 		Fn<void(bool ok)> closeParentBox) {
-	if (gift->onchainSale) {
+	if (Data::UniqueGiftOnchainSale(*gift)) {
 		return;
 	}
 	const auto attempt = std::make_shared<ResaleGiftAttemptState>();

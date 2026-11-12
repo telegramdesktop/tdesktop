@@ -69,6 +69,10 @@ QString UniqueGiftName(const QString &title, int number) {
 	return title + u" #"_q + Lang::FormatCountDecimal(number);
 }
 
+bool UniqueGiftOnchainSale(const UniqueGift &gift) {
+	return gift.onchainSale || gift.fixedSale;
+}
+
 QString UniqueGiftRarityText(UniqueGiftRarity type) {
 	switch (type) {
 	case UniqueGiftRarity::Uncommon:
@@ -126,7 +130,7 @@ CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift) {
 }
 
 CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift) {
-	return gift.onlyAcceptTon
+	return (gift.onlyAcceptTon || gift.fixedSale)
 		? UniqueGiftResaleTon(gift)
 		: UniqueGiftResaleStars(gift);
 }
@@ -144,7 +148,7 @@ TextWithEntities FormatGiftResaleTon(const UniqueGift &gift) {
 }
 
 TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift) {
-	return gift.onlyAcceptTon
+	return (gift.onlyAcceptTon || gift.fixedSale)
 		? FormatGiftResaleTon(gift)
 		: FormatGiftResaleStars(gift);
 }
@@ -187,6 +191,7 @@ bool SameServedStarGift(const StarGift &a, const StarGift &b) {
 			unique.crafted,
 			unique.burned,
 			unique.onchainSale,
+			unique.fixedSale,
 			unique.model,
 			unique.pattern,
 			unique.backdrop,
@@ -308,6 +313,9 @@ rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(
 					| (filter.tonOnly ? Flag::f_ton_only : Flag())
 					| ((filter.fragmentOnly && !filter.forCraft)
 						? Flag::f_fragment_only
+						: Flag())
+					| ((filter.fixedSaleOnly && !filter.forCraft)
+						? Flag::f_fixed_sale_only
 						: Flag())),
 				MTP_long(filter.attributesHash),
 				MTP_long(giftId),

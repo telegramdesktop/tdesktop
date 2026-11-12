@@ -977,6 +977,7 @@ void OnchainPurchase::reloaded(const MTPpayments_UniqueStarGift &result) {
 	if (!unique
 		|| (unique->slug != _gift->slug)
 		|| !unique->onchainSale
+		|| unique->fixedSale
 		|| (unique->nanoTonForResale <= 0)) {
 		closeWithToast(tr::lng_gift_buy_onchain_not_for_sale(tr::now));
 		return;
@@ -1502,6 +1503,7 @@ bool CanBuyOnchainGift(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
 	return gift.onchainSale
+		&& !gift.fixedSale
 		&& (gift.nanoTonForResale > 0)
 		&& !gift.slug.isEmpty()
 		&& (gift.ownerId != session->userPeerId())

@@ -1018,6 +1018,7 @@ std::optional<Data::StarGift> FromTL(
 				.crafted = data.is_crafted(),
 				.burned = data.is_burned(),
 				.onchainSale = data.is_onchain_sale(),
+				.fixedSale = data.is_fixed_sale(),
 				.model = *model,
 				.pattern = *pattern,
 				.value = (data.vvalue_amount()

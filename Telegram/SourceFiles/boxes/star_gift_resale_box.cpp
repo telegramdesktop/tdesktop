@@ -87,7 +87,8 @@ struct ResaleTabs {
 		std::shared_ptr<ChatHelpers::Show> show,
 		const ResaleGiftsDescriptor &info,
 		rpl::producer<ResaleGiftsFilter> filter,
-		bool fragmentAvailable) {
+		bool fragmentAvailable,
+		bool fixedSaleAvailable) {
 	auto widget = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = widget.data();
 
@@ -281,6 +282,14 @@ struct ResaleTabs {
 						filter.fragmentOnly = !filter.fragmentOnly;
 					});
 				}, &st::menuIconFragment, current.fragmentOnly);
+			}
+			if (fixedSaleAvailable) {
+				const auto text = tr::lng_gift_resale_on_blockchain(tr::now);
+				actionWithIcon(text, [=] {
+					modify([&](ResaleGiftsFilter &filter) {
+						filter.fixedSaleOnly = !filter.fixedSaleOnly;
+					});
+				}, &st::menuIconLink, current.fixedSaleOnly);
 			}
 		} else {
 			const auto now = state->filter.current().attributes;
@@ -612,11 +621,15 @@ void AddResaleGiftsList(
 	const auto fragmentAvailable = !forCraft
 		&& peer->isSelf()
 		&& window->session().appConfig().giftResaleFragmentEnabled();
+	const auto fixedSaleAvailable = !forCraft
+		&& peer->isSelf()
+		&& window->session().appConfig().giftResaleFixedSaleEnabled();
 	auto tabs = MakeResaleTabs(
 		window->uiShow(),
 		state->data,
 		state->filter.value(),
-		fragmentAvailable);
+		fragmentAvailable,
+		fixedSaleAvailable);
 	state->filter = std::move(tabs.filter);
 	if (forCraft) {
 		const auto skip = st::giftBoxResaleTabsMargin.top()
@@ -703,12 +716,13 @@ void AddResaleGiftsList(
 		const auto selfId = window->session().userPeerId();
 		for (const auto &gift : state->data.list) {
 			const auto mine = (gift.unique->ownerId == selfId);
-			if (forCraft && (mine || gift.unique->onchainSale)) {
+			const auto onchain = Data::UniqueGiftOnchainSale(*gift.unique);
+			if (forCraft && (mine || onchain)) {
 				continue;
 			}
 			result.list.push_back(Info::PeerGifts::GiftTypeStars{
 				.info = gift,
-				.forceTon = gift.unique->onchainSale,
+				.forceTon = onchain,
 				.resale = true,
 				.mine = mine,
 				});

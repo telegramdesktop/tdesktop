@@ -1524,7 +1524,7 @@ void AddStarGiftTable(
 		ShowTableRowTooltip(tooltip, widget, std::move(text), kTooltipDuration);
 	};
 
-	if (unique && entry.bareGiftResaleRecipientId) {
+	if (unique && !unique->fixedSale && entry.bareGiftResaleRecipientId) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer(),
@@ -1533,7 +1533,7 @@ void AddStarGiftTable(
 				show,
 				PeerId(entry.bareGiftResaleRecipientId)),
 			st::giveawayGiftCodePeerMargin);
-	} else if (unique && entry.bareGiftOwnerId) {
+	} else if (unique && !unique->fixedSale && entry.bareGiftOwnerId) {
 		const auto ownerId = PeerId(entry.bareGiftOwnerId);
 		const auto was = std::make_shared<std::optional<CollectibleId>>();
 		const auto handleChange = [=](
@@ -1564,7 +1564,7 @@ void AddStarGiftTable(
 			MakePeerWithStatusValue(table, show, ownerId, handleChange),
 			st::giveawayGiftCodePeerMargin);
 	} else if (unique) {
-		if (!unique->ownerName.isEmpty()) {
+		if (!unique->fixedSale && !unique->ownerName.isEmpty()) {
 			AddTableRow(
 				table,
 				tr::lng_gift_unique_owner(),
