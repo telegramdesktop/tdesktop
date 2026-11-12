@@ -2826,6 +2826,8 @@ void PeerMenuBlockUserBox(
 		: nullptr;
 
 	if (allFromUser) {
+		// A long name wraps the label instead of cutting it.
+		allFromUser->setAllowTextLines();
 		box->addSkip(st::boxLittleSkip);
 	}
 
