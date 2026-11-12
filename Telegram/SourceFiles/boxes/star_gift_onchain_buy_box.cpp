@@ -618,10 +618,10 @@ void OnchainPurchase::preflight() {
 	_wallet->estimateServed(
 		_owner,
 		Wallet::ServedOperation{
-			.message = {
+			.messages = { Wallet::ServedMessage{
 				.destination = _address,
 				.value = _price.current(),
-			},
+			} },
 		},
 		crl::guard(this, [=](Wallet::FeeResult result) {
 			preflighted(std::move(result));
@@ -917,8 +917,14 @@ void OnchainPurchase::answered(
 	if (_stage != Stage::Buying) {
 		return;
 	}
+	if (answer.type() == mtpc_payments_starGiftOnchainFixedSalePayload) {
+		LOG(("API Error: payments.buyStarGiftOnchain answered "
+			"payments.starGiftOnchainFixedSalePayload."));
+		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return;
+	}
 	auto operation = Wallet::ServedOperationFromSale(answer);
-	const auto &message = operation.message;
+	const auto &message = operation.messages.front();
 	if (message.value != expected || !message.body.isEmpty()) {
 		LOG(("API Error: payments.buyStarGiftOnchain answered %1 "
 			"for %2 with a %3-byte payload."
@@ -1065,7 +1071,7 @@ void OnchainPurchase::prepared(Wallet::FeeResult result) {
 	_fee = result.feeNano;
 	const auto refusal = walletRefusal();
 	const auto funds = FundsRefusal(
-		_served->message.value,
+		_served->messages.front().value,
 		result.feeNano,
 		_wallet->balanceNano());
 	if (refusal != SendError::None) {

@@ -22,10 +22,17 @@ namespace engine = wallet_engine;
 using SendMessages = std::vector<engine::SendMessage>;
 
 constexpr auto kServedKeyVersion = char(1);
+constexpr auto kMaxServedMessages = std::size_t(255);
 
 struct PreparedMessage {
 	engine::SendMessage message;
 	QString destination;
+};
+
+struct PreparedList {
+	SendMessages messages;
+	QString destination;
+	int64 value = 0;
 	QByteArray key;
 };
 
@@ -46,6 +53,13 @@ struct PreparedMessage {
 		};
 	}
 	return result;
+}
+
+[[nodiscard]] std::vector<ServedMessage> ServedMessagesFromServer(
+		const MTPVector<MTPpayments_StarGiftOnchainOfferTxMessage> &list) {
+	return list.v
+		| ranges::views::transform(ServedMessageFromServer)
+		| ranges::to_vector;
 }
 
 [[nodiscard]] std::vector<uint8_t> EngineBytes(const QByteArray &value) {
@@ -72,30 +86,22 @@ void AppendPart(QByteArray &to, const QByteArray &part) {
 	to.append(part);
 }
 
-[[nodiscard]] QByteArray MessageKey(
-		const QString &wallet,
+void AppendMessageKey(
+		QByteArray &to,
 		const QString &destination,
 		const ServedMessage &message) {
-	auto encoded = QByteArray(1, kServedKeyVersion);
-	AppendPart(encoded, wallet.toUtf8());
-	AppendPart(encoded, destination.toUtf8());
-	AppendPart(encoded, QByteArray::number(message.value));
-	AppendPart(encoded, message.body);
-	encoded.append(char(message.init ? 1 : 0));
+	AppendPart(to, destination.toUtf8());
+	AppendPart(to, QByteArray::number(message.value));
+	AppendPart(to, message.body);
+	to.append(char(message.init ? 1 : 0));
 	if (message.init) {
-		AppendPart(encoded, message.init->code);
-		AppendPart(encoded, message.init->data);
+		AppendPart(to, message.init->code);
+		AppendPart(to, message.init->data);
 	}
-	auto result = QByteArray(int(openssl::kSha256Size), Qt::Uninitialized);
-	openssl::Sha256To(
-		bytes::make_detached_span(result),
-		bytes::make_span(encoded));
-	return result;
 }
 
 [[nodiscard]] std::optional<PreparedMessage> PrepareMessage(
-		const ServedMessage &message,
-		const QString &wallet) {
+		const ServedMessage &message) {
 	const auto parsed = ParseAddress(message.destination);
 	if (!parsed || parsed->testnet || message.value < 0) {
 		return std::nullopt;
@@ -124,35 +130,58 @@ void AppendPart(QByteArray &to, const QByteArray &part) {
 			.send_mode = message.mode,
 		},
 		.destination = parsed->raw,
-		.key = MessageKey(wallet, parsed->raw, message),
 	};
 }
 
-[[nodiscard]] SendMessages OneMessage(engine::SendMessage &&message) {
-	auto result = SendMessages();
-	result.push_back(std::move(message));
+[[nodiscard]] std::optional<PreparedList> PrepareList(
+		const std::vector<ServedMessage> &messages,
+		const QString &wallet) {
+	if (messages.empty() || messages.size() > kMaxServedMessages) {
+		return std::nullopt;
+	}
+	auto result = PreparedList();
+	auto encoded = QByteArray(1, kServedKeyVersion);
+	AppendPart(encoded, wallet.toUtf8());
+	result.messages.reserve(messages.size());
+	for (const auto &message : messages) {
+		const auto room = std::numeric_limits<int64>::max() - result.value;
+		auto prepared = PrepareMessage(message);
+		if (!prepared || message.value > room) {
+			return std::nullopt;
+		} else if (result.messages.empty()) {
+			result.destination = prepared->destination;
+		}
+		result.value += message.value;
+		AppendMessageKey(encoded, prepared->destination, message);
+		result.messages.push_back(std::move(prepared->message));
+	}
+	result.key = QByteArray(int(openssl::kSha256Size), Qt::Uninitialized);
+	openssl::Sha256To(
+		bytes::make_detached_span(result.key),
+		bytes::make_span(encoded));
 	return result;
 }
 
 [[nodiscard]] std::optional<ServedPreparation> PrepareOperation(
 		const ServedOperation &operation,
 		const TransferWalletIdentity &wallet) {
-	if (operation.gaslessAvailable && operation.gaslessMessage) {
+	const auto distinct = !operation.gaslessMessages.empty();
+	if (operation.gaslessAvailable && distinct) {
 		return std::nullopt;
 	}
-	auto normal = PrepareMessage(operation.message, wallet.address);
-	auto gasless = operation.gaslessMessage
-		? PrepareMessage(*operation.gaslessMessage, wallet.address)
+	auto normal = PrepareList(operation.messages, wallet.address);
+	auto gasless = distinct
+		? PrepareList(operation.gaslessMessages, wallet.address)
 		: std::nullopt;
-	if (!normal || (operation.gaslessMessage && !gasless)) {
+	if (!normal || (distinct && !gasless)) {
 		return std::nullopt;
 	}
-	const auto value = operation.message.value;
+	const auto value = normal->value;
 	auto result = ServedPreparation{
 		.args = SendArgs{
 			.destination = normal->destination,
 			.amountNano = value,
-			.bounce = normal->message.bounce,
+			.bounce = normal->messages.front().bounce,
 		},
 		.keys = { normal->key },
 		.normalValue = value,
@@ -163,15 +192,15 @@ void AppendPart(QByteArray &to, const QByteArray &part) {
 		if (gasless->key != normal->key) {
 			result.keys.push_back(gasless->key);
 		}
-		result.gaslessValue = operation.gaslessMessage->value;
+		result.gaslessValue = gasless->value;
 		result.gaslessMessages = std::make_shared<const SendMessages>(
-			OneMessage(std::move(gasless->message)));
+			std::move(gasless->messages));
 	}
 	result.intent = std::make_shared<const engine::SendIntent>(
 		engine::SendIntent{
 			.expiration = engine::SendExpiration(
 				engine::SendExpiration::kEngineDefault{}),
-			.messages = OneMessage(std::move(normal->message)),
+			.messages = std::move(normal->messages),
 		});
 	return result;
 }
@@ -221,17 +250,22 @@ ServedOperation ServedOperationFromSale(
 	return answer.match([](
 			const MTPDpayments_starGiftOnchainSalePayload &data) {
 		return ServedOperation{
-			.message = {
+			.messages = { ServedMessage{
 				.destination = qs(data.vnft_address()),
 				.value = int64(data.vamount().v),
 				.body = data.vpayload().v,
-			},
+			} },
 			.gaslessAvailable = data.is_gasless_available(),
 		};
-	}, [](const MTPDpayments_starGiftOnchainFixedSalePayload &) {
-		// Not supported yet: callers refuse an operation with no destination.
-		LOG(("API Error: Fixed-amount sale payloads are not supported."));
-		return ServedOperation();
+	}, [](const MTPDpayments_starGiftOnchainFixedSalePayload &data) {
+		auto result = ServedOperation{
+			.messages = ServedMessagesFromServer(data.vmessages()),
+			.saleAddress = qs(data.vsale_address()),
+		};
+		if (const auto gasless = data.vgasless_messages()) {
+			result.gaslessMessages = ServedMessagesFromServer(*gasless);
+		}
+		return result;
 	});
 }
 
@@ -239,10 +273,10 @@ ServedOperation ServedOperationFromOffer(
 		const MTPpayments_StarGiftOnchainOfferTx &answer) {
 	const auto &data = answer.data();
 	auto result = ServedOperation{
-		.message = ServedMessageFromServer(data.vmessage()),
+		.messages = { ServedMessageFromServer(data.vmessage()) },
 	};
 	if (const auto gasless = data.vgasless_message()) {
-		result.gaslessMessage = ServedMessageFromServer(*gasless);
+		result.gaslessMessages.push_back(ServedMessageFromServer(*gasless));
 	}
 	return result;
 }

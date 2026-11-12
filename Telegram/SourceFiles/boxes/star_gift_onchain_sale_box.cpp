@@ -498,9 +498,17 @@ void OnchainSale::answered(
 	if (_stage.current() != Stage::Requesting) {
 		return;
 	}
+	if (result.type() == mtpc_payments_starGiftOnchainFixedSalePayload) {
+		LOG(("API Error: %1 answered "
+			"payments.starGiftOnchainFixedSalePayload."
+			).arg(RequestMethod(_args.kind)));
+		closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return;
+	}
 	auto operation = Wallet::ServedOperationFromSale(result);
-	const auto amount = operation.message.value;
-	if (operation.message.destination.isEmpty() || amount <= 0) {
+	const auto &message = operation.messages.front();
+	const auto amount = message.value;
+	if (message.destination.isEmpty() || amount <= 0) {
 		LOG(("API Error: %1 answered a malformed sale payload (amount %2)."
 			).arg(RequestMethod(_args.kind)
 			).arg(amount));

@@ -34,8 +34,9 @@ struct ServedMessage {
 };
 
 struct ServedOperation {
-	ServedMessage message;
-	std::optional<ServedMessage> gaslessMessage;
+	std::vector<ServedMessage> messages;
+	std::vector<ServedMessage> gaslessMessages;
+	QString saleAddress;
 	bool gaslessAvailable = false;
 };
 

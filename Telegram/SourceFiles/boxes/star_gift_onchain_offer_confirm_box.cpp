@@ -182,7 +182,7 @@ private:
 void AddTermsTable(not_null<GenericBox*> box, const OfferTerms &terms) {
 	const auto &st = st::giveawayGiftMessage;
 	const auto amount = terms.request.amount;
-	const auto value = terms.operation.message.value;
+	const auto value = terms.operation.messages.front().value;
 	const auto fee = amount * kOfferFeeBasisPoints / kBasisPointsInOne;
 	const auto table = box->addRow(
 		object_ptr<TableLayout>(box, st::giveawayGiftCodeTable),
@@ -386,7 +386,7 @@ OfferCompletion OnchainOfferDeployment::completion() const {
 		.show = _terms.request.show,
 		.form = _terms.request.form,
 		.session = _weakSession,
-		.value = _terms.operation.message.value,
+		.value = _terms.operation.messages.front().value,
 		.expiresAt = _terms.expiresAt,
 	};
 }
@@ -843,7 +843,7 @@ base::weak_qptr<GenericBox> ShowOnchainGiftOfferConfirmBox(
 		.expiresAt = answer.data().vexpires_at().v,
 	};
 	const auto amount = terms.request.amount;
-	const auto &message = terms.operation.message;
+	const auto &message = terms.operation.messages.front();
 	if (message.destination.isEmpty()
 		|| (message.value <= 0)
 		|| (message.value < amount)
