@@ -125,6 +125,7 @@ public:
 private:
 	[[nodiscard]] bool hasBackgroundEmoji() const;
 	[[nodiscard]] int nameIconsSkip() const;
+	[[nodiscard]] int previewSkip() const;
 	[[nodiscard]] Ui::Text::GeometryDescriptor textGeometry(
 		int available,
 		int firstLineSkip,
@@ -171,6 +172,7 @@ private:
 	mutable uint8 _minHeightExpandable : 1 = 0;
 	mutable uint8 _nameTwoLines : 1 = 0;
 	mutable uint8 _hasPreview : 1 = 0;
+	mutable uint8 _previewHidden : 1 = 0;
 	mutable uint8 _displaying : 1 = 0;
 	mutable uint8 _multiline : 1 = 0;
 
