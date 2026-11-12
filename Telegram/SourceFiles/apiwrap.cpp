@@ -667,6 +667,9 @@ void ApiWrap::sendMessageFail(
 			}
 		}
 	}
+	if (itemId) {
+		_session->data().histories().checkReplyTargetSent(itemId, MsgId());
+	}
 }
 
 void ApiWrap::requestMessageData(
@@ -3926,7 +3929,7 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 	}
 }
 
-void ApiWrap::forwardMessages(
+FullMsgId ApiWrap::forwardMessages(
 		Data::ResolvedForwardDraft &&draft,
 		SendAction action,
 		FnMut<void()> &&successCallback,
@@ -3948,7 +3951,7 @@ void ApiWrap::forwardMessages(
 		if (successCallback) {
 			successCallback();
 		}
-		return;
+		return {};
 	}
 	draft.options = HistoryView::Controls::NormalizeForwardOptions(
 		_session,
@@ -3963,7 +3966,7 @@ void ApiWrap::forwardMessages(
 		if (sentCallback) {
 			sentCallback({});
 		}
-		return;
+		return {};
 	}
 
 	struct SharedCallback {
@@ -4045,6 +4048,7 @@ void ApiWrap::forwardMessages(
 	auto ids = QVector<MTPint>();
 	auto randomIds = QVector<MTPlong>();
 	auto localIds = std::shared_ptr<base::flat_map<uint64, FullMsgId>>();
+	auto localId = FullMsgId();
 
 	const auto sendAccumulated = [&] {
 		if (ids.isEmpty()) {
@@ -4133,6 +4137,9 @@ void ApiWrap::forwardMessages(
 				}
 			},
 			[=](const MTP::Error &error, const MTP::Response &) {
+				if (sentCallback) {
+					sentCallback({});
+				}
 				if (idsCopy) {
 					for (const auto &[randomId, itemId] : *idsCopy) {
 						_session->api().sendMessageFail(
@@ -4143,9 +4150,6 @@ void ApiWrap::forwardMessages(
 					}
 				} else {
 					_session->api().sendMessageFail(error, peer);
-				}
-				if (sentCallback) {
-					sentCallback({});
 				}
 			});
 
@@ -4185,6 +4189,7 @@ void ApiWrap::forwardMessages(
 					localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
 				}
 				localIds->emplace(randomId, newId);
+				localId = newId;
 			}
 			const auto newFrom = item->history()->peer;
 			if (forwardFrom != newFrom) {
@@ -4199,6 +4204,7 @@ void ApiWrap::forwardMessages(
 		sendAccumulated();
 	}
 	_session->data().sendHistoryChangeNotifications();
+	return localId;
 }
 
 void ApiWrap::shareContact(

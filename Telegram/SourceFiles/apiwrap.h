@@ -349,7 +349,7 @@ public:
 	}
 	void sendAction(const SendAction &action);
 	void finishForwarding(const SendAction &action);
-	void forwardMessages(
+	FullMsgId forwardMessages(
 		Data::ResolvedForwardDraft &&draft,
 		SendAction action,
 		FnMut<void()> &&successCallback = nullptr,
