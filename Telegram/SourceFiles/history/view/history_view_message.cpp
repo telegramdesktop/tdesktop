@@ -6264,7 +6264,9 @@ ClickHandlerPtr Message::prepareRightActionLink() const {
 		FastShareClickHandler(Fn<void(ClickContext)> handler)
 			: LambdaClickHandler(std::move(handler)) {}
 		QString tooltip() const override {
-			return tr::lng_fast_share_tooltip(tr::now);
+			return property(kFastShareProperty).value<bool>()
+				? tr::lng_fast_share_tooltip(tr::now)
+				: QString();
 		}
 	};
 
