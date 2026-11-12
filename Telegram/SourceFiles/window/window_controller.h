@@ -102,6 +102,7 @@ public:
 	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 	bool closeLayerByBackButton();
 	[[nodiscard]] bool isLayerShown() const;
+	[[nodiscard]] rpl::producer<bool> layerShownValue() const;
 	[[nodiscard]] rpl::producer<bool> boxShownValue() const;
 
 	template <

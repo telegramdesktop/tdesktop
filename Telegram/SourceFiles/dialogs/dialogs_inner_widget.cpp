@@ -485,7 +485,7 @@ InnerWidget::InnerWidget(
 
 	session().settings().archiveInMainMenuChanges(
 	) | rpl::on_next([=] {
-		refresh();
+		refreshWithArchiveSlide();
 	}, lifetime());
 
 	session().changes().historyUpdates(
@@ -719,6 +719,41 @@ int InnerWidget::skipTopHeight() const {
 	return (_skipTopDialog && !_shownList->empty())
 		? _shownList->begin()->get()->height()
 		: 0;
+}
+
+int InnerWidget::archiveBandHeight() const {
+	if (_shownList->empty() || !_shownList->begin()->get()->folder()) {
+		return 0;
+	}
+	return int(_collapsedRows.size()) * st::dialogsImportantBarHeight
+		+ (_skipTopDialog ? 0 : _shownList->begin()->get()->height());
+}
+
+void InnerWidget::refreshWithArchiveSlide() {
+	_archiveSlide.stop();
+	const auto slideAllowed = [&](int band) {
+		return (_state == WidgetState::Default)
+			&& !communityModeShown()
+			&& isVisible()
+			&& (_visibleTop < band);
+	};
+	const auto from = archiveBandHeight();
+	auto band = slideAllowed(from)
+		? Ui::GrabWidgetToImage(
+			this,
+			QRect(0, 0, width(), from),
+			st::dialogsBg->c)
+		: QImage();
+	refresh();
+	const auto to = archiveBandHeight();
+	if ((from > to && !band.isNull())
+		|| (from < to && slideAllowed(to))) {
+		_archiveSlide.start(
+			from,
+			to,
+			std::move(band),
+			_controller->window().layerShownValue());
+	}
 }
 
 int InnerWidget::collapsedRowsOffset() const {
@@ -1270,9 +1305,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (communityModeShown()) {
 			p.save();
 		}
+		if (const auto shift = _archiveSlide.shift()) {
+			p.translate(0, shift);
+			dialogsClip.translate(0, -shift);
+			_archiveSlide.paintBand(p);
+		}
 		const auto collapsedSkip = collapsedRowsOffset();
 		p.translate(0, collapsedSkip);
-		paintCollapsedRows(p, r.translated(0, -collapsedSkip));
+		paintCollapsedRows(p, dialogsClip.translated(0, -collapsedSkip));
 
 		if (communityModeShown() && !_shownList->empty()) {
 			p.translate(0, st::searchedBarHeight);
