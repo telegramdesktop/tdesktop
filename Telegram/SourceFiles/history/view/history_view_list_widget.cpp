@@ -3280,25 +3280,12 @@ int ListWidget::resizeGetHeight(int newWidth) {
 	}
 	const auto collapseGapTotal = collapseGapsTotal();
 	const auto about = aboutView();
-	const auto aboutAboveHistory = about
-		&& about->aboveHistory();
 	if (about && about->view()) {
 		about->height = about->view()->resizeGetHeight(newWidth);
 	} else if (about) {
 		about->top = about->height = 0;
 	}
 	setItemsTop(countItemsTop());
-	if (about && about->view()) {
-		if (aboutAboveHistory) {
-			about->top = std::min(
-				_itemsTop - about->height,
-				std::max(0, (_minHeight - about->height) / 2));
-		} else {
-			about->top = std::max(
-				std::max(0, (_minHeight - about->height) / 2),
-				_itemsTop + _itemsHeight + collapseGapTotal);
-		}
-	}
 	if (_emptyInfo) {
 		_emptyInfo->setVisible(isEmpty());
 	}
@@ -6046,12 +6033,24 @@ int ListWidget::countItemsTop() const {
 }
 
 void ListWidget::setItemsTop(int top) {
-	if (_itemsTop == top) {
-		return;
-	} else if (_thanosController) {
-		_thanosController->shiftGaps(top - _itemsTop);
+	if (_itemsTop != top) {
+		if (_thanosController) {
+			_thanosController->shiftGaps(top - _itemsTop);
+		}
+		_itemsTop = top;
 	}
-	_itemsTop = top;
+	const auto about = aboutView();
+	if (about && about->view()) {
+		if (about->aboveHistory()) {
+			about->top = std::min(
+				_itemsTop - about->height,
+				std::max(0, (_minHeight - about->height) / 2));
+		} else {
+			about->top = std::max(
+				std::max(0, (_minHeight - about->height) / 2),
+				_itemsTop + _itemsHeight + collapseGapsTotal());
+		}
+	}
 }
 
 void ListWidget::collapseGapsUpdated() {
