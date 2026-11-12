@@ -2082,6 +2082,9 @@ QByteArray SerializeMessage(
 		} else {
 			push("comment", data.comment);
 		}
+		if (!message.out) {
+			push("onramp_provider_name", data.onrampProviderName);
+		}
 	}, [&](const ActionWalletTonConnectRequest &data) {
 		pushActor();
 		pushAction("ton_connect_request");

@@ -4414,6 +4414,12 @@ auto HtmlWriter::Wrap::pushMessage(
 				+ " to "
 				+ peers.wrapPeerName(dialog.peerId)
 				+ address)
+			: !data.onrampProviderName.isEmpty()
+			? ("You topped up "
+				+ amount
+				+ " via "
+				+ SerializeString(data.onrampProviderName)
+				+ address)
 			: (sender + address + " sent you " + amount);
 		if (!data.transactionId.isEmpty()) {
 			result += ", transaction "

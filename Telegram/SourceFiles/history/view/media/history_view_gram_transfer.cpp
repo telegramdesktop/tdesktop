@@ -153,6 +153,7 @@ struct GramTransferAction {
 	QString transactionId;
 	QString comment;
 	QString failReason;
+	QString provider;
 	bool outgoing = false;
 	bool encrypted = false;
 	bool failed = false;
@@ -535,6 +536,7 @@ private:
 		.transactionId = transfer->transactionId,
 		.comment = transfer->comment,
 		.failReason = transfer->failReason,
+		.provider = item->out() ? QString() : transfer->onrampProvider,
 		.outgoing = item->out(),
 		.encrypted = transfer->commentEncrypted,
 		.failed = item->hasFailed(),
@@ -626,9 +628,14 @@ private:
 		item.counterparty = parsed->raw;
 		item.counterpartyBounceable = parsed->friendly && parsed->bounceable;
 	}
-	if (!session->data().peer(action.itemId.peer)->isNotificationsUser()) {
+	using Kind = Wallet::TransferItem::Kind;
+	const auto chat = session->data().peer(action.itemId.peer);
+	if (!action.provider.isEmpty() && !item.counterparty.isEmpty()) {
+		item.kind = Kind::Onramp;
+		item.provider = action.provider;
+	} else if (!chat->isNotificationsUser()) {
 		// The chat names the counterparty before the served record does.
-		item.kind = Wallet::TransferItem::Kind::PeerTransfer;
+		item.kind = Kind::PeerTransfer;
 		item.counterpartyPeer = action.itemId.peer.value;
 	}
 	item.commentEncrypted = action.encrypted;
@@ -672,9 +679,11 @@ private:
 		}
 		match = &entry;
 	}
-	using Kind = Wallet::TransferItem::Kind;
 	if (!match
-		|| (match->kind != Kind::Transfer && match->kind != Kind::PeerTransfer)
+		|| ((item.kind == Kind::Onramp)
+			? (match->kind != Kind::Onramp)
+			: (match->kind != Kind::Transfer
+				&& match->kind != Kind::PeerTransfer))
 		|| match->incoming != item.incoming
 		|| match->amountNano != item.amountNano
 		|| Wallet::CanonicalAddress(match->counterparty) != item.counterparty
@@ -939,8 +948,11 @@ void PaintRibbonBand(
 
 [[nodiscard]] QString ReadableIdentity(
 		not_null<HistoryItem*> item,
+		const QString &provider,
 		bool hasAddress) {
-	if (item->history()->peer->isNotificationsUser()) {
+	if (!provider.isEmpty()) {
+		return TextUtilities::SingleLine(provider);
+	} else if (item->history()->peer->isNotificationsUser()) {
 		return tr::lng_credits_box_history_entry_anonymous(tr::now);
 	}
 	const auto peer = item->out() ? item->history()->peer : item->from();
@@ -1010,7 +1022,10 @@ GramTransferCardPart::GramTransferCardPart(
 , _address(FriendlyAddress(_origin.action.address))
 , _identity(
 	Ui::Text::Upper(
-		ReadableIdentity(_origin.view->data(), !_address.isEmpty())))
+		ReadableIdentity(
+			_origin.view->data(),
+			_origin.action.provider,
+			!_address.isEmpty())))
 , _ribbonTextWidth(_origin.action.outgoing ? OutgoingRibbonTextWidth() : 0) {
 	adopt(std::move(handover));
 	watchRead();

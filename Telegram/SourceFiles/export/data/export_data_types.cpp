@@ -2816,6 +2816,9 @@ ServiceAction ParseServiceAction(
 			.peerAddress = data.vpeer_address().v,
 			.transactionId = data.vtransaction_id().v,
 			.comment = data.vcomment().value_or_empty(),
+			.onrampProviderName = QString::fromUtf8(
+				data.vonramp_provider_name().value_or_empty()
+			).trimmed().toUtf8(),
 			.commentEncrypted = data.is_comment_encrypted(),
 		};
 	}, [&](const MTPDmessageActionWalletTonConnectRequest &data) {

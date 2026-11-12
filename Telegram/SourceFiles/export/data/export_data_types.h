@@ -1117,6 +1117,7 @@ struct ActionGramTransfer {
 	Utf8String peerAddress;
 	Utf8String transactionId;
 	Utf8String comment;
+	Utf8String onrampProviderName;
 	bool commentEncrypted = false;
 };
 

@@ -5901,6 +5901,8 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 		transfer->peerAddress = qs(data.vpeer_address());
 		transfer->transactionId = qs(data.vtransaction_id());
 		transfer->comment = qs(data.vcomment().value_or_empty());
+		transfer->onrampProvider = qs(
+			data.vonramp_provider_name().value_or_empty()).trimmed();
 		transfer->commentEncrypted = data.is_comment_encrypted();
 	} else if (type == mtpc_messageActionWalletTonConnectRequest) {
 		const auto &data = action.c_messageActionWalletTonConnectRequest();
@@ -8813,8 +8815,9 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 			tr::marked);
 	}
 	const auto hidden = history()->peer->isNotificationsUser();
+	const auto provider = out() ? QString() : transfer->onrampProvider;
 	auto name = tr::marked();
-	if (!hidden) {
+	if (!hidden && provider.isEmpty()) {
 		const auto counterparty = out() ? history()->peer : from();
 		const auto user = history()->owner().userLoaded(
 			peerToUser(counterparty->id));
@@ -8829,7 +8832,15 @@ PreparedServiceText HistoryItem::prepareGramTransferText(
 				address->testnet));
 		}
 	}
-	if (hidden && !out()) {
+	if (!provider.isEmpty()) {
+		result.text = tr::lng_action_gram_transfer_topped_up(
+			tr::now,
+			lt_amount,
+			amount,
+			lt_provider,
+			tr::marked(provider),
+			tr::marked);
+	} else if (hidden && !out()) {
 		result.text = tr::lng_action_gram_transfer_received_unknown(
 			tr::now,
 			lt_amount,
