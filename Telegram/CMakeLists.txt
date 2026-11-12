@@ -892,6 +892,8 @@ PRIVATE
     dialogs/dialogs_pinned_list.h
     dialogs/dialogs_quick_action.cpp
     dialogs/dialogs_quick_action.h
+    dialogs/dialogs_removed_row_slide.cpp
+    dialogs/dialogs_removed_row_slide.h
     dialogs/dialogs_row.cpp
     dialogs/dialogs_row.h
     dialogs/dialogs_search_from_controllers.cpp

@@ -152,6 +152,11 @@ rpl::producer<HistoryUpdate> Changes::historyUpdates(
 	return _historyChanges.updates(history, flags);
 }
 
+rpl::producer<HistoryUpdate> Changes::realtimeHistoryUpdates(
+		HistoryUpdate::Flag flag) const {
+	return _historyChanges.realtimeUpdates(flag);
+}
+
 rpl::producer<HistoryUpdate> Changes::historyFlagsValue(
 		not_null<History*> history,
 		HistoryUpdate::Flags flags) const {

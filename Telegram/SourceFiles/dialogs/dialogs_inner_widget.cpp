@@ -369,6 +369,19 @@ InnerWidget::InnerWidget(
 		dialogRowReplaced(r.old, r.now);
 	}, lifetime());
 
+	session().changes().realtimeHistoryUpdates(
+		Data::HistoryUpdate::Flag::IsPinned
+	) | rpl::on_next([=](const Data::HistoryUpdate &update) {
+		_removedRowSlide.block(update.history);
+		Ui::PostponeCall(this, [=] { _removedRowSlide.clearPending(); });
+	}, lifetime());
+
+	session().changes().realtimeHistoryUpdates(
+		Data::HistoryUpdate::Flag::Folder
+	) | rpl::on_next([=](const Data::HistoryUpdate &update) {
+		_removedRowSlide.start(update.history);
+	}, lifetime());
+
 	session().data().sendActionManager().animationUpdated(
 	) | rpl::on_next([=](
 			const Data::SendActionManager::AnimationUpdate &update) {
@@ -1371,7 +1384,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 			};
 
-			auto i = list.findByY(dialogsClip.top() - skip);
+			const auto removedHeight = reorderingPinned
+				? 0
+				: _removedRowSlide.height(_shownList);
+			const auto removedTop = _removedRowSlide.top();
+			auto removedPainted = !removedHeight;
+			const auto paintRemoved = [&] {
+				_removedRowSlide.paint(p, fullWidth);
+				p.translate(0, removedHeight);
+				removedPainted = true;
+			};
+			auto i = list.findByY(dialogsClip.top() - skip - removedHeight);
 			if (_skipTopDialog && i != list.cend() && !(*i)->index()) {
 				++i;
 			}
@@ -1390,6 +1413,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					auto row = (*i);
 					if (top >= dialogsClip.top() - skip + dialogsClip.height()) {
 						break;
+					} else if (!removedPainted && top >= removedTop) {
+						paintRemoved();
 					}
 
 					// Skip currently dragged chat to paint it above others after.
@@ -1399,6 +1424,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 					p.translate(0, row->height());
 					top += row->height();
+				}
+
+				if (!removedPainted
+					&& i == list.cend()
+					&& top == removedTop) {
+					paintRemoved();
 				}
 
 				// Paint the dragged chat above all others.
@@ -3364,9 +3395,36 @@ void InnerWidget::moveSearchIn() {
 	_searchIn->moveToLeft(0, searchInChatOffset());
 }
 
+void InnerWidget::prepareRemovedRowSlide(not_null<Row*> row) {
+	const auto top = dialogsOffset() + row->top();
+	if (_state != WidgetState::Default
+		|| communityModeShown()
+		|| _dragging
+		|| _aboveIndex >= 0
+		|| !isVisible()
+		|| _shownList->getRow(row->key()) != row
+		|| (_skipTopDialog && !row->index())
+		|| top >= _visibleBottom
+		|| top + row->height() <= _visibleTop) {
+		return;
+	}
+	_removedRowSlide.prepare(
+		row->entry(),
+		_shownList,
+		row->top(),
+		Ui::GrabWidgetToImage(
+			this,
+			QRect(0, top, width(), row->height()),
+			st::dialogsBg->c));
+	Ui::PostponeCall(this, [=] { _removedRowSlide.clearPending(); });
+}
+
 void InnerWidget::dialogRowReplaced(
 		Row *oldRow,
 		Row *newRow) {
+	if (oldRow && !newRow) {
+		prepareRemovedRowSlide(oldRow);
+	}
 	if (oldRow) {
 		invalidateCachedRow(RowsCacheKey(oldRow->entry()));
 	}

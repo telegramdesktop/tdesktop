@@ -330,6 +330,8 @@ public:
 	[[nodiscard]] rpl::producer<HistoryUpdate> historyUpdates(
 		not_null<History*> history,
 		HistoryUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<HistoryUpdate> realtimeHistoryUpdates(
+		HistoryUpdate::Flag flag) const;
 	[[nodiscard]] rpl::producer<HistoryUpdate> historyFlagsValue(
 		not_null<History*> history,
 		HistoryUpdate::Flags flags) const;
