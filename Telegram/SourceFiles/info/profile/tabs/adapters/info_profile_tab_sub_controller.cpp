@@ -20,7 +20,8 @@ MediaSubController::MediaSubController(
 , _parent(parent)
 , _key(parent->key())
 , _section(mediaType)
-, _migrated(migrated) {
+, _migrated(migrated)
+, _sourceType(mediaType) {
 	if (withSearch) {
 		_search = std::make_unique<Api::DelayedSearchController>(
 			&session());
@@ -53,16 +54,30 @@ rpl::producer<SparseIdsMergedSlice> MediaSubController::mediaSource(
 	if (_search && !_search->currentQuery().query.isEmpty()) {
 		return _search->idsSlice(aroundId, limitBefore, limitAfter);
 	}
-	return AbstractController::mediaSource(
+	return sharedMediaSource(
+		_sourceType.current(),
 		aroundId,
 		limitBefore,
 		limitAfter);
 }
 
 rpl::producer<QString> MediaSubController::mediaSourceQueryValue() const {
-	return _search
-		? _search->currentQueryValue()
-		: AbstractController::mediaSourceQueryValue();
+	return rpl::combine(
+		(_search
+			? _search->currentQueryValue()
+			: AbstractController::mediaSourceQueryValue()),
+		_sourceType.value()
+	) | rpl::map([](const QString &query, auto) {
+		return query;
+	});
+}
+
+Storage::SharedMediaType MediaSubController::mediaSourceType() const {
+	return _sourceType.current();
+}
+
+void MediaSubController::setMediaSourceType(Storage::SharedMediaType type) {
+	_sourceType = type;
 }
 
 void MediaSubController::applySearchQuery(const QString &query) {

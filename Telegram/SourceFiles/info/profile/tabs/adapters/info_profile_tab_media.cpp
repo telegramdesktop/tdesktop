@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_buttons.h"
 #include "info/media/info_media_empty_widget.h"
 #include "info/media/info_media_list_widget.h"
+#include "info/media/info_media_voice_filter.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/tabs/adapters/info_profile_tab_sub_controller.h"
 #include "info/profile/tabs/info_profile_tab_skeleton.h"
@@ -165,7 +166,7 @@ public:
 					? phrase(tr::now, lt_count, count)
 					: QString() };
 			}),
-			.fillMenu = (MediaTabGrid(_type)
+			.fillMenu = (MediaTabGrid(_type) || Media::HasVoiceFilter(_type)
 				? Fn<void(const Ui::Menu::MenuCallback&)>(crl::guard(
 					base::make_weak(_list),
 					[this](const Ui::Menu::MenuCallback &addAction) {
@@ -241,7 +242,15 @@ private:
 	}
 
 	void fillMenu(const Ui::Menu::MenuCallback &addAction) {
-		if (!MediaTabGrid(_type)) {
+		if (Media::HasVoiceFilter(_type)) {
+			Media::FillVoiceFilterMenu(
+				addAction,
+				_subController.mediaSourceType(),
+				[=](SharedMediaType type) {
+					_subController.setMediaSourceType(type);
+				});
+			return;
+		} else if (!MediaTabGrid(_type)) {
 			return;
 		}
 		const auto list = _list;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "info/media/info_media_inner_widget.h"
+#include "info/media/info_media_voice_filter.h"
 #include "info/info_controller.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -155,7 +156,15 @@ void Widget::selectionAction(SelectionAction action) {
 
 void Widget::fillTopBarMenu(const Ui::Menu::MenuCallback &addAction) {
 	const auto type = controller()->section().mediaType();
-	if (type != Type::Photo
+	if (HasVoiceFilter(type)) {
+		FillVoiceFilterMenu(
+			addAction,
+			controller()->mediaSourceType(),
+			[=](Type sourceType) {
+				controller()->setMediaSourceType(sourceType);
+			});
+		return;
+	} else if (type != Type::Photo
 		&& type != Type::Video
 		&& type != Type::PhotoVideo) {
 		return;

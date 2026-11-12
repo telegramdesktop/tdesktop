@@ -1331,6 +1331,8 @@ PRIVATE
     info/media/info_media_list_widget.h
     info/media/info_media_provider.cpp
     info/media/info_media_provider.h
+    info/media/info_media_voice_filter.cpp
+    info/media/info_media_voice_filter.h
     info/media/info_media_widget.cpp
     info/media/info_media_widget.h
     info/members/info_members_widget.cpp

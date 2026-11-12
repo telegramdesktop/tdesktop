@@ -244,6 +244,18 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 		SparseIdsMergedSlice::UniversalMsgId aroundId,
 		int limitBefore,
 		int limitAfter) const {
+	return sharedMediaSource(
+		section().mediaType(),
+		aroundId,
+		limitBefore,
+		limitAfter);
+}
+
+rpl::producer<SparseIdsMergedSlice> AbstractController::sharedMediaSource(
+		Storage::SharedMediaType type,
+		SparseIdsMergedSlice::UniversalMsgId aroundId,
+		int limitBefore,
+		int limitAfter) const {
 	Expects(peer() != nullptr);
 
 	const auto isScheduled = [&] {
@@ -272,7 +284,7 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 				sublist() ? sublist()->sublistPeer()->id : PeerId(),
 				migratedPeerId(),
 				aroundId),
-			section().mediaType()),
+			type),
 		limitBefore,
 		limitAfter);
 }
@@ -567,6 +579,18 @@ rpl::producer<bool> Controller::searchEnabledByContent() const {
 
 rpl::producer<QString> Controller::mediaSourceQueryValue() const {
 	return _searchController->currentQueryValue();
+}
+
+Storage::SharedMediaType Controller::mediaSourceType() const {
+	return _searchController->currentQuery().type;
+}
+
+void Controller::setMediaSourceType(Storage::SharedMediaType type) {
+	auto query = _searchController->currentQuery();
+	if (query.type != type) {
+		query.type = type;
+		_searchController->setQueryFast(query);
+	}
 }
 
 rpl::producer<QString> Controller::searchQueryValue() const {
