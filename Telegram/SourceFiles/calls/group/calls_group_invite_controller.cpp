@@ -87,6 +87,7 @@ public:
 	void setAlreadyIn(bool alreadyIn);
 	void setVideo(bool video);
 
+	QSize rightActionSize() const override;
 	int elementsCount() const override;
 	QRect elementGeometry(int element, int outerWidth) const override;
 	bool elementDisabled(int element) const override;
@@ -215,6 +216,23 @@ const style::IconButton &ConfInviteRow::buttonSt(int element) const {
 	return (element == 1)
 		? (_st.video ? *_st.video : st::createCallVideo)
 		: (_st.audio ? *_st.audio : st::createCallAudio);
+}
+
+QSize ConfInviteRow::rightActionSize() const {
+	if (_alreadyIn) {
+		return QSize();
+	}
+	// The name and the status end before both call buttons.
+	const auto &video = buttonSt(1);
+	const auto &audio = buttonSt(2);
+	return QSize(
+		(st::createCallVideoMargins.right()
+			+ video.width
+			+ st::createCallAudioMargins.right()
+			+ audio.width),
+		std::max(
+			st::createCallVideoMargins.top() + video.height,
+			st::createCallAudioMargins.top() + audio.height));
 }
 
 int ConfInviteRow::elementsCount() const {
