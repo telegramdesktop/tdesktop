@@ -19,7 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lang {
 namespace {
 
-constexpr auto kLangFileLimit = 1024 * 1024;
+// A full pack in a script of three-byte letters is over 1 MB.
+constexpr auto kLangFileLimit = 4 * 1024 * 1024;
 
 } // namespace
 
