@@ -43,11 +43,45 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_media_player.h" // mediaPlayerMenuCheck
+#include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 namespace {
 
 constexpr auto kDefaultLimit = 12;
+
+constexpr auto kModeShift = 0;
+constexpr auto kAppearanceShift = 8;
+constexpr auto kFieldMask = quint32(0xFF);
+
+[[nodiscard]] qint32 ExtractField(qint32 stored, int shift) {
+	return qint32((quint32(stored) >> shift) & kFieldMask);
+}
+
+[[nodiscard]] qint32 ReplaceField(qint32 stored, int shift, qint32 value) {
+	return qint32((quint32(stored) & ~(kFieldMask << shift))
+		| ((quint32(value) & kFieldMask) << shift));
+}
+
+[[nodiscard]] TextWithEntities TopicTabText(
+		not_null<Data::ForumTopic*> topic,
+		SubsectionTabsAppearance appearance) {
+	using Appearance = SubsectionTabsAppearance;
+	if (appearance == Appearance::TextOnly) {
+		return { st::wrap_rtl(topic->title()) };
+	} else if (appearance != Appearance::IconsOnly) {
+		return topic->titleWithIcon();
+	} else if (topic->isGeneral()) {
+		return { u"#"_q };
+	} else if (const auto iconId = topic->iconId()) {
+		return Data::SingleCustomEmoji(iconId);
+	}
+	return Ui::Text::SingleCustomEmoji(Data::TopicIconEmojiEntity({
+		.title = topic->title(),
+		.colorId = topic->colorId(),
+	}));
+}
 
 } // namespace
 
@@ -85,8 +119,7 @@ SubsectionTabs::~SubsectionTabs() {
 }
 
 void SubsectionTabs::setup(not_null<Ui::RpWidget*> parent) {
-	const auto peerId = _history->peer->id;
-	const auto mode = session().settings().subsectionTabsMode(peerId);
+	const auto mode = storedField(kModeShift);
 	if (mode == qint32(SubsectionTabsMode::Left)) {
 		setupVertical(parent);
 	} else if (mode == qint32(SubsectionTabsMode::Bottom)) {
@@ -408,7 +441,9 @@ void SubsectionTabs::startFillingSlider(
 	_refreshed.events_starting_with_copy(
 		rpl::empty
 	) | rpl::on_next([=] {
+		using Appearance = SubsectionTabsAppearance;
 		const auto manager = &_history->owner().customEmojiManager();
+		const auto look = appearance();
 		const auto paused = [=] {
 			return _controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Any);
@@ -463,7 +498,7 @@ void SubsectionTabs::startFillingSlider(
 					});
 				} else {
 					sections.push_back({
-						.text = topic->titleWithIcon(),
+						.text = TopicTabText(topic, look),
 					});
 				}
 			} else if (const auto sublist = item.thread->asSublist()) {
@@ -477,14 +512,16 @@ void SubsectionTabs::startFillingSlider(
 						.text = { peer->shortName() },
 						.userpic = std::move(userpic),
 					});
+				} else if (look == Appearance::TextOnly) {
+					sections.push_back({ .text = { peer->shortName() } });
 				} else {
-					sections.push_back({
-						.text = TextWithEntities().append(
-							Ui::Text::SingleCustomEmoji(
-								manager->peerUserpicEmojiData(peer),
-								u"@"_q)
-						).append(' ').append(peer->shortName()),
-					});
+					auto text = Ui::Text::SingleCustomEmoji(
+						manager->peerUserpicEmojiData(peer),
+						u"@"_q);
+					if (look != Appearance::IconsOnly) {
+						text.append(' ').append(peer->shortName());
+					}
+					sections.push_back({ .text = std::move(text) });
 				}
 			// } else if (Data::IsBotUserCreatesTopics(item.thread->peer())) {
 			// 	sections.push_back({
@@ -610,11 +647,62 @@ void SubsectionTabs::showThreadContextMenu(not_null<Data::Thread*> thread) {
 			.section = Dialogs::EntryState::Section::SubsectionTabsMenu,
 		},
 		addAction);
+	if (thread == _history && !_vertical) {
+		addAction({
+			.text = tr::lng_filters_tabs_subtitle(tr::now),
+			.handler = nullptr,
+			.icon = &st::menuIconCustomize,
+			.fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
+				fillAppearanceMenu(menu);
+			},
+		});
+	}
 	if (_menu->empty()) {
 		_menu = nullptr;
 	} else {
 		_menu->popup(QCursor::pos());
 	}
+}
+
+void SubsectionTabs::fillAppearanceMenu(not_null<Ui::PopupMenu*> menu) {
+	using Appearance = SubsectionTabsAppearance;
+	const auto current = appearance();
+	const auto add = [&](Appearance value, const QString &text) {
+		menu->addAction(text, [=] {
+			setAppearance(value);
+		}, (value == current) ? &st::mediaPlayerMenuCheck : nullptr);
+	};
+	add(Appearance::TextOnly, tr::lng_filters_tabs_text(tr::now));
+	add(Appearance::TextAndIcons, tr::lng_filters_tabs_text_icons(tr::now));
+	add(Appearance::IconsOnly, tr::lng_filters_tabs_icons(tr::now));
+}
+
+SubsectionTabsAppearance SubsectionTabs::appearance() const {
+	return SubsectionTabsAppearance(storedField(kAppearanceShift));
+}
+
+void SubsectionTabs::setAppearance(SubsectionTabsAppearance value) {
+	if (appearance() == value) {
+		return;
+	}
+	storeField(kAppearanceShift, qint32(value));
+	_refreshed.fire({});
+}
+
+qint32 SubsectionTabs::storedField(int shift) const {
+	return ExtractField(
+		_history->session().settings().subsectionTabsMode(
+			_history->peer->id),
+		shift);
+}
+
+void SubsectionTabs::storeField(int shift, qint32 value) {
+	auto &settings = session().settings();
+	const auto peerId = _history->peer->id;
+	settings.setSubsectionTabsMode(
+		peerId,
+		ReplaceField(settings.subsectionTabsMode(peerId), shift, value));
+	session().saveSettingsDelayed();
 }
 
 void SubsectionTabs::loadMore() {
@@ -640,18 +728,14 @@ rpl::producer<> SubsectionTabs::dataChanged() const {
 void SubsectionTabs::toggleModes() {
 	Expects((_horizontal || _vertical || _bottom) && _shadow);
 
-	const auto peerId = _history->peer->id;
 	const auto parent = activeWidget()->parentWidget();
-	const auto current = session().settings().subsectionTabsMode(peerId);
+	const auto current = storedField(kModeShift);
 	const auto next = (current == qint32(SubsectionTabsMode::Top))
 		? SubsectionTabsMode::Bottom
 		: (current == qint32(SubsectionTabsMode::Bottom))
 		? SubsectionTabsMode::Left
 		: SubsectionTabsMode::Top;
-	session().settings().setSubsectionTabsMode(
-		peerId,
-		qint32(next));
-	session().saveSettingsDelayed();
+	storeField(kModeShift, qint32(next));
 
 	if (next == SubsectionTabsMode::Left) {
 		setupVertical(parent);
