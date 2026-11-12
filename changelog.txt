@@ -1,3 +1,7 @@
+7.4.3 (12.11.26)
+
+- Bug fixes and other minor improvements.
+
 7.4.2 (10.11.26)
 
 - Bug fixes and other minor improvements.
