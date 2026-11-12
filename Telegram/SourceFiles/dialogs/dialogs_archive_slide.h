@@ -9,7 +9,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 
+namespace style {
+struct DialogRow;
+} // namespace style
+
 namespace Dialogs {
+
+struct ArchiveBand {
+	QImage image;
+	QString title;
+	QPoint titleBaseline;
+};
+
+[[nodiscard]] ArchiveBand GrabArchiveBand(
+	not_null<QWidget*> widget,
+	int height,
+	bool collapsed,
+	const style::DialogRow &st,
+	const QString &title);
 
 class ArchiveSlide final {
 public:
@@ -18,7 +35,8 @@ public:
 	void start(
 		int from,
 		int to,
-		QImage band,
+		ArchiveBand was,
+		ArchiveBand now,
 		rpl::producer<bool> covered);
 	void stop();
 
@@ -26,9 +44,13 @@ public:
 	void paintBand(QPainter &p) const;
 
 private:
+	[[nodiscard]] int current() const;
+	void paintMorph(QPainter &p, int now) const;
+
 	Fn<void()> _update;
 	Ui::Animations::Simple _animation;
-	QImage _band;
+	ArchiveBand _was;
+	ArchiveBand _now;
 	int _from = 0;
 	int _to = 0;
 	bool _waiting = false;

@@ -1398,6 +1398,12 @@ QRect RowPainter::SendActionAnimationRect(
 		height);
 }
 
+int CollapsedRowTextBaseline() {
+	return (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2
+		+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
+		+ st::dialogsUnreadFont->ascent;
+}
+
 void PaintCollapsedRow(
 		Painter &p,
 		const BasicRow &row,
@@ -1416,9 +1422,7 @@ void PaintCollapsedRow(
 		p.setFont(st::semiboldFont);
 		p.setPen(st::dialogsNameFg);
 
-		const auto textBaseline = unreadTop
-			+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
-			+ st::dialogsUnreadFont->ascent;
+		const auto textBaseline = CollapsedRowTextBaseline();
 		const auto left = context.narrow
 			? ((context.width - st::semiboldFont->width(text)) / 2)
 			: st::dialogsTopBarLeftPadding;

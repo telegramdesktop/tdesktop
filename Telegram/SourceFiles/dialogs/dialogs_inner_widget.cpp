@@ -407,16 +407,17 @@ InnerWidget::InnerWidget(
 
 	Ui::ScheduleThanosEffectWarmUp(&session(), lifetime());
 
+	session().settings().archiveCollapsedChanges(
+	) | rpl::on_next([=] {
+		refreshWithArchiveSlide();
+	}, lifetime());
+
 	rpl::merge(
-		session().settings().archiveCollapsedChanges() | rpl::map_to(false),
-		session().data().chatsFilters().changed() | rpl::map_to(true),
-		session().data().chatsFilters().tagsEnabledChanges(
-		) | rpl::map_to(true)
-	) | rpl::on_next([=](bool refreshHeight) {
-		if (refreshHeight) {
-			_chatsFilterTags.clear();
-			_shownList->updateHeights(_narrowRatio);
-		}
+		session().data().chatsFilters().changed(),
+		session().data().chatsFilters().tagsEnabledChanges() | rpl::to_empty
+	) | rpl::on_next([=] {
+		_chatsFilterTags.clear();
+		_shownList->updateHeights(_narrowRatio);
 		refreshWithCollapsedRows();
 	}, lifetime());
 
@@ -737,21 +738,30 @@ void InnerWidget::refreshWithArchiveSlide() {
 			&& isVisible()
 			&& (_visibleTop < band);
 	};
-	const auto from = archiveBandHeight();
-	auto band = slideAllowed(from)
-		? Ui::GrabWidgetToImage(
+	const auto archive = _shownList->empty()
+		? nullptr
+		: _shownList->begin()->get()->folder();
+	const auto grab = [&](int height) {
+		return GrabArchiveBand(
 			this,
-			QRect(0, 0, width(), from),
-			st::dialogsBg->c)
-		: QImage();
-	refresh();
+			height,
+			!_collapsedRows.empty(),
+			*_st,
+			archive ? archive->chatListName() : QString());
+	};
+	const auto from = archiveBandHeight();
+	auto was = slideAllowed(from) ? grab(from) : ArchiveBand();
+	refreshWithCollapsedRows();
 	const auto to = archiveBandHeight();
-	if ((from > to && !band.isNull())
-		|| (from < to && slideAllowed(to))) {
+	if (from != to && (!was.image.isNull() || slideAllowed(to))) {
+		auto now = (from && to && !was.image.isNull())
+			? grab(to)
+			: ArchiveBand();
 		_archiveSlide.start(
 			from,
 			to,
-			std::move(band),
+			std::move(was),
+			std::move(now),
 			_controller->window().layerShownValue());
 	}
 }
@@ -1305,10 +1315,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (communityModeShown()) {
 			p.save();
 		}
-		if (const auto shift = _archiveSlide.shift()) {
-			p.translate(0, shift);
-			dialogsClip.translate(0, -shift);
-			_archiveSlide.paintBand(p);
+		const auto archiveShift = _archiveSlide.shift();
+		const auto archiveBandTransform = p.transform();
+		if (archiveShift) {
+			p.translate(0, archiveShift);
+			dialogsClip.translate(0, -archiveShift);
 		}
 		const auto collapsedSkip = collapsedRowsOffset();
 		p.translate(0, collapsedSkip);
@@ -1399,6 +1410,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 		} else {
 			p.fillRect(dialogsClip, currentBg());
+		}
+		if (archiveShift) {
+			const auto transform = p.transform();
+			p.setTransform(archiveBandTransform);
+			_archiveSlide.paintBand(p);
+			p.setTransform(transform);
 		}
 		if (communityModeShown()) {
 			p.restore();
