@@ -789,6 +789,10 @@ bool Sandbox::notify(QObject *receiver, QEvent *e) {
 	if (QThread::currentThreadId() != _mainThreadId) {
 		return QApplication::notify(receiver, e);
 	}
+	if (e->type() == QEvent::ApplicationDeactivate
+		&& Test::KeepPopupsOnDeactivate()) {
+		return true;
+	}
 
 	const auto wrap = createEventNestingLevel();
 	if (e->type() == QEvent::UpdateRequest) {

@@ -16,6 +16,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QLockFile;
 
+namespace Test {
+
+// Defined in test/test_popup_hold.cpp, so core includes no test/ header.
+[[nodiscard]] bool KeepPopupsOnDeactivate();
+
+} // namespace Test
+
 namespace Core {
 
 extern const char kOptionDeadlockDetector[];

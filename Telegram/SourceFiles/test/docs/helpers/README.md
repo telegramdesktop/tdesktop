@@ -56,6 +56,7 @@ should call.
 | [test_palette](test_palette.md) | API | Switch and restore palettes while respecting system following |
 | [test_panel](test_panel.md) | API | Separate-panel discovery, show-cache readiness and typed fixture sizing |
 | [test_menu](test_menu.md) | API | Same-turn menu readings and their later-turn retake, actions, keyboard activation of accessible custom rows, and captures |
+| [test_popup_hold](test_popup_hold.md) | API | Opt-in hold that keeps widget popups open when a Windows application deactivates, counts what it stopped, and releases on finish |
 | [test_chat_menu](test_chat_menu.md) | API | Attribute chat-list context menus to the exact message |
 | [test_chat_show](test_chat_show.md) | API | Show a chat-list message wholly in view, painted, ready and hovered before input |
 | [test_chat_show_self_test](test_chat_show_self_test.md) | Self-test | Self-test for chat-list show acceptance, re-correction and named refusals |

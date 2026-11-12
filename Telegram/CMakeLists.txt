@@ -2254,6 +2254,8 @@ PRIVATE
     test/test_palette.h
     test/test_panel.cpp
     test/test_panel.h
+    test/test_popup_hold.cpp
+    test/test_popup_hold.h
     test/test_post_paint.cpp
     test/test_post_paint.h
     test/test_press_origin.cpp
