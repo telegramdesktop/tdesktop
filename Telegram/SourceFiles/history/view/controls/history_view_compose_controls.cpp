@@ -4608,7 +4608,7 @@ void ComposeControls::initVoiceRecordBar() {
 		_history
 			&& _field
 			&& _field->isVisible()
-			&& Data::CanSendTexts(_history->peer)
+			&& Data::CanSendTexts(_history->peer, !_topicRootId)
 			&& request->check(Command::ComposeAiApplyInPlace, 1)
 			&& request->handle([=] {
 				triggerAiApplyInPlace();
