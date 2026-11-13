@@ -62,6 +62,7 @@ void ShowGiftSaleRejectBox(
 	not_null<HistoryItem*> item,
 	not_null<HistoryMessageSuggestion*> suggestion);
 
+[[nodiscard]] bool CanBuyResaleGiftByInvoice(const Data::UniqueGift &gift);
 void ShowBuyResaleGiftBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> gift,

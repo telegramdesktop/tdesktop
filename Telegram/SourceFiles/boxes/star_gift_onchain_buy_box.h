@@ -27,6 +27,21 @@ struct OnchainBuyMemory final : base::has_weak_ptr {
 	bool withdrawalDisabled = false;
 };
 
+enum class OnchainBuyRefusal : uchar {
+	None,
+	SaleFlagsInvalid,
+	NotOnchainLot,
+	WalletUnavailable,
+	SupportMode,
+	PriceInvalid,
+	SlugMissing,
+	OwnGift,
+};
+
+[[nodiscard]] OnchainBuyRefusal LookupOnchainBuyRefusal(
+	not_null<Main::Session*> session,
+	const Data::UniqueGift &gift);
+[[nodiscard]] QString OnchainBuyRefusalText(OnchainBuyRefusal refusal);
 [[nodiscard]] bool CanBuyOnchainGift(
 	not_null<Main::Session*> session,
 	const Data::UniqueGift &gift);

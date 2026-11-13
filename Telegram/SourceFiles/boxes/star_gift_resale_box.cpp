@@ -90,7 +90,7 @@ struct ResaleTabs {
 		std::shared_ptr<ChatHelpers::Show> show,
 		const ResaleGiftsDescriptor &info,
 		rpl::producer<ResaleGiftsFilter> filter,
-		bool fragmentAvailable) {
+		const ResaleGiftsOptions &options) {
 	auto widget = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = widget.data();
 
@@ -116,6 +116,9 @@ struct ResaleTabs {
 	state->filter = std::move(filter);
 
 	const auto forCraft = state->filter.current().forCraft;
+	const auto tonShown = options.tonShown;
+	const auto starsShown = options.starsShown;
+	const auto fragmentShown = options.fragmentShown;
 	const auto wrapName = [=](QString name, int count) {
 		auto result = tr::marked(name);
 		if (!forCraft) {
@@ -265,19 +268,25 @@ struct ResaleTabs {
 			actionWithIcon(tr::lng_gift_resale_sort_number(tr::now), [=] {
 				sort(ResaleGiftsSort::Number);
 			}, &st::menuIconOrderNumber, is(ResaleGiftsSort::Number));
-			menu->addSeparator();
+			if (tonShown || starsShown || fragmentShown) {
+				menu->addSeparator();
+			}
 			const auto current = state->filter.current();
-			actionWithIcon(tr::lng_gift_resale_for_grams(tr::now), [=] {
-				modify([&](ResaleGiftsFilter &filter) {
-					filter.tonOnly = !filter.tonOnly;
-				});
-			}, &st::menuIconGrams, current.tonOnly);
-			actionWithIcon(tr::lng_gift_resale_for_stars(tr::now), [=] {
-				modify([&](ResaleGiftsFilter &filter) {
-					filter.starsOnly = !filter.starsOnly;
-				});
-			}, &st::menuIconStar, current.starsOnly);
-			if (fragmentAvailable) {
+			if (tonShown) {
+				actionWithIcon(tr::lng_gift_resale_for_grams(tr::now), [=] {
+					modify([&](ResaleGiftsFilter &filter) {
+						filter.tonOnly = !filter.tonOnly;
+					});
+				}, &st::menuIconGrams, current.tonOnly);
+			}
+			if (starsShown) {
+				actionWithIcon(tr::lng_gift_resale_for_stars(tr::now), [=] {
+					modify([&](ResaleGiftsFilter &filter) {
+						filter.starsOnly = !filter.starsOnly;
+					});
+				}, &st::menuIconStar, current.starsOnly);
+			}
+			if (fragmentShown) {
 				const auto text = tr::lng_gift_resale_from_fragment(tr::now);
 				actionWithIcon(text, [=] {
 					modify([&](ResaleGiftsFilter &filter) {
@@ -527,7 +536,8 @@ void GiftResaleBox(
 		not_null<GenericBox*> box,
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
-		ResaleGiftsDescriptor descriptor) {
+		ResaleGiftsDescriptor descriptor,
+		const ResaleGiftsOptions &options) {
 	box->setWidth(st::boxWideWidth);
 
 	const auto titleWrap = box->setPinnedToTopContent(
@@ -585,8 +595,8 @@ void GiftResaleBox(
 		peer,
 		content,
 		std::move(descriptor),
+		options,
 		nullptr,
-		false,
 		[=](int count) {
 			countLabel->setText(count
 				? tr::lng_gift_resale_count(
@@ -599,14 +609,34 @@ void GiftResaleBox(
 
 } // namespace
 
+ResaleGiftsOptions LookupResaleGiftsOptions(
+		not_null<Main::Session*> session,
+		bool forCraft) {
+	using Mode = Main::GiftResaleFilterMode;
+	const auto &config = session->appConfig();
+	const auto ton = config.giftResaleTonFilter();
+	const auto stars = config.giftResaleStarsFilter();
+	return {
+		.filter = {
+			.forCraft = forCraft,
+			.starsOnly = (stars == Mode::Default),
+			.tonOnly = (ton == Mode::Default),
+		},
+		.tonShown = (ton != Mode::Hidden),
+		.starsShown = (stars != Mode::Hidden),
+		.fragmentShown = !forCraft && config.giftResaleFragmentEnabled(),
+	};
+}
+
 void AddResaleGiftsList(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
 		not_null<VerticalLayout*> container,
 		Data::ResaleGiftsDescriptor descriptor,
+		const ResaleGiftsOptions &options,
 		Fn<void(std::shared_ptr<Data::UniqueGift>)> bought,
-		bool forCraft,
 		Fn<void(int)> countChanged) {
+	const auto forCraft = options.filter.forCraft;
 	struct State {
 		rpl::event_stream<> updated;
 		ResaleGiftsDescriptor data;
@@ -618,16 +648,14 @@ void AddResaleGiftsList(
 		int lastMinHeight = 0;
 	};
 	const auto state = container->lifetime().make_state<State>();
-	state->filter = ResaleGiftsFilter{ .forCraft = forCraft };
+	state->filter = options.filter;
 	state->data = std::move(descriptor);
 
-	const auto fragmentAvailable = !forCraft
-		&& window->session().appConfig().giftResaleFragmentEnabled();
 	auto tabs = MakeResaleTabs(
 		window->uiShow(),
 		state->data,
 		state->filter.value(),
-		fragmentAvailable);
+		options);
 	state->filter = std::move(tabs.filter);
 	if (forCraft) {
 		const auto skip = st::giftBoxResaleTabsMargin.top()
@@ -681,7 +709,7 @@ void AddResaleGiftsList(
 		if (i == end(state->data.list)) {
 			return;
 		} else if (action == Action::Transfer
-			|| !i->unique->starsForResale) {
+			|| !Data::UniqueGiftOnSale(*i->unique)) {
 			state->data.list.erase(i);
 		}
 		state->updated.fire({});
@@ -702,7 +730,13 @@ void AddResaleGiftsList(
 			Expects(v::is<StarGift>(descriptor));
 
 			const auto unique = v::get<StarGift>(descriptor).info.unique;
-			if (forCraft && Data::UniqueGiftOnchainPurchase(*unique)) {
+			if (forCraft && !CanBuyResaleGiftByInvoice(*unique)) {
+				const auto refusal = LookupOnchainBuyRefusal(session, *unique);
+				if (refusal != OnchainBuyRefusal::None) {
+					window->uiShow()->showToast(
+						OnchainBuyRefusalText(refusal));
+					return;
+				}
 				ShowBuyOnchainGiftBox(
 					window->uiShow(),
 					unique,
@@ -835,9 +869,11 @@ rpl::lifetime ShowStarGiftResale(
 		Fn<void()> finishRequesting) {
 	const auto weak = base::make_weak(controller);
 	const auto session = &controller->session();
+	const auto options = LookupResaleGiftsOptions(session, false);
 	return Data::ResaleGiftsSlice(
 		session,
-		giftId
+		giftId,
+		options.filter
 	) | rpl::on_next([=](ResaleGiftsDescriptor &&info) {
 		if (const auto onstack = finishRequesting) {
 			onstack();
@@ -847,7 +883,12 @@ rpl::lifetime ShowStarGiftResale(
 		}
 		info.title = title;
 		if (const auto strong = weak.get()) {
-			strong->show(Box(GiftResaleBox, strong, peer, std::move(info)));
+			strong->show(Box(
+				GiftResaleBox,
+				strong,
+				peer,
+				std::move(info),
+				options));
 		}
 	});
 }

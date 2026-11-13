@@ -22,6 +22,16 @@ namespace {
 
 constexpr auto kRefreshTimeout = 3600 * crl::time(1000);
 
+[[nodiscard]] GiftResaleFilterMode ParseGiftResaleFilterMode(
+		const QString &value) {
+	if (value == u"visible"_q) {
+		return GiftResaleFilterMode::Visible;
+	} else if (value == u"hidden"_q) {
+		return GiftResaleFilterMode::Hidden;
+	}
+	return GiftResaleFilterMode::Default;
+}
+
 } // namespace
 
 AppConfig::AppConfig(not_null<Account*> account) : _account(account) {
@@ -189,6 +199,16 @@ int AppConfig::giftResaleNanoTonThousandths() const {
 
 bool AppConfig::giftResaleFragmentEnabled() const {
 	return get<bool>(u"stargifts_fragment_resale_enabled"_q, false);
+}
+
+GiftResaleFilterMode AppConfig::giftResaleTonFilter() const {
+	return ParseGiftResaleFilterMode(
+		get<QString>(u"stargifts_ton_resale"_q, u"default"_q));
+}
+
+GiftResaleFilterMode AppConfig::giftResaleStarsFilter() const {
+	return ParseGiftResaleFilterMode(
+		get<QString>(u"stargifts_stars_resale"_q, u"default"_q));
 }
 
 bool AppConfig::giftOnchainOffersEnabled() const {

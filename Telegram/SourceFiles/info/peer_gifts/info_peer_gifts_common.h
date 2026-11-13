@@ -221,6 +221,15 @@ public:
 
 private:
 	struct KeptFrame;
+	struct ResalePrice {
+		int64 nanoTon = 0;
+		int stars = 0;
+		bool tonOnly = false;
+
+		friend inline bool operator==(
+			const ResalePrice &,
+			const ResalePrice &) = default;
+	};
 
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -280,7 +289,7 @@ private:
 	std::optional<Ui::Premium::ColoredMiniStars> _stars;
 	Ui::Animations::Simple _selectedAnimation;
 	std::unique_ptr<Overview::Layout::Checkbox> _check;
-	int _resalePrice = 0;
+	ResalePrice _resalePrice;
 	GiftButtonMode _mode = GiftButtonMode::Full;
 	GiftSelectionMode _selectionMode = GiftSelectionMode::Border;
 	bool _subscribed : 1 = false;

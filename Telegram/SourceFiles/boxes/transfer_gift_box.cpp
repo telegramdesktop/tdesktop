@@ -1924,14 +1924,18 @@ void SetPeerTheme(
 		true);
 }
 
+bool CanBuyResaleGiftByInvoice(const Data::UniqueGift &gift) {
+	return !Data::UniqueGiftOnchainPurchase(gift)
+		&& !(gift.fixedSale && !gift.onchainSale);
+}
+
 void ShowBuyResaleGiftBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
 		bool forceTon,
 		not_null<PeerData*> to,
 		Fn<void(bool ok)> closeParentBox) {
-	if (Data::UniqueGiftOnchainPurchase(*gift)
-		|| (gift->fixedSale && !gift->onchainSale)) {
+	if (!CanBuyResaleGiftByInvoice(*gift)) {
 		return;
 	}
 	const auto attempt = std::make_shared<ResaleGiftAttemptState>();

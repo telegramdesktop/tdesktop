@@ -1450,16 +1450,58 @@ void OnchainBuyBox(
 
 } // namespace
 
+OnchainBuyRefusal LookupOnchainBuyRefusal(
+		not_null<Main::Session*> session,
+		const Data::UniqueGift &gift) {
+	using Refusal = OnchainBuyRefusal;
+	if (gift.fixedSale && !gift.onchainSale) {
+		return Refusal::SaleFlagsInvalid;
+	} else if (!Data::UniqueGiftOnchainPurchase(gift)) {
+		return Refusal::NotOnchainLot;
+	} else if (!session->appConfig().walletAvailable()) {
+		return Refusal::WalletUnavailable;
+	} else if (session->supportMode()) {
+		return Refusal::SupportMode;
+	} else if (!Data::UniqueGiftBuyerPays(gift).has_value()) {
+		return Refusal::PriceInvalid;
+	} else if (gift.slug.isEmpty()) {
+		return Refusal::SlugMissing;
+	} else if ((gift.ownerId == session->userPeerId())
+		|| (LookupOwnOnchainGift(session, gift) != OwnOnchainGift::None)) {
+		return Refusal::OwnGift;
+	}
+	return Refusal::None;
+}
+
+QString OnchainBuyRefusalText(OnchainBuyRefusal refusal) {
+	using Refusal = OnchainBuyRefusal;
+	const auto code = [&] {
+		switch (refusal) {
+		case Refusal::None:
+		case Refusal::WalletUnavailable: return QString();
+		case Refusal::SaleFlagsInvalid: return u"GIFT_BUY_FLAGS_INVALID"_q;
+		case Refusal::NotOnchainLot: return u"GIFT_BUY_NOT_ONCHAIN"_q;
+		case Refusal::SupportMode: return u"GIFT_BUY_SUPPORT_MODE"_q;
+		case Refusal::PriceInvalid: return u"GIFT_BUY_PRICE_INVALID"_q;
+		case Refusal::SlugMissing: return u"GIFT_BUY_SLUG_EMPTY"_q;
+		case Refusal::OwnGift: return u"GIFT_BUY_OWN_GIFT"_q;
+		}
+		Unexpected("Refusal in OnchainBuyRefusalText.");
+	}();
+	if (refusal == Refusal::None) {
+		return QString();
+	} else if (refusal == Refusal::WalletUnavailable) {
+		return tr::lng_wallet_unavailable(tr::now);
+	}
+	return Wallet::ErrorWithType(
+		tr::lng_gift_buy_onchain_error(tr::now),
+		code);
+}
+
 bool CanBuyOnchainGift(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	return Data::UniqueGiftOnchainPurchase(gift)
-		&& Data::UniqueGiftBuyerPays(gift).has_value()
-		&& !gift.slug.isEmpty()
-		&& (gift.ownerId != session->userPeerId())
-		&& session->appConfig().walletAvailable()
-		&& !session->supportMode()
-		&& (LookupOwnOnchainGift(session, gift) == OwnOnchainGift::None);
+	return (LookupOnchainBuyRefusal(session, gift) == OnchainBuyRefusal::None);
 }
 
 void ShowBuyOnchainGiftBox(

@@ -7,10 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-namespace Data {
-struct UniqueGift;
-struct ResaleGiftsDescriptor;
-} // namespace Data
+#include "data/data_star_gift.h"
 
 namespace Info::PeerGifts {
 struct GiftTypeStars;
@@ -29,6 +26,17 @@ namespace Ui {
 
 class VerticalLayout;
 
+struct ResaleGiftsOptions {
+	Data::ResaleGiftsFilter filter;
+	bool tonShown = false;
+	bool starsShown = false;
+	bool fragmentShown = false;
+};
+
+[[nodiscard]] ResaleGiftsOptions LookupResaleGiftsOptions(
+	not_null<Main::Session*> session,
+	bool forCraft);
+
 void ShowResaleGiftBoughtToast(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> to,
@@ -46,8 +54,8 @@ void AddResaleGiftsList(
 	not_null<PeerData*> peer,
 	not_null<VerticalLayout*> container,
 	Data::ResaleGiftsDescriptor descriptor,
+	const ResaleGiftsOptions &options,
 	Fn<void(std::shared_ptr<Data::UniqueGift>)> bought = nullptr,
-	bool forCraft = false,
 	Fn<void(int)> countChanged = nullptr);
 
 } // namespace Ui
