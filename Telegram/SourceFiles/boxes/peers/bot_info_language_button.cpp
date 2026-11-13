@@ -156,11 +156,11 @@ void FillBotInfoLanguageMenu(
 	}
 	menu->addSeparator();
 	menu->addAction(
-		tr::lng_bot_languages_add(tr::now),
-		args.add,
-		&st::menuIconAdd);
-	menu->addAction(
 		tr::lng_bot_languages_translate(tr::now),
 		args.translate,
 		&st::menuIconTranslate);
+	menu->addAction(
+		tr::lng_bot_languages_add(tr::now),
+		args.add,
+		&st::menuIconAdd);
 }

@@ -430,16 +430,11 @@ void EditBotInfoBox(
 
 	const auto addLanguage = [=] {
 		const auto chosen = crl::guard(box, [=](std::vector<LanguageId> ids) {
-			auto codes = std::vector<QString>();
-			for (const auto id : ids) {
-				const auto code = id.twoLetterCode();
-				if (Data::ValidBotInfoLangCode(code)) {
-					draft->add(code);
-					codes.push_back(code);
-				}
-			}
-			if (!codes.empty()) {
-				choose(codes.front());
+			const auto code = ids.empty()
+				? QString()
+				: ids.front().twoLetterCode();
+			if (Data::ValidBotInfoLangCode(code)) {
+				choose(code);
 			}
 		});
 		box->uiShow()->showBox(Box(
@@ -447,7 +442,7 @@ void EditBotInfoBox(
 			tr::lng_bot_languages_add(),
 			chosen,
 			std::vector<LanguageId>(),
-			true,
+			false,
 			nullptr));
 	};
 	const auto translated = [=](const QString &single, int count) {
