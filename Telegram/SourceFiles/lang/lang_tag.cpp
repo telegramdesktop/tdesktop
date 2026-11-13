@@ -964,6 +964,9 @@ QString FormatExactCountDecimal(float64 number) {
 	while (result.endsWith(zero)) {
 		result.chop(1);
 	}
+	if (result.endsWith(locale.decimalPoint())) {
+		return locale.toString(int64(base::SafeRound(number)));
+	}
 	return result;
 }
 
