@@ -21,7 +21,7 @@ class PopupMenu;
 struct BotInfoLanguageMenuArgs {
 	not_null<const Data::BotInfoDraft*> draft;
 	QString current;
-	QString loading;
+	rpl::producer<QString> loading;
 	Fn<void(QString)> choose;
 	Fn<void()> add;
 	Fn<void()> translate;

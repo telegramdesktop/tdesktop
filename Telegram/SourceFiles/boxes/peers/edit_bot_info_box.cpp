@@ -495,16 +495,18 @@ void EditBotInfoBox(
 			button->mapToGlobal(QPoint(button->width(), button->height())));
 	};
 	const auto showLanguages = [=](not_null<Ui::RpWidget*> button) {
-		const auto now = localization->state();
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			box.get(),
 			st::botInfoLanguageMenu);
 		FillBotInfoLanguageMenu(state->menu.get(), {
 			.draft = draft,
 			.current = state->code.current(),
-			.loading = (now.job == Job::Load)
-				? ProgressText(tr::lng_bot_languages_loading, now)
-				: QString(),
+			.loading = localization->stateValue(
+			) | rpl::map([](const JobState &now) {
+				return (now.job == Job::Load)
+					? ProgressText(tr::lng_bot_languages_loading, now)
+					: QString();
+			}),
 			.choose = choose,
 			.add = addLanguage,
 			.translate = translateTo,
