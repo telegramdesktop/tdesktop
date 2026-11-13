@@ -469,8 +469,8 @@ void AddExceptions() {
 	) | ranges::views::transform([](const auto &word) {
 		return word.utf16();
 	}) | ranges::views::filter([](const auto &word) {
-		return !(Platform::Spellchecker::IsWordInDictionary(word)
-			|| Spellchecker::IsWordSkippable(word));
+		return !Spellchecker::IsWordSkippable(word)
+			&& !Platform::Spellchecker::IsWordInDictionary(word);
 	}) | ranges::to_vector;
 
 	ranges::for_each(exceptions, Platform::Spellchecker::AddWord);
@@ -702,7 +702,16 @@ void Start(not_null<Main::Session*> session) {
 	if (Platform::Spellchecker::IsSystemSpellchecker()) {
 		Spellchecker::SupportedScriptsChanged()
 		| rpl::take(1)
+#ifdef Q_OS_MAC
+		| rpl::on_next([] {
+			static auto scheduled = false;
+			if (!std::exchange(scheduled, true)) {
+				crl::async(AddExceptions);
+			}
+		}, lifetime);
+#else // Q_OS_MAC
 		| rpl::on_next(AddExceptions, lifetime);
+#endif // Q_OS_MAC
 
 		return;
 	}

@@ -1594,15 +1594,40 @@ void Settings::setThirdColumnWidth(int width) {
 	_thirdColumnWidth = width;
 }
 
+#ifdef Q_OS_MAC
+void Settings::setDefaultDeviceModel(QString model) {
+	_defaultDeviceModel = std::move(model);
+}
+#endif // Q_OS_MAC
+
+QString Settings::defaultDeviceModel() const {
+#ifdef Q_OS_MAC
+	return _defaultDeviceModel.current();
+#else // Q_OS_MAC
+	return Platform::DeviceModelPretty();
+#endif // Q_OS_MAC
+}
+
+rpl::producer<QString> Settings::defaultDeviceModelValue() const {
+#ifdef Q_OS_MAC
+	return _defaultDeviceModel.value();
+#else // Q_OS_MAC
+	return rpl::single(defaultDeviceModel());
+#endif // Q_OS_MAC
+}
+
 QString Settings::deviceModel() const {
 	const auto custom = customDeviceModel();
-	return custom.isEmpty() ? Platform::DeviceModelPretty() : custom;
+	return custom.isEmpty() ? defaultDeviceModel() : custom;
 }
 
 rpl::producer<QString> Settings::deviceModelChanges() const {
-	return customDeviceModelChanges() | rpl::map([=] {
-		return deviceModel();
-	});
+	return rpl::combine(
+		_customDeviceModel.value(),
+		defaultDeviceModelValue(),
+		[](const QString &custom, const QString &detected) {
+			return custom.isEmpty() ? detected : custom;
+		}) | rpl::distinct_until_changed() | rpl::skip(1);
 }
 
 WindowColumns Settings::windowColumns() const {

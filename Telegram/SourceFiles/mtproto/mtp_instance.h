@@ -47,7 +47,6 @@ public:
 		std::unique_ptr<Config> config;
 		DcId mainDcId = kNotSetMainDc;
 		AuthKeysList keys;
-		QString deviceModel;
 		QString systemVersion;
 	};
 

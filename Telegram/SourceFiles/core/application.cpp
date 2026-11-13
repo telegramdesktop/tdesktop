@@ -317,6 +317,23 @@ void Application::run() {
 
 	startLocalStorage();
 
+#ifdef Q_OS_MAC
+	auto modelReady = crl::guard(this, [=](QString model) {
+		if (!Quitting()) {
+			settings().setDefaultDeviceModel(std::move(model));
+		}
+	});
+	crl::async([modelReady = std::move(modelReady)]() mutable {
+		auto model = Platform::DeviceModelPretty();
+		crl::on_main([
+			modelReady = std::move(modelReady),
+			model = std::move(model)
+		]() mutable {
+			modelReady(std::move(model));
+		});
+	});
+#endif // Q_OS_MAC
+
 	style::SetCustomFont(settings().customFontFamily());
 	style::internal::StartFonts();
 

@@ -826,9 +826,11 @@ public:
 	[[nodiscard]] QString customDeviceModel() const {
 		return _customDeviceModel.current();
 	}
-	[[nodiscard]] rpl::producer<QString> customDeviceModelChanges() const {
-		return _customDeviceModel.changes();
-	}
+#ifdef Q_OS_MAC
+	void setDefaultDeviceModel(QString model);
+#endif // Q_OS_MAC
+	[[nodiscard]] QString defaultDeviceModel() const;
+	[[nodiscard]] rpl::producer<QString> defaultDeviceModelValue() const;
 	[[nodiscard]] QString deviceModel() const;
 	[[nodiscard]] rpl::producer<QString> deviceModelChanges() const;
 
@@ -1158,6 +1160,9 @@ private:
 	CloseBehavior _closeBehavior = CloseBehavior::Quit;
 	rpl::variable<bool> _trayIconMonochrome = true;
 	rpl::variable<QString> _customDeviceModel;
+#ifdef Q_OS_MAC
+	rpl::variable<QString> _defaultDeviceModel = u"Mac"_q;
+#endif // Q_OS_MAC
 	rpl::variable<Media::RepeatMode> _playerRepeatMode;
 	rpl::variable<Media::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
