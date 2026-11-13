@@ -15,9 +15,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/effects/animations.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/wrap/slide_wrap.h"
 #include "window/themes/window_theme.h"
@@ -60,7 +62,9 @@ public:
 private:
 	void paintEvent(QPaintEvent *e) override;
 
-	void resizeTo(int width);
+	void resizeTo(int width, anim::type animated);
+	void resizeToBubble();
+	[[nodiscard]] QRect bubble() const;
 
 	const not_null<UserData*> _bot;
 	const not_null<History*> _history;
@@ -70,6 +74,9 @@ private:
 
 	std::unique_ptr<AboutView> _view;
 	rpl::variable<bool> _shown = false;
+	Ui::Animations::Simple _resize;
+	QRect _bubbleFrom;
+	QRect _bubble;
 	int _shift = 0;
 
 };
@@ -135,14 +142,16 @@ Preview::Preview(
 					Ui::ItemTextBotNoMonoOptions().flags),
 				document,
 				photo);
-			resizeTo(width());
+			resizeTo(
+				width(),
+				_shown.current() ? anim::type::normal : anim::type::instant);
 			update();
 		}
 		_shown = shown;
 	}, lifetime());
 
 	widthValue() | rpl::on_next([=](int width) {
-		resizeTo(width);
+		resizeTo(width, anim::type::instant);
 	}, lifetime());
 }
 
@@ -154,17 +163,55 @@ rpl::producer<bool> Preview::shownValue() const {
 	return _shown.value();
 }
 
-void Preview::resizeTo(int width) {
+void Preview::resizeTo(int width, anim::type animated) {
 	const auto view = _view->view();
 	if (!view || (width < st::msgMinWidth)) {
+		_resize.stop();
+		_bubble = QRect();
 		resize(width, 0);
 		return;
 	}
+	const auto was = bubble();
 	const auto height = view->resizeGetHeight(width);
 	const auto top = view->marginTop();
-	const auto skip = st::botIntroPreviewSkip;
-	_shift = skip - top;
-	resize(width, skip + (height - top - view->marginBottom()) + skip);
+	const auto inner = view->innerGeometry();
+	_shift = st::botIntroPreviewSkip - top;
+	_bubble = QRect(
+		inner.x(),
+		top,
+		inner.width(),
+		height - top - view->marginBottom());
+	if ((animated == anim::type::instant) || was.isEmpty()) {
+		_resize.stop();
+	} else if (was != _bubble) {
+		_bubbleFrom = was;
+		_resize.start(
+			[=] { resizeToBubble(); },
+			0.,
+			1.,
+			st::slideWrapDuration,
+			anim::easeOutCirc);
+	}
+	resizeToBubble();
+}
+
+void Preview::resizeToBubble() {
+	resize(width(), bubble().height() + 2 * st::botIntroPreviewSkip);
+	update();
+}
+
+QRect Preview::bubble() const {
+	const auto progress = _resize.value(1.);
+	const auto value = [&](int from, int to) {
+		return anim::interpolate(from, to, progress);
+	};
+	return _resize.animating()
+		? QRect(
+			value(_bubbleFrom.x(), _bubble.x()),
+			_bubble.y(),
+			value(_bubbleFrom.width(), _bubble.width()),
+			value(_bubbleFrom.height(), _bubble.height()))
+		: _bubble;
 }
 
 void Preview::paintEvent(QPaintEvent *e) {
@@ -189,7 +236,23 @@ void Preview::paintEvent(QPaintEvent *e) {
 		clip,
 		!window()->isActiveWindow());
 	p.translate(0, _shift);
-	view->draw(p, context);
+	if (_resize.animating()) {
+		const auto now = bubble();
+		const auto radius = st::bubbleRadiusLarge;
+		const auto &bg = context.messageStyle()->msgBg;
+		auto path = QPainterPath();
+		path.addRoundedRect(now, radius, radius);
+		p.setClipPath(path, Qt::IntersectClip);
+		p.fillRect(now, bg);
+		view->draw(p, context);
+
+		auto real = QPainterPath();
+		real.addRoundedRect(_bubble - Margins(1), radius - 1, radius - 1);
+		auto hq = PainterHighQualityEnabler(p);
+		p.fillPath(path.subtracted(real), bg);
+	} else {
+		view->draw(p, context);
+	}
 }
 
 } // namespace
