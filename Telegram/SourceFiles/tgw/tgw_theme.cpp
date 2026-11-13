@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_runtime.h"
 #include "twidget/widget_host.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/effects/animation_value.h"
 #include "ui/color_contrast.h"
 
