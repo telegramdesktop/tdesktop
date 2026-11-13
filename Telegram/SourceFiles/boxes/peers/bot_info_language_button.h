@@ -29,7 +29,7 @@ struct BotInfoLanguageMenuArgs {
 
 [[nodiscard]] QString BotInfoLanguageName(const QString &langCode);
 [[nodiscard]] object_ptr<Ui::AbstractButton> CreateBotInfoLanguageButton(
-	const QString &text);
+	rpl::producer<QString> text);
 void FillBotInfoLanguageMenu(
 	not_null<Ui::PopupMenu*> menu,
 	BotInfoLanguageMenuArgs &&args);

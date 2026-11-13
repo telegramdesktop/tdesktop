@@ -548,12 +548,12 @@ void EditBotInfoBox(
 			box->addButton(tr::lng_settings_save(), save);
 		}
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
-		const auto menu = box->addTopButton(st::infoTopBarMenu);
+		const auto menu = box->addTopButton(st::botInfoMenu);
 		menu->setClickedCallback([=] { showMenu(menu); });
 		if (state->ready.current()) {
 			const auto language = box->addTopButton(
 				CreateBotInfoLanguageButton(
-					BotInfoLanguageName(state->code.current())));
+					state->code.value() | rpl::map(BotInfoLanguageName)));
 			language->setClickedCallback([=] { showLanguages(language); });
 		}
 	};
@@ -563,7 +563,6 @@ void EditBotInfoBox(
 		state->changes.changes() | rpl::map([](int changes) {
 			return (changes > 0);
 		}) | rpl::distinct_until_changed() | rpl::to_empty,
-		state->code.changes() | rpl::to_empty,
 		state->ready.changes() | rpl::to_empty,
 		localization->stateValue(
 		) | rpl::map(Working) | rpl::distinct_until_changed(

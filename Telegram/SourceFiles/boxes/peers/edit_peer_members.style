@@ -153,6 +153,10 @@ botInfoFieldReset: IconButton(defaultIconButton) {
 	rippleAreaSize: 28px;
 	ripple: defaultRippleAnimationBgOver;
 }
+botInfoMenu: IconButton(boxTitleClose) {
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+}
 botInfoLanguageFont: font(13px semibold);
 botInfoLanguagePadding: margins(6px, 10px, 9px, 10px);
 botInfoLanguageTextSkip: 4px;

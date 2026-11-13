@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "spellcheck/spellcheck_types.h"
 #include "ui/boxes/choose_language_box.h"
-#include "ui/abstract_button.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
 
@@ -22,37 +24,91 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-class LanguageButton final : public Ui::AbstractButton {
+struct LanguageLabel {
+	QString text;
+	int width = 0;
+};
+
+class LanguageButton final : public Ui::RippleButton {
 public:
-	LanguageButton(QWidget *parent, const QString &text);
+	LanguageButton(QWidget *parent, rpl::producer<QString> text);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void onStateChanged(State was, StateChangeSource source) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
-	const QString _text;
-	const int _textWidth = 0;
+	void setText(const QString &text);
+	void updateWidth();
+	[[nodiscard]] int textWidth() const;
+	[[nodiscard]] QRect pill() const;
+
+	LanguageLabel _label;
+	LanguageLabel _previous;
+	Ui::Animations::Simple _change;
 
 };
 
-LanguageButton::LanguageButton(QWidget *parent, const QString &text)
-: AbstractButton(parent)
-, _text(st::botInfoLanguageFont->elided(
-	text,
-	st::botInfoLanguageTextMaxWidth))
-, _textWidth(st::botInfoLanguageFont->width(_text)) {
-	const auto &padding = st::botInfoLanguagePadding;
+LanguageButton::LanguageButton(QWidget *parent, rpl::producer<QString> text)
+: RippleButton(parent, st::defaultRippleAnimation) {
+	std::move(text) | rpl::on_next([=](const QString &text) {
+		setText(text);
+	}, lifetime());
+}
+
+void LanguageButton::setText(const QString &text) {
+	const auto &font = st::botInfoLanguageFont;
+	const auto elided = font->elided(text, st::botInfoLanguageTextMaxWidth);
+	if (_label.text == elided) {
+		return;
+	}
 	setAccessibleName(text);
+	_previous = std::exchange(_label, { elided, font->width(elided) });
+	if (_previous.text.isEmpty()) {
+		_change.stop();
+	} else {
+		_change.start(
+			[=] { updateWidth(); },
+			0.,
+			1.,
+			st::slideWrapDuration,
+			anim::easeOutCirc);
+	}
+	updateWidth();
+}
+
+void LanguageButton::updateWidth() {
+	const auto &padding = st::botInfoLanguagePadding;
+	const auto right = x() + width();
+	const auto was = width();
 	resize(
 		padding.left()
 			+ st::botInfoLanguageIcon.width()
 			+ st::botInfoLanguageTextSkip
-			+ _textWidth
+			+ textWidth()
 			+ st::botInfoLanguageTextSkip
 			+ st::botInfoLanguageArrow.width()
 			+ padding.right(),
 		st::boxTitleHeight);
+	if (was && (was != width())) {
+		move(right - width(), y());
+	}
+	update();
+}
+
+int LanguageButton::textWidth() const {
+	return anim::interpolate(
+		_previous.width,
+		_label.width,
+		_change.value(1.));
+}
+
+QRect LanguageButton::pill() const {
+	const auto &padding = st::botInfoLanguagePadding;
+	return rect().marginsRemoved(
+		{ 0, padding.top(), 0, padding.bottom() });
 }
 
 void LanguageButton::paintEvent(QPaintEvent *e) {
@@ -63,12 +119,12 @@ void LanguageButton::paintEvent(QPaintEvent *e) {
 	const auto &font = st::botInfoLanguageFont;
 	const auto &icon = st::botInfoLanguageIcon;
 	const auto &arrow = st::botInfoLanguageArrow;
-	const auto pill = rect().marginsRemoved(
-		{ 0, padding.top(), 0, padding.bottom() });
+	const auto pill = LanguageButton::pill();
 	const auto radius = pill.height() / 2.;
 	p.setPen(Qt::NoPen);
-	p.setBrush(isOver() ? st::windowBgRipple : st::windowBgOver);
+	p.setBrush(st::windowBgOver);
 	p.drawRoundedRect(pill, radius, radius);
+	paintRipple(p, pill.topLeft());
 
 	auto left = padding.left();
 	icon.paint(
@@ -77,13 +133,20 @@ void LanguageButton::paintEvent(QPaintEvent *e) {
 		pill.y() + (pill.height() - icon.height()) / 2,
 		width());
 	left += icon.width() + st::botInfoLanguageTextSkip;
+	const auto progress = _change.value(1.);
+	const auto top = pill.y()
+		+ (pill.height() - font->height) / 2
+		+ font->ascent;
 	p.setPen(st::windowBoldFg);
 	p.setFont(font);
-	p.drawText(
-		left,
-		pill.y() + (pill.height() - font->height) / 2 + font->ascent,
-		_text);
-	left += _textWidth + st::botInfoLanguageTextSkip;
+	if (progress < 1.) {
+		p.setOpacity(1. - progress);
+		p.drawText(left, top, _previous.text);
+		p.setOpacity(progress);
+	}
+	p.drawText(left, top, _label.text);
+	p.setOpacity(1.);
+	left += textWidth() + st::botInfoLanguageTextSkip;
 	arrow.paint(
 		p,
 		left,
@@ -91,8 +154,13 @@ void LanguageButton::paintEvent(QPaintEvent *e) {
 		width());
 }
 
-void LanguageButton::onStateChanged(State was, StateChangeSource source) {
-	update();
+QImage LanguageButton::prepareRippleMask() const {
+	const auto size = pill().size();
+	return Ui::RippleAnimation::RoundRectMask(size, size.height() / 2);
+}
+
+QPoint LanguageButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - pill().topLeft();
 }
 
 [[nodiscard]] auto SortedLanguages(const Data::BotInfoDraft &draft) {
@@ -145,8 +213,8 @@ QString BotInfoLanguageName(const QString &langCode) {
 }
 
 object_ptr<Ui::AbstractButton> CreateBotInfoLanguageButton(
-		const QString &text) {
-	return object_ptr<LanguageButton>(nullptr, text);
+		rpl::producer<QString> text) {
+	return object_ptr<LanguageButton>(nullptr, std::move(text));
 }
 
 void FillBotInfoLanguageMenu(
