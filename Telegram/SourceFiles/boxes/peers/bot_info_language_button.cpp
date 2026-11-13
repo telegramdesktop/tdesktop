@@ -224,6 +224,7 @@ void FillBotInfoLanguageMenu(
 		std::vector<LanguageEntry> entries;
 		rpl::variable<QString> loading;
 		QAction *loadingAction = nullptr;
+		Ui::Animations::Simple resize;
 	};
 	const auto draft = args.draft;
 	const auto current = args.current;
@@ -272,13 +273,52 @@ void FillBotInfoLanguageMenu(
 	};
 	rebuild();
 
+	const auto keepRight = [=](int right) {
+		menu->move(right - menu->width(), menu->y());
+	};
+	const auto rebuildAnimated = [=] {
+		const auto inner = menu->menu();
+		const auto from = inner->width();
+		const auto right = menu->x() + menu->width();
+		state->resize.stop();
+		menu->setForceWidth(0);
+		rebuild();
+		const auto to = inner->width();
+		if (from == to) {
+			keepRight(right);
+			return;
+		}
+		const auto apply = [=] {
+			const auto progress = state->resize.value(1.);
+			if (state->resize.animating()) {
+				menu->setForceWidth(anim::interpolate(from, to, progress));
+			} else {
+				menu->setForceWidth(0);
+				rebuild();
+			}
+			keepRight(right);
+		};
+		menu->setForceWidth(from);
+		keepRight(right);
+		state->resize.start(
+			apply,
+			0.,
+			1.,
+			st::slideWrapDuration,
+			anim::easeOutCirc);
+	};
 	const auto refresh = [=] {
 		const auto loading = state->loading.current();
 		const auto shown = (state->loadingAction != nullptr);
-		if ((shown == loading.isEmpty()) || (state->entries != entries())) {
-			rebuild();
+		if (state->resize.animating()) {
+			return;
+		} else if ((shown == loading.isEmpty())
+			|| (state->entries != entries())) {
+			rebuildAnimated();
 		} else if (shown) {
+			const auto right = menu->x() + menu->width();
 			state->loadingAction->setText(loading);
+			keepRight(right);
 		}
 	};
 	rpl::merge(
