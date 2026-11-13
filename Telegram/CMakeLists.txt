@@ -719,6 +719,8 @@ PRIVATE
     data/data_boosts.h
     data/data_bot_app.cpp
     data/data_bot_app.h
+    data/data_bot_info_draft.cpp
+    data/data_bot_info_draft.h
     data/data_chat.cpp
     data/data_chat.h
     data/data_chat_filters.cpp
