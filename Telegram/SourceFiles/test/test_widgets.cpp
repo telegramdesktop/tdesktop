@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <private/qdnd_p.h>
+#include <private/qguiapplication_p.h>
 #include <qpa/qwindowsysteminterface.h>
 #endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
@@ -936,6 +937,13 @@ void PressKey(
 		int key,
 		Qt::KeyboardModifiers modifiers) {
 	const auto alive = base::make_weak(widget);
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
+	// A sent press makes its modifiers Qt's cached state and a sent release
+	// writes nothing, so release them once the pair has settled.
+	const auto released = gsl::finally([] {
+		QGuiApplicationPrivate::modifier_buttons = Qt::NoModifier;
+	});
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	auto press = QKeyEvent(QEvent::KeyPress, key, modifiers);
 	if (!DeliverAndSettle(alive, press)) {
 		return;

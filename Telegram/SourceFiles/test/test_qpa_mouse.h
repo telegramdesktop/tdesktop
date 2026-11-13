@@ -102,7 +102,9 @@ enum class QpaMouseType {
 // the button pressed or released, Qt::NoButton for a move; |buttons| is
 // what is held after the event, as QWindowSystemInterface takes it: a
 // press includes |button|, a release no longer does, a held move carries
-// the held buttons.
+// the held buttons. |modifiers| go with the event, and Qt makes them its
+// cached keyboard state (QGuiApplication::keyboardModifiers()), as for
+// real input.
 struct QpaMouseEvent {
 	QpaMouseType type = QpaMouseType::Move;
 	QPoint point;
@@ -196,13 +198,15 @@ struct QpaMouseEnd {
 // presses still hold, through the saved QWindow while it lives and no
 // popup or modal is in the way, else by clearing just those bits; releases
 // a grab that appeared after the first delivery; delivers a
-// QWindowSystemInterface leave - each inside Settle - and reads the end
-// state. A sequence that never sent anything changes nothing. Called again
-// with no delivery in between, end() sends nothing and returns the same
-// reading; a delivery after it opens the sequence again. The destructor
-// delivers nothing. Left behind by design: Qt's last cursor position (the
-// last delivered point), and Qt's current mouse window and last mouse
-// receiver, which the leave clears.
+// QWindowSystemInterface leave - each inside Settle - then sets Qt's
+// cached keyboard modifiers to Qt::NoModifier, and reads the end state.
+// Until then the last delivery's modifiers stay cached, as its held
+// buttons stay held. A sequence that never sent anything changes nothing.
+// Called again with no delivery in between, end() sends nothing and
+// returns the same reading; a delivery after it opens the sequence again.
+// The destructor delivers nothing. Left behind by design: Qt's last cursor
+// position (the last delivered point), and Qt's current mouse window and
+// last mouse receiver, which the leave clears.
 class QpaMouseSequence final {
 public:
 	explicit QpaMouseSequence(QWidget *target);

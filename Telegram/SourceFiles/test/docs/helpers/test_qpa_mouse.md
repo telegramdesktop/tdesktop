@@ -282,10 +282,11 @@ so `end()` needs neither a live target nor another mapping. `end()` is the
 caller's obligation, from `Runner::onFinish` too when a sequence outlives its
 stage: it releases the held buttons through the saved window (else clears
 just those bits), releases a grab that appeared after the first delivery,
-delivers a `QWindowSystemInterface` leave - each inside `Settle` - and reads
-the end state. Called again with no delivery in between it sends nothing and
-returns the same reading; a delivery after it opens the sequence again. The
-destructor delivers nothing.
+delivers a `QWindowSystemInterface` leave - each inside `Settle` - then sets
+Qt's cached keyboard modifiers to `Qt::NoModifier`, and reads the end state.
+Called again with no delivery in between it sends nothing and returns the
+same reading; a delivery after it opens the sequence again. The destructor
+delivers nothing.
 
 `AppendQpaMouseDrag` registers its own `Runner::onFinish` when appended: it
 stops the pace timer and ends a sequence its stage left open, marking that
@@ -298,11 +299,19 @@ after its `then`. The stage's timeout is `bound` plus `steps` x `paceMs` plus
 Residue, by design. QPA delivery changes Qt's own pointer state - the
 pressed buttons (`QGuiApplication::mouseButtons()`), the mouse grab, the
 pressed and last mouse receiver, the mouse window and the last cursor
-position - and never the OS pointer. `end()` undoes the buttons, the grab
-and the hover. It leaves Qt's last cursor position on the last delivered
-point, and its leave clears Qt's current mouse window and last mouse
-receiver rather than restoring them, so the next real or harness move
-starts from there. `QCursor::pos()` asks the platform cursor on macOS,
+position - and never the OS pointer. It also changes Qt's cached keyboard
+modifiers: `QGuiApplicationPrivate::processMouseEvent` makes the `modifiers`
+of each delivery it processes the value `QGuiApplication::keyboardModifiers()`
+returns, which `base::IsCtrlPressed()`, `IsShiftPressed()` and
+`IsAltPressed()` compare exactly, so between deliveries a sequence carrying
+`Qt::ControlModifier` reads as Control held, like its held button. `end()`
+undoes the buttons, the grab and the hover, and after that cleanup resets
+the modifiers to `Qt::NoModifier`; a sequence that never sent anything
+leaves them as they were. Built with `DESKTOP_APP_DISABLE_PRIVATE_QT_API`
+every delivery is refused, so nothing sets them. `end()` leaves Qt's last
+cursor position on the last delivered point, and its leave clears Qt's
+current mouse window and last mouse receiver rather than restoring them,
+so the next real or harness move starts from there. `QCursor::pos()` asks the platform cursor on macOS,
 Windows and X11 (`QCocoaCursor::pos`, `QWindowsCursor::pos`,
 `QXcbCursor::pos`) and still reads the OS pointer, so a ripple that a press
 starts at `QCursor::pos()` begins where the owner's mouse is, as with
@@ -329,6 +338,12 @@ a second launch with `QT_SCALE_FACTOR=2`; a default macOS launch reads factor
 1 even at DPR 2. `unsupported` is checked only in a build with
 `DESKTOP_APP_DISABLE_PRIVATE_QT_API`, where every delivering stage is
 `N/A`.
+
+The keyboard-modifier reset of `end()` is measured by
+`AppendKeyboardModifiersSelfTest` ([test_keyboard_modifiers](test_keyboard_modifiers.md)):
+a Ctrl left click through one sequence on its recorder reads Control in the
+press and in Qt's cached state right before `end()`, and `Qt::NoModifier`
+with every `base::Is*Pressed()` false right after it.
 
 Run 1's ingredients, from `2026/10/20/keep-wallet-gift-frames-sharp-on-high-dpi-screens`
 (`work/test.md`, Attempt 1): its overlay delivered every event raw, with a

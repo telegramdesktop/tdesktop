@@ -2155,6 +2155,8 @@ PRIVATE
     test/test_hover.h
     test/test_ink.cpp
     test/test_ink.h
+    test/test_keyboard_modifiers.cpp
+    test/test_keyboard_modifiers.h
     test/test_l10n_seams.cpp
     test/test_l10n_seams.h
     test/test_lang_ids_migration.cpp

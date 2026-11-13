@@ -529,6 +529,17 @@ struct TextDrop {
 TextDrop DropText(not_null<Ui::InputField*> field, const QString &text);
 [[nodiscard]] QString TextDropDetails(const TextDrop &reading);
 
+// Sends a KeyPress and then a KeyRelease of |key| carrying |modifiers| to
+// |widget|, each inside Settle, and skips the release when the press
+// destroyed the widget. The receiver, the application filters and Qt's
+// shortcut map get |modifiers| exactly as requested, and Qt's cached
+// keyboard state, QGuiApplication::keyboardModifiers(), reads the press's
+// modifiers while the press and the release are handled. On return -
+// after a skipped release too - that cached state reads Qt::NoModifier,
+// so PressKey holds no key across calls. Built with
+// DESKTOP_APP_DISABLE_PRIVATE_QT_API there is no such reset: the state
+// keeps what the press set. Reference:
+// docs/helpers/test_widgets.md#input-helpers.
 void PressKey(
 	not_null<QWidget*> widget,
 	int key,

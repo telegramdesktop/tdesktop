@@ -732,6 +732,8 @@ QpaMouseEnd QpaMouseSequence::end() {
 			});
 			result.leaveSent = true;
 		}
+		// Each delivery made its modifiers Qt's cached keyboard state.
+		QGuiApplicationPrivate::modifier_buttons = Qt::NoModifier;
 	}
 #endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	result.buttons = QGuiApplication::mouseButtons();
