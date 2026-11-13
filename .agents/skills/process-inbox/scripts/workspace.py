@@ -5866,6 +5866,29 @@ def gitlink_paths(source, paths):
 	return result
 
 
+def submodule_pin_problem(source, path):
+	"""Why source-commit cannot commit the dirty gitlink at path, or None.
+
+	The submodule must be an initialized checkout of its own, with a commit
+	checked out and no changes, nested submodules included. Staging the path
+	then records that checked-out commit.
+	"""
+	module = Path(source).resolve() / path
+	if (
+		module.resolve() != module
+		or is_linked_worktree(source, path + "/")
+		or not (module / ".git").exists()
+		or resolved_ref(module, "HEAD") is None
+	):
+		return "not an initialized checkout with a commit checked out"
+	changes = source_changed_paths(module)
+	if changes:
+		return "uncommitted changes: " + ", ".join(
+			f"{path}/{value}" for value in changes
+		)
+	return None
+
+
 def mirror_source_head(config):
 	tag = config.get("checkout_tag")
 	if not tag:
@@ -5880,7 +5903,8 @@ def mirror_source_head(config):
 		push = subprocess.run(
 			[
 				"git", "-C", str(source), "push", "--force", "--quiet",
-				MIRROR_REMOTE, f"HEAD:refs/heads/{branch}",
+				"--recurse-submodules=no", MIRROR_REMOTE,
+				f"HEAD:refs/heads/{branch}",
 			],
 			stdin=subprocess.DEVNULL,
 			stdout=subprocess.PIPE,
@@ -5937,20 +5961,26 @@ def command_source_commit(args):
 	dirty = source_changed_paths(source)
 	if not dirty:
 		raise WorkspaceError("The source checkout has no changes to commit")
+	submodules = gitlink_paths(source, dirty)
 	outside = [
 		path for path in dirty
-		if not path_is_covered(path, allowed)
+		if not (
+			path in owned if path in submodules
+			else path_is_covered(path, allowed)
+		)
 	]
 	if outside:
 		raise WorkspaceError(
 			"Dirty source paths are outside the owned write set: "
 			+ ", ".join(outside)
 		)
-	submodules = gitlink_paths(source, dirty)
-	if submodules:
+	problems = [
+		f"{path}: {problem}" for path in submodules
+		for problem in [submodule_pin_problem(source, path)] if problem
+	]
+	if problems:
 		raise WorkspaceError(
-			"Submodule pointers must be committed explicitly first: "
-			+ ", ".join(submodules)
+			"Submodule pointers cannot be committed:\n" + "\n".join(problems)
 		)
 	for path in dirty:
 		if path_is_stageable(source, path):

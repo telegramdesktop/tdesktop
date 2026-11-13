@@ -779,10 +779,17 @@ The performer owns commit boundaries. The workspace helper's `source-commit`
 command is the standard mechanism: it enforces this section's contract —
 every dirty path verified against the union of owned write sets, only explicit
 paths staged, never `git add -A`, the exact three-line message — in one
-deterministic call. Commit an intended submodule first, manually, only when
-its preflight was clean and all of its changes belong to this task, then stage
-the superproject pointer; the helper refuses dirty submodule pointers so an
-unintended one can never slip into an attempt.
+deterministic call. A task that moves a submodule pin commits inside the
+submodule first, by hand, only when its preflight was clean and all of its
+changes belong to this task. It names the submodule path itself, such as
+`Telegram/ThirdParty/widget-sandbox`, in `work/owned-paths.txt` and runs
+`source-commit` as for any other commit; staging the pin by hand is not
+needed. The helper records the submodule's checked-out commit with the other
+owned paths, then marks green and mirrors as usual. So that an unintended
+pointer can never slip into an attempt, it refuses, before staging anything, a
+moved pin the owned write set does not name exactly (an owned parent directory
+or a file inside does not name it) and a submodule with uncommitted changes,
+untracked files and moved or dirty nested submodules included.
 
 After every commit, `source-commit` force-pushes the checkout's `HEAD` to
 `refs/heads/ai-<checkout-tag>` on the `private` remote, for example
@@ -790,11 +797,12 @@ After every commit, `source-commit` force-pushes the checkout's `HEAD` to
 pre-approval attempts and fixes after testing included, so other checkouts can
 look at work in progress. Nobody works on it and it is never a lineage source:
 the checkout stays on whatever branch it has checked out, and the next commit
-from any branch overwrites the mirror. A checkout without a `private` remote
-skips the mirror. A failed or timed-out push only shows up in the helper's
-`mirror` result: it never fails the commit or blocks the task, so note it in
-the result `NOTES:` and continue. Do not push the mirror by hand, with a lease,
-or from any other point in the workflow.
+from any branch overwrites the mirror. The push never recurses into submodules:
+a moved pin reaches the mirror, but the submodule commit it names does not. A
+checkout without a `private` remote skips the mirror. A failed or timed-out
+push only shows up in the helper's `mirror` result: it never fails the commit
+or blocks the task, so note it in the result `NOTES:` and continue. Do not push
+the mirror by hand, with a lease, or from any other point in the workflow.
 
 Every implementation or implementation-fix commit message is exactly:
 

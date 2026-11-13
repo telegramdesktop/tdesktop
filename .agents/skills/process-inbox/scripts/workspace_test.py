@@ -2088,7 +2088,10 @@ def overlay_bundle_bytes(work):
 	return result
 
 
-def overlay_repo_with_nested_module(root):
+PINNED_MODULE = "Telegram/ThirdParty/dep"
+
+
+def overlay_repo_with_nested_module(root, path="dep"):
 	root = Path(root)
 	source, slot, work, config = source_repo_with_task(root)
 	dependency = root.resolve() / "dependency"
@@ -2098,7 +2101,7 @@ def overlay_repo_with_nested_module(root):
 	git(dependency, "commit", "-m", "Create module")
 	git(
 		source, "-c", "protocol.file.allow=always", "submodule", "add",
-		str(dependency), "dep",
+		str(dependency), path,
 	)
 	git(source, "commit", "-am", "Record dependency")
 	git(
@@ -2106,9 +2109,9 @@ def overlay_repo_with_nested_module(root):
 		workspace.source_task_ref(TASK_ID, "run"), "HEAD",
 	)
 	(work / workspace.OVERLAY_PATHS_FILE).write_text(
-		"tracked.txt\ndep/tracked.txt\n", encoding="utf-8",
+		f"tracked.txt\n{path}/tracked.txt\n", encoding="utf-8",
 	)
-	return source, slot, work, config, source / "dep"
+	return source, slot, work, config, source / path
 
 
 def run_command(handler, **kwargs):
@@ -6482,6 +6485,126 @@ class MechanicsTest(unittest.TestCase):
 						subject="x" * 80,
 						mark_green=False,
 					)
+
+	def test_source_commit_commits_a_moved_owned_submodule_pin(self):
+		with (
+			tempfile.TemporaryDirectory() as temporary,
+			mock.patch.dict(os.environ, GIT_TEST_ENV),
+		):
+			root = Path(temporary)
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				root, PINNED_MODULE,
+			)
+			git(
+				source, "update-ref",
+				workspace.source_task_ref(TASK_ID, "base"), "HEAD",
+			)
+			config["checkout_tag"] = "macbook-twork"
+			mirror = root / "mirror.git"
+			git(root, "init", "-q", "--bare", str(mirror))
+			git(source, "remote", "add", "private", str(mirror))
+			git(source, "config", "push.recurseSubmodules", "check")
+			(work / "owned-paths.txt").write_text(
+				f"{PINNED_MODULE}\n{PINNED_MODULE}/tracked.txt\ntracked.txt\n",
+				encoding="utf-8",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nfirst\n", encoding="utf-8",
+			)
+			git(module, "commit", "-q", "-am", "Change the module")
+			git(source, "add", PINNED_MODULE)
+			(module / "tracked.txt").write_text(
+				"module-base\nfirst\nsecond\n", encoding="utf-8",
+			)
+			git(module, "commit", "-q", "-am", "Change the module again")
+			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
+			pin = git(module, "rev-parse", "HEAD")
+			with mock.patch.object(
+				workspace, "task_action_config", return_value=(config, slot),
+			):
+				result = run_command(
+					workspace.command_source_commit,
+					task=TASK_ID,
+					subject="Move the module pin",
+					mark_green=True,
+				)
+			self.assertEqual(result["committed"], [PINNED_MODULE, "tracked.txt"])
+			self.assertTrue(result["marked_green"])
+			self.assertEqual(result["mirror"], {
+				"branch": "ai-macbook-twork",
+				"pushed": True,
+				"remote": "private",
+			})
+			self.assertEqual(
+				git(source, "show", "-s", "--format=%B", "HEAD"),
+				f"Move the module pin\n\nTask: {TASK_ID}",
+			)
+			self.assertEqual(
+				git(source, "show", "--name-status", "--format=", "HEAD"),
+				f"M\t{PINNED_MODULE}\nM\ttracked.txt",
+			)
+			self.assertEqual(
+				git(source, "rev-parse", f"HEAD:{PINNED_MODULE}"), pin,
+			)
+			head = git(source, "rev-parse", "HEAD")
+			for name in ("green", "run"):
+				self.assertEqual(
+					workspace.resolved_ref(
+						source, workspace.source_task_ref(TASK_ID, name),
+					),
+					head,
+				)
+			self.assertEqual(
+				git(mirror, "rev-parse", "refs/heads/ai-macbook-twork"), head,
+			)
+			self.assertEqual(git(source, "status", "--porcelain"), "")
+
+	def test_source_commit_refuses_an_unowned_or_dirty_submodule_pin(self):
+		with (
+			tempfile.TemporaryDirectory() as temporary,
+			mock.patch.dict(os.environ, GIT_TEST_ENV),
+		):
+			source, slot, work, config, module = overlay_repo_with_nested_module(
+				temporary, PINNED_MODULE,
+			)
+			git(
+				source, "update-ref",
+				workspace.source_task_ref(TASK_ID, "base"), "HEAD",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nfirst\n", encoding="utf-8",
+			)
+			git(module, "commit", "-q", "-am", "Change the module")
+			(source / "tracked.txt").write_text("task\n", encoding="utf-8")
+			head = git(source, "rev-parse", "HEAD")
+			index = git(source, "ls-files", "-s")
+
+			def refused(owned, pattern):
+				(work / "owned-paths.txt").write_text(owned, encoding="utf-8")
+				with mock.patch.object(
+					workspace, "task_action_config", return_value=(config, slot),
+				):
+					with self.assertRaisesRegex(workspace.WorkspaceError, pattern):
+						run_command(
+							workspace.command_source_commit,
+							task=TASK_ID,
+							subject="Move the module pin",
+							mark_green=True,
+						)
+				self.assertEqual(git(source, "rev-parse", "HEAD"), head)
+				self.assertEqual(git(source, "ls-files", "-s"), index)
+				self.assertIsNone(workspace.resolved_ref(
+					source, workspace.source_task_ref(TASK_ID, "green"),
+				))
+
+			refused(
+				f"Telegram/ThirdParty\n{PINNED_MODULE}/tracked.txt\ntracked.txt\n",
+				"outside the owned write set: Telegram/ThirdParty/dep",
+			)
+			(module / "tracked.txt").write_text(
+				"module-base\nfirst\nuncommitted\n", encoding="utf-8",
+			)
+			refused(f"{PINNED_MODULE}\ntracked.txt\n", "uncommitted changes")
 
 	def test_already_satisfied_source_state_requires_baseline(self):
 		with tempfile.TemporaryDirectory() as temporary:
