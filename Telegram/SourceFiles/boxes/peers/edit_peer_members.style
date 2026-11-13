@@ -125,3 +125,24 @@ createBotUsernameSuffix: FlatLabel(createBotUsernamePrefix) {
 createBotStatusLabel: FlatLabel(aboutRevokePublicLabel) {
 	maxHeight: 20px;
 }
+botInfoField: InputField(defaultInputField) {
+	textMargins: margins(0px, 4px, 0px, 4px);
+	textAlign: align(left);
+	heightMin: 36px;
+	heightMax: 148px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.;
+	placeholderFont: boxTextFont;
+	placeholderShift: -50px;
+	border: 0px;
+	borderActive: 0px;
+	duration: 100;
+}
+botInfoFieldPadding: margins(22px, 0px, 22px, 6px);
+botInfoTitlePadding: margins(0px, 6px, 0px, 0px);
+botInfoCaptionPadding: margins(22px, 0px, 22px, 10px);
+botInfoLoadingPadding: margins(22px, 32px, 22px, 32px);

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/event_filter.h"
+#include "boxes/peers/edit_bot_info_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/peers/edit_peer_common.h"
@@ -2228,7 +2229,15 @@ void Controller::fillBotEditIntroButton() {
 		_controls.buttonsLayout,
 		tr::lng_manage_peer_bot_edit_intro(),
 		rpl::never<QString>(),
-		[=] { toggleBotManager(u"%1-intro"_q.arg(user->username())); },
+		[=] {
+			_navigation->uiShow()->showBox(Box(
+				EditBotInfoBox,
+				EditBotInfoBoxArgs{
+					.bot = user,
+					.onlyIntro = true,
+					.applyOnSave = true,
+				}));
+		},
 		{ &st::menuIconEdit });
 }
 

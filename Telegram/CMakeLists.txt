@@ -278,6 +278,8 @@ PRIVATE
     boxes/peers/community_pending_requests_box.h
     boxes/peers/create_managed_bot_box.cpp
     boxes/peers/create_managed_bot_box.h
+    boxes/peers/edit_bot_info_box.cpp
+    boxes/peers/edit_bot_info_box.h
     boxes/peers/edit_contact_box.cpp
     boxes/peers/edit_contact_box.h
     boxes/peers/edit_forum_topic_box.cpp

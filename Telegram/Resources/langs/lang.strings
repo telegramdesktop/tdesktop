@@ -2113,6 +2113,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_bot_edit_commands" = "Edit Commands";
 "lng_manage_peer_bot_edit_settings" = "Change Bot Settings";
 "lng_manage_peer_bot_about" = "Use {bot} to manage this bot.";
+"lng_bot_info_title" = "Bot Info";
+"lng_bot_info_name" = "Name";
+"lng_bot_info_name_placeholder" = "Bot name";
+"lng_bot_info_about" = "About";
+"lng_bot_info_about_placeholder" = "Short description";
+"lng_bot_info_about_caption" = "Shown in the profile of the bot and when sharing it.";
+"lng_bot_info_intro" = "Intro";
+"lng_bot_info_intro_placeholder" = "What can this bot do?";
+"lng_bot_info_intro_caption" = "Shown in the empty chat before the user starts the bot.";
+"lng_bot_info_language_caption" = "Empty fields use the default text.";
+"lng_bot_info_saved" = "Bot info updated.";
 
 "lng_bot_verify_title" = "Choose Chat to Verify";
 "lng_bot_verify_bot_title" = "Verify Bot";

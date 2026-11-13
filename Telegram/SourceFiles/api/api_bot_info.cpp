@@ -125,8 +125,8 @@ auto BotInfoLocalization::stateValue() const -> rpl::producer<State> {
 	return _state.value();
 }
 
-bool BotInfoLocalization::loaded() const {
-	return _loaded;
+bool BotInfoLocalization::known(const QString &code) const {
+	return _known.contains(code);
 }
 
 void BotInfoLocalization::load(std::vector<QString> codes) {
@@ -141,6 +141,10 @@ void BotInfoLocalization::apply() {
 		}
 	}
 	start(Job::Apply, std::move(codes));
+}
+
+void BotInfoLocalization::applyOne(const QString &code) {
+	start(Job::Apply, { code });
 }
 
 void BotInfoLocalization::translate(TranslateRequest request) {
@@ -171,7 +175,7 @@ void BotInfoLocalization::start(Job job, std::vector<QString> codes) {
 void BotInfoLocalization::next() {
 	auto state = _state.current();
 	if (state.done >= state.total) {
-		finish();
+		cancel();
 		return;
 	}
 	if (state.pausedTill) {
@@ -192,13 +196,6 @@ void BotInfoLocalization::advance() {
 	++state.done;
 	_state = state;
 	next();
-}
-
-void BotInfoLocalization::finish() {
-	if (_state.current().job == Job::Load) {
-		_loaded = true;
-	}
-	cancel();
 }
 
 void BotInfoLocalization::failed(const QString &error, Fn<void()> skip) {
@@ -223,6 +220,7 @@ void BotInfoLocalization::performLoad(const QString &code) {
 	const auto fresh = [=] { return generation == _generation; };
 	_transport.read(code, crl::guard(this, [=](Data::BotInfoTexts texts) {
 		if (fresh()) {
+			_known.emplace(code);
 			_draft.setServer(code, std::move(texts));
 			advance();
 		}

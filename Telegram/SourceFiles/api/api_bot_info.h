@@ -64,10 +64,11 @@ public:
 	[[nodiscard]] Data::BotInfoDraft &draft();
 	[[nodiscard]] State state() const;
 	[[nodiscard]] rpl::producer<State> stateValue() const;
-	[[nodiscard]] bool loaded() const;
+	[[nodiscard]] bool known(const QString &code) const;
 
 	void load(std::vector<QString> codes);
 	void apply();
+	void applyOne(const QString &code);
 	void translate(TranslateRequest request);
 	void cancel();
 
@@ -75,7 +76,6 @@ private:
 	void start(Job job, std::vector<QString> codes);
 	void next();
 	void advance();
-	void finish();
 	void failed(const QString &error, Fn<void()> skip);
 	void performLoad(const QString &code);
 	void performApply(const QString &code);
@@ -88,8 +88,8 @@ private:
 	std::vector<Data::BotInfoField> _translateFields;
 	base::Timer _resume;
 	int _generation = 0;
+	base::flat_set<QString> _known;
 	bool _written = false;
-	bool _loaded = false;
 
 };
 
