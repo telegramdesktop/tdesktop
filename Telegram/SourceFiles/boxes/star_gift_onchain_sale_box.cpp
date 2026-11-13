@@ -901,10 +901,22 @@ void ShowOnchainGiftSellBox(
 		if (dialog->confirmation || !show->valid()) {
 			return;
 		}
+		const auto listed = Data::UniqueGiftOnSale(*gift);
+		const auto kind = listed ? SaleKind::Change : SaleKind::List;
+		if (!gift->onchainSale) {
+			LOG(("Wallet Error: %1 is no longer sold on-chain for %2."
+				).arg(gift->slug, RequestMethod(kind)));
+			if (const auto price = dialog->price.get()) {
+				price->closeBox();
+			}
+			show->showToast(tr::lng_gift_buy_onchain_error(tr::now));
+			return;
+		} else if (listed && !gift->fixedSale) {
+			ShowUnlistFirst(show, gift, dialog->price);
+			return;
+		}
 		dialog->confirmation = show->show(Box(OnchainSaleBox, SaleArgs{
-			.kind = (Data::UniqueGiftOnSale(*gift)
-				? SaleKind::Change
-				: SaleKind::List),
+			.kind = kind,
 			.show = show,
 			.gift = gift,
 			.price = nanos,
