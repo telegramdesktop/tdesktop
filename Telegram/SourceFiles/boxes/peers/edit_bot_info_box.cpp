@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_bot_info.h"
 #include "apiwrap.h"
+#include "boxes/compose_ai_box.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -29,6 +30,7 @@ using Field = Data::BotInfoField;
 using Job = Api::BotInfoLocalization::Job;
 using JobState = Api::BotInfoLocalization::State;
 
+constexpr auto kActionsSeparator = QChar(0xB7);
 
 [[nodiscard]] rpl::producer<QString> FieldTitle(Field field) {
 	switch (field) {
@@ -75,6 +77,78 @@ using JobState = Api::BotInfoLocalization::State;
 		},
 	});
 	return result;
+}
+
+void AddFieldActions(
+		not_null<Ui::GenericBox*> box,
+		not_null<UserData*> bot,
+		const QString &code,
+		not_null<Ui::InputField*> input,
+		const QString &inherited) {
+	const auto localization
+		= bot->session().api().botInfoLocalizations().get(bot);
+	const auto translate = [=] {
+		const auto done = crl::guard(input, [=](QString result) {
+			input->setText(result);
+			input->setFocus();
+		});
+		const auto fail = crl::guard(box, [=](QString error) {
+			box->showToast((error.isEmpty() || error.startsWith(u"FLOOD"_q))
+				? tr::lng_flood_error(tr::now)
+				: error);
+		});
+		localization->translateOne(inherited, code, done, fail);
+	};
+	const auto rewrite = [=] {
+		const auto current = input->getLastText().trimmed();
+		const auto source = current.isEmpty() ? inherited : current;
+		if (source.isEmpty()) {
+			input->showError();
+			return;
+		}
+		HistoryView::Controls::ShowComposeAiBox(box->uiShow(), {
+			.session = &bot->session(),
+			.text = tr::marked(source),
+			.apply = crl::guard(input, [=](TextWithEntities result) {
+				input->setText(result.text);
+			}),
+			.allowPrompt = true,
+		});
+	};
+	const auto reset = [=] {
+		input->setText(QString());
+		input->setFocus();
+	};
+	const auto translatable = !inherited.isEmpty();
+	const auto resettable = !code.isEmpty();
+	auto text = rpl::combine(
+		tr::lng_bot_info_action_translate(),
+		tr::lng_bot_info_action_ai(),
+		tr::lng_bot_info_action_reset()
+	) | rpl::map([=](
+			const QString &translateText,
+			const QString &rewriteText,
+			const QString &resetText) {
+		const auto separator = u"  "_q + kActionsSeparator + u"  "_q;
+		auto result = tr::marked();
+		if (translatable) {
+			result.append(tr::link(translateText, 1)).append(separator);
+		}
+		result.append(tr::link(rewriteText, 2));
+		if (resettable) {
+			result.append(separator).append(tr::link(resetText, 3));
+		}
+		return result;
+	});
+	const auto label = box->verticalLayout()->add(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(text),
+			st::boxDividerLabel),
+		st::botInfoActionsPadding);
+	label->setLink(1, std::make_shared<LambdaClickHandler>(translate));
+	label->setLink(2, std::make_shared<LambdaClickHandler>(rewrite));
+	label->setLink(3, std::make_shared<LambdaClickHandler>(reset));
 }
 
 } // namespace
@@ -191,6 +265,12 @@ void EditBotInfoBox(
 				language ? language->value(field) : QString(),
 				code.isEmpty() ? QString() : fallback.value(field));
 			state->fields[int(field)] = input;
+			AddFieldActions(
+				box,
+				bot,
+				code,
+				input,
+				code.isEmpty() ? QString() : fallback.value(field));
 			if (field == Field::Description) {
 				container->add(
 					object_ptr<Ui::FlatLabel>(
