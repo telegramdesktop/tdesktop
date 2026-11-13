@@ -693,7 +693,6 @@ private:
 	bool _pressedTopicJump = false;
 
 	RightButton *_pressedRightButtonData = nullptr;
-	bool _pressedRightButtonSponsored = false;
 	bool _selectedRightButton = false;
 	bool _pressedRightButton = false;
 
