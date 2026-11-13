@@ -110,10 +110,16 @@ private:
 
 };
 
+enum class ReadFileCleanup {
+	RemoveAlternate,
+	KeepAlternate,
+};
+
 bool ReadFile(
 	FileReadDescriptor &result,
 	const QString &name,
-	const QString &basePath);
+	const QString &basePath,
+	ReadFileCleanup cleanup = ReadFileCleanup::RemoveAlternate);
 
 bool DecryptLocal(
 	EncryptedDescriptor &result,
@@ -124,13 +130,15 @@ bool ReadEncryptedFile(
 	FileReadDescriptor &result,
 	const QString &name,
 	const QString &basePath,
-	const MTP::AuthKeyPtr &key);
+	const MTP::AuthKeyPtr &key,
+	ReadFileCleanup cleanup = ReadFileCleanup::RemoveAlternate);
 
 bool ReadEncryptedFile(
 	FileReadDescriptor &result,
 	const FileKey &fkey,
 	const QString &basePath,
-	const MTP::AuthKeyPtr &key);
+	const MTP::AuthKeyPtr &key,
+	ReadFileCleanup cleanup = ReadFileCleanup::RemoveAlternate);
 
 void ScheduleRemoveFiles(std::vector<QString> paths);
 void ScheduleRemoveFolder(const QString &path);

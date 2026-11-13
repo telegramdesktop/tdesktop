@@ -26,6 +26,7 @@ struct Settings;
 
 namespace Main {
 class Account;
+class Session;
 class SessionSettings;
 } // namespace Main
 
@@ -139,22 +140,17 @@ public:
 	void writeFavedStickers();
 	void writeArchivedStickers();
 	void writeArchivedMasks();
-	void readInstalledStickers();
-	void readFeaturedStickers();
-	void readRecentStickers();
-	void readFavedStickers();
+	void readStickerCache(not_null<Main::Session*> session);
+	[[nodiscard]] bool stickerCacheLoading() const;
+	void afterStickerCacheLoaded(FnMut<void()> callback);
 	void readArchivedStickers();
 	void readArchivedMasks();
 	void writeSavedGifs();
 	void readSavedGifs();
 	void writeInstalledMasks();
 	void writeRecentMasks();
-	void readInstalledMasks();
-	void readRecentMasks();
 	void writeInstalledCustomEmoji();
 	void writeFeaturedCustomEmoji();
-	void readInstalledCustomEmoji();
-	void readFeaturedCustomEmoji();
 
 	void writeRecentHashtagsAndBots();
 	void readRecentHashtagsAndBots();
@@ -310,10 +306,9 @@ private:
 		FileKey &stickersKey,
 		CheckSet checkSet,
 		const Data::StickersSetsOrder &order);
-	void readStickerSets(
-		FileKey &stickersKey,
-		Data::StickersSetsOrder *outOrder = nullptr,
-		Data::StickersSetFlags readingFlags = 0);
+	void readArchivedStickerSets(
+		FileKey &key,
+		Data::StickersSetsOrder &order);
 	void importOldRecentStickers();
 
 	void readTrustedPeers();
@@ -364,6 +359,9 @@ private:
 	FileKey _prefsKey = 0;
 	FileKey _locationsKey = 0;
 	FileKey _trustedPeersKey = 0;
+	bool _stickerCacheLoading = true;
+	std::vector<FnMut<void()>> _afterStickerCacheLoad;
+	base::flat_set<const FileKey*> _pendingStickerReads;
 	FileKey _installedStickersKey = 0;
 	FileKey _featuredStickersKey = 0;
 	FileKey _recentStickersKey = 0;
