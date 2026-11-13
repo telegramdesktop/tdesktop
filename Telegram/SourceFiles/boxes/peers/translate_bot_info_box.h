@@ -15,4 +15,6 @@ class GenericBox;
 
 void TranslateBotInfoBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<UserData*> bot);
+	not_null<UserData*> bot,
+	std::vector<QString> codes,
+	Fn<void(int translated)> done);

@@ -9,42 +9,116 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_bot_info.h"
 #include "apiwrap.h"
-#include "boxes/peers/bot_info_field.h"
-#include "boxes/peers/edit_peer_info_box.h"
+#include "base/timer.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
-#include "spellcheck/spellcheck_types.h"
-#include "ui/boxes/choose_language_box.h"
+#include "ui/effects/radial_animation.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/checkbox.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/labels.h"
-#include "ui/vertical_list.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
 
 #include "styles/style_edit_peer_members.h"
-#include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
-using Field = Data::BotInfoField;
 using Job = Api::BotInfoLocalization::Job;
+using JobState = Api::BotInfoLocalization::State;
 
-[[nodiscard]] std::optional<LanguageId> LanguageByCode(const QString &code) {
-	const auto id = LanguageId::FromName(code);
-	return (id.twoLetterCode() == code) ? id : std::optional<LanguageId>();
+constexpr auto kCountdownStep = crl::time(500);
+
+class Radial final : public Ui::RpWidget {
+public:
+	explicit Radial(QWidget *parent);
+
+	void setProgress(float64 progress);
+	void stop();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	Ui::RadialAnimation _animation;
+	float64 _progress = 0.;
+
+};
+
+Radial::Radial(QWidget *parent)
+: RpWidget(parent)
+, _animation([=](crl::time now) {
+	if (_animation.update(_progress, false, now) || !anim::Disabled()) {
+		update();
+	}
+}) {
+	resize(Size(st::botInfoTranslateRadialSize));
+}
+
+void Radial::setProgress(float64 progress) {
+	_progress = progress;
+	if (!_animation.animating()) {
+		_animation.start(_progress);
+	}
+}
+
+void Radial::stop() {
+	_animation.stop();
+	update();
+}
+
+void Radial::paintEvent(QPaintEvent *e) {
+	auto p = QPainter(this);
+
+	const auto stroke = st::botInfoTranslateRadialStroke;
+	const auto side = st::botInfoTranslateRadialSize;
+	const auto outer = QRect((width() - side) / 2, 0, side, side);
+	const auto inner = QRectF(outer) - Margins(stroke / 2.);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(QPen(st::windowBgOver, stroke));
+		p.setBrush(Qt::NoBrush);
+		p.drawEllipse(inner);
+	}
+	st::menuIconTranslate.paintInCenter(p, outer);
+	if (_animation.animating()) {
+		_animation.draw(p, inner, stroke, st::windowBgActive);
+	}
+}
+
+[[nodiscard]] QString StatusText(const JobState &state) {
+	if (!state.stopped.isEmpty()) {
+		return tr::lng_bot_languages_stopped(tr::now);
+	} else if (state.pausedTill) {
+		const auto left = std::max(
+			state.pausedTill - crl::now(),
+			crl::time(0));
+		return tr::lng_bot_languages_paused(
+			tr::now,
+			lt_time,
+			Ui::FormatDurationText((left + 999) / 1000));
+	}
+	return tr::lng_bot_languages_translating(
+		tr::now,
+		lt_done,
+		QString::number(state.done),
+		lt_total,
+		QString::number(state.total));
 }
 
 } // namespace
 
 void TranslateBotInfoBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot) {
+		not_null<UserData*> bot,
+		std::vector<QString> codes,
+		Fn<void(int translated)> done) {
 	struct State {
-		std::array<Ui::Checkbox*, Data::kBotInfoFields.size()> fields = {};
-		rpl::variable<std::vector<LanguageId>> languages;
-		std::vector<QString> otherCodes;
+		rpl::variable<QString> status;
+		base::Timer countdown;
+		bool finished = false;
 	};
 	const auto localization
 		= bot->session().api().botInfoLocalizations().get(bot);
@@ -52,84 +126,87 @@ void TranslateBotInfoBox(
 	const auto state = box->lifetime().make_state<State>();
 	const auto container = box->verticalLayout();
 
-	box->setTitle(tr::lng_bot_languages_translate_title());
-	box->setWidth(st::boxWideWidth);
+	box->setTitle(tr::lng_bot_languages_translating_title());
+	box->setWidth(st::boxWidth);
+	box->setCloseByOutsideClick(false);
 
-	for (const auto field : Data::kBotInfoFields) {
-		const auto available = !draft->fallback().value(field).isEmpty();
-		const auto checkbox = container->add(
-			object_ptr<Ui::Checkbox>(
-				container,
-				BotInfoFieldTitle(field),
-				available && (field != Field::Name),
-				st::defaultBoxCheckbox),
-			st::botInfoCheckboxPadding);
-		checkbox->setDisabled(!available);
-		state->fields[int(field)] = checkbox;
-	}
-
-	auto listed = std::vector<LanguageId>();
-	for (const auto &language : draft->languages()) {
-		if (language.fallback()) {
-			continue;
-		} else if (const auto id = LanguageByCode(language.code)) {
-			listed.push_back(*id);
-		} else {
-			state->otherCodes.push_back(language.code);
-		}
-	}
-	state->languages = std::move(listed);
-
-	const auto choose = [=] {
-		box->uiShow()->showBox(Box(
-			Ui::ChooseLanguageBox,
-			tr::lng_bot_languages_translate_languages(),
-			[=](std::vector<LanguageId> ids) { state->languages = ids; },
-			state->languages.current(),
-			true,
-			nullptr));
-	};
-	const auto otherCount = int(state->otherCodes.size());
-	container->add(EditPeerInfoBox::CreateButton(
-		container,
-		tr::lng_bot_languages_translate_languages(),
-		state->languages.value(
-		) | rpl::map([=](const std::vector<LanguageId> &list) {
-			return QString::number(int(list.size()) + otherCount);
-		}),
-		choose,
-		st::manageGroupNoIconButton,
-		{}));
+	const auto radial = container->add(
+		object_ptr<Radial>(container),
+		st::botInfoTranslateRadialPadding,
+		style::al_top);
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			state->status.value(),
+			st::botInfoTranslateStatus),
+		st::botInfoTranslateStatusPadding,
+		style::al_top);
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
 			tr::lng_bot_languages_translate_about(),
-			st::boxDividerLabel),
-		st::botLanguagesAboutPadding);
+			st::botInfoTranslateAbout),
+		st::botInfoTranslateAboutPadding,
+		style::al_top);
 
-	box->addButton(tr::lng_bot_languages_translate_button(), [=] {
-		auto request = Api::BotInfoLocalization::TranslateRequest{
-			.codes = state->otherCodes,
-		};
-		for (const auto id : state->languages.current()) {
-			request.codes.push_back(id.twoLetterCode());
+	const auto finish = [=] {
+		if (std::exchange(state->finished, true)) {
+			return;
 		}
-		for (const auto field : Data::kBotInfoFields) {
-			if (state->fields[int(field)]->checked()) {
-				request.fields.push_back(field);
-			}
-		}
-		if (request.codes.empty() || request.fields.empty()) {
-			box->showToast(tr::lng_bot_languages_translate_empty(tr::now));
-		} else if (localization->state().job != Job::None) {
-			box->showToast(tr::lng_bot_languages_busy(tr::now));
+		const auto translated = ranges::count_if(codes, [&](
+				const QString &code) {
+			const auto language = draft->find(code);
+			return language && language->hasTranslated();
+		});
+		done(int(translated));
+		box->closeBox();
+	};
+	const auto stop = [=] {
+		if (localization->state().job == Job::Translate) {
+			localization->cancel();
 		} else {
-			for (const auto &code : request.codes) {
-				draft->add(code);
-			}
-			localization->translate(std::move(request));
-			box->closeBox();
+			finish();
+		}
+	};
+	const auto updateStatus = [=] {
+		state->status = StatusText(localization->state());
+	};
+	state->countdown.setCallback(updateStatus);
+
+	for (const auto &code : codes) {
+		draft->add(code);
+	}
+	localization->translate({
+		.codes = codes,
+		.fields = { begin(Data::kBotInfoFields), end(Data::kBotInfoFields) },
+	});
+	localization->stateValue(
+	) | rpl::on_next([=](const JobState &now) {
+		if (state->finished) {
+			return;
+		} else if ((now.job != Job::Translate) && now.stopped.isEmpty()) {
+			finish();
+			return;
+		}
+		updateStatus();
+		if (now.pausedTill) {
+			state->countdown.callEach(kCountdownStep);
+		} else {
+			state->countdown.cancel();
+		}
+		if (now.job == Job::Translate) {
+			radial->setProgress(now.done / float64(now.total));
+		} else {
+			radial->stop();
+			box->clearButtons();
+			box->addButton(tr::lng_close(), stop);
+		}
+	}, box->lifetime());
+	box->addButton(tr::lng_bot_languages_stop(), stop);
+	box->lifetime().add([=] {
+		const auto working = (localization->state().job == Job::Translate);
+		if (!std::exchange(state->finished, true) && working) {
+			localization->cancel();
 		}
 	});
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

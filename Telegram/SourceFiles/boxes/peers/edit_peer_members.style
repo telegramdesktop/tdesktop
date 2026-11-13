@@ -156,5 +156,19 @@ botInfoLanguageMenu: PopupMenu(popupMenuWithIcons) {
 botInfoCaptionPadding: margins(22px, 0px, 22px, 10px);
 botIntroPreviewPadding: margins(0px, 4px, 0px, 4px);
 botInfoLoadingPadding: margins(22px, 32px, 22px, 32px);
-botLanguagesAboutPadding: margins(22px, 12px, 22px, 8px);
-botInfoCheckboxPadding: margins(22px, 8px, 22px, 8px);
+botInfoTranslateRadialSize: 64px;
+botInfoTranslateRadialStroke: 3px;
+botInfoTranslateRadialPadding: margins(22px, 12px, 22px, 14px);
+botInfoTranslateStatus: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(boxFontSize semibold);
+	}
+}
+botInfoTranslateStatusPadding: margins(22px, 0px, 22px, 6px);
+botInfoTranslateAbout: FlatLabel(boxDividerLabel) {
+	minWidth: 240px;
+	align: align(top);
+}
+botInfoTranslateAboutPadding: margins(22px, 0px, 22px, 8px);

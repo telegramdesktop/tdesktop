@@ -74,6 +74,7 @@ public:
 
 private:
 	void start(Job job, std::vector<QString> codes);
+	void finish(State state);
 	void next();
 	void advance();
 	void failed(const QString &error, Fn<void()> skip);

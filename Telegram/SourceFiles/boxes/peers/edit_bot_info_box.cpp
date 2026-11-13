@@ -81,10 +81,10 @@ constexpr auto kCountdownStep = crl::time(500);
 }
 
 [[nodiscard]] QString JobStatus(const JobState &state) {
-	if (state.job == Job::Load) {
-		return QString();
-	} else if (!state.stopped.isEmpty()) {
+	if (!state.stopped.isEmpty()) {
 		return tr::lng_bot_languages_stopped(tr::now);
+	} else if (state.job != Job::Apply) {
+		return QString();
 	} else if (state.pausedTill) {
 		const auto left = std::max(
 			state.pausedTill - crl::now(),
@@ -94,15 +94,7 @@ constexpr auto kCountdownStep = crl::time(500);
 			lt_time,
 			Ui::FormatDurationText((left + 999) / 1000));
 	}
-	switch (state.job) {
-	case Job::Apply:
-		return ProgressText(tr::lng_bot_languages_applying, state);
-	case Job::Translate:
-		return ProgressText(tr::lng_bot_languages_translating, state);
-	case Job::Load:
-	case Job::None: break;
-	}
-	return QString();
+	return ProgressText(tr::lng_bot_languages_applying, state);
 }
 
 [[nodiscard]] bool Working(const JobState &state) {
@@ -458,12 +450,46 @@ void EditBotInfoBox(
 			true,
 			nullptr));
 	};
-	const auto translateMissing = [=] {
-		if (localization->state().job != Job::None) {
-			box->showToast(tr::lng_bot_languages_busy(tr::now));
-		} else {
-			box->uiShow()->showBox(Box(TranslateBotInfoBox, bot));
+	const auto translated = [=](const QString &single, int count) {
+		box->showToast(count
+			? tr::lng_bot_languages_translated(tr::now, lt_count, count)
+			: tr::lng_bot_languages_translate_failed(tr::now));
+		if (count && !single.isEmpty()) {
+			choose(single);
 		}
+	};
+	const auto translateTo = [=] {
+		if (Working(localization->state())) {
+			box->showToast(tr::lng_bot_languages_busy(tr::now));
+			return;
+		}
+		const auto chosen = crl::guard(box, [=](std::vector<LanguageId> ids) {
+			auto codes = std::vector<QString>();
+			for (const auto id : ids) {
+				const auto code = id.twoLetterCode();
+				if (Data::ValidBotInfoLangCode(code)) {
+					codes.push_back(code);
+				}
+			}
+			if (codes.empty()) {
+				return;
+			}
+			const auto single = (codes.size() == 1)
+				? codes.front()
+				: QString();
+			box->uiShow()->showBox(Box(
+				TranslateBotInfoBox,
+				bot,
+				std::move(codes),
+				crl::guard(box, [=](int count) {
+					translated(single, count);
+				})));
+		});
+		box->uiShow()->showBox(Box(
+			Ui::ChooseLanguagesBox,
+			tr::lng_bot_languages_translate_title(),
+			tr::lng_bot_languages_translate_button(),
+			chosen));
 	};
 	const auto popup = [=](not_null<Ui::RpWidget*> button) {
 		state->menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
@@ -483,7 +509,7 @@ void EditBotInfoBox(
 				: QString(),
 			.choose = choose,
 			.add = addLanguage,
-			.translate = translateMissing,
+			.translate = translateTo,
 		});
 		popup(button);
 	};

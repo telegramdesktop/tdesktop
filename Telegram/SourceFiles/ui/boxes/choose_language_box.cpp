@@ -208,70 +208,14 @@ void Row::paintEvent(QPaintEvent *e) {
 		_status);
 }
 
-} // namespace
-
-std::vector<LanguageId> TranslationLanguages() {
-	return TranslationLanguagesList();
-}
-
-QString LanguageNameTranslated(const QString &twoLetterCode) {
-	return Lang::GetNonDefaultValue(
-		kLanguageNamePrefix + twoLetterCode.toUtf8());
-}
-
-QString LanguageNameLocal(LanguageId id) {
-	return QLocale::languageToString(id.language());
-}
-
-QString LanguageName(LanguageId id) {
-	const auto translated = LanguageNameTranslated(id.twoLetterCode());
-	return translated.isEmpty() ? LanguageNameLocal(id) : translated;
-}
-
-QString LanguageNameNative(LanguageId id) {
-	const auto locale = id.locale();
-	if (locale.language() == QLocale::English
-			&& (locale.country() == QLocale::UnitedStates
-				|| locale.country() == QLocale::AnyCountry)) {
-		return u"English"_q;
-	} else if (locale.language() == QLocale::Spanish) {
-		return QString::fromUtf8("\x45\x73\x70\x61\xc3\xb1\x6f\x6c");
-	} else {
-		const auto name = locale.nativeLanguageName();
-		return name.left(1).toUpper() + name.mid(1);
-	}
-}
-
-rpl::producer<QString> TranslateBarTo(LanguageId id) {
-	const auto translated = Lang::GetNonDefaultValue(
-		kTranslateToPrefix + id.twoLetterCode().toUtf8());
-	return (translated.isEmpty()
-		? tr::lng_translate_bar_to_other
-		: tr::lng_translate_bar_to)(
-			lt_name,
-			rpl::single(translated.isEmpty()
-				? LanguageNameLocal(id)
-				: translated));
-}
-
-QString TranslateMenuDont(tr::now_t, LanguageId id) {
-	const auto translated = Lang::GetNonDefaultValue(
-		kTranslateToPrefix + id.twoLetterCode().toUtf8());
-	return (translated.isEmpty()
-		? tr::lng_translate_menu_dont_other
-		: tr::lng_translate_menu_dont)(
-			tr::now,
-			lt_name,
-			translated.isEmpty() ? LanguageNameLocal(id) : translated);
-}
-
-void ChooseLanguageBox(
+void FillChooseLanguageBox(
 		not_null<GenericBox*> box,
 		rpl::producer<QString> title,
 		Fn<void(std::vector<LanguageId>)> callback,
 		std::vector<LanguageId> selected,
 		bool multiselect,
-		Fn<bool(LanguageId)> toggleCheck) {
+		Fn<bool(LanguageId)> toggleCheck,
+		rpl::producer<QString> confirm) {
 	box->setMinHeight(st::boxWidth);
 	box->setMaxHeight(st::boxWidth);
 	box->setTitle(std::move(title));
@@ -367,7 +311,7 @@ void ChooseLanguageBox(
 	}
 
 	if (multiselect) {
-		box->addButton(tr::lng_settings_save(), [=] {
+		box->addButton(std::move(confirm), [=] {
 			auto result = ranges::views::all(
 				rows
 			) | ranges::views::filter([](const auto &row) {
@@ -382,6 +326,95 @@ void ChooseLanguageBox(
 		});
 	}
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+} // namespace
+
+std::vector<LanguageId> TranslationLanguages() {
+	return TranslationLanguagesList();
+}
+
+QString LanguageNameTranslated(const QString &twoLetterCode) {
+	return Lang::GetNonDefaultValue(
+		kLanguageNamePrefix + twoLetterCode.toUtf8());
+}
+
+QString LanguageNameLocal(LanguageId id) {
+	return QLocale::languageToString(id.language());
+}
+
+QString LanguageName(LanguageId id) {
+	const auto translated = LanguageNameTranslated(id.twoLetterCode());
+	return translated.isEmpty() ? LanguageNameLocal(id) : translated;
+}
+
+QString LanguageNameNative(LanguageId id) {
+	const auto locale = id.locale();
+	if (locale.language() == QLocale::English
+			&& (locale.country() == QLocale::UnitedStates
+				|| locale.country() == QLocale::AnyCountry)) {
+		return u"English"_q;
+	} else if (locale.language() == QLocale::Spanish) {
+		return QString::fromUtf8("\x45\x73\x70\x61\xc3\xb1\x6f\x6c");
+	} else {
+		const auto name = locale.nativeLanguageName();
+		return name.left(1).toUpper() + name.mid(1);
+	}
+}
+
+rpl::producer<QString> TranslateBarTo(LanguageId id) {
+	const auto translated = Lang::GetNonDefaultValue(
+		kTranslateToPrefix + id.twoLetterCode().toUtf8());
+	return (translated.isEmpty()
+		? tr::lng_translate_bar_to_other
+		: tr::lng_translate_bar_to)(
+			lt_name,
+			rpl::single(translated.isEmpty()
+				? LanguageNameLocal(id)
+				: translated));
+}
+
+QString TranslateMenuDont(tr::now_t, LanguageId id) {
+	const auto translated = Lang::GetNonDefaultValue(
+		kTranslateToPrefix + id.twoLetterCode().toUtf8());
+	return (translated.isEmpty()
+		? tr::lng_translate_menu_dont_other
+		: tr::lng_translate_menu_dont)(
+			tr::now,
+			lt_name,
+			translated.isEmpty() ? LanguageNameLocal(id) : translated);
+}
+
+void ChooseLanguageBox(
+		not_null<GenericBox*> box,
+		rpl::producer<QString> title,
+		Fn<void(std::vector<LanguageId>)> callback,
+		std::vector<LanguageId> selected,
+		bool multiselect,
+		Fn<bool(LanguageId)> toggleCheck) {
+	FillChooseLanguageBox(
+		box,
+		std::move(title),
+		std::move(callback),
+		std::move(selected),
+		multiselect,
+		std::move(toggleCheck),
+		tr::lng_settings_save());
+}
+
+void ChooseLanguagesBox(
+		not_null<GenericBox*> box,
+		rpl::producer<QString> title,
+		rpl::producer<QString> confirm,
+		Fn<void(std::vector<LanguageId>)> callback) {
+	FillChooseLanguageBox(
+		box,
+		std::move(title),
+		std::move(callback),
+		std::vector<LanguageId>(),
+		true,
+		nullptr,
+		std::move(confirm));
 }
 
 } // namespace Ui

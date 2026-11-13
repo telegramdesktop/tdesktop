@@ -153,13 +153,17 @@ void BotInfoLocalization::translate(TranslateRequest request) {
 }
 
 void BotInfoLocalization::cancel() {
+	finish(State());
+}
+
+void BotInfoLocalization::finish(State state) {
 	++_generation;
 	_resume.cancel();
 	_queue.clear();
 	if (base::take(_written) && _transport.refresh) {
 		_transport.refresh();
 	}
-	_state = State();
+	_state = std::move(state);
 }
 
 void BotInfoLocalization::start(Job job, std::vector<QString> codes) {
@@ -204,8 +208,7 @@ void BotInfoLocalization::failed(const QString &error, Fn<void()> skip) {
 		skip();
 		advance();
 	} else if (wait > kMaxFloodWait) {
-		cancel();
-		_state = State{ .stopped = error };
+		finish({ .stopped = error });
 	} else {
 		const auto delay = (wait + 1) * crl::time(1000);
 		auto state = _state.current();
@@ -254,14 +257,12 @@ void BotInfoLocalization::performApply(const QString &code) {
 }
 
 void BotInfoLocalization::performTranslate(const QString &code) {
-	const auto language = _draft.find(code);
 	const auto &source = _draft.fallback();
 	auto fields = std::vector<Data::BotInfoField>();
 	auto texts = std::vector<QString>();
 	for (const auto field : _translateFields) {
 		const auto text = source.value(field);
-		const auto missing = !language || language->value(field).isEmpty();
-		if (missing && !text.isEmpty()) {
+		if (!text.isEmpty()) {
 			fields.push_back(field);
 			texts.push_back(text);
 		}
