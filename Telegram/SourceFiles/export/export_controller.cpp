@@ -599,6 +599,9 @@ void ControllerObject::exportNextDialog() {
 			setState(stateDialogs(DownloadProgress()));
 			return true;
 		}, [=](DownloadProgress progress) {
+			if (progress.messagesCountUnknown) {
+				_messagesCount = 0;
+			}
 			setState(stateDialogs(progress));
 			return true;
 		}, [=](Data::MessagesSlice &&result) {
@@ -745,7 +748,9 @@ void ControllerObject::fillMessagesState(
 		? ProcessingState::EntityType::VerifyCodes
 		: ProcessingState::EntityType::Chat;
 	result.itemIndex = _messagesWritten + progress.itemIndex;
-	result.itemCount = std::max(_messagesCount, result.itemIndex);
+	result.itemCount = (_messagesCount > 0)
+		? std::max(_messagesCount, result.itemIndex)
+		: 0;
 	result.bytesRandomId = progress.randomId;
 	if (!progress.path.isEmpty()) {
 		const auto last = progress.path.lastIndexOf('/');
