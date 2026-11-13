@@ -92,8 +92,12 @@ size_t LocationPoint::hash() const {
 		_lon);
 }
 
+int ComputeLocationScale() {
+	return 1 + (cScale() * style::DevicePixelRatio()) / 200;
+}
+
 GeoPointLocation ComputeLocation(const LocationPoint &point) {
-	const auto scale = 1 + (cScale() * style::DevicePixelRatio()) / 200;
+	const auto scale = ComputeLocationScale();
 	const auto zoom = 13 + (scale - 1);
 	const auto w = st::locationSize.width() / scale;
 	const auto h = st::locationSize.height() / scale;
