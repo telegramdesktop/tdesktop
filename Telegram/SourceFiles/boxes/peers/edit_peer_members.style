@@ -142,7 +142,8 @@ botInfoField: InputField(defaultInputField) {
 }
 botInfoFieldPadding: margins(22px, 0px, 22px, 6px);
 botInfoTitlePadding: margins(22px, 13px, 22px, 3px);
-botInfoEmojiPosition: point(-3px, 1px);
+botInfoFieldButtonPosition: point(-3px, 1px);
+botInfoFieldButtonSize: 30px;
 botInfoLanguageFont: font(13px semibold);
 botInfoLanguagePadding: margins(6px, 10px, 9px, 10px);
 botInfoLanguageTextSkip: 4px;
@@ -153,7 +154,6 @@ botInfoLanguageMenu: PopupMenu(popupMenuWithIcons) {
 	maxHeight: 400px;
 }
 botInfoCaptionPadding: margins(22px, 0px, 22px, 10px);
-botInfoActionsPadding: margins(22px, 0px, 22px, 8px);
 botIntroPreviewPadding: margins(0px, 4px, 0px, 4px);
 botInfoLoadingPadding: margins(22px, 32px, 22px, 32px);
 botLanguagesAboutPadding: margins(22px, 12px, 22px, 8px);

@@ -152,20 +152,6 @@ void BotInfoLocalization::translate(TranslateRequest request) {
 	start(Job::Translate, std::move(request.codes));
 }
 
-void BotInfoLocalization::translateOne(
-		const QString &text,
-		const QString &code,
-		Fn<void(QString)> done,
-		Fn<void(QString)> fail) {
-	_transport.translate({ text }, code, [=](std::vector<QString> result) {
-		if (result.empty()) {
-			fail(QString());
-		} else {
-			done(result.front());
-		}
-	}, fail);
-}
-
 void BotInfoLocalization::cancel() {
 	++_generation;
 	_resume.cancel();

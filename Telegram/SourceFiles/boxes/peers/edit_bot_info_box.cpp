@@ -15,14 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/bot_info_language_button.h"
 #include "boxes/peers/bot_info_transfer.h"
 #include "boxes/peers/bot_intro_preview.h"
+#include "base/options.h"
 #include "boxes/peers/translate_bot_info_box.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_user.h"
+#include "history/view/controls/history_view_compose_ai_button.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "spellcheck/spellcheck_types.h"
 #include "ui/boxes/choose_language_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/controls/compose_ai_button_factory.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/fields/input_field.h"
@@ -31,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 
+#include "styles/style_chat_helpers.h"
 #include "styles/style_edit_peer_members.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -42,7 +46,6 @@ using Field = Data::BotInfoField;
 using Job = Api::BotInfoLocalization::Job;
 using JobState = Api::BotInfoLocalization::State;
 
-constexpr auto kActionsSeparator = QChar(0xB7);
 constexpr auto kCountdownStep = crl::time(500);
 
 [[nodiscard]] rpl::producer<QString> FieldPlaceholder(Field field) {
@@ -104,34 +107,6 @@ constexpr auto kCountdownStep = crl::time(500);
 
 [[nodiscard]] bool Working(const JobState &state) {
 	return (state.job == Job::Apply) || (state.job == Job::Translate);
-}
-
-[[nodiscard]] rpl::producer<TextWithEntities> ActionsText(
-		rpl::producer<QString> inherited,
-		rpl::producer<QString> code) {
-	return rpl::combine(
-		tr::lng_bot_info_action_translate(),
-		tr::lng_bot_info_action_ai(),
-		tr::lng_bot_info_action_reset(),
-		std::move(inherited),
-		std::move(code)
-	) | rpl::map([](
-			const QString &translate,
-			const QString &rewrite,
-			const QString &reset,
-			const QString &inherited,
-			const QString &code) {
-		const auto separator = u"  "_q + kActionsSeparator + u"  "_q;
-		auto result = tr::marked();
-		if (!inherited.isEmpty()) {
-			result.append(tr::link(translate, 1)).append(separator);
-		}
-		result.append(tr::link(rewrite, 2));
-		if (!code.isEmpty()) {
-			result.append(separator).append(tr::link(reset, 3));
-		}
-		return result;
-	});
 }
 
 } // namespace
@@ -276,30 +251,9 @@ void EditBotInfoBox(
 		}
 	};
 
-	const auto addActions = [=](
+	const auto addButtons = [=](
 			Field field,
 			not_null<Ui::InputField*> input) {
-		const auto translate = [=] {
-			const auto code = state->code.current();
-			const auto done = crl::guard(input, [=](QString result) {
-				if (state->code.current() == code) {
-					input->setText(result);
-					input->setFocus();
-				} else {
-					draft->stage(code, field, result, true);
-				}
-			});
-			const auto fail = crl::guard(box, [=](QString error) {
-				const auto flood = error.isEmpty()
-					|| error.startsWith(u"FLOOD"_q);
-				box->showToast(flood ? tr::lng_flood_error(tr::now) : error);
-			});
-			localization->translateOne(
-				valueOf(QString(), field),
-				code,
-				done,
-				fail);
-		};
 		const auto rewrite = [=] {
 			const auto current = input->getLastText().trimmed();
 			const auto source = current.isEmpty()
@@ -318,27 +272,39 @@ void EditBotInfoBox(
 				.allowPrompt = true,
 			});
 		};
-		const auto reset = [=] {
+		const auto withAi = !base::options::value<bool>(
+			Ui::kOptionHideAiButton);
+		if (withAi) {
+			using AiButton = HistoryView::Controls::ComposeAiButton;
+			const auto ai = Ui::CreateChild<AiButton>(
+				input.get(),
+				st::historyAiComposeButton);
+			ai->setAccessibleName(tr::lng_bot_info_action_ai(tr::now));
+			ai->setClickedCallback(rewrite);
+			ai->show();
+			PlaceBotInfoFieldButton(input, ai, 1);
+		}
+		const auto reset = Ui::CreateChild<Ui::IconButton>(
+			input.get(),
+			st::hashtagClose);
+		reset->setAccessibleName(tr::lng_bot_info_action_reset(tr::now));
+		reset->setClickedCallback([=] {
 			input->setText(QString());
 			input->setFocus();
-		};
-		const auto label = container->add(
-			object_ptr<Ui::FlatLabel>(container, st::boxDividerLabel),
-			st::botInfoActionsPadding);
-		const auto links = std::array<ClickHandlerPtr, 3>{
-			std::make_shared<LambdaClickHandler>(translate),
-			std::make_shared<LambdaClickHandler>(rewrite),
-			std::make_shared<LambdaClickHandler>(reset),
-		};
-		ActionsText(
-			inheritedValue(field),
-			state->code.value()
-		) | rpl::on_next([=](const TextWithEntities &text) {
-			label->setMarkedText(text);
-			for (auto i = 0; i != int(links.size()); ++i) {
-				label->setLink(i + 1, links[i]);
-			}
-		}, label->lifetime());
+		});
+		PlaceBotInfoFieldButton(input, reset, withAi ? 2 : 1);
+		state->code.value() | rpl::on_next([=](const QString &code) {
+			SetBotInfoFieldButtonsCount(
+				input,
+				1 + (withAi ? 1 : 0) + (code.isEmpty() ? 0 : 1));
+		}, reset->lifetime());
+		rpl::combine(
+			state->code.value(),
+			rpl::single(rpl::empty) | rpl::then(input->changes())
+		) | rpl::on_next([=](const QString &code, auto) {
+			const auto filled = !input->getLastText().isEmpty();
+			reset->setVisible(!code.isEmpty() && filled);
+		}, reset->lifetime());
 	};
 	const auto addField = [=](Field field) {
 		auto placeholder = rpl::combine(
@@ -363,7 +329,7 @@ void EditBotInfoBox(
 				draft->stage(code, field, text);
 			}
 		}, input->lifetime());
-		addActions(field, input);
+		addButtons(field, input);
 		return input;
 	};
 	const auto fill = [=] {
@@ -375,12 +341,7 @@ void EditBotInfoBox(
 		container->add(
 			object_ptr<Ui::FlatLabel>(
 				container,
-				rpl::conditional(
-					state->code.value() | rpl::map([](const QString &code) {
-						return code.isEmpty();
-					}),
-					tr::lng_bot_info_about_caption(),
-					tr::lng_bot_info_language_caption()),
+				tr::lng_bot_info_about_caption(),
 				st::boxDividerLabel),
 			st::botInfoCaptionPadding);
 

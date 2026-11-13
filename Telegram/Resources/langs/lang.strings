@@ -2124,9 +2124,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_info_intro" = "Intro";
 "lng_bot_info_intro_placeholder" = "What can this bot do?";
 "lng_bot_info_intro_caption" = "Shown in the empty chat before the user starts the bot.";
-"lng_bot_info_language_caption" = "Empty fields use the default text.";
 "lng_bot_info_saved" = "Bot info updated.";
-"lng_bot_info_action_translate" = "Translate";
 "lng_bot_info_action_ai" = "Rewrite with AI";
 "lng_bot_info_action_reset" = "Use Default";
 "lng_bot_languages_default" = "Default";

@@ -70,11 +70,6 @@ public:
 	void apply();
 	void applyOne(const QString &code);
 	void translate(TranslateRequest request);
-	void translateOne(
-		const QString &text,
-		const QString &code,
-		Fn<void(QString)> done,
-		Fn<void(QString)> fail);
 	void cancel();
 
 private:

@@ -22,6 +22,7 @@ namespace Ui {
 class EmojiButton;
 class GenericBox;
 class InputField;
+class RpWidget;
 class VerticalLayout;
 } // namespace Ui
 
@@ -53,3 +54,8 @@ private:
 	not_null<Ui::VerticalLayout*> container,
 	Data::BotInfoField field,
 	rpl::producer<QString> placeholder);
+void PlaceBotInfoFieldButton(
+	not_null<Ui::InputField*> field,
+	not_null<Ui::RpWidget*> button,
+	int index);
+void SetBotInfoFieldButtonsCount(not_null<Ui::InputField*> field, int count);

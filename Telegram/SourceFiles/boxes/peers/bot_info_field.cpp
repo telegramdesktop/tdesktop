@@ -86,10 +86,7 @@ void BotInfoEmojiPanel::attach(not_null<Ui::InputField*> field) {
 		}
 		return base::EventFilterResult::Continue;
 	});
-	field->widthValue() | rpl::on_next([=](int width) {
-		const auto &position = st::botInfoEmojiPosition;
-		toggle->moveToRight(position.x(), position.y(), width);
-	}, toggle->lifetime());
+	PlaceBotInfoFieldButton(field, toggle, 0);
 }
 
 void BotInfoEmojiPanel::aim(
@@ -154,4 +151,23 @@ not_null<Ui::InputField*> AddBotInfoField(
 	});
 	row->showChildren();
 	return result;
+}
+
+void PlaceBotInfoFieldButton(
+		not_null<Ui::InputField*> field,
+		not_null<Ui::RpWidget*> button,
+		int index) {
+	field->widthValue() | rpl::on_next([=](int width) {
+		const auto slot = st::botInfoFieldButtonSize;
+		const auto &position = st::botInfoFieldButtonPosition;
+		button->moveToRight(
+			position.x() + index * slot + (slot - button->width()) / 2,
+			position.y() + (slot - button->height()) / 2,
+			width);
+	}, button->lifetime());
+}
+
+void SetBotInfoFieldButtonsCount(not_null<Ui::InputField*> field, int count) {
+	const auto right = (count - 1) * st::botInfoFieldButtonSize;
+	field->setAdditionalMargins({ 0, 0, right, 0 });
 }
