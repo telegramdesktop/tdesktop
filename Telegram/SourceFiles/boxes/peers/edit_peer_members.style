@@ -126,7 +126,7 @@ createBotStatusLabel: FlatLabel(aboutRevokePublicLabel) {
 	maxHeight: 20px;
 }
 botInfoField: InputField(defaultInputField) {
-	textMargins: margins(0px, 4px, 0px, 4px);
+	textMargins: margins(0px, 6px, 30px, 6px);
 	textAlign: align(left);
 	heightMin: 36px;
 	heightMax: 148px;
@@ -138,12 +138,20 @@ botInfoField: InputField(defaultInputField) {
 	placeholderScale: 0.;
 	placeholderFont: boxTextFont;
 	placeholderShift: -50px;
-	border: 0px;
-	borderActive: 0px;
 	duration: 100;
 }
 botInfoFieldPadding: margins(22px, 0px, 22px, 6px);
-botInfoTitlePadding: margins(0px, 6px, 0px, 0px);
+botInfoTitlePadding: margins(22px, 13px, 22px, 3px);
+botInfoEmojiPosition: point(-3px, 1px);
+botInfoLanguageFont: font(13px semibold);
+botInfoLanguagePadding: margins(6px, 10px, 9px, 10px);
+botInfoLanguageTextSkip: 4px;
+botInfoLanguageTextMaxWidth: 140px;
+botInfoLanguageIcon: icon {{ "settings/language", windowSubTextFg }};
+botInfoLanguageArrow: icon {{ "intro_country_dropdown", windowSubTextFg }};
+botInfoLanguageMenu: PopupMenu(popupMenuWithIcons) {
+	maxHeight: 400px;
+}
 botInfoCaptionPadding: margins(22px, 0px, 22px, 10px);
 botInfoActionsPadding: margins(22px, 0px, 22px, 8px);
 botIntroPreviewPadding: margins(0px, 4px, 0px, 4px);

@@ -268,8 +268,14 @@ PRIVATE
     boxes/peers/add_participants_box.h
     boxes/peers/add_to_community_box.cpp
     boxes/peers/add_to_community_box.h
+    boxes/peers/bot_info_field.cpp
+    boxes/peers/bot_info_field.h
     boxes/peers/bot_info_file.cpp
     boxes/peers/bot_info_file.h
+    boxes/peers/bot_info_language_button.cpp
+    boxes/peers/bot_info_language_button.h
+    boxes/peers/bot_info_transfer.cpp
+    boxes/peers/bot_info_transfer.h
     boxes/peers/bot_intro_preview.cpp
     boxes/peers/bot_intro_preview.h
     boxes/peers/channel_ownership_transfer.cpp
@@ -284,8 +290,6 @@ PRIVATE
     boxes/peers/create_managed_bot_box.h
     boxes/peers/edit_bot_info_box.cpp
     boxes/peers/edit_bot_info_box.h
-    boxes/peers/edit_bot_languages_box.cpp
-    boxes/peers/edit_bot_languages_box.h
     boxes/peers/edit_contact_box.cpp
     boxes/peers/edit_contact_box.h
     boxes/peers/edit_forum_topic_box.cpp

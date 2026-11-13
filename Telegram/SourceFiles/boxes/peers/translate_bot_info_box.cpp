@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_bot_info.h"
 #include "apiwrap.h"
+#include "boxes/peers/bot_info_field.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
@@ -29,15 +30,6 @@ namespace {
 
 using Field = Data::BotInfoField;
 using Job = Api::BotInfoLocalization::Job;
-
-[[nodiscard]] rpl::producer<QString> FieldTitle(Field field) {
-	switch (field) {
-	case Field::Name: return tr::lng_bot_info_name();
-	case Field::About: return tr::lng_bot_info_about();
-	case Field::Description: return tr::lng_bot_info_intro();
-	}
-	Unexpected("Field in FieldTitle.");
-}
 
 [[nodiscard]] std::optional<LanguageId> LanguageByCode(const QString &code) {
 	const auto id = LanguageId::FromName(code);
@@ -68,7 +60,7 @@ void TranslateBotInfoBox(
 		const auto checkbox = container->add(
 			object_ptr<Ui::Checkbox>(
 				container,
-				FieldTitle(field),
+				BotInfoFieldTitle(field),
 				available && (field != Field::Name),
 				st::defaultBoxCheckbox),
 			st::botInfoCheckboxPadding);

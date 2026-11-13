@@ -7,21 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_bot_info_draft.h"
-
 class UserData;
+
+namespace ChatHelpers {
+class Show;
+} // namespace ChatHelpers
 
 namespace Ui {
 class GenericBox;
+class InputField;
 } // namespace Ui
 
-struct EditBotInfoBoxArgs {
-	not_null<UserData*> bot;
-	QString langCode;
-	bool onlyIntro = false;
-	bool applyOnSave = false;
-};
-
-[[nodiscard]] QString BotInfoLanguageName(const QString &langCode);
-
-void EditBotInfoBox(not_null<Ui::GenericBox*> box, EditBotInfoBoxArgs &&args);
+[[nodiscard]] rpl::producer<QString> BotInfoUnsavedValue(
+	not_null<UserData*> bot);
+void TrackBotInfoField(
+	not_null<Ui::InputField*> field,
+	rpl::producer<QString> value);
+void EditBotInfoBox(
+	not_null<Ui::GenericBox*> box,
+	std::shared_ptr<ChatHelpers::Show> show,
+	not_null<UserData*> bot);

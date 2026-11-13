@@ -9,21 +9,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_bot_info.h"
 #include "apiwrap.h"
+#include "base/timer.h"
 #include "boxes/compose_ai_box.h"
+#include "boxes/peers/bot_info_field.h"
+#include "boxes/peers/bot_info_language_button.h"
+#include "boxes/peers/bot_info_transfer.h"
 #include "boxes/peers/bot_intro_preview.h"
+#include "boxes/peers/translate_bot_info_box.h"
+#include "chat_helpers/compose/compose_show.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "spellcheck/spellcheck_types.h"
 #include "ui/boxes/choose_language_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/vertical_list.h"
 
 #include "styles/style_edit_peer_members.h"
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 
 namespace {
 
@@ -32,15 +43,7 @@ using Job = Api::BotInfoLocalization::Job;
 using JobState = Api::BotInfoLocalization::State;
 
 constexpr auto kActionsSeparator = QChar(0xB7);
-
-[[nodiscard]] rpl::producer<QString> FieldTitle(Field field) {
-	switch (field) {
-	case Field::Name: return tr::lng_bot_info_name();
-	case Field::About: return tr::lng_bot_info_about();
-	case Field::Description: return tr::lng_bot_info_intro();
-	}
-	Unexpected("Field in FieldTitle.");
-}
+constexpr auto kCountdownStep = crl::time(500);
 
 [[nodiscard]] rpl::producer<QString> FieldPlaceholder(Field field) {
 	switch (field) {
@@ -51,141 +54,157 @@ constexpr auto kActionsSeparator = QChar(0xB7);
 	Unexpected("Field in FieldPlaceholder.");
 }
 
-[[nodiscard]] not_null<Ui::InputField*> AddField(
-		not_null<Ui::VerticalLayout*> container,
-		Field field,
-		const QString &value,
-		const QString &inherited) {
-	Ui::AddSubsectionTitle(
-		container,
-		FieldTitle(field),
-		st::botInfoTitlePadding);
-	const auto result = container->add(
-		object_ptr<Ui::InputField>(
-			container,
-			st::botInfoField,
-			((field == Field::Name)
-				? Ui::InputField::Mode::SingleLine
-				: Ui::InputField::Mode::MultiLine),
-			(inherited.isEmpty()
-				? FieldPlaceholder(field)
-				: rpl::single(inherited)),
-			value),
-		st::botInfoFieldPadding);
-	Ui::AddLengthLimitLabel(result, Data::BotInfoFieldLimit(field), {
-		.customCharactersCount = [=] {
-			return Data::BotInfoTextLength(result->getLastText());
-		},
-	});
+[[nodiscard]] std::vector<QString> KnownLanguageCodes() {
+	auto result = std::vector<QString>();
+	for (const auto id : Ui::TranslationLanguages()) {
+		const auto code = id.twoLetterCode();
+		if (Data::ValidBotInfoLangCode(code)
+			&& !ranges::contains(result, code)) {
+			result.push_back(code);
+		}
+	}
 	return result;
 }
 
-void AddFieldActions(
-		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot,
-		const QString &code,
-		not_null<Ui::InputField*> input,
-		const QString &inherited) {
-	const auto localization
-		= bot->session().api().botInfoLocalizations().get(bot);
-	const auto translate = [=] {
-		const auto done = crl::guard(input, [=](QString result) {
-			input->setText(result);
-			input->setFocus();
-		});
-		const auto fail = crl::guard(box, [=](QString error) {
-			box->showToast((error.isEmpty() || error.startsWith(u"FLOOD"_q))
-				? tr::lng_flood_error(tr::now)
-				: error);
-		});
-		localization->translateOne(inherited, code, done, fail);
-	};
-	const auto rewrite = [=] {
-		const auto current = input->getLastText().trimmed();
-		const auto source = current.isEmpty() ? inherited : current;
-		if (source.isEmpty()) {
-			input->showError();
-			return;
-		}
-		HistoryView::Controls::ShowComposeAiBox(box->uiShow(), {
-			.session = &bot->session(),
-			.text = tr::marked(source),
-			.apply = crl::guard(input, [=](TextWithEntities result) {
-				input->setText(result.text);
-			}),
-			.allowPrompt = true,
-		});
-	};
-	const auto reset = [=] {
-		input->setText(QString());
-		input->setFocus();
-	};
-	const auto translatable = !inherited.isEmpty();
-	const auto resettable = !code.isEmpty();
-	auto text = rpl::combine(
+[[nodiscard]] QString ProgressText(
+		const tr::phrase<lngtag_done, lngtag_total> &phrase,
+		const JobState &state) {
+	return phrase(
+		tr::now,
+		lt_done,
+		QString::number(state.done),
+		lt_total,
+		QString::number(state.total));
+}
+
+[[nodiscard]] QString JobStatus(const JobState &state) {
+	if (state.job == Job::Load) {
+		return QString();
+	} else if (!state.stopped.isEmpty()) {
+		return tr::lng_bot_languages_stopped(tr::now);
+	} else if (state.pausedTill) {
+		const auto left = std::max(
+			state.pausedTill - crl::now(),
+			crl::time(0));
+		return tr::lng_bot_languages_paused(
+			tr::now,
+			lt_time,
+			Ui::FormatDurationText((left + 999) / 1000));
+	}
+	switch (state.job) {
+	case Job::Apply:
+		return ProgressText(tr::lng_bot_languages_applying, state);
+	case Job::Translate:
+		return ProgressText(tr::lng_bot_languages_translating, state);
+	case Job::Load:
+	case Job::None: break;
+	}
+	return QString();
+}
+
+[[nodiscard]] bool Working(const JobState &state) {
+	return (state.job == Job::Apply) || (state.job == Job::Translate);
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> ActionsText(
+		rpl::producer<QString> inherited,
+		rpl::producer<QString> code) {
+	return rpl::combine(
 		tr::lng_bot_info_action_translate(),
 		tr::lng_bot_info_action_ai(),
-		tr::lng_bot_info_action_reset()
-	) | rpl::map([=](
-			const QString &translateText,
-			const QString &rewriteText,
-			const QString &resetText) {
+		tr::lng_bot_info_action_reset(),
+		std::move(inherited),
+		std::move(code)
+	) | rpl::map([](
+			const QString &translate,
+			const QString &rewrite,
+			const QString &reset,
+			const QString &inherited,
+			const QString &code) {
 		const auto separator = u"  "_q + kActionsSeparator + u"  "_q;
 		auto result = tr::marked();
-		if (translatable) {
-			result.append(tr::link(translateText, 1)).append(separator);
+		if (!inherited.isEmpty()) {
+			result.append(tr::link(translate, 1)).append(separator);
 		}
-		result.append(tr::link(rewriteText, 2));
-		if (resettable) {
-			result.append(separator).append(tr::link(resetText, 3));
+		result.append(tr::link(rewrite, 2));
+		if (!code.isEmpty()) {
+			result.append(separator).append(tr::link(reset, 3));
 		}
 		return result;
 	});
-	const auto label = box->verticalLayout()->add(
-		object_ptr<Ui::FlatLabel>(
-			box,
-			std::move(text),
-			st::boxDividerLabel),
-		st::botInfoActionsPadding);
-	label->setLink(1, std::make_shared<LambdaClickHandler>(translate));
-	label->setLink(2, std::make_shared<LambdaClickHandler>(rewrite));
-	label->setLink(3, std::make_shared<LambdaClickHandler>(reset));
 }
 
 } // namespace
 
-QString BotInfoLanguageName(const QString &langCode) {
-	const auto id = LanguageId::FromName(langCode);
-	return (id.twoLetterCode() == langCode)
-		? Ui::LanguageName(id)
-		: langCode.toUpper();
+rpl::producer<QString> BotInfoUnsavedValue(not_null<UserData*> bot) {
+	const auto draft = &bot->session().api().botInfoLocalizations().get(
+		bot)->draft();
+	return rpl::single(
+		rpl::empty
+	) | rpl::then(draft->updates()) | rpl::map([=] {
+		const auto changes = draft->changesCount();
+		return changes
+			? tr::lng_manage_peer_bot_info_unsaved(
+				tr::now,
+				lt_count,
+				changes)
+			: QString();
+	});
+}
+
+void TrackBotInfoField(
+		not_null<Ui::InputField*> field,
+		rpl::producer<QString> value) {
+	const auto last = field->lifetime().make_state<QString>(
+		field->getLastText());
+	std::move(value) | rpl::on_next([=](const QString &now) {
+		if (field->getLastText() == *last) {
+			field->setText(now);
+		}
+		*last = now;
+	}, field->lifetime());
 }
 
 void EditBotInfoBox(
 		not_null<Ui::GenericBox*> box,
-		EditBotInfoBoxArgs &&args) {
+		std::shared_ptr<ChatHelpers::Show> show,
+		not_null<UserData*> bot) {
 	struct State {
 		std::array<Ui::InputField*, Data::kBotInfoFields.size()> fields = {};
+		rpl::variable<QString> code;
 		rpl::variable<QString> intro;
-		bool applying = false;
+		rpl::variable<QString> status;
+		rpl::variable<int> changes;
+		rpl::variable<bool> ready;
+		std::unique_ptr<BotInfoEmojiPanel> emoji;
+		base::Timer countdown;
+		base::unique_qptr<Ui::PopupMenu> menu;
+		Job lastJob = Job::None;
+		bool loadWanted = true;
+		bool saving = false;
+		bool buttonsQueued = false;
 	};
-	const auto bot = args.bot;
-	const auto code = args.langCode;
-	const auto onlyIntro = args.onlyIntro;
-	const auto applyOnSave = args.applyOnSave;
 	const auto localization
 		= bot->session().api().botInfoLocalizations().get(bot);
 	const auto draft = &localization->draft();
 	const auto state = box->lifetime().make_state<State>();
 	const auto container = box->verticalLayout();
 
-	box->setTitle(onlyIntro
-		? tr::lng_manage_peer_bot_edit_intro()
-		: code.isEmpty()
-		? tr::lng_bot_info_title()
-		: rpl::single(BotInfoLanguageName(code)));
+	box->setTitle(tr::lng_manage_peer_bot_edit_info());
 	box->setWidth(st::boxWideWidth);
 
+	const auto status = container->add(
+		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
+			container,
+			object_ptr<Ui::FlatLabel>(
+				container,
+				state->status.value(),
+				st::boxDividerLabel),
+			st::botInfoCaptionPadding));
+	status->toggleOn(state->status.value(
+	) | rpl::map([](const QString &text) {
+		return !text.isEmpty();
+	}));
 	const auto loading = container->add(
 		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
 			container,
@@ -195,155 +214,408 @@ void EditBotInfoBox(
 				st::boxDividerLabel),
 			st::botInfoLoadingPadding));
 
-	const auto shown = [=](Field field) {
-		return !onlyIntro || (field == Field::Description);
+	const auto valueOf = [=](const QString &code, Field field) {
+		const auto language = draft->find(code);
+		return language ? language->value(field) : QString();
 	};
-	const auto collect = [=] {
+	const auto inheritedValue = [=](Field field) {
+		return rpl::combine(
+			state->code.value(),
+			rpl::single(rpl::empty) | rpl::then(draft->updates())
+		) | rpl::map([=](const QString &code, auto) {
+			return code.isEmpty() ? QString() : valueOf(QString(), field);
+		}) | rpl::distinct_until_changed();
+	};
+	const auto sync = [=] {
+		const auto code = state->code.current();
 		for (const auto field : Data::kBotInfoFields) {
 			const auto input = state->fields[int(field)];
-			if (!input) {
-				continue;
+			const auto value = valueOf(code, field);
+			const auto shown = Data::NormalizeBotInfoText(
+				field,
+				input->getLastText());
+			if (shown != value) {
+				input->setText(value);
 			}
+		}
+		state->changes = draft->changesCount();
+	};
+	const auto loadMissing = [=] {
+		if (localization->state().job != Job::None) {
+			state->loadWanted = true;
+			return;
+		}
+		state->loadWanted = false;
+		auto codes = std::vector<QString>{ QString() };
+		const auto add = [&](const QString &code) {
+			if (!ranges::contains(codes, code)) {
+				codes.push_back(code);
+			}
+		};
+		add(state->code.current());
+		for (const auto &language : draft->languages()) {
+			add(language.code);
+		}
+		for (const auto &code : KnownLanguageCodes()) {
+			add(code);
+		}
+		codes.erase(
+			ranges::remove_if(codes, [&](const QString &code) {
+				return localization->known(code);
+			}),
+			end(codes));
+		if (!codes.empty()) {
+			localization->load(std::move(codes));
+		}
+	};
+	const auto choose = [=](const QString &code) {
+		draft->add(code);
+		state->code = code;
+		if (!localization->known(code)) {
+			loadMissing();
+		}
+	};
+
+	const auto addActions = [=](
+			Field field,
+			not_null<Ui::InputField*> input) {
+		const auto translate = [=] {
+			const auto code = state->code.current();
+			const auto done = crl::guard(input, [=](QString result) {
+				if (state->code.current() == code) {
+					input->setText(result);
+					input->setFocus();
+				} else {
+					draft->stage(code, field, result, true);
+				}
+			});
+			const auto fail = crl::guard(box, [=](QString error) {
+				const auto flood = error.isEmpty()
+					|| error.startsWith(u"FLOOD"_q);
+				box->showToast(flood ? tr::lng_flood_error(tr::now) : error);
+			});
+			localization->translateOne(
+				valueOf(QString(), field),
+				code,
+				done,
+				fail);
+		};
+		const auto rewrite = [=] {
+			const auto current = input->getLastText().trimmed();
+			const auto source = current.isEmpty()
+				? valueOf(QString(), field)
+				: current;
+			if (source.isEmpty()) {
+				input->showError();
+				return;
+			}
+			HistoryView::Controls::ShowComposeAiBox(box->uiShow(), {
+				.session = &bot->session(),
+				.text = tr::marked(source),
+				.apply = crl::guard(input, [=](TextWithEntities result) {
+					input->setText(result.text);
+				}),
+				.allowPrompt = true,
+			});
+		};
+		const auto reset = [=] {
+			input->setText(QString());
+			input->setFocus();
+		};
+		const auto label = container->add(
+			object_ptr<Ui::FlatLabel>(container, st::boxDividerLabel),
+			st::botInfoActionsPadding);
+		const auto links = std::array<ClickHandlerPtr, 3>{
+			std::make_shared<LambdaClickHandler>(translate),
+			std::make_shared<LambdaClickHandler>(rewrite),
+			std::make_shared<LambdaClickHandler>(reset),
+		};
+		ActionsText(
+			inheritedValue(field),
+			state->code.value()
+		) | rpl::on_next([=](const TextWithEntities &text) {
+			label->setMarkedText(text);
+			for (auto i = 0; i != int(links.size()); ++i) {
+				label->setLink(i + 1, links[i]);
+			}
+		}, label->lifetime());
+	};
+	const auto addField = [=](Field field) {
+		auto placeholder = rpl::combine(
+			inheritedValue(field),
+			FieldPlaceholder(field)
+		) | rpl::map([](const QString &inherited, const QString &hint) {
+			return inherited.isEmpty() ? hint : inherited;
+		});
+		const auto input = AddBotInfoField(
+			container,
+			field,
+			std::move(placeholder));
+		input->setText(valueOf(state->code.current(), field));
+		state->emoji->attach(input);
+		state->fields[int(field)] = input;
+		input->changes() | rpl::on_next([=] {
+			const auto code = state->code.current();
 			const auto text = Data::NormalizeBotInfoText(
 				field,
 				input->getLastText());
-			const auto limit = Data::BotInfoFieldLimit(field);
-			const auto emptyName = code.isEmpty()
-				&& (field == Field::Name)
-				&& text.isEmpty();
-			if (emptyName || (Data::BotInfoTextLength(text) > limit)) {
-				input->showError();
-				return false;
+			if (text != valueOf(code, field)) {
+				draft->stage(code, field, text);
 			}
-		}
-		for (const auto field : Data::kBotInfoFields) {
-			if (const auto input = state->fields[int(field)]) {
-				draft->stage(code, field, input->getLastText());
-			}
-		}
-		return true;
+		}, input->lifetime());
+		addActions(field, input);
+		return input;
 	};
-	const auto applied = [=] {
-		state->applying = false;
-		const auto language = draft->find(code);
-		if (!localization->state().stopped.isEmpty()) {
-			box->showToast(tr::lng_flood_error(tr::now));
-		} else if (language && !language->error.isEmpty()) {
-			box->showToast(language->error);
-		} else {
+	const auto fill = [=] {
+		loading->hide(anim::type::instant);
+		state->emoji = std::make_unique<BotInfoEmojiPanel>(box, show, bot);
+
+		const auto name = addField(Field::Name);
+		const auto about = addField(Field::About);
+		container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				rpl::conditional(
+					state->code.value() | rpl::map([](const QString &code) {
+						return code.isEmpty();
+					}),
+					tr::lng_bot_info_about_caption(),
+					tr::lng_bot_info_language_caption()),
+				st::boxDividerLabel),
+			st::botInfoCaptionPadding);
+
+		container->add(
+			CreateBotIntroPreview(container, bot, state->intro.value()),
+			st::botIntroPreviewPadding);
+		const auto intro = addField(Field::Description);
+		state->intro = rpl::single(rpl::empty) | rpl::then(rpl::merge(
+			intro->changes(),
+			draft->updates(),
+			state->code.changes() | rpl::to_empty
+		)) | rpl::map([=] {
+			const auto text = Data::NormalizeBotInfoText(
+				Field::Description,
+				intro->getLastText());
+			return text.isEmpty()
+				? valueOf(QString(), Field::Description)
+				: text;
+		});
+		container->add(
+			object_ptr<Ui::FlatLabel>(
+				container,
+				tr::lng_bot_info_intro_caption(),
+				st::boxDividerLabel),
+			st::botInfoCaptionPadding);
+
+		name->submits() | rpl::on_next([=] {
+			about->setFocus();
+		}, name->lifetime());
+		box->setFocusCallback([=] { name->setFocusFast(); });
+		name->setFocusFast();
+
+		rpl::merge(
+			draft->updates(),
+			state->code.changes() | rpl::to_empty
+		) | rpl::on_next(sync, box->lifetime());
+		sync();
+		state->ready = true;
+	};
+
+	const auto finishSaving = [=] {
+		const auto failed = ranges::find_if(
+			draft->languages(),
+			[](const Data::BotInfoLanguage &language) {
+				return !language.error.isEmpty();
+			});
+		if (failed != end(draft->languages())) {
+			box->showToast(failed->error);
+			state->code = failed->code;
+		} else if (!draft->changesCount()) {
 			box->showToast(tr::lng_bot_info_saved(tr::now));
 			box->closeBox();
 		}
 	};
+	const auto showProblem = [=] {
+		for (const auto &language : draft->languages()) {
+			for (const auto field : Data::kBotInfoFields) {
+				if (language.problem(field) != Data::BotInfoProblem::None) {
+					state->code = language.code;
+					state->fields[int(field)]->showError();
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+	const auto apply = [=] {
+		state->saving = true;
+		localization->apply();
+	};
 	const auto save = [=] {
-		if (state->applying || !state->fields[int(Field::Description)]) {
+		const auto changes = draft->changesCount();
+		const auto current = draft->find(state->code.current());
+		if (Working(localization->state()) || showProblem()) {
 			return;
-		} else if (!collect()) {
-			return;
-		}
-		const auto language = draft->find(code);
-		if (!applyOnSave || !language || language->staged.empty()) {
+		} else if (!changes) {
 			box->closeBox();
-			return;
+		} else if (current && (current->staged.count() == changes)) {
+			apply();
+		} else {
+			box->uiShow()->showBox(Ui::MakeConfirmBox({
+				.text = tr::lng_bot_languages_apply_sure(
+					tr::now,
+					lt_count,
+					changes),
+				.confirmed = crl::guard(box, [=](Fn<void()> close) {
+					apply();
+					close();
+				}),
+				.confirmText = tr::lng_bot_languages_apply_confirm(),
+			}));
 		}
-		state->applying = true;
-		localization->applyOne(code);
-		localization->stateValue(
-		) | rpl::filter([](const JobState &state) {
-			return (state.job == Job::None);
-		}) | rpl::take(1) | rpl::on_next(applied, box->lifetime());
-	};
-	const auto fill = [=] {
-		loading->hide(anim::type::instant);
-		const auto language = draft->find(code);
-		const auto &fallback = draft->fallback();
-		for (const auto field : Data::kBotInfoFields) {
-			if (!shown(field)) {
-				continue;
-			}
-			const auto inherited = code.isEmpty()
-				? QString()
-				: fallback.value(field);
-			if (field == Field::Description) {
-				container->add(
-					CreateBotIntroPreview(
-						container,
-						bot,
-						state->intro.value()),
-					st::botIntroPreviewPadding);
-			}
-			const auto input = AddField(
-				container,
-				field,
-				language ? language->value(field) : QString(),
-				inherited);
-			state->fields[int(field)] = input;
-			AddFieldActions(box, bot, code, input, inherited);
-			if (field == Field::Description) {
-				state->intro = rpl::single(
-					rpl::empty
-				) | rpl::then(input->changes()) | rpl::map([=] {
-					const auto text = Data::NormalizeBotInfoText(
-						field,
-						input->getLastText());
-					return text.isEmpty() ? inherited : text;
-				});
-				container->add(
-					object_ptr<Ui::FlatLabel>(
-						container,
-						tr::lng_bot_info_intro_caption(),
-						st::boxDividerLabel),
-					st::botInfoCaptionPadding);
-			} else if (field == Field::About) {
-				container->add(
-					object_ptr<Ui::FlatLabel>(
-						container,
-						(code.isEmpty()
-							? tr::lng_bot_info_about_caption()
-							: tr::lng_bot_info_language_caption()),
-						st::boxDividerLabel),
-					st::botInfoCaptionPadding);
-			}
-		}
-		const auto name = state->fields[int(Field::Name)];
-		const auto about = state->fields[int(Field::About)];
-		if (name && about) {
-			name->submits() | rpl::on_next([=] {
-				about->setFocus();
-			}, name->lifetime());
-		}
-		const auto first = name
-			? name
-			: state->fields[int(Field::Description)];
-		box->setFocusCallback([=] { first->setFocusFast(); });
-		first->setFocusFast();
-	};
-	const auto ready = [=] {
-		return localization->known(QString())
-			&& (code.isEmpty()
-				|| localization->known(code)
-				|| draft->find(code));
 	};
 
-	localization->stateValue(
-	) | rpl::on_next([=](const JobState &now) {
-		if (state->fields[int(Field::Description)]) {
-			return;
-		} else if (ready()) {
-			fill();
-		} else if (now.job == Job::None) {
-			crl::on_main(box, [=] {
-				if (!ready() && (localization->state().job == Job::None)) {
-					localization->load(code.isEmpty()
-						? std::vector<QString>{ QString() }
-						: std::vector<QString>{ QString(), code });
+	const auto addLanguage = [=] {
+		const auto chosen = crl::guard(box, [=](std::vector<LanguageId> ids) {
+			auto codes = std::vector<QString>();
+			for (const auto id : ids) {
+				const auto code = id.twoLetterCode();
+				if (Data::ValidBotInfoLangCode(code)) {
+					draft->add(code);
+					codes.push_back(code);
 				}
+			}
+			if (!codes.empty()) {
+				choose(codes.front());
+			}
+		});
+		box->uiShow()->showBox(Box(
+			Ui::ChooseLanguageBox,
+			tr::lng_bot_languages_add(),
+			chosen,
+			std::vector<LanguageId>(),
+			true,
+			nullptr));
+	};
+	const auto translateMissing = [=] {
+		if (localization->state().job != Job::None) {
+			box->showToast(tr::lng_bot_languages_busy(tr::now));
+		} else {
+			box->uiShow()->showBox(Box(TranslateBotInfoBox, bot));
+		}
+	};
+	const auto popup = [=](not_null<Ui::RpWidget*> button) {
+		state->menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
+		state->menu->popup(
+			button->mapToGlobal(QPoint(button->width(), button->height())));
+	};
+	const auto showLanguages = [=](not_null<Ui::RpWidget*> button) {
+		const auto now = localization->state();
+		state->menu = base::make_unique_q<Ui::PopupMenu>(
+			box.get(),
+			st::botInfoLanguageMenu);
+		FillBotInfoLanguageMenu(state->menu.get(), {
+			.draft = draft,
+			.current = state->code.current(),
+			.loading = (now.job == Job::Load)
+				? ProgressText(tr::lng_bot_languages_loading, now)
+				: QString(),
+			.choose = choose,
+			.add = addLanguage,
+			.translate = translateMissing,
+		});
+		popup(button);
+	};
+	const auto showMenu = [=](not_null<Ui::RpWidget*> button) {
+		state->menu = base::make_unique_q<Ui::PopupMenu>(
+			box.get(),
+			st::popupMenuWithIcons);
+		state->menu->addAction(
+			tr::lng_bot_languages_import(tr::now),
+			[=] { ImportBotInfoFromFile(box, bot); },
+			&st::menuIconImportTheme);
+		state->menu->addAction(
+			tr::lng_bot_languages_paste(tr::now),
+			[=] { ImportBotInfoFromClipboard(box, bot); },
+			&st::menuIconCopy);
+		state->menu->addAction(
+			tr::lng_bot_languages_export(tr::now),
+			[=] { ExportBotInfoToFile(box, bot); },
+			&st::menuIconExportTheme);
+		if (draft->changesCount() > 0) {
+			state->menu->addAction(
+				tr::lng_bot_languages_discard(tr::now),
+				[=] { draft->discard(); },
+				&st::menuIconCancel);
+		}
+		popup(button);
+	};
+	const auto refreshButtons = [=] {
+		state->buttonsQueued = false;
+		box->clearButtons();
+		if (Working(localization->state())) {
+			box->addButton(tr::lng_bot_languages_stop(), [=] {
+				localization->cancel();
 			});
+		} else if (state->changes.current() > 0) {
+			box->addButton(tr::lng_settings_save(), save);
+		}
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+		const auto menu = box->addTopButton(st::infoTopBarMenu);
+		menu->setClickedCallback([=] { showMenu(menu); });
+		if (state->ready.current()) {
+			const auto language = box->addTopButton(
+				CreateBotInfoLanguageButton(
+					BotInfoLanguageName(state->code.current())));
+			language->setClickedCallback([=] { showLanguages(language); });
+		}
+	};
+	AcceptBotInfoFileDrops(box, bot);
+	refreshButtons();
+	rpl::merge(
+		state->changes.changes() | rpl::map([](int changes) {
+			return (changes > 0);
+		}) | rpl::distinct_until_changed() | rpl::to_empty,
+		state->code.changes() | rpl::to_empty,
+		state->ready.changes() | rpl::to_empty,
+		localization->stateValue(
+		) | rpl::map(Working) | rpl::distinct_until_changed(
+		) | rpl::skip(1) | rpl::to_empty
+	) | rpl::on_next([=] {
+		if (!std::exchange(state->buttonsQueued, true)) {
+			crl::on_main(box, refreshButtons);
 		}
 	}, box->lifetime());
 
-	box->addButton(
-		applyOnSave ? tr::lng_settings_save() : tr::lng_about_done(),
-		save);
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	const auto updateStatus = [=] {
+		state->status = JobStatus(localization->state());
+	};
+	state->countdown.setCallback(updateStatus);
+	localization->stateValue(
+	) | rpl::on_next([=](const JobState &now) {
+		updateStatus();
+		if (now.pausedTill) {
+			state->countdown.callEach(kCountdownStep);
+		} else {
+			state->countdown.cancel();
+		}
+		const auto finished = std::exchange(state->lastJob, now.job);
+		if (!state->ready.current() && localization->known(QString())) {
+			fill();
+		}
+		if (now.job != Job::None) {
+			return;
+		} else if (state->loadWanted
+			|| (finished == Job::Apply)
+			|| (finished == Job::Translate)) {
+			crl::on_main(box, [=] {
+				if (localization->state().stopped.isEmpty()) {
+					loadMissing();
+				}
+			});
+		}
+		if ((finished == Job::Apply) && base::take(state->saving)) {
+			finishSaving();
+		}
+	}, box->lifetime());
 }

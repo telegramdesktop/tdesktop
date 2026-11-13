@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "base/event_filter.h"
 #include "boxes/peers/edit_bot_info_box.h"
-#include "boxes/peers/edit_bot_languages_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/peers/edit_peer_common.h"
@@ -530,8 +529,7 @@ private:
 	void fillBotCurrencyButton();
 	void fillBotCreditsButton();
 	void fillBotAffiliateProgram();
-	void fillBotLanguagesButton();
-	void fillBotEditIntroButton();
+	void fillBotEditInfoButton();
 	void fillBotEditCommandsButton();
 	void fillBotEditSettingsButton();
 	void fillBotVerifyAccounts();
@@ -1522,8 +1520,7 @@ void Controller::fillManageSection() {
 		fillBotCurrencyButton();
 		fillBotCreditsButton();
 		fillBotAffiliateProgram();
-		fillBotLanguagesButton();
-		fillBotEditIntroButton();
+		fillBotEditInfoButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
 		Ui::AddSkip(
@@ -2237,36 +2234,17 @@ void Controller::fillBotAffiliateProgram() {
 		{ .icon = &st::menuIconSharing });
 }
 
-void Controller::fillBotLanguagesButton() {
+void Controller::fillBotEditInfoButton() {
 	Expects(_isBot);
 
 	const auto user = _peer->asUser();
 	AddButtonWithCount(
 		_controls.buttonsLayout,
-		tr::lng_manage_peer_bot_languages(),
-		BotLanguagesStatusValue(user),
+		tr::lng_manage_peer_bot_edit_info(),
+		BotInfoUnsavedValue(user),
 		[=] {
-			_navigation->uiShow()->showBox(Box(EditBotLanguagesBox, user));
-		},
-		{ &st::menuIconTranslate });
-}
-
-void Controller::fillBotEditIntroButton() {
-	Expects(_isBot);
-
-	const auto user = _peer->asUser();
-	AddButtonWithCount(
-		_controls.buttonsLayout,
-		tr::lng_manage_peer_bot_edit_intro(),
-		rpl::never<QString>(),
-		[=] {
-			_navigation->uiShow()->showBox(Box(
-				EditBotInfoBox,
-				EditBotInfoBoxArgs{
-					.bot = user,
-					.onlyIntro = true,
-					.applyOnSave = true,
-				}));
+			const auto show = _navigation->uiShow();
+			show->showBox(Box(EditBotInfoBox, show, user));
 		},
 		{ &st::menuIconEdit });
 }
