@@ -74,14 +74,14 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		<< document->inlineThumbnailBytes();
 }
 
-DocumentData *Document::readFromStreamHelper(
-		not_null<Main::Session*> session,
+std::optional<Document::Fields> Document::readFields(
 		int streamAppVersion,
 		QDataStream &stream,
 		const StickerSetInfo *info) {
-	quint64 id, access;
+	quint64 id = 0, access = 0;
 	QString name, mime;
-	qint32 date, dc, size, width, height, type, versionTag, version = 0;
+	qint32 date = 0, dc = 0, size = 0, width = 0, height = 0;
+	qint32 type = 0, versionTag = 0, version = 0;
 	QByteArray fileReference;
 	stream >> id >> access >> date;
 	if (streamAppVersion >= 9061) {
@@ -115,7 +115,7 @@ DocumentData *Document::readFromStreamHelper(
 	qint32 useTextColor = 0;
 	if (type == StickerDocument) {
 		QString alt;
-		qint32 typeOfSet;
+		qint32 typeOfSet = 0;
 		stream >> alt >> typeOfSet;
 		if (version >= 6) {
 			stream >> duration >> isPremiumSticker >> useTextColor;
@@ -153,7 +153,7 @@ DocumentData *Document::readFromStreamHelper(
 				if (version < 5) {
 					// We didn't store useTextColor yet, can't use.
 					stream.setStatus(QDataStream::ReadCorruptData);
-					return nullptr;
+					return std::nullopt;
 				}
 				using Flag = MTPDdocumentAttributeCustomEmoji::Flag;
 				attributes.push_back(MTP_documentAttributeCustomEmoji(
@@ -223,7 +223,7 @@ DocumentData *Document::readFromStreamHelper(
 		|| !thumb
 		|| !videoThumb) {
 		stream.setStatus(QDataStream::ReadCorruptData);
-		return nullptr;
+		return std::nullopt;
 	}
 	const auto storage = std::get_if<StorageFileLocation>(
 		&thumb->file().data);
@@ -232,8 +232,31 @@ DocumentData *Document::readFromStreamHelper(
 		stream.setStatus(QDataStream::ReadCorruptData);
 		// We can't convert legacy thumbnail location to modern, because
 		// size letter ('s' or 'm') is lost, it was not saved in legacy.
-		return nullptr;
+		return std::nullopt;
 	}
+	return Fields{
+		.id = id,
+		.access = access,
+		.fileReference = std::move(fileReference),
+		.date = date,
+		.attributes = std::move(attributes),
+		.mime = std::move(mime),
+		.inlineThumbnail = {
+			std::move(inlineThumbnailBytes),
+			(inlineThumbnailIsPath == 1),
+		},
+		.thumbnail = { .location = *thumb, .bytesCount = thumbnailByteSize },
+		.videoThumbnail = {
+			.location = *videoThumb,
+			.bytesCount = videoThumbnailByteSize,
+		},
+		.premium = (isPremiumSticker == 1),
+		.dc = dc,
+		.size = int64(uint32(size)),
+	};
+}
+
+DocumentData *Document::Fields::apply(not_null<Main::Session*> session) const {
 	return session->data().document(
 		id,
 		access,
@@ -241,36 +264,20 @@ DocumentData *Document::readFromStreamHelper(
 		date,
 		attributes,
 		mime,
-		InlineImageLocation{
-			inlineThumbnailBytes,
-			(inlineThumbnailIsPath == 1),
-		},
-		ImageWithLocation{
-			.location = *thumb,
-			.bytesCount = thumbnailByteSize
-		},
-		ImageWithLocation{
-			.location = *videoThumb,
-			.bytesCount = videoThumbnailByteSize
-		},
-		(isPremiumSticker == 1),
+		inlineThumbnail,
+		thumbnail,
+		videoThumbnail,
+		premium,
 		dc,
-		int64(uint32(size)));
-}
-
-DocumentData *Document::readStickerFromStream(
-		not_null<Main::Session*> session,
-		int streamAppVersion,
-		QDataStream &stream,
-		const StickerSetInfo &info) {
-	return readFromStreamHelper(session, streamAppVersion, stream, &info);
+		size);
 }
 
 DocumentData *Document::readFromStream(
 		not_null<Main::Session*> session,
 		int streamAppVersion,
 		QDataStream &stream) {
-	return readFromStreamHelper(session, streamAppVersion, stream, nullptr);
+	const auto fields = readFields(streamAppVersion, stream);
+	return fields ? fields->apply(session) : nullptr;
 }
 
 int Document::sizeInStream(DocumentData *document) {
