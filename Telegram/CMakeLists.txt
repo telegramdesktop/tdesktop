@@ -270,6 +270,8 @@ PRIVATE
     boxes/peers/add_to_community_box.h
     boxes/peers/bot_info_file.cpp
     boxes/peers/bot_info_file.h
+    boxes/peers/bot_intro_preview.cpp
+    boxes/peers/bot_intro_preview.h
     boxes/peers/channel_ownership_transfer.cpp
     boxes/peers/channel_ownership_transfer.h
     boxes/peers/choose_peer_box.cpp

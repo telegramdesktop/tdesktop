@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_bot_info.h"
 #include "apiwrap.h"
 #include "boxes/compose_ai_box.h"
+#include "boxes/peers/bot_intro_preview.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -165,6 +166,7 @@ void EditBotInfoBox(
 		EditBotInfoBoxArgs &&args) {
 	struct State {
 		std::array<Ui::InputField*, Data::kBotInfoFields.size()> fields = {};
+		rpl::variable<QString> intro;
 		bool applying = false;
 	};
 	const auto bot = args.bot;
@@ -259,19 +261,33 @@ void EditBotInfoBox(
 			if (!shown(field)) {
 				continue;
 			}
+			const auto inherited = code.isEmpty()
+				? QString()
+				: fallback.value(field);
+			if (field == Field::Description) {
+				container->add(
+					CreateBotIntroPreview(
+						container,
+						bot,
+						state->intro.value()),
+					st::botIntroPreviewPadding);
+			}
 			const auto input = AddField(
 				container,
 				field,
 				language ? language->value(field) : QString(),
-				code.isEmpty() ? QString() : fallback.value(field));
+				inherited);
 			state->fields[int(field)] = input;
-			AddFieldActions(
-				box,
-				bot,
-				code,
-				input,
-				code.isEmpty() ? QString() : fallback.value(field));
+			AddFieldActions(box, bot, code, input, inherited);
 			if (field == Field::Description) {
+				state->intro = rpl::single(
+					rpl::empty
+				) | rpl::then(input->changes()) | rpl::map([=] {
+					const auto text = Data::NormalizeBotInfoText(
+						field,
+						input->getLastText());
+					return text.isEmpty() ? inherited : text;
+				});
 				container->add(
 					object_ptr<Ui::FlatLabel>(
 						container,

@@ -32,6 +32,10 @@ public:
 	void setDisplayedEmptyOverride(Fn<bool()> value);
 
 	void make(Data::ChatIntro data, bool preview = false);
+	void makeBotPreview(
+		TextWithEntities text,
+		DocumentData *document,
+		PhotoData *photo);
 
 	[[nodiscard]] auto sendIntroSticker() const
 		-> rpl::producer<not_null<DocumentData*>>;

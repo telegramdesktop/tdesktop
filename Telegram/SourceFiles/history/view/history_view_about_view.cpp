@@ -1045,6 +1045,13 @@ AdminLog::OwnedItem AboutView::makeAboutBot(not_null<BotInfo*> info) {
 		info->photo);
 }
 
+void AboutView::makeBotPreview(
+		TextWithEntities text,
+		DocumentData *document,
+		PhotoData *photo) {
+	setItem(makeAboutSimple(std::move(text), document, photo), nullptr);
+}
+
 AdminLog::OwnedItem AboutView::makeAboutSimple(
 		TextWithEntities textWithEntities,
 		DocumentData *document,

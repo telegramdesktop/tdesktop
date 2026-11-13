@@ -146,6 +146,7 @@ botInfoFieldPadding: margins(22px, 0px, 22px, 6px);
 botInfoTitlePadding: margins(0px, 6px, 0px, 0px);
 botInfoCaptionPadding: margins(22px, 0px, 22px, 10px);
 botInfoActionsPadding: margins(22px, 0px, 22px, 8px);
+botIntroPreviewPadding: margins(0px, 4px, 0px, 4px);
 botInfoLoadingPadding: margins(22px, 32px, 22px, 32px);
 botLanguagesAboutPadding: margins(22px, 12px, 22px, 8px);
 botInfoCheckboxPadding: margins(22px, 8px, 22px, 8px);
