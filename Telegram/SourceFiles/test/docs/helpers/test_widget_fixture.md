@@ -11,7 +11,8 @@ Maintaining the live-chat fixture that the widget stage packs share: a Test
 chat shown in its own `HistoryInner` of the legacy `HistoryWidget`, local
 outgoing widget messages with tapped validated ops, card readings, the
 runtime log, loopback network controls, the primary window's one-column
-placement and one idempotent release.
+placement and one idempotent release. [Remote engines](#remote-engines)
+says how a Debug run puts the engines of its widgets in the widget helper.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -264,6 +265,123 @@ stay with each caller (their policies close this section).
   frame on that screen, the layout and the hint, then clears the focus and
   moves the cursor off the window. The attack audit and the chat-list place
   self-test size nothing.
+
+## Remote engines
+
+A Debug build can run every widget engine of the client in one shared
+widget helper process instead of the client's own threads. The packs, the
+fixture and the seams they use need no change for it; only the launch
+differs.
+
+- **Switch.** Debug builds read `TDESKTOP_WIDGET_ENGINES` once, on the main
+  thread, when the client constructs its first widget host
+  (`Tgw::PrepareRemoteEngines()` in `Runtime::construct()`), and keep that
+  choice for the whole process. `helper` runs every engine in the widget
+  helper, `in-process` keeps them in the client, and unset or any other
+  value leaves the platform default. The launch passes it to the client:
+
+  ```sh
+  python3 .agents/skills/process-inbox/scripts/workspace.py test-run \
+    --exe out/Debug/Telegram.app/Contents/MacOS/Telegram --run-dir "$run" \
+    --env TDESKTOP_WIDGET_ENGINES=helper
+  ```
+
+  The main log names the choice once: `Tgw: Widget engines run in the
+  widget helper (TDESKTOP_WIDGET_ENGINES=helper).`, `Tgw: Widget engines
+  run in process (TDESKTOP_WIDGET_ENGINES=in-process).`, or, with no
+  recognized value, `Tgw: Widget engines run in process.`. A run that
+  compares the two modes launches its control with `in-process`, which
+  stays in process after a platform turns its helper on.
+- **Platform default.** It is `Platform::WidgetHelper::Enabled()`, false on
+  every platform today, so a launch without the switch keeps widgets in
+  process, and so does every Release build, a `TDESKTOP_RELEASE_TEST_HARNESS`
+  one included: it never reads the variable. Only macOS has a helper. An
+  explicit `helper` on Windows or the all-other platforms fails closed
+  instead: no engine runs in process, and each widget dies with `the widget
+  helper could not start: the widget helper is not available on this
+  platform` until the failure limit below stops the attempts.
+- **The shared helper.** One helper serves every widget of the client, of
+  every account. The first host construction that needs one starts it from
+  its `Build()` worker, and later widgets attach to the same process. It is
+  the client's own `Contents/MacOS/Telegram -widgethelper 3`, a child of the
+  client started without LaunchServices and without `-testagent`, in the
+  working directory `/`, with the client's stderr and `/dev/null` for
+  stdin and stdout. It has no harness, log or account data: everything a
+  seam reads stays in the client. It is stopped 30 s after its count of
+  open runtimes last fell to zero, and never sooner than 30 s after it last
+  handed a widget its channel; the next widget starts a fresh helper with
+  a new pid. The main log has `Tgw: Widget helper <pid> started.`, then
+  `Tgw: Widget helper <pid> stream ended: <reason>.` and `Tgw: Widget
+  helper <pid> ended, <status>.`, the status `exit N` or `signal N`, with
+  `sent SIGKILL after N ms` added when it had to be killed. A stop by the
+  client reads `the host stopped the stream`; that stop drops unsent
+  frames, so the helper can exit 1 after it, with a `Widget helper:
+  <reason>` line in `app_stderr.txt`.
+- **Threads.** With the helper the client runs one `widget.client` thread
+  per engine and no `widget.sandbox`; `widget.validator` and the host's
+  `twidget-host` stay, and the channel adds `widget.reader`,
+  `widget.writer` and `widget.monitor` per helper and a `widget.answer` per
+  runtime that asked a synchronous question. The `widget.sandbox` engines
+  run in the helper.
+- **Seams.** [test_widget_ops](test_widget_ops.md),
+  [test_widget_host](test_widget_host.md) and
+  [test_widget_bot](test_widget_bot.md) act in the client and work
+  unchanged: the tap wraps the renderer factory in `Runtime::construct()`,
+  the options override edits the options before the `Job` (they reach the
+  helper inside the engine's configuration), the host watch merges
+  `WidgetHost::diagnostics()` on the client's `twidget-host` thread, and
+  the played bot answers at `Runtime::botRequested()` through the responder
+  the client engine handed the host. The client's Qt provider of
+  `tgw_intl.cpp` answers the engines' `Intl` questions over the channel.
+- **Runtime log and deaths.** The note of a host's start reads `Started,
+  its engine is remote.` instead of `Started.`, chosen by the client's
+  mode; the summary and its first `Died:` line, which the packs parse, are
+  unchanged. A helper that ends under live widgets (killed, crashed or cut
+  off by a stream violation) kills each of them with `the widget engine
+  process ended`, the host watch's `dead`; the helper's own reason is only
+  in the main log's `stream ended` line, `the engine process closed the
+  stream` for a kill. That death is a fatal stop like any other: it counts
+  towards the widget's crashes in a row (two stop it), the card keeps its
+  last picture when it had loaded, is released when it leaves the view and
+  starts again, in a fresh helper, when it is painted visible. A widget
+  whose helper cannot start dies with `the widget helper could not start:
+  <error>`, the seam's error such as `posix_spawn failed: <reason>`, and
+  the main log adds `Tgw Error: The widget helper could not start:
+  <error>.`.
+- **Failure limit.** A start failure and an unexpected end are helper
+  failures; an end after at least 60 s of helper uptime starts a new run at
+  one, and a finished idle stop resets the run. The third failure in a row
+  stops launches for the rest of the process: later widgets die with `the
+  widget helper failed 3 times in a row`. A helper that did not exit even
+  when killed stops them the same way, with `the widget helper was not
+  reaped`. Two kills already stop the widgets they killed, so a test of
+  this limit needs fresh widgets. Once a quit has stopped the helper,
+  widgets die with `the widget helper was stopped`. None of these falls
+  back to an in-process engine.
+- **Timing.** Queries and probes cross the channel.
+  `SandboxStats::queries` and `queryMs` are counted by the engine in the
+  helper and reach the client with its stats, so each uncached query's
+  time includes both socket hops and the client's answer: compare query
+  times only between runs of the same mode. The host's own bound on a
+  query answer stays in the client, and a theme change's `probe()` is a
+  channel probe bounded at 10 s. A widget that starts a helper also waits
+  for that process to start before its engine boots, and its `loadedMs`
+  includes that wait.
+- **Quit.** A quit stops the helper, live or idle, once no widget host,
+  build, sample or theme job is left, as one more tgw job that holds the
+  quit (`Tgw prevents quit, stopping widget sandboxes...`); `Tgw doesn't
+  prevent quit any more.` can appear twice, before and after that job. The
+  stop waits up to 1 s for the helper to exit, then kills it and waits up to
+  1 s more; an outstanding theme probe can hold the quit for its 10 s
+  before that. A helper left behind has the client's executable path, so
+  `test-run`'s path-scoped kill ends it and lists it in
+  `stragglers_killed_after`. When the client dies without a quit, the
+  helper reads the end of its channel and exits by itself.
+- **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
+  gives in-process loopback clients only when no factory is installed, so
+  `helper` ignores it, and with `in-process` or no value its engines keep
+  the `Started.` note while running in the client. Leave it unset in both
+  modes.
 
 ## Readings and refusals
 

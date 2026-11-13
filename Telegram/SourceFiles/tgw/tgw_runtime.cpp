@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_emoji_images.h"
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_media.h"
+#include "tgw/tgw_remote.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_resources.h"
 #include "tgw/tgw_state.h"
@@ -250,6 +251,13 @@ void CheckDrained() {
 void JobDone() {
 	--Runtimes().jobs;
 	CheckDrained();
+}
+
+[[nodiscard]] bool BusyStoppingEngines() {
+	if (!Busy() && StopRemoteEngines([] { JobDone(); })) {
+		++Runtimes().jobs;
+	}
+	return Busy();
 }
 
 Reservation::Reservation(Fn<void()> released)
@@ -690,7 +698,7 @@ Runtime::~Runtime() {
 
 bool Runtime::IsQuitPrevent() {
 	Drain();
-	if (!Busy()) {
+	if (!BusyStoppingEngines()) {
 		return false;
 	}
 	LOG(("Tgw prevents quit, stopping widget sandboxes..."));
@@ -699,7 +707,7 @@ bool Runtime::IsQuitPrevent() {
 
 bool Runtime::IsExitPrevent(Fn<void()> retry) {
 	Drain();
-	if (!Busy()) {
+	if (!BusyStoppingEngines()) {
 		return false;
 	}
 	// A JS task may still call into app statics until its engine is joined.
@@ -1394,6 +1402,7 @@ void Runtime::resourcesReady(
 
 void Runtime::construct(
 		std::shared_ptr<twidget::SandboxResources> resources) {
+	PrepareRemoteEngines();
 	const auto width = CssFromLogical(_width);
 	const auto ratio = CoreRatio();
 	_live = std::make_unique<RendererCore>(width, ratio);
@@ -1506,7 +1515,9 @@ void Runtime::constructed(
 	_lastHost = _host->id;
 	_logDone = nullptr;
 	_state = State::Live;
-	addNote(u"Started."_q);
+	addNote(RemoteEngines()
+		? u"Started, its engine is remote."_q
+		: u"Started."_q);
 	const auto width = CssFromLogical(_width);
 	if (_live->width() != width) {
 		_live->setWidth(width);

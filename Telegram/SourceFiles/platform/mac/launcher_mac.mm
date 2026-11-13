@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/base_file_utilities.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/platform/mac/base_utilities_mac.h"
+#include "tgw/tgw_remote.h"
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -21,6 +22,17 @@ namespace Platform {
 
 Launcher::Launcher(int argc, char *argv[])
 : Core::Launcher(argc, argv) {
+}
+
+int Launcher::exec() {
+	for (auto i = arguments().begin(), e = arguments().end(); i != e; ++i) {
+		if (*i == u"-widgethelper"_q) {
+			const auto next = i + 1;
+			Tgw::RunWidgetHelper((next != e) ? *next : QString());
+		}
+	}
+
+	return Core::Launcher::exec();
 }
 
 void Launcher::initHook() {

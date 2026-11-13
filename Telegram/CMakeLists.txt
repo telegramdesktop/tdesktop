@@ -1873,6 +1873,7 @@ PRIVATE
     platform/mac/wallet_protection_mac.h
     platform/mac/wallet_protection_mac.mm
     platform/mac/webauthn_mac.mm
+    platform/mac/widget_helper_mac.mm
     platform/mac/window_title_mac.mm
     platform/mac/touchbar/items/mac_formatter_item.h
     platform/mac/touchbar/items/mac_formatter_item.mm
@@ -1892,6 +1893,8 @@ PRIVATE
     platform/mac/touchbar/mac_touchbar_manager.mm
     platform/mac/touchbar/mac_touchbar_media_view.h
     platform/mac/touchbar/mac_touchbar_media_view.mm
+    platform/posix/widget_channel_posix.cpp
+    platform/posix/widget_channel_posix.h
     platform/win/file_utilities_win.cpp
     platform/win/file_utilities_win.h
     platform/win/launcher_win.cpp
@@ -1938,6 +1941,7 @@ PRIVATE
     platform/platform_translate_provider.h
     platform/platform_tray.h
     platform/platform_webauthn.h
+    platform/platform_widget_helper.h
     platform/platform_window_title.h
     profile/profile_block_widget.cpp
     profile/profile_block_widget.h
@@ -2300,6 +2304,8 @@ PRIVATE
     tgw/tgw_painter.h
     tgw/tgw_painter_filters.cpp
     tgw/tgw_painter_filters.h
+    tgw/tgw_remote.cpp
+    tgw/tgw_remote.h
     tgw/tgw_renderer.cpp
     tgw/tgw_renderer.h
     tgw/tgw_resources.cpp
