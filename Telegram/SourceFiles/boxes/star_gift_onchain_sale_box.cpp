@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_key_protection.h"
+#include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "wallet/wallet_session_served.h"
 
@@ -55,6 +56,7 @@ enum class Ownership : uchar {
 	Own,
 	Other,
 	Unknown,
+	NoWallet,
 };
 
 struct SaleArgs {
@@ -113,6 +115,7 @@ private:
 	[[nodiscard]] SendError estimated(const Wallet::FeeResult &result);
 	void refused(SendError error);
 	void duplicate();
+	void walletAbsent();
 	void closing();
 
 	const SaleArgs _args;
@@ -128,6 +131,7 @@ private:
 	rpl::variable<SendError> _error = SendError::None;
 	mtpRequestId _requestId = 0;
 	bool _polling = false;
+	rpl::lifetime _lifetime;
 	OnchainSigning _signing;
 
 };
@@ -171,6 +175,61 @@ private:
 		|| sales.contains(owner))
 		? Ownership::Own
 		: Ownership::Other;
+}
+
+[[nodiscard]] bool ProfileGift(
+		not_null<Main::Session*> session,
+		const Data::UniqueGift &gift) {
+	return (gift.ownerId == session->userPeerId());
+}
+
+[[nodiscard]] bool Absent(Wallet::Presence presence) {
+	using Wallet::Presence;
+	return (presence == Presence::Missing)
+		|| (presence == Presence::Unavailable)
+		|| (presence == Presence::AddressUnreadable);
+}
+
+[[nodiscard]] Ownership LookupSaleOwnership(
+		not_null<Main::Session*> session,
+		const Data::UniqueGift &gift) {
+	if (!ProfileGift(session, gift)
+		|| gift.slug.isEmpty()
+		|| gift.burned
+		|| !session->appConfig().walletAvailable()
+		|| session->supportMode()) {
+		return LookupOwnership(session, gift);
+	}
+	const auto wallet = &session->wallet();
+	return wallet->address()
+		? Ownership::Own
+		: Absent(wallet->presenceCurrent())
+		? Ownership::NoWallet
+		: Ownership::Unknown;
+}
+
+[[nodiscard]] bool CheckSaleEntry(
+		const std::shared_ptr<ChatHelpers::Show> &show,
+		const Data::UniqueGift &gift) {
+	const auto session = &show->session();
+	if (!gift.onchainSale || HasPendingGiftSale(session, gift)) {
+		return false;
+	} else if (!ProfileGift(session, gift)) {
+		return HasOnchainSaleEntries(LookupOwnOnchainGift(session, gift));
+	} else if (!session->appConfig().walletAvailable()
+		|| session->supportMode()) {
+		LOG(("Wallet Error: on-chain sale of %1 is unavailable."
+			).arg(gift.slug));
+		show->showToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return false;
+	}
+	const auto wallet = &session->wallet();
+	wallet->ensureLoaded();
+	if (Absent(wallet->presenceCurrent())) {
+		Wallet::ShowWallet(session);
+		return false;
+	}
+	return (LookupSaleOwnership(session, gift) != Ownership::Other);
 }
 
 [[nodiscard]] bool Insufficient(SendError error) {
@@ -275,9 +334,6 @@ void ApplySale(const SaleCompletion &completion) {
 	} else if (completion.kind == SaleKind::Unlist) {
 		gift->starsForResale = 0;
 		gift->nanoTonForResale = 0;
-		gift->onlyAcceptTon = false;
-		gift->onchainSale = false;
-		gift->fixedSale = false;
 		SessionFixedSaleListings(session).pendingSlugs.remove(gift->slug);
 	} else {
 		const auto price = CreditsAmount(
@@ -286,10 +342,6 @@ void ApplySale(const SaleCompletion &completion) {
 			CreditsType::Ton);
 		gift->starsForResale = StarsFromTon(session, price).whole();
 		gift->nanoTonForResale = completion.price;
-		gift->onlyAcceptTon = true;
-		if (!gift->fixedSale) {
-			gift->onchainSale = true;
-		}
 	}
 	if (!pending) {
 		session->data().notifyGiftUpdate({
@@ -327,7 +379,7 @@ void ShowUnlistFirst(
 			if (const auto strong = priceBox.get()) {
 				strong->closeBox();
 			}
-			ShowOnchainGiftUnlistBox(show, gift);
+			ShowOwnGiftUnlistBox(show, gift, Data::SavedStarGiftId());
 		},
 		.confirmText = tr::lng_gift_transfer_unlist(),
 	}));
@@ -457,6 +509,14 @@ void OnchainSale::start() {
 	_signing.start();
 	_polling = true;
 	_wallet->startPolling();
+	if (ProfileGift(_session, *_args.gift)) {
+		_wallet->presenceValue(
+		) | rpl::filter(
+			Absent
+		) | rpl::take(1) | rpl::to_empty | rpl::on_next([=] {
+			walletAbsent();
+		}, _lifetime);
+	}
 	if (_args.kind != SaleKind::Unlist) {
 		request();
 	}
@@ -481,7 +541,7 @@ bool OnchainSale::current() const {
 }
 
 Ownership OnchainSale::ownership() const {
-	return LookupOwnership(_session, *_args.gift);
+	return LookupSaleOwnership(_session, *_args.gift);
 }
 
 bool OnchainSale::usable() {
@@ -489,14 +549,29 @@ bool OnchainSale::usable() {
 		_signing.close();
 		return false;
 	}
+	const auto &gift = *_args.gift;
+	if (!gift.onchainSale) {
+		LOG(("Wallet Error: %1 is no longer sold on-chain for %2."
+			).arg(gift.slug, RequestMethod(_args.kind)));
+		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return false;
+	}
 	const auto ownership = this->ownership();
 	if (ownership == Ownership::Unknown) {
 		_signing.awaitWallet();
 		return false;
+	} else if (ownership == Ownership::NoWallet) {
+		walletAbsent();
+		return false;
 	} else if (ownership == Ownership::Other) {
 		LOG(("Wallet Error: the wallet no longer holds %1 for %2."
-			).arg(_args.gift->slug, RequestMethod(_args.kind)));
+			).arg(gift.slug, RequestMethod(_args.kind)));
 		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return false;
+	} else if (_args.kind != SaleKind::Unlist
+		&& Data::UniqueGiftOnSale(gift)
+		&& !gift.fixedSale) {
+		unlistFirst();
 		return false;
 	}
 	return true;
@@ -658,7 +733,15 @@ void OnchainSale::duplicate() {
 	}
 }
 
+void OnchainSale::walletAbsent() {
+	if (const auto priceBox = _args.priceBox.get()) {
+		priceBox->closeBox();
+	}
+	_signing.openMoney();
+}
+
 void OnchainSale::closing() {
+	_lifetime.destroy();
 	if (_weakSession) {
 		_api.request(base::take(_requestId)).cancel();
 		if (base::take(_polling)) {
@@ -777,17 +860,23 @@ OwnOnchainGift LookupOwnOnchainGift(
 		const Data::UniqueGift &gift) {
 	if (LookupOwnership(session, gift) != Ownership::Own) {
 		return OwnOnchainGift::None;
-	} else if (Data::UniqueGiftOnchainSale(gift)) {
+	} else if (Data::UniqueGiftOnSale(gift)) {
 		return OwnOnchainGift::Listed;
 	}
-	const auto &pending = SessionFixedSaleListings(session).pendingSlugs;
-	return pending.contains(gift.slug)
+	return HasPendingGiftSale(session, gift)
 		? OwnOnchainGift::Pending
 		: OwnOnchainGift::Held;
 }
 
 bool HasOnchainSaleEntries(OwnOnchainGift own) {
 	return (own == OwnOnchainGift::Held) || (own == OwnOnchainGift::Listed);
+}
+
+bool HasPendingGiftSale(
+		not_null<Main::Session*> session,
+		const Data::UniqueGift &gift) {
+	const auto &pending = SessionFixedSaleListings(session).pendingSlugs;
+	return !Data::UniqueGiftOnSale(gift) && pending.contains(gift.slug);
 }
 
 void ShowOnchainGiftSellBox(
@@ -797,8 +886,10 @@ void ShowOnchainGiftSellBox(
 	if (!show
 		|| !show->valid()
 		|| !gift
-		|| !HasOnchainSaleEntries(
-			LookupOwnOnchainGift(&show->session(), *gift))) {
+		|| !CheckSaleEntry(show, *gift)) {
+		return;
+	} else if (Data::UniqueGiftOnSale(*gift) && !gift->fixedSale) {
+		ShowUnlistFirst(show, gift, {});
 		return;
 	}
 	struct Dialog {
@@ -811,7 +902,7 @@ void ShowOnchainGiftSellBox(
 			return;
 		}
 		dialog->confirmation = show->show(Box(OnchainSaleBox, SaleArgs{
-			.kind = (Data::UniqueGiftOnchainSale(*gift)
+			.kind = (Data::UniqueGiftOnSale(*gift)
 				? SaleKind::Change
 				: SaleKind::List),
 			.show = show,
@@ -829,16 +920,53 @@ void ShowOnchainGiftSellBox(
 		0,
 		st,
 		submit));
+	const auto session = &show->session();
+	const auto box = dialog->price.get();
+	if (!box || !ProfileGift(session, *gift)) {
+		return;
+	}
+	const auto weak = base::make_weak(session);
+	rpl::merge(
+		box->boxClosing() | rpl::map_to(false),
+		session->wallet().presenceValue(
+		) | rpl::filter(Absent) | rpl::map_to(true)
+	) | rpl::take(1) | rpl::filter(
+		rpl::mappers::_1
+	) | rpl::to_empty | rpl::on_next([=] {
+		if (const auto confirmation = dialog->confirmation.get()) {
+			confirmation->closeBox();
+		}
+		if (const auto price = dialog->price.get()) {
+			price->closeBox();
+		}
+		if (const auto strong = weak.get()) {
+			Wallet::ShowWallet(strong);
+		}
+	}, box->lifetime());
 }
 
-void ShowOnchainGiftUnlistBox(
+void ShowOwnGiftUnlistBox(
 		std::shared_ptr<ChatHelpers::Show> show,
-		std::shared_ptr<Data::UniqueGift> gift) {
-	if (!show
-		|| !show->valid()
-		|| !gift
-		|| !HasOnchainSaleEntries(
-			LookupOwnOnchainGift(&show->session(), *gift))) {
+		std::shared_ptr<Data::UniqueGift> gift,
+		Data::SavedStarGiftId savedId) {
+	if (!show || !show->valid() || !gift) {
+		return;
+	} else if (!gift->onchainSale) {
+		const auto name = Data::UniqueGiftName(*gift);
+		const auto confirm = [=](Fn<void()> close) {
+			close();
+			UpdateGiftSellPrice(show, gift, savedId, {});
+		};
+		show->show(MakeConfirmBox({
+			.text = tr::lng_gift_sell_unlist_sure(),
+			.confirmed = confirm,
+			.confirmText = tr::lng_gift_transfer_unlist(),
+			.title = tr::lng_gift_sell_unlist_title(
+				lt_name,
+				rpl::single(name)),
+		}));
+		return;
+	} else if (!CheckSaleEntry(show, *gift)) {
 		return;
 	}
 	show->show(Box(OnchainSaleBox, SaleArgs{

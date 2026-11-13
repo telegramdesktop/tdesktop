@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/send_credits_box.h"
 #include "boxes/star_gift_auction_box.h"
+#include "boxes/star_gift_onchain_sale_box.h"
 #include "boxes/star_gift_preview_box.h"
 #include "boxes/star_gift_resale_box.h"
 #include "boxes/transfer_gift_box.h"
@@ -3021,7 +3022,13 @@ void UpdateGiftSellPrice(
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		CreditsAmount price) {
-	const auto wasOnResale = (unique->starsForResale > 0);
+	if (unique->onchainSale) {
+		LOG(("Wallet Error: %1 is sold on-chain, not with %2."
+			).arg(unique->slug, u"payments.updateStarGiftPrice"_q));
+		show->showToast(tr::lng_gift_buy_onchain_error(tr::now));
+		return;
+	}
+	const auto wasOnResale = Data::UniqueGiftOnSale(*unique);
 	const auto session = &show->session();
 	session->api().request(MTPpayments_UpdateStarGiftPrice(
 		Api::InputSavedStarGiftId(savedId, unique),
@@ -3099,12 +3106,14 @@ void UniqueGiftSellBox(
 		rpl::event_stream<> errors;
 	};
 	const auto state = box->lifetime().make_state<State>();
-	state->onlyTon = onchain || unique->onlyAcceptTon;
+	const auto onSale = Data::UniqueGiftOnSale(*unique);
 	const auto priceNow = !onchain
 		? Data::UniqueGiftResaleAsked(*unique)
-		: Data::UniqueGiftOnchainSale(*unique)
+		: onSale
 		? Data::UniqueGiftResaleTon(*unique)
 		: CreditsAmount();
+	state->onlyTon = onchain
+		|| (onSale ? priceNow.ton() : unique->onlyAcceptTon);
 	state->price = (priceNow || onchain)
 		? priceNow
 		: price
@@ -3242,8 +3251,7 @@ void UniqueGiftSellBox(
 	std::move(
 		priceInput.submits
 	) | rpl::on_next(submit, details->lifetime());
-	auto submitText = (priceNow
-		|| (onchain && Data::UniqueGiftOnchainSale(*unique)))
+	auto submitText = onSale
 		? tr::lng_gift_sell_update()
 		: tr::lng_gift_sell_put();
 	box->addButton(std::move(submitText), submit);
@@ -3254,7 +3262,15 @@ void ShowUniqueGiftSellBox(
 		std::shared_ptr<Data::UniqueGift> unique,
 		Data::SavedStarGiftId savedId,
 		Settings::GiftWearBoxStyleOverride st) {
-	if (ShowResaleGiftLater(show, unique)) {
+	if (!show
+		|| !show->valid()
+		|| !unique
+		|| HasPendingGiftSale(&show->session(), *unique)) {
+		return;
+	} else if (unique->onchainSale) {
+		ShowOnchainGiftSellBox(show, unique, st);
+		return;
+	} else if (ShowResaleGiftLater(show, unique)) {
 		return;
 	}
 	const auto session = &show->session();

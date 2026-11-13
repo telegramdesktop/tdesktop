@@ -13,6 +13,7 @@ class Show;
 
 namespace Data {
 struct UniqueGift;
+class SavedStarGiftId;
 } // namespace Data
 
 namespace Main {
@@ -36,13 +37,17 @@ enum class OwnOnchainGift : uchar {
 	not_null<Main::Session*> session,
 	const Data::UniqueGift &gift);
 [[nodiscard]] bool HasOnchainSaleEntries(OwnOnchainGift own);
+[[nodiscard]] bool HasPendingGiftSale(
+	not_null<Main::Session*> session,
+	const Data::UniqueGift &gift);
 
 void ShowOnchainGiftSellBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> gift,
 	Settings::GiftWearBoxStyleOverride st);
-void ShowOnchainGiftUnlistBox(
+void ShowOwnGiftUnlistBox(
 	std::shared_ptr<ChatHelpers::Show> show,
-	std::shared_ptr<Data::UniqueGift> gift);
+	std::shared_ptr<Data::UniqueGift> gift,
+	Data::SavedStarGiftId savedId);
 
 } // namespace Ui

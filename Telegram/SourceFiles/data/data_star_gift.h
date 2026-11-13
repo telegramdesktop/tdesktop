@@ -155,7 +155,7 @@ struct UniqueGift {
 [[nodiscard]] QString UniqueGiftName(const UniqueGift &gift);
 [[nodiscard]] QString UniqueGiftName(const QString &title, int number);
 
-[[nodiscard]] bool UniqueGiftOnchainSale(const UniqueGift &gift);
+[[nodiscard]] bool UniqueGiftOnSale(const UniqueGift &gift);
 [[nodiscard]] bool UniqueGiftOnchainPurchase(const UniqueGift &gift);
 
 [[nodiscard]] CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift);

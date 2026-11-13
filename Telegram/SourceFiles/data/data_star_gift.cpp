@@ -70,8 +70,8 @@ QString UniqueGiftName(const QString &title, int number) {
 	return title + u" #"_q + Lang::FormatCountDecimal(number);
 }
 
-bool UniqueGiftOnchainSale(const UniqueGift &gift) {
-	return gift.onchainSale || gift.fixedSale;
+bool UniqueGiftOnSale(const UniqueGift &gift) {
+	return (gift.starsForResale > 0) || (gift.nanoTonForResale > 0);
 }
 
 bool UniqueGiftOnchainPurchase(const UniqueGift &gift) {
@@ -135,7 +135,7 @@ CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift) {
 }
 
 CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift) {
-	return (gift.onlyAcceptTon || gift.fixedSale)
+	return UniqueGiftResaleBuyTon(gift, gift.onchainSale || gift.fixedSale)
 		? UniqueGiftResaleTon(gift)
 		: UniqueGiftResaleStars(gift);
 }
@@ -197,7 +197,7 @@ TextWithEntities FormatGiftResaleTon(const UniqueGift &gift) {
 }
 
 TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift) {
-	return (gift.onlyAcceptTon || gift.fixedSale)
+	return UniqueGiftResaleAsked(gift).ton()
 		? FormatGiftResaleTon(gift)
 		: FormatGiftResaleStars(gift);
 }

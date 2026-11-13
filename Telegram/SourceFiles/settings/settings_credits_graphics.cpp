@@ -1102,9 +1102,6 @@ void ProcessReceivedSubscriptions(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &e) {
 	const auto unique = e.uniqueGift.get();
-	if (unique && unique->fixedSale) {
-		return false;
-	}
 	const auto host = (unique && unique->hostId)
 		? session->data().peer(unique->hostId).get()
 		: (unique && unique->ownerId)
@@ -1123,9 +1120,6 @@ void ProcessReceivedSubscriptions(
 		not_null<Main::Session*> session,
 		const Data::CreditsHistoryEntry &e) {
 	const auto unique = e.uniqueGift.get();
-	if (unique && unique->fixedSale) {
-		return false;
-	}
 	const auto owner = (unique && unique->ownerId)
 		? session->data().peer(unique->ownerId).get()
 		: nullptr;
@@ -1299,20 +1293,30 @@ void FillUniqueGiftMenu(
 			}
 		}, st.theme ? st.theme : &st::menuIconChangeColors);
 	}
-	const auto own = Ui::LookupOwnOnchainGift(session, *unique);
+	const auto own = (unique->ownerId == session->userPeerId())
+		? Ui::OwnOnchainGift::None
+		: Ui::LookupOwnOnchainGift(session, *unique);
 	if (Ui::HasOnchainSaleEntries(own)) {
 		const auto listed = (own == Ui::OwnOnchainGift::Listed);
 		const auto editPrice = (listed
 			? tr::lng_gift_transfer_update
 			: tr::lng_gift_transfer_sell)(tr::now);
 		menu->addAction(editPrice, [=] {
-			Ui::ShowOnchainGiftSellBox(show, unique, st.giftWearBox
+			const auto style = st.giftWearBox
 				? *st.giftWearBox
-				: GiftWearBoxStyleOverride());
+				: GiftWearBoxStyleOverride();
+			Ui::ShowUniqueGiftSellBox(
+				show,
+				unique,
+				Data::SavedStarGiftId(),
+				style);
 		}, st.resell ? st.resell : &st::menuIconTagSell);
 		if (listed) {
 			menu->addAction(tr::lng_gift_transfer_unlist(tr::now), [=] {
-				Ui::ShowOnchainGiftUnlistBox(show, unique);
+				Ui::ShowOwnGiftUnlistBox(
+					show,
+					unique,
+					Data::SavedStarGiftId());
 			}, st.unlist ? st.unlist : &st::menuIconTagRemove);
 		}
 	} else if (Ui::CanOfferOnchainGift(session, *unique)) {
@@ -1376,9 +1380,14 @@ void FillUniqueGiftMenu(
 			}, st.wear ? st.wear : &st::menuIconNftWear);
 		}
 	}
-	if (owner && ShowResellButton(&show->session(), e)) {
+	if (owner
+		&& (own == Ui::OwnOnchainGift::None)
+		&& ShowResellButton(&show->session(), e)) {
+		if (Ui::HasPendingGiftSale(session, *unique)) {
+			return;
+		}
 		const auto can = CanResellGift(&show->session(), e);
-		const auto inResale = (unique->starsForResale > 0);
+		const auto inResale = Data::UniqueGiftOnSale(*unique);
 		const auto editPrice = (inResale
 			? tr::lng_gift_transfer_update
 			: tr::lng_gift_transfer_sell)(tr::now);
@@ -1394,19 +1403,7 @@ void FillUniqueGiftMenu(
 		}, st.resell ? st.resell : &st::menuIconTagSell);
 		if (inResale) {
 			menu->addAction(tr::lng_gift_transfer_unlist(tr::now), [=] {
-				const auto name = UniqueGiftName(*unique);
-				const auto confirm = [=](Fn<void()> close) {
-					close();
-					Ui::UpdateGiftSellPrice(show, unique, savedId, {});
-				};
-				show->show(Ui::MakeConfirmBox({
-					.text = tr::lng_gift_sell_unlist_sure(),
-					.confirmed = confirm,
-					.confirmText = tr::lng_gift_transfer_unlist(),
-					.title = tr::lng_gift_sell_unlist_title(
-						lt_name,
-						rpl::single(name)),
-				}));
+				Ui::ShowOwnGiftUnlistBox(show, unique, savedId);
 			}, st.unlist ? st.unlist : &st::menuIconTagRemove);
 		}
 	} else if (ShowOfferBuyButton(&show->session(), e)) {
