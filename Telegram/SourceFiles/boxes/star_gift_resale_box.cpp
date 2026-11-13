@@ -90,8 +90,7 @@ struct ResaleTabs {
 		std::shared_ptr<ChatHelpers::Show> show,
 		const ResaleGiftsDescriptor &info,
 		rpl::producer<ResaleGiftsFilter> filter,
-		bool fragmentAvailable,
-		bool fixedSaleAvailable) {
+		bool fragmentAvailable) {
 	auto widget = object_ptr<RpWidget>((QWidget*)nullptr);
 	const auto raw = widget.data();
 
@@ -285,14 +284,6 @@ struct ResaleTabs {
 						filter.fragmentOnly = !filter.fragmentOnly;
 					});
 				}, &st::menuIconFragment, current.fragmentOnly);
-			}
-			if (fixedSaleAvailable) {
-				const auto text = tr::lng_gift_resale_on_blockchain(tr::now);
-				actionWithIcon(text, [=] {
-					modify([&](ResaleGiftsFilter &filter) {
-						filter.fixedSaleOnly = !filter.fixedSaleOnly;
-					});
-				}, &st::menuIconLink, current.fixedSaleOnly);
 			}
 		} else {
 			const auto now = state->filter.current().attributes;
@@ -528,12 +519,8 @@ struct ResaleTabs {
 [[nodiscard]] bool HiddenInCraftList(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	if (gift.ownerId == session->userPeerId()) {
-		return true;
-	} else if (gift.fixedSale) {
-		return LookupOwnOnchainGift(session, gift) != OwnOnchainGift::None;
-	}
-	return gift.onchainSale;
+	return (gift.ownerId == session->userPeerId())
+		|| (LookupOwnOnchainGift(session, gift) != OwnOnchainGift::None);
 }
 
 void GiftResaleBox(
@@ -635,16 +622,12 @@ void AddResaleGiftsList(
 	state->data = std::move(descriptor);
 
 	const auto fragmentAvailable = !forCraft
-		&& peer->isSelf()
 		&& window->session().appConfig().giftResaleFragmentEnabled();
-	const auto fixedSaleAvailable = peer->isSelf()
-		&& window->session().appConfig().giftResaleFixedSaleEnabled();
 	auto tabs = MakeResaleTabs(
 		window->uiShow(),
 		state->data,
 		state->filter.value(),
-		fragmentAvailable,
-		fixedSaleAvailable);
+		fragmentAvailable);
 	state->filter = std::move(tabs.filter);
 	if (forCraft) {
 		const auto skip = st::giftBoxResaleTabsMargin.top()
@@ -704,7 +687,7 @@ void AddResaleGiftsList(
 		state->updated.fire({});
 	}, container->lifetime());
 
-	if (forCraft && fixedSaleAvailable) {
+	if (forCraft) {
 		session->wallet().transferWalletIdentityChanges(
 		) | rpl::on_next([=] {
 			state->updated.fire({});
@@ -719,10 +702,11 @@ void AddResaleGiftsList(
 			Expects(v::is<StarGift>(descriptor));
 
 			const auto unique = v::get<StarGift>(descriptor).info.unique;
-			if (forCraft && unique->fixedSale) {
+			if (forCraft && Data::UniqueGiftOnchainPurchase(*unique)) {
 				ShowBuyOnchainGiftBox(
 					window->uiShow(),
 					unique,
+					peer->session().user(),
 					base::make_weak(&state->onchainMemory),
 					crl::guard(container, [=] {
 						state->acceptedOnchainSlugs.emplace(unique->slug);
@@ -749,7 +733,7 @@ void AddResaleGiftsList(
 		const auto selfId = window->session().userPeerId();
 		for (const auto &gift : state->data.list) {
 			const auto mine = (gift.unique->ownerId == selfId);
-			const auto onchain = Data::UniqueGiftOnchainSale(*gift.unique);
+			const auto onchain = Data::UniqueGiftOnchainPurchase(*gift.unique);
 			if (forCraft
 				&& (state->acceptedOnchainSlugs.contains(gift.unique->slug)
 					|| HiddenInCraftList(session, *gift.unique))) {

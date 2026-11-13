@@ -51,9 +51,6 @@ void ReadOnchainGiftAction(
 	case mtpc_walletOnchainGiftActionBuy:
 		result.onchainGift = TransferOnchainGift::Buy;
 		break;
-	case mtpc_walletOnchainGiftActionList:
-		result.onchainGift = TransferOnchainGift::List;
-		break;
 	case mtpc_walletOnchainGiftActionDelist:
 		result.onchainGift = TransferOnchainGift::Delist;
 		break;

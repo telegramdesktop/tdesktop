@@ -1524,7 +1524,7 @@ void AddStarGiftTable(
 		ShowTableRowTooltip(tooltip, widget, std::move(text), kTooltipDuration);
 	};
 
-	if (unique && !unique->fixedSale && entry.bareGiftResaleRecipientId) {
+	if (unique && entry.bareGiftResaleRecipientId) {
 		AddTableRow(
 			table,
 			tr::lng_credits_box_history_entry_peer(),

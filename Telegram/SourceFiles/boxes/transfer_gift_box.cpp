@@ -1210,6 +1210,7 @@ void BuyResaleGift(
 		*completed = true;
 		if (result == Payments::CheckoutResult::Paid) {
 			purchase.gift->starsForResale = 0;
+			purchase.gift->nanoTonForResale = 0;
 		}
 		done(result);
 		if (result == Payments::CheckoutResult::Paid) {
@@ -1279,15 +1280,18 @@ base::weak_qptr<Ui::GenericBox> ShowBuyResaleGiftConfirm(
 		});
 		const auto gift = state->purchase.gift;
 		const auto to = state->purchase.recipient;
+		const auto choice = !gift->onlyAcceptTon
+			&& (gift->starsForResale > 0)
+			&& (gift->nanoTonForResale > 0);
 
-		if (gift->onlyAcceptTon) {
+		if (!choice && initiallyTon) {
 			box->addRow(
 				object_ptr<Ui::FlatLabel>(
 					box,
 					tr::lng_gift_buy_resale_only_ton(tr::rich),
 					st::resaleConfirmTonOnly),
 				st::boxRowPadding + st::resaleConfirmTonOnlyMargin);
-		} else {
+		} else if (choice) {
 			const auto tabs = box->addRow(
 				object_ptr<Ui::SubTabs>(
 					box,
@@ -1926,7 +1930,8 @@ void ShowBuyResaleGiftBox(
 		bool forceTon,
 		not_null<PeerData*> to,
 		Fn<void(bool ok)> closeParentBox) {
-	if (Data::UniqueGiftOnchainSale(*gift)) {
+	if (Data::UniqueGiftOnchainPurchase(*gift)
+		|| (gift->fixedSale && !gift->onchainSale)) {
 		return;
 	}
 	const auto attempt = std::make_shared<ResaleGiftAttemptState>();
@@ -1952,7 +1957,9 @@ void ShowBuyResaleGiftBox(
 		});
 
 		const auto container = box->verticalLayout();
-		const auto initiallyTon = gift->onlyAcceptTon || forceTon;
+		const auto initiallyTon = Data::UniqueGiftResaleBuyTon(
+			*gift,
+			forceTon);
 		const auto initialCost = initiallyTon
 			? Data::FormatGiftResaleTon(*gift)
 			: Data::FormatGiftResaleStars(*gift);

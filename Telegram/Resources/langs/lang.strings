@@ -4336,6 +4336,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_buy_onchain_not_for_sale" = "This gift is no longer for sale.";
 "lng_gift_buy_onchain_error" = "Please try again later.";
 "lng_gift_buy_onchain_done" = "The gift will appear in {path} and on your profile once the purchase is confirmed.";
+"lng_gift_buy_onchain_done_recipient" = "{user} will receive the gift once the purchase is confirmed.";
 "lng_gift_buy_onchain_already_sent" = "This purchase has already been sent.";
 "lng_gift_buy_onchain_earnings_title" = "Use Gram Earnings?";
 "lng_gift_buy_onchain_earnings_text" = "{amount} will be moved from Gram Earnings to your balance and used to buy this gift.";
@@ -4657,7 +4658,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_resale_for_grams" = "For Grams";
 "lng_gift_resale_for_stars" = "For Stars";
 "lng_gift_resale_from_fragment" = "From Fragment";
-"lng_gift_resale_on_blockchain" = "On Blockchain";
 "lng_gift_resale_filter_all" = "Select All";
 "lng_gift_resale_model" = "Model";
 "lng_gift_resale_models#one" = "{count} Model";

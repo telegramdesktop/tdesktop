@@ -81,6 +81,7 @@ enum class Readiness : uchar {
 struct Completion {
 	std::shared_ptr<ChatHelpers::Show> show;
 	std::shared_ptr<Data::UniqueGift> gift;
+	PeerId recipientId;
 	Fn<void()> bought;
 	base::weak_ptr<Main::Session> session;
 	std::optional<Wallet::TransferWalletIdentity> identity;
@@ -92,6 +93,7 @@ public:
 		not_null<GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
+		not_null<PeerData*> to,
 		base::weak_ptr<OnchainBuyMemory> memory,
 		Fn<void()> bought);
 	~OnchainPurchase();
@@ -172,6 +174,7 @@ private:
 	const not_null<GenericBox*> _box;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Data::UniqueGift> _gift;
+	const not_null<PeerData*> _to;
 	const Fn<void()> _bought;
 	const base::weak_ptr<OnchainBuyMemory> _memory;
 	const not_null<Main::Session*> _session;
@@ -332,6 +335,14 @@ void CompletePurchase(Completion completion) {
 		|| !show->valid()
 		|| (&show->session() != session)) {
 		return;
+	} else if (completion.recipientId) {
+		const auto recipient = session->data().peer(completion.recipientId);
+		show->showToast(tr::lng_gift_buy_onchain_done_recipient(
+			tr::now,
+			lt_user,
+			tr::bold(recipient->shortName()),
+			tr::marked));
+		return;
 	}
 	ShowGiftMovedToast(
 		show,
@@ -350,11 +361,13 @@ OnchainPurchase::OnchainPurchase(
 	not_null<GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> gift,
+	not_null<PeerData*> to,
 	base::weak_ptr<OnchainBuyMemory> memory,
 	Fn<void()> bought)
 : _box(box)
 , _show(std::move(show))
 , _gift(std::move(gift))
+, _to(to)
 , _bought(std::move(bought))
 , _memory(std::move(memory))
 , _session(&_show->session())
@@ -588,6 +601,7 @@ Completion OnchainPurchase::completion() const {
 	return {
 		.show = _show,
 		.gift = _gift,
+		.recipientId = _to->isSelf() ? PeerId() : _to->id,
 		.bought = _bought,
 		.session = _weakSession,
 		.identity = _identity,
@@ -665,6 +679,8 @@ void OnchainPurchase::waited() {
 }
 
 void OnchainPurchase::preflight() {
+	Expects(_identity.has_value());
+
 	if (_funding && !_waitArmed) {
 		_waitTimer.cancel();
 	}
@@ -678,7 +694,9 @@ void OnchainPurchase::preflight() {
 		_signing.owner(),
 		Wallet::ServedOperation{
 			.messages = { Wallet::ServedMessage{
-				.destination = _address,
+				.destination = (_address.isEmpty()
+					? _identity->address
+					: _address),
 				.value = _total.current(),
 			} },
 		},
@@ -951,12 +969,16 @@ void OnchainPurchase::buy() {
 }
 
 void OnchainPurchase::request() {
+	using Flag = MTPpayments_BuyStarGiftOnchain::Flag;
+	const auto forRecipient = !_to->isSelf();
 	const auto expected = _price.current();
 	_stage = Stage::Buying;
 	refresh();
 	_requestId = _api.request(MTPpayments_BuyStarGiftOnchain(
+		MTP_flags(forRecipient ? Flag::f_peer : Flag()),
 		MTP_string(_gift->slug),
-		MTP_long(expected)
+		MTP_long(expected),
+		forRecipient ? _to->input() : MTPInputPeer()
 	)).done([=](const MTPpayments_StarGiftOnchainSalePayload &result) {
 		_requestId = 0;
 		answered(result, expected);
@@ -1064,8 +1086,7 @@ void OnchainPurchase::reloaded(const MTPpayments_UniqueStarGift &result) {
 		: std::nullopt;
 	if (!unique
 		|| (unique->slug != _gift->slug)
-		|| !Data::UniqueGiftOnchainSale(*unique)
-		|| (unique->nanoTonForResale <= 0)
+		|| !Data::UniqueGiftOnchainPurchase(*unique)
 		|| !cost) {
 		_signing.closeWithToast(
 			tr::lng_gift_buy_onchain_not_for_sale(tr::now));
@@ -1276,12 +1297,14 @@ void OnchainBuyBox(
 		not_null<GenericBox*> box,
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
+		not_null<PeerData*> to,
 		base::weak_ptr<OnchainBuyMemory> memory,
 		Fn<void()> bought) {
 	const auto purchase = box->lifetime().make_state<OnchainPurchase>(
 		box,
 		show,
 		gift,
+		to,
 		std::move(memory),
 		std::move(bought));
 	const auto &padding = st::boxPadding;
@@ -1291,23 +1314,33 @@ void OnchainBuyBox(
 		CreateGiftTransfer(
 			box->verticalLayout(),
 			gift,
-			show->session().user()),
+			to),
 		QMargins(0, padding.top(), 0, 0));
 	auto total = purchase->totalValue() | rpl::map([](int64 nanos) {
 		return nanos / float64(kNanosInOne);
 	});
+	auto price = tr::lng_action_gift_for_ton(
+		lt_count_decimal,
+		std::move(total),
+		tr::bold);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
-			tr::lng_gift_buy_resale_confirm_self(
-				lt_name,
-				rpl::single(tr::bold(Data::UniqueGiftName(*gift))),
-				lt_price,
-				tr::lng_action_gift_for_ton(
-					lt_count_decimal,
-					std::move(total),
-					tr::bold),
-				tr::marked),
+			to->isSelf()
+				? tr::lng_gift_buy_resale_confirm_self(
+					lt_name,
+					rpl::single(tr::bold(Data::UniqueGiftName(*gift))),
+					lt_price,
+					std::move(price),
+					tr::marked)
+				: tr::lng_gift_buy_resale_confirm(
+					lt_name,
+					rpl::single(tr::bold(Data::UniqueGiftName(*gift))),
+					lt_price,
+					std::move(price),
+					lt_user,
+					rpl::single(tr::bold(to->shortName())),
+					tr::marked),
 			st::boxLabel),
 		QMargins(padding.left(), padding.top(), padding.right(), 0));
 	AddPurchaseTerms(box, purchase);
@@ -1420,20 +1453,19 @@ void OnchainBuyBox(
 bool CanBuyOnchainGift(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	return Data::UniqueGiftOnchainSale(gift)
-		&& (gift.nanoTonForResale > 0)
+	return Data::UniqueGiftOnchainPurchase(gift)
 		&& Data::UniqueGiftBuyerPays(gift).has_value()
 		&& !gift.slug.isEmpty()
 		&& (gift.ownerId != session->userPeerId())
 		&& session->appConfig().walletAvailable()
 		&& !session->supportMode()
-		&& (!gift.fixedSale
-			|| (LookupOwnOnchainGift(session, gift) == OwnOnchainGift::None));
+		&& (LookupOwnOnchainGift(session, gift) == OwnOnchainGift::None);
 }
 
 void ShowBuyOnchainGiftBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
+		not_null<PeerData*> to,
 		base::weak_ptr<OnchainBuyMemory> memory,
 		Fn<void()> bought) {
 	if (!show
@@ -1453,6 +1485,7 @@ void ShowBuyOnchainGiftBox(
 		OnchainBuyBox,
 		show,
 		std::move(gift),
+		to,
 		std::move(memory),
 		std::move(bought)));
 }

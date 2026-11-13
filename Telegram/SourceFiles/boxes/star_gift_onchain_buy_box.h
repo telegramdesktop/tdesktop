@@ -34,6 +34,7 @@ struct OnchainBuyMemory final : base::has_weak_ptr {
 void ShowBuyOnchainGiftBox(
 	std::shared_ptr<ChatHelpers::Show> show,
 	std::shared_ptr<Data::UniqueGift> gift,
+	not_null<PeerData*> to,
 	base::weak_ptr<OnchainBuyMemory> memory,
 	Fn<void()> bought);
 

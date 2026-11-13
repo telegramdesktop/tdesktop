@@ -74,6 +74,10 @@ bool UniqueGiftOnchainSale(const UniqueGift &gift) {
 	return gift.onchainSale || gift.fixedSale;
 }
 
+bool UniqueGiftOnchainPurchase(const UniqueGift &gift) {
+	return gift.onchainSale && (gift.nanoTonForResale > 0);
+}
+
 QString UniqueGiftRarityText(UniqueGiftRarity type) {
 	switch (type) {
 	case UniqueGiftRarity::Uncommon:
@@ -134,6 +138,13 @@ CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift) {
 	return (gift.onlyAcceptTon || gift.fixedSale)
 		? UniqueGiftResaleTon(gift)
 		: UniqueGiftResaleStars(gift);
+}
+
+bool UniqueGiftResaleBuyTon(const UniqueGift &gift, bool preferTon) {
+	return (gift.nanoTonForResale > 0)
+		&& (gift.onlyAcceptTon
+			|| preferTon
+			|| (gift.starsForResale <= 0));
 }
 
 int FixedSaleFeeBps(const UniqueGift &gift) {
@@ -352,9 +363,6 @@ rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(
 					| (filter.tonOnly ? Flag::f_ton_only : Flag())
 					| ((filter.fragmentOnly && !filter.forCraft)
 						? Flag::f_fragment_only
-						: Flag())
-					| (filter.fixedSaleOnly
-						? Flag::f_fixed_sale_only
 						: Flag())),
 				MTP_long(filter.attributesHash),
 				MTP_long(giftId),

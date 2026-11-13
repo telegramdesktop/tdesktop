@@ -191,10 +191,6 @@ bool AppConfig::giftResaleFragmentEnabled() const {
 	return get<bool>(u"stargifts_fragment_resale_enabled"_q, false);
 }
 
-bool AppConfig::giftResaleFixedSaleEnabled() const {
-	return get<bool>(u"stargifts_fixed_sale_enabled"_q, false);
-}
-
 bool AppConfig::giftOnchainOffersEnabled() const {
 	return get<bool>(u"onchain_stargift_offers_enabled"_q, true);
 }

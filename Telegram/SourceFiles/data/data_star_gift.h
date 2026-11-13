@@ -156,10 +156,14 @@ struct UniqueGift {
 [[nodiscard]] QString UniqueGiftName(const QString &title, int number);
 
 [[nodiscard]] bool UniqueGiftOnchainSale(const UniqueGift &gift);
+[[nodiscard]] bool UniqueGiftOnchainPurchase(const UniqueGift &gift);
 
 [[nodiscard]] CreditsAmount UniqueGiftResaleStars(const UniqueGift &gift);
 [[nodiscard]] CreditsAmount UniqueGiftResaleTon(const UniqueGift &gift);
 [[nodiscard]] CreditsAmount UniqueGiftResaleAsked(const UniqueGift &gift);
+[[nodiscard]] bool UniqueGiftResaleBuyTon(
+	const UniqueGift &gift,
+	bool preferTon);
 
 inline constexpr auto kFixedSaleFeeBps = 200;
 
@@ -421,7 +425,6 @@ struct ResaleGiftsFilter {
 	bool starsOnly = false;
 	bool tonOnly = false;
 	bool fragmentOnly = false;
-	bool fixedSaleOnly = false;
 
 	friend inline bool operator==(
 		const ResaleGiftsFilter &,

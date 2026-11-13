@@ -1794,16 +1794,19 @@ void GenericCreditsEntryBody(
 		&& !e.converted
 		&& starGiftSender;
 	const auto canConvert = forConvert && !timeExceeded;
-	const auto inResale = uniqueGift && (uniqueGift->starsForResale > 0);
-	const auto canBuyResold = inResale
-		&& !Data::UniqueGiftOnchainSale(*uniqueGift)
-		&& (e.bareGiftOwnerId != selfPeerId);
+	const auto inResale = uniqueGift
+		&& ((uniqueGift->starsForResale > 0)
+			|| (uniqueGift->nanoTonForResale > 0));
 	const auto ownOnchain = uniqueGift
 		? Ui::LookupOwnOnchainGift(session, *uniqueGift)
 		: Ui::OwnOnchainGift::None;
+	const auto canBuyResold = inResale
+		&& !Data::UniqueGiftOnchainPurchase(*uniqueGift)
+		&& !(uniqueGift->fixedSale && !uniqueGift->onchainSale)
+		&& (e.bareGiftOwnerId != selfPeerId)
+		&& (ownOnchain == Ui::OwnOnchainGift::None);
 	const auto canBuyOnchain = uniqueGift
-		&& Ui::CanBuyOnchainGift(session, *uniqueGift)
-		&& (ownOnchain != Ui::OwnOnchainGift::Listed);
+		&& Ui::CanBuyOnchainGift(session, *uniqueGift);
 	const auto onchainMemory = canBuyOnchain
 		? box->lifetime().make_state<Ui::OnchainBuyMemory>()
 		: nullptr;
@@ -2608,23 +2611,26 @@ void GenericCreditsEntryBody(
 			if (willBusy) {
 				state->confirmButtonBusy = true;
 				send();
-			} else if (canBuyResold) {
+			} else if (canBuyResold || canBuyOnchain) {
 				const auto to = e.bareGiftResaleRecipientId
 					? show->session().data().peer(
 						PeerId(e.bareGiftResaleRecipientId))
 					: show->session().user();
-				ShowBuyResaleGiftBox(
-					show,
-					e.uniqueGift,
-					e.giftResaleForceTon,
-					to,
-					crl::guard(box, [=](bool) { box->closeBox(); }));
-			} else if (canBuyOnchain) {
-				Ui::ShowBuyOnchainGiftBox(
-					show,
-					e.uniqueGift,
-					base::make_weak(onchainMemory),
-					crl::guard(box, [=] { box->closeBox(); }));
+				if (canBuyResold) {
+					ShowBuyResaleGiftBox(
+						show,
+						e.uniqueGift,
+						e.giftResaleForceTon,
+						to,
+						crl::guard(box, [=](bool) { box->closeBox(); }));
+				} else {
+					Ui::ShowBuyOnchainGiftBox(
+						show,
+						e.uniqueGift,
+						to,
+						base::make_weak(onchainMemory),
+						crl::guard(box, [=] { box->closeBox(); }));
+				}
 			} else if (canUpgrade || canGiftUpgrade) {
 				upgrade();
 			} else if (canToggle && !e.savedToProfile) {
@@ -2636,7 +2642,11 @@ void GenericCreditsEntryBody(
 			? st::giveawayGiftCodeBoxUpgradeNext
 			: st::giveawayGiftCodeBox.button);
 		if (canBuyResold) {
-			if (uniqueGift->onlyAcceptTon || e.giftResaleForceTon) {
+			const auto stars = (uniqueGift->starsForResale > 0);
+			const auto ton = Data::UniqueGiftResaleBuyTon(
+				*uniqueGift,
+				e.giftResaleForceTon);
+			if (ton && stars) {
 				button->setText(rpl::single(QString()));
 				Ui::SetButtonTwoLabels(
 					button,
@@ -2653,6 +2663,11 @@ void GenericCreditsEntryBody(
 						tr::marked),
 					st::resaleButtonTitle,
 					st::resaleButtonSubtitle);
+			} else if (ton) {
+				button->setText(tr::lng_gift_buy_resale_button(
+					lt_cost,
+					rpl::single(Data::FormatGiftResaleTon(*uniqueGift)),
+					tr::marked));
 			} else {
 				button->setText(tr::lng_gift_buy_resale_button(
 					lt_cost,
@@ -2954,8 +2969,6 @@ void GlobalStarGiftBox(
 	const auto selfId = show->session().userPeerId();
 	const auto ownerId = data.unique ? data.unique->ownerId.value : 0;
 	const auto hostId = data.unique ? data.unique->hostId.value : 0;
-	const auto onchainSale = data.unique
-		&& Data::UniqueGiftOnchainSale(*data.unique);
 	Settings::GenericCreditsEntryBox(
 		box,
 		show,
@@ -2964,8 +2977,7 @@ void GlobalStarGiftBox(
 			.bareGiftStickerId = data.document->id,
 			.bareGiftOwnerId = ownerId,
 			.bareGiftHostId = hostId,
-			.bareGiftResaleRecipientId = ((!onchainSale
-				&& (resale.recipientId != selfId))
+			.bareGiftResaleRecipientId = ((resale.recipientId != selfId)
 				? resale.recipientId.value
 				: 0),
 			.stargiftId = data.id,
