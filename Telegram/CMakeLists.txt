@@ -139,6 +139,8 @@ PRIVATE
     api/api_blocked_peers.h
     api/api_bot.cpp
     api/api_bot.h
+    api/api_bot_info.cpp
+    api/api_bot_info.h
     api/api_chat_filters.cpp
     api/api_chat_filters.h
     api/api_chat_filters_remove_manager.cpp

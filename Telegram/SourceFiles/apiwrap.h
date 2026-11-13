@@ -86,6 +86,7 @@ class PeerPhoto;
 class PeerColors;
 class ShareThemes;
 class Stories;
+class BotInfoLocalizations;
 class Polls;
 class TodoLists;
 class RichTasks;
@@ -482,6 +483,7 @@ public:
 	[[nodiscard]] Api::Websites &websites();
 	[[nodiscard]] Api::PeerColors &peerColors();
 	[[nodiscard]] Api::ShareThemes &shareThemes();
+	[[nodiscard]] Api::BotInfoLocalizations &botInfoLocalizations();
 
 	void updatePrivacyLastSeens();
 
@@ -862,6 +864,7 @@ private:
 	const std::unique_ptr<Api::Websites> _websites;
 	const std::unique_ptr<Api::PeerColors> _peerColors;
 	const std::unique_ptr<Api::ShareThemes> _shareThemes;
+	const std::unique_ptr<Api::BotInfoLocalizations> _botInfoLocalizations;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

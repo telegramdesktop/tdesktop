@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "api/api_attached_stickers.h"
 #include "api/api_blocked_peers.h"
+#include "api/api_bot_info.h"
 #include "api/api_chat_invite.h"
 #include "api/api_chat_links.h"
 #include "api/api_chat_participants.h"
@@ -275,7 +276,9 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _usernames(std::make_unique<Api::Usernames>(this))
 , _websites(std::make_unique<Api::Websites>(this))
 , _peerColors(std::make_unique<Api::PeerColors>(this))
-, _shareThemes(std::make_unique<Api::ShareThemes>(this)) {
+, _shareThemes(std::make_unique<Api::ShareThemes>(this))
+, _botInfoLocalizations(
+	std::make_unique<Api::BotInfoLocalizations>()) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -5959,4 +5962,8 @@ Api::PeerColors &ApiWrap::peerColors() {
 
 Api::ShareThemes &ApiWrap::shareThemes() {
 	return *_shareThemes;
+}
+
+Api::BotInfoLocalizations &ApiWrap::botInfoLocalizations() {
+	return *_botInfoLocalizations;
 }
