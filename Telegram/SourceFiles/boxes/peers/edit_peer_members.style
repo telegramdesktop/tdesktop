@@ -144,6 +144,15 @@ botInfoFieldPadding: margins(22px, 0px, 22px, 6px);
 botInfoTitlePadding: margins(22px, 13px, 22px, 3px);
 botInfoFieldButtonPosition: point(-3px, 1px);
 botInfoFieldButtonSize: 30px;
+botInfoFieldReset: IconButton(defaultIconButton) {
+	width: 28px;
+	height: 28px;
+	icon: icon {{ "box_button_close", historyComposeIconFg }};
+	iconOver: icon {{ "box_button_close", historyComposeIconFgOver }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 28px;
+	ripple: defaultRippleAnimationBgOver;
+}
 botInfoLanguageFont: font(13px semibold);
 botInfoLanguagePadding: margins(6px, 10px, 9px, 10px);
 botInfoLanguageTextSkip: 4px;

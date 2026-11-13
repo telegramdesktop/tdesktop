@@ -278,7 +278,7 @@ void EditBotInfoBox(
 		}
 		const auto reset = Ui::CreateChild<Ui::IconButton>(
 			input.get(),
-			st::hashtagClose);
+			st::botInfoFieldReset);
 		reset->setAccessibleName(tr::lng_bot_info_action_reset(tr::now));
 		reset->setClickedCallback([=] {
 			input->setText(QString());
