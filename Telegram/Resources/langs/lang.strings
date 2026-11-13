@@ -2145,6 +2145,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_languages_apply_confirm" = "Apply";
 "lng_bot_languages_stop" = "Stop";
 "lng_bot_languages_discard" = "Discard Changes";
+"lng_bot_languages_busy" = "Please wait until the current operation finishes.";
+"lng_bot_languages_translate" = "Translate Missing...";
+"lng_bot_languages_translate_title" = "Translate Missing";
+"lng_bot_languages_translate_languages" = "Languages";
+"lng_bot_languages_translate_about" = "Empty fields of the chosen languages are filled with a machine translation of the default text. Review the result before applying it. The server translates about eight languages per minute.";
+"lng_bot_languages_translate_button" = "Translate";
+"lng_bot_languages_translate_empty" = "Choose at least one language and one field.";
+"lng_bot_languages_translating" = "Translating: {done} / {total}";
+"lng_bot_languages_translated" = "Translated";
 "lng_bot_languages_import" = "Import from File...";
 "lng_bot_languages_paste" = "Paste from Clipboard";
 "lng_bot_languages_export" = "Export to File...";

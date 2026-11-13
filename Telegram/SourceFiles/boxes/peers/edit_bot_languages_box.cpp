@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/bot_info_file.h"
 #include "boxes/peers/edit_bot_info_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "boxes/peers/translate_bot_info_box.h"
 #include "core/file_utilities.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
@@ -89,7 +90,9 @@ struct Row {
 		}
 	}
 	if (!language.staged.empty()) {
-		return tr::lng_bot_languages_edited(tr::now);
+		return language.hasTranslated()
+			? tr::lng_bot_languages_translated(tr::now)
+			: tr::lng_bot_languages_edited(tr::now);
 	} else if (language.fallback()) {
 		return QString();
 	}
@@ -127,6 +130,14 @@ struct Row {
 			done,
 			lt_total,
 			total);
+	case Job::Translate:
+		return tr::lng_bot_languages_translating(
+			tr::now,
+			lt_done,
+			done,
+			lt_total,
+			total);
+	case Job::None: break;
 	}
 	return QString();
 }
@@ -497,6 +508,19 @@ void EditBotLanguagesBox(
 		add,
 		st::manageGroupButton,
 		{ &st::menuIconAdd }));
+	container->add(EditPeerInfoBox::CreateButton(
+		container,
+		tr::lng_bot_languages_translate(),
+		rpl::single(QString()),
+		[=] {
+			if (localization->state().job != Job::None) {
+				box->showToast(tr::lng_bot_languages_busy(tr::now));
+			} else {
+				box->uiShow()->showBox(Box(TranslateBotInfoBox, bot));
+			}
+		},
+		st::manageGroupButton,
+		{ &st::menuIconTranslate }));
 	container->add(
 		object_ptr<Ui::FlatLabel>(
 			container,
@@ -563,11 +587,12 @@ void EditBotLanguagesBox(
 	rpl::combine(
 		state->changes.value(),
 		localization->stateValue() | rpl::map([](const JobState &state) {
-			return (state.job == Job::Apply);
+			return (state.job == Job::Apply)
+				|| (state.job == Job::Translate);
 		}) | rpl::distinct_until_changed()
-	) | rpl::on_next([=](int changes, bool applying) {
+	) | rpl::on_next([=](int changes, bool working) {
 		box->clearButtons();
-		if (applying) {
+		if (working) {
 			box->addButton(tr::lng_bot_languages_stop(), [=] {
 				localization->cancel();
 			});

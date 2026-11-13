@@ -327,6 +327,8 @@ PRIVATE
     boxes/peers/replace_boost_box.h
     boxes/peers/tag_info_box.cpp
     boxes/peers/tag_info_box.h
+    boxes/peers/translate_bot_info_box.cpp
+    boxes/peers/translate_bot_info_box.h
     boxes/peers/verify_peers_box.cpp
     boxes/peers/verify_peers_box.h
     boxes/about_box.cpp
