@@ -1881,7 +1881,7 @@ not_null<Ui::RpWidget*> AddHistoryRow(
 	minor->setAttribute(Qt::WA_TransparentForMouseEvents);
 	if (content.itemAmount) {
 		SetRowItemAmount(major, minor, content.incoming, content.failed);
-	} else {
+	} else if (content.onchainGift != TransferOnchainGift::Reprice) {
 		SetRowAmount(
 			major,
 			minor,
@@ -3258,6 +3258,8 @@ not_null<SendingHistoryRow*> AddSendingHistoryRow(
 			.failed = (item.status == TransferItem::Status::Failure),
 			.avatar = (peer
 				? RowAvatar::Peer
+				: look.neutral
+				? RowAvatar::Gear
 				: look.incoming
 				? RowAvatar::In
 				: RowAvatar::Out),
@@ -4121,8 +4123,8 @@ void AddDetailsTable(
 			tr::lng_wallet_row_key_change(tr::marked));
 	} else if (ShowsGiftMove(item)) {
 		AddGiftMoveDetailsRows(table, item);
-	} else if (ShowsOnchainOffer(item)) {
-		AddOnchainOfferDetailsRows(table, box->uiShow(), session, item);
+	} else if (ShowsOnchainGift(item)) {
+		AddOnchainGiftDetailsRows(table, box->uiShow(), session, item);
 	} else if (peer) {
 		AddPeerCounterpartyRows(box, table, show, peer, item);
 	} else if (!item.counterparty.isEmpty()) {

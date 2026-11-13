@@ -48,6 +48,8 @@ struct OnchainGiftPill {
 		return tr::lng_wallet_details_onchain_listed(tr::now);
 	case TransferOnchainGift::Delist:
 		return tr::lng_wallet_details_onchain_delisted(tr::now);
+	case TransferOnchainGift::Reprice:
+		return tr::lng_wallet_details_onchain_repriced(tr::now);
 	case TransferOnchainGift::OfferCreate:
 		return tr::lng_wallet_details_onchain_offer_sent(tr::now);
 	case TransferOnchainGift::OfferAcceptBuyer:
@@ -114,10 +116,57 @@ void PaintOnchainGiftPill(
 		return tr::lng_wallet_row_onchain_offer_expired(tr::now);
 	case TransferOnchainGift::None:
 	case TransferOnchainGift::Buy:
+	case TransferOnchainGift::Reprice:
 	case TransferOnchainGift::OfferAcceptSeller:
 		break;
 	}
 	return CollectibleKindText(view);
+}
+
+[[nodiscard]] std::optional<tr::phrase<lngtag_amount>> ChipPricedPhrase(
+		TransferOnchainGift action,
+		int64 amountNano) {
+	switch (action) {
+	case TransferOnchainGift::Buy:
+		return tr::lng_wallet_row_onchain_bought;
+	case TransferOnchainGift::List:
+		if (amountNano > 0) {
+			return tr::lng_wallet_row_onchain_listed_for;
+		}
+		break;
+	case TransferOnchainGift::Reprice:
+		return tr::lng_wallet_row_onchain_repriced_to;
+	case TransferOnchainGift::OfferAcceptSeller:
+		return tr::lng_wallet_row_onchain_offer_accepted_for;
+	case TransferOnchainGift::None:
+	case TransferOnchainGift::Delist:
+	case TransferOnchainGift::OfferCreate:
+	case TransferOnchainGift::OfferAcceptBuyer:
+	case TransferOnchainGift::OfferCancel:
+	case TransferOnchainGift::OfferDecline:
+	case TransferOnchainGift::OfferExpire:
+		break;
+	}
+	return std::nullopt;
+}
+
+[[nodiscard]] bool ShowsOnchainOffer(const TransferItem &item) {
+	switch (item.onchainGift) {
+	case TransferOnchainGift::OfferCreate:
+	case TransferOnchainGift::OfferAcceptBuyer:
+	case TransferOnchainGift::OfferAcceptSeller:
+	case TransferOnchainGift::OfferCancel:
+	case TransferOnchainGift::OfferDecline:
+	case TransferOnchainGift::OfferExpire:
+		return true;
+	case TransferOnchainGift::None:
+	case TransferOnchainGift::Buy:
+	case TransferOnchainGift::List:
+	case TransferOnchainGift::Delist:
+	case TransferOnchainGift::Reprice:
+		return false;
+	}
+	Unexpected("Action in ShowsOnchainOffer.");
 }
 
 [[nodiscard]] CollectibleRowLook ComputeOfferRowLook(
@@ -185,25 +234,8 @@ bool ShowsOnchainGift(const TransferItem &item) {
 	return (item.onchainGift != TransferOnchainGift::None);
 }
 
-bool ShowsOnchainOffer(const TransferItem &item) {
-	switch (item.onchainGift) {
-	case TransferOnchainGift::OfferCreate:
-	case TransferOnchainGift::OfferAcceptBuyer:
-	case TransferOnchainGift::OfferAcceptSeller:
-	case TransferOnchainGift::OfferCancel:
-	case TransferOnchainGift::OfferDecline:
-	case TransferOnchainGift::OfferExpire:
-		return true;
-	case TransferOnchainGift::None:
-	case TransferOnchainGift::Buy:
-	case TransferOnchainGift::List:
-	case TransferOnchainGift::Delist:
-		return false;
-	}
-	Unexpected("Action in ShowsOnchainOffer.");
-}
-
 CollectibleRowLook ComputeCollectibleRowLook(const TransferItem &item) {
+	const auto action = item.onchainGift;
 	if (!ShowsOnchainGift(item)) {
 		return {
 			.service = (ShowsGiftMove(item)
@@ -214,11 +246,22 @@ CollectibleRowLook ComputeCollectibleRowLook(const TransferItem &item) {
 		};
 	} else if (ShowsOnchainOffer(item)) {
 		return ComputeOfferRowLook(item);
+	} else if (action == TransferOnchainGift::Reprice) {
+		return {
+			.service = tr::lng_wallet_row_fragment(tr::now),
+			.amountNano = item.onchainOffer.priceNano.value_or(0),
+			.incoming = item.incoming,
+			.itemAmount = false,
+			.neutral = true,
+		};
 	}
+	const auto list = (action == TransferOnchainGift::List);
 	return {
 		.service = tr::lng_wallet_row_fragment(tr::now),
-		.amountNano = item.amountNano,
-		.incoming = (item.onchainGift != TransferOnchainGift::List),
+		.amountNano = (list
+			? item.onchainOffer.priceNano.value_or(0)
+			: item.amountNano),
+		.incoming = !list,
 	};
 }
 
@@ -228,8 +271,8 @@ void SetCollectibleChipSubtitle(
 		TransferOnchainGift action,
 		int64 amountNano) {
 	const auto &textStyle = st::walletRowDateLabel.style;
-	const auto seller = (action == TransferOnchainGift::OfferAcceptSeller);
-	if (action != TransferOnchainGift::Buy && !seller) {
+	const auto phrase = ChipPricedPhrase(action, amountNano);
+	if (!phrase) {
 		text.setText(textStyle, CollectibleChipFixedText(action, view));
 		return;
 	}
@@ -237,17 +280,11 @@ void SetCollectibleChipSubtitle(
 	auto amount = GramMark(helper, textStyle.font);
 	amount.append(QChar(' '));
 	amount.append(Ui::FormatTonAmount(amountNano).full);
-	auto priced = seller
-		? tr::lng_wallet_row_onchain_offer_accepted_for(
-			tr::now,
-			lt_amount,
-			std::move(amount),
-			tr::marked)
-		: tr::lng_wallet_row_onchain_bought(
-			tr::now,
-			lt_amount,
-			std::move(amount),
-			tr::marked);
+	auto priced = (*phrase)(
+		tr::now,
+		lt_amount,
+		std::move(amount),
+		tr::marked);
 	text.setMarkedText(
 		textStyle,
 		std::move(priced),
@@ -288,7 +325,7 @@ void AddOnchainGiftPill(
 	}, widget->lifetime());
 }
 
-void AddOnchainOfferDetailsRows(
+void AddOnchainGiftDetailsRows(
 		not_null<Ui::TableLayout*> table,
 		std::shared_ptr<Ui::Show> show,
 		not_null<Main::Session*> session,
@@ -301,7 +338,12 @@ void AddOnchainOfferDetailsRows(
 			AddOfferMoneyRow(table, session, std::move(label), *amountNano);
 		}
 	};
-	money(tr::lng_wallet_details_onchain_price(), offer.priceNano);
+	if (item.onchainGift == TransferOnchainGift::Reprice) {
+		money(tr::lng_wallet_details_onchain_old_price(), offer.oldPriceNano);
+		money(tr::lng_wallet_details_onchain_new_price(), offer.priceNano);
+	} else {
+		money(tr::lng_wallet_details_onchain_price(), offer.priceNano);
+	}
 	money(tr::lng_wallet_details_onchain_service_fee(), offer.serviceFeeNano);
 	money(tr::lng_wallet_details_onchain_escrow(), OfferEscrowNano(offer));
 	if (const auto expiresAt = offer.expiresAt) {

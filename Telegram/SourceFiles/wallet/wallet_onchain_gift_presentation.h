@@ -33,10 +33,10 @@ struct CollectibleRowLook {
 	int64 amountNano = 0;
 	bool incoming = false;
 	bool itemAmount = true;
+	bool neutral = false;
 };
 
 [[nodiscard]] bool ShowsOnchainGift(const TransferItem &item);
-[[nodiscard]] bool ShowsOnchainOffer(const TransferItem &item);
 [[nodiscard]] CollectibleRowLook ComputeCollectibleRowLook(
 	const TransferItem &item);
 
@@ -51,7 +51,7 @@ void AddOnchainGiftPill(
 	const TransferItem &item,
 	int bottomSkip);
 
-void AddOnchainOfferDetailsRows(
+void AddOnchainGiftDetailsRows(
 	not_null<Ui::TableLayout*> table,
 	std::shared_ptr<Ui::Show> show,
 	not_null<Main::Session*> session,

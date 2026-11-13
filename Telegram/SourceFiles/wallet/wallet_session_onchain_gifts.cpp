@@ -41,6 +41,24 @@ void ReadOfferRefund(TransferItem &result, const Data &data) {
 	result.onchainOffer.refundNano = int64(data.vrefund_amount().v);
 }
 
+void ReadSalePrice(
+		TransferItem &result,
+		const MTPDwalletOnchainGiftActionChangePrice &data) {
+	result.onchainGift = TransferOnchainGift::List;
+	const auto newPrice = int64(data.vnew_price().v);
+	const auto oldPrice = ServedNano(data.vold_price());
+	if (newPrice <= 0 || (oldPrice && *oldPrice < 0)) {
+		LOG(("Wallet Error: wallet.getTransactions sent an unusable "
+			"gift sale price."));
+		return;
+	}
+	result.onchainOffer.priceNano = newPrice;
+	if (oldPrice) {
+		result.onchainGift = TransferOnchainGift::Reprice;
+		result.onchainOffer.oldPriceNano = oldPrice;
+	}
+}
+
 } // namespace
 
 void ReadOnchainGiftAction(
@@ -53,6 +71,9 @@ void ReadOnchainGiftAction(
 		break;
 	case mtpc_walletOnchainGiftActionDelist:
 		result.onchainGift = TransferOnchainGift::Delist;
+		break;
+	case mtpc_walletOnchainGiftActionChangePrice:
+		ReadSalePrice(result, action.c_walletOnchainGiftActionChangePrice());
 		break;
 	case mtpc_walletOnchainGiftActionOfferCreate: {
 		const auto &data = action.c_walletOnchainGiftActionOfferCreate();

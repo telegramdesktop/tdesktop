@@ -8935,6 +8935,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_row_moved_to_profile" = "moved to profile";
 "lng_wallet_row_onchain_bought" = "Bought for {amount}";
 "lng_wallet_row_onchain_listed" = "Put on sale";
+"lng_wallet_row_onchain_listed_for" = "Put on sale for {amount}";
+"lng_wallet_row_onchain_repriced_to" = "Repriced to {amount}";
 "lng_wallet_row_onchain_delisted" = "Removed from sale";
 "lng_wallet_row_onchain_offer_sent" = "Offer sent";
 "lng_wallet_row_onchain_offer_accepted_for" = "Offer accepted for {amount}";
@@ -8991,12 +8993,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_details_onchain_purchased" = "Purchased";
 "lng_wallet_details_onchain_listed" = "Put on sale";
 "lng_wallet_details_onchain_delisted" = "Removed from sale";
+"lng_wallet_details_onchain_repriced" = "Repriced";
 "lng_wallet_details_onchain_offer_sent" = "Offer sent";
 "lng_wallet_details_onchain_offer_accepted" = "Offer accepted";
 "lng_wallet_details_onchain_offer_cancelled" = "Offer cancelled";
 "lng_wallet_details_onchain_offer_declined" = "Offer declined";
 "lng_wallet_details_onchain_offer_expired" = "Offer expired";
 "lng_wallet_details_onchain_price" = "Price";
+"lng_wallet_details_onchain_old_price" = "Old price";
+"lng_wallet_details_onchain_new_price" = "New price";
 "lng_wallet_details_onchain_service_fee" = "Service fee";
 "lng_wallet_details_onchain_escrow" = "Escrow costs";
 "lng_wallet_details_onchain_expires" = "Expires";

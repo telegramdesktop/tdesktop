@@ -199,6 +199,7 @@ enum class TransferOnchainGift : uchar {
 	Buy,
 	List,
 	Delist,
+	Reprice,
 	OfferCreate,
 	OfferAcceptBuyer,
 	OfferAcceptSeller,
@@ -209,6 +210,7 @@ enum class TransferOnchainGift : uchar {
 
 struct TransferOnchainOffer {
 	std::optional<int64> priceNano;
+	std::optional<int64> oldPriceNano;
 	std::optional<int64> fundingNano;
 	std::optional<int64> serviceFeeNano;
 	std::optional<int64> refundNano;
