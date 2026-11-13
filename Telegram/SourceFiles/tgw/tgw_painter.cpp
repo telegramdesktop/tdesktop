@@ -26,6 +26,7 @@ constexpr auto kFilterPassWork = int64(4096);
 constexpr auto kMaxFilterScratch = int64(64 * 1024 * 1024);
 constexpr auto kPixelBytes = 4;
 constexpr auto kDeviceMargin = float64(1 << 20);
+constexpr auto kMaxGroupStretch = float64(1 << 20);
 constexpr auto kInkMargin = 2.;
 constexpr auto kKappa = 0.5522847498;
 constexpr auto kStopEpsilon = 1e-4;
@@ -525,7 +526,9 @@ private:
 		return std::nullopt;
 	}
 	const auto result = matrix * parent;
-	return (Finite(result) && result.isInvertible())
+	return (Finite(result)
+		&& result.isInvertible()
+		&& (MaxStretch(result) <= kMaxGroupStretch))
 		? std::make_optional(result)
 		: std::nullopt;
 }
