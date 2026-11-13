@@ -44,8 +44,6 @@ public:
 private:
 	DoubleLineRatios _cachedLineRatios;
 
-	[[nodiscard]] float64 lineRatio() const;
-
 	struct CacheToken final {
 		explicit CacheToken() = default;
 		explicit CacheToken(

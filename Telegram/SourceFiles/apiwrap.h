@@ -597,10 +597,6 @@ private:
 		PeerId monoforumPeerId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
-	void globalMediaDone(
-		SharedMediaType type,
-		FullMsgId messageId,
-		Api::GlobalMediaResult &&parsed);
 
 	void sendSharedContact(
 		const QString &phone,

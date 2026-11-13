@@ -229,7 +229,6 @@ private:
 	void saveForRevert();
 	void setPreparedAfterPaper(QImage image);
 	void setPrepared(QImage original, QImage prepared, QImage gradient);
-	void prepareImageForTiled();
 	void writeNewBackgroundSettings();
 	void setPaper(const Data::WallPaper &paper);
 

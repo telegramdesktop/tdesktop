@@ -209,7 +209,6 @@ struct FreezeInfoStyleOverride {
 	const style::FlatLabel *infoTitle = nullptr;
 	const style::FlatLabel *infoAbout = nullptr;
 };
-[[nodiscard]] FreezeInfoStyleOverride DarkFreezeInfoStyle();
 
 enum class FrozenWriteRestrictionType {
 	MessageField,

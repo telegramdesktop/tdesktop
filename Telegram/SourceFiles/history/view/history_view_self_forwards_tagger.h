@@ -67,7 +67,6 @@ private:
 		not_null<ToastTimerState*> state,
 		Fn<void()> hideCallback);
 	void hideToast();
-	[[nodiscard]] QRect toastGeometry() const;
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<Ui::RpWidget*> _parent;

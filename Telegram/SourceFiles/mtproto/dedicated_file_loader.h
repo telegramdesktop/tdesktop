@@ -67,7 +67,6 @@ public:
 
 	void start();
 	void wipeFolder();
-	void wipeOutput();
 
 	int64 alreadySize() const;
 	int64 totalSize() const;
