@@ -2234,7 +2234,18 @@ void SessionController::activateFirstChatsFilter() {
 		return;
 	}
 	_filtersActivated = true;
-	setActiveChatsFilter(session().data().chatsFilters().defaultId());
+	const auto id = session().data().chatsFilters().defaultId();
+	const auto main = widget()->sessionContent();
+	if (main && !main->isMainSectionShown()) {
+		setActiveChatsFilter(
+			id,
+			SectionShow(
+				SectionShow::Way::ClearStack,
+				anim::type::normal,
+				anim::activation::background));
+	} else {
+		setActiveChatsFilter(id);
+	}
 }
 
 bool SessionController::uniqueChatsInSearchResults(
