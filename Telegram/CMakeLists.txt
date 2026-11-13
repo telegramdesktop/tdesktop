@@ -270,10 +270,6 @@ PRIVATE
     boxes/peers/add_to_community_box.h
     boxes/peers/bot_info_field.cpp
     boxes/peers/bot_info_field.h
-    boxes/peers/bot_info_file.cpp
-    boxes/peers/bot_info_file.h
-    boxes/peers/bot_info_language_button.cpp
-    boxes/peers/bot_info_language_button.h
     boxes/peers/bot_info_transfer.cpp
     boxes/peers/bot_info_transfer.h
     boxes/peers/bot_intro_preview.cpp
@@ -735,8 +731,6 @@ PRIVATE
     data/data_boosts.h
     data/data_bot_app.cpp
     data/data_bot_app.h
-    data/data_bot_info_draft.cpp
-    data/data_bot_info_draft.h
     data/data_chat.cpp
     data/data_chat.h
     data/data_chat_filters.cpp

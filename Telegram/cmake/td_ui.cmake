@@ -102,6 +102,10 @@ nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
 
+    boxes/peers/bot_info_file.cpp
+    boxes/peers/bot_info_file.h
+    boxes/peers/bot_info_language_button.cpp
+    boxes/peers/bot_info_language_button.h
     boxes/peers/edit_peer_history_visibility_box.cpp
     boxes/peers/edit_peer_history_visibility_box.h
     boxes/peers/toggle_topics_box.cpp
@@ -143,6 +147,8 @@ PRIVATE
     data/data_authorization.h
     data/data_birthday.cpp
     data/data_birthday.h
+    data/data_bot_info_draft.cpp
+    data/data_bot_info_draft.h
     data/data_channel_earn.h
     data/data_credits.h
     data/data_credits_earn.h
