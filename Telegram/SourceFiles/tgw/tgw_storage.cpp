@@ -445,7 +445,8 @@ void Apply(
 	const auto i = registry.hosts.find(id);
 	if (i == end(registry.hosts)
 		|| i->second.cut
-		|| delivered <= i->second.clearedThrough) {
+		|| delivered <= i->second.clearedThrough
+		|| !twidget::sdk::storageAreaFits(values)) {
 		return;
 	}
 	auto &host = i->second;
