@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "history/history_item_bot_invite.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/history_unread_things.h"
@@ -7950,6 +7951,15 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareBotInvite = [this](const MTPDmessageActionBotInvite &action) {
+		const auto sender = _from->asUser();
+		return PrepareBotInviteText(
+			_history->owner().user(action.vinviter_id().v),
+			sender && sender->isBot(),
+			fromLinkText(),
+			fromLink());
+	};
+
 	auto prepareChangeCommunity = [this](const MTPDmessageActionChangeCommunity &action) {
 		auto result = PreparedServiceText();
 		const auto fromChatItself = (_from == _history->peer);
@@ -8093,6 +8103,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		prepareTonConnectRequest,
 		prepareNoPaidMessagesTokenUsed,
 		PrepareEmptyText<MTPDmessageActionStarGiftOnchainOffer>,
+		prepareBotInvite,
 		PrepareErrorText<MTPDmessageActionEmpty>));
 
 	processAction(action);

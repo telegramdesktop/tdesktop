@@ -2833,6 +2833,10 @@ ServiceAction ParseServiceAction(
 	}, [&](const MTPDmessageActionNoPaidMessagesTokenUsed &data) {
 		result.content = ActionNoPaidMessagesTokenUsed();
 	}, [](const MTPDmessageActionStarGiftOnchainOffer &data) {
+	}, [&](const MTPDmessageActionBotInvite &data) {
+		auto content = ActionBotInvite();
+		content.inviterId = data.vinviter_id().v;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

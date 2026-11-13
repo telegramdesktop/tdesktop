@@ -1282,6 +1282,8 @@ PRIVATE
     history/history_drag_area.h
     history/history_item.cpp
     history/history_item.h
+    history/history_item_bot_invite.cpp
+    history/history_item_bot_invite.h
     history/history_item_components.cpp
     history/history_item_components.h
     history/history_item_edition.cpp

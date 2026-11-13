@@ -2933,6 +2933,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_change_creator" = "{from} made {user} the new main admin of the group.";
 "lng_action_new_creator_pending" = "{user} will become the new main admin in 7 days if {from} does not return.";
 "lng_action_managed_bot_created" = "{from} created a bot {bot}.";
+"lng_action_bot_invited_you" = "{user} invited you to this bot.";
+"lng_action_bot_invited_user" = "{from} was invited by {user}.";
 "lng_action_community_added" = "{from} added this group to the {community} community.";
 "lng_action_community_added_chat" = "This chat was added to the {community} community.";
 "lng_action_community_added_channel" = "This channel was added to the {community} community.";
@@ -4940,8 +4942,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_spam_done" = "Thank you for your report";
 "lng_report_spam_sure_group" = "Are you sure you want to report this group for spam?";
 "lng_report_spam_sure_channel" = "Are you sure you want to report spam in this channel?";
+"lng_report_spam_sure_bot_inviter" = "Are you sure you want to report {user}, who invited you to this bot, for spam?";
 "lng_report_spam_ok" = "Report";
 "lng_new_contact_block" = "Block user";
+"lng_new_contact_block_bot" = "Block bot";
 "lng_new_contact_block_done" = "{user} is now blocked";
 "lng_new_contact_add" = "Add contact";
 "lng_new_contact_share" = "Share my phone number";
@@ -4952,6 +4956,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_new_contact_unarchive" = "Unarchive";
 "lng_new_contact_from_request_channel" = "{user} is an admin of {name}, a channel you requested to join.";
 "lng_new_contact_from_request_group" = "{user} is an admin of {name}, a group you requested to join.";
+"lng_new_contact_bot_invited_owner" = "{user} invited you to this bot owned by {owner}.";
 "lng_new_contact_about_status" = "This account uses {emoji} as a custom status next to its\nname. Such emoji statuses are available to all\nsubscribers of {link}.";
 "lng_new_contact_about_status_link" = "Telegram Premium";
 "lng_new_contact_not_contact" = "Not a contact";

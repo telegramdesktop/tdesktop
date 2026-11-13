@@ -1133,6 +1133,10 @@ struct ActionWalletTonConnectRequest {
 struct ActionNoPaidMessagesTokenUsed {
 };
 
+struct ActionBotInvite {
+	UserId inviterId = 0;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -1197,7 +1201,8 @@ struct ServiceAction {
 		ActionManagedBotCreated,
 		ActionGramTransfer,
 		ActionWalletTonConnectRequest,
-		ActionNoPaidMessagesTokenUsed> content;
+		ActionNoPaidMessagesTokenUsed,
+		ActionBotInvite> content;
 };
 
 ServiceAction ParseServiceAction(

@@ -94,9 +94,12 @@ private:
 			SharePhoneNumber,
 			RequestChatInfo,
 			SetBotPhoto,
+			BotInvite,
 		};
 		Type type = Type::None;
 		int starsPerMessage = 0;
+		UserData *botInviter = nullptr;
+		UserData *botOwner = nullptr;
 		QString requestChatName;
 		TimeId requestDate = 0;
 		bool requestChatIsBroadcast = false;
@@ -109,6 +112,7 @@ private:
 	void setupShareHandler(not_null<UserData*> user);
 	void setupUnarchiveHandler(not_null<PeerData*> peer);
 	void setupReportHandler(not_null<PeerData*> peer);
+	void showBotInviteReportBox(not_null<UserData*> bot);
 	void setupCloseHandler(not_null<PeerData*> peer);
 	void setupRequestInfoHandler(not_null<PeerData*> peer);
 	void setupEmojiStatusHandler(not_null<PeerData*> peer);

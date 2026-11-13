@@ -4451,6 +4451,13 @@ auto HtmlWriter::Wrap::pushMessage(
 			: ("You received a TON Connect request" + topic + ".");
 	}, [&](const ActionNoPaidMessagesTokenUsed &data) {
 		return serviceFrom + " started a chat via a free messages link";
+	}, [&](const ActionBotInvite &data) {
+		return (dialog.type == DialogType::Bot)
+			? (peers.wrapUserName(data.inviterId)
+				+ " invited you to this bot")
+			: (serviceFrom
+				+ " was invited by "
+				+ peers.wrapUserName(data.inviterId));
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

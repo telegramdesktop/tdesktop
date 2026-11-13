@@ -266,6 +266,7 @@ private:
 	object_ptr<BgButton> _requestChatBg;
 	object_ptr<Ui::FlatLabel> _requestChatInfo;
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _emojiStatusInfo;
+	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _botInviteInfo;
 	object_ptr<Ui::PlainShadow> _emojiStatusShadow;
 	object_ptr<Ui::RippleButton> _setBotPhoto;
 	base::unique_qptr<Ui::ImportantTooltip> _addTooltip;
@@ -342,6 +343,14 @@ ContactStatus::Bar::Bar(
 		st::topBarArrowPadding.top(),
 		st::historyContactStatusMinSkip,
 		st::topBarArrowPadding.top()))
+, _botInviteInfo(
+	this,
+	object_ptr<Ui::FlatLabel>(this, u""_q, st::historyEmojiStatusInfoLabel),
+	QMargins(
+		st::historyContactStatusMinSkip,
+		st::topBarArrowPadding.top(),
+		st::historyContactStatusMinSkip,
+		st::topBarArrowPadding.top()))
 , _emojiStatusShadow(this)
 , _setBotPhoto(
 	SetupSetBotPhotoButton(
@@ -370,6 +379,10 @@ ContactStatus::Bar::Bar(
 		_emojiStatusRepaintScheduled = false;
 		QPainter(raw).fillRect(clip, st::historyComposeButtonBg);
 	}, lifetime());
+	_botInviteInfo->paintRequest(
+	) | rpl::on_next([raw = _botInviteInfo.data()](QRect clip) {
+		QPainter(raw).fillRect(clip, st::historyComposeButtonBg);
+	}, lifetime());
 }
 
 void ContactStatus::Bar::showState(
@@ -384,21 +397,44 @@ void ContactStatus::Bar::showState(
 	_unarchive->setVisible(!_narrow && unarchive);
 	_unarchiveIcon->setVisible(_narrow && unarchive);
 	_block->setVisible(type == Type::AddOrBlock
-		|| type == Type::UnarchiveOrBlock);
+		|| type == Type::UnarchiveOrBlock
+		|| type == Type::BotInvite);
 	_share->setVisible(type == Type::SharePhoneNumber);
 	_close->setVisible(
 		(!_narrow && type != Type::RequestChatInfo)
 		|| type == Type::SetBotPhoto);
 	const auto report = (type == Type::ReportSpam)
-		|| (type == Type::UnarchiveOrReport);
+		|| (type == Type::UnarchiveOrReport)
+		|| (type == Type::BotInvite);
 	_report->setVisible(!_narrow && report);
 	_reportIcon->setVisible(_narrow && report);
 	_requestChatInfo->setVisible(type == Type::RequestChatInfo);
 	_requestChatBg->setVisible(type == Type::RequestChatInfo);
 	_setBotPhoto->setVisible(type == Type::SetBotPhoto);
 	const auto has = !status.empty();
-	_emojiStatusShadow->setVisible(
-		has && (type == Type::AddOrBlock || type == Type::UnarchiveOrBlock));
+	const auto emojiShadow = has
+		&& (type == Type::AddOrBlock || type == Type::UnarchiveOrBlock);
+	_emojiStatusShadow->setVisible(emojiShadow || type == Type::BotInvite);
+	const auto inviter = (type == Type::BotInvite)
+		? state.botInviter
+		: nullptr;
+	if (inviter) {
+		const auto owner = state.botOwner;
+		_botInviteInfo->entity()->setMarkedText((owner && owner != inviter)
+			? tr::lng_new_contact_bot_invited_owner(
+				tr::now,
+				lt_user,
+				tr::bold(inviter->name()),
+				lt_owner,
+				tr::bold(owner->name()),
+				tr::marked)
+			: tr::lng_action_bot_invited_you(
+				tr::now,
+				lt_user,
+				tr::bold(inviter->name()),
+				tr::marked));
+	}
+	_botInviteInfo->setVisible(inviter != nullptr);
 	if (has) {
 		context.repaint = [=] { emojiStatusRepaint(); };
 		_emojiStatusInfo->entity()->setMarkedText(
@@ -420,6 +456,9 @@ void ContactStatus::Bar::showState(
 	}
 	_emojiStatusInfo->setVisible(has);
 	_addWithName = (type == Type::Add);
+	_block->setText((type == Type::BotInvite)
+		? tr::lng_new_contact_block_bot(tr::now, tr::upper)
+		: tr::lng_new_contact_block(tr::now, tr::upper));
 	_report->setText((type == Type::ReportSpam)
 		? tr::lng_report_spam_and_leave(tr::now, tr::upper)
 		: tr::lng_report_spam(tr::now, tr::upper));
@@ -612,7 +651,11 @@ int ContactStatus::Bar::resizeGetHeight(int newWidth) {
 			closeWidth);
 		placeButton(button, newWidth, margin);
 	};
-	const auto &leftButton = _unarchive->isHidden() ? _add : _unarchive;
+	const auto &leftButton = !_unarchive->isHidden()
+		? _unarchive
+		: (_add->isHidden() && !_block->isHidden())
+		? _report
+		: _add;
 	const auto &rightButton = _block->isHidden() ? _report : _block;
 	if (!leftButton->isHidden() && !rightButton->isHidden()) {
 		const auto leftWidth = buttonWidth(leftButton);
@@ -647,17 +690,24 @@ int ContactStatus::Bar::resizeGetHeight(int newWidth) {
 		placeOne(_report);
 	}
 	if (_requestChatInfo->isHidden()) {
+		_botInviteInfo->resizeToWidth(newWidth);
+		_botInviteInfo->move(0, closeHeight);
+		const auto inviteHeight = _botInviteInfo->isHidden()
+			? 0
+			: _botInviteInfo->height();
 		_emojiStatusInfo->resizeToWidth(newWidth);
-		_emojiStatusInfo->move(0, _close->height());
+		_emojiStatusInfo->move(0, closeHeight + inviteHeight);
 		_emojiStatusShadow->setGeometry(
 			0,
 			closeHeight,
 			newWidth,
 			st::lineWidth);
 		_emojiStatusShadow->move(0, _close->height());
-		return closeHeight + (_emojiStatusInfo->isHidden()
-			? 0
-			: _emojiStatusInfo->height());
+		return closeHeight
+			+ inviteHeight
+			+ (_emojiStatusInfo->isHidden()
+				? 0
+				: _emojiStatusInfo->height());
 	}
 	const auto vskip = st::topBarArrowPadding.top();
 	_requestChatInfo->resizeToWidth(available - 2 * skip);
@@ -777,13 +827,14 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 		auto managedBotChanges = user->session().changes().peerFlagsValue(
 			user,
 			Data::PeerUpdate::Flag::ManagedBot);
-		auto photoChanges = user->session().changes().peerFlagsValue(
+		auto photoOrBarChanges = user->session().changes().peerFlagsValue(
 			user,
-			Data::PeerUpdate::Flag::Photo);
+			Data::PeerUpdate::Flag::Photo
+				| Data::PeerUpdate::Flag::BarSettings);
 		return rpl::combine(
 			std::move(changes),
 			user->barSettingsValue(),
-			std::move(photoChanges),
+			std::move(photoOrBarChanges),
 			std::move(managedBotChanges)
 		) | rpl::map([=](
 				FlagsChange flags,
@@ -792,6 +843,13 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 				const auto &) -> State {
 			if (flags.value & Flag::Blocked) {
 				return { Type::None };
+			} else if (user->isBot()
+				&& (settings.value & PeerBarSetting::HasBotInviter)) {
+				return {
+					.type = Type::BotInvite,
+					.botInviter = user->botInviter(),
+					.botOwner = user->botOwner(),
+				};
 			} else if (user->isContact()) {
 				if (settings.value & PeerBarSetting::ShareContact) {
 					return { Type::SharePhoneNumber };
@@ -899,11 +957,14 @@ void ContactStatus::setupAddHandler(not_null<UserData*> user) {
 void ContactStatus::setupBlockHandler(not_null<UserData*> user) {
 	_inner->blockClicks(
 	) | rpl::on_next([=] {
+		const auto suggestReport = (_state.type == State::Type::BotInvite)
+			? std::variant<v::null_t, bool>(false)
+			: std::variant<v::null_t, bool>(v::null);
 		_controller->window().show(Box(
 			Window::PeerMenuBlockUserBox,
 			&_controller->window(),
 			user,
-			v::null,
+			suggestReport,
 			Window::ClearChat{}));
 	}, _bar.lifetime());
 }
@@ -958,6 +1019,12 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 	_inner->reportClicks(
 	) | rpl::on_next([=] {
+		if (const auto user = peer->asUser()) {
+			if (_state.type == State::Type::BotInvite) {
+				showBotInviteReportBox(user);
+			}
+			return;
+		}
 		Expects(!peer->isUser());
 
 		const auto show = _controller->uiShow();
@@ -993,6 +1060,32 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 			.confirmStyle = &st::attentionBoxButton,
 		}));
 	}, _bar.lifetime());
+}
+
+void ContactStatus::showBotInviteReportBox(not_null<UserData*> bot) {
+	const auto inviter = _state.botInviter;
+	if (!inviter) {
+		return;
+	}
+	const auto show = _controller->uiShow();
+	const auto report = [=](Fn<void()> &&close) {
+		close();
+		bot->session().api().request(MTPmessages_ReportSpam(
+			bot->input()
+		)).send();
+		bot->setBarSettings(0);
+		show->showToast(tr::lng_report_spam_done(tr::now));
+	};
+	show->showBox(Ui::MakeConfirmBox({
+		.text = tr::lng_report_spam_sure_bot_inviter(
+			tr::now,
+			lt_user,
+			tr::bold(inviter->name()),
+			tr::marked),
+		.confirmed = report,
+		.confirmText = tr::lng_report_spam_ok(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
 }
 
 void ContactStatus::setupCloseHandler(not_null<PeerData*> peer) {
