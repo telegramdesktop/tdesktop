@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/platform_specific.h"
 #include "platform/mac/specific_mac_p.h"
+#include <sys/types.h>
+#include <unistd.h>
 
 namespace Platform {
 
@@ -42,8 +44,13 @@ inline bool WaitForProcessExit(uint64 processId, crl::time timeout) {
 	return true;
 }
 
-inline bool LocalSocketPeerAllowed(qintptr) {
-	return true;
+inline bool LocalSocketPeerAllowed(qintptr descriptor) {
+    auto uid = uid_t();
+    auto gid = gid_t();
+
+    return (descriptor >= 0)
+        && !getpeereid(int(descriptor), &uid, &gid)
+        && (uid == geteuid());
 }
 
 inline QString ApplicationIconName() {
