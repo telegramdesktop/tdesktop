@@ -416,13 +416,13 @@ ShortcutMessages::ShortcutMessages(
 }
 
 ShortcutMessages::~ShortcutMessages() {
-	// Restored text resizes into the outer scroll, which may be gone already.
-	lifetime().destroy();
+	// The Info host may already be half deleted, so don't restore the text.
 	if (const auto box = _sendFilesBox.data()) {
+		box->setCancelledCallback(nullptr);
 		box->closeBox();
 	}
 	if (_composeControls) {
-		_composeControls->closeSendAsFileBox();
+		_composeControls->closeSendAsFileBox(false);
 	}
 }
 

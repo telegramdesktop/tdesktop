@@ -231,7 +231,7 @@ public:
 		Fn<void(
 			std::shared_ptr<Ui::PreparedBundle>,
 			Api::SendOptions)> confirmed);
-	void closeSendAsFileBox();
+	void closeSendAsFileBox(bool restoreText = true);
 	void processChosenSticker(FileChosen &&chosen);
 	void clearFieldAfterStickerSend();
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;

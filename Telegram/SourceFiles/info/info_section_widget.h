@@ -34,6 +34,7 @@ public:
 		not_null<Window::SessionController*> window,
 		Wrap wrap,
 		not_null<MoveMemento*> memento);
+	~SectionWidget();
 
 	Dialogs::RowDescriptor activeChat() const override;
 

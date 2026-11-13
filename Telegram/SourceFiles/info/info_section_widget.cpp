@@ -40,6 +40,11 @@ SectionWidget::SectionWidget(
 	init();
 }
 
+SectionWidget::~SectionWidget() {
+	// Keep window renders out of this subtree while its children are deleted.
+	hide();
+}
+
 void SectionWidget::init() {
 	Expects(_connecting == nullptr);
 

@@ -4844,8 +4844,11 @@ void ComposeControls::setSendAsFileConfirmed(
 	_sendAsFileConfirmed = std::move(confirmed);
 }
 
-void ComposeControls::closeSendAsFileBox() {
+void ComposeControls::closeSendAsFileBox(bool restoreText) {
 	if (const auto box = _sendAsFileBox.data()) {
+		if (!restoreText) {
+			box->setCancelledCallback(nullptr);
+		}
 		box->closeBox();
 	}
 }
