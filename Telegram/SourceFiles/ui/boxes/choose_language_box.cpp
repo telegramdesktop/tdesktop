@@ -210,6 +210,10 @@ void Row::paintEvent(QPaintEvent *e) {
 
 } // namespace
 
+std::vector<LanguageId> TranslationLanguages() {
+	return TranslationLanguagesList();
+}
+
 QString LanguageNameTranslated(const QString &twoLetterCode) {
 	return Lang::GetNonDefaultValue(
 		kLanguageNamePrefix + twoLetterCode.toUtf8());

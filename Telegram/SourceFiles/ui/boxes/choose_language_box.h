@@ -17,6 +17,7 @@ namespace Ui {
 
 class GenericBox;
 
+[[nodiscard]] std::vector<LanguageId> TranslationLanguages();
 [[nodiscard]] QString LanguageNameTranslated(const QString &twoLetterCode);
 [[nodiscard]] QString LanguageNameLocal(LanguageId id);
 [[nodiscard]] QString LanguageName(LanguageId id);

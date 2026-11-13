@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "base/event_filter.h"
 #include "boxes/peers/edit_bot_info_box.h"
+#include "boxes/peers/edit_bot_languages_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"
 #include "boxes/peers/edit_peer_common.h"
@@ -529,6 +530,7 @@ private:
 	void fillBotCurrencyButton();
 	void fillBotCreditsButton();
 	void fillBotAffiliateProgram();
+	void fillBotLanguagesButton();
 	void fillBotEditIntroButton();
 	void fillBotEditCommandsButton();
 	void fillBotEditSettingsButton();
@@ -837,6 +839,11 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 	}
 
 	_controls.title = result->entity();
+	if (_isBot) {
+		TrackBotInfoField(
+			_controls.title,
+			Info::Profile::NameValue(_peer));
+	}
 	return result;
 }
 
@@ -874,6 +881,14 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	}, result->entity()->lifetime());
 
 	_controls.description = result->entity();
+	if (_isBot) {
+		TrackBotInfoField(
+			_controls.description,
+			_peer->session().changes().peerFlagsValue(
+				_peer,
+				Data::PeerUpdate::Flag::About
+			) | rpl::map([=] { return _peer->about(); }));
+	}
 	return result;
 }
 
@@ -1507,6 +1522,7 @@ void Controller::fillManageSection() {
 		fillBotCurrencyButton();
 		fillBotCreditsButton();
 		fillBotAffiliateProgram();
+		fillBotLanguagesButton();
 		fillBotEditIntroButton();
 		fillBotEditCommandsButton();
 		fillBotEditSettingsButton();
@@ -2219,6 +2235,20 @@ void Controller::fillBotAffiliateProgram() {
 			controller->showSection(Info::BotStarRef::Setup::Make(user));
 		},
 		{ .icon = &st::menuIconSharing });
+}
+
+void Controller::fillBotLanguagesButton() {
+	Expects(_isBot);
+
+	const auto user = _peer->asUser();
+	AddButtonWithCount(
+		_controls.buttonsLayout,
+		tr::lng_manage_peer_bot_languages(),
+		BotLanguagesStatusValue(user),
+		[=] {
+			_navigation->uiShow()->showBox(Box(EditBotLanguagesBox, user));
+		},
+		{ &st::menuIconTranslate });
 }
 
 void Controller::fillBotEditIntroButton() {
