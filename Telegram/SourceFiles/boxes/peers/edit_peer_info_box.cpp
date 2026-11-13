@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "base/event_filter.h"
+#include "boxes/peers/bot_info_field.h"
 #include "boxes/peers/edit_bot_info_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_color_box.h"

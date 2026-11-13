@@ -7,12 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/translate_bot_info_box.h"
 
-#include "api/api_bot_info.h"
-#include "apiwrap.h"
 #include "base/timer.h"
-#include "data/data_user.h"
+#include "data/data_bot_info_localization.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
@@ -112,7 +109,7 @@ void Radial::paintEvent(QPaintEvent *e) {
 
 void TranslateBotInfoBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot,
+		not_null<Data::BotInfoLocalization*> localization,
 		std::vector<QString> codes,
 		Fn<void(int translated)> done) {
 	struct State {
@@ -120,8 +117,6 @@ void TranslateBotInfoBox(
 		base::Timer countdown;
 		bool finished = false;
 	};
-	const auto localization
-		= bot->session().api().botInfoLocalizations().get(bot);
 	const auto draft = &localization->draft();
 	const auto state = box->lifetime().make_state<State>();
 	const auto container = box->verticalLayout();

@@ -7,46 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/unique_qptr.h"
-#include "base/weak_qptr.h"
 #include "data/data_bot_info_draft.h"
 
-class UserData;
-
-namespace ChatHelpers {
-class Show;
-class TabbedPanel;
-} // namespace ChatHelpers
-
 namespace Ui {
-class EmojiButton;
-class GenericBox;
 class InputField;
 class RpWidget;
 class VerticalLayout;
 } // namespace Ui
-
-class BotInfoEmojiPanel final {
-public:
-	BotInfoEmojiPanel(
-		not_null<Ui::GenericBox*> box,
-		std::shared_ptr<ChatHelpers::Show> show,
-		not_null<UserData*> bot);
-	~BotInfoEmojiPanel();
-
-	void attach(not_null<Ui::InputField*> field);
-
-private:
-	void aim(
-		not_null<Ui::InputField*> field,
-		not_null<Ui::EmojiButton*> toggle);
-
-	const not_null<QWidget*> _outer;
-	const not_null<UserData*> _bot;
-	const base::unique_qptr<ChatHelpers::TabbedPanel> _panel;
-	base::weak_qptr<Ui::InputField> _field;
-
-};
 
 [[nodiscard]] rpl::producer<QString> BotInfoFieldTitle(
 	Data::BotInfoField field);
@@ -59,3 +26,6 @@ void PlaceBotInfoFieldButton(
 	not_null<Ui::RpWidget*> button,
 	int index);
 void SetBotInfoFieldButtonsCount(not_null<Ui::InputField*> field, int count);
+void TrackBotInfoField(
+	not_null<Ui::InputField*> field,
+	rpl::producer<QString> value);

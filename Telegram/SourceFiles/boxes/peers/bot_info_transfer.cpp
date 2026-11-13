@@ -7,14 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/bot_info_transfer.h"
 
-#include "api/api_bot_info.h"
-#include "apiwrap.h"
 #include "base/event_filter.h"
 #include "boxes/peers/bot_info_file.h"
-#include "core/file_utilities.h"
-#include "data/data_user.h"
+#include "data/data_bot_info_localization.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 
@@ -131,18 +127,19 @@ void ApplyFile(
 	box->showToast(ImportedText(file, *draft));
 }
 
-void ImportContent(
+} // namespace
+
+void ImportBotInfoContent(
 		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot,
+		not_null<Data::BotInfoLocalization*> localization,
+		const QString &username,
 		const QByteArray &content) {
-	const auto localization
-		= bot->session().api().botInfoLocalizations().get(bot);
 	const auto file = ParseBotInfoFile(content);
 	const auto owner = file.bot.startsWith(u'@') ? file.bot.mid(1) : file.bot;
 	if (file.error != BotInfoFileError::None) {
 		box->uiShow()->showBox(Ui::MakeInformBox(FileErrorText(file)));
 	} else if (owner.isEmpty()
-		|| !owner.compare(bot->username(), Qt::CaseInsensitive)) {
+		|| !owner.compare(username, Qt::CaseInsensitive)) {
 		ApplyFile(box, localization, file);
 	} else {
 		box->uiShow()->showBox(Ui::MakeConfirmBox({
@@ -159,9 +156,10 @@ void ImportContent(
 	}
 }
 
-void ImportPath(
+void ImportBotInfoPath(
 		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot,
+		not_null<Data::BotInfoLocalization*> localization,
+		const QString &username,
 		const QString &path) {
 	auto file = QFile(path);
 	if (file.size() > kMaxFileSize) {
@@ -169,61 +167,38 @@ void ImportPath(
 	} else if (!file.open(QIODevice::ReadOnly)) {
 		box->showToast(tr::lng_bot_languages_file_read(tr::now));
 	} else {
-		ImportContent(box, bot, file.readAll());
+		ImportBotInfoContent(box, localization, username, file.readAll());
 	}
-}
-
-} // namespace
-
-void ImportBotInfoFromFile(
-		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot) {
-	FileDialog::GetOpenPath(
-		box.get(),
-		tr::lng_bot_languages_import(tr::now),
-		u"JSON files (*.json);;"_q + FileDialog::AllFilesFilter(),
-		crl::guard(box, [=](FileDialog::OpenResult &&result) {
-			if (!result.remoteContent.isEmpty()) {
-				ImportContent(box, bot, result.remoteContent);
-			} else if (!result.paths.isEmpty()) {
-				ImportPath(box, bot, result.paths.front());
-			}
-		}));
 }
 
 void ImportBotInfoFromClipboard(
 		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot) {
+		not_null<Data::BotInfoLocalization*> localization,
+		const QString &username) {
 	const auto text = QGuiApplication::clipboard()->text();
-	ImportContent(box, bot, text.toUtf8());
+	ImportBotInfoContent(box, localization, username, text.toUtf8());
 }
 
-void ExportBotInfoToFile(
+void ExportBotInfoToPath(
 		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot) {
-	const auto draft = &bot->session().api().botInfoLocalizations().get(
-		bot)->draft();
-	FileDialog::GetWritePath(
-		box.get(),
-		tr::lng_bot_languages_export(tr::now),
-		u"JSON files (*.json)"_q,
-		bot->username() + u"_languages.json"_q,
-		crl::guard(box, [=](const QString &path) {
-			auto file = QFile(path);
-			const auto content = SerializeBotInfoFile(
-				bot->username(),
-				*draft);
-			const auto saved = file.open(QIODevice::WriteOnly)
-				&& (file.write(content) == content.size());
-			box->showToast(saved
-				? tr::lng_bot_languages_exported(tr::now)
-				: tr::lng_bot_languages_file_write(tr::now));
-		}));
+		not_null<Data::BotInfoLocalization*> localization,
+		const QString &username,
+		const QString &path) {
+	auto file = QFile(path);
+	const auto content = SerializeBotInfoFile(
+		username,
+		localization->draft());
+	const auto saved = file.open(QIODevice::WriteOnly)
+		&& (file.write(content) == content.size());
+	box->showToast(saved
+		? tr::lng_bot_languages_exported(tr::now)
+		: tr::lng_bot_languages_file_write(tr::now));
 }
 
 void AcceptBotInfoFileDrops(
 		not_null<Ui::GenericBox*> box,
-		not_null<UserData*> bot) {
+		not_null<Data::BotInfoLocalization*> localization,
+		const QString &username) {
 	box->setAcceptDrops(true);
 	base::install_event_filter(box, [=](not_null<QEvent*> e) {
 		const auto type = e->type();
@@ -239,7 +214,7 @@ void AcceptBotInfoFileDrops(
 		}
 		drop->acceptProposedAction();
 		if (type == QEvent::Drop) {
-			ImportPath(box, bot, path);
+			ImportBotInfoPath(box, localization, username, path);
 		}
 		return base::EventFilterResult::Cancel;
 	});

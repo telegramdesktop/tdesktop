@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class UserData;
+namespace Data {
+class BotInfoLocalization;
+} // namespace Data
 
 namespace Ui {
 class GenericBox;
@@ -15,6 +17,6 @@ class GenericBox;
 
 void TranslateBotInfoBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<UserData*> bot,
+	not_null<Data::BotInfoLocalization*> localization,
 	std::vector<QString> codes,
 	Fn<void(int translated)> done);

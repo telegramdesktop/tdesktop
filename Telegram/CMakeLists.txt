@@ -268,10 +268,8 @@ PRIVATE
     boxes/peers/add_participants_box.h
     boxes/peers/add_to_community_box.cpp
     boxes/peers/add_to_community_box.h
-    boxes/peers/bot_info_field.cpp
-    boxes/peers/bot_info_field.h
-    boxes/peers/bot_info_transfer.cpp
-    boxes/peers/bot_info_transfer.h
+    boxes/peers/bot_info_emoji_panel.cpp
+    boxes/peers/bot_info_emoji_panel.h
     boxes/peers/bot_intro_preview.cpp
     boxes/peers/bot_intro_preview.h
     boxes/peers/channel_ownership_transfer.cpp
@@ -329,8 +327,6 @@ PRIVATE
     boxes/peers/replace_boost_box.h
     boxes/peers/tag_info_box.cpp
     boxes/peers/tag_info_box.h
-    boxes/peers/translate_bot_info_box.cpp
-    boxes/peers/translate_bot_info_box.h
     boxes/peers/verify_peers_box.cpp
     boxes/peers/verify_peers_box.h
     boxes/about_box.cpp

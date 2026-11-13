@@ -102,14 +102,22 @@ nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
 
+    boxes/peers/bot_info_field.cpp
+    boxes/peers/bot_info_field.h
     boxes/peers/bot_info_file.cpp
     boxes/peers/bot_info_file.h
     boxes/peers/bot_info_language_button.cpp
     boxes/peers/bot_info_language_button.h
+    boxes/peers/bot_info_transfer.cpp
+    boxes/peers/bot_info_transfer.h
+    boxes/peers/edit_bot_info_box_content.cpp
+    boxes/peers/edit_bot_info_box_content.h
     boxes/peers/edit_peer_history_visibility_box.cpp
     boxes/peers/edit_peer_history_visibility_box.h
     boxes/peers/toggle_topics_box.cpp
     boxes/peers/toggle_topics_box.h
+    boxes/peers/translate_bot_info_box.cpp
+    boxes/peers/translate_bot_info_box.h
 
     boxes/url_auth_box_content.cpp
     boxes/url_auth_box_content.h

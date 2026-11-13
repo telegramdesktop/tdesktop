@@ -15,14 +15,10 @@ class Show;
 
 namespace Ui {
 class GenericBox;
-class InputField;
 } // namespace Ui
 
 [[nodiscard]] rpl::producer<QString> BotInfoUnsavedValue(
 	not_null<UserData*> bot);
-void TrackBotInfoField(
-	not_null<Ui::InputField*> field,
-	rpl::producer<QString> value);
 void EditBotInfoBox(
 	not_null<Ui::GenericBox*> box,
 	std::shared_ptr<ChatHelpers::Show> show,

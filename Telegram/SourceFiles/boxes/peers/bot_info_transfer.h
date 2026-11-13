@@ -7,21 +7,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class UserData;
+namespace Data {
+class BotInfoLocalization;
+} // namespace Data
 
 namespace Ui {
 class GenericBox;
 } // namespace Ui
 
-void ImportBotInfoFromFile(
+void ImportBotInfoContent(
 	not_null<Ui::GenericBox*> box,
-	not_null<UserData*> bot);
+	not_null<Data::BotInfoLocalization*> localization,
+	const QString &username,
+	const QByteArray &content);
+void ImportBotInfoPath(
+	not_null<Ui::GenericBox*> box,
+	not_null<Data::BotInfoLocalization*> localization,
+	const QString &username,
+	const QString &path);
 void ImportBotInfoFromClipboard(
 	not_null<Ui::GenericBox*> box,
-	not_null<UserData*> bot);
-void ExportBotInfoToFile(
+	not_null<Data::BotInfoLocalization*> localization,
+	const QString &username);
+void ExportBotInfoToPath(
 	not_null<Ui::GenericBox*> box,
-	not_null<UserData*> bot);
+	not_null<Data::BotInfoLocalization*> localization,
+	const QString &username,
+	const QString &path);
 void AcceptBotInfoFileDrops(
 	not_null<Ui::GenericBox*> box,
-	not_null<UserData*> bot);
+	not_null<Data::BotInfoLocalization*> localization,
+	const QString &username);
