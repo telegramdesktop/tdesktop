@@ -30,6 +30,10 @@ constexpr auto kEmojiRise = 0.35;
 constexpr auto kFirstNonAscii = char16_t(0x80);
 constexpr auto kFirstWideStart = char16_t(0x2000);
 constexpr auto kTextPresentation = char16_t(0xFE0E);
+constexpr auto kEmojiPresentationSelector = char32_t(0xFE0F);
+constexpr auto kEnclosingKeycap = char32_t(0x20E3);
+constexpr auto kFirstPictograph = char32_t(0x1F000);
+constexpr auto kLastPictograph = char32_t(0x1FAFF);
 constexpr auto kZeroWidthJoiner = char32_t(0x200D);
 constexpr auto kFirstRegional = char32_t(0x1F1E6);
 constexpr auto kLastRegional = char32_t(0x1F1FF);
@@ -254,6 +258,29 @@ std::vector<EmojiCell> FindEmojiCells(QStringView text) {
 	}
 	if (!result.empty() && HasRightToLeft(text)) {
 		return {};
+	}
+	return result;
+}
+
+int ColorGlyphCandidates(QStringView text) {
+	if (IsAscii(text)) {
+		return 0;
+	}
+	const auto size = int(text.size());
+	auto result = 0;
+	for (auto i = 0; i < size;) {
+		const auto point = CodePointAt(text, i);
+		const auto code = point.value;
+		auto matched = 0;
+		if ((code >= kFirstPictograph && code <= kLastPictograph)
+			|| (code == kEmojiPresentationSelector)
+			|| (code == kEnclosingKeycap)
+			|| IsEmojiPresentation(code)
+			|| (MayStartEmoji(text[i].unicode())
+				&& Ui::Emoji::Find(text.mid(i), &matched))) {
+			++result;
+		}
+		i += point.length;
 	}
 	return result;
 }

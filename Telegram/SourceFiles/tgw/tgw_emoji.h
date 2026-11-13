@@ -20,6 +20,7 @@ struct EmojiCell {
 };
 
 [[nodiscard]] std::vector<EmojiCell> FindEmojiCells(QStringView text);
+[[nodiscard]] int ColorGlyphCandidates(QStringView text);
 [[nodiscard]] float64 EmojiAdvance(float64 fontSize);
 [[nodiscard]] QRectF EmojiBox(float64 x, float64 fontSize);
 float64 WalkTextWithEmoji(

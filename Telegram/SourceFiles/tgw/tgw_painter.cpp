@@ -83,6 +83,8 @@ constexpr auto kSecondPoolCells = 489.;
 constexpr auto kRowSubpixels = 256.;
 constexpr auto kOutlineSubpixels = 64.;
 constexpr auto kGradientPixel = 8.;
+constexpr auto kMaxColorGlyphBytes = int64(64 * 1024 * 1024);
+constexpr auto kColorGlyphBytes = 48.;
 
 struct CornerRadius {
 	float64 x = 0.;
@@ -341,6 +343,10 @@ private:
 		int64 pixelWork,
 		int64 maskPixels);
 	[[nodiscard]] bool drawBackdrop(const twlite::Command &command);
+	[[nodiscard]] bool admitColorGlyphs(
+		const QString &text,
+		const std::vector<EmojiCell> &cells,
+		float64 side);
 	void pushHidden();
 	void popGroup();
 	void popFilter();
@@ -371,6 +377,7 @@ private:
 	int64 _maxFilterWork = 0;
 	int64 _filterWork = 0;
 	int64 _shadowWork = kMaxShadowWork;
+	int64 _colorGlyphBytes = kMaxColorGlyphBytes;
 	int _hidden = 0;
 	bool _pathClips = false;
 	bool _refused = false;
@@ -2477,6 +2484,12 @@ void Executor::drawText(const twlite::Command &command) {
 		command.text.data(),
 		int(command.text.size()));
 	const auto cells = FindEmojiCells(text);
+	const auto side = font->font.pixelSize()
+		* font->scale
+		* MaxStretch(p.combinedTransform());
+	if (!admitColorGlyphs(text, cells, side)) {
+		return;
+	}
 	p.save();
 	p.translate(baseline);
 	if (font->scale != 1.) {
@@ -2993,6 +3006,35 @@ bool Executor::chargeShadow(
 			kMaxShadowWork));
 	}
 	_shadowWork -= work;
+	return true;
+}
+
+// Qt rasterizes and caches a colour glyph at its device size, clipped or not.
+bool Executor::admitColorGlyphs(
+		const QString &text,
+		const std::vector<EmojiCell> &cells,
+		float64 side) {
+	auto count = int64();
+	auto from = 0;
+	const auto add = [&](int till) {
+		count += ColorGlyphCandidates(
+			QStringView(text).mid(from, till - from));
+	};
+	for (const auto &cell : cells) {
+		if (cell.emoji) {
+			add(cell.from);
+			from = cell.till;
+		}
+	}
+	add(int(text.size()));
+	if (!count) {
+		return true;
+	}
+	const auto bytes = kColorGlyphBytes * side * side * count;
+	if (!(bytes <= float64(_colorGlyphBytes))) {
+		return false;
+	}
+	_colorGlyphBytes -= int64(std::ceil(bytes));
 	return true;
 }
 
