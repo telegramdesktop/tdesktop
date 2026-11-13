@@ -4991,6 +4991,7 @@ void ApiWrap::sendMessage(
 				sendMessageFail(error, peer, randomId, newId);
 				if (!action.options.scheduled
 					&& !action.options.shortcutId) {
+					Core::App().materializeLocalDrafts();
 					const auto failed = _session->data().message(newId);
 					const auto local = history->localDraft(
 						draftTopicRootId,
@@ -5001,7 +5002,8 @@ void ApiWrap::sendMessage(
 					if (failed
 						&& Data::DraftIsNull(local)
 						&& Data::DraftIsNull(cloud)) {
-						const auto text = failed->originalText();
+						const auto text = PreventInlineBotQuery(
+							failed->originalText());
 						auto draft = Data::Draft();
 						draft.textWithTags = {
 							text.text,

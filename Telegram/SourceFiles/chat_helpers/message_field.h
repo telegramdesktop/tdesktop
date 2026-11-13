@@ -128,6 +128,7 @@ struct InlineBotQuery {
 InlineBotQuery ParseInlineBotQuery(
 	not_null<Main::Session*> session,
 	not_null<const Ui::InputField*> field);
+[[nodiscard]] TextWithEntities PreventInlineBotQuery(TextWithEntities text);
 
 struct AutocompleteQuery {
 	QString query;

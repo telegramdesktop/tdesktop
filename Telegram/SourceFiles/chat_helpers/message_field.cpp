@@ -930,6 +930,17 @@ InlineBotQuery ParseInlineBotQuery(
 	return result;
 }
 
+TextWithEntities PreventInlineBotQuery(TextWithEntities text) {
+	const auto &string = text.text;
+	const auto first = ranges::find_if(string, [](QChar ch) {
+		return (ch != QChar::ObjectReplacementCharacter);
+	});
+	if (first != string.cend() && *first == '@') {
+		return tr::marked(u" "_q).append(std::move(text));
+	}
+	return text;
+}
+
 AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 		not_null<const Ui::InputField*> field,
 		ChatHelpers::ComposeFeatures features) {
