@@ -575,7 +575,7 @@ void OnchainSigning::sent(Wallet::ServedResult result) {
 		_submitted = false;
 		if (_route == OnchainSigningRoute::Flow) {
 			const auto callback = _rejected;
-			callback(result.errorType);
+			callback(result.refusal, result.errorType);
 		} else if (result.refusal == SendError::KeyChanged) {
 			keyChanged();
 		} else if (result.refusal == SendError::Silent) {

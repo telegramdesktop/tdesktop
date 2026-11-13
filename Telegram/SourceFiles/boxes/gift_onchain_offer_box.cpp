@@ -112,6 +112,7 @@ private:
 	void acceptFailed(const MTP::Error &error);
 	void ended(Wallet::ServedOutcome outcome);
 	void refused(SendError error);
+	void rejected(SendError error, const QString &type);
 	void fail(const QString &diagnostic, bool keepAnswer);
 	void toReview();
 	void release();
@@ -224,10 +225,8 @@ SaleFlow::SaleFlow(
 	.current = [=] { return _weakSession && current(); },
 	.usable = [=](Ui::OnchainSigningCheck check) { return usable(check); },
 	.refused = [=](SendError error) { refused(error); },
-	.rejected = [=](const QString &type) {
-		fail(
-			u"Wallet Error: Gift offer sale rejected with %1."_q.arg(type),
-			false);
+	.rejected = [=](SendError error, const QString &type) {
+		rejected(error, type);
 	},
 	.duplicate = [=] { ended(Wallet::ServedOutcome::Duplicate); },
 	.uncertain = [=] { ended(Wallet::ServedOutcome::Uncertain); },
@@ -503,12 +502,34 @@ void SaleFlow::refused(SendError error) {
 		_phase = SalePhase::Insufficient;
 		return;
 	}
+	const auto diagnostic
+		= u"Wallet Error: Gift offer sale refused with %1."_q.arg(int(error));
+	if (error == SendError::NoWallet
+		|| error == SendError::SigningUnavailable) {
+		LOG((diagnostic));
+		_signing.openMoney();
+		return;
+	}
+	if (error == SendError::KeyChanged) {
+		LOG((diagnostic));
+		_signing.keyChanged();
+		return;
+	}
 	const auto keepAnswer = (error != SendError::DataInvalid)
 		&& (error != SendError::InvalidRequest)
 		&& (error != SendError::UnsupportedSendMode);
-	fail(
-		u"Wallet Error: Gift offer sale refused with %1."_q.arg(int(error)),
-		keepAnswer);
+	fail(diagnostic, keepAnswer);
+}
+
+void SaleFlow::rejected(SendError error, const QString &type) {
+	const auto diagnostic
+		= u"Wallet Error: Gift offer sale rejected with %1."_q.arg(type);
+	if (error == SendError::KeyChanged) {
+		LOG((diagnostic));
+		_signing.keyChanged();
+	} else {
+		fail(diagnostic, false);
+	}
 }
 
 void SaleFlow::fail(const QString &diagnostic, bool keepAnswer) {

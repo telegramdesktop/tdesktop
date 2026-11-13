@@ -62,7 +62,7 @@ struct OnchainSigningDescriptor {
 	QString transfer;
 	Fn<void()> quoted;
 	Fn<void(Wallet::SendError)> refused;
-	Fn<void(const QString &)> rejected;
+	Fn<void(Wallet::SendError, const QString &)> rejected;
 	Fn<void()> dismissed;
 	Fn<void()> duplicate;
 	Fn<void()> uncertain;
@@ -159,7 +159,7 @@ private:
 	const QString _transfer;
 	const Fn<void()> _quoted;
 	const Fn<void(Wallet::SendError)> _refused;
-	const Fn<void(const QString &)> _rejected;
+	const Fn<void(Wallet::SendError, const QString &)> _rejected;
 	const Fn<void()> _dismissed;
 	const Fn<void()> _duplicate;
 	const Fn<void()> _uncertain;
