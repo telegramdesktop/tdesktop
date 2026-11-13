@@ -6619,6 +6619,7 @@ void Widget::setupInlineField() {
 			},
 			.allowTypedMarkdown = false,
 			.instantMarkdown = true,
+			.openLinks = { .inAppLinks = true },
 		});
 		if (_show) {
 			const auto weak = QPointer<Widget>(this);
