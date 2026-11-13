@@ -2145,6 +2145,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_languages_apply_confirm" = "Apply";
 "lng_bot_languages_stop" = "Stop";
 "lng_bot_languages_discard" = "Discard Changes";
+"lng_bot_languages_import" = "Import from File...";
+"lng_bot_languages_paste" = "Paste from Clipboard";
+"lng_bot_languages_export" = "Export to File...";
+"lng_bot_languages_exported" = "Languages exported.";
+"lng_bot_languages_imported#one" = "Imported {count} change.";
+"lng_bot_languages_imported#other" = "Imported {count} changes.";
+"lng_bot_languages_imported_none" = "The file has nothing new.";
+"lng_bot_languages_imported_problems#one" = "{count} language needs attention.";
+"lng_bot_languages_imported_problems#other" = "{count} languages need attention.";
+"lng_bot_languages_file_other_bot" = "This file was exported for @{bot}. Import it anyway?";
+"lng_bot_languages_file_other_bot_confirm" = "Import";
+"lng_bot_languages_file_read" = "Could not read the file.";
+"lng_bot_languages_file_write" = "Could not save the file.";
+"lng_bot_languages_file_large" = "The file is too large.";
+"lng_bot_languages_file_syntax" = "Invalid JSON at line {line}, column {column}: {error}.";
+"lng_bot_languages_file_shape" = "The file must contain an object named languages with one object per language.";
+"lng_bot_languages_file_key" = "Unknown key: {key}";
+"lng_bot_languages_file_string" = "The value must be a string: {key}";
+"lng_bot_languages_file_code" = "Not a language code: {code}. Use default or two lowercase letters.";
+"lng_bot_languages_file_duplicate" = "Set twice: {key}";
 
 "lng_bot_verify_title" = "Choose Chat to Verify";
 "lng_bot_verify_bot_title" = "Verify Bot";
