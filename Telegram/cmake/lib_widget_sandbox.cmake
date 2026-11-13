@@ -44,6 +44,7 @@ PRIVATE
     include/twidget/js_thread.h
     include/twidget/json.h
     include/twidget/quickjs_context.h
+    include/twidget/remote_engine.h
     include/twidget/renderer.h
     include/twidget/resources.h
     include/twidget/sandbox_engine.h
@@ -57,8 +58,10 @@ PRIVATE
     src/intl.cpp
     src/js_thread.cpp
     src/quickjs_context.cpp
+    src/remote_engine.cpp
     src/resources.cpp
     src/sandbox_engine.cpp
+    src/sandbox_engine_client.cpp
     src/sdk_policy.cpp
     src/trusted_validator.cpp
     src/widget_host.cpp
