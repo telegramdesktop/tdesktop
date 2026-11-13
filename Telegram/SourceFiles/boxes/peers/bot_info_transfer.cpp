@@ -26,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-using Job = Api::BotInfoLocalization::Job;
+using Job = Data::BotInfoLocalization::Job;
 
 constexpr auto kMaxFileSize = 1024 * 1024;
 
@@ -111,7 +111,7 @@ constexpr auto kMaxFileSize = 1024 * 1024;
 
 void ApplyFile(
 		not_null<Ui::GenericBox*> box,
-		not_null<Api::BotInfoLocalization*> localization,
+		not_null<Data::BotInfoLocalization*> localization,
 		const BotInfoFile &file) {
 	const auto draft = &localization->draft();
 	auto unknown = std::vector<QString>();

@@ -43,8 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 using Field = Data::BotInfoField;
-using Job = Api::BotInfoLocalization::Job;
-using JobState = Api::BotInfoLocalization::State;
+using Job = Data::BotInfoLocalization::Job;
+using JobState = Data::BotInfoLocalization::State;
 
 constexpr auto kCountdownStep = crl::time(500);
 

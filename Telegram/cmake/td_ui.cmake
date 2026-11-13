@@ -149,6 +149,8 @@ PRIVATE
     data/data_birthday.h
     data/data_bot_info_draft.cpp
     data/data_bot_info_draft.h
+    data/data_bot_info_localization.cpp
+    data/data_bot_info_localization.h
     data/data_channel_earn.h
     data/data_credits.h
     data/data_credits_earn.h
