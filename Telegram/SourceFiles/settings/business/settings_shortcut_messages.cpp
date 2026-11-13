@@ -269,6 +269,7 @@ private:
 	QPointer<ListWidget> _inner;
 	std::unique_ptr<Ui::RpWidget> _controlsWrap;
 	std::unique_ptr<ComposeControls> _composeControls;
+	QPointer<SendFilesBox> _sendFilesBox;
 	rpl::event_stream<> _showBackRequests;
 	bool _skipScrollEvent = false;
 
@@ -414,7 +415,16 @@ ShortcutMessages::ShortcutMessages(
 	}, lifetime());
 }
 
-ShortcutMessages::~ShortcutMessages() = default;
+ShortcutMessages::~ShortcutMessages() {
+	// Restored text resizes into the outer scroll, which may be gone already.
+	lifetime().destroy();
+	if (const auto box = _sendFilesBox.data()) {
+		box->closeBox();
+	}
+	if (_composeControls) {
+		_composeControls->closeSendAsFileBox();
+	}
+}
 
 void ShortcutMessages::refreshEmptyText() {
 	const auto &shortcut = _shortcut.current();
@@ -1361,6 +1371,7 @@ bool ShortcutMessages::confirmSendingFiles(
 		_history->peer,
 		Api::SendType::Normal,
 		SendMenu::Details());
+	_sendFilesBox = box.data();
 
 	box->setConfirmedCallback(crl::guard(this, [=](
 			std::shared_ptr<Ui::PreparedBundle> bundle,

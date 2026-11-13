@@ -4844,6 +4844,12 @@ void ComposeControls::setSendAsFileConfirmed(
 	_sendAsFileConfirmed = std::move(confirmed);
 }
 
+void ComposeControls::closeSendAsFileBox() {
+	if (const auto box = _sendAsFileBox.data()) {
+		box->closeBox();
+	}
+}
+
 void ComposeControls::fireSendTextAsFile(
 		const QString &fileText,
 		Fn<void()> restoreText) {
@@ -4866,7 +4872,7 @@ void ComposeControls::fireSendTextAsFile(
 		}
 		callback(std::move(bundle), options);
 	};
-	_show->show(Box<SendFilesBox>(SendFilesBoxDescriptor{
+	auto box = Box<SendFilesBox>(SendFilesBoxDescriptor{
 		.show = _show,
 		.list = Ui::PrepareTextAsFile(fileText),
 		.caption = TextWithTags{},
@@ -4879,7 +4885,9 @@ void ComposeControls::fireSendTextAsFile(
 		.confirmed = std::move(confirmed),
 		.cancelled = std::move(restoreText),
 		.replyTo = replyingToMessage(),
-	}));
+	});
+	_sendAsFileBox = box.data();
+	_show->show(std::move(box));
 }
 
 bool ComposeControls::checkLargeTextPaste(

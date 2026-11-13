@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 class QImage;
+class SendFilesBox;
 enum class SendMediaType;
 
 namespace Api {
@@ -245,6 +246,7 @@ private:
 	object_ptr<TopBarWidget> _topBar;
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<ComposeControls> _composeControls;
+	QPointer<SendFilesBox> _sendFilesBox;
 	bool _skipScrollEvent = false;
 	bool _choosingAttach = false;
 
