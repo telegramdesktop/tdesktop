@@ -58,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Iv {
 namespace {
 
-constexpr auto kGeoPointScale = 1;
 constexpr auto kGeoPointZoomMin = 13;
 
 static_assert(
@@ -355,7 +354,7 @@ void CachedPagePhotoRuntime::releaseHeavyData() {
 		.width = std::max(size.width(), 1),
 		.height = std::max(size.height(), 1),
 		.zoom = std::max(zoom, kGeoPointZoomMin),
-		.scale = kGeoPointScale,
+		.scale = ::Data::ComputeLocationScale(),
 	};
 	return {
 		.location = ImageLocation(
