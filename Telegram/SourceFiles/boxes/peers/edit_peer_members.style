@@ -164,6 +164,7 @@ botInfoLanguageMenu: PopupMenu(popupMenuWithIcons) {
 }
 botInfoCaptionPadding: margins(22px, 0px, 22px, 10px);
 botIntroPreviewPadding: margins(0px, 4px, 0px, 4px);
+botIntroPreviewSkip: 12px;
 botInfoLoadingPadding: margins(22px, 32px, 22px, 32px);
 botInfoTranslateRadialSize: 64px;
 botInfoTranslateRadialStroke: 3px;

@@ -19,10 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "ui/wrap/slide_wrap.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 
 #include "styles/style_chat.h"
+#include "styles/style_edit_peer_members.h"
 
 namespace {
 
@@ -53,6 +55,8 @@ public:
 		rpl::producer<QString> text);
 	~Preview();
 
+	[[nodiscard]] rpl::producer<bool> shownValue() const;
+
 private:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -65,7 +69,8 @@ private:
 	const std::unique_ptr<PreviewDelegate> _delegate;
 
 	std::unique_ptr<AboutView> _view;
-	bool _empty = true;
+	rpl::variable<bool> _shown = false;
+	int _shift = 0;
 
 };
 
@@ -122,15 +127,18 @@ Preview::Preview(
 		const auto info = _bot->botInfo.get();
 		const auto photo = info ? info->photo : nullptr;
 		const auto document = info ? info->document : nullptr;
-		_empty = text.isEmpty() && !photo && !document;
-		_view->makeBotPreview(
-			TextUtilities::ParseEntities(
-				text,
-				Ui::ItemTextBotNoMonoOptions().flags),
-			document,
-			photo);
-		resizeTo(width());
-		update();
+		const auto shown = !text.isEmpty() || photo || document;
+		if (shown) {
+			_view->makeBotPreview(
+				TextUtilities::ParseEntities(
+					text,
+					Ui::ItemTextBotNoMonoOptions().flags),
+				document,
+				photo);
+			resizeTo(width());
+			update();
+		}
+		_shown = shown;
 	}, lifetime());
 
 	widthValue() | rpl::on_next([=](int width) {
@@ -142,17 +150,26 @@ Preview::~Preview() {
 	_view = nullptr;
 }
 
+rpl::producer<bool> Preview::shownValue() const {
+	return _shown.value();
+}
+
 void Preview::resizeTo(int width) {
-	if (_empty || (width < st::msgMinWidth)) {
+	const auto view = _view->view();
+	if (!view || (width < st::msgMinWidth)) {
 		resize(width, 0);
 		return;
 	}
-	const auto skip = st::msgMargin.bottom();
-	resize(width, skip + _view->view()->resizeGetHeight(width) + skip);
+	const auto height = view->resizeGetHeight(width);
+	const auto top = view->marginTop();
+	const auto skip = st::botIntroPreviewSkip;
+	_shift = skip - top;
+	resize(width, skip + (height - top - view->marginBottom()) + skip);
 }
 
 void Preview::paintEvent(QPaintEvent *e) {
-	if (_empty) {
+	const auto view = _view->view();
+	if (!view) {
 		return;
 	}
 	auto p = Painter(this);
@@ -171,8 +188,8 @@ void Preview::paintEvent(QPaintEvent *e) {
 		rect(),
 		clip,
 		!window()->isActiveWindow());
-	p.translate(0, st::msgMargin.bottom());
-	_view->view()->draw(p, context);
+	p.translate(0, _shift);
+	view->draw(p, context);
 }
 
 } // namespace
@@ -181,5 +198,11 @@ object_ptr<Ui::RpWidget> CreateBotIntroPreview(
 		not_null<QWidget*> parent,
 		not_null<UserData*> bot,
 		rpl::producer<QString> text) {
-	return object_ptr<Preview>(parent, bot, std::move(text));
+	auto result = object_ptr<Ui::SlideWrap<Preview>>(
+		parent,
+		object_ptr<Preview>(parent, bot, std::move(text)),
+		st::botIntroPreviewPadding);
+	result->toggleOn(result->entity()->shownValue());
+	result->finishAnimating();
+	return result;
 }

@@ -337,21 +337,24 @@ void EditBotInfoBox(
 				st::boxDividerLabel),
 			st::botInfoCaptionPadding);
 
+		const auto introText = [=](const QString &text) {
+			return text.isEmpty()
+				? valueOf(QString(), Field::Description)
+				: text;
+		};
+		state->intro = introText(
+			valueOf(state->code.current(), Field::Description));
 		container->add(
-			CreateBotIntroPreview(container, bot, state->intro.value()),
-			st::botIntroPreviewPadding);
+			CreateBotIntroPreview(container, bot, state->intro.value()));
 		const auto intro = addField(Field::Description);
 		state->intro = rpl::single(rpl::empty) | rpl::then(rpl::merge(
 			intro->changes(),
 			draft->updates(),
 			state->code.changes() | rpl::to_empty
 		)) | rpl::map([=] {
-			const auto text = Data::NormalizeBotInfoText(
+			return introText(Data::NormalizeBotInfoText(
 				Field::Description,
-				intro->getLastText());
-			return text.isEmpty()
-				? valueOf(QString(), Field::Description)
-				: text;
+				intro->getLastText()));
 		});
 		container->add(
 			object_ptr<Ui::FlatLabel>(
