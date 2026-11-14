@@ -2139,6 +2139,8 @@ PRIVATE
     test/test_custom_emoji.h
     test/test_expiry_window.cpp
     test/test_expiry_window.h
+    test/test_field_submit.cpp
+    test/test_field_submit.h
     test/test_fixture_fence.cpp
     test/test_fixture_fence.h
     test/test_fixture_transaction.cpp
@@ -2200,6 +2202,7 @@ PRIVATE
     test/test_publication_identity_scan_self_test.cpp
     test/test_qpa_mouse.cpp
     test/test_qpa_mouse.h
+    test/test_qpa_mouse_held_self_test.cpp
     test/test_qpa_mouse_self_test.cpp
     test/test_queued_drag.cpp
     test/test_queued_drag.h

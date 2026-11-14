@@ -24,9 +24,11 @@ should call.
 | [test_widgets](test_widgets.md) | API | Typed discovery, a button's own disabled state, live publications and input events; key presses leave Qt's cached keyboard modifiers released |
 | [test_wheel](test_wheel.md) | Self-test | Self-test for wheel delivery |
 | [test_keyboard_modifiers](test_keyboard_modifiers.md) | Self-test | Self-test for released keyboard modifiers after `PressKey` and a QPA sequence's `end()`, beside modifier delivery during the press and a widget shortcut |
+| [test_field_submit](test_field_submit.md) | API | Submit a `Ui::InputField` with the Return chord its submit setting requires - the app's `sendSubmitWay()` by default - and report whether `submits()` fired, refusing `None` by name; with its self-test |
 | [test_queued_drag](test_queued_drag.md) | API | Deliver queued drag starts before the synthetic release |
-| [test_qpa_mouse](test_qpa_mouse.md) | API | Mouse press, move and release through Qt's platform layer and window routing, for widgets that grab the mouse; a drag stage that waits for queued work before its release and leaves no button, grab, hover or keyboard modifier |
+| [test_qpa_mouse](test_qpa_mouse.md) | API | Mouse press, move and release through Qt's platform layer and window routing, for widgets that grab the mouse; a held press keeps the pressed widget at the sequence's point through lib_ui's moves built from the OS pointer; a drag stage that waits for queued work before its release and leaves no button, grab, hover or keyboard modifier |
 | [test_qpa_mouse_self_test](test_qpa_mouse_self_test.md) | Self-test | Self-test for QPA grab routing, the drag stage's wait and refusals, coordinates, double clicks and clean end state |
+| [test_qpa_mouse_held_self_test](test_qpa_mouse_held_self_test.md) | Self-test | Self-test for a held QPA press clicking once through a scroll that sends lib_ui's move from the OS pointer, beside a deliberate move outside that does not |
 | [test_touch](test_touch.md) | API | Registered touchscreen and touchpad input through Qt's platform layer |
 | [test_text_drop](test_text_drop.md) | Self-test | Self-test for text-drop routing |
 | [test_clipboard](test_clipboard.md) | API | Clipboard round-trip and classified read-back |

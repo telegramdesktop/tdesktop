@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QEvent>
 #include <QtCore/QLocale>
 #include <QtGui/QGuiApplication>
+#include <QtGui/QMouseEvent>
 #include <QtGui/QWindow>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QWidget>
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <bit>
 
 #ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
+#include <private/qeventpoint_p.h>
 #include <private/qguiapplication_p.h>
 #include <private/qhighdpiscaling_p.h>
 #include <private/qwindow_p.h>
@@ -525,6 +527,66 @@ void AbortQpaMouseDrag(QpaMouseDragDriver &driver) {
 
 } // namespace
 
+// While a sequence's own presses hold a button: an application event
+// filter, which Qt puts in front of every earlier one, that gives each
+// held move lib_ui builds from the OS pointer the sequence's last
+// delivered point before QWidgetWindow routes it. It never vetoes and
+// never sends. Only the repositioning needs the private API; the type is
+// complete in every build for the sequence's out-of-line destructor.
+class QpaMouseSequence::HeldPointer final : public QObject {
+public:
+	explicit HeldPointer(not_null<const QpaMouseSequence*> sequence);
+	~HeldPointer();
+
+protected:
+	bool eventFilter(QObject *receiver, QEvent *event) override;
+
+private:
+	const not_null<const QpaMouseSequence*> _sequence;
+
+};
+
+QpaMouseSequence::HeldPointer::HeldPointer(
+	not_null<const QpaMouseSequence*> sequence)
+: _sequence(sequence) {
+	QCoreApplication::instance()->installEventFilter(this);
+}
+
+QpaMouseSequence::HeldPointer::~HeldPointer() {
+	QCoreApplication::instance()->removeEventFilter(this);
+}
+
+// lib_ui's SendSynteticMouseEvent sends the move straight to the QWindow
+// with QGuiApplication::sendEvent, so this runs before
+// QWidgetWindow::handleMouseEvent, whose
+// QApplicationPrivate::pickMouseReceiver maps the scene position to the
+// pressed widget. The event's point shares its data with the pointing
+// device until it is detached.
+bool QpaMouseSequence::HeldPointer::eventFilter(
+		QObject *receiver,
+		QEvent *event) {
+	if ((event->type() != QEvent::MouseMove)
+		|| event->spontaneous()
+		|| !receiver->isWindowType()) {
+		return false;
+	}
+	const auto move = static_cast<QMouseEvent*>(event);
+	if ((move->source() != Qt::MouseEventSynthesizedByApplication)
+		|| !(move->buttons() & _sequence->_held)) {
+		return false;
+	}
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
+	const auto global = _sequence->_lastGlobal;
+	const auto local = static_cast<QWindow*>(receiver)->mapFromGlobal(global);
+	auto &point = move->point(0);
+	QMutableEventPoint::detach(point);
+	QMutableEventPoint::setGlobalPosition(point, global);
+	QMutableEventPoint::setScenePosition(point, local);
+	QMutableEventPoint::setPosition(point, local);
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
+	return false;
+}
+
 QString QpaMouseRefusalName(QpaMouseRefusal refusal) {
 	switch (refusal) {
 	case QpaMouseRefusal::None: return u"none"_q;
@@ -657,11 +719,21 @@ QpaMouseDelivery QpaMouseSequence::deliver(const QpaMouseEvent &event) {
 	_open = true;
 	_top = resolved.top;
 	_window = window;
+	_lastGlobal = result.global;
 	_lastNativeLocal = result.nativeLocal;
 	_lastNativeGlobal = result.nativeGlobal;
 	_modifiers = event.modifiers;
 	if (event.type != QpaMouseType::Move) {
 		_held.setFlag(event.button, event.type == QpaMouseType::Press);
+	}
+
+	// The held-move filter lives while the sequence's presses hold a
+	// button: from before the first press's dispatch, until before the
+	// dispatch of the release of the last.
+	if (!_held) {
+		_heldPointer = nullptr;
+	} else if (!_heldPointer) {
+		_heldPointer = std::make_unique<HeldPointer>(this);
 	}
 
 	const auto type = EventType(event.type);
@@ -693,6 +765,7 @@ QpaMouseDelivery QpaMouseSequence::deliver(const QpaMouseEvent &event) {
 }
 
 QpaMouseEnd QpaMouseSequence::end() {
+	_heldPointer = nullptr;
 	if (_end.ended && !_open) {
 		return _end;
 	}

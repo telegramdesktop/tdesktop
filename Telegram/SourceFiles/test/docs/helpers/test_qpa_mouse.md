@@ -4,7 +4,8 @@
 
 Type: Reusable API.
 Source contract: [test_qpa_mouse.h](../../test_qpa_mouse.h).
-Self-test: [test_qpa_mouse_self_test](test_qpa_mouse_self_test.md).
+Self-tests: [test_qpa_mouse_self_test](test_qpa_mouse_self_test.md);
+held moves: [test_qpa_mouse_held_self_test](test_qpa_mouse_held_self_test.md).
 
 ## Use when
 
@@ -115,6 +116,64 @@ the conversion there.
 - A move with no button held is delivered like a real hover move. Whatever
   hover Qt sets from it, or from a release over a widget, lasts until the
   sequence's `end()` delivers its leave.
+
+**Held moves built from the OS pointer.** lib_ui sends a held widget moves
+of its own. `Ui::ScrollArea::scrolled()` calls the point-less
+`SendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton)` on every
+scroll position change its own scroll bar does not make - a list laid out
+again under a bar that shrinks, for example - and other lib_ui and product
+callers use the same overload. It takes its point from `QCursor::pos()`, the
+owner's real pointer, carries `QGuiApplication::mouseButtons()` and
+`Qt::MouseEventSynthesizedByApplication`, and goes straight to the window's
+`QWindow` with `QGuiApplication::sendEvent`, not through
+`QWindowSystemInterface`. Qt gives a held move to the pressed widget
+(`QApplicationPrivate::pickMouseReceiver`), so a `Ui::AbstractButton` pressed
+through a sequence would drop Over at the owner's pointer and its release
+would fire no click.
+
+While its own presses hold a button, a sequence therefore owns an
+application event filter - installed after the earlier ones, so Qt runs it
+first - that matches exactly a non-spontaneous `QEvent::MouseMove` at a
+`QWindow` with source `Qt::MouseEventSynthesizedByApplication` and a button
+the sequence holds. It detaches the event's point from the pointing device
+(`QMutableEventPoint::detach`; a `QSinglePointEvent` shares it until then),
+sets its global position to the sequence's last delivered logical global
+point and its local and scene positions to that point mapped into the
+receiving window (`QWindow::mapFromGlobal`), and lets the event go on to
+`QWidgetWindow::handleMouseEvent`, which maps the scene position to the
+pressed widget. Mapping through the receiving window covers a held move sent
+to another window, which Qt still hands to its process-wide pressed widget.
+The pressed widget sees the sequence's pointer, as it would a real pointer
+that stayed:
+
+- on the widget through a scroll, so a press and a release at one point on a
+  button whose list scrolled meanwhile click once;
+- outside it after a deliberate held move outside delivered through the
+  sequence: the filter takes the last point, never the press point, so such
+  a release still fires no click.
+
+The filter only repositions. It sends no event, keeps the buttons, source,
+spontaneity and timestamp, sets no widget state, forces no click, never moves
+the OS cursor and leaves Qt's last cursor position alone. The sequence's own
+moves and Qt's synthesized moves are spontaneous, and wheels are not moves:
+all pass unchanged. It exists from before the dispatch of the delivery that
+first leaves a button held until before the dispatch of the release of the
+last one, the start of `end()` or the destructor; anything after `end()` is
+unchanged, and a refused delivery changes neither the point nor the filter.
+
+The match is a contract with today's callers, not proof that a move came
+from `QCursor::pos()`: every application-synthesized mouse move outside
+touch handling uses the point-less overload, the explicit-point moves of
+`Ui::ScrollArea` and `Ui::ElasticScroll` belong to touch input, which the
+no-other-gesture precondition excludes, and the other application-source
+events found are wheels. The filter never compares the point with a second
+`QCursor::pos()` read, which would race physical input. `Test::Click` and
+`Test::Drag` send straight to a widget and set neither Qt's pressed buttons
+nor its pressed widget, so lib_ui's move carries no held button and does not
+reach their widget. Touch synthesis does set both, so a scroll during a
+`Test::TouchSequence` hold on a target that refuses touch could meet the
+same move; that is read from the source, and the touch helpers are
+unchanged.
 
 **Settle, the queued-work wait and animation waits.** Three different
 waits; none replaces another.
@@ -286,7 +345,10 @@ delivers a `QWindowSystemInterface` leave - each inside `Settle` - then sets
 Qt's cached keyboard modifiers to `Qt::NoModifier`, and reads the end state.
 Called again with no delivery in between it sends nothing and returns the
 same reading; a delivery after it opens the sequence again. The destructor
-delivers nothing.
+delivers nothing. The [held-move filter](#preconditions-and-limits) lives
+only while the sequence's presses hold a button: `end()` removes it first,
+before its cleanup release, and the destructor removes it without a
+delivery.
 
 `AppendQpaMouseDrag` registers its own `Runner::onFinish` when appended: it
 stops the pace timer and ends a sequence its stage left open, marking that
@@ -316,7 +378,8 @@ Windows and X11 (`QCocoaCursor::pos`, `QWindowsCursor::pos`,
 `QXcbCursor::pos`) and still reads the OS pointer, so a ripple that a press
 starts at `QCursor::pos()` begins where the owner's mouse is, as with
 `Click`. A platform cursor without its own `pos()` answers Qt's last cursor
-position instead (`QPlatformCursor::pos`).
+position instead (`QPlatformCursor::pos`). The held-move filter changes only
+the point of lib_ui's held moves, never what `QCursor::pos()` reads.
 
 ## Verification
 
@@ -338,6 +401,19 @@ a second launch with `QT_SCALE_FACTOR=2`; a default macOS launch reads factor
 1 even at DPR 2. `unsupported` is checked only in a build with
 `DESKTOP_APP_DISABLE_PRIVATE_QT_API`, where every delivering stage is
 `N/A`.
+
+The held-move filter is measured by
+`Test::AppendQpaMouseHeldPointerSelfTest(runner)`
+([held pointer self-test](test_qpa_mouse_held_self_test.md)), in the same
+kind of launch, on a `Ui::AbstractButton` in a `Ui::ScrollArea` with the OS
+pointer outside its window. Its held leg requires lib_ui's move from the OS
+pointer to reach the window outside the button during the hold - a leg
+without it is unreached, never a PASS - the button to get that move at the
+sequence's point, Over at the release and exactly one click; its control
+moves outside through the sequence first and must fire no click; and
+`QCursor::pos()` must read the same throughout. Without the filter the held
+leg's button would get the move at the OS pointer, outside it, and fire no
+click; a filter that took the press point would fail the control.
 
 The keyboard-modifier reset of `end()` is measured by
 `AppendKeyboardModifiersSelfTest` ([test_keyboard_modifiers](test_keyboard_modifiers.md)):
