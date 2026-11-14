@@ -329,7 +329,12 @@ struct PortRights {
 } // namespace
 
 bool Enabled() {
+#if defined OS_MAC_STORE || defined TDESKTOP_USE_PACKAGED
+	// The App Sandbox blocks the profile; packaged Qt opens services before main.
 	return false;
+#else // OS_MAC_STORE || TDESKTOP_USE_PACKAGED
+	return true;
+#endif // OS_MAC_STORE || TDESKTOP_USE_PACKAGED
 }
 
 Launched Launch(const QStringList &arguments) {

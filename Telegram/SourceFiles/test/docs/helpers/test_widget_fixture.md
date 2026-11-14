@@ -12,7 +12,8 @@ chat shown in its own `HistoryInner` of the legacy `HistoryWidget`, local
 outgoing widget messages with tapped validated ops, card readings, the
 runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
-says how a Debug run puts the engines of its widgets in the widget helper.
+says where the engines of its widgets run: in the sandboxed widget helper
+by default on macOS, outside the store build and packaged builds.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -268,46 +269,79 @@ stay with each caller (their policies close this section).
 
 ## Remote engines
 
-A Debug build can run every widget engine of the client in one shared
-widget helper process instead of the client's own threads. The packs, the
-fixture and the seams they use need no change for it; only the launch
-differs.
+On macOS, outside the store build and packaged builds, every widget engine
+of the client runs in one shared widget helper process that has locked
+itself down, instead of the client's own threads, in Debug and Release
+builds alike and with no switch. The packs, the fixture and the seams they
+use need no change for it.
 
-- **Switch.** Debug builds read `TDESKTOP_WIDGET_ENGINES` once, on the main
-  thread, when the client constructs its first widget host
-  (`Tgw::PrepareRemoteEngines()` in `Runtime::construct()`), and keep that
-  choice for the whole process. `helper` runs every engine in the widget
-  helper, `in-process` keeps them in the client, and unset or any other
-  value leaves the platform default. The launch passes it to the client:
+- **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
+  macOS, so a launch with no switch runs every engine in the sandboxed
+  helper, and false in the store build (`OS_MAC_STORE`), in a build with
+  packaged libraries (`DESKTOP_APP_USE_PACKAGED`, which defines
+  `TDESKTOP_USE_PACKAGED`), on Windows and on the all-other platforms,
+  which keep their engines in process. The client
+  decides once, on the main thread, when it constructs its first widget
+  host (`Tgw::PrepareRemoteEngines()` in `Runtime::construct()`), keeps
+  that choice for the whole process and names it in the main log: `Tgw:
+  Widget engines run in the widget helper.` or `Tgw: Widget engines run in
+  process.`. Release builds, `TDESKTOP_RELEASE_TEST_HARNESS` ones included,
+  read no switch, never probe, and open the helper's `-widgethelper` entry
+  only where this default is true.
+- **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
+  that point:
+  - unset or any other value: the platform default;
+  - `helper`: the sandboxed helper explicitly, the same as the default on
+    macOS, so command lines that name it keep working;
+  - `in-process`: the engines stay in the client, the control of a run
+    that compares the two modes;
+  - `probe` and `probe-unsandboxed`: every helper probes its lockdown, or
+    runs the same probe without it as the control, and refuses the stream
+    instead of serving a widget; its listing goes to `app_stderr.txt` and
+    its summary to the main log's `stream ended` line
+    ([test_widget_helper_probe](test_widget_helper_probe.md)). Each
+    refusal counts as a failure (see the failure limit below).
+
+  The launch passes it to the client:
 
   ```sh
   python3 .agents/skills/process-inbox/scripts/workspace.py test-run \
     --exe out/Debug/Telegram.app/Contents/MacOS/Telegram --run-dir "$run" \
-    --env TDESKTOP_WIDGET_ENGINES=helper
+    --env TDESKTOP_WIDGET_ENGINES=in-process
   ```
 
-  The main log names the choice once: `Tgw: Widget engines run in the
-  widget helper (TDESKTOP_WIDGET_ENGINES=helper).`, `Tgw: Widget engines
-  run in process (TDESKTOP_WIDGET_ENGINES=in-process).`, or, with no
-  recognized value, `Tgw: Widget engines run in process.`. A run that
-  compares the two modes launches its control with `in-process`, which
-  stays in process after a platform turns its helper on.
-- **Platform default.** It is `Platform::WidgetHelper::Enabled()`, false on
-  every platform today, so a launch without the switch keeps widgets in
-  process, and so does every Release build, a `TDESKTOP_RELEASE_TEST_HARNESS`
-  one included: it never reads the variable. Only macOS has a helper. An
-  explicit `helper` on Windows or the all-other platforms fails closed
-  instead: no engine runs in process, and each widget dies with `the widget
-  helper could not start: the widget helper is not available on this
-  platform` until the failure limit below stops the attempts.
+  The main log names a recognized value: `Tgw: Widget engines run in the
+  widget helper (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
+  or `probe-unsandboxed`, or `Tgw: Widget engines run in process
+  (TDESKTOP_WIDGET_ENGINES=in-process).`.
+- **Store, packaged and other platforms.** Only macOS has a helper. An
+  explicit `helper` or probe value on Windows or the all-other platforms
+  fails closed instead: no engine runs in process, and each widget dies
+  with `the widget helper could not start: the widget helper is not
+  available on this platform` until the failure limit below stops the
+  attempts. The store build keeps its engines in process because
+  `sandbox_init` cannot narrow a process the App Sandbox already confines;
+  an explicit `helper` there starts a helper inside the app's sandbox,
+  which skips the service check below and fails its lockdown with
+  `sandbox_init failed: <error>`. A packaged build keeps its engines in
+  process because its Qt is an external one (Homebrew's in the packaged
+  workflow) without the patches that keep Qt's startup from connecting to
+  the preferences daemon and other services before `main`, and no profile
+  takes such a connection back; an explicit `helper` there starts a helper
+  that refuses at the service check whenever its Qt made one.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. It is
   the client's own `Contents/MacOS/Telegram -widgethelper 3`, a child of the
   client started without LaunchServices and without `-testagent`, in the
   working directory `/`, with the client's stderr and `/dev/null` for
-  stdin and stdout. It has no harness, log or account data: everything a
-  seam reads stays in the client. It is stopped 30 s after its count of
+  stdin and stdout. Its environment holds exactly `__CF_USER_TEXT_ENCODING`,
+  the client's value or `0x<uid in hex>:0:0` when the client has none.
+  Only a Debug probe value adds arguments after the `3`: the mode, the
+  client's working directory and Application Support path, as
+  [test_widget_helper_probe](test_widget_helper_probe.md) describes. It
+  has no harness, log or account data: everything a seam reads stays in
+  the client. It is stopped 30 s after its count of
   open runtimes last fell to zero, and never sooner than 30 s after it last
   handed a widget its channel; the next widget starts a fresh helper with
   a new pid. The main log has `Tgw: Widget helper <pid> started.`, then
@@ -317,6 +351,34 @@ differs.
   client reads `the host stopped the stream`; that stop drops unsent
   frames, so the helper can exit 1 after it, with a `Widget helper:
   <reason>` line in `app_stderr.txt`.
+- **Lockdown.** The helper locks itself down once it has accepted the
+  client's opening and holds the bundles, before any runtime exists and
+  before it answers `Ready`. Outside the store build it first checks, once
+  per helper, that it holds no connection a widget must never reach: it
+  lists its Mach port names, looks up the preferences, directory, window
+  server, render server, TCC, LaunchServices, distributed notification,
+  keychain, camera, audio, pasteboard and location services
+  (`kForbiddenServices` in `widget_helper_mac.mm`), and refuses when a
+  looked-up right was already held. It releases only the reference each
+  lookup added and lists the names again, which must be unchanged. A
+  service that is not registered passes; a failed call, or names that
+  still differ after three tries, refuse. libSystem's logging and notify
+  connections are not in the list. Then it applies a deny-default seatbelt
+  profile with `sandbox_init`, which allows little beyond reading system
+  libraries and the dyld cache, then sets its descriptor ceiling to zero,
+  so it opens no new file or socket while the channel and the standard
+  descriptors stay open ([test_widget_helper_probe](test_widget_helper_probe.md)
+  lists what it keeps and what it is denied). When any step fails, the
+  helper refuses the stream, prints `Widget helper: <reason>` to its stderr
+  and exits 1: `the widget helper holds a connection to <service> before
+  lockdown` for a held connection, the failed call such as
+  `bootstrap_look_up(<service>) failed: <error> (<code>)` when the check
+  cannot tell, `sandbox_init failed: <error>` for the profile and
+  `setrlimit failed: <error>` for the ceiling. The main log has `Tgw:
+  Widget helper <pid> stream ended: the engine process refused the stream:
+  <reason>.`, its widgets die with `the widget engine process ended`, and
+  the refusal counts towards the failure limit below. No engine ever runs
+  in process instead.
 - **Threads.** With the helper the client runs one `widget.client` thread
   per engine and no `widget.sandbox`; `widget.validator` and the host's
   `twidget-host` stay, and the channel adds `widget.reader`,
@@ -367,8 +429,8 @@ differs.
   channel probe bounded at 10 s. A widget that starts a helper spawns it
   synchronously in the channel factory, before the host's creation time
   that `loadedMs` counts from, so its `loadedMs` does not include the
-  spawn itself; it can include the helper's own start-up before its
-  engine answers.
+  spawn itself; it can include the helper's own start-up and lockdown
+  before its engine answers.
 - **Quit.** A quit stops the helper, live or idle, once no widget host,
   build, sample or theme job is left, as one more tgw job that holds the
   quit (`Tgw prevents quit, stopping widget sandboxes...`); `Tgw doesn't
@@ -381,9 +443,10 @@ differs.
   helper reads the end of its channel and exits by itself.
 - **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
   gives in-process loopback clients only when no factory is installed, so
-  `helper` ignores it, and with `in-process` or no value its engines keep
-  the `Started.` note while running in the client. Leave it unset in both
-  modes.
+  engines in the helper ignore it, the macOS default included, and with
+  `in-process`, or where the default keeps engines in process, its engines
+  keep the `Started.` note while running in the client. Leave it unset in
+  both modes.
 
 ## Readings and refusals
 
