@@ -37,6 +37,10 @@ struct ResaleGiftsOptions {
 	not_null<Main::Session*> session,
 	bool forCraft);
 
+[[nodiscard]] bool ShouldShowResaleGifts(
+	const ResaleGiftsOptions &options,
+	const Data::ResaleGiftsDescriptor &first);
+
 void ShowResaleGiftBoughtToast(
 	std::shared_ptr<Main::SessionShow> show,
 	not_null<PeerData*> to,

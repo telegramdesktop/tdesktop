@@ -628,6 +628,14 @@ ResaleGiftsOptions LookupResaleGiftsOptions(
 	};
 }
 
+bool ShouldShowResaleGifts(
+		const ResaleGiftsOptions &options,
+		const Data::ResaleGiftsDescriptor &first) {
+	const auto &filter = options.filter;
+	return first.giftId
+		&& (first.count || (filter.tonOnly != filter.starsOnly));
+}
+
 void AddResaleGiftsList(
 		not_null<Window::SessionController*> window,
 		not_null<PeerData*> peer,
@@ -878,7 +886,7 @@ rpl::lifetime ShowStarGiftResale(
 		if (const auto onstack = finishRequesting) {
 			onstack();
 		}
-		if (!info.giftId || !info.count) {
+		if (!ShouldShowResaleGifts(options, info)) {
 			return;
 		}
 		info.title = title;

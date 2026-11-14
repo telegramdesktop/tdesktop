@@ -722,12 +722,12 @@ void ShowSelectGiftBox(
 			selected,
 			got);
 
-		if (const auto count = state->resale.count) {
+		if (ShouldShowResaleGifts(resaleOptions, state->resale)) {
 			AddSubsectionTitle(
 				box->verticalLayout(),
 				tr::lng_gift_craft_select_market(
 					lt_count,
-					rpl::single(count * 1.)));
+					rpl::single(state->resale.count * 1.)));
 
 			AddResaleGiftsList(
 				controller,
