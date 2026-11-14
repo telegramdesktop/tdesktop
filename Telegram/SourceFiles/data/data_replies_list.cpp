@@ -844,7 +844,7 @@ void RepliesList::setOutboxReadTill(MsgId readTillId) {
 MsgId RepliesList::computeOutboxReadTillFull() const {
 	const auto local = _outboxReadTillId;
 	if (const auto megagroup = _history->peer->asMegagroup()) {
-		if (!megagroup->isForum() && megagroup->amIn()) {
+		if (megagroup->amIn() && (!megagroup->isForum() || _owningTopic)) {
 			return std::max(local, _history->outboxReadTillId());
 		}
 	}
