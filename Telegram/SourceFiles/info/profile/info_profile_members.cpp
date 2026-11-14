@@ -302,12 +302,10 @@ int Members::resizeGetHeight(int newWidth) {
 //}
 
 void Members::updateHeaderControlsGeometry(int newWidth) {
-	// Mokagram: подсветка кнопки ровно посередине шапки.
-	_openMembers->setGeometry(
-		0,
-		(st::infoMembersHeader - st::infoMembersButton.height) / 2,
-		newWidth,
-		st::infoMembersButton.height);
+	// Mokagram: кнопка на всю шапку, подсветка как у строк настроек.
+	_openMembers->setGeometry(0, 0, newWidth, st::infoMembersHeader);
+	const auto buttonsTop = (st::infoMembersHeader
+		- st::infoMembersButton.height) / 2;
 
 	auto availableWidth = newWidth
 		- st::infoMembersButtonPosition.x();
@@ -334,14 +332,14 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 	//}
 	_addMember->moveToLeft(
 		availableWidth - _addMember->width(),
-		st::infoMembersButtonPosition.y(),
+		buttonsTop,
 		newWidth);
 	if (!_addMember->isHidden()) {
 		availableWidth -= st::infoMembersSearch.width;
 	}
 	_search->moveToLeft(
 		availableWidth - _search->width(),
-		st::infoMembersButtonPosition.y(),
+		buttonsTop,
 		newWidth);
 
 	//auto fieldLeft = anim::interpolate(
