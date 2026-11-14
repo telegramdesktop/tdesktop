@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_restore_shell.h"
 
+#include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_main_window.h"
@@ -32,6 +33,10 @@ RestoreShell::RestoreShell(
 	_window->setMinimumSize(
 		QSize(st::windowShellMinWidth, st::windowShellMinHeight));
 	setupBody();
+	if (Platform::IsWindows()) {
+		// Only a native window is placed with its target screen's metrics.
+		_window->createWinId();
+	}
 	applyPosition(position);
 	base::install_event_filter(_window.get(), [=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::Close) {
