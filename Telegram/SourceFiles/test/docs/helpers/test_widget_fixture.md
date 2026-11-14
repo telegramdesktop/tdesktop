@@ -299,7 +299,7 @@ The packs, the fixture and the seams they use need no change for it.
   - unset or any other value: the platform default;
   - `helper`: the sandboxed helper explicitly, the same as the default on
     macOS, so command lines that name it keep working; on Windows the
-    restricted helper (**The Windows helper** below), which nothing else
+    restricted helper (**The Windows helper** below), which no default
     starts;
   - `in-process`: the engines stay in the client, the control of a run
     that compares the two modes;
@@ -496,12 +496,13 @@ The packs, the fixture and the seams they use need no change for it.
   mitigation policies; and run a thread, an event, `OpenProcess` of its
   own pid, 32 random bytes and the time zone again. A refused process,
   socket, connect, directory or key reads `denied (error N)` only for
-  access denied (5, or `WSAEACCES` for the socket) and `failed (error N)`
-  for any other error, so a connect that timed out is no denial; a success
-  reads `ALLOWED`, a completed connect `CONNECTED`. `OpenProcess` of its
-  own pid reads `opened` or `error N`. The probe reads none of the
-  arguments after the mode. The macOS probe is a different one, which
-  refuses after its report ([test_widget_helper_probe](test_widget_helper_probe.md));
+  access denied (5, or `WSAEACCES` for the socket and the connect) and
+  `failed (error N)` for any other error, so a connect that timed out is
+  no denial; a success reads `ALLOWED`, a completed connect `CONNECTED`.
+  `OpenProcess` of its own pid reads `opened` or `error N`. The probe
+  reads none of the arguments after the mode. The macOS probe is a
+  different one, which refuses after its report
+  ([test_widget_helper_probe](test_widget_helper_probe.md));
   on the all-other platforms no helper starts, so nothing is written.
 - **What the Windows lowering leaves.** The Windows helper is no network
   boundary. In the Windows runs of
@@ -525,13 +526,19 @@ The packs, the fixture and the seams they use need no change for it.
   initialisation, before the lowering, stayed open with the access they
   had been granted (nine: eight in `HKEY_LOCAL_MACHINE`, one in the user's
   hive), and an open relative to one is checked against its target key;
-  the probe's fresh opens were denied. A thread on the lockdown token
-  could not load the DLLs it tried (`bcrypt.dll`, `propsys.dll` and the
+  the probe's fresh opens were denied. A thread on the lockdown token, in
+  a scratch process that
+  `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-windows`
+  launched with the helper's tokens, job and policies (its
+  `work/logs/phase-4-impl-4.notes.md`), could not load the DLLs it tried
+  that the process had not mapped (`bcrypt.dll`, `propsys.dll` and the
   KnownDll `ws2_32.dll`), so a path that needs a delay-loaded DLL the
-  helper did not bind before the lowering ends it: before the random
+  helper had not mapped before the lowering can end it: before the random
   warm-up existed, a widget's `crypto.getRandomValues` ended the helper
-  with `exit 0xC06D007E`. The warm-up covers the paths those runs found,
-  not every load a later path can need.
+  with `exit 0xC06D007E`. Whether an unbound import of a DLL the helper
+  had already mapped still resolves after the lowering was not measured,
+  so the advapi32 bind is a precaution. The warm-up covers the paths those
+  runs found, not every load a later path can need.
 - **Threads.** With the helper the client runs one `widget.client` thread
   per engine and no `widget.sandbox`; `widget.validator` and the host's
   `twidget-host` stay, and the channel adds `widget.reader`,
