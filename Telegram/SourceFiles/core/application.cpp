@@ -317,6 +317,21 @@ void Application::run() {
 
 	startLocalStorage();
 
+	auto modelReady = crl::guard(this, [=](QString model) {
+		if (!Quitting()) {
+			settings().setDefaultDeviceModel(std::move(model));
+		}
+	});
+	crl::async([modelReady = std::move(modelReady)]() mutable {
+		auto model = Platform::DeviceModelPretty();
+		crl::on_main([
+			modelReady = std::move(modelReady),
+			model = std::move(model)
+		]() mutable {
+			modelReady(std::move(model));
+		});
+	});
+
 	style::SetCustomFont(settings().customFontFamily());
 	style::internal::StartFonts();
 

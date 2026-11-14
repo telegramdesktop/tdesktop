@@ -826,9 +826,9 @@ public:
 	[[nodiscard]] QString customDeviceModel() const {
 		return _customDeviceModel.current();
 	}
-	[[nodiscard]] rpl::producer<QString> customDeviceModelChanges() const {
-		return _customDeviceModel.changes();
-	}
+	void setDefaultDeviceModel(QString model);
+	[[nodiscard]] QString defaultDeviceModel() const;
+	[[nodiscard]] rpl::producer<QString> defaultDeviceModelValue() const;
 	[[nodiscard]] QString deviceModel() const;
 	[[nodiscard]] rpl::producer<QString> deviceModelChanges() const;
 
@@ -1158,6 +1158,7 @@ private:
 	CloseBehavior _closeBehavior = CloseBehavior::Quit;
 	rpl::variable<bool> _trayIconMonochrome = true;
 	rpl::variable<QString> _customDeviceModel;
+	rpl::variable<QString> _defaultDeviceModel;
 	rpl::variable<Media::RepeatMode> _playerRepeatMode;
 	rpl::variable<Media::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;

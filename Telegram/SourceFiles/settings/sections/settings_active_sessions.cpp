@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_authorizations.h"
 #include "apiwrap.h"
 #include "base/algorithm.h"
-#include "base/platform/base_platform_info.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
 #include "boxes/peer_lists_box.h"
@@ -134,7 +133,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 		object_ptr<Ui::InputField>(
 			box,
 			st::settingsDeviceName,
-			rpl::single(Platform::DeviceModelPretty()),
+			Core::App().settings().defaultDeviceModelValue(),
 			Core::App().settings().customDeviceModel()),
 		st::boxRowPadding - style::margins(
 			st::settingsDeviceName.textMargins.left(),

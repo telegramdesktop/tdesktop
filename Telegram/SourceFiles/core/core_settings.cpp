@@ -214,6 +214,7 @@ Settings::Settings()
 , _floatPlayerCorner(RectPart::TopRight)
 , _dialogsWithChatWidthRatio(DefaultDialogsWidthRatio())
 , _dialogsNoChatWidthRatio(DefaultDialogsWidthRatio())
+, _defaultDeviceModel(base::Platform::FinalizeDeviceModel({}))
 , _videoQuality({ .height = kInitialVideoQuality }) {
 }
 
@@ -1594,15 +1595,30 @@ void Settings::setThirdColumnWidth(int width) {
 	_thirdColumnWidth = width;
 }
 
+void Settings::setDefaultDeviceModel(QString model) {
+	_defaultDeviceModel = std::move(model);
+}
+
+QString Settings::defaultDeviceModel() const {
+	return _defaultDeviceModel.current();
+}
+
+rpl::producer<QString> Settings::defaultDeviceModelValue() const {
+	return _defaultDeviceModel.value();
+}
+
 QString Settings::deviceModel() const {
 	const auto custom = customDeviceModel();
-	return custom.isEmpty() ? Platform::DeviceModelPretty() : custom;
+	return custom.isEmpty() ? defaultDeviceModel() : custom;
 }
 
 rpl::producer<QString> Settings::deviceModelChanges() const {
-	return customDeviceModelChanges() | rpl::map([=] {
-		return deviceModel();
-	});
+	return rpl::combine(
+		_customDeviceModel.value(),
+		defaultDeviceModelValue(),
+		[](const QString &custom, const QString &detected) {
+			return custom.isEmpty() ? detected : custom;
+		}) | rpl::distinct_until_changed() | rpl::skip(1);
 }
 
 WindowColumns Settings::windowColumns() const {
