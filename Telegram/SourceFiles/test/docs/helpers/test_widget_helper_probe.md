@@ -236,8 +236,10 @@ Where each reading is taken:
 - After its lockdown the helper only reads, writes, peeks and allocates.
   Its opens are expected to fail with `ENOSYS`.
 
-The expected readings below are expectations, not results
-([Verification](#verification)). They assume a kernel with Landlock ABI
+The readings below for a direct spawn with user namespaces, a plain child,
+a helper the Flatpak portal spawned and the control on a namespaced direct
+spawn were confirmed on one host ([Verification](#verification)); the
+others are expectations. They assume a kernel with Landlock ABI
 `<N>`, a client under no seccomp filter of its own, and the client's
 working and data directories present in the client.
 
@@ -598,8 +600,21 @@ second. On another layout the reading can fail and leave both rights
 `UNACCOUNTED`; as that section says, nothing promises that every
 incompatible layout fails rather than matching unrelated words.
 
-On Linux the probe has not run in a Telegram helper yet, so the readings
-under [Linux](#linux) are expectations.
+On Linux the probe ran in the x86_64 Debug client (the Docker
+`centos_env` build) on a WSL2 6.6 kernel with Landlock ABI 3, in the
+evidence campaign of
+`2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-linux`
+(its `work/test.md`, Attempt 2, Runs 2-5): with user namespaces, without
+them (`bwrap --disable-userns`) and inside Flatpak 1.14.6, against
+`probe-unsandboxed` with namespaces. The lines matched the
+readings under [Linux](#linux) for each shape: `landlock alone` read
+`EACCES` for the working directory (`root=empty` with namespaces,
+`root=kept` without them and inside Flatpak); `execve` and `socket` were
+`killed by signal 31`, with no core dump; `after lockdown` read `ENOSYS`
+and `descriptors=0,1,2,3`; and `layers:` named seccomp, Landlock ABI 3,
+NNP, no capabilities, PDEATHSIG 9 and the namespaces, or
+`sandbox=flatpak`. The control read `opened`, `returned ENOENT`,
+`succeeded` and `seccomp=off`. The probed helpers went on serving widgets.
 
 ## Related guidance
 

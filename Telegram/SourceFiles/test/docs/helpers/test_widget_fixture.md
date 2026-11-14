@@ -982,6 +982,44 @@ x64, ARM64, the Store build, Windows before 10 1809, a Release runtime
 (the non-Debug gate was only preprocessed) and macOS or Linux compilation
 of the shared files.
 
+On Linux the [remote engines](#remote-engines) ran in the x86_64 Debug
+client built in the Docker `centos_env` image, on a WSL2 6.6 kernel with
+an Ubuntu 24.04 userland, Landlock ABI 3 and unprivileged user namespaces,
+in the evidence campaign of
+`2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-linux`
+(its `work/test.md`, Attempt 2). The client had no account (an empty golden
+folder under `test-run --portable-root`), and a disposable overlay made
+engines through `Tgw::PrepareRemoteEngines()` and
+`twidget::SandboxEngine::make`; no card, chat or harness pack ran. With no
+switch every engine ran in one `/proc/self/exe -widgethelper 3` child in
+its own user, PID, network and mount namespaces (PID 1, only `lo`, an empty
+root), with `Seccomp: 2`, `NoNewPrivs: 1`, no capabilities and only
+descriptors 0 to 3; `in-process` started no helper. `probe` read the lines
+recorded in [test_widget_helper_probe](test_widget_helper_probe.md#verification)
+and its engines loaded. Under `bwrap --disable-userns` the client logged
+`Tgw: The widget helper starts without namespaces: clone failed: No space
+left on device.` and the helper kept the client's namespaces with seccomp,
+NNP and Landlock applied. A SIGKILL ended the helper's engines and the next
+engine started a new helper; a stopped cloned helper was gone 11 ms after
+its client was killed. Inside Flatpak 1.14.6 (a privileged container,
+`org.freedesktop.Platform//24.08`) the client spawned the helper through
+the portal's `Spawn` (flags 28, descriptors 0 to 3, working directory `/`);
+the helper, in the portal sandbox's namespaces (PID 2, only `lo`, its root
+kept), had `Seccomp: 2`, `NoNewPrivs: 1`, no capabilities, Landlock and only
+descriptors 0 to 3, and a stopped helper ended through `SpawnSignal` to its
+process group. The framework harness's `--attacks`
+loop over the 133 corpus files and the 68-widget conformance automatic
+set, run with the client's executable as the engine process, gave 0 leaks
+and the same rows and statuses as in process, apart from two throttle
+readings: `cpu-kill-after.html`'s count, which varies in process too, and
+`timer-flood.html`'s `cpu-throttled`, which the Debug client's `-O0`
+QuickJS reaches near the 300 ms quota with or without the sandbox. Not run:
+aarch64 (only `widget_lockdown_linux.cpp` compiled, its filter's decisions
+emulated), a confined Snap, Ubuntu's AppArmor user-namespace restriction,
+the client's death inside Flatpak (the portal's `WATCH_BUS`), a Release
+runtime, and the tdesktop attack audit and conformance runner (no account
+on that host).
+
 ## Related guidance
 
 [Widget attack audit](test_widget_attacks.md);
