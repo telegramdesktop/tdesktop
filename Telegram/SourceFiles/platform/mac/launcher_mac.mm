@@ -27,8 +27,7 @@ Launcher::Launcher(int argc, char *argv[])
 int Launcher::exec() {
 	for (auto i = arguments().begin(), e = arguments().end(); i != e; ++i) {
 		if (*i == u"-widgethelper"_q) {
-			const auto next = i + 1;
-			Tgw::RunWidgetHelper((next != e) ? *next : QString());
+			Tgw::RunWidgetHelper(QStringList(i + 1, e));
 		}
 	}
 

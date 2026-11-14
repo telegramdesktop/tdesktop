@@ -2268,6 +2268,8 @@ PRIVATE
     test/test_widget_conformance_stop.h
     test/test_widget_fixture.cpp
     test/test_widget_fixture.h
+    test/test_widget_helper_probe.cpp
+    test/test_widget_helper_probe.h
     test/test_widget_host.cpp
     test/test_widget_host.h
     test/test_widget_ops.cpp

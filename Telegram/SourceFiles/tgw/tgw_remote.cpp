@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "core/version.h"
 #include "platform/platform_widget_helper.h"
+#include "test/test_widget_helper_probe.h"
 #include "twidget/remote_stream.h"
 
 #include <condition_variable>
@@ -25,7 +26,7 @@ constexpr auto kFailureRunAge = crl::time(60000);
 constexpr auto kIdleTimeout = crl::time(30000);
 constexpr auto kExitWait = crl::time(1000);
 constexpr auto kKillWait = crl::time(1000);
-constexpr auto kMaxReasonBytes = size_t(1024);
+constexpr auto kMaxReasonBytes = size_t(4096);
 
 using Channel = std::shared_ptr<twidget::SandboxRemoteChannel>;
 using Completion = Platform::WidgetHelper::Completion;
@@ -161,14 +162,20 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return result;
 }
 
-// An unsandboxed helper runs any bytecode it is sent: never in shipped builds.
+// Engine switches and probes bypass or inspect the sandbox: never shipped.
 #ifdef _DEBUG
+[[nodiscard]] QString EnginesSwitch() {
+	return qEnvironmentVariable("TDESKTOP_WIDGET_ENGINES");
+}
+
 [[nodiscard]] bool ChooseRemote() {
-	const auto value = qEnvironmentVariable("TDESKTOP_WIDGET_ENGINES");
-	if (value != u"helper"_q && value != u"in-process"_q) {
+	const auto value = EnginesSwitch();
+	if (value != u"helper"_q
+		&& value != u"in-process"_q
+		&& !Test::IsWidgetHelperProbeMode(value)) {
 		return DefaultRemote();
 	}
-	const auto result = (value == u"helper"_q);
+	const auto result = (value != u"in-process"_q);
 	LOG(("Tgw: Widget engines run %1 (TDESKTOP_WIDGET_ENGINES=%2)."
 		).arg(Placement(result), value));
 	return result;
@@ -177,6 +184,16 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 [[nodiscard]] bool HelperEntryAllowed() {
 	return true;
 }
+
+[[nodiscard]] QStringList HelperArguments() {
+	return Test::WidgetHelperProbeArguments(EnginesSwitch());
+}
+
+[[nodiscard]] std::string HelperLockdown(const QStringList &arguments) {
+	return Test::WidgetHelperLockdown(arguments, [] {
+		return Platform::WidgetHelper::Lockdown();
+	});
+}
 #else // _DEBUG
 [[nodiscard]] bool ChooseRemote() {
 	return DefaultRemote();
@@ -184,6 +201,14 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 
 [[nodiscard]] bool HelperEntryAllowed() {
 	return Platform::WidgetHelper::Enabled();
+}
+
+[[nodiscard]] QStringList HelperArguments() {
+	return {};
+}
+
+[[nodiscard]] std::string HelperLockdown(const QStringList &) {
+	return Platform::WidgetHelper::Lockdown().toStdString();
 }
 #endif // _DEBUG
 
@@ -261,7 +286,7 @@ Channel Manager::launch(
 	const auto id = ++_serial;
 	auto reports = std::make_shared<Reports>();
 	auto events = EventsFor(reports, id);
-	auto launched = Platform::WidgetHelper::Launch();
+	auto launched = Platform::WidgetHelper::Launch(HelperArguments());
 	if (!launched.error.isEmpty()) {
 		const auto reason = CouldNotStart(launched.error);
 		failedLocked(0);
@@ -443,17 +468,18 @@ bool StopRemoteEngines(Fn<void()> stopped) {
 	return Instance && Instance->stop(std::move(stopped));
 }
 
-void RunWidgetHelper(const QString &channel) {
+void RunWidgetHelper(const QStringList &arguments) {
 	if (!HelperEntryAllowed()) {
 		std::_Exit(1);
 	}
-	const auto stream = Platform::WidgetHelper::Adopt(channel);
+	const auto stream = Platform::WidgetHelper::Adopt(arguments.value(0));
 	if (!stream) {
 		std::_Exit(1);
 	}
 	const auto reason = twidget::SandboxRemoteEngineEnd::serve(
 		*stream,
-		BuildString());
+		BuildString(),
+		[&] { return HelperLockdown(arguments); });
 	if (!reason.empty()) {
 		const auto size = std::min(reason.size(), kMaxReasonBytes);
 		std::fprintf(stderr, "Widget helper: %.*s\n", int(size), reason.data());

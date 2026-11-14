@@ -13,6 +13,6 @@ void PrepareRemoteEngines();
 [[nodiscard]] bool RemoteEngines();
 [[nodiscard]] bool StopRemoteEngines(Fn<void()> stopped);
 
-[[noreturn]] void RunWidgetHelper(const QString &channel);
+[[noreturn]] void RunWidgetHelper(const QStringList &arguments);
 
 } // namespace Tgw
