@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_cover_box.h"
 #include "boxes/star_gift_resale_box.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "data/data_channel.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -87,7 +88,7 @@ struct ExportOption {
 	Fn<void()> activate;
 };
 
-class Controller final : public ContactsBoxController {
+class Controller final : public ChatsListBoxController {
 public:
 	Controller(
 		not_null<Window::SessionController*> window,
@@ -101,6 +102,7 @@ public:
 	void noSearchSubmit();
 
 private:
+	Main::Session &session() const override;
 	void prepareViewHook() override;
 
 	bool overrideKeyboardNavigation(
@@ -108,8 +110,7 @@ private:
 		int fromIndex,
 		int toIndex) override;
 
-	std::unique_ptr<PeerListRow> createRow(
-		not_null<UserData*> user) override;
+	std::unique_ptr<Row> createRow(not_null<History*> history) override;
 	void rowClicked(not_null<PeerListRow*> row) override;
 
 	const not_null<Window::SessionController*> _window;
@@ -1027,7 +1028,7 @@ Controller::Controller(
 	Data::SavedStarGiftId giftId,
 	bool shownOnProfile,
 	Fn<void(not_null<PeerData*>, Fn<void()>)> choose)
-: ContactsBoxController(&window->session())
+: ChatsListBoxController(&window->session())
 , _window(window)
 , _gift(std::move(gift))
 , _giftId(giftId)
@@ -1068,21 +1069,37 @@ bool Controller::overrideKeyboardNavigation(
 		&& _exportOption.overrideKey(direction, fromIndex, toIndex);
 }
 
+Main::Session &Controller::session() const {
+	return _window->session();
+}
+
 void Controller::prepareViewHook() {
 	delegate()->peerListSetTitle(tr::lng_gift_transfer_title(
 		lt_name,
 		rpl::single(UniqueGiftName(*_gift))));
 }
 
-std::unique_ptr<PeerListRow> Controller::createRow(
-	not_null<UserData*> user) {
-	if (user->isSelf()
-		|| user->isBot()
-		|| user->isServiceUser()
-		|| user->isInaccessible()) {
+std::unique_ptr<ChatsListBoxController::Row> Controller::createRow(
+		not_null<History*> history) {
+	const auto peer = history->peer;
+	if (peer == _giftId.chat()) {
 		return nullptr;
 	}
-	return ContactsBoxController::createRow(user);
+	if (const auto user = peer->asUser()) {
+		if (user->isSelf()
+			|| user->isBot()
+			|| user->isServiceUser()
+			|| user->isInaccessible()) {
+			return nullptr;
+		}
+	} else if (const auto channel = peer->asChannel()) {
+		if (!channel->isBroadcast() || channel->isForbidden()) {
+			return nullptr;
+		}
+	} else {
+		return nullptr;
+	}
+	return std::make_unique<Row>(history);
 }
 
 void Controller::rowClicked(not_null<PeerListRow*> row) {
