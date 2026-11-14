@@ -85,11 +85,12 @@ struct AttachWebViewBot {
 };
 
 struct WebViewSourceButton {
+	QByteArray url;
 	bool simple = false;
 
 	friend inline bool operator==(
-		WebViewSourceButton,
-		WebViewSourceButton) = default;
+		const WebViewSourceButton &,
+		const WebViewSourceButton &) = default;
 };
 
 struct WebViewSourceSwitch {
