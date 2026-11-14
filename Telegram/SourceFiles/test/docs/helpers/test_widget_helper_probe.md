@@ -290,10 +290,67 @@ control, and both again with `connect-control`.
   header reading in that process found the same two names. They are
   libtrace's firehose push ports to logd.
 
-Limits: one macOS version (27.0.1) and ad hoc signatures. The header
-reading relies on a private libdispatch layout. In these runs it was an
-overlay technique; the probe's own [firehose reading](#firehose-reading)
-now makes it and has the same limit.
+The probe's own reading was then executed on macOS 27.0.1 arm64 in a
+Debug build, in the evidence campaign of
+`2026/11/14/let-the-widget-helper-probe-attribute-libtraces-firehose-push-ports`;
+its `work/test.md` is the record, and its `work/test-overlay.patch` keeps
+the disposable scenario and fault hunks. The canonical `probe` and the
+`probe-unsandboxed` control each ran in its own launch through the widget
+fixture with `TDESKTOP_WIDGET_ENGINES`: one local widget card, placed on
+screen in a Test-session chat, demanded the helper, whose argv held no
+probe fixture argument. The negative legs ran in one launch through the
+direct `Platform::WidgetHelper::Launch` driver of
+[Minimal use](#minimal-use), after a no-fixture control leg, with
+disposable overlay faults selected by a sentinel in the keychain-account
+argv slot. Every helper's listing was complete (end marker, declared
+counts, no cut row), its summary stayed under the 3900-byte bound, and it
+ended `exit 1` without a signal.
+
+- Canonical `probe`: `lockdown: ok`; the `firehose:` row accepted a pair
+  after finding the listing's logd name once, and the space after the
+  reading equaled the listed snapshot. The 19 entries had the earlier
+  listing's composition, with two `libSystem firehose push port` rows in
+  place of its two `UNACCOUNTED` send rights: plain send rights whose
+  names equal the reading's. With no `UNACCOUNTED` row, the summary read
+  `inventory: clean`, `firehose push ports 2` and `unaccounted: none`.
+  The direct driver's no-fixture control leg, its fault hunks inert, read
+  the same.
+- `probe-unsandboxed`: `lockdown: skipped (unsandboxed control)`; its own
+  reading accepted its own pair, which equals its two
+  `libSystem firehose push port` rows, and no row was `UNACCOUNTED`. The
+  verdict was exactly `inventory: NOT clean (unsandboxed control)`, with
+  `unaccounted: none`.
+- Extra send right: before the pre-lockdown snapshot, a fault looked up
+  `com.apple.SystemConfiguration.configd`, neither a probe reference nor a
+  service the lockdown forbids, and held the new plain send right through
+  the inventory. After `lockdown: ok` the reading still accepted the
+  genuine pair among 20 entries, and that right was the only `UNACCOUNTED`
+  row, with no annotation: `inventory: NOT clean (1 unaccounted)`.
+- Failed readings: one fault replaced the export's answer with a null
+  pointer and zero length, one made the probe's logd reference search find
+  none, and one added a second copy of the matching tuple to the reader's
+  own copied scan input, leaving libdispatch's memory untouched. A fourth
+  replaced the second name of a genuine unique reading with
+  `bootstrap_port` before the checks, which the first name then passed.
+  Each wrote its cause in its `firehose: FAILED` row and summary item:
+  `no firehose header (metadata 0x0, 0 bytes)`,
+  `no logd name: the com.apple.logd reference found no port`,
+  `logd <name> found 2 times in the firehose header` and
+  `<name> is the bootstrap port`. None had a
+  `libSystem firehose push port` row. Each helper's only two `UNACCOUNTED`
+  rows were exactly the pair that an unperturbed reading in the same
+  helper found once, with the space after it equal to the listed
+  snapshot; that reading ran after the probe's decision and was never
+  assigned to its state. Each read `inventory: NOT clean (2 unaccounted)`,
+  and the bootstrap right kept its `bootstrap (bootstrap_port)` class.
+
+Limits: both campaigns ran on one macOS version (27.0.1 arm64) with ad hoc
+signatures, so the private libdispatch layout that the header reading
+relies on is proved only there: as an overlay technique in the first, and
+through the probe's own [firehose reading](#firehose-reading) in the
+second. On another layout the reading can fail and leave both rights
+`UNACCOUNTED`; as that section says, nothing promises that every
+incompatible layout fails rather than matching unrelated words.
 
 ## Related guidance
 
