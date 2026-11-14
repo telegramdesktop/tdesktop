@@ -2041,6 +2041,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		const auto canEditCover = file.isVideoFile()
 			&& (_toPeer->isBroadcast()
 				|| _toPeer->isMegagroup()
+				|| _toPeer->isChat()
 				|| _toPeer->isSelf()
 				|| _toPeer->isBot());
 		if (canEditCover) {
