@@ -11,7 +11,9 @@ A run must show what the macOS widget helper can still do once it locked
 itself down, and list every descriptor and Mach right it keeps. The probe is
 the helper's lockdown hook in a Debug build: it takes the listing after the
 real `Platform::WidgetHelper::Lockdown()`, tries what the sandbox must deny
-and refuses the stream with a summary, so no widget is ever served.
+and refuses the stream with a summary, so no widget is ever served. On
+Windows the same hook runs a different, native probe and the helper goes on
+serving widgets ([Windows](#windows)).
 
 Callers: the `_DEBUG` block of `tgw/tgw_remote.cpp` is the only product caller.
 `ChooseRemote()` accepts `probe` and `probe-unsandboxed` as values of
@@ -28,8 +30,11 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 
 ## Preconditions and limits
 
-- macOS only. On other platforms a probe mode refuses with `the widget helper
-  probe is not available on this platform`.
+- The listing, attempts, fixtures and summary on this page are macOS only.
+  On Windows `probe` runs the native probe of [Windows](#windows) and
+  `probe-unsandboxed` refuses with `the widget helper probe is not
+  available on this platform`. The all-other platforms start no helper;
+  their hook would refuse every probe mode with the same text.
 - `probe` locks down, then probes. `probe-unsandboxed` runs the same probe
   without the lockdown: it is the control, always in a separate helper.
 - The real lockdown starts with its service check
@@ -70,6 +75,25 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 - Never AVFoundation discovery: it crashes a locked process. Devices are
   counted with CoreMediaIO and CoreAudio property sizes only, with no capture,
   no consent prompt and no keychain UI.
+
+## Windows
+
+With `probe` the client appends the same argv tail, and the hook calls
+`Platform::WidgetHelper::PrepareProbe()` first: the native probe in
+`platform/win/widget_sandbox_win.cpp` takes its `before lowering:` controls
+while the helper still impersonates its initial token. Then the hook calls
+the real lockdown. A failure refuses the stream with the lockdown's own text
+and writes no probe line. Otherwise the probe makes its `after lowering:`
+attempts and readings, the hook writes every line of its report to stderr
+as `Widget helper probe: <line>` (`app_stderr.txt` in a test run) and
+returns "", and the helper serves widgets as in `helper` mode, so a probe
+launch is no helper failure. The Windows probe reads none of the arguments
+after the mode, takes no fixture and is no inventory of what the helper
+holds. Its lines, their controls and the measured results, the remaining
+network access included, are in
+[Remote engines](test_widget_fixture.md#remote-engines) (**Windows probe**
+and **What the Windows lowering leaves**), and its runs in that page's
+[Verification](test_widget_fixture.md#verification).
 
 ## Minimal use
 

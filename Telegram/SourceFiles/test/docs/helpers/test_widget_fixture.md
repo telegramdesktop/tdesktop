@@ -13,7 +13,8 @@ outgoing widget messages with tapped validated ops, card readings, the
 runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where the engines of its widgets run: in the sandboxed widget helper
-by default on macOS, outside the store build and packaged builds.
+by default on macOS, outside the store build and packaged builds, and in a
+restricted widget helper on Windows only when a Debug run asks for one.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -272,8 +273,10 @@ stay with each caller (their policies close this section).
 On macOS, outside the store build and packaged builds, every widget engine
 of the client runs in one shared widget helper process that has locked
 itself down, instead of the client's own threads, in Debug and Release
-builds alike and with no switch. The packs, the fixture and the seams they
-use need no change for it.
+builds alike and with no switch. On Windows a Debug run can put them in
+one shared restricted widget helper with the switch below; every other
+Windows launch, and every Windows Release build, keeps them in process.
+The packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
   macOS, so a launch with no switch runs every engine in the sandboxed
@@ -287,22 +290,35 @@ use need no change for it.
   Widget engines run in the widget helper.` or `Tgw: Widget engines run in
   process.`. Release builds, `TDESKTOP_RELEASE_TEST_HARNESS` ones included,
   read no switch, never probe, and open the helper's `-widgethelper` entry
-  only where this default is true.
+  only where this default is true. Windows has a helper but this default
+  stays false there, so only the Debug switch below starts it, and the
+  `-widgethelper` entry of a Windows Release build exits with status 1
+  before it adopts a channel.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
   - unset or any other value: the platform default;
   - `helper`: the sandboxed helper explicitly, the same as the default on
-    macOS, so command lines that name it keep working;
+    macOS, so command lines that name it keep working; on Windows the
+    restricted helper (**The Windows helper** below), which nothing else
+    starts;
   - `in-process`: the engines stay in the client, the control of a run
     that compares the two modes;
-  - `probe` and `probe-unsandboxed`: every helper probes its lockdown, or
-    runs the same probe without it as the control, and refuses the stream
-    instead of serving a widget; its listing goes to `app_stderr.txt` and
-    its summary to the main log's `stream ended` line
+  - `probe` and `probe-unsandboxed`: on macOS every helper probes its
+    lockdown, or runs the same probe without it as the control, and
+    refuses the stream instead of serving a widget; its listing goes to
+    `app_stderr.txt` and its summary to the main log's `stream ended` line
     ([test_widget_helper_probe](test_widget_helper_probe.md)). Each
-    refusal counts as a failure (see the failure limit below).
+    refusal counts as a failure (see the failure limit below). On Windows
+    `probe` runs the restricted helper with its native probe and serves
+    widgets as `helper` does (**Windows probe** below), and
+    `probe-unsandboxed` makes every helper refuse the stream with `the
+    widget helper probe is not available on this platform`, each refusal
+    a failure as well.
 
-  The launch passes it to the client:
+  The helper never reads the variable: the client passes a probe value to
+  it as the mode argument after its channel (**The shared helper** and
+  **The Windows helper** below). The launch passes the variable to the
+  client, on macOS:
 
   ```sh
   python3 .agents/skills/process-inbox/scripts/workspace.py test-run \
@@ -310,16 +326,24 @@ use need no change for it.
     --env TDESKTOP_WIDGET_ENGINES=in-process
   ```
 
+  and on Windows, from PowerShell:
+
+  ```powershell
+  python .agents/skills/process-inbox/scripts/workspace.py test-run `
+    --exe out/Debug/Telegram.exe --run-dir $run `
+    --env TDESKTOP_WIDGET_ENGINES=helper
+  ```
+
   The main log names a recognized value: `Tgw: Widget engines run in the
   widget helper (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
   or `probe-unsandboxed`, or `Tgw: Widget engines run in process
   (TDESKTOP_WIDGET_ENGINES=in-process).`.
-- **Store, packaged and other platforms.** Only macOS has a helper. An
-  explicit `helper` or probe value on Windows or the all-other platforms
+- **Store, packaged and other platforms.** macOS and Windows have a
+  helper. An explicit `helper` or probe value on the all-other platforms
   fails closed instead: no engine runs in process, and each widget dies
   with `the widget helper could not start: the widget helper is not
   available on this platform` until the failure limit below stops the
-  attempts. The store build keeps its engines in process because
+  attempts. The macOS store build keeps its engines in process because
   `sandbox_init` cannot narrow a process the App Sandbox already confines;
   an explicit `helper` there starts a helper inside the app's sandbox,
   which skips the service check below and fails its lockdown with
@@ -328,31 +352,76 @@ use need no change for it.
   workflow) without the patches that keep Qt's startup from connecting to
   the preferences daemon and other services before `main`, and no profile
   takes such a connection back; an explicit `helper` there starts a helper
-  that refuses at the service check whenever its Qt made one.
+  that refuses at the service check whenever its Qt made one. On Windows
+  the seam fails every launch closed the same way in the Store build (`the
+  widget helper is not available in the Store build`) and before Windows
+  10 1809 (`the widget helper needs Windows 10 1809 or later`); neither
+  has been run.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
-  its `Build()` worker, and later widgets attach to the same process. It is
-  the client's own `Contents/MacOS/Telegram -widgethelper 3`, a child of the
-  client started without LaunchServices and without `-testagent`, in the
-  working directory `/`, with the client's stderr and `/dev/null` for
-  stdin and stdout. Its environment holds exactly `__CF_USER_TEXT_ENCODING`,
-  the client's value or `0x<uid in hex>:0:0` when the client has none.
-  Only a Debug probe value adds arguments after the `3`: the mode, the
-  client's working directory and Application Support path, as
-  [test_widget_helper_probe](test_widget_helper_probe.md) describes. It
-  has no harness, log or account data: everything a seam reads stays in
-  the client. It is stopped 30 s after its count of
-  open runtimes last fell to zero, and never sooner than 30 s after it last
-  handed a widget its channel; the next widget starts a fresh helper with
-  a new pid. The main log has `Tgw: Widget helper <pid> started.`, then
-  `Tgw: Widget helper <pid> stream ended: <reason>.` and `Tgw: Widget
-  helper <pid> ended, <status>.`, the status `exit N` or `signal N`, with
-  `sent SIGKILL after N ms` added when it had to be killed. A stop by the
-  client reads `the host stopped the stream`; that stop drops unsent
-  frames, so the helper can exit 1 after it, with a `Widget helper:
-  <reason>` line in `app_stderr.txt`.
-- **Lockdown.** The helper locks itself down once it has accepted the
-  client's opening and holds the bundles, before any runtime exists and
+  its `Build()` worker, and later widgets attach to the same process. On
+  macOS it is the client's own `Contents/MacOS/Telegram -widgethelper 3`, a
+  child of the client started without LaunchServices and without
+  `-testagent`, in the working directory `/`, with the client's stderr and
+  `/dev/null` for stdin and stdout. Its environment holds exactly
+  `__CF_USER_TEXT_ENCODING`, the client's value or `0x<uid in hex>:0:0`
+  when the client has none. Only a Debug probe value adds arguments after
+  the `3`: the mode, the client's working directory and Application
+  Support path, as [test_widget_helper_probe](test_widget_helper_probe.md)
+  describes. The Windows helper is below. It has no harness, log or
+  account data: everything a seam reads stays in the client. It is stopped
+  30 s after its count of open runtimes last fell to zero, and never sooner
+  than 30 s after it last handed a widget its channel; the next widget
+  starts a fresh helper with a new pid. The main log has `Tgw: Widget
+  helper <pid> started.`, then `Tgw: Widget helper <pid> stream ended:
+  <reason>.` and `Tgw: Widget helper <pid> ended, <status>.`. On macOS the
+  status is `exit N` or `signal N`, with `sent SIGKILL after N ms` added
+  when it had to be killed. On Windows it is `exit N`, or `exit 0x<code>`
+  in uppercase hexadecimal from `0xC0000000` up, with `terminated after N
+  ms` added when its job had to be killed, which ends it with `exit 1067`
+  (`ERROR_PROCESS_ABORTED`): `exit 1067, terminated after 1000 ms` after
+  the 1 s wait for its own exit. A helper that does not end even then
+  reads `not reaped after N ms` before that addition. A stop by the client
+  reads `the host stopped the stream`; that stop drops unsent frames, so
+  the helper can exit 1 after it, with a `Widget helper: <reason>` line in
+  `app_stderr.txt`. That exit is no helper failure: after a stop by the
+  client only whether the helper was reaped counts (**Failure limit**
+  below).
+- **The Windows helper.** It is the client's own executable, the path
+  `GetModuleFileNameW(nullptr)` gives, started as `"<path>" -widgethelper
+  <handle>`, where `<handle>` is the decimal value of the pipe handle it
+  inherits, without `-testagent`, with the client's environment and the
+  system directory as its working directory (`C:\WINDOWS\system32` as
+  `GetCurrentDirectoryW` reads it, which an x86 helper on 64-bit Windows
+  holds open through WOW64 as `C:\Windows\SysWOW64`). Only a Debug probe
+  value adds arguments after the handle, the same ones as on macOS: the
+  mode, the client's working directory and its
+  `QStandardPaths::GenericDataLocation`, each quoted for
+  `CommandLineToArgvW` when it is empty or holds whitespace or a quote;
+  the Windows probe reads only the mode. Its stdin and stdout are null;
+  its stderr is a copy of the client's when that is a file or a pipe, as
+  `app_stderr.txt` is under `test-run`, and none otherwise, and the
+  creation's handle list passes it nothing else. The channel is one
+  overlapped duplex named pipe with an unpredictable name, one instance,
+  remote clients rejected and access for the client's user only; the
+  client opens the helper's end itself before the spawn. The client
+  creates the helper suspended with `CreateProcessAsUserW` on a lockdown
+  primary token derived from its own: Low integrity, no privilege but
+  `SeChangeNotifyPrivilege`, the user and every group but the integrity
+  label deny-only, and the NULL SID `S-1-0-0` as its only restricting SID.
+  Before it resumes the helper it attaches an initial impersonation token
+  to the helper's main thread and reads it back: Low as well and
+  restricted to the client's user and enabled groups, so that the helper's
+  startup can load its DLLs. The creation puts the helper in a new job
+  (one active process, kill on job close, death on an unhandled exception
+  and the eight UI restrictions) and sets its creation mitigations: DEP on
+  32-bit, bottom-up and forced-relocation ASLR (high entropy on 64-bit),
+  extension points disabled, dynamic code prohibited, CET user shadow
+  stacks in x64 builds where the system offers them, and no child
+  processes. A creation the system refuses, the job included, is a start
+  failure: no helper runs outside its job or without these policies.
+- **Lockdown.** On macOS the helper locks itself down once it has accepted
+  the client's opening and holds the bundles, before any runtime exists and
   before it answers `Ready`. Outside the store build it first checks, once
   per helper, that it holds no connection a widget must never reach: it
   lists its Mach port names, looks up the preferences, directory, window
@@ -379,12 +448,100 @@ use need no change for it.
   <reason>.`, its widgets die with `the widget engine process ended`, and
   the refusal counts towards the failure limit below. No engine ever runs
   in process instead.
+- **The Windows lowering.** The Windows helper drops its impersonation in
+  the framework's lockdown callback, after it accepted the opening and
+  holds the bundles and before it answers Ready, so before any runtime
+  exists. While still impersonating it binds the delay-loaded advapi32
+  imports and draws random bytes once, which starts the random provider
+  that a widget's `crypto.getRandomValues` uses later. Then it reverts to
+  its lockdown token, disables the predefined registry key cache and closes
+  the cached roots, lets only Microsoft-signed images load, turns strict
+  handle checks on and verifies itself: no thread token, the lockdown
+  token above, its job's limits and UI restrictions, and every expected
+  mitigation read back. The first step that fails refuses the stream: the
+  helper writes `Widget helper: the widget helper is not sandboxed:
+  <error>` to stderr and exits 1, the main log reads `Tgw: Widget helper
+  <pid> stream ended: the engine process refused the stream: the widget
+  helper is not sandboxed: <error>.`, and the widget dies. The errors
+  after the revert carry Windows error numbers, such as
+  `SetProcessMitigationPolicy(<policy>) failed: error N`, or name the
+  reading that failed, such as `the token's integrity 0x2000 is not Low`,
+  `the token's user is not deny-only`, `the token's restricting SIDs are
+  not exactly S-1-0-0`, `the job's limits are 0x<flags> for <n>
+  processes` or `the mitigation policy <policy> reads 0x<flags>`.
+- **Windows probe.** With `probe` the client passes the mode to the
+  Windows helper, and the helper's lockdown hook
+  ([test_widget_helper_probe](test_widget_helper_probe.md#windows)) adds a
+  native probe to the lowering, once per helper: it takes the probe's
+  positive controls while the helper still impersonates, lowers the helper
+  and, after a successful lowering and before Ready, writes one `Widget
+  helper probe: <line>` per line to its stderr (`app_stderr.txt` under
+  `test-run`); its widgets then run as with `helper`. A failed lowering
+  refuses the stream as with `helper` and writes no probe line. The lines
+  that start `before lowering:` are its positive controls, taken after the
+  opening was accepted and before the lowering: a 127.0.0.1 listener with
+  one accepted connection, the helper's working directory, the client's
+  working directory (`TelegramForcePortable` beside the executable when
+  that is a directory, else `%APPDATA%\Telegram Desktop`) and `%APPDATA%`
+  opened for listing, `HKEY_CURRENT_USER\Software` opened, `whoami.exe`
+  found in the system directory, and the time zone (`bias <minutes>`); a
+  passing control reads `ok`, or `present` for the `whoami.exe` lookup.
+  The lines that start `after lowering:` try `CreateProcessW` of that
+  `whoami.exe`, a TCP socket and a 1 s connect to the listener, the three
+  directories, `HKEY_CURRENT_USER\Software` and
+  `HKEY_LOCAL_MACHINE\SOFTWARE`; read back the thread token, the process
+  token and the job; try to disable win32k system calls
+  (`DisallowWin32kSystemCalls: APPLIED` or `not applied
+  (SetProcessMitigationPolicy(4) failed: error N)`); read back nine
+  mitigation policies; and run a thread, an event, `OpenProcess` of its
+  own pid, 32 random bytes and the time zone again. A refused process,
+  socket, connect, directory or key reads `denied (error N)` only for
+  access denied (5, or `WSAEACCES` for the socket) and `failed (error N)`
+  for any other error, so a connect that timed out is no denial; a success
+  reads `ALLOWED`, a completed connect `CONNECTED`. `OpenProcess` of its
+  own pid reads `opened` or `error N`. The probe reads none of the
+  arguments after the mode. The macOS probe is a different one, which
+  refuses after its report ([test_widget_helper_probe](test_widget_helper_probe.md));
+  on the all-other platforms no helper starts, so nothing is written.
+- **What the Windows lowering leaves.** The Windows helper is no network
+  boundary. In the Windows runs of
+  `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-windows`
+  (its `work/decisions.md`, I1 to I3) and in the probe run of
+  `2026/11/14/run-widget-engines-in-a-restricted-helper-on-windows-behind-a-debug-switch`
+  (its `work/test.md`, Run 2), the lowered helper created a TCP socket
+  and connected to the probe's live loopback listener
+  (`socket(AF_INET, SOCK_STREAM): ALLOWED, connect to 127.0.0.1:<port>:
+  CONNECTED`): the restricted token, the job and the mitigations do not
+  keep native code from the network, and denying it is the work of
+  `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`.
+  win32k system calls stay enabled: the runtime disable failed in both
+  with error 19 (`ERROR_WRITE_PROTECT`; the probe's
+  `DisallowWin32kSystemCalls: not applied (SetProcessMitigationPolicy(4)
+  failed: error 19)`, then `mitigation win32k: 0x0`), because every
+  Telegram process loads user32 during its static initialisation, and the
+  job's UI restrictions limit some window-system operations without
+  blocking those calls.
+  Registry key handles that system DLLs opened during static
+  initialisation, before the lowering, stayed open with the access they
+  had been granted (nine: eight in `HKEY_LOCAL_MACHINE`, one in the user's
+  hive), and an open relative to one is checked against its target key;
+  the probe's fresh opens were denied. A thread on the lockdown token
+  could not load the DLLs it tried (`bcrypt.dll`, `propsys.dll` and the
+  KnownDll `ws2_32.dll`), so a path that needs a delay-loaded DLL the
+  helper did not bind before the lowering ends it: before the random
+  warm-up existed, a widget's `crypto.getRandomValues` ended the helper
+  with `exit 0xC06D007E`. The warm-up covers the paths those runs found,
+  not every load a later path can need.
 - **Threads.** With the helper the client runs one `widget.client` thread
   per engine and no `widget.sandbox`; `widget.validator` and the host's
   `twidget-host` stay, and the channel adds `widget.reader`,
   `widget.writer` and `widget.monitor` per helper and a `widget.answer` per
   runtime that asked a synchronous question. The `widget.sandbox` engines
-  run in the helper.
+  run in the helper. Windows threads carry none of these names (the
+  framework names its threads only on Apple platforms and Linux): there
+  the `Telegram.exe -widgethelper` child, the runtime log's `Started, its
+  engine is remote.` note and the main log's `Widget helper <pid>` lines
+  show where the engines run.
 - **Seams.** [test_widget_ops](test_widget_ops.md),
   [test_widget_host](test_widget_host.md) and
   [test_widget_bot](test_widget_bot.md) act in the client and work
@@ -407,9 +564,15 @@ use need no change for it.
   last picture when it had loaded, is released when it leaves the view and
   starts again, in a fresh helper, when it is painted visible. A widget
   whose helper cannot start dies with `the widget helper could not start:
-  <error>`, the seam's error such as `posix_spawn failed: <reason>`, and
-  the main log adds `Tgw Error: The widget helper could not start:
-  <error>.`.
+  <error>`, the seam's error such as `posix_spawn failed: <reason>` on
+  macOS or `CreateProcessAsUserW failed: <reason>` on Windows, and the
+  main log adds `Tgw Error: The widget helper could not start: <error>.`.
+  The Windows `<reason>` is the system's message with its own period,
+  such as `Not enough quota is available to process this command.` in an
+  enclosing job limited to one active process, so that line ends in `..`.
+  On Windows a start that fails between the creation and the resume, while
+  the initial token is attached and checked, ends the suspended helper
+  through its job first and adds that end's status in parentheses.
 - **Failure limit.** A start failure and an unexpected end are helper
   failures; an end after at least 60 s of helper uptime starts a new run at
   one, and a finished idle stop resets the run. The third failure in a row
@@ -423,7 +586,7 @@ use need no change for it.
 - **Timing.** Queries and probes cross the channel.
   `SandboxStats::queries` and `queryMs` are counted by the engine in the
   helper and reach the client with its stats, so each uncached query's
-  time includes both socket hops and the client's answer: compare query
+  time includes both channel hops and the client's answer: compare query
   times only between runs of the same mode. The host's own bound on a
   query answer stays in the client, and a theme change's `probe()` is a
   channel probe bounded at 10 s. A widget that starts a helper spawns it
@@ -435,12 +598,15 @@ use need no change for it.
   build, sample or theme job is left, as one more tgw job that holds the
   quit (`Tgw prevents quit, stopping widget sandboxes...`); `Tgw doesn't
   prevent quit any more.` can appear twice, before and after that job. The
-  stop waits up to 1 s for the helper to exit, then kills it and waits up to
-  1 s more; an outstanding theme probe can hold the quit for its 10 s
-  before that. A helper left behind has the client's executable path, so
-  `test-run`'s path-scoped kill ends it and lists it in
-  `stragglers_killed_after`. When the client dies without a quit, the
-  helper reads the end of its channel and exits by itself.
+  stop waits up to 1 s for the helper to exit, then kills it (on Windows
+  by terminating its job) and waits up to 1 s more; an outstanding theme
+  probe can hold the quit for its 10 s before that. A helper left behind
+  has the client's executable path, so `test-run`'s path-scoped kill ends
+  it and lists it in `stragglers_killed_after`. When the client dies
+  without a quit, the helper reads the end of its channel and exits by
+  itself. On Windows the client's death also closes the helper's job,
+  whose only handle the client holds, and the job's kill on close ends
+  the helper even when it is not reading.
 - **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
   gives in-process loopback clients only when no factory is installed, so
   engines in the helper ignore it, the macOS default included, and with
@@ -577,8 +743,8 @@ and the box count in `paint-backdrop-replay.html`'s paint-limit reason
 in process in that Debug build (Run 11). The lifecycle (one shared
 helper, the idle exit, a SIGKILL and the restart, the failure limit and
 the quit) ran through a disposable overlay in that campaign (Runs 4-5 and
-7). None of it has run on Windows or Linux, where the helper does not
-exist.
+7). None of it has run on Linux, where the helper does not exist; the
+Windows runs are below.
 
 The sandboxed helper ran in the macOS arm64 Debug client in the evidence
 campaign of
@@ -606,6 +772,51 @@ times in a row` without a fourth helper (Run 3). None of this has run on
 Windows, Linux, the store build or a packaged build: the store build keeps
 its engines in process, and packaged builds are excluded from the helper
 default.
+
+On Windows the [remote engines](#remote-engines) ran in the Win32 Debug
+(x86) client on one Windows 11 Pro 10.0.26300 machine in the evidence
+campaign of
+`2026/11/14/run-widget-engines-in-a-restricted-helper-on-windows-behind-a-debug-switch`
+(its `work/test.md`, Runs 1-3). With `helper` one `-widgethelper` child of
+the client served every widget; after its lowering it was Low, restricted
+to `S-1-0-0` with its user and every group but the integrity label
+deny-only and only `SeChangeNotifyPrivilege`, without a thread token, the
+only member of its job (limits `0x2408`, UI `0xFF`), with every expected
+mitigation set and only `app_stderr.txt` inheritable, and its `Date`,
+random bytes and `Intl` matched the in-process values. With `probe` its
+`CreateProcessW`, three directories and `HKEY_CURRENT_USER\Software` read
+`denied (error 5)` after passing `before lowering:` controls, the socket
+and the connect to the live listener read `ALLOWED` and `CONNECTED`, and
+win32k read `not applied (SetProcessMitigationPolicy(4) failed: error 19)`.
+Unset and `in-process` started no helper. A killed helper left both cards'
+last pictures unchanged outside the stop pill; showing them again restarted
+both in one new helper, and a second kill stopped them at the two-crash
+limit. A quit left no helper, live or idle; with a client write blocked on
+a suspended helper the helper ended with `exit 1067, terminated after 1000
+ms` and the client exited 1.3 s after the quit. A client in a job of one
+active process failed three starts with `CreateProcessAsUserW failed: Not
+enough quota is available to process this command.`, none in process, and
+the next widget died with `the widget helper failed 3 times in a row`; a
+suspended helper ended 12 ms after its client was killed (Run 2). A scratch
+driver launching the real executable with the product's channel, tokens,
+job and policies read the initial impersonation token of the suspended
+helper before its resume, and its launches with a Medium token, a Low
+unrestricted token, the user as a second restricting SID, no job, or
+dynamic code allowed each refused before Ready at its own check, while the
+full confinement reached Ready (Run 1). The attack audit over all 133
+corpus files in a basic group and the conformance runner over the 133-run
+automatic matrix in a private chat and that group gave 0 leaks and the same
+keyed rows and verdicts with `helper` and with `in-process` on one
+executable, apart from `request-copy.html`'s click show, refused once in
+process and accepted in both modes of a paired rerun (Run 3). Runs 1-3 ran
+on this task's code before it adopted the lockdown seam of
+`2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`:
+the helper then chose its probe from the `TDESKTOP_WIDGET_ENGINES` value it
+inherited from the client, its command line carried only the handle, and
+the framework pin was this task's own lockdown-callback commit. Not run:
+x64, ARM64, the Store build, Windows before 10 1809, a Release runtime
+(the non-Debug gate was only preprocessed) and macOS or Linux compilation
+of the shared files.
 
 ## Related guidance
 

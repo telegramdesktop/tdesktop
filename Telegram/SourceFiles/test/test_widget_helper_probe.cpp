@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
+#include "platform/platform_widget_helper.h"
 #include "settings.h"
 
 #include <QtCore/QFile>
@@ -58,7 +59,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 extern "C" int sandbox_check(pid_t pid, const char *operation, int type, ...);
 extern "C" int CGSMainConnectionID(void);
 extern "C" void *voucher_activity_get_metadata_buffer(size_t *length);
-#endif // Q_OS_MAC
+#elif defined Q_OS_WIN // Q_OS_MAC
+#include <cstdio>
+#endif // Q_OS_MAC || Q_OS_WIN
 
 namespace Test {
 namespace {
@@ -2643,7 +2646,28 @@ std::string Probe::summary() const {
 	return result + tail;
 }
 
-#endif // Q_OS_MAC
+#elif defined Q_OS_WIN // Q_OS_MAC
+
+// The native probe takes its controls before the real lockdown, while the
+// helper still impersonates, and its attempts after it; the report goes to
+// stderr and the helper serves widgets.
+[[nodiscard]] std::string LockDownWithProbe(const Fn<QString()> &lockdown) {
+	if (!lockdown) {
+		return "no lockdown callable";
+	}
+	const auto probe = Platform::WidgetHelper::PrepareProbe();
+	const auto error = lockdown();
+	if (!error.isEmpty()) {
+		return error.toStdString();
+	}
+	for (const auto &line : probe().split(QChar('\n'))) {
+		const auto utf8 = line.toUtf8();
+		std::fprintf(stderr, "Widget helper probe: %s\n", utf8.constData());
+	}
+	return std::string();
+}
+
+#endif // Q_OS_MAC || Q_OS_WIN
 
 } // namespace
 
@@ -2695,9 +2719,14 @@ std::string WidgetHelperLockdown(
 	}
 #ifdef Q_OS_MAC
 	return Probe(ParseArguments(arguments), std::move(lockdown)).run();
-#else // Q_OS_MAC
+#elif defined Q_OS_WIN // Q_OS_MAC
+	if (mode == ProbeMode()) {
+		return LockDownWithProbe(lockdown);
+	}
 	return "the widget helper probe is not available on this platform";
-#endif // Q_OS_MAC
+#else // Q_OS_MAC || Q_OS_WIN
+	return "the widget helper probe is not available on this platform";
+#endif // Q_OS_MAC || Q_OS_WIN
 }
 
 } // namespace Test
