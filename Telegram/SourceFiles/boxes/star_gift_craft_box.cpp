@@ -684,6 +684,7 @@ void ShowSelectGiftBox(
 
 		Data::CraftGiftsDescriptor craft;
 		Data::ResaleGiftsDescriptor resale;
+		int pending = 0;
 
 		rpl::lifetime craftLifetime;
 		rpl::lifetime resaleLifetime;
@@ -746,6 +747,7 @@ void ShowSelectGiftBox(
 		controller->show(Box(make));
 	});
 
+	state->pending = allowResale ? 2 : 1;
 	state->craftLifetime = Data::CraftGiftsSlice(
 		session,
 		giftId
@@ -753,7 +755,7 @@ void ShowSelectGiftBox(
 		state->craftLifetime.destroy();
 
 		state->craft = std::move(info);
-		if (!allowResale || state->resale.giftId) {
+		if (!--state->pending) {
 			show();
 		}
 	});
@@ -770,7 +772,7 @@ void ShowSelectGiftBox(
 		state->resaleLifetime.destroy();
 
 		state->resale = std::move(info);
-		if (state->craft.giftId) {
+		if (!--state->pending) {
 			show();
 		}
 	});
