@@ -8640,10 +8640,14 @@ Data::SendError HistoryWidget::computeSendRestriction() const {
 
 void HistoryWidget::updateSendRestriction() {
 	const auto restriction = computeSendRestriction();
-	if (_sendRestrictionKey == restriction.text) {
+	const auto key = std::tuple(
+		_peer ? _peer->id : PeerId(),
+		restriction.text,
+		restriction.boostsToLift);
+	if (_sendRestrictionKey == key) {
 		return;
 	}
-	_sendRestrictionKey = restriction.text;
+	_sendRestrictionKey = key;
 	if (!restriction) {
 		_sendRestriction = nullptr;
 	} else if (restriction.frozen) {
