@@ -42,6 +42,7 @@ class BoxContent;
 } // namespace Ui
 
 namespace Window {
+class SessionController;
 class SessionNavigation;
 } // namespace Window
 
@@ -304,7 +305,10 @@ ClickHandlerPtr JumpToStoryClickHandler(
 	not_null<PeerData*> peer,
 	CallId callId);
 
-void ShowTrialTranscribesToast(int left, TimeId until);
+void ShowTrialTranscribesToast(
+	not_null<Window::SessionController*> controller,
+	int left,
+	TimeId until);
 
 [[nodiscard]] int ItemsForwardSendersCount(const HistoryItemsList &list);
 [[nodiscard]] int ItemsForwardCaptionsCount(const HistoryItemsList &list);

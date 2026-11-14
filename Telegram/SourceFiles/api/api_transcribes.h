@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "mtproto/sender.h"
 #include "spellcheck/spellcheck_types.h"
 
@@ -41,7 +42,9 @@ public:
 		mtpRequestId requestId = 0;
 	};
 
-	void toggle(not_null<HistoryItem*> item);
+	void toggle(
+		not_null<HistoryItem*> item,
+		Fn<void(int, TimeId)> showTrial);
 	[[nodiscard]] const Entry &entry(not_null<HistoryItem*> item) const;
 
 	void toggleSummary(not_null<HistoryItem*> item);
@@ -55,26 +58,34 @@ public:
 	[[nodiscard]] bool isRated(not_null<HistoryItem*> item) const;
 	void rate(not_null<HistoryItem*> item, bool isGood);
 
-	[[nodiscard]] bool trialsSupport();
-	[[nodiscard]] TimeId trialsRefreshAt();
-	[[nodiscard]] int trialsCount();
+	[[nodiscard]] bool trialsSupport() const;
+	[[nodiscard]] TimeId trialCooldownUntil(not_null<HistoryItem*> item) const;
+	[[nodiscard]] rpl::producer<> trialCooldownChanges() const;
 	[[nodiscard]] crl::time trialsMaxLengthMs() const;
 
 private:
-	void load(not_null<HistoryItem*> item);
+	void load(
+		not_null<HistoryItem*> item,
+		Fn<void(int, TimeId)> showTrial);
 	void summarize(not_null<HistoryItem*> item);
+	[[nodiscard]] TimeId trialCooldownUntil() const;
+	void setTrialCooldownUntil(TimeId until);
+	void refreshTrialCooldown();
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 	int _trialsCount = -1;
-	std::optional<bool> _trialsSupport;
-	TimeId _trialsRefreshAt = -1;
+	TimeId _trialsRefreshAt = 0;
+	TimeId _trialCooldownUntil = 0;
+	base::Timer _trialCooldownTimer;
+	rpl::event_stream<> _trialCooldownChanges;
 
 	base::flat_map<FullMsgId, Entry> _map;
 	base::flat_map<uint64, FullMsgId> _ids;
 
 	base::flat_map<FullMsgId, SummaryEntry> _summaries;
+	rpl::lifetime _lifetime;
 
 };
 

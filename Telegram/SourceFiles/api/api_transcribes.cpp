@@ -9,24 +9,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "api/api_text_entities.h"
+#include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "spellcheck/spellcheck_types.h"
+#include "storage/storage_account.h"
 
 namespace Api {
+namespace {
+
+constexpr auto kTrialCooldownPref = "transcription_trial_cooldown_until"_cs;
+
+} // namespace
 
 Transcribes::Transcribes(not_null<ApiWrap*> api)
 : _session(&api->session())
-, _api(&api->instance()) {
+, _api(&api->instance())
+, _trialCooldownUntil(_session->local()
+	.readPref<QString>(kTrialCooldownPref).toInt())
+, _trialCooldownTimer([=] { refreshTrialCooldown(); }) {
+	_session->appConfig().value() | rpl::on_next([=] {
+		refreshTrialCooldown();
+	}, _lifetime);
 }
 
 bool Transcribes::isRated(not_null<HistoryItem*> item) const {
@@ -63,36 +75,55 @@ bool Transcribes::freeFor(not_null<HistoryItem*> item) const {
 	return false;
 }
 
-bool Transcribes::trialsSupport() {
-	if (!_trialsSupport) {
-		const auto count = _session->appConfig().get<int>(
+bool Transcribes::trialsSupport() const {
+	return trialCooldownUntil() > base::unixtime::now()
+		|| _session->appConfig().get<int>(
 			u"transcribe_audio_trial_weekly_number"_q,
-			0);
-		const auto until = _session->appConfig().get<int>(
-			u"transcribe_audio_trial_cooldown_until"_q,
-			0);
-		_trialsSupport = (count > 0) || (until > 0);
-	}
-	return *_trialsSupport;
+			0) > 0;
 }
 
-TimeId Transcribes::trialsRefreshAt() {
-	if (_trialsRefreshAt < 0) {
-		_trialsRefreshAt = _session->appConfig().get<int>(
+TimeId Transcribes::trialCooldownUntil() const {
+	return std::max(
+		_trialCooldownUntil,
+		_session->appConfig().get<int>(
 			u"transcribe_audio_trial_cooldown_until"_q,
-			0);
-	}
-	return _trialsRefreshAt;
+			0));
 }
 
-int Transcribes::trialsCount() {
-	if (_trialsCount < 0) {
-		_trialsCount = _session->appConfig().get<int>(
-			u"transcribe_audio_trial_weekly_number"_q,
-			-1);
-		return std::max(_trialsCount, 0);
+TimeId Transcribes::trialCooldownUntil(not_null<HistoryItem*> item) const {
+	const auto until = trialCooldownUntil();
+	return (until > base::unixtime::now()
+		&& !_session->premium()
+		&& !freeFor(item)
+		&& !_map.contains(item->fullId()))
+		? until
+		: 0;
+}
+
+rpl::producer<> Transcribes::trialCooldownChanges() const {
+	return _trialCooldownChanges.events();
+}
+
+void Transcribes::setTrialCooldownUntil(TimeId until) {
+	if (until > _trialCooldownUntil) {
+		_trialCooldownUntil = until;
+		_session->local().writePref<QString>(
+			kTrialCooldownPref,
+			QString::number(until));
+		refreshTrialCooldown();
 	}
-	return _trialsCount;
+}
+
+void Transcribes::refreshTrialCooldown() {
+	const auto remaining = int64(trialCooldownUntil()) - base::unixtime::now();
+	if (remaining > 0) {
+		_trialCooldownTimer.callOnce(std::min(
+			crl::time(remaining * 1000),
+			crl::time(std::numeric_limits<int>::max())));
+	} else {
+		_trialCooldownTimer.cancel();
+	}
+	_trialCooldownChanges.fire({});
 }
 
 crl::time Transcribes::trialsMaxLengthMs() const {
@@ -101,11 +132,17 @@ crl::time Transcribes::trialsMaxLengthMs() const {
 		300);
 }
 
-void Transcribes::toggle(not_null<HistoryItem*> item) {
+void Transcribes::toggle(
+		not_null<HistoryItem*> item,
+		Fn<void(int, TimeId)> showTrial) {
 	const auto id = item->fullId();
-	auto i = _map.find(id);
+	const auto i = _map.find(id);
 	if (i == _map.end()) {
-		load(item);
+		if (const auto until = trialCooldownUntil(item)) {
+			showTrial(0, until);
+			return;
+		}
+		load(item, std::move(showTrial));
 		_session->data().requestItemResize(item);
 	} else if (!i->second.requestId) {
 		i->second.shown = !i->second.shown;
@@ -170,7 +207,9 @@ void Transcribes::apply(const MTPDupdateTranscribedAudio &update) {
 	}
 }
 
-void Transcribes::load(not_null<HistoryItem*> item) {
+void Transcribes::load(
+		not_null<HistoryItem*> item,
+		Fn<void(int, TimeId)> showTrial) {
 	if (!item->isHistoryEntry() || item->isLocal()) {
 		return;
 	}
@@ -185,27 +224,12 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 		}
 	};
 	const auto id = item->fullId();
+	const auto usesTrial = !_session->premium() && !freeFor(item);
 	const auto requestId = _api.request(MTPmessages_TranscribeAudio(
 		item->history()->peer->input(),
 		MTP_int(item->id)
 	)).done([=](const MTPmessages_TranscribedAudio &result) {
 		const auto &data = result.data();
-
-		{
-			const auto trialsCountChanged = data.vtrial_remains_num()
-				&& (_trialsCount != data.vtrial_remains_num()->v);
-			if (trialsCountChanged) {
-				_trialsCount = data.vtrial_remains_num()->v;
-			}
-			const auto refreshAtChanged = data.vtrial_remains_until_date()
-				&& (_trialsRefreshAt != data.vtrial_remains_until_date()->v);
-			if (refreshAtChanged) {
-				_trialsRefreshAt = data.vtrial_remains_until_date()->v;
-			}
-			if (trialsCountChanged) {
-				ShowTrialTranscribesToast(_trialsCount, _trialsRefreshAt);
-			}
-		}
 
 		auto &entry = _map[id];
 		entry.requestId = 0;
@@ -216,7 +240,40 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 			toggleRound(item, entry);
 			_session->data().requestItemResize(item);
 		}
+		if (const auto count = data.vtrial_remains_num()) {
+			const auto left = count->v;
+			const auto until = data.vtrial_remains_until_date()->v;
+			const auto now = base::unixtime::now();
+			if (until > now
+				&& (until > _trialsRefreshAt
+					|| (until == _trialsRefreshAt && left < _trialsCount))) {
+				_trialsCount = left;
+				_trialsRefreshAt = until;
+				if (left == 0) {
+					setTrialCooldownUntil(until);
+					showTrial(0, trialCooldownUntil());
+				} else if (trialCooldownUntil() <= now) {
+					showTrial(left, until);
+				}
+			}
+		}
 	}).fail([=](const MTP::Error &error) {
+		const auto floodWaitPrefix = u"FLOOD_WAIT_"_q;
+		if (usesTrial && error.type().startsWith(floodWaitPrefix)) {
+			const auto seconds = error.type().mid(floodWaitPrefix.size()).toInt();
+			if (seconds > 0) {
+				const auto until = TimeId(std::min(
+					int64(base::unixtime::now()) + seconds,
+					int64(std::numeric_limits<TimeId>::max())));
+				_map.remove(id);
+				if (const auto item = _session->data().message(id)) {
+					_session->data().requestItemResize(item);
+				}
+				setTrialCooldownUntil(until);
+				showTrial(0, trialCooldownUntil());
+				return;
+			}
+		}
 		auto &entry = _map[id];
 		entry.requestId = 0;
 		entry.pending = false;
@@ -228,7 +285,7 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 			toggleRound(item, entry);
 			_session->data().requestItemResize(item);
 		}
-	}).send();
+	}).handleFloodErrors().send();
 	auto &entry = _map.emplace(id).first->second;
 	entry.requestId = requestId;
 	entry.shown = true;

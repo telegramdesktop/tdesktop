@@ -1462,15 +1462,14 @@ bool CanHoldItemNotification(not_null<const HistoryItem*> item) {
 	return result;
 }
 
-void ShowTrialTranscribesToast(int left, TimeId until) {
-	const auto window = Core::App().activeWindow();
-	if (!window) {
-		return;
-	}
-	const auto filter = [=](const auto &...) {
-		if (const auto controller = window->sessionController()) {
+void ShowTrialTranscribesToast(
+		not_null<Window::SessionController*> controller,
+		int left,
+		TimeId until) {
+	const auto filter = [weak = base::make_weak(controller.get())](
+			const auto &...) {
+		if (const auto controller = weak.get()) {
 			ShowPremiumPreviewBox(controller, PremiumFeature::VoiceToText);
-			window->activate();
 		}
 		return false;
 	};
@@ -1491,7 +1490,7 @@ void ShowTrialTranscribesToast(int left, TimeId until) {
 			lt_link,
 			tr::link(tr::lng_settings_privacy_premium_link(tr::now)),
 			tr::marked);
-	window->uiShow()->showToast(Ui::Toast::Config{
+	controller->uiShow()->showToast(Ui::Toast::Config{
 		.text = text,
 		.filter = filter,
 		.duration = kToastDuration,
