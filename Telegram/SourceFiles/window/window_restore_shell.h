@@ -40,6 +40,7 @@ private:
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _loading;
 	rpl::event_stream<> _closeRequests;
 	rpl::lifetime _lifetime;
+	QRect _normalBody;
 	bool _unavailable = false;
 
 };

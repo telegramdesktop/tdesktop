@@ -592,6 +592,10 @@ void MainWindow::init() {
 }
 
 void MainWindow::handleStateChanged(Qt::WindowState state) {
+	const auto restored = Platform::IsWindows()
+		&& !isHidden()
+		&& positionMaximized()
+		&& (state == Qt::WindowNoState);
 	if (isHidden()) {
 		// A withdrawn window can flip to no state on X11, keep what it had.
 		if (state == Qt::WindowMaximized) {
@@ -614,7 +618,15 @@ void MainWindow::handleStateChanged(Qt::WindowState state) {
 		&& (Core::App().settings().workMode() == WorkMode::TrayOnly)) {
 		minimizeToTray();
 	}
-	savePosition(state);
+	if (restored && isVisible() && positionInited()) {
+		// Windows can report the state before the restored geometry.
+		if (const auto saved = Core::App().savedWindows()) {
+			saved->scheduleSave();
+		}
+		savePositionToSettings();
+	} else {
+		savePosition(state);
+	}
 }
 
 void MainWindow::handleActiveChanged(bool active) {
