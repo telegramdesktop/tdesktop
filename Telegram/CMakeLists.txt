@@ -1839,6 +1839,9 @@ PRIVATE
     platform/linux/tray_linux.h
     platform/linux/update_install_linux.cpp
     platform/linux/update_install_linux.h
+    platform/linux/widget_helper_linux.cpp
+    platform/linux/widget_lockdown_linux.cpp
+    platform/linux/widget_lockdown_linux.h
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
     platform/mac/global_menu_mac.h

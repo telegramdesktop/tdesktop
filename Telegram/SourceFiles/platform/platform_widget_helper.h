@@ -33,7 +33,7 @@ struct Launched {
 
 } // namespace Platform::WidgetHelper
 
-#if !defined Q_OS_MAC && !defined Q_OS_WIN
+#if !defined Q_OS_MAC && !defined Q_OS_WIN && !defined Q_OS_LINUX
 
 namespace Platform::WidgetHelper {
 
@@ -58,7 +58,7 @@ inline QString Lockdown() {
 
 } // namespace Platform::WidgetHelper
 
-#endif // !Q_OS_MAC && !Q_OS_WIN
+#endif // !Q_OS_MAC && !Q_OS_WIN && !Q_OS_LINUX
 
 #ifdef Q_OS_WIN
 
