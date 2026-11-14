@@ -1491,7 +1491,7 @@ QString DocumentFolder(const Document &data) {
 
 Image ParseDocumentThumb(
 		const MTPDdocument &document,
-		const QString &documentPath) {
+		const QString &thumbPath) {
 	const auto thumbs = document.vthumbs();
 	if (!thumbs) {
 		return Image();
@@ -1543,7 +1543,7 @@ Image ParseDocumentThumb(
 			result.file.content = QByteArray();
 			result.file.size = data.vsize().v;
 		}
-		result.file.suggestedPath = documentPath + "_thumb.jpg";
+		result.file.suggestedPath = thumbPath;
 		return result;
 	});
 }
@@ -1574,7 +1574,9 @@ Document ParseDocument(
 
 		result.thumb = ParseDocumentThumb(
 			data,
-			result.file.suggestedPath);
+			result.file.suggestedPath + (result.isSticker
+				? u"_thumb.webp"_q
+				: u"_thumb.jpg"_q));
 	}, [&](const MTPDdocumentEmpty &data) {
 		result.id = data.vid().v;
 	});
