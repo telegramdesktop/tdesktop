@@ -143,6 +143,10 @@ TextWithEntities View::captionText() const {
 	return _controller->captionText();
 }
 
+int View::musicCaptionSkip() const {
+	return _controller->musicCaptionSkip();
+}
+
 bool View::skipCaption() const {
 	return _controller->skipCaption();
 }
