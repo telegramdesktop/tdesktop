@@ -1478,13 +1478,17 @@ QRect CountInitialGeometry(
 			> screenGeometry.y() + screenGeometry.height())) {
 		return initial.rect();
 	}
+	const auto result = widget->fitFrameInWorkArea(
+		position.rect(),
+		spaceForInner,
+		screen);
 	DEBUG_LOG(("%1 Pos: Resulting geometry is %2, %3, %4, %5"
 		).arg(name
-		).arg(position.x
-		).arg(position.y
-		).arg(position.w
-		).arg(position.h));
-	return position.rect();
+		).arg(result.x()
+		).arg(result.y()
+		).arg(result.width()
+		).arg(result.height()));
+	return result;
 }
 
 } // namespace Window
