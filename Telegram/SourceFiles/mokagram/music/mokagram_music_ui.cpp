@@ -12048,7 +12048,8 @@ void BridgeWriteCover(const AudioMsgId &current, QJsonObject &state) {
 
 void BridgePush(bool force = false) {
 	auto &b = Bridge();
-	if (b.clients.empty()) {
+	// При выходе плеер телеги уничтожается раньше, чем гаснет таймер моста.
+	if (b.clients.empty() || Core::Quitting()) {
 		return;
 	}
 	const auto instance = Media::Player::instance();
@@ -12393,6 +12394,9 @@ void StartShellBridge() {
 	b.timer->setInterval(250);
 	// Плеер создаётся позже запуска моста: до этого его не трогаем.
 	QObject::connect(b.timer, &QTimer::timeout, [] {
+		if (Core::Quitting()) {
+			return;
+		}
 		static const auto started = crl::now();
 		if (crl::now() - started > 8000) {
 			auto &b = Bridge();
