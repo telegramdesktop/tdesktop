@@ -654,10 +654,13 @@ The packs, the fixture and the seams they use need no change for it.
      that call fails.
 
   The filter, built for x86_64 or aarch64, allows reads and writes on the
-  channel and stderr, memory management without executable memory (an
-  executable `mmap` or `mprotect` gets `EPERM`), futexes without priority
-  inheritance, glibc's own thread creation and naming, clocks, sleeps,
-  random bytes and signals to the helper itself. It ends the helper with
+  channel and stderr (the channel's `recvfrom` and `sendto` only
+  with the stream's and the probe's flags and no address; other
+  flags, `MSG_OOB` among them, or an address get `ENOSYS`), memory
+  management without executable memory (an executable `mmap` or
+  `mprotect` gets `EPERM`), futexes without priority inheritance,
+  glibc's own thread creation and naming, clocks, sleeps, random
+  bytes and signals to the helper itself. It ends the helper with
   signal 31 (`SIGSYS`) for `execve`, `execveat`, `socket`, `connect`,
   `ptrace`, `process_vm_readv` and `process_vm_writev`, on x86_64 also
   `fork` and `vfork`, for a `clone` that does not create a thread, and for

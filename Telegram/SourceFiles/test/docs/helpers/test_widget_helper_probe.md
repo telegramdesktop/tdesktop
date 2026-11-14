@@ -278,7 +278,9 @@ Where each reading is taken:
 - The listing peeks at each descriptor with
   `recvfrom(fd, &byte, 0, MSG_DONTWAIT | MSG_PEEK, NULL, NULL)`: `EBADF`
   means closed, any other answer open. The production filter allows that
-  call, and it consumes nothing.
+  call, and it consumes nothing. The filter lets `recvfrom` through only
+  with these flags or 0 and no address; other flags or an address get
+  `ENOSYS`, which would read every descriptor as open.
 - After its lockdown the helper only reads, writes, peeks and allocates.
   Its opens are expected to fail with `ENOSYS`.
 
