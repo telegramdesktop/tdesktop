@@ -55,11 +55,12 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   widget of such a launch dies with `the widget engine process ended`. Each
   refusal counts as a helper failure, so the third probe latches the helper
   for the process.
-- A pristine listing still holds two send rights no reference service
-  matches. They are reported as `UNACCOUNTED` with the annotation
-  `candidate: libtrace firehose push port to logd (unproven by this
-  listing)`, and the summary never calls that inventory clean. Naming them
-  takes a same-process creation trace (see [Verification](#verification)).
+- A pristine listing holds two send rights no reference service matches:
+  libtrace's firehose push ports to logd. The probe names them only through
+  its own [firehose reading](#firehose-reading), made in the same process
+  right after the snapshot it lists, which relies on a private libdispatch
+  layout. When that reading fails, both stay `UNACCOUNTED` and the
+  inventory is not clean.
 - `task_for_pid` fails in the unsandboxed control too (no debugger
   entitlement). The probe also tries it on itself as the API control.
   `task_name_for_pid` is the parent query that only the profile denies.
@@ -116,7 +117,9 @@ come in this order:
   (names, rights, urefs, objects).
 - `lockdown: ok|FAILED|skipped` and `state: sandboxed=<sandbox_check>
   nofile=<soft>/<hard>`.
-- One `fd` row per entry of `PROC_PIDLISTFDS`, and one `mach` row per
+- One `fd` row per entry of `PROC_PIDLISTFDS`. Then the `mach:` count, the
+  `mach identities:` row, the `firehose:` row of the
+  [firehose reading](#firehose-reading), and one `mach` row per
   `mach_port_space_info` entry, tree entries included, each with its
   `class=`.
 - One `attempt <name>: <code> <detail>` row per attempt.
@@ -138,11 +141,14 @@ The classes are matched against actual self references:
 - the kernel semaphore, clock and voucher objects;
 - `bootstrap_port`, own receive and send-receive rights, port sets and dead
   names;
-- `libSystem service com.apple.logd` and `com.apple.system.notification_center`.
+- `libSystem service com.apple.logd` and `com.apple.system.notification_center`;
+- `libSystem firehose push port`, only for the two names that the firehose
+  reading of the same helper accepted.
 
 A right to any other reference service, any other kernel object, a thread or
 task port that is not the helper's own, or a failed identity query is a
-defect or a failure. Any other send right is `UNACCOUNTED`.
+defect or a failure. Any other send right is `UNACCOUNTED: a send right to no
+reference service`, with no guess at its owner.
 
 Attempt codes are `ok`, an errno name, `kr<n>`, `status<n>`, `denied` or
 `allowed` for `sandbox_check` readings, or `INCOMPLETE` with the missing
@@ -153,20 +159,78 @@ own denial.
 The refusal is `the engine process refused the stream: widget helper probe
 ...`, kept under 3900 bytes. It holds the pid, mode, lockdown and state,
 `inventory: clean` or `inventory: NOT clean (<reasons>)`, the fd and per-class
-Mach counts, every failure, defect and unaccounted entry, and every attempt as
-`name=code`. It ends by naming the stderr rows and their last row. `inventory:
-clean` needs a successful lockdown in `probe`, no failure, defect, unaccounted
-entry, cut row or write error, and no injected fixture. `unaccounted: none`
+Mach counts (`firehose push ports` among them), every failure, defect, failed
+firehose reading and unaccounted entry, and every attempt as `name=code`. It
+ends by naming the stderr rows and their last row. `inventory: clean` needs a
+successful lockdown in `probe`, no failure, defect, unaccounted entry, cut row
+or write error, and no injected fixture. A clean inventory thus accounts for
+libtrace's two push ports only through the reading made in the same helper;
+any other unknown send right still makes it not clean. `unaccounted: none`
 appears only on a complete listing. Otherwise it reads `unaccounted: unknown
 (listing incomplete)`. When items do not fit, the summary says `SUMMARY
 CUT ... INCOMPLETE` and the stderr listing stays authoritative.
 
+### Firehose reading
+
+The probe reads libdispatch's firehose buffer header right after the snapshot
+that the `mach` rows list, before the descriptor listing, any listing row and
+every attempt:
+
+1. logd's name is the listing's send right whose object is the found
+   `com.apple.logd` reference's. The name the lookup returned is not used:
+   it was released before the lockdown.
+2. libdispatch's exported `voucher_activity_get_metadata_buffer()` returns
+   the libtrace metadata that ends the header, which is the 4096-byte chunk
+   ending there. The pointer, length and chunk end are checked first, and
+   `mach_vm_region()` on the helper's own task must show the whole chunk
+   mapped and readable before any word of it is read. An object-name right
+   that call returns is released before the reading ends.
+3. The words before the metadata are copied once and scanned for every place
+   where logd's name is followed by two valid names. Exactly one is
+   required. In the observed layout that place is the header's logd port, its
+   two push ports, then the buffer's own port (the row's `next word`).
+4. A second snapshot, taken right after the reading, must equal the listed
+   one.
+5. The two names must differ from each other and from logd, and each must be
+   a plain send right in the listing that no earlier class takes: not
+   `mach_task_self()` or `bootstrap_port`, no kernel object and no reference
+   service.
+
+Only then are both names classified; otherwise neither is. The accepted row
+reads `firehose: libtrace push ports <a> <b> accepted, ...` with the header
+range, logd's name, the match count, the offset and the word after the pair,
+and the confirming snapshot's entry count. A failed reading writes `firehose:
+FAILED <reason>; no right is classified by it`, with the reading when there
+was one, and adds `firehose: FAILED <reason>` to the summary before the
+unaccounted items. Its reasons are `no logd name: ...`, `no firehose header
+(...)`, `firehose header ... not readable: ...`, `logd <name> found <n> times
+in the firehose header`, a changed or unreadable space after the reading, and
+a candidate that repeats the other name or logd's, is absent from the
+listing, is not a plain send right or belongs to an earlier class. A failed
+reading is not an enumeration failure: the listing stays complete, and its
+`UNACCOUNTED` rows, not the reading, make the inventory not clean. When the
+Mach listing itself failed, nothing is read and no `firehose:` row is
+written.
+
+The reader asks for no right and reads only the helper's own memory, but the
+private export can lazily initialize libdispatch's buffer in a process whose
+logging has not started yet (a logd lookup and the buffer's own ports). The
+confirming snapshot catches a net change in the space, not a transient
+allocation. The traced runs under [Verification](#verification) found the
+buffer initialized before `main`, by Qt's `+load` logging; that is an
+observation, not a guarantee for every future helper. The scan relies on a
+private layout and cannot prove it: a changed layout can leave no single
+match, which only fails the reading, or match unrelated words, so a reading
+on another macOS is trusted only once its names were joined with that
+helper's own rows.
+
 ## Lifetime and cleanup
 
 The probe keeps no state. It releases every array, looked-up right, task,
-thread and host right, IOKit object and CF object it takes, and reaps a
-successful `fork` or `posix_spawn` child within 2 s (`SIGKILL` and another
-second otherwise). Near its end it closes stdin and tries a socket again.
+thread and host right, IOKit object and CF object it takes, and any
+object-name right `mach_vm_region()` returns. It reaps a successful `fork`
+or `posix_spawn` child within 2 s (`SIGKILL` and another second otherwise).
+Near its end it closes stdin and tries a socket again.
 The helper exits after the refusal. The overlay owns the keychain item, the
 listener and the restoration of `SecKeychainSetUserInteractionAllowed`.
 
@@ -207,7 +271,8 @@ control, and both again with `connect-control`.
   `/dev/null`, 2 the parent's stderr, 3 the `AF_UNIX` stream to the
   client. 19 Mach entries: task, thread, unprivileged host, bootstrap,
   semaphore, clock, voucher, 5 own receive and 3 own send-receive rights,
-  logd, notifyd, and two send rights reported `UNACCOUNTED`.
+  logd, notifyd, and two send rights that the probe then reported
+  `UNACCOUNTED`.
 - Same-process attribution: a rerun added a disposable overlay hunk to the
   probe that, right after the post-lockdown listing, read libdispatch's
   firehose buffer header through `voucher_activity_get_metadata_buffer()`.
@@ -215,8 +280,8 @@ control, and both again with `connect-control`.
   counts, the header held the listing's logd name followed by exactly the
   two `UNACCOUNTED` names, and the buffer's receive right was one of the
   own send-receive rows. The `probe-unsandboxed` helper's reading matched
-  its own rows the same way. The probe itself still reports the two as
-  unaccounted.
+  its own rows the same way. At the time, the probe itself still reported
+  the two as unaccounted.
 - Creation trace: a tracer injected into a re-signed clone of the final
   bundle ran `probe` with a valid opening, and its complete listing had the
   same composition. Both names were created by libdispatch's
@@ -225,9 +290,10 @@ control, and both again with `connect-control`.
   header reading in that process found the same two names. They are
   libtrace's firehose push ports to logd.
 
-Limits: one macOS version (27.0.1), ad hoc signatures, and the header
-reading is an overlay technique that relies on a private libdispatch
-layout; the probe has no such reading.
+Limits: one macOS version (27.0.1) and ad hoc signatures. The header
+reading relies on a private libdispatch layout. In these runs it was an
+overlay technique; the probe's own [firehose reading](#firehose-reading)
+now makes it and has the same limit.
 
 ## Related guidance
 

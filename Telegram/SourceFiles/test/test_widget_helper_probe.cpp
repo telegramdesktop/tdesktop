@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <IOKit/IOKitLib.h>
 #include <Security/Security.h>
 #include <mach/mach.h>
+#include <mach/mach_vm.h>
 #include <mach_debug/mach_debug.h>
 #include <netinet/in.h>
 #include <servers/bootstrap.h>
@@ -49,11 +50,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <thread>
 #include <vector>
 
-// Exported by libsystem_sandbox and CoreGraphics (SkyLight), declared in no
-// SDK header: the policy reading of a process and its window server
-// connection (0 when there is none and none can be made).
+// Exported by libsystem_sandbox, CoreGraphics (SkyLight) and libdispatch,
+// declared in no SDK header: the policy reading of a process, its window
+// server connection (0 when there is none and none can be made) and the
+// libtrace metadata at the end of the process's firehose buffer header
+// (NULL with a zero length when logging is disabled).
 extern "C" int sandbox_check(pid_t pid, const char *operation, int type, ...);
 extern "C" int CGSMainConnectionID(void);
+extern "C" void *voucher_activity_get_metadata_buffer(size_t *length);
 #endif // Q_OS_MAC
 
 namespace Test {
@@ -164,6 +168,15 @@ struct MachSnapshot {
 	mach_msg_type_number_t treeSize = 0;
 };
 
+// The names after logd's in libdispatch's firehose buffer header: the
+// first match of `matches`, with the header range and offset in `text`.
+struct FirehoseReading {
+	std::array<mach_port_name_t, 2> push = {};
+	std::string text;
+	std::string error;
+	int matches = 0;
+};
+
 struct Descriptor {
 	std::string identity;
 	std::string kindName;
@@ -211,6 +224,7 @@ struct Counts {
 	int portSet = 0;
 	int deadName = 0;
 	int libSystem = 0;
+	int firehose = 0;
 };
 
 [[nodiscard]] std::string Format(const char *format, ...)
@@ -680,6 +694,100 @@ const std::string &Report::prefix() const {
 	return result;
 }
 
+[[nodiscard]] FirehoseReading ReadFirehosePorts(mach_port_name_t logd) {
+	// The header is one chunk; the metadata returned ends it.
+	constexpr auto kChunk = size_t(4096);
+	constexpr auto kWords = kChunk / sizeof(mach_port_name_t);
+	auto result = FirehoseReading();
+	auto length = size_t();
+	const auto metadata = voucher_activity_get_metadata_buffer(&length);
+	const auto begin = mach_vm_address_t(reinterpret_cast<uintptr_t>(metadata));
+	const auto end = begin + length;
+	if (!metadata
+		|| !length
+		|| length >= kChunk
+		|| end < begin
+		|| (end % kChunk)) {
+		result.error = Format(
+			"no firehose header (metadata %p, %zu bytes)",
+			metadata,
+			length);
+		return result;
+	}
+	const auto start = end - kChunk;
+	const auto range = Format(
+		"firehose header 0x%llx..0x%llx",
+		(unsigned long long)start,
+		(unsigned long long)end);
+	auto address = mach_vm_address_t(start);
+	auto size = mach_vm_size_t();
+	auto info = vm_region_basic_info_data_64_t();
+	auto count = mach_msg_type_number_t(VM_REGION_BASIC_INFO_COUNT_64);
+	auto object = mach_port_t(MACH_PORT_NULL);
+	const auto release = gsl::finally([&] {
+		if (MACH_PORT_VALID(object)) {
+			mach_port_deallocate(mach_task_self(), object);
+		}
+	});
+	const auto kr = mach_vm_region(
+		mach_task_self(),
+		&address,
+		&size,
+		VM_REGION_BASIC_INFO_64,
+		vm_region_info_t(&info),
+		&count,
+		&object);
+	if (kr != KERN_SUCCESS) {
+		result.error = range + " not readable: " + KernText(kr);
+		return result;
+	} else if (address > start
+		|| size < end - address
+		|| !(info.protection & VM_PROT_READ)) {
+		result.error = range + Format(
+			" not readable: region 0x%llx size 0x%llx protection 0x%x",
+			(unsigned long long)address,
+			(unsigned long long)size,
+			unsigned(info.protection));
+		return result;
+	}
+
+	// logd's port, the two push ports, then the buffer's own port.
+	auto words = std::array<mach_port_name_t, kWords>();
+	const auto limit = (kChunk - length) / sizeof(mach_port_name_t);
+	std::memcpy(
+		words.data(),
+		reinterpret_cast<const void*>(uintptr_t(start)),
+		limit * sizeof(mach_port_name_t));
+	auto offset = size_t();
+	auto next = mach_port_name_t(MACH_PORT_NULL);
+	for (auto i = size_t(); i + 3 < limit; ++i) {
+		if (words[i] != logd
+			|| !MACH_PORT_VALID(words[i + 1])
+			|| !MACH_PORT_VALID(words[i + 2])) {
+			continue;
+		} else if (!result.matches) {
+			result.push = { words[i + 1], words[i + 2] };
+			next = words[i + 3];
+			offset = i * sizeof(mach_port_name_t);
+		}
+		++result.matches;
+	}
+	result.text = range + Format(
+		" (metadata %zu bytes at its end), logd 0x%x found %d time(s)",
+		length,
+		logd,
+		result.matches);
+	if (result.matches) {
+		result.text += Format(
+			", first at offset %zu: push 0x%x 0x%x, next word 0x%x",
+			offset,
+			result.push[0],
+			result.push[1],
+			next);
+	}
+	return result;
+}
+
 [[nodiscard]] std::string DescriptorPath(int fd) {
 	char path[MAXPATHLEN] = { 0 };
 	return (fcntl(fd, F_GETPATH, path) == 0)
@@ -960,14 +1068,15 @@ private:
 	void preopen();
 	void reportPreLockdown();
 	void lockDown();
+	void readFirehose();
+	[[nodiscard]] std::string firehoseRefusal(mach_port_name_t name) const;
 	void listDescriptors();
 	void listMach();
 	void classifyEntry(
 		const MachEntry &entry,
 		const std::vector<mach_port_name_t> &threads,
 		mach_port_name_t host,
-		mach_port_name_t taskName,
-		bool logd);
+		mach_port_name_t taskName);
 	[[nodiscard]] std::string receiveStatus(mach_port_name_t name);
 	[[nodiscard]] std::string portSetMembers(mach_port_name_t name);
 
@@ -1017,6 +1126,9 @@ private:
 	std::vector<ReferenceReading> _references;
 	std::vector<std::string> _referenceChanges;
 	std::vector<std::string> _lockdownChanges;
+	std::vector<mach_port_name_t> _firehoseNames;
+	std::string _firehoseRow;
+	std::string _firehoseFailure;
 	Descriptors _descriptors;
 	std::string _parentStderr;
 	std::string _ownStderr;
@@ -1032,7 +1144,6 @@ private:
 	OwnedFd _preopened;
 	int _preopenError = 0;
 	int _incomplete = 0;
-	bool _logd = false;
 
 };
 
@@ -1060,6 +1171,7 @@ std::string Probe::run() {
 	reportPreLockdown();
 	lockDown();
 	_post = SnapshotMach();
+	readFirehose();
 	if (_referenced.error.empty() && _post.error.empty()) {
 		_lockdownChanges = CompareSnapshots(_referenced, _post);
 	}
@@ -1213,6 +1325,145 @@ void Probe::lockDown() {
 				(unsigned long long)limit.rlim_max).c_str()
 			: ("?" + ErrnoCode(errno)).c_str());
 	_report.row("state: " + _state);
+}
+
+void Probe::readFirehose() {
+	if (!_post.error.empty()) {
+		return;
+	}
+	const auto refuse = [&](
+			const std::string &reason,
+			const std::string &text) {
+		_firehoseFailure = reason;
+		_firehoseRow = "firehose: FAILED "
+			+ reason
+			+ "; no right is classified by it"
+			+ (text.empty() ? std::string() : (" (reading: " + text + ")"));
+	};
+	const auto reference = [&]() -> const ReferenceReading* {
+		for (const auto &reading : _references) {
+			if (reading.found && reading.service == "com.apple.logd") {
+				return &reading;
+			}
+		}
+		return nullptr;
+	}();
+	if (!reference) {
+		refuse(
+			"no logd name: the com.apple.logd reference found no port",
+			std::string());
+		return;
+	}
+	auto logd = mach_port_name_t(MACH_PORT_NULL);
+	for (const auto &entry : _post.entries) {
+		if (entry.object == reference->object
+			&& (entry.type & MACH_PORT_TYPE_SEND)) {
+			logd = entry.name;
+			break;
+		}
+	}
+	if (!MACH_PORT_VALID(logd)) {
+		refuse(
+			Format(
+				"no logd name: the listing holds no send right to"
+				" com.apple.logd's port (object 0x%x)",
+				reference->object),
+			std::string());
+		return;
+	}
+
+	// Read right after the listing's snapshot, then confirm it at once.
+	const auto reading = ReadFirehosePorts(logd);
+	const auto after = SnapshotMach();
+	const auto changes = after.error.empty()
+		? CompareSnapshots(_post, after)
+		: std::vector<std::string>();
+	const auto [first, second] = reading.push;
+	auto refusal = std::string();
+	if (!reading.error.empty()) {
+		refusal = reading.error;
+	} else if (reading.matches != 1) {
+		refusal = Format(
+			"logd 0x%x found %d times in the firehose header",
+			logd,
+			reading.matches);
+	} else if (!after.error.empty()) {
+		refusal = "the space after the reading: " + after.error;
+	} else if (!changes.empty()) {
+		refusal = Format(
+			"the space changed across the reading (%d entries, first %s)",
+			int(changes.size()),
+			changes.front().c_str());
+	} else if (first == second || first == logd || second == logd) {
+		refusal = Format(
+			"push names 0x%x 0x%x are not two names other than logd 0x%x",
+			first,
+			second,
+			logd);
+	} else {
+		refusal = firehoseRefusal(first);
+		if (refusal.empty()) {
+			refusal = firehoseRefusal(second);
+		}
+	}
+	if (!refusal.empty()) {
+		refuse(refusal, reading.text);
+		return;
+	}
+	_firehoseNames = { first, second };
+	_firehoseRow = Format(
+		"firehose: libtrace push ports 0x%x 0x%x accepted, read in this"
+		" process after the listing's snapshot: ",
+		first,
+		second)
+		+ reading.text
+		+ Format(
+			"; the space after the reading equals that snapshot: %d entries"
+			" equal in name, rights, urefs and object",
+			int(after.entries.size()));
+}
+
+std::string Probe::firehoseRefusal(mach_port_name_t name) const {
+	const auto entry = FindEntry(_post, name);
+	if (!entry) {
+		return Format("0x%x is not in the listing", name);
+	} else if ((entry->type & MACH_PORT_TYPE_ALL_RIGHTS)
+		!= MACH_PORT_TYPE_SEND) {
+		return Format(
+			"0x%x holds %s, not a plain send right",
+			name,
+			RightsText(entry->type).c_str());
+	} else if (name == mach_task_self()) {
+		return Format("0x%x is mach_task_self()", name);
+	} else if (name == bootstrap_port) {
+		return Format("0x%x is the bootstrap port", name);
+	}
+	auto type = ipc_info_object_type_t(IPC_OTYPE_NONE);
+	auto address = mach_vm_address_t();
+	const auto kernel = mach_port_kobject(
+		mach_task_self(),
+		name,
+		&type,
+		&address);
+	if (kernel != KERN_SUCCESS) {
+		return Format("0x%x kernel object query failed: ", name)
+			+ KernText(kernel);
+	} else if (type != IPC_OTYPE_NONE && type != IPC_OTYPE_UNKNOWN) {
+		return Format(
+			"0x%x is a kernel object %d/%s",
+			name,
+			int(type),
+			KernelTypeName(type));
+	}
+	for (const auto &reading : _references) {
+		if (reading.found && reading.object == entry->object) {
+			return Format(
+				"0x%x is the right to %s",
+				name,
+				reading.service.c_str());
+		}
+	}
+	return std::string();
 }
 
 void Probe::listDescriptors() {
@@ -1370,8 +1621,7 @@ void Probe::classifyEntry(
 		const MachEntry &entry,
 		const std::vector<mach_port_name_t> &threads,
 		mach_port_name_t host,
-		mach_port_name_t taskName,
-		bool logd) {
+		mach_port_name_t taskName) {
 	auto type = ipc_info_object_type_t(IPC_OTYPE_NONE);
 	auto address = mach_vm_address_t();
 	const auto ports = MACH_PORT_TYPE_SEND
@@ -1472,12 +1722,11 @@ void Probe::classifyEntry(
 		} else {
 			defect = "service " + service->service;
 		}
+	} else if (ranges::contains(_firehoseNames, entry.name)) {
+		label = "libSystem firehose push port";
+		++_counts.firehose;
 	} else if (send || sendOnce) {
 		unaccounted = "a send right to no reference service";
-		if (logd && send && !sendOnce) {
-			unaccounted += "; candidate: libtrace firehose push port to logd"
-				" (unproven by this listing)";
-		}
 	} else {
 		unaccounted = "no rights";
 	}
@@ -1582,19 +1831,6 @@ void Probe::listMach() {
 				+ KernText(kr));
 		}
 	}
-	_logd = false;
-	for (const auto &reading : _references) {
-		if (reading.libSystem
-			&& reading.service == "com.apple.logd"
-			&& reading.found) {
-			for (const auto &entry : _post.entries) {
-				if (entry.object == reading.object
-					&& (entry.type & MACH_PORT_TYPE_SEND)) {
-					_logd = true;
-				}
-			}
-		}
-	}
 	_report.row(Format(
 		"mach identities: task=0x%x threads=%d host=0x%x task-name=0x%x"
 		" bootstrap=0x%x",
@@ -1603,8 +1839,11 @@ void Probe::listMach() {
 		host,
 		taskName,
 		bootstrap_port));
+	if (!_firehoseRow.empty()) {
+		_report.row(_firehoseRow);
+	}
 	for (const auto &entry : _post.entries) {
-		classifyEntry(entry, threads, host, taskName, _logd);
+		classifyEntry(entry, threads, host, taskName);
 	}
 }
 
@@ -2322,7 +2561,7 @@ std::string Probe::summary() const {
 			"mach %d: task %d, thread %d, host %d, semaphore %d, clock %d,"
 			" voucher %d, task-name %d, bootstrap %d, receive %d,"
 			" send-receive %d, port-set %d, dead %d, libSystem services %d,"
-			" defects %d, unaccounted %d",
+			" firehose push ports %d, defects %d, unaccounted %d",
 			int(_post.entries.size()),
 			_counts.task,
 			_counts.thread,
@@ -2337,6 +2576,7 @@ std::string Probe::summary() const {
 			_counts.portSet,
 			_counts.deadName,
 			_counts.libSystem,
+			_counts.firehose,
 			int(_defects.size()),
 			int(_unaccounted.size()))
 		: std::string("mach: listing FAILED");
@@ -2361,6 +2601,9 @@ std::string Probe::summary() const {
 	}
 	for (const auto &defect : _defects) {
 		items.push_back("defect: " + defect);
+	}
+	if (!_firehoseFailure.empty()) {
+		items.push_back("firehose: FAILED " + _firehoseFailure);
 	}
 	if (_unaccounted.empty()) {
 		items.push_back(complete
