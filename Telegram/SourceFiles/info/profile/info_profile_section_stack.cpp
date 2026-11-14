@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
@@ -68,6 +69,7 @@ namespace {
 }
 
 constexpr auto kCardRadius = 28;
+constexpr auto kCardInset = 4;
 
 // Mokagram: секция профиля как отдельная скруглённая таблетка.
 // Фон рисуется под содержимым, а углы закрывают четыре маленьких виджета
@@ -296,16 +298,29 @@ void SectionStack::finalize() {
 		case RowType::Block: {
 			auto shown = shownOrTrue(std::move(row.shown));
 			const auto inner = row.widget.data();
-			if (!row.bare) {
-				MakeCard(inner);
-			}
 			// Карточки разной природы дают разные внешние поля (0 или 5),
 			// выравниваем так, чтобы видимая ширина везде была одинаковой.
 			const auto side = 11 + inner->getMargins().left();
+			auto content = std::move(row.widget);
+			if (!row.bare) {
+				// Mokagram: строки внутри карточки с отступом, как в
+				// настройках, чтобы подсветка была таблеткой, а не резалась
+				// углами карточки.
+				auto padded = object_ptr<Ui::PaddingWrap<Ui::RpWidget>>(
+					_layout,
+					std::move(content),
+					style::margins(
+						kCardInset,
+						kCardInset,
+						kCardInset,
+						kCardInset));
+				MakeCard(padded.data());
+				content = std::move(padded);
+			}
 			const auto wrap = _layout->add(
 				object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
 					_layout,
-					std::move(row.widget),
+					std::move(content),
 					QMargins(side, 0, side, 12)),
 				QMargins(),
 				style::al_justify);
