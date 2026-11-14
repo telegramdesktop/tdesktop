@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/widget_sandbox_win.h"
 
+#include "base/platform/win/base_windows_safe_library.h"
 #include "base/platform/base_platform_info.h"
-#include "core/version.h"
 
 #include <QtCore/QOperatingSystemVersion>
 
@@ -16,12 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <bcrypt.h>
 #include <delayimp.h>
 #include <process.h>
+#include <userenv.h>
+#include <winternl.h>
 
 #include <span>
 
 namespace Platform::WidgetHelper {
 namespace {
 
+constexpr auto kAppContainerName = L"telegram.desktop.widget-helper";
+constexpr auto kLessPrivilegedName = L"WIN://NOALLAPPPKG";
 constexpr auto kChangeNotifyPrivilege = LUID{ .LowPart = 23 };
 constexpr auto kWarmUpRandomBytes = 16;
 constexpr auto kProbePathCapacity = DWORD(32768);
@@ -44,6 +48,17 @@ constexpr auto kJobUiRestrictions = DWORD(JOB_OBJECT_UILIMIT_HANDLES
 using Check = QString(*)(HANDLE token);
 using Step = QString(*)();
 using Ran = std::shared_ptr<std::atomic<bool>>;
+using DeriveSid = decltype(&::DeriveAppContainerSidFromAppContainerName);
+using CreateLowBoxToken = NTSTATUS(NTAPI*)(
+	PHANDLE token,
+	HANDLE existing,
+	ACCESS_MASK access,
+	POBJECT_ATTRIBUTES attributes,
+	PSID package,
+	ULONG capabilityCount,
+	PSID_AND_ATTRIBUTES capabilities,
+	ULONG handleCount,
+	HANDLE *handles);
 
 struct Buffer {
 	std::vector<std::byte> bytes;
@@ -53,6 +68,27 @@ struct Buffer {
 struct Token {
 	UniqueHandle handle;
 	QString error;
+};
+
+struct Package {
+	std::vector<std::byte> sid;
+	QString error;
+};
+
+struct SecurityAttribute {
+	UNICODE_STRING name = {};
+	USHORT valueType = 0;
+	USHORT reserved = 0;
+	ULONG flags = 0;
+	ULONG valueCount = 0;
+	const void *values = nullptr;
+};
+
+struct SecurityAttributes {
+	USHORT version = 0;
+	USHORT reserved = 0;
+	ULONG count = 0;
+	const SecurityAttribute *attributes = nullptr;
 };
 
 struct PolicyFunctions {
@@ -129,6 +165,21 @@ template <typename Type>
 		const Buffer &buffer) {
 	const auto groups = As<TOKEN_GROUPS>(buffer);
 	return { groups->Groups, groups->GroupCount };
+}
+
+template <typename Type>
+[[nodiscard]] bool Within(
+		const Buffer &buffer,
+		const Type *pointer,
+		std::size_t count) {
+	const auto begin = reinterpret_cast<std::uintptr_t>(buffer.bytes.data());
+	const auto at = reinterpret_cast<std::uintptr_t>(pointer);
+	const auto size = buffer.bytes.size();
+	return !count
+		|| ((at >= begin)
+			&& !(at % alignof(Type))
+			&& (at - begin <= size)
+			&& (count <= (size - (at - begin)) / sizeof(Type)));
 }
 
 [[nodiscard]] const Buffer *Failed(
@@ -319,6 +370,62 @@ template <typename Type>
 	return QString();
 }
 
+[[nodiscard]] QString CheckLessPrivileged(
+		const Buffer &attributes,
+		AppContainerLevel level) {
+	const auto information = As<SecurityAttributes>(attributes);
+	const auto records = information->attributes;
+	const auto count = std::size_t(information->count);
+	const auto malformed = u"the token's security attributes are malformed"_q;
+	if (information->version
+		!= CLAIM_SECURITY_ATTRIBUTES_INFORMATION_VERSION_V1) {
+		return u"the token's security attributes version is %1"_q.arg(
+			information->version);
+	} else if (!Within(attributes, records, count)) {
+		return malformed;
+	}
+	auto found = static_cast<const SecurityAttribute*>(nullptr);
+	for (const auto &record : std::span(records, count)) {
+		const auto &name = record.name;
+		const auto length = name.Length / sizeof(WCHAR);
+		if ((name.Length % sizeof(WCHAR))
+			|| !Within(attributes, name.Buffer, length)) {
+			return malformed;
+		} else if (CompareStringOrdinal(
+				name.Buffer,
+				int(length),
+				kLessPrivilegedName,
+				-1,
+				TRUE) != CSTR_EQUAL) {
+			continue;
+		} else if (found) {
+			return malformed;
+		}
+		found = &record;
+	}
+	if (found) {
+		const auto value = static_cast<const ULONG64*>(found->values);
+		if (found->valueType != CLAIM_SECURITY_ATTRIBUTE_TYPE_UINT64) {
+			return u"the token's WIN://NOALLAPPPKG type is %1"_q.arg(
+				found->valueType);
+		} else if (found->valueCount != 1) {
+			return u"the token's WIN://NOALLAPPPKG has %1 values"_q.arg(
+				found->valueCount);
+		} else if (!Within(attributes, value, 1)) {
+			return malformed;
+		} else if (*value != 1) {
+			return u"the token's WIN://NOALLAPPPKG value is %1"_q.arg(*value);
+		}
+	}
+	const auto less = (found != nullptr);
+	if (less == (level == AppContainerLevel::LessPrivileged)) {
+		return QString();
+	}
+	return less
+		? u"the token is a less privileged AppContainer token"_q
+		: u"the token is not a less privileged AppContainer token"_q;
+}
+
 [[nodiscard]] QString FirstError(
 		HANDLE token,
 		std::initializer_list<Check> checks) {
@@ -395,6 +502,84 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 		&& available(USER_CET_ENVIRONMENT_WIN32_PROCESS);
 }
 
+[[nodiscard]] CreateLowBoxToken ResolvedCreateLowBox() {
+	static const auto result = [] {
+		auto function = CreateLowBoxToken();
+		if (const auto ntdll = GetModuleHandleW(L"ntdll.dll")) {
+			Resolve(ntdll, function, "NtCreateLowBoxToken");
+		}
+		return function;
+	}();
+	return result;
+}
+
+[[nodiscard]] Package DerivePackage() {
+	auto derive = DeriveSid();
+	const auto userenv = base::Platform::SafeLoadLibrary(L"userenv.dll");
+	if (!base::Platform::LoadMethod(
+			userenv,
+			"DeriveAppContainerSidFromAppContainerName",
+			derive)) {
+		return {
+			.error = u"DeriveAppContainerSidFromAppContainerName "
+				"is not available"_q,
+		};
+	}
+	auto sid = PSID();
+	const auto derived = derive(kAppContainerName, &sid);
+	if (FAILED(derived)) {
+		return {
+			.error = u"DeriveAppContainerSidFromAppContainerName "
+				"failed: 0x%1"_q.arg(uint(derived), 0, 16),
+		};
+	}
+	const auto guard = gsl::finally([&] {
+		FreeSid(sid);
+	});
+	const auto bytes = static_cast<const std::byte*>(sid);
+	return {
+		.sid = std::vector<std::byte>(bytes, bytes + GetLengthSid(sid)),
+	};
+}
+
+[[nodiscard]] const Package &ExpectedPackage() {
+	static const auto result = DerivePackage();
+	return result;
+}
+
+[[nodiscard]] Token CreateLowBox(HANDLE base) {
+	const auto create = ResolvedCreateLowBox();
+	const auto &package = ExpectedPackage();
+	if (!create) {
+		return { .error = u"NtCreateLowBoxToken is not available"_q };
+	} else if (!package.error.isEmpty()) {
+		return { .error = package.error };
+	}
+	auto attributes = OBJECT_ATTRIBUTES{
+		.Length = ULONG(sizeof(OBJECT_ATTRIBUTES)),
+	};
+	auto token = HANDLE();
+	const auto status = create(
+		&token,
+		base,
+		TOKEN_ALL_ACCESS,
+		&attributes,
+		const_cast<std::byte*>(package.sid.data()),
+		0,
+		nullptr,
+		0,
+		nullptr);
+	if (!NT_SUCCESS(status)) {
+		return {
+			.error = u"NtCreateLowBoxToken failed: status 0x%1"_q.arg(
+				uint(status),
+				0,
+				16),
+		};
+	}
+	return { .handle = UniqueHandle(token) };
+}
+
 template <typename Policy>
 [[nodiscard]] Mitigation Expectation(
 		PROCESS_MITIGATION_POLICY policy,
@@ -415,6 +600,8 @@ template <typename Policy>
 		|| ::Platform::IsWindowsARM64();
 	auto result = Policies{
 		.childProcess = PROCESS_CREATION_CHILD_PROCESS_RESTRICTED,
+		.allApplicationPackages
+			= PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT,
 	};
 	auto &words = result.creation;
 	auto &expected = result.mitigations;
@@ -565,6 +752,10 @@ template <typename Policy>
 			0,
 			16);
 	}
+	const auto &package = ExpectedPackage();
+	if (!package.error.isEmpty()) {
+		return package.error;
+	}
 	auto bytes = std::array<UCHAR, kWarmUpRandomBytes>();
 	const auto status = BCryptGenRandom(
 		nullptr,
@@ -678,25 +869,6 @@ template <typename Read>
 	}
 	result.resize(length);
 	return result;
-}
-
-[[nodiscard]] std::wstring ClientDirectory(const std::wstring &appData) {
-	const auto executable = ReadPath([](wchar_t *buffer, DWORD size) {
-		return GetModuleFileNameW(nullptr, buffer, size);
-	});
-	const auto slash = executable.find_last_of(L'\\');
-	if (slash != std::wstring::npos) {
-		const auto portable = executable.substr(0, slash + 1)
-			+ L"TelegramForcePortable";
-		const auto attributes = GetFileAttributesW(portable.c_str());
-		if (attributes != INVALID_FILE_ATTRIBUTES
-			&& (attributes & FILE_ATTRIBUTE_DIRECTORY)) {
-			return portable;
-		}
-	}
-	return appData.empty()
-		? std::wstring()
-		: (appData + L'\\' + AppName.utf16().toStdWString());
 }
 
 [[nodiscard]] DWORD OpenDirectory(const std::wstring &path) {
@@ -846,25 +1018,29 @@ void PrepareProbeNetwork(Probe &probe) {
 			Outcome(DWORD(error))));
 }
 
-void PrepareProbeTargets(Probe &probe) {
+void PrepareProbeTargets(Probe &probe, const QString &clientDirectory) {
 	const auto appData = ReadPath([](wchar_t *buffer, DWORD size) {
 		return GetEnvironmentVariableW(L"APPDATA", buffer, size);
 	});
 	const auto current = ReadPath([](wchar_t *buffer, DWORD size) {
 		return GetCurrentDirectoryW(size, buffer);
 	});
-	probe.directories = {
-		{ u"helper working directory"_q, current },
-		{ u"client working directory"_q, ClientDirectory(appData) },
-		{ u"APPDATA"_q, appData },
-	};
-	for (const auto &directory : probe.directories) {
+	const auto add = [&](const QString &name, const std::wstring &path) {
+		probe.directories.push_back({ name, path });
 		probe.lines.push_back(u"before lowering: %1 %2: "
 			"FILE_LIST_DIRECTORY %3"_q.arg(
-				directory.name,
-				QString::fromStdWString(directory.path),
-				Outcome(OpenDirectory(directory.path))));
+				name,
+				QString::fromStdWString(path),
+				Outcome(OpenDirectory(path))));
+	};
+	add(u"helper working directory"_q, current);
+	if (clientDirectory.isEmpty()) {
+		probe.lines.push_back(
+			u"before lowering: client working directory: not given"_q);
+	} else {
+		add(u"client working directory"_q, clientDirectory.toStdWString());
 	}
+	add(u"APPDATA"_q, appData);
 	probe.lines.push_back(u"before lowering: HKEY_CURRENT_USER\\Software: "
 		"RegOpenKeyExW "_q + Outcome(OpenKey(HKEY_CURRENT_USER, L"Software")));
 	const auto system = ReadPath([](wchar_t *buffer, DWORD size) {
@@ -1170,9 +1346,17 @@ Tokens CreateTokens() {
 	if (!restricted.error.isEmpty()) {
 		return { .error = std::move(restricted.error) };
 	}
+	auto boxedLockdown = CreateLowBox(lockdown.handle.get());
+	if (!boxedLockdown.error.isEmpty()) {
+		return { .error = std::move(boxedLockdown.error) };
+	}
+	auto boxedRestricted = CreateLowBox(restricted.handle.get());
+	if (!boxedRestricted.error.isEmpty()) {
+		return { .error = std::move(boxedRestricted.error) };
+	}
 	auto initial = HANDLE();
 	if (!DuplicateTokenEx(
-			restricted.handle.get(),
+			boxedRestricted.handle.get(),
 			TOKEN_IMPERSONATE | TOKEN_QUERY,
 			nullptr,
 			SecurityImpersonation,
@@ -1181,7 +1365,7 @@ Tokens CreateTokens() {
 		return { .error = SystemError("DuplicateTokenEx", GetLastError()) };
 	}
 	auto result = Tokens{
-		.lockdown = std::move(lockdown.handle),
+		.lockdown = std::move(boxedLockdown.handle),
 		.initial = UniqueHandle(initial),
 	};
 	auto error = CheckLockdownToken(result.lockdown.get());
@@ -1189,6 +1373,19 @@ Tokens CreateTokens() {
 		return { .error = u"the lockdown token check failed: "_q + error };
 	}
 	error = CheckInitialToken(result.initial.get());
+	if (!error.isEmpty()) {
+		return { .error = u"the initial token check failed: "_q + error };
+	}
+	// Only the process creation attribute makes the primary less privileged.
+	error = CheckAppContainerToken(
+		result.lockdown.get(),
+		AppContainerLevel::Regular);
+	if (!error.isEmpty()) {
+		return { .error = u"the lockdown token check failed: "_q + error };
+	}
+	error = CheckAppContainerToken(
+		result.initial.get(),
+		AppContainerLevel::Regular);
 	if (!error.isEmpty()) {
 		return { .error = u"the initial token check failed: "_q + error };
 	}
@@ -1212,6 +1409,42 @@ QString CheckInitialToken(HANDLE token) {
 		CheckClientRestricting,
 		CheckPrivileges,
 	});
+}
+
+QString CheckAppContainerToken(HANDLE token, AppContainerLevel level) {
+	const auto &package = ExpectedPackage();
+	if (!package.error.isEmpty()) {
+		return package.error;
+	}
+	const auto container = ReadToken(token, TokenIsAppContainer);
+	const auto sid = ReadToken(token, TokenAppContainerSid);
+	const auto capabilities = ReadToken(token, TokenCapabilities);
+	// TokenIsLessPrivilegedAppContainer may be unsupported (error 87).
+	const auto attributes = ReadToken(token, TokenSecurityAttributes);
+	if (const auto failed = Failed({
+			&container,
+			&sid,
+			&capabilities,
+			&attributes })) {
+		return NumberedError("GetTokenInformation", failed->error);
+	} else if (container.bytes.size() < sizeof(DWORD)
+		|| sid.bytes.size() < sizeof(TOKEN_APPCONTAINER_INFORMATION)
+		|| capabilities.bytes.size() < sizeof(DWORD)
+		|| attributes.bytes.size() < sizeof(SecurityAttributes)) {
+		return u"the token's AppContainer information is truncated"_q;
+	} else if (!*As<DWORD>(container)) {
+		return u"the token is not an AppContainer token"_q;
+	}
+	const auto information = As<TOKEN_APPCONTAINER_INFORMATION>(sid);
+	const auto actual = information->TokenAppContainer;
+	const auto expected = const_cast<std::byte*>(package.sid.data());
+	const auto count = Groups(capabilities).size();
+	if (!actual || !EqualSid(actual, expected)) {
+		return u"the token's AppContainer SID is not the widget helper's"_q;
+	} else if (count) {
+		return u"the token has %1 capabilities"_q.arg(count);
+	}
+	return CheckLessPrivileged(attributes, level);
 }
 
 Job CreateJob() {
@@ -1283,6 +1516,11 @@ QString LockDownHelper() {
 		ApplyStartupPolicies,
 		VerifyNoThreadToken,
 		[] { return CheckLockdownToken(GetCurrentProcessToken()); },
+		[] {
+			return CheckAppContainerToken(
+				GetCurrentProcessToken(),
+				AppContainerLevel::LessPrivileged);
+		},
 		VerifyJob,
 		VerifyMitigations,
 	});
@@ -1291,10 +1529,10 @@ QString LockDownHelper() {
 		: (u"the widget helper is not sandboxed: "_q + error);
 }
 
-Fn<QString()> PrepareHelperProbe() {
+Fn<QString()> PrepareHelperProbe(const QString &clientDirectory) {
 	const auto probe = std::make_shared<Probe>();
 	PrepareProbeNetwork(*probe);
-	PrepareProbeTargets(*probe);
+	PrepareProbeTargets(*probe, clientDirectory);
 	return [=] {
 		return FinishProbe(*probe);
 	};

@@ -69,12 +69,13 @@ struct WidgetHelperProbeFixture {
 // `-widgethelper`, the token first. With no argument after the token it
 // returns |lockdown|() alone: "" serves widgets, any other text refuses with
 // it. Any mode but "probe" and "probe-unsandboxed" refuses with its name.
-// On Windows, with "probe" it calls Platform::WidgetHelper::PrepareProbe(),
-// then |lockdown|: its failure text refuses the stream and no probe line is
-// written; on success every line of the probe's report goes to stderr as
-// "Widget helper probe: <line>" and it returns "", so the helper serves
-// widgets. The arguments after the mode are ignored there, and
-// "probe-unsandboxed" refuses as not available.
+// On Windows, with "probe" it calls Platform::WidgetHelper::PrepareProbe()
+// with the client's working directory argument (native separators, empty
+// when the argument is empty or missing), then |lockdown|: its failure text
+// refuses the stream and no probe line is written; on success every line of
+// the probe's report goes to stderr as "Widget helper probe: <line>" and it
+// returns "", so the helper serves widgets. The other arguments after the
+// mode are ignored there, and "probe-unsandboxed" refuses as not available.
 // On Linux, with "probe" it first runs three forked copies of the helper,
 // one at a time, each reaped within 2 s or killed: the first makes the
 // seccomp install of |lockdown| fail through an outer filter, so every step

@@ -66,7 +66,7 @@ inline QString Lockdown() {
 
 namespace Platform::WidgetHelper {
 
-[[nodiscard]] Fn<QString()> PrepareProbe();
+[[nodiscard]] Fn<QString()> PrepareProbe(const QString &clientDirectory);
 
 } // namespace Platform::WidgetHelper
 

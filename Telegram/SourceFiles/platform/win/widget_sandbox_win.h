@@ -23,6 +23,11 @@ struct Job {
 	QString error;
 };
 
+enum class AppContainerLevel : uchar {
+	Regular,
+	LessPrivileged,
+};
+
 enum class MitigationStage : uchar {
 	Creation,
 	Startup,
@@ -40,6 +45,7 @@ struct Policies {
 	std::array<DWORD64, 2> creation = {};
 	SIZE_T creationSize = 0;
 	DWORD childProcess = 0;
+	DWORD allApplicationPackages = 0;
 	std::vector<Mitigation> mitigations;
 };
 
@@ -48,12 +54,16 @@ struct Policies {
 [[nodiscard]] Tokens CreateTokens();
 [[nodiscard]] QString CheckLockdownToken(HANDLE token);
 [[nodiscard]] QString CheckInitialToken(HANDLE token);
+[[nodiscard]] QString CheckAppContainerToken(
+	HANDLE token,
+	AppContainerLevel level);
 
 [[nodiscard]] Job CreateJob();
 
 [[nodiscard]] const Policies &SandboxPolicies();
 
 [[nodiscard]] QString LockDownHelper();
-[[nodiscard]] Fn<QString()> PrepareHelperProbe();
+[[nodiscard]] Fn<QString()> PrepareHelperProbe(
+	const QString &clientDirectory);
 
 } // namespace Platform::WidgetHelper

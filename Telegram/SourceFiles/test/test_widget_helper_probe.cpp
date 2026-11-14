@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 
 #ifdef Q_OS_WIN
+#include <QtCore/QDir>
+
 #include <cstdio>
 #elif defined Q_OS_LINUX // Q_OS_WIN
 #include <QtCore/QFile>
@@ -71,14 +73,25 @@ namespace {
 
 #ifdef Q_OS_WIN
 
+// The client's working directory argument as a native path, checked for
+// emptiness before cleaning: an empty one stays empty and names no target.
+[[nodiscard]] QString NativeDirectory(const QString &path) {
+	return path.isEmpty()
+		? QString()
+		: QDir::toNativeSeparators(QDir::cleanPath(path));
+}
+
 // The native probe takes its controls before the real lockdown, while the
 // helper still impersonates, and its attempts after it; the report goes to
 // stderr and the helper serves widgets.
-[[nodiscard]] std::string LockDownWithProbe(const Fn<QString()> &lockdown) {
+[[nodiscard]] std::string LockDownWithProbe(
+		const QString &clientDirectory,
+		const Fn<QString()> &lockdown) {
 	if (!lockdown) {
 		return "no lockdown callable";
 	}
-	const auto probe = Platform::WidgetHelper::PrepareProbe();
+	const auto probe = Platform::WidgetHelper::PrepareProbe(
+		NativeDirectory(clientDirectory));
 	const auto error = lockdown();
 	if (!error.isEmpty()) {
 		return error.toStdString();
@@ -739,7 +752,7 @@ std::string WidgetHelperLockdown(
 	}
 #ifdef Q_OS_WIN
 	if (mode == ProbeMode()) {
-		return LockDownWithProbe(lockdown);
+		return LockDownWithProbe(arguments.value(2), lockdown);
 	}
 	return "the widget helper probe is not available on this platform";
 #elif defined Q_OS_LINUX // Q_OS_WIN

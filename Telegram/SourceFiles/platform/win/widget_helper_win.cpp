@@ -155,6 +155,7 @@ struct Child {
 	const auto &policies = SandboxPolicies();
 	auto mitigations = policies.creation;
 	auto childProcess = policies.childProcess;
+	auto allApplicationPackages = policies.allApplicationPackages;
 	auto jobs = std::array{ spawn.job };
 	const auto attributes = std::array{
 		Attribute{
@@ -171,6 +172,11 @@ struct Child {
 			.id = PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY,
 			.value = &childProcess,
 			.size = sizeof(childProcess),
+		},
+		Attribute{
+			.id = PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY,
+			.value = &allApplicationPackages,
+			.size = sizeof(allApplicationPackages),
 		},
 		Attribute{
 			.id = PROC_THREAD_ATTRIBUTE_JOB_LIST,
@@ -245,7 +251,23 @@ struct Child {
 	};
 }
 
-[[nodiscard]] QString Start(HANDLE thread, HANDLE initial) {
+[[nodiscard]] QString CheckProcessToken(HANDLE process) {
+	auto token = HANDLE();
+	if (!OpenProcessToken(process, TOKEN_QUERY, &token)) {
+		return SystemError("OpenProcessToken", GetLastError());
+	}
+	const auto guard = UniqueHandle(token);
+	const auto error = CheckLockdownToken(token);
+	return error.isEmpty()
+		? CheckAppContainerToken(token, AppContainerLevel::LessPrivileged)
+		: error;
+}
+
+[[nodiscard]] QString Start(HANDLE process, HANDLE thread, HANDLE initial) {
+	auto error = CheckProcessToken(process);
+	if (!error.isEmpty()) {
+		return u"the process token check failed: "_q + error;
+	}
 	auto target = thread;
 	if (!SetThreadToken(&target, initial)) {
 		return SystemError("SetThreadToken", GetLastError());
@@ -255,7 +277,10 @@ struct Child {
 		return SystemError("OpenThreadToken", GetLastError());
 	}
 	const auto guard = UniqueHandle(attached);
-	const auto error = CheckInitialToken(attached);
+	error = CheckInitialToken(attached);
+	if (error.isEmpty()) {
+		error = CheckAppContainerToken(attached, AppContainerLevel::Regular);
+	}
 	if (!error.isEmpty()) {
 		return u"the attached token check failed: "_q + error;
 	} else if (ResumeThread(thread) == DWORD(-1)) {
@@ -401,7 +426,10 @@ Launched Launch(const QStringList &arguments) {
 		.process = std::move(created.process),
 		.job = std::move(job.handle),
 	};
-	const auto error = Start(created.thread.get(), tokens.initial.get());
+	const auto error = Start(
+		child.process.get(),
+		created.thread.get(),
+		tokens.initial.get());
 	if (!error.isEmpty()) {
 		return { .error = Abandon(child, error) };
 	}
@@ -428,8 +456,8 @@ QString Lockdown() {
 	return LockDownHelper();
 }
 
-Fn<QString()> PrepareProbe() {
-	return PrepareHelperProbe();
+Fn<QString()> PrepareProbe(const QString &clientDirectory) {
+	return PrepareHelperProbe(clientDirectory);
 }
 
 } // namespace Platform::WidgetHelper
