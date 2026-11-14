@@ -17,10 +17,18 @@ The allowlist follows, by kind, in the order `BuildFilter()` checks it.
 while the helper served the framework's attack corpus and conformance set on
 glibc 2.39; the other calls are fallbacks or paths no current widget takes.
 
-- The channel (`kChannelCalls`): reading and writing the channel and stderr.
-  - `recvfrom` and `sendto`: `PosixStream::read()` and `PosixStream::write()`
-    in `platform/posix/widget_channel_posix.cpp`, through `recv()` and
-    `send()` with `MSG_NOSIGNAL`, which glibc makes as these calls. Seen.
+- The channel (`kChannelCalls`, then the rules for `recvfrom` and `sendto`):
+  reading and writing the channel and stderr.
+  - `recvfrom` only with the flags 0 or `MSG_DONTWAIT | MSG_PEEK` and
+    `sendto` only with `MSG_NOSIGNAL`, both only with a null address (both
+    words of the address zero; of the flags only the low word, which is what
+    the kernel reads); any other flags, `MSG_OOB` among them, or any address
+    get `ENOSYS`: `PosixStream::read()` and `PosixStream::write()` in
+    `platform/posix/widget_channel_posix.cpp`, through `recv()` with flags 0
+    and `send()` with `MSG_NOSIGNAL`, which glibc makes as these calls with a
+    null address, seen; the Debug probe's descriptor listing peeks with
+    `MSG_DONTWAIT | MSG_PEEK`. The kernel's out-of-band and addressed socket
+    paths stay out of the helper's reach.
   - `shutdown`: `PosixStream::shutdown()`, `SHUT_WR` then `SHUT_RD`, when the
     engine end stops. Seen.
   - `write`: stderr is unbuffered, so each `fprintf(stderr, ...)` is a
@@ -154,6 +162,6 @@ helper is measured to make there; a call that opens, creates or connects
 anything is never added. The first rule whose call number matches decides,
 and each kind's plain table comes before that kind's argument rules and every
 table before the killed calls: a call number that has an argument rule or is
-killed (`mmap`, `mprotect`, `madvise`, `futex`, `prctl`, `tgkill`, `clone`,
-`clone3`, or a killed call) must never be added to a plain table, or the rule
-it already has silently becomes an unconditional allow.
+killed (`recvfrom`, `sendto`, `mmap`, `mprotect`, `madvise`, `futex`, `prctl`,
+`tgkill`, `clone`, `clone3`, or a killed call) must never be added to a plain
+table, or the rule it already has silently becomes an unconditional allow.

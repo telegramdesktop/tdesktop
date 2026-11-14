@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/mount.h>
 #include <sys/prctl.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
 #include <sys/syscall.h>
 
 #include <algorithm>
@@ -274,14 +275,24 @@ constexpr auto kThreadFlags = uint32_t(CLONE_VM
 	| CLONE_PARENT_SETTID
 	| CLONE_CHILD_CLEARTID);
 
+constexpr auto kSocketFlagsArgument = 3;
+constexpr auto kSocketAddressArgument = 4;
+
 constexpr int kChannelCalls[] = {
 	__NR_read,
 	__NR_write,
 	__NR_writev,
 	__NR_close,
-	__NR_recvfrom,
-	__NR_sendto,
 	__NR_shutdown,
+};
+
+constexpr uint32_t kReceiveFlags[] = {
+	0,
+	MSG_DONTWAIT | MSG_PEEK,
+};
+
+constexpr uint32_t kSendFlags[] = {
+	MSG_NOSIGNAL,
 };
 
 constexpr int kMemoryCalls[] = {
@@ -378,6 +389,10 @@ struct FilterBuilder {
 		uint32_t ignored,
 		std::span<const uint32_t> values,
 		uint32_t otherwise);
+	void allowUnaddressed(
+		int number,
+		std::span<const uint32_t> flags,
+		uint32_t otherwise);
 };
 
 [[nodiscard]] uint32_t ArgumentOffset(int argument) {
@@ -440,6 +455,25 @@ void FilterBuilder::allowValues(
 	stmt(BPF_RET | BPF_K, SECCOMP_RET_ALLOW);
 }
 
+void FilterBuilder::allowUnaddressed(
+		int number,
+		std::span<const uint32_t> flags,
+		uint32_t otherwise) {
+	const auto count = int(flags.size());
+	const auto address = ArgumentOffset(kSocketAddressArgument);
+	jump(BPF_JMP | BPF_JEQ | BPF_K, number, 0, uint8_t(count + 7));
+	stmt(BPF_LD | BPF_W | BPF_ABS, address);
+	jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, uint8_t(count + 3));
+	stmt(BPF_LD | BPF_W | BPF_ABS, address + uint32_t(sizeof(uint32_t)));
+	jump(BPF_JMP | BPF_JEQ | BPF_K, 0, 0, uint8_t(count + 1));
+	stmt(BPF_LD | BPF_W | BPF_ABS, ArgumentOffset(kSocketFlagsArgument));
+	for (auto i = 0; i != count; ++i) {
+		jump(BPF_JMP | BPF_JEQ | BPF_K, flags[i], uint8_t(count - i), 0);
+	}
+	stmt(BPF_RET | BPF_K, otherwise);
+	stmt(BPF_RET | BPF_K, SECCOMP_RET_ALLOW);
+}
+
 [[nodiscard]] std::vector<sock_filter> BuildFilter(pid_t self) {
 	auto filter = FilterBuilder();
 	filter.stmt(BPF_LD | BPF_W | BPF_ABS, offsetof(seccomp_data, arch));
@@ -452,6 +486,8 @@ void FilterBuilder::allowValues(
 #endif // __x86_64__
 
 	filter.allow(kChannelCalls);
+	filter.allowUnaddressed(__NR_recvfrom, kReceiveFlags, kNotImplemented);
+	filter.allowUnaddressed(__NR_sendto, kSendFlags, kNotImplemented);
 
 	filter.allow(kMemoryCalls);
 	for (const auto number : { __NR_mmap, __NR_mprotect }) {
