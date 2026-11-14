@@ -19,11 +19,11 @@ what the sandbox must deny and refuses the stream with a summary, so no
 widget is ever served. On Windows and Linux the helper is the client's own
 executable, started with `-widgethelper`, and the probe is that same-binary
 helper's lockdown hook in a Debug build. On Windows the hook runs a
-different, native probe and the helper goes on serving widgets
-([Windows](#windows)). On Linux it runs its own probe in forked copies of
-the helper and around the real `Platform::WidgetHelper::Lockdown()`,
-writes its lines to stderr, and the helper goes on serving widgets
-([Linux](#linux)).
+different, native probe and the harness's own network attempts, and the
+helper goes on serving widgets ([Windows](#windows)). On Linux it runs its
+own probe in forked copies of the helper and around the real
+`Platform::WidgetHelper::Lockdown()`, writes its lines to stderr, and the
+helper goes on serving widgets ([Linux](#linux)).
 
 Callers: the probe has two halves. In Telegram the `_DEBUG` block of
 `tgw/tgw_remote.cpp` is the only product caller of the client half.
@@ -49,8 +49,10 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 
 ## Preconditions and limits
 
-- The listing, attempts, fixtures and summary on this page are macOS only.
-  On Windows `probe` runs the native probe of [Windows](#windows) and
+- The listing, attempts and summary on this page are macOS only, and so is
+  the keychain fixture. On Windows `probe` runs the native probe and the
+  network attempts of [Windows](#windows), which read the fixture's
+  loopback port, `connect-control` and network targets, and
   `probe-unsandboxed` refuses with `the widget helper probe is not
   available on this platform`. On Linux `probe` and `probe-unsandboxed`
   run the probe of [Linux](#linux), and both serve widgets. The non-Linux
@@ -84,14 +86,18 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   and AppKit had made those first lookups before `main`.
 - On macOS the argv after the helper's path is the token `3`, then the
   tail `mode cwd application-support [keychain-account loopback-port
-  [connect-control]]`; on Windows and Linux the same tail follows
-  `-widgethelper <token>`. `cwd` is the client's `cWorkingDir()`; the macOS
-  helper's own working directory is `/`, which it moves to itself before
-  it adopts the channel. `application-support` is
+  [connect-control] [target...]]`; on Windows and Linux the same tail
+  follows `-widgethelper <token>`. The targets come only from a fixture's
+  `networkTargets` (Windows). `cwd` is the client's `cWorkingDir()`; the
+  macOS helper's own working directory is `/`, which it moves to itself
+  before it adopts the channel. `application-support` is
   `QStandardPaths::GenericDataLocation`. A Debug helper with nothing after
   the token runs the lockdown alone and serves. Any other mode refuses with
-  `unknown widget helper mode "<mode>"`. A malformed port or seventh
-  argument is a defect in the report.
+  `unknown widget helper mode "<mode>"`. On macOS a malformed port or
+  seventh argument, a target included, is a defect in the report; on
+  Windows every malformed argument is an `argument: malformed` line
+  ([Windows arguments](#windows-arguments)); on Linux every argument after
+  `application-support` is ignored ([Linux](#linux)).
 - The Debug `TelegramWidgetHelper` links the same two libraries as the
   Release one. The attempts that call CoreFoundation, Security, CoreAudio,
   CoreMediaIO, IOKit or CoreGraphics `dlopen` that framework from
@@ -108,7 +114,8 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   read and its loopback connect report `INCOMPLETE`, which is never a pass.
   Every widget of such a launch dies with `the widget engine process
   ended`. Each refusal counts as a helper failure, so the third probe
-  latches the helper for the process.
+  latches the helper for the process. On Windows such a probe has no
+  network target, so only its socket and AFD lines are written.
 - A pristine listing holds two send rights no reference service matches:
   libtrace's firehose push ports to logd. The probe names them only through
   its own [firehose reading](#firehose-reading), made in the same process
@@ -129,21 +136,146 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 
 With `probe` the client appends the same argv tail to the same-binary
 `-widgethelper` helper, and its hook, `WidgetHelperLockdown()` in Telegram,
-calls `Platform::WidgetHelper::PrepareProbe()` first: the native probe in
-`platform/win/widget_sandbox_win.cpp` takes its `before lowering:` controls
-while the helper still impersonates its initial token. Then the hook calls
-the real lockdown. A failure refuses the stream with the lockdown's own text
-and writes no probe line. Otherwise the probe makes its `after lowering:`
-attempts and readings, the hook writes every line of its report to stderr
-as `Widget helper probe: <line>` (`app_stderr.txt` in a test run) and
-returns "", and the helper serves widgets as in `helper` mode, so a probe
-launch is no helper failure. The Windows probe reads none of the arguments
-after the mode, takes no fixture and is no inventory of what the helper
-holds. Its lines, their controls and the measured results, the remaining
-network access included, are in
+runs `LockDownWithProbe()` in `test_widget_helper_probe.cpp`, which goes in
+this order, once per helper:
+
+1. `Platform::WidgetHelper::PrepareProbe()` with the client's working
+   directory argument (native separators; empty or missing names no
+   target): the product's native probe in
+   `platform/win/widget_sandbox_win.cpp` binds the delay-loaded `WS2_32.dll`
+   imports and takes its `before lowering:` controls while the helper still
+   impersonates its startup token.
+2. The harness's own preparation, under the same token: its own
+   `WSAStartup`, then its `before lowering:` socket, target and AFD endpoint
+   controls and, with `connect-control`, the preopened sockets.
+3. The real lockdown. A failure refuses the stream with the lockdown's own
+   text, writes no probe line and closes what the harness holds.
+4. The harness's `after lowering:` attempts, then the product probe's.
+5. Every line of the product probe's report, then every harness line, to
+   stderr as `Widget helper probe: <line>` (`app_stderr.txt` in a test
+   run); then the harness closes every socket it still holds and ends its
+   own `WSAStartup`, and the hook returns "".
+
+The helper then serves widgets as in `helper` mode, so a probe launch is no
+helper failure. After the lockdown the hook calls only what was bound
+before it: the `WS2_32.dll` imports the product probe bound (the harness
+binds them again only as a check) and `NtCreateFile` and
+`RtlInitUnicodeString`, resolved from the already mapped ntdll. Neither
+probe is an inventory of what the helper holds. The product probe's lines,
+their controls and the measured results are in
 [Remote engines](test_widget_fixture.md#remote-engines) (**Windows probe**
 and **What the Windows lowering leaves**), and its runs in that page's
 [Verification](test_widget_fixture.md#verification).
+
+### Windows arguments
+
+The hook reads the client's working directory (index 2 of the arguments,
+the token at 0), the loopback port (index 5) and everything from index 6;
+the application-support and keychain-account arguments are ignored.
+
+- A loopback port of `0`, empty or missing means none. A port from 1 to
+  65535 adds four targets: `tcp:127.0.0.1:<port>`, `udp:127.0.0.1:<port>`,
+  `tcp:[::1]:<port>` and `udp:[::1]:<port>`.
+- From index 6 each argument is `connect-control` or a target,
+  `tcp:<address>` or `udp:<address>`. The address is numeric as
+  `WSAStringToAddressW` reads it, port included: IPv4 first, then IPv6 in
+  brackets with an optional scope, such as `udp:[fe80::1%4]:5000`. No name
+  is resolved.
+- At most 16 targets, the loopback port's four included, each at most 64
+  characters.
+- Anything else is one `argument: malformed ...` line and is skipped,
+  never a refusal: a port outside 0 to 65535 (`loopback port "<text>"`), an
+  unknown argument (`"<text>"`), a target that is too long, does not parse
+  (`WSAStringToAddressW failed: error <n>`), has port 0 (`no port`) or is
+  past the limit.
+
+### Windows harness lines
+
+After the product probe's lines, in this order:
+
+- `arguments: loopback port <port|absent>, <n> network targets,
+  connect-control yes|no`, counting the parsed targets, then the
+  `argument: malformed` lines.
+- `before lowering: harness Winsock: WS2_32 bound, WSAStartup(2.2) ok`, or
+  the failed bind or start; without Winsock the socket and target lines
+  read `sockets and targets: not tried, Winsock is not available`.
+- For each phase, `before lowering:` then `after lowering:`, and in each:
+  - `socket(<family>, <type>, <protocol>): <verdict>` for `AF_INET` and
+    `AF_INET6` with `SOCK_STREAM, IPPROTO_TCP` and `SOCK_DGRAM,
+    IPPROTO_UDP`, a fresh socket each, closed at once;
+  - `target tcp:<address>: socket <verdict>, connect <verdict>`, with
+    `, marker sent (<n> bytes)` after `connect CONNECTED`, and `target
+    udp:<address>: socket <verdict>, sendto <verdict>`, a fresh socket per
+    target and phase; a socket that cannot be created leaves `connect not
+    tried, socket creation was denied` (or `failed`), and one that cannot
+    be made nonblocking reads `socket ALLOWED, FIONBIO failed (error <n>),
+    connect not tried` (or `sendto`);
+  - `AFD endpoint <family>, <type>, <protocol>:
+    NtCreateFile(\Device\Afd\Endpoint, EA AfdOpenPacketXX of 57 bytes,
+    endpoint flags 0x<flags>): <status verdict>` for the same four kinds;
+    the `before lowering:` line adds `EA bytes <hex>`, and the `after
+    lowering:` call passes the same buffer.
+- With `connect-control`, after the other `before lowering:` lines, one
+  `connect-control: before lowering: target <target>: preopened socket
+  <verdict>` per target (unconnected and nonblocking), and after the other
+  `after lowering:` lines one `connect-control: after lowering: target
+  <target>: <connect or sendto verdict>; closesocket ok` per target, then
+  `connect-control: <n> preopened sockets used and closed before Ready;
+  this run holds injected handles and is no ordinary helper`.
+
+Verdicts:
+
+- A socket call reads `ALLOWED`, `CONNECTED` or `SENT (<n> bytes)` on
+  success, `denied (error 10013)` only for `WSAEACCES`, and `failed (error
+  <n>)` for any other error: an unavailable family, a bad argument, a
+  refused or unreachable target or missing Winsock is never a denial.
+- A TCP connect is nonblocking, waits at most 1 s in `select()` and is
+  judged by `SO_ERROR`: `CONNECTED` only when it completed with `SO_ERROR`
+  0; no completion reads `failed (no completion within 1000 ms)`. On
+  success the socket sends the marker `widget-helper-probe <pid> <phase>
+  <mode>\n`, `<phase>` being `before-lowering`, `after-lowering` or
+  `connect-control`. A UDP target gets the same marker in one `sendto` on
+  a nonblocking socket too: `SENT` says the call returned the byte count,
+  and only the receiving fixture shows delivery; a send that would block
+  reads `failed (error 10035)` at once, never a denial.
+- An AFD open reads `ALLOWED (status 0x0)`, `denied (status 0xC0000022)`
+  only for `STATUS_ACCESS_DENIED`, and `failed (status 0x<NTSTATUS>)` for
+  any other status. A created handle is closed at once.
+
+Each TCP target can hold Ready back up to 1 s per attempt (before, after
+and with `connect-control`), a UDP target does not wait; the 16-target
+limit bounds that delay.
+
+### AFD endpoint attribute
+
+The AFD case opens `\Device\Afd\Endpoint` with `NtCreateFile` the way
+Winsock's `socket()` creates an endpoint: one `FILE_FULL_EA_INFORMATION`
+named `AfdOpenPacketXX`, 57 bytes in all as `mswsock.dll` sizes it, whose
+30-byte value starts with six `ULONG`s: endpoint flags (0 for TCP; 0x11,
+`AFD_ENDPOINT_CONNECTIONLESS | AFD_ENDPOINT_MESSAGE_ORIENTED`, for UDP),
+group 0, family, type, protocol and a transport name length of 0; the rest
+is zero. The layout is ReactOS's `AFD_CREATE_PACKET` with the family, type
+and protocol that current `mswsock.dll` writes after the group. The call
+asks for `GENERIC_READ | GENERIC_WRITE | SYNCHRONIZE` with
+`OBJ_CASE_INSENSITIVE`, share read and write, `FILE_OPEN_IF` and no create
+options; Winsock's own call also asks for `WRITE_DAC` and an inheritable
+handle, which the probe does not. Only an `after lowering:` denial whose
+`before lowering:` line in the same helper read `ALLOWED` with the same
+bytes is a denial of endpoint creation.
+
+### What the Windows controls show
+
+The `before lowering:` lines run under the helper's startup token, a
+regular AppContainer token of the helper's own package
+([Remote engines](test_widget_fixture.md#remote-engines)), not under an
+unconfined one: they are the in-helper control for the same calls, and an
+AppContainer token may be kept from other processes' loopback listeners
+before the lowering as well. Whether a target was reachable is therefore
+decided by the fixture's own connections and datagrams to the same
+listeners, from an ordinary process, before and after the helper; a
+helper attempt that the fixture did not receive is no denial.
+With `connect-control` the helper holds the preopened sockets across the
+lowering and the run is an instrumented one, not the ordinary helper.
 
 ## Linux
 
@@ -396,6 +528,39 @@ control. With `.connectControl = true`, the helper preopens one TCP socket
 before the lockdown and connects it to the listener afterwards. That run
 lists the injected descriptor, so it never counts as a clean inventory.
 
+### Minimal use on Windows
+
+A Windows overlay takes the same route with parent-owned listeners: TCP and
+UDP listeners on 127.0.0.1 and [::1] at one port, and listeners of its own
+on any further numeric target, such as an address of this host's own
+interface. It never targets another device or a public service and changes
+no firewall rule or loopback exemption.
+
+```cpp
+auto fixture = Test::WidgetHelperProbeFixture{
+	.loopbackPort = port, // run-owned TCP and UDP on 127.0.0.1 and [::1]
+	.networkTargets = {
+		u"tcp:%1:%2"_q.arg(own, QString::number(tcpPort)), // run-owned
+		u"udp:%1:%2"_q.arg(own, QString::number(udpPort)), // run-owned
+	},
+};
+auto launched = Platform::WidgetHelper::Launch(
+	Test::WidgetHelperProbeArguments(u"probe"_q, fixture));
+// Start the host end as above: this helper answers Ready and serves.
+// When the listeners have drained: end->stop(); launched.complete(1000, 1000);
+```
+
+Each listener drains every connection and datagram and records it with its
+marker and time. Ordinary connections and datagrams from the client to the
+same listeners right before the launch and after the helper ended are the
+reachability control; a helper marker that arrives after the lowering
+(`after-lowering` or `connect-control`) is a counterexample, not a pass.
+The report is in the client's stderr (`app_stderr.txt` in a test run), so
+the run reads it after the client exited. A second launch with
+`.connectControl = true` is the injected-socket leg: it holds one preopened
+socket per target until the hook closes them before Ready, so it is never
+the ordinary-helper inventory, which a launch without the fixture gives.
+
 ## Readings and refusals
 
 Every row goes to the helper's stderr, which is the client's
@@ -553,6 +718,14 @@ Near its end it closes stdin and tries a socket again. The frameworks it
 loaded stay loaded until the helper exits.
 The helper exits after the refusal. The overlay owns the keychain item, the
 listener and the restoration of `SecKeychainSetUserInteractionAllowed`.
+
+On Windows the hook closes each fresh socket and AFD handle right after its
+attempt and each preopened socket right after its `after lowering:` use;
+before it returns, and on a lockdown failure, it closes whatever it still
+holds and ends its own `WSAStartup`, so no harness socket survives into
+Ready. The product probe closes its listener and ends its own start in its
+report step. The overlay owns its listeners and closes them after the
+helper ended.
 
 On Linux the probe keeps no state either. Each forked copy sets
 `PR_SET_PDEATHSIG(SIGKILL)`, makes itself non-dumpable and ends only with
@@ -760,6 +933,11 @@ in the second and third. `TelegramWidgetHelper` was probed only natively
 on arm64. On another layout the reading can fail and leave both rights
 `UNACCOUNTED`; as that section says, nothing promises that every
 incompatible layout fails rather than matching unrelated words.
+
+On Windows the harness lines of [Windows](#windows) (arguments, sockets,
+targets, AFD endpoints and `connect-control`) have not been run in an
+evidence campaign yet. The Windows runs of the product probe are in
+[Remote engines verification](test_widget_fixture.md#verification).
 
 On Linux the probe ran in the x86_64 Debug client (the Docker
 `centos_env` build) on a WSL2 6.6 kernel with Landlock ABI 3, in the

@@ -481,7 +481,10 @@ The packs, the fixture and the seams they use need no change for it.
   mode, the client's working directory and its
   `QStandardPaths::GenericDataLocation`, each quoted for
   `CommandLineToArgvW` when it is empty or holds whitespace or a quote;
-  the Windows probe reads only the mode. Its stdin and stdout are null;
+  the Windows probe reads the mode and the client's working directory, and
+  a fixture launch adds the loopback port, `connect-control` and network
+  targets ([test_widget_helper_probe](test_widget_helper_probe.md#windows-arguments)).
+  Its stdin and stdout are null;
   its stderr is a copy of the client's when that is a file or a pipe, as
   `app_stderr.txt` is under `test-run`, and none otherwise, and the
   creation's handle list passes it nothing else. The channel is one
@@ -495,7 +498,9 @@ The packs, the fixture and the seams they use need no change for it.
   Before it resumes the helper it attaches an initial impersonation token
   to the helper's main thread and reads it back: Low as well and
   restricted to the client's user and enabled groups, so that the helper's
-  startup can load its DLLs. The creation puts the helper in a new job
+  startup can load its DLLs. Both are AppContainer tokens of the helper's
+  package, and the creation makes the primary a less privileged one
+  (**The Windows lowbox** below). The creation puts the helper in a new job
   (one active process, kill on job close, death on an unhandled exception
   and the eight UI restrictions) and sets its creation mitigations: DEP on
   32-bit, bottom-up and forced-relocation ASLR (high entropy on 64-bit),
@@ -503,6 +508,58 @@ The packs, the fixture and the seams they use need no change for it.
   stacks in x64 builds where the system offers them, and no child
   processes. A creation the system refuses, the job included, is a start
   failure: no helper runs outside its job or without these policies.
+- **The Windows lowbox.** `NtCreateLowBoxToken` boxes each of the two
+  restricted tokens with one package SID, derived from the fixed name
+  `telegram.desktop.widget-helper` by
+  `DeriveAppContainerSidFromAppContainerName` (loaded from `USERENV.dll`),
+  with no capability and no handle; no AppContainer profile, named-object
+  directory, file grant or loopback exemption is created. The creation's
+  attribute list adds `PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY`
+  with `PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT`, which makes the
+  helper's primary a less privileged AppContainer (LPAC) token, one that
+  `ALL APPLICATION PACKAGES` grants do not reach. The startup token stays
+  a regular AppContainer token of the same package on purpose. In the
+  experiment of
+  `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
+  (its `work/experiment.md`) a less privileged startup token could not be
+  built without a privilege, a WOW64 helper started under one taken from
+  another process only with an extra registry capability, and a startup
+  token of another package or of none was downgraded to identification,
+  so the helper died before its first frame.
+  The client checks the pair it built: the lockdown token keeps the shape
+  above, and both must be regular AppContainer tokens of exactly that
+  package with no capability, or the launch fails with `the lockdown
+  token check failed: <error>` or `the initial token check failed:
+  <error>`. After the creation and before the resume it opens the
+  helper's actual primary token and requires the lockdown shape and an
+  LPAC token of that package with no capability (`the process token check
+  failed: <error>`), then reads the attached initial token back and
+  requires its shape and a regular AppContainer token of that package
+  (`the attached token check failed: <error>`); either failure ends the
+  suspended helper through its job and is a start failure (**Runtime log
+  and deaths** below). Building the pair can fail with
+  `NtCreateLowBoxToken is not available`, `NtCreateLowBoxToken failed:
+  status 0x<status>`, `DeriveAppContainerSidFromAppContainerName is not
+  available` or `DeriveAppContainerSidFromAppContainerName failed:
+  0x<hresult>`. The AppContainer check's errors are `the token is not an
+  AppContainer token`, `the token's AppContainer SID is not the widget
+  helper's`, `the token has <n> capabilities`, `the token is not a less
+  privileged AppContainer token` or `the token is a less privileged
+  AppContainer token` (the level is read from the token's
+  `WIN://NOALLAPPPKG` security attribute, because
+  `TokenIsLessPrivilegedAppContainer` failed with error 87 on Windows
+  10.0.26300), `the token's AppContainer information is truncated`, `the
+  token's security attributes version is <n>`, `the token's security
+  attributes are malformed`, `the token's WIN://NOALLAPPPKG type is <n>`,
+  `the token's WIN://NOALLAPPPKG has <n> values`, `the token's
+  WIN://NOALLAPPPKG value is <n>` and `GetTokenInformation failed: error
+  <n>`. The design makes no grant: the client opens the image, its static
+  imports are kernel32 and ntdll and every later DLL comes from the system
+  directory. That task's checkpoint (its `work/checkpoint-2.md`) reached
+  Ready that way from the checkout's `out\Debug\Telegram.exe`, and its
+  experiment, under a test package name, from a checkout-like and a
+  per-user installed-equivalent copy, Win32 Debug only; the portable,
+  updated and moved layouts and other architectures are not measured yet.
 - **Lockdown.** On macOS the helper locks itself down once it has accepted
   the client's opening and holds the bundles, before any runtime exists and
   before it answers `Ready`. It first checks, once per helper, that it
@@ -540,12 +597,18 @@ The packs, the fixture and the seams they use need no change for it.
   the framework's lockdown callback, after it accepted the opening and
   holds the bundles and before it answers Ready, so before any runtime
   exists. While still impersonating it binds the delay-loaded advapi32
-  imports and draws random bytes once, which starts the random provider
-  that a widget's `crypto.getRandomValues` uses later. Then it reverts to
-  its lockdown token, disables the predefined registry key cache and closes
-  the cached roots, lets only Microsoft-signed images load, turns strict
-  handle checks on and verifies itself: no thread token, the lockdown
-  token above, its job's limits and UI restrictions, and every expected
+  imports, derives its package SID once (which loads `USERENV.dll`; the
+  checkpoint of
+  `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
+  saw it map `profext.dll` as well, the host of the API set USERENV
+  delay-imports for the derivation) and draws random bytes once, which
+  starts the random provider that a widget's `crypto.getRandomValues` uses
+  later. Then it reverts to its lockdown token, disables the predefined
+  registry key cache and closes the cached roots, lets only
+  Microsoft-signed images load, turns strict handle checks on and verifies
+  itself: no thread token, the lockdown token above, an LPAC token of
+  exactly its package with no capability (the AppContainer check's errors
+  above), its job's limits and UI restrictions, and every expected
   mitigation read back. The first step that fails refuses the stream: the
   helper writes `Widget helper: the widget helper is not sandboxed:
   <error>` to stderr and exits 1, the main log reads `Tgw: Widget helper
@@ -567,13 +630,20 @@ The packs, the fixture and the seams they use need no change for it.
   `test-run`); its widgets then run as with `helper`. A failed lowering
   refuses the stream as with `helper` and writes no probe line. The lines
   that start `before lowering:` are its positive controls, taken after the
-  opening was accepted and before the lowering: a 127.0.0.1 listener with
-  one accepted connection, the helper's working directory, the client's
-  working directory (`TelegramForcePortable` beside the executable when
-  that is a directory, else `%APPDATA%\Telegram Desktop`) and `%APPDATA%`
+  opening was accepted and before the lowering, under the startup token: a
+  127.0.0.1 listener with one accepted connection, the helper's working
+  directory, the client's working directory (the probe argument the client
+  passes, its `cWorkingDir()` with native separators; `before lowering:
+  client working directory: not given` when it is empty) and `%APPDATA%`
   opened for listing, `HKEY_CURRENT_USER\Software` opened, `whoami.exe`
   found in the system directory, and the time zone (`bias <minutes>`); a
   passing control reads `ok`, or `present` for the `whoami.exe` lookup.
+  The startup token reaches a directory only where it grants the package
+  or `ALL APPLICATION PACKAGES`: the checkpoint named in **What the Windows
+  lowering leaves** read `error 5` for the client's working directory and
+  `%APPDATA%` before the lowering, so their `after lowering:` denials have
+  no control in the helper, and the same paths opened by the client are
+  their positive control.
   The lines that start `after lowering:` try `CreateProcessW` of that
   `whoami.exe`, a TCP socket and a 1 s connect to the listener, the three
   directories, `HKEY_CURRENT_USER\Software` and
@@ -587,30 +657,46 @@ The packs, the fixture and the seams they use need no change for it.
   access denied (5, or `WSAEACCES` for the socket and the connect) and
   `failed (error N)` for any other error, so a connect that timed out is
   no denial; a success reads `ALLOWED`, a completed connect `CONNECTED`.
-  `OpenProcess` of its own pid reads `opened` or `error N`. The probe
-  reads none of the arguments after the mode. The macOS probe is a
-  different one, which refuses after its report
+  `OpenProcess` of its own pid reads `opened` or `error N`. The product
+  probe reads no argument but the client's working directory. After its
+  lines the harness writes its own: fresh TCP and UDP sockets of both
+  families, the fixture's loopback port and numeric network targets,
+  native `\Device\Afd\Endpoint` opens and, with `connect-control`,
+  preopened sockets used after the lowering, each before and after the
+  lowering with the same verdict rules (`denied` only for `WSAEACCES` or
+  `STATUS_ACCESS_DENIED`); their arguments, lines and controls are in
+  [test_widget_helper_probe](test_widget_helper_probe.md#windows). The
+  macOS probe is a different one, which refuses after its report
   ([test_widget_helper_probe](test_widget_helper_probe.md)), and so is the
   Linux one (**Linux probe** below); on the non-Linux all-other platforms
   no helper starts, so nothing is written.
-- **What the Windows lowering leaves.** The Windows helper is no network
-  boundary. In the Windows runs of
+- **What the Windows lowering leaves.** Without the lowbox the Windows
+  helper was no network boundary. In the Windows runs of
   `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-windows`
   (its `work/decisions.md`, I1 to I3) and in the probe run of
   `2026/11/14/run-widget-engines-in-a-restricted-helper-on-windows-behind-a-debug-switch`
   (its `work/test.md`, Run 2), the lowered helper created a TCP socket
   and connected to the probe's live loopback listener
   (`socket(AF_INET, SOCK_STREAM): ALLOWED, connect to 127.0.0.1:<port>:
-  CONNECTED`): the restricted token, the job and the mitigations do not
-  keep native code from the network, and denying it is the work of
-  `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`.
+  CONNECTED`): the restricted token, the job and the mitigations alone do
+  not keep native code from the network. With the lowbox, the checkpoint
+  of `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
+  (its `work/checkpoint-2.md`, Win32 Debug on Windows 10.0.26300) read
+  `socket(AF_INET, SOCK_STREAM): denied (error 10013)` after the lowering,
+  with the pre-lowering self-listener `ok`. The network evidence across
+  families, protocols, parent and non-loopback targets, injected sockets
+  and native AFD endpoints is not run yet, so the helper is not yet
+  claimed a network boundary.
   win32k system calls stay enabled: the runtime disable failed in both
-  with error 19 (`ERROR_WRITE_PROTECT`; the probe's
+  of those runs with error 19 (`ERROR_WRITE_PROTECT`; the probe's
   `DisallowWin32kSystemCalls: not applied (SetProcessMitigationPolicy(4)
   failed: error 19)`, then `mitigation win32k: 0x0`), because every
   Telegram process loads user32 during its static initialisation, and the
   job's UI restrictions limit some window-system operations without
-  blocking those calls.
+  blocking those calls. Under the lowbox the same attempt read error 5,
+  and `mitigation win32k: 0x4` is the LPAC creation's
+  `DisallowFsctlSystemCalls` bit, not a win32k disable (the same
+  checkpoint).
   Registry key handles that system DLLs opened during static
   initialisation, before the lowering, stayed open with the access they
   had been granted (nine: eight in `HKEY_LOCAL_MACHINE`, one in the user's
@@ -763,8 +849,9 @@ The packs, the fixture and the seams they use need no change for it.
   such as `Not enough quota is available to process this command.` in an
   enclosing job limited to one active process, so that line ends in `..`.
   On Windows a start that fails between the creation and the resume, while
-  the initial token is attached and checked, ends the suspended helper
-  through its job first and adds that end's status in parentheses.
+  the helper's primary token is checked or the initial token is attached
+  and checked, ends the suspended helper through its job first and adds
+  that end's status in parentheses.
 - **Failure limit.** A start failure and an unexpected end are helper
   failures; an end after at least 60 s of helper uptime starts a new run at
   one, and a finished idle stop resets the run. The third failure in a row

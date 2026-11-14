@@ -32,7 +32,8 @@ inline constexpr auto kWidgetHelperProbeMode = "probe";
 // helper.
 inline constexpr auto kWidgetHelperUnsandboxedMode = "probe-unsandboxed";
 
-// The last probe argument when the run preopens its connect control.
+// The probe argument after the loopback port when the run preopens its
+// connect control; only a fixture's network targets (Windows) follow it.
 inline constexpr auto kWidgetHelperConnectControl = "connect-control";
 
 // The helper's lockdown hook on macOS, called once on serve's thread after
