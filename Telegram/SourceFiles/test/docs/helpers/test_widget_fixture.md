@@ -580,6 +580,33 @@ the quit) ran through a disposable overlay in that campaign (Runs 4-5 and
 7). None of it has run on Windows or Linux, where the helper does not
 exist.
 
+The sandboxed helper ran in the macOS arm64 Debug client in the evidence
+campaign of
+`2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`
+(its `work/test.md`). The attack audit over all 133 corpus files and the
+conformance runner over the 133-run automatic matrix ran once with no
+widget switch, in the sandboxed helper, and once with `in-process` on the
+same executable, with the host watch, the validated-ops tap and the played
+bot in use (Runs 5-7): 0 leaks in both modes, the same conformance
+verdicts, and the same attack rows apart from the same two
+timing-dependent outcomes (the `request-copy.html` show flipped once in
+each mode in a paired rerun; `paint-backdrop-replay.html`'s box count was
+again 300 through the helper and 100 in process); every default partition
+ran in one locked helper. With no switch the lifecycle ran through a
+disposable overlay (Run 5): one helper, locked before its widgets loaded,
+its idle exit 30 s after the last release, and a fresh locked helper for
+the next widget. A SIGKILL stopped both cards on their last pictures with
+every pixel outside the stop pill unchanged, re-entry restarted them in a
+fresh helper locked before they loaded, and a second kill reached the
+crash limit. A real lockdown failure, a client that had sandboxed itself
+with an `(allow default)` profile, made every helper refuse with
+`sandbox_init failed: Operation not permitted` before its widgets loaded,
+and after the third the next widget died with `the widget helper failed 3
+times in a row` without a fourth helper (Run 3). None of this has run on
+Windows, Linux, the store build or a packaged build: the store build keeps
+its engines in process, and packaged builds are excluded from the helper
+default.
+
 ## Related guidance
 
 [Widget attack audit](test_widget_attacks.md);

@@ -172,29 +172,60 @@ listener and the restoration of `SecKeychainSetUserInteractionAllowed`.
 
 ## Verification
 
-Executed once on macOS 27 for the sandbox task's Phase 4 smoke, which is not
-acceptance evidence. A disposable overlay ran four helpers with a run-owned
-keychain item and a live loopback listener: `probe`, `probe-unsandboxed`, and
-both again with `connect-control`.
+Executed on macOS 27.0.1 arm64 in a Debug build, in the evidence campaign
+of `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`;
+its `work/test.md` is the record of commands, readings and verdicts. A
+disposable overlay drove `Platform::WidgetHelper::Launch(arguments)` with a
+`SandboxRemoteHostEnd` and the real bundles, a run-owned keychain item and
+a live loopback listener: the canonical `probe`, the `probe-unsandboxed`
+control, and both again with `connect-control`.
 
-- `probe` listing: fds 0 to 3 accounted and 19 Mach entries (task, thread,
-  host, semaphore, clock, voucher, bootstrap, 5 receive, 3 send-receive,
-  logd, notifyd) plus the two unaccounted send rights.
-- Locked attempts: `fork` and `posix_spawn` gave `EPERM`, `socket` and
-  socket after `close(0)` gave `EMFILE`, raising the limit gave `EPERM`, every
-  path gave `EPERM` with policy `denied`, and the lookups gave `kr1100`. The
-  keychain read gave `status-50`, no camera or microphone device was found,
-  `IOServiceOpen` was refused, and `CGSMainConnectionID` was `none`.
-  connect-control gave `EPERM`, and the listener received no locked token.
-- The unsandboxed control succeeded for each of these, `task_for_pid` of the
-  parent excepted.
-- A same-process trace closed the two unaccounted rights. An interposer of
-  `mach_port_construct` was injected into a re-signed clone of the same
-  binary, and that helper ran `probe` with a valid opening. In that process,
-  both unaccounted names were created by libdispatch's
-  `firehose_client_reconnect` (`MPO_INSERT_SEND_RIGHT`), and their receive
-  rights then left the task. These are libtrace's firehose push ports to logd.
-  The probe itself still reports them as unaccounted.
+- Locked: `fork` and `posix_spawn` gave `EPERM`; `socket` gave `EMFILE`,
+  also after `close(0)`; raising the limit and connecting the preopened
+  socket gave `EPERM`; `stat` and `access` of the working directory, the
+  client's working directory and Application Support gave `EPERM` with
+  policy `denied` (`opendir` `EMFILE`). The WindowServer, SecurityServer,
+  securityd.xpc, cmio, audiohald, tccd, tccd.system and locationd lookups
+  gave `kr1100`, with no WindowServer connection. The keychain item read
+  gave `status-50` with no data, 0 camera and 0 audio devices were counted
+  and the device policies were denied. `kill(0)` of the parent gave
+  `EPERM`, `task_name_for_pid` `kr5`, the parent's info, path, proc and
+  args readings `EPERM`, and the IOKit open was refused.
+- Unsandboxed: each of these succeeded, including the item read (its value
+  not kept), the lookups (except the unregistered
+  `com.apple.locationd.registration`), 2 camera and 2 audio devices and the
+  parent readings. `task_for_pid` of the parent failed in both modes.
+- Controls: the listener accepted the main process before and after and
+  the unsandboxed helpers' tokens, none while a helper was locked. The main
+  process read the item before and after the helpers, deleted it and
+  checked it was gone. A parent-side `sandbox_check` read the locked
+  helpers as locked and the unsandboxed ones never.
+- Listing of `probe`: complete (end marker, declared counts, no cut row),
+  with stable reference lookups and no defect. 4 descriptors: 0 and 1
+  `/dev/null`, 2 the parent's stderr, 3 the `AF_UNIX` stream to the
+  client. 19 Mach entries: task, thread, unprivileged host, bootstrap,
+  semaphore, clock, voucher, 5 own receive and 3 own send-receive rights,
+  logd, notifyd, and two send rights reported `UNACCOUNTED`.
+- Same-process attribution: a rerun added a disposable overlay hunk to the
+  probe that, right after the post-lockdown listing, read libdispatch's
+  firehose buffer header through `voucher_activity_get_metadata_buffer()`.
+  In that canonical helper, whose listing was again complete with the same
+  counts, the header held the listing's logd name followed by exactly the
+  two `UNACCOUNTED` names, and the buffer's receive right was one of the
+  own send-receive rows. The `probe-unsandboxed` helper's reading matched
+  its own rows the same way. The probe itself still reports the two as
+  unaccounted.
+- Creation trace: a tracer injected into a re-signed clone of the final
+  bundle ran `probe` with a valid opening, and its complete listing had the
+  same composition. Both names were created by libdispatch's
+  `firehose_client_reconnect`, every other row had a traced creation or was
+  present before interposition and identical in an empty program, and the
+  header reading in that process found the same two names. They are
+  libtrace's firehose push ports to logd.
+
+Limits: one macOS version (27.0.1), ad hoc signatures, and the header
+reading is an overlay technique that relies on a private libdispatch
+layout; the probe has no such reading.
 
 ## Related guidance
 
