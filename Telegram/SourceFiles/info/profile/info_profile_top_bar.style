@@ -106,13 +106,13 @@ infoProfileTopBarShowLastSeen: RoundButton(defaultActiveButton) {
 }
 // The status line's 18px (infoProfileStatus.maxHeight) and a 4px gap.
 infoProfileTopBarBalanceSkip: 22px;
-infoProfileBalancePillHeight: 16px;
+infoProfileBalancePillHeight: 22px;
 // Sized like the unique gift cover's "released by" pill.
-infoProfileBalancePillPadding: margins(6px, 0px, 5px, 0px);
-infoProfileBalancePillLabelFont: font(10px);
-infoProfileBalancePillAmountFont: font(10px semibold);
-infoProfileBalancePillFractionFont: font(8px semibold);
-infoProfileBalancePillIconSize: 12px;
+infoProfileBalancePillPadding: margins(9px, 0px, 7px, 0px);
+infoProfileBalancePillLabelFont: font(13px); // Mokagram: как normalFont
+infoProfileBalancePillAmountFont: font(13px semibold);
+infoProfileBalancePillFractionFont: font(11px semibold);
+infoProfileBalancePillIconSize: 15px;
 infoProfileBalancePillLabelSkip: 3px;
 infoProfileBalancePillIconSkip: 2px;
 infoProfileBalancePillArrowSkip: 2px;
