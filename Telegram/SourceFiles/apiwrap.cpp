@@ -3958,6 +3958,10 @@ FullMsgId ApiWrap::forwardMessages(
 		if (successCallback) {
 			successCallback();
 		}
+		// Копии уходят отдельно, id нет: подпись к пересылке шлём без ответа.
+		if (sentCallback) {
+			sentCallback({});
+		}
 		return {};
 	}
 
