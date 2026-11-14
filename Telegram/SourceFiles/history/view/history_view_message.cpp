@@ -106,7 +106,8 @@ constexpr auto kMinWidthAppearDuration = crl::time(160);
 
 [[nodiscard]] DocumentId FromNameVerificationId(PeerData *from) {
 	const auto details = from ? from->botVerifyDetails() : nullptr;
-	return details ? details->iconId : 0;
+	// Mokagram: значок клиента (botId = 0) рисуем сами в paintFromName.
+	return (details && details->botId) ? details->iconId : 0;
 }
 
 [[nodiscard]] int FromNameVerificationSkip(

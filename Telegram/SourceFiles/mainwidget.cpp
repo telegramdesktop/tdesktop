@@ -174,7 +174,7 @@ base::options::toggle OptionUseNewChatView({
 	.id = kOptionUseNewChatView,
 	.name = "New chat view",
 	.description = "Open chats through the new section.",
-	.defaultValue = true,
+	.defaultValue = false, // Mokagram: наши фичи живут в старом виде чата.
 });
 
 } // namespace
