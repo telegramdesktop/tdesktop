@@ -194,7 +194,9 @@ control, and both again with `connect-control`.
 - Unsandboxed: each of these succeeded, including the item read (its value
   not kept), the lookups (except the unregistered
   `com.apple.locationd.registration`), 2 camera and 2 audio devices and the
-  parent readings. `task_for_pid` of the parent failed in both modes.
+  parent readings. Raising the descriptor limit did not apply there: its
+  hard limit is already unlimited, so the probe reports it `n/a`.
+  `task_for_pid` of the parent failed in both modes.
 - Controls: the listener accepted the main process before and after and
   the unsandboxed helpers' tokens, none while a helper was locked. The main
   process read the item before and after the helpers, deleted it and
