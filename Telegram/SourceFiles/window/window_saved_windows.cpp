@@ -1715,12 +1715,14 @@ void SavedWindows::replayChats(
 		return;
 	}
 	const auto &first = entries.front();
+	const auto firstPlain = (first.section == SavedChatSection::Chat)
+		&& !first.rootId;
 	const auto overWindowChat = alreadyShown
 		&& (controller->activeChatCurrent().thread() == windowThread)
-		&& (first.section == SavedChatSection::Chat)
-		&& !first.rootId
-		&& (first.thread->asHistory() != nullptr)
-		&& (first.thread != windowThread);
+		&& (firstPlain
+			? ((first.thread->asHistory() != nullptr)
+				&& (first.thread != windowThread))
+			: (first.thread == windowThread));
 	const auto makeParams = [](SectionShow::Way way) {
 		auto params = SectionShow(
 			way,
