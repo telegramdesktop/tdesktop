@@ -30,6 +30,9 @@ struct PasswordCheckState {
 	bool hasPassword = false;
 	bool checked = false;
 	MTPInputPeer singlePeer = MTP_inputPeerEmpty();
+	int32 singleTopicRootId = 0;
+	uint64 singleTopicPeerId = 0;
+	QString singleTopicTitle;
 };
 
 struct ProcessingState {

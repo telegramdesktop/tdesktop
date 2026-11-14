@@ -43,6 +43,56 @@ add_dependencies(Telegram test_text)
 
 target_prepare_qrc(test_text)
 
+add_executable(test_export_output_topics)
+init_target(test_export_output_topics "(tests)")
+target_include_directories(test_export_output_topics PRIVATE ${src_loc})
+
+target_precompile_headers(test_export_output_topics PRIVATE ${src_loc}/export/export_pch.h <QtCore/QRect>)
+target_include_directories(test_export_output_topics PRIVATE ${CMAKE_SOURCE_DIR}/Telegram/lib_ui)
+nice_target_sources(test_export_output_topics ${src_loc}
+PRIVATE
+    tests/test_export_output_topics.cpp
+    data/data_birthday.cpp
+    export/data/export_data_types.cpp
+    export/output/export_output_abstract.cpp
+    export/output/export_output_file.cpp
+    export/output/export_output_html.cpp
+    export/output/export_output_html_and_json.cpp
+    export/output/export_output_json.cpp
+    export/output/export_output_stats.cpp
+    ui/grouped_layout_geometry.cpp
+    ui/grouped_layout.cpp
+    lang/lang_tag.cpp
+    ui/text/format_values.cpp
+    countries/countries_instance.cpp
+    core/utils.cpp
+)
+nice_target_sources(test_export_output_topics ${res_loc}
+PRIVATE
+    qrc/telegram/export.qrc
+)
+target_include_directories(test_export_output_topics PRIVATE
+    ${CMAKE_SOURCE_DIR}/Telegram/ThirdParty/range-v3/include)
+target_link_libraries(test_export_output_topics
+PRIVATE
+    desktop-app::lib_base
+    tdesktop::td_scheme
+    desktop-app::external_qt
+    desktop-app::external_openssl
+    desktop-app::external_ffmpeg
+)
+if (MSVC)
+    target_compile_options(test_export_output_topics PRIVATE /Gy)
+    target_link_options(test_export_output_topics PRIVATE /OPT:REF)
+elseif (APPLE)
+    target_compile_options(test_export_output_topics PRIVATE -ffunction-sections -fdata-sections)
+    target_link_options(test_export_output_topics PRIVATE -Wl,-dead_strip)
+else()
+    target_compile_options(test_export_output_topics PRIVATE -ffunction-sections -fdata-sections)
+    target_link_options(test_export_output_topics PRIVATE -Wl,--gc-sections)
+endif()
+target_prepare_qrc(test_export_output_topics)
+
 if (APPLE)
     add_custom_command(TARGET test_text POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory
