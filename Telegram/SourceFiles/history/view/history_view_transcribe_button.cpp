@@ -7,11 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_transcribe_button.h"
 
-#include "base/unixtime.h"
-#include "boxes/premium_preview_box.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -62,6 +61,15 @@ TranscribeButton::TranscribeButton(
 , _size(!roundview && !_summarize
 	? st::historyTranscribeSize
 	: QSize(st::historyFastShareSize, st::historyFastShareSize)) {
+	if (!_summarize) {
+		const auto session = &item->history()->session();
+		session->api().transcribes().trialCooldownChanges(
+		) | rpl::on_next([=, id = item->fullId()] {
+			if (const auto item = session->data().message(id)) {
+				session->data().requestItemRepaint(item);
+			}
+		}, _lifetime);
+	}
 }
 
 TranscribeButton::~TranscribeButton() = default;
@@ -331,21 +339,10 @@ void TranscribeButton::paint(
 
 bool TranscribeButton::hasLock() const {
 	const auto session = &_item->history()->session();
-	if (session->premium()) {
-		return false;
-	}
 	const auto transcribes = &session->api().transcribes();
-	if (_summarize) {
-		return transcribes->summary(_item).premiumRequired;
-	}
-	if (transcribes->freeFor(_item) || transcribes->trialsCount()) {
-		return false;
-	}
-	const auto until = transcribes->trialsRefreshAt();
-	if (!until || base::unixtime::now() >= until) {
-		return false;
-	}
-	return true;
+	return _summarize
+		? !session->premium() && transcribes->summary(_item).premiumRequired
+		: transcribes->trialCooldownUntil(_item) > 0;
 }
 
 void TranscribeButton::setOpened(bool opened, Fn<void()> update) {
@@ -373,48 +370,51 @@ ClickHandlerPtr TranscribeButton::link() {
 	const auto session = &_item->history()->session();
 	const auto id = _item->fullId();
 	const auto summarize = _summarize;
-	_link = std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+	_link = std::make_shared<LambdaClickHandler>([
+		weak = base::make_weak(session),
+		id,
+		summarize
+	](ClickContext context) {
+		const auto session = weak.get();
+		if (!session) {
+			return;
+		}
 		const auto item = session->data().message(id);
 		if (!item) {
 			return;
 		}
-		if (session->premium()) {
-			auto &transcribes = session->api().transcribes();
-			return summarize
-				? transcribes.toggleSummary(item)
-				: transcribes.toggle(item);
-		}
 		const auto my = context.other.value<ClickHandlerContext>();
-		if (hasLock()) {
-			if (const auto controller = my.sessionWindow.get()) {
-				if (summarize) {
+		auto &transcribes = session->api().transcribes();
+		if (summarize) {
+			if (!session->premium()
+				&& transcribes.summary(item).premiumRequired) {
+				if (const auto controller = my.sessionWindow.get()) {
 					Settings::ShowPremium(controller, u"summary"_q);
-				} else {
-					ShowPremiumPreviewBox(
-						controller,
-						PremiumFeature::VoiceToText);
 				}
-			}
-		} else {
-			const auto max = session->api().transcribes().trialsMaxLengthMs();
-			const auto doc = _item->media()
-				? _item->media()->document()
-				: nullptr;
-			if (doc && (doc->isVoiceMessage() || doc->isVideoMessage())) {
-				if (doc->duration() > max) {
-					if (const auto controller = my.sessionWindow.get()) {
-						controller->uiShow()->showToast(
-							tr::lng_audio_transcribe_long(tr::now));
-						return;
-					}
-				}
-			}
-			if (summarize) {
-				session->api().transcribes().toggleSummary(item);
 			} else {
-				session->api().transcribes().toggle(item);
+				transcribes.toggleSummary(item);
+			}
+			return;
+		}
+		if (!session->premium()
+			&& !transcribes.trialCooldownUntil(item)) {
+			const auto media = item->media();
+			const auto doc = media ? media->document() : nullptr;
+			if (doc && doc->duration() > transcribes.trialsMaxLengthMs()) {
+				if (const auto controller = my.sessionWindow.get()) {
+					controller->uiShow()->showToast(
+						tr::lng_audio_transcribe_long(tr::now));
+				}
+				return;
 			}
 		}
+		transcribes.toggle(item, [window = my.sessionWindow](
+				int left,
+				TimeId until) {
+			if (const auto controller = window.get()) {
+				ShowTrialTranscribesToast(controller, left, until);
+			}
+		});
 	});
 	return _link;
 }
