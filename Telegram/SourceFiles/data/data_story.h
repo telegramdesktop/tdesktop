@@ -176,6 +176,7 @@ public:
 	[[nodiscard]] const StoryMedia &media() const;
 	[[nodiscard]] PhotoData *photo() const;
 	[[nodiscard]] DocumentData *document() const;
+	[[nodiscard]] DocumentData *music() const;
 	[[nodiscard]] const std::shared_ptr<GroupCall> &call() const;
 
 	[[nodiscard]] bool hasReplyPreview() const;
@@ -279,6 +280,7 @@ private:
 	PeerData * const _fromPeer = nullptr;
 	Data::ReactionId _sentReactionId;
 	StoryMedia _media;
+	DocumentData *_music = nullptr;
 	TextWithEntities _caption;
 	std::vector<not_null<PeerData*>> _recentViewers;
 	std::vector<StoryLocation> _locations;

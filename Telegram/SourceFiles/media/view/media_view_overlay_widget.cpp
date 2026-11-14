@@ -1983,7 +1983,7 @@ void OverlayWidget::refreshCaptionGeometry() {
 		_groupThumbsRect = QRect();
 	}
 	const auto captionBottom = _stories
-		? (_y + _h)
+		? (_y + _h - _stories->musicCaptionSkip())
 		: _sponsoredButton
 		? (_sponsoredButton->y() - st::mediaviewCaptionMargin.height())
 		: _voteButton

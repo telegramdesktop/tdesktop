@@ -139,6 +139,7 @@ public:
 	[[nodiscard]] bool closeByClickAt(QPoint position) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
+	[[nodiscard]] int musicCaptionSkip() const;
 	[[nodiscard]] bool videoStream() const;
 	[[nodiscard]] bool skipCaption() const;
 	[[nodiscard]] bool repost() const;
@@ -251,6 +252,7 @@ private:
 	};
 
 	void initLayout();
+	void updateMusicLabel(Data::Story *story);
 	bool changeShown(Data::Story *story);
 	void subscribeToSession();
 	void updatePhotoPlayback(const Player::TrackState &state);
@@ -314,6 +316,7 @@ private:
 	std::unique_ptr<PhotoPlayback> _photoPlayback;
 	std::unique_ptr<CaptionFullView> _captionFullView;
 	std::unique_ptr<RepostView> _repostView;
+	std::unique_ptr<Ui::RpWidget> _musicLabel;
 
 	std::shared_ptr<Data::GroupCall> _videoStream;
 	base::weak_ptr<Calls::GroupCall> _videoStreamCall;

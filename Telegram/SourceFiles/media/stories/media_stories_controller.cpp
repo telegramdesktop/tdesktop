@@ -53,6 +53,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/controls/send_button.h"
+#include "ui/painter.h"
+#include "ui/text/format_song_document_name.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
@@ -625,6 +627,70 @@ TextWithEntities Controller::captionText() const {
 	return _captionText;
 }
 
+int Controller::musicCaptionSkip() const {
+	return _musicLabel
+		? _musicLabel->height() + st::mediaviewTextSkip
+		: 0;
+}
+
+void Controller::updateMusicLabel(Data::Story *story) {
+	_musicLabel = nullptr;
+	const auto track = story ? story->music() : nullptr;
+	if (!track || _videoStream || story->unsupported()) {
+		return;
+	}
+	const auto title = TextUtilities::SingleLine(
+		Ui::Text::FormatSongNameFor(track).string());
+	const auto &icon = st::storiesEmojiPan.audioButtonIcon;
+	const auto font = st::semiboldFont;
+	const auto padding = st::mediaviewCaptionPadding;
+	const auto textLeft = padding.left() + icon.width() + padding.left() / 2;
+	const auto trackHeight = std::max(icon.height(), font->height);
+	const auto height = trackHeight + padding.top() + padding.bottom();
+	const auto desiredWidth = textLeft + font->width(title) + padding.right();
+	_musicLabel = std::make_unique<Ui::RpWidget>(_wrap);
+	const auto label = _musicLabel.get();
+	label->resize(0, height);
+	label->setAccessibleName(title);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	label->paintRequest() | rpl::on_next([=] {
+		auto p = QPainter(label);
+		const auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::mediaviewCaptionBg);
+		p.drawRoundedRect(label->rect(), height / 2., height / 2.);
+		st::storiesEmojiPan.audioButtonIcon.paint(
+			p,
+			padding.left(),
+			(height - st::storiesEmojiPan.audioButtonIcon.height()) / 2,
+			label->width());
+		p.setFont(font);
+		p.setPen(st::mediaviewCaptionFg);
+		const auto textWidth = label->width() - textLeft - padding.right();
+		const auto rtl = style::RightToLeft();
+		const auto x = rtl ? padding.right() : textLeft;
+		p.drawText(
+			QRect(x, 0, textWidth, height),
+			Qt::AlignVCenter | Qt::AlignAbsolute
+				| (rtl ? Qt::AlignRight : Qt::AlignLeft),
+			font->elided(title, textWidth));
+	}, label->lifetime());
+	layoutValue() | rpl::on_next([=](const Layout &layout) {
+		const auto available = layout.content.width()
+			- padding.left()
+			- padding.right();
+		const auto width = (available > textLeft + padding.right())
+			? std::min(available, desiredWidth)
+			: 0;
+		label->resize(width, height);
+		label->moveToLeft(
+			layout.content.x() + padding.left(),
+			layout.content.y() + layout.content.height()
+				- height - padding.bottom());
+		label->setVisible(!_captionFullView && width > 0);
+	}, label->lifetime());
+}
+
 bool Controller::skipCaption() const {
 	return _videoStream
 		|| (_captionFullView != nullptr)
@@ -694,6 +760,9 @@ void Controller::showFullCaption() {
 		return;
 	}
 	_captionFullView = std::make_unique<CaptionFullView>(this);
+	if (_musicLabel) {
+		_musicLabel->hide();
+	}
 	updateContentFaded();
 }
 
@@ -708,6 +777,9 @@ void Controller::captionClosed() {
 		_wrap->setFocus();
 	}
 	_captionFullView = nullptr;
+	if (_musicLabel && _musicLabel->width() > 0) {
+		_musicLabel->show();
+	}
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {
@@ -911,6 +983,7 @@ void Controller::show(
 	captionClosed();
 	_repostView = validateRepostView(story);
 	_captionText = story->caption();
+	updateMusicLabel(story);
 	_contentFaded = false;
 	_contentFadeAnimation.stop();
 	const auto document = story->document();
