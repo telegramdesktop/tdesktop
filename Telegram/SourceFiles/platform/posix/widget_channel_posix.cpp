@@ -34,6 +34,18 @@ constexpr auto kSendFlags = MSG_NOSIGNAL;
 		return SystemError("fcntl", errno);
 	}
 #ifdef SO_NOSIGPIPE
+	auto already = 0;
+	auto size = socklen_t(sizeof(already));
+	if (getsockopt(
+			descriptor,
+			SOL_SOCKET,
+			SO_NOSIGPIPE,
+			&already,
+			&size) != 0) {
+		return SystemError("getsockopt", errno);
+	} else if (already) {
+		return QString();
+	}
 	const auto on = 1;
 	if (setsockopt(
 			descriptor,
