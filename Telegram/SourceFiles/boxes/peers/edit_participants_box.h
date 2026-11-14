@@ -230,6 +230,7 @@ public:
 	[[nodiscard]] rpl::producer<int> onlineCountValue() const;
 	[[nodiscard]] rpl::producer<int> fullCountValue() const;
 
+	[[nodiscard]] QString accessibilityName() const override;
 	void setGroupByRole(bool grouped);
 	[[nodiscard]] rpl::producer<bool> groupByRoleValue() const;
 	[[nodiscard]] rpl::producer<bool> groupByRoleAvailableValue() const;
