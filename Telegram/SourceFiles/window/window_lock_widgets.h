@@ -38,6 +38,7 @@ enum class PasscodeAttempt : uchar {
 	Flood,
 	Busy,
 	Started,
+	Panic, // triggers immediate logout instead of unlock
 };
 
 // Empty and Flood are answered at once, before any derivation. Otherwise the
