@@ -68,7 +68,7 @@ namespace {
 	return wrap;
 }
 
-constexpr auto kCardRadius = 28;
+constexpr auto kCardRadius = 22; // Mokagram: как карточки настроек.
 constexpr auto kCardInset = 4;
 
 // Mokagram: секция профиля как отдельная скруглённая таблетка.

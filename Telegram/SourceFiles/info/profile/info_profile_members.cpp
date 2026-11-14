@@ -151,7 +151,10 @@ void Members::setupHeader() {
 	object_ptr<FloatingIcon>(
 		parent,
 		st::infoIconMembers,
-		st::infoGroupMembersIconPosition);
+		// Mokagram: значок, заголовок и кнопки по центру шапки.
+		QPoint(
+			st::infoGroupMembersIconPosition.x(),
+			(st::infoMembersHeader - st::infoIconMembers.height()) / 2));
 
 	_titleWrap = Ui::CreateChild<Ui::RpWidget>(parent);
 	_title = setupTitle();
@@ -299,7 +302,12 @@ int Members::resizeGetHeight(int newWidth) {
 //}
 
 void Members::updateHeaderControlsGeometry(int newWidth) {
-	_openMembers->setGeometry(0, st::infoProfileSkip, newWidth, st::infoMembersButton.height);
+	// Mokagram: подсветка кнопки ровно посередине шапки.
+	_openMembers->setGeometry(
+		0,
+		(st::infoMembersHeader - st::infoMembersButton.height) / 2,
+		newWidth,
+		st::infoMembersButton.height);
 
 	auto availableWidth = newWidth
 		- st::infoMembersButtonPosition.x();
@@ -354,7 +362,7 @@ void Members::updateHeaderControlsGeometry(int newWidth) {
 		_title->height());
 	_titleWrap->moveToLeft(
 		st::infoBlockHeaderPosition.x(),
-		st::infoBlockHeaderPosition.y(),
+		(st::infoMembersHeader - _title->height()) / 2,
 		newWidth);
 	_titleWrap->setAttribute(Qt::WA_TransparentForMouseEvents);
 
