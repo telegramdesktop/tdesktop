@@ -1,8 +1,8 @@
 diff --git i/webview/platform/linux/webview_linux_webkitgtk.cpp w/webview/platform/linux/webview_linux_webkitgtk.cpp
-index 81824ca..a7c3a64 100644
+index 6c6ec22..70bf0ac 100644
 --- i/webview/platform/linux/webview_linux_webkitgtk.cpp
 +++ w/webview/platform/linux/webview_linux_webkitgtk.cpp
-@@ -2608,6 +2608,9 @@ void Instance::startProcess() {
+@@ -2601,6 +2601,9 @@ void Instance::startProcess() {
  	auto serviceLauncher = Gio::SubprocessLauncher::new_(
  		Gio::SubprocessFlags::NONE_);
  

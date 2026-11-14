@@ -72,89 +72,95 @@ index 7a9c2b7..3b17cec 100644
  	const auto paintTopRounded = !(_customCornersFilling & RectPart::FullTop)
  		&& clip.intersects(QRect(0, 0, width(), st::boxRadius));
 diff --git i/ui/layers/layer_widget.cpp w/ui/layers/layer_widget.cpp
-index ec3171e..35f567e 100644
+index f8b1aa6..c35e727 100644
 --- i/ui/layers/layer_widget.cpp
 +++ w/ui/layers/layer_widget.cpp
-@@ -20,8 +20,31 @@
- #include "styles/palette.h"
+@@ -6,7 +6,6 @@
+ //
+ #include "ui/layers/layer_widget.h"
  
+-#include "ui/cached_special_layer_shadow_corners.h"
+ #include "ui/layers/box_layer_widget.h"
+ #include "ui/widgets/shadow.h"
+ #include "ui/image/image_prepare.h"
+@@ -22,6 +21,52 @@
  #include <QtGui/QtEvents>
-+#include <QtGui/QPainterPath>
  
  namespace Ui {
 +namespace {
 +
-+// Mokagram: шторка главного меню прижата к левому или правому краю окна.
-+bool MainMenuRightFlag = false;
++void PaintSpecialLayerShadow(QPainter &p, const QRect &box) {
++	static const auto topShadow = BoxShadow(st::defaultBoxShadow);
++	static const auto bottomShadow = BoxShadow(st::defaultBoxShadow);
++	const auto outer = box.marginsAdded(topShadow.extend());
++	const auto middle = box.y() + box.height() / 2;
++	p.save();
++	p.setClipRect(
++		QRect(outer.x(), outer.y(), outer.width(), middle - outer.y()),
++		Qt::IntersectClip);
++	topShadow.paint(p, box, 32);
++	p.restore();
++	p.save();
++	p.setClipRect(
++		QRect(outer.x(), middle, outer.width(), outer.bottom() - middle + 1),
++		Qt::IntersectClip);
++	bottomShadow.paint(p, box, 20);
++	p.restore();
++}
 +
-+void PlaceMainMenu(not_null<LayerWidget*> menu) {
-+	if (MainMenuRightFlag) {
-+		menu->moveToRight(0, 0);
-+	} else {
-+		menu->moveToLeft(0, 0);
++QPixmap GrabSpecialLayerShadow(
++		not_null<RpWidget*> target,
++		RectParts sides) {
++	const auto &shadow = st::boxRoundShadow;
++	const auto extend = QMargins(
++		(sides & RectPart::Left) ? shadow.extend.left() : 0,
++		(sides & RectPart::Top) ? shadow.extend.top() : 0,
++		(sides & RectPart::Right) ? shadow.extend.right() : 0,
++		(sides & RectPart::Bottom) ? shadow.extend.bottom() : 0);
++	const auto box = target->rect().translated(
++		extend.left(),
++		extend.top());
++	const auto size = target->rect().marginsAdded(extend).size();
++	auto result = QPixmap(size * style::DevicePixelRatio());
++	result.setDevicePixelRatio(style::DevicePixelRatio());
++	result.fill(Qt::transparent);
++	{
++		auto p = QPainter(&result);
++		PaintSpecialLayerShadow(p, box);
++		RenderWidget(p, target, box.topLeft());
 +	}
++	return result;
 +}
 +
 +} // namespace
-+
-+void SetMainMenuOnRight(bool right) {
-+	MainMenuRightFlag = right;
-+}
-+
-+bool MainMenuOnRight() {
-+	return MainMenuRightFlag;
-+}
  
  class LayerStackWidget::BackgroundWidget : public RpWidget {
  public:
-@@ -180,7 +203,9 @@ void LayerStackWidget::BackgroundWidget::setMainMenuShown(bool shown) {
- 			anim::easeOutCirc);
- 	}
- 	_mainMenuCacheWidth = (_mainMenuCache.width() / style::DevicePixelRatio())
--		- st::boxRoundShadow.extend.right();
-+		- (MainMenuRightFlag
-+			? st::boxRoundShadow.extend.left()
-+			: st::boxRoundShadow.extend.right());
- 	_mainMenuRight = _mainMenuShown ? _mainMenuCacheWidth : 0;
- 	checkWasShown(wasShown);
- }
-@@ -248,11 +273,12 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
- 	auto mainMenuRight = (_mainMenuCache.isNull() || mainMenuProgress < 0) ? _mainMenuRight : (mainMenuProgress < 0) ? _mainMenuRight : anim::interpolate(0, _mainMenuCacheWidth, mainMenuProgress);
- 	if (mainMenuRight) {
- 		// Move showing boxes to the right while main menu is hiding.
-+		const auto shift = MainMenuRightFlag ? -mainMenuRight / 2 : mainMenuRight / 2;
- 		if (!_specialLayerCache.isNull()) {
--			specialLayerBox.moveLeft(specialLayerBox.left() + mainMenuRight / 2);
-+			specialLayerBox.moveLeft(specialLayerBox.left() + shift);
- 		}
- 		if (!_layerCache.isNull()) {
--			layerBox.moveLeft(layerBox.left() + mainMenuRight / 2);
-+			layerBox.moveLeft(layerBox.left() + shift);
- 		}
- 	}
- 	auto bgOpacity = _a_shown.value(isShown() ? 1. : 0.);
-@@ -264,12 +290,18 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
- 
- 	p.setOpacity(bgOpacity);
- 	auto overSpecialOpacity = (layerOpacity * specialLayerOpacity);
--	auto bg = myrtlrect(mainMenuRight, 0, width() - mainMenuRight, height());
-+	auto bg = MainMenuRightFlag
-+		? QRect(0, 0, width() - mainMenuRight, height())
-+		: myrtlrect(mainMenuRight, 0, width() - mainMenuRight, height());
- 
- 	if (_mainMenuCache.isNull() && mainMenuRight > 0) {
+@@ -276,22 +321,7 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
+ 	if (_specialLayerCache.isNull() && !specialLayerBox.isEmpty()) {
  		// All cache images are taken together with their shadows,
  		// so we paint shadow only when there is no cache.
--		Ui::Shadow::paint(p, myrtlrect(0, 0, mainMenuRight, height()), width(), st::boxRoundShadow, RectPart::Right);
-+		if (MainMenuRightFlag) {
-+			Ui::Shadow::paint(p, QRect(width() - mainMenuRight, 0, mainMenuRight, height()), width(), st::boxRoundShadow, RectPart::Left);
-+		} else {
-+			Ui::Shadow::paint(p, myrtlrect(0, 0, mainMenuRight, height()), width(), st::boxRoundShadow, RectPart::Right);
-+		}
+-		auto sides = RectPart::Left | RectPart::Right;
+-		auto topCorners = (specialLayerBox.y() > 0);
+-		auto bottomCorners = (specialLayerBox.y() + specialLayerBox.height() < height());
+-		if (topCorners) {
+-			sides |= RectPart::Top;
+-		}
+-		if (bottomCorners) {
+-			sides |= RectPart::Bottom;
+-		}
+-		if (topCorners || bottomCorners) {
+-			p.setClipRegion(QRegion(rect()) - specialLayerBox.marginsRemoved(QMargins(st::boxRadius, 0, st::boxRadius, 0)) - specialLayerBox.marginsRemoved(QMargins(0, st::boxRadius, 0, st::boxRadius)));
+-		}
+-		Ui::Shadow::paint(p, specialLayerBox, width(), st::boxRoundShadow, Ui::SpecialLayerShadowCorners(), sides);
+-		if (topCorners || bottomCorners) {
+-			p.setClipping(false);
+-		}
++		PaintSpecialLayerShadow(p, specialLayerBox);
  	}
  
- 	if (_specialLayerCache.isNull() && !specialLayerBox.isEmpty()) {
-@@ -299,17 +331,50 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
+ 	if (!layerBox.isEmpty() && !_specialLayerCache.isNull() && overSpecialOpacity < bgOpacity) {
+@@ -300,12 +330,18 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
  		// (alpha_final - alpha_current) / (1 - alpha_current) so we won't get glitches
  		// in the transparent special layer cache corners after filling special layer
  		// rect above its cache with alpha_current opacity.
@@ -175,91 +181,17 @@ index ec3171e..35f567e 100644
  		p.setOpacity(bgOpacity);
  	} else {
  		p.fillRect(bg, st::layerBg);
- 	}
- 
-+	if (!specialLayerBox.isEmpty() && _specialLayerCache.isNull()) {
-+		// Mokagram: в скруглённых углах окна нет тени, и они выглядят светлее
-+		// окружения: подтемняем их под цвет тени вокруг.
-+		auto hq = PainterHighQualityEnabler(p);
-+		p.setOpacity(bgOpacity);
-+		p.setPen(Qt::NoPen);
-+		p.setBrush(QColor(0, 0, 0, 107));
-+		const auto wedge = [&](int x, int y, int r, bool right, bool bottom) {
-+			auto path = QPainterPath();
-+			path.addRect(QRectF(x, y, r, r));
-+			auto circle = QPainterPath();
-+			circle.addEllipse(
-+				QPointF(right ? x : x + r, bottom ? y : y + r),
-+				r,
-+				r);
-+			p.drawPath(path.subtracted(circle));
-+		};
-+		const auto &b = specialLayerBox;
-+		wedge(b.x(), b.y(), 32, false, false);
-+		wedge(b.x() + b.width() - 32, b.y(), 32, true, false);
-+		if (b.y() + b.height() < height()) {
-+			wedge(b.x(), b.y() + b.height() - 20, 20, false, true);
-+			wedge(b.x() + b.width() - 20, b.y() + b.height() - 20, 20, true, true);
-+		}
-+		p.setOpacity(1.);
-+	}
-+
- 	if (!_specialLayerCache.isNull() && specialLayerOpacity > 0) {
- 		p.setOpacity(specialLayerOpacity);
- 		auto cacheLeft = specialLayerBox.x() - st::boxRoundShadow.extend.left();
-@@ -332,10 +397,20 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
- 	}
- 	if (!_mainMenuCache.isNull() && mainMenuRight > 0) {
- 		p.setOpacity(1.);
--		auto shownWidth = mainMenuRight + st::boxRoundShadow.extend.right();
--		auto sourceWidth = shownWidth * style::DevicePixelRatio();
--		auto sourceRect = style::rtlrect(_mainMenuCache.width() - sourceWidth, 0, sourceWidth, _mainMenuCache.height(), _mainMenuCache.width());
--		p.drawPixmapLeft(0, 0, shownWidth, height(), width(), _mainMenuCache, sourceRect);
-+		if (MainMenuRightFlag) {
-+			// Выезжает справа: видна левая часть кэша (с тенью слева).
-+			auto shownWidth = mainMenuRight + st::boxRoundShadow.extend.left();
-+			auto sourceWidth = shownWidth * style::DevicePixelRatio();
-+			p.drawPixmap(
-+				QRect(width() - shownWidth, 0, shownWidth, height()),
-+				_mainMenuCache,
-+				QRect(0, 0, sourceWidth, _mainMenuCache.height()));
-+		} else {
-+			auto shownWidth = mainMenuRight + st::boxRoundShadow.extend.right();
-+			auto sourceWidth = shownWidth * style::DevicePixelRatio();
-+			auto sourceRect = style::rtlrect(_mainMenuCache.width() - sourceWidth, 0, sourceWidth, _mainMenuCache.height(), _mainMenuCache.width());
-+			p.drawPixmapLeft(0, 0, shownWidth, height(), width(), _mainMenuCache, sourceRect);
-+		}
- 	}
- 	if (!_repaintIssued && !_a_shown.animating()) {
- 		_repaintIssued = true;
-@@ -571,7 +646,7 @@ void LayerStackWidget::setCacheImages() {
- 		hideChildren();
- 		bodyCache = Ui::GrabWidget(parentWidget());
- 		showChildren();
--		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, RectPart::Right);
-+		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, MainMenuRightFlag ? RectPart::Left : RectPart::Right);
- 	}
- 	setAttribute(Qt::WA_OpaquePaintEvent, !bodyCache.isNull());
- 	updateLayerBoxes();
-@@ -728,6 +803,7 @@ void LayerStackWidget::resizeEvent(QResizeEvent *e) {
- 	}
- 	if (_mainMenu) {
- 		_mainMenu->parentResized();
-+		PlaceMainMenu(_mainMenu.data());
- 		if (!weak) {
- 			return;
+@@ -558,7 +594,7 @@ void LayerStackWidget::setCacheImages() {
+ 		if (_specialLayer->y() + _specialLayer->height() < height()) {
+ 			sides |= RectPart::Bottom;
  		}
-@@ -843,7 +919,7 @@ void LayerStackWidget::showMainMenu(
- 	startAnimation([&] {
- 		_mainMenu = std::move(layer);
- 		initChildLayer(_mainMenu);
--		_mainMenu->moveToLeft(0, 0);
-+		PlaceMainMenu(_mainMenu.data());
- 	}, [&] {
- 		clearLayers();
- 		_specialLayer.destroy();
+-		specialLayerCache = Ui::Shadow::grab(_specialLayer, st::boxRoundShadow, sides);
++		specialLayerCache = GrabSpecialLayerShadow(_specialLayer, sides);
+ 	}
+ 	auto layerCache = QPixmap();
+ 	if (auto layer = currentLayer()) {
 diff --git i/ui/text/custom_emoji_instance.cpp w/ui/text/custom_emoji_instance.cpp
-index 256b889..cf0b5c0 100644
+index 256b889..047240a 100644
 --- i/ui/text/custom_emoji_instance.cpp
 +++ w/ui/text/custom_emoji_instance.cpp
 @@ -19,6 +19,11 @@
@@ -274,7 +206,26 @@ index 256b889..cf0b5c0 100644
  namespace {
  
  constexpr auto kMaxFrames = 180;
-@@ -405,7 +410,7 @@ PaintFrameResult Cache::paintCurrentFrame(
+@@ -107,7 +112,8 @@ void Preview::paint(QPainter &p, const Context &context) {
+ 		paintPath(p, context, *path);
+ 	} else if (const auto image = std::get_if<Image>(&_data)) {
+ 		const auto &data = image->data;
+-		const auto factor = style::DevicePixelRatio();
++		// Mokagram: в снимке сообщений превью крупнее в ShotScale раз.
++		const auto factor = style::DevicePixelRatio() * ShotScale();
+ 		const auto rect = QRect(context.position, data.size() / factor);
+ 		PaintScaledImage(p, rect, { .image = &data }, context);
+ 	}
+@@ -138,7 +144,7 @@ void Preview::paintPath(
+ 	auto hq = PainterHighQualityEnabler(p);
+ 	p.setBrush(PreviewColorFromTextColor(context.textColor));
+ 	p.setPen(Qt::NoPen);
+-	const auto scale = path.scale;
++	const auto scale = path.scale / ShotScale();
+ 	const auto required = (scale != 1.) || context.scaled;
+ 	if (required) {
+ 		p.save();
+@@ -405,7 +411,7 @@ PaintFrameResult Cache::paintCurrentFrame(
  		? (_frames - 1)
  		: std::min(_frame, _frames - 1);
  	const auto info = frame(index);
@@ -320,7 +271,7 @@ index 0000000..fc47787
 +
 +} // namespace Ui::Text
 diff --git i/ui/text/text_renderer.cpp w/ui/text/text_renderer.cpp
-index 8ad5f61..3a3158f 100644
+index df65125..c75da3d 100644
 --- i/ui/text/text_renderer.cpp
 +++ w/ui/text/text_renderer.cpp
 @@ -5,6 +5,7 @@
@@ -382,7 +333,7 @@ index 8ad5f61..3a3158f 100644
  constexpr auto kQuoteHeaderTextLarge = 25;
  
  const ClickHandlerPtr &CustomEmojiMismatchLink() {
-@@ -1206,6 +1251,9 @@ bool Renderer::drawLine(uint16 lineEnd, Blocks::const_iterator blocksEnd) {
+@@ -1205,6 +1250,9 @@ bool Renderer::drawLine(uint16 lineEnd, Blocks::const_iterator blocksEnd) {
  								: QPoint(
  									ex + _customEmojiSkip,
  									ey + _customEmojiSkip);
@@ -411,7 +362,7 @@ index 948271f..f7b7b24 100644
  
  	p.fillRect(e->rect(), _st.bg);
 diff --git i/ui/widgets/buttons.cpp w/ui/widgets/buttons.cpp
-index 690ba6f..f813eab 100644
+index a9f44e9..11db1ca 100644
 --- i/ui/widgets/buttons.cpp
 +++ w/ui/widgets/buttons.cpp
 @@ -53,7 +53,7 @@ public:
@@ -452,7 +403,7 @@ index 690ba6f..f813eab 100644
  }
  
  QPoint RoundButton::prepareRippleStartPosition() const {
-@@ -990,8 +990,22 @@ void SettingsButton::paintEvent(QPaintEvent *e) {
+@@ -1005,8 +1005,22 @@ void SettingsButton::paintEvent(QPaintEvent *e) {
  	}
  }
  
@@ -477,10 +428,10 @@ index 690ba6f..f813eab 100644
  
  void SettingsButton::paintText(Painter &p, bool over, int outerw) const {
 diff --git i/ui/widgets/buttons.h w/ui/widgets/buttons.h
-index 0801610..0bfab98 100644
+index ce40933..c13c864 100644
 --- i/ui/widgets/buttons.h
 +++ w/ui/widgets/buttons.h
-@@ -349,6 +349,7 @@ protected:
+@@ -350,6 +350,7 @@ protected:
  
  	void paintEvent(QPaintEvent *e) override;
  
@@ -552,11 +503,92 @@ index df0dc58..ceadaf2 100644
  	auto fullWidth = _st->diameter + _st->width;
  	auto innerDiameter = _st->diameter - 2 * _st->shift;
  	auto innerRadius = float64(innerDiameter) / 2.;
+diff --git i/ui/widgets/elastic_scroll.cpp w/ui/widgets/elastic_scroll.cpp
+index f72ffc5..fd7d261 100644
+--- i/ui/widgets/elastic_scroll.cpp
++++ w/ui/widgets/elastic_scroll.cpp
+@@ -576,6 +576,37 @@ void ElasticScroll::overscrollSpringStart(int side) {
+ 		kRubberBandMaxReturnDuration);
+ }
+ 
++// A plain mouse wheel has no gesture phases, so it never stretches the
++// edge. When a wheel step hits a bounce edge, start the release spring
++// from the edge with a velocity that peaks at a few pixels, the same
++// out-and-back motion a touchpad fling gets.
++void ElasticScroll::wheelBounce(int left) {
++	if (!left
++		|| _overscrollReturnAnimation.animating()
++		|| !overscrollSpringSide(left)
++		|| overscrollPullSide(left)) {
++		return;
++	}
++	const auto &allowed = (left < 0)
++		? _overscrollAllowFrom
++		: _overscrollAllowTill;
++	if (allowed && !allowed()) {
++		return;
++	}
++	const auto peak = std::clamp(
++		std::abs(left) / 4,
++		style::ConvertScale(8),
++		style::ConvertScale(28));
++	const auto decay = kRubberBandStiffness / kRubberBandPeriod;
++	const auto velocity = peak * decay * M_E / kRubberBandAmplitude;
++	_wheelVelocity = (left < 0) ? -velocity : velocity;
++	_wheelVelocityTime = crl::now();
++	_overscrollReturning = true;
++	_ignoreMomentumFromOverscroll = 0;
++	_movement = Movement::Returning;
++	overscrollSpringStart((left < 0) ? -1 : 1);
++}
++
+ void ElasticScroll::overscrollSpringUpdate() {
+ 	const auto progress = _overscrollReturnAnimation.value(1.);
+ 	const auto time = progress * kRubberBandMaxReturnDuration / 1000.;
+@@ -916,14 +947,25 @@ bool ElasticScroll::handleWheelEvent(
+ 		delta = 0;
+ 	}
+ 	if (phase == Qt::NoScrollPhase) {
++		if (delta
++			&& _springSide
++			&& _overscrollReturnAnimation.animating()
++			&& base::OppositeSigns(_springSide, delta)) {
++			// Wheel away from a wheel bounce drops the bounce at once.
++			overscrollSpringFinish();
++			applyOverscroll(currentOverscrollDefault());
++			overscrollFinish();
++		}
+ 		if (_overscroll == currentOverscrollDefault()) {
+ 			const auto weak = base::make_weak(this);
+ 			requestBottomContent(delta);
+ 			if (!weak) {
+ 				return true;
+ 			}
+-			tryScrollTo(_state.visibleFrom + delta);
++			const auto target = _state.visibleFrom + delta;
++			tryScrollTo(target);
+ 			_movement = Movement::None;
++			wheelBounce(target - _state.visibleFrom);
+ 		} else if (!_overscrollReturnAnimation.animating()) {
+ 			overscrollReturn();
+ 		}
+diff --git i/ui/widgets/elastic_scroll.h w/ui/widgets/elastic_scroll.h
+index f0ba4d9..9a1cf5b 100644
+--- i/ui/widgets/elastic_scroll.h
++++ w/ui/widgets/elastic_scroll.h
+@@ -332,6 +332,7 @@ private:
+ 		int delta,
+ 		crl::time timestamp);
+ 	void overscrollSpringStart(int side);
++	void wheelBounce(int left);
+ 	void overscrollSpringUpdate();
+ 	void updateBarState();
+ 	void overscrollSpringFinish();
 diff --git i/ui/widgets/fields/input_field.cpp w/ui/widgets/fields/input_field.cpp
-index d57ac56..7226abd 100644
+index cf7b90d..779ec96 100644
 --- i/ui/widgets/fields/input_field.cpp
 +++ w/ui/widgets/fields/input_field.cpp
-@@ -1925,6 +1925,15 @@ InputField::InputField(
+@@ -1990,6 +1990,15 @@ InputField::InputField(
  		}
  	}
  
@@ -572,7 +604,7 @@ index d57ac56..7226abd 100644
  	if (_st.textBg->c.alphaF() >= 1. && !_st.borderRadius) {
  		setAttribute(Qt::WA_OpaquePaintEvent);
  	}
-@@ -2868,7 +2877,7 @@ void InputField::paintSurrounding(
+@@ -2933,7 +2942,7 @@ void InputField::paintSurrounding(
  		QRect clip,
  		float64 errorDegree,
  		float64 focusedDegree) {
@@ -581,7 +613,7 @@ index d57ac56..7226abd 100644
  		paintRoundSurrounding(p, clip, errorDegree, focusedDegree);
  	} else {
  		paintFlatSurrounding(p, clip, errorDegree, focusedDegree);
-@@ -2882,10 +2891,14 @@ void InputField::paintRoundSurrounding(
+@@ -2947,10 +2956,14 @@ void InputField::paintRoundSurrounding(
  		float64 focusedDegree) {
  	const auto divide = _st.borderDenominator ? _st.borderDenominator : 1;
  	const auto border = _st.border / float64(divide);
@@ -660,10 +692,10 @@ index ef96309..a082ef9 100644
  	if (_st.placeholderScale > 0. && !_placeholderPath.isEmpty()) {
  		auto placeholderShiftDegree = _a_placeholderShifted.value(_placeholderShifted ? 1. : 0.);
 diff --git i/ui/widgets/labels.cpp w/ui/widgets/labels.cpp
-index ceed27c..8bfe1c6 100644
+index aeed599..b3e777b 100644
 --- i/ui/widgets/labels.cpp
 +++ w/ui/widgets/labels.cpp
-@@ -1151,6 +1151,7 @@ DividerLabel::DividerLabel(
+@@ -1158,6 +1158,7 @@ DividerLabel::DividerLabel(
  	RectParts parts)
  : PaddingWrap(parent, std::move(child), padding)
  , _background(this, st::boxDividerHeight, st, parts) {
@@ -786,10 +818,10 @@ index db27772..a105815 100644
  	if (const auto icon = (selected ? _iconOver : _icon)) {
  		icon->paint(p, _st.itemIconPosition, width());
 diff --git i/ui/widgets/scroll_area.cpp w/ui/widgets/scroll_area.cpp
-index 36af139..425ecbb 100644
+index 67ff1f9..29c8a01 100644
 --- i/ui/widgets/scroll_area.cpp
 +++ w/ui/widgets/scroll_area.cpp
-@@ -292,6 +292,8 @@ void ScrollBar::setMoving(bool moving) {
+@@ -290,6 +290,8 @@ void ScrollBar::setMoving(bool moving) {
  }
  
  void ScrollBar::paintEvent(QPaintEvent *e) {
@@ -908,84 +940,3 @@ index 8b8df7d..e5687e6 100644
  }
  
  universalRippleAnimation: RippleAnimation(defaultRippleAnimation) {
-diff --git i/ui/widgets/elastic_scroll.cpp w/ui/widgets/elastic_scroll.cpp
-index 667a233..61ab661 100644
---- i/ui/widgets/elastic_scroll.cpp
-+++ w/ui/widgets/elastic_scroll.cpp
-@@ -612,6 +612,37 @@ void ElasticScroll::overscrollSpringStart(int side) {
- 		kRubberBandMaxReturnDuration);
- }
- 
-+// A plain mouse wheel has no gesture phases, so it never stretches the
-+// edge. When a wheel step hits a bounce edge, start the release spring
-+// from the edge with a velocity that peaks at a few pixels, the same
-+// out-and-back motion a touchpad fling gets.
-+void ElasticScroll::wheelBounce(int left) {
-+	if (!left
-+		|| _overscrollReturnAnimation.animating()
-+		|| !overscrollSpringSide(left)
-+		|| overscrollPullSide(left)) {
-+		return;
-+	}
-+	const auto &allowed = (left < 0)
-+		? _overscrollAllowFrom
-+		: _overscrollAllowTill;
-+	if (allowed && !allowed()) {
-+		return;
-+	}
-+	const auto peak = std::clamp(
-+		std::abs(left) / 4,
-+		style::ConvertScale(8),
-+		style::ConvertScale(28));
-+	const auto decay = kRubberBandStiffness / kRubberBandPeriod;
-+	const auto velocity = peak * decay * M_E / kRubberBandAmplitude;
-+	_wheelVelocity = (left < 0) ? -velocity : velocity;
-+	_wheelVelocityTime = crl::now();
-+	_overscrollReturning = true;
-+	_ignoreMomentumFromOverscroll = 0;
-+	_movement = Movement::Returning;
-+	overscrollSpringStart((left < 0) ? -1 : 1);
-+}
-+
- void ElasticScroll::overscrollSpringUpdate() {
- 	const auto progress = _overscrollReturnAnimation.value(1.);
- 	const auto time = progress * kRubberBandMaxReturnDuration / 1000.;
-@@ -946,14 +977,25 @@ bool ElasticScroll::handleWheelEvent(not_null<QWheelEvent*> e, bool touch) {
- 		delta = 0;
- 	}
- 	if (phase == Qt::NoScrollPhase) {
-+		if (delta
-+			&& _springSide
-+			&& _overscrollReturnAnimation.animating()
-+			&& base::OppositeSigns(_springSide, delta)) {
-+			// Wheel away from a wheel bounce drops the bounce at once.
-+			overscrollSpringFinish();
-+			applyOverscroll(currentOverscrollDefault());
-+			overscrollFinish();
-+		}
- 		if (_overscroll == currentOverscrollDefault()) {
- 			const auto weak = base::make_weak(this);
- 			requestBottomContent(delta);
- 			if (!weak) {
- 				return true;
- 			}
--			tryScrollTo(_state.visibleFrom + delta);
-+			const auto target = _state.visibleFrom + delta;
-+			tryScrollTo(target);
- 			_movement = Movement::None;
-+			wheelBounce(target - _state.visibleFrom);
- 		} else if (!_overscrollReturnAnimation.animating()) {
- 			overscrollReturn();
- 		}
-diff --git i/ui/widgets/elastic_scroll.h w/ui/widgets/elastic_scroll.h
-index 7909e16..dc59618 100644
---- i/ui/widgets/elastic_scroll.h
-+++ w/ui/widgets/elastic_scroll.h
-@@ -314,6 +314,7 @@ private:
- 		int delta,
- 		crl::time timestamp);
- 	void overscrollSpringStart(int side);
-+	void wheelBounce(int left);
- 	void overscrollSpringUpdate();
- 	void updateBarState();
- 	void overscrollSpringFinish();
