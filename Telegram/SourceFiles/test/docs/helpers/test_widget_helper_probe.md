@@ -3,28 +3,45 @@
 [Harness guide](../../README.md) · [Helper index](README.md)
 
 Type: Internal dependency.
-Source contract: [test_widget_helper_probe.h](../../test_widget_helper_probe.h).
+Source contract: [test_widget_helper_probe.h](../../test_widget_helper_probe.h)
+(the client half in Telegram) and
+[test_widget_helper_probe_lockdown.h](../../test_widget_helper_probe_lockdown.h)
+(the macOS helper half and the names both halves share).
 
 ## Use when
 
 A run must show what the macOS widget helper can still do once it locked
 itself down, and list every descriptor and Mach right it keeps. The probe is
-the helper's lockdown hook in a Debug build: it takes the listing after the
-real `Platform::WidgetHelper::Lockdown()`, tries what the sandbox must deny
-and refuses the stream with a summary, so no widget is ever served. On
-Windows the same hook runs a different, native probe and the helper goes on
-serving widgets ([Windows](#windows)). On Linux it runs its own probe in
-forked copies of the helper and around the real lockdown, writes its lines
-to stderr, and the helper goes on serving widgets ([Linux](#linux)).
+the lockdown hook of `TelegramWidgetHelper`'s Debug build, the Qt-free
+executable at `Telegram.app/Contents/Helpers/`: it takes the listing after
+the real `WidgetHelper::Lockdown()` (`_other/widget_helper_mac.cpp`), tries
+what the sandbox must deny and refuses the stream with a summary, so no
+widget is ever served. On Windows and Linux the helper is the client's own
+executable, started with `-widgethelper`, and the probe is that same-binary
+helper's lockdown hook in a Debug build. On Windows the hook runs a
+different, native probe and the helper goes on serving widgets
+([Windows](#windows)). On Linux it runs its own probe in forked copies of
+the helper and around the real `Platform::WidgetHelper::Lockdown()`,
+writes its lines to stderr, and the helper goes on serving widgets
+([Linux](#linux)).
 
-Callers: the `_DEBUG` block of `tgw/tgw_remote.cpp` is the only product caller.
+Callers: the probe has two halves. In Telegram the `_DEBUG` block of
+`tgw/tgw_remote.cpp` is the only product caller of the client half.
 `ChooseRemote()` accepts `probe` and `probe-unsandboxed` as values of
-`TDESKTOP_WIDGET_ENGINES` (both select the remote engine),
+`TDESKTOP_WIDGET_ENGINES` (both select the remote engine), and
 `HelperArguments()` passes `WidgetHelperProbeArguments()` to
-`Platform::WidgetHelper::Launch()`, and `HelperLockdown()` gives the
-helper's `serve` call `WidgetHelperLockdown()`. Release builds, harness ones
-included, return no arguments and call the real lockdown whatever argv says.
-A disposable overlay supplies the positive-control fixtures itself (see
+`Platform::WidgetHelper::Launch()`. On macOS the Debug `main()` of
+`TelegramWidgetHelper` (`_other/widget_helper.cpp`) gives its `serve` call
+`Test::WidgetHelperProbeLockdown()` around the real lockdown. On Windows
+and Linux `HelperLockdown()` in `tgw_remote.cpp` gives the same-binary
+helper's `serve` call `WidgetHelperLockdown()`. Release builds of Telegram,
+harness ones included, return no arguments. A Release
+`TelegramWidgetHelper` contains no probe (the target never defines
+`TDESKTOP_RELEASE_TEST_HARNESS`), accepts only its token, refuses any other
+argument with `Widget helper: unexpected arguments` before it adopts the
+channel and always gives `serve` the real lockdown; on Windows and Linux
+the Release hook ignores argv and calls the real lockdown. A disposable
+overlay supplies the positive-control fixtures itself (see
 [Minimal use](#minimal-use)).
 
 For the widget fixture's remote-engine switch, lifecycle and logs, read the
@@ -45,20 +62,48 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   ([Remote engines](test_widget_fixture.md#remote-engines)). Its lookups
   run after the probe's reference snapshot and are released, so they show
   up only as a `changed between the reference snapshot and the listing`
-  row if one leaves a right behind. A helper that already holds a
+  row if one leaves a right behind. The rows of that kind in a clean
+  listing are the logging rights the lockdown itself opens
+  ([firehose reading](#firehose-reading)). A helper that already holds a
   forbidden connection reports `lockdown: FAILED the widget helper holds a
   connection to <service> before lockdown` and is then listed and probed
-  without the profile. A packaged build (`DESKTOP_APP_USE_PACKAGED`) keeps
-  its engines in process by default, because its external Qt lacks the
-  startup patches; only an explicit Debug value starts its helper, and
-  that check refuses it when its Qt connected to a listed service before
-  `main`.
-- The argv tail after `-widgethelper <token>` is `mode cwd
-  application-support [keychain-account loopback-port [connect-control]]`.
-  `cwd` is the client's `cWorkingDir()`. `application-support` is
-  `QStandardPaths::GenericDataLocation`. A helper with nothing after the
-  token runs the lockdown alone and serves. Any other mode refuses with its
-  name. A malformed port or seventh argument is a defect in the report.
+  without the profile. Packaged macOS builds (`DESKTOP_APP_USE_PACKAGED`)
+  build and run the same `TelegramWidgetHelper`: it links no Qt, so their
+  external Qt's startup connections never reach it.
+- `TelegramWidgetHelper` links only libSystem and libc++, and nothing in it
+  looks up a service before `main`. In such a process the first
+  `bootstrap_look_up`, even of a name nobody registered (`kr=1102`),
+  lazily adds three entries: the unprivileged host port, a voucher and the
+  lookup's own send-receive reply port. So right after its pre-lockdown
+  snapshot the probe makes one warm-up lookup of the unregistered
+  `org.telegram.desktop.widget-helper-probe.unregistered` and snapshots
+  again; its reference lookups are compared with that warmed snapshot,
+  while each `held-before` is still read against the untouched pre-lockdown
+  one. The added entries stay and are classified by the listing like any
+  other. The same-binary macOS helper it replaced never needed this: Qt
+  and AppKit had made those first lookups before `main`.
+- On macOS the argv after the helper's path is the token `3`, then the
+  tail `mode cwd application-support [keychain-account loopback-port
+  [connect-control]]`; on Windows and Linux the same tail follows
+  `-widgethelper <token>`. `cwd` is the client's `cWorkingDir()`; the macOS
+  helper's own working directory is `/`, which it moves to itself before
+  it adopts the channel. `application-support` is
+  `QStandardPaths::GenericDataLocation`. A Debug helper with nothing after
+  the token runs the lockdown alone and serves. Any other mode refuses with
+  `unknown widget helper mode "<mode>"`. A malformed port or seventh
+  argument is a defect in the report.
+- The Debug `TelegramWidgetHelper` links the same two libraries as the
+  Release one. The attempts that call CoreFoundation, Security, CoreAudio,
+  CoreMediaIO, IOKit or CoreGraphics `dlopen` that framework from
+  `/System/Library/Frameworks/` (`RTLD_NOW | RTLD_LOCAL`) on its first use
+  and resolve every function and exported constant with `dlsym`. The first
+  such attempt runs after the descriptor and Mach listing, so no
+  framework initializer changes what the listing reports; loading a
+  framework is itself something the locked helper tries. A framework that
+  does not load, or a symbol that does not resolve, makes that attempt
+  `INCOMPLETE` with `<framework>: <dlerror() text>`, never a pass; the
+  attempt's service lookups and `sandbox_check` policy rows are still
+  made.
 - On macOS an environment-selected probe has no fixture. Its keychain item
   read and its loopback connect report `INCOMPLETE`, which is never a pass.
   Every widget of such a launch dies with `the widget engine process
@@ -82,8 +127,9 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 
 ## Windows
 
-With `probe` the client appends the same argv tail, and the hook calls
-`Platform::WidgetHelper::PrepareProbe()` first: the native probe in
+With `probe` the client appends the same argv tail to the same-binary
+`-widgethelper` helper, and its hook, `WidgetHelperLockdown()` in Telegram,
+calls `Platform::WidgetHelper::PrepareProbe()` first: the native probe in
 `platform/win/widget_sandbox_win.cpp` takes its `before lowering:` controls
 while the helper still impersonates its initial token. Then the hook calls
 the real lockdown. A failure refuses the stream with the lockdown's own text
@@ -334,11 +380,19 @@ The overlay owns the keychain item of `kWidgetHelperProbeKeychainService`.
 It reads first, adds the item only when that read reports
 `errSecItemNotFound` and never replaces an item. It reads the item back
 itself as the main-process control, deletes it in `Runner::onFinish` and
-checks it is gone. The listener records each line it receives. Launch the
-same legs with `probe-unsandboxed` as the control. With
-`.connectControl = true`, the helper preopens one TCP socket before the
-lockdown and connects it to the listener afterwards. That run lists the
-injected descriptor, so it never counts as a clean inventory.
+checks it is gone. A login-keychain item the client created is readable
+without UI only by the client's own code identity, and
+`TelegramWidgetHelper` is a separate one: even the unsandboxed control
+answers `status-25293` (`errSecAuthFailed`) for the present item, also
+when the item's access list names the helper. Its item claim is therefore
+a contrast: the same pair once more with an account that has no item,
+where the unsandboxed control answers `status-25300`
+(`errSecItemNotFound`) while the locked helper answers `status-50` for
+both accounts, its keychain lookups `kr1100`. The listener records each
+line it receives. Launch the same legs with `probe-unsandboxed` as the
+control. With `.connectControl = true`, the helper preopens one TCP socket
+before the lockdown and connects it to the listener afterwards. That run
+lists the injected descriptor, so it never counts as a clean inventory.
 
 ## Readings and refusals
 
@@ -349,18 +403,30 @@ come in this order:
 
 - `begin`, `paths` and the fd 2 identities of the parent and the helper, read
   before the lockdown.
-- `pre` rows of the first Mach snapshot, one `reference <service>` row per
-  lookup with its object, and whether the second snapshot equals the first
-  (names, rights, urefs, objects).
+- `pre` rows of the first Mach snapshot; `warm-up lookup <name>: lookup
+  kr=1102 (Unknown service name)` and one `first bootstrap lookup added:
+  +<entry>` row per entry the warm-up added (or `first bootstrap lookup
+  changed nothing: ...`); one `reference <service>` row per lookup with
+  its object and `held-before=`; and whether the snapshot after the
+  references equals the warmed one (names, rights, urefs, objects).
 - `lockdown: ok|FAILED|skipped` and `state: sandboxed=<sandbox_check>
   nofile=<soft>/<hard>`.
-- One `fd` row per entry of `PROC_PIDLISTFDS`. Then the `mach:` count, the
-  `mach identities:` row, the `firehose:` row of the
+- One `fd` row per entry of `PROC_PIDLISTFDS`. Then the `mach:` count, one
+  `changed between the reference snapshot and the listing: <entry>` row per
+  difference, the `mach identities:` row, the `firehose:` row of the
   [firehose reading](#firehose-reading), and one `mach` row per
   `mach_port_space_info` entry, tree entries included, each with its
   `class=`.
 - One `attempt <name>: <code> <detail>` row per attempt.
 - `end: rows=<n> fds=<n> mach=<n> attempts=<n> cut-rows=<n> stderr=ok|FAILED`.
+
+The warm-up is a failure, which leaves the listing incomplete, only when
+the unregistered name returned a port (`ERROR the unregistered name
+returned a port`; the port is released), when the snapshot after it
+failed, or when it removed or changed an existing entry (`first bootstrap
+lookup changed: <entry>` rows). Added entries are expected. The summary's
+`stable=yes` needs the pre-lockdown, warmed and post-reference snapshots
+and no change by the reference lookups.
 
 Each `fd` row gives the kind, access and close-on-exec flags. A vnode row
 adds `F_GETPATH` and `fstat` (after the lockdown the sandbox refuses `fstat`
@@ -389,9 +455,9 @@ reference service`, with no guess at its owner.
 
 Attempt codes are `ok`, an errno name, `kr<n>`, `status<n>`, `denied` or
 `allowed` for `sandbox_check` readings, or `INCOMPLETE` with the missing
-fixture. With the zero descriptor ceiling, `socket`, `opendir` and `open`
-report `EMFILE`. `stat`, `access` and `file-read-data` show the profile's
-own denial.
+fixture or with the framework that did not load. With the zero descriptor
+ceiling, `socket`, `opendir` and `open` report `EMFILE`. `stat`, `access`
+and `file-read-data` show the profile's own denial.
 
 The refusal is `the engine process refused the stream: widget helper probe
 ...`, kept under 3900 bytes. It holds the pid, mode, lockdown and state,
@@ -453,9 +519,23 @@ The reader asks for no right and reads only the helper's own memory, but the
 private export can lazily initialize libdispatch's buffer in a process whose
 logging has not started yet (a logd lookup and the buffer's own ports). The
 confirming snapshot catches a net change in the space, not a transient
-allocation. The traced runs under [Verification](#verification) found the
-buffer initialized before `main`, by Qt's `+load` logging; that is an
-observation, not a guarantee for every future helper. The scan relies on a
+allocation. In the same-binary macOS helper the traced runs under
+[Verification](#verification) found the buffer initialized before `main`,
+by Qt's `+load` logging. `TelegramWidgetHelper` logs nothing before its
+lockdown: its pre-lockdown and reference snapshots hold no right to logd,
+notifyd or a push port. In `probe` those four rights and one more own
+send-receive right, the buffer's own port (the firehose row's `next
+word`), first appear during the real lockdown, as five `changed between
+the reference snapshot and the listing` rows, as expected from
+`sandbox_init`, which acquires that logging set itself in a process that
+had none (`2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`,
+its `work/decisions.md`, D12). In `probe-unsandboxed` nothing has logged
+by the listing, so the reading stops before it calls the export:
+`firehose: FAILED no logd name: the listing holds no send right to
+com.apple.logd's port (object <hash>)`. That control's listing stays
+complete with no `UNACCOUNTED` row, and its verdict stays exactly
+`inventory: NOT clean (unsandboxed control)`. Both are observations on
+one macOS, not a guarantee for every future helper. The scan relies on a
 private layout and cannot prove it: a changed layout can leave no single
 match, which only fails the reading, or match unrelated words, so a reading
 on another macOS is trusted only once its names were joined with that
@@ -467,7 +547,8 @@ The probe keeps no state. It releases every array, looked-up right, task,
 thread and host right, IOKit object and CF object it takes, and any
 object-name right `mach_vm_region()` returns. It reaps a successful `fork`
 or `posix_spawn` child within 2 s (`SIGKILL` and another second otherwise).
-Near its end it closes stdin and tries a socket again.
+Near its end it closes stdin and tries a socket again. The frameworks it
+loaded stay loaded until the helper exits.
 The helper exits after the refusal. The overlay owns the keychain item, the
 listener and the restoration of `SecKeychainSetUserInteractionAllowed`.
 
@@ -483,6 +564,11 @@ is closed before the listing. The helper then serves widgets and ends like
 any other helper.
 
 ## Verification
+
+The first two macOS campaigns probed the same-binary macOS helper, the
+client's own `Contents/MacOS/Telegram -widgethelper 3` that
+`TelegramWidgetHelper` later replaced, whose Qt and AppKit had started
+before `main`. The Linux campaign is the last one below.
 
 Executed on macOS 27.0.1 arm64 in a Debug build, in the evidence campaign
 of `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`;
@@ -538,8 +624,8 @@ control, and both again with `connect-control`.
   header reading in that process found the same two names. They are
   libtrace's firehose push ports to logd.
 
-The probe's own reading was then executed on macOS 27.0.1 arm64 in a
-Debug build, in the evidence campaign of
+The probe's own reading was then executed in the same-binary helper on
+macOS 27.0.1 arm64 in a Debug build, in the evidence campaign of
 `2026/11/14/let-the-widget-helper-probe-attribute-libtraces-firehose-push-ports`;
 its `work/test.md` is the record, and its `work/test-overlay.patch` keeps
 the disposable scenario and fault hunks. The canonical `probe` and the
@@ -592,11 +678,84 @@ ended `exit 1` without a signal.
   assigned to its state. Each read `inventory: NOT clean (2 unaccounted)`,
   and the bootstrap right kept its `bootstrap (bootstrap_port)` class.
 
-Limits: both campaigns ran on one macOS version (27.0.1 arm64) with ad hoc
-signatures, so the private libdispatch layout that the header reading
-relies on is proved only there: as an overlay technique in the first, and
-through the probe's own [firehose reading](#firehose-reading) in the
-second. On another layout the reading can fail and leave both rights
+`TelegramWidgetHelper` was then probed on macOS 27.0.1 (26A434) arm64 in a
+Debug build, in the evidence campaign of
+`2026/11/14/run-macos-widget-engines-in-a-qt-free-helper-executable`; its
+`work/test.md` (Runs 4-6) is the record, and the scenario of its
+`work/test-overlay-app1.patch` keeps the disposable direct driver, the
+keychain and listener fixtures and the process watcher. The direct driver
+of [Minimal use](#minimal-use) ran `probe`, `probe-unsandboxed` and both
+again with `connect-control`, with a run-owned keychain item and a live
+loopback listener (Run 4); the pair ran again with an item whose access
+list named the client and the helper (Run 5) and with an account that has
+no item (Run 6). `TDESKTOP_WIDGET_ENGINES=probe` and `probe-unsandboxed`
+each ran in its own launch through the widget fixture (Run 4). Every
+helper was `<bundle>/Contents/Helpers/TelegramWidgetHelper`, a child of
+the client with argv `[<path>, 3, <tail>]` and no environment variable;
+its listing was complete (end marker, declared counts, no cut row), its
+summary stayed under the 3900-byte bound, and it ended `exit 1` without a
+signal.
+
+- Canonical `probe`: the pre-lockdown snapshot held 11 entries; the
+  warm-up lookup answered `kr=1102` and added the host port, a voucher and
+  an own send-receive right; the 26 reference lookups left those 14 as
+  they were, none `held-before=yes`. Then `lockdown: ok`, `state:
+  sandboxed=1 nofile=0/0`, the four accounted descriptors and 19 Mach
+  entries: task, thread, unprivileged host, semaphore, clock, voucher,
+  bootstrap, 5 own receive and 3 own send-receive rights, logd, notifyd
+  and the two `libSystem firehose push port` rows of an accepted reading
+  (logd found once). Five of them, logd, notifyd, both push ports and an
+  own send-receive right, were `changed between the reference snapshot and
+  the listing`. The summary read `inventory: clean`, `firehose push ports
+  2` and `unaccounted: none`, and a parent-side `sandbox_check` read the
+  helper locked. The fixture route and a fault build's control leg read
+  the same composition.
+- Denials: every attempt code, locked and unsandboxed, equaled the
+  same-binary macOS helper's above, except the keychain item's unsandboxed
+  control ([Minimal use](#minimal-use)): `status-25293` for the client's
+  present item, with the default access list (Run 4) and with the one
+  naming the helper (Run 5), and `status-25300` for the account with no
+  item (Run 6). The locked helper answered `status-50` all three times,
+  its two keychain lookups `kr1100` against `ok` unsandboxed. The main
+  process read the present item before and after the helpers.
+- `probe-unsandboxed`: `lockdown: skipped (unsandboxed control)`,
+  `sandboxed=0`, none of the 26 references `held-before=yes`, and 14 Mach
+  entries: the canonical composition without logd, notifyd, the push
+  ports and one own send-receive right. Its firehose reading failed with
+  `no logd name` ([firehose reading](#firehose-reading)), no row was
+  `UNACCOUNTED`, and the verdict was exactly `inventory: NOT clean
+  (unsandboxed control)` with `unaccounted: none`. The parent never read
+  it locked.
+- `connect-control`: both helpers preopened fd 4. The locked one's connect
+  gave `EPERM` and sent no token; the unsandboxed one connected and sent
+  its token; neither was a clean inventory (`connect-control fixture
+  injected`). Besides the main process's controls the listener received
+  only the unsandboxed helpers' tokens.
+- Extra send right: of the earlier faults only this one was rerun, in a
+  fault build of the probe. It looked up
+  `com.apple.SystemConfiguration.configd` before the pre-lockdown snapshot
+  and held the right; after `lockdown: ok` the reading accepted the
+  genuine pair among 20 entries, and that right was the only `UNACCOUNTED`
+  row: `inventory: NOT clean (1 unaccounted)`.
+- Frameworks: the same fault build counted dyld images: no framework at
+  `begin` or after the listing (81 and 83 images), and after the attempts
+  111 frameworks and 183 private frameworks, the six probe frameworks
+  among them. The staged Debug helper imports only
+  `/usr/lib/libc++.1.dylib` and `/usr/lib/libSystem.B.dylib` and has no
+  undefined framework symbol. No attempt was `INCOMPLETE` for a
+  framework; the fixture-less route left the keychain item incomplete for
+  want of its fixture.
+- Fixture route: each switch value started one helper with argv `[<path>,
+  3, <mode>, <cwd>, <application-support>]`, the main log's `stream ended`
+  line carried the summary of its stderr, and the card died with `the
+  widget engine process ended` without loading.
+
+Limits: all three macOS campaigns ran on one macOS version (27.0.1 arm64)
+with ad hoc signatures, so the private libdispatch layout that the header
+reading relies on is proved only there: as an overlay technique in the
+first, and through the probe's own [firehose reading](#firehose-reading)
+in the second and third. `TelegramWidgetHelper` was probed only natively
+on arm64. On another layout the reading can fail and leave both rights
 `UNACCOUNTED`; as that section says, nothing promises that every
 incompatible layout fails rather than matching unrelated words.
 

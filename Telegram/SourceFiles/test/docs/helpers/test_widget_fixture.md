@@ -12,10 +12,12 @@ chat shown in its own `HistoryInner` of the legacy `HistoryWidget`, local
 outgoing widget messages with tapped validated ops, card readings, the
 runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
-says where the engines of its widgets run: in the sandboxed widget helper
-by default on macOS, outside the store build and packaged builds, and on
-Linux x86_64 and aarch64, and in a restricted widget helper on Windows only
-when a Debug run asks for one.
+says where the engines of its widgets run: by default in a sandboxed
+widget helper, packaged builds included, which on macOS outside the store
+build is the separate `TelegramWidgetHelper` and on Linux x86_64 and
+aarch64 the client's own executable; on Windows in a restricted widget
+helper, also the client's own executable, only when a Debug run asks for
+one.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -271,41 +273,46 @@ stay with each caller (their policies close this section).
 
 ## Remote engines
 
-On macOS, outside the store build and packaged builds, and on Linux x86_64
-and aarch64, packaged builds included, every widget engine of the client
-runs in one shared widget helper process that has locked itself down,
-instead of the client's own threads, in Debug and Release builds alike and
-with no switch. On Windows a Debug run can put them in one shared
-restricted widget helper with the switch below; every other Windows
-launch, and every Windows Release build, keeps them in process. The packs,
-the fixture and the seams they use need no change for it.
+On macOS outside the store build and on Linux x86_64 and aarch64, packaged
+builds included on both, every widget engine of the client runs in one
+shared widget helper process that has locked itself down, instead of the
+client's own threads, in Debug and Release builds alike and with no
+switch. On macOS that helper is the separate Qt-free executable
+`TelegramWidgetHelper`; on Linux it is the client's own executable. On
+Windows a Debug run can put them in one shared restricted widget helper,
+also the client's own executable, with the switch below; every other
+Windows launch, and every Windows Release build, keeps them in process.
+The packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
-  macOS, so a launch with no switch runs every engine in the sandboxed
-  helper, and false in the store build (`OS_MAC_STORE`), in a macOS build
-  with packaged libraries (`DESKTOP_APP_USE_PACKAGED`, which defines
-  `TDESKTOP_USE_PACKAGED`), on Windows and on the non-Linux all-other
-  platforms, which keep their engines in process. On Linux it is true on
-  x86_64 and aarch64 in every build, Debug and Release, with or without the
-  harness, and has no packaged exclusion: distribution builds against
-  packaged libraries, Flatpak and Snap default to the sandboxed helper as
-  well (`kLockdownAvailable` in `widget_lockdown_linux.h`). Other Linux
-  architectures have no seccomp filter and keep their engines in process.
-  No Linux build against packaged libraries has run the helper yet: a
-  shared library that started a thread before `main` would make every
-  helper refuse with `the widget helper has <N> threads before its
-  lockdown` (**The Linux lockdown** below). The client decides once, on
-  the main thread, when it constructs its first widget host
-  (`Tgw::PrepareRemoteEngines()` in `Runtime::construct()`), keeps that
-  choice for the whole process and names it in the main log: `Tgw: Widget
-  engines run in the widget helper.` or `Tgw: Widget engines run in
-  process.`. Release builds, `TDESKTOP_RELEASE_TEST_HARNESS` ones included,
-  read no switch, never probe, and open the helper's `-widgethelper` entry
-  only where this default is true. Windows has a helper but this default
-  stays false there, so only the Debug switch below starts it, and the
-  `-widgethelper` entry of a Windows Release build exits with status 1
-  before it adopts a channel, as does that of a Release build on another
-  Linux architecture.
+  macOS, builds with packaged libraries (`DESKTOP_APP_USE_PACKAGED`)
+  included, so a launch with no switch runs every engine in the sandboxed
+  helper, and false in the store build (`OS_MAC_STORE`), on Windows and on
+  the non-Linux all-other platforms, which keep their engines in process.
+  On Linux it is true on x86_64 and aarch64 in every build, Debug and
+  Release, with or without the harness, and has no packaged exclusion:
+  distribution builds against packaged libraries, Flatpak and Snap default
+  to the sandboxed helper as well (`kLockdownAvailable` in
+  `widget_lockdown_linux.h`). Other Linux architectures have no seccomp
+  filter and keep their engines in process. No Linux build against
+  packaged libraries has run the helper yet: a shared library that started
+  a thread before `main` would make every helper refuse with `the widget
+  helper has <N> threads before its lockdown` (**The Linux lockdown**
+  below). The client decides once, on the main thread, when it constructs
+  its first widget host (`Tgw::PrepareRemoteEngines()` in
+  `Runtime::construct()`), keeps that choice for the whole process and
+  names it in the main log: `Tgw: Widget engines run in the widget
+  helper.` or `Tgw: Widget engines run in process.`. Release builds,
+  `TDESKTOP_RELEASE_TEST_HARNESS` ones included, read no switch and never
+  probe. macOS Telegram has no `-widgethelper` entry: its helper is the
+  separate `TelegramWidgetHelper` (**The shared helper** below), whose
+  Release build contains no probe and accepts only its channel token. On
+  Windows and Linux the helper is the client's own executable, whose
+  `-widgethelper` entry a Release build opens only where this default is
+  true. On Windows this default stays false, so only the Debug switch
+  below starts the helper, and the `-widgethelper` entry of a Windows
+  Release build exits with status 1 before it adopts a channel, as does
+  that of a Release build on another Linux architecture.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
   - unset or any other value: the platform default;
@@ -315,9 +322,10 @@ the fixture and the seams they use need no change for it.
     default starts;
   - `in-process`: the engines stay in the client, the control of a run
     that compares the two modes;
-  - `probe` and `probe-unsandboxed`: on macOS every helper probes its
-    lockdown, or runs the same probe without it as the control, and
-    refuses the stream instead of serving a widget; its listing goes to
+  - `probe` and `probe-unsandboxed`: on macOS every helper, whose Debug
+    build carries the probe, probes its lockdown, or runs the same probe
+    without it as the control, and refuses the stream instead of serving a
+    widget; its listing goes to
     `app_stderr.txt` and its summary to the main log's `stream ended` line
     ([test_widget_helper_probe](test_widget_helper_probe.md)). Each
     refusal counts as a failure (see the failure limit below). On Windows
@@ -364,15 +372,16 @@ the fixture and the seams they use need no change for it.
   fails closed the same way, with `the widget helper could not start: the
   widget helper is not available on this architecture`. The macOS store
   build keeps its engines in process because `sandbox_init` cannot narrow
-  a process the App Sandbox already confines; an explicit `helper` there
-  starts a helper inside the app's sandbox, which skips the service check
-  below and fails its lockdown with `sandbox_init failed: <error>`. A
-  macOS packaged build keeps its engines in process because its Qt is an
-  external one (Homebrew's in the packaged workflow) without the patches
-  that keep Qt's startup from connecting to the preferences daemon and
-  other services before `main`, and no profile takes such a connection
-  back; an explicit `helper` there starts a helper that refuses at the
-  service check whenever its Qt made one. On Windows
+  a process the App Sandbox already confines, and it builds no helper: it
+  has no `TelegramWidgetHelper` target, and its bundle no
+  `Contents/Helpers` folder. An explicit Debug `helper` there finds no
+  file to start, so its starts fail and count towards the failure limit,
+  and no engine runs in process; no store build has been launched with it.
+  A macOS packaged build builds, stages and runs the same helper as every
+  other non-store macOS build: the helper links no Qt, so the external Qt
+  of the packaged workflow (Homebrew's), which lacks the patches that keep
+  Qt's startup from connecting to the preferences daemon and other
+  services before `main`, never reaches it. On Windows
   the seam fails every launch closed the same way in the Store build (`the
   widget helper is not available in the Store build`) and before Windows
   10 1809 (`the widget helper needs Windows 10 1809 or later`); neither
@@ -380,20 +389,47 @@ the fixture and the seams they use need no change for it.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. On
-  macOS it is the client's own `Contents/MacOS/Telegram -widgethelper 3`, a
-  child of the client started without LaunchServices and without
-  `-testagent`, in the working directory `/`, with the client's stderr and
-  `/dev/null` for stdin and stdout. Its environment holds exactly
-  `__CF_USER_TEXT_ENCODING`, the client's value or `0x<uid in hex>:0:0`
-  when the client has none. Only a Debug probe value adds arguments after
-  the `3`: the mode, the client's working directory and Application
-  Support path, as [test_widget_helper_probe](test_widget_helper_probe.md)
-  describes. On Linux it is `/proc/self/exe -widgethelper 3`, so it runs
-  the client's executable even after an update replaced its file, with
-  `argv[0]` the executable's path as `/proc/self/exe` reads, and without
-  `-testagent`; a Debug probe value adds the same arguments after the `3`,
-  with the client's `QStandardPaths::GenericDataLocation` as the data path.
-  The client clones it from a thread of its own that lives as long as the
+  macOS it is `TelegramWidgetHelper`, a separate executable in the
+  client's bundle at `Contents/Helpers/TelegramWidgetHelper`, next to
+  `crashpad_handler` (the client takes `[[NSBundle mainBundle]
+  bundlePath]` plus that path); the `TelegramWidgetHelper_bundle` target
+  stages it there on every Telegram build outside the store build. The
+  client starts it with `posix_spawn`, without LaunchServices, as its
+  child with argv `[<path>, 3]` and an empty environment: the channel on
+  descriptor 3, the client's stderr, `/dev/null` for stdin and stdout and
+  no other descriptor (`POSIX_SPAWN_CLOEXEC_DEFAULT`), default signal
+  actions, an empty signal mask and no exception ports. The helper moves to
+  the working directory `/` itself, in `WidgetHelper::Adopt()` before it
+  adopts the channel. It links only libSystem and libc++, its Debug build
+  too: no Qt, lib_base, crl or framework, built from widget-sandbox's
+  engine end, QuickJS, the POSIX stream and its own `_other/widget_helper*`
+  sources, without Telegram's precompiled header and before Telegram.
+  Only a Debug probe value adds arguments after the `3`: the mode, the
+  client's working directory and Application Support path, as
+  [test_widget_helper_probe](test_widget_helper_probe.md) describes; the
+  probe `dlopen`s its frameworks only after its listing. A Release
+  `TelegramWidgetHelper` accepts only the token: with any other argument
+  it prints `Widget helper: unexpected arguments` and exits 1, and with
+  another token, a descriptor 3 that is no socket or a failed `chdir` it
+  prints `Widget helper: the channel could not be adopted` and exits 1,
+  both before it reads the channel. Its build string is the number in
+  `Telegram/build/version`, which equals the client's `AppVersion`; a
+  helper of another version refuses the opening with `build "<client's>",
+  this end's is "<helper's>"`. In an Xcode build, whenever Telegram
+  relinks, its `--deep` code signing re-signs the staged copy with the
+  hardened runtime and Telegram's entitlements, as it does
+  `crashpad_handler`, so the bundled file's hash then differs from the
+  build folder's `TelegramWidgetHelper` while its LC_UUID and code are
+  equal; when Telegram does not relink, the staging copies the build
+  folder's file back and `codesign --verify --deep` of the app reports the
+  nested code modified, as it does for `crashpad_handler` and `Updater`.
+  On Linux it is the client's own executable, started as
+  `/proc/self/exe -widgethelper 3`, so it runs the client's executable
+  even after an update replaced its file, with `argv[0]` the executable's
+  path as `/proc/self/exe` reads, and without `-testagent`; a Debug probe
+  value adds the same arguments after the `3` as on macOS, with the
+  client's `QStandardPaths::GenericDataLocation` as the data path. The
+  client clones it from a thread of its own that lives as long as the
   process, with only descriptors 0 to 3 open (0 and 1 `/dev/null`, 2 the
   client's stderr, 3 the channel), in the working directory `/`, with every
   signal at its default action, an empty signal mask and the client's
@@ -469,22 +505,27 @@ the fixture and the seams they use need no change for it.
   failure: no helper runs outside its job or without these policies.
 - **Lockdown.** On macOS the helper locks itself down once it has accepted
   the client's opening and holds the bundles, before any runtime exists and
-  before it answers `Ready`. Outside the store build it first checks, once
-  per helper, that it holds no connection a widget must never reach: it
-  lists its Mach port names, looks up the preferences, directory, window
-  server, render server, TCC, LaunchServices, distributed notification,
-  keychain, camera, audio, pasteboard and location services
-  (`kForbiddenServices` in `widget_helper_mac.mm`), and refuses when a
-  looked-up right was already held. It releases only the reference each
-  lookup added and lists the names again, which must be unchanged. A
-  service that is not registered passes; a failed call, or names that
-  still differ after three tries, refuse. libSystem's logging and notify
-  connections are not in the list. Then it applies a deny-default seatbelt
-  profile with `sandbox_init`, which allows little beyond reading system
-  libraries and the dyld cache, then sets its descriptor ceiling to zero,
-  so it opens no new file or socket while the channel and the standard
-  descriptors stay open ([test_widget_helper_probe](test_widget_helper_probe.md)
-  lists what it keeps and what it is denied). When any step fails, the
+  before it answers `Ready`. It first checks, once per helper, that it
+  holds no connection a widget must never reach: it lists its Mach port
+  names, looks up the preferences, directory, window server, render
+  server, TCC, LaunchServices, distributed notification, keychain, camera,
+  audio, pasteboard and location services (`kForbiddenServices` in
+  `_other/widget_helper_mac.cpp`), and refuses when a looked-up right was
+  already held. It releases only the reference each lookup added and lists
+  the names again, which must be unchanged. A service that is not
+  registered passes; a failed call, or names that still differ after three
+  tries, refuse. The check's first lookup is the process's first
+  `bootstrap_look_up`, which lazily adds the host port, a voucher and a
+  reply port ([test_widget_helper_probe](test_widget_helper_probe.md)), so
+  a first try's names can differ and the next try compares them again.
+  libSystem's logging and notify connections are not in the list. Then
+  it applies a deny-default seatbelt profile with `sandbox_init`, which
+  opens libSystem's logging connection itself and allows little beyond
+  reading system libraries and the dyld cache, then sets its descriptor
+  ceiling to zero, so it opens no new file or socket while the channel and
+  the standard descriptors stay open
+  ([test_widget_helper_probe](test_widget_helper_probe.md) lists what it
+  keeps and what it is denied). When any step fails, the
   helper refuses the stream, prints `Widget helper: <reason>` to its stderr
   and exits 1: `the widget helper holds a connection to <service> before
   lockdown` for a held connection, the failed call such as
@@ -549,8 +590,9 @@ the fixture and the seams they use need no change for it.
   `OpenProcess` of its own pid reads `opened` or `error N`. The probe
   reads none of the arguments after the mode. The macOS probe is a
   different one, which refuses after its report
-  ([test_widget_helper_probe](test_widget_helper_probe.md));
-  on the all-other platforms no helper starts, so nothing is written.
+  ([test_widget_helper_probe](test_widget_helper_probe.md)), and so is the
+  Linux one (**Linux probe** below); on the non-Linux all-other platforms
+  no helper starts, so nothing is written.
 - **What the Windows lowering leaves.** The Windows helper is no network
   boundary. In the Windows runs of
   `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-windows`
@@ -700,8 +742,11 @@ the fixture and the seams they use need no change for it.
   starts again, in a fresh helper, when it is painted visible. A widget
   whose helper cannot start dies with `the widget helper could not start:
   <error>`, the seam's error such as `posix_spawn failed: <reason>` on
-  macOS or `CreateProcessAsUserW failed: <reason>` on Windows, and the
-  main log adds `Tgw Error: The widget helper could not start: <error>.`.
+  macOS (`posix_spawn failed: No such file or directory` when the bundle
+  has no `Contents/Helpers/TelegramWidgetHelper`; the client never checks
+  the file before the spawn) or `CreateProcessAsUserW failed: <reason>` on
+  Windows, and the main log adds `Tgw Error: The widget helper could not
+  start: <error>.`.
   On Linux the error is `clone failed: <reason>` when the clone without
   namespaces fails as well, `<call> failed: <reason>` for another failed
   call of the spawn, such as `execve failed: <reason>` from the cloned
@@ -750,11 +795,16 @@ the fixture and the seams they use need no change for it.
   stop waits up to 1 s for the helper to exit, then kills it (on Windows
   by terminating its job, inside Flatpak through the portal) and waits up
   to 1 s more; an outstanding theme probe can hold the quit for its 10 s
-  before that. A helper left behind has the client's executable path, so
-  `test-run`'s path-scoped kill ends it and lists it in
-  `stragglers_killed_after`. When the client dies without a quit, the
-  helper reads the end of its channel and exits by itself. On Windows the
-  client's death also closes the helper's job, whose only handle the
+  before that. When the client dies without a quit, the helper reads the
+  end of its channel and exits by itself. On macOS the helper's path is not
+  the client's, and `test-run`'s path-scoped kill matches only the client's
+  executable: it never kills a helper or lists one in
+  `stragglers_killed_after`, and after it kills a quiet client the helper
+  ends on the end of its channel. A run that must show no helper outlived
+  it looks for `Contents/Helpers/TelegramWidgetHelper` itself. On Windows
+  and Linux a helper left behind has the client's executable path, so that
+  kill ends it too and lists it in `stragglers_killed_after`. On Windows
+  the client's death also closes the helper's job, whose only handle the
   client holds, and the job's kill on close ends the helper even when it
   is not reading. On Linux the kernel kills a helper the client cloned
   when the client dies, also when it is not reading: its
@@ -879,8 +929,10 @@ runs a conformance smoke from a normal window narrowed to the first
 two-column width, one from an inactive maximized window and a stress-kit
 smoke, and records what ran in that task's evidence.
 
-The [remote engines](#remote-engines) ran in the macOS arm64 Debug client
-in the evidence campaign of
+The [remote engines](#remote-engines) first ran in the same-binary macOS
+helper, the client's own `Contents/MacOS/Telegram -widgethelper 3` that
+`TelegramWidgetHelper` later replaced, then still unsandboxed, in the
+macOS arm64 Debug client in the evidence campaign of
 `2026/11/13/run-widget-engines-in-a-shared-unsandboxed-helper-on-macos-behind-a-debug-switch`
 (its `work/test.md`). The attack audit over all 133 corpus files and the
 conformance runner over the 133-run automatic matrix ran once with
@@ -899,8 +951,8 @@ helper, the idle exit, a SIGKILL and the restart, the failure limit and
 the quit) ran through a disposable overlay in that campaign (Runs 4-5 and
 7). None of it has run on Linux; the Windows runs are below.
 
-The sandboxed helper ran in the macOS arm64 Debug client in the evidence
-campaign of
+The same-binary macOS helper, sandboxed, ran in the macOS arm64 Debug
+client in the evidence campaign of
 `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`
 (its `work/test.md`). The attack audit over all 133 corpus files and the
 conformance runner over the 133-run automatic matrix ran once with no
@@ -923,8 +975,57 @@ with an `(allow default)` profile, made every helper refuse with
 and after the third the next widget died with `the widget helper failed 3
 times in a row` without a fourth helper (Run 3). None of this has run on
 Windows, Linux, the store build or a packaged build: the store build keeps
-its engines in process, and packaged builds are excluded from the helper
-default.
+its engines in process, and packaged builds were then excluded from the
+helper default.
+
+`TelegramWidgetHelper` ran in the macOS 27.0.1 arm64 Debug client in the
+evidence campaign of
+`2026/11/14/run-macos-widget-engines-in-a-qt-free-helper-executable` (its
+`work/test.md`), with no widget switch unless one is named. One helper
+started at the first widget's demand and served both widgets of the
+fixture: `Contents/Helpers/TelegramWidgetHelper`, a child of the client,
+with argv `[<path>, 3]`, no environment variable, the working directory
+`/`, default signal actions, descriptors 0 and 1 `/dev/null`, 2 the
+client's stderr and 3 the channel socket and no other, read locked by a
+parent-side `sandbox_check` before each widget loaded. The engines'
+`widget.sandbox` threads ran in it and none in the client, and the notes
+read `Started, its engine is remote.`. It exited 30 s after the last
+release, and the next widget started a fresh, locked helper (Run 6
+Test 3). A SIGKILL stopped both cards on their last pictures with no
+pixel outside the stop pill changed, re-entry restarted them in a fresh
+locked helper, a second kill reached the crash limit, and a third kill,
+of a fresh widget's helper, latched the helper for the process (Run 6
+Tests 4-6). A quit with live widgets stopped the helper 61 ms after the
+request, before the client exited; when `test-run` killed a quiet
+client, it listed only the client in
+`stragglers_killed_after`, and the helper ended within the same 116 ms
+sample of an external sampler (Run 6 Tests 7-8). `in-process` started no
+helper (Run 6 Test 9). A client that had sandboxed itself with an `(allow
+default)` profile made three fresh helpers refuse with `sandbox_init
+failed: Operation not permitted` before their widgets loaded, and the next
+widget died latched without a fourth helper (Run 6 Test 2); an APFS clone
+of the bundle without the helper file failed three starts with
+`posix_spawn failed: No such file or directory`, started no helper and
+ran no engine in process (Run 5 Test 3). The attack audit over all 133
+corpus files and the conformance runner over the 133-run automatic matrix
+ran with no switch and with `in-process` on one executable (Runs 9-11):
+every default partition ran in one locked helper, 0 leaks in both modes,
+identical conformance verdicts, and identical attack rows apart from
+`paint-backdrop-replay.html`'s box count, 300 through the helper and 100
+in process in four pairs with the same stop and op stream. The probe's
+runs are on [test_widget_helper_probe](test_widget_helper_probe.md#verification).
+Outside the app (Runs 1-3), the helper built alone, before Telegram, from
+the two widget archives and its own sources with no precompiled header,
+and Telegram's build staged it; the Debug and Release helpers of the
+official CLT 26.6 and SDK 26.5 targets (x86_64 at 10.13, arm64 at 11.0,
+`-Werror`) imported only `libc++.1` and `libSystem.B`, the Release one
+without the probe; the Release argument gate, and a `Ready` only after
+the lockdown, held natively on arm64 and on x86_64 under Rosetta; a store
+build compiled and linked with no helper target, file or `Helpers`
+folder; and the helper's CMake stage built in packaged mode
+(`DESKTOP_APP_USE_PACKAGED`) beside a placeholder Telegram target, no
+packaged Qt being installed. Not run: a packaged or store app, a Release
+client, widgets on x86_64, Linux and any macOS but 27.0.1.
 
 On Windows the [remote engines](#remote-engines) ran in the Win32 Debug
 (x86) client on one Windows 11 Pro 10.0.26300 machine in the evidence
