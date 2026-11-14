@@ -382,7 +382,7 @@ struct Child {
 } // namespace
 
 bool Enabled() {
-	return false;
+	return UnsupportedReason().isEmpty();
 }
 
 Launched Launch(const QStringList &arguments) {
