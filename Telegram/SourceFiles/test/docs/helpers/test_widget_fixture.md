@@ -14,10 +14,10 @@ runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where the engines of its widgets run: by default in a sandboxed
 widget helper, packaged builds included, which on macOS outside the store
-build is the separate `TelegramWidgetHelper` and on Linux x86_64 and
-aarch64 the client's own executable; on Windows in a restricted widget
-helper, also the client's own executable, only when a Debug run asks for
-one.
+build is the separate `TelegramWidgetHelper`, on Linux x86_64 and aarch64
+the client's own executable, and on Windows 10 1809 or later, outside the
+Store build, a restricted helper that is also the client's own
+executable.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -273,22 +273,26 @@ stay with each caller (their policies close this section).
 
 ## Remote engines
 
-On macOS outside the store build and on Linux x86_64 and aarch64, packaged
-builds included on both, every widget engine of the client runs in one
-shared widget helper process that has locked itself down, instead of the
-client's own threads, in Debug and Release builds alike and with no
-switch. On macOS that helper is the separate Qt-free executable
-`TelegramWidgetHelper`; on Linux it is the client's own executable. On
-Windows a Debug run can put them in one shared restricted widget helper,
-also the client's own executable, with the switch below; every other
-Windows launch, and every Windows Release build, keeps them in process.
+On macOS outside the store build, on Linux x86_64 and aarch64 and on
+Windows 10 1809 or later outside the Store build, packaged builds included
+on all three, every widget engine of the client runs in one shared widget
+helper process that has locked itself down, instead of the client's own
+threads, in Debug and Release builds alike and with no switch. On macOS
+that helper is the separate Qt-free executable `TelegramWidgetHelper`; on
+Linux it is the client's own executable, and on Windows a restricted
+helper that is also the client's own executable. Everywhere else the
+engines stay in process (**Store, packaged and other platforms** below).
 The packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
   macOS, builds with packaged libraries (`DESKTOP_APP_USE_PACKAGED`)
-  included, so a launch with no switch runs every engine in the sandboxed
-  helper, and false in the store build (`OS_MAC_STORE`), on Windows and on
-  the non-Linux all-other platforms, which keep their engines in process.
+  included, and on Windows, so a launch with no switch runs every engine
+  in the sandboxed helper, and false in the macOS store build
+  (`OS_MAC_STORE`), in the Windows Store build, on Windows before 10 1809
+  and on the non-Linux all-other platforms, which keep their engines in
+  process. On Windows it is true exactly when `UnsupportedReason()` in
+  `widget_sandbox_win.cpp`, which also refuses every Windows launch,
+  returns no reason, whatever the architecture.
   On Linux it is true on x86_64 and aarch64 in every build, Debug and
   Release, with or without the harness, and has no packaged exclusion:
   distribution builds against packaged libraries, Flatpak and Snap default
@@ -302,24 +306,38 @@ The packs, the fixture and the seams they use need no change for it.
   its first widget host (`Tgw::PrepareRemoteEngines()` in
   `Runtime::construct()`), keeps that choice for the whole process and
   names it in the main log: `Tgw: Widget engines run in the widget
-  helper.` or `Tgw: Widget engines run in process.`. Release builds,
+  helper.` or `Tgw: Widget engines run in process.`. Once it chose the
+  helper no engine of that process falls back to in process: a helper that
+  cannot start or refuses its lockdown ends its widgets with a diagnostic,
+  and the failure limit stops further starts (**Runtime log and deaths**
+  and **Failure limit** below). Release builds,
   `TDESKTOP_RELEASE_TEST_HARNESS` ones included, read no switch and never
   probe. macOS Telegram has no `-widgethelper` entry: its helper is the
   separate `TelegramWidgetHelper` (**The shared helper** below), whose
   Release build contains no probe and accepts only its channel token. On
   Windows and Linux the helper is the client's own executable, whose
   `-widgethelper` entry a Release build opens only where this default is
-  true. On Windows this default stays false, so only the Debug switch
-  below starts the helper, and the `-widgethelper` entry of a Windows
-  Release build exits with status 1 before it adopts a channel, as does
-  that of a Release build on another Linux architecture.
+  true (`HelperEntryAllowed()` in `tgw_remote.cpp` returns `Enabled()`
+  there); elsewhere the entry exits with status 1 before it adopts a
+  channel, as in the Windows Store build, on Windows before 10 1809 and in
+  a Release build on another Linux architecture. On Windows 10 1809 or
+  later, outside the Store build, the entry of a Release build therefore
+  adopts its channel, and a helper that runs without the client's
+  confinement refuses in its lowering (`LockDownHelper()`, **The Windows
+  lowering** below) before Ready. Only Win32 (x86 on WOW64) Debug builds
+  on Windows 11 build 26300 (10.0.26300) have run the Windows helper; x64,
+  ARM64, a Release runtime, the Store build and Windows before that build
+  have not, and measuring the x64 build's own creation and verification
+  policies (high-entropy ASLR, CET user shadow stacks, no DEP entry) is
+  the work of `2026/11/14/run-the-restricted-windows-widget-helper-on-x64`.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
-  - unset or any other value: the platform default;
+  - unset or any other value: the platform default, so a Debug build runs
+    its engines in the helper wherever that default is true;
   - `helper`: the sandboxed helper explicitly, the same as the default on
-    macOS and on Linux, so command lines that name it keep working; on
-    Windows the restricted helper (**The Windows helper** below), which no
-    default starts;
+    macOS, on Linux and on Windows 10 1809 or later outside the Store
+    build, so command lines that name it keep working; on Windows it is the
+    restricted helper (**The Windows helper** below);
   - `in-process`: the engines stay in the client, the control of a run
     that compares the two modes;
   - `probe` and `probe-unsandboxed`: on macOS every helper, whose Debug
@@ -381,11 +399,14 @@ The packs, the fixture and the seams they use need no change for it.
   other non-store macOS build: the helper links no Qt, so the external Qt
   of the packaged workflow (Homebrew's), which lacks the patches that keep
   Qt's startup from connecting to the preferences daemon and other
-  services before `main`, never reaches it. On Windows
-  the seam fails every launch closed the same way in the Store build (`the
-  widget helper is not available in the Store build`) and before Windows
-  10 1809 (`the widget helper needs Windows 10 1809 or later`); neither
-  has been run.
+  services before `main`, never reaches it. The Windows Store build and
+  Windows before 10 1809 keep their engines in process, because the
+  default is false there; an explicit `helper` or probe value makes the
+  seam fail every launch closed the same way, with `the widget helper is
+  not available in the Store build` or `the widget helper needs Windows 10
+  1809 or later`. Neither has been run. The Windows default reads nothing
+  else, so a Windows build with packaged libraries defaults to the helper
+  as well; no such build has been run.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. On
@@ -557,9 +578,17 @@ The packs, the fixture and the seams they use need no change for it.
   imports are kernel32 and ntdll and every later DLL comes from the system
   directory. That task's checkpoint (its `work/checkpoint-2.md`) reached
   Ready that way from the checkout's `out\Debug\Telegram.exe`, and its
-  experiment, under a test package name, from a checkout-like and a
-  per-user installed-equivalent copy, Win32 Debug only; the portable,
-  updated and moved layouts and other architectures are not measured yet.
+  evidence campaign (its `work/test.md`, Attempt 1 Run 4) from copied
+  clients with fresh ordinary permissions: `setup.iss`'s files in a
+  per-user folder under `%APPDATA%`, also after an updater-style
+  `CopyFile` over the executable, a fresh extraction of `build.bat`'s
+  portable ZIP, that folder moved whole to another path, and a copy on
+  the WSL distribution's 9P share, which has no NTFS permissions. No ACE,
+  package profile or AppContainer state appeared. With execute access to
+  the client's own executable denied to its user, the start failed closed
+  with `CreateProcessAsUserW failed: Access is denied.` and the engine
+  that asked for it died with that error, none in process. All of it ran
+  in Win32 Debug builds only.
 - **Lockdown.** On macOS the helper locks itself down once it has accepted
   the client's opening and holds the bundles, before any runtime exists and
   before it answers `Ready`. It first checks, once per helper, that it
@@ -683,12 +712,32 @@ The packs, the fixture and the seams they use need no change for it.
   of `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
   (its `work/checkpoint-2.md`, Win32 Debug on Windows 10.0.26300) read
   `socket(AF_INET, SOCK_STREAM): denied (error 10013)` after the lowering,
-  with the pre-lowering self-listener `ok`. The network evidence across
-  families, protocols, parent and non-loopback targets, injected sockets
-  and native AFD endpoints is not run yet, so the helper is not yet
-  claimed a network boundary.
-  win32k system calls stay enabled: the runtime disable failed in both
-  of those runs with error 19 (`ERROR_WRITE_PROTECT`; the probe's
+  with the pre-lowering self-listener `ok`. That task's evidence campaign
+  (its `work/test.md`, Attempt 1 Runs 1-2, on the same host with the
+  firewall services running and no loopback exemption for the package)
+  measured the boundary: after the lowering every fresh socket, `AF_INET`
+  and `AF_INET6` with TCP and UDP, was refused at creation with
+  `WSAEACCES`, and the native `\Device\Afd\Endpoint` open with Winsock's
+  own endpoint attribute with `STATUS_ACCESS_DENIED`, each after the same
+  call succeeded in the helper before the lowering (the same AFD bytes
+  also opened in an ordinary process). Listeners of the helper's parent on
+  127.0.0.1, `::1` and the host's own LAN and link-local addresses, of a
+  sibling process on 127.0.0.1 and `::1`, and one in the running WSL
+  distribution received every ordinary control before, during and after
+  the helper and nothing from it. Native code in the lowered helper can
+  therefore neither create a socket nor open an AFD endpoint, and the
+  ordinary helper holds no socket from before the lowering (its handles
+  are below). Sockets that the probe's `connect-control` opens before the
+  lowering delivered nothing after it: TCP connects to the host's own
+  addresses timed out and one to WSL was refused with `WSAEACCES`, and UDP
+  sends reached no listener; the timeouts and unreceived sends are no
+  denial. Not established: which layer refuses (AFD's check of the token
+  or the filtering platform), the behaviour with the firewall service
+  stopped, name resolution, ICMP, other protocols, and routing off the
+  machine (the WSL distribution is a separate network stack behind the
+  same machine's virtual switch).
+  win32k system calls stay enabled: in both runs without the lowbox the
+  runtime disable failed with error 19 (`ERROR_WRITE_PROTECT`; the probe's
   `DisallowWin32kSystemCalls: not applied (SetProcessMitigationPolicy(4)
   failed: error 19)`, then `mitigation win32k: 0x0`), because every
   Telegram process loads user32 during its static initialisation, and the
@@ -699,9 +748,17 @@ The packs, the fixture and the seams they use need no change for it.
   checkpoint).
   Registry key handles that system DLLs opened during static
   initialisation, before the lowering, stayed open with the access they
-  had been granted (nine: eight in `HKEY_LOCAL_MACHINE`, one in the user's
-  hive), and an open relative to one is checked against its target key;
-  the probe's fresh opens were denied. A thread on the lockdown token, in
+  had been granted (nine without the lowbox, eight in
+  `HKEY_LOCAL_MACHINE` and one in the user's hive; seven in the lowbox
+  helper, all in `HKEY_LOCAL_MACHINE` with read access only), and an open
+  relative to one is checked against its target key; the probe's fresh
+  opens were denied. The lowbox helper's other handles after Ready, in
+  Run 2 of the campaign above, were the pipe, the stderr copy, the WOW64
+  pair of its working directory with traverse access only, the crypto
+  devices of the random warm-up, the `\KnownDlls` and `\KnownDlls32`
+  directories, user32's window station and desktop, its own threads and
+  unnamed thread-pool, synchronisation, timer, ETW and ALPC objects: no
+  socket, AFD endpoint or section. A thread on the lockdown token, in
   a scratch process that
   `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-windows`
   launched with the helper's tokens, job and policies (its
@@ -903,10 +960,10 @@ The packs, the fixture and the seams they use need no change for it.
   when the client leaves the session bus (`WATCH_BUS`).
 - **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
   gives in-process loopback clients only when no factory is installed, so
-  engines in the helper ignore it, the macOS and Linux defaults included,
-  and with `in-process`, or where the default keeps engines in process,
-  its engines keep the `Started.` note while running in the client. Leave
-  it unset in both modes.
+  engines in the helper ignore it, the macOS, Linux and Windows defaults
+  included, and with `in-process`, or where the default keeps engines in
+  process, its engines keep the `Started.` note while running in the
+  client. Leave it unset in both modes.
 
 ## Readings and refusals
 
@@ -1066,7 +1123,7 @@ and after the third the next widget died with `the widget helper failed 3
 times in a row` without a fourth helper (Run 3). None of this has run on
 Windows, Linux, the store build or a packaged build: the store build keeps
 its engines in process, and packaged builds were then excluded from the
-helper default.
+macOS helper default.
 
 `TelegramWidgetHelper` ran in the macOS 27.0.1 arm64 Debug client in the
 evidence campaign of
@@ -1132,10 +1189,11 @@ random bytes and `Intl` matched the in-process values. With `probe` its
 `denied (error 5)` after passing `before lowering:` controls, the socket
 and the connect to the live listener read `ALLOWED` and `CONNECTED`, and
 win32k read `not applied (SetProcessMitigationPolicy(4) failed: error 19)`.
-Unset and `in-process` started no helper. A killed helper left both cards'
-last pictures unchanged outside the stop pill; showing them again restarted
-both in one new helper, and a second kill stopped them at the two-crash
-limit. A quit left no helper, live or idle; with a client write blocked on
+With the Windows default still off then, unset and `in-process` started
+no helper. A killed helper left both cards' last pictures unchanged
+outside the stop pill; showing them again restarted both in one new
+helper, and a second kill stopped them at the two-crash limit. A quit
+left no helper, live or idle; with a client write blocked on
 a suspended helper the helper ended with `exit 1067, terminated after 1000
 ms` and the client exited 1.3 s after the quit. A client in a job of one
 active process failed three starts with `CreateProcessAsUserW failed: Not
