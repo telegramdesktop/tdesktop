@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <memory>
 #include <optional>
 #include <vector>
 
@@ -48,6 +49,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <private/qhighdpiscaling_p.h>
 #include <qpa/qwindowsysteminterface.h>
 #endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif // Q_OS_WIN
 
 #include "styles/palette.h"
 #include "styles/style_widgets.h"
@@ -78,6 +83,18 @@ constexpr auto kNearTolerance = 0.5;
 
 // The label of the console shield arm the self-test owns.
 const auto kShieldLabel = u"qpa-mouse-self-test"_q;
+
+// The fixture waits at most kCoverLeaveBound for the Qt window the cursor
+// cover took the cursor from to get its spontaneous Leave: readiness only,
+// never judged.
+constexpr auto kCoverLeaveBound = crl::time(1000);
+
+#ifdef Q_OS_WIN
+constexpr auto kCursorCover = true;
+constexpr auto kCoverClassName = L"TelegramHarnessCursorCover";
+#else // Q_OS_WIN
+constexpr auto kCursorCover = false;
+#endif // Q_OS_WIN
 
 #ifdef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 constexpr auto kPlatformInput = false;
@@ -229,6 +246,50 @@ private:
 
 };
 
+// On Windows, while it lives: a small Qt top-level window of the
+// self-test's own around the OS cursor - frameless, topmost, a tool
+// window, shown without activation and never activated
+// (Qt::WA_ShowWithoutActivating, Qt::WindowDoesNotAcceptFocus) - whose
+// whole client area is a native child window of a private class that
+// leaves every message to DefWindowProcW. The child exists before the
+// window is shown, so the resting cursor hit-tests to the child (HTCLIENT)
+// and none of its mouse messages reaches Qt: QWindowsPointerHandler
+// tracks, enters and leaves no window there, and Windows has no Telegram
+// window under the cursor to send a leave to while a probe holds the
+// mouse capture. Qt's own lookup at the cursor
+// (QWindowsContext::findPlatformWindowAt) still finds this window, so
+// getWindowUnderPointer never falls back to the capture window (its
+// QTBUG-44332 branch) wherever the cursor rests. The window is a square of
+// 2 * CoverRadius + 1 logical px, the smallest sure to hold the native
+// cursor pixel at the screen's factor; destroying it destroys its child.
+// It moves neither the cursor nor any other window. Elsewhere it creates
+// nothing.
+class CursorCover final {
+public:
+	CursorCover(not_null<QScreen*> screen, QPoint cursor);
+	CursorCover(const CursorCover &other) = delete;
+	CursorCover &operator=(const CursorCover &other) = delete;
+	~CursorCover();
+
+	[[nodiscard]] bool shown() const;
+
+	// "shown=1 window=[<WidgetDescription>] point=<x>,<y> rect=<x,y WxH>
+	// child=<x,y WxH> visible=<0|1> hit=<0|1> nativeCursor=<x>,<y>": the
+	// native cursor at creation, the window's and the child's native rects
+	// read now, and |hit| when WindowFromPoint at |point| answers the child;
+	// or "shown=0 refusal=<what failed>".
+	[[nodiscard]] QString text() const;
+
+private:
+#ifdef Q_OS_WIN
+	base::unique_qptr<Ui::RpWidget> _window;
+	HWND _child = nullptr;
+	QPoint _point;
+	QString _refusal;
+#endif // Q_OS_WIN
+
+};
+
 struct ProbePair {
 	QPointer<GrabParent> parent;
 	QPointer<ForwardingChild> child;
@@ -372,8 +433,18 @@ struct RefusalTargets {
 // parent's coordinates. The subject's and control's route readings are
 // taken right after their gestures' cleanup. Once the control's legs are
 // done its row, at |spareOrigin|, takes |spare|: the pair that deletes
-// itself, then the pair that swallows queued calls.
+// itself, then the pair that swallows queued calls. |initialCursor| and
+// |initialWindow| are read before |cover| exists; |coverLeave| holds the
+// filter watching the covered Qt window for its spontaneous Leave from
+// |coverLeaveFrom| until the fixture stage ends.
 struct State {
+	std::unique_ptr<CursorCover> cover;
+	rpl::lifetime coverLeave;
+	QString initialWindow;
+	QPoint initialCursor;
+	crl::time coverLeaveFrom = 0;
+	bool coverLeaveWatched = false;
+	bool coverLeaveSeen = false;
 	base::unique_qptr<Ui::RpWidget> pairs;
 	base::unique_qptr<Ui::RpWidget> pads;
 	QPointer<LandingPad> pad;
@@ -1382,17 +1453,214 @@ void BuildPair(
 	return screen ? screen : QGuiApplication::primaryScreen();
 }
 
+#ifdef Q_OS_WIN
+[[nodiscard]] bool RegisterCoverClass() {
+	static const auto result = [] {
+		auto descriptor = WNDCLASSEXW();
+		descriptor.cbSize = sizeof(descriptor);
+		descriptor.lpfnWndProc = DefWindowProcW;
+		descriptor.hInstance = GetModuleHandleW(nullptr);
+		descriptor.lpszClassName = kCoverClassName;
+		return RegisterClassExW(&descriptor)
+			|| (GetLastError() == ERROR_CLASS_ALREADY_EXISTS);
+	}();
+	return result;
+}
+
+// The half size, in logical px, of the smallest square around the logical
+// cursor sure to hold the native cursor pixel at Qt's |factor|. Qt rounds
+// the native cursor to a logical px, then the square's position and size
+// back to native px, each by at most half a px: a radius of at least 1
+// keeps the square's start at or before the pixel, and
+// (radius + 1/2) * factor > 1 its end past it.
+[[nodiscard]] int CoverRadius(double factor) {
+	return (factor > 0.)
+		? std::max(1, int(std::floor(1. / factor - 0.5)) + 1)
+		: 1;
+}
+
+[[nodiscard]] QString NativeRectText(HWND hwnd) {
+	auto rect = RECT();
+	if (!GetWindowRect(hwnd, &rect)) {
+		return u"none"_q;
+	}
+	return RectText(QRect(
+		rect.left,
+		rect.top,
+		rect.right - rect.left,
+		rect.bottom - rect.top));
+}
+
+// The child is created, filling the window's client area, before the
+// window is shown; without it no window is shown at all.
+CursorCover::CursorCover(not_null<QScreen*> screen, QPoint cursor) {
+	auto point = POINT();
+	if (!GetCursorPos(&point)) {
+		_refusal = u"GetCursorPos error=%1"_q.arg(GetLastError());
+		return;
+	}
+	_point = QPoint(point.x, point.y);
+	if (!RegisterCoverClass()) {
+		_refusal = u"RegisterClassExW failed"_q;
+		return;
+	}
+	const auto radius = CoverRadius(screen->devicePixelRatio());
+	const auto size = QSize(2 * radius + 1, 2 * radius + 1);
+	auto window = MakeWindow(u"cover"_q, size);
+	window->setWindowFlags(Qt::Tool
+		| Qt::FramelessWindowHint
+		| Qt::WindowStaysOnTopHint
+		| Qt::WindowDoesNotAcceptFocus);
+	window->setGeometry(QRect(cursor - QPoint(radius, radius), size));
+	const auto parent = reinterpret_cast<HWND>(window->winId());
+	auto client = RECT();
+	GetClientRect(parent, &client);
+	_child = CreateWindowExW(
+		WS_EX_NOPARENTNOTIFY,
+		kCoverClassName,
+		nullptr,
+		WS_CHILD | WS_VISIBLE,
+		0,
+		0,
+		client.right,
+		client.bottom,
+		parent,
+		nullptr,
+		GetModuleHandleW(nullptr),
+		nullptr);
+	if (!_child) {
+		_refusal = u"CreateWindowExW error=%1"_q.arg(GetLastError());
+		return;
+	}
+	_window = std::move(window);
+	_window->show();
+}
+
+bool CursorCover::shown() const {
+	return _window && IsWindowVisible(_child);
+}
+
+QString CursorCover::text() const {
+	if (!_window) {
+		return u"shown=0 refusal=%1"_q.arg(_refusal);
+	}
+	auto cursor = POINT();
+	GetCursorPos(&cursor);
+	const auto hit = WindowFromPoint(POINT{ _point.x(), _point.y() });
+	return u"shown=1 window=[%1] point=%2,%3 rect=%4 child=%5 visible=%6 "
+		u"hit=%7 nativeCursor=%8,%9"_q.arg(
+			WidgetDescription(_window.get()),
+			QString::number(_point.x()),
+			QString::number(_point.y()),
+			NativeRectText(reinterpret_cast<HWND>(_window->winId())),
+			NativeRectText(_child),
+			FlagText(IsWindowVisible(_child) != FALSE),
+			FlagText(hit == _child),
+			QString::number(cursor.x),
+			QString::number(cursor.y));
+}
+#else // Q_OS_WIN
+CursorCover::CursorCover(not_null<QScreen*>, QPoint) {
+}
+
+bool CursorCover::shown() const {
+	return false;
+}
+
+QString CursorCover::text() const {
+	return u"shown=0 refusal=not Windows"_q;
+}
+#endif // Q_OS_WIN
+
+CursorCover::~CursorCover() = default;
+
+// The Qt top-level window at |cursor| (QGuiApplication::topLevelAt): its
+// widget's WidgetDescription, else the window's class and geometry, else
+// "none".
+[[nodiscard]] QString WindowAtCursorText(QPoint cursor) {
+	const auto window = QGuiApplication::topLevelAt(cursor);
+	if (!window) {
+		return u"none"_q;
+	}
+	for (const auto widget : QApplication::topLevelWidgets()) {
+		if (widget->windowHandle() == window) {
+			return WidgetDescription(widget);
+		}
+	}
+	return u"%1 %2"_q.arg(
+		QString::fromLatin1(window->metaObject()->className()),
+		RectText(window->geometry()));
+}
+
+// Before any probe exists: what lies under the cursor, then, on Windows
+// with platform input, the cursor cover on the cursor's |screen|. The
+// filter on the Qt window under the cursor goes first, so the Leave the
+// cover's show causes is not missed; with no Qt window there, or no cover,
+// nothing is watched.
+void CoverCursor(
+		not_null<State*> state,
+		not_null<QScreen*> screen,
+		QPoint cursor) {
+	state->initialCursor = cursor;
+	state->initialWindow = WindowAtCursorText(cursor);
+	if constexpr (kPlatformInput && kCursorCover) {
+		const auto covered = QGuiApplication::topLevelAt(cursor);
+		if (covered) {
+			base::install_event_filter(covered, [=](not_null<QEvent*> e) {
+				if ((e->type() == QEvent::Leave) && e->spontaneous()) {
+					state->coverLeaveSeen = true;
+				}
+				return base::EventFilterResult::Continue;
+			}, state->coverLeave);
+		}
+		state->cover = std::make_unique<CursorCover>(screen, cursor);
+		state->coverLeaveFrom = crl::now();
+		state->coverLeaveWatched = covered && state->cover->shown();
+		if (!state->coverLeaveWatched) {
+			state->coverLeave.destroy();
+		}
+	}
+}
+
+// Readiness only, never judged: nothing is watched, the covered window
+// got its spontaneous Leave, or kCoverLeaveBound passed.
+[[nodiscard]] bool CoverLeaveSettled(const State &state) {
+	return !state.coverLeaveWatched
+		|| state.coverLeaveSeen
+		|| (crl::now() - state.coverLeaveFrom >= kCoverLeaveBound);
+}
+
+[[nodiscard]] QString CoverText(const State &state) {
+	return state.cover ? state.cover->text() : u"none"_q;
+}
+
+[[nodiscard]] QString CoverLeaveText(const State &state) {
+	const auto waited = state.coverLeaveWatched
+		? (crl::now() - state.coverLeaveFrom)
+		: crl::time(0);
+	return u"watched=%1 seen=%2 expired=%3 waitedMs=%4 boundMs=%5"_q.arg(
+		FlagText(state.coverLeaveWatched),
+		FlagText(state.coverLeaveSeen),
+		FlagText(state.coverLeaveWatched
+			&& !state.coverLeaveSeen
+			&& (waited >= kCoverLeaveBound)),
+		QString::number(waited),
+		QString::number(kCoverLeaveBound));
+}
+
 // The refusal that fails the fixture gate, or empty with both windows
-// built, placed and shown. Every size comes from the live style: the cell
-// is st::defaultActiveButton.height. The pairs window holds the subject
-// and the control pair, one per row, each with room for the end point on
-// its right; the pad window holds the landing pad.
+// built, placed and shown, after the cursor cover. Every size comes from
+// the live style: the cell is st::defaultActiveButton.height. The pairs
+// window holds the subject and the control pair, one per row, each with
+// room for the end point on its right; the pad window holds the landing
+// pad.
 [[nodiscard]] QString BuildFixture(not_null<State*> state) {
 	const auto cursor = QCursor::pos();
 	const auto screen = FixtureScreen(cursor);
 	if (!screen) {
 		return u"no screen: neither one at the cursor nor a primary one"_q;
 	}
+	CoverCursor(state, screen, cursor);
 	const auto cell = st::defaultActiveButton.height;
 	const auto gap = cell / 2;
 	const auto pair = 2 * cell;
@@ -1511,7 +1779,8 @@ void BuildPair(
 // double-click interval and distance, the animation mode, the cursor and
 // every geometry, global and logical. |pairsOrigin| is the window's exact
 // global origin, to compare with the integer geometry ExpectedGlobal
-// reads.
+// reads. Then the cursor and the Qt window under it before the cover, the
+// cover, the Qt window under the cursor now and the Leave wait.
 [[nodiscard]] QString FixtureText(const State &state) {
 	const auto pairs = state.pairs.get();
 	const auto handle = pairs ? pairs->windowHandle() : nullptr;
@@ -1523,7 +1792,8 @@ void BuildPair(
 		u"cursor=%11 cursorOverFixture=%12 %13 pairs=%14 pads=%15 "
 		u"subject=[parent=%16 child=%17] control=[parent=%18 child=%19] "
 		u"pad=%20 from=%21 to=%22 fromGlobal=%23 toGlobal=%24 "
-		u"pairsOrigin=%25"_q.arg(
+		u"pairsOrigin=%25 initialCursor=%26 initialWindow=[%27] cover=[%28] "
+		u"windowAtCursor=[%29] coverLeave=[%30]"_q.arg(
 			QString::fromLatin1(qVersion()),
 			FlagText(kPlatformInput),
 			handle ? NumberText(handle->devicePixelRatio()) : u"none"_q,
@@ -1550,7 +1820,12 @@ void BuildPair(
 			PointText(ExpectedGlobal(state.subject, state.to)),
 			(pairs
 				? PointText(pairs->QWidget::mapToGlobal(QPointF()))
-				: u"none"_q));
+				: u"none"_q),
+			PointText(state.initialCursor),
+			DescriptionText(state.initialWindow),
+			CoverText(state),
+			WindowAtCursorText(cursor),
+			CoverLeaveText(state));
 }
 
 // Empty when every leg can start: both windows shown and inside the
@@ -1582,8 +1857,9 @@ void BuildPair(
 }
 
 // Every log starts empty right here, in the turn whose next stage is the
-// subject's press.
+// subject's press; the covered window's Leave is no longer watched.
 void FinishFixture(not_null<State*> state) {
+	state->coverLeave.destroy();
 	const auto refusal = FixtureRefusal(*state);
 	state->gate = refusal.isEmpty()
 		? QString()
@@ -1616,11 +1892,14 @@ void FinishFixture(not_null<State*> state) {
 		+ (state.refused.offscreen ? 1 : 0);
 }
 
+// The cursor cover goes last, once no probe window is left to grab.
 void DestroyFixture(State &state) {
+	state.coverLeave.destroy();
 	state.pairs = nullptr;
 	state.pads = nullptr;
 	state.refused.unshown = nullptr;
 	state.refused.offscreen = nullptr;
+	state.cover = nullptr;
 }
 
 // Releases the console shield only while the self-test's own arm holds
@@ -3387,7 +3666,8 @@ void AppendQpaMouseSelfTest(not_null<Runner*> runner) {
 		.until = [=] {
 			return !state->buildRefusal.isEmpty()
 				|| (WindowReady(state->pairs.get())
-					&& WindowReady(state->pads.get()));
+					&& WindowReady(state->pads.get())
+					&& CoverLeaveSettled(*state));
 		},
 		.then = [=] {
 			FinishFixture(state.get());
@@ -3417,13 +3697,18 @@ void AppendQpaMouseSelfTest(not_null<Runner*> runner) {
 				u"qpa-mouse-self-test-teardown"_q);
 			const auto cleanup = CleanupRaw(*state);
 			const auto windows = FixtureWindows(*state);
+			const auto cover = CoverText(*state);
 			DestroyFixture(*state);
 			Note(u"QPA mouse self-test: teardown shieldReleased=%1 %2 "
-				u"windows=%3->%4"_q.arg(
+				u"windows=%3->%4 cursor=%5->%6 cover=[%7]->[%8]"_q.arg(
 					FlagText(released),
 					cleanup,
 					QString::number(windows),
-					QString::number(FixtureWindows(*state))));
+					QString::number(FixtureWindows(*state)),
+					PointText(state->initialCursor),
+					PointText(QCursor::pos()),
+					cover,
+					CoverText(*state)));
 		},
 	});
 

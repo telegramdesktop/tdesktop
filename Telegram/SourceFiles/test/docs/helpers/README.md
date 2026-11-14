@@ -27,7 +27,7 @@ should call.
 | [test_field_submit](test_field_submit.md) | API | Submit a `Ui::InputField` with the Return chord its submit setting requires - the app's `sendSubmitWay()` by default - and report whether `submits()` fired, refusing `None` by name; with its self-test |
 | [test_queued_drag](test_queued_drag.md) | API | Deliver queued drag starts before the synthetic release |
 | [test_qpa_mouse](test_qpa_mouse.md) | API | Mouse press, move and release through Qt's platform layer and window routing, for widgets that grab the mouse; a held press keeps the pressed widget at the sequence's point through lib_ui's moves built from the OS pointer; a drag stage that waits for queued work before its release and leaves no button, grab, hover or keyboard modifier |
-| [test_qpa_mouse_self_test](test_qpa_mouse_self_test.md) | Self-test | Self-test for QPA grab routing, the drag stage's wait and refusals, coordinates, double clicks and clean end state |
+| [test_qpa_mouse_self_test](test_qpa_mouse_self_test.md) | Self-test | Self-test for QPA grab routing, the drag stage's wait and refusals, coordinates, double clicks, clean end state and a paced gesture passing its own armed console shield, with the OS cursor covered on Windows |
 | [test_qpa_mouse_held_self_test](test_qpa_mouse_held_self_test.md) | Self-test | Self-test for a held QPA press clicking once through a scroll that sends lib_ui's move from the OS pointer, beside a deliberate move outside that does not |
 | [test_touch](test_touch.md) | API | Registered touchscreen and touchpad input through Qt's platform layer |
 | [test_text_drop](test_text_drop.md) | Self-test | Self-test for text-drop routing |

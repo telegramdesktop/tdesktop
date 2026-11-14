@@ -368,8 +368,15 @@ struct QpaMouseDrag {
 // positive control, every refusal, a paced gesture under its own armed
 // console shield (test_console_shield.h) with no veto, and a clean end
 // state after each leg. It arms and releases that shield itself, so it is
-// appended before AppendConsoleShieldSelfTest, which comes last. Defined
-// in test_qpa_mouse_self_test.cpp. Reference:
+// appended before AppendConsoleShieldSelfTest, which comes last. On
+// Windows its fixture first shows a small topmost window of its own around
+// the OS cursor, never activated, whose client area is a native child
+// window that takes the resting cursor's messages: Qt finds its own window
+// at the cursor yet tracks none there while the probes hold the mouse
+// capture. It destroys that window last in its teardown or
+// Runner::onFinish; meanwhile a click at the cursor reaches the child, not
+// the window beneath. It moves neither the cursor nor any window it does
+// not own. Defined in test_qpa_mouse_self_test.cpp. Reference:
 // docs/helpers/test_qpa_mouse_self_test.md; measured results:
 // docs/helpers/test_qpa_mouse.md, "Verification".
 void AppendQpaMouseSelfTest(not_null<Runner*> runner);

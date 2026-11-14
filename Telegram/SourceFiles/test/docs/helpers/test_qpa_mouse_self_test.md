@@ -39,13 +39,41 @@ the child's centre to one cell right of the parent: outside the child and the
 parent, inside the window. An object filter on each `QWindow` records what
 the window gets and its spontaneous flag.
 
+On Windows, with platform input, the fixture covers the OS cursor before
+any probe exists. It reads `QCursor::pos()` and the Qt top-level window
+under it (`QGuiApplication::topLevelAt`), installs a pass-through object
+filter on that window for its spontaneous `Leave`, then shows the cursor
+cover: a parentless `Ui::RpWidget` square around the cursor with
+`Qt::Tool`, `Qt::FramelessWindowHint`, `Qt::WindowStaysOnTopHint` and
+`Qt::WindowDoesNotAcceptFocus`, shown without activation with
+`Qt::WA_QuitOnClose` cleared, neither translucent nor transparent for
+input. Before it is shown its whole client area gets a native child
+window, `WS_CHILD | WS_VISIBLE` with `WS_EX_NOPARENTNOTIFY`, of a private
+class that leaves every message to `DefWindowProcW`. The resting cursor
+hit-tests to that child, whose messages never reach Qt, so Qt tracks no
+window there, while Qt's own lookup at the cursor finds the cover window.
+Its side is `2 * radius + 1` logical px, with radius 1 at every factor
+above 2/3: the smallest square sure to hold the native cursor pixel after
+Qt rounds the cursor to logical px and the square back to native px. The
+fixture stage also waits, at most 1000 ms, for the covered window's
+`Leave`: readiness only, logged and never a verdict, because a window
+Windows was not tracking gets none. With no Qt window under the cursor
+nothing is watched. Elsewhere, and without platform input, there is no
+cover. Nothing moves the cursor or any window the self-test does not own.
+
 The fixture stage logs `QPA_MOUSE_SELF_TEST: fixture` - Qt version, the
 pairs window's `devicePixelRatio()`, Qt's conversion factor
 (`QHighDpiScaling::factor`), the double-click interval and distance, the
-animation mode, the cursor and every geometry - and its `fixture gate:`
-requires both windows shown inside the screen and Qt holding no button,
-grab, hover, popup or modal. Every later stage is gated on it
-(`Runner::addGated`).
+animation mode, the cursor and every geometry, then `initialCursor` and
+`initialWindow` read before the cover, `cover=[...]` (the cover window's
+description, the native cursor point it was made for, the window's and
+the child's native rects, whether the child is visible and whether
+`WindowFromPoint` at that point answers the child, and the native cursor
+now), `windowAtCursor` read now - the cover window, Qt's lookup at the
+cursor - and `coverLeave=[watched seen expired waitedMs boundMs]` - and its
+`fixture gate:` requires both windows shown inside the screen and Qt
+holding no button, grab, hover, popup or modal. Every later stage is gated
+on it (`Runner::addGated`).
 
 ## Stages and expected readings
 
@@ -95,7 +123,21 @@ button, no grab and no hovered fixture widget right after its cleanup.
 - **armed console shield**: the self-test arms its own shield (label
   `qpa-mouse-self-test`) and repeats the subject paced at 50 ms: the same
   route checks, all eight moves, the shield's reading unchanged with no veto;
-  then it releases its own arm before any window closes.
+  then it releases its own arm before any window closes. Another Telegram
+  window under the real cursor, such as the primary window at the screen
+  centre, leaves the verdict unchanged on Windows. While the probe's grab
+  holds the mouse capture, every move Windows synthesizes (a window shown,
+  moved or hidden anywhere on the desktop) goes to the capture window, and
+  Windows sends the Telegram window under the cursor a mouse leave, which
+  Qt turns into a spontaneous `Leave` that an armed shield vetoes as
+  console input. The cursor cover stands between the resting cursor and
+  every Telegram window from before the arm through every grab, so no such
+  leave reaches one; the covered window's own `Leave` comes unarmed, in the
+  fixture stage. Qt finds the cover window at the cursor wherever the
+  cursor rests, so a captured move never makes it fall back to the capture
+  window and enter it, and the cover window never takes a mouse message,
+  so it is neither entered nor left. The no-veto row still decides, and
+  the shield still vetoes every foreign event that reaches a Qt window.
 - **destroyed target**: a fresh pair in the control row queues its own
   deletion at held move 2, paced at 50 ms. It gets exactly two moves, in
   separate turns, no release and nothing after the deletion; the reading is
@@ -109,9 +151,11 @@ button, no grab and no hovered fixture widget right after its cleanup.
   no `QWindow`; a shown `Qt::WA_DontShowOnScreen` window is refused
   `window-hidden`. Nothing is sent and the pads record nothing.
 - **teardown**, a recovery stage: releases the self-test's own shield arm if
-  it still holds one, cleans up a direct gesture left open and destroys the
-  windows. A `Runner::onFinish` registered after every drag stage does the
-  same on every finish path, after each drag's own finish callback.
+  it still holds one, cleans up a direct gesture left open, destroys the
+  windows and last the cursor cover, and notes the cursor and the cover
+  before and after. A `Runner::onFinish` registered after every drag stage
+  does the same on every finish path, after each drag's own finish
+  callback.
 
 Expected: every row `TEST_RESULT: PASS` and no `FAIL`. Built with
 `DESKTOP_APP_DISABLE_PRIVATE_QT_API`, every delivering stage is `N/A` with an
@@ -120,6 +164,23 @@ subject's drag are refused `unsupported` and send nothing. A failed fixture
 gate leaves the gated stages `N/A`: incomplete evidence, never a pass. The
 scale factor is process-wide, so the coordinate control's discriminating
 reading takes a second launch with `QT_SCALE_FACTOR=2`.
+
+The cursor cover is a temporary hit target: while it lives, a click at the
+cursor reaches its native child and no Telegram window, and nothing
+forwards it. It is gone before the next packed stage, after the
+self-test's own arm is released, and the window beneath then gets an
+`Enter`; it does not cover a campaign's own later armed gesture. It is a
+Qt window on purpose: with no Qt window found under the pointer, Qt's
+QTBUG-44332 fallback in `getWindowUnderPointer`
+(`qwindowspointerhandler.cpp`) takes the capture window for it when the
+native cursor lies in a rectangle of that window's logical size at the
+virtual desktop's origin, and `handleEnterLeave` then enters the capture
+window outside the harness's input scope.
+`QWindowsContext::findPlatformWindowAt` walks from the desktop to the
+cover window, then into its child, which is no Qt window, and keeps the
+cover window, so the lookup is never empty at the cursor; the fixture
+row's `windowAtCursor` shows it and `hit` that the native cursor pixel is
+the child's.
 
 The controls catch these mutations: `sendEvent` in place of QPA delivery
 fails the route and spontaneity checks; dropping the coordinate conversion
