@@ -813,7 +813,18 @@ on this task's code before it adopted the lockdown seam of
 `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`:
 the helper then chose its probe from the `TDESKTOP_WIDGET_ENGINES` value it
 inherited from the client, its command line carried only the handle, and
-the framework pin was this task's own lockdown-callback commit. Not run:
+the framework pin was this task's own lockdown-callback commit. On the
+adopted code the affected checks were rerun as Attempt 2 Runs 1-2 of that
+`work/test.md`: the non-Debug and Release-harness preprocessing held no
+switch, probe argument or harness call, the seven driver launches refused
+or reached Ready as before, and the landed lockdown test passed natively
+and failed when `Serving::run` no longer called the lockdown (Run 1); the
+ordinary helper's command line ended at its handle, `probe` arrived as
+`probe <working dir> <data dir>` after it, reported the same denials,
+`ALLOWED`/`CONNECTED` and error 19 and went on serving widgets, unset and
+`in-process` started no helper, and `probe-unsandboxed` started one helper
+that refused with `the widget helper probe is not available on this
+platform` before any widget loaded (Run 2). Not run:
 x64, ARM64, the Store build, Windows before 10 1809, a Release runtime
 (the non-Debug gate was only preprocessed) and macOS or Linux compilation
 of the shared files.
