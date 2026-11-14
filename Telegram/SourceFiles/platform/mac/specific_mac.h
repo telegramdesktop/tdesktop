@@ -27,6 +27,10 @@ inline bool SkipTaskbarSupported() {
 	return false;
 }
 
+inline GlassCapabilities QueryGlassCapabilities() {
+	return {};
+}
+
 [[nodiscard]] bool HasTouchBar();
 
 void ActivateThisProcess();
