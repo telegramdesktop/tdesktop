@@ -76,6 +76,11 @@ using Core::WindowPosition;
 	return screen ? screen->availableGeometry() : QRect();
 }
 
+[[nodiscard]] bool NativeFrameEnabled() {
+	return Ui::Platform::NativeWindowFrameSupported()
+		&& Core::App().settings().nativeWindowFrame();
+}
+
 [[nodiscard]] QPoint ChildSkip() {
 	const auto skipx = st::defaultDialogRow.padding.left()
 		+ st::defaultDialogRow.photoSize
@@ -698,8 +703,7 @@ int MainWindow::computeMinHeight() const {
 }
 
 void MainWindow::refreshTitleWidget() {
-	if (Ui::Platform::NativeWindowFrameSupported()
-		&& Core::App().settings().nativeWindowFrame()) {
+	if (NativeFrameEnabled()) {
 		setNativeFrame(true);
 		if (Platform::NativeTitleRequiresShadow()) {
 			_titleShadow.create(this);
@@ -855,6 +859,46 @@ void MainWindow::firstShow() {
 	setGeometry(geometry);
 	rememberOwnBodyMargins(geometry);
 	show();
+	if (NativeFrameEnabled()) {
+		// Frame margins counted before show() can be another screen's.
+		InvokeQueued(this, [=] { correctFirstGeometry(); });
+	}
+}
+
+void MainWindow::correctFirstGeometry() {
+	if (!NativeFrameEnabled()
+		|| isHidden()
+		|| (windowState() & ~Qt::WindowActive)) {
+		return;
+	}
+	const auto inner = body()->mapToGlobal(body()->rect());
+	const auto geometry = countInitialGeometry(withScreenInPosition({
+		.scale = cScale(),
+		.x = inner.x(),
+		.y = inner.y(),
+		.w = inner.width(),
+		.h = inner.height(),
+	}));
+	if (geometry == inner) {
+		return;
+	}
+	DEBUG_LOG(("Window Pos: Correcting first %1, %2, %3, %4 "
+		"to %5, %6, %7, %8"
+		).arg(inner.x()
+		).arg(inner.y()
+		).arg(inner.width()
+		).arg(inner.height()
+		).arg(geometry.x()
+		).arg(geometry.y()
+		).arg(geometry.width()
+		).arg(geometry.height()));
+	rememberOwnGeometry(QRect(
+		geometry.x(),
+		geometry.y(),
+		geometry.width() - (_rightColumn ? _rightColumn->width() : 0),
+		geometry.height()));
+	setGeometry(geometry);
+	rememberOwnBodyMargins(geometry);
 }
 
 void MainWindow::positionUpdated(bool spontaneous) {
