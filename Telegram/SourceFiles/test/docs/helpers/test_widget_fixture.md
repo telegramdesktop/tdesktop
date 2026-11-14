@@ -364,9 +364,11 @@ differs.
   time includes both socket hops and the client's answer: compare query
   times only between runs of the same mode. The host's own bound on a
   query answer stays in the client, and a theme change's `probe()` is a
-  channel probe bounded at 10 s. A widget that starts a helper also waits
-  for that process to start before its engine boots, and its `loadedMs`
-  includes that wait.
+  channel probe bounded at 10 s. A widget that starts a helper spawns it
+  synchronously in the channel factory, before the host's creation time
+  that `loadedMs` counts from, so its `loadedMs` does not include the
+  spawn itself; it can include the helper's own start-up before its
+  engine answers.
 - **Quit.** A quit stops the helper, live or idle, once no widget host,
   build, sample or theme job is left, as one more tgw job that holds the
   quit (`Tgw prevents quit, stopping widget sandboxes...`); `Tgw doesn't
@@ -493,6 +495,27 @@ The evidence campaign of
 runs a conformance smoke from a normal window narrowed to the first
 two-column width, one from an inactive maximized window and a stress-kit
 smoke, and records what ran in that task's evidence.
+
+The [remote engines](#remote-engines) ran in the macOS arm64 Debug client
+in the evidence campaign of
+`2026/11/13/run-widget-engines-in-a-shared-unsandboxed-helper-on-macos-behind-a-debug-switch`
+(its `work/test.md`). The attack audit over all 133 corpus files and the
+conformance runner over the 133-run automatic matrix ran once with
+`TDESKTOP_WIDGET_ENGINES=helper` and once with `in-process` on the same
+executable, with the host watch, the validated-ops tap and the played bot
+in use (Runs 9 and 11): 0 leaks in both modes, identical conformance
+verdicts, and identical attack rows apart from two timing-dependent
+outcomes, whether the click show of `request-copy.html`'s growing card
+settled in time (refused once in process, accepted in every other launch)
+and the box count in `paint-backdrop-replay.html`'s paint-limit reason
+(300 through the helper, 100 in process, the same stop). The stress kit's
+`layout-queries/000016.html` with its measure options took 1.075 and
+1.081 ms per uncached query through the helper against 0.964 and 0.968 ms
+in process in that Debug build (Run 11). The lifecycle (one shared
+helper, the idle exit, a SIGKILL and the restart, the failure limit and
+the quit) ran through a disposable overlay in that campaign (Runs 4-5 and
+7). None of it has run on Windows or Linux, where the helper does not
+exist.
 
 ## Related guidance
 
