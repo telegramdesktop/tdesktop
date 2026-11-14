@@ -14,7 +14,11 @@
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_widget_sandbox STATIC)
-init_target(lib_widget_sandbox "(external)")
+if (APPLE AND NOT build_macstore)
+    init_standalone_target(lib_widget_sandbox "(external)")
+else()
+    init_target(lib_widget_sandbox "(external)")
+endif()
 
 add_library(tdesktop::lib_widget_sandbox ALIAS lib_widget_sandbox)
 

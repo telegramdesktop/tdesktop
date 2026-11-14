@@ -25,6 +25,9 @@ get_filename_component(src_loc SourceFiles REALPATH)
 get_filename_component(res_loc Resources REALPATH)
 
 include(cmake/telegram_options.cmake)
+if (APPLE AND NOT build_macstore)
+    include(cmake/init_standalone_target.cmake)
+endif()
 include(cmake/lib_ffmpeg.cmake)
 include(cmake/lib_stripe.cmake)
 include(cmake/lib_tgcalls.cmake)
@@ -2278,6 +2281,7 @@ PRIVATE
     test/test_widget_fixture.h
     test/test_widget_helper_probe.cpp
     test/test_widget_helper_probe.h
+    test/test_widget_helper_probe_lockdown.h
     test/test_widget_host.cpp
     test/test_widget_host.h
     test/test_widget_ops.cpp
@@ -3060,6 +3064,10 @@ if (WIN32 AND DESKTOP_APP_WIN7_PROBE)
 endif()
 
 target_prepare_qrc(Telegram)
+
+if (APPLE AND NOT build_macstore)
+    include(cmake/telegram_widget_helper.cmake)
+endif()
 
 if (NOT DESKTOP_APP_DISABLE_AUTOUPDATE AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)

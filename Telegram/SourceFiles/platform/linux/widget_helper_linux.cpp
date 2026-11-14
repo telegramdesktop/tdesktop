@@ -651,8 +651,8 @@ Launched Launch(const QStringList &arguments) {
 		return { .error = u"stderr is not open"_q };
 	}
 	auto channel = CreatePosixChannel();
-	if (!channel.error.isEmpty()) {
-		return { .error = std::move(channel.error) };
+	if (!channel.error.empty()) {
+		return { .error = QString::fromStdString(channel.error) };
 	}
 	return KSandbox::isFlatpak()
 		? LaunchThroughPortal(std::move(channel), arguments)

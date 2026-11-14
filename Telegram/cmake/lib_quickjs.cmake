@@ -15,7 +15,11 @@
 # There is no packaged branch: the API still changes between releases.
 
 add_library(lib_quickjs STATIC)
-init_target(lib_quickjs "(external)")
+if (APPLE AND NOT build_macstore)
+    init_standalone_target(lib_quickjs "(external)")
+else()
+    init_target(lib_quickjs "(external)")
+endif()
 
 add_library(tdesktop::lib_quickjs ALIAS lib_quickjs)
 

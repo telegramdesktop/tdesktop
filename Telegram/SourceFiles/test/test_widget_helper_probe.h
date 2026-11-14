@@ -8,22 +8,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/basic_types.h"
+#include "test/test_widget_helper_probe_lockdown.h"
 
 #include <string>
 
 // The Debug probe of the widget helper's lockdown on macOS, Windows and
-// Linux: the arguments a client appends after `-widgethelper <token>` and
-// the lockdown hook the helper gives SandboxRemoteEngineEnd::serve(). On
-// macOS a probe helper lists every descriptor and Mach right it holds after
-// the real lockdown, attempts what the sandbox must deny and refuses the
-// stream with a summary instead of serving any widget. On Windows a probe
-// helper runs the native probe of Platform::WidgetHelper::PrepareProbe()
-// around the real lockdown, writes its report to stderr and goes on serving
-// widgets. On Linux a probe helper attempts what the lockdown must deny in
-// forked copies of itself, then locks itself down for real, writes its
-// readings to stderr and goes on serving widgets. Its only product caller
-// is the `_DEBUG` block of tgw_remote.cpp; Release builds never reach it,
-// the harness ones included.
+// Linux, its half in Telegram: the probe mode test, the arguments a client
+// appends after the helper's token and, on Windows and Linux, the lockdown
+// hook the same-binary helper gives SandboxRemoteEngineEnd::serve(). On
+// macOS the probe runs inside TelegramWidgetHelper's Debug build
+// (test_widget_helper_probe_lockdown.h): a probe helper lists every
+// descriptor and Mach right it holds after the real lockdown, attempts what
+// the sandbox must deny and refuses the stream with a summary instead of
+// serving any widget. On Windows a probe helper runs the native probe of
+// Platform::WidgetHelper::PrepareProbe() around the real lockdown, writes
+// its report to stderr and goes on serving widgets. On Linux a probe helper
+// attempts what the lockdown must deny in forked copies of itself, then
+// locks itself down for real, writes its readings to stderr and goes on
+// serving widgets. Its only product caller is the `_DEBUG` block of
+// tgw_remote.cpp; Release builds never reach it, the harness ones included.
 // Reference: docs/helpers/test_widget_helper_probe.md.
 //
 // Everything here is harness-only: declared here and deliberately left
@@ -31,12 +34,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // reads it.
 
 namespace Test {
-
-// The generic password the probe's keychain attempt reads: this service and
-// the run's synthetic account. The overlay that passes an account owns the
-// item: it adds it only when absent, never replaces one and deletes it.
-inline constexpr auto kWidgetHelperProbeKeychainService
-	= "org.telegram.desktop.widget-helper-probe";
 
 // The probe's positive-control fixtures, passed by a disposable overlay. An
 // empty account or a zero port leaves the claims that need it incomplete.
@@ -66,17 +63,12 @@ struct WidgetHelperProbeFixture {
 	const QString &mode,
 	const WidgetHelperProbeFixture &fixture);
 
-// The helper's lockdown hook, called once on serve's thread after the
-// opening was accepted. |arguments| is everything after `-widgethelper`, the
-// token first. With no argument after the token it returns |lockdown|()
-// alone: "" serves widgets, any other text refuses with it. Any mode but
-// "probe" and "probe-unsandboxed" refuses with its name.
-// On macOS, with "probe" it calls |lockdown| itself between its snapshots
-// and always returns a non-empty report, so the stream is refused and no
-// widget is served; with "probe-unsandboxed" it never calls |lockdown| and
-// refuses the same way. The full listing goes to stderr, one bounded row
-// each, ending with a completion marker; the returned summary stays under
-// the transport's 4000 bytes and says when it is incomplete.
+#ifndef Q_OS_MAC
+// The same-binary helper's lockdown hook, called once on serve's thread
+// after the opening was accepted. |arguments| is everything after
+// `-widgethelper`, the token first. With no argument after the token it
+// returns |lockdown|() alone: "" serves widgets, any other text refuses with
+// it. Any mode but "probe" and "probe-unsandboxed" refuses with its name.
 // On Windows, with "probe" it calls Platform::WidgetHelper::PrepareProbe(),
 // then |lockdown|: its failure text refuses the stream and no probe line is
 // written; on success every line of the probe's report goes to stderr as
@@ -102,5 +94,6 @@ struct WidgetHelperProbeFixture {
 [[nodiscard]] std::string WidgetHelperLockdown(
 	const QStringList &arguments,
 	Fn<QString()> lockdown);
+#endif // !Q_OS_MAC
 
 } // namespace Test

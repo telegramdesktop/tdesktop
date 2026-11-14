@@ -7,11 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/posix/widget_channel_posix.h"
 
+#include <gsl/gsl>
+
 #include <sys/socket.h>
 #include <sys/stat.h>
 
+#include <array>
 #include <cerrno>
 #include <fcntl.h>
+#include <string>
+#include <system_error>
 #include <unistd.h>
 
 namespace Platform::WidgetHelper {
@@ -23,13 +28,13 @@ constexpr auto kSendFlags = 0;
 constexpr auto kSendFlags = MSG_NOSIGNAL;
 #endif // SO_NOSIGPIPE
 
-[[nodiscard]] QString SystemError(const char *call, int error) {
-	return u"%1 failed: %2"_q.arg(
-		QString::fromLatin1(call),
-		qt_error_string(error));
+[[nodiscard]] std::string SystemError(const char *call, int error) {
+	return std::string(call)
+		+ " failed: "
+		+ std::generic_category().message(error);
 }
 
-[[nodiscard]] QString Prepare(int descriptor) {
+[[nodiscard]] std::string Prepare(int descriptor) {
 	if (fcntl(descriptor, F_SETFD, FD_CLOEXEC) != 0) {
 		return SystemError("fcntl", errno);
 	}
@@ -44,7 +49,7 @@ constexpr auto kSendFlags = MSG_NOSIGNAL;
 			&size) != 0) {
 		return SystemError("getsockopt", errno);
 	} else if (already) {
-		return QString();
+		return {};
 	}
 	const auto on = 1;
 	if (setsockopt(
@@ -56,7 +61,7 @@ constexpr auto kSendFlags = MSG_NOSIGNAL;
 		return SystemError("setsockopt", errno);
 	}
 #endif // SO_NOSIGPIPE
-	return QString();
+	return {};
 }
 
 } // namespace
@@ -128,7 +133,7 @@ PosixChannel CreatePosixChannel() {
 	});
 	for (const auto descriptor : descriptors) {
 		auto error = Prepare(descriptor);
-		if (!error.isEmpty()) {
+		if (!error.empty()) {
 			return { .error = std::move(error) };
 		}
 	}
@@ -149,7 +154,7 @@ std::unique_ptr<PosixStream> AdoptPosixChannel(int descriptor) {
 		return nullptr;
 	}
 	auto result = std::make_unique<PosixStream>(descriptor);
-	if (!Prepare(descriptor).isEmpty()) {
+	if (!Prepare(descriptor).empty()) {
 		return nullptr;
 	}
 	return result;

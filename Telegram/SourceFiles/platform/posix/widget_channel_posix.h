@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "twidget/remote_stream.h"
 
 #include <atomic>
+#include <memory>
+#include <string>
 
 namespace Platform::WidgetHelper {
 
@@ -35,7 +37,7 @@ private:
 struct PosixChannel {
 	std::unique_ptr<PosixStream> parent;
 	std::unique_ptr<PosixStream> child;
-	QString error;
+	std::string error;
 };
 
 [[nodiscard]] PosixChannel CreatePosixChannel();

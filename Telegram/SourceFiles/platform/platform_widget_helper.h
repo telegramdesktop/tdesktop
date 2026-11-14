@@ -27,9 +27,11 @@ struct Launched {
 
 [[nodiscard]] bool Enabled();
 [[nodiscard]] Launched Launch(const QStringList &arguments);
+#ifndef Q_OS_MAC
 [[nodiscard]] std::shared_ptr<twidget::SandboxRemoteStream> Adopt(
 	const QString &channel);
 [[nodiscard]] QString Lockdown();
+#endif // !Q_OS_MAC
 
 } // namespace Platform::WidgetHelper
 
