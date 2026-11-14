@@ -242,6 +242,7 @@ public:
 	virtual not_null<SessionController*> parentController() = 0;
 
 	void showPeerByLink(const PeerByLinkInfo &info);
+	void showPeerByLink(not_null<PeerData*> peer);
 
 	void showRepliesForMessage(
 		not_null<History*> history,

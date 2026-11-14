@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_info_box.h"
+#include "boxes/peers/invite_to_bot_box.h"
 #include "boxes/peers/verify_peers_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/share_box.h"
@@ -1269,6 +1270,7 @@ private:
 	void addMainApp(not_null<UserData*> user);
 	[[nodiscard]] BlockPart makeBotPermissions(not_null<UserData*> user);
 	void addManagedBotFooter(not_null<UserData*> managerUser);
+	[[nodiscard]] BlockPart makeInviteToBot(not_null<UserData*> bot);
 	[[nodiscard]] BlockPart makeReportOrDeleteReaction();
 	[[nodiscard]] BlockPart makeViewChannel(not_null<ChannelData*> channel);
 	[[nodiscard]] BlockPart makeCommunityLink(not_null<PeerData*> peer);
@@ -2443,6 +2445,33 @@ void DetailsFiller::addManagedBotFooter(not_null<UserData*> managerUser) {
 	});
 }
 
+BlockPart DetailsFiller::makeInviteToBot(not_null<UserData*> bot) {
+	const auto parent = _blocks.layout();
+	auto wrap = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+		parent,
+		object_ptr<Ui::VerticalLayout>(parent));
+	const auto raw = wrap.data();
+	AddActionButton(
+		raw->entity(),
+		tr::lng_profile_invite_to_bot(),
+		rpl::single(true),
+		[=, show = _controller->uiShow()] {
+			ShowInviteToBotBox(show, bot);
+		},
+		&st::infoIconInviteToBot,
+		st::infoInviteToBotButton);
+	raw->toggleOn(bot->session().changes().peerFlagsValue(
+		bot,
+		Data::PeerUpdate::Flag::ManagedBot
+	) | rpl::map([=] {
+		return CanInviteToBot(bot);
+	}) | rpl::distinct_until_changed());
+	return BlockPart{
+		.widget = std::move(wrap),
+		.shown = raw->toggledValue(),
+	};
+}
+
 BlockPart DetailsFiller::makeReportOrDeleteReaction() {
 	if (_peer->isSelf()) {
 		return BlockPart{ .widget = nullptr };
@@ -2805,6 +2834,10 @@ void DetailsFiller::buildBlocks() {
 				if (const auto mgr = user->owner().userLoaded(id)) {
 					addManagedBotFooter(mgr);
 				}
+			}
+			if (!_topic && !_sublist) {
+				_blocks.addSeparator();
+				_blocks.add(makeInviteToBot(user));
 			}
 		}
 		if (!_sublist) {

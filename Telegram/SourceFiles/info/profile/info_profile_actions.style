@@ -13,6 +13,7 @@ infoProfilePersonalChannelPadding: margins(79px, 9px, 20px, 7px);
 infoProfileLabeledButtonQrRightSkip: 0px;
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};
+infoIconInviteToBot: icon {{ "info/info_add_member", lightButtonFg }};
 infoIconEmojiStatusAccess: icon {{ "menu/read_reactions", infoIconFg, point(4px, 4px) }};
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
@@ -43,6 +44,10 @@ infoPersonalChannelUserpicSkip: -5px;
 infoMainButtonAttention: SettingsButton(infoMainButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
+}
+infoInviteToBotButton: SettingsButton(infoSharedMediaButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
 }
 infoBlockButtonSkip: 8px;
 infoSharedMediaCountButton: SettingsCountButton(managePeerButton) {

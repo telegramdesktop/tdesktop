@@ -183,6 +183,8 @@ WebPageType ParseWebPageType(
 		return WebPageType::Auction;
 	} else if (type == u"telegram_newbot"_q) {
 		return WebPageType::NewBot;
+	} else if (type == u"telegram_botinvite"_q) {
+		return WebPageType::BotInvite;
 	} else if (type == u"telegram_aicomposetone"_q) {
 		return WebPageType::ComposeAiTone;
 	} else if (hasIV) {

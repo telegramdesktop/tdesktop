@@ -320,6 +320,8 @@ PRIVATE
     boxes/peers/edit_peer_type_box.h
     boxes/peers/edit_peer_usernames_list.cpp
     boxes/peers/edit_peer_usernames_list.h
+    boxes/peers/invite_to_bot_box.cpp
+    boxes/peers/invite_to_bot_box.h
     boxes/peers/peer_short_info_box.cpp
     boxes/peers/peer_short_info_box.h
     boxes/peers/prepare_short_info_box.cpp

@@ -54,6 +54,7 @@ enum class WebPageType : uint8 {
 	GiftCollection,
 	Auction,
 	NewBot,
+	BotInvite,
 
 	ComposeAiTone,
 

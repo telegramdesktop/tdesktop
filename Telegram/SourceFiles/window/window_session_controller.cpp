@@ -476,6 +476,12 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 	}
 }
 
+void SessionNavigation::showPeerByLink(not_null<PeerData*> peer) {
+	Core::App().hideMediaView();
+	cancelContactTokenResolve();
+	showPeerByLinkResolved(peer, PeerByLinkInfo{});
+}
+
 void SessionNavigation::fullInfoLoadedHook(not_null<PeerData*> peer) {
 	if (_waitingBotMenuApp && _waitingBotMenuApp == peer.get()) {
 		openBotMenuApp(_waitingBotMenuApp);

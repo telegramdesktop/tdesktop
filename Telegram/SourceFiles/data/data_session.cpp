@@ -271,6 +271,7 @@ void EnumerateWebPagePhotos(
 	case WebPageType::Story:
 	case WebPageType::StoryAlbum:
 	case WebPageType::NewBot:
+	case WebPageType::BotInvite:
 	case WebPageType::VoiceChat:
 	case WebPageType::Livestream:
 	case WebPageType::ConferenceCall: return true;

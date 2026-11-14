@@ -207,6 +207,8 @@ constexpr auto kLogEntryPreviewLines = 2;
 		? tr::lng_view_button_collection(tr::now)
 		: (type == WebPageType::NewBot)
 		? tr::lng_view_button_newbot(tr::now)
+		: (type == WebPageType::BotInvite)
+		? tr::lng_view_button_botinvite(tr::now)
 		: (type == WebPageType::Auction)
 		? ((page->auction
 			&& page->auction->endDate
@@ -255,7 +257,8 @@ constexpr auto kLogEntryPreviewLines = 2;
 		|| (type == WebPageType::GiftCollection)
 		|| (type == WebPageType::ComposeAiTone)
 		|| (type == WebPageType::Auction)
-		|| (type == WebPageType::NewBot);
+		|| (type == WebPageType::NewBot)
+		|| (type == WebPageType::BotInvite);
 }
 
 } // namespace

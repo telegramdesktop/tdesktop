@@ -1883,6 +1883,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_open_photo" = "Open Photo";
 "lng_profile_bot_permissions_title" = "Allow access to";
 "lng_profile_bot_emoji_status_access" = "Emoji Status";
+"lng_profile_invite_to_bot" = "Invite to Bot";
 "lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
 "lng_profile_suggest_photo" = "Suggest Profile Photo";
@@ -2962,6 +2963,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_managed_bot_set_photo" = "Set Profile Photo";
 
 "lng_create_bot_no_manage" = "{bot} doesn't have Bot Management Mode enabled.";
+
+"lng_bot_invite_title" = "Invite to Bot";
+"lng_bot_invite_button" = "Invite";
+"lng_bot_invite_limit#one" = "You can invite up to {count} user at a time.";
+"lng_bot_invite_limit#other" = "You can invite up to {count} users at a time.";
+"lng_bot_invite_sent_one" = "Invitation sent.";
+"lng_bot_invite_sent_many" = "Invitations sent.";
+"lng_bot_invite_already_one" = "{user} already has a chat with this bot.";
+"lng_bot_invite_already_many" = "The chosen users already have a chat with this bot.";
+"lng_bot_invite_failed" = "None of the chosen users could be invited.";
 
 "lng_bots_create_limit#one" = "Subscribe to {link} to create up to {premium_count} bots, or delete one of your **{count}** bot via {bot}.";
 "lng_bots_create_limit#other" = "Subscribe to {link} to create up to {premium_count} bots, or delete one of your **{count}** bots via {bot}.";
@@ -8110,6 +8121,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_view_button_storyalbum" = "View Album";
 "lng_view_button_collection" = "View Collection";
 "lng_view_button_newbot" = "Create Bot";
+"lng_view_button_botinvite" = "Invite to Bot";
 
 "lng_sponsored_hide_ads" = "Hide";
 "lng_sponsored_title" = "What are sponsored messages?";

@@ -2194,6 +2194,8 @@ QString TryConvertUrlToLocal(QString url) {
 				result += '&' + params;
 			}
 			return result;
+		} else if (const auto botInviteMatch = regex_match(u"^botinvite/([a-zA-Z0-9\\.\\_]+)/?(\\?|#|$)"_q, query, matchOptions)) {
+			return u"tg://botinvite?username="_q + url_encode(botInviteMatch->captured(1));
 		} else if (const auto privateMatch = regex_match(u"^"
 			"c/(\\-?\\d+)"
 			"("

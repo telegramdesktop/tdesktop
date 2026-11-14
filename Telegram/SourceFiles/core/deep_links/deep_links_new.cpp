@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/peers/create_managed_bot_box.h"
+#include "boxes/peers/invite_to_bot_box.h"
 #include "data/data_peer_id.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/toast/toast.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -112,6 +114,52 @@ Result ShowNewBot(const Context &ctx) {
 	return Result::Handled;
 }
 
+void ShowResolvedBotInvite(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	if (user && CanInviteToBot(user)) {
+		ShowInviteToBotBox(controller->uiShow(), user);
+	} else {
+		controller->showPeerByLink(peer);
+	}
+}
+
+Result ShowBotInvite(const Context &ctx) {
+	if (!ctx.controller) {
+		return Result::NeedsAuth;
+	}
+	const auto username = ctx.params.value(u"username"_q);
+	if (username.isEmpty()) {
+		return Result::Handled;
+	}
+	const auto session = &ctx.controller->session();
+	const auto weak = base::make_weak(ctx.controller);
+	session->api().request(MTPcontacts_ResolveUsername(
+		MTP_flags(0),
+		MTP_string(username),
+		MTP_string()
+	)).done([=](const MTPcontacts_ResolvedPeer &result) {
+		const auto &data = result.data();
+		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
+		const auto strong = weak.get();
+		const auto peerId = peerFromMTP(data.vpeer());
+		if (strong && peerId) {
+			ShowResolvedBotInvite(strong, session->data().peer(peerId));
+		}
+	}).fail([=](const MTP::Error &error) {
+		const auto strong = weak.get();
+		if (strong && error.code() == 400) {
+			strong->show(
+				Ui::MakeInformBox(
+					tr::lng_username_not_found(tr::now, lt_user, username)),
+				Ui::LayerOption::CloseOther);
+		}
+	}).send();
+	return Result::Handled;
+}
+
 } // namespace
 
 void RegisterNewHandlers(Router &router) {
@@ -133,6 +181,11 @@ void RegisterNewHandlers(Router &router) {
 	router.add(u"newbot"_q, {
 		.path = QString(),
 		.action = CodeBlock{ ShowNewBot },
+	});
+
+	router.add(u"botinvite"_q, {
+		.path = QString(),
+		.action = CodeBlock{ ShowBotInvite },
 	});
 }
 
