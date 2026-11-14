@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_location.h"
 #include "data/data_message_reactions.h"
 #include "data/data_messages.h"
 #include "data/data_poll.h"
@@ -1080,23 +1081,17 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaContact &) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaGeo &data) {
-		return data.vgeo().match([](const MTPDgeoPoint &) {
-			return Result::Good;
-		}, [](const MTPDgeoPointEmpty &) {
-			return Result::Empty;
-		});
+		return Data::LocationPoint::FromMTP(data.vgeo())
+			? Result::Good
+			: Result::Empty;
 	}, [](const MTPDmessageMediaVenue &data) {
-		return data.vgeo().match([](const MTPDgeoPoint &) {
-			return Result::Good;
-		}, [](const MTPDgeoPointEmpty &) {
-			return Result::Empty;
-		});
+		return Data::LocationPoint::FromMTP(data.vgeo())
+			? Result::Good
+			: Result::Empty;
 	}, [](const MTPDmessageMediaGeoLive &data) {
-		return data.vgeo().match([](const MTPDgeoPoint &) {
-			return Result::Good;
-		}, [](const MTPDgeoPointEmpty &) {
-			return Result::Empty;
-		});
+		return Data::LocationPoint::FromMTP(data.vgeo())
+			? Result::Good
+			: Result::Empty;
 	}, [](const MTPDmessageMediaPhoto &data) {
 		const auto photo = data.vphoto();
 		if (!photo) {
@@ -1158,6 +1153,8 @@ MediaCheckResult CheckMessageMedia(const MTPMessageMedia &media) {
 	}, [](const MTPDmessageMediaPaidMedia &) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaVideoStream &) {
+		return Result::Good;
+	}, [](const MTPDmessageMediaWidget &) {
 		return Result::Good;
 	}, [](const MTPDmessageMediaUnsupported &) {
 		return Result::Unsupported;

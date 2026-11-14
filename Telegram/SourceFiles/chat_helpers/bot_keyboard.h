@@ -41,7 +41,6 @@ public:
 		return _placeholder;
 	}
 
-	void step_selected(crl::time ms, bool timer);
 	void resizeToWidth(int newWidth, int maxOuterHeight) {
 		_maxOuterHeight = maxOuterHeight;
 		return RpWidget::resizeToWidth(newWidth);

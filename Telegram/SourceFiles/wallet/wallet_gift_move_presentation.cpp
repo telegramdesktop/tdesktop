@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/controls/table_rows.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_send_preparation.h"
 
 namespace Wallet {

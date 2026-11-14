@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
-#include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_proxy_data.h"
 #include "window/window_separate_id.h"
 
@@ -170,8 +169,9 @@ public:
 
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
-	[[nodiscard]] bool savingPositionFor(
+	[[nodiscard]] bool isWindowInSettings(
 		not_null<Window::Controller*> window) const;
+	void reseedWindowInSettings();
 	[[nodiscard]] Window::Controller *findWindow(
 		not_null<QWidget*> widget) const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
@@ -238,7 +238,7 @@ public:
 	void proxyRotationSettingsChanged();
 	void checkProxyRotation(not_null<Main::Account*> account, int32 state);
 	[[nodiscard]] rpl::producer<ProxyChange> proxyChanges() const;
-	void badMtprotoConfigurationError();
+	void badMtprotoConfigurationError(const MTP::ProxyData &proxy);
 
 	// Databases.
 	[[nodiscard]] Storage::Databases &databases() {
@@ -391,6 +391,9 @@ private:
 	void createTray();
 	void updateWindowTitles();
 	void setLastActiveWindow(Window::Controller *window);
+	void setWindowInSettings(Window::Controller *window);
+	[[nodiscard]] Window::Controller *nextPrimaryWindow(
+		not_null<Window::Controller*> closing) const;
 	void showAccount(not_null<Main::Account*> account);
 	void processCreatedWindow(not_null<Window::Controller*> window);
 	void refreshApplicationIcon(Main::Session *session);
@@ -464,6 +467,7 @@ private:
 	const std::unique_ptr<Lang::CloudManager> _langCloudManager;
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
+	std::optional<MTP::ProxyData> _badProxyConfiguration;
 	base::weak_qptr<Ui::BoxContent> _badProxyDisableBox;
 	base::weak_qptr<Ui::BoxContent> _webProxyFallbackBox;
 

@@ -24,7 +24,7 @@ namespace Window {
 namespace Theme {
 namespace {
 
-constexpr auto kMaxAccentColors = 3;
+constexpr auto kMaxAccentColors = 4;
 constexpr auto kDayBaseFile = ":/gui/day-custom-base.tdesktop-theme"_cs;
 constexpr auto kNightBaseFile = ":/gui/night-custom-base.tdesktop-theme"_cs;
 

@@ -79,6 +79,4 @@ public:
 
 };
 
-bool HasMenu(Type type);
-
 } // namespace Settings

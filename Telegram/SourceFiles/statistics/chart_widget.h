@@ -33,7 +33,6 @@ public:
 		Data::StatisticalChart chartData,
 		float64 x,
 		ChartViewType type);
-	void addRuler(Limits newHeight, bool animated);
 
 	[[nodiscard]] rpl::producer<float64> zoomRequests();
 
@@ -66,7 +65,6 @@ private:
 			crl::time now);
 		void start();
 		void finish();
-		void resetAlpha();
 		void restartBottomLineAlpha();
 		void tick(
 			crl::time now,

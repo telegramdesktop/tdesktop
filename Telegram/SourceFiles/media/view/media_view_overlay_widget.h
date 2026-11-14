@@ -585,6 +585,7 @@ private:
 	void validatePhotoImage(Image *image, bool blurred);
 	void validatePhotoCurrentImage();
 	void tryStartTextRecognition();
+	void refreshRecognitionResult();
 
 	[[nodiscard]] bool hasCopyMediaRestriction(
 		bool skipPremiumCheck = false) const;
@@ -849,7 +850,8 @@ private:
 	std::unique_ptr<Ui::ImportantTooltip> _ttlTooltip;
 	FullMsgId _ttlBadgeItem;
 	TimeId _ttlBadgeDestroyAt = 0;
-	bool _ttlDeferredClose = false;
+	std::optional<uint64> _ttlDeferredClose;
+	uint64 _displayGeneration = 0;
 
 	QString _chapterText;
 	QRect _chapterRect;

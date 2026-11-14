@@ -106,6 +106,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "layout/layout_document_generic_preview.h"
+#include "platform/platform_file_utilities.h"
 #include "platform/platform_overlay_widget.h"
 #include "platform/platform_specific.h"
 #include "storage/file_download.h"
@@ -270,6 +271,15 @@ QWidget *PipDelegate::pipParentWidget() {
 	return (document && document->isVideoMessage())
 		? (result | Images::Option::RoundCircle)
 		: result;
+}
+
+[[nodiscard]] QSize BoundDisplaySize(
+		QSize size,
+		int limit = kMaxDisplayImageSize) {
+	size = size.expandedTo(QSize(1, 1));
+	return (size.width() > limit || size.height() > limit)
+		? size.scaled(limit, limit, Qt::KeepAspectRatio).expandedTo(QSize(1, 1))
+		: size;
 }
 
 [[nodiscard]] QImage PrepareStaticImage(Images::ReadArgs &&args) {
@@ -777,6 +787,10 @@ OverlayWidget::OverlayWidget()
 			if (handleContextMenu(position)) {
 				return base::EventFilterResult::Cancel;
 			}
+		} else if (type == QEvent::KeyPress) {
+			handleKeyPress(static_cast<QKeyEvent*>(e.get()));
+		} else if (type == QEvent::KeyRelease) {
+			handleKeyRelease(static_cast<QKeyEvent*>(e.get()));
 		} else if (e->type() == QEvent::WindowStateChange) {
 			const auto state = window()->windowState();
 			if (state == Qt::WindowMinimized || Platform::IsMac()) {
@@ -836,10 +850,6 @@ OverlayWidget::OverlayWidget()
 
 			_widget->setGeometry({ QPoint(), size });
 			updateControlsGeometry();
-		} else if (type == QEvent::KeyPress) {
-			handleKeyPress(static_cast<QKeyEvent*>(e.get()));
-		} else if (type == QEvent::KeyRelease) {
-			handleKeyRelease(static_cast<QKeyEvent*>(e.get()));
 		}
 		return base::EventFilterResult::Continue;
 	});
@@ -1473,7 +1483,8 @@ bool OverlayWidget::hasCopyMediaRestriction(bool skipPremiumCheck) const {
 			: !story->canDownloadChecked();
 	}
 	return (_history && !_history->peer->allowsForwarding())
-		|| (_message && _message->forbidsSaving());
+		|| (_message && _message->forbidsSaving())
+		|| (_history && _screenshotProtected);
 }
 
 bool OverlayWidget::showCopyMediaRestriction(bool skipPRemiumCheck) {
@@ -1503,7 +1514,7 @@ QSize OverlayWidget::videoSize() const {
 	const auto use = (_document && _chosenQuality != _document)
 		? _chosenQuality->dimensions
 		: _streamed->instance.info().video.size;
-	return flipSizeByRotation(use);
+	return flipSizeByRotation(BoundDisplaySize(use));
 }
 
 bool OverlayWidget::streamingRequiresControls() const {
@@ -1560,6 +1571,13 @@ bool OverlayWidget::documentBubbleShown() const {
 }
 
 void OverlayWidget::setStaticContent(QImage image) {
+	if (image.width() > kMaxDisplayImageSize
+		|| image.height() > kMaxDisplayImageSize) {
+		image = image.scaled(
+			BoundDisplaySize(image.size()),
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	}
 	constexpr auto kGood = QImage::Format_ARGB32_Premultiplied;
 	if (!image.isNull()
 		&& image.format() != kGood
@@ -1572,6 +1590,7 @@ void OverlayWidget::setStaticContent(QImage image) {
 	}
 	_staticContent = std::move(image);
 	_staticContentTransparent = IsSemitransparent(_staticContent);
+	refreshRecognitionResult();
 }
 
 bool OverlayWidget::contentShown() const {
@@ -3289,10 +3308,19 @@ void OverlayWidget::subscribeToScreenGeometry() {
 }
 
 void OverlayWidget::toMessage() {
-	if (const auto item = _message) {
-		close();
-		if (const auto window = findWindow()) {
-			window->showMessage(item);
+	if (!_message) {
+		return;
+	}
+	const auto weakSession = base::make_weak(&_message->history()->session());
+	const auto itemId = _message->fullId();
+
+	// close() may drain queued work that destroys the shown message.
+	close();
+	if (const auto window = findWindow()) {
+		if (const auto strong = weakSession.get()) {
+			if (const auto item = strong->data().message(itemId)) {
+				window->showMessage(item);
+			}
 		}
 	}
 }
@@ -3339,16 +3367,24 @@ void OverlayWidget::saveAs() {
 				true,
 				alreadyDir);
 			if (!file.isEmpty() && file != location.name()) {
+				auto saved = false;
 				if (bytes.isEmpty()) {
 					QFile(file).remove();
-					QFile(location.name()).copy(file);
+					saved = QFile(location.name()).copy(file);
 				} else {
-					QFile f(file);
-					if (f.open(QIODevice::WriteOnly)) {
-						f.write(bytes);
+					auto output = QFile(file);
+					if (output.open(QIODevice::WriteOnly)
+						&& output.write(bytes) == bytes.size()
+						&& output.flush()) {
+						output.close();
+						saved = true;
 					}
 				}
-				if (_message) {
+				if (saved) {
+					Platform::File::PostprocessDownloaded(
+						QFileInfo(file).absoluteFilePath());
+				}
+				if (saved && _message) {
 					auto &manager = Core::App().downloadManager();
 					manager.addLoaded({
 						.item = _message,
@@ -3387,8 +3423,12 @@ void OverlayWidget::saveAs() {
 					QFile f(result);
 					if (!result.isEmpty()
 						&& _photo == photo
-						&& f.open(QIODevice::WriteOnly)) {
-						f.write(bytes);
+						&& f.open(QIODevice::WriteOnly)
+						&& f.write(bytes) == bytes.size()
+						&& f.flush()) {
+						f.close();
+						Platform::File::PostprocessDownloaded(
+							QFileInfo(f).absoluteFilePath());
 					}
 				}));
 		} else {
@@ -3629,8 +3669,9 @@ void OverlayWidget::deleteMedia() {
 	}
 
 	const auto session = _session;
+	const auto weakSession = base::make_weak(session);
 	const auto photo = _photo;
-	const auto message = _message;
+	const auto messageId = _message ? _message->fullId() : FullMsgId();
 	const auto deletingPeerPhoto = [&] {
 		if (!_message) {
 			return true;
@@ -3644,6 +3685,10 @@ void OverlayWidget::deleteMedia() {
 	close();
 
 	if (const auto window = findWindow()) {
+		const auto strong = weakSession.get();
+		const auto message = strong
+			? strong->data().message(messageId)
+			: nullptr;
 		if (deletingPeerPhoto) {
 			if (photo) {
 				window->show(
@@ -3864,7 +3909,8 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 				: (_message->id - ServerMaxMsgId))
 		};
 	};
-	if (!_message->isRegular() && !isScheduled) {
+	if (!_message->isRegular()
+		&& (!isScheduled || _message->isSending() || _message->hasFailed())) {
 		return std::nullopt;
 	}
 	return sharedMediaType() | keyForType;
@@ -4777,7 +4823,9 @@ void OverlayWidget::displayDocument(
 				setStaticContent(image->original());
 			} else if (const auto thumbnail = _documentMedia->thumbnail()) {
 				setStaticContent(thumbnail->pix(
-					_document->dimensions,
+					BoundDisplaySize(
+						_document->dimensions,
+						kMaxDisplayImageSize / style::DevicePixelRatio()),
 					{ .options = Images::Option::Blur }
 				).toImage());
 			}
@@ -5132,7 +5180,7 @@ void OverlayWidget::initStreamingThumbnail() {
 		: _document
 		? _documentMedia->thumbnailInline()
 		: _photoMedia->thumbnailInline();
-	const auto size = _photo
+	auto size = _photo
 		? QSize(
 			_photo->videoLocation(Data::PhotoSize::Large).width(),
 			_photo->videoLocation(Data::PhotoSize::Large).height())
@@ -5141,7 +5189,9 @@ void OverlayWidget::initStreamingThumbnail() {
 		: _document->dimensions;
 	if (size.isEmpty()) {
 		return;
-	} else if (!_streamedQualityChangeFrame.isNull()) {
+	}
+	size = BoundDisplaySize(size);
+	if (!_streamedQualityChangeFrame.isNull()) {
 		setStaticContent(_streamedQualityChangeFrame.scaled(
 			size,
 			Qt::IgnoreAspectRatio,
@@ -5317,7 +5367,7 @@ void OverlayWidget::handleStreamingUpdate(Streaming::Update &&update) {
 	}, [](MutedByOther) {
 	}, [&](Finished) {
 		updatePlaybackState();
-		if (base::take(_ttlDeferredClose)) {
+		if (base::take(_ttlDeferredClose) == _displayGeneration) {
 			close();
 		}
 	});
@@ -6238,8 +6288,10 @@ void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	} else if (!_staticContent.isNull() && (blurred || !_blurred)) {
 		return;
 	}
-	const auto use = flipSizeByRotation({ _width, _height })
-		* style::DevicePixelRatio();
+	const auto ratio = style::DevicePixelRatio();
+	const auto use = BoundDisplaySize(
+		flipSizeByRotation({ _width, _height }),
+		kMaxDisplayImageSize / ratio) * ratio;
 	setStaticContent(image->pixNoCache(
 		use,
 		{ .options = (blurred ? Images::Option::Blur : Images::Option()) }
@@ -6316,7 +6368,7 @@ void OverlayWidget::tryStartTextRecognition() {
 		_recognitionRetryOnLarge = false;
 		const auto changed = (_recognitionResult.success != cached->second.success)
 			|| (_recognitionResult.items.size() != cached->second.items.size());
-		_recognitionResult = cached->second;
+		refreshRecognitionResult();
 		if (changed) {
 			updateControls();
 		}
@@ -6377,7 +6429,7 @@ void OverlayWidget::tryStartTextRecognition() {
 				_recognitionPendingPhotoId = 0;
 				_recognitionPendingDocumentId = 0;
 			}
-			(*cache)[id] = result;
+			(*cache)[id] = std::move(result);
 			const auto stillSame = _session
 				&& (_session->uniqueId() == id.sessionUniqueId)
 				&& (id.photoId
@@ -6386,10 +6438,30 @@ void OverlayWidget::tryStartTextRecognition() {
 			if (!stillSame) {
 				return;
 			}
-			_recognitionResult = std::move(result);
+			refreshRecognitionResult();
 			updateControls();
 		});
 	});
+}
+
+void OverlayWidget::refreshRecognitionResult() {
+	const auto cache = RecognitionCache();
+	if (_stories || !cache || !_session || (!_photo && !_document)) {
+		return;
+	}
+	const auto id = RecognitionId{
+		.sessionUniqueId = _session->uniqueId(),
+		.photoId = _photo ? _photo->id : PhotoId(),
+		.documentId = _photo ? DocumentId() : _document->id,
+	};
+	const auto cached = cache->find(id);
+	if (cached == cache->end()) {
+		return;
+	}
+	_recognitionResult = ScaleRecognitionResult(
+		cached->second,
+		_staticContent.size() / style::DevicePixelRatio());
+	_recognition.setSources(&_recognitionResult, &_staticContent);
 }
 
 Ui::GL::ChosenRenderer OverlayWidget::chooseRenderer(
@@ -7822,6 +7894,7 @@ void OverlayWidget::setContext(
 		}
 	}
 	_user = _peer ? _peer->asUser() : nullptr;
+	++_displayGeneration;
 	refreshScreenshotProtection();
 }
 
@@ -7891,8 +7964,22 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 			setContext(v::null);
 			updateControls();
 		} else {
-			close();
-			clearSession();
+			if (!_screenshotProtected) {
+				refreshScreenshotProtection();
+			}
+			_message = nullptr;
+			if (base::take(_instantViewMedia)) {
+				_instantViewMediaData = std::nullopt;
+				findCurrent();
+			}
+			++_displayGeneration;
+			updateControls();
+			InvokeQueued(_widget, [=, generation = _displayGeneration] {
+				if (_displayGeneration == generation) {
+					close();
+					clearSession();
+				}
+			});
 		}
 	}, _sessionLifetime);
 
@@ -7911,9 +7998,15 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 			&& _document
 			&& !_streamed->instance.player().finished();
 		if (playing) {
-			_ttlDeferredClose = true;
+			_ttlDeferredClose = _displayGeneration;
 		} else {
-			close();
+			// WHY: a synchronous hide drains queued message destruction
+			// before the notifying model has finished using the item.
+			InvokeQueued(_widget, [=, generation = _displayGeneration] {
+				if (_displayGeneration == generation) {
+					close();
+				}
+			});
 		}
 	}, _sessionLifetime);
 
@@ -8325,7 +8418,7 @@ bool OverlayWidget::updateOverState(Over newState) {
 
 void OverlayWidget::updateOver(QPoint pos) {
 	ClickHandlerPtr lnk;
-	ClickHandlerHost *lnkhost = nullptr;
+	auto lnkhost = (ClickHandlerHost*)nullptr;
 	if (isSaveMsgShown() && _saveMsg.contains(pos)) {
 		auto textState = _saveMsgText.getState(pos - _saveMsg.topLeft() - QPoint(st::mediaviewSaveMsgPadding.left(), st::mediaviewSaveMsgPadding.top()), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
 		lnk = textState.link;
@@ -8758,6 +8851,7 @@ bool OverlayWidget::filterApplicationEvent(
 			return true;
 		} else if (event == QKeySequence::SaveAs
 			|| event == QKeySequence::Save) {
+			saveAs();
 			return true;
 		}
 		return false;
@@ -8914,7 +9008,8 @@ void OverlayWidget::clearAfterHide() {
 	_ttlBadge = nullptr;
 	_ttlBadgeItem = FullMsgId();
 	_ttlBadgeDestroyAt = 0;
-	_ttlDeferredClose = false;
+	_ttlDeferredClose = std::nullopt;
+	++_displayGeneration;
 	_ttlTimer.cancel();
 	_body->hide();
 	clearStreaming();

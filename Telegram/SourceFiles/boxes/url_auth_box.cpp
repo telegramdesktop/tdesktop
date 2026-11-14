@@ -716,13 +716,14 @@ void RequestUrl(
 				if (!requestPhone) {
 					return sendRequest(result);
 				}
+				const auto send = crl::guard(box.get(), sendRequest);
 				box->uiShow()->show(Box([=](not_null<Ui::GenericBox*> box) {
 					box->setTitle(tr::lng_url_auth_phone_sure_title());
 					const auto confirm = [=](bool confirmed) {
 						return [=](Fn<void()> close) {
 							auto copy = result;
 							copy.sharePhone = confirmed;
-							sendRequest(copy);
+							send(copy);
 							close();
 						};
 					};
@@ -757,8 +758,10 @@ void RequestUrl(
 				box,
 				url,
 				domain,
-				[=](QString code) -> std::shared_ptr<Ui::DynamicImage> {
-					return MakeMatchCodeImage(resolveSession(), code);
+				[=, weak = base::make_weak(box)](QString code) {
+					return (weak && !state->lost)
+						? MakeMatchCodeImage(resolveSession(), code)
+						: nullptr;
 				},
 				callback,
 				(bot

@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/webview_helpers.h"
 
-#include "lang/lang_keys.h"
-
 namespace Ui {
 namespace {
 
@@ -30,39 +28,12 @@ namespace {
 
 QByteArray ComputeStyles(
 		const base::flat_map<QByteArray, const style::color*> &colors,
-		const base::flat_map<QByteArray, tr::phrase<>> &phrases,
 		int zoom,
 		bool nightTheme) {
 	static const auto serialize = [](const style::color *color) {
 		return Serialize((*color)->c);
 	};
-	static const auto escape = [](tr::phrase<> phrase) {
-		const auto text = phrase(tr::now);
-
-		auto result = QByteArray();
-		for (auto i = 0; i != text.size(); ++i) {
-			uint ucs4 = text[i].unicode();
-			if (QChar::isHighSurrogate(ucs4) && i + 1 != text.size()) {
-				ushort low = text[i + 1].unicode();
-				if (QChar::isLowSurrogate(low)) {
-					ucs4 = QChar::surrogateToUcs4(ucs4, low);
-					++i;
-				}
-			}
-			if (ucs4 == '\'' || ucs4 == '\"' || ucs4 == '\\') {
-				result.append('\\').append(char(ucs4));
-			} else if (ucs4 < 32 || ucs4 > 127) {
-				result.append('\\' + QByteArray::number(ucs4, 16) + ' ');
-			} else {
-				result.append(char(ucs4));
-			}
-		}
-		return result;
-	};
 	auto result = QByteArray();
-	for (const auto &[name, phrase] : phrases) {
-		result += "--td-lng-"_q + name + ":'"_q + escape(phrase) + "'; "_q;
-	}
 	for (const auto &[name, color] : colors) {
 		result += "--td-"_q + name + ':' + serialize(color) + ';';
 	}

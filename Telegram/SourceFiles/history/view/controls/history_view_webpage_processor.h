@@ -92,6 +92,7 @@ public:
 	// unless preview was removed in the draft or manual.
 	void apply(Data::WebPageDraft draft, bool reparse = true);
 	[[nodiscard]] Data::WebPageDraft draft() const;
+	[[nodiscard]] bool disabled() const;
 	[[nodiscard]] std::shared_ptr<WebpageResolver> resolver() const;
 	[[nodiscard]] const std::vector<MessageLinkRange> &links() const;
 	[[nodiscard]] QString link() const;

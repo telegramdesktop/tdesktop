@@ -163,10 +163,6 @@ void Widget::paintContent(QPainter &p) {
 	p.drawRoundedRect(innerRect(), radius, radius);
 }
 
-void Widget::moveByBottom() {
-	updateContentHeight();
-}
-
 void Widget::hideFast() {
 	if (isHidden()) return;
 
@@ -465,7 +461,7 @@ void Widget::onInlineRequest() {
 
 bool Widget::refreshInlineRows(int *added) {
 	auto it = _inlineCache.find(_inlineQuery);
-	const CacheEntry *entry = nullptr;
+	auto entry = (const CacheEntry*)nullptr;
 	if (it != _inlineCache.cend()) {
 		if (!it->second->results.empty() || !it->second->switchPmText.isEmpty()) {
 			entry = it->second.get();

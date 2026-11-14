@@ -174,7 +174,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 
 ### window — window shell and navigation
 - Paths: `SourceFiles/window/`, `SourceFiles/mainwidget*`, `SourceFiles/mainwindow*`, `SourceFiles/boxes/abstract_box*`, `SourceFiles/dialogs/ui/restore_windows_offer*`, `SourceFiles/ui/controls/window_*`, `SourceFiles/ui/controls/title_sub_widget*`
-- OS windows and their controllers, `SessionController` showing chats, sections, layers and boxes, section mementos and slide animations, the main menu, folders sidebar, saved windows, chat switching and previews, the connecting widget and lock screens. It must not own chat action menus or notifications.
+- OS windows and their controllers, each controller's own `Columns` with `Core::Settings` as the main role window's persisted copy, `SessionController` showing chats, sections, layers and boxes, section mementos and slide animations, the main menu, folders sidebar, saved windows, chat switching and previews, the connecting widget and lock screens. It must not own chat action menus or notifications.
 
 ### notifications — notification system
 - Paths: `SourceFiles/window/notifications_*`
@@ -239,7 +239,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 - Everything inside a bubble beyond text: photos, videos, GIFs, round videos, documents, voice, stickers, albums, web pages, polls, to-do lists, locations, games, invoices, calls, and service boxes for gifts, giveaways, suggestions and TON transfers. It must not own playback, downloads or the media viewer.
 
 ### history/compose — chat compose area
-- Paths: `SourceFiles/history/view/controls/`, `SourceFiles/history/view/history_view_webpage_preview*`, `SourceFiles/ui/controls/round_video_recorder*`, `SourceFiles/api/api_suggest_post*`
+- Paths: `SourceFiles/history/view/controls/`, `SourceFiles/ui/controls/round_video_recorder*`, `SourceFiles/api/api_suggest_post*`
 - The field with send, attach, emoji and bot-menu buttons, reply, edit and forward panels with draft options, link previews, voice and round recording, suggested-post options, the draft stash, media editing with covers, search in chat and the join, mute and unblock bars. It must not own reusable field helpers.
 
 ### history/reactions — reactions UI
@@ -398,4 +398,5 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 
 ### test — test tooling
 - Paths: `SourceFiles/test/`, `SourceFiles/tests/`
-- The Debug-only `-testagent` harness (scenario runner, evidence log, session and RPC fixtures, widget probes and pixel captures, wallet fixtures and the secrecy scan) and the standalone unit tests for the text engine and the updater. Product code must not depend on it. Today it also exposes hooks that `core/application.cpp`, `data_document.cpp`, `mtp_instance.cpp` and `platform_file_utilities.cpp` call directly; those belong behind seams owned by the calling areas.
+- Start with the short `test/README.md`; helper contracts and task-specific guides live under `test/docs/`. New or changed helper documentation follows `test/docs/adding-helpers.md`.
+- The `-testagent` harness (scenario runner, evidence log, session and RPC fixtures, widget probes and pixel captures, wallet fixtures and the secrecy scan) and the standalone unit tests for the text engine and the updater. The harness is compiled in Debug and, with the `TDESKTOP_RELEASE_TEST_HARNESS` CMake option, in Release. Product code must not depend on it. Today it also exposes hooks that `core/application.cpp`, `data_document.cpp`, `mtp_instance.cpp`, `platform_file_utilities.cpp` and `tgw_runtime.cpp` call directly; those belong behind seams owned by the calling areas.

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_agent.h"
 
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_log.h"
 #include "ui/style/style_core_scale.h"
@@ -363,7 +363,7 @@ bool RestoreGramAccountLiveWords(
 
 } // namespace Test
 
-#else // _DEBUG
+#else // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
 
 namespace Test {
 
@@ -421,4 +421,4 @@ bool RestoreGramAccountLiveWords(
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

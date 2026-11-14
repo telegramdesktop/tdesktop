@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
+#include "history/view/history_view_context_menu.h"
 #include "media/stories/media_stories_controller.h" // ...TogglePinnedToast.
 #include "media/stories/media_stories_share.h" // PrepareShareBox.
 #include "media/stories/media_stories_stealth.h"
@@ -250,7 +251,8 @@ void ListWidget::start() {
 			session().data().itemVisibilityQueries(
 			) | rpl::filter([=](
 					const Data::Session::ItemVisibilityQuery &query) {
-				return _provider->isPossiblyMyItem(query.item)
+				return !query.view
+					&& _provider->isPossiblyMyItem(query.item)
 					&& isVisible();
 			}) | rpl::on_next([=](
 					const Data::Session::ItemVisibilityQuery &query) {
@@ -383,11 +385,6 @@ std::optional<int> ListWidget::fullCount() const {
 
 rpl::producer<std::optional<int>> ListWidget::fullCountValue() const {
 	return _fullCountUpdates.events_starting_with(fullCount());
-}
-
-auto ListWidget::globalMediaSliceView() const
--> const std::optional<GlobalMediaSliceView> & {
-	return _globalMediaSliceView;
 }
 
 auto ListWidget::globalMediaSliceViewValue() const
@@ -1641,6 +1638,11 @@ void ListWidget::showContextMenu(
 						(unpin ? &st::menuIconUnpin : &st::menuIconPin));
 				}
 			}
+			HistoryView::AddPostLinkAction(
+				_contextMenu.get(),
+				_controller->parentController(),
+				item,
+				HistoryView::Context::History);
 			if (selectionData.canForward) {
 				_contextMenu->addAction(
 					tr::lng_context_forward_msg(tr::now),

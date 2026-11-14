@@ -51,6 +51,7 @@ public:
 		std::shared_ptr<Image> photo,
 		PhotoModifications modifications,
 		EditorData data = EditorData());
+	~PhotoEditor();
 
 	void save();
 	[[nodiscard]] rpl::producer<PhotoModifications> doneRequests() const;

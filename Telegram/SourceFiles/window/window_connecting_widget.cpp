@@ -55,7 +55,14 @@ Progress::Progress(QWidget *parent)
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	resize(st::connectingRadial.size);
-	_animation.start(st::connectingRadial.sineDuration);
+
+	shownValue() | rpl::on_next([=](bool shown) {
+		if (shown) {
+			_animation.start(st::connectingRadial.sineDuration);
+		} else {
+			_animation.stop(anim::type::instant);
+		}
+	}, lifetime());
 }
 
 void Progress::paintEvent(QPaintEvent *e) {

@@ -196,6 +196,16 @@ BotKeyboard::BotKeyboard(
 	setGeometry(0, 0, _st->margin, st::botKbScroll.deltat);
 	_height = st::botKbScroll.deltat;
 	setMouseTracking(true);
+
+	_controller->session().data().itemRemoved(
+	) | rpl::filter([=](not_null<const HistoryItem*> item) {
+		return item->fullId() == _wasForMsgId;
+	}) | rpl::on_next([=] {
+		_maximizeSize = _singleUse = _forceReply = _persistent = false;
+		_placeholder = QString();
+		clearSelection();
+		_impl = nullptr;
+	}, lifetime());
 }
 
 void BotKeyboard::paintEvent(QPaintEvent *e) {
@@ -407,7 +417,7 @@ void BotKeyboard::updateStyle(int newWidth) {
 
 void BotKeyboard::clearSelection() {
 	if (_impl) {
-		if (ClickHandler::setActive(ClickHandlerPtr(), this)) {
+		if (ClickHandler::clearActive(this)) {
 			Ui::Tooltip::Hide();
 			setCursor(style::cur_default);
 		}

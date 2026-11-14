@@ -856,12 +856,7 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	const auto i = _notifications.find(ContextId{
-		.sessionId = item->history()->session().uniqueId(),
-		.peerId = item->history()->peer->id,
-		.topicRootId = item->topicRootId(),
-		.monoforumPeerId = item->sublistPeerId(),
-	});
+	const auto i = _notifications.find(ItemContextId(item));
 	if (i != _notifications.cend()
 			&& i->second.remove(item->id)
 			&& i->second.empty()) {
@@ -879,11 +874,7 @@ void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 
 void Manager::Private::clearFromSublist(
 		not_null<Data::SavedSublist*> sublist) {
-	_notifications.remove(ContextId{
-		.sessionId = sublist->session().uniqueId(),
-		.peerId = sublist->owningHistory()->peer->id,
-		.monoforumPeerId = sublist->sublistPeer()->id,
-	});
+	_notifications.remove(SublistContextId(sublist));
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {

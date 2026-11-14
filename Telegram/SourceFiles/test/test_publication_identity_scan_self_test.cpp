@@ -5,10 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_publication_identity_scan.h"
 
+#include "test/test_capture.h"
 #include "test/test_log.h"
 #include "test/test_runner.h"
 
@@ -306,6 +307,17 @@ void CheckParserRefusal(
 		&& !result.identity.decided && !result.identity.clean
 		&& ranges::contains(result.identity.refusals, refusal),
 		u"publication self-test: parser refuses "_q + name,
+		Details(result.identity));
+}
+
+void CheckExactParserRefusals(
+		const Result &result,
+		const QString &name,
+		const std::vector<PublicationIdentityRefusal> &refusals) {
+	Check(result.prepared && result.enumeration.decided
+		&& !result.identity.decided && !result.identity.clean
+		&& result.identity.refusals == refusals,
+		u"publication self-test: parser refuses exactly "_q + name,
 		Details(result.identity));
 }
 
@@ -957,6 +969,130 @@ void SelfPublicationSelection() {
 	}
 }
 
+// webrtc's device lists open braces no TL object owns. Only their own
+// closers are accepted, while no object is open: any other unmatched closer
+// keeps its exact refusals, and no credit survives a named opener, an entry,
+// a TestLog row or a source.
+void SelfNonObjectBraces() {
+	const auto lost = std::vector{ PublicationIdentityRefusal::LostObjectScope };
+	const auto shapes = std::vector<std::pair<QString, QString>>{
+		{
+			u"single device list"_q,
+			u"Media Info: Type Playback, default: synthetic-speaker-0a1b, "
+				"list: { \"Synthetic Speaker\" <synthetic-speaker-0a1b> }, "
+				"full list refresh: true"_q,
+		},
+		{
+			u"multiple device list"_q,
+			u"Media Info: Type Capture, default: synthetic-mic-2c3d, "
+				"list: { \"Synthetic Microphone\" <synthetic-mic-2c3d>, "
+				"\"Synthetic Line In\" <synthetic-line-4e5f> }, "
+				"full list refresh: true"_q,
+		},
+		{
+			u"empty device list"_q,
+			u"Media Error: Can't sync default device for type Camera, "
+				"default: , list: {  }"_q,
+		},
+		{
+			u"digit-led braced name"_q,
+			u"Connecting local socket to /tmp/synthetic-6a7b-"
+				"{01234567-89AB-CDEF-0123-456789ABCDEF}.sock"_q,
+		},
+		{ u"lone unfinished text brace"_q, u"{ \"x\""_q },
+	};
+	const auto presentations = u"Media Info: Type Capture, "
+		"default: synthetic-mic-2c3d, list: { \"Li Syntheticriver "
+		"audit_example_handle +15551234567\" <synthetic-mic-2c3d> }, "
+		"full list refresh: true"_q;
+	for (const auto cls : kClasses) {
+		const auto suffix = QChar(' ') + SecrecyClassName(cls);
+		for (const auto &[name, body] : shapes) {
+			auto fixture = CleanFixture();
+			Inject(fixture, cls, body);
+			CheckCounts(RunFixture(fixture), name + suffix);
+		}
+		auto fixture = CleanFixture();
+		Inject(fixture, cls, presentations);
+		CheckCounts(
+			RunFixture(fixture),
+			u"device name presentations"_q + suffix,
+			cls,
+			{ .profiles = 1, .usernames = 1, .phones = 1 });
+		fixture = CleanFixture();
+		Inject(fixture, cls, u"{ \"x\" } }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"extra closer after text brace"_q + suffix,
+			lost);
+		fixture = CleanFixture();
+		Inject(fixture, cls, u"{ \"x\""_q);
+		Inject(fixture, cls, u"}"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"text brace across entries"_q + suffix,
+			lost);
+	}
+	{
+		auto fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ msgs_ack } }"_q,
+			Placement::Recv);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"second dump closer"_q,
+			lost);
+	}
+	{
+		// A text brace inside an object changes nothing: the inner closer
+		// still ends `other`, so `user` owns the following field.
+		auto fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ user { other { \"x\" } first_name: Li } }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture, { .username = u"synthetic_absent_brace_handle"_q }),
+			u"nested text brace unquoted profile field"_q,
+			lost);
+		fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ user { other { \"x\" } note: \"synthetic\\q\" } }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture, { .userId = u"7"_q }),
+			u"nested text brace relevant escape"_q,
+			{
+				PublicationIdentityRefusal::UnsupportedStringEscape,
+				PublicationIdentityRefusal::LostObjectScope,
+			});
+		fixture = CleanFixture();
+		Inject(
+			fixture,
+			SecrecyClass::MtpLog,
+			u"{ \"x\" { user first_name: \"Li\" { \"x\" } "
+				"last_name: \"Syntheticriver\" }"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"named object forfeits text brace"_q,
+			lost);
+	}
+	{
+		// A continuation line right after the day index: only the source
+		// boundary separates this closer from the earlier part's opener.
+		auto fixture = CleanFixture();
+		fixture.parts[u"log_10_00.txt"_q].push_back(Entry(u"{ \"x\""_q));
+		fixture.parts[u"log_10_15.txt"_q].insert(1, u"}"_q);
+		CheckExactParserRefusals(
+			RunFixture(fixture),
+			u"text brace across sources"_q,
+			lost);
+	}
+}
+
 void SelfAuditSeparation() {
 	{
 		auto fixture = CleanFixture();
@@ -1090,6 +1226,7 @@ void SelfAuditSeparation() {
 			u"{ other text: \"\\\\u000A } user_id: 7 { user\" }"_q);
 		CheckCounts(RunFixture(fixture), u"escaped backslash never decoded twice"_q);
 	}
+	SelfNonObjectBraces();
 }
 
 [[nodiscard]] QByteArray Appended(qint64 mark) {
@@ -1235,7 +1372,26 @@ void SelfPublicationOutput() {
 			u"bytes=%1 rows=%2 decided=%3"_q
 				.arg(bytes.size()).arg(rows.size()).arg(result->identity.decided));
 	}
+	// Both wrappers need this launch's MtpLog to hold a Send and a Recv
+	// header, which only real MTP traffic writes. The pure reading below
+	// plants and prints nothing; its empty control decides no coverage.
+	const auto preflight = ReadLaunchLogEnumeration(SelectThisLaunchLogs({}), {});
+	const auto mtp = preflight.find(SecrecyClass::MtpLog);
+	const auto sendHeaders = mtp ? mtp->sendHeaders : 0;
+	const auto recvHeaders = mtp ? mtp->recvHeaders : 0;
+	const auto applies = (sendHeaders > 0) && (recvHeaders > 0);
+	Note(u"PUBLICATION_SELF_WRAPPER_GATE: send_headers=%1 recv_headers=%2 "
+		"applies=%3"_q
+		.arg(sendHeaders)
+		.arg(recvHeaders)
+		.arg(int(applies)));
 	for (const auto identityWrapper : { false, true }) {
+		const auto name = u"publication self-test: actual healthy wrapper %1"_q
+			.arg(identityWrapper);
+		if (!applies) {
+			Skipped(name, u"this launch's MtpLog lacks a Send or Recv header"_q);
+			continue;
+		}
 		const auto mark = QFileInfo(EvidenceDir() + u"test_log.txt"_q).size();
 		const auto failures = FailureCount();
 		const auto ok = identityWrapper
@@ -1267,10 +1423,239 @@ void SelfPublicationOutput() {
 				u"publication-audit-control-"_q)
 			&& !resultRows.join(QChar('\n')).contains(
 				u"wrapper_absent_identity_f7c29d81"_q),
-			u"publication self-test: actual healthy wrapper %1"_q.arg(identityWrapper),
+			name,
 			u"bytes=%1 result_rows=%2 setup_rows=%3"_q
 				.arg(bytes.size()).arg(resultRows.size()).arg(setupRows));
 	}
+}
+
+// The synthetic identity the marker stage's evidence root is named after,
+// so an absolute screenshot path in the log would present it.
+const auto kCollisionHandle = u"synthetic_marker_collision_handle"_q;
+
+// Windows cannot save a file name holding '"', '\\' or a control character.
+#ifdef Q_OS_WIN
+constexpr auto kPosixOnlyNamesMayRefuse = true;
+#else // Q_OS_WIN
+constexpr auto kPosixOnlyNamesMayRefuse = false;
+#endif // Q_OS_WIN
+
+struct MarkerProbe {
+	QString label;
+	QString name;
+	QString row;
+	bool posixOnly = false;
+};
+
+struct ProbeSave {
+	QString path;
+	QByteArray appended;
+	QByteArray row;
+	bool fresh = false;
+	bool exists = false;
+	bool returnMatches = false;
+};
+
+[[nodiscard]] QString CollisionRootSkipReason() {
+	const auto components = int(ranges::count(
+		EvidenceDir().split(QChar('/')),
+		kCollisionHandle));
+	return (components == 1)
+		? QString()
+		: u"evidence root collision components=%1, required=1"_q
+			.arg(components);
+}
+
+// Six opaque, pairwise distinct pixels, so a reloaded file that is
+// transposed, cropped or re-encoded lossily cannot compare equal.
+[[nodiscard]] QImage MarkerProbeImage() {
+	auto result = QImage(3, 2, QImage::Format_RGB32);
+	for (auto y = 0; y != result.height(); ++y) {
+		for (auto x = 0; x != result.width(); ++x) {
+			result.setPixel(x, y, qRgb(40 + x * 80, 60 + y * 120, 220 - x * 70));
+		}
+	}
+	return result;
+}
+
+// The rows are transcribed by hand, never produced by the writer's escaping:
+// \\ and \" come from SaveImage, the ten \uXXXX tokens from LogRaw.
+[[nodiscard]] std::vector<MarkerProbe> MarkerProbes() {
+	return {
+		{
+			u"plain"_q,
+			u"screenshot_marker_plain"_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_plain.png")"_q,
+		},
+		{
+			u"padded Unicode"_q,
+			u"  screenshot marker "
+				u"\u0441\u043A\u0440\u0438\u043D\u0448\u043E\u0442_\U0001F600  "_q,
+			u"SCREENSHOT: \"screenshots/  screenshot marker "
+				u"\u0441\u043A\u0440\u0438\u043D\u0448\u043E\u0442_\U0001F600"
+				u"  .png\""_q,
+		},
+		{
+			u"quote"_q,
+			u"screenshot_marker_quote_\"_"_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_quote_\"_.png")"_q,
+			true,
+		},
+		{
+			u"literal escape"_q,
+			uR"(screenshot_marker_literal_\u000A_)"_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_literal_\\u000A_.png")"_q,
+			true,
+		},
+		{
+			u"mixed separators"_q,
+			u"screenshot_marker_mixed_\\"
+				u"\n\v\f\r\x1C\x1D\x1E\x85\u2028\u2029\""_q,
+			uR"(SCREENSHOT: "screenshots/screenshot_marker_mixed_\\)"
+				uR"(\u000A\u000B\u000C\u000D\u001C\u001D\u001E\u0085)"
+				uR"(\u2028\u2029\".png")"_q,
+			true,
+		},
+	};
+}
+
+// SaveImage with the bytes it appended to the real log: |row| is them minus
+// exactly one LF or CRLF terminator, empty when none ends them.
+[[nodiscard]] ProbeSave SaveProbe(const QImage &image, const QString &name) {
+	const auto target = ScreenshotsDir() + name + u".png"_q;
+	auto result = ProbeSave{ .fresh = !QFileInfo::exists(target) };
+	const auto mark = QFileInfo(EvidenceDir() + u"test_log.txt"_q).size();
+	result.path = SaveImage(image, name);
+	result.appended = Appended(mark);
+	result.row = result.appended.endsWith("\r\n")
+		? result.appended.chopped(2)
+		: result.appended.endsWith('\n')
+		? result.appended.chopped(1)
+		: QByteArray();
+	result.exists = QFileInfo::exists(target);
+	result.returnMatches = (result.path == target);
+	return result;
+}
+
+[[nodiscard]] bool SamePixels(const QImage &loaded, const QImage &probe) {
+	if (loaded.size() != probe.size()) {
+		return false;
+	}
+	for (auto y = 0; y != probe.height(); ++y) {
+		for (auto x = 0; x != probe.width(); ++x) {
+			if (loaded.pixel(x, y) != probe.pixel(x, y)) {
+				return false;
+			}
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] bool Refused(const ProbeSave &save) {
+	return save.fresh
+		&& save.path.isEmpty()
+		&& save.appended.isEmpty()
+		&& !save.exists;
+}
+
+[[nodiscard]] ProbeSave CheckMarkerSave(
+		const MarkerProbe &probe,
+		const QImage &image) {
+	const auto save = SaveProbe(image, probe.name);
+	const auto saved = !save.path.isEmpty();
+	const auto rowMatches = !save.row.isEmpty()
+		&& (save.row == probe.row.toUtf8());
+	const auto absolute = QDir::isAbsolutePath(save.path);
+	const auto pixelsMatch = saved && SamePixels(QImage(save.path), image);
+	const auto refusalAllowed = probe.posixOnly && kPosixOnlyNamesMayRefuse;
+	Check(
+		saved
+			? (save.fresh
+				&& rowMatches
+				&& save.returnMatches
+				&& absolute
+				&& save.exists
+				&& pixelsMatch)
+			: (refusalAllowed && Refused(save)),
+		u"publication self-test: screenshot marker "_q + probe.label + u" save"_q,
+		u"fresh=%1 saved=%2 appended_bytes=%3 row_matches=%4 "
+		"return_matches=%5 absolute=%6 pixels_match=%7"_q
+			.arg(save.fresh ? 1 : 0)
+			.arg(saved ? 1 : 0)
+			.arg(save.appended.size())
+			.arg(rowMatches ? 1 : 0)
+			.arg(save.returnMatches ? 1 : 0)
+			.arg(absolute ? 1 : 0)
+			.arg(pixelsMatch ? 1 : 0));
+	return save;
+}
+
+// One actual marker row in a controlled synthetic tree, scanned for the
+// collision handle alone, so CheckCounts expects one control family.
+[[nodiscard]] Result ReadMarkerRow(const QString &row) {
+	auto fixture = CleanFixture();
+	fixture.test.push_back(row);
+	return RunFixture(fixture, { .username = kCollisionHandle });
+}
+
+void CheckMarkerRefusal(
+		const QString &label,
+		const QImage &image,
+		const QString &name) {
+	const auto save = SaveProbe(image, name);
+	Check(
+		Refused(save),
+		u"publication self-test: screenshot marker "_q + label + u" refused"_q,
+		u"fresh=%1 return_empty=%2 appended_bytes=%3 file_exists=%4"_q
+			.arg(save.fresh ? 1 : 0)
+			.arg(save.path.isEmpty() ? 1 : 0)
+			.arg(save.appended.size())
+			.arg(save.exists ? 1 : 0));
+}
+
+void SelfScreenshotMarker() {
+	const auto image = MarkerProbeImage();
+	auto paths = QStringList();
+	for (const auto &probe : MarkerProbes()) {
+		const auto save = CheckMarkerSave(probe, image);
+		if (!save.path.isEmpty()) {
+			CheckCounts(
+				ReadMarkerRow(QString::fromUtf8(save.row)),
+				u"screenshot marker "_q + probe.label + u" strict reading"_q,
+				SecrecyClass::TestLog,
+				{},
+				1);
+		}
+		paths.push_back(save.path);
+	}
+
+	// The plain probe leads MarkerProbes(); this row is never logged.
+	CheckCounts(
+		ReadMarkerRow(u"SCREENSHOT: "_q + paths.front()),
+		u"screenshot marker plain as a historical absolute row"_q,
+		SecrecyClass::TestLog,
+		{ .usernames = 1 },
+		1);
+	const auto handleProbe = MarkerProbe{
+		.label = u"handle-named"_q,
+		.name = kCollisionHandle,
+		.row = uR"(SCREENSHOT: "screenshots/synthetic_marker_collision_handle.png")"_q,
+	};
+	const auto handle = CheckMarkerSave(handleProbe, image);
+	CheckCounts(
+		ReadMarkerRow(QString::fromUtf8(handle.row)),
+		u"screenshot marker handle-named strict reading"_q,
+		SecrecyClass::TestLog,
+		{ .usernames = 1 },
+		1);
+	CheckMarkerRefusal(
+		u"null image"_q,
+		QImage(),
+		u"screenshot_marker_null_image"_q);
+	CheckMarkerRefusal(
+		u"missing parent"_q,
+		image,
+		u"screenshot_marker_missing_parent/probe"_q);
 }
 
 } // namespace
@@ -1291,8 +1676,14 @@ void AppendPublicationIdentityScanSelfTest(not_null<Runner*> runner) {
 			.timeout = kDefaultStageTimeout,
 		});
 	}
+	runner->add({
+		.name = u"publication_self_screenshot_marker"_q,
+		.skipReason = CollisionRootSkipReason,
+		.then = SelfScreenshotMarker,
+		.timeout = kDefaultStageTimeout,
+	});
 }
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

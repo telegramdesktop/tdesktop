@@ -365,18 +365,7 @@ struct LayoutContext {
 		const PreparedEditListItemSource&)> taskMarkerRippleRuntimeFactory;
 };
 
-class LayoutContextScope {
-public:
-	explicit LayoutContextScope(const LayoutContext &context);
-	~LayoutContextScope();
-
-	LayoutContextScope(const LayoutContextScope &) = delete;
-	LayoutContextScope &operator=(const LayoutContextScope &) = delete;
-
-private:
-	const LayoutContext *_previous = nullptr;
-};
-
+void ResetBlockGeometryFields(LaidOutBlock *block);
 [[nodiscard]] bool TextNeedsRetainedLeaf(const QString &text);
 [[nodiscard]] bool MissingRetainedLeaf(
 	const QString &text,

@@ -33,12 +33,15 @@ QString filedialogNextFilename(
 
 namespace File {
 
+[[nodiscard]] bool IsUrlSchemeAllowed(const QString &scheme);
+void ShowUnsupportedUrl();
+
 // Those functions are async wrappers to Platform::File::Unsafe* calls.
 void OpenUrl(const QString &url);
 // Only for a url that has just got our own auto-login token.
 void OpenUrlWithOwnAutoLogin(const QString &url);
 void OpenEmailLink(const QString &email);
-void OpenWith(const QString &filepath);
+void OpenWith(const QString &filepath, Fn<void()> fallback);
 void Launch(const QString &filepath);
 void ShowInFolder(const QString &filepath);
 

@@ -731,12 +731,13 @@ void CreateModerateMessagesBox(
 			return checkbox->checked();
 		});
 	};
-	Ui::Checkbox *deleteOptions = nullptr;
-	Ui::Checkbox *deleteMessages = nullptr;
-	Controller *deleteMessagesController = nullptr;
-	rpl::variable<base::flat_map<PeerId, int>> *deleteMessagesCounts = nullptr;
-	Ui::Checkbox *deleteReactions = nullptr;
-	Controller *deleteReactionsController = nullptr;
+	auto deleteOptions = (Ui::Checkbox*)nullptr;
+	auto deleteMessages = (Ui::Checkbox*)nullptr;
+	auto deleteMessagesController = (Controller*)nullptr;
+	auto deleteMessagesCounts
+		= (rpl::variable<base::flat_map<PeerId, int>>*)nullptr;
+	auto deleteReactions = (Ui::Checkbox*)nullptr;
+	auto deleteReactionsController = (Controller*)nullptr;
 	const auto effectiveCheckedParticipants = [](
 			Ui::Checkbox *checkbox,
 			Controller *controller) {

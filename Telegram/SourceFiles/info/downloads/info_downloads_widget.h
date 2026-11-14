@@ -71,6 +71,11 @@ private:
 
 };
 
+void AddDeleteAllAction(
+	not_null<QWidget*> widget,
+	not_null<Controller*> controller,
+	const Ui::Menu::MenuCallback &addAction);
+
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(not_null<UserData*> self);
 
 } // namespace Info::Downloads

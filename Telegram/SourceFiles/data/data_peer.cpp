@@ -946,6 +946,7 @@ void PeerData::setBarSettings(const MTPPeerSettings &data) {
 }
 
 void PeerData::setBarSettings(PeerBarSettings which) {
+	const auto wasSettings = _barSettings.current();
 	const auto was = hideLinks();
 	_barSettings.set(which);
 	if (was && !hideLinks()) {
@@ -961,6 +962,9 @@ void PeerData::setBarSettings(PeerBarSettings which) {
 				});
 			}
 		}
+	}
+	if (_barSettings.current() != wasSettings) {
+		session().changes().peerUpdated(this, UpdateFlag::BarSettings);
 	}
 }
 
@@ -994,6 +998,14 @@ bool PeerData::hideLinks() const {
 	}
 	const auto settings = barSettings();
 	return !settings || (*settings & PeerBarSetting::ReportSpam);
+}
+
+bool PeerData::hideEmojiStatus() const {
+	if (const auto to = migrateTo()) {
+		return to->hideEmojiStatus();
+	}
+	const auto settings = barSettings();
+	return settings && (*settings & PeerBarSetting::ReportSpam);
 }
 
 QString PeerData::requestChatTitle() const {

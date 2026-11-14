@@ -52,6 +52,8 @@ inline constexpr auto kImportedMediaPlaceholderLimit = 4096;
 struct ImportedLocalMedia {
 	QString path;
 	QByteArray content;
+	// A file: source or a path outside the exported folder.
+	bool external = false;
 };
 
 struct BlocksImportResult {
@@ -87,6 +89,12 @@ struct BlocksImportResult {
 	not_null<const QMimeData*> data,
 	const RichMessageLimits &limits,
 	int usedBlocks);
+
+[[nodiscard]] QStringList ImportedMediaPathsToConfirm(
+	const BlocksImportResult &imported);
+
+[[nodiscard]] bool CanPasteWithoutConfirmation(
+	const BlocksImportResult &imported);
 
 [[nodiscard]] std::optional<BlocksImportResult> BlocksFromMarkdown(
 	const QString &text,

@@ -720,6 +720,9 @@ void PeerPhoto::ready(FullMsgId msgId, ReadyFiles &&files) {
 			const auto photoId = _session->data().processPhoto(
 				result.data().vphoto())->id;
 			_session->data().processUsers(result.data().vusers());
+			if (botUserInput) {
+				peer->asUser()->updateFullForced();
+			}
 			if (type == UploadType::Fallback) {
 				_session->storage().add(Storage::UserPhotosSetBack(
 					peerToUser(peer->id),

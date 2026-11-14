@@ -49,7 +49,6 @@ public:
 	[[nodiscard]] not_null<History*> owningHistory() override;
 	[[nodiscard]] ChannelData *parentChat() const;
 	[[nodiscard]] not_null<PeerData*> sublistPeer() const;
-	[[nodiscard]] bool isHiddenAuthor() const;
 	[[nodiscard]] rpl::producer<> destroyed() const;
 
 	void applyMaybeLast(not_null<HistoryItem*> item);
@@ -156,8 +155,6 @@ private:
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
 	[[nodiscard]] bool applyUpdate(const MessageUpdate &update);
 	void appendClientSideMessages(MessagesSlice &slice);
-	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
-		MsgId afterId) const;
 	bool processMessagesIsEmpty(const MTPmessages_Messages &result);
 	void loadAround(MsgId id);
 	void loadBefore();

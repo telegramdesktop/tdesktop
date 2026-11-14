@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class QTouchEvent;
 class QWheelEvent;
 
 namespace Ui {
@@ -30,6 +31,12 @@ struct SwipeHandlerFinishData {
 	bool provideReachOutRatio = false;
 };
 
+struct SwipeHandoff {
+	Fn<bool()> owned;
+	Fn<bool(not_null<QTouchEvent*>)> swipe;
+	Fn<void()> lost;
+};
+
 using Scroll = std::variant<
 	v::null_t,
 	not_null<Ui::ScrollArea*>,
@@ -41,6 +48,7 @@ struct SwipeHandlerArgs {
 	Fn<void(SwipeContextData)> update;
 	Fn<SwipeHandlerFinishData(SwipeHandlerInitData)> init;
 	rpl::producer<bool> dontStart = nullptr;
+	SwipeHandoff handoff;
 	Fn<bool(not_null<QWheelEvent*>)> skipWheelEvent;
 	rpl::lifetime *onLifetime = nullptr;
 };

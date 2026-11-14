@@ -40,8 +40,6 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
-[[nodiscard]] object_ptr<Ui::BoxContent> PrepareContactsBox(
-	not_null<Window::SessionController*> sessionController);
 [[nodiscard]] QBrush PeerListStoriesGradient(const style::PeerList &st);
 
 struct PeerListStoriesCounts {
@@ -328,7 +326,9 @@ private:
 
 };
 
-class ChooseTopicSearchController : public PeerListSearchController {
+class ChooseTopicSearchController
+	: public PeerListSearchController
+	, public base::has_weak_ptr {
 public:
 	explicit ChooseTopicSearchController(not_null<Data::Forum*> forum);
 

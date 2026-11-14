@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
+#include "tgw/tgw_storage.h"
 
 namespace Storage {
 
@@ -829,6 +830,7 @@ void Domain::startFromScratch() {
 	if (!removeWalletKeyring()) {
 		LOG(("Wallet Error: could not remove the discarded device keyring."));
 	}
+	Tgw::EraseDomainStorage(_owner, _dataName);
 	*_keyData = KeyData();
 	_keyDataDirty = false;
 	_verificationNonce = 0;

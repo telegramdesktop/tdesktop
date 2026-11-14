@@ -129,6 +129,7 @@ void ThanosEffectController::captureOnRemoval(
 		const auto saved = it->second;
 		_preCaptured.erase(it);
 		if (saved.top >= 0) {
+			ensureScrollBaseline();
 			notePendingRemoval(saved.height, saved.top, saved.dateHeight);
 		}
 		return;
@@ -439,6 +440,12 @@ void ThanosEffectController::shiftGaps(int delta) {
 		// The content above the gaps moved, so the scroll position that
 		// keeps the same content visible moved by the same delta. Without
 		// this the next animation frame forces the pre-shift coordinate.
+		_savedScrollTop += delta;
+	}
+}
+
+void ThanosEffectController::shiftScrollBaseline(int delta) {
+	if (_restoreScrollPending && !_wasAtBottom) {
 		_savedScrollTop += delta;
 	}
 }

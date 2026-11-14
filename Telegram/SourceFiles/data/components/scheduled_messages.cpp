@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "data/data_forum_topic.h"
+#include "data/data_messages.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "api/api_hash.h"
@@ -549,9 +550,16 @@ HistoryItem *ScheduledMessages::append(
 		not_null<History*> history,
 		List &list,
 		const MTPMessage &message) {
-	const auto id = message.match([&](const auto &data) {
-		return data.vid().v;
-	});
+	if (message.type() != mtpc_message) {
+		LOG(("API Error: Bad type in scheduled messages."));
+		return nullptr;
+	}
+	const auto &data = message.c_message();
+	if (peerFromMTP(data.vpeer_id()) != history->peer->id) {
+		LOG(("API Error: Bad peer in scheduled messages."));
+		return nullptr;
+	}
+	const auto id = data.vid().v;
 	const auto i = list.itemById.find(id);
 	if (i != end(list.itemById)) {
 		const auto existing = i->second;
@@ -582,7 +590,7 @@ HistoryItem *ScheduledMessages::append(
 		PrepareMessage(message),
 		MessageFlags(), // localFlags
 		NewMessageType::Existing);
-	if (!item || item->history() != history) {
+	if (!item || item->history() != history || !item->isScheduled()) {
 		LOG(("API Error: Bad data received in scheduled messages."));
 		return nullptr;
 	}

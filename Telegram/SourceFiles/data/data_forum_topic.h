@@ -57,7 +57,6 @@ class Forum;
 [[nodiscard]] QString ForumGeneralIconTitle();
 [[nodiscard]] bool IsForumGeneralIconTitle(const QString &title);
 [[nodiscard]] int32 ForumGeneralIconColor(const QColor &color);
-[[nodiscard]] QColor ParseForumGeneralIconColor(int32 value);
 
 struct TopicIconDescriptor {
 	QString title;
@@ -108,6 +107,7 @@ public:
 	[[nodiscard]] bool canToggleClosed() const;
 	[[nodiscard]] bool canTogglePinned() const;
 	[[nodiscard]] bool canDelete() const;
+	[[nodiscard]] bool dying() const;
 
 	[[nodiscard]] bool closed() const;
 	void setClosed(bool closed);

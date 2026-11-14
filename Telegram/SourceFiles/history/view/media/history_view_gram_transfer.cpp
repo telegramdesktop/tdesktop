@@ -662,7 +662,7 @@ private:
 	}
 	item.walletIdentity = session->wallet().transferWalletIdentity();
 	const auto &history = session->wallet().history();
-	const Wallet::TransferItem *match = nullptr;
+	auto match = (const Wallet::TransferItem*)nullptr;
 	for (const auto &entry : history) {
 		if (entry.source != Wallet::TransferItem::Source::Server
 			|| entry.id != item.id) {

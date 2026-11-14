@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/data/export_data_types.h"
 
+struct GeoPointLocation;
+
 #include "export/export_settings.h"
 #include "export/output/export_output_file.h"
 #include "base/base_file_utilities.h"
 #include "ui/text/format_values.h"
 #include "core/mime_type.h"
 #include "core/utils.h"
+#include "data/data_location.h"
 #include <QtCore/QDateTime>
 #include <QtCore/QTimeZone>
 #include <QtCore/QRegularExpression>
@@ -1601,9 +1604,13 @@ SharedContact ParseSharedContact(
 GeoPoint ParseGeoPoint(const MTPGeoPoint &data) {
 	auto result = GeoPoint();
 	data.match([&](const MTPDgeoPoint &data) {
-		result.latitude = data.vlat().v;
-		result.longitude = data.vlong().v;
-		result.valid = true;
+		const auto latitude = data.vlat().v;
+		const auto longitude = data.vlong().v;
+		if (::Data::ValidGeoCoordinates(latitude, longitude)) {
+			result.latitude = latitude;
+			result.longitude = longitude;
+			result.valid = true;
+		}
 	}, [](const MTPDgeoPointEmpty &data) {});
 	return result;
 }
@@ -1902,6 +1909,11 @@ StoriesSlice ParseStoriesSlice(
 	return result;
 }
 
+bool IsSvgFormat(const QByteArray &format) {
+	const auto lower = format.toLower();
+	return (lower == "svg") || (lower == "svgz");
+}
+
 std::pair<QString, QSize> WriteImageThumb(
 		const QString &basePath,
 		const QString &largePath,
@@ -1914,7 +1926,7 @@ std::pair<QString, QSize> WriteImageThumb(
 	}
 	const auto path = basePath + largePath;
 	QImageReader reader(path);
-	if (!reader.canRead()) {
+	if (!reader.canRead() || IsSvgFormat(reader.format())) {
 		return {};
 	}
 	const auto size = reader.size();
@@ -2354,6 +2366,8 @@ Media ParseMedia(
 		result.content = ParsePaidMedia(context, data, folder, date);
 	}, [](const MTPDmessageMediaVideoStream &data) {
 		// Live stories.
+	}, [](const MTPDmessageMediaWidget &data) {
+		// #TODO widgets
 	}, [](const MTPDmessageMediaEmpty &data) {});
 	return result;
 }
@@ -3603,7 +3617,18 @@ Utf8String FormatGramsAmount(int64 nanos) {
 }
 
 Utf8String FormatFileSize(int64 size) {
-	return Ui::FormatSizeText(size).toUtf8();
+	// Exports are written in English and off the main thread.
+	const auto tenths = [](int64 value) {
+		return QByteArray::number(value / 10)
+			+ '.'
+			+ QByteArray::number(value % 10);
+	};
+	if (size >= 1024 * 1024) {
+		return tenths(size * 10 / (1024 * 1024)) + " MB";
+	} else if (size >= 1024) {
+		return tenths(size * 10 / 1024) + " KB";
+	}
+	return QByteArray::number(size) + " B";
 }
 
 Utf8String FormatDuration(int64 seconds) {

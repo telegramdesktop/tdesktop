@@ -20,10 +20,6 @@ class Thread;
 class Birthday;
 } // namespace Data
 
-namespace Main {
-class Session;
-} // namespace Main
-
 namespace Ui {
 class RpWidget;
 template <typename Widget>
@@ -138,14 +134,14 @@ struct LinkWithUrl {
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanAddMemberValue(
 	not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<int> FullReactionsCountValue(
-	not_null<Main::Session*> peer);
 [[nodiscard]] rpl::producer<bool> CanViewParticipantsValue(
 	not_null<ChannelData*> megagroup);
 
 enum class BadgeType : uchar;
 [[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<EmojiStatusId> EmojiStatusIdValue(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<EmojiStatusId> ShownEmojiStatusIdValue(
 	not_null<PeerData*> peer);
 
 [[nodiscard]] rpl::producer<QString> BirthdayLabelText(

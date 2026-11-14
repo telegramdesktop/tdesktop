@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "wallet/wallet_ton_connect_request_box.h"
 
+#include "base/call_delayed.h"
 #include "lang/lang_keys.h"
 #include "ui/controls/button_busy.h"
 #include "ui/controls/table_rows.h"
@@ -62,6 +63,7 @@ struct State {
 	QPointer<Ui::SlideWrap<Ui::FlatLabel>> error;
 	std::shared_ptr<bool> markPlayed = std::make_shared<bool>();
 	bool details = false;
+	bool guarded = false;
 };
 
 struct Context {
@@ -96,6 +98,20 @@ struct Destinations {
 
 [[nodiscard]] bool Confirmable(not_null<State*> state) {
 	return state->built && state->built->confirmable;
+}
+
+[[nodiscard]] bool Pressable(not_null<State*> state) {
+	return !state->guarded && !Busy(state);
+}
+
+[[nodiscard]] Fn<void()> GuardedClose(
+		not_null<Ui::GenericBox*> box,
+		not_null<State*> state) {
+	return [=] {
+		if (!state->guarded) {
+			box->closeBox();
+		}
+	};
 }
 
 [[nodiscard]] QString PayloadShown(const QString &payload) {
@@ -254,6 +270,7 @@ struct Destinations {
 		.title = HeaderTitle(now),
 		.domain = now.domain,
 		.icon = now.icon,
+		.userpic = now.userpic,
 		.loading = (now.phase == Phase::Loading),
 	};
 }
@@ -356,8 +373,11 @@ void Update(
 	Ui::SetButtonBusy(state->confirm.data(), confirming);
 	Ui::SetButtonDimmed(
 		state->confirm.data(),
-		confirming || !now.confirmable);
+		confirming || !now.confirmable || state->guarded);
 	Ui::SetButtonBusy(state->decline.data(), now.busy && now.declining);
+	if (state->guarded) {
+		Ui::SetButtonDimmed(state->decline.data(), true);
+	}
 	Ui::SetButtonDimmed(state->cancel.data(), now.busy);
 	Ui::SetButtonBusy(state->unlock.data(), now.busy);
 	state->feeNano = now.feeNano;
@@ -372,12 +392,13 @@ void Update(
 	}
 }
 
-void FillLoading(not_null<Ui::GenericBox*> box) {
+void FillLoading(not_null<Ui::GenericBox*> box, not_null<State*> state) {
 	const auto cancel = SetTonConnectButtons(
 		box,
 		tr::lng_cancel(),
-		nullptr).secondary;
-	cancel->setClickedCallback([=] { box->closeBox(); });
+		nullptr,
+		GuardedClose(box, state)).secondary;
+	cancel->setClickedCallback(GuardedClose(box, state));
 }
 
 void FillKeyNeeded(
@@ -398,10 +419,11 @@ void FillKeyNeeded(
 	const auto buttons = SetTonConnectButtons(
 		box,
 		tr::lng_cancel(),
-		std::move(primary));
-	buttons.secondary->setClickedCallback([=] { box->closeBox(); });
+		std::move(primary),
+		GuardedClose(box, state));
+	buttons.secondary->setClickedCallback(GuardedClose(box, state));
 	buttons.primary->setClickedCallback([=] {
-		if (!Busy(state)) {
+		if (Pressable(state)) {
 			pressed();
 		}
 	});
@@ -423,8 +445,9 @@ void FillNotice(
 	const auto close = SetTonConnectButtons(
 		box,
 		nullptr,
-		tr::lng_close()).primary;
-	close->setClickedCallback([=] { box->closeBox(); });
+		tr::lng_close(),
+		GuardedClose(box, state)).primary;
+	close->setClickedCallback(GuardedClose(box, state));
 }
 
 void AddErrorLine(not_null<State*> state) {
@@ -464,14 +487,15 @@ void FillUnhandled(
 	const auto buttons = SetTonConnectButtons(
 		box,
 		tr::lng_cancel(),
-		tr::lng_wallet_connect_request_decline());
+		tr::lng_wallet_connect_request_decline(),
+		GuardedClose(box, state));
 	buttons.secondary->setClickedCallback([=] {
-		if (!Busy(state)) {
+		if (Pressable(state)) {
 			box->closeBox();
 		}
 	});
 	buttons.primary->setClickedCallback([=, decline = context.decline] {
-		if (!Busy(state)) {
+		if (Pressable(state)) {
 			decline();
 		}
 	});
@@ -532,14 +556,15 @@ void AddDecisionButtons(
 	const auto buttons = SetTonConnectButtons(
 		box,
 		std::move(secondary),
-		std::move(primary));
+		std::move(primary),
+		GuardedClose(box, state));
 	buttons.secondary->setClickedCallback([=, decline = context.decline] {
-		if (!Busy(state)) {
+		if (Pressable(state)) {
 			decline();
 		}
 	});
 	buttons.primary->setClickedCallback([=, confirm = context.confirm] {
-		if (!Busy(state) && Confirmable(state)) {
+		if (Pressable(state) && Confirmable(state)) {
 			confirm();
 		}
 	});
@@ -930,7 +955,7 @@ void Rebuild(
 		state->details = false;
 	}
 	switch (now.phase) {
-	case Phase::Loading: FillLoading(box); break;
+	case Phase::Loading: FillLoading(box, state); break;
 	case Phase::Locked:
 		FillKeyNeeded(
 			box,
@@ -1013,6 +1038,19 @@ void TonConnectRequestBox(
 		.confirm = args.confirm,
 		.decline = args.decline,
 	};
+	if (args.pressGuard > 0) {
+		state->guarded = true;
+		box->setCloseByOutsideClick(false);
+		box->setAttribute(Qt::WA_TransparentForMouseEvents);
+		base::call_delayed(args.pressGuard, box, [=] {
+			state->guarded = false;
+			box->setCloseByOutsideClick(true);
+			box->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+			if (state->built) {
+				Update(state, *state->built, anim::type::normal);
+			}
+		});
+	}
 	std::move(
 		args.state
 	) | rpl::on_next([=](const TonConnectRequestBoxState &now) {

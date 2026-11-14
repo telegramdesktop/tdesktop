@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "ui/cached_round_corners.h"
-#include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style_radius.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/style/style_core_palette.h"
@@ -219,6 +218,8 @@ struct ChatPaintHighlight {
 struct ChatPaintContext {
 	not_null<const ChatStyle*> st;
 	const BubblePattern *bubblesPattern = nullptr;
+	std::optional<QColor> bubblesPatternAverage;
+	std::optional<QColor> backgroundAverage;
 	ReactionPaintInfo *reactionInfo = nullptr;
 	QRect viewport;
 	QRect area;

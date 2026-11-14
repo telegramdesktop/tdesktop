@@ -64,6 +64,7 @@ public:
 
 private:
 	void apply(Core::CloudPasswordState state);
+	void finishSet(rpl::consumer<SetOk, QString> consumer, int codeLength);
 
 	MTP::Sender _api;
 	mtpRequestId _reloadRequestId = 0;

@@ -1588,8 +1588,11 @@ TextWithEntities ComposeTodoTasksList(
 				names.clear();
 				break;
 			}
-			names.push_back(
-				TextWithEntities().append('"').append(i->text).append('"'));
+			names.push_back(tr::lng_action_todo_task_quote(
+				tr::now,
+				lt_task,
+				i->text,
+				tr::marked));
 		}
 	}
 	return ComposeTodoTasksList(ids.size(), names);
@@ -1600,8 +1603,11 @@ TextWithEntities ComposeTodoTasksList(
 	auto names = std::vector<TextWithEntities>();
 	names.reserve(append->list.size());
 	for (const auto &task : append->list) {
-		names.push_back(
-			TextWithEntities().append('"').append(task.text).append('"'));
+		names.push_back(tr::lng_action_todo_task_quote(
+			tr::now,
+			lt_task,
+			task.text,
+			tr::marked));
 	}
 	return ComposeTodoTasksList(names.size(), names);
 }

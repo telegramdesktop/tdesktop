@@ -146,7 +146,7 @@ void Action::prepare() {
 		lt_total,
 		"0000",
 		lt_mb,
-		"MB"));
+		tr::lng_size_megabytes(tr::now)));
 	const auto maxStartingWidth = countWidth(
 		tr::lng_bot_download_starting(tr::now));
 	const auto maxFailedWidth = countWidth(tr::lng_bot_download_failed(

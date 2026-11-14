@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h"
 #include "iv/iv_rich_page.h"
@@ -1207,6 +1208,26 @@ int Histories::sendPreparedMessage(
 	};
 	realReplyTo.messageId = topicReplyToId(replyTo.messageId);
 	realReplyTo.topicRootId = topicReplyToId(replyTo.topicRootId);
+	if (IsClientMsgId(realReplyTo.topicRootId)) {
+		discardCreatingTopic(history, realReplyTo.topicRootId);
+		return 0;
+	}
+	const auto targetId = realReplyTo.messageId;
+	if (IsClientMsgId(targetId.msg) && targetId.peer == history->peer->id) {
+		const auto target = _owner->message(targetId);
+		if (target && target->isSending()) {
+			const auto id = ++_requestAutoincrement;
+			_delayedByReplyTarget[targetId].push_back({
+				.randomId = randomId,
+				.replyTo = std::move(replyTo),
+				.message = std::move(message),
+				.done = std::move(done),
+				.fail = std::move(fail),
+				.requestId = id,
+			});
+			return id;
+		}
+	}
 	return v::match(message(history, realReplyTo), [&](const auto &request) {
 		const auto type = RequestType::Send;
 		return sendRequest(history, type, [=](Fn<void()> finish) {
@@ -1270,6 +1291,60 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 			}
 		}
 	}
+}
+
+void Histories::checkReplyTargetSent(FullMsgId localId, MsgId realId) {
+	const auto i = _delayedByReplyTarget.find(localId);
+	if (i == end(_delayedByReplyTarget)) {
+		return;
+	}
+	auto delayed = base::take(i->second);
+	_delayedByReplyTarget.erase(i);
+
+	const auto history = _owner->history(localId.peer);
+	for (auto &entry : delayed) {
+		const auto itemId = _owner->messageIdByRandomId(entry.randomId);
+		const auto item = itemId ? _owner->message(itemId) : nullptr;
+		if (!realId || (itemId && !item)) {
+			_owner->unregisterMessageRandomId(entry.randomId);
+			if (item) {
+				item->destroy();
+			}
+			continue;
+		} else if (item) {
+			const auto reply = item->Get<HistoryMessageReply>();
+			item->setReplyFields(
+				realId,
+				item->topicRootId(),
+				reply && reply->topicPost());
+		}
+		entry.replyTo.messageId.msg = realId;
+		sendPreparedMessage(
+			history,
+			std::move(entry.replyTo),
+			entry.randomId,
+			std::move(entry.message),
+			std::move(entry.done),
+			std::move(entry.fail));
+	}
+}
+
+void Histories::discardCreatingTopic(
+		not_null<History*> history,
+		MsgId rootId) {
+	const auto i = _creatingTopics.find({ history->peer->id, rootId });
+	if (i != end(_creatingTopics)) {
+		const auto discarded = base::take(i->second);
+		_creatingTopics.erase(i);
+		for (const auto &entry : discarded) {
+			_creatingTopicRequests.remove(entry.requestId);
+		}
+	}
+	// WHY: discards run inside ~ChatWidget() or a history switch, where
+	// removing items would notify the topic's half-destroyed chat.
+	crl::on_main(&session(), [=] {
+		history->destroyMessagesByTopic(rootId);
+	});
 }
 
 FullMsgId Histories::convertTopicReplyToId(

@@ -295,6 +295,12 @@ public:
 	virtual rpl::producer<QString> mediaSourceQueryValue() const;
 	virtual rpl::producer<QString> searchQueryValue() const;
 
+	[[nodiscard]] rpl::producer<SparseIdsMergedSlice> sharedMediaSource(
+		Storage::SharedMediaType type,
+		SparseIdsMergedSlice::UniversalMsgId aroundId,
+		int limitBefore,
+		int limitAfter) const;
+
 	void showSection(
 		std::shared_ptr<Window::SectionMemento> memento,
 		const Window::SectionShow &params = Window::SectionShow()) override;
@@ -374,6 +380,8 @@ public:
 		int limitAfter) const override;
 	rpl::producer<QString> mediaSourceQueryValue() const override;
 	rpl::producer<QString> searchQueryValue() const override;
+	[[nodiscard]] Storage::SharedMediaType mediaSourceType() const;
+	void setMediaSourceType(Storage::SharedMediaType type);
 	bool takeSearchStartsFocused() {
 		return base::take(_searchStartsFocused);
 	}

@@ -33,7 +33,6 @@ struct StatisticalChart {
 
 	[[nodiscard]] int findStartIndex(float64 v) const;
 	[[nodiscard]] int findEndIndex(int left, float64 v) const;
-	[[nodiscard]] int findIndex(int left, int right, float64 v) const;
 
 	struct Line final {
 		std::vector<Statistic::ChartValue> y;

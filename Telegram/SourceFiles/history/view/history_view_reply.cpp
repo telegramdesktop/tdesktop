@@ -743,25 +743,32 @@ int Reply::nameIconsSkip() const {
 		+ (_hasBackgroundEmoji ? st::messageGiftIconSkip : 0);
 }
 
-int Reply::resizeToWidth(int width) const {
-	_ripple.animation = nullptr;
-
-	const auto previewSkip = _hasPreview
+int Reply::previewSkip() const {
+	return (_hasPreview && !_previewHidden)
 		? (st::messageQuoteStyle.outline
 			+ st::historyReplyPreviewMargin.left()
 			+ st::historyReplyPreview
 			+ st::historyReplyPreviewMargin.right()
 			- st::historyReplyPadding.left())
 		: 0;
+}
+
+int Reply::resizeToWidth(int width) const {
+	_ripple.animation = nullptr;
+
+	const auto innerw = width
+		- st::historyReplyPadding.left()
+		- st::historyReplyPadding.right();
+	_previewHidden = 0;
+	_previewHidden = (width < _maxWidth
+		&& (innerw - previewSkip() < _text.minResizeWidth())) ? 1 : 0;
 	if (width >= _maxWidth || !_multiline) {
 		_nameTwoLines = 0;
 		_expandable = _minHeightExpandable;
 		_height = _minHeight;
 		return height();
 	}
-	const auto innerw = width
-		- st::historyReplyPadding.left()
-		- st::historyReplyPadding.right();
+	const auto previewSkip = Reply::previewSkip();
 	const auto namew = innerw - previewSkip - nameIconsSkip();
 	const auto desiredNameHeight = _name.countHeight(namew);
 	_nameTwoLines = (desiredNameHeight > st::semiboldFont->height) ? 1 : 0;
@@ -911,18 +918,11 @@ void Reply::paint(
 		}
 	}
 
-	auto hasPreview = (_hasPreview != 0);
-	auto previewSkip = hasPreview
-		? (st::messageQuoteStyle.outline
-			+ st::historyReplyPreviewMargin.left()
-			+ st::historyReplyPreview
-			+ st::historyReplyPreviewMargin.right()
-			- st::historyReplyPadding.left())
-		: 0;
-	if (hasPreview && w <= st::historyReplyPadding.left() + previewSkip) {
-		hasPreview = false;
+	auto previewSkip = Reply::previewSkip();
+	if (w <= st::historyReplyPadding.left() + previewSkip) {
 		previewSkip = 0;
 	}
+	const auto hasPreview = (previewSkip > 0);
 
 	const auto pausedSpoiler = context.paused
 		|| On(PowerSaving::kChatSpoiler);

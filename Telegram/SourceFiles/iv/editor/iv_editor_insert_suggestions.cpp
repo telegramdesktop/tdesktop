@@ -234,6 +234,12 @@ struct Entry {
 	return false;
 }
 
+[[nodiscard]] bool IsListCommand(Command command) {
+	return (command == Command::BulletList)
+		|| (command == Command::OrderedList)
+		|| (command == Command::TaskList);
+}
+
 [[nodiscard]] QImage PremiumStarImage(int size) {
 	const auto factor = style::DevicePixelRatio();
 	const auto side = QSize(size, size);
@@ -266,7 +272,7 @@ public:
 	[[nodiscard]] int count() const;
 	[[nodiscard]] int naturalWidth() const;
 
-	[[nodiscard]] bool applyQuery(const QString &query);
+	[[nodiscard]] bool applyQuery(const QString &query, bool lists);
 	void moveSelection(int delta);
 	[[nodiscard]] bool chooseSelected();
 
@@ -376,10 +382,14 @@ int InsertSuggestions::Inner::naturalWidth() const {
 		_st.widthMax);
 }
 
-bool InsertSuggestions::Inner::applyQuery(const QString &query) {
+bool InsertSuggestions::Inner::applyQuery(
+		const QString &query,
+		bool lists) {
 	_entries.clear();
 	for (const auto &entry : Entries()) {
-		if (entry.needsMedia && !_media) {
+		if (!lists && IsListCommand(entry.command)) {
+			continue;
+		} else if (entry.needsMedia && !_media) {
 			continue;
 		} else if (entry.needsMap && !_map) {
 			continue;
@@ -568,8 +578,8 @@ void InsertSuggestions::resizeToRows(int rows) {
 		chromeHeight() + (rows * _inner->rowHeight()));
 }
 
-bool InsertSuggestions::applyQuery(const QString &query) {
-	if (!_inner->applyQuery(query)) {
+bool InsertSuggestions::applyQuery(const QString &query, bool lists) {
+	if (!_inner->applyQuery(query, lists)) {
 		hide();
 		return false;
 	}
@@ -688,6 +698,7 @@ InsertSuggestionsController::InsertSuggestionsController(
 , _outer(descriptor.outer)
 , _field(std::move(descriptor.field))
 , _chosen(std::move(descriptor.chosen))
+, _lists(std::move(descriptor.lists))
 , _media(descriptor.media)
 , _map(descriptor.map)
 , _premium(std::move(descriptor.premium)) {
@@ -748,7 +759,7 @@ void InsertSuggestionsController::refresh() {
 		return;
 	}
 	ensurePanel();
-	if (!_panel->applyQuery(text.mid(1))) {
+	if (!_panel->applyQuery(text.mid(1), !_lists || _lists())) {
 		close();
 		return;
 	}

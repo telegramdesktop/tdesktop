@@ -352,7 +352,7 @@ void SpecialConfigRequest::handleHeaderUnixtime(
 	}
 	const auto date = QString::fromLatin1([&] {
 		for (const auto &pair : reply->rawHeaderPairs()) {
-			if (pair.first == "Date") {
+			if (pair.first == "date") {
 				return pair.second;
 			}
 		}
@@ -445,6 +445,11 @@ bool SpecialConfigRequest::decryptSimpleConfig(const QByteArray &bytes) {
 
 	auto publicKey = details::RSAPublicKey(bytes::make_span(kPublicKey));
 	auto decrypted = publicKey.decrypt(bytes::make_span(decodedBytes));
+	if (decrypted.size() != kGoodSizeData) {
+		LOG(("Config Error: Bad decrypted size %1 required %2"
+			).arg(decrypted.size()).arg(kGoodSizeData));
+		return false;
+	}
 	auto decryptedBytes = gsl::make_span(decrypted);
 
 	auto aesEncryptedBytes = decryptedBytes.subspan(CTRState::KeySize);

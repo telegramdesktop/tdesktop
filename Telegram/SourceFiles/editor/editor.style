@@ -341,6 +341,7 @@ videoEditorGifButton: IconButton(photoEditorRotateButton) {
 videoEditorGifIconActive: icon {
 	{ "photo_editor/gif", photoEditorButtonIconFgActive }
 };
+videoEditorGifTooltipMaxWidth: 320px;
 
 videoQualitySliderDotSize: 7px;
 videoQualitySliderDotActiveSize: 11px;

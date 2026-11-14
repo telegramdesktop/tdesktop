@@ -407,9 +407,15 @@ InnerWidget::InnerWidget(
 }
 
 void InnerWidget::switchTo(int collectionId) {
+	const auto entries = collectionId
+		? &_perCollection[collectionId]
+		: &_all;
+	if (entries != _entries.get() && _dragging.index >= 0) {
+		cancelDragging();
+	}
 	_collectionsLoadedCallback = nullptr;
 	_api.request(base::take(_loadMoreRequestId)).cancel();
-	_entries = collectionId ? &_perCollection[collectionId] : &_all;
+	_entries = entries;
 	_list = &_entries->list;
 	refreshButtons();
 	refreshAbout();
@@ -507,6 +513,9 @@ void InnerWidget::applyUpdateTo(
 			if (view.index >= index) {
 				--view.index;
 			}
+		}
+		if (_dragging.index >= 0) {
+			cancelDragging();
 		}
 		if (list.empty()) {
 			refreshAbout();
@@ -1086,7 +1095,7 @@ void InnerWidget::editCollectionName(int id) {
 		peer(),
 		id,
 		i->title,
-		done));
+		crl::guard(this, done)));
 }
 
 void InnerWidget::confirmDeleteCollection(int id) {
@@ -1141,8 +1150,10 @@ void InnerWidget::addGiftToCollection(
 		.collectionId = collectionId,
 		.added = { giftId },
 	};
+	const auto session = &_window->session();
+	const auto weak = base::make_weak(this);
 	using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
-	_window->session().api().request(
+	session->api().request(
 		MTPpayments_UpdateStarGiftCollection(
 			MTP_flags(Flag::f_add_stargift),
 			_peer->input(),
@@ -1154,7 +1165,10 @@ void InnerWidget::addGiftToCollection(
 			}),
 			MTPVector<MTPInputSavedStarGift>())
 	).done([=](const MTPStarGiftCollection &result) {
-		_window->session().data().notifyGiftsUpdate(base::duplicate(changes));
+		session->data().notifyGiftsUpdate(base::duplicate(changes));
+		if (!weak) {
+			return;
+		}
 
 		const auto i = ranges::find(
 			_collections,
@@ -1579,7 +1593,7 @@ void InnerWidget::refreshCollectionsTabs() {
 					_window,
 					peer(),
 					Data::SavedStarGiftId(),
-					added));
+					crl::guard(this, added)));
 			} else {
 				_collectionsTabs->setActiveTab(id);
 
@@ -1634,8 +1648,10 @@ void InnerWidget::removeGiftFromCollection(
 		.collectionId = collectionId,
 		.removed = { giftId },
 	};
+	const auto session = &_window->session();
+	const auto weak = base::make_weak(this);
 	using Flag = MTPpayments_UpdateStarGiftCollection::Flag;
-	_window->session().api().request(
+	session->api().request(
 		MTPpayments_UpdateStarGiftCollection(
 			MTP_flags(Flag::f_delete_stargift),
 			_peer->input(),
@@ -1647,7 +1663,10 @@ void InnerWidget::removeGiftFromCollection(
 			MTPVector<MTPInputSavedStarGift>(),
 			MTPVector<MTPInputSavedStarGift>())
 	).done([=](const MTPStarGiftCollection &result) {
-		_window->session().data().notifyGiftsUpdate(base::duplicate(changes));
+		session->data().notifyGiftsUpdate(base::duplicate(changes));
+		if (!weak) {
+			return;
+		}
 
 		const auto i = ranges::find(
 			_collections,
@@ -1669,6 +1688,9 @@ void InnerWidget::removeGiftFromCollection(
 					_list->erase(it);
 					if (_entries->total > 0) {
 						--_entries->total;
+					}
+					if (_dragging.index >= 0) {
+						cancelDragging();
 					}
 					refreshButtons();
 				}

@@ -447,6 +447,10 @@ void CloudThemes::loadDocumentAndInvoke(
 	if (alreadyWaiting) {
 		value.document->cancel();
 	}
+	if (document->size > Window::Theme::kThemeFileSizeLimit) {
+		value = LoadingDocument();
+		return;
+	}
 	value.document = document;
 	value.documentMedia = document->createMediaView();
 	value.document->save(

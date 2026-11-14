@@ -25,8 +25,6 @@ public:
 		ChartValue newMaxHeight,
 		ChartValue newMinHeight);
 
-	[[nodiscard]] static ChartValue LookupHeight(ChartValue maxValue);
-
 	struct Line final {
 		float64 absoluteValue = 0.;
 		float64 relativeValue = 0.;

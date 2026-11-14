@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_touch_speed.h"
 #include "chat_helpers/message_field.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/translate_box.h"
@@ -74,6 +75,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
+#include "tgw/tgw_log_box.h"
+#include "tgw/tgw_selection.h"
+#include "tgw/tgw_touch.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
@@ -101,6 +105,56 @@ constexpr auto kPreloadUpDisplayItemsBuffer = 4;
 
 // Max span between a delete group's first event and any later one.
 constexpr auto kDeleteGroupTimeWindowSeconds = TimeId(5);
+
+struct RequestFilter {
+	MTPchannels_GetAdminLog::Flags flags;
+	MTPDchannelAdminLogEventsFilter::Flags events;
+	QVector<MTPInputUser> admins;
+};
+
+[[nodiscard]] RequestFilter PrepareRequestFilter(const FilterValue &filter) {
+	auto flags = MTPchannels_GetAdminLog::Flags(0);
+	const auto events = [&] {
+		using Flag = MTPDchannelAdminLogEventsFilter::Flag;
+		using LocalFlag = FilterValue::Flag;
+		const auto empty = MTPDchannelAdminLogEventsFilter::Flags(0);
+		const auto f = filter.flags.value_or(LocalFlag());
+		return empty
+			| ((f & LocalFlag::Join) ? Flag::f_join : empty)
+			| ((f & LocalFlag::Leave) ? Flag::f_leave : empty)
+			| ((f & LocalFlag::Invite) ? Flag::f_invite : empty)
+			| ((f & LocalFlag::Ban) ? Flag::f_ban : empty)
+			| ((f & LocalFlag::Unban) ? Flag::f_unban : empty)
+			| ((f & LocalFlag::Kick) ? Flag::f_kick : empty)
+			| ((f & LocalFlag::Unkick) ? Flag::f_unkick : empty)
+			| ((f & LocalFlag::Promote) ? Flag::f_promote : empty)
+			| ((f & LocalFlag::Demote) ? Flag::f_demote : empty)
+			| ((f & LocalFlag::Info) ? Flag::f_info : empty)
+			| ((f & LocalFlag::Settings) ? Flag::f_settings : empty)
+			| ((f & LocalFlag::Pinned) ? Flag::f_pinned : empty)
+			| ((f & LocalFlag::Edit) ? Flag::f_edit : empty)
+			| ((f & LocalFlag::Delete) ? Flag::f_delete : empty)
+			| ((f & LocalFlag::GroupCall) ? Flag::f_group_call : empty)
+			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty)
+			| ((f & LocalFlag::Topics) ? Flag::f_forums : empty)
+			| ((f & LocalFlag::SubExtend) ? Flag::f_sub_extend : empty)
+			| ((f & LocalFlag::EditRank) ? Flag::f_edit_rank : empty);
+	}();
+	if (filter.flags != 0) {
+		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
+	}
+	auto admins = QVector<MTPInputUser>(0);
+	if (filter.admins) {
+		if (!filter.admins->empty()) {
+			admins.reserve(filter.admins->size());
+			for (const auto &admin : (*filter.admins)) {
+				admins.push_back(admin->inputUser());
+			}
+		}
+		flags |= MTPchannels_GetAdminLog::Flag::f_admins;
+	}
+	return { flags, events, std::move(admins) };
+}
 
 } // namespace
 
@@ -296,7 +350,32 @@ InnerWidget::InnerWidget(
 		- st::historyAdminLogEmptyPadding.left())
 , _antiSpamValidator(_controller, _channel)
 , _touchSelectTimer([=] { onTouchSelect(); })
-, _touchScrollTimer([=] { onTouchScrollTimer(); }) {
+, _touchScrollTimer([=] { onTouchScrollTimer(); })
+, _widgetTouch(std::make_unique<Tgw::WidgetTouch>(Tgw::WidgetTouchArgs{
+	.list = this,
+	.viewAt = [=](QPoint point) {
+		auto result = (Element*)nullptr;
+		enumerateItems<EnumItemsDirection::TopToBottom>([&](
+				not_null<Element*> view,
+				int itemtop,
+				int itembottom) {
+			if (point.y() >= itembottom) {
+				return true;
+			} else if (point.y() >= itemtop) {
+				result = view.get();
+			}
+			return false;
+		});
+		return result;
+	},
+	.mapToItem = [=](QPoint point, const Element *view) {
+		return mapPointToItem(point, view);
+	},
+	.menu = [=](not_null<QContextMenuEvent*> e) { showContextMenu(e, true); },
+	.resetSpeed = [=] { touchResetSpeed(); },
+	.dropTouch = [=] { _touchInProgress = false; },
+}))
+, _widgetSelection(Tgw::ListSelection::Create(this)) {
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
@@ -350,12 +429,17 @@ InnerWidget::InnerWidget(
 			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			auto top = itemTop(view);
-			if (top >= 0
+			if ((!query.view || (query.view == view))
+				&& top >= 0
 				&& top + view->height() > _visibleTop
 				&& top < _visibleBottom) {
 				*query.isVisible = true;
 			}
 		}
+	}, lifetime());
+	session().data().peerDecorationsUpdated(
+	) | rpl::on_next([=] {
+		update();
 	}, lifetime());
 
 	controller->adaptive().chatWideValue(
@@ -397,6 +481,10 @@ rpl::producer<> InnerWidget::cancelSignal() const {
 
 rpl::producer<int> InnerWidget::newEventsCountValue() const {
 	return _newEventsCount.value();
+}
+
+Ui::Controls::SwipeHandoff InnerWidget::touchSwipeHandoff() {
+	return _widgetTouch->swipeHandoff();
 }
 
 void InnerWidget::resetNewEventsCount() {
@@ -907,36 +995,62 @@ void InnerWidget::jumpToMessageInLog(
 
 	const auto top = itemTop(view);
 	const auto height = view->height();
-	const auto viewport = _visibleBottom - _visibleTop;
 	if (top >= _visibleTop && top + height <= _visibleBottom) {
 		return;
 	}
 	const auto from = _visibleTop;
-	const auto range = (highlight.richQuote && (height > viewport))
-		? HistoryView::FindHighlightYRange(view, _highlighter.state(item))
-		: HistoryView::HighlightYRange();
-	const auto target = std::clamp(
-		(range
-			? HistoryView::AdjustScrollForRange(top, viewport, range)
-			: (top - std::max(0, (viewport - height) / 2))),
-		0,
-		std::max(0, this->height() - viewport));
+	const auto target = jumpTarget(view, highlight);
 	if (from == target) {
 		return;
 	}
+	const auto consumed = [=] {
+		return Tgw::ListScroll::Consumed(this);
+	};
 	_scrollToAnimation.stop();
-	_scrollToAnimation.start(
+	Tgw::ListScroll::Input(this);
+	_scrollToFlight.start(
+		from,
+		target,
+		consumed,
+		consumed(),
+		[=] { return Tgw::ListScroll::Inputs(this); },
+		Tgw::ListScroll::Placement(this, item->fullId(), highlight));
+	_scrollToFlight.animate(
+		&_scrollToAnimation,
 		[=] {
-			_scrollToSignal.fire_copy(
-				anim::interpolate(
+			_scrollToFlight.frame(
+				0,
+				anim::interpolateToF(
 					from,
 					target,
-					_scrollToAnimation.value(1.)));
+					_scrollToAnimation.value(1.)),
+				_visibleTop,
+				!_scrollToAnimation.animating(),
+				[=](int top) { _scrollToSignal.fire_copy(top); });
 		},
 		0.,
 		1.,
 		st::slideDuration,
 		anim::easeOutCubic);
+}
+
+int InnerWidget::jumpTarget(
+		not_null<Element*> view,
+		const MessageHighlightId &highlight) const {
+	const auto top = itemTop(view);
+	const auto height = view->height();
+	const auto viewport = _visibleBottom - _visibleTop;
+	const auto range = (highlight.richQuote && (height > viewport))
+		? HistoryView::FindHighlightYRange(
+			view,
+			_highlighter.state(view->data()))
+		: HistoryView::HighlightYRange();
+	return std::clamp(
+		(range
+			? HistoryView::AdjustScrollForRange(top, viewport, range)
+			: (top - std::max(0, (viewport - height) / 2))),
+		0,
+		std::max(0, this->height() - viewport));
 }
 
 void InnerWidget::expandGroupContaining(not_null<HistoryItem*> item) {
@@ -956,11 +1070,25 @@ void InnerWidget::expandGroupContaining(not_null<HistoryItem*> item) {
 		}
 		if (group.eventCount > 3
 			&& !_expandedGroups.contains(group.eventId)) {
+			auto anchor = captureScrollAnchor();
+			Tgw::ListScroll::CaptureAbove(this, anchor.view, anchor.snapshot);
+			const auto expansion = Tgw::ListScroll::TrackExpansion(
+				this,
+				anchor.snapshot);
 			_expandedGroups.insert(group.eventId);
 			clearDisplayPointers(DisplayPointerScope::All);
 			_skipScrollRestore = true;
 			rebuildDisplayItems();
 			_skipScrollRestore = false;
+			const auto shift = Tgw::ListScroll::Adjust(
+				this,
+				anchor.snapshot,
+				computeScrollFromAnchor(anchor),
+				&expansion);
+			const auto delta = shift.difference + shift.above;
+			if (delta) {
+				_scrollToSignal.fire_copy(_visibleTop + delta);
+			}
 		}
 		return;
 	}
@@ -1020,6 +1148,15 @@ void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 }
 
 void InnerWidget::restoreState(not_null<SectionMemento*> memento) {
+	_api.request(base::take(_preloadUpRequestId)).cancel();
+	_api.request(base::take(_preloadDownRequestId)).cancel();
+	_api.request(base::take(_newEventsRequestId)).cancel();
+	_upLoaded = _downLoaded = true;
+	_filterChanged = true;
+	clearDisplayItems(DisplayPointerScope::All);
+	_itemsByRealMsgId.clear();
+	_itemDates.clear();
+
 	// OwnedItem::refreshView may call requestItemResize.
 	// So we postpone resizing until all views are created.
 	_items.clear();
@@ -1053,55 +1190,16 @@ void InnerWidget::preloadMore(Direction direction) {
 		return;
 	}
 
-	auto flags = MTPchannels_GetAdminLog::Flags(0);
-	const auto filter = [&] {
-		using Flag = MTPDchannelAdminLogEventsFilter::Flag;
-		using LocalFlag = FilterValue::Flag;
-		const auto empty = MTPDchannelAdminLogEventsFilter::Flags(0);
-		const auto f = _filter.flags.value_or(LocalFlag());
-		return empty
-			| ((f & LocalFlag::Join) ? Flag::f_join : empty)
-			| ((f & LocalFlag::Leave) ? Flag::f_leave : empty)
-			| ((f & LocalFlag::Invite) ? Flag::f_invite : empty)
-			| ((f & LocalFlag::Ban) ? Flag::f_ban : empty)
-			| ((f & LocalFlag::Unban) ? Flag::f_unban : empty)
-			| ((f & LocalFlag::Kick) ? Flag::f_kick : empty)
-			| ((f & LocalFlag::Unkick) ? Flag::f_unkick : empty)
-			| ((f & LocalFlag::Promote) ? Flag::f_promote : empty)
-			| ((f & LocalFlag::Demote) ? Flag::f_demote : empty)
-			| ((f & LocalFlag::Info) ? Flag::f_info : empty)
-			| ((f & LocalFlag::Settings) ? Flag::f_settings : empty)
-			| ((f & LocalFlag::Pinned) ? Flag::f_pinned : empty)
-			| ((f & LocalFlag::Edit) ? Flag::f_edit : empty)
-			| ((f & LocalFlag::Delete) ? Flag::f_delete : empty)
-			| ((f & LocalFlag::GroupCall) ? Flag::f_group_call : empty)
-			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty)
-			| ((f & LocalFlag::Topics) ? Flag::f_forums : empty)
-			| ((f & LocalFlag::SubExtend) ? Flag::f_sub_extend : empty)
-			| ((f & LocalFlag::EditRank) ? Flag::f_edit_rank : empty);
-	}();
-	if (_filter.flags != 0) {
-		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
-	}
-	auto admins = QVector<MTPInputUser>(0);
-	if (_filter.admins) {
-		if (!_filter.admins->empty()) {
-			admins.reserve(_filter.admins->size());
-			for (const auto &admin : (*_filter.admins)) {
-				admins.push_back(admin->inputUser());
-			}
-		}
-		flags |= MTPchannels_GetAdminLog::Flag::f_admins;
-	}
+	const auto filter = PrepareRequestFilter(_filter);
 	auto maxId = (direction == Direction::Up) ? _minId : 0;
 	auto minId = (direction == Direction::Up) ? 0 : _maxId;
 	auto perPage = _items.empty() ? kEventsFirstPage : kEventsPerPage;
 	requestId = _api.request(MTPchannels_GetAdminLog(
-		MTP_flags(flags),
+		MTP_flags(filter.flags),
 		_channel->inputChannel(),
 		MTP_string(_searchQuery),
-		MTP_channelAdminLogEventsFilter(MTP_flags(filter)),
-		MTP_vector<MTPInputUser>(admins),
+		MTP_channelAdminLogEventsFilter(MTP_flags(filter.events)),
+		MTP_vector<MTPInputUser>(filter.admins),
 		MTP_long(maxId),
 		MTP_long(minId),
 		MTP_int(perPage)
@@ -1141,52 +1239,13 @@ void InnerWidget::fetchNewEventsBatch(
 		uint64 pollMinId,
 		uint64 maxId,
 		std::shared_ptr<QVector<MTPChannelAdminLogEvent>> accumulated) {
-	auto flags = MTPchannels_GetAdminLog::Flags(0);
-	const auto filter = [&] {
-		using Flag = MTPDchannelAdminLogEventsFilter::Flag;
-		using LocalFlag = FilterValue::Flag;
-		const auto empty = MTPDchannelAdminLogEventsFilter::Flags(0);
-		const auto f = _filter.flags.value_or(LocalFlag());
-		return empty
-			| ((f & LocalFlag::Join) ? Flag::f_join : empty)
-			| ((f & LocalFlag::Leave) ? Flag::f_leave : empty)
-			| ((f & LocalFlag::Invite) ? Flag::f_invite : empty)
-			| ((f & LocalFlag::Ban) ? Flag::f_ban : empty)
-			| ((f & LocalFlag::Unban) ? Flag::f_unban : empty)
-			| ((f & LocalFlag::Kick) ? Flag::f_kick : empty)
-			| ((f & LocalFlag::Unkick) ? Flag::f_unkick : empty)
-			| ((f & LocalFlag::Promote) ? Flag::f_promote : empty)
-			| ((f & LocalFlag::Demote) ? Flag::f_demote : empty)
-			| ((f & LocalFlag::Info) ? Flag::f_info : empty)
-			| ((f & LocalFlag::Settings) ? Flag::f_settings : empty)
-			| ((f & LocalFlag::Pinned) ? Flag::f_pinned : empty)
-			| ((f & LocalFlag::Edit) ? Flag::f_edit : empty)
-			| ((f & LocalFlag::Delete) ? Flag::f_delete : empty)
-			| ((f & LocalFlag::GroupCall) ? Flag::f_group_call : empty)
-			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty)
-			| ((f & LocalFlag::Topics) ? Flag::f_forums : empty)
-			| ((f & LocalFlag::SubExtend) ? Flag::f_sub_extend : empty)
-			| ((f & LocalFlag::EditRank) ? Flag::f_edit_rank : empty);
-	}();
-	if (_filter.flags != 0) {
-		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
-	}
-	auto admins = QVector<MTPInputUser>(0);
-	if (_filter.admins) {
-		if (!_filter.admins->empty()) {
-			admins.reserve(_filter.admins->size());
-			for (const auto &admin : (*_filter.admins)) {
-				admins.push_back(admin->inputUser());
-			}
-		}
-		flags |= MTPchannels_GetAdminLog::Flag::f_admins;
-	}
+	const auto filter = PrepareRequestFilter(_filter);
 	_newEventsRequestId = _api.request(MTPchannels_GetAdminLog(
-		MTP_flags(flags),
+		MTP_flags(filter.flags),
 		_channel->inputChannel(),
 		MTP_string(_searchQuery),
-		MTP_channelAdminLogEventsFilter(MTP_flags(filter)),
-		MTP_vector<MTPInputUser>(admins),
+		MTP_channelAdminLogEventsFilter(MTP_flags(filter.events)),
+		MTP_vector<MTPInputUser>(filter.admins),
 		MTP_long(maxId),
 		MTP_long(pollMinId),
 		MTP_int(kNewEventsLimit)
@@ -1363,7 +1422,10 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 			_skipUnreadEventPrune = false;
 		});
 		_skipUnreadEventPrune = !up;
-		_scrollToSignal.fire_copy(computeScrollFromAnchor(anchor));
+		_scrollToSignal.fire_copy(Tgw::ListScroll::Adjust(
+			this,
+			anchor.snapshot,
+			computeScrollFromAnchor(anchor)).target);
 	}
 	update();
 }
@@ -1609,7 +1671,8 @@ void InnerWidget::toggleDeleteGroup(uint64 groupEventId) {
 	_toggleAnimation.stop();
 
 	const auto scrollBefore = _visibleTop;
-	const auto anchor = captureScrollAnchor();
+	auto anchor = captureScrollAnchor();
+	Tgw::ListScroll::CaptureAbove(this, anchor.view, anchor.snapshot);
 
 	if (_expandedGroups.contains(groupEventId)) {
 		_expandedGroups.erase(groupEventId);
@@ -1623,17 +1686,44 @@ void InnerWidget::toggleDeleteGroup(uint64 groupEventId) {
 	rebuildDisplayItems();
 	_skipScrollRestore = false;
 
-	const auto scrollTarget = anchor.view
-		? computeScrollFromAnchor(anchor)
-		: scrollBefore;
+	const auto shift = Tgw::ListScroll::Adjust(
+		this,
+		anchor.snapshot,
+		anchor.view ? computeScrollFromAnchor(anchor) : scrollBefore);
+	const auto scrollFrom = scrollBefore + shift.difference + shift.above;
+	const auto scrollTarget = shift.target;
+	const auto consumed = [=] {
+		return Tgw::ListScroll::Consumed(this);
+	};
+	const auto count = consumed();
+	const auto end = Tgw::ListScroll::Placement(
+		this,
+		anchor.view,
+		anchor.delta,
+		scrollTarget);
 
-	_scrollToSignal.fire_copy(scrollBefore);
-	if (scrollBefore != scrollTarget) {
-		const auto from = scrollBefore;
+	_scrollToSignal.fire_copy(scrollFrom);
+	if (scrollFrom != scrollTarget) {
+		const auto from = scrollFrom;
 		const auto to = scrollTarget;
-		_toggleAnimation.start(
-			[=] { _scrollToSignal.fire_copy(anim::interpolate(
-				from, to, _toggleAnimation.value(1.))); },
+		_toggleFlight.start(
+			from,
+			to,
+			consumed,
+			count,
+			[=] { return Tgw::ListScroll::Inputs(this); },
+			end);
+		_toggleFlight.animate(
+			&_toggleAnimation,
+			[=] {
+				// Integral as before, so carrying adds exactly the change.
+				_toggleFlight.frame(
+					0,
+					anim::interpolate(from, to, _toggleAnimation.value(1.)),
+					_visibleTop,
+					!_toggleAnimation.animating(),
+					[=](int top) { _scrollToSignal.fire_copy(top); });
+			},
 			0.,
 			1.,
 			st::slideDuration,
@@ -1681,8 +1771,10 @@ void InnerWidget::clearDisplayPointers(DisplayPointerScope pointerScope) {
 		_mouseAction = MouseAction::None;
 	}
 	if (clearMember(_selectedItem)) {
-		_selectedItem = nullptr;
 		_selectedTextSelection = MessageSelection();
+		if (base::take(_selectedItem) && !_beingDestroyed) {
+			Tgw::RefreshNativeCopy();
+		}
 	}
 	if (displayPointerMatches(Element::Hovered(), pointerScope)) {
 		Element::Hovered(nullptr);
@@ -1785,8 +1877,15 @@ void InnerWidget::rebuildDisplayItems() {
 	updateSize();
 }
 
+void InnerWidget::resizeToWidth(int newWidth, int minHeight) {
+	const auto snapshot = Tgw::ListScroll::Capture(this);
+	_minHeight = minHeight;
+	RpWidget::resizeToWidth(newWidth);
+	Tgw::ListScroll::Keep(this, snapshot);
+}
+
 void InnerWidget::updateSize() {
-	RpWidget::resizeToWidth(width());
+	resizeToWidth(width(), _minHeight);
 	restoreScrollPosition();
 	updateVisibleTopItem();
 	checkPreloadMore();
@@ -1826,6 +1925,7 @@ auto InnerWidget::captureScrollAnchor() const -> ScrollAnchor {
 	if (_displayItems.empty()) {
 		return {};
 	}
+	auto snapshot = Tgw::ListScroll::Capture(this);
 	// Skip summaries — they get a fresh HistoryItem on every rebuild.
 	auto begin = std::rbegin(_displayItems);
 	auto end = std::rend(_displayItems);
@@ -1836,7 +1936,7 @@ auto InnerWidget::captureScrollAnchor() const -> ScrollAnchor {
 	for (auto it = from; it != end; ++it) {
 		const auto view = it->view;
 		if (_itemEventIds.contains(view->data())) {
-			return { view, _visibleTop - itemTop(view) };
+			return { view, _visibleTop - itemTop(view), std::move(snapshot) };
 		}
 	}
 	auto it = from;
@@ -1844,13 +1944,13 @@ auto InnerWidget::captureScrollAnchor() const -> ScrollAnchor {
 		--it;
 		const auto view = it->view;
 		if (_itemEventIds.contains(view->data())) {
-			return { view, _visibleTop - itemTop(view) };
+			return { view, _visibleTop - itemTop(view), std::move(snapshot) };
 		}
 	}
-	return {};
+	return { nullptr, 0, std::move(snapshot) };
 }
 
-int InnerWidget::computeScrollFromAnchor(ScrollAnchor anchor) const {
+int InnerWidget::computeScrollFromAnchor(const ScrollAnchor &anchor) const {
 	if (!anchor.view) {
 		return ScrollMax;
 	}
@@ -2075,10 +2175,15 @@ TextForMimeData InnerWidget::getSelectedText() const {
 		: TextForMimeData();
 }
 
+bool InnerWidget::canCopySelected() const {
+	return (_selectedItem && !_selectedTextSelection.empty())
+		|| _widgetSelection->has();
+}
+
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		_cancelSignal.fire({});
-	} else if (e == QKeySequence::Copy && _selectedItem != nullptr) {
+	} else if (e == QKeySequence::Copy && canCopySelected()) {
 		copySelectedText();
 #ifdef Q_OS_MAC
 	} else if (e->key() == Qt::Key_E && e->modifiers().testFlag(Qt::ControlModifier)) {
@@ -2115,7 +2220,15 @@ void InnerWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		mouseActionUpdate(e->globalPos());
+	}
+	if (_widgetTouch->mouseMenu(e)) {
+		e->accept();
+		return;
+	}
 	showContextMenu(e);
+	_widgetSelection->watch(_menu.get());
 }
 
 void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
@@ -2284,6 +2397,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}, &st::menuIconTranslate);
 			}
 		} else {
+			Tgw::ListSelection::FillMenu(this, item);
 			if (item && !isUponSelected) {
 				const auto media = view->media();
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
@@ -2329,6 +2443,9 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				},
 				&st::menuIconCopy);
 		}
+	}
+	if (view && myView(view) && (viewForItem(view->data()) == view)) {
+		Tgw::AddLogAction(_menu, view, _controller->uiShow());
 	}
 
 	if (_menu->empty()) {
@@ -2379,6 +2496,12 @@ void InnerWidget::copyContextImage(not_null<PhotoData*> photo) {
 }
 
 void InnerWidget::copySelectedText() {
+	if (_widgetSelection->has()) {
+		if (!_widgetSelection->showCopyRestriction()) {
+			TextUtilities::SetClipboardText(_widgetSelection->text());
+		}
+		return;
+	}
 	TextUtilities::SetClipboardText(getSelectedText());
 }
 
@@ -2799,6 +2922,7 @@ bool InnerWidget::canRestrict() const {
 }
 
 void InnerWidget::mousePressEvent(QMouseEvent *e) {
+	_widgetSelection->listPress(e->button(), bool(_menu));
 	if (_menu) {
 		e->accept();
 		return; // ignore mouse press, that was hiding context menu
@@ -2816,6 +2940,7 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 
 void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 	mouseActionFinish(e->globalPos(), e->button());
+	_widgetTouch->mouseRelease(e->button());
 	if (!rect().contains(e->pos())) {
 		leaveEvent(e);
 	}
@@ -2842,9 +2967,13 @@ void InnerWidget::leaveEventHook(QEvent *e) {
 
 void InnerWidget::mouseActionStart(const QPoint &screenPos, Qt::MouseButton button) {
 	mouseActionUpdate(screenPos);
-	if (button != Qt::LeftButton) return;
+	if (button != Qt::LeftButton) {
+		_widgetTouch->mousePress(button);
+		return;
+	}
 
 	ClickHandler::pressed();
+	_widgetSelection->press();
 	if (Element::Pressed() != Element::Hovered()) {
 		repaintItem(Element::Pressed());
 		Element::Pressed(Element::Hovered());
@@ -2934,7 +3063,18 @@ void InnerWidget::mouseActionCancel() {
 void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton button) {
 	mouseActionUpdate(screenPos);
 
+	const auto wasPressed = bool(ClickHandler::getPressed());
 	auto activated = ClickHandler::unpressed();
+	_widgetSelection->release();
+	if (const auto view = Element::HoveredLink()) {
+		if (wasPressed && !activated && view == Element::Moused()) {
+			const auto position = mapFromGlobal(_mousePosition);
+			const auto point = QPoint(
+				std::clamp(position.x(), 0, width()),
+				std::clamp(position.y(), _visibleTop, _visibleBottom));
+			view->updatePressed(mapPointToItem(point, view));
+		}
+	}
 	if (_mouseAction == MouseAction::Dragging) {
 		activated = nullptr;
 	}
@@ -2994,6 +3134,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 			}
 		}
 	}
+	Tgw::RefreshNativeCopy();
 	_mouseAction = MouseAction::None;
 	_mouseActionItem = nullptr;
 	_mouseSelectType = TextSelectType::Letters;
@@ -3014,6 +3155,13 @@ void InnerWidget::updateSelected() {
 	auto point = QPoint(
 		std::clamp(mousePosition.x(), 0, width()),
 		std::clamp(mousePosition.y(), _visibleTop, _visibleBottom));
+
+	// Voice message seek support.
+	if (const auto pressedView = Element::PressedLink()) {
+		const auto adjustedPoint = mapPointToItem(mousePosition, pressedView);
+		pressedView->updatePressed(adjustedPoint);
+	}
+	_widgetSelection->update();
 
 	auto itemPoint = QPoint();
 	auto begin = std::rbegin(_displayItems), end = std::rend(_displayItems);
@@ -3040,7 +3188,7 @@ void InnerWidget::updateSelected() {
 	}
 
 	TextState dragState;
-	ClickHandlerHost *lnkhost = nullptr;
+	auto lnkhost = (ClickHandlerHost*)nullptr;
 	auto dragStateUserpic = false;
 	auto selectingText = _selectedItem
 		&& (view == _mouseActionItem)
@@ -3101,7 +3249,7 @@ void InnerWidget::updateSelected() {
 	auto cursor = style::cur_default;
 	if (_mouseAction == MouseAction::None) {
 		_mouseCursorState = dragState.cursor;
-		if (dragState.link) {
+		if (dragState.link && _mouseCursorState != CursorState::Default) {
 			cursor = style::cur_pointer;
 		} else if (_mouseCursorState == CursorState::Text) {
 			cursor = style::cur_text;
@@ -3131,10 +3279,8 @@ void InnerWidget::updateSelected() {
 		}
 	}
 
-	// Voice message seek support.
-	if (const auto pressedView = Element::PressedLink()) {
-		const auto adjustedPoint = mapPointToItem(point, pressedView);
-		pressedView->updatePressed(adjustedPoint);
+	if (view && !ClickHandler::getPressed()) {
+		view->updatePressed(itemPoint);
 	}
 
 	//if (_mouseAction == MouseAction::Selecting) {
@@ -3299,6 +3445,7 @@ bool InnerWidget::eventHook(QEvent *e) {
 }
 
 void InnerWidget::onTouchSelect() {
+	const auto bridge = Tgw::TouchBridge();
 	_touchSelect = true;
 	mouseActionStart(_touchPos, Qt::LeftButton);
 }
@@ -3315,6 +3462,9 @@ void InnerWidget::onTouchScrollTimer() {
 		int32 elapsed = int32(nowTime - _touchTime);
 		QPoint delta = _touchSpeed * elapsed / 1000;
 		bool hasScrolled = !delta.isNull();
+		if (delta.y()) {
+			Tgw::ListScroll::Input(this);
+		}
 		if (hasScrolled) {
 			_scrollToSignal.fire_copy(_visibleTop - delta.y());
 		}
@@ -3331,57 +3481,13 @@ void InnerWidget::onTouchScrollTimer() {
 }
 
 void InnerWidget::touchUpdateSpeed() {
-	const auto nowTime = crl::now();
-	if (_touchPrevPosValid) {
-		const int elapsed = nowTime - _touchSpeedTime;
-		if (elapsed) {
-			const QPoint newPixelDiff = (_touchPos - _touchPrevPos);
-			const QPoint pixelsPerSecond = newPixelDiff * (1000 / elapsed);
-
-			const int newSpeedY = (std::abs(pixelsPerSecond.y())
-					> Ui::kFingerAccuracyThreshold)
-				? pixelsPerSecond.y()
-				: 0;
-			const int newSpeedX = (std::abs(pixelsPerSecond.x())
-					> Ui::kFingerAccuracyThreshold)
-				? pixelsPerSecond.x()
-				: 0;
-			if (_touchScrollState == Ui::TouchScrollState::Auto) {
-				const int oldSpeedY = _touchSpeed.y();
-				const int oldSpeedX = _touchSpeed.x();
-				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
-					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
-					_touchSpeed.setY(std::clamp(
-						(oldSpeedY + (newSpeedY / 4)),
-						-Ui::kMaxScrollAccelerated,
-						+Ui::kMaxScrollAccelerated));
-					_touchSpeed.setX(std::clamp(
-						(oldSpeedX + (newSpeedX / 4)),
-						-Ui::kMaxScrollAccelerated,
-						+Ui::kMaxScrollAccelerated));
-				} else {
-					_touchSpeed = QPoint();
-				}
-			} else {
-				if (!_touchSpeed.isNull()) {
-					_touchSpeed.setX(std::clamp(
-						(_touchSpeed.x() / 4) + (newSpeedX * 3 / 4),
-						-Ui::kMaxScrollFlick,
-						+Ui::kMaxScrollFlick));
-					_touchSpeed.setY(std::clamp(
-						(_touchSpeed.y() / 4) + (newSpeedY * 3 / 4),
-						-Ui::kMaxScrollFlick,
-						+Ui::kMaxScrollFlick));
-				} else {
-					_touchSpeed = QPoint(newSpeedX, newSpeedY);
-				}
-			}
-		}
-	} else {
-		_touchPrevPosValid = true;
-	}
-	_touchSpeedTime = nowTime;
-	_touchPrevPos = _touchPos;
+	HistoryView::UpdateTouchSpeed(
+		_touchSpeed,
+		_touchSpeedTime,
+		_touchPrevPos,
+		_touchPrevPosValid,
+		_touchPos,
+		_touchScrollState);
 }
 
 void InnerWidget::touchResetSpeed() {
@@ -3405,6 +3511,7 @@ void InnerWidget::touchDeaccelerate(int32 elapsed) {
 }
 
 void InnerWidget::touchEvent(QTouchEvent *e) {
+	const auto bridge = Tgw::TouchBridge();
 	if (e->type() == QEvent::TouchCancel) {
 		if (!_touchInProgress) {
 			return;
@@ -3414,6 +3521,7 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 		_touchScroll = _touchSelect = false;
 		_touchScrollState = Ui::TouchScrollState::Manual;
 		mouseActionCancel();
+		_widgetTouch->cancel();
 		return;
 	}
 
@@ -3424,10 +3532,12 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 
 	switch (e->type()) {
 	case QEvent::TouchBegin: {
+		_widgetSelection->dismiss();
 		if (_menu) {
 			e->accept();
 			return;
 		}
+		_widgetTouch->retire();
 		if (_touchInProgress || e->touchPoints().isEmpty()) {
 			return;
 		}
@@ -3441,7 +3551,9 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 			_touchStart = _touchPos;
 		} else {
 			_touchScroll = false;
-			_touchSelectTimer.callOnce(QApplication::startDragTime());
+			if (!_widgetTouch->begin(_touchPos)) {
+				_touchSelectTimer.callOnce(QApplication::startDragTime());
+			}
 		}
 		_touchSelect = false;
 		_touchStart = _touchPrevPos = _touchPos;
@@ -3450,11 +3562,16 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchUpdate: {
 		if (!_touchInProgress) {
 			return;
-		} else if (_touchSelect) {
+		}
+		const auto widget = _widgetTouch->update(_touchPos);
+		if (widget == false) {
+			return;
+		}
+		if (_touchSelect) {
 			mouseActionUpdate(_touchPos);
 		} else if (!_touchScroll
-				&& (_touchPos - _touchStart).manhattanLength()
-					>= QApplication::startDragDistance()) {
+				&& widget.value_or((_touchPos - _touchStart).manhattanLength()
+					>= QApplication::startDragDistance())) {
 			_touchSelectTimer.cancel();
 			_touchScroll = true;
 			touchUpdateSpeed();
@@ -3480,6 +3597,8 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 		const auto notMoved = (_touchPos - _touchStart).manhattanLength()
 			< QApplication::startDragDistance();
 		auto weak = base::make_weak(this);
+		const auto widget = _widgetTouch->end(_touchPos);
+		_touchScroll = widget.value_or(_touchScroll);
 		if (_touchSelect) {
 			if (notMoved) {
 				mouseActionFinish(_touchPos, Qt::RightButton);
@@ -3505,7 +3624,7 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 				_touchWaitingAcceleration = false;
 				_touchPrevPosValid = false;
 			}
-		} else if (notMoved) {
+		} else if (notMoved && !widget) {
 			mouseActionStart(_touchPos, Qt::LeftButton);
 			mouseActionFinish(_touchPos, Qt::LeftButton);
 		}
@@ -3519,6 +3638,9 @@ void InnerWidget::touchEvent(QTouchEvent *e) {
 
 void InnerWidget::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
+	if ((_touchPos - _touchPrevPos).y()) {
+		Tgw::ListScroll::Input(this);
+	}
 	_scrollToSignal.fire_copy(_visibleTop - (_touchPos - _touchPrevPos).y());
 	touchUpdateSpeed();
 }

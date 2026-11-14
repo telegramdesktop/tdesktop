@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/effects/animations.h"
 #include "ui/widgets/menu/menu_action.h"
 
 namespace Ui {
@@ -20,11 +21,20 @@ public:
 	using Ui::Menu::Action::Action;
 
 	void init(bool checked);
+	void setChangeAllowed(Fn<bool(bool checked)> allowed);
 
 	not_null<Ui::CheckView*> checkView() const;
 
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
 private:
+	void shake();
+
 	std::unique_ptr<Ui::CheckView> _checkView;
+	Fn<bool(bool)> _changeAllowed;
+	Ui::Animations::Simple _shakeAnimation;
+	int _shakeShift = 0;
 };
 
 } // namespace Menu

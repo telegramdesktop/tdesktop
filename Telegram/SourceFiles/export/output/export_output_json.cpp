@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/data/export_data_types.h"
 #include "core/utils.h"
 
+#include <cmath>
+
 #include <QtCore/QDateTime>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -49,7 +51,7 @@ QByteArray SerializeString(const QByteArray &value) {
 		} else if (ch == '\\') {
 			result.append("\\\\", 2);
 		} else if (ch >= 0 && ch < 32) {
-			result.append("\\x", 2).append('0' + (ch >> 4));
+			result.append("\\u00", 4).append('0' + (ch >> 4));
 			const auto left = (ch & 0x0F);
 			if (left >= 10) {
 				result.append('A' + (left - 10));
@@ -61,8 +63,10 @@ QByteArray SerializeString(const QByteArray &value) {
 			&& *(p + 1) == char(0x80)) {
 			if (*(p + 2) == char(0xA8)) { // Line separator.
 				result.append("\\u2028", 6);
+				p += 2;
 			} else if (*(p + 2) == char(0xA9)) { // Paragraph separator.
 				result.append("\\u2029", 6);
+				p += 2;
 			} else {
 				result.append(ch);
 			}
@@ -89,6 +93,12 @@ QByteArray StringAllowEmpty(const Data::Utf8String &data) {
 
 QByteArray StringAllowNull(const Data::Utf8String &data) {
 	return data.isEmpty() ? QByteArray("null") : SerializeString(data);
+}
+
+QByteArray FloatAllowNull(float64 value) {
+	return std::isfinite(value)
+		? Data::NumberToString(value)
+		: QByteArray("null");
 }
 
 QByteArray Indentation(int size) {
@@ -1097,10 +1107,10 @@ QByteArray SerializeRichMapPoint(
 	case Source::InputGeoPoint:
 		values.emplace_back(
 			"latitude",
-			Data::NumberToString(data.latitude));
+			FloatAllowNull(data.latitude));
 		values.emplace_back(
 			"longitude",
-			Data::NumberToString(data.longitude));
+			FloatAllowNull(data.longitude));
 		break;
 	}
 	if (data.accessHash) {
@@ -2782,7 +2792,7 @@ Result JsonWriter::writeFrequentContacts(const Data::ContactsList &data) {
 				{ "category", SerializeString(category) },
 				{ "type", SerializeString(type) },
 				{ "name", StringAllowNull(top.peer.name()) },
-				{ "rating", Data::NumberToString(top.rating) },
+				{ "rating", FloatAllowNull(top.rating) },
 			}));
 		}
 	};

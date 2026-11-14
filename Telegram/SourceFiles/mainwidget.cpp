@@ -36,12 +36,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
+#include "window/window_columns.h"
 #include "window/window_connecting_widget.h"
 #include "window/window_top_bar_wrap.h"
 #include "window/notifications_manager.h"
 #include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_slide_animation.h"
+#include "window/window_text_drop.h"
 #include "window/window_history_hider.h"
 #include "window/window_controller.h"
 #include "window/window_peer_menu.h"
@@ -171,13 +173,14 @@ base::options::toggle ForceComposeSearchOneColumn({
 base::options::toggle OptionUseNewChatView({
 	.id = kOptionUseNewChatView,
 	.name = "New chat view",
-	.description = "Open chats through the new section."
+	.description = "Open chats through the new section.",
+	.defaultValue = true,
 });
 
 } // namespace
 
 const char kForceComposeSearchOneColumn[] = "force-compose-search-one-column";
-const char kOptionUseNewChatView[] = "use-new-chat-view";
+const char kOptionUseNewChatView[] = "use-modern-chat-view";
 
 enum StackItemType {
 	HistoryStackItem,
@@ -401,20 +404,13 @@ MainWidget::MainWidget(
 		});
 	};
 	rpl::merge(
-		Core::App().settings().dialogsWithChatWidthRatioChanges(
+		_controller->columns().dialogsWithChatWidthRatioChanges(
 		) | filter(true) | rpl::to_empty,
-		Core::App().settings().dialogsNoChatWidthRatioChanges(
+		_controller->columns().dialogsNoChatWidthRatioChanges(
 		) | filter(false) | rpl::to_empty,
-		Core::App().settings().thirdColumnWidthChanges() | rpl::to_empty
+		_controller->columns().thirdColumnWidthChanges() | rpl::to_empty
 	) | rpl::on_next([=] {
 		updateControlsGeometry();
-	}, lifetime());
-
-	Core::App().settings().thirdSectionInfoEnabledValue(
-	) | rpl::skip(1) | rpl::on_next([=] {
-		crl::on_main(this, [=] {
-			updateColumnLayout();
-		});
 	}, lifetime());
 
 	session().changes().historyUpdates(
@@ -791,6 +787,24 @@ bool MainWidget::filesOrForwardDrop(
 			: _history->confirmSendingFiles(data));
 		return true;
 	}
+}
+
+void MainWidget::textDrop(
+		not_null<Data::Thread*> thread,
+		not_null<const QMimeData*> data) {
+	const auto text = data->text();
+	if (text.isEmpty()) {
+		return;
+	}
+	Window::DropTextToThread(
+		_controller,
+		thread,
+		text,
+		[=](const QString &text) {
+			(_mainSection
+				? _mainSection->insertTextAtCursor(text)
+				: _history->insertTextAtCursor(text));
+		});
 }
 
 bool MainWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
@@ -1544,7 +1558,7 @@ void MainWidget::showHistory(
 					const auto wasState
 						= _controller->dialogsEntryStateCurrent();
 					if (wasState.key) {
-						info->inlineReturnTo = wasState;
+						info->setInlineReturnTo(wasState);
 					}
 				}
 			}
@@ -1946,9 +1960,19 @@ void MainWidget::showSection(
 	//	return;
 	}
 
-	if (preventsCloseSection(
-		[=] { showSection(memento, params); },
-		params)) {
+	const auto thread = [&]() -> base::weak_ptr<Data::Thread> {
+		if (const auto topic = memento->topicForRemoveRequests()) {
+			return topic;
+		}
+		return memento->sublistForRemoveRequests();
+	}();
+	if (preventsCloseSection([=] {
+		// The confirmation can outlive the topic or sublist to be shown.
+		const auto info = dynamic_cast<Info::Memento*>(memento.get());
+		if ((thread.null() || thread) && (!info || info->stackSize() > 0)) {
+			showSection(memento, params);
+		}
+	}, params)) {
 		return;
 	}
 
@@ -1962,6 +1986,12 @@ void MainWidget::showSection(
 
 void MainWidget::updateColumnLayout() {
 	updateWindowAdaptiveLayout();
+}
+
+void MainWidget::columnsRestored() {
+	destroyThirdSection();
+	_thirdShadow.destroy();
+	updateControlsGeometry();
 }
 
 Window::SectionSlideParams MainWidget::prepareThirdSectionAnimation(Window::SectionWidget *section) {
@@ -2723,7 +2753,7 @@ void MainWidget::updateControlsGeometry() {
 	updateWindowAdaptiveLayout();
 	if (_dialogs) {
 		const auto nochat = !_controller->mainSectionShown();
-		if (Core::App().settings().dialogsWidthRatio(nochat) > 0) {
+		if (_controller->columns().dialogsWidthRatio(nochat) > 0) {
 			_a_dialogsWidth.stop();
 		}
 		if (!_a_dialogsWidth.animating()) {
@@ -2739,7 +2769,7 @@ void MainWidget::updateControlsGeometry() {
 				anim::activation::background);
 			const auto active = _controller->activeChatCurrent();
 			if (const auto thread = active.thread()) {
-				if (Core::App().settings().tabbedSelectorSectionEnabled()) {
+				if (_controller->columns().tabbedSelectorSectionEnabled()) {
 					if (_mainSection) {
 						_mainSection->pushTabbedSelectorToThirdSection(
 							thread,
@@ -2749,7 +2779,7 @@ void MainWidget::updateControlsGeometry() {
 							thread,
 							params);
 					}
-				} else if (Core::App().settings().thirdSectionInfoEnabled()) {
+				} else if (_controller->columns().thirdSectionInfoEnabled()) {
 					_controller->showSection(
 						(thread->asTopic()
 							? std::make_shared<Info::Memento>(
@@ -2952,15 +2982,15 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 			? 0.
 			: float64(newWidth) / width();
 		const auto nochat = !_controller->mainSectionShown();
-		Core::App().settings().updateDialogsWidthRatio(newRatio, nochat);
+		_controller->columns().updateDialogsWidthRatio(newRatio, nochat);
 	};
 	auto moveFinishedCallback = [=] {
 		if (isOneColumn()) {
 			return;
 		}
 		const auto nochat = !_controller->mainSectionShown();
-		if (Core::App().settings().dialogsWidthRatio(nochat) > 0) {
-			Core::App().settings().updateDialogsWidthRatio(
+		if (_controller->columns().dialogsWidthRatio(nochat) > 0) {
+			_controller->columns().updateDialogsWidthRatio(
 				float64(_dialogsWidth) / width(),
 				nochat);
 		}
@@ -2978,14 +3008,14 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = mapToGlobal(QPoint(width(), 0)).x() - globalLeft;
-		Core::App().settings().setThirdColumnWidth(newWidth);
+		_controller->columns().setThirdColumnWidth(newWidth);
 	};
 	auto moveFinishedCallback = [=] {
 		if (!isThreeColumn() || !_thirdSection) {
 			return;
 		}
-		Core::App().settings().setThirdColumnWidth(std::clamp(
-			Core::App().settings().thirdColumnWidth(),
+		_controller->columns().setThirdColumnWidth(std::clamp(
+			_controller->columns().thirdColumnWidth(),
 			st::columnMinimalWidthThird,
 			st::columnMaximalWidthThird));
 		Core::App().saveSettingsDelayed();
@@ -2998,12 +3028,12 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 
 void MainWidget::updateDialogsWidthAnimated() {
 	const auto nochat = !_controller->mainSectionShown();
-	if (!_dialogs || Core::App().settings().dialogsWidthRatio(nochat) > 0) {
+	if (!_dialogs || _controller->columns().dialogsWidthRatio(nochat) > 0) {
 		return;
 	}
 	auto dialogsWidth = _dialogsWidth;
 	updateWindowAdaptiveLayout();
-	if (Core::App().settings().dialogsWidthRatio(nochat) == 0.
+	if (_controller->columns().dialogsWidthRatio(nochat) == 0.
 		&& (_dialogsWidth != dialogsWidth
 			|| _a_dialogsWidth.animating())) {
 		_dialogs->startWidthAnimation();
@@ -3051,7 +3081,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			destroyThirdSection();
 		}
 	};
-	auto &settings = Core::App().settings();
+	auto &columns = _controller->columns();
 	auto params = Window::SectionShow(
 		Window::SectionShow::Way::ClearStack,
 		anim::type::instant,
@@ -3063,8 +3093,8 @@ void MainWidget::updateThirdColumnToCurrentChat(
 		// Like in _controller->showPeerInfo()
 		//
 		if (isThreeColumn()
-			&& !settings.thirdSectionInfoEnabled()) {
-			settings.setThirdSectionInfoEnabled(true);
+			&& !columns.thirdSectionInfoEnabled()) {
+			columns.setThirdSectionInfoEnabled(true);
 			Core::App().saveSettingsDelayed();
 		}
 
@@ -3079,19 +3109,19 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			: _history->pushTabbedSelectorToThirdSection(thread, params);
 	};
 	if (isThreeColumn()
-		&& settings.tabbedSelectorSectionEnabled()
+		&& columns.tabbedSelectorSectionEnabled()
 		&& key) {
 		if (!canWrite) {
 			switchInfoFast();
-			settings.setTabbedSelectorSectionEnabled(true);
-			settings.setTabbedReplacedWithInfo(true);
-		} else if (settings.tabbedReplacedWithInfo()
+			columns.setTabbedSelectorSectionEnabled(true);
+			columns.setTabbedReplacedWithInfo(true);
+		} else if (columns.tabbedReplacedWithInfo()
 			&& key.thread()
 			&& switchTabbedFast(key.thread())) {
-			settings.setTabbedReplacedWithInfo(false);
+			columns.setTabbedReplacedWithInfo(false);
 		}
 	} else {
-		settings.setTabbedReplacedWithInfo(false);
+		columns.setTabbedReplacedWithInfo(false);
 		if (!key) {
 			if (_thirdSection) {
 				destroyThirdSection();
@@ -3099,7 +3129,7 @@ void MainWidget::updateThirdColumnToCurrentChat(
 				updateControlsGeometry();
 			}
 		} else if (isThreeColumn()
-			&& settings.thirdSectionInfoEnabled()) {
+			&& columns.thirdSectionInfoEnabled()) {
 			switchInfoFast();
 		}
 	}
@@ -3224,7 +3254,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	const auto nochat = !_controller->mainSectionShown();
 
 	auto layout = _controller->computeColumnLayout();
-	auto dialogsWidthRatio = Core::App().settings().dialogsWidthRatio(nochat);
+	auto dialogsWidthRatio = _controller->columns().dialogsWidthRatio(nochat);
 
 	// Check if we are in a single-column layout in a wide enough window
 	// for the normal layout. If so, switch to the normal layout.
@@ -3267,7 +3297,7 @@ void MainWidget::updateWindowAdaptiveLayout() {
 		//}
 	}
 
-	Core::App().settings().updateDialogsWidthRatio(dialogsWidthRatio, nochat);
+	_controller->columns().updateDialogsWidthRatio(dialogsWidthRatio, nochat);
 
 	auto useSmallColumnWidth = !isOneColumn()
 		&& !dialogsWidthRatio

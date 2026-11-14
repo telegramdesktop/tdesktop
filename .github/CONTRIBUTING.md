@@ -13,6 +13,7 @@ This document describes how you can contribute to Telegram Desktop. Please read 
   * [Don't mix code changes with whitespace cleanup](#dont-mix-code-changes-with-whitespace-cleanup)
   * [Keep your code simple!](#keep-your-code-simple)
   * [Test your changes!](#test-your-changes)
+  * [Include a screenshot or video demonstration](#include-a-screenshot-or-video-demonstration)
   * [Write a good commit message](#write-a-good-commit-message)
 
 ## What contributions are accepted
@@ -98,6 +99,10 @@ Furthermore, the pixel shortage is over. We want to see:
 ### Test your changes!
 
 Before you submit a pull request, please test your changes. Verify that Telegram Desktop still works and your changes don't cause other issue or crashes.
+
+### Include a screenshot or video demonstration
+
+If your pull request changes anything visible in the application (interface, behavior, rendering), include a screenshot or a video demonstration of the change in the pull request description. Pull requests without any screenshot or video demonstration are automatically marked with the `waiting for answer` label and a bot comment asking for the missing demonstration.
 
 ### Write a good commit message
 

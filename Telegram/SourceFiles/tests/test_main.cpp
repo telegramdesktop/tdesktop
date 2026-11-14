@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QApplication>
 #include <QAbstractNativeEventFilter>
+#include <QFileInfo>
 #include <QScreen>
 #include <QThread>
 #include <QDir>
@@ -175,7 +176,8 @@ int main(int argc, char *argv[]) {
 	app.installNativeEventFilter(&app);
 
 #ifdef Q_OS_MAC
-	base::RegisterBundledResources(u"test_text.rcc"_q);
+	const auto rccName = QFileInfo(app.applicationFilePath()).baseName();
+	base::RegisterBundledResources(rccName + u".rcc"_q);
 #endif // Q_OS_MAC
 
 	const auto ratio = app.devicePixelRatio();

@@ -11,6 +11,10 @@ namespace InlineBots {
 struct WebViewContext;
 } // namespace InlineBots
 
+namespace Storage {
+enum class SharedMediaType : signed char;
+} // namespace Storage
+
 namespace Window {
 
 enum class ResolveType {
@@ -45,6 +49,8 @@ struct PeerByLinkInfo {
 	QString storyParam;
 	int storyAlbumId = 0;
 	int giftCollectionId = 0;
+	std::optional<Storage::SharedMediaType> sharedMediaTab;
+	bool sidebar = false;
 	std::optional<TimeId> videoTimestamp;
 	QString text;
 	RepliesByLinkInfo repliesInfo;

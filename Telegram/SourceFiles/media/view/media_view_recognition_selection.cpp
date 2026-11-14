@@ -65,6 +65,29 @@ RecognitionCacheMap *RecognitionCache() {
 	return cache.get();
 }
 
+RecognitionResult ScaleRecognitionResult(
+		RecognitionResult result,
+		QSize size) {
+	if (!result.success || result.coordinateSize.isEmpty()) {
+		return {};
+	} else if (size.isEmpty() || result.coordinateSize == size) {
+		return result;
+	}
+	const auto transform = QTransform::fromScale(
+		size.width() / float64(result.coordinateSize.width()),
+		size.height() / float64(result.coordinateSize.height()));
+	for (auto &item : result.items) {
+		item.rect = transform.mapRect(item.rect);
+		for (auto &glyph : item.glyphs) {
+			if (!glyph.isEmpty()) {
+				glyph = transform.mapRect(glyph);
+			}
+		}
+	}
+	result.coordinateSize = size;
+	return result;
+}
+
 QString RecognizedText(const Platform::TextRecognition::Result &result) {
 	const auto &items = result.items;
 	const auto reading = ComputeReadingOrder(items);
@@ -89,6 +112,8 @@ void RecognitionSelection::setSources(
 		not_null<const QImage*> image) {
 	_result = result;
 	_image = image;
+	_boundsCache.clear();
+	_boundsKey = 0;
 }
 
 RecognitionPosition RecognitionSelection::positionAt(

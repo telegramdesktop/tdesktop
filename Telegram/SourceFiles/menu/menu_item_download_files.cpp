@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_item_download_files.h"
 
-#include "base/base_file_utilities.h"
+#include "base/flat_set.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -183,11 +183,62 @@ void AddAction(
 		}
 	};
 	const auto saveDocuments = [=](const QString &folderPath) {
+		const auto nameKey = [](const QString &path) {
+			return QFileInfo(path).fileName().normalized(
+				QString::NormalizationForm_C).toCaseFolded();
+		};
+		const auto directory = QDir(folderPath);
+		auto usedNames = base::flat_set<QString>();
+		if (!folderPath.isEmpty()) {
+			for (const auto &[document, origin] : documents) {
+				const auto path = document->loadingFilePath();
+				if (!path.isEmpty() && QFileInfo(path).absoluteDir() == directory) {
+					usedNames.emplace(nameKey(path));
+				}
+			}
+		}
+		auto savedDocuments = base::flat_set<not_null<DocumentData*>>();
 		for (const auto &[document, origin] : documents) {
+			if (!savedDocuments.emplace(document).second) {
+				continue;
+			}
 			if (!folderPath.isEmpty()) {
-				const auto name =
-					base::FileNameFromUserString(document->filename());
-				document->save(origin, folderPath + name);
+				const auto already = document->filepath(true);
+				if (!already.isEmpty()
+					&& QFileInfo(already).absoluteDir() == directory) {
+					continue;
+				}
+				const auto loading = document->loadingFilePath();
+				if (!loading.isEmpty()
+					&& QFileInfo(loading).absoluteDir() == directory) {
+					document->save(origin, loading);
+					continue;
+				}
+				auto path = DocumentFileNameForSave(
+					document,
+					false,
+					QString(),
+					directory);
+				if (path.isEmpty()) {
+					continue;
+				}
+				if (usedNames.contains(nameKey(path))) {
+					const auto info = QFileInfo(path);
+					const auto suffix = info.suffix();
+					const auto extension = suffix.isEmpty()
+						? QString()
+						: ('.' + suffix);
+					const auto prefix = path.chopped(extension.size());
+					for (auto i = 2;; ++i) {
+						path = prefix + u" (%1)"_q.arg(i) + extension;
+						if (!usedNames.contains(nameKey(path))
+							&& !QFileInfo::exists(path)) {
+							break;
+						}
+					}
+				}
+				usedNames.emplace(nameKey(path));
+				document->save(origin, path);
 			} else {
 				DocumentSaveClickHandler::SaveAndTrack(origin, document);
 			}

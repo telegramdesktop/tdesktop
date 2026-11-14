@@ -86,7 +86,6 @@ public:
 		const CraftContext &context);
 
 	[[nodiscard]] QColor backgroundColor() const;
-	[[nodiscard]] QColor foregroundColor() const;
 
 private:
 	struct BackdropView;

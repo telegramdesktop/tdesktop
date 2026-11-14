@@ -23,6 +23,9 @@ using RecognitionResult = Platform::TextRecognition::Result;
 using RecognitionCacheMap = base::flat_map<RecognitionId, RecognitionResult>;
 
 [[nodiscard]] RecognitionCacheMap *RecognitionCache();
+[[nodiscard]] RecognitionResult ScaleRecognitionResult(
+	RecognitionResult result,
+	QSize size);
 [[nodiscard]] QString RecognizedText(
 	const Platform::TextRecognition::Result &result);
 

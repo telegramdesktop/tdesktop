@@ -69,11 +69,6 @@ PaintRoundImageCallback GeneratePaidMediaPaintCallback(
 	int totalCount,
 	Fn<void()> update);
 
-PaintRoundImageCallback GenerateGiftStickerUserpicCallback(
-	not_null<Main::Session*> session,
-	uint64 stickerId,
-	Fn<void()> update);
-
 Fn<PaintRoundImageCallback(Fn<void()>)> PaintPreviewCallback(
 	not_null<Main::Session*> session,
 	const Data::CreditsHistoryEntry &entry);

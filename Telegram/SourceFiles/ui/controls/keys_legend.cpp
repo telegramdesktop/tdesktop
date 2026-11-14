@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/keys_legend.h"
 
 #include "base/platform/base_platform_info.h"
+#include "lang/lang_keys.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/painter.h"
 #include "ui/qt_object_factory.h"
@@ -49,7 +50,7 @@ QString EscKey() {
 }
 
 QString SpaceKey() {
-	return u"Space"_q;
+	return tr::lng_keys_legend_space(tr::now);
 }
 
 namespace {
@@ -119,7 +120,14 @@ Cap MakeCap(const QString &text, const St &st) {
 			? (st.capMaxWidth - 2 * st.capPadding)
 			: kMeasureBound,
 		1);
-	const auto maxLinesHeight = kCapMaxLines * font->height;
+	auto maxLines = QStringList();
+	for (auto i = 0; i != kCapMaxLines; ++i) {
+		maxLines.push_back(u"X"_q);
+	}
+	const auto maxLinesHeight = MeasureCapText(
+		font,
+		maxLines.join(QChar('\n')),
+		inner).height();
 	auto result = text;
 	auto bound = MeasureCapText(font, result, inner);
 	if (bound.width() > inner || bound.height() > maxLinesHeight) {

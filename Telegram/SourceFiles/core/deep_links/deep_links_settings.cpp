@@ -1727,7 +1727,8 @@ void RegisterSettingsHandlers(Router &router) {
 	router.add(u"settings"_q, {
 		.path = u"features"_q,
 		.action = CodeBlock{ [](const Context &ctx) {
-			UrlClickHandler::Open(tr::lng_telegram_features_url(tr::now));
+			::Settings::OpenFeatures(
+				ctx.controller ? base::make_weak(ctx.controller) : nullptr);
 			return Result::Handled;
 		}},
 		.requiresAuth = false,

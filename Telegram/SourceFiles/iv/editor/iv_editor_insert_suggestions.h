@@ -67,7 +67,7 @@ public:
 		bool map);
 	~InsertSuggestions();
 
-	[[nodiscard]] bool applyQuery(const QString &query);
+	[[nodiscard]] bool applyQuery(const QString &query, bool lists);
 	void moveNear(QRect anchor, QRect available);
 	[[nodiscard]] bool handleKeyPress(not_null<QKeyEvent*> e);
 	[[nodiscard]] rpl::producer<InsertSuggestionCommand> chosen() const;
@@ -97,6 +97,7 @@ struct InsertSuggestionsDescriptor {
 	Fn<Ui::InputField*()> field;
 	rpl::producer<bool> premium;
 	Fn<void(InsertSuggestionCommand)> chosen;
+	Fn<bool()> lists;
 	bool media = false;
 	bool map = false;
 };
@@ -126,6 +127,7 @@ private:
 	const not_null<QWidget*> _outer;
 	const Fn<Ui::InputField*()> _field;
 	const Fn<void(InsertSuggestionCommand)> _chosen;
+	const Fn<bool()> _lists;
 	const bool _media = false;
 	const bool _map = false;
 	rpl::producer<bool> _premium;

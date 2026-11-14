@@ -40,7 +40,6 @@ protected:
 private:
 	void sendCode();
 	void sendCall();
-	void checkPhoneAndHash();
 
 	[[nodiscard]] int fragmentSkip() const;
 

@@ -180,26 +180,6 @@ struct Preview {
 
 } // namespace
 
-QImage GenerateChatThemePreview(
-		not_null<ChatTheme*> theme,
-		EmojiPtr emoji,
-		QSize size) {
-	auto result = GeneratePreview(theme, nullptr, size).preview;
-	if (emoji) {
-		auto p = QPainter(&result);
-		const auto large = Ui::Emoji::GetSizeLarge();
-		const auto factor = style::DevicePixelRatio();
-		const auto esize = large / factor;
-		Ui::Emoji::Draw(
-			p,
-			emoji,
-			large,
-			(size.width() - esize) / 2,
-			size.height() - esize - st::chatThemeEmojiBottom);
-	}
-	return result;
-}
-
 struct ChooseThemeController::Entry {
 	QString token;
 	Ui::ChatThemeKey key;

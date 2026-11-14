@@ -145,6 +145,7 @@ public:
 		std::shared_ptr<Window::SectionMemento> memento,
 		const SectionShow &params);
 	void updateColumnLayout();
+	void columnsRestored();
 	bool stackIsEmpty() const;
 	[[nodiscard]] std::vector<Window::SavedChat> chatStackForSave() const;
 	bool showBackFromStack(const SectionShow &params);
@@ -174,6 +175,9 @@ public:
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data,
 		bool forumResolved = false);
+	void textDrop(
+		not_null<Data::Thread*> thread,
+		not_null<const QMimeData*> data);
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(FullMsgId replyToId);

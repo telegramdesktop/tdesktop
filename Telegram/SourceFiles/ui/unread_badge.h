@@ -45,6 +45,11 @@ struct BotVerifyDetails {
 		const BotVerifyDetails &) = default;
 };
 
+[[nodiscard]] std::unique_ptr<Text::CustomEmoji> CreateBotVerifiedEmoji(
+	DocumentId iconId,
+	Text::CustomEmojiFactory factory,
+	Fn<void()> repaint);
+
 class PeerBadge {
 public:
 	PeerBadge();

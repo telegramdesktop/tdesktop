@@ -99,7 +99,8 @@ void Player::checkNextFrameRender() {
 	const auto now = crl::now();
 	if (now < _nextFrameTime) {
 		if (!_renderFrameTimer.isActive()) {
-			_renderFrameTimer.callOnce(_nextFrameTime - now);
+			_renderFrameTimer.callOnce(
+				std::min(_nextFrameTime - now, kDurationMax - 1));
 		}
 	} else {
 		_renderFrameTimer.cancel();

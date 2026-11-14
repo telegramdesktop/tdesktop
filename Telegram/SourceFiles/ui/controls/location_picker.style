@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "chat_helpers/chat_helpers.style";
 
-pickLocationWindow: size(364px, 680px);
+pickLocationWidth: 364px;
 pickLocationMapHeight: 220px;
-pickLocationCollapsedHeight: 92px;
 pickLocationButton: FlatButton {
 	height: pickLocationRowHeight;
 	bgColor: contactsBg;
@@ -46,17 +45,11 @@ pickLocationVenueItem: PeerListItem(defaultPeerListItem) {
 	statusFgOver: contactsStatusFgOver;
 	statusFgActive: contactsStatusFgOnline;
 }
-pickLocationVenueList: PeerList(defaultPeerList) {
-	item: pickLocationVenueItem;
-	padding: margins(0px, 0px, 0px, 0px);
-}
-pickLocationIconSkip: 6px;
 pickLocationLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
 	size: size(56px, 56px);
 	color: windowSubTextFg;
 	thickness: 4px;
 }
-pickLocationPromoHeight: 32px;
 pickLocationChooseOnMap: RoundButton(defaultActiveButton) {
 	height: 44px;
 	textTop: 11px;

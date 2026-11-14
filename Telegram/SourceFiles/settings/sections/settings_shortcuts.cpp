@@ -186,7 +186,7 @@ struct SetupShortcutsResult {
 		rpl::variable<bool> resetShown = true;
 		rpl::variable<Button*> recording;
 		rpl::variable<QKeySequence> lastKey;
-		Fn<void(S::Command command)> showMenuFor;
+		Fn<void(Button *button)> showMenuFor;
 	};
 	const auto state = content->lifetime().make_state<State>();
 	const auto labeled = Entries();
@@ -214,13 +214,16 @@ struct SetupShortcutsResult {
 		}
 	}
 
+	const auto entryModified = [](const Entry &entry) {
+		auto original = entry.original;
+		auto now = entry.now;
+		ranges::sort(original);
+		ranges::sort(now);
+		return original != now;
+	};
 	const auto checkModified = [=] {
 		for (const auto &entry : state->entries) {
-			auto original = entry.original;
-			auto now = entry.now;
-			ranges::sort(original);
-			ranges::sort(now);
-			if (original != now) {
+			if (entryModified(entry)) {
 				state->modified = true;
 				return;
 			}
@@ -314,7 +317,7 @@ struct SetupShortcutsResult {
 						return;
 					}
 					if (button == Qt::RightButton) {
-						state->showMenuFor(raw->command);
+						state->showMenuFor(raw);
 					} else {
 						S::Pause();
 						state->recording = raw;
@@ -330,27 +333,111 @@ struct SetupShortcutsResult {
 			entry.buttons.pop_back();
 		}
 	};
-	state->showMenuFor = [=](S::Command command) {
+	const auto deleteBinding = [=](Button *button) {
+		for (auto &entry : state->entries) {
+			const auto i = ranges::find(
+				entry.buttons,
+				button,
+				&std::unique_ptr<Button>::get);
+			if (i == end(entry.buttons)) {
+				continue;
+			}
+			const auto index = i - begin(entry.buttons);
+			const auto was = entry.now[index];
+			if (was.isEmpty()) {
+				return;
+			}
+			entry.now.erase(begin(entry.now) + index);
+			fill(entry);
+			checkModified();
+			S::Change(was, QKeySequence(), entry.command);
+			return;
+		}
+	};
+	const auto restoreRowDefault = [=](Button *button) {
+		for (auto &entry : state->entries) {
+			const auto i = ranges::find(
+				entry.buttons,
+				button,
+				&std::unique_ptr<Button>::get);
+			if (i == end(entry.buttons)) {
+				continue;
+			}
+			const auto index = i - begin(entry.buttons);
+			const auto was = entry.now[index];
+			const auto restore = ranges::find_if(
+				entry.original,
+				[&](const QKeySequence &k) {
+					return !k.isEmpty() && !ranges::contains(entry.now, k);
+				});
+			if (restore == end(entry.original)) {
+				return;
+			}
+			for (auto &other : state->entries) {
+				if (&other == &entry) {
+					continue;
+				}
+				const auto j = ranges::find(other.now, *restore);
+				if (j != end(other.now)
+					&& !ranges::contains(other.original, *restore)) {
+					other.now.erase(j);
+					fill(other);
+					S::Change(*restore, QKeySequence(), other.command);
+				}
+			}
+			entry.now[index] = *restore;
+			fill(entry);
+			checkModified();
+			S::RestoreDefaultFor(was, *restore, entry.command);
+			return;
+		}
+	};
+	state->showMenuFor = [=](Button *button) {
+		const auto i = ranges::find(
+			state->entries,
+			button->command,
+			&Entry::command);
+		if (i == end(state->entries)) {
+			return;
+		}
+		const auto entry = &*i;
+		const auto key = button->key.current();
+		const auto rowIsDefault = !key.isEmpty()
+			&& ranges::contains(entry->original, key);
+		const auto defaultsKept = ranges::all_of(
+			entry->original,
+			[&](const QKeySequence &k) {
+				return k.isEmpty() || ranges::contains(entry->now, k);
+			});
 		*menu = Ui::CreateChild<Ui::PopupMenu>(
 			content,
 			st::popupMenuWithIcons);
 		(*menu)->addAction(tr::lng_shortcuts_add_another(tr::now), [=] {
-			const auto i = ranges::find(
-				state->entries,
-				command,
-				&Entry::command);
-			if (i != end(state->entries)) {
-				S::Pause();
-				const auto j = ranges::find(i->now, QKeySequence());
-				if (j != end(i->now)) {
-					state->recording = i->buttons[j - begin(i->now)].get();
-				} else {
-					i->now.push_back(QKeySequence());
-					fill(*i);
-					state->recording = i->buttons.back().get();
-				}
+			S::Pause();
+			const auto j = ranges::find(entry->now, QKeySequence());
+			if (j != end(entry->now)) {
+				state->recording = entry->buttons[j - begin(entry->now)].get();
+			} else {
+				entry->now.push_back(QKeySequence());
+				fill(*entry);
+				state->recording = entry->buttons.back().get();
 			}
 		}, &st::menuIconTopics);
+		if (!key.isEmpty() && !rowIsDefault) {
+			if (!defaultsKept) {
+				(*menu)->addAction(tr::lng_shortcuts_reset(tr::now), [=] {
+					restoreRowDefault(button);
+				}, &st::menuIconRestore);
+			} else {
+				(*menu)->addAction(tr::lng_box_delete(tr::now), [=] {
+					deleteBinding(button);
+				}, &st::menuIconDelete);
+			}
+		} else if (key.isEmpty() && !defaultsKept) {
+			(*menu)->addAction(tr::lng_shortcuts_reset(tr::now), [=] {
+				restoreRowDefault(button);
+			}, &st::menuIconRestore);
+		}
 		(*menu)->popup(QCursor::pos());
 	};
 

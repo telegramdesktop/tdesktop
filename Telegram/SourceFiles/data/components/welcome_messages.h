@@ -26,6 +26,10 @@ struct MessagesSlice;
 [[nodiscard]] int WelcomeMessagesLimit(not_null<Main::Session*> session);
 [[nodiscard]] rpl::producer<int> WelcomeMessagesLimitValue(
 	not_null<Main::Session*> session);
+void ApplyEphemeralEdition(
+	not_null<Main::Session*> session,
+	not_null<HistoryItem*> item,
+	const MTPDephemeralMessage &data);
 
 class WelcomeMessages final {
 public:
@@ -97,9 +101,6 @@ private:
 	HistoryItem *append(
 		not_null<History*> history,
 		List &list,
-		const MTPDephemeralMessage &data);
-	void applyEdition(
-		not_null<HistoryItem*> item,
 		const MTPDephemeralMessage &data);
 	void updated(
 		not_null<History*> history,

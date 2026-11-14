@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "base/unixtime.h"
 #include "boxes/send_credits_box.h" // SetButtonMarkedLabel
+#include "boxes/star_gift_preview_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
@@ -716,42 +717,7 @@ void GiftButton::toggleSelected(
 
 void GiftButton::paintBackground(QPainter &p, const QImage &background) {
 	const auto removed = currentExtend() - _extend;
-	const auto x = removed.left();
-	const auto y = removed.top();
-	const auto width = this->width() - x - removed.right();
-	const auto height = this->height() - y - removed.bottom();
-	const auto dpr = int(background.devicePixelRatio());
-	const auto bwidth = background.width() / dpr;
-	const auto bheight = background.height() / dpr;
-	const auto fillRow = [&](int yfrom, int ytill, int bfrom) {
-		const auto fill = [&](int xto, int wto, int xfrom, int wfrom = 0) {
-			const auto fheight = ytill - yfrom;
-			p.drawImage(
-				QRect(x + xto, y + yfrom, wto, fheight),
-				background,
-				QRect(
-					QPoint(xfrom, bfrom) * dpr,
-					QSize((wfrom ? wfrom : wto), fheight) * dpr));
-		};
-		if (width < bwidth) {
-			const auto xhalf = width / 2;
-			fill(0, xhalf, 0);
-			fill(xhalf, width - xhalf, bwidth - (width - xhalf));
-		} else if (width == bwidth) {
-			fill(0, width, 0);
-		} else {
-			const auto half = bwidth / (2 * dpr);
-			fill(0, half, 0);
-			fill(width - half, half, bwidth - half);
-			fill(half, width - 2 * half, half, 1);
-		}
-	};
-	if (height < bheight) {
-		fillRow(0, height / 2, 0);
-		fillRow(height / 2, height, bheight - (height - (height / 2)));
-	} else {
-		fillRow(0, height, 0);
-	}
+	Ui::PaintGiftCardBackground(p, background, rect().marginsRemoved(removed));
 
 	auto hq = PainterHighQualityEnabler(p);
 	const auto progress = (_selectionMode == GiftSelectionMode::Border)

@@ -11,6 +11,8 @@ template <typename Object>
 class object_ptr;
 
 class PeerData;
+class QPainter;
+class QRectF;
 
 namespace Api {
 struct InviteLink;
@@ -83,3 +85,5 @@ void CopyInviteLink(std::shared_ptr<Ui::Show> show, const QString &link);
 	const Api::InviteLink &link);
 
 [[nodiscard]] QString PrepareRequestedRowStatus(TimeId date);
+
+void PaintSubscriptionBadge(QPainter &p, const QRectF &rect);

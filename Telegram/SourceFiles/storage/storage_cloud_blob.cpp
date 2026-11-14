@@ -145,7 +145,14 @@ void BlobLoader::setImplementation(
 		unpack(filepath);
 	}, _implementation->lifetime());
 
-	QDir(_folder).removeRecursively();
+	auto folderDir = QDir(_folder);
+	const auto folderName = folderDir.dirName();
+	if (!folderName.isEmpty()
+		&& folderName != u"."_q
+		&& folderName != u".."_q
+		&& !folderName.contains(':')) {
+		folderDir.removeRecursively();
+	}
 	_implementation->start();
 }
 

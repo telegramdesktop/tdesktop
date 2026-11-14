@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_publication_identity_scan.h"
 
@@ -541,6 +541,10 @@ private:
 	PublicationIdentityClassReading *_current = nullptr;
 	SecrecyClass _class = SecrecyClass::TestLog;
 	std::vector<ProfileFrame> _stack;
+	// Untyped openers read while no object was open, as in webrtc's device
+	// lists `list: { "<name>" <id> }`: only a closer read while still no
+	// object is open ends one, and opening a named object forfeits them.
+	int _nonObjectBraces = 0;
 	bool _lost = false;
 
 };
@@ -566,6 +570,7 @@ void IdentityMatcher::finish() {
 			: PublicationIdentityRefusal::LostObjectScope);
 	}
 	_stack.clear();
+	_nonObjectBraces = 0;
 	_lost = false;
 }
 
@@ -809,9 +814,13 @@ void IdentityMatcher::logicalLine(const QString &text) {
 				++end;
 			}
 			if (end == start) {
+				if (_stack.empty()) {
+					++_nonObjectBraces;
+				}
 				++i;
 				continue;
 			}
+			_nonObjectBraces = 0;
 			if (_stack.size() == kObjectLimit) {
 				refuse(PublicationIdentityRefusal::ParserDepthLimit);
 				_lost = true;
@@ -824,7 +833,11 @@ void IdentityMatcher::logicalLine(const QString &text) {
 			field.clear();
 			i = end;
 		} else if (ch == QChar('}')) {
-			closeObject();
+			if (_stack.empty() && _nonObjectBraces > 0) {
+				--_nonObjectBraces;
+			} else {
+				closeObject();
+			}
 			field.clear();
 			++i;
 		} else if (AsciiIdentifier(ch) && !AsciiDigit(ch)) {
@@ -1269,4 +1282,4 @@ bool CheckPublicationIdentity(const PublicationIdentityScanArgs &args) {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "mtproto/sender.h"
 #include "data/stickers/data_stickers_set.h"
-#include "data/data_messages.h"
 
 class TaskQueue;
 class HistoryItem;
@@ -30,6 +29,8 @@ struct RichPage;
 } // namespace Iv
 
 namespace Data {
+enum class LoadDirection : char;
+struct MessagePosition;
 struct ReactionId;
 struct UpdatedFileReferences;
 class WallPaper;
@@ -269,7 +270,6 @@ public:
 
 	void requestWebPageDelayed(not_null<WebPageData*> page);
 	void clearWebPageRequest(not_null<WebPageData*> page);
-	void clearWebPageRequests();
 
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
@@ -349,10 +349,11 @@ public:
 	}
 	void sendAction(const SendAction &action);
 	void finishForwarding(const SendAction &action);
-	void forwardMessages(
+	FullMsgId forwardMessages(
 		Data::ResolvedForwardDraft &&draft,
 		SendAction action,
-		FnMut<void()> &&successCallback = nullptr);
+		FnMut<void()> &&successCallback = nullptr,
+		Fn<void(const MessageIdsList&)> sentCallback = nullptr);
 	void shareContact(
 		const QString &phone,
 		const QString &firstName,
@@ -603,10 +604,6 @@ private:
 		PeerId monoforumPeerId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
-	void globalMediaDone(
-		SharedMediaType type,
-		FullMsgId messageId,
-		Api::GlobalMediaResult &&parsed);
 
 	void sendSharedContact(
 		const QString &phone,

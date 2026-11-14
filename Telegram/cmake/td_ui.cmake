@@ -83,6 +83,7 @@ set(style_files
     media/view/media_view.style
     overview/overview.style
     wallet/wallet.style
+    tgw/tgw.style
     window/window.style
     window/window_main_menu.style
     editor/editor.style
@@ -162,6 +163,8 @@ PRIVATE
     dialogs/ui/chat_search_empty.h
     dialogs/ui/chat_search_in.cpp
     dialogs/ui/chat_search_in.h
+    dialogs/ui/dialogs_bottom_button.cpp
+    dialogs/ui/dialogs_bottom_button.h
     dialogs/ui/dialogs_pill.cpp
     dialogs/ui/dialogs_pill.h
     dialogs/ui/dialogs_quick_action_context.h
@@ -534,6 +537,8 @@ PRIVATE
     ui/controls/send_as_button.h
     ui/controls/send_button.cpp
     ui/controls/send_button.h
+    ui/controls/slider_tick_labels.cpp
+    ui/controls/slider_tick_labels.h
     ui/controls/stars_rating.cpp
     ui/controls/stars_rating.h
     ui/controls/subsection_tabs_slider.cpp

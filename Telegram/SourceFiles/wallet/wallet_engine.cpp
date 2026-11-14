@@ -43,8 +43,8 @@ constexpr auto kMaxTrackedEarlyCancels = 64;
 constexpr auto kRoutedSendTimeout = std::chrono::milliseconds(40000);
 
 // The open recordings of the engine call running on this thread.
-thread_local EngineSecretStores *t_recordingStores = nullptr;
-thread_local SecretReadWatch *t_secretReadWatch = nullptr;
+thread_local auto t_recordingStores = (EngineSecretStores*)nullptr;
+thread_local auto t_secretReadWatch = (SecretReadWatch*)nullptr;
 thread_local std::shared_ptr<TransferSubmission> t_transferSubmission;
 thread_local std::optional<QByteArray> t_transferGasless;
 
@@ -544,6 +544,12 @@ SecretReadFailure ProtectedSecretFailure(const EngineError &error) {
 	} catch (...) {
 	}
 	return SecretReadFailure::None;
+}
+
+std::optional<int64> DecimalInt64(const std::string &value) {
+	auto ok = false;
+	const auto result = QString::fromStdString(value).toLongLong(&ok);
+	return ok ? std::make_optional(result) : std::nullopt;
 }
 
 TransferSubmission::Recording::Recording(

@@ -138,6 +138,7 @@ public:
 		SendPreparedMessageRequest request) = 0;
 	virtual void botRequestChat(RequestChatRequest request) = 0;
 	virtual void botVerifyAge(int age) = 0;
+	virtual void botOpenTermsOfService() = 0;
 	virtual void botOpenPrivacyPolicy() = 0;
 	virtual void botClose() = 0;
 };
@@ -164,6 +165,7 @@ public:
 	void requestActivate();
 	void toggleProgress(bool shown);
 	void requestWindowClose();
+	void requestOpenLink(const QString &url, Fn<void()> open);
 	[[nodiscard]] bool isActiveWindow() const;
 
 	void showBox(object_ptr<BoxContent> box);

@@ -29,11 +29,6 @@ int PremiumLimits::similarChannelsDefault() const {
 int PremiumLimits::similarChannelsPremium() const {
 	return appConfigLimit("recommended_channels_limit_premium", 100);
 }
-int PremiumLimits::similarChannelsCurrent() const {
-	return isPremium()
-		? channelsPremium()
-		: channelsDefault();
-}
 
 int PremiumLimits::gifsDefault() const {
 	return appConfigLimit("saved_gifs_limit_default", 200);
@@ -77,11 +72,6 @@ int PremiumLimits::dialogShareableFiltersDefault() const {
 int PremiumLimits::dialogShareableFiltersPremium() const {
 	return appConfigLimit("chatlists_joined_limit_premium", 20);
 }
-int PremiumLimits::dialogShareableFiltersCurrent() const {
-	return isPremium()
-		? dialogShareableFiltersPremium()
-		: dialogShareableFiltersDefault();
-}
 
 int PremiumLimits::dialogFiltersChatsDefault() const {
 	return appConfigLimit("dialog_filters_chats_limit_default", 100);
@@ -100,11 +90,6 @@ int PremiumLimits::dialogFiltersLinksDefault() const {
 }
 int PremiumLimits::dialogFiltersLinksPremium() const {
 	return appConfigLimit("chatlist_invites_limit_premium", 20);
-}
-int PremiumLimits::dialogFiltersLinksCurrent() const {
-	return isPremium()
-		? dialogFiltersLinksPremium()
-		: dialogFiltersLinksDefault();
 }
 
 int PremiumLimits::dialogsPinnedDefault() const {
@@ -185,11 +170,6 @@ int PremiumLimits::uploadMaxDefault() const {
 }
 int PremiumLimits::uploadMaxPremium() const {
 	return appConfigLimit("upload_max_fileparts_premium", 8000);
-}
-int PremiumLimits::uploadMaxCurrent() const {
-	return isPremium()
-		? uploadMaxPremium()
-		: uploadMaxDefault();
 }
 
 int PremiumLimits::aboutLengthDefault() const {

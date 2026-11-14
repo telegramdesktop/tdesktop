@@ -44,8 +44,6 @@ constexpr auto kReadableTextColumns = 12;
 constexpr auto kReadableTextLineHeights = 4;
 constexpr auto kReadableCodeColumns = 16;
 
-thread_local const LayoutContext *CurrentLayoutContext = nullptr;
-
 [[nodiscard]] size_t CombineHash(size_t accumulator, size_t value) {
 	return (accumulator * 1315423911U) ^ value;
 }
@@ -646,7 +644,9 @@ void PopulateCodeBlockLeaf(
 		false,
 		std::move(repaint),
 		std::move(repaintRect),
-		std::move(spoilerLinkFilter));
+		std::move(spoilerLinkFilter),
+		false,
+		true);
 	BindLinks(leaf, codeLinks);
 	if (syntaxHighlightProcessId) {
 		*syntaxHighlightProcessId = processId;
@@ -826,39 +826,7 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	if (!block) {
 		return;
 	}
-	block->outer = QRect();
-	block->headerRect = QRect();
-	block->bodyRect = QRect();
-	block->iconRect = QRect();
-	block->textRect = QRect();
-	block->labelRect = QRect();
-	block->subtitleRect = QRect();
-	block->actionRect = QRect();
-	block->markerRect = QRect();
-	block->contentRect = QRect();
-	block->collapseControlRect = QRect();
-	block->buttonRowControlRect = QRect();
-	block->formulaRect = QRect();
-	block->tableRect = QRect();
-	block->mediaRect = QRect();
-	block->thumbnailRect = QRect();
-	block->visibleFormulaRect = QRect();
-	block->scrollViewportRect = QRect();
-	block->scrollLogicalContentRect = QRect();
-	block->scrollScrollbarTrackRect = QRect();
-	block->scrollScrollbarThumbRect = QRect();
-	block->visibleTableRect = QRect();
-	block->tableScrollbarTrackRect = QRect();
-	block->tableScrollbarThumbRect = QRect();
-	block->visibleMediaRect = QRect();
-	block->markerCenter = QPoint();
-	block->logicalGeometry = {};
-	block->textWidth = 0;
-	block->labelWidth = 0;
-	block->subtitleWidth = 0;
-	block->actionWidth = 0;
-	block->markerWidth = 0;
-	block->firstLineBaseline = -1;
+	ResetBlockGeometryFields(block);
 	block->formulaAlign = style::al_left;
 	block->overflowed = false;
 	block->insideHorizontalScroll = false;
@@ -912,6 +880,42 @@ void FinishBlockGeometry(LaidOutBlock *block) {
 }
 
 } // namespace
+
+void ResetBlockGeometryFields(LaidOutBlock *block) {
+	block->outer = QRect();
+	block->headerRect = QRect();
+	block->bodyRect = QRect();
+	block->iconRect = QRect();
+	block->textRect = QRect();
+	block->labelRect = QRect();
+	block->subtitleRect = QRect();
+	block->actionRect = QRect();
+	block->markerRect = QRect();
+	block->contentRect = QRect();
+	block->collapseControlRect = QRect();
+	block->buttonRowControlRect = QRect();
+	block->formulaRect = QRect();
+	block->tableRect = QRect();
+	block->mediaRect = QRect();
+	block->thumbnailRect = QRect();
+	block->visibleFormulaRect = QRect();
+	block->scrollViewportRect = QRect();
+	block->scrollLogicalContentRect = QRect();
+	block->scrollScrollbarTrackRect = QRect();
+	block->scrollScrollbarThumbRect = QRect();
+	block->visibleTableRect = QRect();
+	block->tableScrollbarTrackRect = QRect();
+	block->tableScrollbarThumbRect = QRect();
+	block->visibleMediaRect = QRect();
+	block->markerCenter = QPoint();
+	block->logicalGeometry = {};
+	block->textWidth = 0;
+	block->labelWidth = 0;
+	block->subtitleWidth = 0;
+	block->actionWidth = 0;
+	block->markerWidth = 0;
+	block->firstLineBaseline = -1;
+}
 
 int TableBorder(
 		bool bordered,
@@ -1193,15 +1197,6 @@ size_t CachedTextLeafKeyHasher::operator()(
 		return CombineHash(result, HashPreparedEditLeafSource(value.editLeaf));
 	}
 	return result;
-}
-
-LayoutContextScope::LayoutContextScope(const LayoutContext &context)
-: _previous(CurrentLayoutContext) {
-	CurrentLayoutContext = &context;
-}
-
-LayoutContextScope::~LayoutContextScope() {
-	CurrentLayoutContext = _previous;
 }
 
 void FillMediaCaptionContent(
@@ -3639,7 +3634,9 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	block->contentRect = QRect(left, top, visibleWidth, height);
 	block->overflowed = (block->textWidth > visibleWidth);
 	block->horizontalScrollMax = scrollOwner
-		? std::max(block->textWidth - visibleWidth, 0)
+		? std::max(
+			std::min(displayLeaf.maxWidth(), block->textWidth) - visibleWidth,
+			0)
 		: 0;
 	if (scrollOwner) {
 		block->scrollViewportRect = block->contentRect;
@@ -3710,7 +3707,9 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		context);
 	block->overflowed = (block->textWidth > viewportWidth);
 	block->horizontalScrollMax = scrollOwner
-		? std::max(block->textWidth - viewportWidth, 0)
+		? std::max(
+			std::min(displayLeaf.maxWidth(), block->textWidth) - viewportWidth,
+			0)
 		: 0;
 	const auto outerHeight = padding.top()
 		+ height

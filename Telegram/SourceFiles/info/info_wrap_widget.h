@@ -47,6 +47,7 @@ class MoveMemento;
 class ContentMemento;
 class ContentWidget;
 class TopBar;
+struct MementoThreadLifetime;
 
 enum class Wrap {
 	Layer,
@@ -189,19 +190,18 @@ private:
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
 	void subscribeToThreadDestroyed();
+	void subscribeToStackThreadsDestroyed();
+	void removeThreadFromStack(not_null<Data::Thread*> thread);
 	bool returnToFirstStackFrame(
 		not_null<ContentMemento*> memento,
 		const Window::SectionShow &params);
 	void setupTop();
 	void setupTopBarMenuToggle();
 	void createTopBar();
-	void highlightTopBar();
 	void setupShortcuts();
 
 	[[nodiscard]] bool willHaveBackButton(
 		const Window::SectionShow &params) const;
-
-	not_null<RpWidget*> topWidget() const;
 
 	QRect contentGeometry() const;
 	rpl::producer<int> desiredHeightForContent() const;
@@ -249,6 +249,7 @@ private:
 	std::vector<StackItem> _historyStack;
 	rpl::event_stream<> _removeRequests;
 	rpl::lifetime _threadDestroyedLifetime;
+	std::vector<std::unique_ptr<MementoThreadLifetime>> _mementoThreadLifetimes;
 	bool _shortcutsSetup = false;
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;

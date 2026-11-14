@@ -139,7 +139,6 @@ public:
 	[[nodiscard]] std::optional<CallFailure> failed() const;
 	[[nodiscard]] rpl::producer<CallFailure> failures() const;
 
-	[[nodiscard]] QByteArray emojiHash() const;
 	[[nodiscard]] rpl::producer<QByteArray> emojiHashValue() const;
 
 	[[nodiscard]] bool hasLastBlock0() const;

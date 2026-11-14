@@ -36,6 +36,36 @@ PostsSearch::PostsSearch(not_null<Main::Session*> session)
 	Data::AmPremiumValue(_session) | rpl::on_next([=] {
 		maybePushPremiumUpdate();
 	}, _lifetime);
+
+	_session->data().itemRemoved(
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
+		if (!_cached.erase(item.get())) {
+			return;
+		}
+		for (auto &[query, entry] : _entries) {
+			for (auto &page : entry.pages) {
+				page.erase(ranges::remove_if(page, [&](
+						not_null<HistoryItem*> found) {
+					return found.get() == item.get();
+				}), end(page));
+			}
+		}
+	}, _lifetime);
+}
+
+void PostsSearch::remember(const std::vector<not_null<HistoryItem*>> &page) {
+	for (const auto &item : page) {
+		++_cached[item.get()];
+	}
+}
+
+void PostsSearch::forget(const std::vector<not_null<HistoryItem*>> &page) {
+	for (const auto &item : page) {
+		const auto i = _cached.find(item.get());
+		if (i != end(_cached) && !--i->second) {
+			_cached.erase(i);
+		}
+	}
 }
 
 rpl::producer<PostsSearchState> PostsSearch::stateUpdates() const {
@@ -264,8 +294,12 @@ void PostsSearch::requestSearch(const QString &query) {
 			return std::vector<not_null<HistoryItem*>>();
 		});
 		if (initial) {
+			for (const auto &page : entry.pages) {
+				forget(page);
+			}
 			entry.pages.clear();
 		}
+		remember(messages);
 		entry.pages.push_back(std::move(messages));
 		const auto count = int(ranges::accumulate(
 			entry.pages,

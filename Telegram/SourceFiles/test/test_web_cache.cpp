@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "test/test_web_cache.h"
 
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "base/random.h"
 #include "core/application.h"
@@ -443,4 +443,4 @@ void AppendWebDocumentCacheSelfTest(not_null<Runner*> runner) {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

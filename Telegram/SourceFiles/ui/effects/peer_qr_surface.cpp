@@ -140,7 +140,6 @@ struct CardFrame {
 };
 
 struct BackgroundRequest {
-	std::array<QImage, 4> corners;
 	QSize size;
 	QColor center;
 	QColor edge;
@@ -512,10 +511,7 @@ void PaintAppearanceGradient(
 	if (request.size.isEmpty() || !request.center.isValid()) {
 		return QImage();
 	}
-	auto result = ComposeColorBackground(request);
-	return request.corners.front().isNull()
-		? result
-		: Images::Round(std::move(result), request.corners);
+	return ComposeColorBackground(request);
 }
 
 [[nodiscard]] float64 FarthestCorner(QPointF center, QSizeF size) {
@@ -1065,7 +1061,6 @@ PeerQrSurface::PeerQrSurface(
 , _colors(ComputePeerQrColors(_appearance))
 , _shownColors(_colors)
 , _card(std::make_unique<Card>())
-, _corners(Images::CornersMask(st::boxRadius))
 , _animation([=](crl::time now) { return animationCallback(now); }) {
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	sizeValue() | rpl::skip(1) | rpl::on_next([=] {
@@ -1154,7 +1149,9 @@ void PeerQrSurface::setCountdown(const QString &countdown) {
 	}
 }
 
-void PeerQrSurface::setCardGeometry(QRect card) {
+void PeerQrSurface::setCardGeometry(QRect card, QRectF centerReach) {
+	const auto reachChanged = (_cardReach != centerReach);
+	_cardReach = centerReach;
 	if (_cardGeometry != card) {
 		const auto moved = (_cardGeometry.center() != card.center());
 		_cardGeometry = card;
@@ -1162,6 +1159,8 @@ void PeerQrSurface::setCardGeometry(QRect card) {
 		if (moved && _appearance.center.isValid()) {
 			composeNow();
 		}
+	} else if (reachChanged) {
+		update();
 	}
 }
 
@@ -1446,7 +1445,7 @@ void PeerQrSurface::paintEvent(QPaintEvent *e) {
 	if (_wave) {
 		paintWave(p, now, controls.shown);
 	} else {
-		p.drawImage(0, 0, _background);
+		paintBackground(p, e->rect());
 	}
 	if (_cardGeometry.isEmpty()) {
 		return;
@@ -1703,30 +1702,73 @@ QPointF PeerQrSurface::gradientCenter() const {
 		: cardRect().center();
 }
 
-bool PeerQrSurface::backgroundStale() const {
-	return !_backgroundComposing
-		&& _appearance.center.isValid()
-		&& (gradientCenter() != _backgroundCenter);
+QRectF PeerQrSurface::gradientReach(QPointF center) const {
+	if (_cardGeometry.isEmpty()) {
+		return QRectF(center, center);
+	}
+	const auto &reach = _cardReach;
+	return QRectF(
+		QPointF(
+			std::min({ center.x(), reach.left(), reach.right() }),
+			std::min({ center.y(), reach.top(), reach.bottom() })),
+		QPointF(
+			std::max({ center.x(), reach.left(), reach.right() }),
+			std::max({ center.y(), reach.top(), reach.bottom() })));
 }
 
-Fn<QImage()> PeerQrSurface::prepareBackground() {
+QRect PeerQrSurface::backgroundSource(QPointF center) const {
 	const auto ratio = style::DevicePixelRatio();
-	auto request = BackgroundRequest{
-		.corners = _corners,
-		.size = size() * ratio,
-	};
-	_backgroundCenter = gradientCenter();
-	if (_appearance.center.isValid()) {
+	const auto origin = _background.center - center * ratio;
+	return QRect(
+		QPoint(
+			int(base::SafeRound(origin.x())),
+			int(base::SafeRound(origin.y()))),
+		size() * ratio);
+}
+
+bool PeerQrSurface::backgroundStale() const {
+	if (_backgroundComposing
+		|| size().isEmpty()
+		|| !_appearance.center.isValid()) {
+		return false;
+	}
+	const auto reach = gradientReach(gradientCenter());
+	const auto image = QRect(QPoint(), _background.image.size());
+	return !image.contains(backgroundSource(reach.topLeft()))
+		|| !image.contains(backgroundSource(reach.bottomRight()));
+}
+
+Fn<PeerQrSurface::Background()> PeerQrSurface::prepareBackground() const {
+	const auto ratio = style::DevicePixelRatio();
+	const auto center = gradientCenter();
+	auto request = BackgroundRequest{ .size = size() * ratio };
+	auto anchor = center * ratio;
+	if (!request.size.isEmpty() && _appearance.center.isValid()) {
 		const auto cardWidth = _cardGeometry.isEmpty()
 			? st::peerQrCardWidth
 			: _cardGeometry.width();
+		const auto reach = gradientReach(center);
+		const auto room = [&](float64 distance) {
+			return int(std::ceil(distance * ratio));
+		};
+		// WHY: the extra room lets the card's centre move anywhere in its
+		// reach while the same image slides under the box, so a panel
+		// transition paints shifted pieces of it instead of composing again.
+		const auto lead = QSize(
+			room(reach.right() - center.x()),
+			room(reach.bottom() - center.y()));
+		const auto tail = QSize(
+			room(center.x() - reach.left()),
+			room(center.y() - reach.top()));
+		anchor += QPointF(lead.width(), lead.height());
+		request.size += lead + tail;
 		request.center = _appearance.center;
 		request.edge = _appearance.edge;
-		request.gradientCenter = _backgroundCenter * ratio;
+		request.gradientCenter = anchor;
 		request.gradientRadius = kGradientRadiusToCard * cardWidth * ratio;
 	}
-	return [request = std::move(request)] {
-		return ComposeBackground(request);
+	return [request = std::move(request), anchor] {
+		return Background{ ComposeBackground(request), anchor };
 	};
 }
 
@@ -1735,11 +1777,11 @@ void PeerQrSurface::requestBackground() {
 	const auto generation = _backgroundGeneration;
 	const auto weak = base::make_weak(this);
 	crl::async([=, compose = prepareBackground()] {
-		auto image = compose();
-		crl::on_main(weak, [=, image = std::move(image)]() mutable {
+		auto background = compose();
+		crl::on_main(weak, [=, background = std::move(background)]() mutable {
 			_backgroundComposing = false;
 			if (_backgroundGeneration == generation) {
-				applyBackground(std::move(image));
+				applyBackground(std::move(background));
 			} else {
 				update();
 			}
@@ -1747,13 +1789,64 @@ void PeerQrSurface::requestBackground() {
 	});
 }
 
-void PeerQrSurface::applyBackground(QImage image) {
+void PeerQrSurface::applyBackground(Background background) {
 	const auto ratio = style::DevicePixelRatio();
-	if (image.size() == size() * ratio) {
-		_background = std::move(image);
-		_background.setDevicePixelRatio(ratio);
+	const auto &image = background.image;
+	if (!image.isNull()
+		&& image.width() >= width() * ratio
+		&& image.height() >= height() * ratio) {
+		_background = std::move(background);
+		_background.image.setDevicePixelRatio(ratio);
 	}
 	update();
+}
+
+void PeerQrSurface::paintBackground(QPainter &p, QRect area) const {
+	const auto &image = _background.image;
+	const auto ratio = style::DevicePixelRatio();
+	const auto viewport = size() * ratio;
+	if (image.isNull() || viewport.isEmpty()) {
+		return;
+	}
+	const auto source = backgroundSource(gradientCenter()).topLeft();
+	const auto origin = QPoint(
+		std::max(std::min(source.x(), image.width() - viewport.width()), 0),
+		std::max(std::min(source.y(), image.height() - viewport.height()), 0));
+	const auto blit = [&](QRect target) {
+		if (!target.isEmpty()) {
+			p.drawImage(target, image, QRect(
+				origin + target.topLeft() * ratio,
+				target.size() * ratio));
+		}
+	};
+	const auto outer = rect();
+	if (!MeetsCorner(outer, area)) {
+		blit(outer);
+		return;
+	}
+	const auto radius = st::boxRadius;
+	const auto w = outer.width();
+	const auto h = outer.height();
+	const auto banded = (w >= 2 * radius) && (h >= 2 * radius);
+	if (banded) {
+		blit(QRect(0, radius, w, h - 2 * radius));
+		blit(QRect(radius, 0, w - 2 * radius, radius));
+		blit(QRect(radius, h - radius, w - 2 * radius, radius));
+	}
+	auto rounded = QPainterPath();
+	rounded.addRoundedRect(QRectF(outer), radius, radius);
+	p.save();
+	p.setRenderHint(QPainter::Antialiasing);
+	p.setClipPath(rounded, Qt::IntersectClip);
+	if (banded) {
+		blit(QRect(0, 0, radius, radius));
+		blit(QRect(w - radius, 0, radius, radius));
+		blit(QRect(0, h - radius, radius, radius));
+		blit(QRect(w - radius, h - radius, radius, radius));
+	} else {
+		blit(outer);
+	}
+	p.restore();
 }
 
 void PeerQrSurface::setCovered(Fn<QRegion()> covered) {
@@ -2237,10 +2330,10 @@ void PeerQrSurface::paintWave(
 		circle.addEllipse(wave.center, radius, radius);
 		p.save();
 		p.setClipPath(circle);
-		p.drawImage(0, 0, _background);
+		paintBackground(p, circle.boundingRect().toAlignedRect());
 		p.restore();
 	} else {
-		p.drawImage(0, 0, _background);
+		paintBackground(p, rect());
 	}
 	PaintWaveGlow(p, rect(), rect(), wave.center, radius, progress, wave.tint);
 }
@@ -2251,7 +2344,7 @@ void PeerQrSurface::paintClean(
 		QRect area,
 		const std::vector<QRect> &parts) const {
 	if (!_wave) {
-		p.drawImage(0, 0, _background);
+		paintBackground(p, area);
 		return;
 	}
 	const auto &wave = *_wave;
@@ -2265,7 +2358,7 @@ void PeerQrSurface::paintClean(
 		? CircleSide(wave.center, radius, parts)
 		: WaveSide::Inside;
 	if (side == WaveSide::Inside) {
-		p.drawImage(0, 0, _background);
+		paintBackground(p, area);
 	} else if (side == WaveSide::Outside) {
 		p.drawImage(0, 0, old);
 	} else {
@@ -2279,26 +2372,27 @@ void PeerQrSurface::paintClean(
 		p.drawImage(0, 0, old);
 		p.restore();
 		p.setClipPath(circle, Qt::IntersectClip);
-		p.drawImage(0, 0, _background);
+		paintBackground(p, area);
 		p.restore();
 	}
 	PaintWaveGlow(p, rect(), area, wave.center, radius, progress, wave.tint);
 }
 
 QImage PeerQrSurface::currentPicture(crl::time now, bool clean) const {
-	if (!_wave) {
-		return _background;
-	}
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(size() * ratio, QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
-	auto area = QPainterPath();
-	if (clean) {
-		area.addRect(QRectF(rect()));
-	}
 	auto p = QPainter(&result);
-	paintWave(p, now, area);
+	if (_wave) {
+		auto area = QPainterPath();
+		if (clean) {
+			area.addRect(QRectF(rect()));
+		}
+		paintWave(p, now, area);
+	} else {
+		paintBackground(p, rect());
+	}
 	p.end();
 	return result;
 }

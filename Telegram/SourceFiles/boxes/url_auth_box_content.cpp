@@ -626,14 +626,14 @@ void ShowDetails(
 					emojiImageFactory,
 					domain,
 					state->matchCodes,
-					[=](QString matchCode) {
+					crl::guard(box, [=](QString matchCode) {
 						callback({
 							.auth = true,
 							.allowWrite = (allowMessages
 								&& allowMessages->toggled()),
 							.matchCode = std::move(matchCode),
 						});
-					},
+					}),
 					isApp);
 			}));
 		});

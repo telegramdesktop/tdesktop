@@ -71,6 +71,7 @@ public:
 	void resetScrollBaseline();
 	void pinScroll();
 	void shiftGaps(int delta);
+	void shiftScrollBaseline(int delta);
 	void notePrependBaseline(int contentHeight);
 	void applyPrependBaseline(int contentHeight);
 

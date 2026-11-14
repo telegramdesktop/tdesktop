@@ -728,6 +728,7 @@ storiesEmojiPan: EmojiPan(defaultEmojiPan) {
 		menuMute: icon {{ "menu/mute", storiesComposeWhiteText }};
 		menuSchedule: icon {{ "menu/calendar", storiesComposeWhiteText }};
 		menuWhenOnline: icon {{ "menu/send_when_online", storiesComposeWhiteText }};
+		menuReply: icon {{ "menu/reply", storiesComposeWhiteText }};
 		menuSpoiler: icon {{ "menu/spoiler_on", storiesComposeWhiteText }};
 		menuBelow: icon {{ "menu/link_below", storiesComposeWhiteText }};
 		menuAbove: icon {{ "menu/link_above", storiesComposeWhiteText }};

@@ -25,10 +25,12 @@ namespace Menu {
 
 Fn<void(bool)> RateTranscribeCallbackFactory(
 		not_null<HistoryItem*> item) {
-	return [item](bool good) {
-		item->history()->peer->session().api().transcribes().rate(
-			item,
-			good);
+	const auto owner = &item->history()->owner();
+	const auto itemId = item->fullId();
+	return [=](bool good) {
+		if (const auto item = owner->message(itemId)) {
+			owner->session().api().transcribes().rate(item, good);
+		}
 	};
 }
 

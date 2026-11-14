@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
+#include "tgw/tgw_storage.h"
 
 namespace Main {
 namespace {
@@ -555,6 +556,7 @@ void Account::loggedOut() {
 	_loggingOut = false;
 	Media::Player::mixer()->stopAndClear();
 	destroySession(DestroyReason::LoggedOut);
+	Tgw::EraseStorage(this);
 	local().reset();
 	cSetOtherOnline(0);
 }

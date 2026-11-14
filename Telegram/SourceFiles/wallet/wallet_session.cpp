@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_session_deposit.h"
 #include "wallet/wallet_session_gift_moves.h"
 #include "wallet/wallet_session_waits.h"
+#include "wallet/wallet_stream.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_emulation.h"
 #include "wallet/wallet_transfer_messages.h"
@@ -330,12 +332,6 @@ constexpr auto kTonConnectChallengeAnswerSize = 32;
 		.left = data.vleft().v,
 		.available = data.is_available(),
 	};
-}
-
-[[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
-	auto ok = false;
-	const auto result = QString::fromStdString(value).toLongLong(&ok);
-	return ok ? std::make_optional(result) : std::nullopt;
 }
 
 void FinishHistoryWaiters(std::vector<Fn<void()>> callbacks) {
@@ -1437,113 +1433,6 @@ void FailShareFetch(
 	};
 }
 
-[[nodiscard]] std::optional<TonConnectTransfer> TonConnectTransferFromEngine(
-		const engine::SendRequest &request) {
-	auto result = TonConnectTransfer{
-		.request = std::make_shared<const engine::SendRequest>(request),
-	};
-	for (const auto &message : request.intent.messages) {
-		const auto &amount = message.amount.get_variant();
-		const auto exact = std::get_if<engine::SendAmount::kExact>(&amount);
-		const auto nano = exact
-			? DecimalInt64(exact->nanograms)
-			: std::optional<int64>();
-		if (!nano
-			|| *nano < 0
-			|| *nano > std::numeric_limits<int64>::max() - result.totalNano) {
-			return std::nullopt;
-		}
-		result.totalNano += *nano;
-		auto entry = TonConnectMessage{
-			.destination = QString::fromStdString(message.destination),
-			.amountNano = *nano,
-			.deploys = message.state_init.has_value(),
-		};
-		const auto &body = message.body.get_variant();
-		const auto comment = std::get_if<
-			engine::SendMessageBody::kComment>(&body);
-		const auto raw = std::get_if<
-			engine::SendMessageBody::kRawPayload>(&body);
-		if (comment) {
-			entry.comment = QString::fromStdString(comment->text);
-		} else if (raw) {
-			const auto boc = QString::fromStdString(raw->boc);
-			if (const auto text = Gram::TextCommentFromBoc(boc)) {
-				entry.comment = *text;
-			} else {
-				entry.payload = boc;
-			}
-		}
-		result.messages.push_back(std::move(entry));
-	}
-	const auto &expiration = request.intent.expiration.get_variant();
-	const auto until = std::get_if<
-		engine::SendExpiration::kExact>(&expiration);
-	if (until) {
-		result.validUntil = TimeId(std::min<uint64>(
-			until->unix_timestamp,
-			std::numeric_limits<TimeId>::max()));
-	}
-	return result;
-}
-
-[[nodiscard]] std::vector<TonConnectSignDataField> DecodedCellFields(
-		engine::TonConnectDerivedSession &session,
-		const std::string &schema,
-		const std::string &cell) {
-	using Decoding = engine::TonConnectSignDataCellDecoding;
-	auto result = std::vector<TonConnectSignDataField>();
-	try {
-		const auto decoding = session.decode_sign_data_cell(schema, cell);
-		const auto decoded = std::get_if<Decoding::kDecoded>(
-			&decoding.get_variant());
-		if (!decoded) {
-			return result;
-		}
-		result.reserve(decoded->fields.size());
-		for (const auto &field : decoded->fields) {
-			result.push_back({
-				.depth = int(std::min(
-					field.depth,
-					uint32_t(std::numeric_limits<int>::max()))),
-				.name = QString::fromStdString(field.name),
-				.value = QString::fromStdString(field.value),
-			});
-		}
-	} catch (...) {
-		// Display only: a failed decode must not cost the request its answer.
-		return {};
-	}
-	return result;
-}
-
-[[nodiscard]] TonConnectSignData TonConnectSignDataFromEngine(
-		engine::TonConnectDerivedSession &session,
-		const engine::TonConnectSignDataRequest &request) {
-	using Payload = engine::TonConnectSignDataPayload;
-	using Type = TonConnectSignDataType;
-	auto result = TonConnectSignData{
-		.request = std::make_shared<const engine::TonConnectSignDataRequest>(
-			request),
-	};
-	std::visit([&](const auto &data) {
-		using T = std::decay_t<decltype(data)>;
-		if constexpr (std::is_same_v<T, Payload::kText>) {
-			result.type = Type::Text;
-			result.data = QString::fromStdString(data.text);
-		} else if constexpr (std::is_same_v<T, Payload::kBinary>) {
-			result.type = Type::Binary;
-			result.data = QString::fromStdString(data.bytes);
-		} else if constexpr (std::is_same_v<T, Payload::kCell>) {
-			result.type = Type::Cell;
-			result.data = QString::fromStdString(data.cell);
-			result.schema = QString::fromStdString(data.schema);
-			result.fields = DecodedCellFields(session, data.schema, data.cell);
-		}
-	}, request.payload.get_variant());
-	return result;
-}
-
 [[nodiscard]] int TonConnectProtocolCode(
 		engine::TonConnectRpcErrorCode code) {
 	using Code = engine::TonConnectRpcErrorCode;
@@ -1578,7 +1467,7 @@ void FailShareFetch(
 	} else if (const auto sign = std::get_if<Incoming::kSignData>(&variant)) {
 		result.kind = Kind::SignData;
 		result.signData = std::make_shared<const TonConnectSignData>(
-			TonConnectSignDataFromEngine(session, sign->request));
+			TonConnectSignDataFromEngine(&session, sign->request));
 	} else if (std::get_if<Incoming::kSignMessage>(&variant)) {
 		result.kind = Kind::Unsupported;
 		result.rejection = TonConnectError::MethodNotSupported;
@@ -1713,7 +1602,8 @@ void FailShareFetch(
 		const engine::SendResult &result,
 		const std::string &operationId,
 		bool rpcStarted,
-		const QByteArray &normal) {
+		const QByteArray &normal,
+		const std::optional<TransferReceipt> &receipt) {
 	const auto unknown = [&] {
 		return TonConnectSendResult{
 			rpcStarted ? QString::fromLatin1(normal.toBase64()) : QString(),
@@ -1727,7 +1617,11 @@ void FailShareFetch(
 	switch (result.phase) {
 	case engine::SendPhase::kSubmitted:
 	case engine::SendPhase::kConfirmed:
-		return { boc, SendError::None };
+		return {
+			boc,
+			SendError::None,
+			receipt ? receipt->messageHash : QByteArray(),
+		};
 	case engine::SendPhase::kSubmissionUnknown:
 		return { boc, SendError::SubmissionUnknown };
 	case engine::SendPhase::kHandedOff:
@@ -6632,12 +6526,12 @@ void Session::signTonConnectData(
 		QString requestId,
 		std::shared_ptr<const TonConnectSignData> data,
 		QString domain,
-		Fn<void(QByteArray)> done,
+		Fn<void(TonConnectSignature)> done,
 		Fn<void(TonConnectKeyError)> fail) {
 	const auto record = (tonConnectAccess() == TonConnectAccess::Allowed)
 		? currentRecord()
 		: nullptr;
-	if (!record || !key || key.signingKey != _publicKey) {
+	if (!record || (key && key.signingKey != _publicKey)) {
 		fail(TonConnectKeyError::Blocked);
 		return;
 	} else if (!ReadAuthorized(*this, auth)) {
@@ -6645,44 +6539,53 @@ void Session::signTonConnectData(
 		return;
 	}
 	const auto timestamp = base::unixtime::now();
-	if (!data
-		|| !data->request
-		|| domain.isEmpty()
-		|| !TonConnectRequestIdValid(requestId)
+	if ((key && (!data || !TonConnectRequestIdValid(requestId)))
+		|| (data && (!data->request || domain.isEmpty()))
 		|| timestamp <= 0) {
 		LOG(("Wallet Error: TON Connect data signing requested "
 			"with unusable input."));
 		fail(TonConnectKeyError::Failed);
 		return;
 	}
-	struct Signed {
-		QByteArray body;
-		QByteArray publicKey;
-	};
 	const auto address = _address;
 	const auto served = _publicKey;
 	const auto generation = _networkGeneration;
 	const auto recordId = record->recordId;
 	const auto lifecycle = _engine->lifecycle();
 	const auto session = key.session;
-	auto request = engine::TonConnectSignDataSignRequest{
-		.descriptor = DescriptorFromRecord(*record),
-		.request = *data->request,
-		.domain = domain.toStdString(),
-		.timestamp = uint64_t(timestamp),
-	};
+	auto descriptor = DescriptorFromRecord(*record);
+	auto request = data
+		? std::make_optional(engine::TonConnectSignDataSignRequest{
+			.descriptor = descriptor,
+			.request = *data->request,
+			.domain = domain.toStdString(),
+			.timestamp = uint64_t(timestamp),
+		})
+		: std::nullopt;
 	_engine->runLocal([
 		=,
+		descriptor = std::move(descriptor),
 		request = std::move(request),
 		id = requestId.toStdString()
 	] {
-		const auto result = lifecycle->sign_ton_connect_data(request);
-		return Signed{
-			.body = BytesFromEngine(
-				session->encrypt_sign_data_success(id, result)),
-			.publicKey = BytesFromEngine(result.public_key),
-		};
-	}, [=, this, grant = auth.grant](Signed result) {
+		auto result = TonConnectSignature{ .timestamp = timestamp };
+		if (request) {
+			const auto made = lifecycle->sign_ton_connect_data(*request);
+			result.signature = BytesFromEngine(made.signature);
+			result.publicKey = BytesFromEngine(made.public_key);
+			if (session) {
+				result.body = BytesFromEngine(
+					session->encrypt_sign_data_success(id, made));
+			}
+		}
+		if (!session) {
+			const auto account = lifecycle->ton_connect_account(descriptor);
+			result.address = QString::fromStdString(account.address);
+			result.stateInit = QByteArray::fromBase64(
+				QByteArray::fromStdString(account.wallet_state_init));
+		}
+		return result;
+	}, [=, this, grant = auth.grant](TonConnectSignature result) {
 		const auto now = currentRecord();
 		if (generation != _networkGeneration
 			|| address != _address
@@ -6693,13 +6596,20 @@ void Session::signTonConnectData(
 				"for another wallet state."));
 			fail(TonConnectKeyError::Blocked);
 			return;
-		} else if (result.publicKey != served || result.body.isEmpty()) {
+		} else if ((data && result.publicKey != served)
+			|| (session && result.body.isEmpty())
+			|| (!session
+				&& (CanonicalAddress(result.address) != address
+					|| result.stateInit.isEmpty()))) {
 			LOG(("Wallet Error: TON Connect data signed "
 				"with an unexpected key."));
 			fail(TonConnectKeyError::Failed);
 			return;
 		}
-		done(std::move(result.body));
+		if (!data) {
+			result.publicKey = served;
+		}
+		done(std::move(result));
 	}, [=, this, grant = auth.grant](EngineError error) {
 		LOG(("Wallet Error: TON Connect data signing failed: %1"
 			).arg(LifecycleErrorName(error)));
@@ -9637,7 +9547,8 @@ void Session::startSend(
 				result,
 				operationId,
 				_submission->rpcStarted,
-				_submission->normal));
+				_submission->normal,
+				_submission->receipt));
 			if (!current()) {
 				return;
 			}

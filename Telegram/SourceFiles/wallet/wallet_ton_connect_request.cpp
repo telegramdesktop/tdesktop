@@ -126,6 +126,55 @@ void SubmitResponse(
 
 } // namespace
 
+std::shared_ptr<const PreparedSend> ApplyTonConnectPreview(
+		not_null<Main::Session*> session,
+		FeeResult result,
+		rpl::variable<TonConnectRequestBoxState> &state,
+		rpl::lifetime &idle,
+		Fn<void()> retry) {
+	auto now = state.current();
+	now.feeLoading = false;
+	if (result.error == SendError::None && result.prepared) {
+		now.feeNano = result.feeNano;
+		now.emulation = std::move(result.emulation);
+		now.confirmable = true;
+		now.error = QString();
+		state = std::move(now);
+		return std::move(result.prepared);
+	}
+	auto &wallet = session->wallet();
+	now.emulation = nullptr;
+	now.confirmable = false;
+	if (result.error == SendError::SigningUnavailable
+		&& !wallet.signingReady()) {
+		now.feeLoading = true;
+		now.error = QString();
+		state = std::move(now);
+		idle.destroy();
+		wallet.signingReadyValue(
+		) | rpl::filter([](bool ready) {
+			return ready;
+		}) | rpl::take(1) | rpl::on_next([=](bool) {
+			retry();
+		}, idle);
+		return nullptr;
+	}
+	const auto text = SendErrorText(result.error, TransferMinNanos(session));
+	now.error = text.isEmpty()
+		? tr::lng_wallet_connect_request_fee_failed(tr::now)
+		: text;
+	state = std::move(now);
+	if (result.error == SendError::PreviousUnresolved
+		|| result.error == SendError::AlreadySending) {
+		idle.destroy();
+		wallet.sendStateValue(
+		) | rpl::skip(1) | rpl::take(1) | rpl::on_next([=](SendState) {
+			retry();
+		}, idle);
+	}
+	return nullptr;
+}
+
 class TonConnectRequests::Flow final : public base::has_weak_ptr {
 public:
 	Flow(
@@ -379,7 +428,7 @@ void TonConnectRequests::edited(not_null<HistoryItem*> item) {
 }
 
 void TonConnectRequests::showNext() {
-	if (_stopped || _active) {
+	if (_stopped || _active || _held) {
 		return;
 	}
 	const auto now = base::unixtime::now();
@@ -458,10 +507,12 @@ void TonConnectRequests::opened(
 	if (i != end(_waiting)) {
 		_waiting.erase(i);
 	}
-	if (_active) {
+	if (_active || _held) {
 		entry.order = 0;
 		_waiting.insert(begin(_waiting), std::move(entry));
-		_active->activate();
+		if (_active) {
+			_active->activate();
+		}
 		return;
 	}
 	start(
@@ -881,6 +932,22 @@ void TonConnectRequests::stop() {
 	_active = nullptr;
 	_silent.clear();
 	_lifetime.destroy();
+}
+
+bool TonConnectRequests::showing() const {
+	// An active flow without a box may still show one when its fetch ends.
+	return (_held > 0) || (_active != nullptr);
+}
+
+void TonConnectRequests::hold(rpl::lifetime &lifetime) {
+	++_held;
+	lifetime.add([weak = base::make_weak(this)] {
+		if (const auto strong = weak.get()) {
+			if (!--strong->_held) {
+				crl::on_main(strong, [=] { strong->showNext(); });
+			}
+		}
+	});
 }
 
 TonConnectRequests::Flow::Flow(
@@ -1461,51 +1528,16 @@ void TonConnectRequests::Flow::previewed(FeeResult result) {
 		|| _state.current().phase != Phase::Confirm) {
 		return;
 	}
-	auto state = _state.current();
-	state.feeLoading = false;
-	if (result.error == SendError::None && result.prepared) {
-		_prepared = std::move(result.prepared);
-		state.feeNano = result.feeNano;
-		state.emulation = std::move(result.emulation);
-		state.confirmable = true;
-		state.error = QString();
-		_state = std::move(state);
-		return;
-	}
-	_prepared = nullptr;
-	state.emulation = nullptr;
-	state.confirmable = false;
-	if (result.error == SendError::SigningUnavailable
-		&& !_session->wallet().signingReady()) {
-		state.feeLoading = true;
-		state.error = QString();
-		_state = std::move(state);
-		_idleLifetime.destroy();
-		_session->wallet().signingReadyValue(
-		) | rpl::filter([](bool ready) {
-			return ready;
-		}) | rpl::take(1) | rpl::on_next([=](bool) {
+	_prepared = ApplyTonConnectPreview(
+		_session,
+		std::move(result),
+		_state,
+		_idleLifetime,
+		[=] {
 			if (_decision == Decision::None && !stopped()) {
 				preview();
 			}
-		}, _idleLifetime);
-		return;
-	}
-	const auto text = SendErrorText(result.error, TransferMinNanos(_session));
-	state.error = text.isEmpty()
-		? tr::lng_wallet_connect_request_fee_failed(tr::now)
-		: text;
-	_state = std::move(state);
-	if (result.error == SendError::PreviousUnresolved
-		|| result.error == SendError::AlreadySending) {
-		_idleLifetime.destroy();
-		_session->wallet().sendStateValue(
-		) | rpl::skip(1) | rpl::take(1) | rpl::on_next([=](SendState) {
-			if (_decision == Decision::None && !stopped()) {
-				preview();
-			}
-		}, _idleLifetime);
-	}
+		});
 }
 
 void TonConnectRequests::Flow::showSignData() {
@@ -1605,9 +1637,9 @@ void TonConnectRequests::Flow::sign() {
 		_request.id,
 		_request.signData,
 		domain,
-		crl::guard(this, [=](QByteArray body) {
+		crl::guard(this, [=](TonConnectSignature result) {
 			if (!stopped()) {
-				_response = std::move(body);
+				_response = std::move(result.body);
 				registerKey();
 			}
 		}),

@@ -54,8 +54,6 @@ InfoTopBar {
 	storiesUnpin: IconButton;
 	search: IconButton;
 	searchRow: SearchFieldRow;
-	highlightBg: color;
-	highlightDuration: int;
 	radius: pixels;
 }
 
@@ -261,8 +259,6 @@ infoTopBar: InfoTopBar {
 	storiesUnpin: infoTopBarUnpinStories;
 	search: infoTopBarSearch;
 	searchRow: infoTopBarSearchRow;
-	highlightBg: windowBgOver;
-	highlightDuration: 240;
 	radius: 0px;
 }
 infoTopBarScale: 0.7;
@@ -1344,9 +1340,6 @@ collectionSubTabs: SubTabs(defaultSubTabs) {
 
 earnTonIconSize: 16px;
 earnTonIconMargin: margins(0px, 2px, 0px, 0px);
-
-infoMusicButtonRipple: universalRippleAnimation;
-infoMusicButtonPadding: margins(16px, 6px, 13px, 6px);
 
 memberTagPillPadding: margins(5px, -1px, 5px, 0px);
 

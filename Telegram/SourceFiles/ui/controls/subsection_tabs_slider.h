@@ -59,14 +59,12 @@ public:
 	void setData(SubsectionTab &&data);
 	[[nodiscard]] DynamicImage *userpic() const;
 
-	void setActiveShown(float64 activeShown);
 	void setIsPinned(bool pinned);
 	[[nodiscard]] bool isPinned() const;
 	void setPinnedPosition(bool isFirst, bool isLast);
 	[[nodiscard]] bool isFirstPinned() const;
 	[[nodiscard]] bool isLastPinned() const;
 	virtual void setBackgroundMargin(int margin);
-	void setShift(int shift);
 
 protected:
 	virtual void dataUpdatedHook() = 0;
@@ -76,12 +74,10 @@ protected:
 
 	const not_null<SubsectionButtonDelegate*> _delegate;
 	SubsectionTab _data;
-	float64 _activeShown = 0.;
 	bool _isPinned = false;
 	bool _isFirstPinned = false;
 	bool _isLastPinned = false;
 	int _backgroundMargin = 0;
-	int _shift = 0;
 
 };
 
@@ -132,7 +128,6 @@ protected:
 
 	void paintEvent(QPaintEvent *e) override;
 
-	[[nodiscard]] int lookupSectionIndex(QPoint position) const;
 	[[nodiscard]] Range getFinalActiveRange() const;
 	[[nodiscard]] Range getCurrentActiveRange() const;
 	void activate(int index);

@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "menu/menu_check_item.h"
 
+#include "base/platform/base_platform_haptic.h"
+#include "ui/effects/shake_animation.h"
+#include "ui/painter.h"
 #include "ui/widgets/checkbox.h"
 #include "styles/style_media_player.h"
 
@@ -25,8 +28,45 @@ void ItemWithCheck::init(bool checked) {
 
 	_checkView->setChecked(checked, anim::type::normal);
 	ItemBase::clicks() | rpl::on_next([=] {
-		_checkView->setChecked(!_checkView->checked(), anim::type::normal);
+		const auto checked = !_checkView->checked();
+		if (_changeAllowed && !_changeAllowed(checked)) {
+			shake();
+			return;
+		}
+		_checkView->setChecked(checked, anim::type::normal);
 	}, lifetime());
+}
+
+void ItemWithCheck::setChangeAllowed(Fn<bool(bool checked)> allowed) {
+	_changeAllowed = std::move(allowed);
+}
+
+void ItemWithCheck::shake() {
+	base::Platform::Haptic();
+	if (_shakeAnimation.animating()) {
+		return;
+	}
+	_shakeAnimation.start(Ui::DefaultShakeCallback([=](int shift) {
+		_shakeShift = shift;
+		update();
+	}), 0., 1., st::shakeDuration);
+}
+
+void ItemWithCheck::paintEvent(QPaintEvent *e) {
+	if (!_shakeShift) {
+		Action::paintEvent(e);
+		return;
+	}
+	auto p = Painter(this);
+	const auto selected = isSelected();
+	paintBackground(p, selected);
+	paintRipple(p, 0, 0);
+	p.translate(_shakeShift, 0);
+	if (_checkView->checked()) {
+		st::mediaPlayerMenuCheck.paint(p, st().itemIconPosition, width());
+	}
+	p.setPen(selected ? st().itemFgOver : st().itemFg);
+	paintText(p);
 }
 
 not_null<Ui::CheckView*> ItemWithCheck::checkView() const {

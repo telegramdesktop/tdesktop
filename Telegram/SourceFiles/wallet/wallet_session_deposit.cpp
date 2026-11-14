@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/mtproto_response.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_engine.h"
 
 #include "wallet_engine.hpp"
 

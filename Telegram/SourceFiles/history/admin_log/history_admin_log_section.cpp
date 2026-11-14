@@ -322,6 +322,11 @@ Widget::Widget(
 	_scroll->lockWheelDirection();
 	_inner = _scroll->setOwnedWidget(
 		object_ptr<InnerWidget>(this, controller, channel));
+	Tgw::ListScroll::WatchInput(_scroll.data(), [=] {
+		if (_inner) {
+			Tgw::ListScroll::Input(_inner.data());
+		}
+	});
 	_inner->lower();
 	_inner->showSearchSignal(
 	) | rpl::on_next([=] {
@@ -380,6 +385,10 @@ void Widget::scrollDownClicked() {
 		_scrollToAnimation.stop();
 		return;
 	}
+	const auto consumed = [=] {
+		return _inner ? Tgw::ListScroll::Consumed(_inner.data()) : uint32();
+	};
+	const auto count = consumed();
 	const auto maxAnimatedDelta = _scroll->height();
 	auto transition = anim::sineInOut;
 	if (scrollTo > scrollTop + maxAnimatedDelta) {
@@ -388,7 +397,18 @@ void Widget::scrollDownClicked() {
 		transition = anim::easeOutCubic;
 	}
 	_scrollToAnimation.stop();
-	_scrollToAnimation.start(
+	Tgw::ListScroll::Input(_inner.data());
+	_scrollToFlight.start(
+		scrollTop,
+		scrollTo,
+		consumed,
+		count,
+		[=] {
+			return _inner ? Tgw::ListScroll::Inputs(_inner.data()) : uint32();
+		},
+		[=] { return std::make_optional(_scroll->scrollTopMax()); });
+	_scrollToFlight.animate(
+		&_scrollToAnimation,
 		[=] { scrollToAnimationCallback(); },
 		scrollTop,
 		scrollTo,
@@ -399,7 +419,12 @@ void Widget::scrollDownClicked() {
 void Widget::scrollToAnimationCallback() {
 	const auto scrollTo = _scroll->scrollTopMax();
 	const auto value = _scrollToAnimation.value(scrollTo);
-	_scroll->scrollToY(int(base::SafeRound(value)));
+	_scrollToFlight.frame(
+		0,
+		value,
+		_scroll->scrollTop(),
+		!_scrollToAnimation.animating(),
+		[=](int top) { _scroll->scrollToY(top); });
 }
 
 void Widget::updateScrollDownVisibility() {
@@ -555,6 +580,7 @@ void Widget::setupSwipeReply() {
 		.scroll = _scroll.data(),
 		.update = std::move(update),
 		.init = std::move(init),
+		.handoff = _inner->touchSwipeHandoff(),
 	});
 }
 

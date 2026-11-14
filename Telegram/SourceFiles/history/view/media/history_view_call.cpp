@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_style.h"
 
 namespace HistoryView {
 namespace {
@@ -79,7 +80,21 @@ QSize Call::countOptimalSize() {
 			Core::App().calls().startOutgoingCall(user, { video });
 		}
 	});
-	auto maxWidth = st::historyCallWidth;
+	_textWidth = st::semiboldFont->width(_text);
+	const auto statusWidth = st::historyCallArrowIn.width()
+		+ st::historyCallStatusSkip
+		+ st::normalFont->width(_status);
+	const auto &icon = _video
+		? st::historyCallCameraInIcon
+		: _conference
+		? st::historyCallGroupInIcon
+		: st::historyCallInIcon;
+	const auto iconSkip = st::historyCallIconSkip
+		+ icon.width()
+		+ st::historyCallIconPosition.x();
+	auto maxWidth = std::max(
+		st::historyCallWidth,
+		st::historyCallLeft + std::max(_textWidth, statusWidth) + iconSkip);
 	auto minHeight = st::historyCallHeight;
 	if (!isBubbleTop()) {
 		minHeight -= st::msgFileTopMinus;
@@ -102,9 +117,25 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 	nametop = st::historyCallTop - topMinus;
 	statustop = st::historyCallStatusTop - topMinus;
 
+	const auto &icon = _video
+		? stm->historyCallCameraIcon
+		: _conference
+		? stm->historyCallGroupIcon
+		: stm->historyCallIcon;
+	const auto textAvailable = paintw
+		- nameleft
+		- st::historyCallIconSkip
+		- icon.width()
+		- st::historyCallIconPosition.x();
 	p.setFont(st::semiboldFont);
 	p.setPen(stm->historyFileNameFg);
-	p.drawTextLeft(nameleft, nametop, paintw, _text);
+	p.drawTextLeft(
+		nameleft,
+		nametop,
+		paintw,
+		((_textWidth > textAvailable)
+			? st::semiboldFont->elided(_text, textAvailable)
+			: _text));
 
 	auto statusleft = nameleft;
 	auto missed = (_state == State::Missed) || (_state == State::Busy);
@@ -118,11 +149,6 @@ void Call::draw(Painter &p, const PaintContext &context) const {
 	p.setPen(stm->mediaFg);
 	p.drawTextLeft(statusleft, statustop, paintw, _status);
 
-	const auto &icon = _video
-		? stm->historyCallCameraIcon
-		: _conference
-		? stm->historyCallGroupIcon
-		: stm->historyCallIcon;
 	icon.paint(p, paintw - st::historyCallIconPosition.x() - icon.width(), st::historyCallIconPosition.y() - topMinus, paintw);
 }
 

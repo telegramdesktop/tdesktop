@@ -188,11 +188,6 @@ not_null<Media::Player::FloatDelegate*> Widget::floatPlayerDelegate() {
 	return static_cast<Media::Player::FloatDelegate*>(this);
 }
 
-auto Widget::floatPlayerSectionDelegate()
--> not_null<Media::Player::FloatSectionDelegate*> {
-	return static_cast<Media::Player::FloatSectionDelegate*>(this);
-}
-
 not_null<Ui::RpWidget*> Widget::floatPlayerWidget() {
 	return this;
 }

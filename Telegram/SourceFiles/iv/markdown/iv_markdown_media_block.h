@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/message_bubble.h"
 #include "ui/click_handler.h"
-#include "ui/painter.h"
 #include "ui/text/text_entity.h"
 
 #include <memory>
@@ -19,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QPoint>
 #include <QtCore/QRect>
+
+class Painter;
 
 namespace style {
 struct Markdown;

@@ -94,6 +94,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "iv/editor/iv_editor_session.h"
 #include "wallet/wallet_panel.h"
+#include "window/window_columns.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -659,8 +660,8 @@ void Filler::addInfo() {
 	} else if (_controller->adaptive().isThreeColumn()) {
 		const auto thread = _controller->activeChatCurrent().thread();
 		if (thread && !thread->asSublist() && thread == _thread) {
-			if (Core::App().settings().thirdSectionInfoEnabled()
-				|| Core::App().settings().tabbedReplacedWithInfo()) {
+			if (_controller->columns().thirdSectionInfoEnabled()
+				|| _controller->columns().tabbedReplacedWithInfo()) {
 				return;
 			}
 		}
@@ -2477,6 +2478,11 @@ void PeerMenuDeleteTopicWithConfirmation(
 	};
 	const auto controller = navigation->parentController();
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+		topic->destroyed(
+		) | rpl::on_next([=] {
+			box->closeBox();
+		}, box->lifetime());
+
 		Ui::AddSkip(box->verticalLayout());
 		Ui::IconWithTitle(
 			box->verticalLayout(),
@@ -2888,7 +2894,11 @@ void PeerMenuEditTodoList(
 			result.options,
 			crl::guard(weak, [=] { weak->closeBox(); }),
 			crl::guard(weak, [=](const QString &error) {
-				weak->submitFailed(error);
+				if (error == u"MESSAGE_NOT_MODIFIED"_q) {
+					weak->closeBox();
+				} else {
+					weak->submitFailed(error);
+				}
 			}));
 	}, box->lifetime());
 	controller->show(std::move(box), Ui::LayerOption::CloseOther);

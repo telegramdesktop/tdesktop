@@ -1059,37 +1059,8 @@ void Pip::RendererRhi::paintButton(
 
 auto Pip::RendererRhi::ControlMeta(OverState control, int index)
 -> Control {
-	Expects(index >= 0);
-
-	switch (control) {
-	case OverState::Close: Assert(index < 1); return {
-		0,
-		&st::pipCloseIcon,
-		&st::pipCloseIconOver,
-	};
-	case OverState::Enlarge: Assert(index < 1); return {
-		1,
-		&st::pipEnlargeIcon,
-		&st::pipEnlargeIconOver,
-	};
-	case OverState::VolumeToggle: Assert(index < 3); return {
-		(2 + index),
-		(index == 0
-			? &st::pipVolumeIcon0
-			: (index == 1)
-			? &st::pipVolumeIcon1
-			: &st::pipVolumeIcon2),
-		(index == 0
-			? &st::pipVolumeIcon0Over
-			: (index == 1)
-			? &st::pipVolumeIcon1Over
-			: &st::pipVolumeIcon2Over),
-	};
-	case OverState::Other: Assert(index < 2); return {
-		(5 + index),
-		(index ? &st::pipPauseIcon : &st::pipPlayIcon),
-		(index ? &st::pipPauseIconOver : &st::pipPlayIconOver),
-	};
+	if (const auto result = FindControlMeta(control, index)) {
+		return *result;
 	}
 	Unexpected("Control value in Pip::RendererRhi::ControlIndex.");
 }
@@ -1107,35 +1078,8 @@ void Pip::RendererRhi::validateControls() {
 		ControlMeta(OverState::Other),
 		ControlMeta(OverState::Other, 1),
 	};
-	auto maxWidth = 0;
-	auto fullHeight = 0;
-	for (const auto &meta : metas) {
-		Assert(meta.icon->size() == meta.iconOver->size());
-		maxWidth = std::max(meta.icon->width(), maxWidth);
-		fullHeight += 2 * meta.icon->height();
-	}
-	auto image = QImage(
-		QSize(maxWidth, fullHeight) * _ifactor,
-		QImage::Format_ARGB32_Premultiplied);
-	image.fill(Qt::transparent);
-	image.setDevicePixelRatio(_ifactor);
-	{
-		auto p = QPainter(&image);
-		auto index = 0;
-		auto height = 0;
-		const auto paint = [&](not_null<const style::icon*> icon) {
-			icon->paint(p, 0, height, maxWidth);
-			_controlsTextures[index++] = QRect(
-				QPoint(0, height) * _ifactor,
-				icon->size() * _ifactor);
-			height += icon->height();
-		};
-		for (const auto &meta : metas) {
-			paint(meta.icon);
-			paint(meta.iconOver);
-		}
-	}
-	_controlsImage.setImage(std::move(image));
+	_controlsImage.setImage(
+		PrepareControlsImage(metas, _controlsTextures, _ifactor));
 }
 
 void Pip::RendererRhi::invalidateControls() {

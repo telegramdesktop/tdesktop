@@ -37,6 +37,28 @@ class Runner;
 // geometry fits is still refused as a capture root. PaintingLayerRoot
 // does not resolve the fixture.
 //
+// Three stages then measure the typed MappedRect path on a painted child
+// translated by a nonzero x and y inside the owner's header band, a child
+// hanging over the owner's right edge and a parentless widget that is never
+// shown. "typed coordinate owners map one translated child identically":
+// MappedRect::Local of the child's rect and MappedRect::InParent of its
+// geometry resolve to the same full bounds, equal to an independent
+// Ui::MapFrom; the untyped reading of the geometry with the child as origin
+// resolves at the doubled position (the defect shape is present), while the
+// typed Local of that geometry and InParent of the child's rect are refused
+// as a coordinate mismatch naming the requested rect, the bounds, the
+// origin, the painted child and the owner, and the typed prepare stores the
+// same refusal. "typed refusals": with the ElasticScroll back at the top,
+// the overhanging child and the clipped elastic child are refused with
+// their full requested size mapped, the parentless widget is refused as
+// detached (InParent) and as the wrong owner (Local) like the stray band,
+// a hidden child's InParent rect is refused, and the typed prepare still
+// refuses the uniform band as blank and the stray as a nonpainting root.
+// "typed painted crop": the typed prepare accepts the child's complete
+// extent from both spaces with byte-equal images, and the typed
+// CaptureMappedTarget saves mapped_target_typed_local. Every refusal is
+// stored and asserted as a passing Check.
+//
 // It needs no session, no chats list, no network and no account fixture.
 // A missing primary window is a named fixture gate. It emits no
 // deliberate failure. Its before-leg is produced by reverting the

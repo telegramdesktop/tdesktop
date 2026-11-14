@@ -207,36 +207,62 @@ constexpr auto kMaxDataUriHeaderLength = 256;
 		: decoded;
 }
 
-[[nodiscard]] QString LocalMediaPath(
+// WHY: a UNC or device path makes the exists() check below open an SMB
+// session to the named host on Windows, leaking credentials on paste.
+[[nodiscard]] bool IsNetworkPath(const QString &path) {
+	const auto separator = [](QChar ch) {
+		return (ch == u'/') || (ch == u'\\');
+	};
+	return (path.size() > 1) && separator(path[0]) && separator(path[1]);
+}
+
+[[nodiscard]] std::optional<ImportedLocalMedia> ResolveLocalMedia(
 		const QString &source,
 		const QString &basePath) {
 	if (source.isEmpty()) {
-		return QString();
+		return std::nullopt;
 	} else if (source.startsWith(u"file:"_q, Qt::CaseInsensitive)) {
 		const auto url = QUrl(source);
-		if (!url.isLocalFile()) {
-			return QString();
+		if (!url.isLocalFile() || !url.host().isEmpty()) {
+			return std::nullopt;
 		}
-		const auto info = QFileInfo(url.toLocalFile());
-		return (info.exists()
+		const auto local = url.toLocalFile();
+		if (IsNetworkPath(local)) {
+			return std::nullopt;
+		}
+		const auto info = QFileInfo(local);
+		const auto canonical = (info.exists()
 			&& info.isFile()
 			&& LooksLikeMediaExtension(info.suffix()))
 			? info.canonicalFilePath()
 			: QString();
+		if (canonical.isEmpty()) {
+			return std::nullopt;
+		}
+		return ImportedLocalMedia{ .path = canonical, .external = true };
 	} else if (basePath.isEmpty() || source.contains(u"://"_q)) {
-		return QString();
+		return std::nullopt;
 	}
 	const auto decoded = QUrl::fromPercentEncoding(source.toUtf8());
 	const auto absolute = QDir(basePath).absoluteFilePath(decoded);
+	if (IsNetworkPath(absolute)) {
+		return std::nullopt;
+	}
 	const auto info = QFileInfo(absolute);
 	if (!info.exists() || !info.isFile()) {
-		return QString();
+		return std::nullopt;
 	}
 	const auto canonical = info.canonicalFilePath();
 	const auto root = QDir(basePath).canonicalPath();
-	return (root.isEmpty() || !canonical.startsWith(root))
-		? QString()
-		: canonical;
+	if (root.isEmpty() || canonical.isEmpty()) {
+		return std::nullopt;
+	}
+	const auto folder = root.endsWith(u'/') ? root : (root + u'/');
+	const auto external = !canonical.startsWith(folder);
+	if (external && !LooksLikeMediaExtension(info.suffix())) {
+		return std::nullopt;
+	}
+	return ImportedLocalMedia{ .path = canonical, .external = external };
 }
 
 [[nodiscard]] bool FillImportedMedia(
@@ -292,11 +318,10 @@ struct ImportContext {
 		if (media.content.isEmpty()) {
 			return std::nullopt;
 		}
+	} else if (auto local = ResolveLocalMedia(source, context.basePath)) {
+		media = std::move(*local);
 	} else {
-		media.path = LocalMediaPath(source, context.basePath);
-		if (media.path.isEmpty()) {
-			return std::nullopt;
-		}
+		return std::nullopt;
 	}
 	const auto placeholder = ImportedMediaPlaceholderId(
 		int(context.localMedia.size()));
@@ -832,6 +857,22 @@ std::optional<BlocksImportResult> BlocksFromMimeData(
 		QString(),
 		limits,
 		usedBlocks);
+}
+
+QStringList ImportedMediaPathsToConfirm(const BlocksImportResult &imported) {
+	auto result = QStringList();
+	for (const auto &media : imported.localMedia) {
+		if (media.external && !result.contains(media.path)) {
+			result.push_back(media.path);
+		}
+	}
+	return result;
+}
+
+bool CanPasteWithoutConfirmation(const BlocksImportResult &imported) {
+	return ranges::none_of(
+		imported.localMedia,
+		&ImportedLocalMedia::external);
 }
 
 namespace {

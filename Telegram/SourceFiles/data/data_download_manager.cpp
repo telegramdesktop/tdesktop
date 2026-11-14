@@ -684,10 +684,6 @@ auto DownloadManager::loadingList() const
 	}) | ranges::views::join;
 }
 
-DownloadProgress DownloadManager::loadingProgress() const {
-	return _loadingProgress.current();
-}
-
 rpl::producer<> DownloadManager::loadingListChanges() const {
 	return _loadingListChanges.events();
 }

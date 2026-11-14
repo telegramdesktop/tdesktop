@@ -62,10 +62,10 @@ namespace {
 	if (!media) {
 		return nullptr;
 	} else if (const auto photo = media->photo()) {
-		return Ui::MakePhotoThumbnail(photo, item->fullId());
+		return Ui::MakePhotoThumbnail(photo, item->fullId(), true);
 	} else if (const auto document = media->document()) {
 		if (document->isVideoFile()) {
-			return Ui::MakeDocumentThumbnail(document, item->fullId());
+			return Ui::MakeDocumentThumbnail(document, item->fullId(), true);
 		}
 	}
 	return nullptr;

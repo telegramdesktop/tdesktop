@@ -155,4 +155,16 @@ bool ClickBoxButton(QWidget *box, const QString &label);
 // that fails on purpose.
 void AppendBoxButtonClickSelfTest(not_null<Runner*> runner);
 
+// The self-test of Test::ReadButtonState (test_widgets.h): one stage on a
+// real Ui::RoundButton parented to the primary window. setDisabled(true)
+// and setDisabled(false), called through the Ui::RoundButton type, read
+// disabled and then enabled while QWidget::isEnabled(), printed beside
+// them as the control, stays true; QWidget::setEnabled(false) moves that
+// control without touching the own flag; a null widget and a widget that
+// is not a Ui::AbstractButton are refused by name and never usable(). It
+// needs no session, no chats list, no network and no account fixture; a
+// missing primary window is a named fixture gate. It has no deliberate
+// FAIL and releases its button before the stage ends.
+void AppendButtonStateSelfTest(not_null<Runner*> runner);
+
 } // namespace Test

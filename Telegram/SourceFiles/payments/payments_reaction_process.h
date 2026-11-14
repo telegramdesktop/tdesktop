@@ -29,8 +29,6 @@ class SessionController;
 
 namespace Payments {
 
-[[nodiscard]] bool LookupMyPaidAnonymous(not_null<HistoryItem*> item);
-
 void TryAddingPaidReaction(
 	not_null<HistoryItem*> item,
 	HistoryView::Element *view,

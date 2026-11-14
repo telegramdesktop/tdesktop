@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "overview/overview_checkbox.h"
 #include "overview/overview_layout_delegate.h"
+#include "apiwrap.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/ui_integration.h" // TextContext
@@ -87,10 +88,17 @@ using ::Media::ValidFrameSize;
 	return ValidFrameSize(document->dimensions, kMaxInlineArea);
 }
 
-[[nodiscard]] ClickHandlerPtr MakeUrlHandler(const QString &url) {
-	return UrlClickHandler::IsSuspicious(url)
-		? std::make_shared<HiddenUrlClickHandler>(url)
-		: std::make_shared<UrlClickHandler>(url, false);
+[[nodiscard]] ClickHandlerPtr MakeUrlHandler(
+		const QString &url,
+		EntityType type) {
+	return Ui::Integration::Instance().createLinkHandler(
+		EntityLinkData{
+			.text = url,
+			.data = url,
+			.type = type,
+			.shown = EntityLinkShown::Partial,
+		},
+		Ui::Text::MarkedContext());
 }
 
 void OpenPreferringIv(
@@ -2030,6 +2038,8 @@ Link::Link(
 
 	auto textWithEntities = parent->originalText();
 	QString mainUrl;
+	_page = media ? media->webpage() : nullptr;
+	auto pageShown = false;
 
 	auto text = textWithEntities.text;
 	const auto &entities = textWithEntities.entities;
@@ -2042,18 +2052,29 @@ Link::Link(
 		const auto customUrl = entity.data();
 		const auto entityText = text.mid(entity.offset(), entity.length());
 		const auto url = customUrl.isEmpty() ? entityText : customUrl;
+		const auto linkType = (type != EntityType::CustomUrl)
+			? type
+			: customUrl.isEmpty()
+			? EntityType::Url
+			: EntityType::CustomUrl;
 		if (_links.empty()) {
 			mainUrl = url;
 		}
-		_links.push_back(LinkEntry(url, entityText));
+		if (_page && !pageShown && type == EntityType::Url) {
+			pageShown = UrlMatchesWebPage(_page, url);
+		}
+		_links.push_back(LinkEntry(url, entityText, linkType));
 	}
 	if (_links.empty()) {
 		if (const auto media = parent->media()) {
 			if (const auto webpage = media->webpage()) {
 				if (!webpage->displayUrl.isEmpty()
 					&& !webpage->url.isEmpty()) {
-					_links.push_back(
-						LinkEntry(webpage->displayUrl, webpage->url));
+					_links.push_back(LinkEntry(
+						webpage->displayUrl,
+						webpage->url,
+						EntityType::Url));
+					pageShown = true;
 				}
 			}
 		}
@@ -2081,8 +2102,14 @@ Link::Link(
 		}
 	}
 
-	const auto createHandler = MakeUrlHandler;
-	_page = media ? media->webpage() : nullptr;
+	const auto mainType = _page
+		? (pageShown ? EntityType::Url : EntityType::CustomUrl)
+		: _links.empty()
+		? EntityType::Url
+		: _links.front().type;
+	const auto createHandler = [=](const QString &url) {
+		return MakeUrlHandler(url, mainType);
+	};
 	if (_page) {
 		mainUrl = _page->url;
 		if (_page->document) {
@@ -2174,21 +2201,32 @@ Link::Link(
 	}
 	_titlew = st::semiboldFont->width(_title);
 
-	setupLinks(textWithEntities, mainUrl);
+	setupLinks(textWithEntities, mainUrl, mainType);
+
+	if (parent->hideLinks()) {
+		const auto peer = parent->history()->peer->migrateToOrMe();
+		if (!peer->barSettings()) {
+			peer->session().api().requestPeerSettings(peer);
+		}
+	}
 }
 
 void Link::setupLinks(
 		const TextWithEntities &text,
-		const QString &mainUrl) {
+		const QString &mainUrl,
+		EntityType mainType) {
 	const auto page = _page;
 	const auto ivCapable = [=](const QString &url) {
 		return Iv::PreferForUri(url)
 			|| (page && page->iv && UrlMatchesWebPage(page, url));
 	};
-	const auto makeHandler = [&](const QString &url, bool iv) {
-		return iv
+	const auto makeHandler = [&](
+			const QString &url,
+			bool iv,
+			EntityType type) {
+		return (iv && type == EntityType::Url)
 			? ClickHandlerPtr(std::make_shared<IvLink>(page, text, url))
-			: MakeUrlHandler(url);
+			: MakeUrlHandler(url, type);
 	};
 	static const auto kLinkOptions = TextParseOptions{
 		0,
@@ -2197,8 +2235,10 @@ void Link::setupLinks(
 		Qt::LayoutDirectionAuto,
 	};
 	for (auto &link : _links) {
-		const auto iv = ivCapable(link.url);
-		link.handler = makeHandler(link.url, iv);
+		const auto iv = (link.type == EntityType::CustomUrl)
+			? Iv::PreferForUri(link.url)
+			: (link.type == EntityType::Url) && ivCapable(link.url);
+		link.handler = makeHandler(link.url, iv, link.type);
 		auto markup = iv
 			? Ui::Text::IconEmoji(&st::overviewLinkIvIcon)
 			: TextWithEntities();
@@ -2218,10 +2258,13 @@ void Link::setupLinks(
 		? mainUrl
 		: (page ? page->url : QString());
 	if (!titleUrl.isEmpty()) {
-		_titlel = makeHandler(titleUrl, ivCapable(titleUrl));
+		_titlel = makeHandler(titleUrl, ivCapable(titleUrl), mainType);
 	}
 
-	if (!mainUrl.isEmpty() && ivCapable(mainUrl)) {
+	const auto mainIv = !mainUrl.isEmpty() && ivCapable(mainUrl);
+	if (mainIv && mainType != EntityType::Url) {
+		_photol = MakeUrlHandler(mainUrl, mainType);
+	} else if (mainIv) {
 		const auto previous = _photol;
 		_photol = std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {
@@ -2264,6 +2307,9 @@ int32 Link::resizeGetHeight(int32 width) {
 	_width = std::min(width, _maxw);
 	int32 w = _width - st::linksPhotoSize - st::linksPhotoPadding;
 	for (const auto &link : _links) {
+		if (link.type == EntityType::CustomUrl) {
+			continue;
+		}
 		if (const auto handler = std::dynamic_pointer_cast<TextClickHandler>(
 				link.handler)) {
 			handler->setFullDisplayed(w >= link.text.maxWidth());
@@ -2481,8 +2527,9 @@ TextState Link::getState(
 		QPoint point,
 		StateRequest request) const {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
+	const auto linksHidden = parent()->hideLinks();
 	if (style::rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width).contains(point)) {
-		return { parent(), _photol };
+		return { parent(), linksHidden ? nullptr : _photol };
 	}
 
 	if (!_title.isEmpty() && _text.isEmpty() && _links.size() == 1) {
@@ -2495,7 +2542,7 @@ TextState Link::getState(
 				std::min(w, _titlew),
 				st::semiboldFont->height,
 				_width).contains(point)) {
-			return { parent(), _titlel };
+			return { parent(), linksHidden ? nullptr : _titlel };
 		}
 		top += st::webPageTitleFont->height;
 	}
@@ -2510,7 +2557,10 @@ TextState Link::getState(
 				std::min(w, width),
 				st::normalFont->height,
 				_width).contains(point)) {
-			return { parent(), link.handler };
+			// The chat keeps e-mails of such messages clickable.
+			const auto hidden = linksHidden
+				&& (link.type != EntityType::Email);
+			return { parent(), hidden ? nullptr : link.handler };
 		}
 		top += st::normalFont->height;
 	}
@@ -2521,9 +2571,13 @@ const style::RoundCheckbox &Link::checkboxStyle() const {
 	return st::overviewSmallCheck;
 }
 
-Link::LinkEntry::LinkEntry(const QString &url, const QString &display)
+Link::LinkEntry::LinkEntry(
+	const QString &url,
+	const QString &display,
+	EntityType type)
 : url(url)
-, display(display) {
+, display(display)
+, type(type) {
 }
 
 // Copied from inline_bot_layout_internal.

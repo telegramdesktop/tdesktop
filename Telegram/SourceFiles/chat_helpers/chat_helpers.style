@@ -78,6 +78,7 @@ ComposeIcons {
 	menuMute: icon;
 	menuSchedule: icon;
 	menuWhenOnline: icon;
+	menuReply: icon;
 	menuSpoiler: icon;
 	menuBelow: icon;
 	menuAbove: icon;
@@ -755,6 +756,7 @@ defaultComposeIcons: ComposeIcons {
 	menuMute: menuIconMute;
 	menuSchedule: menuIconSchedule;
 	menuWhenOnline: menuIconWhenOnline;
+	menuReply: menuIconReply;
 	menuSpoiler: menuIconSpoiler;
 	menuBelow: menuIconBelow;
 	menuAbove: menuIconAbove;
@@ -1735,6 +1737,10 @@ dragDropColor: windowActiveTextFg;
 dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 dragHeight: 72px;
+dragIconSkip: 4px;
+dragIconMedia: icon {{ "local_storage/photos-64x64", dragColor }};
+dragIconFiles: icon {{ "local_storage/documents-64x64", dragColor }};
+dragIconArchive: icon {{ "chat/large_zip-64x64", dragColor }};
 
 ttlMediaImportantTooltipLabel: FlatLabel(defaultImportantTooltipLabel) {
 	style: TextStyle(defaultTextStyle) {

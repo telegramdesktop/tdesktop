@@ -53,3 +53,54 @@ if (APPLE)
             "$<TARGET_FILE_DIR:test_text>/Contents/Resources/"
     )
 endif()
+
+add_executable(test_bot_menu_hold WIN32)
+init_target(test_bot_menu_hold "(tests)")
+
+target_include_directories(test_bot_menu_hold PRIVATE ${src_loc})
+
+nice_target_sources(test_bot_menu_hold ${src_loc}
+PRIVATE
+    history/view/controls/history_view_bot_menu_hold.cpp
+    tests/test_main.cpp
+    tests/test_main.h
+    tests/test_bot_menu_hold.cpp
+)
+
+nice_target_sources(test_bot_menu_hold ${res_loc}
+PRIVATE
+    qrc/emoji_1.qrc
+    qrc/emoji_2.qrc
+    qrc/emoji_3.qrc
+    qrc/emoji_4.qrc
+    qrc/emoji_5.qrc
+    qrc/emoji_6.qrc
+    qrc/emoji_7.qrc
+    qrc/emoji_8.qrc
+)
+
+target_link_libraries(test_bot_menu_hold
+PRIVATE
+    desktop-app::lib_base
+    desktop-app::lib_crl
+    desktop-app::lib_ui
+    desktop-app::external_qt
+    desktop-app::external_qt_static_plugins
+)
+
+set_target_properties(test_bot_menu_hold PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
+
+add_dependencies(Telegram test_bot_menu_hold)
+
+target_prepare_qrc(test_bot_menu_hold)
+
+if (APPLE)
+    add_custom_command(TARGET test_bot_menu_hold POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory
+            "$<TARGET_FILE_DIR:test_bot_menu_hold>/Contents/Resources"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${CMAKE_BINARY_DIR}/test_bot_menu_hold.rcc"
+            "${CMAKE_BINARY_DIR}/lib_ui.rcc"
+            "$<TARGET_FILE_DIR:test_bot_menu_hold>/Contents/Resources/"
+    )
+endif()

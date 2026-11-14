@@ -89,9 +89,11 @@ Data::SendError SendRichMessage::getErrorOnSend(
 }
 
 QString SendRichMessage::getLayoutDescription(const Result *owner) const {
-	return _summary.text.isEmpty()
-		? SendData::getLayoutDescription(owner)
-		: _summary.text;
+	auto result = SendData::getLayoutDescription(owner);
+	if (result.isEmpty()) {
+		return _summary.text;
+	}
+	return result;
 }
 
 SendDataCommon::SentMessageFields SendGeo::getSentMessageFields() const {
@@ -102,17 +104,17 @@ SendDataCommon::SentMessageFields SendGeo::getSentMessageFields() const {
 				| (_proximityNotificationRadius
 					? Flag::f_proximity_notification_radius
 					: Flag(0))),
-			_location.toMTP(),
+			_location->toMTP(),
 			MTP_int(_heading.value_or(0)),
 			MTP_int(*_period),
 			MTP_int(_proximityNotificationRadius.value_or(0))) };
 	}
-	return { .media = MTP_messageMediaGeo(_location.toMTP()) };
+	return { .media = MTP_messageMediaGeo(_location->toMTP()) };
 }
 
 SendDataCommon::SentMessageFields SendVenue::getSentMessageFields() const {
 	return { .media = MTP_messageMediaVenue(
-		_location.toMTP(),
+		_location->toMTP(),
 		MTP_string(_title),
 		MTP_string(_address),
 		MTP_string(_provider),
@@ -191,6 +193,47 @@ SendDataCommon::SentMessageFields SendInvoice::getSentMessageFields() const {
 
 QString SendInvoice::getLayoutDescription(const Result *owner) const {
 	return qs(_media.c_messageMediaInvoice().vdescription());
+}
+
+SendWidget::SendWidget(
+	not_null<Main::Session*> session,
+	const MTPDbotInlineMessageWidget &data)
+: SendDataCommon(session)
+, _caption{
+	qs(data.vmessage()),
+	Api::EntitiesFromMTP(session, data.ventities().value_or_empty()),
+}
+, _invertMedia(data.is_invert_media()) {
+	using Flag = MTPDmessageMediaWidget::Flag;
+	_media = MTP_messageMediaWidget(
+		MTP_flags((data.vpublic_data() ? Flag::f_public_data : Flag(0))
+			| (data.vchat_data() ? Flag::f_chat_data : Flag(0))
+			| (data.vwidget_id() ? Flag::f_widget_id : Flag(0))),
+		data.vwidth(),
+		data.vheight(),
+		data.vpayload(),
+		MTP_bytes(data.vpublic_data().value_or_empty()),
+		MTP_long(data.vpublic_data_hash().value_or_empty()),
+		MTP_bytes(data.vchat_data().value_or_empty()),
+		MTP_long(data.vwidget_id().value_or_empty()));
+}
+
+bool SendWidget::isValid() const {
+	return true;
+}
+
+SendDataCommon::SentMessageFields SendWidget::getSentMessageFields() const {
+	return { .text = _caption, .media = _media };
+}
+
+not_null<HistoryItem*> SendWidget::makeMessage(
+		const Result *owner,
+		not_null<History*> history,
+		HistoryItemCommonFields &&fields) const {
+	if (_invertMedia) {
+		fields.flags |= MessageFlag::InvertMedia;
+	}
+	return SendDataCommon::makeMessage(owner, history, std::move(fields));
 }
 
 } // namespace internal
