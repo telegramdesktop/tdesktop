@@ -3958,7 +3958,7 @@ FullMsgId ApiWrap::forwardMessages(
 		if (successCallback) {
 			successCallback();
 		}
-		return;
+		return {};
 	}
 
 	auto &histories = _session->data().histories();
