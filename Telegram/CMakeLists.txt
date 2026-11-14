@@ -1917,6 +1917,11 @@ PRIVATE
     platform/win/wallet_protection_win.cpp
     platform/win/wallet_protection_win.h
     platform/win/webauthn_win.cpp
+    platform/win/widget_channel_win.cpp
+    platform/win/widget_channel_win.h
+    platform/win/widget_helper_win.cpp
+    platform/win/widget_sandbox_win.cpp
+    platform/win/widget_sandbox_win.h
     platform/win/windows_app_user_model_id.cpp
     platform/win/windows_app_user_model_id.h
     platform/win/windows_dlls.cpp

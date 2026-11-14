@@ -33,7 +33,7 @@ struct Launched {
 
 } // namespace Platform::WidgetHelper
 
-#ifndef Q_OS_MAC
+#if !defined Q_OS_MAC && !defined Q_OS_WIN
 
 namespace Platform::WidgetHelper {
 
@@ -58,4 +58,14 @@ inline QString Lockdown() {
 
 } // namespace Platform::WidgetHelper
 
-#endif // !Q_OS_MAC
+#endif // !Q_OS_MAC && !Q_OS_WIN
+
+#ifdef Q_OS_WIN
+
+namespace Platform::WidgetHelper {
+
+[[nodiscard]] Fn<QString()> PrepareProbe();
+
+} // namespace Platform::WidgetHelper
+
+#endif // Q_OS_WIN
