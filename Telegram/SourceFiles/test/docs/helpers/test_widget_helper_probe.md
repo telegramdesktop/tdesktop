@@ -13,7 +13,9 @@ the helper's lockdown hook in a Debug build: it takes the listing after the
 real `Platform::WidgetHelper::Lockdown()`, tries what the sandbox must deny
 and refuses the stream with a summary, so no widget is ever served. On
 Windows the same hook runs a different, native probe and the helper goes on
-serving widgets ([Windows](#windows)).
+serving widgets ([Windows](#windows)). On Linux it runs its own probe in
+forked copies of the helper and around the real lockdown, writes its lines
+to stderr, and the helper goes on serving widgets ([Linux](#linux)).
 
 Callers: the `_DEBUG` block of `tgw/tgw_remote.cpp` is the only product caller.
 `ChooseRemote()` accepts `probe` and `probe-unsandboxed` as values of
@@ -33,8 +35,10 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 - The listing, attempts, fixtures and summary on this page are macOS only.
   On Windows `probe` runs the native probe of [Windows](#windows) and
   `probe-unsandboxed` refuses with `the widget helper probe is not
-  available on this platform`. The all-other platforms start no helper;
-  their hook would refuse every probe mode with the same text.
+  available on this platform`. On Linux `probe` and `probe-unsandboxed`
+  run the probe of [Linux](#linux), and both serve widgets. The non-Linux
+  all-other platforms start no helper; their hook would refuse every probe
+  mode with the same text as Windows' `probe-unsandboxed`.
 - `probe` locks down, then probes. `probe-unsandboxed` runs the same probe
   without the lockdown: it is the control, always in a separate helper.
 - The real lockdown starts with its service check
@@ -55,11 +59,11 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   `QStandardPaths::GenericDataLocation`. A helper with nothing after the
   token runs the lockdown alone and serves. Any other mode refuses with its
   name. A malformed port or seventh argument is a defect in the report.
-- An environment-selected probe has no fixture. Its keychain item read and
-  its loopback connect report `INCOMPLETE`, which is never a pass. Every
-  widget of such a launch dies with `the widget engine process ended`. Each
-  refusal counts as a helper failure, so the third probe latches the helper
-  for the process.
+- On macOS an environment-selected probe has no fixture. Its keychain item
+  read and its loopback connect report `INCOMPLETE`, which is never a pass.
+  Every widget of such a launch dies with `the widget engine process
+  ended`. Each refusal counts as a helper failure, so the third probe
+  latches the helper for the process.
 - A pristine listing holds two send rights no reference service matches:
   libtrace's firehose push ports to logd. The probe names them only through
   its own [firehose reading](#firehose-reading), made in the same process
@@ -94,6 +98,213 @@ network access included, are in
 [Remote engines](test_widget_fixture.md#remote-engines) (**Windows probe**
 and **What the Windows lowering leaves**), and its runs in that page's
 [Verification](test_widget_fixture.md#verification).
+
+## Linux
+
+With `probe` or `probe-unsandboxed` the client appends the same argv tail
+on both of its spawn paths, inside Flatpak through the portal's argv, and
+the hook runs `RunLinuxProbe()` in `test_widget_helper_probe.cpp`. It
+reads the mode, `cwd` and `application-support` (the data directory below)
+and ignores every argument after them, so it takes no fixture. It calls
+nothing in `platform/linux/` but the `lockdown` callable, which is the
+real `Platform::WidgetHelper::Lockdown()`. It runs on serve's thread while
+the helper is still single-threaded. Every line is one `write` to
+descriptor 2, prefixed `Widget helper probe: `. That is the client's
+stderr on both spawn paths, since the portal is handed the client's
+descriptor 2 too, so the lines land in `app_stderr.txt` in a test run.
+Unless the helper's own lockdown refuses, the hook returns "" and the
+helper serves widgets as in `helper` mode, so a probe launch is no helper
+failure.
+
+With `probe` it goes through these steps:
+
+1. Before any copy or lockdown, the helper reads:
+   - `pid`: `getpid()`;
+   - `uid_map`: the first line of `/proc/self/uid_map` as
+     `inside:outside:count`, `init` for the initial namespace's
+     `0 0 4294967295`, `none` when the map is empty or unreadable;
+   - `interfaces`: the interface names in `/proc/self/net/dev`,
+     comma-separated, `none` without any;
+   - `pdeathsig`: `PR_GET_PDEATHSIG`;
+   - the Landlock ABI:
+     `landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION)`,
+     or the error name of its failure;
+   - `sandbox`: `flatpak` when `/.flatpak-info` exists, else `snap` when
+     `SNAP` is set, else `none`.
+2. It forks three copies of itself, one at a time. Each copy sets
+   `PR_SET_PDEATHSIG(SIGKILL)` first, then makes itself non-dumpable with
+   `PR_SET_DUMPABLE(0)`, so its deliberate death writes no core dump; it
+   never touches the channel it inherits and ends with `_exit`. The helper
+   polls for the copy's end every 10 ms for up to 2000 ms; a copy still
+   running then is killed with `SIGKILL` and waited for. The copy's status
+   text comes from its wait status: `killed by signal <N>`, `succeeded` for
+   exit 0, `lockdown refused` for exit 255, `returned <E>` for any other
+   exit, which carries the attempt's errno, or `status <N>`. A copy that
+   outlived the 2000 ms reads `no end in 2000 ms, killed: <status text>`,
+   with the status reaped after the kill, so a copy that was already dying
+   keeps its own reading after the colon. `fork failed: <E>` and
+   `waitpid failed: <E>` stand for a copy it could not run or wait for.
+   - (a) "landlock alone". The copy sets `PR_SET_NO_NEW_PRIVS` and
+     installs an outer filter that answers `seccomp(2)` and
+     `prctl(PR_SET_SECCOMP, ...)` with `EPERM` and allows every other
+     call, every call of another architecture included. Then it calls the
+     real lockdown. Every step before the seccomp install runs as in the
+     serving helper, the empty root, `capset`, no-new-privileges and
+     Landlock included; the install fails both ways, so the lockdown
+     returns `prctl(PR_SET_SECCOMP) failed: EPERM` and leaves Landlock in
+     force with no seccomp filter of its own. The copy opens `.`, the
+     client's `cwd` and the data directory read-only as directories,
+     reads the root with `access("/proc", F_OK)` (`ENOENT` means `empty`,
+     anything else `kept`) and writes `landlock alone: cwd=<r>
+     client-cwd=<r> data=<r> root=<empty|kept> lockdown=<refusal>`, each
+     `<r>` `opened` or the open's error name, `lockdown=ok` should the
+     install not fail. Its `cwd` reading and root go back to the helper
+     through a shared anonymous page. When it cannot install the outer
+     filter, it writes `landlock alone: no outer filter: <error>` and
+     calls no lockdown. When the copy ends any other way than exit 0, the
+     helper writes `landlock alone: <status text>`, and it writes
+     `landlock alone: mmap failed: <E>` when it cannot map the shared page,
+     so a missing reading is never silent.
+   - (b) The copy calls the real lockdown, then
+     `syscall(__NR_execve, "", NULL, NULL)`; the helper writes `execve:
+     <status text>`.
+   - (c) The copy calls the real lockdown, then
+     `syscall(__NR_socket, AF_UNIX, SOCK_STREAM, 0)` and closes a socket it
+     got; the helper writes `socket: <status text>`.
+
+   When the lockdown of copy (b) or (c) refuses, the copy writes `<name>:
+   lockdown refused: <refusal>` itself and exits 255, before the helper's
+   `<name>: lockdown refused`.
+3. It opens `/proc/self/status` read-only, then calls the real lockdown
+   once. A refusal writes `lockdown: FAILED <refusal>`, closes the
+   descriptor and returns the refusal, so the stream is refused as without
+   the probe and no line follows. Otherwise it writes `lockdown: ok`.
+4. It reads the status descriptor and closes it, opens `.`, `cwd` and the
+   data directory again, lists descriptors 0 to 4095 and writes `after
+   lockdown: cwd=<r> client-cwd=<r> data=<r> descriptors=<list>`, the list
+   comma-separated, `none` when empty.
+5. It writes `layers: seccomp=<t> landlock=<t> nnp=<t> caps=<t>
+   seccomp_filters=<t> pdeathsig=<n> pid=<n> uid_map=<t> interfaces=<t>
+   root=<t> sandbox=<t>`:
+   - `seccomp` is `on` when the status read `Seccomp:` 2, `nnp` is `on`
+     when it read `NoNewPrivs:` 1, and each is `off` otherwise;
+   - `caps` is `none` when `CapPrm` and `CapEff` are both zero, else
+     `kept`;
+   - `seccomp_filters` is the `Seccomp_filters:` value;
+   - each of these four is `unknown` when its field is missing, as
+     `Seccomp_filters` is before kernel 5.9, or the status could not be
+     read;
+   - `landlock` is `off(<E>)` when step 1's ABI query failed, and
+     otherwise comes from copy (a): `abi<N>` when its `cwd` read `EACCES`,
+     `abi<N>,not-enforced` when it read anything else, `unknown` when the
+     copy gave no reading;
+   - `root` comes from copy (a): `empty`, `kept`, or `unknown` without its
+     reading;
+   - `pdeathsig`, `pid`, `uid_map`, `interfaces` and `sandbox` come from
+     step 1.
+6. It returns "".
+
+With `probe-unsandboxed` neither the copies nor the helper call `lockdown`
+or install the outer filter: copy (a)'s line ends `lockdown=skipped`,
+copies (b) and (c) make their attempts unconfined, and step 3 writes
+`lockdown: skipped (unsandboxed control)`. That helper then serves its
+widgets unconfined. It is the control of every reading: the same calls
+reach the kernel in the same build, so a `probe` line that reads like its
+control shows a layer that did not apply. Only a Debug client passes the
+mode, and the Release `HelperLockdown()` ignores argv.
+
+Where each reading is taken:
+
+- `execve` and `socket` end the process under the production filter, so
+  they are tried in copies. Landlock's enforcement shows only where no
+  seccomp filter of the helper's own answers a path call first, so copy
+  (a) stops the lockdown at the install. The root is read in that copy
+  through `access(2)`, which Landlock does not restrict and the serving
+  helper's filter answers with `ENOSYS`. The copies run the same
+  `Lockdown()` in the same process image, just before the helper's own
+  lockdown: these readings are the copies', not the serving helper's.
+- The serving helper's seccomp, no-new-privileges and capability state
+  after its lockdown come from the status descriptor it opened before it,
+  read with `read`, which the filter allows. The descriptor is closed
+  before the listing, so the listing stays exact.
+- `pdeathsig` is read in the helper before the lockdown. Dropping
+  capabilities is no credential change that clears it.
+- The listing peeks at each descriptor with
+  `recvfrom(fd, &byte, 0, MSG_DONTWAIT | MSG_PEEK, NULL, NULL)`: `EBADF`
+  means closed, any other answer open. The production filter allows that
+  call, and it consumes nothing.
+- After its lockdown the helper only reads, writes, peeks and allocates.
+  Its opens are expected to fail with `ENOSYS`.
+
+The expected readings below are expectations, not results
+([Verification](#verification)). They assume a kernel with Landlock ABI
+`<N>`, a client under no seccomp filter of its own, and the client's
+working and data directories present in the client.
+
+- A direct spawn with user namespaces:
+  - `landlock alone: cwd=EACCES client-cwd=ENOENT data=ENOENT root=empty
+    lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`: the client's paths do
+    not exist under the empty root;
+  - `execve: killed by signal 31` and `socket: killed by signal 31`
+    (`SIGSYS`);
+  - `lockdown: ok`;
+  - `after lockdown: cwd=ENOSYS client-cwd=ENOSYS data=ENOSYS
+    descriptors=0,1,2,3`;
+  - `layers: seccomp=on landlock=abi<N> nnp=on caps=none
+    seccomp_filters=1 pdeathsig=9 pid=1 uid_map=0:<uid>:1 interfaces=lo
+    root=empty sandbox=none`, `<uid>` being the client's effective user
+    id.
+- A plain child, after the main log's `Tgw: The widget helper starts
+  without namespaces: clone failed: <reason>.`:
+  - `landlock alone: cwd=EACCES client-cwd=EACCES data=EACCES root=kept
+    lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`;
+  - the same `execve`, `socket`, `lockdown` and `after lockdown` lines;
+  - the same `layers:` line but for `pid=<its pid>`, `uid_map=<the
+    client's>` (`init` in the initial user namespace), `interfaces=<the
+    client's>` and `root=kept`.
+- A helper the Flatpak portal spawned:
+  - `landlock alone: cwd=EACCES client-cwd=<r> data=<r> root=kept
+    lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`: the portal's sandbox
+    refuses the empty root's steps, and `client-cwd` and `data` read
+    `ENOENT` where it lacks the client's paths, `EACCES` where it has
+    them;
+  - the same `execve`, `socket`, `lockdown` and `after lockdown` lines,
+    the copies' wait statuses being the helper's own, not bubblewrap's;
+  - `layers: seccomp=on landlock=abi<N> nnp=on caps=none
+    seccomp_filters=<one more than the sandbox's own> pdeathsig=9
+    pid=<n> uid_map=<the sandbox's> interfaces=lo root=kept
+    sandbox=flatpak`.
+- A system that lets the namespaced clone through but refuses part of
+  what follows reads that part: `uid_map=none` for refused maps,
+  `root=kept` for a refused mount step.
+- A kernel without Landlock reads `landlock=off(ENOSYS)`, or
+  `off(EOPNOTSUPP)` when Landlock is off at boot, and copy (a)'s opens
+  succeed wherever the path exists.
+- The control on a direct spawn: `landlock alone: cwd=opened
+  client-cwd=opened data=opened root=kept lockdown=skipped`, `execve:
+  returned ENOENT`, `socket: succeeded`, `lockdown: skipped (unsandboxed
+  control)`, `after lockdown: cwd=opened client-cwd=opened data=opened
+  descriptors=0,1,2,3` and `layers: seccomp=off landlock=abi<N>,not-enforced
+  nnp=off ... seccomp_filters=0 ... root=kept`, with `caps=kept` in a
+  namespaced helper, which is root of its user namespace, and `caps=none`
+  in a plain one. Inside Flatpak, bubblewrap's own filter and
+  no-new-privileges make the control read `seccomp=on` and `nnp=on`.
+
+Limits:
+
+- `client-cwd` and `data` show Landlock only where the path exists in the
+  copy: a directory missing in the client, or any client path under an
+  empty root, reads `ENOENT` whatever Landlock does, in the control as
+  well. `cwd`, the helper's `/`, always exists, and it is the reading the
+  `landlock=` token uses.
+- Copy (a)'s readings assume its lockdown refused only at the install.
+  Any other `lockdown=` text names a step that refused before it, so
+  Landlock or the empty root may not have applied in that copy.
+- The status reading covers only what `/proc/self/status` shows: Landlock
+  leaves nothing there, so the serving helper's own Landlock domain is
+  inferred from the copy's reading, not read.
+- Every helper of a probe launch probes, since the client passes the mode
+  to each one it starts.
 
 ## Minimal use
 
@@ -258,6 +469,17 @@ Near its end it closes stdin and tries a socket again.
 The helper exits after the refusal. The overlay owns the keychain item, the
 listener and the restoration of `SecKeychainSetUserInteractionAllowed`.
 
+On Linux the probe keeps no state either. Each forked copy sets
+`PR_SET_PDEATHSIG(SIGKILL)`, makes itself non-dumpable and ends only with
+`_exit`, so the deliberate deaths of copies (b) and (c) write no core dump
+to the host's crash handler (systemd-coredump, apport, or WSL's crash
+folder); the helper reaps it within 2 s, polled every 10 ms, and otherwise
+kills it with `SIGKILL` and reaps it with a blocking wait before the next
+copy starts. The shared page
+of copy (a) is unmapped once read, and the `/proc/self/status` descriptor
+is closed before the listing. The helper then serves widgets and ends like
+any other helper.
+
 ## Verification
 
 Executed on macOS 27.0.1 arm64 in a Debug build, in the evidence campaign
@@ -375,6 +597,9 @@ through the probe's own [firehose reading](#firehose-reading) in the
 second. On another layout the reading can fail and leave both rights
 `UNACCOUNTED`; as that section says, nothing promises that every
 incompatible layout fails rather than matching unrelated words.
+
+On Linux the probe has not run in a Telegram helper yet, so the readings
+under [Linux](#linux) are expectations.
 
 ## Related guidance
 

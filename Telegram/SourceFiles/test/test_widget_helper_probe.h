@@ -11,16 +11,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <string>
 
-// The Debug probe of the widget helper's lockdown on macOS and Windows: the
-// arguments a client appends after `-widgethelper <token>` and the lockdown
-// hook the helper gives SandboxRemoteEngineEnd::serve(). On macOS a probe
-// helper lists every descriptor and Mach right it holds after the real
-// lockdown, attempts what the sandbox must deny and refuses the stream with
-// a summary instead of serving any widget. On Windows a probe helper runs
-// the native probe of Platform::WidgetHelper::PrepareProbe() around the real
-// lockdown, writes its report to stderr and goes on serving widgets. Its
-// only product caller is the `_DEBUG` block of tgw_remote.cpp; Release
-// builds never reach it, the harness ones included.
+// The Debug probe of the widget helper's lockdown on macOS, Windows and
+// Linux: the arguments a client appends after `-widgethelper <token>` and
+// the lockdown hook the helper gives SandboxRemoteEngineEnd::serve(). On
+// macOS a probe helper lists every descriptor and Mach right it holds after
+// the real lockdown, attempts what the sandbox must deny and refuses the
+// stream with a summary instead of serving any widget. On Windows a probe
+// helper runs the native probe of Platform::WidgetHelper::PrepareProbe()
+// around the real lockdown, writes its report to stderr and goes on serving
+// widgets. On Linux a probe helper attempts what the lockdown must deny in
+// forked copies of itself, then locks itself down for real, writes its
+// readings to stderr and goes on serving widgets. Its only product caller
+// is the `_DEBUG` block of tgw_remote.cpp; Release builds never reach it,
+// the harness ones included.
 // Reference: docs/helpers/test_widget_helper_probe.md.
 //
 // Everything here is harness-only: declared here and deliberately left
@@ -80,7 +83,22 @@ struct WidgetHelperProbeFixture {
 // "Widget helper probe: <line>" and it returns "", so the helper serves
 // widgets. The arguments after the mode are ignored there, and
 // "probe-unsandboxed" refuses as not available.
-// Elsewhere a probe mode refuses as not available.
+// On Linux, with "probe" it first runs three forked copies of the helper,
+// one at a time, each reaped within 2 s or killed: the first makes the
+// seccomp install of |lockdown| fail through an outer filter, so every step
+// before it applies, Landlock and the empty root included, then opens the
+// working directory, the client's one and the data directory; the other two
+// call |lockdown| and attempt execve and socket, which must kill them. Then
+// it calls |lockdown| itself: its failure text refuses the stream after a
+// "lockdown: FAILED" line. On success it reads its seccomp, no-new-privs and
+// capability state through a descriptor opened before the lockdown, opens
+// the same directories, lists its descriptors and returns "", so the helper
+// serves widgets. Every line goes to stderr as "Widget helper probe:
+// <line>". With "probe-unsandboxed" it does the same without any |lockdown|
+// call or outer filter, and the helper serves widgets unconfined. The
+// arguments after the data directory are ignored there.
+// On the non-Linux all-other platforms a probe mode refuses as not
+// available.
 [[nodiscard]] std::string WidgetHelperLockdown(
 	const QStringList &arguments,
 	Fn<QString()> lockdown);

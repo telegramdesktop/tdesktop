@@ -13,8 +13,9 @@ outgoing widget messages with tapped validated ops, card readings, the
 runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where the engines of its widgets run: in the sandboxed widget helper
-by default on macOS, outside the store build and packaged builds, and in a
-restricted widget helper on Windows only when a Debug run asks for one.
+by default on macOS, outside the store build and packaged builds, and on
+Linux x86_64 and aarch64, and in a restricted widget helper on Windows only
+when a Debug run asks for one.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -270,37 +271,48 @@ stay with each caller (their policies close this section).
 
 ## Remote engines
 
-On macOS, outside the store build and packaged builds, every widget engine
-of the client runs in one shared widget helper process that has locked
-itself down, instead of the client's own threads, in Debug and Release
-builds alike and with no switch. On Windows a Debug run can put them in
-one shared restricted widget helper with the switch below; every other
-Windows launch, and every Windows Release build, keeps them in process.
-The packs, the fixture and the seams they use need no change for it.
+On macOS, outside the store build and packaged builds, and on Linux x86_64
+and aarch64, packaged builds included, every widget engine of the client
+runs in one shared widget helper process that has locked itself down,
+instead of the client's own threads, in Debug and Release builds alike and
+with no switch. On Windows a Debug run can put them in one shared
+restricted widget helper with the switch below; every other Windows
+launch, and every Windows Release build, keeps them in process. The packs,
+the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
   macOS, so a launch with no switch runs every engine in the sandboxed
-  helper, and false in the store build (`OS_MAC_STORE`), in a build with
-  packaged libraries (`DESKTOP_APP_USE_PACKAGED`, which defines
-  `TDESKTOP_USE_PACKAGED`), on Windows and on the all-other platforms,
-  which keep their engines in process. The client
-  decides once, on the main thread, when it constructs its first widget
-  host (`Tgw::PrepareRemoteEngines()` in `Runtime::construct()`), keeps
-  that choice for the whole process and names it in the main log: `Tgw:
-  Widget engines run in the widget helper.` or `Tgw: Widget engines run in
+  helper, and false in the store build (`OS_MAC_STORE`), in a macOS build
+  with packaged libraries (`DESKTOP_APP_USE_PACKAGED`, which defines
+  `TDESKTOP_USE_PACKAGED`), on Windows and on the non-Linux all-other
+  platforms, which keep their engines in process. On Linux it is true on
+  x86_64 and aarch64 in every build, Debug and Release, with or without the
+  harness, and has no packaged exclusion: distribution builds against
+  packaged libraries, Flatpak and Snap default to the sandboxed helper as
+  well (`kLockdownAvailable` in `widget_lockdown_linux.h`). Other Linux
+  architectures have no seccomp filter and keep their engines in process.
+  No Linux build against packaged libraries has run the helper yet: a
+  shared library that started a thread before `main` would make every
+  helper refuse with `the widget helper has <N> threads before its
+  lockdown` (**The Linux lockdown** below). The client decides once, on
+  the main thread, when it constructs its first widget host
+  (`Tgw::PrepareRemoteEngines()` in `Runtime::construct()`), keeps that
+  choice for the whole process and names it in the main log: `Tgw: Widget
+  engines run in the widget helper.` or `Tgw: Widget engines run in
   process.`. Release builds, `TDESKTOP_RELEASE_TEST_HARNESS` ones included,
   read no switch, never probe, and open the helper's `-widgethelper` entry
   only where this default is true. Windows has a helper but this default
   stays false there, so only the Debug switch below starts it, and the
   `-widgethelper` entry of a Windows Release build exits with status 1
-  before it adopts a channel.
+  before it adopts a channel, as does that of a Release build on another
+  Linux architecture.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
   - unset or any other value: the platform default;
   - `helper`: the sandboxed helper explicitly, the same as the default on
-    macOS, so command lines that name it keep working; on Windows the
-    restricted helper (**The Windows helper** below), which no default
-    starts;
+    macOS and on Linux, so command lines that name it keep working; on
+    Windows the restricted helper (**The Windows helper** below), which no
+    default starts;
   - `in-process`: the engines stay in the client, the control of a run
     that compares the two modes;
   - `probe` and `probe-unsandboxed`: on macOS every helper probes its
@@ -313,7 +325,11 @@ The packs, the fixture and the seams they use need no change for it.
     widgets as `helper` does (**Windows probe** below), and
     `probe-unsandboxed` makes every helper refuse the stream with `the
     widget helper probe is not available on this platform`, each refusal
-    a failure as well.
+    a failure as well. On Linux both start the sandboxed helper, which
+    writes its probe lines to `app_stderr.txt` and then serves widgets
+    (**Linux probe** below): `probe` under the real lockdown, which still
+    refuses the stream when it fails, and `probe-unsandboxed` with no
+    lockdown at all, so that helper runs its widgets unconfined.
 
   The helper never reads the variable: the client passes a probe value to
   it as the mode argument after its channel (**The shared helper** and
@@ -334,25 +350,29 @@ The packs, the fixture and the seams they use need no change for it.
     --env TDESKTOP_WIDGET_ENGINES=helper
   ```
 
-  The main log names a recognized value: `Tgw: Widget engines run in the
+  On Linux the first command takes `--exe out/Debug/Telegram`. The main
+  log names a recognized value: `Tgw: Widget engines run in the
   widget helper (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
   or `probe-unsandboxed`, or `Tgw: Widget engines run in process
   (TDESKTOP_WIDGET_ENGINES=in-process).`.
-- **Store, packaged and other platforms.** macOS and Windows have a
-  helper. An explicit `helper` or probe value on the all-other platforms
-  fails closed instead: no engine runs in process, and each widget dies
-  with `the widget helper could not start: the widget helper is not
-  available on this platform` until the failure limit below stops the
-  attempts. The macOS store build keeps its engines in process because
-  `sandbox_init` cannot narrow a process the App Sandbox already confines;
-  an explicit `helper` there starts a helper inside the app's sandbox,
-  which skips the service check below and fails its lockdown with
-  `sandbox_init failed: <error>`. A packaged build keeps its engines in
-  process because its Qt is an external one (Homebrew's in the packaged
-  workflow) without the patches that keep Qt's startup from connecting to
-  the preferences daemon and other services before `main`, and no profile
-  takes such a connection back; an explicit `helper` there starts a helper
-  that refuses at the service check whenever its Qt made one. On Windows
+- **Store, packaged and other platforms.** macOS, Windows and Linux have a
+  helper. An explicit `helper` or probe value on the non-Linux all-other
+  platforms fails closed instead: no engine runs in process, and each
+  widget dies with `the widget helper could not start: the widget helper
+  is not available on this platform` until the failure limit below stops
+  the attempts. On a Linux architecture other than x86_64 and aarch64 it
+  fails closed the same way, with `the widget helper could not start: the
+  widget helper is not available on this architecture`. The macOS store
+  build keeps its engines in process because `sandbox_init` cannot narrow
+  a process the App Sandbox already confines; an explicit `helper` there
+  starts a helper inside the app's sandbox, which skips the service check
+  below and fails its lockdown with `sandbox_init failed: <error>`. A
+  macOS packaged build keeps its engines in process because its Qt is an
+  external one (Homebrew's in the packaged workflow) without the patches
+  that keep Qt's startup from connecting to the preferences daemon and
+  other services before `main`, and no profile takes such a connection
+  back; an explicit `helper` there starts a helper that refuses at the
+  service check whenever its Qt made one. On Windows
   the seam fails every launch closed the same way in the Store build (`the
   widget helper is not available in the Store build`) and before Windows
   10 1809 (`the widget helper needs Windows 10 1809 or later`); neither
@@ -368,15 +388,42 @@ The packs, the fixture and the seams they use need no change for it.
   when the client has none. Only a Debug probe value adds arguments after
   the `3`: the mode, the client's working directory and Application
   Support path, as [test_widget_helper_probe](test_widget_helper_probe.md)
-  describes. The Windows helper is below. It has no harness, log or
-  account data: everything a seam reads stays in the client. It is stopped
-  30 s after its count of open runtimes last fell to zero, and never sooner
-  than 30 s after it last handed a widget its channel; the next widget
-  starts a fresh helper with a new pid. The main log has `Tgw: Widget
-  helper <pid> started.`, then `Tgw: Widget helper <pid> stream ended:
-  <reason>.` and `Tgw: Widget helper <pid> ended, <status>.`. On macOS the
+  describes. On Linux it is `/proc/self/exe -widgethelper 3`, so it runs
+  the client's executable even after an update replaced its file, with
+  `argv[0]` the executable's path as `/proc/self/exe` reads, and without
+  `-testagent`; a Debug probe value adds the same arguments after the `3`,
+  with the client's `QStandardPaths::GenericDataLocation` as the data path.
+  The client clones it from a thread of its own that lives as long as the
+  process, with only descriptors 0 to 3 open (0 and 1 `/dev/null`, 2 the
+  client's stderr, 3 the channel), in the working directory `/`, with every
+  signal at its default action, an empty signal mask and the client's
+  environment. The same clone gives it its own user, PID, network and
+  mount namespaces: inside them it is PID 1 and root of a user namespace
+  that maps it to the client's user, with only a loopback interface, while
+  the main log and `ps` show its outer pid. Where the system refuses that
+  clone, the main log has `Tgw: The widget helper starts without
+  namespaces: clone failed: <reason>.` and the client clones it again as a
+  plain child. Inside Flatpak the Flatpak portal starts it instead, through
+  `Spawn` with the flags 28 (`SANDBOX`, `NO_NETWORK` and `WATCH_BUS`): the
+  executable's real path, the same arguments, the working directory `/`,
+  the same four descriptors and an empty environment table, so the helper
+  gets the environment of the portal's sandbox, not the client's; when
+  `/proc/self/exe` cannot be read that start fails with `the executable
+  path is unknown`. That helper is not the client's child, and the pid in
+  the main log is the portal's, not one in the client's PID namespace. The
+  Windows helper is below. It has no harness, log or account data:
+  everything a seam reads stays in the client. It is stopped 30 s after
+  its count of open runtimes last fell to zero, and never sooner than 30 s
+  after it last handed a widget its channel; the next widget starts a
+  fresh helper with a new pid. The main log has `Tgw: Widget helper <pid>
+  started.`, then `Tgw: Widget helper <pid> stream ended: <reason>.` and
+  `Tgw: Widget helper <pid> ended, <status>.`. On macOS and Linux the
   status is `exit N` or `signal N`, with `sent SIGKILL after N ms` added
-  when it had to be killed. On Windows it is `exit N`, or `exit 0x<code>`
+  when it had to be killed. Inside Flatpak the client takes that status
+  from the portal's `SpawnExited` signal and kills through the portal's
+  `SpawnSignal`, sent to the process group of the sandbox the portal
+  started; a failed kill adds `SpawnSignal failed: <error>` in place of
+  `sent SIGKILL after N ms`. On Windows it is `exit N`, or `exit 0x<code>`
   in uppercase hexadecimal from `0xC0000000` up, with `terminated after N
   ms` added when its job had to be killed, which ends it with `exit 1067`
   (`ERROR_PROCESS_ABORTED`): `exit 1067, terminated after 1000 ms` after
@@ -539,6 +586,87 @@ The packs, the fixture and the seams they use need no change for it.
   had already mapped still resolves after the lowering was not measured,
   so the advapi32 bind is a precaution. The warm-up covers the paths those
   runs found, not every load a later path can need.
+- **The Linux lockdown.** At its entry, before it adopts its channel, the
+  Linux helper asks the kernel for `SIGKILL` when its parent ends
+  (`PR_SET_PDEATHSIG`) and closes every descriptor above 3. It locks
+  itself down where the macOS helper does, once it has accepted the
+  client's opening and holds the bundles, before any runtime or engine
+  thread exists and before it answers `Ready` (`LockDownHelper()` in
+  `widget_lockdown_linux.cpp`). In this order it:
+  1. refuses unless `/proc/self/task` lists exactly one thread;
+  2. reads its time zone once (`tzset()`) and keeps it;
+  3. asks the kernel for its Landlock ABI and builds its seccomp filter;
+  4. empties its root: it first unshares a mount namespace of its own, so
+     a helper run as root never changes the host's mount table, then makes
+     every mount private, mounts a read-only `tmpfs` on `/tmp`, makes it
+     the root with `pivot_root`, detaches the old root and changes to the
+     new `/`;
+  5. drops every capability (`capset`);
+  6. sets `PR_SET_NO_NEW_PRIVS`;
+  7. when the kernel reported an ABI, applies a Landlock ruleset with no
+     rule that handles the filesystem rights of that ABI, up to ABI 5's
+     device `ioctl`, TCP bind and connect from ABI 4, and abstract Unix
+     sockets and signals from ABI 6;
+  8. installs the seccomp filter with `seccomp(2)` and
+     `SECCOMP_FILTER_FLAG_SPEC_ALLOW`, or with `prctl(PR_SET_SECCOMP)` when
+     that call fails.
+
+  The filter, built for x86_64 or aarch64, allows reads and writes on the
+  channel and stderr, memory management without executable memory (an
+  executable `mmap` or `mprotect` gets `EPERM`), futexes without priority
+  inheritance, glibc's own thread creation and naming, clocks, sleeps,
+  random bytes and signals to the helper itself. It ends the helper with
+  signal 31 (`SIGSYS`) for `execve`, `execveat`, `socket`, `connect`,
+  `ptrace`, `process_vm_readv` and `process_vm_writev`, on x86_64 also
+  `fork` and `vfork`, for a `clone` that does not create a thread, and for
+  any call of another architecture or of the x32 ABI. It answers every
+  other call, opening a file included, with `ENOSYS`; `clone3` gets
+  `ENOSYS` as well, so glibc falls back to `clone`. A step that fails
+  refuses the stream as on macOS: the helper writes `Widget helper:
+  <refusal>` to its stderr and exits 1, the main log reads `Tgw: Widget
+  helper <pid> stream ended: the engine process refused the stream:
+  <refusal>.`, its widgets die with `the widget engine process ended`, and
+  the refusal counts towards the failure limit below. The refusals are
+  `the widget helper cannot count its threads: <E>`, `the widget helper
+  has <N> threads before its lockdown`, `chdir failed: <E>` when the old
+  root was already detached, `capset failed: <E>`,
+  `prctl(PR_SET_NO_NEW_PRIVS) failed: <E>`, `landlock_create_ruleset
+  failed: <E>`, `landlock_restrict_self failed: <E>` and
+  `prctl(PR_SET_SECCOMP) failed: <E>`, where `<E>` is an error name such as
+  `EPERM`, or `errno<N>`; a Debug helper started by hand on another
+  architecture refuses with `the widget helper has no seccomp filter for
+  this architecture`. The main log never lists the layers that applied:
+  the namespace fallback line says that the namespaces did not, and
+  seccomp, no-new-privileges, the capability drop and an available
+  Landlock each apply or refuse. Two cases are silent. A kernel without
+  Landlock, whose ABI query fails (`ENOSYS`, or `EOPNOTSUPP` when Landlock
+  is off at boot), leaves the helper to seccomp alone. A root the helper
+  could not empty, because a step of the empty root before its last change
+  of directory failed (for an ordinary user without a user namespace,
+  inside Flatpak and, by snapd's policy, under Snap), stays the root it was
+  given. Seccomp still answers every path call with `ENOSYS` in both, and
+  in a Debug build the probe's `layers:` line shows them (**Linux probe**
+  below).
+- **Linux probe.** With `probe` or `probe-unsandboxed` the client passes
+  the mode, its working directory and its
+  `QStandardPaths::GenericDataLocation` after the `3`, inside Flatpak
+  through the portal's argv, and the helper's lockdown hook
+  ([test_widget_helper_probe](test_widget_helper_probe.md#linux)) probes
+  once per helper, on serve's thread before any engine thread exists. With
+  `probe` it first forks three copies of the helper, one at a time: the
+  first shows Landlock and the empty root with the seccomp install made to
+  fail, the other two lock down and try `execve` and `socket`, which must
+  end them. Then the helper locks itself down for real, reads its own
+  state and descriptors and goes on serving widgets as with `helper`. Its
+  lines, normally six, each one `Widget helper probe: <line>` on its
+  stderr (`app_stderr.txt` under `test-run`), start `landlock alone:`,
+  `execve:`, `socket:`, `lockdown:`, `after lockdown:` and `layers:`. A
+  refused real lockdown writes `lockdown: FAILED <refusal>` and no line
+  after it, and refuses the stream as with `helper`. With
+  `probe-unsandboxed` neither the copies nor the helper lock down, its
+  `lockdown:` line reads `lockdown: skipped (unsandboxed control)`, and
+  the helper serves its widgets unconfined. A probe helper that serves is
+  no helper failure.
 - **Threads.** With the helper the client runs one `widget.client` thread
   per engine and no `widget.sandbox`; `widget.validator` and the host's
   `twidget-host` stay, and the channel adds `widget.reader`,
@@ -574,6 +702,15 @@ The packs, the fixture and the seams they use need no change for it.
   <error>`, the seam's error such as `posix_spawn failed: <reason>` on
   macOS or `CreateProcessAsUserW failed: <reason>` on Windows, and the
   main log adds `Tgw Error: The widget helper could not start: <error>.`.
+  On Linux the error is `clone failed: <reason>` when the clone without
+  namespaces fails as well, `<call> failed: <reason>` for another failed
+  call of the spawn, such as `execve failed: <reason>` from the cloned
+  child before it became the helper, `stderr is not open` or `the widget
+  helper is not available on this architecture`; inside Flatpak it can
+  also be `the Flatpak portal is unavailable: <message>`, `Spawn failed:
+  <message>` or `the executable path is unknown`, with the D-Bus error's
+  message. The Linux `<reason>` is the system's message without a period,
+  such as `No space left on device`.
   The Windows `<reason>` is the system's message with its own period,
   such as `Not enough quota is available to process this command.` in an
   enclosing job limited to one active process, so that line ends in `..`.
@@ -600,26 +737,36 @@ The packs, the fixture and the seams they use need no change for it.
   synchronously in the channel factory, before the host's creation time
   that `loadedMs` counts from, so its `loadedMs` does not include the
   spawn itself; it can include the helper's own start-up and lockdown
-  before its engine answers.
+  before its engine answers. The spawn runs while the client's helper
+  manager holds its mutex. Inside Flatpak it is a synchronous portal call,
+  bounded by the portal proxy's 10 s timeout and preceded, until the
+  client has its proxy, by that proxy's creation, whose D-Bus calls have
+  GDBus's default bound of 25 s each; until it returns, a manager call
+  from the main thread waits for it.
 - **Quit.** A quit stops the helper, live or idle, once no widget host,
   build, sample or theme job is left, as one more tgw job that holds the
   quit (`Tgw prevents quit, stopping widget sandboxes...`); `Tgw doesn't
   prevent quit any more.` can appear twice, before and after that job. The
   stop waits up to 1 s for the helper to exit, then kills it (on Windows
-  by terminating its job) and waits up to 1 s more; an outstanding theme
-  probe can hold the quit for its 10 s before that. A helper left behind
-  has the client's executable path, so `test-run`'s path-scoped kill ends
-  it and lists it in `stragglers_killed_after`. When the client dies
-  without a quit, the helper reads the end of its channel and exits by
-  itself. On Windows the client's death also closes the helper's job,
-  whose only handle the client holds, and the job's kill on close ends
-  the helper even when it is not reading.
+  by terminating its job, inside Flatpak through the portal) and waits up
+  to 1 s more; an outstanding theme probe can hold the quit for its 10 s
+  before that. A helper left behind has the client's executable path, so
+  `test-run`'s path-scoped kill ends it and lists it in
+  `stragglers_killed_after`. When the client dies without a quit, the
+  helper reads the end of its channel and exits by itself. On Windows the
+  client's death also closes the helper's job, whose only handle the
+  client holds, and the job's kill on close ends the helper even when it
+  is not reading. On Linux the kernel kills a helper the client cloned
+  when the client dies, also when it is not reading: its
+  `PR_SET_PDEATHSIG` follows the client's spawning thread, which lives as
+  long as the client. Inside Flatpak the portal kills the helper's sandbox
+  when the client leaves the session bus (`WATCH_BUS`).
 - **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
   gives in-process loopback clients only when no factory is installed, so
-  engines in the helper ignore it, the macOS default included, and with
-  `in-process`, or where the default keeps engines in process, its engines
-  keep the `Started.` note while running in the client. Leave it unset in
-  both modes.
+  engines in the helper ignore it, the macOS and Linux defaults included,
+  and with `in-process`, or where the default keeps engines in process,
+  its engines keep the `Started.` note while running in the client. Leave
+  it unset in both modes.
 
 ## Readings and refusals
 
@@ -750,8 +897,7 @@ and the box count in `paint-backdrop-replay.html`'s paint-limit reason
 in process in that Debug build (Run 11). The lifecycle (one shared
 helper, the idle exit, a SIGKILL and the restart, the failure limit and
 the quit) ran through a disposable overlay in that campaign (Runs 4-5 and
-7). None of it has run on Linux, where the helper does not exist; the
-Windows runs are below.
+7). None of it has run on Linux; the Windows runs are below.
 
 The sandboxed helper ran in the macOS arm64 Debug client in the evidence
 campaign of
