@@ -51,7 +51,11 @@ namespace {
 
 constexpr auto kType = AudioMsgId::Type::Song;
 constexpr auto kHoverDelay = crl::time(220);
+#ifdef Q_OS_MAC
+constexpr auto kLeaveDelay = crl::time(1000);
+#else
 constexpr auto kLeaveDelay = crl::time(450);
+#endif
 constexpr auto kSwapDuration = crl::time(320);
 constexpr auto kPressInDuration = crl::time(90);
 constexpr auto kPressOutDuration = crl::time(320);
@@ -385,9 +389,14 @@ Island::Island(
 , _animation([=] { return frame(); })
 , _hoverTimer([=] { expand(true); })
 , _leaveTimer([=] {
-	if (_dragging == Part::None) {
-		expand(false);
+	if (_dragging != Part::None || (_menu && !_menu->isHidden())) {
+		return;
 	}
+	// Native window changes may deliver a leave event without cursor movement.
+	if (shapeRect().contains(mapFromGlobal(QCursor::pos()))) {
+		return;
+	}
+	expand(false);
 }) {
 #ifdef Q_OS_MAC
 	// The desktop panel has an independent native window, owned by this session.
