@@ -464,16 +464,15 @@ void ForceRefreshDictionaries(
 }
 
 void AddExceptions() {
-	const auto exceptions = ranges::views::all(
+	auto exceptions = ranges::views::all(
 		kExceptions
 	) | ranges::views::transform([](const auto &word) {
 		return word.utf16();
 	}) | ranges::views::filter([](const auto &word) {
-		return !(Platform::Spellchecker::IsWordInDictionary(word)
-			|| Spellchecker::IsWordSkippable(word));
+		return !Spellchecker::IsWordSkippable(word);
 	}) | ranges::to_vector;
 
-	ranges::for_each(exceptions, Platform::Spellchecker::AddWord);
+	Platform::Spellchecker::AddWordsIfMissing(std::move(exceptions));
 }
 
 } // namespace
