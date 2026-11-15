@@ -715,27 +715,29 @@ The packs, the fixture and the seams they use need no change for it.
   with the pre-lowering self-listener `ok`. That task's evidence campaign
   (its `work/test.md`, Attempt 1 Runs 1-2, on the same host with the
   firewall services running and no loopback exemption for the package)
-  measured the boundary: after the lowering every fresh socket, `AF_INET`
-  and `AF_INET6` with TCP and UDP, was refused at creation with
-  `WSAEACCES`, and the native `\Device\Afd\Endpoint` open with Winsock's
-  own endpoint attribute with `STATUS_ACCESS_DENIED`, each after the same
-  call succeeded in the helper before the lowering (the same AFD bytes
+  measured four socket kinds, `AF_INET` and `AF_INET6` with TCP and UDP:
+  after the lowering every fresh socket of these kinds that the probes
+  asked for was refused at creation with `WSAEACCES`, and the native
+  `\Device\Afd\Endpoint` open with Winsock's own endpoint attribute for
+  each kind with `STATUS_ACCESS_DENIED`, each after the same call
+  succeeded in the helper before the lowering (the same AFD bytes
   also opened in an ordinary process). Listeners of the helper's parent on
   127.0.0.1, `::1` and the host's own LAN and link-local addresses, of a
   sibling process on 127.0.0.1 and `::1`, and one in the running WSL
   distribution received every ordinary control before, during and after
-  the helper and nothing from it. Native code in the lowered helper can
-  therefore neither create a socket nor open an AFD endpoint, and the
-  ordinary helper holds no socket from before the lowering (its handles
-  are below). Sockets that the probe's `connect-control` opens before the
-  lowering delivered nothing after it: TCP connects to the host's own
-  addresses timed out and one to WSL was refused with `WSAEACCES`, and UDP
-  sends reached no listener; the timeouts and unreceived sends are no
-  denial. Not established: which layer refuses (AFD's check of the token
-  or the filtering platform), the behaviour with the firewall service
-  stopped, name resolution, ICMP, other protocols, and routing off the
-  machine (the WSL distribution is a separate network stack behind the
-  same machine's virtual switch).
+  the helper and nothing from it. Native code in the lowered helper could
+  therefore create no TCP or UDP socket over IPv4 or IPv6 and open no AFD
+  endpoint for those kinds, and the ordinary helper holds no socket from
+  before the lowering (its handles are below). Sockets that the probe's
+  `connect-control` opens before the lowering delivered nothing after it:
+  TCP connects to the host's own addresses timed out and one to WSL was
+  refused with `WSAEACCES`, and UDP sends reached no listener; the
+  timeouts and unreceived sends are no denial. Not established: which
+  layer refuses (AFD's check of the token or the filtering platform), the
+  behaviour with the firewall service stopped, other socket families and
+  types and their AFD endpoints, name resolution, ICMP, other protocols,
+  and routing off the machine (the WSL distribution is a separate network
+  stack behind the same machine's virtual switch).
   win32k system calls stay enabled: in both runs without the lowbox the
   runtime disable failed with error 19 (`ERROR_WRITE_PROTECT`; the probe's
   `DisallowWin32kSystemCalls: not applied (SetProcessMitigationPolicy(4)
@@ -1381,15 +1383,16 @@ The Windows default is therefore on for every architecture on Windows 10
 ARM64, a Release runtime (the non-Debug selection was only
 preprocessed), the Store build, Windows before build 26300 (the 1809
 floor was read and preprocessed, never run), a target on another
-machine, name resolution, ICMP and other protocols, a stopped or
-disabled firewall service, which layer refuses the sockets and AFD
-endpoints (AFD's check of the token or the filtering platform), a
-downloaded portable ZIP with its mark of the web, and macOS or Linux
-compilation of the changed `test_widget_helper_probe` sources. win32k
-system calls stay enabled (the probe's disable read error 5 under the
-lowbox), and `TokenIsLessPrivilegedAppContainer` is unreadable on this
-build (error 87), so the less privileged level is read from
-`WIN://NOALLAPPPKG`.
+machine, socket families and types, and their AFD endpoints, other than
+`AF_INET` and `AF_INET6` with TCP and UDP, name resolution, ICMP and
+other protocols, a stopped or disabled firewall service, which layer
+refuses the sockets and AFD endpoints (AFD's check of the token or the
+filtering platform), a downloaded portable ZIP with its mark of the web,
+and macOS or Linux compilation of the changed `test_widget_helper_probe`
+sources. win32k system calls stay enabled (the probe's disable read
+error 5 under the lowbox), and `TokenIsLessPrivilegedAppContainer` is
+unreadable on this build (error 87), so the less privileged level is
+read from `WIN://NOALLAPPPKG`.
 
 On Linux the [remote engines](#remote-engines) ran in the x86_64 Debug
 client built in the Docker `centos_env` image, on a WSL2 6.6 kernel with

@@ -115,7 +115,8 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   Every widget of such a launch dies with `the widget engine process
   ended`. Each refusal counts as a helper failure, so the third probe
   latches the helper for the process. On Windows such a probe has no
-  network target, so only its socket and AFD lines are written.
+  network target, so the harness's attempt lines are only the socket and
+  AFD ones, after its `arguments:` and Winsock lines.
 - A pristine listing holds two send rights no reference service matches:
   libtrace's firehose push ports to logd. The probe names them only through
   its own [firehose reading](#firehose-reading), made in the same process
@@ -194,11 +195,20 @@ the application-support and keychain-account arguments are ignored.
 After the product probe's lines, in this order:
 
 - `arguments: loopback port <port|absent>, <n> network targets,
-  connect-control yes|no`, counting the parsed targets, then the
-  `argument: malformed` lines.
+  connect-control yes|no`, `<n>` counting the targets that passed every
+  check below, the ones the attempts use. Without Winsock no target is
+  resolved, and it reads `<n> unresolved network targets`, counting every
+  target that was not too long, the loopback port's four included.
+- The `argument: malformed` lines written while the arguments are read,
+  in argument order: a malformed loopback port, an unknown argument, a
+  target that is too long.
 - `before lowering: harness Winsock: WS2_32 bound, WSAStartup(2.2) ok`, or
-  the failed bind or start; without Winsock the socket and target lines
-  read `sockets and targets: not tried, Winsock is not available`.
+  the failed bind or start.
+- With Winsock, the `argument: malformed` lines written while the targets
+  are resolved, in target order: a target that does not parse, has no
+  port or is past the limit. Without Winsock none of these is written,
+  and each phase's socket and target lines below are one `sockets and
+  targets: not tried, Winsock is not available` line.
 - For each phase, `before lowering:` then `after lowering:`, and in each:
   - `socket(<family>, <type>, <protocol>): <verdict>` for `AF_INET` and
     `AF_INET6` with `SOCK_STREAM, IPPROTO_TCP` and `SOCK_DGRAM,
