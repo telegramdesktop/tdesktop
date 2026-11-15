@@ -499,7 +499,7 @@ int Island::expandedWidth() const {
 
 int Island::compactWidth() const {
 #ifdef Q_OS_MAC
-	return S(kCompactMinWidth);
+	return std::max(S(kCompactMinWidth), DesktopIslandNotchWidth() + S(80));
 #else
 	// Mokagram: keep the chat header clear in narrow windows.
 	if (!isWindow() && _anchor->width() < S(600)) {
