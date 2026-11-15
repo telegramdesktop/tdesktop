@@ -38,6 +38,15 @@ class CMakeModel:
         self._closure[target] = result
         return result
 
+    def crossed(self, source, path):
+        """Target crossed by including `path` from target `source`, or None.
+        A file listed by `source` is its own regardless of its first owner."""
+        owner = self.target_of(path)
+        if (not source or not owner or owner in self.dependencies(source)
+                or path in self.sources.get(source, ())):
+            return None
+        return owner
+
     def tests(self):
         return {name for name in self.executables if 'test' in name}
 

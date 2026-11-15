@@ -44,8 +44,6 @@ constexpr auto kReadableTextColumns = 12;
 constexpr auto kReadableTextLineHeights = 4;
 constexpr auto kReadableCodeColumns = 16;
 
-thread_local const LayoutContext *CurrentLayoutContext = nullptr;
-
 [[nodiscard]] size_t CombineHash(size_t accumulator, size_t value) {
 	return (accumulator * 1315423911U) ^ value;
 }
@@ -155,6 +153,18 @@ void SetPlainTextLeaf(
 	const QString &text,
 	int minResizeWidth,
 	bool rtl);
+
+template <typename Callback>
+void EnumerateCodeBlockDisplayChars(const QString &text, Callback &&callback) {
+	auto column = 0;
+	for (const auto ch : text) {
+		const auto width = (ch == QChar::Tabulation)
+			? (kCodeTabColumns - (column % kCodeTabColumns))
+			: 1;
+		callback(ch, width);
+		column = Ui::Text::IsNewline(ch) ? 0 : (column + width);
+	}
+}
 
 template <typename Builder, typename Consumer>
 auto WithCachedTextLeaf(
@@ -634,7 +644,9 @@ void PopulateCodeBlockLeaf(
 		false,
 		std::move(repaint),
 		std::move(repaintRect),
-		std::move(spoilerLinkFilter));
+		std::move(spoilerLinkFilter),
+		false,
+		true);
 	BindLinks(leaf, codeLinks);
 	if (syntaxHighlightProcessId) {
 		*syntaxHighlightProcessId = processId;
@@ -814,39 +826,7 @@ void ClearBlockGeometry(LaidOutBlock *block) {
 	if (!block) {
 		return;
 	}
-	block->outer = QRect();
-	block->headerRect = QRect();
-	block->bodyRect = QRect();
-	block->iconRect = QRect();
-	block->textRect = QRect();
-	block->labelRect = QRect();
-	block->subtitleRect = QRect();
-	block->actionRect = QRect();
-	block->markerRect = QRect();
-	block->contentRect = QRect();
-	block->collapseControlRect = QRect();
-	block->buttonRowControlRect = QRect();
-	block->formulaRect = QRect();
-	block->tableRect = QRect();
-	block->mediaRect = QRect();
-	block->thumbnailRect = QRect();
-	block->visibleFormulaRect = QRect();
-	block->scrollViewportRect = QRect();
-	block->scrollLogicalContentRect = QRect();
-	block->scrollScrollbarTrackRect = QRect();
-	block->scrollScrollbarThumbRect = QRect();
-	block->visibleTableRect = QRect();
-	block->tableScrollbarTrackRect = QRect();
-	block->tableScrollbarThumbRect = QRect();
-	block->visibleMediaRect = QRect();
-	block->markerCenter = QPoint();
-	block->logicalGeometry = {};
-	block->textWidth = 0;
-	block->labelWidth = 0;
-	block->subtitleWidth = 0;
-	block->actionWidth = 0;
-	block->markerWidth = 0;
-	block->firstLineBaseline = -1;
+	ResetBlockGeometryFields(block);
 	block->formulaAlign = style::al_left;
 	block->overflowed = false;
 	block->insideHorizontalScroll = false;
@@ -900,6 +880,42 @@ void FinishBlockGeometry(LaidOutBlock *block) {
 }
 
 } // namespace
+
+void ResetBlockGeometryFields(LaidOutBlock *block) {
+	block->outer = QRect();
+	block->headerRect = QRect();
+	block->bodyRect = QRect();
+	block->iconRect = QRect();
+	block->textRect = QRect();
+	block->labelRect = QRect();
+	block->subtitleRect = QRect();
+	block->actionRect = QRect();
+	block->markerRect = QRect();
+	block->contentRect = QRect();
+	block->collapseControlRect = QRect();
+	block->buttonRowControlRect = QRect();
+	block->formulaRect = QRect();
+	block->tableRect = QRect();
+	block->mediaRect = QRect();
+	block->thumbnailRect = QRect();
+	block->visibleFormulaRect = QRect();
+	block->scrollViewportRect = QRect();
+	block->scrollLogicalContentRect = QRect();
+	block->scrollScrollbarTrackRect = QRect();
+	block->scrollScrollbarThumbRect = QRect();
+	block->visibleTableRect = QRect();
+	block->tableScrollbarTrackRect = QRect();
+	block->tableScrollbarThumbRect = QRect();
+	block->visibleMediaRect = QRect();
+	block->markerCenter = QPoint();
+	block->logicalGeometry = {};
+	block->textWidth = 0;
+	block->labelWidth = 0;
+	block->subtitleWidth = 0;
+	block->actionWidth = 0;
+	block->markerWidth = 0;
+	block->firstLineBaseline = -1;
+}
 
 int TableBorder(
 		bool bordered,
@@ -1183,15 +1199,6 @@ size_t CachedTextLeafKeyHasher::operator()(
 	return result;
 }
 
-LayoutContextScope::LayoutContextScope(const LayoutContext &context)
-: _previous(CurrentLayoutContext) {
-	CurrentLayoutContext = &context;
-}
-
-LayoutContextScope::~LayoutContextScope() {
-	CurrentLayoutContext = _previous;
-}
-
 void FillMediaCaptionContent(
 		LaidOutBlock *block,
 		const PreparedBlock &prepared,
@@ -1255,58 +1262,38 @@ bool LayoutMediaCaptionGeometry(
 QString CodeBlockDisplayText(const QString &text) {
 	auto result = QString();
 	result.reserve(text.size());
-
-	auto column = 0;
-	for (const auto ch : text) {
-		if (ch == QChar::Tabulation) {
-			const auto count = kCodeTabColumns - (column % kCodeTabColumns);
-			for (auto i = 0; i != count; ++i) {
-				result.append(QChar::Space);
-			}
-			column += count;
-			continue;
+	EnumerateCodeBlockDisplayChars(text, [&](QChar ch, int width) {
+		if (ch != QChar::Tabulation) {
+			result.append(ch);
+			return;
 		}
-		result.append(ch);
-		if (Ui::Text::IsNewline(ch)) {
-			column = 0;
-		} else {
-			++column;
+		for (auto i = 0; i != width; ++i) {
+			result.append(QChar::Space);
 		}
-	}
+	});
 	if (result.isEmpty() || Ui::Text::IsTrimmed(result.back())) {
 		result.append(QChar(kCodeTrailingGuard));
 	}
 	return result;
 }
 
-TextWithEntities CodeBlockDisplayText(TextWithEntities text) {
-	auto result = TextWithEntities();
-	const auto sourceLength = int(text.text.size());
-	result.text.reserve(sourceLength);
-	result.entities.reserve(text.entities.size());
+std::vector<int> CodeBlockDisplayOffsets(const QString &text) {
+	auto result = std::vector<int>();
+	result.reserve(text.size() + 1);
+	auto position = 0;
+	EnumerateCodeBlockDisplayChars(text, [&](QChar, int width) {
+		result.push_back(position);
+		position += width;
+	});
+	result.push_back(position);
+	return result;
+}
 
-	auto offsets = std::vector<int>();
-	offsets.reserve(sourceLength + 1);
-	auto column = 0;
-	for (auto i = 0; i != sourceLength; ++i) {
-		offsets.push_back(result.text.size());
-		const auto ch = text.text[i];
-		if (ch == QChar::Tabulation) {
-			const auto count = kCodeTabColumns - (column % kCodeTabColumns);
-			for (auto j = 0; j != count; ++j) {
-				result.text.append(QChar::Space);
-			}
-			column += count;
-			continue;
-		}
-		result.text.append(ch);
-		if (Ui::Text::IsNewline(ch)) {
-			column = 0;
-		} else {
-			++column;
-		}
-	}
-	offsets.push_back(result.text.size());
+TextWithEntities CodeBlockDisplayText(TextWithEntities text) {
+	const auto sourceLength = int(text.text.size());
+	const auto offsets = CodeBlockDisplayOffsets(text.text);
+	auto result = tr::marked(CodeBlockDisplayText(text.text));
+	result.entities.reserve(text.entities.size());
 
 	for (const auto &entity : text.entities) {
 		const auto from = entity.offset();
@@ -1331,9 +1318,6 @@ TextWithEntities CodeBlockDisplayText(TextWithEntities text) {
 			displayFrom,
 			displayTill - displayFrom,
 			entity.data()));
-	}
-	if (result.text.isEmpty() || Ui::Text::IsTrimmed(result.text.back())) {
-		result.text.append(QChar(kCodeTrailingGuard));
 	}
 	return result;
 }
@@ -3650,7 +3634,9 @@ LaidOutBlock LayoutGroupedMediaBlock(
 	block->contentRect = QRect(left, top, visibleWidth, height);
 	block->overflowed = (block->textWidth > visibleWidth);
 	block->horizontalScrollMax = scrollOwner
-		? std::max(block->textWidth - visibleWidth, 0)
+		? std::max(
+			std::min(displayLeaf.maxWidth(), block->textWidth) - visibleWidth,
+			0)
 		: 0;
 	if (scrollOwner) {
 		block->scrollViewportRect = block->contentRect;
@@ -3721,7 +3707,9 @@ LaidOutBlock LayoutGroupedMediaBlock(
 		context);
 	block->overflowed = (block->textWidth > viewportWidth);
 	block->horizontalScrollMax = scrollOwner
-		? std::max(block->textWidth - viewportWidth, 0)
+		? std::max(
+			std::min(displayLeaf.maxWidth(), block->textWidth) - viewportWidth,
+			0)
 		: 0;
 	const auto outerHeight = padding.top()
 		+ height

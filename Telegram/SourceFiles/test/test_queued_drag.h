@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <memory>
 
+class QObject;
 class QWidget;
 
 namespace Test {
@@ -54,17 +55,18 @@ class Runner;
 // Shape. AppendQueuedStartDrag appends ONE stage. Its |run| resolves the
 // target and its two points (so a widget that appears only after earlier
 // stages can be used), delivers the press and the moves through
-// Test::DragPressAndMoves, then posts two markers: an InvokeQueued to the
-// target and a crl::on_main guarded by the target. Its |until| is pure: the
-// target is gone, both markers ran, or |bound| ms passed since they were
-// posted. Its |then| delivers the release and the leave through
-// Test::DragRelease and Notes one QUEUED_DRAG row. A skipped stage (the
-// caller's |skipReason|, passed through unchanged) leaves the reading
-// finished=0. The reading is frozen in |then|: the markers write the
-// helper's own flags, so a marker that runs late cannot change a reading a
-// later stage already judged. The helper never Passes or Fails, and owns no
-// timer, no session subscription and no Runner::onFinish release - only a
-// QPointer to the target and shared pointers.
+// Test::DragPressAndMoves, then posts two markers (PostQueuedWorkMarkers
+// below): an InvokeQueued to the target and a crl::on_main guarded by the
+// target. Its |until| is pure: the target is gone, both markers ran, or
+// |bound| ms passed since they were posted. Its |then| delivers the
+// release and the leave through Test::DragRelease and Notes one
+// QUEUED_DRAG row. A skipped stage (the caller's |skipReason|, passed
+// through unchanged) leaves the reading finished=0. The reading is frozen
+// in |then|: the markers write their own flags, so a marker that runs late
+// cannot change a reading a later stage already judged. The helper never
+// Passes or Fails, and owns no timer, no session subscription and no
+// Runner::onFinish release - only a QPointer to the target and shared
+// pointers.
 //
 // The guarantee. Qt delivers posted events of one priority in the order
 // they were posted, and a delivery pass takes only the events present when
@@ -210,6 +212,29 @@ struct QueuedStartDrag {
 [[nodiscard]] std::shared_ptr<const QueuedStartDrag> AppendQueuedStartDrag(
 	not_null<Runner*> runner,
 	QueuedStartDragArgs args);
+
+// The two markers AppendQueuedStartDrag waits for, shared with
+// Test::AppendQpaMouseDrag (test_qpa_mouse.h). |postedAt| is crl::now()
+// when they were posted; each marker sets only its own flag here when it
+// runs. Posted after an input's delivery and drain, ran() means what "The
+// guarantee" above states, with the exclusions it names.
+struct QueuedWorkMarkers {
+	crl::time postedAt = 0;
+	bool qtQueueRan = false;
+	bool mainQueueRan = false;
+
+	[[nodiscard]] bool ran() const {
+		return qtQueueRan && mainQueueRan;
+	}
+};
+
+// Posts one InvokeQueued(context, ...) and one crl::on_main(context, ...),
+// in that order, each behind everything already in its own FIFO queue.
+// The context's death drops both unrun. The markers hold only the returned
+// object, so one that runs late cannot change a reading a stage already
+// froze.
+[[nodiscard]] std::shared_ptr<const QueuedWorkMarkers> PostQueuedWorkMarkers(
+	not_null<QObject*> context);
 
 // The helper measuring itself, over purpose-built probe widgets in a
 // never-shown container on the primary window (so the real cursor never

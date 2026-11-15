@@ -5,8 +5,9 @@ The contract is .agents/shared/codex-cli-leaves.md. Each leaf runs detached,
 so a host whose tool calls are time-limited can start several leaves at once
 and block on them with repeated bounded `wait` calls.
 
-  codex_leaf.py check
+  codex_leaf.py check [--home work|default]
   codex_leaf.py start --run-dir DIR --name NAME --cwd DIR --prompt-file FILE
+      [--home work|default]
       [--sandbox workspace-write|read-only] [--effort xhigh] [--model MODEL]
       [--resume LEAF] [--output-schema FILE] [--no-project-doc]
       [--max-minutes 120] [--replace]
@@ -34,10 +35,15 @@ import traceback
 import uuid
 
 SANDBOXES = ('workspace-write', 'read-only')
+HOMES = ('work', 'default')
+WORK_HOME = os.path.join('~', '.codex-accounts', 'work')
 RUNNING = ('starting', 'running')
 TERMINAL = ('done', 'failed', 'stopped')
 ARCHIVED = ('jsonl', 'stderr', 'last', 'runner_log', 'state')
 WINDOWS = (os.name == 'nt')
+CODEX_APP_MAC = '/Applications/Codex.app/Contents/Resources/codex'
+CODEX_APP_PACKAGES = ('Software\\Classes\\Local Settings\\Software\\Microsoft'
+    '\\Windows\\CurrentVersion\\AppModel\\Repository\\Packages')
 FRESHNESS = 2
 LOCK_TIMEOUT = 60
 KILL_GRACE = 10
@@ -107,7 +113,53 @@ def codex_binary():
         found = shutil.which(name)
         if found:
             return found
+    return codex_app_binary()
+
+
+def codex_app_binary():
+    # The Codex app bundles the CLI, but on Windows the package folder is
+    # renamed by every app update, so it cannot stay on PATH.
+    if not WINDOWS:
+        return CODEX_APP_MAC if os.access(CODEX_APP_MAC, os.X_OK) else None
+    import winreg
+    found = []
+    try:
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, CODEX_APP_PACKAGES) as packages:
+            for index in range(winreg.QueryInfoKey(packages)[0]):
+                name = winreg.EnumKey(packages, index)
+                parts = name.split('_')
+                if (len(parts) != 5 or parts[0] != 'OpenAI.Codex'
+                        or parts[4] != '2p2nqsd0c76g0'):
+                    continue
+                with winreg.OpenKey(packages, name) as package:
+                    root = winreg.QueryValueEx(package, 'PackageRootFolder')[0]
+                binary = os.path.join(root, 'app', 'resources', 'codex.exe')
+                if os.path.isfile(binary):
+                    version = tuple(int(x) for x in parts[1].split('.'))
+                    found.append((version, binary))
+    except (OSError, ValueError):
+        return None
+    return max(found)[1] if found else None
+
+
+def codex_home(home):
+    # `work` is a Codex login kept apart from the user's own ~/.codex;
+    # `default` leaves CODEX_HOME to the environment.
+    return os.path.expanduser(WORK_HOME) if home == 'work' else None
+
+
+def missing_home(home):
+    if home and not os.path.isdir(home):
+        return ('codex home %s does not exist; the user creates it and runs '
+            '`codex login --device-auth` with CODEX_HOME set to it' % home)
     return None
+
+
+def codex_environment(home):
+    environment = dict(os.environ)
+    if home:
+        environment['CODEX_HOME'] = home
+    return environment
 
 
 def paths(run_dir, name):
@@ -667,18 +719,28 @@ def terminate_leaf(state, files):
 def command_check(args):
     binary = codex_binary()
     if not binary:
-        print(json.dumps({'ok': False, 'reason': 'codex is not on PATH'}))
+        print(json.dumps({
+            'ok': False,
+            'reason': 'codex is neither on PATH nor in the Codex app',
+        }))
         return 1
+    home = codex_home(args.home)
+    missing = missing_home(home)
+    if missing:
+        print(json.dumps({
+            'ok': False, 'codex': binary, 'home': home, 'reason': missing}))
+        return 1
+    environment = codex_environment(home)
     flags = subprocess.CREATE_NO_WINDOW if WINDOWS else 0
     try:
         version = subprocess.run(
             [binary, '--version'],
             capture_output=True, text=True, encoding='utf-8', errors='replace',
-            timeout=120, creationflags=flags)
+            timeout=120, creationflags=flags, env=environment)
         login = subprocess.run(
             [binary, 'login', 'status'],
             capture_output=True, text=True, encoding='utf-8', errors='replace',
-            timeout=120, creationflags=flags)
+            timeout=120, creationflags=flags, env=environment)
     except (OSError, subprocess.TimeoutExpired) as e:
         print(json.dumps({'ok': False, 'codex': binary, 'reason': str(e)}))
         return 1
@@ -686,6 +748,7 @@ def command_check(args):
     result = {
         'ok': version.returncode == 0 and login.returncode == 0,
         'codex': binary,
+        'home': home or 'default',
         'version': version.stdout.strip(),
         'login': status,
     }
@@ -712,9 +775,11 @@ def resumable_thread(run_dir, source):
                     'leaf %s is still running (%s); wait for it before '
                     'resuming' % (source, describe_pids(activity)))
         thread = state.get('thread_id') or thread_id(files['jsonl'])
+        # The thread lives in the source leaf's Codex home.
+        home = state.get('codex_home')
     if not thread:
         raise missing
-    return thread
+    return thread, home
 
 
 def refuse_if_active(name, state, files):
@@ -811,14 +876,18 @@ def command_start(args):
         fail('prompt file does not exist: ' + args.prompt_file)
     binary = codex_binary()
     if not binary:
-        fail('codex is not on PATH')
+        fail('codex is neither on PATH nor in the Codex app')
     resume_thread = None
+    home = codex_home(args.home)
     if args.resume:
         if args.resume == args.name:
             raise LeafError('resume-self',
                 'leaf %s cannot resume itself; start the continuation under '
                 'another name' % args.name)
-        resume_thread = resumable_thread(run_dir, args.resume)
+        resume_thread, home = resumable_thread(run_dir, args.resume)
+    missing = missing_home(home)
+    if missing:
+        raise LeafError('home-missing', missing)
     try:
         os.makedirs(run_dir, exist_ok=True)
     except OSError as e:
@@ -842,6 +911,7 @@ def command_start(args):
             'status': 'starting',
             'run_id': run_id,
             'codex': binary,
+            'codex_home': home,
             'cwd': os.path.abspath(args.cwd),
             'prompt_file': os.path.abspath(args.prompt_file),
             'sandbox': args.sandbox,
@@ -922,7 +992,7 @@ def claim_leaf(args, files, held):
 
 
 def launch_codex(state, command, transcript, errors, inheritable):
-    environment = dict(os.environ)
+    environment = codex_environment(state.get('codex_home'))
     # The Windows sandbox runs commands as another user, and git refuses a
     # checkout owned by someone else unless the directory is marked safe.
     parameters = environment.get('GIT_CONFIG_PARAMETERS', '')
@@ -1203,13 +1273,15 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     commands = parser.add_subparsers(dest='command', required=True)
 
-    commands.add_parser('check')
+    check = commands.add_parser('check')
+    check.add_argument('--home', choices=HOMES, default='work')
 
     start = commands.add_parser('start')
     start.add_argument('--run-dir', required=True)
     start.add_argument('--name', required=True)
     start.add_argument('--cwd', required=True)
     start.add_argument('--prompt-file', required=True)
+    start.add_argument('--home', choices=HOMES, default='work')
     start.add_argument('--sandbox', choices=SANDBOXES, default='read-only')
     start.add_argument('--effort', default='xhigh')
     start.add_argument('--model')

@@ -25,7 +25,7 @@ bool PossiblyTextTypingEvent(void *event) {
 	const auto length = int([text length]);
 	for (auto i = 0; i != length; ++i) {
 		const auto utf16 = [text characterAtIndex:i];
-		if (utf16 >= 32) {
+		if (utf16 >= 32 && utf16 != '?') {
 			return true;
 		}
 	}

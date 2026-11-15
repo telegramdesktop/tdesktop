@@ -164,7 +164,8 @@ void AddBotToGroupBoxController::requestExistingRights(
 		MTPchannels_GetParticipant(
 			_existingRightsChannel->inputChannel(),
 			_bot->input())
-	).done([=](const MTPchannels_ChannelParticipant &result) {
+	).done(crl::guard(this, [=](
+			const MTPchannels_ChannelParticipant &result) {
 		result.match([&](const MTPDchannels_channelParticipant &data) {
 			channel->owner().processUsers(data.vusers());
 			const auto participant = Api::ChatParticipant(
@@ -176,13 +177,13 @@ void AddBotToGroupBoxController::requestExistingRights(
 			_promotedBy = participant.by();
 			addBotToGroup(_existingRightsChannel);
 		});
-	}).fail([=] {
+	})).fail(crl::guard(this, [=] {
 		_existingRights = ChatAdminRights();
 		_existingRank = QString();
 		_promotedSince = 0;
 		_promotedBy = 0;
 		addBotToGroup(_existingRightsChannel);
-	}).send();
+	})).send();
 }
 
 void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {

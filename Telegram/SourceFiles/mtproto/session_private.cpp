@@ -348,10 +348,6 @@ void SessionPrivate::cdnConfigChanged() {
 	connectToServer(true);
 }
 
-int32 SessionPrivate::getShiftedDcId() const {
-	return _shiftedDcId;
-}
-
 void SessionPrivate::dcOptionsChanged() {
 	_retryTimeout = 1;
 	connectToServer(true);
@@ -1338,7 +1334,8 @@ void SessionPrivate::handleReceived() {
 			return restart();
 		}
 
-		if ((messageLength > kMaxMessageLength)
+		if ((messageLength < kIntSize)
+			|| (messageLength > kMaxMessageLength)
 			|| (messageLength & 0x03)
 			|| (paddingSize < kMinPaddingSize)
 			|| (paddingSize > kMaxPaddingSize)) {
@@ -1851,7 +1848,7 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 	} return HandleResult::Success;
 
 	case mtpc_rpc_result: {
-		if (from + 3 > end) {
+		if (end - from < 4) {
 			return HandleResult::ParseError;
 		}
 		auto response = mtpBuffer();
@@ -2113,7 +2110,6 @@ mtpBuffer SessionPrivate::ungzip(
 		const auto res = inflate(&stream, Z_NO_FLUSH);
 		if (res != Z_OK && res != Z_STREAM_END) {
 			LOG(("RPC Error: could not unpack gziped data, code: %1").arg(res));
-			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(packed.v.constData(), packedLen).str()));
 			return {};
 		} else if (res == Z_STREAM_END) {
 			break;
@@ -2126,7 +2122,6 @@ mtpBuffer SessionPrivate::ungzip(
 		const auto badSize = result.size() * sizeof(mtpPrime)
 			- stream.avail_out;
 		LOG(("RPC Error: bad length of unpacked data %1").arg(badSize));
-		DEBUG_LOG(("RPC Error: bad unpacked data %1").arg(Logs::mb(result.data(), badSize).str()));
 		return {};
 	}
 	result.resize(result.size() - (stream.avail_out >> 2));
@@ -2670,9 +2665,13 @@ void SessionPrivate::onError(
 		LOG(("Protocol Error: -429 flood code returned!"));
 	} else if (errorCode == -444) {
 		LOG(("Protocol Error: -444 bad dc_id code returned!"));
-		InvokeQueued(_instance, [instance = _instance] {
-			instance->badConfigurationError();
-		});
+		const auto &proxy = _options->proxy;
+		if (proxy.type == ProxyData::Type::Mtproto
+			|| proxy.type == ProxyData::Type::Web) {
+			InvokeQueued(_instance, [instance = _instance, proxy] {
+				instance->badConfigurationError(proxy);
+			});
+		}
 	}
 	removeTestConnection(connection);
 

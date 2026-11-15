@@ -40,11 +40,9 @@ protected:
 private:
 	void sendCode();
 	void sendCall();
-	void checkPhoneAndHash();
 
 	[[nodiscard]] int fragmentSkip() const;
 
-	QString getPhone() const;
 	void showError(const QString &error);
 
 	// _hash from the link for account.sendConfirmPhoneCode call.

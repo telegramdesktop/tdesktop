@@ -19,8 +19,11 @@ when running in Grok Build, read `.grok/commands/rebase.md`.
 - Operate only in the current worktree. Never write into a sibling checkout
   slot, and never rebase a branch that `git worktree list` shows checked out
   elsewhere — say where it is instead.
-- Never push, never force-push, never delete the backup ref, never touch
-  `origin`/`private` refs beyond an explicitly confirmed fetch.
+- Never push, never force-push, never touch `origin`/`private` refs beyond an
+  explicitly confirmed fetch.
+- Never create backup branches or tags. The branch reflog already keeps the
+  pre-rebase tip, and every backup ref is one more branch the user has to
+  delete by hand.
 - Never run `git rebase -i`, `git add -i`, or anything else that opens an
   editor; these hosts have no interactive terminal. Use
   `git -c core.editor=true` for every `rebase --continue`. If commits must be
@@ -103,14 +106,10 @@ disagree.
   `rebase-apply` exists: do not start a new one. Go to §7.
 - Dirty tree — `git status --porcelain` non-empty: stop and ask (commit,
   stash, or cancel). Never stash silently.
-- Backup, always, before the first replay:
-
-```bash
-git branch backup/<branch>-$(date +%Y%m%d-%H%M%S) <branch>
-```
-
-  matching this repo's existing `backup/wallet-engine-20260903` convention.
-  Report the ref name and `OLD_TIP` in the final summary as the undo path.
+- Record `OLD_TIP` (`git rev-parse <branch>`) before the first replay and
+  report it in the final summary as the undo path. It stays reachable through
+  `git reflog <branch>` (`<branch>@{1}` right after the rebase), so no backup
+  ref is needed.
 - `rerere.enabled` is true in this repository, so past resolutions get replayed
   automatically. That is a hazard, not a convenience — see §6.
 
@@ -289,8 +288,8 @@ the original head. Recover the running report if this session wrote one;
 otherwise reconstruct it from the log. Then continue at §5.
 
 If the state is one you do not understand, stop and report it as it stands. Do
-not abort to tidy up — the user may want to inspect it, and the backup ref
-makes recovery cheap either way.
+not abort to tidy up — the user may want to inspect it, and `OLD_TIP` in the
+branch reflog makes recovery cheap either way.
 
 ## 8. Verify the whole rebase
 
@@ -309,8 +308,8 @@ asks or when the resolutions were substantial — the checkout's Debug build per
 
 ## 9. Report
 
-- The command that ran, and the backup ref plus `OLD_TIP` sha as the undo path
-  (`git reset --hard <backup-ref>`).
+- The command that ran, and the `OLD_TIP` sha as the undo path
+  (`git reset --hard <OLD_TIP>`, also found in `git reflog <branch>`).
 - Commits replayed / skipped, with the reason for each skip.
 - One line per conflict: file, the two intents, the resolution chosen.
 - Every question asked and the answer that decided it.

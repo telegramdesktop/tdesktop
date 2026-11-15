@@ -29,7 +29,8 @@ public:
 		rpl::producer<QSize> trackSize,
 		rpl::producer<bool> pinned,
 		Fn<void()> update,
-		bool self);
+		bool self,
+		bool shown);
 
 	[[nodiscard]] not_null<Webrtc::VideoTrack*> track() const {
 		return _track.track;
@@ -127,7 +128,7 @@ private:
 	QRect _backOuter;
 	QRect _backInner;
 	Ui::Animations::Simple _topControlsShownAnimation;
-	bool _wasPaused = false;
+	bool _hasPlaceholder = false;
 	bool _topControlsShown = false;
 	bool _pinned = false;
 	bool _hidden = true;
@@ -138,5 +139,15 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+[[nodiscard]] bool UseExpandForCamera(QSize original, QSize viewport);
+[[nodiscard]] QSize CountBlurredSize(
+	QSize unscaled,
+	QSize outer,
+	float factor);
+[[nodiscard]] QSize InterpolateScaledSize(
+	QSize unscaled,
+	QSize size,
+	float64 ratio);
 
 } // namespace Calls::Group

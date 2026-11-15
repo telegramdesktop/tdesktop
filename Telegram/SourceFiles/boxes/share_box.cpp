@@ -12,8 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "lang/lang_keys.h"
 #include "base/qthelp_url.h"
+#include "storage/localimageloader.h"
 #include "storage/storage_account.h"
+#include "storage/storage_media_prepare.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "apiwrap.h"
 #include "ui/widgets/chat_filters_tabs_strip.h"
 #include "ui/widgets/checkbox.h"
@@ -59,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "styles/style_boxes.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
@@ -2317,6 +2321,87 @@ void FastShareLink(
 		}),
 		Ui::LayerOption::KeepOther,
 		anim::type::normal);
+}
+
+base::weak_qptr<Ui::BoxContent> FastShareImage(
+		std::shared_ptr<Main::SessionShow> show,
+		QImage image,
+		const QString &caption) {
+	const auto box = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
+	const auto sending = std::make_shared<bool>();
+	const auto countMessages = [](const TextWithTags &comment) {
+		return comment.empty() ? 1 : 2;
+	};
+	auto submitCallback = [=](
+			std::vector<not_null<::Data::Thread*>> &&result,
+			Fn<bool()> checkPaid,
+			TextWithTags &&comment,
+			Api::SendOptions options,
+			::Data::ForwardOptions) {
+		if (*sending || result.empty()) {
+			return;
+		}
+
+		const auto error = GetErrorForSending(
+			result,
+			{ .text = &comment, .messagesCount = countMessages(comment) });
+		if (error.error) {
+			if (const auto weak = *box) {
+				weak->getDelegate()->show(
+					MakeSendErrorBox(error, result.size() > 1));
+			}
+			return;
+		} else if (!checkPaid()) {
+			return;
+		}
+
+		*sending = true;
+		auto &api = show->session().api();
+		for (const auto &thread : result) {
+			auto action = Api::SendAction(thread, options);
+			action.clearDraft = false;
+			if (!comment.empty()) {
+				auto message = Api::MessageToSend(action);
+				message.textWithTags = comment;
+				api.sendMessage(std::move(message));
+			}
+			auto list = Storage::PrepareMediaFromImage(
+				QImage(image),
+				QByteArray(),
+				st::sendMediaPreviewSize);
+			auto &file = list.files.front();
+			file.caption = TextWithTags{ caption };
+			file.sendLargePhotos = true;
+			api.sendFiles(
+				std::move(list),
+				SendMediaType::Photo,
+				nullptr,
+				std::move(action));
+		}
+		if (*box) {
+			(*box)->closeBox();
+		}
+		show->showToast(tr::lng_share_done(tr::now));
+	};
+	auto filterCallback = [](not_null<::Data::Thread*> thread) {
+		if (const auto user = thread->peer()->asUser()) {
+			if (user->canSendIgnoreMoneyRestrictions()) {
+				return true;
+			}
+		}
+		return ::Data::CanSend(thread, ChatRestriction::SendPhotos);
+	};
+	*box = show->show(
+		Box<ShareBox>(ShareBox::Descriptor{
+			.session = &show->session(),
+			.countMessagesCallback = countMessages,
+			.submitCallback = std::move(submitCallback),
+			.filterCallback = std::move(filterCallback),
+			.moneyRestrictionError = ShareMessageMoneyRestrictionError(),
+		}),
+		Ui::LayerOption::KeepOther,
+		anim::type::normal);
+	return *box;
 }
 
 auto ShareMessageMoneyRestrictionError()

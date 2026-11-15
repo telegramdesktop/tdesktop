@@ -9,12 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/premium_3d_support.h"
 #include "ui/gl/gl_surface.h"
+#include "base/call_delayed.h"
 #include "base/random.h"
 #include "base/debug_log.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <QRhiWidget>
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 namespace Ui::Premium {
 namespace {
@@ -24,10 +25,13 @@ constexpr auto kDragPitch = 0.05;
 constexpr auto kMaxFrameDelta = crl::time(66);
 constexpr auto kMsInSecond = 1000.;
 constexpr auto kBackDuration = crl::time(600);
+constexpr auto kEnterDelay = crl::time(200);
+constexpr auto kEnterYaw = -360.;
 constexpr auto kTapInDuration = crl::time(220);
 constexpr auto kTapBase = 40;
 constexpr auto kTapRandom = 30;
 constexpr auto kTapMaxMove = 4;
+constexpr auto kTapMaxYaw = 10.;
 constexpr auto kOvershootTension = 2.;
 
 } // namespace
@@ -73,7 +77,7 @@ void Object3dCover::setPaused(bool paused) {
 void Object3dCover::freeze() {
 	stopAnimation();
 	_pausedAt = crl::now();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	const auto w = surfaceWidget();
 	if (!w || w->isHidden()) {
 		return;
@@ -83,11 +87,15 @@ void Object3dCover::freeze() {
 	if (image.isNull()) {
 		return;
 	}
+	// WHY: QRhiWidget never tags its grab premultiplied, while every cover
+	// renderer outputs premultiplied colour; painting it as straight alpha
+	// darkens the anti-aliased edges and the sparkle glow of the paused frame.
+	image.reinterpretAsFormat(QImage::Format_RGBA8888_Premultiplied);
 	_frozen = std::move(image);
 	pushState();
 	w->update();
 	update();
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Object3dCover::unfreeze() {
@@ -123,6 +131,22 @@ void Object3dCover::setNight(bool night) {
 	}
 }
 
+void Object3dCover::startEnter() {
+	if (_enterStarted) {
+		return;
+	}
+	_enterStarted = true;
+	base::call_delayed(kEnterDelay, this, [=] {
+		if (isHidden() || _dragging) {
+			return;
+		}
+		// A whole turn back to the shown pose, so nothing jumps.
+		_yaw += kEnterYaw;
+		startAnimation();
+		startBackSpring();
+	});
+}
+
 rpl::producer<float64> Object3dCover::flungStrength() const {
 	return _flung.events();
 }
@@ -132,7 +156,7 @@ QWidget *Object3dCover::surfaceWidget() const {
 }
 
 void Object3dCover::ensureSurface() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_surface) {
 		return;
 	}
@@ -153,7 +177,10 @@ void Object3dCover::ensureSurface() {
 		w->setGeometry(rect());
 		w->hide();
 	}
-#endif // Qt >= 6.7
+	// WHY: show animations grab a frame before the first tick, and that
+	// frame must match the one the live surface continues from.
+	pushState();
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Object3dCover::startAnimation() {
@@ -328,7 +355,7 @@ void Object3dCover::startTapTilt(QPoint position) {
 	auto gesture = Gesture();
 	gesture.tracks.push_back({
 		.channel = Channel::Yaw,
-		.values = { 0., toYaw },
+		.values = { _yaw, toYaw },
 		.duration = kTapInDuration,
 		.easing = Easing::EaseOutQuint,
 	});
@@ -341,7 +368,7 @@ void Object3dCover::startTapTilt(QPoint position) {
 	});
 	gesture.tracks.push_back({
 		.channel = Channel::Pitch,
-		.values = { 0., toPitch },
+		.values = { _pitch, toPitch },
 		.duration = kTapInDuration,
 		.easing = Easing::EaseOutQuint,
 	});
@@ -378,7 +405,7 @@ void Object3dCover::showEvent(QShowEvent *e) {
 		_entered = true;
 		_yaw = _pitch = 0.;
 		_gesture.reset();
-		scheduleIdle(0);
+		scheduleIdle(_descriptor.enterSpinDelay);
 	}
 	startAnimation();
 }
@@ -411,8 +438,9 @@ void Object3dCover::mouseMoveEvent(QMouseEvent *e) {
 		_moved = true;
 	}
 	const auto shift = pos - _lastDragPos;
-	_yaw += -shift.x() * kDragYaw;
-	_pitch += -shift.y() * kDragPitch;
+	const auto direction = _descriptor.invertDrag ? 1. : -1.;
+	_yaw += direction * shift.x() * kDragYaw;
+	_pitch += direction * shift.y() * kDragPitch;
 	_lastDragPos = pos;
 }
 
@@ -421,7 +449,7 @@ void Object3dCover::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 	_dragging = false;
-	if (_moved) {
+	if (_moved || std::abs(_yaw) > kTapMaxYaw) {
 		startBackSpring();
 	} else {
 		startTapTilt(_pressPos);

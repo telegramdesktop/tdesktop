@@ -73,7 +73,6 @@ private:
 
 	void updateEdges();
 	void updatePainterPath();
-	[[nodiscard]] QPoint pointOfEdge(Qt::Edges e) const;
 	[[nodiscard]] QRectF expansionBounds() const;
 	void setCropPaint(QRectF &&rect);
 	void convertCropPaintToOriginal();

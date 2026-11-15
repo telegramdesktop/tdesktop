@@ -100,6 +100,15 @@ TopControls::TopControls(
 	_wrap->show();
 	setupTranslateBar();
 	rebuildModeSensitiveBars();
+	_history->owner().itemRemoved(
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
+		if (_shownRepliesRootItem == item) {
+			_shownRepliesRootItem = nullptr;
+		}
+		if (_shownPinnedBarItem == item) {
+			_shownPinnedBarItem = nullptr;
+		}
+	}, _wrap->lifetime());
 	requestSponsoredMessageBar();
 	rpl::merge(
 		_list->heightValue() | rpl::to_empty,
@@ -206,12 +215,9 @@ void TopControls::setRepliesRootId(MsgId repliesRootId) {
 	}
 	const auto was = height();
 	_repliesRootId = repliesRootId;
+	_repliesRootDestroyed = false;
 	resetPinnedState();
-	_repliesRootView = nullptr;
-	_repliesRootViewHeight = 0;
-	_repliesRootViewInited = false;
-	_repliesRootViewInitScheduled = false;
-	_shownRepliesRootItem = nullptr;
+	resetRepliesRootView();
 	rebuildModeSensitiveBars();
 	updateLayout();
 	applyHeightChangeWithRelayout(was, height());
@@ -224,13 +230,9 @@ void TopControls::setTopic(Data::ForumTopic *topic) {
 	const auto was = height();
 	_topic = topic;
 	resetPinnedState();
-	_repliesRootView = nullptr;
-	_repliesRootViewHeight = 0;
-	_repliesRootViewInited = false;
-	_repliesRootViewInitScheduled = false;
+	resetRepliesRootView();
 	_topicReopenBar = nullptr;
 	_topicReopenBarHeight = 0;
-	_shownRepliesRootItem = nullptr;
 	rebuildModeSensitiveBars();
 	updateLayout();
 	applyHeightChangeWithRelayout(was, height());
@@ -290,8 +292,12 @@ void TopControls::setRepliesRootVisible(bool shown) {
 	}
 }
 
-rpl::producer<bool> TopControls::repliesRootVisibleValue() const {
-	return _repliesRootVisible.value();
+void TopControls::repliesRootDestroyed() {
+	_repliesRootDestroyed = true;
+	const auto was = height();
+	resetRepliesRootView();
+	updateLayout();
+	applyHeightChangeWithTopMoved(was, height());
 }
 
 void TopControls::updatePinnedViewer() {
@@ -374,7 +380,7 @@ void TopControls::setupRootView() {
 	) | rpl::map([=](Ui::MessageBarContent &&content, bool show) {
 		const auto shown = !content.title.isEmpty() && !content.text.empty();
 		crl::on_main(_wrap.get(), [=] {
-			_shownRepliesRootItem = shown
+			_shownRepliesRootItem = (shown && _repliesRootView)
 				? _history->owner().message(_history->peer->id, _repliesRootId)
 				: nullptr;
 		});
@@ -409,6 +415,14 @@ void TopControls::setupRootView() {
 		updateLayout();
 		applyHeightChangeWithTopMoved(was, this->height());
 	}, _repliesRootView->lifetime());
+}
+
+void TopControls::resetRepliesRootView() {
+	_repliesRootView = nullptr;
+	_repliesRootViewHeight = 0;
+	_repliesRootViewInited = false;
+	_repliesRootViewInitScheduled = false;
+	_shownRepliesRootItem = nullptr;
 }
 
 void TopControls::setupTopicReopenBar() {
@@ -1112,13 +1126,9 @@ void TopControls::rebuildModeSensitiveBars() {
 	}
 	if (_topic || !_repliesRootId) {
 		if (_repliesRootView) {
-			_repliesRootView = nullptr;
-			_repliesRootViewHeight = 0;
-			_repliesRootViewInited = false;
-			_repliesRootViewInitScheduled = false;
-			_shownRepliesRootItem = nullptr;
+			resetRepliesRootView();
 		}
-	} else if (!_repliesRootView) {
+	} else if (!_repliesRootView && !_repliesRootDestroyed) {
 		setupRootView();
 	}
 	if (_topic) {

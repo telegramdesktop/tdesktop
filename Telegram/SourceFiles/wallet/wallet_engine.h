@@ -138,6 +138,8 @@ private:
 [[nodiscard]] SecretReadFailure ProtectedSecretFailure(
 	const EngineError &error);
 
+[[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value);
+
 enum class TransferSubmissionOutcome {
 	Accepted,
 	Rejected,

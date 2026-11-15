@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/separate_panel.h"
 #include "wallet/wallet_address.h"
+#include "wallet/wallet_card_stickers.h"
 #include "wallet/wallet_content.h"
 #include "wallet/wallet_palette.h"
 #include "wallet/wallet_session.h"
@@ -59,33 +60,40 @@ namespace {
 	return Ui::ParseTonAmountString(amount, u"."_q);
 }
 
+[[nodiscard]] bool WalletUsable(not_null<Main::Session*> session) {
+	return Available(session)
+		&& !session->wallet().userAddresses().unavailable();
+}
+
 } // namespace
 
 not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	auto &wallet = session->wallet();
 	wallet.tonConnect().refreshSessions();
+	RefreshOwnCard(session);
 	if (const auto exists = wallet.panel()) {
 		const auto state = exists->windowState();
 		if (state & Qt::WindowMinimized) {
 			exists->setWindowState(state & ~Qt::WindowMinimized);
 		}
 		exists->showAndActivate();
+		Core::App().registerWindowActivation(exists);
 		return exists;
 	}
 	auto owned = std::make_unique<Ui::SeparatePanel>();
 	const auto panel = owned.get();
-	UseWindowPalette(panel);
+	const auto palette = UseWindowPalette(panel);
 	const auto show = Main::MakeSessionShow(panel->uiShow(), session);
 	panel->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 	Shortcuts::Listen(panel); // Main window may be hidden to tray.
 	panel->setInnerSize(st::walletPanelSize);
 	rpl::single(rpl::empty) | rpl::then(
-		style::PaletteChanged()
+		WindowPaletteChanged(panel)
 	) | rpl::on_next([=] {
 		const auto scope = WindowPaletteScope(panel);
 		panel->overrideTitleColor(st::windowBgOver->c);
 		panel->overrideBottomBarColor(st::windowBgOver->c);
-		panel->overrideBodyColor(WindowPalette()
+		panel->overrideBodyColor(palette->resolve(false)
 			? std::make_optional(st::windowBg->c)
 			: std::nullopt);
 	}, panel->lifetime());
@@ -114,7 +122,8 @@ not_null<Ui::SeparatePanel*> ShowWallet(not_null<Main::Session*> session) {
 	}, panel->lifetime());
 
 	wallet.setPanel(std::move(owned));
-	panel->showInner(CreateContent(panel, show));
+	panel->showInner(CreateContent(panel, show, palette));
+	Core::App().registerWindowActivation(panel);
 	return panel;
 }
 
@@ -186,14 +195,46 @@ void OpenAddressEntity(
 	OpenSendGramsLink(controller, address, QString());
 }
 
+bool IsOldWalletBotUsername(
+		not_null<Main::Session*> session,
+		const QString &username) {
+	const auto bot = session->appConfig().oldWalletBotUsername();
+	return !bot.isEmpty() && !username.compare(bot, Qt::CaseInsensitive);
+}
+
+bool OpenWalletInsteadOfOldBot(
+		not_null<Window::SessionController*> controller,
+		const QString &username) {
+	const auto session = &controller->session();
+	if (!IsOldWalletBotUsername(session, username)
+		|| !WalletUsable(session)) {
+		return false;
+	}
+	Core::App().hideMediaView();
+	ShowWallet(session);
+	return true;
+}
+
 bool CanOfferSendMoney(not_null<UserData*> user) {
 	const auto session = &user->session();
-	auto &wallet = session->wallet();
+	return WalletUsable(session)
+		&& session->wallet().userAddresses().recipientError(
+			peerToUser(user->id)).isEmpty();
+}
+
+bool Available(not_null<Main::Session*> session) {
 	return !session->supportMode()
 		&& session->appConfig().walletAvailable()
-		&& (wallet.presenceCurrent() != Presence::Unavailable)
-		&& wallet.userAddresses().recipientError(
-			peerToUser(user->id)).isEmpty();
+		&& (session->wallet().presenceCurrent() != Presence::Unavailable);
+}
+
+rpl::producer<bool> AvailableValue(not_null<Main::Session*> session) {
+	return rpl::merge(
+		session->appConfig().value(),
+		session->wallet().stateKnownValue() | rpl::to_empty
+	) | rpl::map([=] {
+		return Available(session);
+	}) | rpl::distinct_until_changed();
 }
 
 void OpenSendMoney(

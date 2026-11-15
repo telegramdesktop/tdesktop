@@ -102,10 +102,40 @@ void UnsupportedNoticeCard::paint(
 		QRect cardRect,
 		RippleAnimation *ripple) const {
 	const auto st = context.st;
+	auto text = st->msgServiceFg()->c;
+	text.setAlphaF(0.65 * text.alphaF());
+	paintColored(p, context, cardRect, ripple, {
+		.bg = st->msgServiceBg()->c,
+		.fg = st->msgServiceFg()->c,
+		.text = text,
+	});
+}
+
+void UnsupportedNoticeCard::paintInBubble(
+		Painter &p,
+		const ChatPaintContext &context,
+		QRect cardRect,
+		RippleAnimation *ripple) const {
+	const auto stm = context.messageStyle();
+	auto bg = stm->msgServiceFg->c;
+	bg.setAlpha(kDefaultBgOpacity * 255);
+	paintColored(p, context, cardRect, ripple, {
+		.bg = bg,
+		.fg = stm->msgServiceFg->c,
+		.text = stm->historyTextFg->c,
+	});
+}
+
+void UnsupportedNoticeCard::paintColored(
+		Painter &p,
+		const ChatPaintContext &context,
+		QRect cardRect,
+		RippleAnimation *ripple,
+		const Colors &colors) const {
 	auto hq = PainterHighQualityEnabler(p);
 
 	p.setPen(Qt::NoPen);
-	p.setBrush(st->msgServiceBg());
+	p.setBrush(colors.bg);
 	const auto radius = st::unsupportedNoticeRadius;
 	p.drawRoundedRect(cardRect, radius, radius);
 
@@ -118,10 +148,7 @@ void UnsupportedNoticeCard::paint(
 		badgeSize,
 		badgeSize);
 	p.drawPath(BadgePath(badge));
-	st::unsupportedNoticePlane.paintInCenter(
-		p,
-		badge,
-		st->msgServiceFg()->c);
+	st::unsupportedNoticePlane.paintInCenter(p, badge, colors.fg);
 
 	if (_columnWidth > 0) {
 		const auto left = cardRect.x()
@@ -129,11 +156,9 @@ void UnsupportedNoticeCard::paint(
 			+ badgeSize
 			+ st::unsupportedNoticeBadgeSkip;
 		const auto top = cardRect.y() + padding.top();
-		p.setPen(st->msgServiceFg());
+		p.setPen(colors.fg);
 		_title.drawElided(p, left, top, _columnWidth);
-		auto dimmed = st->msgServiceFg()->c;
-		dimmed.setAlphaF(0.65 * dimmed.alphaF());
-		p.setPen(dimmed);
+		p.setPen(colors.text);
 		_text.drawElided(
 			p,
 			left,
@@ -145,7 +170,7 @@ void UnsupportedNoticeCard::paint(
 	const auto button = buttonRect().translated(cardRect.topLeft());
 	const auto buttonRadius = button.height() / 2.;
 	p.setPen(Qt::NoPen);
-	p.setBrush(st->msgServiceBg());
+	p.setBrush(colors.bg);
 	p.drawRoundedRect(button, buttonRadius, buttonRadius);
 	if (ripple) {
 		p.save();
@@ -162,13 +187,33 @@ void UnsupportedNoticeCard::paint(
 			&context.messageStyle()->msgWaveformInactive->c);
 		p.restore();
 	}
-	p.setPen(st->msgServiceFg());
+	p.setPen(colors.fg);
 	_button.draw(
 		p,
 		button.x(),
 		button.y() + (button.height() - _button.minHeight()) / 2,
 		button.width(),
 		style::al_top);
+}
+
+void UnsupportedNoticeCard::buttonPressedChanged(
+		std::unique_ptr<RippleAnimation> &ripple,
+		bool pressed,
+		QPoint origin,
+		Fn<void()> repaint) const {
+	if (pressed) {
+		if (!ripple) {
+			ripple = std::make_unique<RippleAnimation>(
+				st::defaultRippleAnimation,
+				RippleAnimation::RoundRectMask(
+					_buttonSize,
+					_buttonSize.height() / 2),
+				std::move(repaint));
+		}
+		ripple->add(origin);
+	} else if (ripple) {
+		ripple->lastStop();
+	}
 }
 
 int UnsupportedNoticeCard::width() const {
@@ -187,10 +232,6 @@ QRect UnsupportedNoticeCard::buttonRect() const {
 				- _buttonSize.width()),
 			(_height - _buttonSize.height()) / 2),
 		_buttonSize);
-}
-
-QSize UnsupportedNoticeCard::buttonSize() const {
-	return _buttonSize;
 }
 
 } // namespace Ui

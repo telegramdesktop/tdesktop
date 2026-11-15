@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <optional>
 
+class History;
 class PeerData;
 class UserData;
 
@@ -209,6 +210,8 @@ public:
 	virtual bool confirmSendingFiles(not_null<const QMimeData*> data) {
 		return false;
 	}
+	virtual void insertTextAtCursor(const QString &text) {
+	}
 
 	virtual bool notify_switchInlineBotButtonReceived(
 			const QString &query,
@@ -275,6 +278,8 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+
+	void showHistoryAfterThreadDestroyed(not_null<History*> history);
 
 	// A size-changing setGeometryWithTopMoved() can deliver the shift to
 	// the section twice: Ui::RpWidget fires its geometry stream before

@@ -540,16 +540,6 @@ const style::SideBarButton &FiltersMenu::buttonStyle() const {
 	return st::windowFiltersButton;
 }
 
-base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareAll() {
-	return prepareButton(
-		_container,
-		0,
-		{},
-		Ui::FilterIcon::All,
-		false,
-		true);
-}
-
 base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		not_null<Ui::VerticalLayout*> container,
 		FilterId id,
@@ -780,16 +770,16 @@ void FiltersMenu::showMenu(QPoint position, FilterId id) {
 			.isAttention = true,
 		});
 	} else {
+		addAction(
+			tr::lng_filters_setup_menu(tr::now),
+			crl::guard(&_outer, [=] { openFiltersSettings(); }),
+			&st::menuIconEdit);
+
 		MarkAsReadMenu::AddChatListAction(
 			_session,
 			MarkAsReadMenu::ChatListKind::AllChats,
 			[=] { return _session->session().data().chatsList(); },
 			addAction);
-
-		addAction(
-			tr::lng_filters_setup_menu(tr::now),
-			crl::guard(&_outer, [=] { openFiltersSettings(); }),
-			&st::menuIconEdit);
 	}
 	if (_popupMenu->empty()) {
 		_popupMenu = nullptr;

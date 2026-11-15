@@ -338,6 +338,13 @@ uniqueCraftButton: IconButton(uniqueMenuButton) {
 	icon: icon{{ "chat/filled_forge-24x24", videoPlayIconFg }};
 	iconOver: icon{{ "chat/filled_forge-24x24", videoPlayIconFg }};
 }
+regularGiftMenuButton: IconButton(boxTitleMenu) {
+	width: 40px;
+	rippleAreaPosition: point(0px, 4px);
+
+	icon: icon {{ "title_menu_dots", boxTitleCloseFg }};
+	iconOver: icon {{ "title_menu_dots", boxTitleCloseFgOver }};
+}
 uniqueGiftSenderBadge: FlatLabel(defaultFlatLabel) {
 	style: semiboldTextStyle;
 	palette: TextPalette(defaultTextPalette) {
@@ -363,6 +370,9 @@ uniqueAttributePercentPadding: margins(4px, 0px, 4px, 0px);
 uniqueGiftActionHeight: 56px;
 uniqueGiftActionIconTop: 7px;
 uniqueGiftActionTextTop: 32px;
+uniqueGiftActionNameSmall: TextStyle(uniqueAttributeName) {
+	font: font(10px semibold);
+}
 uniqueAttributeModel: RoundButton(defaultLightButton) {
 	textFg: windowBoldFg;
 	textFgOver: windowBoldFg;
@@ -484,6 +494,34 @@ offerValueGood: FlatLabel(boxLabel) {
 }
 offerValueBad: FlatLabel(offerValueGood) {
 	textFg: attentionButtonFg;
+}
+
+giftMoveToWalletUserpic: icon{{ "wallet/move_to_wallet-24x24", historyPeerUserpicFg }};
+giftMoveToWalletAppear: FlatLabel(boxLabel) {
+	align: align(top);
+}
+giftMoveToWalletPath: FlatLabel(giftMoveToWalletAppear) {
+	textFg: windowSubTextFg;
+}
+giftMoveToWalletMenuEmoji: IconEmoji {
+	icon: icon{{ "wallet/menu_bars-16x16", windowSubTextFg }};
+	padding: margins(-1px, 2px, 1px, 0px);
+}
+giftMoveToWalletArrowEmoji: IconEmoji {
+	icon: icon{{ "dialogs/dialogs_topic_arrow", windowSubTextFg }};
+	padding: margins(-2px, 5px, 0px, 0px);
+}
+giftMoveToWalletMoneyEmoji: IconEmoji {
+	icon: icon{{ "menu/wallet-16x16", windowSubTextFg }};
+	padding: margins(1px, 3px, 1px, 0px);
+}
+giftMoveToWalletCollectiblesEmoji: IconEmoji(giftMoveToWalletMoneyEmoji) {
+	icon: icon{{ "menu/rating_gifts-16x16", windowSubTextFg }};
+}
+giftMoveToGiftsUserpic: icon{{ "wallet/move_to_gifts-24x24", historyPeerUserpicFg }};
+giftMoveToGiftsProfileEmoji: IconEmoji(giftMoveToWalletMoneyEmoji) {
+	icon: icon{{ "menu/profile-16x16", windowSubTextFg }};
+	padding: margins(-1px, 3px, 1px, 0px);
 }
 
 uniqueGiftValuePrice: FlatLabel(defaultFlatLabel) {

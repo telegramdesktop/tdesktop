@@ -413,6 +413,48 @@ void ProccessCommonGroups(
 	});
 }
 
+[[nodiscard]] bool CanDeleteChatForEveryone(not_null<PeerData*> peer) {
+	if (const auto channel = peer->asChannel()) {
+		return channel->canDelete() && !channel->isMonoforum();
+	}
+	return peer->canRevokeFullHistory();
+}
+
+[[nodiscard]] std::vector<FilterId> FiltersWithChat(
+		not_null<History*> history) {
+	auto result = std::vector<FilterId>();
+	for (const auto &filter : history->owner().chatsFilters().list()) {
+		if (filter.withoutAlways(history) != filter) {
+			result.push_back(filter.id());
+		}
+	}
+	return result;
+}
+
+void RemoveChatFromFilters(not_null<PeerData*> peer) {
+	const auto history = peer->owner().history(peer).get();
+	const auto removeFrom = FiltersWithChat(history);
+	for (const auto &filter : peer->owner().chatsFilters().list()) {
+		if (!ranges::contains(removeFrom, filter.id())) {
+			continue;
+		}
+		const auto result = filter.withoutAlways(history);
+		if (result == filter) {
+			continue;
+		}
+		const auto tl = result.tl();
+		peer->owner().chatsFilters().apply(MTP_updateDialogFilter(
+			MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
+			MTP_int(filter.id()),
+			tl));
+		peer->session().api().request(MTPmessages_UpdateDialogFilter(
+			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
+			MTP_int(filter.id()),
+			tl
+		)).send();
+	}
+}
+
 } // namespace
 
 void CreateModerateMessagesBox(
@@ -689,12 +731,13 @@ void CreateModerateMessagesBox(
 			return checkbox->checked();
 		});
 	};
-	Ui::Checkbox *deleteOptions = nullptr;
-	Ui::Checkbox *deleteMessages = nullptr;
-	Controller *deleteMessagesController = nullptr;
-	rpl::variable<base::flat_map<PeerId, int>> *deleteMessagesCounts = nullptr;
-	Ui::Checkbox *deleteReactions = nullptr;
-	Controller *deleteReactionsController = nullptr;
+	auto deleteOptions = (Ui::Checkbox*)nullptr;
+	auto deleteMessages = (Ui::Checkbox*)nullptr;
+	auto deleteMessagesController = (Controller*)nullptr;
+	auto deleteMessagesCounts
+		= (rpl::variable<base::flat_map<PeerId, int>>*)nullptr;
+	auto deleteReactions = (Ui::Checkbox*)nullptr;
+	auto deleteReactionsController = (Controller*)nullptr;
 	const auto effectiveCheckedParticipants = [](
 			Ui::Checkbox *checkbox,
 			Controller *controller) {
@@ -1570,7 +1613,10 @@ void SafeSubmitOnEnter(not_null<Ui::GenericBox*> box) {
 	});
 }
 
-void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
+void DeleteChatBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<PeerData*> peer,
+		Fn<void(Fn<void()> leave)> leaveAsCreator) {
 	const auto container = box->verticalLayout();
 
 	const auto userpicPeer = peer->userpicPaintingPeer();
@@ -1620,7 +1666,7 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			st::boxLabel));
 
 	const auto maybeCheckbox = [&]() -> Ui::Checkbox* {
-		if (!peer->canRevokeFullHistory()) {
+		if (!CanDeleteChatForEveryone(peer)) {
 			return nullptr;
 		}
 		Ui::AddSkip(container);
@@ -1655,22 +1701,11 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 				st::defaultBoxCheckbox));
 	}();
 
-	const auto removeFromChatsFilters = [=](
-			not_null<History*> history) -> std::vector<FilterId> {
-		auto result = std::vector<FilterId>();
-		for (const auto &filter : peer->owner().chatsFilters().list()) {
-			if (filter.withoutAlways(history) != filter) {
-				result.push_back(filter.id());
-			}
-		}
-		return result;
-	};
-
 	const auto maybeChatsFiltersCheckbox = [&]() -> Ui::Checkbox* {
 		const auto history = (isBot || !maybeUser)
 			? peer->owner().history(peer).get()
 			: nullptr;
-		if (!history || removeFromChatsFilters(history).empty()) {
+		if (!history || FiltersWithChat(history).empty()) {
 			return nullptr;
 		}
 		Ui::AddSkip(container);
@@ -1699,38 +1734,16 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 			return checked ? tr::lng_box_delete() : tr::lng_box_leave();
 		}) | rpl::flatten_latest();
 
-	const auto close = crl::guard(box, [=] { box->closeBox(); });
-	box->addButton(std::move(buttonText), [=] {
-		const auto revoke = maybeCheckbox && maybeCheckbox->checked();
-		const auto stopBot = maybeBotCheckbox && maybeBotCheckbox->checked();
-		const auto removeFromChats = maybeChatsFiltersCheckbox
-			&& maybeChatsFiltersCheckbox->checked();
+	const auto finish = [=](
+			bool revoke,
+			bool stopBot,
+			bool removeFromChats) {
 		Core::App().closeChatFromWindows(peer);
 		if (stopBot) {
 			peer->session().api().blockedPeers().block(peer);
 		}
 		if (removeFromChats) {
-			const auto history = peer->owner().history(peer).get();
-			const auto removeFrom = removeFromChatsFilters(history);
-			for (const auto &filter : peer->owner().chatsFilters().list()) {
-				if (!ranges::contains(removeFrom, filter.id())) {
-					continue;
-				}
-				const auto result = filter.withoutAlways(history);
-				if (result == filter) {
-					continue;
-				}
-				const auto tl = result.tl();
-				peer->owner().chatsFilters().apply(MTP_updateDialogFilter(
-					MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
-					MTP_int(filter.id()),
-					tl));
-				peer->session().api().request(MTPmessages_UpdateDialogFilter(
-					MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
-					MTP_int(filter.id()),
-					tl
-				)).send();
-			}
+			RemoveChatFromFilters(peer);
 		}
 		// Don't delete old history by default,
 		// because Android app doesn't.
@@ -1739,6 +1752,18 @@ void DeleteChatBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 		//	peer->session().api().deleteConversation(from, false);
 		//}
 		peer->session().api().deleteConversation(peer, revoke);
+	};
+	const auto close = crl::guard(box, [=] { box->closeBox(); });
+	box->addButton(std::move(buttonText), [=] {
+		const auto revoke = maybeCheckbox && maybeCheckbox->checked();
+		const auto stopBot = maybeBotCheckbox && maybeBotCheckbox->checked();
+		const auto removeFromChats = maybeChatsFiltersCheckbox
+			&& maybeChatsFiltersCheckbox->checked();
+		if (!revoke && leaveAsCreator) {
+			leaveAsCreator([=] { finish(false, stopBot, removeFromChats); });
+		} else {
+			finish(revoke, stopBot, removeFromChats);
+		}
 		close();
 	}, st::attentionBoxButton);
 	box->addButton(tr::lng_cancel(), close);

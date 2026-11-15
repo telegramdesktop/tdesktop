@@ -54,6 +54,13 @@ enum class TransferTerminal {
 	Cancelled = 7,
 };
 
+// Telegram's gift service moved it; OwnProfile: from or to this account's.
+enum class TransferGiftMove : uchar {
+	None = 0,
+	Telegram = 1,
+	OwnProfile = 2,
+};
+
 struct SubmittedTransferProjection {
 	QString id;
 	QString counterparty;
@@ -69,6 +76,7 @@ struct SubmittedTransferProjection {
 	bool commentEncrypted = false;
 	bool gasless = false;
 	bool counterpartyBounceable = false;
+	TransferGiftMove giftMove = TransferGiftMove::None;
 
 	friend bool operator==(
 		const SubmittedTransferProjection &,
@@ -99,6 +107,7 @@ struct SubmittedTransferRecord {
 	// than the one the engine journaled.
 	bool paired = false;
 	bool bounce = false;
+	TransferGiftMove giftMove = TransferGiftMove::None;
 
 	friend bool operator==(
 		const SubmittedTransferRecord &,

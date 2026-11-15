@@ -40,6 +40,12 @@ enum class SubsectionTabsMode : qint32 {
 	Bottom = 2,
 };
 
+enum class SubsectionTabsAppearance : qint32 {
+	TextAndIcons = 0,
+	TextOnly = 1,
+	IconsOnly = 2,
+};
+
 class SubsectionTabs final {
 public:
 	SubsectionTabs(
@@ -114,6 +120,11 @@ private:
 		not_null<Ui::SubsectionSlider*> slider,
 		bool vertical);
 	void showThreadContextMenu(not_null<Data::Thread*> thread);
+	void fillAppearanceMenu(not_null<Ui::PopupMenu*> menu);
+	[[nodiscard]] SubsectionTabsAppearance appearance() const;
+	void setAppearance(SubsectionTabsAppearance value);
+	[[nodiscard]] qint32 storedField(int shift) const;
+	void storeField(int shift, qint32 value);
 	void applyReorder(
 		not_null<Ui::RpWidget*> widget,
 		int oldPosition,

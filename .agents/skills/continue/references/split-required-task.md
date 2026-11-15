@@ -23,7 +23,11 @@ has behavior not already proved by the component tasks.
 
 Preserve the source task's project by default. A replacement may leave that
 project only when it remains coherent, implementable, and testable with the
-project changes absent. Preserve the source task's existing dependencies where
+project changes absent. A legacy source without a project gives its
+replacements a project under the `process-inbox` rules; publication refuses a
+replacement without a live project, except the implementation carrier of a
+legacy source, which keeps `project: null` because its retained work stays on
+the branch it was begun on. Preserve the source task's existing dependencies where
 their code is still required. Order replacement dependencies by actual shipped
 code or behavior, not by the order in which the plan happened to mention them.
 

@@ -284,7 +284,7 @@ void VideoStream::borrowedPaint(Painter &p, const QRegion &clip) {
 	_viewport->borrowedPaint(p, clip);
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 void VideoStream::borrowedPaintOffscreen(
 		QRhi *rhi,
 		QRhiRenderTarget *rt,
@@ -330,7 +330,8 @@ void VideoStream::setupVideo() {
 			},
 			Calls::GroupCall::TrackSizeValue(track),
 			std::move(pinned),
-			self);
+			self,
+			_call->shownVideoTracks().contains(endpoint));
 	};
 	for (const auto &[endpoint, track] : _call->activeVideoTracks()) {
 		setupTile(endpoint, track);

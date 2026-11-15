@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/painter.h"
 #include "boxes/premium_preview_box.h"
+#include "core/application.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_custom_emoji.h"
 #include "ui/toast/toast.h"
 #include "window/section_memento.h"
+#include "window/window_controller.h"
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"
@@ -546,6 +548,32 @@ rpl::producer<int> SectionWidget::desiredHeight() const {
 }
 
 SectionWidget::~SectionWidget() = default;
+
+void SectionWidget::showHistoryAfterThreadDestroyed(
+		not_null<History*> history) {
+	const auto window = &controller()->window();
+	const auto id = controller()->windowId();
+	const auto weak = base::make_weak(this);
+	auto params = SectionShow(
+		SectionShow::Way::Backward,
+		anim::type::instant,
+		anim::activation::background);
+	params.preferCurrentWindow = true;
+	const auto showing = Core::App().windowForShowingHistory(history->peer);
+	if (!showing || showing == window) {
+		// WHY: background activation bypasses preventsClose(), so a pending
+		// recording cannot defer this; the thread is freed after the event.
+		controller()->showThread(history, ShowAtUnreadMsgId, params);
+	}
+	if (!weak) {
+		return;
+	} else if (id.hasChatsList()) {
+		controller()->clearSectionStack(
+			params.withWay(SectionShow::Way::ClearStack));
+	} else {
+		Core::App().closeWindow(window);
+	}
+}
 
 auto ChatThemeValueFromPeer(
 	not_null<SessionController*> controller,

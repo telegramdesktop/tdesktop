@@ -776,10 +776,6 @@ void TabsHost::pushViewportToActive() {
 		_visibleBottom - _stripHeight);
 }
 
-rpl::producer<MediaTabContent*> TabsHost::activeTabValue() const {
-	return _activeTab.value();
-}
-
 rpl::producer<Ui::ScrollToRequest> TabsHost::scrollToRequests() const {
 	return _scrollToRequests.events();
 }

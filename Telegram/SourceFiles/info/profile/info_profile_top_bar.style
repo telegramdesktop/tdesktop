@@ -102,6 +102,35 @@ infoProfileTopBarShowLastSeen: RoundButton(defaultActiveButton) {
 	}
 	ripple: universalRippleAnimation;
 }
+// The status line's 18px (infoProfileStatus.maxHeight) and a 4px gap.
+infoProfileTopBarBalanceSkip: 22px;
+infoProfileBalancePillHeight: 16px;
+// Sized like the unique gift cover's "released by" pill.
+infoProfileBalancePillPadding: margins(6px, 0px, 5px, 0px);
+infoProfileBalancePillLabelFont: font(10px);
+infoProfileBalancePillAmountFont: font(10px semibold);
+infoProfileBalancePillFractionFont: font(8px semibold);
+infoProfileBalancePillIconSize: 12px;
+infoProfileBalancePillLabelSkip: 3px;
+infoProfileBalancePillIconSkip: 2px;
+infoProfileBalancePillArrowSkip: 2px;
+infoProfileBalancePillArrow: icon{{ "dialogs/dialogs_topic_arrow", windowBoldFg }};
+infoProfileBalancePillColoredIconTint: 0.5;
+infoProfileTopBarPillsSkip: 10px;
+infoProfileTopBarPillsGap: 6px;
+// The row below the buttons takes over their bottom padding,
+// leaving the same skip below it as above.
+infoProfileTopBarPillsReserve: infoProfileTopBarPillsSkip
+	+ infoProfileBalancePillHeight
+	+ infoProfileTopBarPillsSkip
+	- infoProfileTopBarActionButtonsPadding.bottom;
+infoProfileMusicPillFadeWidth: infoProfileBalancePillHeight;
+infoProfileMusicPillPerformerStyle: TextStyle(defaultTextStyle) {
+	font: infoProfileBalancePillAmountFont;
+}
+infoProfileMusicPillTitleStyle: TextStyle(defaultTextStyle) {
+	font: infoProfileBalancePillLabelFont;
+}
 infoStatusHiddenToastIcon: icon{{ "community/requests_hidden", toastFg }};
 infoBotVerifyBadge: InfoPeerBadge(infoPeerBadge) {
 	position: point(-2px, 2px);

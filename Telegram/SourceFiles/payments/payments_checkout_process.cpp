@@ -407,8 +407,14 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		showForm();
 		const auto submitted = (_submitState == SubmitState::Validating);
 		_submitState = SubmitState::Validated;
-		if (submitted) {
+		if (!submitted) {
+			return;
+		}
+		const auto &options = _form->shippingOptions();
+		if (options.list.empty()) {
 			panelSubmit();
+		} else if (options.selectedId.isEmpty()) {
+			chooseShippingOption();
 		}
 	}, [&](const PaymentMethodUpdate &data) {
 		showForm();
@@ -986,7 +992,10 @@ QVariant CheckoutProcess::panelClickHandlerContext() {
 void CheckoutProcess::performInitialSilentValidation() {
 	const auto &invoice = _form->invoice();
 	const auto &saved = _form->information();
+	// WHY: a flexible invoice makes the server forward the address to the
+	// bot as a shipping query, so validation must wait for the user's Pay.
 	if (invoice.receipt
+		|| invoice.isFlexible
 		|| (invoice.isNameRequested && saved.name.isEmpty())
 		|| (invoice.isEmailRequested && saved.email.isEmpty())
 		|| (invoice.isPhoneRequested && saved.phone.isEmpty())

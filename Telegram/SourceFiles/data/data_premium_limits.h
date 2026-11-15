@@ -19,11 +19,9 @@ public:
 
 	[[nodiscard]] int channelsDefault() const;
 	[[nodiscard]] int channelsPremium() const;
-	[[nodiscard]] int channelsCurrent() const;
 
 	[[nodiscard]] int similarChannelsDefault() const;
 	[[nodiscard]] int similarChannelsPremium() const;
-	[[nodiscard]] int similarChannelsCurrent() const;
 
 	[[nodiscard]] int gifsDefault() const;
 	[[nodiscard]] int gifsPremium() const;
@@ -39,7 +37,6 @@ public:
 
 	[[nodiscard]] int dialogShareableFiltersDefault() const;
 	[[nodiscard]] int dialogShareableFiltersPremium() const;
-	[[nodiscard]] int dialogShareableFiltersCurrent() const;
 
 	[[nodiscard]] int dialogFiltersChatsDefault() const;
 	[[nodiscard]] int dialogFiltersChatsPremium() const;
@@ -47,7 +44,6 @@ public:
 
 	[[nodiscard]] int dialogFiltersLinksDefault() const;
 	[[nodiscard]] int dialogFiltersLinksPremium() const;
-	[[nodiscard]] int dialogFiltersLinksCurrent() const;
 
 	[[nodiscard]] int dialogsPinnedDefault() const;
 	[[nodiscard]] int dialogsPinnedPremium() const;
@@ -65,7 +61,6 @@ public:
 
 	[[nodiscard]] int channelsPublicDefault() const;
 	[[nodiscard]] int channelsPublicPremium() const;
-	[[nodiscard]] int channelsPublicCurrent() const;
 
 	[[nodiscard]] int captionLengthDefault() const;
 	[[nodiscard]] int captionLengthPremium() const;
@@ -76,11 +71,9 @@ public:
 
 	[[nodiscard]] int uploadMaxDefault() const;
 	[[nodiscard]] int uploadMaxPremium() const;
-	[[nodiscard]] int uploadMaxCurrent() const;
 
 	[[nodiscard]] int aboutLengthDefault() const;
 	[[nodiscard]] int aboutLengthPremium() const;
-	[[nodiscard]] int aboutLengthCurrent() const;
 
 	[[nodiscard]] int contactNoteLengthCurrent() const;
 
@@ -106,7 +99,6 @@ class LevelLimits final {
 public:
 	LevelLimits(not_null<Main::Session*> session);
 
-	[[nodiscard]] int channelColorLevelMin() const;
 	[[nodiscard]] int channelBgIconLevelMin() const;
 	[[nodiscard]] int channelProfileBgIconLevelMin() const;
 	[[nodiscard]] int channelEmojiStatusLevelMin() const;

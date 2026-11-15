@@ -194,6 +194,9 @@ private:
 	void finishDialogsList();
 	void requestSinglePeerDialog();
 	mtpRequestId requestSinglePeerMigrated(const Data::DialogInfo &info);
+	void requestSinglePeerMigratedFromHistory(
+		const MTPInputPeer &peer,
+		ChannelId channelId);
 	void appendSinglePeerDialogs(Data::DialogsInfo &&info);
 
 	void requestLeftChannelsIfNeeded();
@@ -211,15 +214,16 @@ private:
 		int splitIndex);
 
 	void requestMessagesCount(int localSplitIndex);
+	void requestMessagesCountFromDate(int localSplitIndex, int count);
 	void checkFirstMessageDate(int localSplitIndex, int count);
 	void messagesCountLoaded(int localSplitIndex, int count);
 	void requestMessagesSlice();
 	void requestChatMessages(
 		int splitIndex,
 		int offsetId,
+		int offsetDate,
 		int addOffset,
 		int limit,
-		int offsetDate,
 		FnMut<void(MTPmessages_Messages&&)> done);
 	void startMessagesSlice(Data::MessagesSlice &&slice);
 	void resumeMessagesSlice();
@@ -250,7 +254,6 @@ private:
 		Data::File *file,
 		const QString &relativePath);
 	bool loadMessageEmojiProgress(FileProgress progress);
-	void loadMessageEmojiDone(uint64 id, const QString &relativePath);
 	void finishMessagesSlice();
 	void finishMessages();
 

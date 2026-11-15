@@ -51,6 +51,39 @@ fixed here: write it as a discovered task. Other dead or duplicated code
 noticed on the way, such as a copy below the clone threshold, is named in
 the result prose and left alone.
 
+## Offered variants
+
+A dropped item can leave the owner a way back: a variant diff, of that item
+alone or combined with others, with numbers that say what overturning the
+drop would give. A variant is offered if its diff is tracked, for example
+under `evidence/`, even without quoted numbers, or if its numbers are
+presented as that result, even without a tracked diff. A "how to overturn"
+entry of `work/decisions.md` or a diff called ready to build or review is
+such an offer.
+
+- Build each offered variant before tracking its diff or recording its
+  build-work numbers, line counts or `health.py` output. Apply it on top of
+  the tree the task keeps (`BASE_REF` when nothing is kept). Run the Debug
+  `Telegram` build as `AGENTS.md` describes and save its complete output in
+  `PROOF_DIR`. Measure that same tree and record the build's outcome next to
+  the numbers. Any tracked variant diff must match what was built, including
+  build fixes. Then restore only the variant's edits, preserving any retained
+  work.
+- A variant whose build fails is not offered as ready, and its numbers
+  carry no credit from the broken change. Fix what broke, build it again
+  and measure the fixed diff, or offer nothing: keep its diff in
+  `PROOF_DIR` and record only that it does not build, with the first
+  error.
+- Unbuilt build-work numbers or line counts may still explain a drop,
+  without offering an overturn result. Wherever quoted, label them
+  `measured without a build`, including in a `Dropped:` reason, the
+  `Metric:` line, `work/decisions.md`, `work/test.md` or the result prose.
+  Such a variant's diff stays in `PROOF_DIR`, untracked; the label does
+  not replace the build required for an offer.
+
+Dropping every item without offering a variant keeps the cheap path in
+[Result](#result): no Debug build, review or test run.
+
 ## Steps
 
 Run every command from `SOURCE_ROOT`. `BASE_REF` is
@@ -113,8 +146,9 @@ edit.
    review did not name.
 7. **Commit.** Commit what remains with `source-commit --mark-green` and a
    repository-style subject (no `[ai] ` prefix: this is product code).
-8. **Publish.** Write `work/test.md` and `work/result.md` as below, then
-   `finish --status approved`.
+8. **Publish.** Build any variant you offer first, as
+   [Offered variants](#offered-variants) says. Write `work/test.md` and
+   `work/result.md` as below, then `finish --status approved`.
 
 ## Review prompt
 
@@ -183,7 +217,11 @@ Lane: mechanical, class Q<n>
 dropped, use `Outcome: already-satisfied`, `Implementation: none`,
 `Touched: none` and `Evidence: work/test.md`, with the recheck or proof
 output that justified each drop; the acceptance of a mechanical task allows
-this, and no review runs because nothing changed. Then add:
+this, and no review runs because nothing changed. Such a task needs no Debug
+build or test run either, unless it offers a variant: that variant follows
+[Offered variants](#offered-variants), with its build recorded in
+`work/test.md` and its outcome next to every quotation of its numbers.
+Include any tracked variant diff in `Evidence:`. Then add:
 
 ```markdown
 ## Code health

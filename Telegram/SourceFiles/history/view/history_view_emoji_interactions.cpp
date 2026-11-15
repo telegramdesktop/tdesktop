@@ -69,10 +69,7 @@ EmojiInteractions::EmojiInteractions(
 	) | rpl::filter([=] {
 		return !_plays.empty() || !_delayed.empty();
 	}) | rpl::on_next([=](not_null<const Element*> view) {
-		_plays.erase(ranges::remove(_plays, view, &Play::view), end(_plays));
-		_delayed.erase(
-			ranges::remove(_delayed, view, &Delayed::view),
-			end(_delayed));
+		viewRemoved(view);
 	}, _lifetime);
 
 	_session->data().reactions().effectsUpdates(
@@ -148,6 +145,13 @@ void EmojiInteractions::cancelPremiumEffect(not_null<const Element*> view) {
 		}
 		return true;
 	}), end(_plays));
+}
+
+void EmojiInteractions::viewRemoved(not_null<const Element*> view) {
+	_plays.erase(ranges::remove(_plays, view, &Play::view), end(_plays));
+	_delayed.erase(
+		ranges::remove(_delayed, view, &Delayed::view),
+		end(_delayed));
 }
 
 void EmojiInteractions::play(

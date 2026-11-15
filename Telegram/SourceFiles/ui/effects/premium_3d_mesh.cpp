@@ -11,10 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QDataStream>
 #include <QtGui/QImage>
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include "ui/rhi/rhi_shader.h"
 #include <rhi/qrhi.h>
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 namespace Ui::Premium {
 namespace {
@@ -123,11 +123,11 @@ Object3dModel LoadObject3dModel(
 	return result;
 }
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 QShader LoadObject3dShader(const QString &name) {
 	return Rhi::ShaderFromFile(u":/shaders/"_q + name + u".qsb"_q);
 }
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 QImage LoadObject3dFlecksTexture() {
 	return QImage(

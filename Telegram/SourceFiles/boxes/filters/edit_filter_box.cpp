@@ -946,9 +946,9 @@ void EditFilterBox(
 			}
 		}
 		line->sizeValue() | rpl::on_next([=](const QSize &size) {
-			const auto totalWidth = buttons.size() * side;
-			const auto spacing = (size.width() - totalWidth)
-				/ (buttons.size() - 1);
+			const auto count = int(buttons.size());
+			const auto totalWidth = count * side;
+			const auto spacing = (size.width() - totalWidth) / (count - 1);
 			for (auto i = 0; i < kColorsCount; ++i) {
 				const auto &button = buttons[i];
 				button->moveToLeft(i * (side + spacing), 0);

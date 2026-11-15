@@ -42,7 +42,7 @@ namespace Media {
 namespace Player {
 namespace {
 
-Instance *SingleInstance = nullptr;
+auto SingleInstance = (Instance*)nullptr;
 
 // Preload X message ids before and after current.
 constexpr auto kIdsLimit = 32;
@@ -146,7 +146,7 @@ void SaveLastPlaybackPosition(
 
 bool IsRealPlaybackContext(not_null<const HistoryItem*> item) {
 	return item->isRegular()
-		|| item->isScheduled()
+		|| (item->isScheduled() && !item->isSending() && !item->hasFailed())
 		|| item->isSavedMusicItem();
 }
 
@@ -1357,6 +1357,17 @@ void Instance::updatePlaybackSpeed() {
 		}
 		if (const auto streamed = data->streamed.get()) {
 			streamed->instance.setSpeed(LookupPlaybackSpeed(data->current));
+		}
+	}
+}
+
+void Instance::setPlaybackSpeed(float64 speed) {
+	if (const auto data = getData(getActiveType())) {
+		if (!data->current.changeablePlaybackSpeed()) {
+			return;
+		}
+		if (const auto streamed = data->streamed.get()) {
+			streamed->instance.setSpeed(speed);
 		}
 	}
 }

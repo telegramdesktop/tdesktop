@@ -1,0 +1,52 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "boxes/boxes.style";
+
+keysLegendMenuSkip: 6px;
+keysLegendMenu: PopupMenu(defaultPopupMenu) {
+	scrollPadding: margins(0px, 4px, 0px, 4px);
+	menu: Menu(defaultMenu) {
+		widthMin: 220px;
+		widthMax: 600px;
+		itemPadding: margins(14px, 8px, 14px, 8px);
+	}
+}
+keysLegendPanelPadding: 24px;
+keysLegendOuterMargin: 32px;
+keysLegendCompactWidth: 520px;
+keysLegendColumnMin: 320px;
+keysLegendColumnMax: 440px;
+keysLegendColumnGap: 32px;
+keysLegendSectionSkip: 18px;
+keysLegendHeaderHeight: 56px;
+keysLegendCloseSkip: 12px;
+keysLegendHeaderStyle: TextStyle(semiboldTextStyle) {
+	font: font(16px semibold);
+}
+keysLegendTitleSkip: 6px;
+keysLegendTitleStyle: TextStyle(semiboldTextStyle) {
+	font: font(12px semibold);
+}
+keysLegendTitleFg: windowActiveTextFg;
+keysLegendRowSkip: 6px;
+keysLegendCapStyle: TextStyle(semiboldTextStyle) {
+	font: font(12px semibold);
+}
+keysLegendCapHeight: 20px;
+keysLegendCapMinWidth: 22px;
+keysLegendCapMaxWidth: 120px;
+keysLegendCapPadding: 6px;
+keysLegendCapRadius: 4px;
+keysLegendCapSkip: 4px;
+keysLegendCapBg: windowBgOver;
+keysLegendCapBorder: windowSubTextFg;
+keysLegendCapFg: windowFg;
+keysLegendTextSkip: 12px;
+keysLegendTextWidth: 360px;
+keysLegendTextMinWidth: 100px;
+keysLegendTextFg: boxTextFg;

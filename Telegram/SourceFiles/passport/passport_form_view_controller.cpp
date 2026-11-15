@@ -103,11 +103,6 @@ bool CanRequireSelfie(Value::Type type) {
 		|| (scope == Scope::Type::Identity);
 }
 
-bool CanRequireScans(Value::Type type) {
-	const auto scope = ScopeTypeForValueType(type);
-	return (scope == Scope::Type::Address);
-}
-
 bool CanRequireTranslation(Value::Type type) {
 	const auto scope = ScopeTypeForValueType(type);
 	return (scope == Scope::Type::Address)

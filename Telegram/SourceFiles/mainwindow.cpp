@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/effects/layer_backdrop.h"
 #include "ui/emoji_config.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_cloud_manager.h"
@@ -117,7 +118,7 @@ void MainWindow::applyInitialWorkMode() {
 	workmodeUpdated(workMode);
 
 	if (controller().isPrimary()) {
-		if (Core::App().settings().windowPosition().maximized) {
+		if (positionMaximized()) {
 			DEBUG_LOG(("Window Pos: First show, setting maximized."));
 			setWindowState(Qt::WindowMaximized);
 		}
@@ -418,6 +419,7 @@ void MainWindow::ensureLayerCreated() {
 	_layer = base::make_unique_q<Ui::LayerStackWidget>(
 		bodyWidget(),
 		crl::guard(this, [=] { return controller().uiShow(); }));
+	_layerShown = true;
 
 	_layer->hideFinishEvents(
 	) | rpl::filter([=] {
@@ -443,6 +445,7 @@ void MainWindow::destroyLayer() {
 
 	auto layer = base::take(_layer);
 	_boxShown = false;
+	_layerShown = false;
 	const auto resetFocus = Ui::InFocusChain(layer);
 	if (resetFocus) {
 		setFocus();
@@ -508,6 +511,10 @@ void MainWindow::showOrHideBoxOrLayer(
 
 bool MainWindow::ui_isLayerShown() const {
 	return _layer != nullptr;
+}
+
+rpl::producer<bool> MainWindow::ui_layerShownValue() const {
+	return _layerShown.value();
 }
 
 rpl::producer<bool> MainWindow::ui_boxShownValue() const {
@@ -615,7 +622,9 @@ void MainWindow::checkActivation() {
 
 bool MainWindow::contentOverlapped(const QRect &globalRect) {
 	return (_main && _main->contentOverlapped(globalRect))
-		|| (_layer && _layer->contentOverlapped(globalRect));
+		|| (_layer
+			&& !Ui::CapturingUnderLayer()
+			&& _layer->contentOverlapped(globalRect));
 }
 
 void MainWindow::setInnerFocus() {
@@ -697,7 +706,7 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 	case QEvent::Move:
 	case QEvent::Resize: {
 		if (object == this) {
-			positionUpdated();
+			positionUpdated(e->spontaneous());
 		}
 	} break;
 	}

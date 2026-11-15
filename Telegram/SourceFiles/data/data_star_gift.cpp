@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
 #include "main/main_session.h"
+#include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h"
 #include "ui/text/text_utilities.h"
 #include "styles/style_credits.h"
@@ -148,6 +149,63 @@ TextWithEntities FormatGiftResaleAsked(const UniqueGift &gift) {
 		: FormatGiftResaleStars(gift);
 }
 
+// WHY: each parse allocates the gift's shared parts anew, so the served
+// values are compared; what only a later request fills in, like transfer
+// dates, is left out, or a box enriching the gift would rebuild its row.
+bool SameServedStarGift(const StarGift &a, const StarGift &b) {
+	Expects(a.unique != nullptr);
+	Expects(b.unique != nullptr);
+
+	const auto served = [](const StarGift &gift) {
+		const auto &unique = *gift.unique;
+		const auto &details = unique.originalDetails;
+		return std::tie(
+			gift.id,
+			gift.document,
+			gift.releasedBy,
+			gift.limitedLeft,
+			gift.limitedCount,
+			unique.id,
+			unique.initialGiftId,
+			unique.slug,
+			unique.title,
+			unique.number,
+			unique.giftAddress,
+			unique.ownerAddress,
+			unique.ownerName,
+			unique.ownerId,
+			unique.hostId,
+			unique.releasedBy,
+			unique.themeUser,
+			unique.nanoTonForResale,
+			unique.starsForResale,
+			unique.starsMinOffer,
+			unique.craftChancePermille,
+			unique.onlyAcceptTon,
+			unique.canBeTheme,
+			unique.crafted,
+			unique.burned,
+			unique.model,
+			unique.pattern,
+			unique.backdrop,
+			details.senderId,
+			details.recipientId,
+			details.date,
+			details.message);
+	};
+	const auto value = [](const UniqueGiftValue &data) {
+		return std::tie(data.currency, data.valuePrice, data.valuePriceUsd);
+	};
+	const auto same = [](const auto &was, const auto &now, auto key) {
+		return (!was || !now) ? (!was && !now) : (key(*was) == key(*now));
+	};
+	return (served(a) == served(b))
+		&& (a.resellTonOnly == b.resellTonOnly)
+		&& (a.requirePremium == b.requirePremium)
+		&& same(a.unique->value, b.unique->value, value)
+		&& same(a.unique->peerColor, b.unique->peerColor, std::identity());
+}
+
 GiftAttributeId IdFor(const UniqueGiftBackdrop &value) {
 	return {
 		.value = uint64(uint32(value.id)),
@@ -169,13 +227,13 @@ GiftAttributeId IdFor(const UniqueGiftPattern &value) {
 	};
 }
 
-rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
-		not_null<Main::Session*> session,
+rpl::producer<MyGiftsDescriptor> PeerUniqueGiftsSlice(
+		not_null<PeerData*> peer,
 		MyUniqueType type,
 		QString offset) {
 	return [=](auto consumer) {
 		using Flag = MTPpayments_GetSavedStarGifts::Flag;
-		const auto user = session->user();
+		const auto session = &peer->session();
 		const auto requestId = session->api().request(
 			MTPpayments_GetSavedStarGifts(
 			MTP_flags(Flag::f_exclude_upgradable
@@ -184,7 +242,7 @@ rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
 				| ((type == MyUniqueType::OnlyOwned)
 					? Flag::f_exclude_hosted
 					: Flag())),
-			user->input(),
+			peer->input(),
 			MTP_int(0), // collection_id
 			MTP_string(offset),
 			MTP_int(kMyGiftsPerPage)
@@ -201,7 +259,7 @@ rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
 
 			gifts.list.reserve(data.vgifts().v.size());
 			for (const auto &gift : data.vgifts().v) {
-				if (auto parsed = Api::FromTL(user, gift)) {
+				if (auto parsed = Api::FromTL(peer, gift)) {
 					gifts.list.push_back(std::move(*parsed));
 				}
 			}
@@ -216,6 +274,13 @@ rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
 		lifetime.add([=] { session->api().request(requestId).cancel(); });
 		return lifetime;
 	};
+}
+
+rpl::producer<MyGiftsDescriptor> MyUniqueGiftsSlice(
+		not_null<Main::Session*> session,
+		MyUniqueType type,
+		QString offset) {
+	return PeerUniqueGiftsSlice(session->user(), type, offset);
 }
 
 rpl::producer<ResaleGiftsDescriptor> ResaleGiftsSlice(

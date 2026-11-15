@@ -21,12 +21,15 @@ void main() {
 	uint pX = particleId % particleResolution.x;
 	uint pY = particleId / particleResolution.x;
 
-	vec4 state = texelFetch(
+	// One R32F texel per float: offset.x, offset.y, lifetime.
+	ivec2 stateCoord = ivec2(int(pX) * 3, int(pY));
+	vec2 inOffset = vec2(
+		texelFetch(particleStateTex, stateCoord, 0).x,
+		texelFetch(particleStateTex, stateCoord + ivec2(1, 0), 0).x);
+	float inLifetime = texelFetch(
 		particleStateTex,
-		ivec2(int(pX), int(pY)),
-		0);
-	vec2 inOffset = state.xy;
-	float inLifetime = state.z;
+		stateCoord + ivec2(2, 0),
+		0).x;
 
 	vec2 particleSize = size / vec2(particleResolution);
 

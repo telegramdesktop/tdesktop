@@ -92,19 +92,12 @@ bool UnsupportedNotice::dragItemByHandler(const ClickHandlerPtr &p) const {
 void UnsupportedNotice::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) {
-	if (handler != _link) {
-		return;
-	} else if (pressed) {
-		if (!_ripple) {
-			const auto size = _card.buttonSize();
-			_ripple = std::make_unique<Ui::RippleAnimation>(
-				st::defaultRippleAnimation,
-				Ui::RippleAnimation::RoundRectMask(size, size.height() / 2),
-				[=] { repaint(); });
-		}
-		_ripple->add(_lastPoint);
-	} else if (_ripple) {
-		_ripple->lastStop();
+	if (handler == _link) {
+		_card.buttonPressedChanged(
+			_ripple,
+			pressed,
+			_lastPoint,
+			[=] { repaint(); });
 	}
 }
 

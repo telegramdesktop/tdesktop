@@ -33,9 +33,6 @@ public:
 
 	[[nodiscard]] static bool IsTimeoutError(const Gram::ApiError &error);
 
-
-	[[nodiscard]] bool hasPendingRequests() const;
-
 private:
 	struct Sent {
 		mtpRequestId id = 0;

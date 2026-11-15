@@ -847,6 +847,19 @@ struct NativeInstantViewPrepareRequest {
 	std::optional<MarkdownPrepareTableRenderLimits> tableRenderLimits;
 	bool editMode = false;
 	bool unsupportedBlockNotices = false;
+	bool disableButtons = false;
+};
+
+struct PreparedTextReplacement {
+	int position = 0;
+	int skipped = 0;
+	int added = 0;
+};
+
+struct PreparedLinkSplices {
+	const TextWithEntities *source = nullptr;
+	std::vector<PreparedTextReplacement> replacements;
+	std::vector<PreparedTextReplacement> labelDates;
 };
 
 struct MarkdownArticleContent {
@@ -855,6 +868,7 @@ struct MarkdownArticleContent {
 	std::vector<PreparedFormulaSlot> formulas;
 	std::shared_ptr<MediaRuntime> mediaRuntime;
 	std::shared_ptr<const Iv::RichPage> richPage;
+	std::vector<PreparedLinkSplices> linkSplices;
 	bool editMode = false;
 	PrepareFailureStatus failure;
 	PrepareDebugStats debug;
@@ -877,6 +891,7 @@ struct NativeInstantViewPrepareResult {
 		= NativeInstantViewPrepareResultKind::Unsupported;
 	MarkdownArticleContent content;
 	QString debugReason;
+	bool buttonsDisabled = false;
 
 	[[nodiscard]] bool supported() const {
 		return (kind == NativeInstantViewPrepareResultKind::Supported);
@@ -907,6 +922,8 @@ struct NativeInstantViewPrepareResult {
 [[nodiscard]] QString SerializeInlineTextObjectEntity(
 	const InlineTextObjectEntity &object);
 [[nodiscard]] QString InlineFormulaCopySource(const QString &source);
+[[nodiscard]] bool IsQuotableNativeContent(
+	const MarkdownArticleContent &content);
 [[nodiscard]] MarkdownArticleContent PrepareSynchronously(PrepareRequest request);
 [[nodiscard]] NativeInstantViewPrepareResult TryPrepareNativeInstantView(
 	NativeInstantViewPrepareRequest request);

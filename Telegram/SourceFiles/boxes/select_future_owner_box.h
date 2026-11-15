@@ -18,4 +18,5 @@ class Show;
 void SelectFutureOwnerbox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer,
-	not_null<UserData*> user);
+	not_null<UserData*> user,
+	Fn<void()> leaveChat);

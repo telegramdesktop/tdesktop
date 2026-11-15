@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_url_scheme.h"
 #include "base/platform/base_platform_last_input.h"
 #include "base/platform/base_platform_info.h"
+#include "base/platform/base_platform_process.h"
 #include "platform/platform_specific.h"
 #include "platform/platform_integration.h"
 #include "history/history.h"
@@ -86,14 +87,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_folder_archive.h"
 #include "storage/localstorage.h"
 #include "payments/payments_checkout_process.h"
+#include "tgw/tgw_runtime.h"
 #include "export/export_manager.h"
 #include "wallet/wallet_panel.h"
 #include "webrtc/webrtc_environment.h"
+#include "webview/webview_interface.h"
+#include "window/window_columns.h"
 #include "window/window_saved_windows.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "boxes/abstract_box.h"
+#include "boxes/keys_legend.h"
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/premium_limits_box.h"
@@ -351,6 +356,7 @@ void Application::run() {
 	Media::Player::start(_audio.get());
 	Media::Encode::ClearStaleTempFiles();
 	Storage::ClearStaleArchiveFiles();
+	Webview::ClearStaleTemporaryStorage();
 
 	if (MediaControlsManager::Supported()) {
 		_mediaControlsManager = std::make_unique<MediaControlsManager>();
@@ -730,6 +736,8 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 			return true;
 		} else if (Shortcuts::HandlePossibleChatSwitch(event)) {
 			return true;
+		} else if (HandleKeysLegendHotkey(this, object, event)) {
+			return true;
 		}
 	} break;
 	case QEvent::MouseButtonPress:
@@ -782,8 +790,13 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 						}),
 						StartUrlRequiresActivate);
 					cRefStartUrls() << base::take(_urlsToOpen);
-					checkStartUrls();
-					if (_lastActivePrimaryWindow && activateRequired) {
+					const auto activated = checkStartUrlsActivating();
+					if (!activateRequired) {
+						return;
+					} else if (activated) {
+						base::Platform::ActivateThisProcessWindow(
+							activated->winId());
+					} else if (_lastActivePrimaryWindow) {
 						_lastActivePrimaryWindow->activate();
 					}
 				});
@@ -904,6 +917,12 @@ void Application::setCurrentProxy(
 	my.setSelected(proxy);
 	my.setSettings(settings);
 	const auto now = current();
+	if (_badProxyConfiguration && *_badProxyConfiguration != now) {
+		_badProxyConfiguration.reset();
+		if (const auto box = base::take(_badProxyDisableBox)) {
+			box->closeBox();
+		}
+	}
 	refreshGlobalProxy();
 	_proxyChanges.fire({ was, now });
 	my.connectionTypeChangesNotify();
@@ -924,19 +943,31 @@ auto Application::proxyChanges() const -> rpl::producer<ProxyChange> {
 	return _proxyChanges.events();
 }
 
-void Application::badMtprotoConfigurationError() {
-	if (settings().proxy().isEnabled() && !_badProxyDisableBox) {
-		const auto disableCallback = [=] {
-			setCurrentProxy(
-				settings().proxy().selected(),
-				MTP::ProxyData::Settings::System);
-		};
-		_badProxyDisableBox = Ui::show(
-			Ui::MakeInformBox(Lang::Hard::ProxyConfigError()));
-		_badProxyDisableBox->boxClosing(
-		) | rpl::on_next(
-			disableCallback,
-			_badProxyDisableBox->lifetime());
+void Application::badMtprotoConfigurationError(const MTP::ProxyData &proxy) {
+	const auto &current = settings().proxy();
+	if (_badProxyDisableBox
+		|| _badProxyConfiguration == proxy
+		|| !current.isEnabled()
+		|| current.selected() != proxy) {
+		return;
+	}
+	_badProxyConfiguration = proxy;
+	_badProxyDisableBox = Ui::show(Ui::MakeConfirmBox({
+		.text = Lang::Hard::ProxyConfigError(),
+		.confirmed = [=](Fn<void()> close) {
+			close();
+			const auto &current = settings().proxy();
+			if (current.isEnabled() && current.selected() == proxy) {
+				setCurrentProxy(
+					current.selected(),
+					MTP::ProxyData::Settings::System);
+			}
+		},
+		.confirmText = tr::lng_proxy_disable(),
+		.cancelText = tr::lng_cancel(),
+	}), Ui::LayerOption::KeepOther);
+	if (!_badProxyDisableBox) {
+		_badProxyConfiguration.reset();
 	}
 }
 
@@ -1247,7 +1278,9 @@ void Application::checkStartUrls() {
 				return false;
 			} else if (_lastActivePrimaryWindow) {
 				const auto local = TryConvertUrlToLocal(url.toString());
-				return !openLocalUrl(local, {});
+				return IsGetPremiumLocalUrl(local)
+					? !openInternalUrl(local, {})
+					: !openLocalUrl(local, {});
 			}
 			return true;
 		}) | ranges::to<QList<QUrl>>;
@@ -1271,6 +1304,22 @@ void Application::checkStartUrls() {
 			_lastActivePrimaryWindow->widget()->handleStartFiles(
 				std::move(paths));
 		}
+	}
+}
+
+QPointer<QWidget> Application::checkStartUrlsActivating() {
+	if (_startUrlActivated) {
+		checkStartUrls();
+		return nullptr;
+	}
+	_startUrlActivated.emplace();
+	checkStartUrls();
+	return *base::take(_startUrlActivated);
+}
+
+void Application::registerWindowActivation(not_null<QWidget*> window) {
+	if (_startUrlActivated) {
+		*_startUrlActivated = window.get();
 	}
 }
 
@@ -1311,12 +1360,15 @@ bool Application::openCustomUrl(
 		|| passcodeLocked()) {
 		return false;
 	}
-	static const auto kTagExp = QRegularExpression(
-		u"^\\~[a-zA-Z0-9_\\-]+\\~:"_q);
 	auto skip = protocol.size();
-	const auto match = kTagExp.match(base::StringViewMid(urlTrimmed, skip));
-	if (match.hasMatch()) {
-		skip += match.capturedLength();
+	if (protocol == u"internal:"_q) {
+		static const auto kTagExp = QRegularExpression(
+			u"^\\~[a-zA-Z0-9_\\-]+\\~:"_q);
+		const auto match = kTagExp.match(
+			base::StringViewMid(urlTrimmed, skip));
+		if (match.hasMatch()) {
+			skip += match.capturedLength();
+		}
 	}
 	const auto command = base::StringViewMid(urlTrimmed, skip, 8192);
 	const auto my = context.value<ClickHandlerContext>();
@@ -1338,7 +1390,11 @@ bool Application::openCustomUrl(
 }
 
 void Application::preventOrInvoke(Fn<void()> &&callback) {
-	_lastActivePrimaryWindow->preventOrInvoke(std::move(callback));
+	if (_lastActivePrimaryWindow) {
+		_lastActivePrimaryWindow->preventOrInvoke(std::move(callback));
+	} else {
+		callback();
+	}
 }
 
 void Application::updateWindowTitles() {
@@ -1472,9 +1528,15 @@ void Application::localPasscodeChanged() {
 	checkAutoLock(crl::now());
 }
 
-bool Application::savingPositionFor(
+bool Application::isWindowInSettings(
 		not_null<Window::Controller*> window) const {
-	return !_windowInSettings || (_windowInSettings == window);
+	return (_windowInSettings == window);
+}
+
+void Application::reseedWindowInSettings() {
+	if (_windowInSettings) {
+		_windowInSettings->columns().seedFromSettings();
+	}
 }
 
 bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
@@ -1543,6 +1605,14 @@ not_null<Window::Controller*> Application::ensureSeparateWindowFor(
 	}
 	result->firstShow();
 	result->finishFirstShow();
+	if (result->isPrimary()) {
+		if (!_lastActivePrimaryWindow) {
+			_lastActivePrimaryWindow = result;
+		}
+		if (!_windowInSettings) {
+			setWindowInSettings(result);
+		}
+	}
 	return activate(result);
 }
 
@@ -1676,6 +1746,43 @@ void Application::setLastActiveWindow(Window::Controller *window) {
 	}, _floatPlayerDelegateLifetime);
 }
 
+void Application::setWindowInSettings(Window::Controller *window) {
+	Expects(!window || window->isPrimary());
+
+	if (_windowInSettings == window) {
+		return;
+	}
+	if (window) {
+		window->widget()->savePosition();
+	}
+	_windowInSettings = window;
+	if (window) {
+		window->widget()->savePositionToSettings();
+		window->columns().writeToSettings();
+		saveSettingsDelayed();
+	}
+}
+
+Window::Controller *Application::nextPrimaryWindow(
+		not_null<Window::Controller*> closing) const {
+	const auto eligible = [&](not_null<Window::Controller*> window) {
+		return (window != closing)
+			&& window->isPrimary()
+			&& !_closingAsyncWindows.contains(window);
+	};
+	for (const auto &window : ranges::views::reverse(_windowStack)) {
+		if (eligible(window)) {
+			return window;
+		}
+	}
+	for (const auto &window : ranges::views::values(_windows)) {
+		if (eligible(window.get())) {
+			return window.get();
+		}
+	}
+	return nullptr;
+}
+
 void Application::closeWindow(not_null<Window::Controller*> window) {
 	if (_savedWindows) {
 		_savedWindows->windowClosed(window);
@@ -1697,11 +1804,12 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 		: nullptr;
 	Assert(next != window);
 
+	const auto nextPrimary = nextPrimaryWindow(window);
 	if (_lastActivePrimaryWindow == window) {
-		_lastActivePrimaryWindow = next;
+		_lastActivePrimaryWindow = nextPrimary;
 	}
 	if (_windowInSettings == window) {
-		_windowInSettings = next;
+		setWindowInSettings(nextPrimary);
 	}
 	if (stackIt != end(_windowStack)) {
 		_windowStack.erase(stackIt);
@@ -1973,6 +2081,9 @@ void QuitAttempt() {
 bool Application::readyToQuit() {
 	auto prevented = false;
 	if (_calls->isQuitPrevent()) {
+		prevented = true;
+	}
+	if (Tgw::Runtime::IsQuitPrevent()) {
 		prevented = true;
 	}
 	if (_domain->started()) {

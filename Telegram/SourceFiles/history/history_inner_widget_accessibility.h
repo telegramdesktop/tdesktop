@@ -53,7 +53,6 @@ enum class MessageSubItem : int {
 	Spoiler,
 	Dice,
 	Giveaway,
-	Gift,
 	TodoTitle,
 	TodoItems,
 	Factcheck,
@@ -77,5 +76,9 @@ enum class MessageSubItem : int {
 [[nodiscard]] std::vector<MessageSubItem> ActiveMessageSubItems(
 	not_null<const Element*> view,
 	not_null<History*> history);
+[[nodiscard]] HistoryItem *AccessibilityItemAtIndex(
+	int index,
+	const std::vector<Element*> &elements,
+	int barIndex);
 
 } // namespace HistoryView

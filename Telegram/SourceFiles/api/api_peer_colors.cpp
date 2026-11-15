@@ -218,9 +218,7 @@ void PeerColors::applyProfile(const MTPDhelp_peerColors &data) {
 		});
 	};
 
-	auto suggested = std::vector<Data::ColorProfileData>();
 	const auto &list = data.vcolors().v;
-	suggested.reserve(list.size());
 	for (const auto &color : list) {
 		const auto &data = color.data();
 		const auto colorIndexBare = data.vcolor_id().v;
@@ -230,7 +228,6 @@ void PeerColors::applyProfile(const MTPDhelp_peerColors &data) {
 		}
 		const auto colorIndex = uint8(colorIndexBare);
 		auto result = ProfileColorOption();
-		result.isHidden = data.is_hidden();
 		if (const auto min = data.vgroup_min_level()) {
 			result.requiredLevelsGroup = min->v;
 		}

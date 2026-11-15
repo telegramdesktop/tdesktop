@@ -123,7 +123,7 @@ void VideoUserpic::clipCallback(Media::Clip::Notification notification) {
 	case Notification::Reinit: {
 		if (_video->state() == State::Error) {
 			_video.setBad();
-		} else if (startReady()) {
+		} else if (!startReady()) {
 			_repaint();
 		}
 	} break;

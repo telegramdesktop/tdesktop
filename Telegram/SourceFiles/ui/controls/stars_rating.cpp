@@ -59,10 +59,16 @@ using Counters = Data::StarsRating;
 	return data;
 }
 
+struct BubbleTextState {
+	int starsForScale = 0;
+	int nextLevelStars = 0;
+};
+
 [[nodiscard]] Fn<Premium::BubbleText(int)> BubbleTextFactory(
-		int countForScale,
-		int nextLevelCounter) {
+		not_null<const BubbleTextState*> state) {
 	return [=](int count) {
+		const auto countForScale = state->starsForScale;
+		const auto nextLevelCounter = state->nextLevelStars;
 		const auto counter = [&](int count) {
 			return (countForScale < 10'000)
 				? Lang::FormatCountDecimal(count)
@@ -130,7 +136,18 @@ void FillRatingLimit(
 		return (first + (index - 1) * other) / available;
 	};
 
-	auto adjustedData = rpl::duplicate(data) | rpl::map(AdjustByReached);
+	// Preview can switch to the pending rating, keep the suffix in sync.
+	const auto textState = container->lifetime().make_state<BubbleTextState>(
+		BubbleTextState{
+			.starsForScale = starsForScale,
+			.nextLevelStars = nextLevelStars,
+		});
+	auto adjustedData = rpl::duplicate(
+		data
+	) | rpl::before_next([=](const Counters &counters) {
+		textState->starsForScale = counters.stars;
+		textState->nextLevelStars = counters.nextLevelStars;
+	}) | rpl::map(AdjustByReached);
 
 	auto bubbleRowState = rpl::duplicate(
 		adjustedData
@@ -152,7 +169,7 @@ void FillRatingLimit(
 		type,
 		(hideCount
 			? [](int) { return Premium::BubbleText(); }
-			: BubbleTextFactory(starsForScale, nextLevelStars)),
+			: BubbleTextFactory(textState)),
 		negative ? &st::levelNegativeBubble : &st::infoStarsCrown,
 		limitLinePadding);
 	addSkip(st::premiumLineTextSkip);

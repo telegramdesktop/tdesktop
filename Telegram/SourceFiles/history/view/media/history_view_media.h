@@ -159,7 +159,8 @@ public:
 	[[nodiscard]] virtual bool toggleSelectionByHandlerClick(
 		const ClickHandlerPtr &p) const = 0;
 	[[nodiscard]] virtual bool allowTextSelectionByHandler(
-		const ClickHandlerPtr &p) const;
+		const ClickHandlerPtr &p,
+		bool fromTouch) const;
 
 	[[nodiscard]] virtual TextSelection adjustSelection(
 			TextSelection selection,
@@ -181,6 +182,10 @@ public:
 	// if we press and drag this link should we drag the item
 	[[nodiscard]] virtual bool dragItemByHandler(
 		const ClickHandlerPtr &p) const = 0;
+	[[nodiscard]] virtual bool keepFocusByHandler(
+			const ClickHandlerPtr &p) const {
+		return false;
+	}
 
 	virtual void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	}

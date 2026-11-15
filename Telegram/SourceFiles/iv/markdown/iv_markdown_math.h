@@ -28,6 +28,11 @@ struct MathScanBlock {
 	int startColumn,
 	int endLine,
 	int endColumn);
+[[nodiscard]] SourceRange RangeForOffsets(
+	const std::vector<int> &lineStarts,
+	int sourceSize,
+	int startOffset,
+	int endOffset);
 [[nodiscard]] bool ExtractMathRegions(
 	const QByteArray &source,
 	const std::vector<bool> &mask,

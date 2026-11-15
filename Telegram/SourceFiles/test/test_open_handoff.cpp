@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_open_handoff.h"
 
@@ -140,10 +140,11 @@ OpenHandoff DescribeOpenHandoff(
 	const auto pathInfo = QFileInfo(result.path);
 	result.markdownCandidate = Iv::Markdown::IsReadableLocalFile(pathInfo)
 		&& Iv::Markdown::LooksLikeMarkdownFile(pathInfo.fileName());
-	result.nameType = Core::DetectNameType(result.path);
-	result.ipRevealing = (result.nameType != Core::NameType::Executable)
-		&& Core::IsIpRevealingPath(result.path);
-	result.extension = Core::FileExtension(result.path).toLower();
+	const auto launch = Core::DetectLaunchType(result.path);
+	result.nameType = launch.nameType;
+	result.extension = launch.extension;
+	result.ipRevealing = launch.ipRevealing;
+	result.byContent = launch.byContent;
 	result.forcesOpenWith = result.extension.isEmpty();
 
 	const auto &settings = Core::App().settings();
@@ -152,12 +153,7 @@ OpenHandoff DescribeOpenHandoff(
 		result.extension);
 	result.peerVerified = item
 		&& item->history()->peer->isVerified();
-	result.launcherWouldWarn = Data::LauncherWouldWarn(
-		settings,
-		result.nameType,
-		result.ipRevealing,
-		result.extension,
-		item);
+	result.launcherWouldWarn = Data::LauncherWouldWarn(settings, launch, item);
 
 	result.branch = ResolveBranch(document, result);
 	if (result.path.isEmpty() && !media->bytes().isEmpty()) {
@@ -197,6 +193,7 @@ void LogOpenHandoff(const QString &surface, const OpenHandoff &handoff) {
 	add(u"nameType"_q, QString::number(int(handoff.nameType)));
 	add(u"extension"_q, handoff.extension);
 	addFlag(u"ipRevealing"_q, handoff.ipRevealing);
+	addFlag(u"byContent"_q, handoff.byContent);
 	addFlag(u"ipRevealWarning"_q, handoff.ipRevealWarning);
 	addFlag(u"noWarningExtension"_q, handoff.noWarningExtension);
 	addFlag(u"peerVerified"_q, handoff.peerVerified);
@@ -252,4 +249,4 @@ OpenHandoff CheckOpenHandoff(
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

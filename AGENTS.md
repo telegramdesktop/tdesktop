@@ -152,7 +152,21 @@ Telegram/build/docker/centos_env/build_debug.sh
 cmake --build "l:\Telegram\tx64\out" --config Debug --target Telegram
 ```
 
-**Never build Release** - it's extremely heavy and not needed for testing changes.
+**Test changes with Debug builds.** Build Release only to measure
+performance, and only without link-time optimization: `out/CMakeCache.txt`
+must read `DESKTOP_APP_ENABLE_LTO:BOOL=OFF` before the build, and nothing may
+configure it ON. Build it with:
+
+```bash
+cmake --build out --config Release --target Telegram
+```
+
+The app lands in `out/Release`. To drive it with the `-testagent` harness,
+follow "Release builds with the harness" in
+`Telegram/SourceFiles/test/docs/launch.md`; on macOS reconfigure with
+`env -u QT cmake -S . -B out -DTDESKTOP_RELEASE_TEST_HARNESS=ON`, and switch it
+back OFF the same way when the measurement is done. A Release build never
+replaces the Debug build that proves a change compiles.
 
 **On macOS, never run an Xcode clean against `out/`** - not `--target clean`,
 not `--clean-first` with any target, not `xcodebuild ... clean` and not a
@@ -308,8 +322,17 @@ user to close that checkout's Telegram/debugger before rebuilding.
 
 ## Best Practices
 
-1. **Always use Debug builds** - Release builds are extremely heavy
-2. **Don't build Release configuration** - it's too heavy for testing
+1. **Always use Debug builds** to build and test changes
+2. **Build Release only to measure performance**, without LTO, as
+   "### Build Commands" describes
+
+## Remote CI Build Validation (private-ci)
+
+Fast Debug build checks on Depot.dev (`.github/workflows/private-ci.yml`) run on
+`private-ci/<slug>` branches. Strictly on-demand: never push or babysit CI unless
+the user explicitly asks. Track with `gh run watch`, inspect with
+`gh run view --log-failed`. Amend your commit on your own build error; make a
+separate commit if broken by upstream. Delete the remote branch when green.
 
 ## Debug-Only Code
 
@@ -329,6 +352,17 @@ publication at a construction seam).
 - Exceptions exist — a few `#ifdef _DEBUG` hooks are deliberately kept in
   production files — but they are exceptions and each new one needs a solid,
   stated reason. "The test needed it" is not one.
+
+## Harness documentation
+
+Keep `Telegram/SourceFiles/test/README.md` a short mandatory guide, under
+8 KiB. When adding or changing a harness helper, follow
+`Telegram/SourceFiles/test/docs/adding-helpers.md`: add or update one helper
+index row and its on-demand reference, and keep the source header focused on
+its callable contract. Detailed examples, platform caveats and diagnostic
+history belong in the references, not in the mandatory README. Overlay work
+reads that guide, the references selected by the task and their headers;
+never require reading every helper page.
 
 ## Text File Format
 
@@ -362,6 +396,9 @@ publication at a construction seam).
   implementation notes out of the commit message; put a short durable note
   under `tasks/<task-id>.md` only when useful. Do not copy commit hashes into
   that note or any AI task artifact; the task id is the cross-repository link.
+- Never create backup branches or tags before a rebase, reorder, squash or any
+  other history rewrite. The branch reflog keeps the old tip; report its sha
+  as the undo path instead.
 
 ## Local Storage Serialization
 
@@ -389,9 +426,9 @@ is in `.agents/skills/code-health/SKILL.md`.
 
 ## Coding Style
 
-**Comments are rationed:**
+**Comments:**
 
-A comment is one line; two or three only when the block opens with `// WHY:`. A commit may add two comment lines plus one such exception, and a trailing comment is a line too; only `} // namespace X` closers and `#endif // X` labels are free. Say why, never what. Hooks enforce it, and `Telegram/SourceFiles/test/` is exempt.
+Add no comments. A one-line comment carrying a reason is acceptable, at most two such lines per commit; anything longer only to carry a reference URL. `Telegram/SourceFiles/test/` is exempt.
 
 Do not remove existing comments just to satisfy this rule. Preserve comments unless your change makes them incorrect or truly obsolete; when moving or refactoring code, move the useful comment with it. Inline comments that label positional arguments for generated or schema-driven APIs (for example TL/MTP constructors) are useful because the field names are not visible in the call itself.
 
@@ -411,11 +448,9 @@ if (user->isPremium()) {
 // ACCEPTABLE - one line, and it carries a reason:
 _limit = kDefaultLimit; // the server rejects anything larger
 
-// ACCEPTABLE - the exception: opens with WHY, three lines at most,
-// once per commit.
-// WHY: the server sends the id before the peer exists, so the row is
-// created empty and filled on the next update, or the list flickers
-// on every reconnect.
+// ACCEPTABLE - longer, and it carries a reference URL:
+// The flag is ignored until the server rolls out the scheme
+// described at https://core.telegram.org/api/updates
 ```
 
 **Style and formatting rules** are in `REVIEW.md` — see that file for empty-line-before-closing-brace, operator placement in multi-line expressions, if-with-initializer, and other mechanical style rules.
@@ -801,6 +836,23 @@ void MyWidget::paintEvent(QPaintEvent *e) {
     p.fillRect(rect(), st::chatInput.backgroundColor);
 }
 ```
+
+## Input Method Hints
+
+A field for typed content tells the input method what it is for: call `setInputMethodHints` right after creating it (`Ui::InputField` forwards the hints to its inner editor; `Ui::MaskedInputField` subclasses set them in the constructor). Combinations already used in the code:
+
+- URL: `Qt::ImhUrlCharactersOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- E-mail: `Qt::ImhEmailCharactersOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- Phone: `Qt::ImhDialableCharactersOnly | Qt::ImhNoPredictiveText`
+- Digits only (codes, date and time parts): `Qt::ImhDigitsOnly | Qt::ImhNoPredictiveText`
+- Numbers with separators (amounts, timestamps): `Qt::ImhFormattedNumbersOnly | Qt::ImhNoPredictiveText`
+- Latin identifiers (usernames, file extensions, keys): `Qt::ImhLatinOnly | Qt::ImhNoAutoUppercase | Qt::ImhNoPredictiveText`
+- Add `Qt::ImhSensitiveData` to one-time codes and to secrets shown in clear text, such as recovery phrase words
+- Free text (names, titles, comments, search) gets no hints; `Ui::PasswordInput` sets its own
+
+Prefer the hint that says what the field is for, as long as it works or at least doesn't conflict with what works. To see what works, check every consumer on every platform tdesktop ships at the Qt version in use: the Qt platform plugins (windows, cocoa, xcb, wayland) and the input context plugins, including the bundled ones (fcitx5-qt). If the semantic hint conflicts, pick what works. Hints don't filter input: the field still drops unwanted characters itself.
+
+As of 2026-10-20, `Qt::ImhDate` and `Qt::ImhTime` do nothing anywhere tdesktop runs. Qt on Wayland sends them as the date/time content purpose, but no Wayland on-screen keyboard implements those purposes (Qt Virtual Keyboard, which Plasma Keyboard is built on, GNOME Shell, Squeekboard). Qt reads them on none of tdesktop's other platforms (Windows, macOS, X11), and neither does the bundled fcitx5-qt. Used instead of the digit hints, they lose the digit layouts, so date and time fields use the digit hints above.
 
 ## Localization
 

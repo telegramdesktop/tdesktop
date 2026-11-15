@@ -177,10 +177,13 @@ def submodule_heads(repo):
 
 
 def read_text(path):
+    """A working file's CRLF is read as LF, the form Git stores and diffs, so
+    results do not depend on the checkout's line endings."""
     try:
-        return decode(path.read_bytes())
+        text = decode(path.read_bytes())
     except OSError:
         return None
+    return None if text is None else text.replace('\r\n', '\n')
 
 
 def decode(raw):

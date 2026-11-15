@@ -68,6 +68,16 @@ QString ReactionEntityData(const ReactionId &id) {
 	return u"default:"_q + id.emoji();
 }
 
+ReactionId ReactionFromEntityData(QStringView data) {
+	const auto prefix = u"default:"_q;
+	if (data.startsWith(prefix)) {
+		return ReactionId{ data.mid(prefix.size()).toString() };
+	} else if (const auto custom = ParseCustomEmojiData(data)) {
+		return ReactionId{ custom };
+	}
+	return {};
+}
+
 ReactionId ReactionFromMTP(const MTPReaction &reaction) {
 	return reaction.match([](MTPDreactionEmpty) {
 		return ReactionId{ QString() };

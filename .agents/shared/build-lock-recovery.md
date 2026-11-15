@@ -71,11 +71,19 @@ Run at most three recovery-and-build rounds for one build phase. A new locked
 artifact reported by the retry is handled by the next round within that same
 cap.
 
+## Delayed retries
+
+When three rounds still produce a lock and every holder was this checkout's
+own or none was found, the lock usually belongs to a slow scanner, indexer or
+another build that will finish. Wait 5, 10, 15 and then 30 minutes, running
+one more bounded round after each wait under the same exact-path rules,
+until about an hour has passed. Nobody is asked anything meanwhile.
+
 ## Exhaustion
 
 Hard-stop only when:
 
-- three bounded recovery rounds still produce a lock;
+- the delayed retries still produce a lock;
 - the failure does not identify an exact locked path, or identifies one
   outside `BUILD_ROOT`;
 - the helper reports a surviving IDE, debugger, unknown, or other non-owned

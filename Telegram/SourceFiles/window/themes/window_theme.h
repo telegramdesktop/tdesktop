@@ -38,6 +38,7 @@ struct ThemeParams;
 namespace Window {
 namespace Theme {
 
+inline constexpr auto kThemeFileSizeLimit = 5 * 1024 * 1024;
 inline constexpr auto kThemeSchemeSizeLimit = 1024 * 1024;
 inline constexpr auto kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 
@@ -128,6 +129,8 @@ bool LoadFromContent(
 	const QByteArray &content,
 	not_null<Instance*> out,
 	Cached *outCache);
+[[nodiscard]] std::optional<QByteArray> ReadPaletteContent(
+	const QString &path);
 
 struct BackgroundUpdate {
 	enum class Type {
@@ -206,7 +209,6 @@ public:
 	}
 	[[nodiscard]] std::optional<QColor> colorForFill() const;
 	[[nodiscard]] QImage gradientForFill() const;
-	void recacheGradientForFill(QImage gradient);
 	[[nodiscard]] QImage createCurrentImage() const;
 	[[nodiscard]] bool tile() const;
 	[[nodiscard]] bool tileDay() const;
@@ -227,7 +229,6 @@ private:
 	void saveForRevert();
 	void setPreparedAfterPaper(QImage image);
 	void setPrepared(QImage original, QImage prepared, QImage gradient);
-	void prepareImageForTiled();
 	void writeNewBackgroundSettings();
 	void setPaper(const Data::WallPaper &paper);
 

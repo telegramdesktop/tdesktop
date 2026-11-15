@@ -393,12 +393,6 @@ const RowsByLetter *Entry::chatListLinks(FilterId filterId) const {
 	return (i != end(_chatListLinks)) ? &i->second : nullptr;
 }
 
-not_null<Row*> Entry::mainChatListLink(FilterId filterId) const {
-	const auto links = chatListLinks(filterId);
-	Assert(links != nullptr);
-	return links->main;
-}
-
 Row *Entry::maybeMainChatListLink(FilterId filterId) const {
 	const auto links = chatListLinks(filterId);
 	return links ? links->main.get() : nullptr;
@@ -426,10 +420,6 @@ void Entry::setChatListTimeId(TimeId date) {
 			history->communityChatsListDateChanged(was);
 		}
 	}
-}
-
-int Entry::posInChatList(FilterId filterId) const {
-	return mainChatListLink(filterId)->index();
 }
 
 void Entry::setColorIndexForFilterId(

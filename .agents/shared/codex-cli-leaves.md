@@ -8,18 +8,39 @@ delegates through native subagents and never shells out to `codex exec`.
 The helper is `.agents/shared/scripts/codex_leaf.py`. Run it with the host's
 Python 3 (`python3`, `python` or `py -3`, `-I` where available).
 
+## Codex home
+
+Codex keeps its login and session history in its home folder. `check` and
+`start` take `--home`:
+
+- `work`, the default, runs Codex with
+  `CODEX_HOME=~/.codex-accounts/work` (`%USERPROFILE%\.codex-accounts\work` on
+  Windows), a login kept apart from the user's own;
+- `default` leaves `CODEX_HOME` to the environment, which normally means
+  `~/.codex`.
+
+Each home has its own `config.toml`, so the `work` home needs a copy of the
+user's settings, including the Windows sandbox mode on Windows.
+
+Pass `--home default` to `check` and every `start` when the invocation's
+review provider is `codex-default`, per the host adapter; otherwise omit it. A
+`--resume` leaf always runs in its source leaf's home, because the thread
+lives there, whatever `--home` it is given.
+
 ## Availability
 
 ```bash
-python3 SOURCE_ROOT/.agents/shared/scripts/codex_leaf.py check
+python3 SOURCE_ROOT/.agents/shared/scripts/codex_leaf.py check [--home default]
 ```
 
-It prints one JSON line and exits non-zero when `codex` is missing from
-`PATH`, does not start, or is not logged in. Check once per invocation before
-the first Codex leaf. When it fails, run the same phases as the host's native
+It prints one JSON line and exits non-zero when `codex` is found neither on
+`PATH` nor bundled in the Codex app, does not start, its home folder does not
+exist, or it is not logged in there. Check once per invocation before the
+first Codex leaf. When it fails, run the same phases as the host's native
 leaves exactly as before and record `Review provider: native (codex
-unavailable: <reason>)` in the phase result `NOTES:`. Never install, update or
-log in to Codex on the user's behalf.
+unavailable: <reason>)` in the phase result `NOTES:`. Never install, update
+or log in to Codex on the user's behalf, and never switch to the other home
+on your own: a missing `work` login is reported, not replaced with `~/.codex`.
 
 ## Effort and model
 
@@ -27,7 +48,8 @@ Select effort with [phase effort](phase-effort.md) and pass it as `--effort`
 (`medium`, `high` or `xhigh`; review and assessment phases default to
 `xhigh`). Pass `--model` only where
 [lens models](phase-effort.md#lens-models) pin one (the reuse, structure and
-performance lenses); otherwise the leaf uses the model configured for the
+performance lenses, and every review and assessment leaf of a harness task);
+otherwise the leaf uses the model configured for the
 user's Codex CLI. Record the effort and any pinned model in the phase result
 `NOTES:`.
 
@@ -128,10 +150,10 @@ A phase that continues the same reviewer, such as the general reviewer's
 synthesis pass, starts a new leaf with `--resume <earlier leaf name>`. It
 continues that Codex session with the new prompt and the same sandbox rules.
 Resume only a `done` leaf. The helper takes the Codex thread from the earlier
-leaf's state or, failing that, its transcript, and refuses with
-`resume-source-running` while the earlier leaf still runs, `resume-no-thread`
-when it has no Codex thread, and `resume-self` when `--resume` names the new
-leaf itself.
+leaf's state or, failing that, its transcript, and runs in that leaf's Codex
+home. It refuses with `resume-source-running` while the earlier leaf still
+runs, `resume-no-thread` when it has no Codex thread, and `resume-self` when
+`--resume` names the new leaf itself.
 
 ## Recovery
 
@@ -142,6 +164,8 @@ it reads `codex_leaf: <reason>: <text>`.
   marks it `failed` with `exceeded N minutes`, or, after runner loss, the next
   `wait` does, with `exceeded N minutes (runner lost; ended by wait)`. Pass
   `--max-minutes` only for a phase known to need longer.
+- `home-missing` means the selected Codex home folder does not exist; `start`
+  creates nothing. Treat it like a failed `check`.
 - On `failed`, or on `done` with an incomplete artifact, read the `reason=`,
   the `!` lines (Codex's stderr) and the `runner:` and `>` lines (the launch
   mode and the runner log), then rerun that one leaf once with `--replace` and

@@ -26,6 +26,7 @@ namespace Wallet {
 namespace {
 
 constexpr auto kTinyFiatScale = 15;
+constexpr auto kGramDigits = 9;
 
 [[nodiscard]] QString FiatDigits(
 		int64 nanoAmount,
@@ -39,17 +40,20 @@ constexpr auto kTinyFiatScale = 15;
 	const auto precision = (decimals == kFiatCurrencyDecimals)
 		? rule.exponent
 		: decimals;
-	if (decimals == kFiatCurrencyDecimals
-		&& precision > 0
-		&& value > 0.
-		&& value < std::pow(10., -precision)) {
-		const auto units = int64(std::llround(value * 1e15));
+	// A non-zero amount keeps one significant digit at any precision.
+	const auto magnitude = std::abs(value);
+	if (precision >= 0
+		&& magnitude > 0.
+		&& magnitude < std::pow(10., -precision)) {
+		const auto units = int64(std::llround(magnitude * 1e15));
 		const auto fraction = TinyAmountFraction(
 			units,
 			kTinyFiatScale,
 			precision);
 		if (!fraction.isEmpty()) {
-			return QString(QChar('0')) + QChar(rule.decimal) + fraction;
+			return ((value < 0.) ? u"-0"_q : u"0"_q)
+				+ QChar(rule.decimal)
+				+ fraction;
 		}
 	}
 	return Ui::FormatWithSeparators(
@@ -209,6 +213,17 @@ QString TinyAmountFraction(int64 units, int scale, int decimals) {
 		}
 	}
 	return QString(position - 1, QChar('0')) + QChar('0' + int(digit));
+}
+
+QString GramMinorPart(int64 amountNano) {
+	const auto tiny = TinyAmountFraction(amountNano, kGramDigits);
+	if (!tiny.isEmpty()) {
+		return QString(QLocale().decimalPoint()) + tiny;
+	}
+	const auto cents = std::abs(amountNano % Ui::kNanosInOne)
+		/ (Ui::kNanosInOne / 100);
+	return QString(QLocale().decimalPoint())
+		+ u"%1"_q.arg(cents, 2, 10, QChar('0'));
 }
 
 rpl::producer<FiatRate> FiatRateValue(not_null<Main::Session*> session) {

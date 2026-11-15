@@ -74,12 +74,21 @@ struct WriteEntry {
 	QByteArray md5;
 };
 
+struct RemoveEntry {
+	std::vector<QString> files;
+	QString folder;
+};
+
+using WriteOperation = std::variant<WriteEntry, RemoveEntry>;
+using WriteQueue = std::deque<WriteOperation>;
+
 class WriteManager final {
 public:
 	explicit WriteManager(crl::weak_on_thread<WriteManager> weak);
 
 	void write(WriteEntry &&entry);
 	[[nodiscard]] bool writeSync(WriteEntry &&entry);
+	void remove(RemoveEntry &&entry);
 	void writeSyncAll();
 
 private:
@@ -87,6 +96,10 @@ private:
 	void writeScheduled();
 	bool writeOneScheduledNow();
 	bool writeNow(WriteEntry &&entry);
+	void removeNow(const RemoveEntry &entry);
+
+	[[nodiscard]] WriteQueue::iterator segment();
+	[[nodiscard]] WriteQueue::iterator scheduled(const QString &base);
 
 	template <typename File>
 	[[nodiscard]] bool open(File &file, const WriteEntry &entry, char postfix);
@@ -97,7 +110,7 @@ private:
 		QFileDevice &file);
 
 	crl::weak_on_thread<WriteManager> _weak;
-	std::deque<WriteEntry> _scheduled;
+	WriteQueue _scheduled;
 
 };
 
@@ -105,6 +118,7 @@ class AsyncWriteManager final {
 public:
 	void write(WriteEntry &&entry);
 	[[nodiscard]] bool writeSync(WriteEntry &&entry);
+	void remove(RemoveEntry &&entry);
 	void sync();
 	void stop();
 
@@ -118,8 +132,29 @@ WriteManager::WriteManager(crl::weak_on_thread<WriteManager> weak)
 : _weak(std::move(weak)) {
 }
 
+WriteQueue::iterator WriteManager::segment() {
+	const auto removal = ranges::find_if(
+		rbegin(_scheduled),
+		rend(_scheduled),
+		[](const WriteOperation &operation) {
+			return v::is<RemoveEntry>(operation);
+		});
+	return removal.base();
+}
+
+WriteQueue::iterator WriteManager::scheduled(const QString &base) {
+	// WHY: writes coalesce only after the last removal, so a removal
+	// never erases a later write and no earlier write outlives it.
+	return ranges::find_if(
+		segment(),
+		end(_scheduled),
+		[&](const WriteOperation &operation) {
+			return (v::get<WriteEntry>(operation).base == base);
+		});
+}
+
 void WriteManager::write(WriteEntry &&entry) {
-	const auto i = ranges::find(_scheduled, entry.base, &WriteEntry::base);
+	const auto i = scheduled(entry.base);
 	if (i == end(_scheduled)) {
 		_scheduled.push_back(std::move(entry));
 	} else {
@@ -129,11 +164,19 @@ void WriteManager::write(WriteEntry &&entry) {
 }
 
 bool WriteManager::writeSync(WriteEntry &&entry) {
-	const auto i = ranges::find(_scheduled, entry.base, &WriteEntry::base);
+	for (auto left = segment() - begin(_scheduled); left > 0; --left) {
+		writeOneScheduledNow();
+	}
+	const auto i = scheduled(entry.base);
 	if (i != end(_scheduled)) {
 		_scheduled.erase(i);
 	}
 	return writeNow(std::move(entry));
+}
+
+void WriteManager::remove(RemoveEntry &&entry) {
+	_scheduled.push_back(std::move(entry));
+	scheduleWrite();
 }
 
 bool WriteManager::writeNow(WriteEntry &&entry) {
@@ -143,9 +186,19 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 	const auto open = [&](auto &file, char postfix) {
 		return this->open(file, entry, postfix);
 	};
+	auto writeError = QString();
 	const auto write = [&](auto &file) {
-		return file.write(entry.data) == entry.data.size()
-			&& file.write(entry.md5) == entry.md5.size();
+		writeError = QString();
+		if (file.write(entry.data) == entry.data.size()
+			&& file.write(entry.md5) == entry.md5.size()) {
+			return true;
+		}
+		// close() and commit() drop the reason of a failed unbuffered write.
+		writeError = file.errorString();
+		return false;
+	};
+	const auto reason = [&](const QFileDevice &file) {
+		return writeError.isEmpty() ? file.errorString() : writeError;
 	};
 	const auto safe = path('s');
 	const auto simple = path('0');
@@ -159,11 +212,13 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 			const auto ok = written
 				&& (save.error() == QFileDevice::NoError);
 			if (!ok) {
-				LOG(("Storage Error: Could not write '%1'.").arg(safe));
+				LOG(("Storage Error: Could not write '%1': %2."
+					).arg(safe, reason(save)));
 			}
 			return ok;
 		}
-		LOG(("Storage Error: Could not commit '%1'.").arg(safe));
+		LOG(("Storage Error: Could not commit '%1': %2."
+			).arg(safe, reason(save)));
 	}
 	QFile plain;
 	if (open(plain, '0')) {
@@ -174,7 +229,8 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 		const auto ok = written
 			&& (plain.error() == QFileDevice::NoError);
 		if (!ok) {
-			LOG(("Storage Error: Could not write '%1'.").arg(simple));
+			LOG(("Storage Error: Could not write '%1': %2."
+				).arg(simple, reason(plain)));
 			QFile::remove(simple);
 			return false;
 		}
@@ -182,10 +238,10 @@ bool WriteManager::writeNow(WriteEntry &&entry) {
 		if (base::Platform::RenameWithOverwrite(simple, safe)) {
 			return true;
 		}
+		const auto renameError = qt_error_string();
 		QFile::remove(safe);
-		LOG(("Storage Error: Could not rename '%1' to '%2', removing.").arg(
-			simple,
-			safe));
+		LOG(("Storage Error: Could not rename '%1' to '%2' (%3), removing."
+			).arg(simple, safe, renameError));
 	}
 	return false;
 }
@@ -200,11 +256,30 @@ bool WriteManager::writeOneScheduledNow() {
 		return false;
 	}
 
-	auto entry = std::move(_scheduled.front());
+	auto operation = std::move(_scheduled.front());
 	_scheduled.pop_front();
 
-	writeNow(std::move(entry));
+	v::match(operation, [&](WriteEntry &entry) {
+		writeNow(std::move(entry));
+	}, [&](const RemoveEntry &entry) {
+		removeNow(entry);
+	});
 	return true;
+}
+
+void WriteManager::removeNow(const RemoveEntry &entry) {
+	auto failed = 0;
+	for (const auto &file : entry.files) {
+		if (!QFile::remove(file) && QFileInfo::exists(file)) {
+			++failed;
+		}
+	}
+	if (failed) {
+		LOG(("Storage Error: Could not remove %1 files.").arg(failed));
+	}
+	if (!entry.folder.isEmpty() && !QDir(entry.folder).removeRecursively()) {
+		LOG(("Storage Error: Could not remove a folder."));
+	}
 }
 
 bool WriteManager::writeHeader(const QString &basePath, QFileDevice &file) {
@@ -233,7 +308,8 @@ bool WriteManager::open(File &file, const WriteEntry &entry, char postfix) {
 	const auto name = path(entry, postfix);
 	file.setFileName(name);
 	if (!writeHeader(entry.basePath, file)) {
-		LOG(("Storage Error: Could not open '%1' for writing.").arg(name));
+		LOG(("Storage Error: Could not open '%1' for writing: %2."
+			).arg(name, file.errorString()));
 		return false;
 	}
 	return true;
@@ -273,6 +349,17 @@ bool AsyncWriteManager::writeSync(WriteEntry &&entry) {
 		result = manager.writeSync(std::move(entry));
 	});
 	return result;
+}
+
+void AsyncWriteManager::remove(RemoveEntry &&entry) {
+	Expects(!_finished);
+
+	if (!_manager) {
+		_manager.emplace();
+	}
+	_manager->with([entry = std::move(entry)](WriteManager &manager) mutable {
+		manager.remove(std::move(entry));
+	});
 }
 
 void AsyncWriteManager::sync() {
@@ -855,6 +942,18 @@ bool ReadEncryptedFile(
 		const QString &basePath,
 		const MTP::AuthKeyPtr &key) {
 	return ReadEncryptedFile(result, ToFilePart(fkey), basePath, key);
+}
+
+void ScheduleRemoveFiles(std::vector<QString> paths) {
+	if (!paths.empty()) {
+		Manager.remove({ .files = std::move(paths) });
+	}
+}
+
+void ScheduleRemoveFolder(const QString &path) {
+	Expects(!path.isEmpty());
+
+	Manager.remove({ .folder = path });
 }
 
 void Sync() {

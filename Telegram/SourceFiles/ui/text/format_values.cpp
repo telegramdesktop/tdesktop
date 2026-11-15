@@ -21,30 +21,30 @@ namespace {
 
 constexpr auto kSecondsInYear = 365 * 24 * 60 * 60; // 31536000
 
+[[nodiscard]] QString FormatTenths(qint64 tenths) {
+	return QString::number(tenths / 10)
+		+ QLocale().decimalPoint()
+		+ QString::number(tenths % 10);
+}
+
 [[nodiscard]] QString FormatTextWithReadyAndTotal(
 		tr::phrase<lngtag_ready, lngtag_total, lngtag_mb> phrase,
 		qint64 ready,
 		qint64 total) {
 	QString readyStr, totalStr, mb;
 	if (total >= 1024 * 1024) { // more than 1 mb
-		const qint64 readyTenthMb = (ready * 10 / (1024 * 1024));
-		const qint64 totalTenthMb = (total * 10 / (1024 * 1024));
-		readyStr = QString::number(readyTenthMb / 10)
-			+ '.'
-			+ QString::number(readyTenthMb % 10);
-		totalStr = QString::number(totalTenthMb / 10)
-			+ '.'
-			+ QString::number(totalTenthMb % 10);
-		mb = u"MB"_q;
+		readyStr = FormatTenths(ready * 10 / (1024 * 1024));
+		totalStr = FormatTenths(total * 10 / (1024 * 1024));
+		mb = tr::lng_size_megabytes(tr::now);
 	} else if (total >= 1024) {
 		qint64 readyKb = (ready / 1024), totalKb = (total / 1024);
 		readyStr = QString::number(readyKb);
 		totalStr = QString::number(totalKb);
-		mb = u"KB"_q;
+		mb = tr::lng_size_kilobytes(tr::now);
 	} else {
 		readyStr = QString::number(ready);
 		totalStr = QString::number(total);
-		mb = u"B"_q;
+		mb = tr::lng_size_bytes(tr::now);
 	}
 	return phrase(tr::now, lt_ready, readyStr, lt_total, totalStr, lt_mb, mb);
 }
@@ -53,18 +53,16 @@ constexpr auto kSecondsInYear = 365 * 24 * 60 * 60; // 31536000
 
 QString FormatSizeText(qint64 size) {
 	if (size >= 1024 * 1024) { // more than 1 mb
-		const qint64 sizeTenthMb = (size * 10 / (1024 * 1024));
-		return QString::number(sizeTenthMb / 10)
-			+ '.'
-			+ QString::number(sizeTenthMb % 10) + u" MB"_q;
+		return FormatTenths(size * 10 / (1024 * 1024))
+			+ ' '
+			+ tr::lng_size_megabytes(tr::now);
 	}
 	if (size >= 1024) {
-		const qint64 sizeTenthKb = (size * 10 / 1024);
-		return QString::number(sizeTenthKb / 10)
-			+ '.'
-			+ QString::number(sizeTenthKb % 10) + u" KB"_q;
+		return FormatTenths(size * 10 / 1024)
+			+ ' '
+			+ tr::lng_size_kilobytes(tr::now);
 	}
-	return QString::number(size) + u" B"_q;
+	return QString::number(size) + ' ' + tr::lng_size_bytes(tr::now);
 }
 
 QString FormatDownloadText(qint64 ready, qint64 total) {
@@ -673,6 +671,23 @@ QString FormatTTLTiny(float64 ttl) {
 		? tr::lng_months_tiny({}, lt_count, int(ttl / (86400 * 31)))
 		: (ttl <= 86400 * 366)
 		? tr::lng_years_tiny({}, lt_count, std::round(ttl / (86400 * 365)))
+		: QString();
+}
+
+QString FormatTTLBadge(float64 ttl) {
+	return (ttl <= 3600 * 9)
+		? tr::lng_hours_badge(tr::now, lt_count, int(ttl / 3600))
+		: (ttl <= (86400) * 6)
+		? tr::lng_days_badge(tr::now, lt_count, int(ttl / (86400)))
+		: (ttl <= (86400 * 7) * 3)
+		? tr::lng_weeks_badge(tr::now, lt_count, int(ttl / (86400 * 7)))
+		: (ttl <= (86400 * 31) * 11)
+		? tr::lng_months_badge(tr::now, lt_count, int(ttl / (86400 * 31)))
+		: (ttl <= 86400 * 366)
+		? tr::lng_years_badge(
+			tr::now,
+			lt_count,
+			std::round(ttl / (86400 * 365)))
 		: QString();
 }
 

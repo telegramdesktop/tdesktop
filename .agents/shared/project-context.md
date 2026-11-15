@@ -1,30 +1,31 @@
-# Compact project context
+# Project bundles
 
-Projects preserve useful feature and code lineage across tasks, including small
-projects. Keep that continuity; context growth is not a reason to fork a project
-or create a fresh project for each task. Existing ownership, dependency,
-archival, review, and publication rules still apply.
+Every task belongs to a project. A project is a named bundle of tasks and the
+branch they are performed on, not a knowledge base: it marks the area or kind
+of work its tasks share, and its branch is where their approved commits are
+rebased and pushed. Existing ownership, dependency, archival, review, and
+publication rules still apply.
 
 ## Document roles
 
-- `project.md` is a small durable overview: scope, constraints, key boundaries,
-  source locators, and links to detailed references. It is not a complete
-  implementation blueprint, plan, or task history.
-- The current task's `work/context.md` explains the present request and relevant
-  implementation facts, with exact source/reference locations. Keep enough
-  context for the next phase without copying the project's accumulated history.
+- `project.md` is a `# ` title and one paragraph naming the area or kind of
+  work the project bundles. Older projects carry longer overviews; they are
+  history, read only for a concrete lookup, and are never extended.
 - `tasks.md` is task-link navigation with concise optional grouping. Task
-  `state.yaml` owns live status. Put plans, routing reasons, decisions, and
-  completion reports in task artifacts or receipts, not in the index.
+  `state.yaml` owns live status.
+- Each task's `task.md` is self-contained, and its `work/context.md` explains
+  the present request and relevant implementation facts with exact source and
+  reference locations. Plans, routing reasons, decisions, and completion
+  reports stay in task artifacts or receipts.
 
 ## Selective reading
 
 Start from the current request, explicit lineage, task metadata, and relevant
-source. Use project names/titles and targeted search to select candidate small
-overviews. Follow a dependency, input, reference, or prior decision when a
-concrete requirement or ambiguity makes it relevant; read the needed sections
-and record their locations when downstream work needs them. A link is not an
-instruction to recursively load its targets.
+source. Read the project's paragraph to know the area. Follow a dependency,
+input, reference, or prior decision only when a concrete requirement or
+ambiguity makes it relevant; read the needed sections and record their
+locations when downstream work needs them. A link is not an instruction to
+recursively load its targets.
 
 For large legacy documents, inspect headings and search matches, then read
 bounded relevant sections. Do not require complete project indexes or histories
@@ -35,29 +36,13 @@ The current task specifies the requested behavior; current source establishes
 what is implemented. Check older context, plans, proposals, and snapshots
 against those authorities. Historical references remain discoverable but do
 not establish current behavior or override the request. Never automatically
-select the latest approved task's context or accumulate earlier amendments
-into a new task's context or proposal.
+select the latest approved task's context or accumulate earlier tasks'
+decisions into a new task's context.
 
-## Optional durable amendments
+## No project amendments
 
-Only when the task changes a useful shared fact, write
-`work/project-amendment.md` with the exact target section of its project's
-`project.md`, the proposed narrow change, why the fact is durable and useful,
-and its supporting task/source reference. No amendment or empty placeholder is
-required for routine completion. Keep implementation detail in the task.
-
-An amendment is a task-local proposal until final approval. After review and
-evidence approve the outcome, reread the latest canonical target section,
-reconcile concurrent edits, and apply only the still-valid narrow change while
-preserving unrelated text. Skip an amendment that is already covered or no
-longer useful. Review a material reconciliation before publication. If only the
-optional note cannot be reconciled, leave it task-local and finish without it;
-stop when a conflict invalidates task correctness or actual publication fails.
-Blocked or split-required work retains proposals only in the task and publishes
-no proposed project facts.
-
-On resume, legacy `work/project.proposed.md` files are historical artifacts,
-never whole-document replacements. If a still-useful fact survives verification
-against the current task and source, express just that fact as a fresh narrow
-amendment. Do not inherit a proposal chain. Apply amendments through the
-workflow's existing publication boundary and exact path scope.
+A task never edits its project's `project.md`. A decision that should bind
+later tasks is recorded in the task's `work/decisions.md`, and a later task
+that depends on it names that task in `depends_on`. Legacy
+`work/project-amendment.md` and `work/project.proposed.md` files are
+historical artifacts: never apply or inherit them.

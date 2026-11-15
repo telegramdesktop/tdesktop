@@ -59,6 +59,7 @@ def selected(path):
     return (
         path in REQUIRED
         or path.startswith(('Telegram/build/', 'snap/', '.github/'))
+        or (path.startswith('Telegram/cmake/') and path.endswith('.cmake'))
         or Path(path).name in MANIFEST_NAMES
     )
 

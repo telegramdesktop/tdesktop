@@ -11,6 +11,9 @@ urlAuthBox: Box(defaultBox) {
 	buttonPadding: margins(0px, 0px, 0px, 12px);
 	buttonHeight: 0px;
 }
+urlAuthDetailsBox: Box(urlAuthBox) {
+	buttonPadding: margins(0px, 0px, 0px, 0px);
+}
 urlAuthBoxTitle: FlatLabel(boxTitle) {
 	minWidth: 40px;
 	maxHeight: 0px;
@@ -40,4 +43,12 @@ urlAuthBoxRowTopLabel: FlatLabel(boxLabel) {
 urlAuthBoxRowBottomLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	maxHeight: 30px;
+}
+urlAuthBoxRowAddressLabel: FlatLabel(urlAuthBoxRowTopLabel) {
+	style: TextStyle(boxLabelStyle) {
+		font: font(12px);
+	}
+	palette: TextPalette(defaultTextPalette) {
+		monoFg: windowFg;
+	}
 }

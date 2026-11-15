@@ -57,6 +57,7 @@ class GenericBox;
 class RpWidget;
 class VerticalLayout;
 class PopupMenu;
+struct UniqueGiftCoverAction;
 } // namespace Ui
 
 namespace Settings {
@@ -118,6 +119,7 @@ struct CreditsEntryBoxStyleOverrides {
 	const style::PopupMenu *menu = nullptr;
 	const style::Table *table = nullptr;
 	const style::FlatLabel *tableValueMultiline = nullptr;
+	const style::FlatLabel *tableValueAddress = nullptr;
 	const style::FlatLabel *tableValueMessage = nullptr;
 	const style::icon *link = nullptr;
 	const style::icon *share = nullptr;
@@ -140,7 +142,9 @@ struct CreditsEntryBoxStyleOverrides {
 
 struct UniqueGiftCoverActions {
 	Fn<void()> transfer;
-	Fn<void()> sell;
+	Fn<std::vector<Ui::UniqueGiftCoverAction>(
+		not_null<Ui::GenericBox*>)> extra;
+	Fn<void(not_null<Ui::GenericBox*>)> aboveButtons;
 };
 
 [[nodiscard]] rpl::producer<CreditsAmount> UniqueGiftResalePrice(
@@ -334,6 +338,8 @@ void AddUniqueCloseMoreButton(
 	not_null<Ui::GenericBox*> box,
 	Settings::CreditsEntryBoxStyleOverrides st,
 	Fn<void(not_null<Ui::PopupMenu*>)> fillMenu = nullptr,
-	Fn<void()> launchCraft = nullptr);
+	Fn<void()> launchCraft = nullptr,
+	const style::IconButton *closeSt = nullptr,
+	const style::IconButton *menuSt = nullptr);
 
 } // namespace Settings

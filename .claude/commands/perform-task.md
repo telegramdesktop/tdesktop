@@ -20,6 +20,13 @@ decide it per commit, require it only when all changes and the purpose are
 exclusively AI workflow or infrastructure, and forbid it for product or mixed
 commits.
 
+Before `start`, `retry`, or resuming, run the shared
+`workspace.py project-switch --project <slug> --task <id>` for the task's project unless
+the `continue` scheduler says it already did; the owner never switches
+branches by hand. When it refuses uncommitted changes of unknown origin, ask
+the owner with `AskUserQuestion` in an interactive invocation, or return the
+refusal to the scheduler in a delegated one.
+
 Apply the shared source-lineage gate before Phase 1 and pass explicit source
 task requirements to `start` or `retry`. A pre-Phase-1 mismatch returns the
 clean routing stop to the caller without integrating history or publishing a
@@ -31,11 +38,12 @@ Delegate phases with synchronous foreground Agent calls per the adapter; leaf
 phase agents receive self-contained prompts and are not told to read the
 adapter. Use the Agent tool for delegation; do not start Claude subprocesses
 through Bash. Reviews and assessments run as Codex CLI leaves per the
-adapter's review and assessment provider, unless the arguments below ask not
-to use Codex or a scheduler prompt says `Review provider: native`; such an
-opt-out is not part of the task name.
+adapter's review and assessment provider, in the `work` Codex home unless
+the arguments below ask for `codex-default` or for your own model, or a
+scheduler prompt names another `Review provider:`; such a choice is not part
+of the task name.
 
-Task short name or full id, optionally followed by a Codex opt-out:
+Task short name or full id, optionally followed by a review provider choice:
 
 ```text
 $ARGUMENTS

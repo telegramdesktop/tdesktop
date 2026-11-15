@@ -153,12 +153,6 @@ QRect ListSection::findItemRect(
 	return QRect(left, top, _itemWidth, item->height());
 }
 
-ListFoundItem ListSection::completeResult(
-		not_null<BaseLayout*> item,
-		bool exact) const {
-	return { item, findItemRect(item), exact };
-}
-
 ListFoundItem ListSection::findItemByPoint(QPoint point) const {
 	Expects(!_items.empty());
 

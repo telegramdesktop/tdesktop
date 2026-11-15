@@ -2786,13 +2786,20 @@ base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 
 base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillSetContextMenu(
 		const Set &set) {
-	if (!set.set) {
+	const auto id = (set.id == Data::Stickers::MegagroupSetId
+		&& _megagroupSet
+		&& _megagroupSet->mgInfo)
+		? _megagroupSet->mgInfo->stickerSet.id
+		: set.id;
+	const auto &sets = session().data().stickers().sets();
+	const auto i = sets.find(id);
+	if (!set.set || i == sets.end()) {
 		return nullptr;
 	}
 	return FillStickerSetContextMenu(
 		this,
 		_show,
-		set.set,
+		i->second.get(),
 		_localSetsManager.get(),
 		crl::guard(this, [this](uint64 id) { removeSet(id); }),
 		crl::guard(this, [this] { update(); }),
@@ -4077,12 +4084,6 @@ const Data::StickersSetsOrder &StickersListWidget::defaultSetsOrder() const {
 	return _isMasks
 		? session().data().stickers().maskSetsOrder()
 		: session().data().stickers().setsOrder();
-}
-
-Data::StickersSetsOrder &StickersListWidget::defaultSetsOrderRef() {
-	return _isMasks
-		? session().data().stickers().maskSetsOrderRef()
-		: session().data().stickers().setsOrderRef();
 }
 
 bool StickersListWidget::mySetsEmpty() const {

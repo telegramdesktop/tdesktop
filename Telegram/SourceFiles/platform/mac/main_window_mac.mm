@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "main/main_session.h"
+#include "history/admin_log/history_admin_log_inner.h"
+#include "history/view/history_view_list_widget.h"
 #include "history/history_widget.h"
 #include "history/history_inner_widget.h"
 #include "main/main_account.h"
@@ -19,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "storage/localstorage.h"
 #include "ui/text/text_utilities.h"
+#include "ui/unread_counter_format.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "platform/mac/global_menu_mac.h"
@@ -305,16 +308,18 @@ void MainWindow::updateDockCounter() {
 
 	const auto string = !counter
 		? QString()
-		: (counter < 1000)
-		? QString("%1").arg(counter)
-		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
+		: FormatUnreadCounterShort(counter);
 	_private->setWindowBadge(string);
 }
 
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
-		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || dynamic_cast<HistoryInner*>(obj)) {
+		if (qobject_cast<QLineEdit*>(obj)
+			|| qobject_cast<QTextEdit*>(obj)
+			|| dynamic_cast<HistoryInner*>(obj)
+			|| dynamic_cast<HistoryView::ListWidget*>(obj)
+			|| dynamic_cast<AdminLog::InnerWidget*>(obj)) {
 			updateGlobalMenu();
 		}
 	}
@@ -334,6 +339,10 @@ int32 ScreenNameChecksum(const QScreen *screen) {
 
 QString ScreenDisplayLabel(const QScreen *screen) {
 	return screen ? screen->name() : QString();
+}
+
+QRect ScreenAvailableGeometry(const QScreen *screen) {
+	return screen ? screen->availableGeometry() : QRect();
 }
 
 } // namespace

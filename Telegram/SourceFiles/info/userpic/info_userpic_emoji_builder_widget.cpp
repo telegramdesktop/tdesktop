@@ -11,10 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_widget.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_document.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "editor/photo_editor_layer_widget.h" // Editor::kProfilePhotoSize.
 #include "info/userpic/info_userpic_bubble_wrap.h"
 #include "info/userpic/info_userpic_color_circle_button.h"
@@ -53,7 +54,7 @@ void AlignChildren(not_null<Ui::RpWidget*> widget, int fullWidth) {
 	}) | ranges::to_vector;
 
 	const auto widgetWidth = widgets.front()->width();
-	const auto widgetsCount = widgets.size();
+	const auto widgetsCount = int(widgets.size());
 	const auto widgetsWidth = widgetWidth * widgetsCount;
 	const auto step = (fullWidth - widgetsWidth) / (widgetsCount - 1);
 	for (auto i = 0; i < widgetsCount; i++) {
@@ -274,6 +275,11 @@ EmojiSelector::Selector EmojiSelector::createStickersList(
 			ChatHelpers::StickersListMode::UserpicBuilder));
 	const auto footer = list->createFooter().data();
 	list->refreshRecent();
+	_controller->session().data().stickers().updated(
+		Data::StickersType::Stickers
+	) | rpl::on_next([=] {
+		list->refreshStickers();
+	}, list->lifetime());
 	list->chosen(
 	) | rpl::on_next([=](const ChatHelpers::FileChosen &chosen) {
 		_chosen.fire_copy(chosen.document);

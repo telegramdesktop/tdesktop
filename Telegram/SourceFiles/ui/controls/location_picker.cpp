@@ -7,37 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/location_picker.h"
 
-#include "apiwrap.h"
 #include "base/platform/base_platform_info.h"
-#include "boxes/peer_list_box.h"
 #include "core/current_geo_location.h"
 #include "core/file_utilities.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
-#include "data/data_file_origin.h"
 #include "data/data_location.h"
-#include "data/data_session.h"
-#include "data/data_user.h"
-#include "dialogs/ui/chat_search_empty.h" // Dialogs::SearchEmpty.
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
-#include "main/session/session_show.h"
-#include "main/main_session.h"
-#include "mtproto/mtproto_config.h"
 #include "ui/chat/attach/attach_bot_webview.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/widgets/separate_panel.h"
-#include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
-#include "ui/vertical_list.h"
 #include "ui/webview_helpers.h"
 #include "webview/webview_data_stream_memory.h"
 #include "webview/webview_embed.h"
@@ -45,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/cached_webview_availability.h"
 #include "window/themes/window_theme.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_layers.h"
 #include "styles/style_location_picker.h"
 #include "styles/style_payments.h" // paymentsCriticalError
 #include "styles/style_settings.h" // settingsCloudPasswordIconSize
@@ -60,283 +44,8 @@ namespace Ui {
 namespace {
 
 constexpr auto kResolveAddressDelay = 3 * crl::time(1000);
-constexpr auto kSearchDebounceDelay = crl::time(900);
 
 Core::GeoLocation LastExactLocation;
-
-using VenueData = Data::InputVenue;
-
-class VenueRowDelegate {
-public:
-	virtual void rowPaintIcon(
-		QPainter &p,
-		int x,
-		int y,
-		int size,
-		const QString &type) = 0;
-};
-
-class VenueRow final : public PeerListRow {
-public:
-	VenueRow(not_null<VenueRowDelegate*> delegate, const VenueData &data);
-
-	void update(const VenueData &data);
-
-	[[nodiscard]] VenueData data() const;
-
-	QString generateName() override;
-	QString generateShortName() override;
-	PaintRoundImageCallback generatePaintUserpicCallback(
-		bool forceRound) override;
-
-private:
-	const not_null<VenueRowDelegate*> _delegate;
-	VenueData _data;
-
-};
-
-VenueRow::VenueRow(
-	not_null<VenueRowDelegate*> delegate,
-	const VenueData &data)
-: PeerListRow(UniqueRowIdFromString(data.id))
-, _delegate(delegate)
-, _data(data) {
-	setCustomStatus(data.address);
-}
-
-void VenueRow::update(const VenueData &data) {
-	_data = data;
-	setCustomStatus(data.address);
-	refreshName(st::pickLocationVenueItem);
-}
-
-VenueData VenueRow::data() const {
-	return _data;
-}
-
-QString VenueRow::generateName() {
-	return _data.title;
-}
-
-QString VenueRow::generateShortName() {
-	return generateName();
-}
-
-PaintRoundImageCallback VenueRow::generatePaintUserpicCallback(
-		bool forceRound) {
-	return [=](
-			QPainter &p,
-			int x,
-			int y,
-			int outerWidth,
-			int size) {
-		_delegate->rowPaintIcon(p, x, y, size, _data.venueType);
-	};
-}
-
-class VenuesController final
-	: public PeerListController
-	, public VenueRowDelegate
-	, public base::has_weak_ptr {
-public:
-	VenuesController(
-		not_null<Main::Session*> session,
-		rpl::producer<std::vector<VenueData>> content,
-		Fn<void(VenueData)> callback);
-
-	void prepare() override;
-	void rowClicked(not_null<PeerListRow*> row) override;
-	void rowRightActionClicked(not_null<PeerListRow*> row) override;
-	Main::Session &session() const override;
-
-	void rowPaintIcon(
-		QPainter &p,
-		int x,
-		int y,
-		int size,
-		const QString &type) override;
-
-private:
-	struct VenueIcon {
-		not_null<DocumentData*> document;
-		std::shared_ptr<Data::DocumentMedia> media;
-		uint32 paletteVersion : 31 = 0;
-		uint32 iconLoaded : 1 = 0;
-		QImage image;
-		QImage icon;
-	};
-
-	void appendRow(const VenueData &data);
-
-	void rebuild(const std::vector<VenueData> &rows);
-
-	const not_null<Main::Session*> _session;
-	const Fn<void(VenueData)> _callback;
-	rpl::variable<std::vector<VenueData>> _rows;
-
-	base::flat_map<QString, VenueIcon> _icons;
-
-	rpl::lifetime _lifetime;
-
-};
-
-[[nodiscard]] QString NormalizeVenuesQuery(QString query) {
-	return query.trimmed().toLower();
-}
-
-[[nodiscard]] object_ptr<RpWidget> MakeFoursquarePromo() {
-	auto result = object_ptr<RpWidget>((QWidget*)nullptr);
-	const auto skip = st::defaultVerticalListSkip;
-	const auto raw = result.data();
-	raw->resize(0, skip + st::pickLocationPromoHeight);
-	const auto shadow = CreateChild<PlainShadow>(raw);
-	raw->widthValue() | rpl::on_next([=](int width) {
-		shadow->setGeometry(0, skip, width, st::lineWidth);
-	}, raw->lifetime());
-	raw->paintRequest() | rpl::on_next([=](QRect clip) {
-		auto p = QPainter(raw);
-		p.fillRect(clip, st::windowBg);
-		p.setPen(st::windowSubTextFg);
-		p.setFont(st::normalFont);
-		p.drawText(
-			raw->rect().marginsRemoved({ 0, skip, 0, 0 }),
-			tr::lng_maps_venues_source(tr::now),
-			style::al_center);
-	}, raw->lifetime());
-	return result;
-}
-
-VenuesController::VenuesController(
-	not_null<Main::Session*> session,
-	rpl::producer<std::vector<VenueData>> content,
-	Fn<void(VenueData)> callback)
-: _session(session)
-, _callback(std::move(callback))
-, _rows(std::move(content)) {
-}
-
-void VenuesController::prepare() {
-	_rows.value(
-	) | rpl::on_next([=](const std::vector<VenueData> &rows) {
-		rebuild(rows);
-	}, _lifetime);
-}
-
-void VenuesController::rebuild(const std::vector<VenueData> &rows) {
-	auto i = 0;
-	auto count = delegate()->peerListFullRowsCount();
-	while (i < rows.size()) {
-		if (i < count) {
-			const auto row = delegate()->peerListRowAt(i);
-			static_cast<VenueRow*>(row.get())->update(rows[i]);
-		} else {
-			appendRow(rows[i]);
-		}
-		++i;
-	}
-	while (i < count) {
-		delegate()->peerListRemoveRow(delegate()->peerListRowAt(i));
-		--count;
-	}
-	if (i > 0) {
-		delegate()->peerListSetBelowWidget(MakeFoursquarePromo());
-	} else {
-		delegate()->peerListSetBelowWidget({ nullptr });
-	}
-	delegate()->peerListRefreshRows();
-}
-
-void VenuesController::rowClicked(not_null<PeerListRow*> row) {
-	_callback(static_cast<VenueRow*>(row.get())->data());
-}
-
-void VenuesController::rowRightActionClicked(not_null<PeerListRow*> row) {
-	delegate()->peerListShowRowMenu(row, true);
-}
-
-Main::Session &VenuesController::session() const {
-	return *_session;
-}
-
-void VenuesController::appendRow(const VenueData &data) {
-	delegate()->peerListAppendRow(std::make_unique<VenueRow>(this, data));
-}
-
-void VenuesController::rowPaintIcon(
-		QPainter &p,
-		int x,
-		int y,
-		int size,
-		const QString &icon) {
-	auto i = _icons.find(icon);
-	if (i == end(_icons)) {
-		i = _icons.emplace(icon, VenueIcon{
-			.document = _session->data().venueIconDocument(icon),
-		}).first;
-		i->second.media = i->second.document->createMediaView();
-		i->second.document->forceToCache(true);
-		i->second.document->save({}, QString(), LoadFromCloudOrLocal, true);
-	}
-	auto &data = i->second;
-	const auto version = uint32(style::PaletteVersion());
-	const auto loaded = (!data.media || data.media->loaded()) ? 1 : 0;
-	const auto prepare = data.image.isNull()
-		|| (data.iconLoaded != loaded)
-		|| (data.paletteVersion != version);
-	if (prepare) {
-		const auto skip = st::pickLocationIconSkip;
-		const auto inner = size - skip * 2;
-		const auto ratio = style::DevicePixelRatio();
-
-		if (loaded && data.media) {
-			const auto bytes = base::take(data.media)->bytes();
-			data.icon = Images::Read({ .content = bytes }).image;
-			if (!data.icon.isNull()) {
-				data.icon = data.icon.scaled(
-					QSize(inner, inner) * ratio,
-					Qt::IgnoreAspectRatio,
-					Qt::SmoothTransformation);
-				if (!data.icon.isNull()) {
-					data.icon = data.icon.convertToFormat(
-						QImage::Format_ARGB32_Premultiplied);
-				}
-			}
-		}
-
-		const auto full = QSize(size, size) * ratio;
-		auto image = (data.image.size() == full)
-			? base::take(data.image)
-			: QImage(full, QImage::Format_ARGB32_Premultiplied);
-		image.fill(Qt::transparent);
-		image.setDevicePixelRatio(ratio);
-
-		const auto bg = EmptyUserpic::UserpicColor(
-			EmptyUserpic::ColorIndex(UniqueRowIdFromString(icon)));
-		auto p = QPainter(&image);
-		auto hq = PainterHighQualityEnabler(p);
-		{
-			auto gradient = QLinearGradient(0, 0, 0, size);
-			gradient.setStops({
-				{ 0., bg.color1->c },
-				{ 1., bg.color2->c }
-			});
-			p.setBrush(gradient);
-		}
-		p.setPen(Qt::NoPen);
-		p.drawEllipse(QRect(0, 0, size, size));
-		if (!data.icon.isNull()) {
-			p.drawImage(
-				QRect(skip, skip, inner, inner),
-				style::colorizeImage(data.icon, st::historyPeerUserpicFg));
-		}
-		p.end();
-
-		data.paletteVersion = version;
-		data.iconLoaded = loaded;
-		data.image = std::move(image);
-	}
-	p.drawImage(x, y, data.image);
-}
 
 [[nodiscard]] QByteArray DefaultCenter(Core::GeoLocation initial) {
 	const auto &use = initial.exact() ? initial : LastExactLocation;
@@ -369,20 +78,23 @@ void VenuesController::rowPaintIcon(
 [[nodiscard]] QByteArray ComputeStyles() {
 	static const auto map = base::flat_map<QByteArray, const style::color*>{
 		{ "window-bg", &st::windowBg },
-		{ "window-bg-over", &st::windowBgOver },
-		{ "window-bg-ripple", &st::windowBgRipple },
-		{ "window-active-text-fg", &st::windowActiveTextFg },
-		{ "history-to-down-shadow", &st::historyToDownShadow },
 	};
-	static const auto phrases = base::flat_map<QByteArray, tr::phrase<>>{
-		{ "maps-places-in-area", tr::lng_maps_places_in_area },
-	};
-	return Ui::ComputeStyles(map, phrases, 100, Window::Theme::IsNightMode());
+	return Ui::ComputeStyles(map, 100, Window::Theme::IsNightMode());
 }
 
 [[nodiscard]] QByteArray ReadResource(const QString &name) {
 	auto file = QFile(u":/picker/"_q + name);
 	return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray();
+}
+
+[[nodiscard]] QSize PickerInnerSize() {
+	const auto body = st::pickLocationMapHeight
+		+ st::pickLocationButtonSkip
+		+ st::pickLocationButton.height
+		+ st::pickLocationButtonSkip;
+	return QSize(
+		st::pickLocationWidth,
+		st::separatePanelTitleHeight + body);
 }
 
 [[nodiscard]] QByteArray PickerContent() {
@@ -400,9 +112,6 @@ void VenuesController::rowPaintIcon(
 		<link href='https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css' rel='stylesheet' />
 	</head>
 	<body>
-		<div id="search_venues">
-			<div id="search_venues_inner"><span id="search_venues_content"></span></div>
-		</div>
 		<div id="marker">
 			<div id="marker_shadow" style="transform: translate(0px, -14px);">
 <svg display="block" height="41px" width="27px" viewBox="0 0 27 41">
@@ -434,15 +143,14 @@ void VenuesController::rowPaintIcon(
 )"_q;
 }
 
-[[nodiscard]] object_ptr<AbstractButton> MakeChooseLocationButton(
-		QWidget *parent,
+[[nodiscard]] not_null<AbstractButton*> MakeChooseLocationButton(
+		not_null<RpWidget*> parent,
 		rpl::producer<QString> label,
 		rpl::producer<QString> address) {
-	auto result = object_ptr<FlatButton>(
-		parent,
+	const auto raw = CreateChild<FlatButton>(
+		parent.get(),
 		QString(),
 		st::pickLocationButton);
-	const auto raw = result.data();
 
 	const auto st = &st::pickLocationVenueItem;
 	const auto icon = CreateChild<RpWidget>(raw);
@@ -486,7 +194,7 @@ void VenuesController::rowPaintIcon(
 		return !text.isEmpty();
 	}) | rpl::distinct_until_changed());
 	rpl::combine(
-		result->widthValue(),
+		raw->widthValue(),
 		std::move(statusText)
 	) | rpl::on_next([=](int width, const QString &statusText) {
 		const auto available = width
@@ -507,7 +215,7 @@ void VenuesController::rowPaintIcon(
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);
 	status->setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	return result;
+	return raw;
 }
 
 void SetupLoadingView(not_null<RpWidget*> container) {
@@ -541,116 +249,12 @@ void SetupLoadingView(not_null<RpWidget*> container) {
 	ResizeFitChild(container, view);
 }
 
-void SetupEmptyView(
-		not_null<RpWidget*> container,
-		std::optional<QString> query) {
-	using Icon = Dialogs::SearchEmptyIcon;
-	const auto view = CreateChild<Dialogs::SearchEmpty>(
-		container,
-		(query ? Icon::NoResults : Icon::Search),
-		(query
-			? tr::lng_maps_no_places
-			: tr::lng_maps_choose_to_search)(tr::marked));
-	view->setMinimalHeight(st::recentPeersEmptyHeightMin);
-	view->show();
-
-	ResizeFitChild(container, view);
-
-	InvokeQueued(view, [=] { view->animate(); });
-}
-
-void SetupVenues(
-		not_null<VerticalLayout*> container,
-		std::shared_ptr<Main::SessionShow> show,
-		rpl::producer<PickerVenueState> value,
-		Fn<void(VenueData)> callback) {
-	const auto otherWrap = container->add(object_ptr<SlideWrap<RpWidget>>(
-		container,
-		object_ptr<RpWidget>(container)));
-	const auto other = otherWrap->entity();
-	rpl::duplicate(
-		value
-	) | rpl::on_next([=](const PickerVenueState &state) {
-		while (!other->children().isEmpty()) {
-			delete other->children()[0];
-		}
-		if (v::is<PickerVenueList>(state)) {
-			otherWrap->hide(anim::type::instant);
-			return;
-		} else if (v::is<PickerVenueLoading>(state)) {
-			SetupLoadingView(other);
-		} else {
-			const auto n = std::get_if<PickerVenueNothingFound>(&state);
-			SetupEmptyView(other, n ? n->query : std::optional<QString>());
-		}
-		otherWrap->show(anim::type::instant);
-	}, otherWrap->lifetime());
-
-	auto &lifetime = container->lifetime();
-	auto venuesList = rpl::duplicate(
-		value
-	) | rpl::map([=](PickerVenueState &&state) {
-		return v::is<PickerVenueList>(state)
-			? std::move(v::get<PickerVenueList>(state).list)
-			: std::vector<VenueData>();
-	});
-	const auto delegate = lifetime.make_state<PeerListContentDelegateShow>(
-		show);
-	const auto controller = lifetime.make_state<VenuesController>(
-		&show->session(),
-		std::move(venuesList),
-		std::move(callback));
-	controller->setStyleOverrides(&st::pickLocationVenueList);
-	const auto content = container->add(object_ptr<PeerListContent>(
-		container,
-		controller));
-	delegate->setContent(content);
-	controller->setDelegate(delegate);
-
-	show->session().downloaderTaskFinished() | rpl::on_next([=] {
-		content->update();
-	}, content->lifetime());
-}
-
-[[nodiscard]] PickerVenueList ParseVenues(
-		not_null<Main::Session*> session,
-		const MTPmessages_BotResults &venues) {
-	const auto &data = venues.data();
-	session->data().processUsers(data.vusers());
-
-	auto &list = data.vresults().v;
-	auto result = PickerVenueList();
-	result.list.reserve(list.size());
-	for (const auto &found : list) {
-		found.match([&](const auto &data) {
-			data.vsend_message().match([&](
-					const MTPDbotInlineMessageMediaVenue &data) {
-				data.vgeo().match([&](const MTPDgeoPoint &geo) {
-					result.list.push_back({
-						.lat = geo.vlat().v,
-						.lon = geo.vlong().v,
-						.title = qs(data.vtitle()),
-						.address = qs(data.vaddress()),
-						.provider = qs(data.vprovider()),
-						.id = qs(data.vvenue_id()),
-						.venueType = qs(data.vvenue_type()),
-					});
-				}, [](const auto &) {});
-			}, [](const auto &) {});
-		});
-	}
-	return result;
-}
-
 not_null<RpWidget*> SetupMapPlaceholder(
 		not_null<RpWidget*> parent,
-		int minHeight,
-		int maxHeight,
 		Fn<void()> choose) {
 	const auto result = CreateChild<RpWidget>(parent);
 
 	const auto top = CreateChild<BoxContentDivider>(result);
-	const auto bottom = CreateChild<BoxContentDivider>(result);
 
 	const auto icon = CreateChild<RpWidget>(result);
 	const auto iconSize = st::settingsCloudPasswordIconSize;
@@ -665,20 +269,7 @@ not_null<RpWidget*> SetupMapPlaceholder(
 	icon->paintRequest(
 	) | rpl::on_next([=] {
 		auto p = QPainter(icon);
-		const auto left = (icon->width() - iconSize) / 2;
-		const auto scale = icon->height() / float64(iconSize);
-		auto hq = std::optional<PainterHighQualityEnabler>();
-		if (scale < 1.) {
-			const auto center = QPointF(
-				icon->width() / 2.,
-				icon->height() / 2.);
-			hq.emplace(p);
-			p.translate(center);
-			p.scale(scale, scale);
-			p.translate(-center);
-			p.setOpacity(scale);
-		}
-		lottie->paint(p, left, 0);
+		lottie->paint(p, (icon->width() - iconSize) / 2, 0);
 	}, icon->lifetime());
 
 	InvokeQueued(icon, [=] {
@@ -698,34 +289,19 @@ not_null<RpWidget*> SetupMapPlaceholder(
 
 		const auto width = size.width();
 		top->setGeometry(0, 0, width, top->height());
-		bottom->setGeometry(QRect(
-			QPoint(0, size.height() - bottom->height()),
-			QSize(width, bottom->height())));
-		const auto dividers = top->height() + bottom->height();
 
-		const auto ratio = (size.height() - minHeight)
-			/ float64(maxHeight - minHeight);
-		const auto iconHeight = int(base::SafeRound(ratio * iconSize));
-
-		const auto available = size.height() - dividers;
-		const auto maxDelta = (maxHeight
-			- dividers
-			- iconSize
-			- button->height()) / 2;
-		const auto minDelta = (minHeight - dividers - button->height()) / 2;
-
-		const auto delta = anim::interpolate(minDelta, maxDelta, ratio);
+		const auto available = size.height() - top->height();
+		const auto delta = (available - iconSize - button->height()) / 2;
 		button->move(
 			(width - button->width()) / 2,
-			size.height() - bottom->height() - delta - button->height());
+			size.height() - delta - button->height());
 		const auto wide = available - delta - button->height();
-		const auto skip = (wide - iconHeight) / 2;
-		icon->setGeometry(0, top->height() + skip, width, iconHeight);
+		const auto skip = (wide - iconSize) / 2;
+		icon->setGeometry(0, top->height() + skip, width, iconSize);
 	}, result->lifetime());
 
 	top->show();
 	icon->show();
-	bottom->show();
 	result->show();
 
 	return result;
@@ -738,7 +314,7 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 , _callback(std::move(descriptor.callback))
 , _quit(std::move(descriptor.quit))
 , _window(std::make_unique<SeparatePanel>())
-, _body((_window->setInnerSize(st::pickLocationWindow)
+, _body((_window->setInnerSize(PickerInnerSize())
 	, _window->showInner(base::make_unique_q<RpWidget>(_window.get()))
 	, _window->inner()))
 , _chooseButtonLabel(std::move(descriptor.chooseLabel))
@@ -749,17 +325,7 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 		_webview->eval("LocationPicker.updateStyles('" + str + "');");
 	}
 })
-, _geocoderResolveTimer([=] { resolveAddressByTimer(); })
-, _venueState(PickerVenueLoading())
-, _session(descriptor.session)
-, _venuesSearchDebounceTimer([=] {
-	Expects(_venuesSearchLocation.has_value());
-	Expects(_venuesSearchQuery.has_value());
-
-	venuesRequest(*_venuesSearchLocation, *_venuesSearchQuery);
-})
-, _api(&_session->mtp())
-, _venueRecipient(descriptor.recipient) {
+, _geocoderResolveTimer([=] { resolveAddressByTimer(); }) {
 	std::move(
 		descriptor.closeRequests
 	) | rpl::on_next([=] {
@@ -772,10 +338,6 @@ LocationPicker::LocationPicker(Descriptor &&descriptor)
 	}, _lifetime);
 
 	setup(descriptor);
-}
-
-std::shared_ptr<Main::SessionShow> LocationPicker::uiShow() {
-	return Main::MakeSessionShow(nullptr, _session);
 }
 
 bool LocationPicker::Available(const LocationPickerConfig &config) {
@@ -792,14 +354,6 @@ void LocationPicker::setup(const Descriptor &descriptor) {
 	setupWindow(descriptor);
 
 	_initialProvided = descriptor.initial;
-	const auto initial = _initialProvided.exact()
-		? _initialProvided
-		: LastExactLocation;
-	if (initial) {
-		venuesRequest(initial);
-		resolveAddress(initial);
-		venuesSearchEnableAt(initial);
-	}
 	if (!_initialProvided) {
 		resolveCurrentLocation();
 	}
@@ -822,65 +376,19 @@ void LocationPicker::setupWindow(const Descriptor &descriptor) {
 		parent.y() + (parent.height() - window->height()) / 2);
 
 	_container = CreateChild<RpWidget>(_body.get());
-	_mapPlaceholderAdded = st::pickLocationButtonSkip
-		+ st::pickLocationButton.height
-		+ st::pickLocationButtonSkip
-		+ st::boxDividerHeight;
-	const auto min = st::pickLocationCollapsedHeight + _mapPlaceholderAdded;
-	const auto max = st::pickLocationMapHeight + _mapPlaceholderAdded;
-	_mapPlaceholder = SetupMapPlaceholder(_container, min, max, [=] {
-		setupWebview();
-	});
-	_scroll = CreateChild<ScrollArea>(_body.get());
-	const auto controls = _scroll->setOwnedWidget(
-		object_ptr<VerticalLayout>(_scroll));
-
-	_mapControlsWrap = controls->add(
-		object_ptr<SlideWrap<VerticalLayout>>(
-			controls,
-			object_ptr<VerticalLayout>(controls)));
-	_mapControlsWrap->show(anim::type::instant);
-	const auto mapControls = _mapControlsWrap->entity();
-
-	const auto toppad = mapControls->add(object_ptr<RpWidget>(controls));
-
-	AddSkip(mapControls);
-	AddSubsectionTitle(mapControls, tr::lng_maps_or_choose());
-
-	auto state = _venueState.value();
-	SetupVenues(controls, uiShow(), std::move(state), [=](VenueData info) {
-		_callback(std::move(info));
-		close();
-	});
-
-	rpl::combine(
-		_body->sizeValue(),
-		_scroll->scrollTopValue(),
-		_venuesSearchShown.value()
-	) | rpl::on_next([=](QSize size, int scrollTop, bool search) {
-		const auto width = size.width();
-		const auto height = size.height();
-		const auto sub = std::min(
-			(st::pickLocationMapHeight - st::pickLocationCollapsedHeight),
-			scrollTop);
-		const auto mapHeight = st::pickLocationMapHeight
-			- sub
-			+ (_mapPlaceholder ? _mapPlaceholderAdded : 0);
-		_container->setGeometry(0, 0, width, mapHeight);
-		const auto scrollWidgetTop = search ? 0 : mapHeight;
-		const auto scrollHeight = height - scrollWidgetTop;
-		_scroll->setGeometry(0, scrollWidgetTop, width, scrollHeight);
-		controls->resizeToWidth(width);
-		toppad->resize(width, sub);
+	_body->widthValue() | rpl::on_next([=](int width) {
+		_container->setGeometry(0, 0, width, st::pickLocationMapHeight);
 	}, _container->lifetime());
 
 	_container->paintRequest() | rpl::on_next([=](QRect clip) {
 		QPainter(_container).fillRect(clip, st::windowBg);
 	}, _container->lifetime());
 
+	_mapPlaceholder = SetupMapPlaceholder(_body, [=] {
+		setupWebview();
+	});
+
 	_container->show();
-	_scroll->show();
-	controls->show();
 	window->show();
 }
 
@@ -909,26 +417,28 @@ void LocationPicker::setupWebview() {
 		_webview = nullptr;
 	});
 
-	const auto mapControls = _mapControlsWrap->entity();
-	mapControls->insert(
-		1,
-		object_ptr<BoxContentDivider>(mapControls)
-	)->show();
+	const auto initial = _initialProvided.exact()
+		? _initialProvided
+		: LastExactLocation;
+	if (initial) {
+		resolveAddress(initial);
+	}
 
-	_mapButton = mapControls->insert(
-		1,
-		MakeChooseLocationButton(
-			mapControls,
-			_chooseButtonLabel.value(),
-			_geocoderAddress.value()),
-		{ 0, st::pickLocationButtonSkip, 0, st::pickLocationButtonSkip });
+	_mapButton = MakeChooseLocationButton(
+		_body,
+		_chooseButtonLabel.value(),
+		_geocoderAddress.value());
+	_body->widthValue() | rpl::on_next([=](int width) {
+		_mapButton->setGeometry(
+			0,
+			st::pickLocationMapHeight + st::pickLocationButtonSkip,
+			width,
+			st::pickLocationButton.height);
+	}, _mapButton->lifetime());
 	_mapButton->setClickedCallback([=] {
 		_webview->eval("LocationPicker.send();");
 	});
 	_mapButton->hide();
-
-	_scroll->scrollToY(0);
-	_venuesSearchShown.force_assign(_venuesSearchShown.current());
 
 	_mapLoading = CreateChild<RpWidget>(_body.get());
 
@@ -945,7 +455,7 @@ void LocationPicker::setupWebview() {
 			close();
 		} else if (e->type() == QEvent::KeyPress) {
 			const auto event = static_cast<QKeyEvent*>(e.get());
-			if (event->key() == Qt::Key_Escape && !_venuesSearchQuery) {
+			if (event->key() == Qt::Key_Escape) {
 				close();
 			}
 		}
@@ -975,11 +485,14 @@ void LocationPicker::setupWebview() {
 			} else if (event == u"send"_q) {
 				const auto lat = object.value("latitude").toDouble();
 				const auto lon = object.value("longitude").toDouble();
-				_callback({
-					.lat = lat,
-					.lon = lon,
-					.address = _geocoderAddress.current(),
-				});
+				const auto point = Data::LocationPoint::FromCoordinates(
+					lat,
+					lon);
+				// Another send can be handled before the queued close() runs.
+				const auto onstack = base::take(_callback);
+				if (onstack && point) {
+					onstack(*point, _geocoderAddress.current());
+				}
 				close();
 			} else if (event == u"move_start"_q) {
 				if (const auto now = _geocoderAddress.current()
@@ -1004,18 +517,6 @@ void LocationPicker::setupWebview() {
 					_geocoderResolvePostponed = location;
 					_geocoderResolveTimer.callOnce(kResolveAddressDelay);
 				}
-				if (!AreTheSame(_venuesRequestLocation, location)) {
-					_webview->eval(
-						"LocationPicker.toggleSearchVenues(true);");
-				}
-				venuesSearchEnableAt(location);
-			} else if (event == u"search_venues"_q) {
-				const auto lat = object.value("latitude").toDouble();
-				const auto lon = object.value("longitude").toDouble();
-				venuesRequest({
-					.point = { lat, lon },
-					.accuracy = Core::GeoLocationAccuracy::Exact,
-				});
 			}
 		});
 	});
@@ -1038,9 +539,7 @@ void LocationPicker::setupWebview() {
 		if (!_subscribedToColors) {
 			_subscribedToColors = true;
 
-			rpl::merge(
-				Lang::Updated(),
-				style::PaletteChanged()
+			style::PaletteChanged(
 			) | rpl::on_next([=] {
 				_updateStyles.call();
 			}, _webview->lifetime());
@@ -1144,7 +643,7 @@ void LocationPicker::resolveAddress(Core::GeoLocation location) {
 }
 
 void LocationPicker::mapReady() {
-	Expects(_scroll != nullptr);
+	Expects(_mapButton != nullptr);
 
 	delete base::take(_mapLoading);
 
@@ -1163,168 +662,23 @@ void LocationPicker::mapReady() {
 	_mapButton->show();
 }
 
-bool LocationPicker::venuesFromCache(
-		Core::GeoLocation location,
-		QString query) {
-	const auto normalized = NormalizeVenuesQuery(query);
-	const auto &cache = _venuesCache[normalized];
-	const auto i = ranges::find_if(cache, [&](const VenuesCacheEntry &v) {
-		return AreTheSame(v.location, location);
-	});
-	if (i == end(cache)) {
-		return false;
-	}
-	_venuesRequestLocation = location;
-	_venuesRequestQuery = normalized;
-	_venuesInitialQuery = query;
-	venuesApplyResults(i->result);
-	return true;
-}
-
-void LocationPicker::venuesRequest(
-		Core::GeoLocation location,
-		QString query) {
-	const auto normalized = NormalizeVenuesQuery(query);
-	if (AreTheSame(_venuesRequestLocation, location)
-		&& _venuesRequestQuery == normalized) {
-		return;
-	} else if (const auto oldRequestId = base::take(_venuesRequestId)) {
-		_api.request(oldRequestId).cancel();
-	}
-	_venueState = PickerVenueLoading();
-	_venuesRequestLocation = location;
-	_venuesRequestQuery = normalized;
-	_venuesInitialQuery = query;
-	if (_venuesBot) {
-		venuesSendRequest();
-	} else if (_venuesBotRequestId) {
-		return;
-	}
-	const auto username = _session->serverConfig().venueSearchUsername;
-	_venuesBotRequestId = _api.request(MTPcontacts_ResolveUsername(
-		MTP_flags(0),
-		MTP_string(username),
-		MTP_string()
-	)).done([=](const MTPcontacts_ResolvedPeer &result) {
-		const auto &data = result.data();
-		_session->data().processUsers(data.vusers());
-		_session->data().processChats(data.vchats());
-		const auto peer = _session->data().peerLoaded(
-			peerFromMTP(data.vpeer()));
-		const auto user = peer ? peer->asUser() : nullptr;
-		if (user && user->isBotInlineGeo()) {
-			_venuesBot = user;
-			venuesSendRequest();
-		} else {
-			LOG(("API Error: Bad peer returned by: %1").arg(username));
-		}
-	}).fail([=] {
-		LOG(("API Error: Error returned on lookup: %1").arg(username));
-	}).send();
-}
-
-void LocationPicker::venuesSendRequest() {
-	Expects(_venuesBot != nullptr);
-
-	if (_venuesRequestId || !_venuesRequestLocation) {
-		return;
-	}
-	_venuesRequestId = _api.request(MTPmessages_GetInlineBotResults(
-		MTP_flags(MTPmessages_GetInlineBotResults::Flag::f_geo_point),
-		_venuesBot->inputUser(),
-		(_venueRecipient ? _venueRecipient->input() : MTP_inputPeerEmpty()),
-		MTP_inputGeoPoint(
-			MTP_flags(0),
-			MTP_double(_venuesRequestLocation.point.x()),
-			MTP_double(_venuesRequestLocation.point.y()),
-			MTP_int(0)), // accuracy_radius
-		MTP_string(_venuesRequestQuery),
-		MTP_string() // offset
-	)).done([=](const MTPmessages_BotResults &result) {
-		auto parsed = ParseVenues(_session, result);
-		_venuesCache[_venuesRequestQuery].push_back({
-			.location = _venuesRequestLocation,
-			.result = parsed,
-		});
-		venuesApplyResults(std::move(parsed));
-	}).fail([=] {
-		venuesApplyResults({});
-	}).send();
-}
-
-void LocationPicker::venuesApplyResults(PickerVenueList venues) {
-	_venuesRequestId = 0;
-	if (venues.list.empty()) {
-		_venueState = PickerVenueNothingFound{ _venuesInitialQuery };
-	} else {
-		_venueState = std::move(venues);
-	}
-}
-
-void LocationPicker::venuesSearchEnableAt(Core::GeoLocation location) {
-	if (!_venuesSearchLocation) {
-		_window->setSearchAllowed(
-			tr::lng_dlg_filter(),
-			[=](std::optional<QString> query) {
-				venuesSearchChanged(query);
-			});
-	}
-	_venuesSearchLocation = location;
-}
-
-void LocationPicker::venuesSearchChanged(
-		const std::optional<QString> &query) {
-	_venuesSearchQuery = query;
-
-	const auto shown = query && !query->trimmed().isEmpty();
-	_venuesSearchShown = shown;
-	if (_container->isHidden() != shown) {
-		_container->setVisible(!shown);
-		_mapControlsWrap->toggle(!shown, anim::type::instant);
-		if (shown) {
-			_venuesNoSearchLocation = _venuesRequestLocation;
-		} else if (_venuesNoSearchLocation) {
-			if (!venuesFromCache(_venuesNoSearchLocation)) {
-				venuesRequest(_venuesNoSearchLocation);
-			}
-		}
-	}
-
-	if (shown
-		&& !venuesFromCache(
-			*_venuesSearchLocation,
-			*_venuesSearchQuery)) {
-		_venueState = PickerVenueLoading();
-		_venuesSearchDebounceTimer.callOnce(kSearchDebounceDelay);
-	} else {
-		_venuesSearchDebounceTimer.cancel();
-	}
-}
-
 void LocationPicker::resolveCurrentLocation() {
 	using namespace Core;
 	const auto window = _window.get();
 	ResolveCurrentGeoLocation(crl::guard(window, [=](GeoLocation location) {
 		const auto changed = !AreTheSame(LastExactLocation, location);
 		if (location.accuracy != GeoLocationAccuracy::Exact || !changed) {
-			if (!_venuesSearchLocation) {
-				_venueState = PickerVenueWaitingForLocation();
-			}
 			return;
 		}
 		LastExactLocation = location;
-		if (location) {
-			if (_venuesSearchQuery.value_or(QString()).isEmpty()) {
-				venuesRequest(location);
-			}
-			resolveAddress(location);
+		if (!_webview) {
+			return;
 		}
-		if (_webview) {
-			const auto point = QByteArray::number(location.point.x())
-				+ ","_q
-				+ QByteArray::number(location.point.y());
-			_webview->eval("LocationPicker.narrowTo([" + point + "]);");
-		}
+		resolveAddress(location);
+		const auto point = QByteArray::number(location.point.x())
+			+ ","_q
+			+ QByteArray::number(location.point.y());
+		_webview->eval("LocationPicker.narrowTo([" + point + "]);");
 	}));
 }
 
@@ -1333,9 +687,7 @@ void LocationPicker::processKey(
 		const QString &modifier) {
 	const auto ctrl = ::Platform::IsMac() ? u"cmd"_q : u"ctrl"_q;
 	if (key == u"escape"_q) {
-		if (!_window->closeSearch()) {
-			close();
-		}
+		close();
 	} else if (key == u"w"_q && modifier == ctrl) {
 		close();
 	} else if (key == u"m"_q && modifier == ctrl) {

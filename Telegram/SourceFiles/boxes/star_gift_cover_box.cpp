@@ -48,6 +48,7 @@ namespace {
 
 constexpr auto kCrossfadeDuration = crl::time(400);
 constexpr auto kGradientButtonBgOpacity = 0.6;
+constexpr auto kFadedActionOpacity = 0.5;
 
 constexpr auto kSpinnerBackdrops = 6;
 constexpr auto kSpinnerPatterns = 6;
@@ -99,7 +100,11 @@ public:
 		QWidget *parent,
 		UniqueGiftCoverAction &&action,
 		Fn<QColor()> bg,
-		Fn<QColor()> fg);
+		Fn<QColor()> fg,
+		Fn<void()> relayout);
+
+	[[nodiscard]] bool labelFits() const;
+	void setSmallLabel(bool small);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -110,8 +115,12 @@ private:
 	const style::icon *_icon = nullptr;
 	const Fn<QColor()> _bg;
 	const Fn<QColor()> _fg;
+	const Fn<void()> _relayout;
 	Text::String _text;
+	Text::String _textSmall;
 	Animations::Simple _over;
+	bool _small = false;
+	bool _faded = false;
 
 };
 
@@ -208,16 +217,53 @@ AttributeActionButton::AttributeActionButton(
 	QWidget *parent,
 	UniqueGiftCoverAction &&action,
 	Fn<QColor()> bg,
-	Fn<QColor()> fg)
+	Fn<QColor()> fg,
+	Fn<void()> relayout)
 : RippleButton(parent, st::defaultRippleAnimation)
-, _icon(action.icon)
 , _bg(std::move(bg))
-, _fg(std::move(fg)) {
+, _fg(std::move(fg))
+, _relayout(std::move(relayout)) {
 	setClickedCallback(std::move(action.callback));
 	std::move(action.text) | rpl::on_next([this](const QString &text) {
 		_text.setText(st::uniqueAttributeName, text);
+		_textSmall.setText(st::uniqueGiftActionNameSmall, text);
+		_relayout();
 		update();
 	}, lifetime());
+	if (action.icon) {
+		std::move(
+			action.icon
+		) | rpl::on_next([this](const style::icon *icon) {
+			_icon = icon;
+			update();
+		}, lifetime());
+	}
+	if (action.faded) {
+		std::move(action.faded) | rpl::on_next([this](bool faded) {
+			_faded = faded;
+			update();
+		}, lifetime());
+	}
+	show();
+	if (action.shown) {
+		std::move(action.shown) | rpl::on_next([this](bool shown) {
+			setVisible(shown);
+			_relayout();
+		}, lifetime());
+	}
+}
+
+bool AttributeActionButton::labelFits() const {
+	const auto &padding = st::uniqueAttributePadding;
+	const auto available = width() - padding.left() - padding.right();
+	return (_text.maxWidth() <= available);
+}
+
+void AttributeActionButton::setSmallLabel(bool small) {
+	if (_small != small) {
+		_small = small;
+		update();
+	}
 }
 
 void AttributeActionButton::paintEvent(QPaintEvent *e) {
@@ -238,6 +284,9 @@ void AttributeActionButton::paintEvent(QPaintEvent *e) {
 	}
 	paintRipple(p, 0, 0, &ripple);
 
+	if (_faded) {
+		p.setOpacity(kFadedActionOpacity);
+	}
 	const auto white = QColor(255, 255, 255);
 	if (_icon) {
 		_icon->paint(
@@ -247,14 +296,18 @@ void AttributeActionButton::paintEvent(QPaintEvent *e) {
 			width(),
 			white);
 	}
+	const auto &text = _small ? _textSmall : _text;
+	const auto textTop = st::uniqueGiftActionTextTop
+		+ (_small
+			? (st::uniqueAttributeName.font->ascent
+				- st::uniqueGiftActionNameSmall.font->ascent)
+			: 0);
 	const auto &padding = st::uniqueAttributePadding;
 	const auto available = width() - padding.left() - padding.right();
-	const auto textWidth = std::min(available, _text.maxWidth());
+	const auto textWidth = std::min(available, text.maxWidth());
 	p.setPen(white);
-	_text.draw(p, {
-		.position = QPoint(
-			(width() - textWidth) / 2,
-			st::uniqueGiftActionTextTop),
+	text.draw(p, {
+		.position = QPoint((width() - textWidth) / 2, textTop),
 		.availableWidth = textWidth,
 		.elisionLines = 1,
 	});
@@ -277,6 +330,45 @@ void AttributeActionButton::onStateChanged(
 
 QImage AttributeActionButton::prepareRippleMask() const {
 	return RippleAnimation::RoundRectMask(size(), height() / 3);
+}
+
+void LayoutActionButtons(
+		const std::vector<not_null<AttributeActionButton*>> &buttons,
+		int width) {
+	const auto shown = [](not_null<AttributeActionButton*> button) {
+		return !button->isHidden();
+	};
+	const auto count = int(ranges::count_if(buttons, shown));
+	if (count <= 0) {
+		return;
+	}
+	const auto boxPadding = st::giftBoxPadding;
+	const auto skip = st::giftBoxGiftSkip.x();
+	const auto available = width
+		- boxPadding.left()
+		- boxPadding.right()
+		- (count - 1) * skip;
+	const auto single = available / count;
+	if (single <= 0) {
+		return;
+	}
+	const auto top = st::uniqueAttributeTop;
+	const auto height = st::uniqueGiftActionHeight;
+	auto left = boxPadding.left();
+	auto index = 0;
+	auto small = false;
+	for (const auto &button : buttons | ranges::views::filter(shown)) {
+		const auto right = (++index == count)
+			? (width - boxPadding.right())
+			: (left + single);
+		button->resize(right - left, height);
+		button->moveToLeft(left, top, width);
+		left = right + skip;
+		small = small || !button->labelFits();
+	}
+	for (const auto &button : buttons | ranges::views::filter(shown)) {
+		button->setSmallLabel(small);
+	}
 }
 
 struct AttributeSpin {
@@ -386,7 +478,7 @@ struct UniqueGiftCoverWidget::State {
 	FlatLabel *title = nullptr;
 	RpWidget *attrs = nullptr;
 	RpWidget *actions = nullptr;
-	std::vector<not_null<RpWidget*>> actionButtons;
+	std::vector<not_null<AttributeActionButton*>> actionButtons;
 	UniqueGiftCoverMessageWidget *message = nullptr;
 
 	Fn<void(const Data::UniqueGift &)> updateAttrs;
@@ -1029,39 +1121,22 @@ UniqueGiftCoverWidget::UniqueGiftCoverWidget(
 			st::uniqueAttributeTop + st::uniqueGiftActionHeight);
 		const auto bg = [this] { return _state->released.bg; };
 		const auto fg = [this] { return _state->released.fg; };
+		const auto relayout = [this] {
+			LayoutActionButtons(
+				_state->actionButtons,
+				_state->actions->width());
+		};
 		for (auto &action : args.actions) {
 			_state->actionButtons.push_back(
 				CreateChild<AttributeActionButton>(
 					_state->actions,
 					std::move(action),
 					bg,
-					fg));
+					fg,
+					relayout));
 		}
-		_state->actions->widthValue() | rpl::on_next([this](int width) {
-			const auto &buttons = _state->actionButtons;
-			const auto count = int(buttons.size());
-			const auto boxPadding = st::giftBoxPadding;
-			const auto skip = st::giftBoxGiftSkip.x();
-			const auto available = width
-				- boxPadding.left()
-				- boxPadding.right()
-				- (count - 1) * skip;
-			const auto single = available / count;
-			if (single <= 0) {
-				return;
-			}
-			const auto top = st::uniqueAttributeTop;
-			const auto height = st::uniqueGiftActionHeight;
-			auto left = boxPadding.left();
-			for (auto i = 0; i != count; ++i) {
-				const auto right = (i + 1 == count)
-					? (width - boxPadding.right())
-					: (left + single);
-				buttons[i]->resize(right - left, height);
-				buttons[i]->moveToLeft(left, top, width);
-				left = right + skip;
-			}
-		}, _state->actions->lifetime());
+		_state->actions->widthValue(
+		) | rpl::on_next(relayout, _state->actions->lifetime());
 	}
 	_state->updateAttrs(*_state->now.gift);
 
@@ -1406,10 +1481,6 @@ bool UniqueGiftCoverWidget::paintGift(
 
 QColor UniqueGiftCoverWidget::backgroundColor() const {
 	return _state->released.bg;
-}
-
-QColor UniqueGiftCoverWidget::foregroundColor() const {
-	return _state->released.fg;
 }
 
 void UniqueGiftCoverWidget::paintSpinnerAnimation(

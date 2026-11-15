@@ -463,6 +463,7 @@ object_ptr<Button> CreateButtonWithIcon(
 		IconDescriptor &&descriptor) {
 	auto result = object_ptr<Button>(parent, std::move(text), st);
 	const auto button = result.data();
+	button->setAllowTextLines();
 	if (descriptor) {
 		AddButtonIcon(button, st, std::move(descriptor));
 	}
@@ -492,41 +493,68 @@ void CreateRightLabel(
 		button.get(),
 		st.rightLabel);
 	name->show();
+	const auto layout = [=, &st](const QString &buttonText) {
+		const auto full = button->width()
+			- st.padding.left()
+			- st.padding.right()
+			- st::settingsButtonRightSkip;
+		const auto textWidth = st.style.font->width(buttonText);
+		const auto natural = name->textMaxWidth();
+		auto widestWord = 0;
+		for (const auto &word : buttonText.split(' ', Qt::SkipEmptyParts)) {
+			widestWord = std::max(widestWord, st.style.font->width(word));
+		}
+
+		// WHY: the value is never cut for a long label: the label wraps
+		// instead (when the button allows it), keeping its widest word and
+		// a third of the row, or the value moves under it when even that fails.
+		const auto labelMin = std::max(widestWord, full / 3);
+		const auto sideBySide = (textWidth + natural <= full)
+			|| (natural <= full - labelMin);
+		name->resizeToNaturalWidth(sideBySide
+			? natural
+			: (full + st.padding.right()));
+		auto padding = st.padding;
+		if (sideBySide) {
+			padding.setRight(padding.right()
+				+ st::settingsButtonRightSkip
+				+ name->width());
+		} else {
+			padding.setBottom(padding.bottom() + name->height());
+		}
+		button->setPaddingOverride(padding);
+		const auto single = st.padding.top()
+			+ st.height
+			+ st.padding.bottom();
+		name->moveToRight(
+			st::settingsButtonRightSkip,
+			(sideBySide
+				? (st.padding.top() + (button->height() - single) / 2)
+				: (button->height() - st.padding.bottom() - name->height())));
+	};
 	if (v::text::is_plain(label)) {
 		rpl::combine(
-			button->widthValue(),
+			button->sizeValue(),
 			std::move(buttonText),
 			v::text::take_plain(std::move(label))
-		) | rpl::on_next([=, &st](
-				int width,
+		) | rpl::on_next([=](
+				QSize,
 				const QString &button,
 				const QString &text) {
-			const auto available = width
-				- st.padding.left()
-				- st.padding.right()
-				- st.style.font->width(button)
-				- st::settingsButtonRightSkip;
 			name->setText(text);
-			name->resizeToNaturalWidth(available);
-			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+			layout(button);
 		}, name->lifetime());
 	} else if (v::text::is_marked(label)) {
 		rpl::combine(
-			button->widthValue(),
+			button->sizeValue(),
 			std::move(buttonText),
 			v::text::take_marked(std::move(label))
-		) | rpl::on_next([=, &st](
-				int width,
+		) | rpl::on_next([=](
+				QSize,
 				const QString &button,
 				const TextWithEntities &text) {
-			const auto available = width
-				- st.padding.left()
-				- st.padding.right()
-				- st.style.font->width(button)
-				- st::settingsButtonRightSkip;
 			name->setMarkedText(text, context);
-			name->resizeToNaturalWidth(available);
-			name->moveToRight(st::settingsButtonRightSkip, st.padding.top());
+			layout(button);
 		}, name->lifetime());
 	}
 	name->setAttribute(Qt::WA_TransparentForMouseEvents);

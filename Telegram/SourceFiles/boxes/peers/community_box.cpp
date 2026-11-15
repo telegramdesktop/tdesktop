@@ -72,7 +72,7 @@ public:
 		not_null<Main::Session*> session,
 		rpl::producer<std::vector<not_null<PeerData*>>> chats,
 		Fn<void(not_null<PeerData*>)> callback,
-		Fn<void(not_null<PeerListRow*>)> remove = nullptr);
+		Fn<void(not_null<PeerData*>)> remove = nullptr);
 
 	Main::Session &session() const override;
 	void prepare() override;
@@ -89,7 +89,7 @@ private:
 	const not_null<Main::Session*> _session;
 	rpl::producer<std::vector<not_null<PeerData*>>> _chats;
 	Fn<void(not_null<PeerData*>)> _callback;
-	Fn<void(not_null<PeerListRow*>)> _remove;
+	Fn<void(not_null<PeerData*>)> _remove;
 	rpl::variable<int> _count = 0;
 
 };
@@ -98,7 +98,7 @@ ChatsController::ChatsController(
 	not_null<Main::Session*> session,
 	rpl::producer<std::vector<not_null<PeerData*>>> chats,
 	Fn<void(not_null<PeerData*>)> callback,
-	Fn<void(not_null<PeerListRow*>)> remove)
+	Fn<void(not_null<PeerData*>)> remove)
 : _session(session)
 , _chats(std::move(chats))
 , _callback(std::move(callback))
@@ -159,7 +159,7 @@ base::unique_qptr<Ui::PopupMenu> ChatsController::rowContextMenu(
 			: broadcast
 			? tr::lng_community_chat_remove_channel
 			: tr::lng_community_chat_remove_group)(tr::now),
-		.handler = [=] { _remove(row); },
+		.handler = [=] { _remove(peer); },
 		.icon = &st::menuIconDeleteAttention,
 		.isAttention = true,
 	});
@@ -415,8 +415,7 @@ void SetupCommunityEditChatsList(
 	const auto delegate = container->lifetime().make_state<
 		PeerListContentDelegateShow
 	>(show);
-	const auto removeChat = [=](not_null<PeerListRow*> row) {
-		const auto peer = row->peer();
+	const auto removeChat = [=](not_null<PeerData*> peer) {
 		const auto remove = [=](Fn<void()> close) {
 			community->session().api().communities().removePeerLink(
 				community,

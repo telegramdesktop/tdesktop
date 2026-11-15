@@ -22,22 +22,12 @@ int PremiumLimits::channelsDefault() const {
 int PremiumLimits::channelsPremium() const {
 	return appConfigLimit("channels_limit_premium", 1000);
 }
-int PremiumLimits::channelsCurrent() const {
-	return isPremium()
-		? channelsPremium()
-		: channelsDefault();
-}
 
 int PremiumLimits::similarChannelsDefault() const {
 	return appConfigLimit("recommended_channels_limit_default", 10);
 }
 int PremiumLimits::similarChannelsPremium() const {
 	return appConfigLimit("recommended_channels_limit_premium", 100);
-}
-int PremiumLimits::similarChannelsCurrent() const {
-	return isPremium()
-		? channelsPremium()
-		: channelsDefault();
 }
 
 int PremiumLimits::gifsDefault() const {
@@ -82,11 +72,6 @@ int PremiumLimits::dialogShareableFiltersDefault() const {
 int PremiumLimits::dialogShareableFiltersPremium() const {
 	return appConfigLimit("chatlists_joined_limit_premium", 20);
 }
-int PremiumLimits::dialogShareableFiltersCurrent() const {
-	return isPremium()
-		? dialogShareableFiltersPremium()
-		: dialogShareableFiltersDefault();
-}
 
 int PremiumLimits::dialogFiltersChatsDefault() const {
 	return appConfigLimit("dialog_filters_chats_limit_default", 100);
@@ -105,11 +90,6 @@ int PremiumLimits::dialogFiltersLinksDefault() const {
 }
 int PremiumLimits::dialogFiltersLinksPremium() const {
 	return appConfigLimit("chatlist_invites_limit_premium", 20);
-}
-int PremiumLimits::dialogFiltersLinksCurrent() const {
-	return isPremium()
-		? dialogFiltersLinksPremium()
-		: dialogFiltersLinksDefault();
 }
 
 int PremiumLimits::dialogsPinnedDefault() const {
@@ -158,11 +138,6 @@ int PremiumLimits::channelsPublicDefault() const {
 int PremiumLimits::channelsPublicPremium() const {
 	return appConfigLimit("channels_public_limit_premium", 20);
 }
-int PremiumLimits::channelsPublicCurrent() const {
-	return isPremium()
-		? channelsPublicPremium()
-		: channelsPublicDefault();
-}
 
 int PremiumLimits::captionLengthDefault() const {
 	return appConfigLimit("caption_length_limit_default", 1024);
@@ -196,22 +171,12 @@ int PremiumLimits::uploadMaxDefault() const {
 int PremiumLimits::uploadMaxPremium() const {
 	return appConfigLimit("upload_max_fileparts_premium", 8000);
 }
-int PremiumLimits::uploadMaxCurrent() const {
-	return isPremium()
-		? uploadMaxPremium()
-		: uploadMaxDefault();
-}
 
 int PremiumLimits::aboutLengthDefault() const {
 	return appConfigLimit("about_length_limit_default", 70);
 }
 int PremiumLimits::aboutLengthPremium() const {
 	return appConfigLimit("about_length_limit_premium", 140);
-}
-int PremiumLimits::aboutLengthCurrent() const {
-	return isPremium()
-		? aboutLengthPremium()
-		: aboutLengthDefault();
 }
 
 int PremiumLimits::contactNoteLengthCurrent() const {
@@ -250,12 +215,6 @@ bool PremiumLimits::isPremium() const {
 
 LevelLimits::LevelLimits(not_null<Main::Session*> session)
 : _session(session) {
-}
-
-int LevelLimits::channelColorLevelMin() const {
-	return _session->appConfig().get<int>(
-		u"channel_color_level_min"_q,
-		5);
 }
 
 int LevelLimits::channelBgIconLevelMin() const {

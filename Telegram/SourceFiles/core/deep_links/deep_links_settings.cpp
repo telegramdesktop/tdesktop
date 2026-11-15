@@ -133,7 +133,8 @@ void ShowQrBox(not_null<Window::SessionController*> controller) {
 		Ui::FillPeerQrBox,
 		user.get(),
 		std::nullopt,
-		rpl::single(QString())));
+		rpl::single(QString()),
+		nullptr));
 }
 
 Result ShowPeerColorBox(
@@ -156,25 +157,16 @@ Result ShowPeerColorBox(
 	return Result::Handled;
 }
 
-Result HandleQrCode(const Context &ctx, bool highlightCopy) {
+Result HandleQrCode(const Context &ctx, bool highlightShare) {
 	if (!ctx.controller) {
 		return Result::NeedsAuth;
 	}
 
-	if (highlightCopy) {
-		ctx.controller->setHighlightControlId(u"self-qr-code/copy"_q);
+	if (highlightShare) {
+		ctx.controller->setHighlightControlId(u"self-qr-code/share"_q);
 	}
 
-	const auto user = ctx.controller->session().user();
-	if (!user->username().isEmpty()) {
-		ShowQrBox(ctx.controller);
-	} else {
-		const auto controller = ctx.controller;
-		controller->uiShow()->show(Box(
-			UsernamesBoxWithCallback,
-			user,
-			[=] { ShowQrBox(controller); }));
-	}
+	ShowQrBox(ctx.controller);
 	return Result::Handled;
 }
 
@@ -1735,7 +1727,8 @@ void RegisterSettingsHandlers(Router &router) {
 	router.add(u"settings"_q, {
 		.path = u"features"_q,
 		.action = CodeBlock{ [](const Context &ctx) {
-			UrlClickHandler::Open(tr::lng_telegram_features_url(tr::now));
+			::Settings::OpenFeatures(
+				ctx.controller ? base::make_weak(ctx.controller) : nullptr);
 			return Result::Handled;
 		}},
 		.requiresAuth = false,

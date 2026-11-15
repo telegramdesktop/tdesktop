@@ -45,6 +45,9 @@ struct ArchiveWriteResult {
 
 [[nodiscard]] Ui::PreparedFile PrepareFolderArchive(const QString &folder);
 [[nodiscard]] Ui::PreparedFile PrepareFilesArchive(const QList<QUrl> &urls);
+[[nodiscard]] Ui::PreparedFile PrepareFilesArchive(
+	const QStringList &paths,
+	const QStringList &names = {});
 
 [[nodiscard]] std::optional<ArchiveEntries> GatherArchiveEntries(
 	const Ui::PreparedFileArchive &job);

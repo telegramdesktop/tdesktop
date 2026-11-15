@@ -41,13 +41,11 @@ public:
 		return _placeholder;
 	}
 
-	void step_selected(crl::time ms, bool timer);
 	void resizeToWidth(int newWidth, int maxOuterHeight) {
 		_maxOuterHeight = maxOuterHeight;
 		return RpWidget::resizeToWidth(newWidth);
 	}
 
-	[[nodiscard]] bool maximizeSize() const;
 	[[nodiscard]] bool singleUse() const;
 	[[nodiscard]] bool persistent() const;
 

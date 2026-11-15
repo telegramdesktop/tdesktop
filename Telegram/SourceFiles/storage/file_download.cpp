@@ -170,7 +170,7 @@ QImage FileLoader::imageData() const {
 }
 
 void FileLoader::readImage() const {
-	const auto buffer = _loadSize
+	const auto buffer = (_loadSize > 0 && _loadSize < _data.size())
 		? QByteArray::fromRawData(_data.data(), _loadSize)
 		: _data;
 	auto read = Images::Read({ .content = buffer });
@@ -440,6 +440,10 @@ QByteArray FileLoader::readLoadedPartBack(int64 offset, int size) {
 bool FileLoader::finalizeResult() {
 	Expects(!_finished);
 
+	if (_skippedBytes != 0) {
+		cancel(FailureReason::OtherFailure);
+		return false;
+	}
 	if (!_filename.isEmpty() && (_toCache == LoadToCacheAsWell)) {
 		if (!_fileIsOpen) {
 			_fileIsOpen = _file.open(QIODevice::WriteOnly);

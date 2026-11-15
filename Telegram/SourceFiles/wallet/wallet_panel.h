@@ -47,7 +47,19 @@ void OpenAddressEntity(
 	not_null<Window::SessionController*> controller,
 	const QString &text);
 
+[[nodiscard]] bool IsOldWalletBotUsername(
+	not_null<Main::Session*> session,
+	const QString &username);
+
+// False when this account can't use the wallet, so the bot resolves.
+bool OpenWalletInsteadOfOldBot(
+	not_null<Window::SessionController*> controller,
+	const QString &username);
+
 [[nodiscard]] bool CanOfferSendMoney(not_null<UserData*> user);
+[[nodiscard]] bool Available(not_null<Main::Session*> session);
+[[nodiscard]] rpl::producer<bool> AvailableValue(
+	not_null<Main::Session*> session);
 
 // Without a ready wallet to send from this opens the wallet panel instead.
 void OpenSendMoney(

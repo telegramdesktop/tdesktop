@@ -59,6 +59,7 @@ struct CurrencyNames {
 	int64 units,
 	int scale,
 	int decimals = 2);
+[[nodiscard]] QString GramMinorPart(int64 amountNano);
 
 [[nodiscard]] rpl::producer<FiatRate> FiatRateValue(
 	not_null<Main::Session*> session);

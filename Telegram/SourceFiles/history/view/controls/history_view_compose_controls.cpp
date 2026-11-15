@@ -67,6 +67,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
+#include "api/api_forward_reply.h"
 #include "api/api_global_privacy.h"
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
@@ -84,6 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_characters_limit.h"
 #include "history/view/controls/history_view_compose_ai_button.h"
 #include "history/view/controls/history_view_compose_ai_tooltip.h"
+#include "history/view/controls/history_view_bot_menu_hold.h"
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/view/controls/history_view_compose_stash_hint.h"
 #include "history/view/controls/history_view_forward_panel.h"
@@ -95,7 +97,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "history/view/history_view_reply.h"
 #include "history/view/history_view_schedule_box.h"
-#include "history/view/history_view_webpage_preview.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "inline_bots/inline_results_widget.h"
 #include "inline_bots/inline_bot_result.h"
@@ -131,6 +132,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/reaction_fly_animation.h"
 #include "webrtc/webrtc_environment.h"
 #include "window/window_adaptive.h"
+#include "window/window_columns.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
@@ -405,7 +407,7 @@ void FieldHeader::init() {
 		} else if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
 		} else if (const auto reply = displayedReplyingToMessage(); reply.replying()) {
-			if (!reply.quote.empty()) {
+			if (!HistoryView::Reply::ComposePreviewQuote(reply).empty()) {
 				st::historyQuoteIcon.paint(p, position, width());
 			} else {
 				st::historyReplyIcon.paint(p, position, width());
@@ -577,11 +579,12 @@ void FieldHeader::updateShownMessageText() {
 		.repaint = [=] { customEmojiRepaint(); },
 	});
 	const auto reply = displayedReplyingToMessage();
+	const auto &quote = HistoryView::Reply::ComposePreviewQuote(reply);
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
-		((isEditingMessage() || reply.quote.empty())
+		((isEditingMessage() || quote.empty())
 			? _shownMessage->inReplyText()
-			: reply.quote),
+			: quote),
 		Ui::DialogTextOptions(),
 		context);
 }
@@ -2213,6 +2216,10 @@ rpl::producer<Api::SendOptions> ComposeControls::sendRequests() const {
 	});
 }
 
+rpl::producer<> ComposeControls::replyToForwardRequests() const {
+	return _replyToForwardRequests.events();
+}
+
 rpl::producer<VoiceToSend> ComposeControls::sendVoiceRequests() const {
 	return _voiceRecordBar->sendVoiceRequests();
 }
@@ -2233,8 +2240,23 @@ rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 }
 
 rpl::producer<std::optional<bool>> ComposeControls::attachRequests() const {
+	const auto hideDuration = _st.attach.ripple.hideDuration;
 	return rpl::merge(
-		_attachToggle->clicks() | rpl::map_to(std::optional<bool>()),
+		_attachToggle->clicks() | rpl::filter([=] {
+			const auto menu = _attachBotsMenu.get();
+			if (!menu) {
+				return true;
+			}
+			const auto show = menu->isHidden();
+			base::call_delayed(hideDuration, menu, [=] {
+				if (show) {
+					menu->showAnimated();
+				} else {
+					menu->hideAnimated();
+				}
+			});
+			return !show;
+		}) | rpl::map_to(std::optional<bool>()),
 		_attachRequests.events()
 	) | rpl::filter([=] {
 		if (isEditingMessage()) {
@@ -2404,6 +2426,12 @@ void ComposeControls::showStarted() {
 	if (_autocomplete) {
 		_autocomplete->hideFast();
 	}
+	if (_aiTooltipManager) {
+		_aiTooltipManager->hideFast();
+	}
+	if (_sendAsFileTooltipManager) {
+		_sendAsFileTooltipManager->hideFast();
+	}
 	_wrap->hide();
 	if (_writeRestricted) {
 		_writeRestricted->hide();
@@ -2432,10 +2460,10 @@ void ComposeControls::showFinished() {
 	_expand->raise();
 	_discardRichDraft->raise();
 	if (_aiTooltipManager) {
-		_aiTooltipManager->raise();
+		_aiTooltipManager->showFinished();
 	}
 	if (_sendAsFileTooltipManager) {
-		_sendAsFileTooltipManager->raise();
+		_sendAsFileTooltipManager->showFinished();
 	}
 	_voiceRecordBar->orderControls();
 }
@@ -2455,6 +2483,12 @@ void ComposeControls::raisePanels() {
 	}
 	if (_emojiSuggestions) {
 		_emojiSuggestions->raise();
+	}
+	if (_aiTooltipManager) {
+		_aiTooltipManager->raise();
+	}
+	if (_sendAsFileTooltipManager) {
+		_sendAsFileTooltipManager->raise();
 	}
 }
 
@@ -3113,7 +3147,11 @@ void ComposeControls::initKeyHandler() {
 			(keyEvent->modifiers()
 				& ~(Qt::KeypadModifier | Qt::GroupSwitchModifier)));
 		if (key == Qt::Key_O && isCtrl) {
-			_attachRequests.fire({});
+			if (isEditingMessage() && _replaceMedia) {
+				startMediaReplace();
+			} else {
+				_attachRequests.fire({});
+			}
 			return;
 		}
 		if (key == Qt::Key_Up && !hasModifiers) {
@@ -4147,6 +4185,8 @@ void ComposeControls::setupSendMenu(
 			|| action.type == ActionType::EditCover
 			|| action.type == ActionType::RemoveCover) {
 			_header->mediaEditManagerApply(action);
+		} else if (action.type == ActionType::ReplyToForward) {
+			_replyToForwardRequests.fire({});
 		} else {
 			if (action.type != ActionType::Send
 				&& _showScheduleSendError
@@ -4159,7 +4199,12 @@ void ComposeControls::setupSendMenu(
 	SendMenu::SetupMenuAndShortcuts(
 		button,
 		_show,
-		[=] { return sendButtonMenuDetails(); },
+		[=] {
+			auto result = sendButtonMenuDetails();
+			result.replyToForward = (button == _send.get())
+				&& canReplyToForward();
+			return result;
+		},
 		sendAction,
 		&_st.tabbed.menu,
 		&_st.tabbed.icons);
@@ -4459,7 +4504,7 @@ void ComposeControls::initVoiceRecordBar() {
 		updateAiButtonVisibility();
 		updateSendAsFileVisibility();
 		updateExpandButtonVisibility();
-	}, _wrap->lifetime());
+	}, _recordingStateLifetime);
 
 	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = [&]() -> Data::SendError {
@@ -4546,7 +4591,8 @@ void ComposeControls::initVoiceRecordBar() {
 		return Ui::AppInFocus();
 	}) | rpl::on_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
-		if (showRecordButton()
+		if (_history
+			&& showRecordButton()
 			&& Data::CanSendAnything(_history->peer, !_topicRootId)) {
 			const auto isVoice = request->check(Command::RecordVoice, 1);
 			const auto isRound = !isVoice
@@ -4559,9 +4605,10 @@ void ComposeControls::initVoiceRecordBar() {
 				return false;
 			});
 		}
-		_field
+		_history
+			&& _field
 			&& _field->isVisible()
-			&& Data::CanSendTexts(_history->peer)
+			&& Data::CanSendTexts(_history->peer, !_topicRootId)
 			&& request->check(Command::ComposeAiApplyInPlace, 1)
 			&& request->handle([=] {
 				triggerAiApplyInPlace();
@@ -4574,11 +4621,15 @@ void ComposeControls::initVoiceRecordBar() {
 				return true;
 			});
 		_preview
-			&& (_previewShown || _preview->draft().removed)
+			&& (_previewShown
+				|| _preview->draft().removed
+				|| _preview->disabled())
 			&& request->check(Command::ToggleWebPagePreview, 1)
 			&& request->handle([=] {
 				if (_previewShown) {
 					_preview->apply({ .removed = true });
+				} else if (_preview->disabled()) {
+					_preview->setDisabled(false);
 				} else {
 					_preview->apply({}, true);
 				}
@@ -4600,7 +4651,7 @@ void ComposeControls::initAiButton() {
 	});
 
 	_aiTooltipManager = std::make_unique<Controls::AiTooltipManager>(
-		_wrap.get(),
+		_parent,
 		_aiButton,
 		tr::lng_ai_compose_tooltip(tr::rich),
 		"ai_compose_tooltip_hidden"_cs,
@@ -4622,7 +4673,7 @@ void ComposeControls::initSendAsFileButton() {
 	});
 
 	_sendAsFileTooltipManager = std::make_unique<Controls::AiTooltipManager>(
-		_wrap.get(),
+		_parent,
 		_sendAsFile,
 		tr::lng_send_as_file_tooltip(tr::rich),
 		"send_as_file_tooltip_hidden"_cs,
@@ -4939,6 +4990,17 @@ SendMenu::Details ComposeControls::sendButtonMenuDetails() const {
 		result.effectAllowed = false;
 	}
 	return result;
+}
+
+bool ComposeControls::canReplyToForward() const {
+	return _replyToForwardRequests.has_consumers()
+		&& _history
+		&& !shownRichMessage()
+		&& !showStopButton()
+		&& !_voiceRecordBar->isListenState()
+		&& !_history->peer->slowmodeApplied()
+		&& (computeSendButtonType() == Ui::SendButton::Type::Send)
+		&& Api::CanReplyToForward(forwardItems());
 }
 
 void ComposeControls::updateSendButtonType() {
@@ -5561,6 +5623,20 @@ bool ComposeControls::refreshBotMenuButton() {
 			},
 			[=] { updateControlsGeometry(_wrap->size()); },
 			session().data().customEmojiManager().factory());
+		_botMenu->lifetime().make_state<Controls::BotMenuHoldTracker>(
+			_botMenu.get(),
+			Controls::kBotMenuHoldDuration,
+			[=] {
+				if (!_autocomplete) {
+					return;
+				} else if (_autocomplete->isHidden()) {
+					_autocomplete->showFiltered(
+						_history->peer,
+						u"/"_q,
+						true);
+				}
+				_autocomplete->startPressDragSelect();
+			});
 		_botMenuPeer = bot->id;
 		orderControls();
 	}
@@ -5580,6 +5656,12 @@ void ComposeControls::updateOuterGeometry(QRect rect) {
 	}
 	if (_attachBotsMenu) {
 		_attachBotsMenu->moveToLeft(0, bottom - _attachBotsMenu->height());
+	}
+	if (_aiTooltipManager) {
+		_aiTooltipManager->updateGeometry();
+	}
+	if (_sendAsFileTooltipManager) {
+		_sendAsFileTooltipManager->updateGeometry();
 	}
 }
 
@@ -5748,11 +5830,11 @@ bool ComposeControls::pushTabbedSelectorToThirdSection(
 	} else if (!Data::CanSendAnyOf(
 			thread,
 			Data::TabbedPanelSendRestrictions())) {
-		Core::App().settings().setTabbedReplacedWithInfo(true);
+		_regularWindow->columns().setTabbedReplacedWithInfo(true);
 		_regularWindow->showPeerInfo(thread, params.withThirdColumn());
 		return false;
 	}
-	Core::App().settings().setTabbedReplacedWithInfo(false);
+	_regularWindow->columns().setTabbedReplacedWithInfo(false);
 	_tabbedSelectorToggle->setColorOverrides(
 		&st::historyAttachEmojiActive,
 		&st::historyRecordVoiceFgActive,
@@ -5809,7 +5891,7 @@ void ComposeControls::toggleTabbedSelectorMode() {
 	if (_tabbedPanel) {
 		if (_regularWindow->canShowThirdSection()
 				&& !_regularWindow->adaptive().isOneColumn()) {
-			Core::App().settings().setTabbedSelectorSectionEnabled(true);
+			_regularWindow->columns().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
 			const auto thread = _history->threadFor(
 				_topicRootId,
@@ -5939,18 +6021,22 @@ bool ComposeControls::updateReplaceMediaButton() {
 	const auto hideDuration = st::historyReplaceMedia.ripple.hideDuration;
 	_replaceMedia->setClickedCallback([=] {
 		base::call_delayed(hideDuration, _wrap.get(), [=] {
-			const auto queryToEdit = _header->queryToEdit();
-			EditCaptionBox::StartMediaReplace(
-				_regularWindow,
-				_editingId,
-				_field->getTextWithTags(),
-				_header->suggestOptions(),
-				queryToEdit.spoilered,
-				queryToEdit.options.invertCaption,
-				crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
+			startMediaReplace();
 		});
 	});
 	return true;
+}
+
+void ComposeControls::startMediaReplace() {
+	const auto queryToEdit = _header->queryToEdit();
+	EditCaptionBox::StartMediaReplace(
+		_regularWindow,
+		_editingId,
+		_field->getTextWithTags(),
+		_header->suggestOptions(),
+		queryToEdit.spoilered,
+		queryToEdit.options.invertCaption,
+		crl::guard(_wrap.get(), [=] { cancelEditMessage(); }));
 }
 
 void ComposeControls::cancelEditMessage() {

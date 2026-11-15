@@ -26,6 +26,7 @@ struct HistoryMessagesViewerState {
 	MessagesSlice slice;
 	MessagePosition around;
 	MsgId queryAroundId = 0;
+	base::flat_set<FullMsgId> confirmed;
 	base::has_weak_ptr guard;
 	bool scheduled = false;
 };
@@ -158,11 +159,34 @@ void RewriteHistorySliceIds(
 	}
 }
 
+// A sent message gets its server id before the update with the message
+// puts it to the index (it may wait for a pts gap), keep it till then.
+[[nodiscard]] std::vector<not_null<HistoryItem*>> ConfirmedHistoryMessages(
+		not_null<History*> history,
+		not_null<base::flat_set<FullMsgId>*> confirmed,
+		const MessagesSlice &slice) {
+	auto result = std::vector<not_null<HistoryItem*>>();
+	for (auto i = begin(*confirmed); i != end(*confirmed);) {
+		const auto item = history->owner().message(*i);
+		if (!item
+			|| (slice.skippedAfter != 0)
+			|| ranges::contains(slice.ids, *i)) {
+			i = confirmed->erase(i);
+		} else {
+			result.push_back(item);
+			++i;
+		}
+	}
+	return result;
+}
+
 void AppendHistoryClientSideMessages(
 		not_null<History*> history,
 		MessagePosition around,
-		not_null<MessagesSlice*> slice) {
-	const auto messages = HistoryClientSideMessages(history);
+		not_null<MessagesSlice*> slice,
+		const std::vector<not_null<HistoryItem*>> &confirmed) {
+	auto messages = HistoryClientSideMessages(history);
+	messages.insert(end(messages), begin(confirmed), end(confirmed));
 	if (messages.empty()) {
 		RecomputeHistoryNearestToAround(history, slice, around);
 		return;
@@ -458,10 +482,15 @@ rpl::producer<MessagesSlice> HistoryMessagesViewer(
 			viewer->slice = HistoryBaseMessagesSlice(
 				*viewer->sparse,
 				viewer->queryAroundId);
+			const auto confirmed = ConfirmedHistoryMessages(
+				history,
+				&viewer->confirmed,
+				viewer->slice);
 			AppendHistoryClientSideMessages(
 				history,
 				viewer->around,
-				&viewer->slice);
+				&viewer->slice,
+				confirmed);
 			const auto unresolvedCountOnly = viewer->slice.ids.empty()
 				&& !viewer->slice.skippedBefore
 				&& !viewer->slice.skippedAfter
@@ -504,6 +533,9 @@ rpl::producer<MessagesSlice> HistoryMessagesViewer(
 			return (event.newId.peer == history->peer->id);
 		}) | rpl::on_next([=](const Session::IdChange &event) {
 			const auto oldId = FullMsgId(event.newId.peer, event.oldId);
+			if (IsClientMsgId(event.oldId) && IsServerMsgId(event.newId.msg)) {
+				viewer->confirmed.emplace(event.newId);
+			}
 			if (viewer->around.fullId == oldId) {
 				viewer->around.fullId = event.newId;
 			}

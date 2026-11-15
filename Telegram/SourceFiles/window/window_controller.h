@@ -38,6 +38,8 @@ struct HighlightArgs;
 
 namespace Window {
 
+class Columns;
+
 class Controller final : public base::has_weak_ptr {
 public:
 	Controller();
@@ -61,11 +63,10 @@ public:
 	}
 	[[nodiscard]] auto sessionControllerValue() const
 		-> rpl::producer<SessionController*>;
-	[[nodiscard]] auto sessionControllerChanges() const
-		-> rpl::producer<SessionController*>;
 	[[nodiscard]] bool locked() const;
 
 	[[nodiscard]] Adaptive &adaptive() const;
+	[[nodiscard]] Columns &columns() const;
 
 	void firstShow();
 	void finishFirstShow();
@@ -101,6 +102,7 @@ public:
 	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 	bool closeLayerByBackButton();
 	[[nodiscard]] bool isLayerShown() const;
+	[[nodiscard]] rpl::producer<bool> layerShownValue() const;
 	[[nodiscard]] rpl::producer<bool> boxShownValue() const;
 
 	template <
@@ -184,6 +186,7 @@ private:
 	base::Timer _isActiveTimer;
 	::MainWindow _widget;
 	const std::unique_ptr<Adaptive> _adaptive;
+	const std::unique_ptr<Columns> _columns;
 	std::unique_ptr<SessionController> _sessionController;
 	rpl::variable<SessionController*> _sessionControllerValue;
 	base::weak_qptr<Ui::BoxContent> _termsBox;

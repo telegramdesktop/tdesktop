@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "ui/cached_round_corners.h"
-#include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style_radius.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/style/style_core_palette.h"
@@ -17,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_iv.h"
 #include "styles/style_basic.h"
 
+#include <memory>
 #include <vector>
 
 enum class ImageRoundRadius;
@@ -24,6 +24,10 @@ enum class ImageRoundRadius;
 namespace HistoryView {
 struct MessageSelection;
 } // namespace HistoryView
+
+namespace Iv {
+struct RichPage;
+} // namespace Iv
 
 namespace style {
 struct TwoIconButton;
@@ -192,17 +196,30 @@ struct BackgroundEmojiData {
 		uint8 colorIndexPlusOne);
 };
 
+struct ChatPaintRichQuote {
+	std::shared_ptr<const Iv::RichPage> page;
+	int from = 0;
+	int till = 0;
+
+	explicit operator bool() const {
+		return page && (from < till);
+	}
+};
+
 struct ChatPaintHighlight {
 	float64 opacity = 0.;
 	float64 collapsion = 0.;
 	TextSelection range;
 	int todoItemId = 0;
 	QByteArray pollOption;
+	ChatPaintRichQuote richQuote;
 };
 
 struct ChatPaintContext {
 	not_null<const ChatStyle*> st;
 	const BubblePattern *bubblesPattern = nullptr;
+	std::optional<QColor> bubblesPatternAverage;
+	std::optional<QColor> backgroundAverage;
 	ReactionPaintInfo *reactionInfo = nullptr;
 	QRect viewport;
 	QRect area;

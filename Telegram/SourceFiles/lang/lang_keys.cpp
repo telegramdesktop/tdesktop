@@ -137,25 +137,6 @@ QString langDayOfMonthShort(const QDate &date) {
 	});
 }
 
-QString langMonthOfYear(int month, int year) {
-	return (month > 0 && month <= 12)
-		? tr::lng_month_year(
-			tr::now,
-			lt_month,
-			MonthSmall(month)(tr::now),
-			lt_year,
-			QString::number(year))
-		: u"MONTH_ERR"_q;
-}
-
-QString langMonth(const QDate &date) {
-	return langDateMaybeWithYear(date, [](int month, int year) {
-		return langMonthOfYear(month, year);
-	}, [](int month, int year) {
-		return MonthSmall(month)(tr::now);
-	});
-}
-
 QString langMonthOfYearFull(int month, int year) {
 	return (month > 0 && month <= 12)
 		? tr::lng_month_year(

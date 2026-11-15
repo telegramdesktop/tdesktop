@@ -2,8 +2,10 @@
 
 layout(local_size_x = 64) in;
 
-layout(rgba32f, binding = 0) uniform image2D particleStateImage;
-layout(rgba32f, binding = 2) uniform image2D particleVelocityImage;
+// One texel per float: offset.x, offset.y, lifetime for the state and
+// x, y for the velocity, as only single-channel images load everywhere.
+layout(r32f, binding = 0) uniform image2D particleStateImage;
+layout(r32f, binding = 2) uniform image2D particleVelocityImage;
 
 layout(std140, binding = 1) uniform Params {
 	uint particleCountX;
@@ -40,9 +42,16 @@ void main() {
 	vec2 velocity = vec2(cos(direction) * speed, sin(direction) * speed);
 	float lifetime = 1.5 + hashFloat(s + 2u) * 1.5;
 
-	ivec2 coord = ivec2(
-		int(gid % particleCountX),
-		int(gid / particleCountX));
-	imageStore(particleStateImage, coord, vec4(0.0, 0.0, lifetime, 0.0));
-	imageStore(particleVelocityImage, coord, vec4(velocity, 0.0, 0.0));
+	int x = int(gid % particleCountX);
+	int y = int(gid / particleCountX);
+	ivec2 stateCoord = ivec2(x * 3, y);
+	ivec2 velocityCoord = ivec2(x * 2, y);
+	imageStore(particleStateImage, stateCoord, vec4(0.0));
+	imageStore(particleStateImage, stateCoord + ivec2(1, 0), vec4(0.0));
+	imageStore(particleStateImage, stateCoord + ivec2(2, 0), vec4(lifetime));
+	imageStore(particleVelocityImage, velocityCoord, vec4(velocity.x));
+	imageStore(
+		particleVelocityImage,
+		velocityCoord + ivec2(1, 0),
+		vec4(velocity.y));
 }

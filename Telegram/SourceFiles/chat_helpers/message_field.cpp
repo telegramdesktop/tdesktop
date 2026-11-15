@@ -1039,6 +1039,10 @@ void MessageLinksParser::setDisabled(bool disabled) {
 	_disabled = disabled;
 }
 
+bool MessageLinksParser::disabled() const {
+	return _disabled;
+}
+
 bool MessageLinksParser::eventFilter(QObject *object, QEvent *event) {
 	if (object == _field) {
 		if (event->type() == QEvent::KeyPress) {

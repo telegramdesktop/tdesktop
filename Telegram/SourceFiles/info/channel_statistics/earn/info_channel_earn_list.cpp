@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
 #include "boxes/peers/edit_peer_color_box.h" // AddLevelBadge.
-#include "chat_helpers/stickers_emoji_pack.h"
 #include "core/application.h"
 #include "core/ui_integration.h" // TextContext.
 #include "data/components/credits.h"
@@ -25,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "dialogs/ui/chat_search_empty.h"
 #include "history/view/controls/history_view_webpage_processor.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
@@ -180,22 +178,6 @@ void AddRecipient(not_null<Ui::GenericBox*> box, const TextWithEntities &t) {
 		});
 	});
 }
-
-#if 0
-[[nodiscard]] TextWithEntities EmojiCurrency(
-		not_null<Main::Session*> session) {
-	auto emoji = TextWithEntities{
-		.text = (QString(QChar(0xD83D)) + QChar(0xDC8E)),
-	};
-	if (const auto e = Ui::Emoji::Find(emoji.text)) {
-		const auto sticker = session->emojiStickersPack().stickerForEmoji(e);
-		if (sticker.document) {
-			emoji = Data::SingleCustomEmoji(sticker.document);
-		}
-	}
-	return emoji;
-}
-#endif
 
 [[nodiscard]] QString FormatDate(const QDateTime &date) {
 	return tr::lng_group_call_starts_short_date(

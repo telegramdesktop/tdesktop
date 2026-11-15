@@ -390,14 +390,6 @@ void Step::fillSentCodeData(const MTPDauth_sentCode &data) {
 	});
 }
 
-void Step::showDescription() {
-	_description->show(anim::type::normal);
-}
-
-void Step::hideDescription() {
-	_description->hide(anim::type::normal);
-}
-
 void Step::paintContentSnapshot(QPainter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
 	if (!snapshot.isNull()) {
 		const auto contentTop = anim::interpolate(

@@ -119,4 +119,8 @@ void DelegateImpl::ivSetZoom(int value) {
 	Core::App().saveSettingsDelayed();
 }
 
+void DelegateImpl::ivActivated(not_null<Ui::RpWindow*> window) {
+	Core::App().registerWindowActivation(window);
+}
+
 } // namespace Iv

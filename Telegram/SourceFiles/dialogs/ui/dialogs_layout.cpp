@@ -1024,10 +1024,7 @@ void PaintRow(
 			swipeTranslation,
 			geometry.height());
 		p.setClipRect(swipeActionRect);
-		const auto labelType = ResolveQuickDialogLabel(
-			history,
-			context.quickActionContext->action,
-			context.filter);
+		const auto labelType = context.quickActionContext->label;
 		p.fillRect(swipeActionRect, ResolveQuickActionBg(labelType));
 		if (context.quickActionContext->data.reachRatio) {
 			p.setPen(Qt::NoPen);
@@ -1063,11 +1060,7 @@ void PaintRow(
 	}
 	if (const auto quick = context.quickActionContext;
 			quick && quick->ripple && quick->rippleFg) {
-		const auto labelType = ResolveQuickDialogLabel(
-			history,
-			context.quickActionContext->action,
-			context.filter);
-		const auto ripple = ResolveQuickActionBg(labelType);
+		const auto ripple = ResolveQuickActionBg(quick->label);
 		const auto size = st::dialogsQuickActionRippleSize;
 		const auto x = geometry.width() - size;
 		quick->ripple->paint(p, x, 0, size, &ripple->c);
@@ -1405,6 +1398,12 @@ QRect RowPainter::SendActionAnimationRect(
 		height);
 }
 
+int CollapsedRowTextBaseline() {
+	return (st::dialogsImportantBarHeight - st::dialogsUnreadHeight) / 2
+		+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
+		+ st::dialogsUnreadFont->ascent;
+}
+
 void PaintCollapsedRow(
 		Painter &p,
 		const BasicRow &row,
@@ -1423,9 +1422,7 @@ void PaintCollapsedRow(
 		p.setFont(st::semiboldFont);
 		p.setPen(st::dialogsNameFg);
 
-		const auto textBaseline = unreadTop
-			+ (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2
-			+ st::dialogsUnreadFont->ascent;
+		const auto textBaseline = CollapsedRowTextBaseline();
 		const auto left = context.narrow
 			? ((context.width - st::semiboldFont->width(text)) / 2)
 			: st::dialogsTopBarLeftPadding;

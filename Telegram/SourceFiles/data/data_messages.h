@@ -117,7 +117,6 @@ public:
 		MessagesRange noSkipRange,
 		std::optional<int> count);
 	void removeOne(MessagePosition messageId);
-	void removeLessThan(MessagePosition messageId);
 	void invalidate();
 	void invalidateBottom();
 	[[nodiscard]] rpl::producer<MessagesResult> query(

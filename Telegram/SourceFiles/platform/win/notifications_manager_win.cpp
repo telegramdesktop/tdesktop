@@ -277,19 +277,81 @@ bool FocusAssistBlocks = false;
 
 // Thanks https://www.withinrafael.com/2019/09/19/determine-if-your-app-is-in-a-focus-assist-profiles-priority-list/
 void QueryFocusAssist() {
+	static auto unavailable = false;
+	if (unavailable) {
+		return;
+	}
+	auto error = HRESULT();
 	const auto quietHoursSettings = base::WinRT::TryCreateInstance<
 		IQuietHoursSettings
-	>(CLSID_QuietHoursSettings, CLSCTX_LOCAL_SERVER);
+	>(CLSID_QuietHoursSettings, CLSCTX_LOCAL_SERVER, nullptr, &error);
 	if (!quietHoursSettings) {
+		if (error == REGDB_E_CLASSNOTREG) {
+			unavailable = true;
+			LOG(("Focus Assist: Class not registered, "
+				"disabling queries until restart."));
+		}
+		if (FocusAssistBlocks) {
+			LOG(("Focus Assist: Unavailable."));
+			FocusAssistBlocks = false;
+		}
 		return;
 	}
 
-	auto profileId = base::CoTaskMemString();
-	auto hr = quietHoursSettings->get_UserSelectedProfile(profileId.put());
-	if (FAILED(hr) || !profileId) {
+	// On Windows 11 UserSelectedProfile stays unrestricted while Focus
+	// sessions, Do Not Disturb or automatic rules are active, so check
+	// ActiveProfile and the active quiet moment profile as well and use
+	// the most restrictive of them.
+	auto active = base::CoTaskMemString();
+	auto moment = base::CoTaskMemString();
+	auto selected = base::CoTaskMemString();
+	const auto valid = [](const base::CoTaskMemString &id) {
+		return id && *id.data();
+	};
+	const auto restrictiveness = [](const QString &name) {
+		return name.endsWith(".alarmsonly", Qt::CaseInsensitive)
+			? 2
+			: name.endsWith(".priorityonly", Qt::CaseInsensitive)
+			? 1
+			: 0;
+	};
+	auto profileId = LPWSTR();
+	auto profileName = QString();
+	const auto consider = [&](const base::CoTaskMemString &id) {
+		if (!valid(id)) {
+			return;
+		}
+		const auto name = QString::fromWCharArray(id.data());
+		if (!profileId
+			|| restrictiveness(name) > restrictiveness(profileName)) {
+			profileId = id.data();
+			profileName = name;
+		}
+	};
+	if (SUCCEEDED(quietHoursSettings->get_ActiveProfile(active.put()))) {
+		consider(active);
+	}
+	com_ptr<IQuietMomentsManager> moments;
+	auto momentId = UINT32();
+	if (SUCCEEDED(quietHoursSettings->get_QuietMomentsManager(moments.put()))
+		&& moments
+		&& SUCCEEDED(moments->GetActiveQuietMoment(&momentId))
+		&& momentId != 0
+		&& SUCCEEDED(quietHoursSettings->get_ActiveQuietMomentProfile(
+			moment.put()))) {
+		consider(moment);
+	}
+	if (SUCCEEDED(quietHoursSettings->get_UserSelectedProfile(
+			selected.put()))) {
+		consider(selected);
+	}
+	if (!profileId) {
+		if (FocusAssistBlocks) {
+			LOG(("Focus Assist: No profile."));
+			FocusAssistBlocks = false;
+		}
 		return;
 	}
-	const auto profileName = QString::fromWCharArray(profileId.data());
 	if (profileName.endsWith(".alarmsonly", Qt::CaseInsensitive)) {
 		if (!FocusAssistBlocks) {
 			LOG(("Focus Assist: Alarms Only."));
@@ -320,7 +382,7 @@ void QueryFocusAssist() {
 	});
 
 	com_ptr<IQuietHoursProfile> profile;
-	hr = quietHoursSettings->GetProfile(profileId.data(), profile.put());
+	auto hr = quietHoursSettings->GetProfile(profileId, profile.put());
 	if (FAILED(hr) || !profile) {
 		return;
 	}
@@ -510,12 +572,7 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 		return;
 	}
 
-	auto i = _notifications.find(ContextId{
-		.sessionId = item->history()->session().uniqueId(),
-		.peerId = item->history()->peer->id,
-		.topicRootId = item->topicRootId(),
-		.monoforumPeerId = item->sublistPeerId(),
-	});
+	auto i = _notifications.find(ItemContextId(item));
 	if (i == _notifications.cend()) {
 		return;
 	}
@@ -557,11 +614,7 @@ void Manager::Private::clearFromSublist(
 		return;
 	}
 
-	const auto i = _notifications.find(ContextId{
-		.sessionId = sublist->session().uniqueId(),
-		.peerId = sublist->owningHistory()->peer->id,
-		.monoforumPeerId = sublist->sublistPeer()->id,
-	});
+	const auto i = _notifications.find(SublistContextId(sublist));
 	if (i != _notifications.cend()) {
 		const auto temp = base::take(i->second);
 		_notifications.erase(i);

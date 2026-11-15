@@ -31,11 +31,21 @@ replacements. When retained implementation exists, start the checkout-owned
 carrier first so the helper transfers its sealed source state; do not reset or
 checkpoint that work.
 
+Switch branches in this parent scheduler with the shared
+`workspace.py project-switch --project <slug> --task <id>` before each task's
+Start, Retry, or resume, as the shared skill's "Switch to the project branch"
+describes, including its base refresh of a stale branch; the owner never
+checks a branch out by hand. When it refuses
+uncommitted changes of unknown origin before any task of this run has started,
+ask the owner with `AskUserQuestion` what to do with them.
+
 Apply the shared source-lineage gate in this parent scheduler. Before batch
-freeze, a missing approved prerequisite pauses through `AskUserQuestion` after
-the exact branch and compatible-branch report. After freeze but before Phase 1,
-the parent may make only the shared safe switch to an existing compatible local
-branch and then resume the returned performer. After Phase 1, let the performer
+freeze, a task missing an approved prerequisite stays out of the batch, with
+the exact branch report in the run's report. A task of a project whose gate
+fails after its switch waits for a later invocation. For a legacy task without
+a project, after freeze but before Phase 1, the parent may make the shared safe
+switch to an existing compatible non-project local branch and then resume the
+returned performer. After Phase 1, let the performer
 publish a task-local Block and continue non-dependent batch work. Never create,
 route, or execute branch-integration work as a queue task.
 
@@ -55,9 +65,11 @@ skill or reference. Use the Agent tool for those workers; do not start Claude
 subprocesses through Bash.
 
 Decide the review provider once at startup, per the adapter's review and
-assessment provider: `native` when the arguments ask not to use Codex,
-otherwise `codex`. Put `Review provider: <codex|native>` in every performer
-prompt. A Codex opt-out is not a batch specification.
+assessment provider: `native` when the arguments ask for the host's own model
+("use your model for review") or not to use Codex, `codex-default` when they
+ask for it ("use codex-default for review"), otherwise `codex`. Put `Review
+provider: <codex|codex-default|native>` in every performer prompt. A review
+provider choice is not a batch specification.
 
 The arguments are the batch specification. They always restrict the batch to
 the tasks they select; ordering words only order those tasks:

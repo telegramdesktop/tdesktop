@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/timer.h"
 #include "data/data_messages.h"
+#include "dialogs/dialogs_archive_slide.h"
+#include "dialogs/dialogs_removed_row_slide.h"
 #include "dialogs/ui/dialogs_quick_action_context.h"
 #include "dialogs/dialogs_community_rows_view.h"
 #include "dialogs/dialogs_inner_widget_accessibility.h"
@@ -151,6 +153,7 @@ public:
 	void switchToFilter(FilterId filterId);
 
 	void clearSelection();
+	[[nodiscard]] bool hasSelection() const;
 
 	void changeOpenedFolder(Data::Folder *folder);
 	void changeOpenedForum(Data::Forum *forum);
@@ -186,7 +189,6 @@ public:
 
 	[[nodiscard]] Data::Folder *shownFolder() const;
 	[[nodiscard]] Data::Forum *shownForum() const;
-	[[nodiscard]] Data::CommunityInfo *shownCommunity() const;
 
 	[[nodiscard]] WidgetState state() const;
 	[[nodiscard]] not_null<const style::DialogRow*> st() const {
@@ -206,6 +208,8 @@ public:
 
 	void setLoadMoreCallback(Fn<void()> callback);
 	void setLoadMoreFilteredCallback(Fn<void()> callback);
+	void setSearchResultsOnly(Fn<QString(int count)> title);
+	void setDeselectOnTopUp(bool value);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
 	[[nodiscard]] auto changeSearchTabRequests() const
 		-> rpl::producer<ChatSearchTab>;
@@ -342,7 +346,6 @@ private:
 	void repaintCollapsedFolderRow(not_null<Data::Folder*> folder);
 	void refreshWithCollapsedRows(bool toTop = false);
 	bool needCollapsedRowsRefresh() const;
-	bool chooseCollapsedRow(Qt::KeyboardModifiers modifiers);
 	bool chooseHashtag();
 	ChosenRow computeChosenRow() const;
 	bool isRowActive(not_null<Row*> row, const RowDescriptor &entry) const;
@@ -355,6 +358,7 @@ private:
 	void refreshDialogRow(RowDescriptor row);
 	bool updateEntryHeight(not_null<Entry*> entry);
 	void showSponsoredMenu(int peerSearchIndex, QPoint globalPos);
+	void closeMenuForRemovedRow();
 
 	void clearMouseSelection(bool clearSelection = false);
 	void deselectAllRows();
@@ -433,7 +437,6 @@ private:
 		CachedRow &cached,
 		const Ui::PaintContext &context);
 
-	bool addBotAppRipple(QPoint origin, Fn<void()> updateCallback);
 	bool addQuickActionRipple(not_null<Row*> row, Fn<void()> updateCallback);
 
 	bool addRightButtonRipple(QPoint origin, Fn<void()> updateCallback);
@@ -466,12 +469,18 @@ private:
 		QRect updateRect = QRect(),
 		UpdateRowSections sections = UpdateRowSection::All);
 	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
+	void fillSearchResultMenu(
+		not_null<Ui::PopupMenu*> menu,
+		FullMsgId itemId);
 
 	void refreshShownList();
 	void rebuildCommunitySections();
 	void updateCommunityRequestableGeometry();
 	void setCommunityPressed(int pressed);
 	[[nodiscard]] int skipTopHeight() const;
+	[[nodiscard]] int archiveBandHeight() const;
+	void refreshWithArchiveSlide();
+	void prepareRemovedRowSlide(not_null<Row*> row);
 	[[nodiscard]] int collapsedRowsOffset() const;
 	[[nodiscard]] int dialogsOffset() const;
 	[[nodiscard]] int shownHeight(int till = -1) const;
@@ -661,6 +670,14 @@ private:
 		_cachedRows.clear();
 		update();
 	}};
+	ArchiveSlide _archiveSlide{[this] {
+		_rowsScrollCache.markScrolling();
+		update(0, _visibleTop, width(), _visibleBottom - _visibleTop);
+	}};
+	RemovedRowSlide _removedRowSlide{[this] {
+		_rowsScrollCache.markScrolling();
+		update(0, _visibleTop, width(), _visibleBottom - _visibleTop);
+	}};
 	bool _selectedChatTypeFilter = false;
 	bool _pressedChatTypeFilter = false;
 	bool _selectedMorePosts = false;
@@ -676,7 +693,6 @@ private:
 	bool _pressedTopicJump = false;
 
 	RightButton *_pressedRightButtonData = nullptr;
-	bool _pressedRightButtonSponsored = false;
 	bool _selectedRightButton = false;
 	bool _pressedRightButton = false;
 
@@ -789,6 +805,8 @@ private:
 
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
+	Fn<QString(int count)> _searchResultsOnlyTitle;
+	bool _deselectOnTopUp = false;
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
 	rpl::event_stream<> _updated;

@@ -213,11 +213,6 @@ base::weak_qptr<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
 	Fn<void()> &&successCallback = nullptr);
-base::weak_qptr<Ui::BoxContent> ShowShareUrlBox(
-	not_null<Window::SessionNavigation*> navigation,
-	const QString &url,
-	const QString &text,
-	FnMut<void()> &&successCallback = nullptr);
 base::weak_qptr<Ui::BoxContent> ShowShareGameBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<UserData*> bot,

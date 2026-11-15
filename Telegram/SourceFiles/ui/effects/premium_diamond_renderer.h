@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rhi/rhi_renderer.h"
 #include "ui/gl/gl_surface.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 class QRhi;
 class QRhiBuffer;
@@ -33,7 +33,6 @@ public:
 		float pitch = 0.f;
 		float time = 0.f;
 		float alpha = 1.f;
-		bool night = false;
 	};
 	void setState(State state);
 
@@ -56,35 +55,49 @@ public:
 	}
 
 private:
-	static constexpr auto kShellCount = 3;
-	static constexpr auto kDrawCount = 5;
-
-	struct DrawSlot {
-		int shell = 0;
-		bool behind = false;
+	enum Mesh {
+		kBodyMesh,
+		kMainSparkleMesh,
+		kSmallSparkleMesh,
+		kMeshCount,
 	};
-	static constexpr std::array<DrawSlot, kDrawCount> kDrawSlots = { {
-		{ 0, true },
-		{ 1, true },
-		{ 2, false },
-		{ 1, false },
-		{ 0, false },
-	} };
+	static constexpr auto kSparkleDraws = 2;
+
+	struct Data {
+		std::array<std::vector<float>, kMeshCount> meshes;
+		std::vector<float> frames;
+		std::vector<float> planes;
+		std::vector<float> anchors;
+		std::vector<float> widths;
+		std::vector<float> facetProjection;
+		std::vector<float> camera;
+	};
+	[[nodiscard]] static Data LoadData();
 
 	[[nodiscard]] bool createPipelines(QRhiRenderTarget *rt);
+	[[nodiscard]] float horizontalScale(float yaw, float pitch) const;
+	void updateRotationRate(float yaw, float pitch);
 
 	QRhi *_rhi = nullptr;
 
-	std::array<QRhiBuffer*, kShellCount> _vertexBuffers = { {} };
-	std::array<int, kShellCount> _vertexCounts = { {} };
-	QRhiBuffer *_sharedUniform = nullptr;
-	QRhiBuffer *_drawUniform = nullptr;
-	quint32 _drawStride = 0;
-	std::array<QRhiShaderResourceBindings*, kDrawCount> _srb = { {} };
-	QRhiGraphicsPipeline *_behindPipeline = nullptr;
-	QRhiGraphicsPipeline *_frontPipeline = nullptr;
+	Data _data;
+	std::array<QRhiBuffer*, kMeshCount> _vertexBuffers = { {} };
+	std::array<int, kMeshCount> _vertexCounts = { {} };
+	QRhiBuffer *_uniforms = nullptr;
+	QRhiBuffer *_sparkleDraws = nullptr;
+	quint32 _sparkleDrawStride = 0;
+	QRhiShaderResourceBindings *_bodySrb = nullptr;
+	std::array<QRhiShaderResourceBindings*, kSparkleDraws> _sparkleSrb
+		= { {} };
+	QRhiGraphicsPipeline *_bodyPipeline = nullptr;
+	QRhiGraphicsPipeline *_sparklePipeline = nullptr;
 
 	State _state;
+	float _lastTime = 0.f;
+	float _lastYaw = 0.f;
+	float _lastPitch = 0.f;
+	float _rotationRate = 0.f;
+	bool _hasLast = false;
 
 	bool _initialized = false;
 	bool _creationFailed = false;
@@ -93,4 +106,4 @@ private:
 
 } // namespace Ui::Premium
 
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API

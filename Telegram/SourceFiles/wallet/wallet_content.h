@@ -14,6 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class UserData;
 
+namespace style {
+struct FlatLabel;
+} // namespace style
+
+namespace Data {
+struct UniqueGift;
+} // namespace Data
+
 namespace Main {
 class Session;
 class SessionShow;
@@ -34,8 +42,10 @@ struct MenuCallback;
 
 namespace Wallet {
 
+struct CardLook;
 class CommentScope;
 class CollectibleMedia;
+class WindowPalette;
 struct KeyAuthorization;
 struct TransferItem;
 enum class SendError;
@@ -73,12 +83,22 @@ bool ShowFirstGramsIfPending(std::shared_ptr<Main::SessionShow> show);
 
 [[nodiscard]] base::unique_qptr<Ui::RpWidget> CreateContent(
 	not_null<Ui::SeparatePanel*> panel,
-	std::shared_ptr<Main::SessionShow> show);
+	std::shared_ptr<Main::SessionShow> show,
+	const std::shared_ptr<WindowPalette> &palette);
+
+struct WalletCardArgs {
+	rpl::producer<TextWithEntities> name;
+	rpl::producer<QString> address;
+	rpl::producer<int64> balanceNano;
+	rpl::producer<QString> fiat;
+	rpl::producer<CardLook> look;
+};
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeWalletCard(
 	QWidget *parent,
 	std::shared_ptr<Main::SessionShow> show,
-	std::shared_ptr<bool> markPlayed);
+	std::shared_ptr<bool> markPlayed,
+	WalletCardArgs args = {});
 
 struct TransferCardArgs {
 	int64 totalNano = 0;
@@ -126,7 +146,17 @@ struct ActionRowArgs {
 [[nodiscard]] object_ptr<Ui::FlatLabel> AddressValueLabel(
 	not_null<QWidget*> parent,
 	std::shared_ptr<Ui::Show> show,
-	const QString &address);
+	const QString &address,
+	const style::FlatLabel *styleOverride = nullptr);
+
+// The address in groups of four on a rounded plate, a spinner until known.
+void AddAddressPlate(
+	not_null<Ui::VerticalLayout*> container,
+	rpl::producer<QString> address,
+	const style::margins &margin,
+	int groupsPerLine,
+	std::shared_ptr<Ui::Show> show = nullptr,
+	rpl::producer<bool> spinnerAllowed = rpl::single(true));
 
 [[nodiscard]] object_ptr<Ui::RpWidget> MakeCommentBubble(
 	not_null<QWidget*> parent,
@@ -158,11 +188,20 @@ void ShowSendToUser(
 	Fn<void()> notReady = nullptr,
 	base::weak_qptr<Ui::BoxContent> origin = nullptr);
 
+struct CollectibleTransfer {
+	QString address;
+	QString slug;
+	std::shared_ptr<Data::UniqueGift> unique;
+	std::shared_ptr<CollectibleMedia> media;
+};
+
 // The recipient step and the confirmation of a collectible's Transfer.
 void ShowCollectibleTransfer(
 	std::shared_ptr<Main::SessionShow> show,
 	std::shared_ptr<CollectibleMedia> media,
-	const QString &collectible);
+	const QString &collectible,
+	const QString &slug = QString(),
+	std::shared_ptr<Data::UniqueGift> unique = nullptr);
 
 void ShowSendToLinkRecipient(
 	std::shared_ptr<Main::SessionShow> show,
@@ -189,6 +228,7 @@ void ShowWalletConflict(
 
 [[nodiscard]] QString SendErrorText(SendError error, int64 minTransferNano);
 void ShowWalletKeyChanged(std::shared_ptr<Main::SessionShow> show);
+void ShowWalletHowItWorks(std::shared_ptr<Main::SessionShow> show);
 
 // The message, then the error type a real user's report should carry.
 [[nodiscard]] QString ErrorWithType(

@@ -1142,7 +1142,8 @@ void StickersListFooter::refreshIconsGeometry(
 	_iconState.animation.stop();
 	if (_icons.size() > 1
 		&& _icons[1].setId == EmojiSectionSetId(EmojiSection::People)) {
-		_singleWidth = (width() - _iconsLeft - _iconsRight) / _icons.size();
+		_singleWidth = (width() - _iconsLeft - _iconsRight)
+			/ int(_icons.size());
 	} else {
 		_singleWidth = st().iconWidth;
 	}
@@ -1310,7 +1311,7 @@ void StickersListFooter::paintSetIcon(
 			p.translate(-center);
 		}
 	}
-	if (icon.sticker) {
+	if (icon.sticker || icon.premiumRequired) {
 		prepareSetIcon(context, info, now, paused);
 		p.drawImage(info.adjustedLeft, _iconsTop, _setIconCache);
 	} else {
@@ -1335,19 +1336,37 @@ void StickersListFooter::prepareSetIcon(
 	_setIconCache.fill(Qt::transparent);
 	auto p = Painter(&_setIconCache);
 	paintSetIconToCache(p, context, info, now, paused);
-	if (!_icons[info.index].sticker) {
-		return;
-	}
-	// Rounding the corners.
+	const auto &icon = _icons[info.index];
 	auto hq = PainterHighQualityEnabler(p);
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.setBrush(Qt::NoBrush);
-	auto pen = QPen(Qt::transparent);
-	pen.setWidth(style::ConvertScaleExact(4.));
-	p.setPen(pen);
 	const auto area = st().iconArea;
 	auto rect = QRect(_areaPosition, QSize(area, area));
-	p.drawRoundedRect(rect, st::emojiPanRadius, st::emojiPanRadius);
+	if (icon.sticker) {
+		// Rounding the corners.
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.setBrush(Qt::NoBrush);
+		auto pen = QPen(Qt::transparent);
+		pen.setWidth(style::ConvertScaleExact(4.));
+		p.setPen(pen);
+		p.drawRoundedRect(rect, st::emojiPanRadius, st::emojiPanRadius);
+	}
+	if (!icon.premiumRequired) {
+		return;
+	}
+	const auto &lock = st::emojiPremiumLock;
+	const auto size = std::max(lock.width(), lock.height())
+		+ 2 * st::lineWidth;
+	const auto badge = QRect(
+		rect.x() + (rtl() ? 0 : rect.width() - size),
+		rect.y() + rect.height() - size,
+		size,
+		size);
+	// The lock is cut through the icon, so it shows the panel behind.
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st().headerFg);
+	p.drawEllipse(badge);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationOut);
+	lock.paintInCenter(p, badge);
 }
 
 void StickersListFooter::paintSetIconToCache(

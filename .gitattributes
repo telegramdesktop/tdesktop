@@ -10,3 +10,6 @@ Telegram/Resources/zxcvbn/*.txt text eol=lf
 
 # Ensure lottie animations are treated as binary files
 *.lottie binary
+
+# Raw float tables, such as the 3D diamond model data
+*.bin binary

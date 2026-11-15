@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-// e is NSEvent*
-bool objc_handleMediaKeyEvent(void *e);
-
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);
 

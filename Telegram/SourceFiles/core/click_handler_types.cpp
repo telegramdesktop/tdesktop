@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "inline_bots/bot_attach_web_view.h"
+#include "iv/iv_instance.h"
 #include "data/data_game.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
@@ -55,6 +56,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
+
+[[nodiscard]] QString TranslatedUrl(tr::phrase<> phrase) {
+	const auto url = phrase(tr::now);
+	const auto parsed = QUrl(url, QUrl::StrictMode);
+	const auto scheme = parsed.scheme();
+	return (parsed.isValid()
+		&& !parsed.host().isEmpty()
+		&& (scheme == u"http"_q || scheme == u"https"_q))
+		? url
+		: Lang::GetOriginalValue(phrase.base);
+}
 
 // QUrl keeps punycode for hosts outside its IDN whitelist.
 [[nodiscard]] QString DisplayUrlWithUnicodeHost(const QUrl &url) {
@@ -193,7 +205,9 @@ constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
 [[nodiscard]] bool HiddenUrlRequiresConfirmation(
 		const QUrl &url,
 		const ClickHandlerContext &my) {
-	return !HostInDomains(url.host(), WhitelistedDomains(my))
+	const auto scheme = url.scheme().toLower();
+	return (scheme != u"https"_q && scheme != u"http"_q)
+		|| !HostInDomains(url.host(), WhitelistedDomains(my))
 		|| IsTelegramShortLinkHost(url);
 }
 
@@ -263,7 +277,9 @@ constexpr auto kReminderSetToastDuration = 4 * crl::time(1000);
 
 [[nodiscard]] bool RequiresConfirmationAfterIvFallback(const QUrl &url) {
 	const auto host = url.host().toLower();
-	return (host == u"telegra.ph"_q) || (host == u"te.legra.ph"_q);
+	return (host == u"telegra.ph"_q)
+		|| (host == u"te.legra.ph"_q)
+		|| (host == u"graph.org"_q);
 }
 
 // Possible context owners: media viewer, profile, history widget.
@@ -409,7 +425,7 @@ QString UrlWithoutWebAuthTokens(const QString &url) {
 		host.chop(1);
 	}
 	// Stripping a foreign token is always safe, so check the widest list.
-	if (host.isEmpty() || !HostInAnyWhitelist(host)) {
+	if (!host.isEmpty() && !HostInAnyWhitelist(host)) {
 		return url;
 	}
 	const auto query = WithoutWebAuthTokenParams(
@@ -464,6 +480,30 @@ QString HiddenUrlClickHandler::dragText() const {
 	return result.startsWith(u"internal:"_q) ? QString() : result;
 }
 
+void HiddenUrlClickHandler::OpenTranslated(
+		tr::phrase<> phrase,
+		QVariant context) {
+	Open(TranslatedUrl(phrase), std::move(context));
+}
+
+void HiddenUrlClickHandler::OpenTranslatedWithIv(
+		not_null<Main::Session*> session,
+		tr::phrase<> phrase,
+		QVariant context) {
+	const auto url = TranslatedUrl(phrase);
+	const auto parsed = QUrl(url);
+	auto my = context.value<ClickHandlerContext>();
+	my.forceExternalUrlConfirmation = my.forceExternalUrlConfirmation
+		|| (!base::IsCtrlPressed()
+			&& (UrlRequiresConfirmation(session, parsed)
+				|| IsTelegramShortLinkHost(parsed)
+				|| RequiresConfirmationAfterIvFallback(parsed)));
+	Core::App().iv().openWithIvPreferred(
+		session,
+		url,
+		QVariant::fromValue(my));
+}
+
 void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	if (const auto external = UrlClickHandler::ExternalUrlFromInternalUrl(url);
 			!external.isEmpty()) {
@@ -482,10 +522,27 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 			return result;
 		}()));
 	} else {
-		const auto parsedUrl = url.startsWith(u"tonsite://"_q)
-			? QUrl(url)
-			: QUrl::fromUserInput(url);
 		auto my = context.value<ClickHandlerContext>();
+		const auto isEmail = UrlClickHandler::IsEmail(url);
+		const auto external = QUrl(url);
+		const auto parsedUrl = external.scheme().isEmpty()
+			? QUrl::fromUserInput(url)
+			: external;
+		if (!isEmail
+			&& (!external.isValid()
+				|| !parsedUrl.isValid()
+				|| parsedUrl.isLocalFile()
+				|| !File::IsUrlSchemeAllowed(parsedUrl.scheme()))) {
+			if (my.show) {
+				my.show->showToast(tr::lng_open_link_unsupported(tr::now));
+			} else {
+				File::ShowUnsupportedUrl();
+			}
+			return;
+		}
+		if (!isEmail) {
+			url = QString::fromUtf8(parsedUrl.toEncoded());
+		}
 		auto openContext = context;
 		const auto forceConfirmation = my.forceExternalUrlConfirmation
 			&& my.ignoreIv;
@@ -627,7 +684,10 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 		: nullptr;
 	const auto media = item ? item->media() : nullptr;
 	const auto game = media ? media->game() : nullptr;
-	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive) || !_bot || !game) {
+	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)
+		|| Core::IsGetPremiumLocalUrl(url)
+		|| !_bot
+		|| !game) {
 		openLink();
 		return;
 	}
@@ -692,7 +752,7 @@ void MentionClickHandler::onClick(ClickContext context) const {
 			: Core::App().activeWindow()
 			? Core::App().activeWindow()->sessionController()
 			: nullptr;
-		if (use) {
+		if (use && !Wallet::OpenWalletInsteadOfOldBot(use, _tag.mid(1))) {
 			use->showPeerByLink(Window::PeerByLinkInfo{
 				.usernameOrId = _tag.mid(1),
 				.resolveType = Window::ResolveType::Mention,
@@ -888,8 +948,7 @@ void FormattedDateClickHandler::onClick(ClickContext context) const {
 			tr::lng_context_set_reminder(tr::now),
 			[date, itemId, show] {
 				const auto session = &show->session();
-				const auto item = session->data().message(itemId);
-				if (!item) {
+				if (!session->data().message(itemId)) {
 					return;
 				}
 				const auto self = session->user();
@@ -903,6 +962,10 @@ void FormattedDateClickHandler::onClick(ClickContext context) const {
 					show,
 					SendMenu::Details{ .type = SendMenu::Type::Reminder },
 					[=](Api::SendOptions options) {
+						const auto item = session->data().message(itemId);
+						if (!item) {
+							return;
+						}
 						auto action = Api::SendAction(history, options);
 						action.clearDraft = false;
 						action.generateLocal = false;

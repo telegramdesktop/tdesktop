@@ -184,8 +184,9 @@ void RecordingInfo::prepareVideo() {
 
 	wrap->sizeValue(
 	) | rpl::on_next([=](const QSize &size) {
-		const auto wHalf = size.width() / icons.size();
-		for (auto i = 0; i < icons.size(); i++) {
+		const auto count = int(icons.size());
+		const auto wHalf = size.width() / count;
+		for (auto i = 0; i != count; ++i) {
 			const auto &icon = icons[i];
 			icon->moveToLeft(
 				wHalf * i + (wHalf - icon->width()) / 2,

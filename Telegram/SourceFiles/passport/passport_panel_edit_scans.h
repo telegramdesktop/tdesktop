@@ -122,10 +122,6 @@ private:
 		SpecialScan &scan,
 		const ScanInfo &info,
 		bool requiresBothSides);
-	base::unique_qptr<Ui::SlideWrap<ScanButton>> createScan(
-		not_null<Ui::VerticalLayout*> parent,
-		const ScanInfo &info,
-		const QString &name);
 	SpecialScan &findSpecialScan(FileType type);
 
 	void updateErrorLabels();

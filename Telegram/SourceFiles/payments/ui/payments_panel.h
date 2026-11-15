@@ -122,7 +122,6 @@ private:
 	[[nodiscard]] bool progressWithBackground() const;
 	[[nodiscard]] QRect progressRect() const;
 	void setupProgressGeometry();
-	void updateFooterHeight();
 
 	const not_null<PanelDelegate*> _delegate;
 	std::unique_ptr<SeparatePanel> _widget;

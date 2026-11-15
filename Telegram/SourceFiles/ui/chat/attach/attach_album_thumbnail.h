@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_controls.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/round_checkbox.h"
 #include "ui/grouped_layout.h"
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
@@ -42,6 +43,11 @@ public:
 	void resetLayoutAnimation();
 
 	void setSpoiler(bool spoiler);
+	void setSelected(
+		bool selected,
+		anim::type animated = anim::type::normal);
+	[[nodiscard]] bool selected() const;
+	[[nodiscard]] bool selectable() const;
 	void setCaption(const TextWithTags &caption);
 	[[nodiscard]] bool hasSpoiler() const;
 
@@ -134,6 +140,8 @@ private:
 	QImage _cornerCache;
 	Fn<void()> _repaint;
 	Fn<void(QRect)> _repaintRect;
+	RoundCheckbox _selectCheck;
+	const bool _selectable = false;
 
 	QRect _lastRectOfModify;
 	QRect _lastRectOfButtons;

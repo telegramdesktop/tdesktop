@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class QGraphicsScene;
 class QGraphicsTextItem;
+class QTextDocument;
 
 namespace Editor {
 
@@ -49,6 +50,10 @@ private:
 	void setEditingState(bool editing, bool notify = true);
 	void firePrefs();
 	void applyAutoShrink();
+	int adjustProxyWidth(
+		QGraphicsTextItem *proxy,
+		QTextDocument *emojiDoc,
+		bool flipped);
 	[[nodiscard]] int sessionMaxTextWidth() const;
 	[[nodiscard]] int sessionMinTextWidth() const;
 	[[nodiscard]] int sessionWrapWidth() const;

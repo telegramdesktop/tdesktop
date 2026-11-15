@@ -37,7 +37,6 @@ EditContactScheme GetContactScheme(Scope::Type type);
 
 const std::map<QString, QString> &LatinToNativeMap();
 const std::map<QString, QString> &NativeToLatinMap();
-QString AdjustKeyName(not_null<const Value*> value, const QString &key);
 bool SkipFieldCheck(not_null<const Value*> value, const QString &key);
 
 struct ScanInfo {

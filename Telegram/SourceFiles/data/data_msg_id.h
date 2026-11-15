@@ -12,9 +12,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_id.h"
 #include "ui/text/text_entity.h"
 
+#include <memory>
+
 #ifdef _DEBUG
 #include <QtCore/QDebug>
 #endif // _DEBUG
+
+namespace Iv {
+struct RichQuote;
+} // namespace Iv
 
 struct MsgId {
 	constexpr MsgId() noexcept = default;
@@ -183,9 +189,13 @@ struct MessageHighlightId {
 	int quoteOffset = 0;
 	int todoItemId = 0;
 	QByteArray pollOption;
+	std::shared_ptr<const Iv::RichQuote> richQuote;
 
 	[[nodiscard]] bool empty() const {
-		return quote.empty() && !todoItemId && pollOption.isEmpty();
+		return quote.empty()
+			&& !todoItemId
+			&& pollOption.isEmpty()
+			&& !richQuote;
 	}
 	[[nodiscard]] friend inline bool operator==(
 		const MessageHighlightId &a,
@@ -201,9 +211,10 @@ struct FullReplyTo {
 	int quoteOffset = 0;
 	int todoItemId = 0;
 	QByteArray pollOption;
+	std::shared_ptr<const Iv::RichQuote> richQuote;
 
 	[[nodiscard]] MessageHighlightId highlight() const {
-		return { quote, quoteOffset, todoItemId, pollOption };
+		return { quote, quoteOffset, todoItemId, pollOption, richQuote };
 	}
 	[[nodiscard]] bool replying() const {
 		return messageId || (storyId && storyId.peer);

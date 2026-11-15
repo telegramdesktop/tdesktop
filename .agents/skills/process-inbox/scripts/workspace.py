@@ -43,6 +43,8 @@ COMMIT_HASH_PATTERN = re.compile(
 )
 LEGACY_COMMIT_FIELDS = ("Task-Base-SHA:", "Implementation-SHA:")
 PROJECT_ARCHIVE_DIR = "archive"
+BATCHES_DIR = "batches"
+FINISHED_BATCH_STATUSES = {"approved", "superseded", "split", "retired"}
 PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./(?!\.\./)")
 ARCHIVED_PROJECT_LINK_PATTERN = re.compile(r"\]\(\.\./\.\./\.\./")
 STATE_FIELD_ORDER = [
@@ -73,7 +75,15 @@ TEST_COMPLETE_MARKER = "TEST_COMPLETE"
 STALE_CRASH_DIR = "stale-crash"
 CRASHPAD_COMPLETED_DIR = "completed"
 CONSOLE_COMMAND_TIMEOUT = 2.0
+MIRROR_REMOTE = "private"
+MIRROR_BRANCH_PREFIX = "ai-"
+MIRROR_PUSH_TIMEOUT = 120.0
 WAIT_IDLE_MAX_DEFAULT = 600.0
+# Test::SaveImage's grammar: Telegram/SourceFiles/test/docs/helpers/test_capture.md
+SCREENSHOT_MARKER_PATTERN = re.compile(
+	r'"(?:[^"\\]|\\[\\"]|\\u(?:000[ABCD]|001[CDE]|0085|202[89]))*"'
+)
+SCREENSHOT_ESCAPE_PATTERN = re.compile(r"\\(u[0-9A-F]{4}|.)")
 LSAPPINFO_ASN_PATTERN = re.compile(r"ASN:0x[0-9a-fA-F]+-0x[0-9a-fA-F]+:")
 LSAPPINFO_NAME_PATTERN = re.compile(r'"(.*)"\s+ASN:')
 LAUNCH_ACTIVATION_VARIABLE = "QT_MAC_DISABLE_FOREGROUND_APPLICATION_TRANSFORM"
@@ -91,6 +101,31 @@ BUILD_LOCK_PROCESS_NAMES = {
 	"rcc.exe",
 	"uic.exe",
 }
+# mspdbsrv.exe idles on after the build it served; its CPU still counts
+HOST_LOAD_BUILD_TOOLS = BUILD_LOCK_PROCESS_NAMES - {"mspdbsrv.exe"}
+# Xcode's build services can idle on like mspdbsrv.exe, so only their CPU counts
+HOST_LOAD_MACOS_BUILD_TOOLS = {
+	"clang",
+	"cmake",
+	"ld",
+	"libtool",
+	"moc",
+	"ninja",
+	"rcc",
+	"swift-frontend",
+	"uic",
+	"xcodebuild",
+}
+HOST_LOAD_THRESHOLD_DEFAULT = 15.0
+HOST_LOAD_HOLD_DEFAULT = 5.0
+HOST_LOAD_MAX_DEFAULT = 600.0
+HOST_LOAD_INTERVAL_DEFAULT = 1.0
+HOST_LOAD_INTERVAL_MIN = 0.1
+HOST_LOAD_SNAPSHOT_SIZE = 1 << 21
+HOST_LOAD_SNAPSHOT_ATTEMPTS = 8
+HOST_LOAD_LAST_SAMPLES = 5
+HOST_LOAD_TOP = 3
+HOST_LOAD_SAMPLES_FILE = "host_load_samples.jsonl"
 
 
 class WorkspaceError(RuntimeError):
@@ -101,8 +136,44 @@ class RebaseConflict(WorkspaceError):
 	pass
 
 
+# Inside git_safe_termination() a termination signal is held while a git
+# command runs and raised once it has finished.
+_TERMINATION = {"git": 0, "pending": None}
+
+
+def raise_pending_termination():
+	signum = _TERMINATION["pending"]
+	if signum is not None and not _TERMINATION["git"]:
+		_TERMINATION["pending"] = None
+		if signum == signal.SIGINT:
+			raise KeyboardInterrupt
+		raise SystemExit(128 + signum)
+
+
+def run_git_process(arguments, **options):
+	_TERMINATION["git"] += 1
+	try:
+		return subprocess.run(arguments, **options)
+	finally:
+		_TERMINATION["git"] -= 1
+		raise_pending_termination()
+
+
+def enable_git_long_paths(environment):
+	# Queue evidence paths can pass Windows' 260-character limit under the
+	# longer worktree roots. Give every git child long-path support without
+	# writing it into a git config; git ignores the key elsewhere.
+	count = int(environment.get("GIT_CONFIG_COUNT") or 0)
+	for index in range(count):
+		if environment.get(f"GIT_CONFIG_KEY_{index}", "").lower() == "core.longpaths":
+			return
+	environment[f"GIT_CONFIG_KEY_{count}"] = "core.longpaths"
+	environment[f"GIT_CONFIG_VALUE_{count}"] = "true"
+	environment["GIT_CONFIG_COUNT"] = str(count + 1)
+
+
 def run_git(path, *args, check=True):
-	result = subprocess.run(
+	result = run_git_process(
 		["git", "-C", str(path), *args],
 		stdout=subprocess.PIPE,
 		stderr=subprocess.PIPE,
@@ -572,9 +643,11 @@ def update_state(path, changes):
 	path.write_bytes((newline.join(lines) + newline).encode("utf-8"))
 
 
-def task_ready(task, states):
+def task_ready(task, states, retired=()):
+	# A retired dependency will never be delivered, so it no longer holds work back.
 	return all(
-		dependency in states and states[dependency]["status"] == "approved"
+		dependency in retired
+		or (dependency in states and states[dependency]["status"] == "approved")
 		for dependency in task["depends_on"]
 	)
 
@@ -774,13 +847,58 @@ def prepare_source(source):
 	return update
 
 
+def update_project_branch(args, source):
+	branch = current_branch(source)
+	if branch is None or MIRROR_REMOTE not in run_git(source, "remote").stdout.split():
+		return False
+	main = Path(repository_config(args)["ai_main"])
+	if branch not in live_project_slugs(main):
+		return False
+	tracking = f"refs/remotes/{MIRROR_REMOTE}/{branch}"
+	known = [resolved_ref(source, tracking)]
+	fetch_remote(source, MIRROR_REMOTE)
+	tip = remote_branch_tip(source, MIRROR_REMOTE, branch)
+	if tip is None or tip == resolved_ref(source, "HEAD"):
+		return False
+	if is_ancestor(source, tip):
+		raise WorkspaceError(
+			f"Branch {branch} has commits {MIRROR_REMOTE}/{branch} lacks; "
+			"publish or save them before starting another task"
+		)
+	if run_git(source, "rev-list", "--merges", f"{tip}..HEAD").stdout.strip():
+		raise WorkspaceError(
+			f"Branch {branch} has local merge commits; project branches stay linear"
+		)
+	known += run_git(
+		source, "reflog", "show", "--format=%H", tracking, check=False,
+	).stdout.split()
+	published = any(
+		value is not None and is_ancestor(source, "HEAD", value) for value in known
+	)
+	unpublished = not published and [
+		line for line in run_git(source, "cherry", tip, "HEAD").stdout.splitlines()
+		if line.startswith("+")
+	]
+	if unpublished:
+		raise WorkspaceError(
+			f"Branch {branch} has commits {MIRROR_REMOTE}/{branch} lacks; "
+			"sync or save them before starting another task"
+		)
+	protect_worktrees_from_submodule_target(source, tip)
+	run_git(source, "reset", "--quiet", "--hard", tip)
+	update_source_submodules(source)
+	return True
+
+
 def command_source_prepare(args):
 	source = source_root(args.source_root)
 	updated = prepare_source(source)
+	project_updated = update_project_branch(args, source)
 	print(json.dumps({
 		"source_root": str(source),
 		"source_clean": True,
 		"submodules_updated": updated,
+		"project_branch_updated": project_updated,
 	}, indent=2, sort_keys=True))
 
 
@@ -866,6 +984,7 @@ def publish_worktree(config, worktree_key, branch_key, label, validate=None):
 				"AI state conflicts with newer master; the worktree commits were preserved. "
 				+ (rebase.stderr.strip() or rebase.stdout.strip())
 			)
+		ensure_new_tasks_have_projects(worktree)
 		if validate is not None:
 			validate(worktree)
 		if has_origin(main):
@@ -923,11 +1042,11 @@ def commit_paths(config, paths, subject, validate=None):
 	return publish_slot(config, validate=validate)
 
 
-def task_summary(task, states):
+def task_summary(task, states, retired=()):
 	return {
 		**task,
 		"ready": (
-			task_ready(task, states)
+			task_ready(task, states, retired)
 			if task["status"] != "split"
 			else False
 		),
@@ -1124,7 +1243,20 @@ def load_splits(root):
 	return result
 
 
-def resolve_split_targets(states, superseded, splits, task_id, visited=None):
+def load_retired(root):
+	# Retired history keeps only task.md: no live, alias or split record.
+	result = set()
+	for path in sorted((root / "tasks").glob("*/*/*/*/task.md")):
+		task_id = "/".join(path.relative_to(root).parts[1:5])
+		if TASK_ID_PATTERN.fullmatch(task_id) and not any(
+			(path.parent / name).is_file()
+			for name in ("state.yaml", "superseded.yaml", "split.yaml")
+		):
+			result.add(task_id)
+	return result
+
+
+def resolve_split_targets(states, superseded, splits, task_id, visited=None, retired=()):
 	visited = [] if visited is None else visited
 	if task_id in visited:
 		raise WorkspaceError(
@@ -1132,6 +1264,8 @@ def resolve_split_targets(states, superseded, splits, task_id, visited=None):
 		)
 	if task_id in states:
 		return [task_id]
+	if task_id in retired:
+		return []
 	if task_id in superseded:
 		return resolve_split_targets(
 			states,
@@ -1139,6 +1273,7 @@ def resolve_split_targets(states, superseded, splits, task_id, visited=None):
 			splits,
 			superseded[task_id]["superseded_by"],
 			visited + [task_id],
+			retired,
 		)
 	split = splits.get(task_id)
 	if split is None:
@@ -1151,6 +1286,7 @@ def resolve_split_targets(states, superseded, splits, task_id, visited=None):
 			splits,
 			target,
 			visited + [task_id],
+			retired,
 		):
 			if resolved not in result:
 				result.append(resolved)
@@ -1176,7 +1312,11 @@ def split_task_summary(root, states, superseded, splits, task_id):
 		"depends_on": split["depends_on"],
 		"claimed_by": None,
 		"split_into": resolve_split_targets(
-			states, superseded, splits, task_id,
+			states,
+			superseded,
+			splits,
+			task_id,
+			retired=load_retired(root),
 		),
 		"implementation_carrier": split["implementation_carrier"],
 		"receipt": split["receipt"],
@@ -1298,6 +1438,92 @@ def pending_consolidations(root):
 	return result
 
 
+def batch_relative_path(tag):
+	if not TAG_PATTERN.fullmatch(tag):
+		raise WorkspaceError(f"Invalid checkout tag: {tag!r}")
+	return f"{BATCHES_DIR}/{tag}.yaml"
+
+
+def task_record_status(root, states, task_id):
+	# The live status, the kind of retirement, or None for an unknown id.
+	if not TASK_ID_PATTERN.fullmatch(task_id):
+		return None
+	if task_id in states:
+		return states[task_id]["status"]
+	directory = root / "tasks" / task_id
+	if (directory / "superseded.yaml").is_file():
+		return "superseded"
+	if (directory / "split.yaml").is_file():
+		return "split"
+	if (directory / "task.md").is_file():
+		return "retired"
+	return None
+
+
+def batch_task_order(root, states, task_id, values):
+	# The started task leads; the rest keep their first selection position.
+	ordered = list(dict.fromkeys([task_id, *(values or [])]))
+	unknown = [
+		value for value in ordered
+		if task_record_status(root, states, value) is None
+	]
+	if unknown:
+		raise WorkspaceError("Unknown batch task ids: " + ", ".join(unknown))
+	kept = []
+	dropped = []
+	for value in ordered:
+		status = task_record_status(root, states, value)
+		if status in FINISHED_BATCH_STATUSES:
+			dropped.append({"id": value, "status": status})
+		else:
+			kept.append(value)
+	return kept, dropped
+
+
+def write_batch(root, tag, task_ids, newline):
+	relative = batch_relative_path(tag)
+	path = root / relative
+	path.parent.mkdir(exist_ok=True)
+	stamp = datetime.datetime.now().astimezone().isoformat(timespec="seconds")
+	lines = [
+		f"checkout: {tag}",
+		f"updated: {stamp}",
+		"tasks:",
+		*(f"  - {task_id}" for task_id in task_ids),
+	]
+	path.write_bytes((newline.join(lines) + newline).encode("utf-8"))
+	return relative
+
+
+def load_batch(root, tag):
+	path = root / batch_relative_path(tag)
+	try:
+		text = path.read_text(encoding="utf-8-sig")
+	except (OSError, UnicodeDecodeError):
+		return []
+	result = []
+	listing = False
+	for line in text.splitlines():
+		stripped = line.strip()
+		if not stripped or stripped.startswith("#"):
+			continue
+		if listing and stripped.startswith("- "):
+			value = parse_scalar(stripped[2:])
+			if (
+				isinstance(value, str)
+				and TASK_ID_PATTERN.fullmatch(value)
+				and value not in result
+			):
+				result.append(value)
+		elif not line[0].isspace():
+			listing = line.split(":", 1)[0].strip() == "tasks"
+	return result
+
+
+def file_newline(path):
+	return "\r\n" if b"\r\n" in path.read_bytes() else "\n"
+
+
 def command_queue(args):
 	config = worktree_config(args, create=True)
 	main = Path(config["ai_main"])
@@ -1310,7 +1536,8 @@ def command_queue(args):
 			sync_canonical(config)
 	states = load_states(slot)
 	tag = config["checkout_tag"]
-	values = [task_summary(task, states) for task in states.values()]
+	retired = load_retired(slot)
+	values = [task_summary(task, states, retired) for task in states.values()]
 	own_in_progress = sorted(
 		(
 			task for task in values
@@ -1363,13 +1590,26 @@ def command_queue(args):
 			violations.append(f"{task['id']} is blocked but unclaimed")
 		if task["status"] == "split-required" and task["claimed_by"] is None:
 			violations.append(f"{task['id']} is split-required but unclaimed")
+	own_batch = [
+		{
+			"id": task_id,
+			"status": task_record_status(slot, states, task_id) or "missing",
+			"claimed_by": (
+				states[task_id]["claimed_by"] if task_id in states else None
+			),
+		}
+		for task_id in load_batch(slot, tag)
+	]
 	inbox_file = main / "inbox" / "inbox.md"
 	result = {
 		**config,
+		"current_branch": current_branch(config.get("source_root")),
+		"branch_project": branch_project(config, slot),
 		"inbox_nonempty": (
 			inbox_file.is_file()
 			and bool(inbox_file.read_text(encoding="utf-8").strip())
 		),
+		"own_batch": own_batch,
 		"own_in_progress": own_in_progress,
 		"own_todo": own_todo,
 		"own_blocked": own_blocked,
@@ -1403,7 +1643,11 @@ def command_resolve(args):
 	if not changed_paths(slot) and not unpublished_counts(config)["slot_only"]:
 		sync_canonical(config)
 	states = load_states(slot)
-	task = task_summary(resolve_task(slot, states, args.name), states)
+	task = task_summary(
+		resolve_task(slot, states, args.name),
+		states,
+		load_retired(slot),
+	)
 	active = sorted(
 		value["id"] for value in states.values()
 		if value["claimed_by"] == config["checkout_tag"]
@@ -1436,6 +1680,13 @@ def command_start(args):
 		raise WorkspaceError(
 			f"Task is not available todo work for this checkout: {args.task}"
 		)
+	ensure_task_branch(config, slot, task)
+	batch, batch_dropped = batch_task_order(
+		slot,
+		states,
+		args.task,
+		getattr(args, "batch", None),
+	)
 	carried_from = task["carried_from"]
 	if carried_from is not None:
 		split = load_splits(slot).get(carried_from)
@@ -1448,7 +1699,7 @@ def command_start(args):
 				f"Task has an invalid carried implementation source: {args.task}"
 			)
 		validate_carried_worktree(config, slot, carried_from)
-	if not task_ready(task, states):
+	if not task_ready(task, states, load_retired(slot)):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
 	lineage = source_lineage_report(
 		config,
@@ -1489,10 +1740,16 @@ def command_start(args):
 		"lease_until": None,
 		"phase": "setup",
 	})
+	batch_path = write_batch(
+		slot,
+		config["checkout_tag"],
+		batch,
+		file_newline(path),
+	)
 	try:
 		commit = commit_paths(
 			config,
-			[str(path.relative_to(slot))],
+			[str(path.relative_to(slot)), batch_path],
 			f"Start {args.task} on {config['checkout_tag']}",
 		)
 	except WorkspaceError as error:
@@ -1522,6 +1779,8 @@ def command_start(args):
 		"task": args.task,
 		"status": "in-progress",
 		"published": bool(commit),
+		"batch": batch,
+		"batch_dropped": batch_dropped,
 	}, indent=2, sort_keys=True))
 
 
@@ -1554,7 +1813,8 @@ def command_retry(args):
 		raise WorkspaceError(
 			f"Task is not blocked work owned by this checkout: {args.task}"
 		)
-	if not task_ready(task, states):
+	ensure_task_branch(config, slot, task)
+	if not task_ready(task, states, load_retired(slot)):
 		raise WorkspaceError(f"Task has unfinished dependencies: {args.task}")
 	lineage = source_lineage_report(
 		config,
@@ -1616,6 +1876,7 @@ def task_action_config(args, require_status="in-progress", allow_project=False):
 		raise WorkspaceError(
 			f"Task is not {require_status} work owned by this checkout: {args.task}"
 		)
+	ensure_task_branch(config, slot, task)
 	return config, slot
 
 
@@ -1716,15 +1977,66 @@ def task_has_retained_source_change(slot, state):
 	return outcomes != ["already-satisfied"]
 
 
-def source_lineage_report(config, slot, task_id, extra_requirements=()):
+def source_lineage_report(config, slot, task_id, extra_requirements=(), revision="HEAD"):
 	states = load_states(slot)
 	task = states.get(task_id)
 	if task is None:
 		raise WorkspaceError(f"Task does not exist: {task_id}")
+	source = Path(config["source_root"])
+	required, unfinished, missing_history, missing, witnesses, tips = (
+		lineage_presence(
+			source, slot, states,
+			(*task["depends_on"], *extra_requirements), revision,
+		)
+	)
+	branches = run_git(
+		source,
+		"for-each-ref",
+		"--format=%(refname:short)",
+		"refs/heads",
+	).stdout.splitlines()
+	projects = live_project_slugs(slot)
+	current_branch_name = current_branch(source)
+	switchable = task["project"] is None and current_branch_name not in projects
+	compatible = [
+		branch for branch in branches
+		if switchable
+		and branch not in projects
+		and all(
+			commits and any(
+				is_ancestor(source, commit, branch)
+				for commit in commits
+			)
+			for commits in tips.values()
+		)
+	]
+	return {
+		"task": task_id,
+		"current_branch": current_branch_name,
+		"current_satisfies": not missing,
+		"unfinished_dependencies": unfinished,
+		"required_source_tasks": required,
+		"missing_source_tasks": missing,
+		"unavailable_source_tasks": missing_history,
+		"witnessed_source_tasks": witnesses,
+		"compatible_local_branches": compatible,
+	}
+
+
+def lineage_presence(source, slot, states, dependencies, revision):
+	"""Which approved source work among dependencies revision has.
+
+	Returns the required ids, unfinished ids, ids with no commit anywhere,
+	ids revision lacks, witnesses that stand in for a folded commit, and the
+	tip commits of each required id.
+	"""
 	superseded = load_superseded(slot)
+	retired = load_retired(slot)
 	required = []
 	unfinished = []
-	for dependency in (*task["depends_on"], *extra_requirements):
+	for dependency in dependencies:
+		if dependency in retired:
+			continue
 		resolved = resolve_task_id(states, superseded, dependency)["id"]
 		state = states[resolved]
 		if state["status"] != "approved":
@@ -1735,7 +2047,6 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 			continue
 		required.append(resolved)
 
-	source = Path(config["source_root"])
 	tips = {}
 	for dependency in required:
 		commits = task_tip_commits(source, dependency)
@@ -1749,39 +2060,33 @@ def source_lineage_report(config, slot, task_id, extra_requirements=()):
 	]
 	missing = [
 		dependency for dependency, commits in tips.items()
-		if not commits or not any(is_ancestor(source, commit) for commit in commits)
-	]
-	branches = run_git(
-		source,
-		"for-each-ref",
-		"--format=%(refname:short)",
-		"refs/heads",
-	).stdout.splitlines()
-	compatible = [
-		branch for branch in branches
-		if all(
-			commits and any(
-				is_ancestor(source, commit, branch)
-				for commit in commits
-			)
-			for commits in tips.values()
+		if not commits or not any(
+			is_ancestor(source, commit, revision) for commit in commits
 		)
 	]
-	current_branch = run_git(
-		source,
-		"branch",
-		"--show-current",
-	).stdout.strip() or None
-	return {
-		"task": task_id,
-		"current_branch": current_branch,
-		"current_satisfies": not missing,
-		"unfinished_dependencies": unfinished,
-		"required_source_tasks": required,
-		"missing_source_tasks": missing,
-		"unavailable_source_tasks": missing_history,
-		"compatible_local_branches": compatible,
-	}
+	witnesses = {}
+	for dependency in missing:
+		witness = lineage_witness(source, states, dependency, revision)
+		if witness is not None:
+			witnesses[dependency] = witness
+	missing = [dependency for dependency in missing if dependency not in witnesses]
+	return required, unfinished, missing_history, missing, witnesses, tips
+
+
+def lineage_witness(source, states, dependency, revision="HEAD"):
+	# A history rewrite can fold a task's commit into later work: an approved
+	# task built on it whose own commit is on HEAD shows its change is there.
+	for state in states.values():
+		if (
+			state["status"] == "approved"
+			and dependency in state["depends_on"]
+			and any(
+				is_ancestor(source, commit, revision)
+				for commit in task_tip_commits(source, state["id"])
+			)
+		):
+			return state["id"]
+	return None
 
 
 def is_ancestor(source, older, newer="HEAD"):
@@ -1839,11 +2144,13 @@ def validate_source_state(config, task_id, expected_commit):
 			validate_task_commit(source, green, task_id)
 
 
-def ensure_no_persisted_commit_hashes(root):
+def ensure_no_persisted_commit_hashes(root, exempt=()):
 	text_suffixes = {".json", ".log", ".md", ".txt", ".yaml", ".yml"}
 	paths = [root] if root.is_file() else sorted(root.rglob("*"))
 	for path in paths:
 		if not path.is_file() or path.suffix.lower() not in text_suffixes:
+			continue
+		if path != root and path.relative_to(root).parts[0] in exempt:
 			continue
 		try:
 			text = path.read_text(encoding="utf-8-sig")
@@ -1855,13 +2162,20 @@ def ensure_no_persisted_commit_hashes(root):
 			raise WorkspaceError(f"Persisted commit hash found in {path}")
 
 
+PROJECT_SYNC_REFS = ("shared", "rewrite-from")
+
+
 def delete_source_refs(config, task_id, retain_implementation=False):
 	source = Path(config["source_root"])
-	names = ("run",) if retain_implementation else ("run", "green", "base")
+	names = ("run",) if retain_implementation else (
+		"run", "green", "base", *PROJECT_SYNC_REFS,
+	)
 	for name in names:
 		value = source_task_ref(task_id, name)
 		if resolved_ref(source, value) is not None:
 			run_git(source, "update-ref", "-d", value)
+	if not retain_implementation:
+		clear_module_shared_refs(source, task_id)
 
 
 def transfer_source_refs(config, source_task, target_task):
@@ -1873,7 +2187,7 @@ def transfer_source_refs(config, source_task, target_task):
 		raise WorkspaceError(
 			f"Carried source refs are incomplete or stale for {source_task}"
 		)
-	for name in ("base", "green", "run"):
+	for name in ("base", "green", "run", *PROJECT_SYNC_REFS):
 		value = resolved_ref(source, source_task_ref(source_task, name))
 		target = source_task_ref(target_task, name)
 		if value is None:
@@ -1881,6 +2195,11 @@ def transfer_source_refs(config, source_task, target_task):
 				run_git(source, "update-ref", "-d", target)
 		else:
 			run_git(source, "update-ref", target, value)
+	for module in recorded_modules(source, source_task):
+		set_task_ref(
+			module, target_task, "shared", task_ref(module, source_task, "shared"),
+		)
+		set_task_ref(module, source_task, "shared", None)
 
 
 def command_source_begin(args):
@@ -1967,8 +2286,1412 @@ def command_source_mark_green(args):
 	}, indent=2, sort_keys=True))
 
 
+# Every project is performed on a branch named by its slug: in tdesktop on
+# the private remote, and under the same name on the origin of every
+# submodule the project changes. Every new task belongs to a project, and
+# project-switch moves a checkout between project branches. Legacy tasks
+# without a project start only from branches that are not a live project's.
+
+def current_branch(source):
+	if source is None:
+		return None
+	result = run_git(source, "branch", "--show-current", check=False)
+	return (not result.returncode and result.stdout.strip()) or None
+
+
+def live_project_slugs(root):
+	projects = Path(root) / "projects"
+	if not projects.is_dir():
+		return set()
+	return {
+		path.name for path in projects.iterdir()
+		if path.name != PROJECT_ARCHIVE_DIR and (path / "project.md").is_file()
+	}
+
+
+def branch_project(config, slot):
+	branch = current_branch(config.get("source_root"))
+	return branch if branch in live_project_slugs(slot) else None
+
+
+def ensure_task_branch(config, slot, task):
+	branch = current_branch(config.get("source_root"))
+	project = task["project"]
+	if project is not None:
+		if branch != project:
+			raise WorkspaceError(
+				f"{task['id']} belongs to project {project}: run project-switch "
+				f"--project {project} first (current branch: "
+				f"{branch or 'detached HEAD'})"
+			)
+	elif branch in live_project_slugs(slot):
+		raise WorkspaceError(
+			f"{task['id']} is legacy work without a project, but branch {branch} "
+			f"belongs to project {branch}; start it from a non-project branch"
+		)
+
+
+def fetch_remote(repo, remote):
+	run_git(repo, "fetch", "--quiet", remote)
+
+
+def tree_gitlinks(repo, revision):
+	result = {}
+	for entry in run_git(repo, "ls-tree", "-r", "-z", revision).stdout.split("\0"):
+		if not entry:
+			continue
+		metadata, path = entry.split("\t", 1)
+		mode, _, value = metadata.split()
+		if mode == "160000":
+			result[path] = value
+	return result
+
+
+def linear_commits(repo, older, newer):
+	if run_git(repo, "rev-list", "--merges", f"{older}..{newer}").stdout.strip():
+		raise WorkspaceError(
+			f"Project history in {repo} contains a merge; it must stay linear"
+		)
+	return run_git(
+		repo, "rev-list", "--reverse", f"{older}..{newer}",
+	).stdout.split()
+
+
+def changed_files(repo, commit):
+	return set(literal_paths(
+		repo, "diff-tree", "--no-commit-id", "--name-only", "-r",
+		"--no-renames", f"{commit}^", commit,
+	))
+
+
+def changed_gitlinks(source, older, newer):
+	before = tree_gitlinks(source, older)
+	after = tree_gitlinks(source, newer)
+	return {
+		path: (before.get(path), pin)
+		for path, pin in after.items()
+		if before.get(path) not in (None, pin)
+	}
+
+
+def gitlink_changes(repo, commit):
+	"""The pins commit sets, by submodule path."""
+	tokens = run_git(
+		repo, "diff-tree", "-r", "-z", "--no-commit-id", "--raw", "--no-abbrev",
+		"--no-renames", f"{commit}^", commit,
+	).stdout.split("\0")
+	result = {}
+	for metadata, path in zip(tokens[0::2], tokens[1::2]):
+		fields = metadata.lstrip(":").split()
+		if len(fields) >= 4 and fields[1] == "160000":
+			result[path] = fields[3]
+	return result
+
+
+def submodule_ranges(source, older, commits):
+	"""Submodules whose pin any of commits sets, as (pin at older, newest pin).
+
+	The pins the commits set along one submodule must stay on one line of
+	history, which may move back and forth; the newest pin is the one every
+	other pin is an ancestor of.
+	"""
+	base = tree_gitlinks(source, older)
+	pins = {}
+	for commit in commits:
+		for path, pin in gitlink_changes(source, commit).items():
+			if path in base:
+				pins.setdefault(path, []).append(pin)
+	ranges = {}
+	for path, values in pins.items():
+		module = source / path
+		if not (module / ".git").exists():
+			raise WorkspaceError(f"Project commits change {path}, which is not initialized")
+		newest = base[path]
+		for pin in values:
+			if is_ancestor(module, newest, pin):
+				newest = pin
+			elif not is_ancestor(module, pin, newest):
+				raise WorkspaceError(
+					f"Project commits pin {path} on diverging histories; keep its "
+					"pins on one line of history"
+				)
+		if newest != base[path]:
+			ranges[path] = (base[path], newest)
+	return ranges
+
+
+def set_index_gitlink(repo, path, revision):
+	run_git(repo, "update-index", "--force-remove", "--", path)
+	run_git(repo, "update-index", "--add", "--cacheinfo", f"160000,{revision},{path}")
+
+
+def replay_commits(repo, commits, onto, adjust=None):
+	"""Cherry-pick commits onto a detached onto, keeping authors and messages.
+
+	A commit that becomes empty is dropped and maps to its predecessor.
+	Returns the new tip and a map from each replayed commit to its copy.
+	"""
+	run_git(repo, "checkout", "--quiet", "--detach", onto)
+	mapping = {}
+	tip = onto
+	for commit in commits:
+		pick = run_git(repo, "cherry-pick", "--no-commit", commit, check=False)
+		if pick.returncode and not literal_paths(
+			repo, "diff", "--name-only", "--diff-filter=U",
+		):
+			raise WorkspaceError(
+				f"Could not replay {commit} in {repo}: "
+				+ (pick.stderr.strip() or pick.stdout.strip())
+			)
+		if adjust is not None:
+			adjust(commit)
+		unmerged = literal_paths(repo, "diff", "--name-only", "--diff-filter=U")
+		if unmerged:
+			raise WorkspaceError(
+				f"Replaying {commit} in {repo} conflicts in: " + ", ".join(unmerged)
+			)
+		if run_git(repo, "diff", "--cached", "--quiet", check=False).returncode:
+			run_git(repo, "commit", "--quiet", "--no-edit", "-C", commit)
+			tip = resolved_ref(repo, "HEAD")
+		run_git(repo, "cherry-pick", "--quit", check=False)
+		mapping[commit] = tip
+	return tip, mapping
+
+
+def restore_repository(repo, branch, head):
+	run_git(repo, "cherry-pick", "--abort", check=False)
+	run_git(repo, "reset", "--quiet", "--hard")
+	if branch is not None:
+		run_git(repo, "checkout", "--quiet", "--force", branch)
+	else:
+		run_git(repo, "checkout", "--quiet", "--force", "--detach", head)
+
+
+def rewrite_project_history(source, commits, onto, ranges, targets):
+	"""Replay tdesktop commits onto onto, rebasing their submodule commits.
+
+	ranges maps a submodule path to the (older, newer) pins its project
+	commits span; targets maps it to the commit those are rebased onto. Every
+	pin a replayed commit sets is rewritten to its rebased copy. On failure
+	every touched repository is restored to where it was.
+	"""
+	branch = current_branch(source)
+	original = resolved_ref(source, "HEAD")
+	protect_worktrees_from_submodule_target(source, onto)
+	for path, (older, _) in ranges.items():
+		target = targets.get(path)
+		if target is not None and target != older:
+			protect_worktrees_from_submodule_target(source / path, target)
+	with git_safe_termination():
+		return replay_project_history(
+			source, commits, onto, ranges, targets, branch, original,
+		)
+
+
+def replay_project_history(source, commits, onto, ranges, targets, branch, original):
+	touched = []
+	pins = {}
+	try:
+		for path, (older, newer) in ranges.items():
+			target = targets.get(path)
+			if target is None or target == older:
+				continue
+			module = source / path
+			touched.append(
+				(module, current_branch(module), resolved_ref(module, "HEAD"))
+			)
+			_, mapping = replay_commits(
+				module, linear_commits(module, older, newer), target,
+			)
+			mapping[older] = target
+			pins[path] = mapping
+
+		def adjust(commit):
+			for path, mapping in pins.items():
+				pin = gitlink_at(source, commit, path)
+				if pin == gitlink_at(source, f"{commit}^", path):
+					continue
+				if pin not in mapping:
+					raise WorkspaceError(
+						f"{commit} pins {path} outside the project's submodule commits"
+					)
+				set_index_gitlink(source, path, mapping[pin])
+
+		tip, mapping = replay_commits(source, commits, onto, adjust)
+		run_git(source, "update-ref", f"refs/heads/{branch}", tip, original)
+		run_git(source, "checkout", "--quiet", branch)
+		update_source_submodules(source)
+	except BaseException:
+		for module, module_branch, head in reversed(touched):
+			restore_repository(module, module_branch, head)
+		if branch is not None:
+			run_git(source, "update-ref", f"refs/heads/{branch}", original)
+		restore_repository(source, branch, original)
+		update_source_submodules(source)
+		raise
+	return tip, mapping
+
+
+def gitlink_at(repo, revision, path):
+	entry = run_git(
+		repo, "--literal-pathspecs", "ls-tree", "-z", revision, "--", path,
+	).stdout.split("\0")[0]
+	if not entry:
+		return None
+	metadata = entry.split("\t", 1)[0].split()
+	return metadata[2] if metadata[0] == "160000" else None
+
+
+def task_ref(repo, task_id, name):
+	return resolved_ref(repo, source_task_ref(task_id, name))
+
+
+def set_task_ref(repo, task_id, name, value):
+	ref = source_task_ref(task_id, name)
+	if value is not None:
+		run_git(repo, "update-ref", ref, value)
+	elif resolved_ref(repo, ref) is not None:
+		run_git(repo, "update-ref", "-d", ref)
+
+
+def reconcile_task_refs(source, task_id, carried_from=None):
+	series = task_series_refs(source, task_id)
+	carried = (
+		task_series_refs(source, carried_from) if carried_from is not None else None
+	)
+	if series is None:
+		series = carried
+	elif carried is not None and carried[1] == series[0]:
+		series = (carried[0], series[1])
+	if series is None:
+		set_task_ref(source, task_id, "base", resolved_ref(source, "HEAD"))
+		set_task_ref(source, task_id, "green", None)
+	else:
+		set_task_ref(source, task_id, "base", series[0])
+		set_task_ref(source, task_id, "green", series[1])
+	set_task_ref(source, task_id, "run", resolved_ref(source, "HEAD"))
+
+
+def project_task_config(args):
+	config, slot = task_action_config(args)
+	source = Path(config["source_root"])
+	task = load_state(slot, state_path(slot, args.task))
+	if task["project"] is None:
+		raise WorkspaceError(f"{args.task} is standalone; it has no project branch")
+	ensure_task_branch(config, slot, task)
+	ensure_source_clean(source)
+	head = resolved_ref(source, "HEAD")
+	if task_ref(source, args.task, "run") != head:
+		raise WorkspaceError("Telegram HEAD no longer matches the task run ref")
+	if task_ref(source, args.task, "base") is None:
+		raise WorkspaceError("The local task baseline ref is missing")
+	if MIRROR_REMOTE not in run_git(source, "remote").stdout.split():
+		raise WorkspaceError(f"Project branches need a {MIRROR_REMOTE} remote")
+	return config, source, task
+
+
+def remote_branch_tip(repo, remote, branch):
+	return resolved_ref(repo, f"refs/remotes/{remote}/{branch}")
+
+
+def module_branch_tips(source, paths, project, tips):
+	for path in paths:
+		if path not in tips:
+			module = source / path
+			fetch_remote(module, "origin")
+			tips[path] = remote_branch_tip(module, "origin", project)
+	return tips
+
+
+def recorded_modules(source, task_id):
+	return [
+		source / path for path in tree_gitlinks(source, "HEAD")
+		if (source / path / ".git").exists()
+		and task_ref(source / path, task_id, "shared") is not None
+	]
+
+
+def recorded_module_tips_moved(source, task_id, project, rewrite_from):
+	modules = set(recorded_modules(source, task_id))
+	modules.update(
+		source / path for path in changed_gitlinks(source, rewrite_from, "HEAD")
+		if (source / path / ".git").exists()
+	)
+	for module in sorted(modules):
+		fetch_remote(module, "origin")
+		if remote_branch_tip(module, "origin", project) != task_ref(
+			module, task_id, "shared",
+		):
+			return True
+	return False
+
+
+def clear_module_shared_refs(source, task_id):
+	for module in recorded_modules(source, task_id):
+		set_task_ref(module, task_id, "shared", None)
+
+
+def command_project_sync(args):
+	"""Bring this task's work onto the shared project branch.
+
+	The shared tips a sync incorporates are recorded as the task's `shared`
+	refs (in tdesktop and in each project submodule), so that a push after a
+	base rebase leases against exactly what was incorporated. A base rebase
+	keeps the pre-rebase tip as `rewrite-from` until it is published; if the
+	shared branch moves first, that unpublished rewrite is discarded and
+	redone on the new history instead of overwriting it.
+	"""
+	config, source, task = project_task_config(args)
+	project = task["project"]
+	fetch_remote(source, MIRROR_REMOTE)
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, project)
+	shared = task_ref(source, args.task, "shared")
+	fix = None
+	if args.base_fix:
+		fix = resolved_ref(source, args.base_fix)
+		if fix is None:
+			raise WorkspaceError(f"Unknown base fix commit: {args.base_fix}")
+	discarded = False
+	head = resolved_ref(source, "HEAD")
+	rewrite_from = task_ref(source, args.task, "rewrite-from")
+	if rewrite_from is not None and remote_tip == head:
+		set_task_ref(source, args.task, "rewrite-from", None)
+	elif rewrite_from is not None and (
+		remote_tip != shared
+		or recorded_module_tips_moved(source, args.task, project, rewrite_from)
+	):
+		protect_worktrees_from_submodule_target(source, rewrite_from)
+		run_git(source, "reset", "--quiet", "--hard", rewrite_from)
+		update_source_submodules(source)
+		set_task_ref(source, args.task, "rewrite-from", None)
+		clear_module_shared_refs(source, args.task)
+		reconcile_task_refs(source, args.task, task["carried_from"])
+		discarded = True
+		fix = None
+	head = resolved_ref(source, "HEAD")
+	base = task_ref(source, args.task, "base")
+	own = linear_commits(source, base, head)
+	ranges = submodule_ranges(source, base, own)
+	tips = module_branch_tips(source, ranges, project, {})
+	targets = {}
+	diverged = False
+	for path, (_, pin) in ranges.items():
+		module = source / path
+		pinned = gitlink_at(source, remote_tip, path) if remote_tip else None
+		tip = tips[path]
+		targets[path] = (
+			tip
+			if tip is not None and (pinned is None or is_ancestor(module, pinned, tip))
+			else pinned
+		)
+		if (
+			remote_tip != head
+			and tip is not None
+			and tip != task_ref(module, args.task, "shared")
+			and not is_ancestor(module, tip, pin)
+		):
+			diverged = True
+	moved = (
+		remote_tip is not None
+		and remote_tip != shared
+		and not is_ancestor(source, remote_tip, head)
+	)
+	synced = False
+	if moved or diverged:
+		head, mapping = rewrite_project_history(
+			source,
+			own,
+			remote_tip if moved else base,
+			ranges,
+			targets,
+		)
+		reconcile_task_refs(source, args.task, task["carried_from"])
+		if fix is not None:
+			fix = mapping.get(fix, fix)
+		synced = True
+	set_task_ref(source, args.task, "shared", remote_tip)
+	rebased = False
+	base_fix = None
+	if args.onto:
+		remote, _, name = args.onto.partition("/")
+		if not name:
+			raise WorkspaceError(f"--onto needs a remote branch, found {args.onto!r}")
+		fetch_remote(source, remote)
+		onto = remote_branch_tip(source, remote, name)
+		if onto is None:
+			raise WorkspaceError(f"Remote branch does not exist: {args.onto}")
+		fork = run_git(source, "merge-base", onto, head).stdout.strip()
+		commits = linear_commits(source, fork, head)
+		reorder = False
+		if fix is not None:
+			if fix not in commits:
+				raise WorkspaceError("The base fix is not a commit of this project branch")
+			others = [commit for commit in commits if commit != fix]
+			fixed = changed_files(source, fix)
+			if gitlink_changes(source, fix) or fixed & set().union(
+				*(changed_files(source, commit) for commit in others)
+			):
+				raise WorkspaceError(
+					"A base fix may touch only files no project commit changes"
+				)
+			reorder = commits[0] != fix
+			commits = [fix] + others
+		if fork != onto or reorder:
+			ranges = submodule_ranges(source, fork, commits)
+			module_branch_tips(source, ranges, project, tips)
+			if task_ref(source, args.task, "rewrite-from") is None:
+				set_task_ref(source, args.task, "rewrite-from", head)
+			head, mapping = rewrite_project_history(
+				source,
+				commits,
+				onto,
+				ranges,
+				{path: gitlink_at(source, onto, path) for path in ranges},
+			)
+			reconcile_task_refs(source, args.task, task["carried_from"])
+			rebased = True
+			if fix is not None and mapping[fix] != onto:
+				base_fix = mapping[fix]
+		elif fix is not None:
+			base_fix = fix
+	for path, tip in tips.items():
+		set_task_ref(source / path, args.task, "shared", tip)
+	print(json.dumps({
+		"task": args.task,
+		"branch": project,
+		"synced": synced,
+		"rebased_onto_base": rebased,
+		"rewrite_discarded": discarded,
+		"build_required": synced or rebased or discarded,
+		"base_fix": base_fix,
+	}, indent=2, sort_keys=True))
+
+
+def push_branch(
+		repo, remote, revision, branch, lease=None, force=False,
+		retry="project-sync"):
+	arguments = ["push", "--quiet", remote]
+	if force:
+		arguments.insert(1, "--force")
+	elif lease is not None:
+		arguments.insert(1, f"--force-with-lease=refs/heads/{branch}:{lease}")
+	push = run_git(
+		repo, *arguments, f"{revision}:refs/heads/{branch}", check=False,
+	)
+	if push.returncode:
+		raise WorkspaceError(
+			f"Pushing {branch} from {repo} was rejected; rerun {retry}: "
+			+ (push.stderr.strip() or push.stdout.strip())
+		)
+
+
+def live_branch_tip(repo, remote, branch):
+	listed = run_git(repo, "ls-remote", remote, f"refs/heads/{branch}").stdout.split()
+	return listed[0] if listed else None
+
+
+def module_publications(source, head, project):
+	"""Top-level submodules whose pinned commit the project branch publishes.
+
+	A pin already on some remote branch needs nothing unless the submodule
+	has a project branch to keep up to date. Nested submodules are not
+	covered, so a pinned nested commit must already be on a remote branch.
+	"""
+	unpublished = run_git(
+		source, "rev-list", head, "--not",
+		f"--exclude={MIRROR_REMOTE}/{MIRROR_BRANCH_PREFIX}*",
+		f"--remotes={MIRROR_REMOTE}", "--remotes=origin",
+	).stdout.split()
+	newest = {}
+	for commit in unpublished:
+		for path, pin in gitlink_changes(source, commit).items():
+			module = source / path
+			if (module / ".git").exists() and (
+				path not in newest or is_ancestor(module, newest[path], pin)
+			):
+				newest[path] = pin
+	result = []
+	for path, pin in tree_gitlinks(source, head).items():
+		module = source / path
+		if not (module / ".git").exists():
+			continue
+		published = pin
+		if path in newest and is_ancestor(module, pin, newest[path]):
+			published = newest[path]
+		for revision in {pin, published}:
+			for nested, nested_pin in tree_gitlinks(module, revision).items():
+				child = module / nested
+				if (child / ".git").exists() and not run_git(
+					child, "branch", "--remotes", "--contains", nested_pin,
+					check=False,
+				).stdout.strip():
+					raise WorkspaceError(
+						f"{path}/{nested} is pinned at a commit on no remote branch; "
+						"project branches cover only top-level submodules, so "
+						"publish that nested commit first"
+					)
+		contained = bool(run_git(
+			module, "branch", "--remotes", "--contains", published,
+		).stdout.strip())
+		if contained and remote_branch_tip(module, "origin", project) is None:
+			continue
+		result.append((path, module, published, contained))
+	return result
+
+
+def command_project_push(args):
+	"""Publish the project branch: submodule branches, then tdesktop.
+
+	After a base rebase the order changes so that nothing shared moves until
+	tdesktop's lease holds: the new submodule commits go first to this
+	checkout's own staging branch _staging/<slug>/<checkout-tag>, outside the
+	project-slug grammar, which makes every pin fetchable, then
+	tdesktop moves, then the submodule project branches.
+	"""
+	config, source, task = project_task_config(args)
+	project = task["project"]
+	fetch_remote(source, MIRROR_REMOTE)
+	head = resolved_ref(source, "HEAD")
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, project)
+	shared = task_ref(source, args.task, "shared")
+	rewritten = remote_tip is not None and not is_ancestor(source, remote_tip, head)
+	if rewritten and (not args.rewritten or remote_tip != shared):
+		raise WorkspaceError(
+			f"{MIRROR_REMOTE}/{project} has commits this branch lacks; rerun project-sync"
+		)
+	publications = module_publications(source, head, project)
+	if rewritten:
+		staging = f"_staging/{project}/{config['checkout_tag']}"
+		for _, module, pin, contained in publications:
+			if not contained:
+				push_branch(module, "origin", pin, staging, force=True)
+		push_branch(source, MIRROR_REMOTE, head, project, lease=shared)
+	modules = []
+	for path, module, pin, contained in publications:
+		fetch_remote(module, "origin")
+		tip = remote_branch_tip(module, "origin", project)
+		if tip is None:
+			if contained:
+				continue
+			push_branch(module, "origin", pin, project)
+		elif tip == pin or is_ancestor(module, pin, tip):
+			continue
+		elif is_ancestor(module, tip, pin):
+			push_branch(module, "origin", pin, project)
+		elif args.rewritten and (
+			tip == task_ref(module, args.task, "shared")
+			# Nobody published on top of this rewrite, so a commit there that
+			# the shared tdesktop branch does not pin is another checkout's
+			# unpublished half, which that checkout replays at its next sync.
+			or live_branch_tip(source, MIRROR_REMOTE, project) == head
+		):
+			push_branch(module, "origin", pin, project, lease=tip)
+		else:
+			raise WorkspaceError(
+				f"{path} branch {project} moved since project-sync; rerun project-sync"
+			)
+		modules.append(path)
+	if args.base_fix:
+		remote, _, name = (args.base or "").partition("/")
+		if not name:
+			raise WorkspaceError("--base-fix needs --base naming the remote branch")
+		fix = resolved_ref(source, args.base_fix)
+		fetch_remote(source, remote)
+		base_tip = remote_branch_tip(source, remote, name)
+		if base_tip != fix:
+			if resolved_ref(source, f"{fix}^") != base_tip:
+				raise WorkspaceError(
+					f"{args.base} moved past the base fix; rerun project-sync --onto"
+				)
+			push_branch(source, remote, fix, name)
+	if not rewritten:
+		push_branch(source, MIRROR_REMOTE, head, project)
+	set_task_ref(source, args.task, "shared", None)
+	set_task_ref(source, args.task, "rewrite-from", None)
+	clear_module_shared_refs(source, args.task)
+	print(json.dumps({
+		"task": args.task,
+		"branch": project,
+		"pushed": True,
+		"rewritten": rewritten,
+		"submodules": sorted(modules),
+		"base_fix_pushed": bool(args.base_fix),
+	}, indent=2, sort_keys=True))
+
+
+PROJECT_BASE_BRANCH = "alpha"
+
+
+def checked_out_elsewhere(source, branch):
+	"""Other worktrees of source's repository that have branch checked out."""
+	source = Path(source).resolve()
+	result = []
+	worktree = None
+	for line in run_git(source, "worktree", "list", "--porcelain").stdout.splitlines():
+		if line.startswith("worktree "):
+			worktree = Path(line[len("worktree "):]).resolve()
+		elif line == f"branch refs/heads/{branch}" and worktree != source:
+			result.append(str(worktree))
+	return result
+
+
+def local_branch_work(source, revision, onto, refs):
+	"""The commits of revision that onto lacks, oldest first.
+
+	They start where revision last left one of the remote-tracking refs, the
+	branch's own first and then the base it was created from, as their reflogs
+	record it, so a remote branch rewritten or rewound since then does not
+	bring its old commits back as local work. Without such a record the local
+	commits are known only when onto is an ancestor of revision.
+	"""
+	fork = None
+	for ref in refs:
+		fork = run_git(
+			source, "merge-base", "--fork-point", ref, revision, check=False,
+		).stdout.strip() or None
+		if fork is not None:
+			break
+	if fork is None:
+		if not is_ancestor(source, onto, revision):
+			raise WorkspaceError(
+				f"Cannot tell which commits of {revision} are local: no reflog of "
+				+ " or ".join(refs)
+				+ " records where it forked; ask the owner what to do with them"
+			)
+		fork = onto
+	span = [f"{fork}..{revision}", "--not", onto]
+	if run_git(source, "rev-list", "--merges", *span).stdout.strip():
+		raise WorkspaceError(
+			f"{revision} has local merge commits; project branches stay linear"
+		)
+	return run_git(source, "rev-list", "--reverse", *span).stdout.split()
+
+
+def publish_module_pins(source, head, branch, project):
+	"""Push the submodule commits head pins that no remote branch has yet.
+
+	On a project branch each goes to the submodule's origin branch named like
+	the tdesktop branch, which also moves forward when it already exists, as
+	project-push keeps a project's submodule branches. Another branch has no
+	such submodule branches, so a pin no remote has stops it instead.
+	"""
+	pushed = []
+	for path, module, pin, contained in module_publications(source, head, branch):
+		if not project:
+			if contained:
+				continue
+			raise WorkspaceError(
+				f"Branch {branch} pins a {path} commit on no remote branch; ask "
+				"the owner where it belongs before switching"
+			)
+		fetch_remote(module, "origin")
+		tip = remote_branch_tip(module, "origin", branch)
+		if tip is None:
+			if contained:
+				continue
+		elif tip == pin or is_ancestor(module, pin, tip):
+			continue
+		elif not is_ancestor(module, tip, pin):
+			raise WorkspaceError(
+				f"{path} branch {branch} on origin has commits the tdesktop branch "
+				"does not pin; bring them in before switching"
+			)
+		push_branch(module, "origin", pin, branch, retry="project-switch")
+		pushed.append(path)
+	return pushed
+
+
+def publish_checked_out_branch(source, branch, base, reset):
+	"""Line branch, checked out in source, up with private/<branch>.
+
+	Local commits private/<branch> lacks are replayed on top of it, or on
+	private/<base> while private/<branch> does not exist, together with their
+	submodule commits, and pushed to private/<branch>. Without such commits,
+	reset moves the branch to that tip. Without a base, a branch private
+	lacks is pushed as it is.
+	"""
+	project = base is not None
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, branch)
+	name = branch if remote_tip is not None else base
+	onto = remote_tip
+	if onto is None and project:
+		onto = remote_branch_tip(source, MIRROR_REMOTE, base)
+		if onto is None:
+			raise WorkspaceError(f"{MIRROR_REMOTE}/{base} does not exist")
+	head = resolved_ref(source, "HEAD")
+	result = {
+		"branch": branch,
+		"onto": None if onto is None else f"{MIRROR_REMOTE}/{name}",
+		"replayed": 0,
+		"reset": False,
+		"pushed": False,
+		"submodules": [],
+	}
+	if not project:
+		publish_module_pins(source, head, branch, project)
+	if onto is None:
+		if run_git(
+			source, "rev-list", "HEAD", "--not",
+			f"--remotes={MIRROR_REMOTE}", "--remotes=origin",
+		).stdout.strip():
+			push_branch(source, MIRROR_REMOTE, head, branch, retry="project-switch")
+			result["pushed"] = True
+		return result
+	refs = [f"refs/remotes/{MIRROR_REMOTE}/{name}"]
+	if project and base != name:
+		refs.append(f"refs/remotes/{MIRROR_REMOTE}/{base}")
+	commits = [] if is_ancestor(source, "HEAD", onto) else local_branch_work(
+		source, "HEAD", onto, refs,
+	)
+	if not commits:
+		if reset and head != onto:
+			protect_worktrees_from_submodule_target(source, onto)
+			run_git(source, "reset", "--quiet", "--hard", onto)
+			update_source_submodules(source)
+			result["reset"] = True
+		return result
+	older = resolved_ref(source, f"{commits[0]}^")
+	if older != onto:
+		ranges = submodule_ranges(source, older, commits)
+		head, _ = rewrite_project_history(
+			source,
+			commits,
+			onto,
+			ranges,
+			{path: gitlink_at(source, onto, path) for path in ranges},
+		)
+		result["replayed"] = len(commits)
+	result["submodules"] = publish_module_pins(source, head, branch, project)
+	push_branch(
+		source, MIRROR_REMOTE, head, branch, lease=remote_tip,
+		retry="project-switch",
+	)
+	result["pushed"] = True
+	return result
+
+
+def enter_project_branch(source, slug):
+	"""Check out slug at what other checkouts published, keeping local work."""
+	remote_tip = remote_branch_tip(source, MIRROR_REMOTE, slug)
+	name = slug if remote_tip is not None else PROJECT_BASE_BRANCH
+	onto = remote_branch_tip(source, MIRROR_REMOTE, name)
+	if onto is None:
+		raise WorkspaceError(f"{MIRROR_REMOTE}/{name} does not exist")
+	local = resolved_ref(source, f"refs/heads/{slug}")
+	refs = [f"refs/remotes/{MIRROR_REMOTE}/{name}"]
+	if name != PROJECT_BASE_BRANCH:
+		refs.append(f"refs/remotes/{MIRROR_REMOTE}/{PROJECT_BASE_BRANCH}")
+	moved = False
+	if current_branch(source) != slug:
+		keep = local is not None and not is_ancestor(source, local, onto) and bool(
+			local_branch_work(source, local, onto, refs)
+		)
+		target = local if keep else onto
+		protect_worktrees_from_submodule_target(source, target)
+		if keep:
+			run_git(source, "switch", "--quiet", slug)
+		else:
+			run_git(source, "switch", "--quiet", "--no-track", "-C", slug, onto)
+			moved = local is not None and local != onto
+		update_source_submodules(source)
+	result = publish_checked_out_branch(source, slug, PROJECT_BASE_BRANCH, reset=True)
+	result["created"] = local is None
+	result["reset"] = result["reset"] or moved
+	return result
+
+
+PUBLIC_REMOTE = "origin"
+PUBLIC_BASE_BRANCH = "dev"
+RELEASE_TAG_PATTERN = re.compile(r"v\d+\.\d+\.\d+")
+
+
+def latest_release_tag(source):
+	"""The newest vX.Y.Z tag on the public base branch, or None."""
+	base = remote_branch_tip(source, PUBLIC_REMOTE, PUBLIC_BASE_BRANCH)
+	if base is None:
+		return None
+	for tag in run_git(
+		source, "tag", "--list", "v*", "--merged", base, "--sort=-v:refname",
+	).stdout.split():
+		if RELEASE_TAG_PATTERN.fullmatch(tag):
+			return tag
+	return None
+
+
+def project_task_ids(roots, slug):
+	"""Every task id, live or retired, whose record in roots names the project."""
+	result = set()
+	for root in roots:
+		result.update(
+			task["id"] for task in load_states(root).values()
+			if task["project"] == slug
+		)
+		for records in (load_superseded(root), load_splits(root)):
+			result.update(
+				task_id for task_id, record in records.items()
+				if record.get("project") == slug
+			)
+	return result
+
+
+def commit_records(source, span):
+	"""(commit, subject, task id or None) for each commit of span, oldest first."""
+	result = []
+	for entry in run_git(
+		source, "log", "--reverse", "--format=%H%x00%s%x00%B%x01", span,
+	).stdout.split("\x01"):
+		entry = entry.strip("\n")
+		if not entry:
+			continue
+		commit, subject, body = entry.split("\x00", 2)
+		lines = body.rstrip("\n").split("\n")
+		task = None
+		if (
+			len(lines) == 3 and lines[0] and not lines[1]
+			and lines[2].startswith("Task: ")
+		):
+			task = lines[2][len("Task: "):]
+		result.append((commit, subject, task))
+	return result
+
+
+def push_rebased_project(source, slug, head, lease, tag):
+	"""Publish a rebased project branch the way project-push --rewritten does.
+
+	New submodule commits go first to this checkout's staging branch, so every
+	pin is fetchable, then tdesktop moves under its lease, then the submodule
+	project branches under theirs.
+	"""
+	publications = module_publications(source, head, slug)
+	staging = f"_staging/{slug}/{tag}"
+	tips = {}
+	for path, module, pin, contained in publications:
+		fetch_remote(module, "origin")
+		tips[path] = remote_branch_tip(module, "origin", slug)
+		if not contained:
+			push_branch(module, "origin", pin, staging, force=True, retry="project-switch")
+	push_branch(source, MIRROR_REMOTE, head, slug, lease=lease, retry="project-switch")
+	pushed = []
+	for path, module, pin, contained in publications:
+		tip = tips[path]
+		if tip == pin or (tip is None and contained):
+			continue
+		push_branch(module, "origin", pin, slug, lease=tip, retry="project-switch")
+		pushed.append(path)
+	return pushed
+
+
+def project_branch_commits(source, head, fork, own, bases):
+	"""The project's own commits of fork..head, oldest first.
+
+	A commit whose `Task:` trailer names one of the project's tasks is the
+	project's, and one naming another task belongs to the old base. A commit
+	without a trailer belongs to the old base when one of bases has it, by
+	reachability, patch or subject, and is the project's otherwise, such as a
+	commit the owner made on the project branch.
+	"""
+	known = []
+	for base in dict.fromkeys(bases):
+		known.append((
+			set(run_git(
+				source, "rev-list", f"{fork}..{head}", "--not", base,
+			).stdout.split()),
+			{
+				line[2:] for line in run_git(
+					source, "cherry", base, head,
+				).stdout.splitlines()
+				if line.startswith("- ")
+			},
+			set(run_git(
+				source, "log", "--format=%s", f"{head}..{base}",
+			).stdout.splitlines()),
+		))
+	result = []
+	for commit, subject, task in commit_records(source, f"{fork}..{head}"):
+		if task is not None:
+			if task in own:
+				result.append((commit, subject, task))
+			continue
+		if not any(
+			commit not in unreachable or commit in equivalent or subject in subjects
+			for unreachable, equivalent, subjects in known
+		):
+			result.append((commit, subject, task))
+	return result
+
+
+def rebase_project_branch(source, own, slug, onto, bases, tag):
+	"""Replay the checked-out project branch's own commits onto onto and push.
+
+	Everything else between the old and the new base is replaced by the new
+	base. A project commit the new base already has, by patch or by the same
+	subject and trailer, is not replayed. A failed push restores the branch.
+	"""
+	head = resolved_ref(source, "HEAD")
+	fork = run_git(source, "merge-base", onto, head, check=False).stdout.strip()
+	if not fork:
+		raise WorkspaceError(f"Branch {slug} shares no history with its new base")
+	if run_git(source, "rev-list", "--merges", f"{fork}..{head}").stdout.strip():
+		raise WorkspaceError(
+			f"Branch {slug} has merge commits; project branches stay linear"
+		)
+	total = len(run_git(source, "rev-list", f"{fork}..{head}").stdout.split())
+	project = project_branch_commits(source, head, fork, own, [onto, *bases])
+	integrated = {
+		(subject, task)
+		for _, subject, task in commit_records(source, f"{fork}..{onto}")
+		if task is not None
+	}
+	equivalent = {
+		line[2:] for line in run_git(source, "cherry", onto, head).stdout.splitlines()
+		if line.startswith("- ")
+	}
+	commits = [
+		commit for commit, subject, task in project
+		if commit not in equivalent
+		and (task is None or (subject, task) not in integrated)
+	]
+	lease = remote_branch_tip(source, MIRROR_REMOTE, slug)
+	try:
+		if commits:
+			older = resolved_ref(source, f"{commits[0]}^")
+			ranges = submodule_ranges(source, older, commits)
+			new_head, _ = rewrite_project_history(
+				source,
+				commits,
+				onto,
+				ranges,
+				{path: gitlink_at(source, onto, path) for path in ranges},
+			)
+		else:
+			protect_worktrees_from_submodule_target(source, onto)
+			run_git(source, "reset", "--quiet", "--hard", onto)
+			update_source_submodules(source)
+			new_head = onto
+		submodules = push_rebased_project(source, slug, new_head, lease, tag)
+	except BaseException:
+		if resolved_ref(source, "HEAD") != head:
+			protect_worktrees_from_submodule_target(source, head)
+			run_git(source, "reset", "--quiet", "--hard", head)
+			update_source_submodules(source)
+		raise
+	return {
+		"replayed": len(commits),
+		"already_in_base": len(project) - len(commits),
+		"old_base_replaced": total - len(project),
+		"previous_tip": head,
+		"submodules": submodules,
+	}
+
+
+def refresh_project_base(config, slot, source, slug, task_id, requires):
+	"""Rebase the checked-out project branch before a task when it is stale.
+
+	A branch without the newest release tag of the public base branch skipped
+	a release, and origin/dev or private/alpha brings that release. A branch
+	that lacks approved source work the task requires moves onto
+	private/alpha. A base is used only when the branch does not already
+	contain it, it brings what is missing, and it has every prerequisite of
+	the task and of the project's carried tasks, so a move never drops code
+	the project builds on; origin/dev is tried first for a skipped release.
+	A release-only move waits while another checkout has a task of the project
+	in progress. Returns None when the branch is current, otherwise what was
+	found and done, with an error instead when the rebase or push failed and
+	the branch was left as it was.
+	"""
+	release = None
+	if PUBLIC_REMOTE in run_git(source, "remote").stdout.split():
+		fetch_remote(source, PUBLIC_REMOTE)
+		release = latest_release_tag(source)
+	skipped = release is not None and not is_ancestor(source, release, "HEAD")
+	states = load_states(slot)
+	needs = ()
+	if task_id is not None:
+		if task_id not in states:
+			raise WorkspaceError(f"Task does not exist: {task_id}")
+		needs = (*states[task_id]["depends_on"], *requires)
+
+	def missing(dependencies, revision):
+		return lineage_presence(source, slot, states, dependencies, revision)[3]
+
+	lacking = missing(needs, "HEAD")
+	if not skipped and not lacking:
+		return None
+	result = {
+		"skipped_release": release if skipped else None,
+		"missing_source_tasks": lacking,
+		"onto": None,
+	}
+	own = project_task_ids([slot, Path(config["ai_main"])], slug)
+	carried_needs = (*needs, *(
+		dependency for state in states.values()
+		if state["id"] in own and state["status"] in ("approved", "in-progress")
+		for dependency in state["depends_on"]
+	))
+	absent_here = set(missing(carried_needs, "HEAD"))
+	bases = {
+		f"{PUBLIC_REMOTE}/{PUBLIC_BASE_BRANCH}": remote_branch_tip(
+			source, PUBLIC_REMOTE, PUBLIC_BASE_BRANCH,
+		),
+		f"{MIRROR_REMOTE}/{PROJECT_BASE_BRANCH}": remote_branch_tip(
+			source, MIRROR_REMOTE, PROJECT_BASE_BRANCH,
+		),
+	}
+	order = list(bases) if skipped else [f"{MIRROR_REMOTE}/{PROJECT_BASE_BRANCH}"]
+	chosen = None
+	for name in order:
+		tip = bases[name]
+		if tip is None or is_ancestor(source, tip, "HEAD"):
+			continue
+		if not (lacking or (skipped and is_ancestor(source, release, tip))):
+			continue
+		if [
+			dependency for dependency in missing(carried_needs, tip)
+			if dependency not in own or dependency in absent_here
+		]:
+			continue
+		chosen = (name, tip)
+		break
+	if chosen is None:
+		return result
+	elsewhere = sorted(
+		task["id"] for task in states.values()
+		if task["project"] == slug
+		and task["status"] == "in-progress"
+		and task["claimed_by"] != config["checkout_tag"]
+	)
+	if elsewhere and not lacking:
+		result["deferred_for"] = elsewhere
+		return result
+	try:
+		result.update(rebase_project_branch(
+			source, own, slug, chosen[1],
+			[tip for tip in bases.values() if tip is not None],
+			config["checkout_tag"],
+		))
+	except WorkspaceError as error:
+		result["error"] = str(error)
+		return result
+	result["onto"] = chosen[0]
+	return result
+
+
+def command_project_switch(args):
+	"""Move this checkout onto a project's branch without leaving work behind.
+
+	The branch being left is published first: its local commits are replayed
+	onto private/<branch> and pushed. The project branch is then taken from
+	private/<slug>, or from private/alpha while the project has no remote
+	branch, with any local commits that never landed replayed on top and
+	pushed. Before a task starts, a branch that skipped a release or lacks
+	what --task requires is rebased and force-pushed, see
+	refresh_project_base. A task this checkout owns keeps its branch as it
+	is. Uncommitted changes stop the switch, because nothing tells whose they
+	are.
+	"""
+	config = worktree_config(args, create=True)
+	source = Path(config["source_root"]).resolve()
+	slot = Path(config["slot_worktree"])
+	slug = args.project
+	live = live_project_slugs(config["ai_main"]) | live_project_slugs(slot)
+	if slug not in live:
+		raise WorkspaceError(f"{slug!r} is not a live project")
+	owned = [
+		task for task in load_states(slot).values()
+		if task["claimed_by"] == config["checkout_tag"] and (
+			task["status"] in ("in-progress", "split-required")
+			or (task["status"] == "todo" and task["carried_from"] is not None)
+		)
+	]
+	for task in owned:
+		if task["project"] != slug:
+			raise WorkspaceError(
+				f"This checkout's {task['status']} task {task['id']} runs on "
+				+ (
+					f"branch {task['project']}" if task["project"]
+					else "a non-project branch"
+				)
+				+ "; finish it before switching"
+			)
+	previous = current_branch(source)
+	result = {
+		"project": slug,
+		"previous_branch": previous,
+		"left": None,
+		"kept_active_work": bool(owned),
+	}
+	if owned and previous == slug:
+		print(json.dumps(result, indent=2, sort_keys=True))
+		return
+	unknown = source_local_changes(source) + [
+		f"{path} (checked-out commit on no remote branch)"
+		for path in unpublished_submodule_heads(source)
+	]
+	if unknown:
+		raise WorkspaceError(
+			"Uncommitted source changes of unknown origin; ask the owner what to "
+			"do with them before switching:\n" + "\n".join(unknown)
+		)
+	holders = checked_out_elsewhere(source, slug)
+	if holders:
+		raise WorkspaceError(f"Branch {slug} is checked out in {holders[0]}")
+	if owned and resolved_ref(source, f"refs/heads/{slug}") is None:
+		raise WorkspaceError(
+			f"This checkout's task {owned[0]['id']} has no local branch {slug}"
+		)
+	if MIRROR_REMOTE not in run_git(source, "remote").stdout.split():
+		raise WorkspaceError(f"Project branches need a {MIRROR_REMOTE} remote")
+	prepare_source(source)
+	fetch_remote(source, MIRROR_REMOTE)
+	if previous is None:
+		if run_git(
+			source, "rev-list", "HEAD", "--not",
+			f"--remotes={MIRROR_REMOTE}", "--remotes=origin",
+		).stdout.strip():
+			raise WorkspaceError(
+				"The detached HEAD has commits no remote branch has; ask the owner "
+				"what to do with them before switching"
+			)
+	elif previous != slug:
+		result["left"] = publish_checked_out_branch(
+			source,
+			previous,
+			PROJECT_BASE_BRANCH if previous in live else None,
+			reset=False,
+		)
+	if owned:
+		protect_worktrees_from_submodule_target(source, f"refs/heads/{slug}")
+		run_git(source, "switch", "--quiet", slug)
+		update_source_submodules(source)
+	else:
+		result.update(enter_project_branch(source, slug))
+		result["base_refresh"] = refresh_project_base(
+			config, slot, source, slug,
+			getattr(args, "task", None), getattr(args, "require", None) or [],
+		)
+	print(json.dumps(result, indent=2, sort_keys=True))
+
+
+def unpublished_submodule_heads(repo):
+	"""Submodules checked out at a commit off their pin that no remote has."""
+	result = []
+	for path, pin in indexed_gitlinks(repo).items():
+		module = Path(repo) / path
+		if (
+			module.resolve() != module
+			or is_linked_worktree(repo, path + "/")
+			or not (module / ".git").exists()
+		):
+			continue
+		head = resolved_ref(module, "HEAD")
+		if head is not None and head != pin and not run_git(
+			module, "branch", "--remotes", "--contains", head, check=False,
+		).stdout.strip():
+			result.append(path)
+		result.extend(
+			f"{path}/{nested}" for nested in unpublished_submodule_heads(module)
+		)
+	return result
+
+
+def ensure_new_tasks_have_projects(worktree):
+	"""Every task a publication adds names a live project.
+
+	The implementation carrier of a legacy split source without a project is
+	the exception: its retained work stays on the branch it was begun on.
+	"""
+	missing = []
+	for path in literal_paths(
+		worktree, "diff", "--name-only", "--no-renames", "--diff-filter=A",
+		"master...HEAD",
+	):
+		if not (path.startswith("tasks/") and path.endswith("/state.yaml")):
+			continue
+		task = load_state(worktree, worktree / path)
+		project = task["project"]
+		if project is None and task["carried_from"] is not None:
+			continue
+		if project is None or not (
+			worktree / "projects" / project / "project.md"
+		).is_file():
+			missing.append(f"{task['id']} ({project or 'no project'})")
+	if missing:
+		raise WorkspaceError(
+			"Every new task must belong to a live project: " + ", ".join(missing)
+		)
+
+
+def wip_repositories(repo):
+	"""Repositories under repo to save, children before parents.
+
+	A repository with changes is saved. A clean submodule is saved too when
+	its HEAD moved from the pin its parent last committed and is on no remote
+	branch, so the parent's snapshot never pins a commit nobody can fetch.
+	"""
+	result = []
+	for path in indexed_gitlinks(repo):
+		module = Path(repo) / path
+		if module.resolve() != module or is_linked_worktree(repo, path + "/"):
+			raise WorkspaceError(
+				f"Cannot save {module}: it is a symlink or another checkout's worktree"
+			)
+		if not (module / ".git").exists():
+			continue
+		nested = wip_repositories(module)
+		if (
+			not nested
+			and resolved_ref(module, "HEAD") != gitlink_at(repo, "HEAD", path)
+			and not run_git(
+				module, "branch", "--remotes", "--contains", "HEAD",
+			).stdout.strip()
+		):
+			nested = [module]
+		result.extend(nested)
+	if source_changed_paths(repo):
+		result.append(Path(repo))
+	return result
+
+
+def command_wip_save(args):
+	"""Save source changes nobody can account for and leave the checkout clean.
+
+	Each repository to save, submodules before their parents, commits its
+	staged part and then its working tree on a detached HEAD and pushes the
+	result to a new branch wip/<branch>/<checkout-tag>/<time>: tdesktop to
+	private, submodules to their origin. An ignored working copy of a staged
+	deletion is never published; it is copied to ai-wip/<time>/ in the git
+	directory instead. Any failure, cancellation included, returns every
+	repository to its branch, index and working-tree contents.
+	"""
+	config = worktree_config(args, create=True)
+	source = Path(config["source_root"]).resolve()
+	repositories = wip_repositories(source)
+	if not repositories:
+		print(json.dumps({"saved": False}, indent=2, sort_keys=True))
+		return
+	for repo in repositories:
+		protect_worktrees_from_submodule_target(repo, "HEAD")
+		tracked = set(literal_paths(repo, "ls-tree", "-r", "--name-only", "HEAD"))
+		for ignored in literal_paths(
+			repo, "ls-files", "--others", "--ignored", "--exclude-standard",
+			"--directory",
+		):
+			parts = ignored.rstrip("/").split("/")
+			for depth in range(1, len(parts) + 1):
+				prefix = "/".join(parts[:depth])
+				if prefix in tracked and prefix != ignored:
+					raise WorkspaceError(
+						f"Cannot save {repo}: ignored {ignored} lies where HEAD "
+						f"tracks the file {prefix}, so cleaning would delete it"
+					)
+	branch = current_branch(source) or "detached"
+	stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+	name = f"wip/{branch}/{config['checkout_tag']}/{stamp}"
+	message = f"WIP on {branch} from {config['checkout_tag']}\n\n{args.reason}"
+	backups = Path(run_git(
+		source, "rev-parse", "--path-format=absolute", "--git-common-dir",
+	).stdout.strip()) / "ai-wip"
+	states = []
+	copies = []
+	with git_safe_termination():
+		save_wip(
+			source, repositories, name, message, stamp, config["checkout_tag"],
+			backups, states, copies,
+		)
+	print(json.dumps({
+		"saved": True,
+		"branch": name,
+		"repositories": [
+			"." if repo == source else repo.relative_to(source).as_posix()
+			for repo in repositories
+		],
+		"local_copies": [str(copy) for _, copy in copies],
+	}, indent=2, sort_keys=True))
+
+
+def save_wip(source, repositories, name, message, stamp, tag, backups, states, copies):
+	local = None
+	try:
+		for repo in repositories:
+			state = {
+				"repo": repo,
+				"branch": current_branch(repo),
+				"head": resolved_ref(repo, "HEAD"),
+				"index": run_git(repo, "write-tree").stdout.strip(),
+				"snapshot": None,
+			}
+			states.append(state)
+			for path, staged in indexed_gitlinks(repo).items():
+				child = repo / path
+				if (
+					(child / ".git").exists()
+					and staged not in (
+						gitlink_at(repo, "HEAD", path), resolved_ref(child, "HEAD"),
+					)
+					and not run_git(
+						child, "branch", "--remotes", "--contains", staged,
+						check=False,
+					).stdout.strip()
+				):
+					push_branch(child, "origin", staged, f"{name}-staged")
+			run_git(repo, "checkout", "--quiet", "--detach")
+			if run_git(repo, "diff", "--cached", "--quiet", check=False).returncode:
+				run_git(repo, "commit", "--quiet", "-m", f"{message}\n\nStaged part.")
+				for path in literal_paths(
+					repo, "diff", "--name-only", "--no-renames", "--diff-filter=D",
+					state["head"], "HEAD",
+				):
+					if os.path.lexists(repo / path) and not run_git(
+						repo, "check-ignore", "--quiet", "--", path, check=False,
+					).returncode:
+						if local is None:
+							backups.mkdir(parents=True, exist_ok=True)
+							local = Path(tempfile.mkdtemp(
+								prefix=f"{stamp}-{tag}-", dir=backups,
+							))
+						copy = local / repo.relative_to(source) / path
+						copy.parent.mkdir(parents=True, exist_ok=True)
+						shutil.copy2(repo / path, copy, follow_symlinks=False)
+						copies.append((repo / path, copy))
+			dirty = source_changed_paths(repo)
+			if dirty:
+				run_git(repo, "--literal-pathspecs", "add", "--all", "--", *dirty)
+			if run_git(repo, "diff", "--cached", "--quiet", check=False).returncode:
+				run_git(repo, "commit", "--quiet", "-m", message)
+			push_branch(
+				repo, MIRROR_REMOTE if repo == source else "origin", "HEAD", name,
+			)
+			state["snapshot"] = resolved_ref(repo, "HEAD")
+		for state in reversed(states):
+			if state["branch"] is not None:
+				run_git(state["repo"], "checkout", "--quiet", "--force", state["branch"])
+			else:
+				run_git(
+					state["repo"], "checkout", "--quiet", "--force", "--detach",
+					state["head"],
+				)
+		update_source_submodules(source)
+		ensure_source_clean(source)
+	except BaseException:
+		for state in reversed(states):
+			repo = state["repo"]
+			if state["snapshot"] is not None:
+				run_git(
+					repo, "checkout", "--quiet", "--force", "--detach",
+					state["snapshot"],
+				)
+			run_git(repo, "reset", "--quiet", "--mixed", state["head"])
+			run_git(repo, "read-tree", state["index"])
+			if state["branch"] is not None:
+				run_git(repo, "checkout", "--quiet", state["branch"])
+		for original, copy in copies:
+			original.parent.mkdir(parents=True, exist_ok=True)
+			shutil.copy2(copy, original, follow_symlinks=False)
+		raise
+
+
 def run_git_binary(path, *args):
-	result = subprocess.run(
+	result = run_git_process(
 		["git", "-C", str(path), *args],
 		stdout=subprocess.PIPE,
 		stderr=subprocess.PIPE,
@@ -2186,7 +3909,33 @@ def kill_processes_with_executable(exe):
 
 
 @contextlib.contextmanager
-def executable_killed_on_abort(exe):
+def git_safe_termination():
+	"""Raise SIGTERM, SIGHUP and SIGINT only between git commands.
+
+	Raising inside subprocess.run would kill a git command that may hold a
+	lock, leaving a repository the rollback cannot restore.
+	"""
+	replaced = {}
+	if threading.current_thread() is threading.main_thread():
+		def defer(signum, frame):
+			_TERMINATION["pending"] = signum
+			raise_pending_termination()
+		for name in ("SIGTERM", "SIGHUP", "SIGINT"):
+			number = getattr(signal, name, None)
+			if number is not None and signal.getsignal(number) in (
+				signal.SIG_DFL, signal.default_int_handler,
+			):
+				replaced[number] = signal.signal(number, defer)
+	try:
+		yield
+	finally:
+		for number, previous in replaced.items():
+			signal.signal(number, previous)
+
+
+@contextlib.contextmanager
+def termination_raises():
+	"""Turn SIGTERM and SIGHUP into SystemExit so cleanup handlers still run."""
 	replaced = {}
 	if threading.current_thread() is threading.main_thread():
 		for name in ("SIGTERM", "SIGHUP"):
@@ -2197,13 +3946,20 @@ def executable_killed_on_abort(exe):
 				)
 	try:
 		yield
-	except BaseException:
-		# a background client is not test-run's child: a group or tree kill of test-run misses it
-		kill_processes_with_executable(exe)
-		raise
 	finally:
 		for number, previous in replaced.items():
 			signal.signal(number, previous)
+
+
+@contextlib.contextmanager
+def executable_killed_on_abort(exe):
+	with termination_raises():
+		try:
+			yield
+		except BaseException:
+			# a background client is not test-run's child: a group or tree kill of test-run misses it
+			kill_processes_with_executable(exe)
+			raise
 
 
 def windows_process_records():
@@ -2243,6 +3999,346 @@ def windows_process_records():
 			"command_line": str(row.get("CommandLine") or ""),
 		})
 	return records
+
+
+def windows_process_snapshot(size):
+	if sys.platform != "win32":
+		raise OSError(f"process snapshots need Windows, this host is {sys.platform}")
+	import ctypes
+	from ctypes import wintypes
+
+	class UnicodeString(ctypes.Structure):
+		_fields_ = [
+			("length", wintypes.USHORT),
+			("maximum_length", wintypes.USHORT),
+			("buffer", ctypes.c_void_p),
+		]
+
+	class ProcessEntry(ctypes.Structure):
+		_fields_ = [
+			("next_entry_offset", wintypes.ULONG),
+			("number_of_threads", wintypes.ULONG),
+			("working_set_private_size", ctypes.c_longlong),
+			("hard_fault_count", wintypes.ULONG),
+			("number_of_threads_high_watermark", wintypes.ULONG),
+			("cycle_time", ctypes.c_ulonglong),
+			("create_time", ctypes.c_longlong),
+			("user_time", ctypes.c_longlong),
+			("kernel_time", ctypes.c_longlong),
+			("image_name", UnicodeString),
+			("base_priority", wintypes.LONG),
+			("unique_process_id", ctypes.c_void_p),
+			("inherited_from_unique_process_id", ctypes.c_void_p),
+		]
+
+	query = ctypes.WinDLL("ntdll").NtQuerySystemInformation
+	query.argtypes = [
+		wintypes.ULONG,
+		ctypes.c_void_p,
+		wintypes.ULONG,
+		ctypes.POINTER(wintypes.ULONG),
+	]
+	query.restype = wintypes.LONG
+	needed = wintypes.ULONG()
+	for _ in range(HOST_LOAD_SNAPSHOT_ATTEMPTS):
+		buffer = ctypes.create_string_buffer(size)
+		status = query(5, buffer, size, ctypes.byref(needed)) & 0xFFFFFFFF
+		if status not in (0xC0000004, 0xC0000023):
+			break
+		size = max(needed.value + needed.value // 4, size * 2)
+	else:
+		raise OSError(
+			"NtQuerySystemInformation still wanted a larger buffer after "
+			f"{HOST_LOAD_SNAPSHOT_ATTEMPTS} attempts"
+		)
+	if status:
+		raise OSError(f"NtQuerySystemInformation failed with status 0x{status:08X}")
+	returned = needed.value
+	if not 0 < returned <= size:
+		raise OSError(f"NtQuerySystemInformation returned {returned} of {size} bytes")
+	base = ctypes.addressof(buffer)
+	entry_size = ctypes.sizeof(ProcessEntry)
+	records = {}
+	offset = 0
+	while True:
+		if offset + entry_size > returned:
+			raise OSError(f"process entry at {offset} overruns {returned} bytes")
+		entry = ProcessEntry.from_buffer(buffer, offset)
+		image = entry.image_name
+		if image.length % 2:
+			raise OSError(f"process entry at {offset} has an odd name length")
+		if image.buffer:
+			start = image.buffer - base
+			if start < 0 or start + image.length > returned:
+				raise OSError(f"process entry at {offset} names outside the buffer")
+			name = ctypes.wstring_at(image.buffer, image.length // 2)
+		elif image.length:
+			raise OSError(f"process entry at {offset} has a null nonempty name")
+		else:
+			name = ""
+		pid = entry.unique_process_id or 0
+		if pid in records:
+			raise OSError(f"process snapshot lists pid {pid} twice")
+		if pid:
+			records[pid] = {
+				"cpu": entry.user_time + entry.kernel_time,
+				"created": entry.create_time,
+				"name": name,
+				"parent_pid": entry.inherited_from_unique_process_id or 0,
+			}
+		if not entry.next_entry_offset:
+			break
+		if entry.next_entry_offset < entry_size:
+			raise OSError(f"process entry at {offset} links backward or overlaps")
+		offset += entry.next_entry_offset
+	if not records:
+		raise OSError("process snapshot listed no process")
+	return size, records
+
+
+def macos_system_library():
+	if sys.platform != "darwin":
+		raise OSError(f"process snapshots need macOS, this host is {sys.platform}")
+	import ctypes
+
+	integer, pointer, port = ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32
+	library = ctypes.CDLL("/usr/lib/libSystem.B.dylib", use_errno=True)
+	for name, result, arguments in (
+		("proc_listallpids", integer, [pointer, integer]),
+		("proc_pidinfo", integer, [integer, integer, ctypes.c_uint64, pointer, integer]),
+		("proc_pidpath", integer, [integer, pointer, ctypes.c_uint32]),
+		("responsibility_get_pid_responsible_for_pid", integer, [integer]),
+		("mach_timebase_info", integer, [pointer]),
+		("mach_host_self", port, []),
+		(
+			"host_processor_info",
+			integer,
+			[
+				port,
+				integer,
+				ctypes.POINTER(ctypes.c_uint32),
+				ctypes.POINTER(ctypes.POINTER(ctypes.c_uint32)),
+				ctypes.POINTER(ctypes.c_uint32),
+			],
+		),
+		("vm_deallocate", integer, [port, ctypes.c_size_t, ctypes.c_size_t]),
+		("mach_port_deallocate", integer, [port, port]),
+	):
+		function = getattr(library, name)
+		function.restype = result
+		function.argtypes = arguments
+	return library, port.in_dll(library, "mach_task_self_").value
+
+
+def macos_unique_id_reader(library):
+	import ctypes
+
+	class UniqueIdentifiers(ctypes.Structure):
+		_fields_ = [
+			("uuid", ctypes.c_uint8 * 16),
+			("unique_id", ctypes.c_uint64),
+			("parent_unique_id", ctypes.c_uint64),
+			("id_version", ctypes.c_int32),
+			("original_parent_id_version", ctypes.c_int32),
+			("reserved2", ctypes.c_uint64),
+			("reserved3", ctypes.c_uint64),
+		]
+
+	identifiers = UniqueIdentifiers()
+	size = ctypes.sizeof(identifiers)
+	if size != 56:
+		raise OSError(f"UniqueIdentifiers is {size} bytes, not 56")
+
+	def unique_id(pid):
+		filled = library.proc_pidinfo(pid, 17, 0, ctypes.byref(identifiers), size)
+		return identifiers.unique_id if filled == size else None
+
+	return unique_id
+
+
+def macos_process_snapshot():
+	library, task_self = macos_system_library()
+	import ctypes
+
+	class Timebase(ctypes.Structure):
+		_fields_ = [("numer", ctypes.c_uint32), ("denom", ctypes.c_uint32)]
+
+	class ShortBsdInfo(ctypes.Structure):
+		_fields_ = [
+			("pid", ctypes.c_uint32),
+			("ppid", ctypes.c_uint32),
+			("pgid", ctypes.c_uint32),
+			("status", ctypes.c_uint32),
+			("comm", ctypes.c_char * 16),
+			("flags", ctypes.c_uint32),
+			("uid", ctypes.c_uint32),
+			("gid", ctypes.c_uint32),
+			("ruid", ctypes.c_uint32),
+			("rgid", ctypes.c_uint32),
+			("svuid", ctypes.c_uint32),
+			("svgid", ctypes.c_uint32),
+			("rfu", ctypes.c_uint32),
+		]
+
+	class TaskInfo(ctypes.Structure):
+		_fields_ = [
+			("virtual_size", ctypes.c_uint64),
+			("resident_size", ctypes.c_uint64),
+			("total_user", ctypes.c_uint64),
+			("total_system", ctypes.c_uint64),
+			("threads_user", ctypes.c_uint64),
+			("threads_system", ctypes.c_uint64),
+			("policy", ctypes.c_int32),
+			("faults", ctypes.c_int32),
+			("pageins", ctypes.c_int32),
+			("cow_faults", ctypes.c_int32),
+			("messages_sent", ctypes.c_int32),
+			("messages_received", ctypes.c_int32),
+			("syscalls_mach", ctypes.c_int32),
+			("syscalls_unix", ctypes.c_int32),
+			("csw", ctypes.c_int32),
+			("threadnum", ctypes.c_int32),
+			("numrunning", ctypes.c_int32),
+			("priority", ctypes.c_int32),
+		]
+
+	timebase, short, task = Timebase(), ShortBsdInfo(), TaskInfo()
+	for structure, expected in ((timebase, 8), (short, 64), (task, 96)):
+		size = ctypes.sizeof(structure)
+		if size != expected:
+			raise OSError(f"{type(structure).__name__} is {size} bytes, not {expected}")
+	short_size, task_size = ctypes.sizeof(short), ctypes.sizeof(task)
+	status = library.mach_timebase_info(ctypes.byref(timebase))
+	if status or timebase.numer < 1 or timebase.denom < 1:
+		raise OSError(
+			f"mach_timebase_info failed with {status}: "
+			f"{timebase.numer}/{timebase.denom}"
+		)
+	numer, divisor = timebase.numer, timebase.denom * 100
+	estimate = library.proc_listallpids(None, 0)
+	if estimate < 1:
+		raise OSError(ctypes.get_errno(), "proc_listallpids gave no process estimate")
+	capacity = estimate + estimate // 4 + 64
+	for _ in range(HOST_LOAD_SNAPSHOT_ATTEMPTS):
+		pids = (ctypes.c_int * capacity)()
+		listed = library.proc_listallpids(pids, ctypes.sizeof(pids))
+		if listed < capacity:
+			break
+		capacity *= 2
+	else:
+		raise OSError(
+			"proc_listallpids still filled its buffer after "
+			f"{HOST_LOAD_SNAPSHOT_ATTEMPTS} attempts"
+		)
+	if listed < 0:
+		raise OSError(ctypes.get_errno(), "proc_listallpids failed")
+	if not listed:
+		raise OSError("proc_listallpids listed no process")
+	listing = pids[:listed]
+	if len(set(listing)) != listed:
+		raise OSError("proc_listallpids listed a pid twice")
+	unique_id = macos_unique_id_reader(library)
+	records = {}
+	for pid in listing:
+		if not pid:
+			continue
+		created = unique_id(pid)
+		if created is None:
+			continue
+		filled = library.proc_pidinfo(pid, 13, 0, ctypes.byref(short), short_size)
+		if filled != short_size or short.pid != pid:
+			continue
+		name = short.comm.decode("utf-8", "replace")
+		parent_pid = short.ppid
+		# other users refuse task info, so their CPU reaches only the machine counter
+		filled = library.proc_pidinfo(pid, 4, 0, ctypes.byref(task), task_size)
+		cpu = (
+			(task.total_user + task.total_system) * numer // divisor
+			if filled == task_size
+			else None
+		)
+		if unique_id(pid) == created:
+			records[pid] = {
+				"cpu": cpu,
+				"created": created,
+				"name": name,
+				"parent_pid": parent_pid,
+			}
+	if not records:
+		raise OSError("process snapshot read no process")
+	clock_ticks = os.sysconf("SC_CLK_TCK")
+	if clock_ticks < 1:
+		raise OSError(f"SC_CLK_TCK is {clock_ticks}")
+	host = library.mach_host_self()
+	if not host:
+		raise OSError("mach_host_self returned no port")
+	try:
+		processors = ctypes.c_uint32()
+		array = ctypes.POINTER(ctypes.c_uint32)()
+		words = ctypes.c_uint32()
+		status = library.host_processor_info(
+			host,
+			2,
+			ctypes.byref(processors),
+			ctypes.byref(array),
+			ctypes.byref(words),
+		)
+		if status:
+			raise OSError(f"host_processor_info failed with {status}")
+		if not array:
+			raise OSError("host_processor_info returned no processor array")
+		try:
+			if processors.value < 1 or words.value != processors.value * 4:
+				raise OSError(
+					f"host_processor_info returned {words.value} words for "
+					f"{processors.value} processors"
+				)
+			ticks = array[:words.value]
+		finally:
+			status = library.vm_deallocate(
+				task_self,
+				ctypes.cast(array, ctypes.c_void_p).value,
+				words.value * ctypes.sizeof(ctypes.c_uint32),
+			)
+			if status:
+				raise OSError(f"vm_deallocate failed with {status}")
+	finally:
+		status = library.mach_port_deallocate(task_self, host)
+		if status:
+			raise OSError(f"mach_port_deallocate failed with {status}")
+	busy = sum(ticks[0::4]) + sum(ticks[1::4]) + sum(ticks[3::4])
+	return records, busy * 10**7 // clock_ticks
+
+
+def macos_process_details(pid):
+	library, _ = macos_system_library()
+	import ctypes
+
+	details = {"created": None, "path": None, "responsible": None}
+	unique_id = macos_unique_id_reader(library)
+	created = unique_id(pid)
+	if created is None:
+		return details
+	buffer = ctypes.create_string_buffer(4096)
+	length = library.proc_pidpath(pid, buffer, ctypes.sizeof(buffer))
+	path = buffer.value
+	responsible_pid = library.responsibility_get_pid_responsible_for_pid(pid)
+	responsible_id = unique_id(responsible_pid) if responsible_pid > 0 else None
+	if unique_id(pid) != created:
+		return details
+	details["created"] = created
+	if length > 0 and len(path) == length:
+		details["path"] = os.fsdecode(path)
+	if responsible_id is not None:
+		details["responsible"] = (responsible_pid, responsible_id)
+	return details
+
+
+def host_process_snapshot(size):
+	if sys.platform == "darwin":
+		return (size, *macos_process_snapshot())
+	size, records = windows_process_snapshot(size)
+	return size, records, None
 
 
 def locking_process_ids(paths):
@@ -2552,7 +4648,20 @@ def command_build_lock_recover(args):
 		sys.exit(2)
 
 
-def parse_test_log(text):
+def screenshot_marker_path(payload, evidence_dir):
+	# Historical absolute markers and malformed quoted text stay verbatim.
+	if not SCREENSHOT_MARKER_PATTERN.fullmatch(payload):
+		return payload
+
+	def unescape(match):
+		token = match.group(1)
+		return chr(int(token[1:], 16)) if len(token) > 1 else token
+
+	relative = SCREENSHOT_ESCAPE_PATTERN.sub(unescape, payload[1:-1])
+	return str(Path(evidence_dir) / relative)
+
+
+def parse_test_log(text, evidence_dir):
 	steps = []
 	passed = []
 	failed = []
@@ -2568,7 +4677,10 @@ def parse_test_log(text):
 		elif line.startswith("TEST_RESULT: N/A: "):
 			skipped.append(line[len("TEST_RESULT: N/A: "):])
 		elif line.startswith("SCREENSHOT: "):
-			screenshots.append(line[len("SCREENSHOT: "):])
+			screenshots.append(screenshot_marker_path(
+				line[len("SCREENSHOT: "):],
+				evidence_dir,
+			))
 	return {
 		"steps": steps,
 		"pass": passed,
@@ -2763,6 +4875,370 @@ def wait_for_console_idle(required, bound, clock=time.monotonic, sleep=time.slee
 	return result
 
 
+def host_load_parameters(args):
+	if not args.host_load:
+		return None
+	if not 0 < args.host_load_threshold <= 100:
+		raise WorkspaceError(
+			"--host-load-threshold must be a percent above 0 and at most 100"
+		)
+	if not 0 < args.host_load_hold < float("inf"):
+		raise WorkspaceError("--host-load-hold must be a positive number of seconds")
+	if not 0 <= args.host_load_max < float("inf"):
+		raise WorkspaceError("--host-load-max must be zero or more seconds")
+	if not HOST_LOAD_INTERVAL_MIN <= args.host_load_interval < float("inf"):
+		raise WorkspaceError(
+			f"--host-load-interval must be at least {HOST_LOAD_INTERVAL_MIN:g} "
+			"seconds and finite"
+		)
+	return {
+		"hold_seconds": float(args.host_load_hold),
+		"interval_seconds": float(args.host_load_interval),
+		"max_seconds": float(args.host_load_max),
+		"threshold_percent": float(args.host_load_threshold),
+	}
+
+
+def host_load_unsupported_reason(platform=None):
+	platform = sys.platform if platform is None else platform
+	if platform in ("win32", "darwin"):
+		return None
+	return f"host-load sampling needs Windows or macOS, this host is {platform}"
+
+
+def host_load_tools_json(seen):
+	return [
+		{"name": name, "pid": pid}
+		for name, pid in sorted(seen, key=lambda tool: (tool[0].casefold(), tool[1]))
+	]
+
+
+def host_load_sample_json(sample, **extra):
+	serialized = {
+		"build_tools": sample["build_tools"],
+		"others_percent": round(sample["others_percent"], 2),
+		"seconds": round(sample["seconds"], 3),
+		"top": [
+			{**entry, "percent": round(entry["percent"], 2)}
+			for entry in sample["top"]
+		],
+		**extra,
+	}
+	if "unattributed_percent" in sample:
+		serialized["unattributed_percent"] = round(sample["unattributed_percent"], 2)
+	return serialized
+
+
+def host_load_error(error):
+	return f"{type(error).__name__}: {error}"
+
+
+class HostLoadMonitor:
+	def __init__(self, parameters, background_exe=None):
+		self.parameters = parameters
+		self.threshold = parameters["threshold_percent"]
+		self.hold = parameters["hold_seconds"]
+		self.bound = parameters["max_seconds"]
+		self.interval = parameters["interval_seconds"]
+		self.unsupported = host_load_unsupported_reason()
+		self.build_tools = (
+			HOST_LOAD_MACOS_BUILD_TOOLS
+			if sys.platform == "darwin"
+			else HOST_LOAD_BUILD_TOOLS
+		)
+		self.background_exe = None if background_exe is None else str(background_exe)
+		self.processors = os.cpu_count()
+		self.test_run_pid = os.getpid()
+		self.size = HOST_LOAD_SNAPSHOT_SIZE
+		self.previous = None
+		self.client_pid = None
+		self.launcher_created = None
+		self.client_root_checked = False
+		self.client = {}
+		self.incarnations = {}
+		self.wait_result = None
+		self.wait_samples = []
+		self.wait_tools = set()
+		self.trace_origin = None
+		self.trace_samples = []
+		self.trace_tools = set()
+		self.trace_error = None
+		self.stop_event = threading.Event()
+		self.worker = None
+
+	def _excluded(self, pid, record):
+		return pid == self.test_run_pid or (pid, record["created"]) in self.client
+
+	def _client_child(self, record):
+		parent = record["parent_pid"]
+		earlier = [
+			created
+			for created in self.incarnations.get(parent, ())
+			if created <= record["created"]
+		]
+		return bool(earlier) and (parent, max(earlier)) in self.client
+
+	def _grow_background(self, records):
+		if self.launcher_created is None:
+			return
+		live = {
+			(pid, record["created"])
+			for pid, record in records.items()
+			if (pid, record["created"]) in self.client
+		}
+		candidates = sorted(
+			(record["created"], pid)
+			for pid, record in records.items()
+			if record["created"] > self.launcher_created
+		)
+		for created, pid in candidates:
+			identity = (pid, created)
+			if identity in self.client:
+				continue
+			if not self._client_child(records[pid]):
+				details = macos_process_details(pid)
+				# WHY: launchd starts the client's helpers with ppid 1 and their own
+				# executables, so only the responsible process ties them to it; an
+				# identity alive in this reading cannot be a reused pid.
+				if details["created"] != created or (
+					details["path"] != self.background_exe
+					and details["responsible"] not in live
+				):
+					continue
+			self.client[identity] = records[pid]["name"]
+			live.add(identity)
+
+	def _grow_client(self, records):
+		if self.client_pid is None:
+			return
+		if not self.client_root_checked:
+			root = records.get(self.client_pid)
+			if root is not None:
+				self.client[(self.client_pid, root["created"])] = root["name"]
+				self.launcher_created = root["created"]
+			self.client_root_checked = root is not None or self.background_exe is None
+		for pid, record in records.items():
+			self.incarnations.setdefault(pid, set()).add(record["created"])
+		if self.background_exe is not None:
+			self._grow_background(records)
+			return
+		grown = True
+		while grown:
+			grown = False
+			for pid, record in records.items():
+				identity = (pid, record["created"])
+				if identity not in self.client and self._client_child(record):
+					self.client[identity] = record["name"]
+					grown = True
+
+	@staticmethod
+	def _delta(record, prior):
+		if prior is None or prior["created"] != record["created"]:
+			return record["cpu"]
+		if record["cpu"] is None or prior["cpu"] is None:
+			return None
+		return record["cpu"] - prior["cpu"]
+
+	def _observe(self, clock):
+		previous, self.previous = self.previous, None
+		count = self.processors
+		if type(count) is not int or count < 1:
+			raise ValueError(f"the logical processor count is unknown: {count!r}")
+		self.size, records, busy = host_process_snapshot(self.size)
+		taken = clock()
+		self._grow_client(records)
+		others = {
+			pid: record
+			for pid, record in records.items()
+			if not self._excluded(pid, record)
+		}
+		tools = sorted(
+			(
+				{"name": record["name"], "pid": pid}
+				for pid, record in others.items()
+				if record["name"].casefold() in self.build_tools
+			),
+			key=lambda tool: (tool["name"].casefold(), tool["pid"]),
+		)
+		percent = top = unattributed = None
+		if previous is not None:
+			before, prior_records, prior_busy = previous
+			elapsed = taken - before
+			if not elapsed > 0:
+				raise ValueError(f"the clock did not advance between snapshots: {elapsed!r}")
+			scale = elapsed * 1e7 * count
+			readable = excluded = 0
+			deltas = []
+			for pid, record in records.items():
+				delta = self._delta(record, prior_records.get(pid))
+				if delta is None or delta <= 0:
+					continue
+				readable += delta
+				if pid in others:
+					deltas.append((delta, pid, record["name"]))
+				else:
+					excluded += delta
+			if busy is None or prior_busy is None:
+				percent = 100 * sum(delta for delta, _, _ in deltas) / scale
+			else:
+				machine = busy - prior_busy
+				if machine < 0:
+					raise ValueError(f"the machine CPU counter went backwards: {machine!r}")
+				percent = 100 * max(0, machine - excluded) / scale
+				unattributed = 100 * max(0, machine - readable) / scale
+			deltas.sort(key=lambda item: (-item[0], item[1]))
+			top = [
+				{"name": name, "percent": 100 * delta / scale, "pid": pid}
+				for delta, pid, name in deltas[:HOST_LOAD_TOP]
+			]
+		self.previous = (taken, records, busy)
+		return taken, tools, percent, top, unattributed
+
+	def wait(self, clock=time.monotonic, sleep=time.sleep):
+		if self.unsupported:
+			return None
+		met = None
+		error = None
+		self.previous = None
+		start = clock()
+		calm_since = None
+		while True:
+			try:
+				taken, tools, percent, top, unattributed = self._observe(clock)
+			except Exception as failure:
+				error = host_load_error(failure)
+				break
+			self.wait_tools.update((tool["name"], tool["pid"]) for tool in tools)
+			elapsed = taken - start
+			if percent is None:
+				calm_since = taken
+			else:
+				sample = {
+					"build_tools": tools,
+					"others_percent": percent,
+					"seconds": elapsed,
+					"top": top,
+				}
+				if unattributed is not None:
+					sample["unattributed_percent"] = unattributed
+				self.wait_samples.append(sample)
+				if tools or percent >= self.threshold:
+					calm_since = taken
+				elif taken - calm_since >= self.hold and elapsed <= self.bound:
+					met = True
+					break
+			remaining = self.bound - elapsed
+			if remaining <= 0:
+				met = False
+				break
+			sleep(min(self.interval, remaining))
+		self.wait_result = {
+			"build_tools_seen": host_load_tools_json(self.wait_tools),
+			"error": error,
+			"last_samples": [
+				host_load_sample_json(sample)
+				for sample in self.wait_samples[-HOST_LOAD_LAST_SAMPLES:]
+			],
+			"met": met,
+			"waited_seconds": round(clock() - start, 3),
+		}
+		return self.wait_result
+
+	def start_trace(self, process):
+		if self.unsupported:
+			return
+		self.client_pid = process.pid
+		self.trace_origin = time.monotonic()
+		self.previous = None
+		try:
+			self._observe(time.monotonic)
+			self.worker = threading.Thread(
+				target=self._trace,
+				args=(process,),
+				name="host-load-trace",
+				daemon=True,
+			)
+			self.worker.start()
+		except Exception as failure:
+			self.trace_error = host_load_error(failure)
+
+	def _trace(self, process):
+		while not self.stop_event.wait(self.interval):
+			try:
+				if process.poll() is not None:
+					return
+				taken, tools, percent, top, unattributed = self._observe(time.monotonic)
+			except Exception as failure:
+				self.trace_error = host_load_error(failure)
+				return
+			self.trace_tools.update((tool["name"], tool["pid"]) for tool in tools)
+			sample = {
+				"build_tools": tools,
+				"others_percent": percent,
+				"seconds": taken - self.trace_origin,
+				"top": top,
+			}
+			if unattributed is not None:
+				sample["unattributed_percent"] = unattributed
+			self.trace_samples.append(sample)
+
+	def stop_trace(self):
+		self.stop_event.set()
+		if self.worker is not None and self.worker.is_alive():
+			self.worker.join()
+
+	def report(self, run_dir):
+		self.stop_trace()
+		report = {
+			**self.parameters,
+			"excluded": None,
+			"logical_processors": None,
+			"samples_file": None,
+			"samples_file_error": None,
+			"trace": None,
+			"unsupported": self.unsupported,
+			"wait": None,
+		}
+		if self.unsupported:
+			return report
+		values = [sample["others_percent"] for sample in self.trace_samples]
+		report.update({
+			"excluded": {
+				"client_pid": self.client_pid,
+				"client_processes": [
+					{"name": name, "pid": pid}
+					for (pid, _), name in sorted(self.client.items())
+				],
+				"test_run_pid": self.test_run_pid,
+			},
+			"logical_processors": self.processors,
+			"trace": {
+				"build_tools_seen": host_load_tools_json(self.trace_tools),
+				"error": self.trace_error,
+				"max_percent": round(max(values), 2) if values else None,
+				"mean_percent": round(sum(values) / len(values), 2) if values else None,
+				"over_threshold": sum(value >= self.threshold for value in values),
+				"samples": len(values),
+			},
+			"wait": self.wait_result,
+		})
+		path = run_dir / HOST_LOAD_SAMPLES_FILE
+		lines = [
+			json.dumps(host_load_sample_json(sample, phase=phase), sort_keys=True)
+			for phase, samples in (
+				("wait", self.wait_samples),
+				("trace", self.trace_samples),
+			)
+			for sample in samples
+		]
+		try:
+			path.write_bytes("".join(line + "\n" for line in lines).encode("utf-8"))
+			report["samples_file"] = str(path)
+		except OSError as failure:
+			report["samples_file_error"] = host_load_error(failure)
+		return report
+
+
 def command_test_run(args):
 	extra_environment = parse_env_values(args.env)
 	if LAUNCH_ACTIVATION_VARIABLE in extra_environment:
@@ -2775,6 +5251,7 @@ def command_test_run(args):
 			raise WorkspaceError("--wait-idle must be a positive number of seconds")
 		if not 0 <= args.wait_idle_max < float("inf"):
 			raise WorkspaceError("--wait-idle-max must be zero or more seconds")
+	host_load = host_load_parameters(args)
 	exe = resolved_exe(args.exe)
 	run_dir = Path(args.run_dir).expanduser().resolve()
 	run_dir.mkdir(parents=True, exist_ok=True)
@@ -2836,6 +5313,13 @@ def command_test_run(args):
 			"--args", *launch_args,
 		]
 
+	monitor = (
+		HostLoadMonitor(host_load, None if bundle is None else exe)
+		if host_load is not None
+		else None
+	)
+	if monitor is not None:
+		monitor.wait()
 	_, input_before = console_input_reading()
 	launched_at = time.time()
 	with executable_killed_on_abort(exe), contextlib.ExitStack() as streams:
@@ -2852,6 +5336,9 @@ def command_test_run(args):
 			env=environment,
 			cwd=str(portable),
 		)
+		if monitor is not None:
+			streams.callback(monitor.stop_trace)
+			monitor.start_trace(process)
 		outcome = None
 		exit_code = None
 		complete_seen_at = None
@@ -2889,6 +5376,8 @@ def command_test_run(args):
 				break
 		process.wait()
 		ended_at = time.time()
+		if monitor is not None:
+			monitor.stop_trace()
 		stragglers_after = kill_processes_with_executable(exe)
 	launcher_exit_code = None
 	if bundle is not None:
@@ -2942,6 +5431,7 @@ def command_test_run(args):
 		and input_after["idle_seconds"] is not None
 		else None
 	)
+	host_load_report = monitor.report(run_dir) if monitor is not None else None
 
 	print(json.dumps({
 		"account": account,
@@ -2959,6 +5449,7 @@ def command_test_run(args):
 		"exe": str(exe),
 		"exit_code": exit_code,
 		"golden_root": str(portable_root_for(exe, None) / PORTABLE_GOLDEN),
+		"host_load": host_load_report,
 		"input_after": input_after,
 		"input_before": input_before,
 		"input_during_run": input_during_run,
@@ -2966,7 +5457,7 @@ def command_test_run(args):
 		"launch_method": "exec" if bundle is None else "background",
 		"launcher_exit_code": launcher_exit_code,
 		"log_path": str(log_path) if log_path.is_file() else None,
-		"markers": parse_test_log(log_text),
+		"markers": parse_test_log(log_text, run_dir),
 		"outcome": outcome,
 		"portable_root": str(portable),
 		"run_dir": str(run_dir),
@@ -3355,6 +5846,48 @@ def gitlink_paths(source, paths):
 	return result
 
 
+def mirror_source_head(config):
+	tag = config.get("checkout_tag")
+	if not tag:
+		return {"pushed": False, "skipped": "no checkout tag"}
+	source = Path(config["source_root"])
+	remotes = run_git(source, "remote").stdout.split()
+	if MIRROR_REMOTE not in remotes:
+		return {"pushed": False, "skipped": f"no {MIRROR_REMOTE} remote"}
+	branch = MIRROR_BRANCH_PREFIX + tag
+	result = {"remote": MIRROR_REMOTE, "branch": branch}
+	try:
+		push = subprocess.run(
+			[
+				"git", "-C", str(source), "push", "--force", "--quiet",
+				MIRROR_REMOTE, f"HEAD:refs/heads/{branch}",
+			],
+			stdin=subprocess.DEVNULL,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.PIPE,
+			text=True,
+			timeout=MIRROR_PUSH_TIMEOUT,
+			env={
+				**os.environ,
+				"GIT_TERMINAL_PROMPT": "0",
+				"GCM_INTERACTIVE": "never",
+			},
+		)
+	except subprocess.TimeoutExpired:
+		return {
+			**result,
+			"pushed": False,
+			"error": f"push timed out after {MIRROR_PUSH_TIMEOUT:g} s",
+		}
+	if push.returncode:
+		return {
+			**result,
+			"pushed": False,
+			"error": push.stderr.strip() or push.stdout.strip(),
+		}
+	return {**result, "pushed": True}
+
+
 def command_source_commit(args):
 	config, slot = task_action_config(args)
 	source = Path(config["source_root"])
@@ -3411,9 +5944,11 @@ def command_source_commit(args):
 	validate_task_commit(source, "HEAD", args.task)
 	if args.mark_green:
 		mark_source_green(config, args.task)
+	mirror = mirror_source_head(config)
 	print(json.dumps({
 		"committed": dirty,
 		"marked_green": bool(args.mark_green),
+		"mirror": mirror,
 		"subject": subject,
 		"task": args.task,
 	}, indent=2, sort_keys=True))
@@ -3868,7 +6403,8 @@ def command_finish(args):
 			"An approved task must retain work/test.md as adaptive evidence: "
 			f"{result_path.parent / 'test.md'}"
 		)
-	ensure_no_persisted_commit_hashes(result_path.parents[1])
+	# Supplied inputs stay byte-exact, so a hash quoted there is not ours.
+	ensure_no_persisted_commit_hashes(result_path.parents[1], exempt=("input",))
 	source_note = Path(config["source_root"]) / "tasks" / f"{args.task}.md"
 	if source_note.is_file():
 		ensure_no_persisted_commit_hashes(source_note)
@@ -4020,19 +6556,30 @@ def parse_consolidation_mapping(value):
 	return tuple(parts)
 
 
-def validate_dependency_graph(states):
+def report_graph_problem(problems, message, involved):
+	if problems is None:
+		raise WorkspaceError(message)
+	problems.append((message, set(involved)))
+
+
+def validate_dependency_graph(states, retired=(), problems=None):
 	dependents = {task_id: [] for task_id in states}
 	remaining = {}
 	for task in states.values():
 		missing = [
 			dependency for dependency in task["depends_on"]
-			if dependency not in states
+			if dependency not in states and dependency not in retired
 		]
 		if missing:
-			raise WorkspaceError(
-				f"{task['id']} has missing dependencies: " + ", ".join(missing)
+			report_graph_problem(
+				problems,
+				f"{task['id']} has missing dependencies: " + ", ".join(missing),
+				[task["id"], *missing],
 			)
-		dependencies = set(task["depends_on"])
+		dependencies = {
+			dependency for dependency in task["depends_on"]
+			if dependency in states
+		}
 		remaining[task["id"]] = len(dependencies)
 		for dependency in dependencies:
 			dependents[dependency].append(task["id"])
@@ -4050,58 +6597,124 @@ def validate_dependency_graph(states):
 			task_id for task_id, count in remaining.items()
 			if count
 		)
-		raise WorkspaceError(
-			"Task dependency cycle includes: " + ", ".join(cycle_members)
+		report_graph_problem(
+			problems,
+			"Task dependency cycle includes: " + ", ".join(cycle_members),
+			cycle_members,
 		)
 
 
-def validate_superseded_graph(root, states, superseded):
+def check_superseded_alias(root, states, superseded, splits, retired, task_id, chain):
+	alias = superseded[task_id]
+	if task_id in states:
+		raise WorkspaceError(
+			f"Superseded task still has live state.yaml: {task_id}"
+		)
+	directory = root / "tasks" / task_id
+	if not (directory / "task.md").is_file():
+		raise WorkspaceError(f"Superseded task lost task.md: {task_id}")
+	actual_digest = retained_task_digest(directory)
+	if actual_digest != alias["content_sha256"]:
+		raise WorkspaceError(
+			f"Superseded task retained content changed: {task_id}"
+		)
+	current = task_id
+	while (
+		current not in states
+		and current not in splits
+		and current not in retired
+	):
+		if current in chain:
+			raise WorkspaceError(
+				"Superseded task cycle: " + " -> ".join(chain + [current])
+			)
+		chain.append(current)
+		current_alias = superseded.get(current)
+		if current_alias is None:
+			raise WorkspaceError(
+				f"Superseded task {task_id} targets missing task {current}"
+			)
+		current = current_alias["superseded_by"]
+
+
+def validate_superseded_graph(root, states, superseded, retired=None, problems=None):
 	splits = load_splits(root)
-	for task_id, alias in superseded.items():
-		if task_id in states:
-			raise WorkspaceError(
-				f"Superseded task still has live state.yaml: {task_id}"
+	if retired is None:
+		retired = load_retired(root)
+	for task_id in superseded:
+		chain = []
+		try:
+			check_superseded_alias(
+				root, states, superseded, splits, retired, task_id, chain,
 			)
-		directory = root / "tasks" / task_id
-		if not (directory / "task.md").is_file():
-			raise WorkspaceError(f"Superseded task lost task.md: {task_id}")
-		actual_digest = retained_task_digest(directory)
-		if actual_digest != alias["content_sha256"]:
-			raise WorkspaceError(
-				f"Superseded task retained content changed: {task_id}"
-			)
-		current = task_id
-		visited = []
-		while current not in states and current not in splits:
-			if current in visited:
-				raise WorkspaceError(
-					"Superseded task cycle: " + " -> ".join(visited + [current])
-				)
-			visited.append(current)
-			current_alias = superseded.get(current)
-			if current_alias is None:
-				raise WorkspaceError(
-					f"Superseded task {task_id} targets missing task {current}"
-				)
-			current = current_alias["superseded_by"]
+		except WorkspaceError as error:
+			report_graph_problem(problems, str(error), [task_id, *chain])
 
 
-def validate_split_graph(root, states, superseded, splits):
+def check_split_record(root, states, superseded, splits, retired, task_id):
+	split = splits[task_id]
+	if task_id in states or task_id in superseded:
+		raise WorkspaceError(
+			f"Split task still has live or superseded state: {task_id}"
+		)
+	directory = root / "tasks" / task_id
+	if not (directory / "task.md").is_file():
+		raise WorkspaceError(f"Split task lost task.md: {task_id}")
+	actual_digest = retained_task_digest(directory)
+	if actual_digest != split["content_sha256"]:
+		raise WorkspaceError(f"Split task retained content changed: {task_id}")
+	receipt = root / split["receipt"]
+	if not receipt.is_file():
+		raise WorkspaceError(f"Split task receipt is missing: {receipt}")
+	resolve_split_targets(states, superseded, splits, task_id, retired=retired)
+
+
+def validate_split_graph(root, states, superseded, splits, retired=None, problems=None):
+	if retired is None:
+		retired = load_retired(root)
 	for task_id, split in splits.items():
-		if task_id in states or task_id in superseded:
-			raise WorkspaceError(
-				f"Split task still has live or superseded state: {task_id}"
+		try:
+			check_split_record(root, states, superseded, splits, retired, task_id)
+		except WorkspaceError as error:
+			report_graph_problem(
+				problems, str(error), [task_id, *split["split_into"]],
 			)
-		directory = root / "tasks" / task_id
-		if not (directory / "task.md").is_file():
-			raise WorkspaceError(f"Split task lost task.md: {task_id}")
-		actual_digest = retained_task_digest(directory)
-		if actual_digest != split["content_sha256"]:
-			raise WorkspaceError(f"Split task retained content changed: {task_id}")
-		receipt = root / split["receipt"]
-		if not receipt.is_file():
-			raise WorkspaceError(f"Split task receipt is missing: {receipt}")
-		resolve_split_targets(states, superseded, splits, task_id)
+
+
+def touched_task_ids(root):
+	# None when there is no master to compare with: every problem then blocks.
+	if run_git(
+		root, "rev-parse", "--verify", "--quiet", "master", check=False,
+	).returncode:
+		return None
+	paths = literal_paths(root, "diff", "--name-only", "--no-renames", "master")
+	paths += literal_paths(root, "ls-files", "--others", "--exclude-standard")
+	return {
+		"/".join(parts[1:5])
+		for parts in (path.split("/") for path in paths)
+		if len(parts) > 5 and parts[0] == "tasks"
+	}
+
+
+def validate_queue_graph(root):
+	# A problem blocks only a publication that touches one of its records, so a
+	# record broken on master never stops unrelated work from publishing.
+	states = load_states(root)
+	superseded = load_superseded(root)
+	splits = load_splits(root)
+	retired = load_retired(root)
+	problems = []
+	validate_dependency_graph(states, retired, problems)
+	validate_superseded_graph(root, states, superseded, retired, problems)
+	validate_split_graph(root, states, superseded, splits, retired, problems)
+	if not problems:
+		return
+	touched = touched_task_ids(root)
+	for message, involved in problems:
+		if touched is None or involved & touched:
+			raise WorkspaceError(message)
+	for message, _ in problems:
+		print(f"warning: queue graph problem already on master: {message}", file=sys.stderr)
 
 
 def validate_split_tree(root, source_task, replacements, receipt, carrier):
@@ -4117,9 +6730,7 @@ def validate_split_tree(root, source_task, replacements, receipt, carrier):
 		)
 	if split["receipt"] != receipt or split["implementation_carrier"] != carrier:
 		raise WorkspaceError(f"Split routing metadata changed for {source_task}")
-	validate_dependency_graph(states)
-	validate_superseded_graph(root, states, superseded)
-	validate_split_graph(root, states, superseded, splits)
+	validate_queue_graph(root)
 	receipt_path = root / receipt
 	receipt_text = receipt_path.read_text(encoding="utf-8-sig")
 	for task_id in [source_task, *replacements]:
@@ -4401,9 +7012,7 @@ def validate_consolidation_tree(root, source_task, mappings, receipt):
 			f"Consolidation completion marker must name {source_task} and "
 			f"contain STATUS: {expected_status}"
 		)
-	validate_dependency_graph(states)
-	validate_superseded_graph(root, states, superseded)
-	validate_split_graph(root, states, superseded, splits)
+	validate_queue_graph(root)
 	if not mappings:
 		if receipt is not None:
 			raise WorkspaceError("A no-merge consolidation must not publish a receipt")
@@ -4965,6 +7574,51 @@ def command_route_ensure(args):
 	}, indent=2, sort_keys=True))
 
 
+def ensure_routing_valid(worktree):
+	ensure_revisions_unclaimed(worktree)
+	validate_queue_graph(worktree)
+
+
+def ensure_revisions_unclaimed(worktree):
+	revised = set()
+	for path in literal_paths(
+		worktree, "diff", "--name-only", "--no-renames", "master", "HEAD",
+	):
+		parts = path.split("/")
+		if (
+			len(parts) == 6
+			and parts[0] == "tasks"
+			and parts[5] in ("task.md", "state.yaml")
+		):
+			revised.add("/".join(parts[1:5]))
+	for task_id in sorted(revised):
+		before = run_git(
+			worktree, "show", f"master:tasks/{task_id}/state.yaml", check=False,
+		)
+		if before.returncode:
+			if not run_git(
+				worktree, "cat-file", "-e", f"master:tasks/{task_id}", check=False,
+			).returncode:
+				raise RebaseConflict(
+					f"{task_id} is retired history; leave its record unchanged"
+				)
+			continue
+		values = dict(
+			(key.strip(), value.strip())
+			for key, _, value in (
+				line.partition(":") for line in before.stdout.splitlines()
+			)
+		)
+		if (
+			parse_scalar(values.get("status", "null")) != "todo"
+			or parse_scalar(values.get("claimed_by", "null")) is not None
+		):
+			raise RebaseConflict(
+				f"{task_id} is no longer unclaimed todo work; drop its revision "
+				"from the routing commit"
+			)
+
+
 def command_route_publish(args):
 	config = routing_worktree_config(args, create=True)
 	worktree = Path(config["routing_worktree"])
@@ -4974,7 +7628,7 @@ def command_route_publish(args):
 	if not changes:
 		if not routing_unpublished_count(config):
 			raise WorkspaceError("The routing worktree has nothing to publish")
-		published = publish_routing(config)
+		published = publish_routing(config, ensure_routing_valid)
 		print(json.dumps({
 			"committed": False,
 			"published": bool(published),
@@ -5026,7 +7680,7 @@ def command_route_publish(args):
 			"-m",
 			f"Route follow-ups from {args.source_task}",
 		)
-	published = publish_routing(config)
+	published = publish_routing(config, ensure_routing_valid)
 	print(json.dumps({
 		"committed": committed,
 		"published": bool(published),
@@ -5298,6 +7952,7 @@ def parse_args():
 	add_common_arguments(start)
 	start.add_argument("--task", required=True)
 	start.add_argument("--require", action="append", default=[])
+	start.add_argument("--batch", action="extend", nargs="+", metavar="ID")
 	start.set_defaults(handler=command_start)
 
 	source_lineage = subparsers.add_parser("source-lineage")
@@ -5342,8 +7997,35 @@ def parse_args():
 	source_verify_commit.set_defaults(handler=command_source_verify_commit)
 
 	source_prepare = subparsers.add_parser("source-prepare")
-	source_prepare.add_argument("--source-root")
+	add_common_arguments(source_prepare)
 	source_prepare.set_defaults(handler=command_source_prepare)
+
+	project_sync = subparsers.add_parser("project-sync")
+	add_common_arguments(project_sync)
+	project_sync.add_argument("--task", required=True)
+	project_sync.add_argument("--onto", metavar="REMOTE/BRANCH")
+	project_sync.add_argument("--base-fix", metavar="COMMIT")
+	project_sync.set_defaults(handler=command_project_sync)
+
+	project_push = subparsers.add_parser("project-push")
+	add_common_arguments(project_push)
+	project_push.add_argument("--task", required=True)
+	project_push.add_argument("--rewritten", action="store_true")
+	project_push.add_argument("--base-fix", metavar="COMMIT")
+	project_push.add_argument("--base", metavar="REMOTE/BRANCH")
+	project_push.set_defaults(handler=command_project_push)
+
+	project_switch = subparsers.add_parser("project-switch")
+	add_common_arguments(project_switch)
+	project_switch.add_argument("--project", required=True)
+	project_switch.add_argument("--task")
+	project_switch.add_argument("--require", action="append", default=[])
+	project_switch.set_defaults(handler=command_project_switch)
+
+	wip_save = subparsers.add_parser("wip-save")
+	add_common_arguments(wip_save)
+	wip_save.add_argument("--reason", required=True)
+	wip_save.set_defaults(handler=command_wip_save)
 
 	source_preflight = subparsers.add_parser("source-preflight")
 	add_common_arguments(source_preflight)
@@ -5383,6 +8065,15 @@ def parse_args():
 	test_run.add_argument("--grace", type=float, default=15.0)
 	test_run.add_argument("--wait-idle", type=float)
 	test_run.add_argument("--wait-idle-max", type=float, default=WAIT_IDLE_MAX_DEFAULT)
+	test_run.add_argument("--host-load", action="store_true")
+	test_run.add_argument(
+		"--host-load-threshold", type=float, default=HOST_LOAD_THRESHOLD_DEFAULT
+	)
+	test_run.add_argument("--host-load-hold", type=float, default=HOST_LOAD_HOLD_DEFAULT)
+	test_run.add_argument("--host-load-max", type=float, default=HOST_LOAD_MAX_DEFAULT)
+	test_run.add_argument(
+		"--host-load-interval", type=float, default=HOST_LOAD_INTERVAL_DEFAULT
+	)
 	test_run.add_argument("--activate", action="store_true")
 	test_run.add_argument("--env", action="append")
 	test_run.set_defaults(handler=command_test_run)
@@ -5522,6 +8213,7 @@ def parse_args():
 
 def main():
 	args = parse_args()
+	enable_git_long_paths(os.environ)
 	try:
 		args.handler(args)
 	except (OSError, ValueError, WorkspaceError) as error:

@@ -52,11 +52,6 @@ bool AudioPlayerLoader::holdsSavedDecodedSamples() const {
 	return _holdsSavedSamples;
 }
 
-void AudioPlayerLoader::dropDecodedSamples() {
-	_savedSamples = {};
-	_holdsSavedSamples = false;
-}
-
 int AudioPlayerLoader::bytesPerBuffer() {
 	if (!_bytesPerBuffer) {
 		_bytesPerBuffer = samplesFrequency() * sampleSize();

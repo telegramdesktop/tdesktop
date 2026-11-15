@@ -205,6 +205,9 @@ dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
 dialogsTTLBadgeSkip: point(1px, 1px);
 dialogsCommunityHiddenBadgeIcon: icon{{ "community/requests_hidden", premiumButtonFg }};
 dialogsCommunityHiddenBadgePadding: 4px;
+dialogsCommunityJoinedIcon: icon{{ "folders/folder_existing_chats", windowActiveTextFg }};
+dialogsCommunityViewableIcon: icon{{ "poll/filled/filled_poll_view-22x22", windowActiveTextFg }};
+dialogsCommunityRequestableIcon: icon{{ "community/requests_hidden-22x22", windowActiveTextFg }};
 
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;

@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/algorithm.h"
 #include "data/data_file_click_handler.h"
+#include "iv/markdown/iv_markdown_article_caption_hit.h"
 #include "iv/markdown/iv_markdown_article_layout_structure.h"
 #include "iv/markdown/iv_markdown_article_paint.h"
+#include "iv/markdown/iv_markdown_article_quote.h"
 #include "iv/markdown/iv_markdown_article_selection.h"
 #include "iv/markdown/iv_markdown_article_text.h"
 #include "iv/markdown/iv_markdown_button_row.h"
@@ -21,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_scale.h"
 #include "ui/text/text_extended_data.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/scroll_math.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/dynamic_image.h"
 
@@ -1187,43 +1190,6 @@ void RebuildVisibleSegmentLookup(
 		.kind = PreparedLinkKind::ToggleDetails,
 		.target = segment.block->anchorId,
 	};
-}
-
-[[nodiscard]] int ComputeScrollTo(
-		int toFrom,
-		int toTill,
-		int toMin,
-		int toMax,
-		int current,
-		int size) {
-	if (toFrom < toMin) {
-		toFrom = toMin;
-	} else if (toFrom > toMax) {
-		toFrom = toMax;
-	}
-	const auto exact = (toTill < 0);
-
-	const auto curBottom = current + size;
-	auto scToFrom = toFrom;
-	if (!exact && toFrom >= current) {
-		if (toTill < toFrom) {
-			toTill = toFrom;
-		}
-		if (toTill <= curBottom) {
-			return current;
-		}
-
-		scToFrom = toTill - size;
-		if (scToFrom > toFrom) {
-			scToFrom = toFrom;
-		}
-		if (scToFrom == current) {
-			return current;
-		}
-	} else {
-		scToFrom = toFrom;
-	}
-	return scToFrom;
 }
 
 [[nodiscard]] QRect LogicalTextRectForSegment(const SelectableSegment &segment) {
@@ -3929,6 +3895,13 @@ public:
 	[[nodiscard]] int segmentIndexForEditableLeaf(
 		const PreparedEditLeafSource &source) const;
 
+	[[nodiscard]] QuoteLeafLookup quoteLeaf(
+		const PreparedEditLeafSource &source,
+		int segmentIndex) const;
+	[[nodiscard]] int groupedCaptionSegment(int segmentIndex) const;
+	[[nodiscard]] QRect displayRangesRect(
+		const std::vector<MarkdownArticleSearchMatch> &ranges) const;
+
 	[[nodiscard]] QRect textSegmentRect(int segmentIndex) const;
 	[[nodiscard]] QRect logicalSegmentRect(int segmentIndex) const;
 
@@ -4363,7 +4336,9 @@ void MarkdownArticle::Impl::updatePreparedLeaf(
 		const MarkdownArticleContent &prepared) {
 	if (!ValidBlockPath(source.block)
 		|| (_content.mediaRuntime != prepared.mediaRuntime)
-		|| (_content.editMode != prepared.editMode)) {
+		|| (_content.editMode != prepared.editMode)
+		|| IsQuotableNativeContent(_content)
+		|| IsQuotableNativeContent(prepared)) {
 		setContent(prepared);
 		return;
 	}
@@ -4708,6 +4683,20 @@ MarkdownArticleHitTestResult MarkdownArticle::Impl::hitTestSegments(
 			result.valid()) {
 			return result;
 		}
+	}
+	const auto band = HitScrolledCaptionBand(
+		_segments,
+		span,
+		point,
+		[&](int index) {
+			const auto owner = findHorizontalScrollOwner(index);
+			return owner ? owner->block : nullptr;
+		},
+		[&](const SelectableSegment &segment) {
+			return HitTextSegment(segment, point, flags);
+		});
+	if (band.valid()) {
+		return band;
 	}
 	if (flags & Ui::Text::StateRequest::Flag::LookupSymbol) {
 		return HitSegmentFallback(_segments, span, point);
@@ -5127,6 +5116,40 @@ int MarkdownArticle::Impl::segmentIndexForEditableLeaf(
 		}
 	}
 	return -1;
+}
+
+QuoteLeafLookup MarkdownArticle::Impl::quoteLeaf(
+		const PreparedEditLeafSource &source,
+		int segmentIndex) const {
+	const auto prepared = FindPreparedArticleLeaf(
+		_content.blocks.blocks,
+		source);
+	return {
+		.content = &_content,
+		.segment = FindSegment(&_segments, segmentIndex),
+		.block = prepared.block,
+		.cell = prepared.cell,
+	};
+}
+
+int MarkdownArticle::Impl::groupedCaptionSegment(int segmentIndex) const {
+	return GroupedCaptionSegment(_segments, segmentIndex);
+}
+
+QRect MarkdownArticle::Impl::displayRangesRect(
+		const std::vector<MarkdownArticleSearchMatch> &ranges) const {
+	return DisplayRangesRect(
+		_segments,
+		ranges,
+		layoutStyle(),
+		currentDevicePixelRatio(),
+		[&](int index) {
+			const auto owner = findHorizontalScrollOwner(index);
+			return QuoteSegmentGeometry{
+				.logical = logicalSegmentRect(index),
+				.scrollOwner = owner ? owner->block : nullptr,
+			};
+		});
 }
 
 QRect MarkdownArticle::Impl::textSegmentRect(int segmentIndex) const {
@@ -6492,7 +6515,7 @@ bool MarkdownArticle::Impl::revealSegment(int segmentIndex) {
 	const auto toLeft = logicalRect.x()
 		+ owner.horizontalScrollLeft
 		- owner.scrollLogicalContentRect.x();
-	const auto left = ComputeScrollTo(
+	const auto left = Ui::ComputeScrollTo(
 		toLeft,
 		toLeft + logicalRect.width(),
 		0,
@@ -6807,7 +6830,6 @@ void MarkdownArticle::Impl::relayout(int width) {
 		= [=](const PreparedEditListItemSource &source) {
 			return getOrCreateTaskMarkerRippleRuntime(source);
 		};
-	const auto contextScope = LayoutContextScope(context);
 	const auto y = LayoutBlocks(
 		_content.blocks.blocks,
 		&_content.formulas,
@@ -6896,7 +6918,6 @@ void MarkdownArticle::Impl::relayoutRetained(int width) {
 		= [=](const PreparedEditListItemSource &source) {
 			return getOrCreateTaskMarkerRippleRuntime(source);
 		};
-	const auto contextScope = LayoutContextScope(context);
 	const auto y = RecountLaidOutBlocks(
 		_content.blocks.blocks,
 		_content.formulas,
@@ -7220,6 +7241,36 @@ std::optional<PreparedEditLeafSource> MarkdownArticle::editableLeafForSegment(
 int MarkdownArticle::segmentIndexForEditableLeaf(
 		const PreparedEditLeafSource &source) const {
 	return _impl->segmentIndexForEditableLeaf(source);
+}
+
+void MarkdownArticle::appendDisplayRangesForLeafText(
+		const PreparedEditLeafSource &source,
+		std::span<const MarkdownArticleTextRange> ranges,
+		not_null<std::vector<MarkdownArticleSearchMatch>*> result) const {
+	const auto segmentIndex = _impl->segmentIndexForEditableLeaf(source);
+	const auto leaf = _impl->quoteLeaf(source, segmentIndex);
+	AppendDisplayRangesForLeafText(leaf, source, ranges, result);
+}
+
+std::optional<MarkdownArticleLeafPoint> MarkdownArticle::leafPointForDisplay(
+		int segmentIndex,
+		int offset,
+		MarkdownArticleTextEdge edge) const {
+	const auto source = _impl->editableLeafForSegment(segmentIndex);
+	if (!source) {
+		return std::nullopt;
+	}
+	const auto leaf = _impl->quoteLeaf(*source, segmentIndex);
+	return LeafPointForDisplay(leaf, *source, offset, edge);
+}
+
+int MarkdownArticle::groupedCaptionSegment(int segmentIndex) const {
+	return _impl->groupedCaptionSegment(segmentIndex);
+}
+
+QRect MarkdownArticle::displayRangesRect(
+		const std::vector<MarkdownArticleSearchMatch> &ranges) const {
+	return _impl->displayRangesRect(ranges);
 }
 
 QRect MarkdownArticle::textSegmentRect(int segmentIndex) const {

@@ -63,7 +63,7 @@ AnnotationRefs ProcessAnnotationRefs;
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 
 QString ReportPath;
-FILE *ReportFile = nullptr;
+auto ReportFile = (FILE*)nullptr;
 int ReportFileNo = 0;
 
 void SafeWriteChar(char ch) {
@@ -405,7 +405,7 @@ StartResult Start() {
 	ReportPath = cWorkingDir() + u"tdata/working"_q;
 
 #ifdef Q_OS_WIN
-	FILE *f = nullptr;
+	auto f = (FILE*)nullptr;
 	if (_wfopen_s(&f, ReportPath.toStdWString().c_str(), L"rb") != 0) {
 		f = nullptr;
 	} else {
@@ -508,31 +508,6 @@ void SetAnnotation(const std::string &key, const QString &value) {
 	} else {
 		ProcessAnnotations.erase(key);
 	}
-}
-
-void SetAnnotationHex(const std::string &key, const QString &value) {
-	if (value.isEmpty()) {
-		return SetAnnotation(key, value);
-	}
-	const auto utf = value.toUtf8();
-	auto buffer = std::string();
-	buffer.reserve(4 * utf.size());
-	const auto hexDigit = [](std::uint8_t value) {
-		if (value >= 10) {
-			return 'A' + (value - 10);
-		}
-		return '0' + value;
-	};
-	const auto appendHex = [&](std::uint8_t value) {
-		buffer.push_back('\\');
-		buffer.push_back('x');
-		buffer.push_back(hexDigit(value / 16));
-		buffer.push_back(hexDigit(value % 16));
-	};
-	for (const auto ch : utf) {
-		appendHex(ch);
-	}
-	ProcessAnnotations[key] = std::move(buffer);
 }
 
 void SetAnnotationRef(const std::string &key, const QString *valuePtr) {

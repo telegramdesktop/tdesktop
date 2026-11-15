@@ -63,7 +63,6 @@ public:
 	void saveDecodedSamples(not_null<QByteArray*> samples);
 	void takeSavedDecodedSamples(not_null<QByteArray*> samples);
 	bool holdsSavedDecodedSamples() const;
-	void dropDecodedSamples();
 
 protected:
 	Core::FileLocation _file;

@@ -649,6 +649,11 @@ PhotoEditor::PhotoEditor(
 	}, lifetime());
 }
 
+PhotoEditor::~PhotoEditor() {
+	// ~Paint fires shape tool states, don't handle them in a dying widget.
+	lifetime().destroy();
+}
+
 void PhotoEditor::keyPressEvent(QKeyEvent *e) {
 	_content->setExpansionRoom(e->modifiers().testFlag(Qt::ControlModifier));
 	if (!_colorPicker->preventHandleKeyPress()) {

@@ -151,9 +151,6 @@ struct AllowedReactions {
 [[nodiscard]] PeerData *PeerFromInputMTP(
 	not_null<Session*> owner,
 	const MTPInputPeer &input);
-[[nodiscard]] UserData *UserFromInputMTP(
-	not_null<Session*> owner,
-	const MTPInputUser &input);
 
 [[nodiscard]] Ui::ColorCollectible ParseColorCollectible(
 	const MTPDpeerColorCollectible &data);
@@ -510,6 +507,7 @@ public:
 	[[nodiscard]] int paysPerMessage() const;
 	void clearPaysPerMessage();
 	[[nodiscard]] bool hideLinks() const;
+	[[nodiscard]] bool hideEmojiStatus() const;
 	[[nodiscard]] QString requestChatTitle() const;
 	[[nodiscard]] TimeId requestChatDate() const;
 	[[nodiscard]] UserData *businessBot() const;

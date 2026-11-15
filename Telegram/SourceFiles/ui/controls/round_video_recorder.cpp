@@ -30,7 +30,8 @@ constexpr auto kSide = 400;
 constexpr auto kUpdateEach = crl::time(100);
 constexpr auto kAudioFrequency = 48'000;
 constexpr auto kAudioBitRate = 64 * 1024;
-constexpr auto kVideoBitRate = 2 * 1024 * 1024;
+constexpr auto kVideoFrameRate = 30;
+constexpr auto kVideoBitRate = 1024 * 1024;
 constexpr auto kMinDuration = crl::time(200);
 constexpr auto kMaxDuration = 60 * crl::time(1000);
 constexpr auto kInitTimeout = 5 * crl::time(1000);
@@ -367,7 +368,7 @@ bool RoundVideoRecorder::Private::initVideo() {
 	_videoCodec->width = kSide;
 	_videoCodec->height = kSide;
 	_videoCodec->time_base = AVRational{ 1, 1'000'000 }; // Microseconds.
-	_videoCodec->framerate = AVRational{ 0, 1 }; // Variable frame rate.
+	_videoCodec->framerate = AVRational{ kVideoFrameRate, 1 };
 	_videoCodec->pix_fmt = AV_PIX_FMT_YUV420P;
 	_videoCodec->bit_rate = kVideoBitRate;
 

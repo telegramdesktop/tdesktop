@@ -57,9 +57,10 @@ $ARGUMENTS
    drop `--claim`.
 
    The scan prints the run folder and a funnel: `usable`, `no-frames`,
-   `unsymbolized`, `old-version`, and the group count split into new versus
-   already in the ledger. It writes `<run>/triage/` with `groups.md`,
-   `groups.json` and `index.tsv`.
+   `unsymbolized`, `old-version`, and the group count split into new,
+   recurring after a fix, and already in the ledger with the reports those
+   hold. It writes `<run>/triage/` with `groups.md`, `groups.json` and
+   `index.tsv`.
 3. Clear the reports that need no reading at all:
 
    ```bash
@@ -88,7 +89,11 @@ PY
 ```
 
 Groups already in the ledger were decided by an earlier run: skip them, and say
-how many you skipped. Order the rest by report count and split them into
+how many you skipped and how many reports they hold. A group tagged `recurring`
+is not skipped although the ledger has it: it was recorded `fixed` for an older
+release and still crashes in this one, so that fix did not cover it. It is
+investigated like a new group; `show` prints the earlier diagnosis to its agent
+as prior art that failed, not as the answer. Order the rest by report count and split them into
 **waves of at most 10 groups**. Prefer several small waves over one large one:
 each wave is a checkpoint where verdicts reach the ledger, so an interrupted
 run never loses finished work. Honour `--limit N` by stopping after N groups
@@ -208,19 +213,24 @@ Back in the main session, after each wave:
    ```
 
    The ledger keys on a version-independent signature, so a crash decided today
-   is skipped automatically in every later run. Recording is what makes waves
-   resumable — never defer it to the end of the run.
+   is skipped automatically in later runs. A `fixed` verdict stops covering a
+   crash that still arrives from a release newer than the one it was decided
+   for: the scan reopens it as `recurring`, and recording it again keeps the
+   old verdict under `history`. Recording is what makes waves resumable —
+   never defer it to the end of the run.
 4. **Reconcile before starting the next wave.** Applying and recording are
    separate steps done per group, so a group can silently fall through between
-   them. Assert that every gid the wave returned now has a ledger entry:
+   them. Assert that every gid the wave returned now has a ledger entry for
+   this release (a recurring group already had one for an older release):
 
    ```bash
    python3 - <<'PY'
    import json
    led = json.load(open("<ledger path>"))
-   groups = json.load(open("<run>/triage/groups.json"))["groups"]
-   todo = [g["gid"] for g in groups
-           if g["gid"] in {<this wave's gids>} and g["key"] not in led]
+   d = json.load(open("<run>/triage/groups.json"))
+   todo = [g["gid"] for g in d["groups"]
+           if g["gid"] in {<this wave's gids>}
+           and led.get(g["key"], {}).get("label") != d["label"]]
    print("unrecorded:", todo or "none")
    PY
    ```

@@ -14,6 +14,7 @@ class Session;
 } // namespace Main
 
 namespace Ui {
+class DynamicImage;
 class GenericBox;
 } // namespace Ui
 
@@ -37,6 +38,7 @@ struct TonConnectRequestBoxState {
 	QString name;
 	QString domain;
 	WebFileLocation icon;
+	std::shared_ptr<Ui::DynamicImage> userpic;
 	QString topic;
 	std::shared_ptr<const TonConnectTransfer> transfer;
 	std::optional<int64> feeNano;
@@ -62,6 +64,7 @@ struct TonConnectRequestBoxArgs {
 	Fn<void()> confirm;
 	Fn<void()> decline;
 	Fn<void()> dismissed;
+	crl::time pressGuard = 0;
 };
 
 void TonConnectRequestBox(

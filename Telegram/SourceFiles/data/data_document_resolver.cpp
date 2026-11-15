@@ -47,6 +47,17 @@ void ConfirmDontWarnBox(
 		rpl::producer<QString> &&check,
 		rpl::producer<QString> &&confirm,
 		Fn<void(bool)> callback) {
+	if (!check) {
+		Ui::ConfirmBox(box, {
+			.text = std::move(text),
+			.confirmed = [=] {
+				box->closeBox();
+				callback(false);
+			},
+			.confirmText = std::move(confirm),
+		});
+		return;
+	}
 	auto checkbox = object_ptr<Ui::Checkbox>(
 		box.get(),
 		std::move(check),
@@ -75,23 +86,20 @@ void ConfirmDontWarnBox(
 	))->toggleOn(weak->checkedValue());
 }
 
+} // namespace
+
 void LaunchWithWarning(
 		// not_null<Window::Controller*> controller,
 		const QString &name,
 		HistoryItem *item) {
-	const auto nameType = Core::DetectNameType(name);
-	const auto isIpReveal = (nameType != Core::NameType::Executable)
-		&& Core::IsIpRevealingPath(name);
-	const auto extension = Core::FileExtension(name).toLower();
+	const auto type = Core::DetectLaunchType(name);
+	const auto nameType = type.nameType;
+	const auto extension = type.extension;
 
 	auto &app = Core::App();
 	auto &settings = app.settings();
-	const auto warn = LauncherWouldWarn(
-		settings,
-		nameType,
-		isIpReveal,
-		extension,
-		item);
+	const auto isIpReveal = type.ipRevealing && settings.ipRevealWarning();
+	const auto warn = LauncherWouldWarn(settings, type, item);
 	if (extension.isEmpty()) {
 		// If you launch a file without extension, like "test", in case
 		// there is an executable file with the same name in this folder,
@@ -129,9 +137,13 @@ void LaunchWithWarning(
 				lt_extension,
 				rpl::single(tr::bold('.' + extension)),
 				tr::marked);
-	auto check = (isIpReveal
-		? tr::lng_launch_exe_dont_ask
-		: tr::lng_launch_dont_ask)();
+	const auto canRemember = isIpReveal
+		|| (!type.byContent && !extension.contains(' '));
+	auto check = !canRemember
+		? rpl::producer<QString>()
+		: isIpReveal
+		? tr::lng_launch_exe_dont_ask()
+		: tr::lng_launch_dont_ask();
 	auto confirm = ((nameType == Core::NameType::Executable)
 		? tr::lng_launch_exe_sure
 		: tr::lng_launch_other_sure)();
@@ -142,8 +154,6 @@ void LaunchWithWarning(
 		std::move(confirm),
 		callback));
 }
-
-} // namespace
 
 ImageOpenCheck CheckImageOpenInApp(
 		not_null<DocumentData*> document,
@@ -184,17 +194,16 @@ ImageOpenCheck CheckImageOpenInApp(
 
 bool LauncherWouldWarn(
 		const Core::Settings &settings,
-		Core::NameType nameType,
-		bool isIpReveal,
-		const QString &extension,
+		const Core::LaunchType &type,
 		HistoryItem *item) {
 	if (item && item->history()->peer->isVerified()) {
 		return false;
 	}
-	return (isIpReveal && settings.ipRevealWarning())
-		|| ((nameType == Core::NameType::Executable
-			|| nameType == Core::NameType::Unknown)
-			&& !settings.noWarningExtensions().contains(extension));
+	return (type.ipRevealing && settings.ipRevealWarning())
+		|| ((type.nameType == Core::NameType::Executable
+			|| type.nameType == Core::NameType::Unknown)
+			&& (type.byContent
+				|| !settings.noWarningExtensions().contains(type.extension)));
 }
 
 base::binary_guard ReadBackgroundImageAsync(

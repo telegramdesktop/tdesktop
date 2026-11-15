@@ -161,10 +161,6 @@ public:
 
 	Streaming::TimePoint getExternalSyncTimePoint(
 		const AudioMsgId &audio) const;
-	crl::time getExternalCorrectedTime(
-		const AudioMsgId &id,
-		crl::time frameMs,
-		crl::time systemMs);
 
 	void stopAndClear();
 

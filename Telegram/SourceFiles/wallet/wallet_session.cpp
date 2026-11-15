@@ -30,11 +30,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_domain.h"
 #include "tde2e/tde2e_api.h"
 #include "ui/widgets/separate_panel.h"
+#include "wallet/wallet_address.h"
 #include "wallet/wallet_engine.h"
 #include "wallet/wallet_key_protection.h"
 #include "wallet/wallet_onramp.h"
+#include "wallet/wallet_own_card.h"
 #include "wallet/wallet_phrase_shares.h"
 #include "wallet/wallet_rates.h"
+#include "wallet/wallet_session_deposit.h"
+#include "wallet/wallet_session_gift_moves.h"
+#include "wallet/wallet_session_waits.h"
+#include "wallet/wallet_stream.h"
 #include "wallet/wallet_ton_connect.h"
 #include "wallet/wallet_ton_connect_emulation.h"
 #include "wallet/wallet_transfer_messages.h"
@@ -98,6 +104,7 @@ struct Session::CollectiblesRequest {
 	int generation = 0;
 	QString offset;
 	bool more = false;
+	crl::time sentAt = 0;
 	mtpRequestId id = 0;
 };
 
@@ -187,6 +194,7 @@ struct Session::PreviewState : base::has_weak_ptr {
 	};
 
 	base::flat_map<uint64, uint64> owners;
+	base::flat_map<uint64, std::weak_ptr<rpl::lifetime>> registrations;
 	std::deque<PreviewRequest> queue;
 	std::optional<Flight> active;
 	uint64 lastOwner = 0;
@@ -324,19 +332,6 @@ constexpr auto kTonConnectChallengeAnswerSize = 32;
 		.left = data.vleft().v,
 		.available = data.is_available(),
 	};
-}
-
-[[nodiscard]] std::optional<int64> DecimalInt64(const std::string &value) {
-	auto ok = false;
-	const auto result = QString::fromStdString(value).toLongLong(&ok);
-	return ok ? std::make_optional(result) : std::nullopt;
-}
-
-[[nodiscard]] std::optional<uint64> DecimalUint64(
-		const std::string &value) {
-	auto ok = false;
-	const auto result = QString::fromStdString(value).toULongLong(&ok);
-	return ok ? std::make_optional(result) : std::nullopt;
 }
 
 void FinishHistoryWaiters(std::vector<Fn<void()>> callbacks) {
@@ -480,15 +475,15 @@ struct MergedHead {
 	return result;
 }
 
-[[nodiscard]] std::vector<Gram::NftItem> UnheldCollectibles(
-		const std::vector<Gram::NftItem> &was,
-		std::vector<Gram::NftItem> &&page) {
+[[nodiscard]] std::vector<CollectibleRecord> UnheldCollectibles(
+		const std::vector<CollectibleRecord> &was,
+		std::vector<CollectibleRecord> &&page) {
 	auto held = base::flat_set<QString>();
 	held.reserve(was.size());
 	for (const auto &item : was) {
 		held.emplace(item.address);
 	}
-	auto result = std::vector<Gram::NftItem>();
+	auto result = std::vector<CollectibleRecord>();
 	result.reserve(page.size());
 	for (auto &item : page) {
 		if (!held.contains(item.address)) {
@@ -499,8 +494,8 @@ struct MergedHead {
 }
 
 [[nodiscard]] bool SameCollectibles(
-		const std::vector<Gram::NftItem> &was,
-		const std::vector<Gram::NftItem> &now) {
+		const std::vector<CollectibleRecord> &was,
+		const std::vector<CollectibleRecord> &now) {
 	return (was == now);
 }
 
@@ -1413,27 +1408,6 @@ void FailShareFetch(
 	return u"ROTATION_FAILED"_q;
 }
 
-[[nodiscard]] engine::SendIntent IntentFromArgs(
-		const SendArgs &args,
-		engine::SendMessageBody body) {
-	auto message = engine::SendMessage{
-		.destination = FormatFriendly(
-			args.destination,
-			args.bounce).toStdString(),
-		.amount = engine::SendAmount(engine::SendAmount::kExact{
-			.nanograms = QString::number(args.amountNano).toStdString(),
-		}),
-		.body = std::move(body),
-		.bounce = args.bounce,
-		.state_init = std::nullopt,
-	};
-	return engine::SendIntent{
-		.expiration = engine::SendExpiration(
-			engine::SendExpiration::kEngineDefault{}),
-		.messages = { std::move(message) },
-	};
-}
-
 [[nodiscard]] engine::NftTransferIntent CollectibleTransferIntent(
 		const SendArgs &args) {
 	auto payload = args.comment.text.isEmpty()
@@ -1457,113 +1431,6 @@ void FailShareFetch(
 		.expiration = engine::SendExpiration(
 			engine::SendExpiration::kEngineDefault{}),
 	};
-}
-
-[[nodiscard]] std::optional<TonConnectTransfer> TonConnectTransferFromEngine(
-		const engine::SendRequest &request) {
-	auto result = TonConnectTransfer{
-		.request = std::make_shared<const engine::SendRequest>(request),
-	};
-	for (const auto &message : request.intent.messages) {
-		const auto &amount = message.amount.get_variant();
-		const auto exact = std::get_if<engine::SendAmount::kExact>(&amount);
-		const auto nano = exact
-			? DecimalInt64(exact->nanograms)
-			: std::optional<int64>();
-		if (!nano
-			|| *nano < 0
-			|| *nano > std::numeric_limits<int64>::max() - result.totalNano) {
-			return std::nullopt;
-		}
-		result.totalNano += *nano;
-		auto entry = TonConnectMessage{
-			.destination = QString::fromStdString(message.destination),
-			.amountNano = *nano,
-			.deploys = message.state_init.has_value(),
-		};
-		const auto &body = message.body.get_variant();
-		const auto comment = std::get_if<
-			engine::SendMessageBody::kComment>(&body);
-		const auto raw = std::get_if<
-			engine::SendMessageBody::kRawPayload>(&body);
-		if (comment) {
-			entry.comment = QString::fromStdString(comment->text);
-		} else if (raw) {
-			const auto boc = QString::fromStdString(raw->boc);
-			if (const auto text = Gram::TextCommentFromBoc(boc)) {
-				entry.comment = *text;
-			} else {
-				entry.payload = boc;
-			}
-		}
-		result.messages.push_back(std::move(entry));
-	}
-	const auto &expiration = request.intent.expiration.get_variant();
-	const auto until = std::get_if<
-		engine::SendExpiration::kExact>(&expiration);
-	if (until) {
-		result.validUntil = TimeId(std::min<uint64>(
-			until->unix_timestamp,
-			std::numeric_limits<TimeId>::max()));
-	}
-	return result;
-}
-
-[[nodiscard]] std::vector<TonConnectSignDataField> DecodedCellFields(
-		engine::TonConnectDerivedSession &session,
-		const std::string &schema,
-		const std::string &cell) {
-	using Decoding = engine::TonConnectSignDataCellDecoding;
-	auto result = std::vector<TonConnectSignDataField>();
-	try {
-		const auto decoding = session.decode_sign_data_cell(schema, cell);
-		const auto decoded = std::get_if<Decoding::kDecoded>(
-			&decoding.get_variant());
-		if (!decoded) {
-			return result;
-		}
-		result.reserve(decoded->fields.size());
-		for (const auto &field : decoded->fields) {
-			result.push_back({
-				.depth = int(std::min(
-					field.depth,
-					uint32_t(std::numeric_limits<int>::max()))),
-				.name = QString::fromStdString(field.name),
-				.value = QString::fromStdString(field.value),
-			});
-		}
-	} catch (...) {
-		// Display only: a failed decode must not cost the request its answer.
-		return {};
-	}
-	return result;
-}
-
-[[nodiscard]] TonConnectSignData TonConnectSignDataFromEngine(
-		engine::TonConnectDerivedSession &session,
-		const engine::TonConnectSignDataRequest &request) {
-	using Payload = engine::TonConnectSignDataPayload;
-	using Type = TonConnectSignDataType;
-	auto result = TonConnectSignData{
-		.request = std::make_shared<const engine::TonConnectSignDataRequest>(
-			request),
-	};
-	std::visit([&](const auto &data) {
-		using T = std::decay_t<decltype(data)>;
-		if constexpr (std::is_same_v<T, Payload::kText>) {
-			result.type = Type::Text;
-			result.data = QString::fromStdString(data.text);
-		} else if constexpr (std::is_same_v<T, Payload::kBinary>) {
-			result.type = Type::Binary;
-			result.data = QString::fromStdString(data.bytes);
-		} else if constexpr (std::is_same_v<T, Payload::kCell>) {
-			result.type = Type::Cell;
-			result.data = QString::fromStdString(data.cell);
-			result.schema = QString::fromStdString(data.schema);
-			result.fields = DecodedCellFields(session, data.schema, data.cell);
-		}
-	}, request.payload.get_variant());
-	return result;
 }
 
 [[nodiscard]] int TonConnectProtocolCode(
@@ -1600,7 +1467,7 @@ void FailShareFetch(
 	} else if (const auto sign = std::get_if<Incoming::kSignData>(&variant)) {
 		result.kind = Kind::SignData;
 		result.signData = std::make_shared<const TonConnectSignData>(
-			TonConnectSignDataFromEngine(session, sign->request));
+			TonConnectSignDataFromEngine(&session, sign->request));
 	} else if (std::get_if<Incoming::kSignMessage>(&variant)) {
 		result.kind = Kind::Unsupported;
 		result.rejection = TonConnectError::MethodNotSupported;
@@ -1735,7 +1602,8 @@ void FailShareFetch(
 		const engine::SendResult &result,
 		const std::string &operationId,
 		bool rpcStarted,
-		const QByteArray &normal) {
+		const QByteArray &normal,
+		const std::optional<TransferReceipt> &receipt) {
 	const auto unknown = [&] {
 		return TonConnectSendResult{
 			rpcStarted ? QString::fromLatin1(normal.toBase64()) : QString(),
@@ -1749,7 +1617,11 @@ void FailShareFetch(
 	switch (result.phase) {
 	case engine::SendPhase::kSubmitted:
 	case engine::SendPhase::kConfirmed:
-		return { boc, SendError::None };
+		return {
+			boc,
+			SendError::None,
+			receipt ? receipt->messageHash : QByteArray(),
+		};
 	case engine::SendPhase::kSubmissionUnknown:
 		return { boc, SendError::SubmissionUnknown };
 	case engine::SendPhase::kHandedOff:
@@ -1795,6 +1667,7 @@ void FailShareFetch(
 		.commentEncrypted = item.commentEncrypted,
 		.gasless = item.gasless,
 		.counterpartyBounceable = item.counterpartyBounceable,
+		.giftMove = item.giftMove,
 	};
 }
 
@@ -1833,7 +1706,8 @@ void KeepSubmittedRecipient(
 	});
 }
 
-[[nodiscard]] std::optional<Gram::NftItem> CollectibleFromServer(
+[[nodiscard]] std::optional<CollectibleRecord> CollectibleFromServer(
+		not_null<Main::Session*> session,
 		const MTPwallet_NftItem &item) {
 	const auto &data = item.data();
 	const auto address = CanonicalAddress(qs(data.vaddress()));
@@ -1841,7 +1715,7 @@ void KeepSubmittedRecipient(
 		LOG(("Wallet Error: wallet.NftItem address is not parseable."));
 		return std::nullopt;
 	}
-	auto result = Gram::NftItem();
+	auto result = CollectibleRecord();
 	result.address = address;
 	if (const auto collection = data.vcollection_address()) {
 		result.collection = CanonicalAddress(qs(*collection));
@@ -1854,7 +1728,9 @@ void KeepSubmittedRecipient(
 	result.imageSmall = WebDocumentFromServer(data.vimage_small());
 	result.contentUrl = WebDocumentFromServer(data.vcontent_url());
 	result.lottie = WebDocumentFromServer(data.vlottie());
-	Gram::ClassifyNftKind(result);
+	if (!FillServedGift(session, result, data.vgift())) {
+		Gram::ClassifyNftKind(result);
+	}
 	return result;
 }
 
@@ -1882,53 +1758,8 @@ void SetDirectedAmount(
 	item.incoming = fold ? false : incoming;
 }
 
-[[nodiscard]] std::optional<TransferItem> HistoryItemFromEngine(
-		const engine::ActivityItem &item,
-		const std::optional<TransferWalletIdentity> &identity) {
-	constexpr auto kMaxTimestamp = uint64(std::numeric_limits<TimeId>::max());
-	const auto amount = DecimalInt64(item.amount_nanograms);
-	const auto fee = DecimalInt64(item.transaction_fee_nanograms);
-	const auto lt = DecimalUint64(item.logical_time);
-	if (!amount || !fee || !lt || (item.timestamp > kMaxTimestamp)) {
-		LOG(("Wallet Error: engine activity item %1 has a bad number."
-			).arg(QString::fromStdString(item.id)));
-		return std::nullopt;
-	}
-	auto result = TransferItem();
-	result.source = TransferItem::Source::Engine;
-	result.id = QString::fromStdString(item.id);
-	result.walletIdentity = identity;
-	result.kind = TransferItem::Kind::Transfer;
-	if (item.counterparty) {
-		result.counterparty = CanonicalAddress(
-			QString::fromStdString(*item.counterparty));
-	}
-	SetDirectedAmount(
-		result,
-		*amount,
-		(item.direction == engine::ActivityDirection::kReceived));
-	result.feeNano = *fee;
-	if (item.encrypted_comment) {
-		result.commentEncrypted = true;
-		result.encryptedPayload = QByteArray::fromStdString(
-			*item.encrypted_comment);
-		if (!result.encryptedPayload.isEmpty()) {
-			result.encryptedFormat = TransferItem::EncryptedFormat::EngineBodyBoc;
-		}
-	} else if (item.comment) {
-		result.comment = QString::fromStdString(*item.comment);
-	}
-	result.date = TimeId(item.timestamp);
-	result.lt = *lt;
-	result.traceId = QByteArray::fromBase64(
-		QByteArray::fromStdString(item.transaction_hash));
-	result.status = (item.status == engine::ActivityStatus::kSuccess)
-		? TransferItem::Status::Success
-		: TransferItem::Status::Failure;
-	return result;
-}
-
 [[nodiscard]] TransferItem HistoryItemFromServer(
+		not_null<Main::Session*> session,
 		const MTPWalletTransaction &item,
 		const std::optional<TransferWalletIdentity> &identity) {
 	const auto &data = item.data();
@@ -1974,6 +1805,12 @@ void SetDirectedAmount(
 			setCounterparty(data);
 		}, [&](const MTPDwalletTransactionPeerAddress &data) {
 			setCounterparty(data);
+		}, [&](const MTPDwalletTransactionPeerChannel &data) {
+			setCounterparty(data);
+		}, [&](const MTPDwalletTransactionPeerTelegramGift &data) {
+			result.giftMove = data.is_own_profile()
+				? TransferGiftMove::OwnProfile
+				: TransferGiftMove::Telegram;
 		}, [&](const MTPDwalletTransactionPeerOnramp &data) {
 			setCounterparty(data);
 			// Without a provider or an address it reads as the address peer.
@@ -1991,7 +1828,7 @@ void SetDirectedAmount(
 			// for, so no lang key is invented for it.
 		});
 		if (const auto nft = data.vnft()) {
-			if (auto record = CollectibleFromServer(*nft)) {
+			if (auto record = CollectibleFromServer(session, *nft)) {
 				result.kind = TransferItem::Kind::Collectible;
 				result.collectible = record->address;
 				result.collectibleRecord = std::move(*record);
@@ -2158,37 +1995,26 @@ QByteArray DecodeServerEncryptedComment(const QString &encoded) {
 	return std::move(decoded.decoded);
 }
 
-std::vector<TransferItem> HistoryFromEngine(
-		const std::vector<engine::ActivityItem> &items,
-		std::optional<TransferWalletIdentity> identity) {
-	auto result = std::vector<TransferItem>();
-	result.reserve(items.size());
-	for (const auto &item : items) {
-		if (auto mapped = HistoryItemFromEngine(item, identity)) {
-			result.push_back(std::move(*mapped));
-		}
-	}
-	return result;
-}
-
 std::vector<TransferItem> HistoryFromServer(
+		not_null<Main::Session*> session,
 		const QVector<MTPWalletTransaction> &list,
 		std::optional<TransferWalletIdentity> identity) {
 	auto result = std::vector<TransferItem>();
 	result.reserve(list.size());
 	for (const auto &item : list) {
-		result.push_back(HistoryItemFromServer(item, identity));
+		result.push_back(HistoryItemFromServer(session, item, identity));
 	}
 	return result;
 }
 
-std::vector<Gram::NftItem> CollectiblesFromServer(
+std::vector<CollectibleRecord> CollectiblesFromServer(
+		not_null<Main::Session*> session,
 		const QVector<MTPwallet_NftItem> &list) {
-	auto result = std::vector<Gram::NftItem>();
+	auto result = std::vector<CollectibleRecord>();
 	result.reserve(list.size());
 	auto seen = base::flat_set<QString>();
 	for (const auto &item : list) {
-		if (auto mapped = CollectibleFromServer(item)) {
+		if (auto mapped = CollectibleFromServer(session, item)) {
 			if (seen.emplace(mapped->address).second) {
 				result.push_back(std::move(*mapped));
 			}
@@ -2364,8 +2190,12 @@ Session::Session(not_null<Main::Session*> session)
 , _userAddresses(std::make_unique<UserAddresses>(session))
 , _transferMessages(std::make_unique<TransferMessages>(session))
 , _tonConnect(std::make_unique<TonConnect>(session))
+, _ownCard(std::make_unique<OwnCard>(session))
 , _stream(std::make_unique<Stream>(&_api, [=](StreamRefresh wanted) {
 	applyStreamRefresh(wanted);
+}))
+, _collectibleWaits(std::make_unique<CollectibleWaits>([=] {
+	updatePollingState();
 }))
 , _pollTimer([=] { pollTick(); })
 , _gaslessTimer([=] { refreshGaslessInfo(); })
@@ -2387,7 +2217,6 @@ Session::Session(not_null<Main::Session*> session)
 		}
 	}, _commentLifetime);
 	transferWalletIdentityChanges() | rpl::on_next([=] {
-		_lastReceipt.reset();
 		const auto hadSubmission = _submission
 			|| _pending
 			|| (_sendState.current() != SendState::Idle);
@@ -2424,6 +2253,10 @@ Session::Session(not_null<Main::Session*> session)
 }
 
 Session::~Session() {
+	if (_windowSend.guard) {
+		*_windowSend.guard = false;
+	}
+	_windowSend = WindowSend();
 	_tonConnect->stop();
 	retireCommentScopes();
 	_commentLifetime.destroy();
@@ -2454,6 +2287,10 @@ TonConnect &Session::tonConnect() {
 	return *_tonConnect;
 }
 
+OwnCard &Session::ownCard() {
+	return *_ownCard;
+}
+
 Ui::SeparatePanel *Session::panel() const {
 	return _panel.get();
 }
@@ -2477,7 +2314,7 @@ void Session::setPanel(std::unique_ptr<Ui::SeparatePanel> panel) {
 		_stateApi.request(base::take(_waltBalanceRequestId)).cancel();
 		_waltBalanceRequested = false;
 		_existingWaltBalanceUrl = QString();
-		_windowSend.clear();
+		_windowSend.operationId.clear();
 	}
 }
 
@@ -5559,10 +5396,6 @@ rpl::producer<> Session::keyProtectionUpdates() const {
 	return vault().protectionChanges();
 }
 
-void Session::notifyKeyProtectionChanged(bool vaultKeyStillUnusable) {
-	vault().notifyProtectionChanged(vaultKeyStillUnusable);
-}
-
 bool Session::vaultKeyUnusable() const {
 	return vault().unusable();
 }
@@ -6395,6 +6228,7 @@ void Session::prepareTonConnectEvent(
 	const auto address = _address;
 	const auto served = _publicKey;
 	const auto generation = _networkGeneration;
+	const auto withProof = request.proofPayload.has_value();
 	const auto recordId = record->recordId;
 	const auto lifecycle = _engine->lifecycle();
 	const auto session = key.session;
@@ -6425,6 +6259,7 @@ void Session::prepareTonConnectEvent(
 	] {
 		auto account = lifecycle->ton_connect_account(descriptor);
 		auto proof = std::optional<engine::TonConnectProofReply>();
+		auto proofSignature = std::vector<uint8_t>();
 		if (payload) {
 			auto signature = lifecycle->sign_ton_connect_proof({
 				.descriptor = descriptor,
@@ -6433,6 +6268,7 @@ void Session::prepareTonConnectEvent(
 				.payload = *payload,
 			});
 			account.public_key = std::move(signature.public_key);
+			proofSignature = signature.signature;
 			proof = engine::TonConnectProofReply{
 				.timestamp = uint64_t(timestamp),
 				.domain = domain,
@@ -6452,6 +6288,8 @@ void Session::prepareTonConnectEvent(
 			.reply = {
 				.challengeAnswer = BytesFromEngine(answer),
 				.body = BytesFromEngine(body),
+				.proofTimestamp = payload ? timestamp : TimeId(0),
+				.proofSignature = BytesFromEngine(proofSignature),
 			},
 			.address = QString::fromStdString(account.address),
 			.publicKey = BytesFromEngine(account.public_key),
@@ -6469,9 +6307,11 @@ void Session::prepareTonConnectEvent(
 			return;
 		}
 		const auto answerSize = prepared.reply.challengeAnswer.size();
+		const auto proofSize = prepared.reply.proofSignature.size();
 		if (CanonicalAddress(prepared.address) != _address
 			|| prepared.publicKey != _publicKey
-			|| answerSize != kTonConnectChallengeAnswerSize) {
+			|| answerSize != kTonConnectChallengeAnswerSize
+			|| (withProof && proofSize != kOwnershipProofSignatureSize)) {
 			LOG(("Wallet Error: TON Connect event prepared "
 				"with an unexpected account."));
 			fail(TonConnectKeyError::Failed);
@@ -6686,12 +6526,12 @@ void Session::signTonConnectData(
 		QString requestId,
 		std::shared_ptr<const TonConnectSignData> data,
 		QString domain,
-		Fn<void(QByteArray)> done,
+		Fn<void(TonConnectSignature)> done,
 		Fn<void(TonConnectKeyError)> fail) {
 	const auto record = (tonConnectAccess() == TonConnectAccess::Allowed)
 		? currentRecord()
 		: nullptr;
-	if (!record || !key || key.signingKey != _publicKey) {
+	if (!record || (key && key.signingKey != _publicKey)) {
 		fail(TonConnectKeyError::Blocked);
 		return;
 	} else if (!ReadAuthorized(*this, auth)) {
@@ -6699,44 +6539,53 @@ void Session::signTonConnectData(
 		return;
 	}
 	const auto timestamp = base::unixtime::now();
-	if (!data
-		|| !data->request
-		|| domain.isEmpty()
-		|| !TonConnectRequestIdValid(requestId)
+	if ((key && (!data || !TonConnectRequestIdValid(requestId)))
+		|| (data && (!data->request || domain.isEmpty()))
 		|| timestamp <= 0) {
 		LOG(("Wallet Error: TON Connect data signing requested "
 			"with unusable input."));
 		fail(TonConnectKeyError::Failed);
 		return;
 	}
-	struct Signed {
-		QByteArray body;
-		QByteArray publicKey;
-	};
 	const auto address = _address;
 	const auto served = _publicKey;
 	const auto generation = _networkGeneration;
 	const auto recordId = record->recordId;
 	const auto lifecycle = _engine->lifecycle();
 	const auto session = key.session;
-	auto request = engine::TonConnectSignDataSignRequest{
-		.descriptor = DescriptorFromRecord(*record),
-		.request = *data->request,
-		.domain = domain.toStdString(),
-		.timestamp = uint64_t(timestamp),
-	};
+	auto descriptor = DescriptorFromRecord(*record);
+	auto request = data
+		? std::make_optional(engine::TonConnectSignDataSignRequest{
+			.descriptor = descriptor,
+			.request = *data->request,
+			.domain = domain.toStdString(),
+			.timestamp = uint64_t(timestamp),
+		})
+		: std::nullopt;
 	_engine->runLocal([
 		=,
+		descriptor = std::move(descriptor),
 		request = std::move(request),
 		id = requestId.toStdString()
 	] {
-		const auto result = lifecycle->sign_ton_connect_data(request);
-		return Signed{
-			.body = BytesFromEngine(
-				session->encrypt_sign_data_success(id, result)),
-			.publicKey = BytesFromEngine(result.public_key),
-		};
-	}, [=, this, grant = auth.grant](Signed result) {
+		auto result = TonConnectSignature{ .timestamp = timestamp };
+		if (request) {
+			const auto made = lifecycle->sign_ton_connect_data(*request);
+			result.signature = BytesFromEngine(made.signature);
+			result.publicKey = BytesFromEngine(made.public_key);
+			if (session) {
+				result.body = BytesFromEngine(
+					session->encrypt_sign_data_success(id, made));
+			}
+		}
+		if (!session) {
+			const auto account = lifecycle->ton_connect_account(descriptor);
+			result.address = QString::fromStdString(account.address);
+			result.stateInit = QByteArray::fromBase64(
+				QByteArray::fromStdString(account.wallet_state_init));
+		}
+		return result;
+	}, [=, this, grant = auth.grant](TonConnectSignature result) {
 		const auto now = currentRecord();
 		if (generation != _networkGeneration
 			|| address != _address
@@ -6747,13 +6596,20 @@ void Session::signTonConnectData(
 				"for another wallet state."));
 			fail(TonConnectKeyError::Blocked);
 			return;
-		} else if (result.publicKey != served || result.body.isEmpty()) {
+		} else if ((data && result.publicKey != served)
+			|| (session && result.body.isEmpty())
+			|| (!session
+				&& (CanonicalAddress(result.address) != address
+					|| result.stateInit.isEmpty()))) {
 			LOG(("Wallet Error: TON Connect data signed "
 				"with an unexpected key."));
 			fail(TonConnectKeyError::Failed);
 			return;
 		}
-		done(std::move(result.body));
+		if (!data) {
+			result.publicKey = served;
+		}
+		done(std::move(result));
 	}, [=, this, grant = auth.grant](EngineError error) {
 		LOG(("Wallet Error: TON Connect data signing failed: %1"
 			).arg(LifecycleErrorName(error)));
@@ -7500,7 +7356,10 @@ void Session::resolveTransaction(
 		// falls back to its address instead of the Telegram identity.
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
-		auto list = HistoryFromServer(data.vtransactions().v, identity);
+		auto list = HistoryFromServer(
+			_session,
+			data.vtransactions().v,
+			identity);
 		rememberCollectibles(list);
 		// WHY: the id a message carries is the transfer's trace id, while
 		// the served row is named by its own lt:hash, so an answer to one
@@ -7573,8 +7432,17 @@ void Session::applyTransactions(
 		&& (_panel != nullptr)
 		&& !collectiblesTab();
 	_historySettled = true;
-	auto loaded = HistoryFromServer(data.vtransactions().v, request.identity);
+	auto loaded = HistoryFromServer(
+		_session,
+		data.vtransactions().v,
+		request.identity);
 	rememberCollectibles(loaded);
+	const auto covered = UpdateGiftMoveCoverage(
+		_giftMoveCoverage,
+		_history,
+		loaded,
+		next ? qs(*next) : QString(),
+		request.offset);
 	const auto shown = ranges::any_of(loaded, [&](const TransferItem &i) {
 		return !historyItemHidden(i);
 	});
@@ -7591,6 +7459,8 @@ void Session::applyTransactions(
 				std::make_move_iterator(begin(fresh)),
 				std::make_move_iterator(end(fresh)));
 			setHistory(std::move(list));
+		} else if (covered) {
+			_historyUpdates.fire({});
 		}
 	} else {
 		const auto served = int(loaded.size());
@@ -7628,6 +7498,8 @@ void Session::applyTransactions(
 		}
 		if (!SameHistory(_history, merged.list)) {
 			setHistory(std::move(merged.list));
+		} else if (covered) {
+			_historyUpdates.fire({});
 		}
 	}
 	if (weak && historyRequestCurrent(request)) {
@@ -7665,6 +7537,7 @@ void Session::clearHistory() {
 	}
 	clearSubmittedTransfers();
 	_history.clear();
+	_giftMoveCoverage = GiftMoveHistoryCoverage();
 	_historyHasNext = false;
 	_historyNextOffset = QString();
 	_historyRefreshedAt = 0;
@@ -7783,12 +7656,15 @@ void Session::refreshCollectibles(bool force) {
 	// A forced ask refused below is owed until a head request goes out.
 	_collectiblesForced = _collectiblesForced || force;
 	const auto forced = _collectiblesForced
-		|| !_collectibleFollowUps.empty();
+		|| !_collectibleFollowUps.empty()
+		|| !_collectibleWaits->empty();
 	const auto interval = forced
 		? kForcedCollectiblesInterval
 		: kCollectiblesPollInterval;
 	if (_collectiblesRequest
-		|| _collectiblesPaged
+		|| (_collectiblesPaged
+			&& _collectibleWaits->empty()
+			&& _collectibleFollowUps.empty())
 		|| (_collectiblesRefreshedAt
 			&& (crl::now() - _collectiblesRefreshedAt < interval))) {
 		return;
@@ -7824,6 +7700,7 @@ void Session::requestCollectibles(bool more) {
 			.generation = _networkGeneration,
 			.offset = more ? _collectiblesNextOffset : QString(),
 			.more = more,
+			.sentAt = crl::now(),
 		});
 	_collectiblesRequest = request;
 	request->id = _stateApi.request(MTPwallet_GetNfts(
@@ -7865,20 +7742,43 @@ void Session::applyCollectibles(
 		const MTPwallet_NftItems &result,
 		const CollectiblesRequest &request) {
 	const auto &data = result.data();
+	auto loaded = CollectiblesFromServer(_session, data.vitems().v);
+	if (!request.more && _collectiblesPaged) {
+		// A paged list keeps its pages and cursor; only arrivals are added.
+		const auto left = [&](const CollectibleRecord &item) {
+			const auto i = _collectibleFollowUps.find(item.address);
+			return (i != end(_collectibleFollowUps))
+				&& !i->second.incoming
+				&& !ranges::contains(
+					loaded,
+					item.address,
+					&Gram::NftItem::address);
+		};
+		auto list = UnheldCollectibles(
+			_collectibles,
+			std::vector<CollectibleRecord>(loaded));
+		list.insert(end(list), begin(_collectibles), end(_collectibles));
+		list.erase(ranges::remove_if(list, left), end(list));
+		spendCollectibleFollowUps(&loaded);
+		if (!SameCollectibles(_collectibles, list)) {
+			setCollectibles(std::move(list));
+		}
+		_collectibleWaits->settle(&loaded, request.sentAt);
+		return;
+	}
 	const auto served = data.vnext_offset();
 	auto next = served ? qs(*served) : QString();
 	if (!next.isEmpty() && (next == request.offset)) {
 		LOG(("Wallet Error: wallet.getNfts repeated its offset."));
 		next = QString();
 	}
-	auto loaded = CollectiblesFromServer(data.vitems().v);
 	_collectiblesNextOffset = next;
 	_collectiblesHasMore = !next.isEmpty();
 	_collectiblesCompletedAt = crl::now();
 	_collectiblesPaged = request.more
 		&& (_panel != nullptr)
 		&& collectiblesTab();
-	auto list = std::vector<Gram::NftItem>();
+	auto list = std::vector<CollectibleRecord>();
 	if (request.more) {
 		auto fresh = UnheldCollectibles(_collectibles, std::move(loaded));
 		list = _collectibles;
@@ -7893,9 +7793,12 @@ void Session::applyCollectibles(
 	if (!SameCollectibles(_collectibles, list)) {
 		setCollectibles(std::move(list));
 	}
+	_collectibleWaits->settle(
+		request.more ? nullptr : &_collectibles,
+		request.sentAt);
 }
 
-void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
+void Session::setCollectibles(std::vector<CollectibleRecord> &&list) {
 	_collectibles = std::move(list);
 	if (_collectibles.empty()) {
 		_collectiblesTab = false;
@@ -7903,13 +7806,20 @@ void Session::setCollectibles(std::vector<Gram::NftItem> &&list) {
 	}
 	for (const auto &item : _collectibles) {
 		_collectibleInfo[item.address] = item;
+		_collectibleInfoLookedUp.remove(item.address);
 	}
 	_collectiblesUpdates.fire({});
 }
 
 void Session::rememberCollectibles(const std::vector<TransferItem> &items) {
 	for (const auto &item : items) {
-		if (const auto &record = item.collectibleRecord) {
+		const auto &record = item.collectibleRecord;
+		if (!record) {
+			continue;
+		} else if (_collectibleInfoLookedUp.remove(record->address)) {
+			_collectibleInfo[record->address] = *record;
+			_collectibleInfoReplaced.fire_copy(*record);
+		} else {
 			_collectibleInfo.emplace(record->address, *record);
 		}
 	}
@@ -7952,7 +7862,7 @@ void Session::followCollectible(const QString &address, bool incoming) {
 }
 
 void Session::spendCollectibleFollowUps(
-		const std::vector<Gram::NftItem> *list) {
+		const std::vector<CollectibleRecord> *list) {
 	auto &followUps = _collectibleFollowUps;
 	for (auto i = begin(followUps); i != end(followUps);) {
 		const auto listed = list
@@ -7994,7 +7904,7 @@ bool Session::listsConfirmedEmpty() const {
 
 void Session::resolveCollectibleInfo(
 		const QString &item,
-		Fn<void(const Gram::NftItem &)> done) {
+		Fn<void(const CollectibleRecord &)> done) {
 	const auto i = _collectibleInfo.find(item);
 	if (i != end(_collectibleInfo)) {
 		done(i->second);
@@ -8006,12 +7916,13 @@ void Session::resolveCollectibleInfo(
 	if (!first) {
 		return;
 	}
-	const auto finish = [=](Gram::NftItem found, bool remember) {
+	const auto finish = [=](CollectibleRecord found, bool remember) {
 		const auto i = _collectibleInfo.find(item);
 		if (i != end(_collectibleInfo)) {
 			found = i->second;
 		} else if (remember) {
 			_collectibleInfo.emplace(item, found);
+			_collectibleInfoLookedUp.emplace(item);
 		}
 		auto &waiting = _collectibleInfoWaiters[item];
 		for (const auto &callback : base::take(waiting)) {
@@ -8031,11 +7942,30 @@ void Session::resolveCollectibleInfo(
 					}
 				}
 			}
-			finish(found, true);
+			finish(CollectibleRecord{ std::move(found) }, true);
 		},
 		[=](const Gram::ApiError &) {
-			finish(Gram::NftItem(), false);
+			finish(CollectibleRecord(), false);
 		});
+}
+
+rpl::producer<CollectibleRecord> Session::collectibleInfoReplaced() const {
+	return _collectibleInfoReplaced.events();
+}
+
+uint64 Session::expectIncomingCollectible(
+		Fn<bool(const Gram::NftItem &)> matches,
+		Fn<void(bool arrived)> done) {
+	ensureLoaded();
+	if (!_walletAvailable
+		|| (_presence.current() == Presence::Unavailable)) {
+		return 0;
+	}
+	return _collectibleWaits->add(std::move(matches), std::move(done));
+}
+
+void Session::cancelIncomingCollectible(uint64 id) {
+	_collectibleWaits->cancel(id);
 }
 
 #ifdef _DEBUG
@@ -8074,7 +8004,8 @@ void Session::updatePollingState() {
 		|| sendRecoveryNeeded()
 		|| submittedLookupNeeded()
 		|| custody().pendingRotation
-		|| custody().anyAwaitingServerKey();
+		|| custody().anyAwaitingServerKey()
+		|| !_collectibleWaits->empty();
 	if (!wanted) {
 		_pollTimer.cancel();
 	} else if (!_pollTimer.isActive()) {
@@ -8094,6 +8025,7 @@ bool Session::pollingRequested() const {
 
 void Session::pollTick() {
 	ensureLoaded();
+	_collectibleWaits->settle(nullptr, 0);
 	expireStaleSubmittedTransfers();
 	updatePollingState();
 	if (!_pollTimer.isActive()) {
@@ -8238,7 +8170,7 @@ rpl::producer<ListsEmptyState> Session::listsEmptyStateValue() const {
 	}) | rpl::distinct_until_changed();
 }
 
-const std::vector<Gram::NftItem> &Session::collectibles() const {
+const std::vector<CollectibleRecord> &Session::collectibles() const {
 	return _collectibles;
 }
 
@@ -8273,12 +8205,12 @@ void Session::setCollectiblesTab(bool value) {
 	refreshStaleHistory();
 }
 
-void Session::setWindowSend(std::string operationId) {
-	_windowSend = std::move(operationId);
+void Session::setWindowSend(WindowSend value) {
+	_windowSend = std::move(value);
 	_historyUpdates.fire({});
 }
 
-const std::string &Session::windowSend() const {
+const WindowSend &Session::windowSend() const {
 	return _windowSend;
 }
 
@@ -8295,11 +8227,6 @@ std::optional<PendingSendInfo> Session::pendingSend() const {
 		&& transferWalletIdentityCurrent(_pending->walletIdentity))
 		? _pending
 		: std::nullopt;
-}
-
-auto Session::lastTransferReceipt() const
--> const std::optional<TransferReceipt> & {
-	return _lastReceipt;
 }
 
 const TransferItem *Session::submittedShown(
@@ -8328,18 +8255,22 @@ std::vector<TransferItem> Session::submittedTransactions() const {
 
 auto Session::listedSubmittedTransactions() const
 -> std::vector<ListedSubmittedTransfer> {
-	auto result = std::vector<ListedSubmittedTransfer>();
+	auto facts = SubmittedListFacts{
+		.history = _history,
+		.boundary = _listedBoundary,
+		.coverage = _giftMoveCoverage,
+		.skew = kSendingMatchSkew,
+		.sendingId = (_submission ? _submission->operationId : std::string()),
+	};
+	facts.sending = sendingTransaction(facts.sendingId);
 	for (const auto &entry : _submitted) {
-		const auto item = submittedShown(entry);
-		if (!item
-			|| (_listedBoundary
-				&& item->date
-				&& (*item->date < *_listedBoundary))) {
-			continue;
-		}
-		result.push_back({ entry.operationId, *item });
+		facts.entries.push_back({
+			.operationId = entry.operationId,
+			.shown = submittedShown(entry),
+			.canonicalId = entry.canonicalId,
+		});
 	}
-	return result;
+	return ListedSubmittedTransfers(facts);
 }
 
 TonConnectSendFate Session::tonConnectSendFate(
@@ -8424,6 +8355,7 @@ std::optional<TransferItem> Session::sendingTransaction(
 		.comment = (args.comment.isPublic ? args.comment.text : QString()),
 		.recipient = args.userId,
 		.bounce = args.bounce,
+		.giftMove = SentGiftMove(args),
 	});
 	const auto entry = ranges::find(
 		_submitted,
@@ -8434,7 +8366,9 @@ std::optional<TransferItem> Session::sendingTransaction(
 		&& transferWalletIdentityCurrent(entry->identity)) {
 		result.id = entry->canonicalId;
 	}
-	if (!result.id.isEmpty() || result.counterparty.isEmpty()) {
+	if (!result.id.isEmpty()
+		|| result.counterparty.isEmpty()
+		|| (result.giftMove != TransferGiftMove::None)) {
 		return result;
 	}
 	const auto same = [&](const TransferItem &item) {
@@ -8480,28 +8414,6 @@ std::optional<TransferItem> Session::sendingTransaction(
 		result.id = found->id;
 	}
 	return result;
-}
-
-TransferItem ItemFromPending(const PendingSendInfo &pending) {
-	return TransferItem{
-		.walletIdentity = pending.walletIdentity,
-		.kind = (!pending.collectible.isEmpty()
-			? TransferItem::Kind::Collectible
-			: pending.recipient
-			? TransferItem::Kind::PeerTransfer
-			: TransferItem::Kind::Transfer),
-		.incoming = false,
-		.counterparty = pending.destination,
-		.counterpartyBounceable = pending.bounce,
-		.counterpartyPeer = (pending.recipient
-			? peerFromUser(pending.recipient).value
-			: quint64()),
-		.collectible = pending.collectible,
-		.amountNano = pending.amountNano,
-		.comment = pending.comment,
-		.date = pending.posted,
-		.status = TransferItem::Status::Pending,
-	};
 }
 
 int SendCommentBytes(const QString &text) {
@@ -8562,10 +8474,11 @@ uint64 Session::createPreviewOwner(rpl::lifetime &lifetime) {
 		_preview = std::make_unique<PreviewState>();
 	}
 	const auto owner = ++_preview->lastOwner;
+	const auto registration = std::make_shared<rpl::lifetime>(
+		crl::guard(_preview.get(), [=, this] { retirePreviewOwner(owner); }));
 	_preview->owners.emplace(owner, 0);
-	lifetime.add(crl::guard(_preview.get(), [=, this] {
-		retirePreviewOwner(owner);
-	}));
+	_preview->registrations.emplace(owner, registration);
+	lifetime.add([registration] {});
 	refreshGaslessInfo(true);
 	return owner;
 }
@@ -8580,6 +8493,7 @@ void Session::estimateFee(
 	}
 	done = LoggedFeeDone(std::move(done));
 	const auto transfersCollectible = !args.collectible.isEmpty();
+	const auto deposit = transfersCollectible && !args.payload.isEmpty();
 	const auto collectible = transfersCollectible
 		? CanonicalAddress(args.collectible)
 		: QString();
@@ -8596,6 +8510,11 @@ void Session::estimateFee(
 		? SendError::CommentTooLong
 		: collectibleInvalid
 		? SendError::InvalidRequest
+		: !args.payload.isEmpty()
+		? GiftDepositInputError(
+			args,
+			_collectibles,
+			(_collectiblesCompletedAt > 0) && !_collectiblesHasMore)
 		: transfersCollectible
 		? SendError::None
 		: (args.amountNano <= 0
@@ -8648,7 +8567,9 @@ void Session::estimateFee(
 	};
 	if (transfersCollectible) {
 		request.args.collectible = collectible;
-		request.args.amountNano = kCollectibleTransferAttachedNanos;
+		if (!deposit) {
+			request.args.amountNano = kCollectibleTransferAttachedNanos;
+		}
 	}
 	enqueuePreview(std::move(request));
 }
@@ -8823,6 +8744,7 @@ void Session::resolveDnsName(
 void Session::retirePreviewOwner(uint64 owner) {
 	cancelFeeEstimate(owner);
 	_preview->owners.remove(owner);
+	_preview->registrations.remove(owner);
 	if (_preview->owners.empty()) {
 		retireGaslessRequest();
 	}
@@ -8961,7 +8883,11 @@ void Session::startPreview() {
 		};
 		_previewPending = true;
 		const auto &request = _preview->active->request;
-		if (!request.args.collectible.isEmpty()) {
+		if (!request.args.payload.isEmpty()) {
+			previewPrepared(flight, engine::SendMessageBody::kRawPayload{
+				.boc = request.args.payload.toStdString(),
+			});
+		} else if (!request.args.collectible.isEmpty()) {
 			previewCollectible(flight);
 		} else if (request.tonConnect || request.args.comment.text.isEmpty()) {
 			previewPrepared(flight, engine::SendMessageBody::kEmpty{});
@@ -9033,9 +8959,13 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			IntentFromArgs(active.request.args, std::move(body)));
 	active.stage = PreviewState::Flight::Stage::Previewing;
 	const auto client = active.request.client;
-	const auto paired = !tonConnect && active.request.terms.eligible(
-		active.request.args.amountNano,
-		active.request.args.destination);
+	const auto deposit = !active.request.args.payload.isEmpty();
+	const auto item = active.request.args.collectible;
+	const auto paired = !tonConnect
+		&& !deposit
+		&& active.request.terms.eligible(
+			active.request.args.amountNano,
+			active.request.args.destination);
 	const auto own = active.request.identity
 		? active.request.identity->address
 		: QString();
@@ -9047,7 +8977,9 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			: client->preview_send(request);
 	}, [=, this](engine::SendPreview preview) {
 		const auto fee = DecimalInt64(preview.emulation.wallet_fees_nanograms);
-		auto result = (fee && *fee >= 0)
+		auto result = deposit
+			? GiftDepositFee(preview.emulation, item)
+			: (fee && *fee >= 0)
 			? FeeResult{ .feeNano = *fee }
 			: FeeResult{ .error = SendError::Failed };
 		if (tonConnect && result.error == SendError::None) {
@@ -9065,7 +8997,11 @@ void Session::previewPrepared(uint64 flight, engine::SendMessageBody body) {
 			finishPreview(flight, FeeResult{ .feeNano = 0 });
 			return;
 		}
-		finishPreview(flight, FeeResult{ .error = SendErrorFrom(error) });
+		finishPreview(flight, FeeResult{
+			.error = (deposit && GiftDepositRejected(error))
+				? SendError::CollectibleRejected
+				: SendErrorFrom(error),
+		});
 	});
 }
 
@@ -9234,7 +9170,7 @@ SendError Session::sendRefusal(
 	}
 	const auto &args = prepared->args;
 	const auto tonConnect = prepared->tonConnect;
-	const auto ordinary = !tonConnect && !prepared->nft;
+	const auto ordinary = !tonConnect && args.collectible.isEmpty();
 	if (!SendCommentFits(args.comment.text)) {
 		return SendError::CommentTooLong;
 	}
@@ -9304,14 +9240,28 @@ void Session::send(
 		KeyAuthorization auth,
 		std::shared_ptr<const PreparedSend> prepared,
 		Fn<void(SendError)> done,
-		Fn<void(SendStarted)> started) {
-	startSend(
-		std::move(auth),
-		std::move(prepared),
-		std::move(done),
-		std::move(started),
-		nullptr,
-		{});
+		Fn<void(SendStarted)> started,
+		Fn<void(std::string)> preparing) {
+	if (!prepared
+		|| prepared->args.payload.isEmpty()
+		|| sendRefusal(prepared, auth) != SendError::None) {
+		startSend(auth, prepared, done, started, nullptr, {});
+		return;
+	} else if (preparing) {
+		const auto weak = base::make_weak(_preview.get());
+		preparing(prepared->operationId);
+		if (weak) {
+			send(auth, prepared, done, started);
+		}
+		return;
+	}
+	CheckGiftDepositOwner(
+		_api,
+		prepared->identity.address,
+		prepared->args.collectible,
+		_preview->registrations[prepared->owner].lock(),
+		done,
+		[=, this] { startSend(auth, prepared, done, started, nullptr, {}); });
 }
 
 void Session::sendTonConnect(
@@ -9370,7 +9320,7 @@ void Session::startSend(
 	}
 	const auto terms = gaslessTerms();
 	const auto &args = prepared->args;
-	const auto ordinary = !prepared->tonConnect && !prepared->nft;
+	const auto ordinary = !prepared->tonConnect && args.collectible.isEmpty();
 	const auto paired = ordinary
 		&& terms.eligible(args.amountNano, args.destination);
 	const auto linked = !tonConnectLink.operationId.empty();
@@ -9412,6 +9362,7 @@ void Session::startSend(
 		.network = custodyRecord->network,
 		.paired = paired,
 		.bounce = args.bounce,
+		.giftMove = SentGiftMove(args),
 	});
 	_submittedTransfersDirty = true;
 	if (!persistSubmittedTransfers()) {
@@ -9435,13 +9386,13 @@ void Session::startSend(
 		.comment = stored->comment,
 		.recipient = stored->recipient,
 		.bounce = stored->bounce,
+		.giftMove = stored->giftMove,
 	};
 	const auto owner = _preview->owners.find(prepared->owner);
 	if (owner != end(_preview->owners)) {
 		++owner->second;
 	}
 	++_sendRevision;
-	_lastReceipt.reset();
 	const auto userId = args.userId;
 	const auto weak = base::make_weak(_engine.get());
 	const auto current = [=, this] {
@@ -9596,7 +9547,8 @@ void Session::startSend(
 				result,
 				operationId,
 				_submission->rpcStarted,
-				_submission->normal));
+				_submission->normal,
+				_submission->receipt));
 			if (!current()) {
 				return;
 			}
@@ -9836,7 +9788,8 @@ void Session::submitTransfer(
 		return;
 	}
 	const auto amount = prepared->args.amountNano;
-	const auto ordinary = !prepared->tonConnect && !prepared->nft;
+	const auto ordinary = !prepared->tonConnect
+		&& prepared->args.collectible.isEmpty();
 	if (ordinary
 		&& TransferAmountBelowMinimum(amount, TransferMinNanos(_session))) {
 		refuse(SendError::AmountTooSmall, u"WALLET_TRANSFER_AMOUNT_TOO_SMALL"_q);
@@ -9926,12 +9879,6 @@ void Session::submitTransfer(
 			.message = messageId,
 		};
 		crl::on_main(_session, [=] { report(started); });
-	}
-	DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_normal: %1"
-		).arg(QString::fromLatin1(data.normal.toBase64())));
-	if (data.gasless) {
-		DEBUG_LOG(("Wallet Info: wallet.sendTransfer data_gasless: %1"
-			).arg(QString::fromLatin1(data.gasless->toBase64())));
 	}
 	using Flag = MTPwallet_SendTransfer::Flag;
 	_stateApi.request(MTPwallet_SendTransfer(
@@ -10072,7 +10019,6 @@ bool Session::applySubmittedUpdate(
 			&& (!_submission->receipt
 				|| _submission->receipt->messageHash.isEmpty())) {
 			_submission->receipt = receipt;
-			_lastReceipt = receipt;
 			changed = true;
 		}
 		if (record && (!record->messageHash || record->messageHash->isEmpty())) {
@@ -10089,7 +10035,7 @@ bool Session::applySubmittedUpdate(
 			changed = !entry->lookupStopped || changed;
 			entry->lookupStopped = true;
 			auto items = std::vector{
-				HistoryItemFromServer(*transaction, identity),
+				HistoryItemFromServer(_session, *transaction, identity),
 			};
 			rememberCollectibles(items);
 			changed = adoptSubmittedTransaction(
@@ -10323,6 +10269,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		.comment = record->comment,
 		.recipient = record->recipient,
 		.bounce = record->bounce,
+		.giftMove = record->giftMove,
 	}));
 	if (FailedTransferTerminal(record->terminal)) {
 		fallback->status = TransferItem::Status::Failure;
@@ -10343,6 +10290,7 @@ Session::SubmittedTransfer *Session::upsertSubmittedTransfer(
 		item->counterpartyBounceable = stored.counterpartyBounceable;
 		item->counterpartyName = stored.counterpartyName;
 		item->counterpartyPeer = stored.counterpartyPeer;
+		item->giftMove = stored.giftMove;
 		item->collectible = stored.collectible;
 		item->amountNano = stored.amountNano;
 		item->feeNano = stored.feeNano;
@@ -10519,7 +10467,10 @@ void Session::applySubmittedLookup(
 	// nor applyTransactions(): the state lane and the engine refresh are
 	// the balance authority, and a by-message answer is not the paged
 	// feed, so its offset would page a list that nobody renders.
-	auto loaded = HistoryFromServer(data.vtransactions().v, request->identity);
+	auto loaded = HistoryFromServer(
+		_session,
+		data.vtransactions().v,
+		request->identity);
 	rememberCollectibles(loaded);
 	// wallet.transactions echoes neither the requested message hash nor
 	// any per-row link to it, so the attribution is made by the request:
@@ -10727,14 +10678,16 @@ void Session::retireSubmission() {
 }
 
 void Session::clearSubmittedTransfers() {
+	if (_windowSend.guard) {
+		*_windowSend.guard = false;
+	}
 	dropSubmittedLookup();
 	_submitted.clear();
 	_pending.reset();
 	retireSubmission();
-	_lastReceipt.reset();
 	_lastLookupOperationId.clear();
 	_unresolvedOperationId.clear();
-	_windowSend.clear();
+	_windowSend = WindowSend();
 	_sendUnresolved = false;
 	_sendRecoveryReady = false;
 	++_sendRevision;

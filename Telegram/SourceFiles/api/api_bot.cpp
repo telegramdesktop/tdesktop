@@ -475,7 +475,8 @@ void ActivateBotButton(ClickHandlerContext context, BotButtonLookup lookup) {
 						bot,
 						item->id);
 					return true;
-				} else if (bot->isBot() && bot->botInfo->inlineReturnTo.key) {
+				} else if (bot->isBot()
+					&& bot->botInfo->inlineReturnTo().key) {
 					const auto switched = SwitchInlineBotButtonReceived(
 						controller,
 						button->data);

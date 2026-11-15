@@ -539,7 +539,8 @@ GroupInfoBox::GroupInfoBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<UserData*> bot,
 	RequestPeerQuery query,
-	Fn<void(not_null<PeerData*>)> done)
+	Fn<void(not_null<PeerData*>)> done,
+	Fn<void(QString, Fn<void()>)> creationConfirm)
 : _navigation(navigation)
 , _api(&_navigation->session().mtp())
 , _type((query.type == RequestPeerQuery::Type::Broadcast)
@@ -551,7 +552,8 @@ GroupInfoBox::GroupInfoBox(
 	: Type::Group)
 , _mustBePublic(query.hasUsername == RequestPeerQuery::Restriction::Yes)
 , _canAddBot(query.isBotParticipant ? bot.get() : nullptr)
-, _done(std::move(done)) {
+, _done(std::move(done))
+, _creationConfirm(std::move(creationConfirm)) {
 }
 
 void GroupInfoBox::prepare() {
@@ -747,8 +749,19 @@ void GroupInfoBox::createGroup(
 		const auto period = ttlPeriod();
 		const auto navigation = _navigation;
 		const auto done = _done;
+		const auto request = (_creationConfirm != nullptr);
 
-		getDelegate()->hideLayer(); // Destroys 'this'.
+		if (request) {
+			// WHY: hideLayer would also close the still-unsent chooser below
+			// and fire its cancelled() before _done sends; close only this
+			// form and the participant selector it opened for this request.
+			if (const auto strong = selectUsersBox.get()) {
+				strong->closeBox();
+			}
+			closeBox();
+		} else {
+			getDelegate()->hideLayer(); // Destroys 'this'.
+		}
 		ChatCreateDone(navigation, std::move(image), period, result, done);
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
@@ -792,6 +805,18 @@ void GroupInfoBox::submit() {
 		_title->showError();
 		return;
 	}
+	if (_creationConfirm) {
+		_creationConfirm(title, crl::guard(this, [=] {
+			performCreate(title, description);
+		}));
+	} else {
+		performCreate(title, description);
+	}
+}
+
+void GroupInfoBox::performCreate(
+		const QString &title,
+		const QString &description) {
 	if (_type != Type::Group) {
 		createChannel(title, description);
 	} else if (_canAddBot) {
@@ -1679,7 +1704,7 @@ void EditNameBox::saveSelfFail(const QString &error) {
 			TextUtilities::SingleLine(_first->getLastText().trimmed()),
 			TextUtilities::SingleLine(_last->getLastText().trimmed()),
 			QString(),
-			TextUtilities::SingleLine(_user->username()));
+			TextUtilities::SingleLine(_user->editableUsername()));
 		closeBox();
 	} else if (error == "FIRSTNAME_INVALID") {
 		_first->setFocus();

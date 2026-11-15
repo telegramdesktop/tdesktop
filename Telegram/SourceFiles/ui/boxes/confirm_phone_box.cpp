@@ -53,6 +53,7 @@ void ConfirmPhoneBox::prepare() {
 			rpl::single(tr::bold(Ui::FormatPhone(_phone))),
 			tr::marked),
 		st::confirmPhoneAboutLabel);
+	_about->resizeToWidth(st::boxWidth - 2 * st::usernamePadding.left());
 
 	_code.create(this, st::confirmPhoneCodeField, tr::lng_code_ph());
 	_code->setAutoSubmit(_sentCodeLength, [=] { sendCode(); });
@@ -182,10 +183,6 @@ void ConfirmPhoneBox::showServerError(const QString &text) {
 	_code->setDisabled(false);
 	_code->setFocus();
 	showError(text);
-}
-
-QString ConfirmPhoneBox::getPhone() const {
-	return _phone;
 }
 
 } // namespace Ui

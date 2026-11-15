@@ -20,6 +20,8 @@ Read the arguments below as natural language:
 - "max K rounds": a round cap other than ten;
 - "review only" or "no fixes": one round, arbitration and a report, with no
   edits;
+- "use codex-default for review": run every Codex command below with
+  `--home default` instead of the `work` home;
 - "resume" with a session path, or "resume last": continue an earlier session
   from its ledger and its first incomplete step;
 - anything else: extra focus passed to every reviewer as `<FOCUS>`.

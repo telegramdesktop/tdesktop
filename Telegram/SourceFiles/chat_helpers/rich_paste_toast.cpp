@@ -92,9 +92,19 @@ TextWithTags TextWithTagsReplaced(
 }
 
 std::shared_ptr<QMimeData> CloneMimeData(not_null<const QMimeData*> data) {
+	// Fetching other native formats may crash Qt's Windows clipboard reader.
+	static const auto kFormats = std::array{
+		Iv::Editor::ClipboardMimeType(),
+		u"text/html"_q,
+		u"text/plain"_q,
+		u"text/plain;charset=utf-8"_q,
+		u"text/uri-list"_q,
+	};
 	auto result = std::make_shared<QMimeData>();
 	for (const auto &format : data->formats()) {
-		result->setData(format, data->data(format));
+		if (ranges::contains(kFormats, format)) {
+			result->setData(format, data->data(format));
+		}
 	}
 	return result;
 }

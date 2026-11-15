@@ -107,7 +107,7 @@ void SendRequest(
 			first,
 			last,
 			user->nameOrPhone,
-			user->username());
+			user->editableUsername());
 		user->session().api().applyUpdates(result);
 		if (const auto settings = user->barSettings()) {
 			const auto flags = PeerBarSetting::AddContact
@@ -256,9 +256,9 @@ private:
 	Ui::InputField *_notesField = nullptr;
 	Ui::InputField *_firstNameField = nullptr;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
-	base::unique_qptr<Ui::PopupMenu> _photoMenu;
 	std::unique_ptr<Ui::AnimatedIcon> _suggestIcon;
 	std::unique_ptr<Ui::AnimatedIcon> _cameraIcon;
+	base::unique_qptr<Ui::PopupMenu> _photoMenu;
 	Ui::RpWidget *_suggestIconWidget = nullptr;
 	Ui::RpWidget *_cameraIconWidget = nullptr;
 	QString _phone;
@@ -755,13 +755,17 @@ void Controller::setupDeleteContactButton() {
 			tr::now,
 			lt_contact,
 			_user->name());
+		const auto user = _user;
+		const auto weak = base::make_weak(_box);
 		const auto deleteSure = [=](Fn<void()> &&close) {
 			close();
-			_user->session().api().request(MTPcontacts_DeleteContacts(
-				MTP_vector<MTPInputUser>(1, _user->inputUser())
+			user->session().api().request(MTPcontacts_DeleteContacts(
+				MTP_vector<MTPInputUser>(1, user->inputUser())
 			)).done([=](const MTPUpdates &result) {
-				_user->session().api().applyUpdates(result);
-				_box->closeBox();
+				user->session().api().applyUpdates(result);
+				if (const auto box = weak.get()) {
+					box->closeBox();
+				}
 			}).send();
 		};
 		_window->show(Ui::MakeConfirmBox({

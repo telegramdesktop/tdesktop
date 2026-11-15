@@ -50,6 +50,24 @@ constexpr auto kMinLayer = 65;
 constexpr auto kHangupTimeoutMs = 5000;
 constexpr auto kSha256Size = 32;
 constexpr auto kAuthKeySize = 256;
+
+// WHY: the migration reason comes from the other side of the call, so a
+// call that this side has not accepted yet must not follow it into a
+// conference, or a ringing call could join one without any user action.
+[[nodiscard]] bool AcceptedByBothSides(Call::State state) {
+	using State = Call::State;
+	switch (state) {
+	case State::ExchangingKeys:
+	case State::WaitingInit:
+	case State::WaitingInitAck:
+	case State::Established:
+	case State::MigrationHangingUp:
+		return true;
+	default:
+		return false;
+	}
+}
+
 const auto kDefaultVersion = "2.4.4"_q;
 
 const auto Register = tgcalls::Register<tgcalls::InstanceImpl>();
@@ -888,9 +906,16 @@ bool Call::handleUpdate(const MTPPhoneCall &call) {
 			&& reason->type() == mtpc_phoneCallDiscardReasonDisconnect) {
 			LOG(("Call Info: Discarded with DISCONNECT reason."));
 		}
-		if (reason && reason->type() == mtpc_phoneCallDiscardReasonMigrateConferenceCall) {
-			const auto slug = qs(reason->c_phoneCallDiscardReasonMigrateConferenceCall().vslug());
-			finishByMigration(slug);
+		const auto migration = reason
+			&& (reason->type()
+				== mtpc_phoneCallDiscardReasonMigrateConferenceCall);
+		const auto accepted = AcceptedByBothSides(_state.current());
+		if (migration && !accepted) {
+			LOG(("Call Warning: Migration of a not accepted call ignored."));
+		}
+		if (migration && accepted) {
+			const auto &migrate = reason->c_phoneCallDiscardReasonMigrateConferenceCall();
+			finishByMigration(qs(migrate.vslug()));
 		} else if (reason && reason->type() == mtpc_phoneCallDiscardReasonBusy) {
 			setState(State::Busy);
 		} else if (_type == Type::Outgoing
@@ -931,7 +956,7 @@ void Call::finishByMigration(const QString &slug) {
 	setState(State::MigrationHangingUp);
 	const auto limit = 5;
 	const auto session = &_user->session();
-	session->api().request(MTPphone_GetGroupCall(
+	_api.request(MTPphone_GetGroupCall(
 		MTP_inputGroupCallSlug(MTP_string(slug)),
 		MTP_int(limit)
 	)).done([=](const MTPphone_GroupCall &result) {
@@ -1429,12 +1454,6 @@ void Call::setState(State state) {
 //	}
 //}
 
-void Call::setAudioDuckingEnabled(bool enabled) {
-	if (_instance) {
-		_instance->setAudioOutputDuckingEnabled(enabled);
-	}
-}
-
 bool Call::isSharingVideo() const {
 	return (_videoOutgoing->state() != Webrtc::VideoState::Inactive);
 }
@@ -1445,10 +1464,6 @@ bool Call::isSharingCamera() const {
 
 bool Call::isSharingScreen() const {
 	return _videoCaptureIsScreencast && isSharingVideo();
-}
-
-QString Call::cameraSharingDeviceId() const {
-	return isSharingCamera() ? _videoCaptureDeviceId : QString();
 }
 
 QString Call::screenSharingDeviceId() const {
@@ -1640,18 +1655,6 @@ void Call::finish(
 	}).fail(crl::guard(weak, [this, finalState] {
 		setState(finalState);
 	})).send();
-}
-
-void Call::setStateQueued(State state) {
-	crl::on_main(this, [=] {
-		setState(state);
-	});
-}
-
-void Call::setFailedQueued(const QString &error) {
-	crl::on_main(this, [=] {
-		handleControllerError(error);
-	});
 }
 
 void Call::handleRequestError(const QString &error) {

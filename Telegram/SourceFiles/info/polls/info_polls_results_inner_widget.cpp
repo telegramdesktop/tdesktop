@@ -553,7 +553,9 @@ ListController *CreateAnswerRows(
 		context,
 		answer.option);
 
-	const auto percent = answer.votes * 100 / poll->totalVoters;
+	const auto percent = (poll->totalVoters > 0)
+		? (int64(answer.votes) * 100 / poll->totalVoters)
+		: 0;
 	const auto phrase = poll->quiz()
 		? tr::lng_polls_answers_count
 		: tr::lng_polls_votes_count;

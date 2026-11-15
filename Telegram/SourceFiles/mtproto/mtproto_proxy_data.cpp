@@ -307,7 +307,7 @@ QString WebProxyBridgeCapability(const ProxyData &proxy) {
 	Expects(proxy.webBasePath()
 		== NormalizeWebProxyBasePath(proxy.webBasePath()));
 
-#ifndef NDEBUG
+#ifdef _DEBUG
 	[[maybe_unused]] static const auto checked = [] {
 		Assert(NormalizeWebProxyHost(u" Proxy.Example.COM "_q)
 			== u"proxy.example.com"_q);
@@ -379,7 +379,7 @@ QString WebProxyBridgeCapability(const ProxyData &proxy) {
 			padded) == u"TGUkZaevsavLbHvlNWipnRoYxgzZ51ioWvbxgGT3wHo"_q);
 		return true;
 	}();
-#endif // !NDEBUG
+#endif // _DEBUG
 
 	const auto secret = proxy.secretFromMtprotoPassword();
 	Expects(!secret.empty());
@@ -542,10 +542,6 @@ bool ProxyData::operator==(const ProxyData &other) const {
 
 bool ProxyData::operator!=(const ProxyData &other) const {
 	return !(*this == other);
-}
-
-bool ProxyData::ValidMtprotoPassword(const QString &password) {
-	return MtprotoPasswordStatus(password) == Status::Valid;
 }
 
 ProxyData::Status ProxyData::MtprotoPasswordStatus(const QString &password) {

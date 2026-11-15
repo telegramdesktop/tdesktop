@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#ifdef _DEBUG
+#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
 #include "test/test_text_drop.h"
 
@@ -27,7 +27,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QTextEdit>
+
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <private/qdnd_p.h>
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"
@@ -141,6 +144,7 @@ struct State {
 };
 
 [[nodiscard]] QString DragTargetReading(QObject *counter) {
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	const auto manager = QDragManager::self();
 	const auto target = manager ? manager->currentTarget() : nullptr;
 	if (!target) {
@@ -149,6 +153,9 @@ struct State {
 		return u"counter"_q;
 	}
 	return u"other"_q;
+#else // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
+	return u"unknown"_q;
+#endif // DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void ResetLogs(not_null<State*> state) {
@@ -712,4 +719,4 @@ void AppendTextDropSelfTest(not_null<Runner*> runner) {
 
 } // namespace Test
 
-#endif // _DEBUG
+#endif // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS

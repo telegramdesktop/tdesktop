@@ -7,23 +7,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/file_utilities.h"
 
+#include "base/platform/base_platform_file_utilities.h"
+#include "base/unixtime.h"
+#include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/version.h"
+#include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
+#include "platform/platform_file_utilities.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
-#include "base/platform/base_platform_file_utilities.h"
-#include "platform/platform_file_utilities.h"
-#include "core/application.h"
-#include "base/unixtime.h"
-#include "ui/delayed_activation.h"
 #include "ui/chat/attach/attach_extensions.h"
-#include "main/main_session.h"
+#include "ui/toast/toast.h"
+#include "ui/delayed_activation.h"
 #include "mainwindow.h"
 
-#include <QtWidgets/QFileDialog>
 #include <QtCore/QCoreApplication>
 #include <QtCore/QStandardPaths>
 #include <QtGui/QDesktopServices>
+#include <QtWidgets/QApplication>
+#include <QtWidgets/QFileDialog>
+
+#include <array>
 
 bool filedialogGetSaveFile(
 		QPointer<QWidget> parent,
@@ -124,6 +132,49 @@ QString filedialogNextFilename(
 
 namespace File {
 
+bool IsUrlSchemeAllowed(const QString &scheme) {
+	static const auto kSchemes = std::array{
+		u"http"_q,
+		u"https"_q,
+		u"ftp"_q,
+		u"itmss"_q,
+		u"mailto"_q,
+		u"tel"_q,
+		u"tg"_q,
+		u"ton"_q,
+		u"tonsite"_q,
+	};
+	if (ranges::contains(kSchemes, scheme)) {
+		return true;
+	}
+	if (scheme.size() <= 1
+		|| scheme.compare(u"file"_q, Qt::CaseInsensitive) == 0
+		|| scheme.compare(u"webdavs"_q, Qt::CaseInsensitive) == 0
+		|| !Core::IsAppLaunched()) {
+		return false;
+	}
+	for (const auto &[index, account] : Core::App().domain().accounts()) {
+		const auto protocols = account->appConfig().get<std::vector<QString>>(
+			"web_app_allowed_protocols",
+			{});
+		if (ranges::any_of(protocols, [&](const QString &protocol) {
+			return scheme.compare(protocol, Qt::CaseInsensitive) == 0;
+		})) {
+			return true;
+		}
+	}
+	return false;
+}
+
+void ShowUnsupportedUrl() {
+	const auto text = tr::lng_open_link_unsupported(tr::now);
+	if (const auto parent = QApplication::activeWindow()) {
+		Ui::Toast::Show(parent, text);
+	} else {
+		Ui::Toast::Show(text);
+	}
+}
+
 void OpenUrl(const QString &url) {
 	OpenUrlWithOwnAutoLogin(UrlWithoutWebAuthTokens(url));
 }
@@ -142,12 +193,14 @@ void OpenEmailLink(const QString &email) {
 	});
 }
 
-void OpenWith(const QString &filepath) {
+void OpenWith(const QString &filepath, Fn<void()> fallback) {
+	Expects(fallback != nullptr);
+
 	InvokeQueued(QCoreApplication::instance(), [=] {
 		if (!Platform::File::UnsafeShowOpenWithDropdown(filepath)) {
 			Ui::PreventDelayedActivation();
 			if (!Platform::File::UnsafeShowOpenWith(filepath)) {
-				Platform::File::UnsafeLaunch(filepath);
+				fallback();
 			}
 		}
 	});
@@ -189,7 +242,14 @@ QString DefaultDownloadPath(not_null<Main::Session*> session) {
 namespace internal {
 
 void UnsafeOpenUrlDefault(const QString &url) {
-	QDesktopServices::openUrl(url);
+	const auto parsed = QUrl(url);
+	if (!parsed.isValid()
+		|| parsed.isLocalFile()
+		|| !IsUrlSchemeAllowed(parsed.scheme())) {
+		ShowUnsupportedUrl();
+		return;
+	}
+	QDesktopServices::openUrl(parsed);
 }
 
 void UnsafeOpenEmailLinkDefault(const QString &email) {

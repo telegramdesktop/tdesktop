@@ -6,7 +6,7 @@ a new include may not cross a target boundary, a header may not get much
 heavier to rebuild, added code may not repeat code that already exists, a
 removed definition may not leave mentions behind, and a removed use may not
 leave a definition nothing uses."""
-from collections import Counter
+from collections import Counter, namedtuple
 from pathlib import Path
 import re
 import subprocess
@@ -17,10 +17,10 @@ import cpp_text
 import includes
 import metrics
 from report import LIMITS, file_limit
-from sources import LANG_FILE, git, wanted
+from sources import LANG_FILE, LIB_PREFIX, git, wanted
 
 
-HUNK = re.compile(r'^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@')
+HUNK = re.compile(r'^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@')
 SCAFFOLDING = re.compile(
     r'^(#include .*|#pragma once|namespace [\w:]+ \{|\} // namespace.*|'
     r'namespace \{|\{|\}|\};|(class|struct) \w+;|public:|private:|protected:|'
@@ -30,12 +30,13 @@ SCAFFOLDING = re.compile(
     r'For license and copyright.*|https://github.com/.*LEGAL|/\*|\*/|)$')
 BUILD_SHARE = 0.002
 GROWTH_TOLERANCE = 20
+GITLINK_MODE = '160000'
 PREFIXES = re.compile(r'^(\[\[nodiscard\]\] |static |inline )+')
 DEFAULTS = re.compile(r'([\w>*&] [*&]?\w+) = [^,(){}]+(?=[,)])')
 CONTROL = ('if ', 'for ', 'while ', 'switch ', 'return ', '} else')
 DECLARATION = re.compile(r'^(?!return )[\w:<>*&\[\], ]+ [*&]?~?\w+\(')
 NOT_TYPE = r'(?!(?:return|co_return|else|case|throw|new|delete|co_await|not|and|or)\b)'
-IDENT = re.compile(r'[A-Za-z_]\w*')
+TOKEN = re.compile(r"\.?[0-9](?:[eEpP][+-]|[\w.]|'\w)*|([A-Za-z_]\w*)")
 CODE_WORDS = frozenset('''
     auto bool break case catch char class const constexpr continue default
     delete double else enum explicit false float for friend if inline int long
@@ -57,55 +58,135 @@ def tracked_path(path):
     return code_path(path) or (wanted(path) and path.endswith('.style')) or path == LANG_FILE
 
 
-def untracked(repo):
+# Where a change lives and how to ask Git about it: the superproject, or one
+# changed `Telegram/lib_*` submodule, whose paths get `prefix` prepended.
+Side = namedtuple('Side', 'repo base scope prefix')
+
+
+def untracked(repo, scope='Telegram', prefix=''):
     raw = git(repo, 'ls-files', '--others', '--exclude-standard', '--',
-              'Telegram').decode('utf-8', 'replace')
-    return [path for path in raw.splitlines() if tracked_path(path)]
+              scope).decode('utf-8', 'replace')
+    return [prefix + path for path in raw.splitlines() if tracked_path(prefix + path)]
+
+
+def unread_reason(checkout, pin, staged):
+    """Why `check` cannot read a changed submodule, or None. `git -C` in a
+    folder without `.git` would answer for the superproject instead."""
+    if staged:
+        return '--staged sees only its pin; check without --staged'
+    if not (checkout / '.git').exists():
+        return 'it has no checkout here'
+    if pin:
+        try:
+            git(checkout, 'cat-file', '-e', pin + '^{commit}')
+        except subprocess.CalledProcessError:
+            return f'its base pin {pin[:10]} is unavailable locally'
+    return None
+
+
+def changed_submodules(repo, base, staged):
+    """(root, base pin or None, unread reason or None) of each top-level
+    `Telegram/lib_*` gitlink that differs from `base`, as `sources.from_ref()`
+    selects them; `--ignore-submodules=none` also lists one whose only change
+    is an untracked file, which a plain diff leaves out."""
+    args = ['diff', '--raw', '--no-abbrev', '--no-renames', '--ignore-submodules=none']
+    args += ['--cached', base] if staged else [base]
+    raw = git(repo, *args, '--', LIB_PREFIX + '*').decode('utf-8', 'replace')
+    result = []
+    for line in raw.splitlines():
+        meta, _, root = line.partition('\t')
+        old_mode, new_mode, old_oid = meta[1:].split()[:3]
+        if GITLINK_MODE in (old_mode, new_mode) and root.count('/') == 1:
+            pin = old_oid if old_mode == GITLINK_MODE else None
+            result.append((root, pin, unread_reason(Path(repo) / root, pin, staged)))
+    return result
+
+
+def sides(repo, base, staged):
+    """The superproject, then each changed submodule `check` can read, with
+    the commit its working tree is compared with: its pin at `base`, or the
+    empty tree when the change adds it, so that all of its files are new."""
+    result = [Side(repo, base, 'Telegram', '')]
+    for root, pin, reason in changed_submodules(repo, base, staged):
+        if reason is None:
+            checkout = Path(repo) / root
+            start = pin or git(checkout, 'hash-object', '-t', 'tree', '--stdin',
+                               data=b'').decode().strip()
+            result.append(Side(checkout, start, '.', root + '/'))
+    return result
+
+
+def located(repo, base, path):
+    """(repo, commit, path) to ask Git for `path` at `base`: a file inside a
+    checked out `Telegram/lib_*` gitlink lives in that submodule at its pin."""
+    parts = path.split('/', 2)
+    if path.startswith(LIB_PREFIX) and len(parts) == 3:
+        root = '/'.join(parts[:2])
+        checkout = Path(repo) / root
+        if (checkout / '.git').exists():
+            fields = git(repo, 'ls-tree', base, '--', root).decode().split()
+            if fields[1:2] == ['commit']:
+                return checkout, fields[2], parts[2]
+    return repo, base, path
 
 
 def changed(repo, base, staged):
     """(status letter, path) of changed code, style and language files;
     without `staged`, untracked files count as added, so a change is seen
     before its commit."""
-    args = ['diff', '--name-status', '--no-renames']
-    args += ['--cached', base] if staged else [base]
-    raw = git(repo, *args, '--', 'Telegram').decode('utf-8', 'replace')
     result = []
-    for line in raw.splitlines():
-        status, _, path = line.partition('\t')
-        if tracked_path(path):
-            result.append((status[0], path))
-    if not staged:
-        result += [('A', path) for path in untracked(repo)]
+    for side in sides(repo, base, staged):
+        args = ['diff', '--name-status', '--no-renames']
+        args += ['--cached', side.base] if staged else [side.base]
+        raw = git(side.repo, *args, '--', side.scope).decode('utf-8', 'replace')
+        for line in raw.splitlines():
+            status, _, path = line.partition('\t')
+            path = side.prefix + path
+            if tracked_path(path):
+                result.append((status[0], path))
+        if not staged:
+            result += [('A', path) for path in untracked(side.repo, side.scope, side.prefix)]
     return result
 
 
 def diff_lines(repo, base, staged):
-    """{path: (removed lines, added lines)} over the changed files."""
-    args = ['diff', '-U0', '--no-color', '--no-renames']
-    args += ['--cached', base] if staged else [base]
-    raw = git(repo, *args, '--', 'Telegram').decode('utf-8', 'replace')
+    """{path: (removed lines, added lines)} over the changed files; each
+    removed line is (its number in the base, its text)."""
     result = {}
-    path = None
-    for line in raw.splitlines():
-        if line.startswith('--- '):
-            path = line[6:] if line.startswith('--- a/') else None
-            continue
-        if line.startswith('+++ '):
-            path = line[6:] if line.startswith('+++ b/') else path
-            continue
-        if not path or not tracked_path(path) or not line or line[0] not in '+-':
-            continue
-        entry = result.setdefault(path, ([], []))
-        entry[0 if line[0] == '-' else 1].append(line[1:])
-    if not staged:
-        for path in untracked(repo):
-            text = (Path(repo) / path).read_text(encoding='utf-8', errors='replace')
-            result[path] = ([], text.split('\n'))
+    for side in sides(repo, base, staged):
+        args = ['diff', '-U0', '--no-color', '--no-renames']
+        args += ['--cached', side.base] if staged else [side.base]
+        raw = git(side.repo, *args, '--', side.scope).decode('utf-8', 'replace')
+        path = None
+        number = 0
+        for line in raw.splitlines():
+            if line.startswith('--- '):
+                path = side.prefix + line[6:] if line.startswith('--- a/') else None
+                continue
+            if line.startswith('+++ '):
+                path = side.prefix + line[6:] if line.startswith('+++ b/') else path
+                continue
+            hunk = HUNK.match(line)
+            if hunk:
+                number = int(hunk.group(1))
+                continue
+            if not path or not tracked_path(path) or not line or line[0] not in '+-':
+                continue
+            entry = result.setdefault(path, ([], []))
+            if line[0] == '-':
+                entry[0].append((number, line[1:]))
+                number += 1
+            else:
+                entry[1].append(line[1:])
+        if not staged:
+            for path in untracked(side.repo, side.scope, side.prefix):
+                text = (Path(repo) / path).read_text(encoding='utf-8', errors='replace')
+                result[path] = ([], text.split('\n'))
     return result
 
 
 def base_text(repo, base, path):
+    repo, base, path = located(repo, base, path)
     try:
         return git(repo, 'show', f'{base}:{path}').decode('utf-8', 'replace')
     except subprocess.CalledProcessError:
@@ -113,6 +194,7 @@ def base_text(repo, base, path):
 
 
 def added_hunks(repo, base, staged, path):
+    repo, base, path = located(repo, base, path)
     args = ['diff', '-U0', '--no-color']
     args += ['--cached', base] if staged else [base]
     raw = git(repo, *args, '--', path).decode('utf-8', 'replace')
@@ -121,7 +203,7 @@ def added_hunks(repo, base, staged, path):
     for line in raw.splitlines():
         match = HUNK.match(line)
         if match:
-            number = int(match.group(1))
+            number = int(match.group(2))
             continue
         if line.startswith('+') and not line.startswith('+++'):
             hunk.append((number, line[1:]))
@@ -132,7 +214,10 @@ def added_hunks(repo, base, staged, path):
 def check(tree, base='HEAD', staged=False, strict=False):
     """Returns (errors, warnings) as lists of strings."""
     errors = []
-    warnings = []
+    warnings = [
+        f'{root}: changed, but not read: {reason}.'
+        for root, _, reason in changed_submodules(tree.repo, base, staged) if reason
+    ]
     model = cmake_model.build(tree.files)
     graph = includes.IncludeGraph(tree, model)
     costs = None
@@ -169,8 +254,8 @@ def check(tree, base='HEAD', staged=False, strict=False):
             if target in base_includes:
                 continue
             fresh.append(target)
-            owner = model.target_of(target)
-            if source and owner and owner not in model.dependencies(source):
+            owner = model.crossed(source, target)
+            if owner:
                 crossings.append((path, number, target, source, owner))
         if fresh and cpp_text.is_header(path):
             if costs is None:
@@ -243,10 +328,43 @@ def mention_lines(text):
     return [line.split('//')[0] for line in cpp_text.code_lines(text)]
 
 
-def defines(path, line, name):
+def identifiers(text):
+    """Names in `text`, in order; letters inside a numeric literal such as
+    `1e-4`, `0x1F`, `10ull` or `0.5f` belong to the number."""
+    return [name for name in TOKEN.findall(text) if name]
+
+
+def else_branch(lines, index):
+    """Whether lines[index] is a ternary's else-branch `: value`. REVIEW.md
+    starts continuation lines with their operator, so walking back over blank
+    and deeper lines, and over lines of the same depth that start with other
+    punctuation (a closing bracket, an operator, a string), reaches the
+    `? value` line of the same depth; a constructor initializer reaches its
+    signature, which starts with a name, instead."""
+    line = lines[index]
+    if not line.lstrip().startswith(':'):
+        return False
+    depth = len(line) - len(line.lstrip())
+    for above in reversed(lines[:index]):
+        code = above.strip()
+        level = len(above) - len(above.lstrip())
+        if not code or level > depth:
+            continue
+        if level < depth:
+            return False
+        if code[0] == '?':
+            return True
+        if code[0] == '_' or code[0].isalnum():
+            return False
+    return False
+
+
+def defines(path, line, name, branch=False):
     """Whether this mention of `name` declares or defines it rather than
     using it: its key in the language file, its entry in a `.style` file, or
-    a declaration, definition or constructor initializer in code."""
+    a declaration, definition or constructor initializer in code. A `branch`
+    line is a ternary's else-branch (see `else_branch()`), whose leading
+    `: Name(` calls Name instead of initializing it."""
     escaped = re.escape(name)
     if path == LANG_FILE:
         return re.match(r'\s*"' + escaped + r'(?:#\w+)?"\s*=', line) is not None
@@ -254,7 +372,7 @@ def defines(path, line, name):
         return re.match(r'\s*' + escaped + r'\s*:', line) is not None
     stripped = line.strip()
     if re.match(r'[,:]\s*' + escaped + r'\s*[({]', stripped):
-        return True
+        return not branch
     if not line[:1].isspace():
         head = CLASS_HEAD.match(line)
         if head:
@@ -281,12 +399,17 @@ def orphaned(tree, base, staged):
     added = Counter()
     used = set()
     for path, (minus, plus) in diff_lines(tree.repo, base, staged).items():
-        for line in minus:
-            names = set(IDENT.findall(line.split('//')[0]))
+        before = None
+        for number, line in minus:
+            names = set(identifiers(line.split('//')[0]))
             removed.update(names)
-            used |= {name for name in names if not defines(path, line, name)}
+            branch = False
+            if line.lstrip().startswith(':'):
+                before = before or mention_lines(base_text(tree.repo, base, path))
+                branch = else_branch(before, number - 1)
+            used |= {name for name in names if not defines(path, line, name, branch)}
         for line in plus:
-            added.update(IDENT.findall(line.split('//')[0]))
+            added.update(identifiers(line.split('//')[0]))
     candidates = {
         name for name, count in removed.items()
         if count > added.get(name, 0) and name in used and len(name) >= 4
@@ -298,7 +421,7 @@ def orphaned(tree, base, staged):
     for path, text in tree.files.items():
         if not tracked_path(path):
             continue
-        for name in set(IDENT.findall(text)) & candidates:
+        for name in set(identifiers(text)) & candidates:
             files.setdefault(name, []).append(path)
     result = []
     for name in sorted(candidates):
@@ -308,10 +431,12 @@ def orphaned(tree, base, staged):
         pattern = re.compile(r'\b' + re.escape(name) + r'\b')
         places = []
         for path in paths:
-            for number, line in enumerate(mention_lines(tree.files[path]), 1):
+            lines = mention_lines(tree.files[path])
+            for number, line in enumerate(lines, 1):
                 if not pattern.search(line):
                     continue
-                if not defines(path, line, name) or 'override' in line:
+                branch = else_branch(lines, number - 1)
+                if not defines(path, line, name, branch) or 'override' in line:
                     places = None
                     break
                 places.append((path, number))

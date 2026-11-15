@@ -341,7 +341,6 @@ void CopySelection(CopySelectionArgs &&args) {
 			text,
 			std::move(args.blocks),
 			args.session);
-		Ui::ShowTextCopiedToast(args.show);
 		return;
 	}
 	PendingCopy() = nullptr;

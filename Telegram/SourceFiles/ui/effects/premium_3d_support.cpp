@@ -52,7 +52,7 @@ float64 CubicBezier(
 }
 
 bool Object3dSupported() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (PowerSaving::On(PowerSaving::kAnimations)) {
 		return false;
 	}

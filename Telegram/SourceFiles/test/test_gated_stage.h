@@ -47,4 +47,36 @@ class Runner;
 // exactly one TEST_RESULT: PASS row and no FAIL.
 void AppendGatedStageSelfTest(not_null<Runner*> runner);
 
+// The inherited group gate of Runner::addGated measuring itself. One Runner
+// finishes once, so the overlay selects the finish path.
+enum class StageGroupGatePath {
+	Complete,
+	SkippedToEnd,
+	Timeout,
+	Watchdog,
+};
+
+// Composes, after an arm stage that builds one local painted widget on
+// Core::App().activePrimaryWindow(): a prerequisite stage that refuses by
+// construction; an addGated group of ordinary stages, actOnWidget,
+// captureWidget, captureAndInspect and a gate-unaware helper's stages, two
+// addRecovery stages that change and then clear the gate, and a nested
+// group - every gated stage must write TEST_RESULT: N/A carrying that first
+// refusal, with zero widget resolutions, readiness polls, actions or
+// captures; restoration stages after the group with their own policy; the
+// same dependent body inside an open group and ungated, each acting
+// exactly once and capturing the local widget; one stage of Checks reading
+// the counters and test_log.txt back; and the ending |path| selects.
+// The overlay calls runner->waitEvent(u"launch_finished"_q) first. It
+// needs no session, network, fixture secret or account. Complete and
+// SkippedToEnd write no FAIL; Timeout writes exactly one "stage timed out"
+// FAIL and Watchdog (run with TDESKTOP_TEST_WATCHDOG of a few seconds)
+// exactly one "scenario watchdog" FAIL, both by construction. Every path
+// writes one finish-release PASS row from Runner::onFinish, which also
+// destroys the widget and a timer armed at composition.
+// Readings: docs/helpers/test_gated_stage.md.
+void AppendStageGroupGateSelfTest(
+	not_null<Runner*> runner,
+	StageGroupGatePath path);
+
 } // namespace Test

@@ -159,11 +159,6 @@ void Api::cancelRequest(mtpRequestId requestId) {
 	}
 }
 
-
-bool Api::hasPendingRequests() const {
-	return _pendingCount > 0;
-}
-
 MTP::ShiftedDcId Api::shiftedDcId() const {
 	const auto dcId = _session->serverConfig().webFileDcId;
 	if (dcId <= 0 || dcId >= MTP::kDcShift) {
@@ -199,6 +194,7 @@ void Api::scheduleTimeoutCheck() {
 }
 
 void Api::checkTimeouts() {
+	const auto weak = base::make_weak(_session);
 	const auto now = crl::now();
 	while (!_sent.empty() && (now >= _sent.front().deadline)) {
 		auto entry = std::move(_sent.front());
@@ -209,6 +205,9 @@ void Api::checkTimeouts() {
 			).arg(entry.endpoint).arg(kRequestTimeout));
 		if (entry.fail) {
 			entry.fail(Gram::ApiError{ .message = kTimeoutErrorMessage });
+			if (!weak) {
+				return;
+			}
 		}
 	}
 	scheduleTimeoutCheck();

@@ -287,7 +287,7 @@ struct ChatListMenuReading {
 //
 // Stages.
 //  1. Capture the baseline - window state, Qt activation, the
-//     use-new-chat-view option, the active chat and every list's
+//     use-modern-chat-view option, the active chat and every list's
 //     selection - then minimize the window and prove it is not marking
 //     read (named fixture gates).
 //  2. Open Saved Messages in the legacy HistoryWidget, in the background

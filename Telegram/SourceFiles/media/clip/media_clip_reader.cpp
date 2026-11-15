@@ -431,16 +431,6 @@ crl::time Reader::getDurationMs() const {
 	return ready() ? _durationMs : 0;
 }
 
-void Reader::pauseResumeVideo() {
-	if (Workers.size() <= _threadIndex) {
-		error();
-	}
-	if (_state == State::Error) return;
-
-	_videoPauseRequest.storeRelease(1 - _videoPauseRequest.loadAcquire());
-	Workers[_threadIndex]->manager.start(this);
-}
-
 bool Reader::videoPaused() const {
 	return _videoPauseRequest.loadAcquire() != 0;
 }
@@ -531,6 +521,7 @@ public:
 				return error();
 			}
 			frame()->positionMs = _implementation->frameRealTime();
+			frame()->when = ms;
 
 			_width = frame()->original.width();
 			_height = frame()->original.height();

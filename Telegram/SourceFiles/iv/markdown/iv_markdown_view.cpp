@@ -53,7 +53,7 @@ namespace {
 
 constexpr auto kZoomStep = 10;
 
-#ifndef NDEBUG
+#ifdef _DEBUG
 [[nodiscard]] QString PrepareTerminalFailureName(
 		PrepareTerminalFailure failure) {
 	switch (failure) {
@@ -1103,7 +1103,7 @@ void MarkdownPreviewRoot::logPreparationSummary(
 		const PrepareDebugStats &debug,
 		int prepareMs,
 		int layoutMs) const {
-#ifndef NDEBUG
+#ifdef _DEBUG
 	const auto counters = _renderer ? _renderer->debugCounters() : FormulaDebugCounters();
 	const auto reason = PrepareFailureReasonText(failure);
 	DEBUG_LOG((

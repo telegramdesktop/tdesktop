@@ -31,4 +31,6 @@ namespace Gram {
 [[nodiscard]] std::optional<QString> TextCommentFromBoc(
 	const QString &bocBase64);
 
+[[nodiscard]] QString NftTransferNewOwner(const QString &bocBase64);
+
 } // namespace Gram

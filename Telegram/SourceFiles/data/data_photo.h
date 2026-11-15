@@ -140,8 +140,6 @@ public:
 
 	[[nodiscard]] bool hasVideo() const;
 	[[nodiscard]] bool hasVideoSmall() const;
-	[[nodiscard]] bool videoLoading(Data::PhotoSize size) const;
-	[[nodiscard]] bool videoFailed(Data::PhotoSize size) const;
 	void loadVideo(Data::PhotoSize size, Data::FileOrigin origin);
 	[[nodiscard]] const ImageLocation &videoLocation(
 		Data::PhotoSize size) const;
@@ -156,7 +154,6 @@ public:
 	-> std::unique_ptr<Media::Streaming::Loader>;
 
 	[[nodiscard]] bool hasAttachedStickers() const;
-	void setHasAttachedStickers(bool value);
 
 	// For now they return size of the 'large' image.
 	[[nodiscard]] int width() const;

@@ -74,6 +74,22 @@ class SnapshotTests(unittest.TestCase):
             watch.snapshot(self.repo)
         self.assertFalse((self.repo / '.git/dependency-watch').exists())
 
+    def test_copied_library_binding_comes_from_remote(self):
+        manifest = 'Telegram/cmake/lib_quickjs.cmake'
+        pinned = 'set(quickjs_loc ${third_party_loc}/widget-sandbox/packages/ios/Sources/CQuickJS/quickjs)\n'
+        target = self.remote / manifest
+        target.parent.mkdir(parents=True)
+        target.write_text(pinned, encoding='utf-8')
+        self.commit()
+        local = self.repo / manifest
+        local.parent.mkdir(parents=True)
+        local.write_text('local unfinished edit\n', encoding='utf-8')
+        before = watch.git(self.repo, 'status', '--porcelain')
+        result = watch.snapshot(self.repo)
+        source = Path(result['run_directory']) / 'sources' / manifest
+        self.assertEqual(source.read_text(), pinned)
+        self.assertEqual(watch.git(self.repo, 'status', '--porcelain'), before)
+
     def test_missing_required_manifest_fails(self):
         (self.remote / 'snap/snapcraft.yaml').unlink()
         self.commit()

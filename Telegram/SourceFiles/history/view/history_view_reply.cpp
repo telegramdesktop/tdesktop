@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
@@ -354,6 +355,7 @@ void Reply::update(
 		not_null<HistoryMessageReply*> data) {
 	const auto item = view->data();
 	const auto &fields = data->fields();
+	const auto &quote = fields.displayQuote();
 	const auto message = data->resolvedMessage.get();
 	const auto messageMedia = (message
 			&& (fields.todoItemId || !fields.pollOption.isEmpty()))
@@ -415,7 +417,7 @@ void Reply::update(
 	_multiline = data->multiline() ? 1 : 0;
 	const auto hasQuoteIcon = _displaying
 		&& fields.manualQuote
-		&& !fields.quote.empty();
+		&& !quote.empty();
 	_hasQuoteIcon = hasQuoteIcon ? 1 : 0;
 
 	const auto repaint = [=] { item->customEmojiRepaint(); };
@@ -444,10 +446,10 @@ void Reply::update(
 		? Ui::Text::Colorized(
 			Ui::Text::IconEmoji(&st::historyPollReplyIcon)
 		).append(messagePoll->question)
-		: (message && (fields.quote.empty() || !fields.manualQuote))
+		: (message && (quote.empty() || !fields.manualQuote))
 		? message->inReplyText()
-		: !fields.quote.empty()
-		? fields.quote
+		: !quote.empty()
+		? quote
 		: story
 		? Ui::Text::Colorized(
 			Ui::Text::IconEmoji(&st::historyReplyStoryIcon)
@@ -504,12 +506,7 @@ void Reply::setLinkFrom(
 	const auto isAdminLogEntry = view->data()->isAdminLogEntry();
 	const auto externalChannelId = peerToChannel(fields.externalPeerId);
 	const auto messageId = fields.messageId;
-	const auto highlight = MessageHighlightId{
-		.quote = fields.manualQuote ? fields.quote : TextWithEntities(),
-		.quoteOffset = int(fields.quoteOffset),
-		.todoItemId = fields.todoItemId,
-		.pollOption = fields.pollOption,
-	};
+	const auto highlight = fields.highlight();
 	const auto returnToId = view->data()->fullId();
 	const auto externalLink = [=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -746,25 +743,32 @@ int Reply::nameIconsSkip() const {
 		+ (_hasBackgroundEmoji ? st::messageGiftIconSkip : 0);
 }
 
-int Reply::resizeToWidth(int width) const {
-	_ripple.animation = nullptr;
-
-	const auto previewSkip = _hasPreview
+int Reply::previewSkip() const {
+	return (_hasPreview && !_previewHidden)
 		? (st::messageQuoteStyle.outline
 			+ st::historyReplyPreviewMargin.left()
 			+ st::historyReplyPreview
 			+ st::historyReplyPreviewMargin.right()
 			- st::historyReplyPadding.left())
 		: 0;
+}
+
+int Reply::resizeToWidth(int width) const {
+	_ripple.animation = nullptr;
+
+	const auto innerw = width
+		- st::historyReplyPadding.left()
+		- st::historyReplyPadding.right();
+	_previewHidden = 0;
+	_previewHidden = (width < _maxWidth
+		&& (innerw - previewSkip() < _text.minResizeWidth())) ? 1 : 0;
 	if (width >= _maxWidth || !_multiline) {
 		_nameTwoLines = 0;
 		_expandable = _minHeightExpandable;
 		_height = _minHeight;
 		return height();
 	}
-	const auto innerw = width
-		- st::historyReplyPadding.left()
-		- st::historyReplyPadding.right();
+	const auto previewSkip = Reply::previewSkip();
 	const auto namew = innerw - previewSkip - nameIconsSkip();
 	const auto desiredNameHeight = _name.countHeight(namew);
 	_nameTwoLines = (desiredNameHeight > st::semiboldFont->height) ? 1 : 0;
@@ -914,18 +918,11 @@ void Reply::paint(
 		}
 	}
 
-	auto hasPreview = (_hasPreview != 0);
-	auto previewSkip = hasPreview
-		? (st::messageQuoteStyle.outline
-			+ st::historyReplyPreviewMargin.left()
-			+ st::historyReplyPreview
-			+ st::historyReplyPreviewMargin.right()
-			- st::historyReplyPadding.left())
-		: 0;
-	if (hasPreview && w <= st::historyReplyPadding.left() + previewSkip) {
-		hasPreview = false;
+	auto previewSkip = Reply::previewSkip();
+	if (w <= st::historyReplyPadding.left() + previewSkip) {
 		previewSkip = 0;
 	}
+	const auto hasPreview = (previewSkip > 0);
 
 	const auto pausedSpoiler = context.paused
 		|| On(PowerSaving::kChatSpoiler);
@@ -1156,7 +1153,7 @@ TextWithEntities Reply::ComposePreviewName(
 	const auto groupNameAdded = displayAsExternal
 		&& (toPeer != sender)
 		&& (toPeer->isChat() || toPeer->isMegagroup());
-	const auto quote = replyTo && !replyTo.quote.empty();
+	const auto quote = replyTo && !ComposePreviewQuote(replyTo).empty();
 	const auto shorten = groupNameAdded || quote;
 
 	auto nameFull = TextWithEntities();
@@ -1177,6 +1174,11 @@ TextWithEntities Reply::ComposePreviewName(
 			nameFull,
 			tr::marked);
 
+}
+
+const TextWithEntities &Reply::ComposePreviewQuote(
+		const FullReplyTo &replyTo) {
+	return replyTo.richQuote ? replyTo.richQuote->text : replyTo.quote;
 }
 
 void Reply::unloadPersistentAnimation() {

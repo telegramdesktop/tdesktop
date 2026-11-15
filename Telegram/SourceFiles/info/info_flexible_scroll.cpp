@@ -29,6 +29,24 @@ base::options::toggle ClassicProfileScroll({
 
 constexpr auto kScrollStepTime = crl::time(260);
 
+struct SnapAnchors {
+	int first = 0;
+	int second = 0;
+};
+
+[[nodiscard]] SnapAnchors CountSnapAnchors(int pinnedMaxHeight) {
+	const auto baseMax = st::infoProfileTopBarHeightMax;
+	const auto step2 = st::infoProfileTopBarStep2;
+	if (pinnedMaxHeight < baseMax) {
+		return { .first = step2 + st::lineWidth, .second = step2 };
+	}
+	const auto extra = pinnedMaxHeight - baseMax;
+	return {
+		.first = st::infoProfileTopBarStep1 + extra,
+		.second = step2 + extra,
+	};
+}
+
 } // namespace
 
 const char kClassicProfileScroll[] = "classic-profile-scroll";
@@ -47,10 +65,8 @@ void SetupFlexibleRegularScroll(
 		Fn<void(rpl::producer<not_null<QEvent*>>)> setViewport,
 		bool abortSnapOnExternalScroll) {
 	const auto min = pinnedToTop->minimumHeight();
-	const auto max = pinnedToTop->maximumHeight();
 
 	setScrollTopSkip(min);
-	setInnerTopReserve(max - min);
 	setPaintPadding({ 0, min, 0, 0 });
 	setViewport(pinnedToTop->events(
 	) | rpl::filter([](not_null<QEvent*> e) {
@@ -63,6 +79,7 @@ void SetupFlexibleRegularScroll(
 	}, pinnedToTop->lifetime());
 
 	const auto applyTop = [=](int top) {
+		const auto max = pinnedToTop->maximumHeight();
 		const auto height = std::clamp(max - top, min, max);
 		if (pinnedToTop->height() != height) {
 			pinnedToTop->resize(pinnedToTop->width(), height);
@@ -83,10 +100,6 @@ void SetupFlexibleRegularScroll(
 	const auto state = scroll->lifetime().make_state<State>();
 	const auto single = scroll->verticalScrollBar()->singleStep()
 		* QApplication::wheelScrollLines();
-	const auto step2 = st::infoProfileTopBarStep2;
-	const auto step1 = (max < st::infoProfileTopBarHeightMax)
-		? (step2 + st::lineWidth)
-		: st::infoProfileTopBarStep1;
 
 	state->animation.init([=](crl::time now) {
 		if (abortSnapOnExternalScroll
@@ -119,12 +132,27 @@ void SetupFlexibleRegularScroll(
 			state->lastApplied = -1;
 		}
 	});
+
+	pinnedToTop->desiredHeightValue(
+	) | rpl::map([=] {
+		return pinnedToTop->maximumHeight();
+	}) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](int max) {
+		state->animation.stop();
+		state->lastApplied = -1;
+		setInnerTopReserve(max - min);
+		applyTop(scroll->scrollTop());
+	}, scroll->lifetime());
+
 	scroll->setCustomWheelProcess([=](not_null<QWheelEvent*> e) {
 		const auto delta = e->angleDelta().y();
 		if (std::abs(delta) != 120 || e->phase() != Qt::NoScrollPhase) {
 			state->animation.stop();
 			return false;
 		}
+		const auto anchors = CountSnapAnchors(pinnedToTop->maximumHeight());
+		const auto step1 = anchors.first;
+		const auto step2 = anchors.second;
 		const auto base = state->animation.animating()
 			? state->targetTop
 			: scroll->scrollTop();
@@ -172,15 +200,6 @@ FlexibleScrollHelper::FlexibleScrollHelper(
 }
 
 void FlexibleScrollHelper::setupScrollAnimation() {
-	const auto clearScrollState = [=] {
-		_scrollAnimation.stop();
-		_scrollTopFrom = 0;
-		_scrollTopTo = 0;
-		_timeOffset = 0;
-		_lastScrollApplied = 0;
-		_lastScrollSeen = -1;
-	};
-
 	_scrollAnimation.init([=](crl::time now) {
 		if (_abortSnapOnExternalScroll
 			&& _lastScrollSeen >= 0
@@ -214,10 +233,16 @@ void FlexibleScrollHelper::setupScrollAnimation() {
 }
 
 void FlexibleScrollHelper::setupScrollHandling() {
+	auto maxHeightValue = _pinnedToTop->desiredHeightValue(
+	) | rpl::map([=] {
+		return _pinnedToTop->maximumHeight();
+	}) | rpl::distinct_until_changed();
+
 	rpl::combine(
 		_pinnedToTop->heightValue(),
-		_inner->heightValue()
-	) | rpl::on_next([=](int, int h) {
+		_inner->heightValue(),
+		rpl::duplicate(maxHeightValue)
+	) | rpl::on_next([=](int, int h, int) {
 		const auto max = _pinnedToTop->maximumHeight();
 		const auto min = _pinnedToTop->minimumHeight();
 		const auto diff = max - min;
@@ -233,11 +258,6 @@ void FlexibleScrollHelper::setupScrollHandling() {
 
 	const auto singleStep = _scroll->verticalScrollBar()->singleStep()
 		* QApplication::wheelScrollLines();
-	const auto step1 = (_pinnedToTop->maximumHeight()
-			< st::infoProfileTopBarHeightMax)
-		? (st::infoProfileTopBarStep2 + st::lineWidth)
-		: st::infoProfileTopBarStep1;
-	const auto step2 = st::infoProfileTopBarStep2;
 
 	base::install_event_filter(_scroll->verticalScrollBar(), [=](
 			not_null<QEvent*> e) {
@@ -259,6 +279,9 @@ void FlexibleScrollHelper::setupScrollHandling() {
 				- (pixels ? pixels : delta));
 			return base::EventFilterResult::Cancel;
 		}
+		const auto anchors = CountSnapAnchors(_pinnedToTop->maximumHeight());
+		const auto step1 = anchors.first;
+		const auto step2 = anchors.second;
 		const auto actualTop = _scroll->scrollTop();
 		const auto animationActive = _scrollAnimation.animating()
 			&& (_lastScrollApplied != _scrollTopTo);
@@ -343,6 +366,11 @@ void FlexibleScrollHelper::setupScrollHandling() {
 		applyScrollToPinnedLayout(top);
 	}, _inner->lifetime());
 
+	std::move(maxHeightValue) | rpl::skip(1) | rpl::on_next([=] {
+		clearScrollState();
+		applyScrollToPinnedLayout(_scroll->scrollTop());
+	}, _inner->lifetime());
+
 	_data.fillerWidthValue.events(
 	) | rpl::on_next([=](int w) {
 		_inner->resizeToWidth(w);
@@ -353,6 +381,15 @@ void FlexibleScrollHelper::setupScrollHandling() {
 	) | rpl::filter([](not_null<QEvent*> e) {
 		return e->type() == QEvent::Wheel;
 	}));
+}
+
+void FlexibleScrollHelper::clearScrollState() {
+	_scrollAnimation.stop();
+	_scrollTopFrom = 0;
+	_scrollTopTo = 0;
+	_timeOffset = 0;
+	_lastScrollApplied = 0;
+	_lastScrollSeen = -1;
 }
 
 void FlexibleScrollHelper::scrollToY(int scrollCurrent) {

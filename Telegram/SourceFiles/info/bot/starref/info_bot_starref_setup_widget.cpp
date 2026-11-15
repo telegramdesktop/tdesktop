@@ -10,17 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
-#include "core/click_handler_types.h"
 #include "data/data_user.h"
 #include "info/bot/starref/info_bot_starref_common.h"
 #include "info/bot/starref/info_bot_starref_join_widget.h"
-#include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "ui/controls/slider_tick_labels.h"
 #include "ui/effects/premium_top_bar.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -74,11 +73,6 @@ private:
 	void setupDuration();
 	void setupViewExisting();
 	void setupEnd();
-
-	[[nodiscard]] object_ptr<Ui::RpWidget> infoRow(
-		rpl::producer<QString> title,
-		rpl::producer<QString> text,
-		not_null<const style::icon*> icon);
 
 	const not_null<Controller*> _controller;
 	State _state;
@@ -301,16 +295,22 @@ private:
 	labels->widthValue() | rpl::on_next([=](int outer) {
 		const auto shift = sliderStyle->seekSize.width() / 2;
 		const auto available = outer - sliderStyle->seekSize.width();
+		auto centers = std::vector<int>();
+		auto widths = std::vector<int>();
 		for (auto i = 0; i != state->labels.size(); ++i) {
-			const auto label = state->labels[i];
-			const auto width = label->width();
-			const auto half = width / 2;
+			const auto width = state->labels[i]->width();
 			const auto progress = (i / float64(valuesCount - 1));
 			const auto left = int(base::SafeRound(progress * available));
-			label->moveToLeft(
-				std::max(std::min(shift + left - half, outer - width), 0),
-				0,
-				outer);
+			centers.push_back(shift + left);
+			widths.push_back(width);
+		}
+		const auto lefts = Ui::LayoutSliderTickLabels(
+			centers,
+			widths,
+			outer,
+			labelStyle->style.font->spacew);
+		for (auto i = 0; i != state->labels.size(); ++i) {
+			state->labels[i]->moveToLeft(lefts[i], 0, outer);
 		}
 	}, slider->lifetime());
 	labels->resize(
@@ -601,17 +601,20 @@ void InnerWidget::prepare() {
 void InnerWidget::setupInfo() {
 	AddSkip(_container, st::defaultVerticalListSkip * 2);
 
-	_container->add(infoRow(
+	_container->add(MakeInfoRow(
+		_container,
 		tr::lng_star_ref_share_title(),
 		tr::lng_star_ref_share_about(),
 		&st::menuIconStarRefShare));
 
-	_container->add(infoRow(
+	_container->add(MakeInfoRow(
+		_container,
 		tr::lng_star_ref_launch_title(),
 		tr::lng_star_ref_launch_about(),
 		&st::menuIconChannel));
 
-	_container->add(infoRow(
+	_container->add(MakeInfoRow(
+		_container,
 		tr::lng_star_ref_let_title(),
 		tr::lng_star_ref_let_about(),
 		&st::menuIconStarRefLink));
@@ -769,33 +772,6 @@ void InnerWidget::setupEnd() {
 	Ui::AddDivider(_container);
 }
 
-object_ptr<Ui::RpWidget> InnerWidget::infoRow(
-		rpl::producer<QString> title,
-		rpl::producer<QString> text,
-		not_null<const style::icon*> icon) {
-	auto result = object_ptr<Ui::VerticalLayout>(_container);
-	const auto raw = result.data();
-
-	raw->add(
-		object_ptr<Ui::FlatLabel>(
-			raw,
-			std::move(title) | rpl::map(tr::bold),
-			st::defaultFlatLabel),
-		st::settingsPremiumRowTitlePadding);
-	raw->add(
-		object_ptr<Ui::FlatLabel>(
-			raw,
-			std::move(text),
-			st::boxDividerLabel),
-		st::settingsPremiumRowAboutPadding);
-	object_ptr<Info::Profile::FloatingIcon>(
-		raw,
-		*icon,
-		st::starrefInfoIconPosition);
-
-	return result;
-}
-
 not_null<PeerData*> InnerWidget::peer() const {
 	return _controller->key().starrefPeer();
 }
@@ -903,56 +879,19 @@ void Widget::restoreState(not_null<Memento*> memento) {
 
 std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	auto title = tr::lng_star_ref_title();
-	auto about = tr::lng_star_ref_about(tr::marked);
 
 	const auto controller = this->controller();
-	const auto weak = base::make_weak(controller->parentController());
-	const auto clickContextOther = [=] {
-		return QVariant::fromValue(ClickHandlerContext{
-			.sessionWindow = weak,
-			.botStartAutoSubmit = true,
-		});
-	};
-	auto result = std::make_unique<Ui::Premium::TopBar>(
-		this,
-		st::starrefCover,
-		Ui::Premium::TopBarDescriptor{
-			.clickContextOther = clickContextOther,
-			.logo = u"affiliate"_q,
-			.title = std::move(title),
-			.about = std::move(about),
-			.light = true,
-		});
-	const auto raw = result.get();
-
-	controller->wrapValue(
-	) | rpl::on_next([=](Info::Wrap wrap) {
-		raw->setRoundEdges(wrap == Info::Wrap::Layer);
-	}, raw->lifetime());
-
-	const auto baseHeight = st::starrefCoverHeight;
-	raw->resize(width(), baseHeight);
-	const auto updateTopSkip = [=] {
-		const auto height = raw->height();
+	const auto updateTopSkip = [=](int height) {
 		setPaintPadding({ 0, height, 0, 0 });
 		setScrollTopSkip(height);
 	};
-	const auto setTopHeight = [=](int height) {
-		if (height > raw->maximumHeight()) {
-			raw->setMaximumHeight(height);
-			raw->setMinimumHeight(height);
-		} else {
-			raw->setMinimumHeight(height);
-			raw->setMaximumHeight(height);
-		}
-		raw->resize(raw->width(), height);
-		updateTopSkip();
-	};
-
-	raw->additionalHeight(
-	) | rpl::on_next([=](int additionalHeight) {
-		setTopHeight(baseHeight + additionalHeight);
-	}, raw->lifetime());
+	auto result = MakeTopBar(
+		this,
+		controller,
+		std::move(title),
+		tr::lng_star_ref_about(tr::marked),
+		updateTopSkip);
+	const auto raw = result.get();
 
 	controller->wrapValue(
 	) | rpl::on_next([=](Info::Wrap wrap) {
@@ -1000,7 +939,7 @@ std::unique_ptr<Ui::Premium::TopBarAbstract> Widget::setupTop() {
 	raw->move(0, 0);
 	widthValue() | rpl::on_next([=](int width) {
 		raw->resizeToWidth(width);
-		updateTopSkip();
+		updateTopSkip(raw->height());
 	}, raw->lifetime());
 
 	return result;

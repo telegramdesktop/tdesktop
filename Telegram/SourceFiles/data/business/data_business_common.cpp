@@ -223,10 +223,7 @@ BusinessDetails FromMTP(
 		const auto &data = location->data();
 		result.location.address = qs(data.vaddress());
 		if (const auto point = data.vgeo_point()) {
-			point->match([&](const MTPDgeoPoint &data) {
-				result.location.point = LocationPoint(data);
-			}, [&](const MTPDgeoPointEmpty &) {
-			});
+			result.location.point = LocationPoint::FromMTP(*point);
 		}
 	}
 	if (intro) {

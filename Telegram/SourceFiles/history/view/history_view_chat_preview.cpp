@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_replies_list.h"
 #include "data/data_saved_sublist.h"
+#include "data/data_send_action.h"
 #include "data/data_session.h"
 #include "data/data_thread.h"
 #include "data/data_user.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_about_view.h"
 #include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/view/history_view_send_action.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -42,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/unread_badge.h"
 #include "window/themes/window_theme.h"
@@ -335,9 +338,26 @@ void Item::setupTop() {
 	_top->setClickedCallback([=] {
 		_actions.fire({ .openInfo = true });
 	});
+	const auto weakThread = base::make_weak(_thread);
+	const auto currentSendAction = [=] {
+		const auto thread = weakThread.get();
+		return thread ? thread->sendActionPainter() : nullptr;
+	};
 	_top->paintRequest() | rpl::on_next([=](QRect clip) {
-		auto p = QPainter(_top.get());
+		auto p = Painter(_top.get());
 		p.fillRect(clip, st::topBarBg);
+		const auto sendAction = currentSendAction();
+		if (sendAction && !sendAction->actionText().isEmpty()) {
+			const auto &st = st::previewTop;
+			sendAction->paint(
+				p,
+				st.statusPosition.x(),
+				st.statusPosition.y(),
+				_top->width() - st.statusPosition.x() - st.photoPosition.x(),
+				_top->width(),
+				st::historyStatusFgTyping,
+				crl::now());
+		}
 	}, _top->lifetime());
 
 	const auto topic = _thread->asTopic();
@@ -377,6 +397,28 @@ void Item::setupTop() {
 				: std::optional<QColor>());
 		}, status->lifetime());
 		status->setAttribute(Qt::WA_TransparentForMouseEvents);
+		if (currentSendAction()) {
+			const auto refreshStatus = [=] {
+				const auto sendAction = currentSendAction();
+				status->setVisible(!sendAction
+					|| sendAction->actionText().isEmpty());
+				_top->update();
+			};
+			refreshStatus();
+			using AnimationUpdate = Data::SendActionManager::AnimationUpdate;
+			_session->data().sendActionManager().animationUpdated(
+			) | rpl::filter([=](const AnimationUpdate &update) {
+				return update.thread == weakThread.get();
+			}) | rpl::on_next([=](const AnimationUpdate &update) {
+				if (update.textUpdated) {
+					refreshStatus();
+				} else {
+					_top->update(
+						update.rect.translated(
+							st::previewTop.statusPosition));
+				}
+			}, status->lifetime());
+		}
 	}
 	const auto userpic = topic
 		? nullptr
@@ -532,8 +574,15 @@ void Item::setupHistory() {
 	using Type = Ui::ElasticScroll::OverscrollType;
 	_scroll->setOverscrollTypes(Type::Real, Type::Real);
 
+	const auto inner = _inner.data();
+	Tgw::ListScroll::WatchInput(
+		_scroll.get(),
+		crl::guard(inner, [=] { Tgw::ListScroll::Input(inner); }),
+		nullptr,
+		false);
 	_inner->scrollKeyEvents(
 	) | rpl::on_next([=](not_null<QKeyEvent*> e) {
+		Tgw::ListScroll::Input(_inner.data());
 		_scroll->keyPressEvent(e);
 	}, lifetime());
 
@@ -1023,6 +1072,13 @@ ChatPreview MakeChatPreview(
 		topic->destroyed() | rpl::on_next([weak] {
 			if (const auto strong = weak.get()) {
 				LOG(("Preview hidden for a destroyed topic."));
+				strong->hideMenu(true);
+			}
+		}, menu->lifetime());
+	} else if (const auto sublist = thread->asSublist()) {
+		const auto weak = base::make_weak(menu);
+		sublist->destroyed() | rpl::on_next([weak] {
+			if (const auto strong = weak.get()) {
 				strong->hideMenu(true);
 			}
 		}, menu->lifetime());

@@ -401,10 +401,14 @@ Fn<void(
 		};
 		if (const auto chat = peer->asChatNotMigrated()) {
 			const auto saveChatAdmin = [&](bool isAdmin) {
-				SaveChatAdmin(show, chat, user, isAdmin, done, onFail);
-				if (rank) {
-					SaveMemberRank(show, chat, user, *rank, [] {}, [] {});
-				}
+				// Sent together, the server can reject or undo either change.
+				SaveChatAdmin(show, chat, user, isAdmin, [=] {
+					if (rank) {
+						SaveMemberRank(show, chat, user, *rank, done, done);
+					} else {
+						done();
+					}
+				}, onFail);
 			};
 			if (strippedNewRights.flags
 				== chat->defaultAdminRights(user).flags) {

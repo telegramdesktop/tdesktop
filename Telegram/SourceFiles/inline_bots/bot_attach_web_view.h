@@ -333,6 +333,7 @@ private:
 	void botResolveButtonEmoji(
 		Ui::BotWebView::ResolveButtonEmojiRequest request) override;
 	void botVerifyAge(int age) override;
+	void botOpenTermsOfService() override;
 	void botOpenPrivacyPolicy() override;
 	void botClose() override;
 
@@ -340,6 +341,8 @@ private:
 	const not_null<Main::Session*> _session;
 	const not_null<UserData*> _bot;
 	const WebViewContext _context;
+	// A topic or sublist can be destroyed while the mini app stays open.
+	const base::weak_ptr<Data::Thread> _contextThread;
 	const WebViewButton _button;
 	const WebViewSource _source;
 

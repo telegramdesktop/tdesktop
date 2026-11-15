@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/premium_star_renderer.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 #include "ui/effects/premium_star_model.h"
 #include "ui/effects/premium_3d_mesh.h"
@@ -115,35 +115,59 @@ void StarRenderer::initialize(
 		QRhiBuffer::Immutable,
 		QRhiBuffer::VertexBuffer,
 		model.vertices.size() * sizeof(float));
-	_vertexBuffer->create();
+	if (!_vertexBuffer->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	_uniformBuffer = rhi->newBuffer(
 		QRhiBuffer::Dynamic,
 		QRhiBuffer::UniformBuffer,
 		sizeof(StarUniforms));
-	_uniformBuffer->create();
+	if (!_uniformBuffer->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	const auto border = RenderBorderTexture();
 	_borderTexture = rhi->newTexture(QRhiTexture::RGBA8, border.size());
-	_borderTexture->create();
+	if (!_borderTexture->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 	_borderSampler = rhi->newSampler(
 		QRhiSampler::Linear,
 		QRhiSampler::Linear,
 		QRhiSampler::None,
 		QRhiSampler::ClampToEdge,
 		QRhiSampler::ClampToEdge);
-	_borderSampler->create();
+	if (!_borderSampler->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	const auto flecks = LoadObject3dFlecksTexture();
 	_flecksTexture = rhi->newTexture(QRhiTexture::RGBA8, flecks.size());
-	_flecksTexture->create();
+	if (!_flecksTexture->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 	_flecksSampler = rhi->newSampler(
 		QRhiSampler::Linear,
 		QRhiSampler::Linear,
 		QRhiSampler::None,
 		QRhiSampler::Repeat,
 		QRhiSampler::Repeat);
-	_flecksSampler->create();
+	if (!_flecksSampler->create()) {
+		_creationFailed = true;
+		releaseResources();
+		return;
+	}
 
 	if (!createPipeline(rt)) {
 		LOG(("PremiumStar: pipeline creation failed, disabling effect"));
@@ -332,4 +356,4 @@ void StarRenderer::releaseResources() {
 
 } // namespace Ui::Premium
 
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API

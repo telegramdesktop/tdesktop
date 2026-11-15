@@ -29,4 +29,7 @@ void StarGiftPreviewBox(
 	Data::GiftAttributeIdType tab,
 	std::shared_ptr<Data::UniqueGift> selected);
 
+[[nodiscard]] QImage GenerateGiftCardBackground(QSize single, QMargins extend);
+void PaintGiftCardBackground(QPainter &p, const QImage &background, QRect rect);
+
 } // namespace Ui

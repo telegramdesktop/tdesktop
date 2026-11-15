@@ -22,6 +22,8 @@ public:
 	[[nodiscard]] rpl::producer<int> ivZoomValue() const override;
 	void ivSetZoom(int value) override;
 
+	void ivActivated(not_null<Ui::RpWindow*> window) override;
+
 };
 
 } // namespace Iv

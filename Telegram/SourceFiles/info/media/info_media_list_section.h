@@ -65,9 +65,6 @@ private:
 		Items::const_iterator from,
 		int bottom) const;
 	[[nodiscard]] QRect findItemRect(not_null<const BaseLayout*> item) const;
-	[[nodiscard]] ListFoundItem completeResult(
-		not_null<BaseLayout*> item,
-		bool exact) const;
 	[[nodiscard]] TextSelection itemSelection(
 		not_null<const BaseLayout*> item,
 		const ListContext &context) const;

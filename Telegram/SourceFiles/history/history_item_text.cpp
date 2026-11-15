@@ -350,6 +350,7 @@ TextWithEntities ReplyPreviewTextForSelectedCopy(
 		return TextWithEntities();
 	}
 	const auto &fields = reply->fields();
+	const auto &quote = fields.displayQuote();
 	const auto message = reply->resolvedMessage.get();
 	const auto media = message ? message->media() : nullptr;
 	const auto messageMedia = (message
@@ -376,10 +377,10 @@ TextWithEntities ReplyPreviewTextForSelectedCopy(
 		return pollAnswer->text;
 	} else if (messagePoll) {
 		return messagePoll->question;
-	} else if (message && (fields.quote.empty() || !reply->manualQuote())) {
+	} else if (message && (quote.empty() || !reply->manualQuote())) {
 		return message->inReplyText();
-	} else if (!fields.quote.empty()) {
-		return fields.quote;
+	} else if (!quote.empty()) {
+		return quote;
 	} else if (const auto story = reply->resolvedStory.get()) {
 		return story->inReplyText();
 	} else if (const auto externalMedia = fields.externalMedia.get()) {
@@ -441,10 +442,20 @@ std::optional<SelectedCopyReplyContext> ReplyContextForSelectedCopy(
 	if (senderName.isEmpty()) {
 		return std::nullopt;
 	}
-	auto quote = (reply->manualQuote() && !fields.quote.empty())
-		? TextUtilities::SingleLine(fields.quote)
+	const auto &displayed = fields.displayQuote();
+	const auto exact = reply->manualQuote() && !displayed.empty();
+	auto quote = exact
+		? TextUtilities::SingleLine(displayed)
 		: LimitNonExactReplyPreview(StripIconEmoji(
 			ReplyPreviewTextForSelectedCopy(replyPointer)));
+	if (exact && fields.richQuote) {
+		quote.entities.erase(
+			ranges::remove_if(quote.entities, [](const EntityInText &entity) {
+				return (entity.type() == EntityType::CustomEmoji)
+					&& Ui::Text::TryMakeSimpleEmoji(entity.data());
+			}),
+			quote.entities.end());
+	}
 	return SelectedCopyReplyContext{
 		.senderName = senderName,
 		.quote = TextForMimeData::WithExpandedLinks(quote),

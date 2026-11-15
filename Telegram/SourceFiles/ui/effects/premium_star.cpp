@@ -13,22 +13,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/random.h"
 
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <QRhiWidget>
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 namespace Ui::Premium {
 namespace {
 
 constexpr auto kShimmerSpeed = 0.03;
-constexpr auto kFadeInDuration = 0.22;
 constexpr auto kDragYaw = 0.5;
 constexpr auto kDragPitch = 0.3;
 constexpr auto kMaxPitch = 50.;
 constexpr auto kMaxFrameDelta = crl::time(66);
 constexpr auto kMsInSecond = 1000.;
 constexpr auto kEnterDelay = crl::time(200);
-constexpr auto kEnterYaw = -180.;
+constexpr auto kEnterYaw = -360.;
 constexpr auto kBackDuration = crl::time(600);
 constexpr auto kIdleDelay = crl::time(2000);
 constexpr auto kOvershootTension = 2.;
@@ -49,7 +48,7 @@ bool Star::Supported() {
 void Star::setColors(QColor gradient1, QColor gradient2) {
 	_gradient1 = gradient1;
 	_gradient2 = gradient2;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setColors(_gradient1, _gradient2);
 	}
@@ -58,7 +57,7 @@ void Star::setColors(QColor gradient1, QColor gradient2) {
 
 void Star::setGolden(bool golden) {
 	_golden = golden;
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setGolden(_golden);
 	}
@@ -94,7 +93,7 @@ void Star::setPaused(bool paused) {
 void Star::freeze() {
 	stopAnimation();
 	_pausedAt = crl::now();
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	const auto w = surfaceWidget();
 	if (!w || w->isHidden()) {
 		return;
@@ -108,7 +107,7 @@ void Star::freeze() {
 	pushState();
 	w->update();
 	update();
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Star::unfreeze() {
@@ -140,7 +139,7 @@ QWidget *Star::surfaceWidget() const {
 }
 
 void Star::ensureSurface() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_surface) {
 		return;
 	}
@@ -162,7 +161,10 @@ void Star::ensureSurface() {
 		w->setGeometry(rect());
 		w->hide();
 	}
-#endif // Qt >= 6.7
+	// WHY: show animations grab a frame before the first tick, and that
+	// frame must match the one the live surface continues from.
+	pushState();
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Star::startAnimation() {
@@ -180,9 +182,6 @@ void Star::stopAnimation() {
 void Star::advance(float64 dt) {
 	_shimmer += dt * kShimmerSpeed;
 	_shimmer -= std::floor(_shimmer);
-	if (_fadeIn < 1.) {
-		_fadeIn = std::min(1., _fadeIn + dt / kFadeInDuration);
-	}
 }
 
 void Star::applyChannel(Channel channel, float64 value) {
@@ -258,17 +257,17 @@ void Star::tick(crl::time now) {
 }
 
 void Star::pushState() {
-#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 	if (_renderer) {
 		_renderer->setState({
 			.yaw = float(_yaw),
 			.pitch = float(_pitch),
 			.bob = float(_bob),
 			.shimmer = float(_shimmer),
-			.alpha = _paused ? 0.f : float(_fadeIn * _opacity),
+			.alpha = _paused ? 0.f : float(_opacity),
 		});
 	}
-#endif // Qt >= 6.7
+#endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 }
 
 void Star::frame() {
@@ -477,11 +476,8 @@ void Star::startEnter() {
 		if (isHidden()) {
 			return;
 		}
-		if (const auto w = surfaceWidget()) {
-			w->show();
-		}
-		_yaw = kEnterYaw;
-		_pitch = _bob = 0.;
+		// A whole turn back to the shown pose, so nothing jumps.
+		_yaw += kEnterYaw;
 		startAnimation();
 		startBackSpring();
 	});
@@ -489,19 +485,14 @@ void Star::startEnter() {
 
 void Star::showEvent(QShowEvent *e) {
 	ensureSurface();
-	if (_entered) {
-		if (const auto w = surfaceWidget()) {
-			w->show();
-		}
-		startAnimation();
-		return;
+	if (!_entered) {
+		_yaw = _pitch = _bob = 0.;
+		_gesture.reset();
+		cancelIdle();
+		pushState();
 	}
-	_yaw = kEnterYaw;
-	_pitch = _bob = 0.;
-	_gesture.reset();
-	cancelIdle();
 	if (const auto w = surfaceWidget()) {
-		w->hide();
+		w->show();
 	}
 	startAnimation();
 }

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
+#include "tgw/tgw_storage.h"
 #include "window/notifications_manager.h"
 
 namespace Data {
@@ -52,6 +53,16 @@ SavedMessages::SavedMessages(
 	if (_owningHistory && _owningHistory->inChatList()) {
 		preloadSublists();
 	}
+
+	session().changes().realtimeNameUpdates(
+	) | rpl::on_next([=](const NameUpdate &update) {
+		if (const auto sublist = sublistLoaded(update.peer)) {
+			_chatsList.indexed()->entryNameChanged(
+				FilterId(),
+				sublist,
+				update.oldFirstLetters);
+		}
+	}, _lifetime);
 }
 
 void SavedMessages::clear() {
@@ -61,6 +72,12 @@ void SavedMessages::clear() {
 		}
 	}
 	if (const auto requestId = base::take(_staleRequestId)) {
+		owner().histories().cancelRequest(requestId);
+	}
+	if (const auto requestId = base::take(_loadMoreRequestId)) {
+		session().api().request(requestId).cancel();
+	}
+	if (const auto requestId = base::take(_pinnedRequestId)) {
 		session().api().request(requestId).cancel();
 	}
 
@@ -505,6 +522,7 @@ void SavedMessages::apply(const MTPDupdateSavedDialogPinned &update) {
 }
 
 void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
+	Tgw::ClearSublistStorage(this, sublistPeer->id);
 	const auto i = _sublists.find(sublistPeer);
 	if (i == end(_sublists)) {
 		return;
@@ -531,7 +549,8 @@ void SavedMessages::applySublistDeleted(not_null<PeerData*> sublistPeer) {
 	const auto history = owningHistory();
 	history->destroyMessagesBySublist(sublistPeer);
 	session().changes().sublistRemoved(raw);
-	_sublists.erase(i);
+	// Callbacks above may insert sublists, invalidating i.
+	_sublists.erase(sublistPeer);
 
 	session().storage().unload(Storage::SharedMediaUnloadThread(
 		_owningHistory->peer->id,

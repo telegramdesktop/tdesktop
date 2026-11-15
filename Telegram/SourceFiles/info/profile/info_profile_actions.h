@@ -41,14 +41,6 @@ object_ptr<Ui::RpWidget> SetupChannelMembersAndManage(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer);
 
-void AddDetails(
-	not_null<Ui::VerticalLayout*> container,
-	not_null<Controller*> controller,
-	not_null<PeerData*> peer,
-	Data::ForumTopic *topic,
-	Data::SavedSublist *sublist,
-	Origin origin);
-
 void BuildProfileDetailsSections(
 	SectionStack &stack,
 	not_null<Controller*> controller,

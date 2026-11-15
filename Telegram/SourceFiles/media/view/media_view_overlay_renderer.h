@@ -52,6 +52,12 @@ public:
 		const QImage &image,
 		QRect rect,
 		float64 opacity = 1.) = 0;
+
+protected:
+	[[nodiscard]] static QRectF StoryCropTextureRect(
+		QSizeF imageSize,
+		QSizeF targetSize);
+
 };
 
 } // namespace Media::View

@@ -88,7 +88,8 @@ public:
 
 	void removeNotification(not_null<HistoryItem*> item);
 	void clearNotifications();
-	void clearIncomingNotifications();
+	void clearIncomingNotifications(
+		Fn<bool(not_null<HistoryItem*>)> filter = nullptr);
 	[[nodiscard]] auto currentNotification() const
 		-> std::optional<ItemNotification>;
 	bool hasNotification() const;

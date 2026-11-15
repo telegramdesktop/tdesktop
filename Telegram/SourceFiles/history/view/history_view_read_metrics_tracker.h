@@ -24,8 +24,6 @@ public:
 	void endBatch();
 	void registerActivity();
 	void setScreenActive(bool active);
-	void pauseTracking();
-	void resumeTracking();
 
 private:
 	struct TrackedItem {

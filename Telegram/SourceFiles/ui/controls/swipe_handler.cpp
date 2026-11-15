@@ -82,6 +82,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 	const auto scroll = std::move(args.scroll);
 	const auto update = std::move(args.update);
 	const auto skipWheelEvent = std::move(args.skipWheelEvent);
+	const auto handoff = std::move(args.handoff);
 
 	struct UpdateArgs {
 		QPoint globalCursor;
@@ -89,6 +90,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		QPointF delta;
 		bool touch = false;
 		bool inverted = false;
+		bool handoff = false;
 	};
 	struct State {
 		base::unique_qptr<QObject> filter;
@@ -167,7 +169,9 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			scroll->disableScroll(isHorizontal);
 		});
 	};
-	const auto processEnd = [=](std::optional<QPointF> delta = {}) {
+	const auto processEnd = [=](
+			std::optional<QPointF> delta = {},
+			bool complete = true) {
 		if (state->orientation == Qt::Horizontal) {
 			const auto rawRatio = delta.value_or(state->delta).x()
 				/ state->threshold
@@ -178,7 +182,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 					: rawRatio,
 				0.,
 				kMaxRatio);
-			if ((ratio >= 1) && state->finishByTopData.callback) {
+			if (complete && (ratio >= 1) && state->finishByTopData.callback) {
 				Ui::PostponeCall(
 					widget,
 					state->finishByTopData.callback);
@@ -197,11 +201,27 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		state->startAt = {};
 		state->delta = {};
 	};
+	const auto handedOff = [=] {
+		return handoff.owned && handoff.owned();
+	};
+	const auto loseHandoffSwipe = [=] {
+		if (state->orientation == Qt::Horizontal) {
+			processEnd(std::nullopt, false);
+			handoff.lost();
+		}
+	};
+	const auto interrupt = [=] {
+		if (handedOff()) {
+			loseHandoffSwipe();
+		} else {
+			processEnd();
+		}
+	};
 	v::match(scroll, [](v::null_t) {
 	}, [&](const auto &scroll) {
 		scroll->scrolls() | rpl::on_next([=] {
 			if (state->orientation != Qt::Vertical) {
-				processEnd();
+				interrupt();
 			}
 		}, state->lifetime);
 	});
@@ -233,6 +253,21 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 				setOrientation(Qt::Vertical);
 			}
 		};
+		if (args.handoff) {
+			if (!state->started) {
+				return;
+			} else if (!state->direction) {
+				fillFinishByTop();
+			}
+			if (state->direction
+				&& !state->orientation
+				&& !state->dontStart) {
+				setOrientation(Qt::Horizontal);
+			}
+			if (state->orientation != Qt::Horizontal) {
+				return;
+			}
+		}
 		if (!state->started || state->touch != args.touch) {
 			state->started = true;
 			state->data.reachRatio = 0.;
@@ -300,6 +335,28 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 			}
 		}
 	};
+	const auto handoffTouch = [=](not_null<QTouchEvent*> t, bool cancel) {
+		const auto &touches = t->touchPoints();
+		const auto end = (t->type() == QEvent::TouchEnd);
+		const auto swipe = handoff.swipe(t);
+		const auto horizontal = (state->orientation == Qt::Horizontal);
+		const auto delta = touches.empty()
+			? std::optional<QPointF>()
+			: (state->startAt - touches[0].pos());
+		if (swipe && delta && (end || !cancel)) {
+			updateWith({
+				.delta = *delta,
+				.touch = true,
+				.inverted = true,
+				.handoff = true,
+			});
+		}
+		if (end || (t->type() == QEvent::TouchCancel)) {
+			processEnd(delta, end && swipe);
+		} else if (horizontal && (cancel || !swipe)) {
+			loseHandoffSwipe();
+		}
+	};
 	const auto filter = [=](not_null<QEvent*> e) {
 		if (!widget->testAttribute(Qt::WA_AcceptTouchEvents)) {
 			[[maybe_unused]] int a = 0;
@@ -308,7 +365,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 		switch (type) {
 		case QEvent::Leave: {
 			if (state->orientation == Qt::Horizontal) {
-				processEnd();
+				interrupt();
 			}
 		} break;
 		case QEvent::MouseMove: {
@@ -316,7 +373,7 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 				const auto m = static_cast<QMouseEvent*>(e.get());
 				if (std::abs(m->pos().y() - state->cursorPosition.y())
 					> QApplication::startDragDistance()) {
-					processEnd();
+					interrupt();
 				}
 			}
 		} break;
@@ -331,7 +388,12 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 				break;
 			} else if (type == QEvent::TouchBegin) {
 				// Reset state in case we lost some TouchEnd.
-				processEnd();
+				if (handedOff()) {
+					handoff.lost();
+					processEnd(std::nullopt, false);
+				} else {
+					processEnd();
+				}
 			}
 			const auto &touches = t->touchPoints();
 			const auto released = [&](int index) {
@@ -344,7 +406,9 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 				|| (touches.size() != (touchscreen ? 1 : 2))
 				|| (type == QEvent::TouchEnd)
 				|| (type == QEvent::TouchCancel);
-			if (cancel) {
+			if (type != QEvent::TouchBegin && handedOff()) {
+				handoffTouch(t, cancel);
+			} else if (cancel) {
 				processEnd(touches.empty()
 					? std::optional<QPointF>()
 					: (state->startAt - touches[0].pos()));
@@ -365,6 +429,10 @@ void SetupSwipeHandler(SwipeHandlerArgs &&args) {
 				: base::EventFilterResult::Cancel;
 		} break;
 		case QEvent::Wheel: {
+			if (handedOff()) {
+				loseHandoffSwipe();
+				break;
+			}
 			const auto w = static_cast<QWheelEvent*>(e.get());
 			if (skipWheelEvent && skipWheelEvent(w)) {
 				processEnd();

@@ -55,7 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QClipboard>
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
-#include <QtGui/qpa/qplatformscreen.h>
 
 #include <algorithm>
 #include <memory>
@@ -1708,7 +1707,7 @@ bool Panel::showWebview(Args &&args, const Webview::ThemeParams &params) {
 			}
 		},
 		.terms = [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			_delegate->botOpenTermsOfService();
 		},
 		.privacy = [=] {
 			_delegate->botOpenPrivacyPolicy();
@@ -2028,7 +2027,7 @@ void Panel::handleExternalShellMenuAction(const QString &id) {
 			}
 		},
 		.terms = [=] {
-			File::OpenUrl(tr::lng_mini_apps_tos_url(tr::now));
+			_delegate->botOpenTermsOfService();
 		},
 		.privacy = [=] {
 			_delegate->botOpenPrivacyPolicy();
@@ -2194,7 +2193,7 @@ void Panel::createWebviewBottom() {
 }
 
 bool Panel::createWebview(const Webview::ThemeParams &params) {
-	RpWidget *container = nullptr;
+	auto container = (RpWidget*)nullptr;
 	if (_externalShell) {
 		_externalWebviewParent = std::make_unique<RpWidget>();
 		container = _externalWebviewParent.get();
@@ -2694,8 +2693,7 @@ void Panel::sendContentSafeArea() {
 	} else if (const auto screen = QGuiApplication::primaryScreen()) {
 		const auto dpi = screen->logicalDotsPerInch();
 		const auto ratio = screen->devicePixelRatio();
-		const auto basePair = screen->handle()->logicalBaseDpi();
-		const auto base = (basePair.first + basePair.second) * 0.5;
+		const auto base = style::BaseDpi();
 		const auto systemScreenScale = dpi * ratio / base;
 		report = int(base::SafeRound(scaled / systemScreenScale));
 	}
@@ -2950,10 +2948,14 @@ void Panel::openExternalLink(const QJsonObject &args) {
 			File::OpenUrl(url);
 		}
 	};
+	requestOpenLink(url, open);
+}
+
+void Panel::requestOpenLink(const QString &url, Fn<void()> open) {
 	if (allowOpenLink()) {
 		open();
 	} else {
-		confirmExternalLink(url, open);
+		confirmExternalLink(url, std::move(open));
 	}
 }
 

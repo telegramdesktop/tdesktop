@@ -30,6 +30,14 @@ constexpr auto kQrPlateAngle = 119.72;
 constexpr auto kQrPlateFrom = 0.0799;
 constexpr auto kQrPlateTill = 0.922;
 constexpr auto kQrPlateAlpha = 224; // 0.88 * 255, rounded.
+constexpr auto kTintRampSteps = 4096;
+
+struct TintLevels {
+	float64 red[256] = {};
+	float64 green[256] = {};
+	float64 blue[256] = {};
+	float64 offset = 0.;
+};
 
 struct SoftnessStop {
 	float64 at = 0.;
@@ -122,6 +130,79 @@ void RenderBackground(
 	p.end();
 }
 
+[[nodiscard]] std::vector<QRgb> MakeTintRamp(const CardTint &tint) {
+	auto result = std::vector<QRgb>();
+	result.reserve(kTintRampSteps + 1);
+	for (auto i = 0; i <= kTintRampSteps; ++i) {
+		result.push_back(CardTintAt(tint, i / float64(kTintRampSteps)).rgb());
+	}
+	return result;
+}
+
+[[nodiscard]] TintLevels ComputeTintLevels() {
+	const auto [from, till] = ranges::minmax(
+		kSweep | ranges::views::transform(CardLuminance));
+	const auto scale = kTintRampSteps / (till - from);
+	auto result = TintLevels{ .offset = 0.5 - from * scale };
+	for (auto i = 0; i != 256; ++i) {
+		result.red[i] = CardLuminance(qRgb(i, 0, 0)) * scale;
+		result.green[i] = CardLuminance(qRgb(0, i, 0)) * scale;
+		result.blue[i] = CardLuminance(qRgb(0, 0, i)) * scale;
+	}
+	return result;
+}
+
+[[nodiscard]] const TintLevels &Levels() {
+	static const auto result = ComputeTintLevels();
+	return result;
+}
+
+[[nodiscard]] TG_FORCE_INLINE int TintRampIndex(
+		const TintLevels &levels,
+		QRgb color) {
+	const auto level = levels.red[qRed(color)]
+		+ levels.green[qGreen(color)]
+		+ levels.blue[qBlue(color)]
+		+ levels.offset;
+	return (level <= 0.)
+		? 0
+		: (level >= kTintRampSteps)
+		? kTintRampSteps
+		: int(level);
+}
+
+[[nodiscard]] QColor AverageColor(
+		const std::array<QRgb, kSweep.size()> &colors) {
+	auto red = 0.;
+	auto green = 0.;
+	auto blue = 0.;
+	for (const auto rgb : colors) {
+		const auto color = QColor(rgb);
+		red += color.redF();
+		green += color.greenF();
+		blue += color.blueF();
+	}
+	const auto count = float64(colors.size());
+	return QColor::fromRgbF(red / count, green / count, blue / count);
+}
+
+void TintImage(QImage &image, const std::vector<QRgb> &ramp) {
+	const auto &levels = Levels();
+	const auto colors = ramp.data();
+	const auto stride = image.bytesPerLine();
+	auto bytes = image.bits();
+	for (auto y = 0; y != image.height(); ++y, bytes += stride) {
+		auto pixel = reinterpret_cast<QRgb*>(bytes);
+		for (const auto end = pixel + image.width(); pixel != end; ++pixel) {
+			const auto color = *pixel;
+			if (qAlpha(color) != 255) {
+				continue;
+			}
+			*pixel = colors[TintRampIndex(levels, color)];
+		}
+	}
+}
+
 } // namespace
 
 void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
@@ -143,6 +224,9 @@ void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
 			covered * ratio + QSize(2, 2),
 			ratio,
 			angle);
+		if (_tint) {
+			TintImage(_image, _tintRamp);
+		}
 		_drawn = card.size();
 		_angle = angle;
 		_ratio = ratio;
@@ -163,6 +247,15 @@ void CardBackground::paint(QPainter &p, const QRect &card, float64 angle) {
 	p.setBrush(Qt::NoBrush);
 }
 
+void CardBackground::setTint(std::optional<CardTint> tint) {
+	if (_tint == tint) {
+		return;
+	}
+	_tint = std::move(tint);
+	_tintRamp = _tint ? MakeTintRamp(*_tint) : std::vector<QRgb>();
+	_image = QImage();
+}
+
 void CardBackground::clear() {
 	_image = QImage();
 	_field = QImage();
@@ -171,17 +264,17 @@ void CardBackground::clear() {
 }
 
 QColor CardReferenceColor() {
-	auto red = 0.;
-	auto green = 0.;
-	auto blue = 0.;
-	for (const auto rgb : kSweep) {
-		const auto color = QColor(rgb);
-		red += color.redF();
-		green += color.greenF();
-		blue += color.blueF();
+	return AverageColor(kSweep);
+}
+
+QColor CardReferenceColor(const CardTint &tint) {
+	const auto &levels = Levels();
+	auto tinted = kSweep;
+	for (auto &rgb : tinted) {
+		const auto index = TintRampIndex(levels, rgb);
+		rgb = CardTintAt(tint, index / float64(kTintRampSteps)).rgb();
 	}
-	const auto count = float64(kSweep.size());
-	return QColor::fromRgbF(red / count, green / count, blue / count);
+	return AverageColor(tinted);
 }
 
 void PaintCardQrPlate(QPainter &p, const QRect &plate) {

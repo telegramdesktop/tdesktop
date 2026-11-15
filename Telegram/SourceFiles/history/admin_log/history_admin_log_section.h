@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "mtproto/sender.h"
+#include "tgw/tgw_scroll.h"
 
 namespace Ui {
 class ElasticScroll;
@@ -96,6 +97,7 @@ private:
 	object_ptr<Ui::IconButton> _whatIsThis;
 	object_ptr<Ui::JumpDownButton> _scrollDown;
 	Ui::Animations::Simple _scrollDownShown;
+	Tgw::ScrollFlight _scrollToFlight;
 	Ui::Animations::Simple _scrollToAnimation;
 	bool _scrollDownIsShown = false;
 

@@ -2,7 +2,9 @@ import contextlib
 import io
 import json
 from pathlib import Path
+import re
 import subprocess
+import sys
 import tempfile
 import textwrap
 from types import SimpleNamespace
@@ -70,6 +72,35 @@ APP = dedent('''
     } // namespace App
 ''')
 
+PANEL = dedent('''
+    #include "low/low.h"
+
+    namespace Low {
+
+    class Panel {
+    public:
+    	void resize(int width);
+    	void finalizeLayout(int width);
+
+    private:
+    	int _width = 0;
+
+    };
+
+    void Panel::resize(int width) {
+    	if (_width != width) {
+    		finalizeLayout(width);
+    	}
+    }
+
+    // keeps the width positive, as std::max(width, 1) does in callers
+    void Panel::finalizeLayout(int width) {
+    	_width = width;
+    }
+
+    } // namespace Low
+''')
+
 
 class Repo:
     def __init__(self, files):
@@ -87,11 +118,14 @@ class Repo:
             ['git', '-C', str(self.root), *args],
             capture_output=True, check=True).stdout.decode()
 
-    def write(self, files):
+    def write(self, files, newline=None):
         for path, text in files.items():
             target = self.root / path
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(text, encoding='utf-8')
+            if newline is None:
+                target.write_text(text, encoding='utf-8')
+            else:
+                target.write_bytes(text.replace('\n', newline).encode('utf-8'))
 
     def remove(self, path):
         (self.root / path).unlink()
@@ -173,6 +207,18 @@ class TextTests(unittest.TestCase):
         lines = cpp_text.code_lines('/*\nThis file is part of X\n*/\nint a = 0;')
         self.assertEqual([cpp_text.normalize(line) for line in lines],
                          ['', '', '', 'int a = 0;'])
+
+    def test_numeric_literal_letters_are_not_names(self):
+        literals = ('1e-4', '0x1F', '10ull', '0.5f', '.5f', '0b1010', '0x1.fp+2F',
+                    "1'000ULL", '1e+4', '42_units')
+        for literal in literals:
+            with self.subTest(literal=literal):
+                line = f'constexpr auto kScaled1 = kBaseStep * {literal} + kBaseStep;'
+                self.assertEqual(review.identifiers(line),
+                                 ['constexpr', 'auto', 'kScaled1', 'kBaseStep', 'kBaseStep'])
+
+    def test_nonmatching_pattern_does_not_declare(self):
+        self.assertFalse(metrics.declares('constexpr auto kEpsilon = 1e-4;', re.compile(r'\be\b')))
 
 
 class GraphTests(unittest.TestCase):
@@ -264,6 +310,14 @@ class MapTests(unittest.TestCase):
 
 
 class CheckTests(unittest.TestCase):
+    PARAMETERS = ('first', 'second', 'third', 'fourth', 'fifth',
+                  'sixth', 'seventh', 'eighth', 'ninth', 'tenth')
+    FIRST_EIGHT = PARAMETERS[:8]
+    WITH_DEFAULTS = ('Fn<void()> done = nullptr', 'QSize size = QSize(1, 2)')
+    WITHOUT_DEFAULTS = ('Fn<void()> done', 'QSize size')
+    TEST_APP = 'Telegram/SourceFiles/tests/test_app.cpp'
+    APP_HEADER = 'Telegram/SourceFiles/app/app.h'
+
     def setUp(self):
         self.repo = Repo(fixture())
         self.addCleanup(self.repo.temp.cleanup)
@@ -306,6 +360,203 @@ class CheckTests(unittest.TestCase):
         _, warnings = self.run_check()
         self.assertTrue(any('repeats' in w for w in warnings))
 
+    def signature(self, end, name='Combine', extra=(), head='int', names=PARAMETERS):
+        """`<head> <name>(` with one-per-line `int` parameters, by default the
+        ten `PARAMETERS`, and `extra` ones, closed by `end`: `);` declares
+        it, `) {` opens its body."""
+        indent = '\t' if end == ');' else '\t\t'
+        parameters = [f'int {parameter}' for parameter in names] + list(extra)
+        return (f'{head} {name}(\n' + ',\n'.join(indent + item for item in parameters)
+                + end + '\n')
+
+    def in_namespace(self, text, code):
+        """`text` with `code` added at the end of its namespace."""
+        at = text.rindex('} // namespace ')
+        return text[:at] + code + '\n' + text[at:]
+
+    def declared(self, **signature):
+        header = fixture()['Telegram/SourceFiles/low/low.h']
+        return self.in_namespace(header, self.signature(');', **signature))
+
+    def defined(self, text, end=') {', **signature):
+        return self.in_namespace(text, self.signature(end, **signature)
+                                 + '\treturn first + tenth;\n}\n')
+
+    def owner(self, *members, derived=False):
+        """low.h with `class Owner` declaring `members`; a `derived` one
+        overrides `Base`, which declares `combine` const on one line."""
+        line = ', '.join(f'int {parameter}' for parameter in self.PARAMETERS)
+        head = 'class Owner {'
+        if derived:
+            head = (f'class Base {{\npublic:\n\tvirtual int combine({line}) const = 0;\n\n}};\n\n'
+                    'class Owner : public Base {')
+        header = fixture()['Telegram/SourceFiles/low/low.h']
+        return self.in_namespace(header, head + '\npublic:\n' + ''.join(members) + '\n};\n')
+
+    def repeats(self, *copies):
+        """The check's messages for (path:start-end, lines, source path:line)."""
+        src = 'Telegram/SourceFiles/'
+        return [f'{src}{where}: repeats {lines} lines of {src}{source}; '
+                f'reuse or promote it instead.' for where, lines, source in copies]
+
+    def test_declaration_and_its_definition_are_not_copies(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.declared(),
+            src + 'low/low.cpp': self.defined(LOW),
+        })
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_declaration_of_a_committed_definition_is_not_a_copy(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({src + 'low/low.cpp': self.defined(LOW)})
+        self.repo.git('commit', '-qam', 'Combine.')
+        self.repo.write({src + 'low/low.h': self.declared()})
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_repeated_call_wiring_is_reported(self):
+        src = 'Telegram/SourceFiles/'
+
+        def arguments(indent, end):
+            return ',\n'.join(indent + name for name in self.PARAMETERS) + end + '\n'
+
+        in_bodies = ('int Total() {\n\tconst auto total = Combine(\n'
+                     + arguments('\t\t', ');') + '\treturn total;\n}\n\n'
+                     'bool Positive() {\n\tif (Combine(\n' + arguments('\t\t\t', ') > 0) {')
+                     + '\t\treturn true;\n\t}\n\treturn false;\n}\n')
+        at_namespace = ('const auto kCombined = Combine(\n' + arguments('\t', ',')
+                        + '\t[] {\n\t\treturn 1;\n\t});\n\n'
+                        'void Use() {\n\tconst auto combined = Combine(\n'
+                        + arguments('\t\t', ',') + '\t\tcallback);\n}\n')
+        cases = (
+            ('initializer and condition', in_bodies, self.repeats(
+                ('low/low.cpp:11-19', 9, 'low/low.cpp:26'),
+                ('low/low.cpp:26-34', 9, 'low/low.cpp:11'))),
+            ('namespace initializer and body call', at_namespace, self.repeats(
+                ('low/low.cpp:10-19', 10, 'low/low.cpp:26'),
+                ('low/low.cpp:26-35', 10, 'low/low.cpp:10'))),
+        )
+        for title, calls, expected in cases:
+            with self.subTest(title):
+                self.repo.write({src + 'low/low.cpp': self.in_namespace(LOW, calls)})
+                self.assertEqual(self.run_check(), ([], expected))
+                self.assertEqual(self.run_check(strict=True), (expected, []))
+
+    def test_copied_definition_is_reported(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.declared(),
+            src + 'low/low.cpp': self.defined(LOW),
+        })
+        self.repo.git('commit', '-qam', 'Combine.')
+        self.repo.write({src + 'app/app.cpp': self.defined(APP)})
+        expected = self.repeats(('app/app.cpp:11-22', 12, 'low/low.cpp:9'))
+        self.assertEqual(self.run_check(), ([], expected))
+        self.assertEqual(self.run_check(strict=True), (expected, []))
+
+    def test_other_signatures_are_still_reported(self):
+        src = 'Telegram/SourceFiles/'
+        cases = (
+            ('another overload', {'extra': ('bool flag',)}, {'extra': ('int last',)},
+             ('low/low.h:5-15', 11, 'low/low.cpp:9')),
+            ('another function', {'name': 'Other'}, {},
+             ('low/low.h:6-14', 9, 'low/low.cpp:10')),
+        )
+        for title, definition, declaration, copy in cases:
+            with self.subTest(title):
+                self.repo.write({
+                    src + 'low/low.h': fixture()[src + 'low/low.h'],
+                    src + 'low/low.cpp': self.defined(LOW, **definition),
+                })
+                self.repo.git('commit', '-qam', title)
+                self.repo.write({src + 'low/low.h': self.declared(**declaration)})
+                self.assertEqual(self.run_check(), ([], self.repeats(copy)))
+
+    def test_method_declaration_and_its_definition_are_not_copies(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.owner(
+                '\t' + self.signature(') const override;', name='combine'), derived=True),
+            src + 'low/low.cpp': self.defined(
+                LOW, ') const -> int {', name='Owner::combine', head='auto'),
+        })
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_qualified_overloads_are_still_reported(self):
+        src = 'Telegram/SourceFiles/'
+        line = ', '.join(f'int {parameter}' for parameter in self.PARAMETERS)
+        expected = self.repeats(('low/low.h:9-17', 9, 'low/low.cpp:10'))
+        for title, existing, added in (
+                ('const overload', '', ' const'),
+                ('ref-qualified overload', ' &', ' &&')):
+            with self.subTest(title):
+                declaration = f'\tint combine({line}){existing};\n'
+                self.repo.write({
+                    src + 'low/low.h': self.owner(declaration),
+                    src + 'low/low.cpp': self.defined(
+                        LOW, f'){existing} {{', name='Owner::combine'),
+                })
+                self.repo.git('commit', '-qam', title)
+                self.repo.write({src + 'low/low.h': self.owner(
+                    declaration, '\t' + self.signature(f'){added};', name='combine'))})
+                self.assertEqual(self.run_check(), ([], expected))
+                self.assertEqual(self.run_check(strict=True), (expected, []))
+
+    def test_declaration_with_defaults_and_its_definition_are_not_copies(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({
+            src + 'low/low.h': self.declared(
+                names=self.FIRST_EIGHT, extra=self.WITH_DEFAULTS),
+            src + 'low/low.cpp': self.defined(
+                LOW, names=self.FIRST_EIGHT, extra=self.WITHOUT_DEFAULTS),
+        })
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_declaration_with_defaults_of_a_committed_definition_is_not_a_copy(self):
+        src = 'Telegram/SourceFiles/'
+        self.repo.write({src + 'low/low.cpp': self.defined(
+            LOW, names=self.FIRST_EIGHT, extra=self.WITHOUT_DEFAULTS)})
+        self.repo.git('commit', '-qam', 'Combine.')
+        self.repo.write({src + 'low/low.h': self.declared(
+            names=self.FIRST_EIGHT, extra=self.WITH_DEFAULTS)})
+        self.assertEqual(self.run_check(), ([], []))
+        self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_declaration_with_other_parameters_is_still_reported(self):
+        src = 'Telegram/SourceFiles/'
+        header = fixture()[src + 'low/low.h']
+        # Reading a default past its end would swallow `close` and match this.
+        shorter = ('const char *open',)
+        expected = self.repeats(('low/low.h:5-13', 9, 'low/low.cpp:9'))
+        cases = (
+            ('another type', ');', self.WITH_DEFAULTS, ('Fn<void()> done', 'QPoint size')),
+            ('shorter overload', ');',
+             ('const char *open = "("', 'const char *close = ")"'), shorter),
+            ('raw string defaults', ');',
+             ('const char *open = R"tag("[")tag"', 'const char *close = R"tag("]")tag"'),
+             shorter),
+            ('URL defaults', '\n);',
+             ('const char *open = "https://one"', 'const char *close = "https://two"'),
+             shorter),
+            ('defaults on the definition', ');', self.WITHOUT_DEFAULTS, self.WITH_DEFAULTS),
+        )
+        for title, end, declaration, definition in cases:
+            with self.subTest(title):
+                self.repo.write({
+                    src + 'low/low.h': header,
+                    src + 'low/low.cpp': self.defined(
+                        LOW, names=self.FIRST_EIGHT, extra=definition),
+                })
+                self.repo.git('commit', '-q', '--allow-empty', '-am', title)
+                self.repo.write({src + 'low/low.h': self.in_namespace(header, self.signature(
+                    end, names=self.FIRST_EIGHT, extra=declaration))})
+                self.assertEqual(self.run_check(), ([], expected))
+                self.assertEqual(self.run_check(strict=True), (expected, []))
+
     def test_removed_definition_still_mentioned_is_reported(self):
         platform = 'Telegram/SourceFiles/platform/win/specific_win.cpp'
         self.repo.write({platform: 'int Native() {\n\treturn Low::Twice(1);\n}\n'})
@@ -332,6 +583,43 @@ class CheckTests(unittest.TestCase):
         errors, warnings = self.run_check()
         self.assertEqual(errors, [])
         self.assertTrue(any('already exist' in w for w in warnings), warnings)
+
+    def include_from_test_app(self, *listed):
+        """Add an unlinked test_app target; listed adds its extra sources."""
+        names = ''.join(f'    {name}\n' for name in (*listed, 'tests/test_app.cpp'))
+        self.repo.write({
+            'Telegram/cmake/test_app.cmake': (
+                'add_executable(test_app)\n'
+                'nice_target_sources(test_app ${src_loc}\nPRIVATE\n' + names + ')\n'),
+            self.TEST_APP: '#include "app/app.h"\n\nint main() {\n\treturn 0;\n}\n',
+        })
+        tree = sources.from_worktree(self.repo.root)
+        model = cmake_model.build(tree.files)
+        self.assertEqual(model.target_of(self.TEST_APP), 'test_app')
+        self.assertEqual(model.target_of(self.APP_HEADER), 'Telegram')
+        self.assertNotIn('Telegram', model.dependencies('test_app'))
+        graph = includes.IncludeGraph(tree, model)
+        return [(v['path'], v['include'], v['from'], v['to']) for v in graph.layering()]
+
+    def test_including_its_own_listed_header_crosses_nothing(self):
+        rows = self.include_from_test_app('app/app.h')
+        with self.subTest('layering'):
+            self.assertEqual(rows, [])
+        with self.subTest('check'):
+            self.assertEqual(self.run_check(), ([], []))
+        with self.subTest('strict check'):
+            self.assertEqual(self.run_check(strict=True), ([], []))
+
+    def test_including_an_unlisted_header_still_crosses(self):
+        rows = self.include_from_test_app()
+        with self.subTest('layering'):
+            self.assertEqual(rows, [(self.TEST_APP, self.APP_HEADER, 'test_app', 'Telegram')])
+        error = (f'{self.TEST_APP}:1: includes {self.APP_HEADER} of target Telegram, '
+                 f'which test_app does not link.')
+        with self.subTest('check'):
+            self.assertEqual(self.run_check(), ([error], []))
+        with self.subTest('strict check'):
+            self.assertEqual(self.run_check(strict=True), ([error], []))
 
     def test_platform_file_mention_of_removed_method_is_reported(self):
         src = 'Telegram/SourceFiles/'
@@ -374,6 +662,83 @@ class CheckTests(unittest.TestCase):
         _, warnings = self.run_check()
         self.assertTrue(any(w.startswith('Helper:') and 'last use' in w for w in warnings), warnings)
 
+    def test_else_branch_call_is_a_use(self):
+        src = 'Telegram/SourceFiles/'
+        helpers = ('int Helper(int value) {\n\treturn value + 1;\n}\n\n'
+                   'int Fallback(int value) {\n\treturn value - 1;\n}\n\n')
+        branches = dedent('''
+            int Pick(bool flag, int value) {
+            	return flag
+            		? value
+            		: Helper(value);
+            }
+
+            int Chain(bool flag, bool other, int value) {
+            	return flag
+            		? 0
+            		: other
+            		? Apply([=] {
+            			return value;
+            		})
+            		: Fallback(value);
+            }
+        ''')
+        plain = '\nint Plain(int value) {\n\treturn Helper(value) + Fallback(value);\n}\n'
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helpers + branches + plain})
+        self.repo.git('commit', '-qam', 'Helpers.')
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helpers + branches
+                         + plain.replace('Helper(value) + Fallback(value)', 'value')})
+        self.assertEqual(self.run_check(), ([], []))
+
+    def test_removed_else_branch_call_reports_orphaned_helper(self):
+        src = 'Telegram/SourceFiles/'
+        helper = 'int Helper(int value) {\n\treturn value + 1;\n}\n\n'
+        pick = ('int Pick(bool flag, int value) {\n\treturn flag\n'
+                '\t\t? value\n\t\t: Helper(value);\n}\n')
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helper + pick})
+        self.repo.git('commit', '-qam', 'Helper.')
+        self.repo.write({src + 'low/low.cpp': LOW + '\n' + helper
+                         + pick.replace(': Helper(value);', ': value + 1;')})
+        _, warnings = self.run_check()
+        orphans = [w.split(':')[0] for w in warnings if 'last use' in w]
+        self.assertEqual(orphans, ['Helper'], warnings)
+
+    def test_initializers_still_define_their_fields(self):
+        src = 'Telegram/SourceFiles/'
+        owner = dedent('''
+            class Owner {
+            public:
+            	Owner()
+            	: _first(0)
+            	, _second{ 0 } {
+            	}
+            	Owner(int value);
+
+            	[[nodiscard]] int sum() const;
+
+            private:
+            	int _first = 0;
+            	int _second = 0;
+
+            };
+
+            Owner::Owner(int value)
+            : _first(value)
+            , _second{ value } {
+            }
+
+            int Owner::sum() const {
+            	return _first + _second;
+            }
+        ''')
+        self.repo.write({src + 'low/owner.cpp': owner})
+        self.repo.git('add', '-A')
+        self.repo.git('commit', '-qm', 'Owner.')
+        self.repo.write({src + 'low/owner.cpp': owner.replace('_first + _second', '0')})
+        _, warnings = self.run_check()
+        orphans = [w.split(':')[0] for w in warnings if 'last use' in w]
+        self.assertEqual(sorted(orphans), ['_first', '_second'], warnings)
+
     def test_base_class_mention_is_a_use(self):
         src = 'Telegram/SourceFiles/'
         base = 'class Host {\npublic:\n\tvirtual ~Host() = default;\n};\n'
@@ -411,6 +776,33 @@ class CheckTests(unittest.TestCase):
         orphans = [w.split(':')[0] for w in warnings if 'last use' in w]
         self.assertEqual(sorted(orphans), ['lng_unique_label', 'menuIconUnique'], warnings)
 
+    def test_removed_numeric_literals_keep_the_check_running(self):
+        src = 'Telegram/SourceFiles/'
+        constants = ('constexpr auto kEpsilon = 1e-4;\nconstexpr auto kMask = 0x1F;\n'
+                     'constexpr auto kLimit = 10ull;\nconstexpr auto kHalf = 0.5f;\n\n')
+        self.repo.write({src + 'low/low.cpp': LOW.replace(
+            'namespace Low {\n\n', 'namespace Low {\n\n' + constants)})
+        self.repo.git('commit', '-qam', 'Constants.')
+        self.repo.write({src + 'low/low.cpp': LOW})
+        self.assertEqual(self.run_check(), ([], []))
+
+    def test_last_use_beside_a_numeric_literal_reports_orphan(self):
+        src = 'Telegram/SourceFiles/'
+        step = 'constexpr auto kBaseStep = 4;\n'
+        scaled = 'constexpr auto kScaled = kBaseStep * 1e-4;\n'
+        self.repo.write({src + 'low/low.cpp': LOW.replace(
+            'namespace Low {\n\n', 'namespace Low {\n\n' + step + scaled + '\n')})
+        self.repo.git('commit', '-qam', 'Scaled.')
+        self.repo.write({src + 'low/low.cpp': LOW.replace(
+            'namespace Low {\n\n', 'namespace Low {\n\n' + step + '\n')})
+        errors, warnings = self.run_check()
+        self.assertEqual(errors, [])
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertTrue(warnings[0].startswith('kBaseStep:'), warnings)
+        self.assertIn('the change removed its last use; only its definition remains',
+                      warnings[0], warnings)
+        self.assertIn(src + 'low/low.cpp', warnings[0], warnings)
+
     def test_removed_style_definition_still_used_is_reported(self):
         src = 'Telegram/SourceFiles/'
         style = 'menuIconGone: icon {{ "menu/gone", menuIconColor }};\n'
@@ -445,6 +837,276 @@ class CheckTests(unittest.TestCase):
         _, warnings = self.run_check()
         self.assertFalse(any(w.startswith('Twice:') for w in warnings), warnings)
 
+    def commit_panel(self):
+        path = 'Telegram/SourceFiles/low/panel.cpp'
+        self.repo.write({'.gitattributes': '* text=auto\n', path: PANEL}, newline='\n')
+        self.assertNotIn(b'\r\n', (self.repo.root / path).read_bytes())
+        self.repo.git('add', '-A')
+        self.repo.git('commit', '-qm', 'Panel.')
+        self.assertNotIn('\r\n', self.repo.git('show', 'HEAD:' + path))
+        return path
+
+    def test_crlf_tree_keeps_a_commented_definition(self):
+        path = self.commit_panel()
+        grown = PANEL.replace('} // namespace Low\n',
+                              'int Unrelated() {\n\treturn 0;\n}\n\n} // namespace Low\n')
+        self.repo.write({path: grown}, newline='\r\n')
+        self.assertIn(b'\r\n', (self.repo.root / path).read_bytes())
+        crlf = self.run_check()
+        self.repo.write({path: grown}, newline='\n')
+        self.assertNotIn(b'\r\n', (self.repo.root / path).read_bytes())
+        lf = self.run_check()
+        with self.subTest('CRLF keeps the definition'):
+            self.assertFalse(any('definition removed' in w for w in crlf[1]), crlf[1])
+        with self.subTest('CRLF equals LF'):
+            self.assertEqual(crlf, lf)
+        with self.subTest('LF is clean'):
+            self.assertEqual(lf, ([], []))
+
+    def test_crlf_tree_still_reports_a_removed_definition(self):
+        path = self.commit_panel()
+        definition = ('// keeps the width positive, as std::max(width, 1) does in callers\n'
+                      'void Panel::finalizeLayout(int width) {\n\t_width = width;\n}\n\n')
+        removed = PANEL.replace(definition, '')
+        self.assertNotEqual(removed, PANEL)
+        self.repo.write({path: removed}, newline='\r\n')
+        self.assertIn(b'\r\n', (self.repo.root / path).read_bytes())
+        crlf = self.run_check()
+        self.repo.write({path: removed}, newline='\n')
+        self.assertNotIn(b'\r\n', (self.repo.root / path).read_bytes())
+        lf = self.run_check()
+        errors, warnings = crlf
+        self.assertEqual(errors, [])
+        self.assertEqual(len(warnings), 1, warnings)
+        self.assertTrue(warnings[0].startswith('finalizeLayout:'), warnings)
+        self.assertIn('definition removed but still mentioned', warnings[0], warnings)
+        self.assertEqual(crlf, lf)
+
+
+class SubmoduleCheckTests(unittest.TestCase):
+    """`health.py check` over a real `Telegram/lib_webrtc` submodule, run the
+    way the review step runs it."""
+    ROOT = 'Telegram/lib_webrtc'
+    EXISTING = 'int Existing() {\n\treturn 1;\n}\n'
+    BIG = ''.join(f'int Value{i}() {{\n\treturn {i};\n}}\n\n' for i in range(1100))
+    NEW = ''.join(f'int Fresh{i}() {{\n\treturn {i} + 1;\n}}\n\n' for i in range(1100))
+
+    def setUp(self):
+        self.library = Repo({'webrtc/existing.cpp': self.EXISTING, 'webrtc/big.cpp': self.BIG})
+        self.addCleanup(self.library.temp.cleanup)
+        self.repo = Repo(fixture())
+        self.addCleanup(self.repo.temp.cleanup)
+        self.add_submodule(self.library, self.ROOT)
+        self.repo.git('commit', '-qm', 'Library.')
+        self.base = self.head()
+
+    def add_submodule(self, library, root):
+        self.repo.git('-c', 'protocol.file.allow=always', 'submodule', 'add', '-q',
+                      str(library.root), root)
+        self.repo.git('-C', root, 'config', 'user.name', 'Fixture')
+        self.repo.git('-C', root, 'config', 'user.email', 'fixture@example.invalid')
+
+    def commit_library(self, pin=True):
+        """Commits the submodule's working tree; `pin` commits the moved pin too."""
+        self.repo.git('-C', self.ROOT, 'add', '-A')
+        self.repo.git('-C', self.ROOT, 'commit', '-qm', 'Change.')
+        if pin:
+            self.repo.git('add', self.ROOT)
+            self.repo.git('commit', '-qm', 'Pin.')
+
+    def head(self):
+        return self.repo.git('rev-parse', 'HEAD').strip()
+
+    def health(self, *args, repo=None):
+        script = Path(__file__).resolve().parent / 'health.py'
+        return subprocess.run(
+            [sys.executable, str(script), '--repo', str(repo or self.repo.root), *args],
+            capture_output=True, text=True)
+
+    def check(self, *extra, base=None, repo=None):
+        return self.health('check', '--base', base or self.base, *extra, repo=repo)
+
+    def assert_report(self, result, code, errors=(), warnings=()):
+        """`check` printed exactly these findings, nothing on stderr, and
+        exited with `code`."""
+        expected = ''.join(
+            f'## {title}\n\n' + ''.join(f'- {item}\n' for item in items) + '\n'
+            for title, items in (('Errors', errors), ('Warnings', warnings)) if items)
+        self.assertEqual((result.returncode, result.stderr, result.stdout),
+                         (code, '', expected or 'Code health check: clean.\n'))
+
+    def new_file(self, path):
+        return f'{path}: new file starts at 4401 lines (limit 4000).'
+
+    def gap(self, reason):
+        return f'{self.ROOT}: changed, but not read: {reason}.'
+
+    def test_committed_pin_move_is_checked(self):
+        new = self.ROOT + '/webrtc/new.cpp'
+        self.repo.write({new: self.NEW})
+        self.commit_library()
+        self.assertEqual(self.repo.git('diff', '--name-status', self.base, '--', 'Telegram'),
+                         f'M\t{self.ROOT}\n')
+        self.assert_report(self.check(), 1, errors=[self.new_file(new)])
+
+    def test_dirty_submodule_working_tree_is_checked(self):
+        new = self.ROOT + '/webrtc/new.cpp'
+        self.repo.write({new: self.NEW})
+        with self.subTest('untracked'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(new)])
+        self.repo.git('-C', self.ROOT, 'add', '-A')
+        with self.subTest('in the submodule index'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(new)])
+        self.commit_library(pin=False)
+        with self.subTest('committed in the submodule only'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(new)])
+        self.assertEqual(self.head(), self.base)
+
+    def test_existing_submodule_file_is_measured_against_its_pin(self):
+        big = self.ROOT + '/webrtc/big.cpp'
+        self.repo.write({big: self.BIG + 'int Extra() {\n\treturn 0;\n}\n'})
+        with self.subTest('three lines'):
+            self.assert_report(self.check(), 0)
+        more = ''.join(f'int More{i}() {{\n\treturn {i};\n}}\n' for i in range(10))
+        self.repo.write({big: self.BIG + more})
+        grows = (f'{big}: grows 4401 -> 4431 lines while over the 4000-line limit; '
+                 f'put the new code in a new file.')
+        with self.subTest('dirty'):
+            self.assert_report(self.check(), 0, warnings=[grows])
+        self.commit_library()
+        with self.subTest('committed'):
+            self.assert_report(self.check(), 0, warnings=[grows])
+        with self.subTest('strict'):
+            self.assert_report(self.check('--strict'), 1, errors=[grows])
+
+    def test_missing_base_pin_is_named(self):
+        missing = 'a' * 40
+        self.repo.git('update-index', '--cacheinfo', f'160000,{missing},{self.ROOT}')
+        self.repo.git('commit', '-qm', 'Unknown pin.')
+        self.repo.git('add', self.ROOT)
+        gap = self.gap(f'its base pin {missing[:10]} is unavailable locally')
+        with self.subTest('default'):
+            self.assert_report(self.check(base='HEAD'), 0, warnings=[gap])
+        with self.subTest('strict'):
+            self.assert_report(self.check('--strict', base='HEAD'), 0, warnings=[gap])
+        big = 'Telegram/SourceFiles/app/big.cpp'
+        self.repo.write({big: self.NEW})
+        with self.subTest('beside a superproject error'):
+            self.assert_report(self.check(base='HEAD'), 1,
+                               errors=[self.new_file(big)], warnings=[gap])
+
+    def test_repo_on_a_submodule_refuses_in_one_line(self):
+        checkout = self.repo.root / self.ROOT
+        result = self.check(base='HEAD', repo=checkout)
+        self.assertEqual((result.returncode, result.stdout), (2, ''))
+        self.assertEqual(result.stderr, (
+            f'{checkout} has no Telegram folder; run check from the superproject, '
+            'which reads changed Telegram/lib_* submodules itself.\n'))
+
+    def test_superproject_change_beside_a_submodule_is_unchanged(self):
+        with self.subTest('no change'):
+            self.assert_report(self.check(base='HEAD'), 0)
+        big = 'Telegram/SourceFiles/app/big.cpp'
+        self.repo.write({big: self.NEW})
+        with self.subTest('superproject new file'):
+            self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(big)])
+
+    def test_unavailable_checkout_is_skipped_or_named(self):
+        self.repo.write({self.ROOT + '/webrtc/new.cpp': self.NEW})
+        self.commit_library()
+        self.repo.git('submodule', 'deinit', '-f', self.ROOT)
+        gap = self.gap('it has no checkout here')
+        with self.subTest('unchanged pin'):
+            self.assert_report(self.check(base='HEAD'), 0)
+        with self.subTest('moved pin'):
+            self.assert_report(self.check(), 0, warnings=[gap])
+        moved = self.head()
+        self.repo.git('rm', '-q', self.ROOT)
+        self.repo.git('commit', '-qm', 'Remove.')
+        with self.subTest('removed'):
+            self.assert_report(self.check(base=moved), 0, warnings=[gap])
+
+    def test_added_submodule_files_are_new(self):
+        library = Repo({'n.cpp': self.NEW})
+        self.addCleanup(library.temp.cleanup)
+        self.add_submodule(library, 'Telegram/lib_new')
+        new = 'Telegram/lib_new/n.cpp'
+        with self.subTest('registration staged'):
+            self.assert_report(self.check(), 1, errors=[self.new_file(new)])
+        self.repo.git('commit', '-qm', 'New library.')
+        with self.subTest('registration committed'):
+            self.assert_report(self.check(), 1, errors=[self.new_file(new)])
+
+    def test_staged_check_names_a_moved_pin(self):
+        self.repo.write({self.ROOT + '/webrtc/new.cpp': self.NEW})
+        with self.subTest('library change outside the index'):
+            self.assert_report(self.check('--staged', base='HEAD'), 0)
+        self.commit_library(pin=False)
+        self.repo.git('add', self.ROOT)
+        with self.subTest('staged pin'):
+            self.assert_report(self.check('--staged', base='HEAD'), 0, warnings=[
+                self.gap('--staged sees only its pin; check without --staged')])
+
+    def test_repeated_code_in_a_submodule_is_reported(self):
+        body = ''.join(f'\tauto value{i} = compute({i}, other{i});\n' for i in range(12))
+        existing = self.ROOT + '/webrtc/existing.cpp'
+        first = self.EXISTING + 'void A() {\n' + body + '}\n'
+        self.repo.write({existing: first})
+        self.commit_library()
+        self.repo.write({existing: first + '\nvoid C() {\n' + body + '}\n'})
+        self.assert_report(self.check(base='HEAD'), 0, warnings=[
+            f'{existing}:20-31: repeats 12 lines of {existing}:5; reuse or promote it instead.'])
+
+    def test_removed_submodule_definition_still_mentioned_is_reported(self):
+        user = 'Telegram/SourceFiles/app/user.cpp'
+        self.repo.write({user: 'void Use() {\n\tExisting();\n}\n'})
+        self.repo.git('add', user)
+        self.repo.git('commit', '-qm', 'User.')
+        base = self.head()
+        self.repo.remove(self.ROOT + '/webrtc/existing.cpp')
+        self.commit_library()
+        self.assert_report(self.check(base=base), 0, warnings=[
+            f'Existing: definition removed but still mentioned at {user}:2; remove what '
+            f'is left, or keep it if code this host does not compile calls it.'])
+
+    def test_removed_last_use_in_a_submodule_reports_orphan(self):
+        existing = self.ROOT + '/webrtc/existing.cpp'
+        helper = 'int Helper(int value) {\n\treturn value + 1;\n}\n\n'
+        pick = ('int Pick(bool flag, int value) {\n\treturn flag\n'
+                '\t\t? value\n\t\t: Helper(value);\n}\n')
+        self.repo.write({existing: self.EXISTING + '\n' + helper + pick})
+        self.commit_library()
+        self.repo.write({existing: self.EXISTING + '\n' + helper
+                         + pick.replace(': Helper(value);', ': value + 1;')})
+        self.assert_report(self.check(base='HEAD'), 0, warnings=[
+            f'Helper: the change removed its last use; only its definition remains at '
+            f'{existing}:5; remove it too.'])
+
+    def test_plain_lib_folder_stays_in_the_superproject(self):
+        kept = 'Telegram/lib_plain/kept.cpp'
+        fresh = 'Telegram/lib_plain/fresh.cpp'
+        self.repo.write({kept: self.BIG})
+        self.repo.git('add', kept)
+        self.repo.git('commit', '-qm', 'Plain folder.')
+        self.repo.write({kept: self.BIG + 'int Extra() {\n\treturn 0;\n}\n', fresh: self.NEW})
+        self.assert_report(self.check(base='HEAD'), 1, errors=[self.new_file(fresh)])
+
+    def test_moves_still_reads_only_the_superproject(self):
+        self.repo.write({self.ROOT + '/webrtc/new.cpp': self.NEW})
+        with self.subTest('untracked in the submodule'):
+            result = self.health('moves', '--base', 'HEAD')
+            self.assertEqual((result.returncode, result.stderr, result.stdout), (
+                0, '', 'Moved lines: 0\nAdded declarations: 0\nVerdict: MOVE_ONLY\n'))
+        old = self.repo.git('rev-parse', f'HEAD:{self.ROOT}').strip()
+        self.commit_library()
+        new = self.repo.git('rev-parse', f'HEAD:{self.ROOT}').strip()
+        with self.subTest('committed pin'):
+            result = self.health('moves', '--base', self.base)
+            self.assertEqual((result.returncode, result.stderr, result.stdout), (
+                1, '', 'Moved lines: 0\nAdded declarations: 0\nVerdict: NOT_MOVE_ONLY\n'
+                f'\n## Added lines that were not moved\n\n- 1x Subproject commit {new}\n'
+                f'\n## Removed lines that did not reappear\n\n- 1x Subproject commit {old}\n'))
+
 
 class VerifyTests(unittest.TestCase):
     def test_deleted_candidate_is_resolved(self):
@@ -455,7 +1117,7 @@ class VerifyTests(unittest.TestCase):
 
         def verify():
             return subprocess.run(
-                ['python3', str(script), '--repo', str(repo.root), 'verify', identity],
+                [sys.executable, str(script), '--repo', str(repo.root), 'verify', identity],
                 capture_output=True, text=True)
 
         before = verify()
@@ -467,7 +1129,7 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(after.returncode, 0, after.stdout + after.stderr)
         self.assertIn('resolved', after.stdout)
         typo = subprocess.run(
-            ['python3', str(script), '--repo', str(repo.root), 'verify', 'clone:000000000000'],
+            [sys.executable, str(script), '--repo', str(repo.root), 'verify', 'clone:000000000000'],
             capture_output=True, text=True)
         self.assertEqual(typo.returncode, 2)
         self.assertIn('unknown', typo.stdout)
@@ -559,6 +1221,10 @@ class StateTests(unittest.TestCase):
         ledger = json.loads((self.state / 'ledger.json').read_text(encoding='utf-8'))
         self.assertEqual(ledger['commit'], self.commit)
         self.assertTrue((self.state / ledger['run'] / 'report.md').is_file())
+        self.assertTrue((self.state / ledger['run'] / 'harness.md').is_file())
+        harness_data = json.loads((self.state / ledger['run'] / 'harness.json').read_text())
+        self.assertEqual(harness_data['commit'], self.commit)
+        self.assertFalse(harness_data['coverage']['available'])
         self.assertTrue((self.published / '.local' / 'snapshots'
                          / f'{self.commit}.json').is_file())
         _, output = self.run_health(health.command_scan, state=str(self.state))

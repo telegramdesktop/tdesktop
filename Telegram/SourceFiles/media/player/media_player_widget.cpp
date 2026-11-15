@@ -76,6 +76,9 @@ Widget::Widget(
 		[=](bool over) { markOver(over); },
 		[=](bool lastNonDefault) { return speedLookup(lastNonDefault); },
 		[=](float64 speed) { saveSpeed(speed); })) {
+	_speedController->setApplySpeed([=](float64 speed) {
+		instance()->setPlaybackSpeed(speed);
+	});
 	_speedController->realtimeValue(
 	) | rpl::on_next([=](float64 speed) {
 		_speedToggle->setSpeed(speed);

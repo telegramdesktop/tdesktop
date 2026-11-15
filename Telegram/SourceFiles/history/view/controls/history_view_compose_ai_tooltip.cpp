@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/ui_utility.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_widgets.h"
 
@@ -71,20 +72,36 @@ void ComposeTooltipManager::updateGeometry() {
 		return;
 	}
 	const auto geometry = _button->geometry();
+	const auto origin = Ui::MapFrom(
+		_tooltip->parentWidget(),
+		_button->parentWidget(),
+		QPoint());
 	const auto maxWidth = _widthProvider();
 	const auto countPosition = [=](QSize size) {
 		const auto left = geometry.x()
 			+ geometry.width()
 			- size.width();
-		return QPoint(
+		return origin + QPoint(
 			std::max(std::min(left, maxWidth - size.width()), 0),
 			geometry.y() - size.height() - st::historyAiComposeTooltipSkip);
 	};
-	_tooltip->pointAt(geometry, RectPart::Top, countPosition);
+	_tooltip->pointAt(
+		geometry.translated(origin),
+		RectPart::Top,
+		countPosition);
 }
 
 void ComposeTooltipManager::raise() {
 	_tooltip->raise();
+}
+
+void ComposeTooltipManager::hideFast() {
+	_tooltip->toggleFast(false);
+}
+
+void ComposeTooltipManager::showFinished() {
+	hideFast();
+	updateVisibility(!_button->isHidden());
 }
 
 } // namespace HistoryView::Controls

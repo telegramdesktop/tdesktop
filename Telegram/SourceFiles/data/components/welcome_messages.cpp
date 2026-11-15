@@ -59,6 +59,36 @@ rpl::producer<int> WelcomeMessagesLimitValue(
 	});
 }
 
+void ApplyEphemeralEdition(
+		not_null<Main::Session*> session,
+		not_null<HistoryItem*> item,
+		const MTPDephemeralMessage &data) {
+	auto edition = HistoryMessageEdition();
+	edition.isEditHide = true;
+	edition.editDate = -1;
+	edition.useSameViews = true;
+	edition.useSameForwards = true;
+	edition.useSameReplies = true;
+	edition.useSameReactions = true;
+	edition.useSameSuggest = true;
+	edition.textWithEntities = {
+		qs(data.vmessage()),
+		Api::EntitiesFromMTP(
+			session,
+			data.ventities().value_or_empty()),
+	};
+	edition.replyMarkup = HistoryMessageMarkupData(data.vreply_markup());
+	edition.mtpMedia = data.vmedia();
+	edition.invertMedia = data.is_invert_media();
+	if (const auto richMessage = data.vrich_message()) {
+		edition.richPage = Iv::ParseRichPage(
+			session,
+			*richMessage,
+			Iv::RichParseMode::Quotable);
+	}
+	item->applyEdition(std::move(edition));
+}
+
 WelcomeMessages::WelcomeMessages(not_null<Main::Session*> session)
 : _session(session)
 , _clearTimer([=] { clearOldRequests(); }) {
@@ -192,12 +222,12 @@ void WelcomeMessages::applyNew(const MTPDephemeralMessage &data) {
 				const auto i = list.itemById.find(id);
 				if (i != end(list.itemById)) {
 					const auto existing = i->second;
-					applyEdition(existing, data);
+					ApplyEphemeralEdition(_session, existing, data);
 					existing->updateDate(data.vdate().v);
 					sort(list);
 					_session->data().destroyMessageWithCacheCleanup(local);
 				} else {
-					applyEdition(local, data);
+					ApplyEphemeralEdition(_session, local, data);
 					local->updateDate(data.vdate().v);
 					local->setRealId(RemoteToLocalMsgId(id));
 					list.itemById.emplace(id, local);
@@ -225,7 +255,7 @@ void WelcomeMessages::applyEdit(const MTPDephemeralMessage &data) {
 		applyNew(data);
 		return;
 	}
-	applyEdition(item, data);
+	ApplyEphemeralEdition(_session, item, data);
 	_updates.fire_copy(history);
 }
 
@@ -627,7 +657,7 @@ HistoryItem *WelcomeMessages::append(
 	const auto i = list.itemById.find(id);
 	if (i != end(list.itemById)) {
 		const auto existing = i->second;
-		applyEdition(existing, data);
+		ApplyEphemeralEdition(_session, existing, data);
 		return existing;
 	}
 	const auto fromId = peerFromMTP(data.vfrom_id());
@@ -659,38 +689,14 @@ HistoryItem *WelcomeMessages::append(
 			? *data.vmedia()
 			: MTPMessageMedia(MTP_messageMediaEmpty())));
 	if (const auto richMessage = data.vrich_message()) {
-		item->applyLocalRichPage(
-			Iv::ParseRichPage(_session, *richMessage));
+		item->applyLocalRichPage(Iv::ParseRichPage(
+			_session,
+			*richMessage,
+			Iv::RichParseMode::Quotable));
 	}
 	list.items.emplace_back(item);
 	list.itemById.emplace(id, item);
 	return item;
-}
-
-void WelcomeMessages::applyEdition(
-		not_null<HistoryItem*> item,
-		const MTPDephemeralMessage &data) {
-	auto edition = HistoryMessageEdition();
-	edition.isEditHide = true;
-	edition.editDate = -1;
-	edition.useSameViews = true;
-	edition.useSameForwards = true;
-	edition.useSameReplies = true;
-	edition.useSameReactions = true;
-	edition.useSameSuggest = true;
-	edition.textWithEntities = {
-		qs(data.vmessage()),
-		Api::EntitiesFromMTP(
-			_session,
-			data.ventities().value_or_empty()),
-	};
-	edition.replyMarkup = HistoryMessageMarkupData(data.vreply_markup());
-	edition.mtpMedia = data.vmedia();
-	edition.invertMedia = data.is_invert_media();
-	if (const auto richMessage = data.vrich_message()) {
-		edition.richPage = Iv::ParseRichPage(_session, *richMessage);
-	}
-	item->applyEdition(std::move(edition));
 }
 
 void WelcomeMessages::updated(

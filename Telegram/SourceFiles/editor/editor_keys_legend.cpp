@@ -7,46 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_keys_legend.h"
 
-#include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
-#include "ui/effects/panel_animation.h"
-#include "ui/painter.h"
-#include "ui/qt_object_factory.h"
-#include "ui/rect.h"
-#include "ui/text/text.h"
+#include "ui/controls/keys_legend.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/menu/menu.h"
-#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_editor.h"
-
-#include <QtGui/QGuiApplication>
-#include <QtGui/QScreen>
 
 namespace Editor {
 namespace {
 
-struct Row {
-	std::vector<QString> keys;
-	QString text;
-};
+using Section = Ui::KeysLegend::Section;
+using Row = Ui::KeysLegend::Row;
 
-struct Section {
-	QString title;
-	std::vector<Row> rows;
-};
-
-[[nodiscard]] QString CtrlKey() {
-	return Platform::IsMac() ? QString(QChar(0x2318)) : u"Ctrl"_q;
-}
-
-[[nodiscard]] QString ShiftKey() {
-	return Platform::IsMac() ? QString(QChar(0x21E7)) : u"Shift"_q;
-}
-
-[[nodiscard]] QString DeleteKey() {
-	return Platform::IsMac() ? QString(QChar(0x232B)) : u"Del"_q;
-}
+using Ui::KeysLegend::CtrlKey;
+using Ui::KeysLegend::ShiftKey;
+using Ui::KeysLegend::DeleteKey;
 
 [[nodiscard]] QString Gesture(
 		const QString &modifier,
@@ -250,206 +225,29 @@ struct Section {
 	};
 }
 
-struct Cap {
-	QString text;
-	int width = 0;
-};
-
-[[nodiscard]] Cap MakeCap(const QString &text) {
-	const auto &st = st::photoEditorKeysCapStyle;
+[[nodiscard]] Ui::KeysLegend::St LegendSt() {
 	return {
-		.text = text,
-		.width = std::max(
-			st.font->width(text) + 2 * st::photoEditorKeysCapPadding,
-			st::photoEditorKeysCapMinWidth),
+		.menu = &st::photoEditorKeysMenu,
+		.titleStyle = &st::photoEditorKeysTitleStyle,
+		.titleFg = &st::photoEditorKeysTitleFg,
+		.titleSkip = st::photoEditorKeysTitleSkip,
+		.rowSkip = st::photoEditorKeysRowSkip,
+		.capStyle = &st::photoEditorKeysCapStyle,
+		.capHeight = st::photoEditorKeysCapHeight,
+		.capMinWidth = st::photoEditorKeysCapMinWidth,
+		.capMaxWidth = st::photoEditorKeysCapMaxWidth,
+		.capPadding = st::photoEditorKeysCapPadding,
+		.capRadius = st::photoEditorKeysCapRadius,
+		.capSkip = st::photoEditorKeysCapSkip,
+		.capBg = &st::photoEditorKeysCapBg,
+		.capBorder = &st::photoEditorKeysCapBorder,
+		.capFg = &st::photoEditorKeysCapFg,
+		.textSkip = st::photoEditorKeysTextSkip,
+		.textWidth = st::photoEditorKeysTextWidth,
+		.textMinWidth = st::photoEditorKeysTextMinWidth,
+		.textFg = &st::photoEditorKeysTextFg,
+		.skip = st::photoEditorKeysMenuSkip,
 	};
-}
-
-[[nodiscard]] int CapsWidth(const std::vector<Cap> &caps) {
-	auto result = 0;
-	for (const auto &cap : caps) {
-		result += cap.width;
-	}
-	return result + (int(caps.size()) - 1) * st::photoEditorKeysCapSkip;
-}
-
-class SectionItem final : public Ui::Menu::ItemBase {
-public:
-	SectionItem(
-		not_null<Ui::Menu::Menu*> parent,
-		const style::Menu &st,
-		const Section &section,
-		int keysWidth);
-
-	not_null<QAction*> action() const override;
-	bool isEnabled() const override;
-
-private:
-	struct PreparedRow {
-		std::vector<Cap> caps;
-		Ui::Text::String text;
-	};
-
-	int contentHeight() const override;
-	void paintEvent(QPaintEvent *e) override;
-	void paintCap(QPainter &p, const Cap &cap, int x, int y) const;
-
-	const style::Menu &_st;
-	const int _keysWidth;
-	const Ui::Text::String _title;
-	std::vector<PreparedRow> _rows;
-	int _textWidth = 0;
-	const not_null<QAction*> _dummyAction;
-
-};
-
-SectionItem::SectionItem(
-	not_null<Ui::Menu::Menu*> parent,
-	const style::Menu &st,
-	const Section &section,
-	int keysWidth)
-: ItemBase(parent, st)
-, _st(st)
-, _keysWidth(keysWidth)
-, _title(st::photoEditorKeysTitleStyle, section.title)
-, _dummyAction(Ui::CreateChild<QAction>(parent.get())) {
-	setPointerCursor(false);
-	auto textWidth = 0;
-	for (const auto &row : section.rows) {
-		auto caps = std::vector<Cap>();
-		for (const auto &key : row.keys) {
-			caps.push_back(MakeCap(key));
-		}
-		auto text = Ui::Text::String(
-			_st.itemStyle,
-			row.text,
-			kDefaultTextOptions,
-			st::photoEditorKeysTextMinWidth);
-		textWidth = std::max(textWidth, text.maxWidth());
-		_rows.push_back({ std::move(caps), std::move(text) });
-	}
-	const auto available = _st.widthMax
-		- rect::m::sum::h(_st.itemPadding)
-		- _keysWidth
-		- st::photoEditorKeysTextSkip;
-	_textWidth = std::max(
-		std::min({ textWidth, st::photoEditorKeysTextWidth, available }),
-		st::photoEditorKeysTextMinWidth);
-	setMinWidth(rect::m::sum::h(_st.itemPadding)
-		+ _keysWidth
-		+ st::photoEditorKeysTextSkip
-		+ _textWidth);
-	parent->widthValue() | rpl::on_next([=](int width) {
-		resize(width, contentHeight());
-	}, lifetime());
-}
-
-not_null<QAction*> SectionItem::action() const {
-	return _dummyAction;
-}
-
-bool SectionItem::isEnabled() const {
-	return false;
-}
-
-int SectionItem::contentHeight() const {
-	auto result = rect::m::sum::v(_st.itemPadding);
-	if (!_title.isEmpty()) {
-		result += _title.minHeight() + st::photoEditorKeysTitleSkip;
-	}
-	for (const auto &row : _rows) {
-		result += std::max(
-			st::photoEditorKeysCapHeight,
-			row.text.countHeight(_textWidth));
-	}
-	return result + (int(_rows.size()) - 1) * st::photoEditorKeysRowSkip;
-}
-
-void SectionItem::paintCap(
-		QPainter &p,
-		const Cap &cap,
-		int x,
-		int y) const {
-	const auto rect = QRect(x, y, cap.width, st::photoEditorKeysCapHeight);
-	const auto radius = st::photoEditorKeysCapRadius;
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(QPen(st::photoEditorKeysCapBorder, st::lineWidth));
-	p.setBrush(st::photoEditorKeysCapBg);
-	p.drawRoundedRect(
-		QRectF(rect).adjusted(.5, .5, -.5, -.5),
-		radius,
-		radius);
-	p.setPen(st::photoEditorKeysCapFg);
-	p.setFont(st::photoEditorKeysCapStyle.font);
-	p.drawText(rect, cap.text, style::al_center);
-}
-
-void SectionItem::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
-	p.fillRect(rect(), _st.itemBg);
-
-	const auto &padding = _st.itemPadding;
-	const auto textLeft = padding.left()
-		+ _keysWidth
-		+ st::photoEditorKeysTextSkip;
-	auto top = padding.top();
-	if (!_title.isEmpty()) {
-		p.setPen(st::photoEditorKeysTitleFg);
-		_title.draw(
-			p,
-			padding.left(),
-			top,
-			width() - rect::m::sum::h(padding));
-		top += _title.minHeight() + st::photoEditorKeysTitleSkip;
-	}
-
-	for (const auto &row : _rows) {
-		const auto textHeight = row.text.countHeight(_textWidth);
-		const auto rowHeight = std::max(
-			st::photoEditorKeysCapHeight,
-			textHeight);
-		auto capLeft = padding.left();
-		const auto capTop = top
-			+ (rowHeight - st::photoEditorKeysCapHeight) / 2;
-		for (const auto &cap : row.caps) {
-			paintCap(p, cap, capLeft, capTop);
-			capLeft += cap.width + st::photoEditorKeysCapSkip;
-		}
-		p.setPen(st::photoEditorKeysTextFg);
-		row.text.draw(
-			p,
-			textLeft,
-			top + (rowHeight - textHeight) / 2,
-			_textWidth);
-		top += rowHeight + st::photoEditorKeysRowSkip;
-	}
-}
-
-void FillKeysLegend(
-		not_null<Ui::PopupMenu*> menu,
-		const KeysLegendContext &context) {
-	auto sections = Sections(context);
-	sections.push_back(LegendSection());
-	auto keysWidth = 0;
-	for (const auto &section : sections) {
-		for (const auto &row : section.rows) {
-			auto caps = std::vector<Cap>();
-			for (const auto &key : row.keys) {
-				caps.push_back(MakeCap(key));
-			}
-			keysWidth = std::max(keysWidth, CapsWidth(caps));
-		}
-	}
-	for (const auto &section : sections) {
-		if (section.title.isEmpty()) {
-			menu->addSeparator();
-		}
-		menu->addAction(base::make_unique_q<SectionItem>(
-			menu->menu(),
-			menu->st().menu,
-			section,
-			keysWidth));
-	}
 }
 
 } // namespace
@@ -492,22 +290,12 @@ bool KeysLegendButton::tooltipWindowActive() const {
 
 void KeysLegendButton::showLegend() {
 	Ui::Tooltip::Hide();
-	_menu = base::make_unique_q<Ui::PopupMenu>(
+	auto sections = Sections(_context());
+	sections.push_back(LegendSection());
+	_menu = Ui::KeysLegend::ShowLegendMenu(
 		this,
-		st::photoEditorKeysMenu);
-	FillKeysLegend(_menu.get(), _context());
-	const auto skip = st::photoEditorKeysMenuSkip;
-	const auto above = mapToGlobal(QPoint(0, -skip));
-	const auto screen = QGuiApplication::screenAt(above);
-	const auto fitsAbove = !screen
-		|| (above.y() - _menu->height() >= screen->availableGeometry().y());
-	if (fitsAbove) {
-		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::BottomLeft);
-		_menu->popup(above);
-	} else {
-		_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopLeft);
-		_menu->popup(mapToGlobal(QPoint(0, height())));
-	}
+		LegendSt(),
+		std::move(sections));
 }
 
 } // namespace Editor

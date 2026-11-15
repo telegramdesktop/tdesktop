@@ -35,7 +35,6 @@ GiveawayTypeRow::GiveawayTypeRow(
 		? tr::lng_giveaway_award_option()
 		: (type == Type::Random)
 		? tr::lng_premium_summary_title()
-		// ? tr::lng_giveaway_create_option()
 		: (type == Type::AllMembers)
 		? (group
 			? tr::lng_giveaway_users_all_group()

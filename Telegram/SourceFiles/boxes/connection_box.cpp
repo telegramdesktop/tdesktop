@@ -30,7 +30,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/peer_qr_box.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/effects/round_checkbox.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -45,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/selecting_scroll.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/table_layout.h"
 #include "ui/wrap/vertical_layout.h"
@@ -313,8 +316,8 @@ void ShareProxy(
 					box,
 					nullptr,
 					qrLink,
-					rpl::single(QString()));
-				box->setTitle(tr::lng_proxy_edit_share_qr_box_title());
+					rpl::single(QString()),
+					tr::lng_proxy_edit_share_qr_box_title());
 			}));
 		} else {
 			ShowProxyQrBox(show, qrLink);
@@ -606,7 +609,10 @@ public:
 	ProxyRow(QWidget *parent, View &&view);
 
 	void updateFields(View &&view);
+	void setChosen(bool selecting, bool chosen, anim::type animated);
+	[[nodiscard]] bool deleted() const;
 
+	rpl::producer<> chooseClicks() const;
 	rpl::producer<> deleteClicks() const;
 	rpl::producer<> restoreClicks() const;
 	rpl::producer<> editClicks() const;
@@ -618,18 +624,29 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 	void paintEvent(QPaintEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
+	using AddAction = Fn<void(
+		const QString &text,
+		Fn<void()> callback,
+		const style::icon *icon)>;
+
 	void setupControls(View &&view);
 	int countAvailableWidth() const;
 	void radialAnimationCallback();
 	void paintCheck(Painter &p);
+	void paintRadio(Painter &p);
+	void paintChosen(Painter &p);
+	void paintMenuToggle(Painter &p);
 	void showMenu();
+	void fillMenu(const AddAction &addAction);
 
 	View _view;
 
 	Ui::Text::String _title;
 	object_ptr<Ui::IconButton> _menuToggle;
+	rpl::event_stream<> _chooseClicks;
 	rpl::event_stream<> _deleteClicks;
 	rpl::event_stream<> _restoreClicks;
 	rpl::event_stream<> _editClicks;
@@ -637,10 +654,14 @@ private:
 	rpl::event_stream<> _showQrClicks;
 	rpl::event_stream<> _openBrowserClicks;
 	base::unique_qptr<Ui::DropdownMenu> _menu;
+	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 
 	bool _set = false;
 	Ui::Animations::Simple _toggled;
 	Ui::Animations::Simple _setAnimation;
+	bool _selecting = false;
+	Ui::Animations::Simple _selectingAnimation;
+	Ui::RoundCheckbox _check;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _progress;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _checking;
 
@@ -672,14 +693,26 @@ private:
 	void applyView(View &&view);
 	void setupButtons(int id, not_null<ProxyRow*> button);
 	int rowHeight() const;
-	void refreshProxyForCalls();
 	void refreshProxyRotation();
+	void refreshButtons();
+	void refreshSelection();
+	void toggleChosen(int id);
+	void chooseRange(int fromId, int tillId, bool chosen);
+	void handleRowEvent(int id, not_null<QEvent*> e);
+	void rowClicked(int id);
+	void updateDragSelection(QPoint globalPosition);
+	void finishPress();
+	void cancelPress();
+	[[nodiscard]] int rowIdAt(QPoint globalPosition) const;
+	[[nodiscard]] int dragScrollDelta(QPoint globalPosition) const;
+	void clearChosen();
+	void deleteChosen();
+	void shareChosen();
 
 	not_null<ProxiesBoxController*> _controller;
 	Core::SettingsProxy &_settings;
 	QPointer<Ui::Checkbox> _tryIPv6;
 	std::shared_ptr<Ui::RadioenumGroup<ProxyData::Settings>> _proxySettings;
-	QPointer<Ui::SlideWrap<Ui::Checkbox>> _proxyForCalls;
 	QPointer<Ui::SlideWrap<Ui::Checkbox>> _proxyRotation;
 	QPointer<Ui::SlideWrap<Ui::VerticalLayout>> _proxyRotationOptions;
 	QPointer<Ui::SettingsSlider> _proxyRotationTimeout;
@@ -687,9 +720,22 @@ private:
 	base::unique_qptr<Ui::RpWidget> _noRows;
 	object_ptr<Ui::VerticalLayout> _initialWrap;
 	QPointer<Ui::VerticalLayout> _wrap;
-	int _currentProxySupportsCallsId = 0;
 
 	base::flat_map<int, base::unique_qptr<ProxyRow>> _rows;
+	struct Press {
+		int id = 0;
+		bool selection = false;
+		bool chosen = false;
+		bool dragged = false;
+		bool held = true;
+		base::flat_set<int> initial;
+	};
+
+	base::flat_set<int> _chosen;
+	std::optional<Press> _press;
+	int _anchorId = 0;
+	bool _selecting = false;
+	QPointer<Ui::RpWidget> _inner;
 
 	QPointer<Ui::RpWidget> _addProxyButton;
 	QPointer<Ui::RpWidget> _shareListButton;
@@ -757,8 +803,39 @@ private:
 
 ProxyRow::ProxyRow(QWidget *parent, View &&view)
 : RippleButton(parent, st::proxyRowRipple)
-, _menuToggle(this, st::topBarMenuToggle) {
+, _menuToggle(this, st::topBarMenuToggle)
+, _check(st::proxyRowCheck, [=] { update(); }) {
 	setupControls(std::move(view));
+}
+
+void ProxyRow::setChosen(bool selecting, bool chosen, anim::type animated) {
+	_check.setChecked(chosen, animated);
+	if (_selecting != selecting) {
+		_selecting = selecting;
+		if (_selecting) {
+			_menuToggle->hide();
+		}
+		_selectingAnimation.start(
+			[=] { update(); },
+			_selecting ? 0. : 1.,
+			_selecting ? 1. : 0.,
+			st::defaultRadio.duration);
+		_selectingAnimation.setFinishedCallback([=] {
+			_menuToggle->setVisible(!_selecting);
+		});
+		if (animated == anim::type::instant) {
+			_selectingAnimation.stop();
+			_menuToggle->setVisible(!_selecting);
+		}
+	}
+}
+
+bool ProxyRow::deleted() const {
+	return _view.deleted;
+}
+
+rpl::producer<> ProxyRow::chooseClicks() const {
+	return _chooseClicks.events();
 }
 
 rpl::producer<> ProxyRow::deleteClicks() const {
@@ -794,7 +871,13 @@ void ProxyRow::setupControls(View &&view) {
 }
 
 int ProxyRow::countAvailableWidth() const {
-	return width() - _skipLeft - _skipRight;
+	const auto selecting = _selectingAnimation.value(_selecting ? 1. : 0.);
+	return width()
+		- _skipLeft
+		- anim::interpolate(
+			_skipRight,
+			st::proxyRowSelectingSkipRight,
+			selecting);
 }
 
 void ProxyRow::updateFields(View &&view) {
@@ -893,6 +976,7 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 	}
 
 	paintCheck(p);
+	paintMenuToggle(p);
 
 	p.setPen(st::proxyRowTitleFg);
 	p.setFont(st::semiboldFont);
@@ -957,6 +1041,58 @@ void ProxyRow::paintEvent(QPaintEvent *e) {
 }
 
 void ProxyRow::paintCheck(Painter &p) {
+	const auto selecting = _selectingAnimation.value(_selecting ? 1. : 0.);
+	const auto opacity = p.opacity();
+	if (selecting < 1.) {
+		p.setOpacity(opacity * (1. - selecting));
+		paintRadio(p);
+	}
+	if (selecting > 0.) {
+		p.setOpacity(opacity * selecting);
+		paintChosen(p);
+	}
+	p.setOpacity(opacity);
+}
+
+void ProxyRow::paintChosen(Painter &p) {
+	const auto &radio = st::defaultRadio;
+	const auto size = st::proxyRowCheck.size;
+	const auto left = st::proxyRowPadding.left()
+		+ (radio.diameter - size) / 2;
+	const auto top = (height() - radio.diameter - radio.thickness) / 2
+		+ (radio.diameter - size) / 2;
+	const auto half = radio.thickness / 2.;
+
+	PainterHighQualityEnabler hq(p);
+	auto pen = QPen(radio.untoggledFg);
+	pen.setWidth(radio.thickness);
+	p.setPen(pen);
+	p.setBrush(Qt::NoBrush);
+	p.drawEllipse(style::rtlrect(
+		QRectF(Rect(left, top, Size(size))) - Margins(half),
+		width()));
+	_check.paint(p, left, top, width());
+}
+
+void ProxyRow::paintMenuToggle(Painter &p) {
+	if (!_menuToggle->isHidden()) {
+		return;
+	}
+	const auto selecting = _selectingAnimation.value(_selecting ? 1. : 0.);
+	if (selecting >= 1.) {
+		return;
+	}
+	const auto &st = st::topBarMenuToggle;
+	const auto opacity = p.opacity();
+	p.setOpacity(opacity * (1. - selecting));
+	st.icon.paint(
+		p,
+		myrtlrect(_menuToggle->geometry()).topLeft() + st.iconPosition,
+		width());
+	p.setOpacity(opacity);
+}
+
+void ProxyRow::paintRadio(Painter &p) {
 	const auto loading = _progress
 		? _progress->computeState()
 		: Ui::RadialState{ 0., 0, arc::kFullLength };
@@ -1024,37 +1160,12 @@ void ProxyRow::showMenu() {
 		}
 	});
 	_menuToggle->installEventFilter(_menu);
-	const auto addAction = [&](
+	fillMenu([&](
 			const QString &text,
 			Fn<void()> callback,
 			const style::icon *icon) {
-		return _menu->addAction(text, std::move(callback), icon);
-	};
-	addAction(tr::lng_proxy_menu_edit(tr::now), [=] {
-		_editClicks.fire({});
-	}, &st::menuIconEdit);
-	if (_view.canOpenBrowser) {
-		addAction(tr::lng_proxy_web_open(tr::now), [=] {
-			_openBrowserClicks.fire({});
-		}, &st::menuIconLink);
-	}
-	if (_view.supportsShare) {
-		addAction(tr::lng_proxy_edit_share(tr::now), [=] {
-			_shareClicks.fire({});
-		}, &st::menuIconShare);
-		addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
-			_showQrClicks.fire({});
-		}, &st::menuIconQrCode);
-	}
-	if (_view.deleted) {
-		addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
-			_restoreClicks.fire({});
-		}, &st::menuIconRestore);
-	} else {
-		addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
-			_deleteClicks.fire({});
-		}, &st::menuIconDelete);
-	}
+		_menu->addAction(text, std::move(callback), icon);
+	});
 	const auto parentTopLeft = window()->mapToGlobal(QPoint());
 	const auto buttonTopLeft = _menuToggle->mapToGlobal(QPoint());
 	const auto parent = QRect(parentTopLeft, window()->size());
@@ -1086,6 +1197,56 @@ void ProxyRow::showMenu() {
 	}
 }
 
+void ProxyRow::fillMenu(const AddAction &addAction) {
+	addAction(tr::lng_proxy_menu_edit(tr::now), [=] {
+		_editClicks.fire({});
+	}, &st::menuIconEdit);
+	if (!_view.deleted && !_check.checked()) {
+		addAction(tr::lng_context_select_msg(tr::now), [=] {
+			_chooseClicks.fire({});
+		}, &st::menuIconSelect);
+	}
+	if (_view.canOpenBrowser) {
+		addAction(tr::lng_proxy_web_open(tr::now), [=] {
+			_openBrowserClicks.fire({});
+		}, &st::menuIconLink);
+	}
+	if (_view.supportsShare) {
+		addAction(tr::lng_proxy_edit_share(tr::now), [=] {
+			_shareClicks.fire({});
+		}, &st::menuIconShare);
+		addAction(tr::lng_group_invite_context_qr(tr::now), [=] {
+			_showQrClicks.fire({});
+		}, &st::menuIconQrCode);
+	}
+	if (_view.deleted) {
+		addAction(tr::lng_proxy_menu_restore(tr::now), [=] {
+			_restoreClicks.fire({});
+		}, &st::menuIconRestore);
+	} else {
+		addAction(tr::lng_proxy_menu_delete(tr::now), [=] {
+			_deleteClicks.fire({});
+		}, &st::menuIconDelete);
+	}
+}
+
+void ProxyRow::contextMenuEvent(QContextMenuEvent *e) {
+	e->accept();
+	if (_menu || _selecting) {
+		return;
+	}
+	_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	fillMenu([&](
+			const QString &text,
+			Fn<void()> callback,
+			const style::icon *icon) {
+		_contextMenu->addAction(text, std::move(callback), icon);
+	});
+	_contextMenu->popup(e->globalPos());
+}
+
 ProxiesBox::ProxiesBox(
 	QWidget*,
 	not_null<ProxiesBoxController*> controller,
@@ -1102,9 +1263,15 @@ ProxiesBox::ProxiesBox(
 }
 
 void ProxiesBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Copy
+	if (e->key() == Qt::Key_Escape && _selecting) {
+		clearChosen();
+	} else if (e->key() == Qt::Key_Copy
 		|| (e->key() == Qt::Key_C && e->modifiers() == Qt::ControlModifier)) {
-		_controller->shareItems();
+		if (_selecting) {
+			shareChosen();
+		} else {
+			_controller->shareItems();
+		}
 	} else if (e->key() == Qt::Key_Paste
 		|| (e->key() == Qt::Key_V && e->modifiers() == Qt::ControlModifier)) {
 		AddProxyFromClipboard(_controller, uiShow());
@@ -1115,11 +1282,7 @@ void ProxiesBox::keyPressEvent(QKeyEvent *e) {
 
 void ProxiesBox::prepare() {
 	setTitle(tr::lng_proxy_settings());
-
-	_addProxyButton = addButton(tr::lng_proxy_add(), [=] { addNewProxy(); });
-	addButton(tr::lng_close(), [=] { closeBox(); });
-
-	setupTopButton();
+	refreshButtons();
 	setupContent();
 }
 
@@ -1178,6 +1341,12 @@ void ProxiesBox::setupTopButton() {
 
 void ProxiesBox::setupContent() {
 	const auto inner = setInnerWidget(object_ptr<Ui::VerticalLayout>(this));
+	_inner = inner;
+	scrolls() | rpl::on_next([=] {
+		if (_press && _press->held) {
+			updateDragSelection(QCursor::pos());
+		}
+	}, inner->lifetime());
 
 	_tryIPv6 = inner->add(
 		object_ptr<Ui::Checkbox>(
@@ -1209,23 +1378,6 @@ void ProxiesBox::setupContent() {
 			ProxyData::Settings::Enabled,
 			tr::lng_proxy_use_custom(tr::now)),
 		st::proxyUsePadding);
-	_proxyForCalls = inner->add(
-		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
-			inner,
-			object_ptr<Ui::Checkbox>(
-				inner,
-				tr::lng_proxy_use_for_calls(tr::now),
-				_settings.useProxyForCalls()),
-			style::margins(
-				0,
-				st::proxyUsePadding.top(),
-				0,
-				st::proxyUsePadding.bottom())),
-		style::margins(
-			st::proxyTryIPv6Padding.left(),
-			0,
-			st::proxyTryIPv6Padding.right(),
-			st::proxyTryIPv6Padding.top()));
 	_proxyRotation = inner->add(
 		object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
 			inner,
@@ -1288,7 +1440,6 @@ void ProxiesBox::setupContent() {
 			_proxySettings->setValue(_settings.settings());
 			addNewProxy();
 		}
-		refreshProxyForCalls();
 		refreshProxyRotation();
 	});
 	_tryIPv6->checkedChanges(
@@ -1299,14 +1450,9 @@ void ProxiesBox::setupContent() {
 	_controller->proxySettingsValue(
 	) | rpl::on_next([=](ProxyData::Settings value) {
 		_proxySettings->setValue(value);
-		refreshProxyForCalls();
 		refreshProxyRotation();
 	}, inner->lifetime());
 
-	_proxyForCalls->entity()->checkedChanges(
-	) | rpl::on_next([=](bool checked) {
-		_controller->setProxyForCalls(checked);
-	}, _proxyForCalls->lifetime());
 	_proxyRotation->entity()->checkedChanges(
 	) | rpl::on_next([=](bool checked) {
 		_controller->setProxyRotationEnabled(checked);
@@ -1321,9 +1467,7 @@ void ProxiesBox::setupContent() {
 	if (_rows.empty()) {
 		createNoRowsLabel();
 	}
-	refreshProxyForCalls();
 	refreshProxyRotation();
-	_proxyForCalls->finishAnimating();
 	_proxyRotation->finishAnimating();
 	_proxyRotationOptions->finishAnimating();
 
@@ -1360,16 +1504,6 @@ void ProxiesBox::setupContent() {
 	}, inner->lifetime());
 }
 
-void ProxiesBox::refreshProxyForCalls() {
-	if (!_proxyForCalls) {
-		return;
-	}
-	_proxyForCalls->toggle(
-		(_proxySettings->current() == ProxyData::Settings::Enabled
-			&& _currentProxySupportsCallsId != 0),
-		anim::type::normal);
-}
-
 void ProxiesBox::refreshProxyRotation() {
 	if (!_proxyRotation || !_proxyRotationOptions) {
 		return;
@@ -1397,15 +1531,22 @@ void ProxiesBox::addNewProxy() {
 }
 
 void ProxiesBox::applyView(View &&view) {
-	if (view.selected) {
-		_currentProxySupportsCallsId = view.supportsCalls ? view.id : 0;
-	} else if (view.id == _currentProxySupportsCallsId) {
-		_currentProxySupportsCallsId = 0;
-	}
-	refreshProxyForCalls();
-
 	const auto id = view.id;
 	const auto i = _rows.find(id);
+	if (view.deleted || view.host.isEmpty()) {
+		if (_anchorId == id) {
+			_anchorId = 0;
+		}
+		if (_press) {
+			_press->initial.remove(id);
+			if (_press->id == id && view.host.isEmpty()) {
+				cancelPress();
+			}
+		}
+		if (_chosen.remove(id)) {
+			refreshSelection();
+		}
+	}
 	if (i == _rows.end()) {
 		const auto wrap = _wrap
 			? _wrap.data()
@@ -1417,6 +1558,7 @@ void ProxiesBox::applyView(View &&view) {
 				wrap,
 				std::move(view))));
 		setupButtons(id, i->second.get());
+		i->second->setChosen(_selecting, false, anim::type::instant);
 		if (_noRows) {
 			_noRows.reset();
 		}
@@ -1479,10 +1621,228 @@ void ProxiesBox::setupButtons(int id, not_null<ProxyRow*> button) {
 		_controller->openBrowser(id);
 	}, button->lifetime());
 
+	button->chooseClicks(
+	) | rpl::on_next([=] {
+		toggleChosen(id);
+	}, button->lifetime());
+
+	button->events(
+	) | rpl::on_next([=](not_null<QEvent*> e) {
+		handleRowEvent(id, e);
+	}, button->lifetime());
+
 	button->clicks(
 	) | rpl::on_next([=] {
-		_controller->applyItem(id);
+		rowClicked(id);
 	}, button->lifetime());
+
+	Ui::SetupSelectingScroll(button, [=](int pixels) {
+		scrollToY(scrollTop() + pixels);
+	}, [=](QPoint globalPosition) {
+		return dragScrollDelta(globalPosition);
+	});
+}
+
+void ProxiesBox::handleRowEvent(int id, not_null<QEvent*> e) {
+	const auto type = e->type();
+	if (type != QEvent::MouseButtonPress
+		&& type != QEvent::MouseMove
+		&& type != QEvent::MouseButtonRelease) {
+		return;
+	}
+	const auto mouse = static_cast<QMouseEvent*>(e.get());
+	if (type == QEvent::MouseButtonPress) {
+		if (mouse->button() == Qt::LeftButton) {
+			_press = Press{
+				.id = id,
+				.selection = _selecting
+					|| base::IsCtrlPressed()
+					|| base::IsShiftPressed(),
+				.chosen = !_chosen.contains(id),
+				.initial = _chosen,
+			};
+		}
+	} else if (type == QEvent::MouseMove) {
+		if (!(mouse->buttons() & Qt::LeftButton)) {
+			finishPress();
+		} else {
+			updateDragSelection(mouse->globalPosition().toPoint());
+		}
+	} else if (mouse->button() == Qt::LeftButton) {
+		finishPress();
+	}
+}
+
+void ProxiesBox::rowClicked(int id) {
+	const auto press = base::take(_press);
+	const auto own = press && (press->id == id);
+	if (own && press->dragged) {
+		return;
+	}
+	const auto shift = base::IsShiftPressed();
+	const auto selection = own
+		? press->selection
+		: (_selecting || base::IsCtrlPressed() || shift);
+	if (!selection) {
+		_controller->applyItem(id);
+	} else if (shift && _anchorId && _anchorId != id) {
+		chooseRange(_anchorId, id, true);
+		refreshSelection();
+	} else {
+		toggleChosen(id);
+	}
+}
+
+void ProxiesBox::updateDragSelection(QPoint globalPosition) {
+	if (!_press || !_press->held || !_press->selection) {
+		return;
+	}
+	const auto id = rowIdAt(globalPosition);
+	if (!id || (!_press->dragged && id == _press->id)) {
+		return;
+	}
+	_press->dragged = true;
+	_anchorId = _press->id;
+	_chosen = _press->initial;
+	chooseRange(_press->id, id, _press->chosen);
+	refreshSelection();
+}
+
+void ProxiesBox::finishPress() {
+	if (_press && _press->held) {
+		_press->held = false;
+		if (_press->dragged) {
+			refreshSelection();
+		}
+	}
+}
+
+void ProxiesBox::cancelPress() {
+	if (_press) {
+		_press->held = false;
+		_press->dragged = true;
+	}
+}
+
+int ProxiesBox::rowIdAt(QPoint globalPosition) const {
+	if (!_wrap) {
+		return 0;
+	}
+	const auto y = _wrap->mapFromGlobal(globalPosition).y();
+	auto result = 0;
+	auto distance = std::numeric_limits<int>::max();
+	for (const auto &[id, row] : _rows) {
+		const auto top = row->y();
+		const auto bottom = top + row->height();
+		const auto rowDistance = (y < top)
+			? (top - y)
+			: (y >= bottom)
+			? (y - bottom + 1)
+			: 0;
+		if (rowDistance < distance) {
+			distance = rowDistance;
+			result = id;
+		}
+	}
+	return result;
+}
+
+int ProxiesBox::dragScrollDelta(QPoint globalPosition) const {
+	if (!_press || !_press->held || !_press->selection || !_inner) {
+		return 0;
+	}
+	return Ui::SelectingScrollDelta(
+		_inner->visibleRegion().boundingRect(),
+		_inner->mapFromGlobal(globalPosition).y());
+}
+
+void ProxiesBox::chooseRange(int fromId, int tillId, bool chosen) {
+	const auto from = _rows.find(fromId);
+	const auto till = _rows.find(tillId);
+	if (from == end(_rows) || till == end(_rows)) {
+		return;
+	}
+	const auto top = std::min(from->second->y(), till->second->y());
+	const auto bottom = std::max(from->second->y(), till->second->y());
+	for (const auto &[id, row] : _rows) {
+		if (row->y() < top || row->y() > bottom) {
+			continue;
+		} else if (!chosen) {
+			_chosen.remove(id);
+		} else if (!row->deleted()) {
+			_chosen.emplace(id);
+		}
+	}
+}
+
+void ProxiesBox::refreshButtons() {
+	clearButtons();
+	setupTopButton();
+	if (_selecting) {
+		addLeftButton(
+			tr::lng_selected_delete(),
+			[=] { deleteChosen(); },
+			st::attentionBoxButton);
+		addButton(tr::lng_proxy_edit_share(), [=] { shareChosen(); });
+		addButton(tr::lng_selected_clear(), [=] { clearChosen(); });
+	} else {
+		_addProxyButton = addButton(
+			tr::lng_proxy_add(),
+			[=] { addNewProxy(); });
+		addButton(tr::lng_close(), [=] { closeBox(); });
+	}
+}
+
+void ProxiesBox::refreshSelection() {
+	const auto selecting = !_chosen.empty()
+		|| (_press && _press->held && _press->dragged);
+	if (!selecting) {
+		_anchorId = 0;
+	}
+	for (const auto &[id, row] : _rows) {
+		row->setChosen(selecting, _chosen.contains(id), anim::type::normal);
+	}
+	if (selecting) {
+		setTitle(tr::lng_proxy_selected(
+			tr::now,
+			lt_count,
+			int(_chosen.size())));
+	} else {
+		setTitle(tr::lng_proxy_settings());
+	}
+	if (_selecting != selecting) {
+		_selecting = selecting;
+		refreshButtons();
+	}
+}
+
+void ProxiesBox::toggleChosen(int id) {
+	const auto i = _rows.find(id);
+	if (i == _rows.end() || i->second->deleted()) {
+		return;
+	} else if (!_chosen.remove(id)) {
+		_chosen.emplace(id);
+	}
+	_anchorId = id;
+	refreshSelection();
+}
+
+void ProxiesBox::clearChosen() {
+	cancelPress();
+	_chosen.clear();
+	refreshSelection();
+}
+
+void ProxiesBox::deleteChosen() {
+	cancelPress();
+	_controller->deleteItems(base::take(_chosen));
+	refreshSelection();
+}
+
+void ProxiesBox::shareChosen() {
+	cancelPress();
+	_controller->shareItems(base::take(_chosen));
+	refreshSelection();
 }
 
 ProxyBox::ProxyBox(
@@ -2124,6 +2484,8 @@ void ProxiesBoxController::ShowApplyConfirmation(
 		const auto enableButton = box->addButton(
 			tr::lng_proxy_box_table_button(),
 			[=] {
+				// Starting a web proxy may run a nested loop closing the box.
+				const auto weak = base::make_weak(box);
 				auto &settings = Core::App().settings().proxy();
 				if (settings.indexInList(proxy) < 0) {
 					settings.addToList(proxy);
@@ -2132,7 +2494,9 @@ void ProxiesBoxController::ShowApplyConfirmation(
 					proxy,
 					ProxyData::Settings::Enabled);
 				Local::writeSettings();
-				box->closeBox();
+				if (weak) {
+					box->closeBox();
+				}
 			});
 		enableButton->setFullRadius(true);
 		box->events() | rpl::on_next([=](not_null<QEvent*> e) {
@@ -2257,6 +2621,12 @@ void ProxiesBoxController::deleteItems() {
 	}
 }
 
+void ProxiesBoxController::deleteItems(const base::flat_set<int> &ids) {
+	for (const auto id : ids) {
+		setDeleted(id, true);
+	}
+}
+
 void ProxiesBoxController::restoreItem(int id) {
 	setDeleted(id, false);
 }
@@ -2266,9 +2636,19 @@ void ProxiesBoxController::shareItem(int id, bool qr) {
 }
 
 void ProxiesBoxController::shareItems() {
+	auto ids = base::flat_set<int>();
+	for (const auto &item : _list) {
+		ids.emplace(item.id);
+	}
+	shareItems(ids);
+}
+
+void ProxiesBoxController::shareItems(const base::flat_set<int> &ids) {
 	auto result = QString();
 	for (const auto &item : _list) {
-		if (!item.deleted && ProxyDataIsShareable(item.data)) {
+		if (!ids.contains(item.id)) {
+			continue;
+		} else if (!item.deleted && ProxyDataIsShareable(item.data)) {
 			const auto link = ProxyDataToPublicLink(_account, item.data);
 			if (!link.isEmpty()) {
 				result += (result.isEmpty() ? QString() : u"\n\n"_q) + link;
@@ -2487,17 +2867,6 @@ bool ProxiesBoxController::setProxySettings(ProxyData::Settings value) {
 	return true;
 }
 
-void ProxiesBoxController::setProxyForCalls(bool enabled) {
-	if (_settings.useProxyForCalls() == enabled) {
-		return;
-	}
-	_settings.setUseProxyForCalls(enabled);
-	if (_settings.isEnabled() && _settings.selected().supportsCalls()) {
-		_settings.connectionTypeChangesNotify();
-	}
-	saveDelayed();
-}
-
 void ProxiesBoxController::setProxyRotationEnabled(bool enabled) {
 	if (_settings.proxyRotationEnabled() == enabled) {
 		return;
@@ -2579,7 +2948,6 @@ void ProxiesBoxController::updateView(const Item &item) {
 		return ItemState::Connecting;
 	}();
 	const auto supportsShare = ProxyDataIsShareable(item.data);
-	const auto supportsCalls = item.data.supportsCalls();
 	_views.fire({
 		item.id,
 		type,
@@ -2591,7 +2959,6 @@ void ProxiesBoxController::updateView(const Item &item) {
 		!deleted && selected,
 		deleted,
 		!deleted && supportsShare,
-		supportsCalls,
 		item.data.type == Type::Web,
 		!deleted
 			&& selected

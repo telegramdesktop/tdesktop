@@ -199,6 +199,7 @@ public:
 		InsertBlockType type) const;
 	[[nodiscard]] bool isActiveTopLevelParagraph() const;
 	[[nodiscard]] bool isActiveTopLevelParagraphOrHeading() const;
+	[[nodiscard]] bool isActiveInsertableParagraph() const;
 	[[nodiscard]] bool hasActiveListItemSurface() const;
 	[[nodiscard]] bool hasActiveListItemExtraLine() const;
 	[[nodiscard]] bool activeSurfaceAllowsSeparateLineFormula() const;
@@ -241,6 +242,9 @@ public:
 	[[nodiscard]] std::optional<int> removeStructuralSelection(
 		const Markdown::PreparedEditSelection &selection,
 		bool forward);
+	[[nodiscard]] LeafPath shiftLeafAfterRemovedSelection(
+		const Markdown::PreparedEditSelection &selection,
+		LeafPath leaf) const;
 	[[nodiscard]] bool toggleTaskState(
 		const Markdown::PreparedEditListItemSource &source);
 	[[nodiscard]] bool toggleDetailsOpen(

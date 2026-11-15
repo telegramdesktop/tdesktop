@@ -395,7 +395,6 @@ private:
 	[[nodiscard]] QRect megagroupSetButtonRectFinal() const;
 
 	[[nodiscard]] const Data::StickersSetsOrder &defaultSetsOrder() const;
-	[[nodiscard]] Data::StickersSetsOrder &defaultSetsOrderRef();
 	void filterEffectsByEmoji(const std::vector<EmojiPtr> &emoji);
 
 	enum class AppendSkip {

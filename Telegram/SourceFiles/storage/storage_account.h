@@ -89,6 +89,9 @@ public:
 
 	[[nodiscard]] QString tempDirectory() const;
 	[[nodiscard]] QString supportModePath() const;
+	[[nodiscard]] QString basePath() const {
+		return _basePath;
+	}
 
 	[[nodiscard]] MTP::AuthKeyPtr peekLegacyLocalKey() const {
 		return _localKey;
@@ -109,7 +112,6 @@ public:
 	void readDraftsWithCursors(not_null<History*> history);
 	void writeDraftCursors(not_null<History*> history);
 	[[nodiscard]] bool hasDraftCursors(PeerId peerId);
-	[[nodiscard]] bool hasDraft(PeerId peerId);
 
 	void writeFileLocation(
 		MediaKey location,

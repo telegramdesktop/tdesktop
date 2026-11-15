@@ -398,9 +398,8 @@ void FillSponsoredMessageBar(
 			: desiredHeight;
 		container->resize(
 			widget->width(),
-			std::clamp(
-				desiredHeight,
-				minHeight,
+			std::min(
+				std::max(desiredHeight, minHeight),
 				st::sponsoredMessageBarMaxHeight));
 	}, widget->lifetime());
 	{ // Calculate a good size for container.

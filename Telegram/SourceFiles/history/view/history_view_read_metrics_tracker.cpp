@@ -144,14 +144,6 @@ void ReadMetricsTracker::setScreenActive(bool active) {
 	refreshPaused(crl::now());
 }
 
-void ReadMetricsTracker::pauseTracking() {
-	setScreenActive(false);
-}
-
-void ReadMetricsTracker::resumeTracking() {
-	setScreenActive(true);
-}
-
 void ReadMetricsTracker::onTimeout() {
 	sync(crl::now());
 }
@@ -278,7 +270,7 @@ void ReadMetricsTracker::restartTimer() {
 			updateNearest(tracked.entryGraceStart + kGracePeriod);
 		} else if (tracked.exitGracePending && !_paused) {
 			updateNearest(tracked.exitGraceStart + kGracePeriod);
-		} else if (tracked.viewId) {
+		} else if (tracked.viewId && !tracked.exitGracePending) {
 			updateNearest(tracked.trackingStarted + kMaxTrackingDuration);
 			if (!_paused && _currentlyVisible.contains(msgId) && activityDeadline > now) {
 				updateNearest(activityDeadline);

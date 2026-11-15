@@ -260,6 +260,12 @@ darkGiftTableValueMultiline: FlatLabel(giveawayGiftCodeValueMultiline) {
 	textFg: groupCallMembersFg;
 	palette: darkGiftPalette;
 }
+darkGiftTableAddress: FlatLabel(darkGiftTableValueMultiline) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkUnderline: kLinkUnderlineNever;
+	}
+}
 darkGiftTableMessage: FlatLabel(giveawayGiftMessage) {
 	textFg: groupCallMembersFg;
 	palette: darkGiftPalette;

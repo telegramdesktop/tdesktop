@@ -64,7 +64,6 @@ public:
 	[[nodiscard]] QString shareUrl(not_null<Main::Session*> session) const;
 
 	void loadDocument() const;
-	void loadDocumentThumbnail() const;
 	[[nodiscard]] FileOrigin fileOrigin() const;
 
 	[[nodiscard]] UserId ownerId() const;
@@ -76,7 +75,6 @@ public:
 		const QMap<QString, QString> &params) const;
 	[[nodiscard]] WallPaper withBlurred(bool blurred) const;
 	[[nodiscard]] WallPaper withPatternIntensity(int intensity) const;
-	[[nodiscard]] WallPaper withGradientRotation(int rotation) const;
 	[[nodiscard]] WallPaper withBackgroundColors(
 		std::vector<QColor> colors) const;
 	[[nodiscard]] WallPaper withParamsFrom(const WallPaper &other) const;

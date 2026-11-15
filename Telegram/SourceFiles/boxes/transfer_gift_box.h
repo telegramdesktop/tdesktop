@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 struct HistoryMessageSuggestion;
+class Painter;
 
 namespace Window {
 class SessionController;
@@ -24,6 +25,7 @@ class SavedStarGiftId;
 
 namespace Ui {
 class ChatTheme;
+class Show;
 } // namespace Ui
 
 void ShowTransferToBox(
@@ -36,7 +38,8 @@ void ShowTransferToBox(
 void ShowTransferGiftBox(
 	not_null<Window::SessionController*> window,
 	std::shared_ptr<Data::UniqueGift> gift,
-	Data::SavedStarGiftId savedId);
+	Data::SavedStarGiftId savedId,
+	bool shownOnProfile);
 
 void ShowGiftSaleAcceptBox(
 	not_null<Window::SessionController*> controller,
@@ -79,3 +82,16 @@ void SetPeerTheme(
 void ShowActionLocked(
 	std::shared_ptr<ChatHelpers::Show> show,
 	const QString &slug);
+
+void PaintGiftMoveUserpic(
+	Painter &p,
+	int x,
+	int y,
+	int outerWidth,
+	int size,
+	const style::icon &icon);
+void ShowGiftMovedToast(
+	std::shared_ptr<Ui::Show> show,
+	not_null<DocumentData*> sticker,
+	TextWithEntities text,
+	Fn<void()> view);

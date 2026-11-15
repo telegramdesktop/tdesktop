@@ -29,8 +29,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h"
+#include "iv/iv_rich_page.h"
 #include "core/application.h"
 #include "apiwrap.h"
 
@@ -77,15 +79,23 @@ MTPInputReplyTo ReplyToForMTP(
 		const auto external = replyTo.messageId
 			&& (replyTo.messageId.peer != history->peer->id
 				|| replyingToTopicId != replyToTopicId);
-		const auto quoteEntities = Api::EntitiesToMTP(
-			&history->session(),
-			replyTo.quote.entities,
-			Api::ConvertOption::SkipLocal);
+		const auto rich = replyTo.messageId
+			? replyTo.richQuote.get()
+			: nullptr;
+		const auto quoteEntities = rich
+			? MTPVector<MTPMessageEntity>()
+			: Api::EntitiesToMTP(
+				&history->session(),
+				replyTo.quote.entities,
+				Api::ConvertOption::SkipLocal);
 		using Flag = MTPDinputReplyToMessage::Flag;
 		return MTP_inputReplyToMessage(
 			MTP_flags((replyTo.topicRootId ? Flag::f_top_msg_id : Flag())
 				| (external ? Flag::f_reply_to_peer_id : Flag())
-				| (replyTo.quote.text.isEmpty()
+				| (rich
+					? (Flag::f_quote_rich
+						| (rich->offset ? Flag::f_quote_offset : Flag()))
+					: replyTo.quote.text.isEmpty()
 					? Flag()
 					: (Flag::f_quote_text | Flag::f_quote_offset))
 				| (replyToMonoforumPeerId
@@ -105,12 +115,13 @@ MTPInputReplyTo ReplyToForMTP(
 				: MTPInputPeer()),
 			MTP_string(replyTo.quote.text),
 			quoteEntities,
-			MTP_int(replyTo.quoteOffset),
+			MTP_int(rich ? rich->offset.value_or(0) : replyTo.quoteOffset),
 			(replyToMonoforumPeerId
 				? history->owner().peer(replyToMonoforumPeerId)->input()
 				: MTPInputPeer()),
 			MTP_int(replyTo.todoItemId),
-			MTP_bytes(replyTo.pollOption));
+			MTP_bytes(replyTo.pollOption),
+			(rich ? rich->fragments : MTPVector<MTPRichText>()));
 	} else if (history->peer->amMonoforumAdmin()
 		&& replyTo.monoforumPeerId) {
 		const auto replyToMonoforumPeer = replyTo.monoforumPeerId
@@ -1154,7 +1165,7 @@ int Histories::sendPreparedMessage(
 		}
 		i->second.push_back({
 			.randomId = randomId,
-			.replyTo = replyTo.messageId,
+			.replyTo = std::move(replyTo),
 			.message = std::move(message),
 			.done = std::move(done),
 			.fail = std::move(fail),
@@ -1169,6 +1180,26 @@ int Histories::sendPreparedMessage(
 	};
 	realReplyTo.messageId = topicReplyToId(replyTo.messageId);
 	realReplyTo.topicRootId = topicReplyToId(replyTo.topicRootId);
+	if (IsClientMsgId(realReplyTo.topicRootId)) {
+		discardCreatingTopic(history, realReplyTo.topicRootId);
+		return 0;
+	}
+	const auto targetId = realReplyTo.messageId;
+	if (IsClientMsgId(targetId.msg) && targetId.peer == history->peer->id) {
+		const auto target = _owner->message(targetId);
+		if (target && target->isSending()) {
+			const auto id = ++_requestAutoincrement;
+			_delayedByReplyTarget[targetId].push_back({
+				.randomId = randomId,
+				.replyTo = std::move(replyTo),
+				.message = std::move(message),
+				.done = std::move(done),
+				.fail = std::move(fail),
+				.requestId = id,
+			});
+			return id;
+		}
+	}
 	return v::match(message(history, realReplyTo), [&](const auto &request) {
 		const auto type = RequestType::Send;
 		return sendRequest(history, type, [=](Fn<void()> finish) {
@@ -1210,12 +1241,11 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 
 		for (auto &entry : scheduled) {
 			_creatingTopicRequests.erase(entry.requestId);
+			auto replyTo = std::move(entry.replyTo);
+			replyTo.topicRootId = realRoot;
 			sendPreparedMessage(
 				history,
-				FullReplyTo{
-					.messageId = entry.replyTo,
-					.topicRootId = realRoot,
-				},
+				std::move(replyTo),
 				entry.randomId,
 				std::move(entry.message),
 				std::move(entry.done),
@@ -1233,6 +1263,60 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 			}
 		}
 	}
+}
+
+void Histories::checkReplyTargetSent(FullMsgId localId, MsgId realId) {
+	const auto i = _delayedByReplyTarget.find(localId);
+	if (i == end(_delayedByReplyTarget)) {
+		return;
+	}
+	auto delayed = base::take(i->second);
+	_delayedByReplyTarget.erase(i);
+
+	const auto history = _owner->history(localId.peer);
+	for (auto &entry : delayed) {
+		const auto itemId = _owner->messageIdByRandomId(entry.randomId);
+		const auto item = itemId ? _owner->message(itemId) : nullptr;
+		if (!realId || (itemId && !item)) {
+			_owner->unregisterMessageRandomId(entry.randomId);
+			if (item) {
+				item->destroy();
+			}
+			continue;
+		} else if (item) {
+			const auto reply = item->Get<HistoryMessageReply>();
+			item->setReplyFields(
+				realId,
+				item->topicRootId(),
+				reply && reply->topicPost());
+		}
+		entry.replyTo.messageId.msg = realId;
+		sendPreparedMessage(
+			history,
+			std::move(entry.replyTo),
+			entry.randomId,
+			std::move(entry.message),
+			std::move(entry.done),
+			std::move(entry.fail));
+	}
+}
+
+void Histories::discardCreatingTopic(
+		not_null<History*> history,
+		MsgId rootId) {
+	const auto i = _creatingTopics.find({ history->peer->id, rootId });
+	if (i != end(_creatingTopics)) {
+		const auto discarded = base::take(i->second);
+		_creatingTopics.erase(i);
+		for (const auto &entry : discarded) {
+			_creatingTopicRequests.remove(entry.requestId);
+		}
+	}
+	// WHY: discards run inside ~ChatWidget() or a history switch, where
+	// removing items would notify the topic's half-destroyed chat.
+	crl::on_main(&session(), [=] {
+		history->destroyMessagesByTopic(rootId);
+	});
 }
 
 FullMsgId Histories::convertTopicReplyToId(

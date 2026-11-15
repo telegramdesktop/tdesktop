@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 class IconButton;
+class ImportantTooltip;
 class LayerWidget;
 class RippleButton;
 class FlatLabel;
@@ -60,6 +61,9 @@ public:
 private:
 	void setupStreaming();
 	void setupControls();
+	void setupGifButton();
+	void showGifTooltip();
+	void hideGifTooltip();
 	void setupTimeline();
 	void setupQuality();
 	void setupSizeEstimate();
@@ -93,6 +97,7 @@ private:
 	crl::time _till = 0;
 	crl::time _cover = 0;
 	bool _gif = false;
+	bool _gifAllowed = true;
 
 	std::unique_ptr<SegmentPlayer> _player;
 	base::unique_qptr<Crop> _crop;
@@ -104,6 +109,7 @@ private:
 	base::unique_qptr<Ui::IconButton> _rotate;
 	base::unique_qptr<Ui::IconButton> _flip;
 	base::unique_qptr<Ui::IconButton> _gifButton;
+	base::unique_qptr<Ui::ImportantTooltip> _gifTooltip;
 	base::unique_qptr<Ui::RippleButton> _confirm;
 	base::unique_qptr<Ui::RippleButton> _cancelButton;
 	base::unique_qptr<Ui::FlatLabel> _about;

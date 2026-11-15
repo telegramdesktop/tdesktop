@@ -55,6 +55,7 @@ private:
 [[nodiscard]] style::colorizer ColorizerFrom(
 	const EmbeddedScheme &scheme,
 	const QColor &color);
+void ApplyColorizerAccent(style::colorizer &colorizer, const QColor &color);
 [[nodiscard]] std::optional<QColor> SystemAccentColor();
 [[nodiscard]] style::colorizer ColorizerForTheme(const QString &absolutePath);
 
@@ -72,6 +73,42 @@ void Colorize(
 [[nodiscard]] std::unique_ptr<style::palette> PrepareEmbeddedPalette(
 	EmbeddedType type,
 	std::optional<QColor> accent);
+
+class EmbeddedAccentRecipe final {
+public:
+	explicit EmbeddedAccentRecipe(EmbeddedType type);
+
+	bool apply(style::palette &palette, const QColor &accent) const;
+
+private:
+	struct Leaf {
+		QLatin1String rule;
+		QColor raw;
+	};
+	struct Key {
+		QLatin1String name;
+		int index = 0;
+		int leaf = 0;
+	};
+	struct Operand {
+		QColor fixed;
+		int leaf = -1;
+	};
+	struct Contrast {
+		QLatin1String name;
+		int index = 0;
+		Operand over;
+		Operand under;
+	};
+
+	EmbeddedScheme _scheme;
+	std::vector<Leaf> _leaves;
+	std::vector<Key> _keys;
+	std::vector<Contrast> _contrast;
+
+};
+
+[[nodiscard]] const EmbeddedAccentRecipe &AccentRecipe(EmbeddedType type);
 
 // Chat background paired with the PreparePaletteCallback palette.
 [[nodiscard]] Ui::ChatThemeBackground PrepareDefaultBackground(bool dark);

@@ -30,8 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_rich_message_html_export.h"
 #include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
 #include "main/session/session_show.h"
+#include "main/main_session.h"
 #include "media/view/media_view_open_common.h"
 #include "storage/storage_account.h"
 #include "ui/toast/toast.h"
@@ -572,46 +572,7 @@ bool Shown::activateMarkdownMedia(
 		const Markdown::MediaActivation &activation,
 		Qt::MouseButton button,
 		const QVariant &clickHandlerContext) const {
-	if (button != Qt::LeftButton && button != Qt::MiddleButton) {
-		return false;
-	}
-	switch (activation.kind) {
-	case Markdown::MediaActivationKind::None:
-		return false;
-	case Markdown::MediaActivationKind::ExternalUrl:
-		if (activation.url.isEmpty()) {
-			return false;
-		}
-		HiddenUrlClickHandler::Open(activation.url, clickHandlerContext);
-		return true;
-	case Markdown::MediaActivationKind::Embed:
-		return false;
-	case Markdown::MediaActivationKind::Photo:
-		if (!activation.photo) {
-			return false;
-		}
-		activation.photo->open(button);
-		return true;
-	case Markdown::MediaActivationKind::Document:
-		if (!activation.document) {
-			return false;
-		}
-		activation.document->open(button);
-		return true;
-	case Markdown::MediaActivationKind::OpenChannel:
-		if (!activation.channel) {
-			return false;
-		}
-		activation.channel->open(button);
-		return true;
-	case Markdown::MediaActivationKind::JoinChannel:
-		if (!activation.channel) {
-			return false;
-		}
-		activation.channel->join(button);
-		return true;
-	}
-	return false;
+	return ActivateRichMessageMedia(activation, button, clickHandlerContext);
 }
 
 bool Shown::showing(
@@ -959,6 +920,16 @@ void Instance::trackSession(not_null<Main::Session*> session) {
 		for (const auto &item : items) {
 			closeMarkdownsForItem(session, item->fullId());
 		}
+	}, session->lifetime());
+	session->data().itemViewRefreshRequest(
+	) | rpl::on_next([=](not_null<const HistoryItem*> item) {
+		refreshRichMessageButtons(session, item->fullId());
+	}, session->lifetime());
+	session->windowAdded(
+	) | rpl::on_next([=] {
+		crl::on_main(session, [=] {
+			refreshPendingRichMessageButtons(session);
+		});
 	}, session->lifetime());
 	session->lifetime().add([=] {
 		closeSessionDataViews(session);
@@ -1420,13 +1391,18 @@ void Instance::showRichMessage(
 		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		std::shared_ptr<const RichPage> richPage,
-		QString initialFragment) {
-	if (Platform::IsMac()) {
-		Core::App().hideMediaView();
-	}
+		QString initialFragment,
+		bool refresh) {
 	const auto session = &controller->session();
 	const auto itemId = item->fullId();
 	const auto key = RichMessageKey(itemId);
+	if (refresh) {
+		if (!_markdowns.contains(key)) {
+			return;
+		}
+	} else if (Platform::IsMac()) {
+		Core::App().hideMediaView();
+	}
 	const auto title = item->history()->peer->name();
 	auto clickHandlerContext = ClickHandlerContext();
 	clickHandlerContext.sessionWindow = controller;
@@ -1447,9 +1423,12 @@ void Instance::showRichMessage(
 		.mediaRuntime = std::move(mediaRuntime),
 		.tableRenderLimits = Markdown::PrepareTableRenderLimitsForRichMessage(
 			richLimits),
+		.disableButtons = item->hideLinks(),
 	});
 	if (!prepared.supported()) {
-		Ui::Toast::Show(tr::lng_iv_not_supported(tr::now));
+		if (!refresh) {
+			Ui::Toast::Show(tr::lng_iv_not_supported(tr::now));
+		}
 		return;
 	}
 	if (!initialFragment.isEmpty()
@@ -1510,6 +1489,11 @@ void Instance::showRichMessage(
 			}
 		}, controller->lifetime());
 		i = _markdowns.emplace(key, std::move(controller)).first;
+	} else if (refresh) {
+		i->second->update(
+			std::move(prepared.content),
+			title,
+			std::move(options));
 	} else {
 		i->second->show(
 			std::move(prepared.content),
@@ -1517,7 +1501,62 @@ void Instance::showRichMessage(
 			std::move(options));
 	}
 	bindMarkdown(key, session, itemId);
-	i->second->activate();
+	if (prepared.buttonsDisabled) {
+		item->setHasHiddenLinks(true);
+		auto &binding = _markdownBindings[key];
+		binding.window = controller;
+		binding.disabledButtonsPage = std::move(richPage);
+	}
+	if (!refresh) {
+		i->second->activate();
+	}
+}
+
+void Instance::refreshRichMessageButtons(
+		not_null<Main::Session*> session,
+		FullMsgId itemId) {
+	if (_markdownBindings.empty()) {
+		return;
+	}
+	const auto i = _markdownBindings.find(RichMessageKey(itemId));
+	if (i == end(_markdownBindings)
+		|| i->second.session != session.get()
+		|| !i->second.disabledButtonsPage) {
+		return;
+	}
+	const auto item = session->data().message(itemId);
+	auto window = i->second.window.get();
+	if (!window) {
+		for (const auto &live : session->windows()) {
+			if (!window || live->isPrimary()) {
+				window = live;
+			}
+		}
+	}
+	if (!item || !window || item->hideLinks()) {
+		return;
+	}
+	const auto page = i->second.disabledButtonsPage;
+	showRichMessage(
+		not_null{ window },
+		not_null{ item },
+		page,
+		QString(),
+		true);
+}
+
+void Instance::refreshPendingRichMessageButtons(
+		not_null<Main::Session*> session) {
+	auto pending = std::vector<FullMsgId>();
+	for (const auto &[key, binding] : _markdownBindings) {
+		if (binding.session == session.get()
+			&& binding.disabledButtonsPage) {
+			pending.push_back(binding.itemId);
+		}
+	}
+	for (const auto &itemId : pending) {
+		refreshRichMessageButtons(session, itemId);
+	}
 }
 
 bool Instance::showMarkdown(

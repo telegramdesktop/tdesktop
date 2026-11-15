@@ -260,7 +260,6 @@ public:
 	[[nodiscard]] bool videoStream() const;
 	[[nodiscard]] Data::GroupCallOrigin origin() const;
 	[[nodiscard]] bool listenersHidden() const;
-	[[nodiscard]] bool emptyRtmp() const;
 	[[nodiscard]] rpl::producer<bool> emptyRtmpValue() const;
 	[[nodiscard]] int rtmpVolume() const;
 
@@ -557,8 +556,6 @@ private:
 		not_null<MediaChannelDescriptionsTask*> task);
 	void requestCurrentTimeStart(
 		std::shared_ptr<RequestCurrentTimeTask> task);
-	void requestCurrentTimeCancel(
-		not_null<RequestCurrentTimeTask*> task);
 	[[nodiscard]] int64 approximateServerTimeInMs() const;
 
 	[[nodiscard]] bool mediaChannelDescriptionsFill(

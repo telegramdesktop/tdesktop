@@ -704,16 +704,10 @@ void NotifySettings::exceptionsUpdated(DefaultNotify type) {
 		});
 	}
 	_exceptionsUpdatesScheduled[static_cast<int>(type)] = true;
-	_exceptionsUpdatesRealtime.fire_copy(type);
 }
 
 rpl::producer<DefaultNotify> NotifySettings::exceptionsUpdates() const {
 	return _exceptionsUpdates.events();
-}
-
-auto NotifySettings::exceptionsUpdatesRealtime() const
--> rpl::producer<DefaultNotify> {
-	return _exceptionsUpdatesRealtime.events();
 }
 
 const base::flat_set<not_null<PeerData*>> &NotifySettings::exceptions(
