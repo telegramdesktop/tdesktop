@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "platform/linux/update_install_linux.h"
-#include "tgw/tgw_remote.h"
 #include "webview/platform/linux/webview_linux_webkitgtk.h"
 
 #include <QtCore/QDateTime>
@@ -125,11 +124,6 @@ Launcher::Launcher(int argc, char *argv[])
 }
 
 int Launcher::exec() {
-	for (auto i = arguments().begin(), e = arguments().end(); i != e; ++i) {
-		if (*i == u"-widgethelper"_q) {
-			Tgw::RunWidgetHelper(QStringList(i + 1, e));
-		}
-	}
 	if (const auto result = InstallUpdateIfRequested(arguments())) {
 		return *result;
 	}

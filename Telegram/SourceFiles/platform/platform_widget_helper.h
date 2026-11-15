@@ -27,11 +27,11 @@ struct Launched {
 
 [[nodiscard]] bool Enabled();
 [[nodiscard]] Launched Launch(const QStringList &arguments);
-#ifndef Q_OS_MAC
+#ifdef Q_OS_WIN
 [[nodiscard]] std::shared_ptr<twidget::SandboxRemoteStream> Adopt(
 	const QString &channel);
 [[nodiscard]] QString Lockdown();
-#endif // !Q_OS_MAC
+#endif // Q_OS_WIN
 
 } // namespace Platform::WidgetHelper
 
@@ -47,15 +47,6 @@ inline Launched Launch(const QStringList &arguments) {
 	return {
 		.error = u"the widget helper is not available on this platform"_q,
 	};
-}
-
-inline std::shared_ptr<twidget::SandboxRemoteStream> Adopt(
-		const QString &channel) {
-	return nullptr;
-}
-
-inline QString Lockdown() {
-	return u"the widget helper cannot lock down on this platform"_q;
 }
 
 } // namespace Platform::WidgetHelper

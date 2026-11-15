@@ -185,7 +185,7 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return Test::WidgetHelperProbeArguments(EnginesSwitch());
 }
 
-#ifndef Q_OS_MAC
+#ifdef Q_OS_WIN
 [[nodiscard]] bool HelperEntryAllowed() {
 	return true;
 }
@@ -195,7 +195,7 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 		return Platform::WidgetHelper::Lockdown();
 	});
 }
-#endif // !Q_OS_MAC
+#endif // Q_OS_WIN
 #else // _DEBUG
 [[nodiscard]] bool ChooseRemote() {
 	return DefaultRemote();
@@ -205,7 +205,7 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return {};
 }
 
-#ifndef Q_OS_MAC
+#ifdef Q_OS_WIN
 [[nodiscard]] bool HelperEntryAllowed() {
 	return Platform::WidgetHelper::Enabled();
 }
@@ -213,7 +213,7 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 [[nodiscard]] std::string HelperLockdown(const QStringList &) {
 	return Platform::WidgetHelper::Lockdown().toStdString();
 }
-#endif // !Q_OS_MAC
+#endif // Q_OS_WIN
 #endif // _DEBUG
 
 Manager::Manager()
@@ -472,7 +472,7 @@ bool StopRemoteEngines(Fn<void()> stopped) {
 	return Instance && Instance->stop(std::move(stopped));
 }
 
-#ifndef Q_OS_MAC
+#ifdef Q_OS_WIN
 void RunWidgetHelper(const QStringList &arguments) {
 	if (!HelperEntryAllowed()) {
 		std::_Exit(1);
@@ -491,6 +491,6 @@ void RunWidgetHelper(const QStringList &arguments) {
 	}
 	std::_Exit(reason.empty() ? 0 : 1);
 }
-#endif // !Q_OS_MAC
+#endif // Q_OS_WIN
 
 } // namespace Tgw

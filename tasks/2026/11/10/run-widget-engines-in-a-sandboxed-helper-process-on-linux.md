@@ -1,8 +1,11 @@
 # The Linux widget helper's system call allowlist
 
-On Linux the widget engines run in a helper process, the client's own
-executable started as `-widgethelper 3` with the channel on descriptor 3.
-Before it serves its first widget, while it still has one thread,
+On Linux the widget engines run in a helper process, the Qt-free
+`TelegramWidgetHelper` executable started as `<path> 3` with the channel on
+descriptor 3. It lies in `TelegramHelpers/` next to the client's binary, or
+in the package's libexec directory (its `telegram-desktop/` folder) in a
+package-managed build, and the lockdown is compiled only into it. Before it
+serves its first widget, while it still has one thread,
 `Platform::WidgetHelper::LockDownHelper()` in
 `platform/linux/widget_lockdown_linux.cpp` loads the time zone, empties its
 root where the system allows it, drops its capabilities, sets
@@ -14,8 +17,16 @@ answers every call it does not name with `ENOSYS`.
 
 The allowlist follows, by kind, in the order `BuildFilter()` checks it.
 "Seen" means that strace recorded the call after the filter was installed
-while the helper served the framework's attack corpus and conformance set on
-glibc 2.39; the other calls are fallbacks or paths no current widget takes.
+while the Qt-free helper served the framework's attack corpus and
+conformance set on glibc 2.39, 2.28 and 2.41, with the versions named where
+only some of them make it; the other calls are fallbacks or paths no current
+widget takes. Measured again on the Qt-free helper, the list lost
+`clock_getres`, `time`, `nanosleep`, `clock_nanosleep`, `sched_yield`,
+`rt_sigreturn`, `prctl` with `PR_GET_NAME`, the futex operations
+`FUTEX_REQUEUE`, `FUTEX_CMP_REQUEUE`, `FUTEX_WAKE_OP` and
+`FUTEX_WAKE_BITSET`, and the `madvise` advice `MADV_NORMAL`, `MADV_RANDOM`,
+`MADV_SEQUENTIAL`, `MADV_WILLNEED` and `MADV_FREE`, because nothing recorded
+them and no code linked into the helper makes them after the lockdown.
 
 - The channel (`kChannelCalls`, then the rules for `recvfrom` and `sendto`):
   reading and writing the channel and stderr.
@@ -32,9 +43,9 @@ glibc 2.39; the other calls are fallbacks or paths no current widget takes.
   - `shutdown`: `PosixStream::shutdown()`, `SHUT_WR` then `SHUT_RD`, when the
     engine end stops. Seen.
   - `write`: stderr is unbuffered, so each `fprintf(stderr, ...)` is a
-    `write`: `Tgw::RunWidgetHelper()` prints a reason `serve()` returned, and
-    an assertion or libstdc++'s terminate handler prints its message before
-    `abort()`.
+    `write`: `Exit()` in `_other/widget_helper.cpp` prints a reason
+    `serve()` returned, and an assertion or libstdc++'s terminate handler
+    prints its message before `abort()`.
   - `writev`: glibc's fatal error reports (`__libc_message()`: malloc
     corruption, stack-protector and fortify failures) are one `writev` to
     stderr.
@@ -45,8 +56,9 @@ glibc 2.39; the other calls are fallbacks or paths no current widget takes.
     the helper ends with `std::_Exit()` before it runs.
 - Memory management (`kMemoryCalls`, then the rules for `mmap`, `mprotect`
   and `madvise`):
-  - `brk`: malloc's heap. `mallopt(M_ARENA_MAX, 1)` in the Linux launcher
-    leaves the helper one arena, which grows and trims with `brk`. Seen.
+  - `brk`: malloc's heap. `mallopt(M_ARENA_MAX, 1)` in the helper's Linux
+    `Adopt()` in `_other/widget_helper_linux.cpp` leaves the helper one
+    arena, which grows and trims with `brk`. Seen.
   - `munmap`: QuickJS's arena slabs (`arena_slab_destroy()` in `quickjs.c`),
     malloc's large blocks and glibc's thread stacks. Seen.
   - `mremap`: glibc's `realloc()` of a block that malloc mapped on its own.
@@ -57,30 +69,27 @@ glibc 2.39; the other calls are fallbacks or paths no current widget takes.
     malloc's large blocks are mapped readable and writable. Seen. The
     executable's stack is not executable, so after the start nothing honest
     maps executable memory.
-  - `madvise` with `MADV_NORMAL`, `MADV_RANDOM`, `MADV_SEQUENTIAL`,
-    `MADV_WILLNEED`, `MADV_DONTNEED`, `MADV_FREE`, `MADV_GUARD_INSTALL` or
+  - `madvise` with `MADV_DONTNEED`, `MADV_GUARD_INSTALL` or
     `MADV_GUARD_REMOVE`, any other advice `ENOSYS`: `MADV_DONTNEED` releases
     the free pages of QuickJS's arena slabs (`arena_slab_release_pages()`)
     and, in glibc, a finished thread's stack, seen; the two guard values are
-    the guard pages newer glibc versions put on thread stacks; the other five
-    only hint at or free the caller's own pages.
+    the guard pages glibc's `pthread_create()` puts on thread stacks from
+    2.42 on, not seen.
 - Futexes (the rule for `futex`): with `FUTEX_PRIVATE_FLAG` and
   `FUTEX_CLOCK_REALTIME` masked off, the operation must be `FUTEX_WAIT`,
-  `FUTEX_WAKE`, `FUTEX_REQUEUE`, `FUTEX_CMP_REQUEUE`, `FUTEX_WAKE_OP`,
-  `FUTEX_WAIT_BITSET` or `FUTEX_WAKE_BITSET`; the priority-inheritance
-  operations and anything else get `ENOSYS`.
+  `FUTEX_WAKE` or `FUTEX_WAIT_BITSET`; the priority-inheritance operations
+  and anything else get `ENOSYS`.
   - Private `WAIT` and `WAKE`: glibc's mutexes behind `std::mutex`, and the
     wake of a `std::condition_variable`. Seen.
   - Private `WAIT_BITSET` with the realtime clock flag: `pthread_cond_wait()`
     behind `std::condition_variable::wait()`. Seen.
   - Shared `WAIT` and `WAKE`: libstdc++'s `std::promise` and `std::future`
     (`__atomic_futex_unsigned`), the handshake with which `JSThread` waits for
-    its thread to start. Seen.
-  - Shared `WAIT_BITSET` with the realtime clock flag: `pthread_join()`,
-    waiting for the kernel to clear a finished thread's id. Seen.
-  - `REQUEUE`, `CMP_REQUEUE`, `WAKE_OP` and `WAKE_BITSET`: the rest of the
-    non-priority-inheritance set. Not seen.
-- Clocks and sleeping (`kClockCalls`):
+    its thread to start, and on 2.28 the wait of `pthread_join()`. Seen.
+  - Shared `WAIT_BITSET` with the realtime clock flag: `pthread_join()` on
+    2.39 and 2.41, waiting for the kernel to clear a finished thread's id.
+    Seen.
+- Clocks (`kClockCalls`):
   - `clock_gettime`: `CLOCK_THREAD_CPUTIME_ID` always reaches the kernel, and
     the engine's CPU budget reads it (`QuickJSContext::threadCpuTime()`, also
     from QuickJS's interrupt handler). Seen. The other clocks (`std::chrono`,
@@ -89,13 +98,6 @@ glibc 2.39; the other calls are fallbacks or paths no current widget takes.
   - `gettimeofday`: QuickJS's `js__gettimeofday_us()` behind `Date.now()`,
     `new Date()` and the seed of `Math.random()`, answered by the vDSO. Not
     seen.
-  - `clock_getres` and, on x86_64 only, `time`: the system-call fallbacks of
-    glibc's vDSO functions. Not seen.
-  - `nanosleep` and `clock_nanosleep`: `std::this_thread::sleep_for()` and
-    `sleep_until()`; newer glibc makes `nanosleep()` a `clock_nanosleep`. No
-    helper code sleeps now. Not seen.
-  - `sched_yield`: `std::this_thread::yield()` and libstdc++'s spin before a
-    C++20 `std::atomic` wait. Not seen.
 - Threads (`kThreadCalls`, then the rules for `prctl`, `clone` and `clone3`):
   starting, naming and ending the engine's `JSThread`s (`widget.sandbox` for
   each runtime, `widget.probe`, `widget.reaper`), and their signal masks.
@@ -104,41 +106,40 @@ glibc 2.39; the other calls are fallbacks or paths no current widget takes.
     CLONE_SYSVSEM | CLONE_SETTLS | CLONE_PARENT_SETTID |
     CLONE_CHILD_CLEARTID`, and any other flags kill the process: glibc's
     `pthread_create()`, which `JSThread` calls with an 8 MiB stack, after
-    `clone3` got `ENOSYS`. Seen.
+    `clone3` got `ENOSYS` where glibc tries that first. Seen.
   - `clone3`, answered `ENOSYS`: glibc 2.34 and later try it first, and its
-    flags sit behind a pointer the filter cannot read. The measured glibc
-    remembers the answer and uses `clone` for every later thread. Seen once
-    per helper.
+    flags sit behind a pointer the filter cannot read. glibc 2.39 and 2.41
+    remember the answer and use `clone` for every later thread. Seen once per
+    helper on 2.39 and 2.41.
   - `set_robust_list` and, where the kernel headers define it, `rseq`: glibc's
     start of a new thread registers its robust-mutex list and its
-    restartable-sequence area. Seen.
+    restartable-sequence area. Seen, `rseq` on 2.39 and 2.41.
   - `rt_sigprocmask`: `pthread_create()` blocks every signal around the
     `clone` and the new thread restores its creator's mask; a finishing
     thread blocks every signal but `SIGSETXID`; newer glibc's first
     `pthread_create()` unblocks `SIGCANCEL` and `SIGSETXID`; `raise()` and
-    `abort()` use it too. Seen.
-  - `prctl` with `PR_SET_NAME` or `PR_GET_NAME` only, any other option
-    `ENOSYS`: `JSThread::entry()` names its thread with
+    `abort()` use it too. Seen on 2.39 and 2.41.
+  - `prctl` with `PR_SET_NAME` only, any other option `ENOSYS`:
+    `JSThread::entry()` names its thread with
     `pthread_setname_np(pthread_self(), ...)`, which glibc makes as
-    `prctl(PR_SET_NAME)` for the calling thread, seen; `PR_GET_NAME` is
-    `pthread_getname_np()` of the calling thread, not seen.
+    `prctl(PR_SET_NAME)` for the calling thread. Seen.
   - `exit`: the end of a thread, in glibc's `start_thread()` after the thread
     function returns. Seen.
 - Signals and the process's end (`kSignalCalls`, then the rule for
   `tgkill`):
   - `rt_sigaction`: newer glibc's first `pthread_create()` installs glibc's
-    `SIGSETXID` handler, seen once per helper; `abort()` resets `SIGABRT`.
-  - `rt_sigreturn`: the return from a signal handler. Not seen.
-  - `restart_syscall`: the kernel resumes a timed sleep or futex wait that a
-    stop and continue interrupted, as a debugger or a stopped helper causes.
-    Not seen.
+    `SIGSETXID` handler, seen once per helper on 2.39 and 2.41; `abort()`
+    resets `SIGABRT`.
+  - `restart_syscall`: the kernel resumes a timed futex wait that a stop and
+    continue interrupted, as a debugger or a stopped helper causes. Not
+    seen.
   - `getpid`, `gettid`, and `tgkill` only when its `tgid` is the helper's own
     pid as read when the filter was built (1 inside the PID namespace), else
     `ENOSYS`: glibc's `raise()`, and so `abort()`, sends its signal with
     `tgkill(getpid(), gettid(), ...)`, and `pthread_kill()` signals a thread
     of the helper. Not seen.
-  - `exit_group`: the end of the process, `std::_Exit()` in
-    `Tgw::RunWidgetHelper()`. Seen once per helper.
+  - `exit_group`: the end of the process, `std::_Exit()` in `Exit()` in
+    `_other/widget_helper.cpp`. Seen once per helper.
 - Random (`kRandomCalls`):
   - `getrandom`: the engine's `random` host request (`randomBytes()` in
     `sandbox_engine.cpp`) behind `crypto.getRandomValues()` and
@@ -154,7 +155,7 @@ glibc 2.39; the other calls are fallbacks or paths no current widget takes.
   `poll`, `mount`, `unshare`, `setns`, `bpf`, `userfaultfd`, `io_uring_*`,
   `perf_event_open`, `keyctl`, `memfd_create`, and `seccomp` and Landlock
   themselves. glibc and libstdc++ read `ENOSYS` as a missing kernel feature
-  and take their fallbacks instead of crashing; in the strace pass only
+  and take their fallbacks instead of crashing; in the strace passes only
   `clone3` got it, apart from the Debug probe's own opens.
 
 A later addition goes inside one of these kinds and only for a call the

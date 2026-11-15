@@ -13,8 +13,8 @@ void PrepareRemoteEngines();
 [[nodiscard]] bool RemoteEngines();
 [[nodiscard]] bool StopRemoteEngines(Fn<void()> stopped);
 
-#ifndef Q_OS_MAC
+#ifdef Q_OS_WIN
 [[noreturn]] void RunWidgetHelper(const QStringList &arguments);
-#endif // !Q_OS_MAC
+#endif // Q_OS_WIN
 
 } // namespace Tgw

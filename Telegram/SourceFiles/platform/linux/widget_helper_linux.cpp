@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifdef Q_OS_LINUX
 
+#include "platform/linux/widget_descriptors_linux.h"
 #include "platform/linux/widget_lockdown_linux.h"
 #include "platform/posix/widget_channel_posix.h"
+#include "settings.h"
 
 #include <crl/crl_object_on_thread.h>
 #include <flatpakportal/flatpakportal.hpp>
@@ -19,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/wait.h>
 
 #include <cerrno>
-#include <climits>
 #include <condition_variable>
 #include <cstdint>
 #include <fcntl.h>
@@ -42,7 +43,6 @@ using namespace gi::repository;
 
 constexpr auto kSpareDescriptorMin = 10;
 constexpr auto kPollDelay = crl::time(10);
-constexpr auto kSelfExecutable = "/proc/self/exe";
 constexpr auto kDenyGroups = std::string_view("deny");
 constexpr auto kChildStackSize = size_t(64 * 1024);
 constexpr auto kChildFailed = 127;
@@ -85,7 +85,6 @@ struct SpawnPlan {
 	~SpawnPlan();
 
 	std::string exe;
-	std::string flag;
 	std::string token;
 	std::vector<std::string> tail;
 	std::vector<char*> argv;
@@ -219,17 +218,14 @@ template <typename WaitExit, typename SendKill>
 	});
 }
 
-[[nodiscard]] std::string ExecutablePath() {
-	auto result = std::string(PATH_MAX, char(0));
-	const auto size = readlink(
-		kSelfExecutable,
-		result.data(),
-		result.size());
-	if (size <= 0 || size_t(size) >= result.size()) {
-		return kSelfExecutable;
+[[nodiscard]] std::string HelperPath() {
+	const auto directory = cExeDir();
+	if (directory.isEmpty()) {
+		return std::string();
 	}
-	result.resize(size_t(size));
-	return result;
+	const auto path = directory
+		+ QString::fromUtf8(TDESKTOP_WIDGET_HELPER_PATH);
+	return QFile::encodeName(QDir::cleanPath(path)).toStdString();
 }
 
 [[nodiscard]] std::string IdentityMap(uint32 id) {
@@ -251,14 +247,16 @@ template <typename WaitExit, typename SendKill>
 		SpawnPlan &plan,
 		int child,
 		const QStringList &arguments) {
-	plan.exe = ExecutablePath();
-	plan.flag = "-widgethelper";
+	plan.exe = HelperPath();
+	if (plan.exe.empty()) {
+		return u"the executable path is unknown"_q;
+	}
 	plan.token = std::to_string(kChannelDescriptor);
 	plan.tail.reserve(arguments.size());
 	for (const auto &argument : arguments) {
 		plan.tail.push_back(argument.toUtf8().toStdString());
 	}
-	plan.argv = { plan.exe.data(), plan.flag.data(), plan.token.data() };
+	plan.argv = { plan.exe.data(), plan.token.data() };
 	for (auto &argument : plan.tail) {
 		plan.argv.push_back(argument.data());
 	}
@@ -353,7 +351,7 @@ int SpawnChild(void *raw) {
 			kSignalSetSize) != 0) {
 		FailChild(slot, ChildStep::SignalMask);
 	}
-	execve(kSelfExecutable, plan.argv.data(), environ);
+	execve(plan.exe.c_str(), plan.argv.data(), environ);
 	FailChild(slot, ChildStep::Execute);
 }
 
@@ -545,8 +543,6 @@ void ServePortal(std::promise<PortalLookup> found) {
 	auto prepared = PrepareSpawn(plan, channel.child->descriptor(), arguments);
 	if (!prepared.isEmpty()) {
 		return { .error = std::move(prepared) };
-	} else if (plan.exe == kSelfExecutable) {
-		return { .error = u"the executable path is unknown"_q };
 	}
 	const auto errorOutput = fcntl(
 		STDERR_FILENO,
@@ -657,18 +653,6 @@ Launched Launch(const QStringList &arguments) {
 	return KSandbox::isFlatpak()
 		? LaunchThroughPortal(std::move(channel), arguments)
 		: LaunchDirectly(std::move(channel), arguments);
-}
-
-std::shared_ptr<twidget::SandboxRemoteStream> Adopt(const QString &channel) {
-	if (channel != QString::number(kChannelDescriptor)) {
-		return nullptr;
-	}
-	PrepareHelperProcess(kChannelDescriptor + 1);
-	return AdoptPosixChannel(kChannelDescriptor);
-}
-
-QString Lockdown() {
-	return QString::fromStdString(LockDownHelper());
 }
 
 } // namespace Platform::WidgetHelper

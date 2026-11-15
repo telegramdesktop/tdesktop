@@ -4,29 +4,35 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-add_library(standalone_options INTERFACE)
-add_library(tdesktop::standalone_options ALIAS standalone_options)
+if (NOT LINUX)
+    add_library(standalone_options INTERFACE)
+    add_library(tdesktop::standalone_options ALIAS standalone_options)
 
-# common_options without its libraries: no framework reaches code that must start clean.
-foreach (property
-    INTERFACE_COMPILE_DEFINITIONS
-    INTERFACE_COMPILE_OPTIONS
-    INTERFACE_INCLUDE_DIRECTORIES
-    INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
-    INTERFACE_LINK_OPTIONS)
-    get_property(property_set TARGET common_options PROPERTY ${property} SET)
-    if (property_set)
-        get_target_property(value common_options ${property})
-        set_property(TARGET standalone_options PROPERTY ${property} "${value}")
-    endif()
-endforeach()
+    # common_options without its libraries: no framework reaches code that must start clean.
+    foreach (property
+        INTERFACE_COMPILE_DEFINITIONS
+        INTERFACE_COMPILE_OPTIONS
+        INTERFACE_INCLUDE_DIRECTORIES
+        INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
+        INTERFACE_LINK_OPTIONS)
+        get_property(property_set TARGET common_options PROPERTY ${property} SET)
+        if (property_set)
+            get_target_property(value common_options ${property})
+            set_property(TARGET standalone_options PROPERTY ${property} "${value}")
+        endif()
+    endforeach()
+endif()
 
 function(init_standalone_target target_name)
     foreach (entry ${ARGN})
         init_target_folder(${target_name} ${entry})
     endforeach()
     target_compile_features(${target_name} PRIVATE ${MAXIMUM_CXX_STANDARD})
-    target_link_libraries(${target_name} PRIVATE tdesktop::standalone_options)
+    if (LINUX)
+        target_link_libraries(${target_name} PRIVATE desktop-app::common_options)
+    else()
+        target_link_libraries(${target_name} PRIVATE tdesktop::standalone_options)
+    endif()
     set_target_properties(${target_name} PROPERTIES
         XCODE_ATTRIBUTE_CLANG_ENABLE_OBJC_WEAK YES
     )
@@ -35,9 +41,15 @@ function(init_standalone_target target_name)
             set_target_properties(${target_name} PROPERTIES
                 XCODE_ATTRIBUTE_LLVM_LTO $<IF:$<CONFIG:Debug>,NO,YES>
             )
-        else()
+        elseif (APPLE)
             target_compile_options(${target_name} PRIVATE $<$<NOT:$<CONFIG:Debug>>:-flto>)
             target_link_options(${target_name} PRIVATE $<$<NOT:$<CONFIG:Debug>>:-flto>)
+        else()
+            set_target_properties(${target_name} PROPERTIES
+                INTERPROCEDURAL_OPTIMIZATION_RELEASE True
+                INTERPROCEDURAL_OPTIMIZATION_RELWITHDEBINFO True
+                INTERPROCEDURAL_OPTIMIZATION_MINSIZEREL True
+            )
         endif()
     endif()
     get_target_property(target_type ${target_name} TYPE)

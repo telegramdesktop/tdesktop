@@ -11,13 +11,25 @@ nice_target_sources(TelegramWidgetHelper ${src_loc}
 PRIVATE
     _other/widget_helper.cpp
     _other/widget_helper.h
+    _other/widget_helper_linux.cpp
     _other/widget_helper_mac.cpp
     _other/widget_helper_posix.cpp
+    platform/linux/widget_descriptors_linux.cpp
+    platform/linux/widget_descriptors_linux.h
+    platform/linux/widget_lockdown_linux.cpp
+    platform/linux/widget_lockdown_linux.h
     platform/posix/widget_channel_posix.cpp
     platform/posix/widget_channel_posix.h
     test/test_widget_helper_probe_lockdown.h
+    test/test_widget_helper_probe_lockdown_linux.cpp
     test/test_widget_helper_probe_lockdown_mac.cpp
 )
+
+if (NOT APPLE)
+    remove_target_sources(TelegramWidgetHelper ${src_loc}
+        _other/widget_helper_posix.cpp
+    )
+endif()
 
 target_include_directories(TelegramWidgetHelper PRIVATE ${src_loc})
 
@@ -34,15 +46,37 @@ PRIVATE
     desktop-app::external_gsl
 )
 
-set_target_properties(TelegramWidgetHelper PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${output_folder}
-)
+if (APPLE)
+    set_target_properties(TelegramWidgetHelper PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${output_folder}
+    )
 
-add_custom_target(TelegramWidgetHelper_bundle
-    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Telegram>/../Helpers"
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "$<TARGET_FILE:TelegramWidgetHelper>" "$<TARGET_FILE_DIR:Telegram>/../Helpers/"
-    VERBATIM
-)
-add_dependencies(TelegramWidgetHelper_bundle TelegramWidgetHelper)
-add_dependencies(Telegram TelegramWidgetHelper_bundle)
+    add_custom_target(TelegramWidgetHelper_bundle
+        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Telegram>/../Helpers"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:TelegramWidgetHelper>" "$<TARGET_FILE_DIR:Telegram>/../Helpers/"
+        VERBATIM
+    )
+    add_dependencies(TelegramWidgetHelper_bundle TelegramWidgetHelper)
+    add_dependencies(Telegram TelegramWidgetHelper_bundle)
+else()
+    set(widget_helper_folder TelegramHelpers)
+    if (DESKTOP_APP_USE_PACKAGED)
+        include(GNUInstallDirs)
+        set(widget_helper_destination "${CMAKE_INSTALL_BINDIR}/TelegramHelpers")
+        if (NOT DESKTOP_APP_SPECIAL_TARGET)
+            file(RELATIVE_PATH widget_helper_folder
+                "${CMAKE_INSTALL_FULL_BINDIR}"
+                "${CMAKE_INSTALL_FULL_LIBEXECDIR}/telegram-desktop")
+            set(widget_helper_destination "${CMAKE_INSTALL_LIBEXECDIR}/telegram-desktop")
+        endif()
+        install(TARGETS TelegramWidgetHelper RUNTIME DESTINATION "${widget_helper_destination}")
+    endif()
+
+    set_target_properties(TelegramWidgetHelper PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/${widget_helper_folder}"
+    )
+    set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+        "TDESKTOP_WIDGET_HELPER_PATH=\"${widget_helper_folder}/TelegramWidgetHelper\"")
+    add_dependencies(Telegram TelegramWidgetHelper)
+endif()

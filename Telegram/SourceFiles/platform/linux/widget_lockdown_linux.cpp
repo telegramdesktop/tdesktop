@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/widget_lockdown_linux.h"
 
-#ifdef Q_OS_LINUX
+#ifdef __linux__
+
+#include "platform/linux/widget_descriptors_linux.h"
 
 #include <linux/audit.h>
 #include <linux/capability.h>
@@ -17,14 +19,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/prctl.h>
-#include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
 
-#include <algorithm>
 #include <array>
 #include <cerrno>
-#include <climits>
 #include <csignal>
 #include <cstddef>
 #include <cstdint>
@@ -36,10 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <string>
 #include <unistd.h>
 #include <vector>
-
-#ifndef __NR_close_range
-#define __NR_close_range 436
-#endif // __NR_close_range
 
 #ifndef __NR_clone3
 #define __NR_clone3 435
@@ -106,17 +101,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform::WidgetHelper {
 namespace {
 
-constexpr auto kDirectoryBufferSize = 4096;
-constexpr auto kMaxClosedDescriptor = rlim_t(1) << 20;
-
-struct DirectoryEntry {
-	uint64_t inode = 0;
-	int64_t offset = 0;
-	uint16_t length = 0;
-	uint8_t type = 0;
-	char name[1] = {};
-};
-
 struct Threads {
 	int count = 0;
 	int error = 0;
@@ -127,88 +111,6 @@ struct RulesetAttr {
 	uint64_t net = 0;
 	uint64_t scoped = 0;
 };
-
-[[nodiscard]] int ParseDescriptor(const char *name) {
-	if (!*name) {
-		return -1;
-	}
-	auto result = 0;
-	for (; *name; ++name) {
-		const auto digit = *name - '0';
-		if (digit < 0 || digit > 9 || result > (INT_MAX - digit) / 10) {
-			return -1;
-		}
-		result = result * 10 + digit;
-	}
-	return result;
-}
-
-template <typename Visit>
-[[nodiscard]] int ForEachEntry(int directory, Visit visit) {
-	char buffer[kDirectoryBufferSize] = {};
-	while (true) {
-		const auto size = syscall(
-			SYS_getdents64,
-			directory,
-			buffer,
-			sizeof(buffer));
-		if (size <= 0) {
-			return (size < 0) ? errno : 0;
-		}
-		auto changed = false;
-		for (auto offset = long(0); offset < size;) {
-			auto length = uint16_t(0);
-			std::memcpy(
-				&length,
-				buffer + offset + offsetof(DirectoryEntry, length),
-				sizeof(length));
-			if (!length) {
-				return EINVAL;
-			}
-			if (visit(buffer + offset + offsetof(DirectoryEntry, name))) {
-				changed = true;
-			}
-			offset += length;
-		}
-		if (changed && lseek(directory, 0, SEEK_SET) < 0) {
-			return errno;
-		}
-	}
-}
-
-[[nodiscard]] bool CloseListed(int directory, int first) {
-	const auto error = ForEachEntry(directory, [&](const char *name) {
-		const auto descriptor = ParseDescriptor(name);
-		if (descriptor < first || descriptor == directory) {
-			return false;
-		}
-		close(descriptor);
-		return true;
-	});
-	return !error;
-}
-
-[[nodiscard]] bool CloseListedDescriptors(int first) {
-	const auto directory = open(
-		"/proc/self/fd",
-		O_RDONLY | O_DIRECTORY | O_CLOEXEC);
-	if (directory < 0) {
-		return false;
-	}
-	const auto result = CloseListed(directory, first);
-	close(directory);
-	return result;
-}
-
-void CloseUpToLimit(int first) {
-	auto limit = rlimit();
-	const auto last = getrlimit(RLIMIT_NOFILE, &limit)
-		? kMaxClosedDescriptor
-		: std::min(limit.rlim_cur, kMaxClosedDescriptor);
-	for (auto descriptor = rlim_t(first); descriptor < last; ++descriptor) {
-		close(int(descriptor));
-	}
-}
 
 [[nodiscard]] std::string ErrorName(int error) {
 	switch (error) {
@@ -302,12 +204,7 @@ constexpr int kMemoryCalls[] = {
 };
 
 constexpr uint32_t kAdvice[] = {
-	MADV_NORMAL,
-	MADV_RANDOM,
-	MADV_SEQUENTIAL,
-	MADV_WILLNEED,
 	MADV_DONTNEED,
-	MADV_FREE,
 	MADV_GUARD_INSTALL,
 	MADV_GUARD_REMOVE,
 };
@@ -315,23 +212,12 @@ constexpr uint32_t kAdvice[] = {
 constexpr uint32_t kFutexOperations[] = {
 	FUTEX_WAIT,
 	FUTEX_WAKE,
-	FUTEX_REQUEUE,
-	FUTEX_CMP_REQUEUE,
-	FUTEX_WAKE_OP,
 	FUTEX_WAIT_BITSET,
-	FUTEX_WAKE_BITSET,
 };
 
 constexpr int kClockCalls[] = {
 	__NR_clock_gettime,
-	__NR_clock_getres,
 	__NR_gettimeofday,
-#if defined __x86_64__
-	__NR_time,
-#endif // __x86_64__
-	__NR_nanosleep,
-	__NR_clock_nanosleep,
-	__NR_sched_yield,
 };
 
 constexpr int kThreadCalls[] = {
@@ -345,12 +231,10 @@ constexpr int kThreadCalls[] = {
 
 constexpr uint32_t kThreadNameOptions[] = {
 	PR_SET_NAME,
-	PR_GET_NAME,
 };
 
 constexpr int kSignalCalls[] = {
 	__NR_rt_sigaction,
-	__NR_rt_sigreturn,
 	__NR_restart_syscall,
 	__NR_getpid,
 	__NR_gettid,
@@ -648,14 +532,6 @@ void FilterBuilder::allowUnaddressed(
 
 } // namespace
 
-void CloseDescriptorsFrom(int first) {
-	if (syscall(__NR_close_range, first, ~0U, 0) == 0
-		|| CloseListedDescriptors(first)) {
-		return;
-	}
-	CloseUpToLimit(first);
-}
-
 void PrepareHelperProcess(int firstToClose) {
 	prctl(PR_SET_PDEATHSIG, SIGKILL);
 	CloseDescriptorsFrom(firstToClose);
@@ -703,4 +579,4 @@ std::string LockDownHelper() {
 
 } // namespace Platform::WidgetHelper
 
-#endif // Q_OS_LINUX
+#endif // __linux__

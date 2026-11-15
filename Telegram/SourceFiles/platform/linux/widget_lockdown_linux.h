@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#ifdef Q_OS_LINUX
+#ifdef __linux__
 
 #include <string>
 
@@ -20,9 +20,8 @@ inline constexpr auto kLockdownAvailable = false;
 #endif // __x86_64__ || __aarch64__
 
 void PrepareHelperProcess(int firstToClose);
-void CloseDescriptorsFrom(int first);
 [[nodiscard]] std::string LockDownHelper();
 
 } // namespace Platform::WidgetHelper
 
-#endif // Q_OS_LINUX
+#endif // __linux__
