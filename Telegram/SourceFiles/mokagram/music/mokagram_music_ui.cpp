@@ -9100,17 +9100,42 @@ private:
 			_shuffle->setAccent(_accent);
 			_repeat->setAccent(_accent);
 		}
+		if (size().isEmpty() || area.isEmpty()) return;
+		// The backdrop is blurred already. Composite its gradients before
+		// enlarging it, instead of rasterizing them over every Retina pixel.
+		const auto extent = style::ConvertScale(256);
+		const auto rasterSize = size().scaled(
+			QSize(extent, extent), Qt::KeepAspectRatio);
+		auto background = QImage(rasterSize, QImage::Format_ARGB32_Premultiplied);
+		background.fill(QColor(0x14, 0x14, 0x15));
+		{
+			auto raster = QPainter(&background);
+			auto hq = PainterHighQualityEnabler(raster);
+			raster.scale(
+				rasterSize.width() / double(width()),
+				rasterSize.height() / double(height()));
+			paintBackdrop(raster);
+		}
+		p.save();
+		p.setClipRect(area, Qt::IntersectClip);
+		p.setRenderHint(QPainter::SmoothPixmapTransform);
+		p.drawImage(QRect(-origin, size()), background);
+		p.restore();
+	}
+
+	void paintBackdrop(QPainter &p) {
+		const auto area = rect();
 		if (Mokagram::Settings::Bool(u"player.cover_colors"_q)) {
 			if (_canvasBackground.isNull()) {
-				_backdrop.paint(p, area, QRect(-origin, size()));
+				_backdrop.paint(p, area, area);
 			} else {
-				p.drawImage(QRect(-origin, size()), canvasBackgroundFrame());
+				p.drawImage(area, canvasBackgroundFrame());
 			}
 			p.fillRect(area, QColor(0x10, 0x10, 0x12, 100));
 			if (Mokagram::Settings::Bool(u"player.dynamic_background"_q)) {
 				const auto phase = crl::now() / 14000.;
 				const auto center = QPointF(width() * (0.5 + 0.25 * std::sin(phase)),
-					height() * (0.5 + 0.25 * std::cos(phase * 0.7))) - origin;
+					height() * (0.5 + 0.25 * std::cos(phase * 0.7)));
 				auto glow = QRadialGradient(center, std::max(width(), height()) * 0.7);
 				auto color = _accent;
 				color.setAlpha(60);
@@ -9131,7 +9156,7 @@ private:
 				: 0.;
 			const auto cover = QRectF(layout.cover);
 			auto glow = QRadialGradient(
-				cover.center() - QPointF(origin),
+				cover.center(),
 				std::max(cover.width(), cover.height()) * 0.8);
 			auto color = _accent;
 			color.setAlpha(int(45 + 15 * pulse));
