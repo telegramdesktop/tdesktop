@@ -1581,3 +1581,4 @@
 	{ "Обычная панель сверху или Dynamic Island. На macOS островок находится под чёлкой, вне окна клиента.", "Standard top bar or Dynamic Island. On macOS, the island sits below the notch, outside the app window." },
 	{ "Обычный плеер", "Standard player" },
 	{ "Dynamic Island", "Dynamic Island" },
+	{ "Производительность", "Performance" },
