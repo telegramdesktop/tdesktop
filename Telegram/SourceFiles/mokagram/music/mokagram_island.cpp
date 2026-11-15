@@ -290,6 +290,10 @@ private:
 		Queue,
 	};
 
+	[[nodiscard]] bool cursorNear() const;
+#ifdef Q_OS_MAC
+	void updateDesktopHover();
+#endif
 	void dismiss();
 	void expand(bool expanded);
 	void refreshTrack();
@@ -340,6 +344,7 @@ private:
 	base::Timer _leaveTimer;
 #ifdef Q_OS_MAC
 	base::Timer _desktopTimer;
+	base::Timer _proximityTimer;
 #endif
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	std::shared_ptr<Data::DocumentMedia> _media;
@@ -394,7 +399,7 @@ Island::Island(
 		return;
 	}
 	// Native window changes may deliver a leave event without cursor movement.
-	if (shapeRect().contains(mapFromGlobal(QCursor::pos()))) {
+	if (cursorNear()) {
 		return;
 	}
 	expand(false);
@@ -409,6 +414,8 @@ Island::Island(
 	InitDesktopIsland(this);
 	_desktopTimer.setCallback([=] { relayout(); });
 	_desktopTimer.callEach(1000);
+	_proximityTimer.setCallback([=] { updateDesktopHover(); });
+	_proximityTimer.callEach(50);
 #endif
 	setMouseTracking(true);
 	hide();
@@ -1272,22 +1279,58 @@ void Island::paintExpanded(QPainter &p) {
 	paintToggle(p, Part::Queue, Glyph::Queue, false, true);
 }
 
+
+bool Island::cursorNear() const {
+	const auto margin = isWindow() ? S(16) : 0;
+	return shapeRect().adjusted(-margin, -margin, margin, margin)
+		.contains(mapFromGlobal(QCursor::pos()));
+}
+
+#ifdef Q_OS_MAC
+void Island::updateDesktopHover() {
+	if (!_shown || isHidden()) {
+		return;
+	}
+	// Observe proximity without extending the native mask or intercepting clicks.
+	if (cursorNear()) {
+		_leaveTimer.cancel();
+		if (!_wantExpanded && !_hoverTimer.isActive()) {
+			_hoverTimer.callOnce(kHoverDelay);
+		}
+	} else {
+		_hoverTimer.cancel();
+		if (_wantExpanded && !_leaveTimer.isActive()) {
+			_leaveTimer.callOnce(kLeaveDelay);
+		}
+	}
+}
+#endif
+
 void Island::enterEventHook(QEnterEvent *e) {
+#ifdef Q_OS_MAC
+	updateDesktopHover();
+#else
 	if (partAt(mapFromGlobal(QCursor::pos())) != Part::None) {
 		_leaveTimer.cancel();
 		if (!_wantExpanded) {
 			_hoverTimer.callOnce(kHoverDelay);
 		}
 	}
+
+#endif
 	RpWidget::enterEventHook(e);
 }
 
 void Island::leaveEventHook(QEvent *e) {
+#ifdef Q_OS_MAC
+	updateDesktopHover();
+#else
 	_hoverTimer.cancel();
 	if (_wantExpanded) {
 		_leaveTimer.callOnce(kLeaveDelay);
 	}
 	setCursor(style::cur_default);
+#endif
 	RpWidget::leaveEventHook(e);
 }
 
@@ -1303,6 +1346,9 @@ void Island::dragTo(QPoint point) {
 
 void Island::mouseMoveEvent(QMouseEvent *e) {
 	const auto part = partAt(e->pos());
+#ifdef Q_OS_MAC
+	updateDesktopHover();
+#else
 	if (part == Part::None) {
 		_hoverTimer.cancel();
 		if (_wantExpanded && _dragging == Part::None && !_leaveTimer.isActive()) {
@@ -1314,6 +1360,7 @@ void Island::mouseMoveEvent(QMouseEvent *e) {
 			_hoverTimer.callOnce(kHoverDelay);
 		}
 	}
+#endif
 	if (_dragging != Part::None) {
 		dragTo(e->pos());
 	}
