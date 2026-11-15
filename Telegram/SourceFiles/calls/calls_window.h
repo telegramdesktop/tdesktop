@@ -101,10 +101,10 @@ private:
 	Ui::GL::Window _window;
 	const std::unique_ptr<Ui::LayerManager> _layerBg;
 
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	rpl::variable<int> _controlsTop = 0;
 	const std::unique_ptr<Ui::Platform::SeparateTitleControls> _controls;
-#endif // !Q_OS_MAC
+#endif // !Q_OS_MACOS
 
 	std::unique_ptr<base::PowerSaveBlocker> _powerSaveBlocker;
 

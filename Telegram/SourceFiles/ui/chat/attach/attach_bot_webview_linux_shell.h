@@ -38,7 +38,7 @@ template <typename T>
 	}
 }
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 
 [[nodiscard]] QByteArray InstallScript(const QString &shellToken);
 [[nodiscard]] QByteArray MethodCallScript(
@@ -54,7 +54,7 @@ template <typename T>
 [[nodiscard]] QJsonObject MenuPalette();
 [[nodiscard]] QJsonObject ColorPayload(const ResolvedColors &colors);
 
-#else // !Q_OS_WIN && !Q_OS_MAC
+#else // !Q_OS_WIN && !Q_OS_MACOS
 
 [[nodiscard]] inline QByteArray InstallScript(const QString &) {
 	return {};
@@ -91,6 +91,6 @@ template <typename T>
 	return {};
 }
 
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 
 } // namespace Ui::BotWebView::LinuxShell

@@ -1976,12 +1976,12 @@ QRect Panel::computeTitleRect() const {
 			+ (_menuToggle ? _menuToggle->width() : 0)
 			+ custom));
 	const auto width = widget()->width();
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	const auto left = window()->isFullScreen()
 		? st::groupCallNarrowSkip
 		: st::groupCallTitleLeftMac;
 	return QRect(left, 0, width - remove - left, 28);
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	const auto controls = _window->controlsGeometry();
 	const auto onTheLeft = (controls.center().x() < width / 2);
 	auto band = controls;
@@ -1992,7 +1992,7 @@ QRect Panel::computeTitleRect() const {
 	return onTheLeft
 		? QRect(right, 0, width - right - remove, band.height())
 		: QRect(remove, 0, band.x() - skip - remove, band.height());
-#endif // !Q_OS_MAC
+#endif // !Q_OS_MACOS
 }
 
 bool Panel::updateMode() {

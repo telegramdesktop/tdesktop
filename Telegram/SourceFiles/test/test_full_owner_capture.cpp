@@ -2688,7 +2688,7 @@ void CheckFixedSizeZoom() {
 		Qt::WindowMaximized,
 		Qt::WindowMaximized | Qt::WindowActive,
 	};
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	const auto taller = fixed + QSize(0, row);
 	const auto resizable = GateFrame{
 		.outer = fixed,
@@ -2738,7 +2738,7 @@ void CheckFixedSizeZoom() {
 		u"fullscreen are never cleared - each is refused on a fixed frame at "
 		u"its size, alone and with Qt::WindowActive"_q,
 		kept.texts.join(u"; "_q));
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	auto refused = GateArms();
 	for (const auto states : zoomed) {
 		ReadGateArm(refused, states, atSize, false);
@@ -2749,7 +2749,7 @@ void CheckFixedSizeZoom() {
 		u"cleared - maximized, alone and with Qt::WindowActive, is refused "
 		u"on a fixed frame at its size"_q,
 		refused.texts.join(u"; "_q));
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 // C4, pure apart from its NOTE: the classifier, then the effective state.

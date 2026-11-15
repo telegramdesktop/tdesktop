@@ -306,13 +306,13 @@ pyd pyi pyo pyw pyzw pyz rb reg rgs scf scr sct search-ms settingcontent-ms \
 sh shb shs slk sys swf t tmp u3p url vb vbe vbp vbs vbscript vdx vsmacros \
 vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx vtx website wlua ws wsc \
 wsf wsh xbap xll xlsb xlsm xnk xs"_q
-#elif defined Q_OS_MAC // Q_OS_MAC
+#elif defined Q_OS_MACOS // Q_OS_MACOS
 		u"\
 applescript action app bin command csh osx workflow terminal url caction \
 mpkg pkg scpt scptd xhtm xhtml webarchive"_q
-#else // Q_OS_WIN || Q_OS_MAC
+#else // Q_OS_WIN || Q_OS_MACOS
 		u"bin csh deb desktop ksh out pet pkg pup rpm run sh shar slp zsh"_q
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 	);
 
 	const auto extension = FileExtension(filepath).toLower();
@@ -348,11 +348,11 @@ LaunchType DetectLaunchType(const QString &filepath) {
 	static const auto kExtensions = [] {
 		auto joined = u"htm html svg m4v m3u m3u8 xhtml xml kml kmz "
 			"xspf wpl"_q;
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 		joined += u" docx dotx docm dotm"_q;
 		joined += u" xlsx xltx xlsm xltm xlsb"_q;
 		joined += u" pptx ppsx potx pptm ppsm potm"_q;
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());
 	}();

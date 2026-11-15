@@ -42,12 +42,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <ksandbox.h>
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 #include "base/platform/linux/base_linux_xdp_utilities.h"
 #include "platform/linux/update_install_linux.h"
 
 #include <flatpakportal/flatpakportal.hpp>
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 extern "C" {
 #include <openssl/rsa.h>
@@ -75,11 +75,11 @@ constexpr auto kFrequentUpdateDelayRandPart = 300;
 // 64-bit (base << 32 | counter) version. 0x7FFFFFFF is the alpha marker.
 constexpr auto kVersionFileCanaryMarker = quint32(0x7FFFFFFE);
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 constexpr auto kFlatpakPortalService = "org.freedesktop.portal.Flatpak";
 constexpr auto kFlatpakPortalObjectPath = "/org/freedesktop/portal/Flatpak";
 constexpr auto kFlatpakUpdated = "/app/.updated"_cs;
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 #ifdef TDESKTOP_DISABLE_AUTOUPDATE
 bool UpdaterIsDisabled = true;
@@ -102,10 +102,10 @@ using VersionChar = wchar_t;
 
 using Loader = MTP::AbstractDedicatedLoader;
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 using namespace gi::repository;
 namespace GObject = gi::repository::GObject;
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 struct BIODeleter {
 	void operator()(BIO *value) {
@@ -261,7 +261,7 @@ private:
 
 };
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 class FlatpakChecker : public Checker {
 public:
 	FlatpakChecker(bool testing);
@@ -293,7 +293,7 @@ private:
 	ulong _progressSignal = 0;
 
 };
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 std::shared_ptr<Updater> GetUpdaterInstance() {
 	if (const auto result = UpdaterInstance.lock()) {
@@ -329,7 +329,7 @@ QString UpdatesFolder() {
 }
 
 void ClearAll() {
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 	if (!KSandbox::isInside()) {
 		auto error = QString();
 		if (!Platform::ClearUpdateData(cWorkingDir(), error)) {
@@ -337,7 +337,7 @@ void ClearAll() {
 		}
 		return;
 	}
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 	base::Platform::DeleteDirectory(UpdatesFolder());
 }
 
@@ -554,7 +554,7 @@ bool UnpackUpdate(const QString &filepath) {
 		return true;
 	}
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 	auto error = QString();
 	const auto mode = KSandbox::isInside()
 		? Platform::UpdateInstallMode::Writable
@@ -580,7 +580,7 @@ bool UnpackUpdate(const QString &filepath) {
 		return true;
 	}
 	const auto &compressed = *content;
-#else // !Q_OS_WIN && !Q_OS_MAC
+#else // !Q_OS_WIN && !Q_OS_MACOS
 	QFile input(filepath);
 	if (!input.open(QIODevice::ReadOnly)) {
 		LOG(("Update Error: cant read updates file!"));
@@ -592,7 +592,7 @@ bool UnpackUpdate(const QString &filepath) {
 
 	QByteArray compressed = input.readAll();
 	input.close();
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 
 	if (!Updates::IsV2UpdateFile(compressed)) {
 		LOG(("Update Error: unsupported update format (missing v2 magic)."));
@@ -1361,7 +1361,7 @@ Fn<void(const MTP::Error &error)> MtpChecker::failHandler() {
 	};
 }
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 FlatpakChecker::FlatpakChecker(bool testing)
 : Checker(testing)
 , _watcher({u"/app"_q}) {
@@ -1514,7 +1514,7 @@ FlatpakLoader::~FlatpakLoader() {
 		_monitor.disconnect(_progressSignal);
 	}
 }
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 } // namespace
 
@@ -1748,13 +1748,13 @@ void Updater::start(bool forceWait) {
 	}
 
 	if (KSandbox::isFlatpak()) {
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 		if (!_flatpakImplementation.checker) {
 			startImplementation(
 				&_flatpakImplementation,
 				std::make_unique<FlatpakChecker>(_testing));
 		}
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 	} else if (sendRequest) {
 		if (BuildIsCanary) {
 			// Canary builds discover updates only through their own MTP
@@ -2014,7 +2014,7 @@ bool UpdateChecker::percent() const {
 //}
 
 bool checkReadyUpdate() {
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 	if (!KSandbox::isInside()) {
 		const auto packagePresent = Platform::ReadyUpdatePackagePresent(
 			cWorkingDir());
@@ -2069,7 +2069,7 @@ bool checkReadyUpdate() {
 			return reject();
 		}
 	}
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 	QString readyFilePath = cWorkingDir() + u"tupdates/temp/ready"_q, readyPath = cWorkingDir() + u"tupdates/temp"_q;
 	if (!QFile(readyFilePath).exists() || cExeName().isEmpty()) {
 		if (QDir(cWorkingDir() + u"tupdates/ready"_q).exists() || QDir(cWorkingDir() + u"tupdates/temp"_q).exists()) {
@@ -2124,20 +2124,20 @@ bool checkReadyUpdate() {
 #ifdef Q_OS_WIN
 	QString curUpdater = (cExeDir() + u"Updater.exe"_q);
 	QFileInfo updater(cWorkingDir() + u"tupdates/temp/Updater.exe"_q);
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 	QString curUpdater = (cExeDir() + cExeName() + u"/Contents/Frameworks/Updater"_q);
 	QFileInfo updater(cWorkingDir() + u"tupdates/temp/Telegram.app/Contents/Frameworks/Updater"_q);
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	QString curUpdater = (cExeDir() + u"Updater"_q);
 	QFileInfo updater(cWorkingDir() + u"tupdates/temp/Updater"_q);
-#endif // else for Q_OS_WIN || Q_OS_MAC
+#endif // else for Q_OS_WIN || Q_OS_MACOS
 	if (!updater.exists()) {
 		QFileInfo current(curUpdater);
 		if (!current.exists()) {
 			ClearAll();
 			return false;
 		}
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 		if (!KSandbox::isInside()) {
 			if (!current.isFile() || !current.isExecutable()) {
 				ClearAll();
@@ -2145,7 +2145,7 @@ bool checkReadyUpdate() {
 			}
 			return true;
 		}
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 		if (!QFile(current.absoluteFilePath()).copy(updater.absoluteFilePath())) {
 			ClearAll();
 			return false;
@@ -2168,14 +2168,14 @@ bool checkReadyUpdate() {
 		ClearAll();
 		return false;
 	}
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 	QDir().mkpath(QFileInfo(curUpdater).absolutePath());
 	DEBUG_LOG(("Update Info: moving %1 to %2...").arg(updater.absoluteFilePath()).arg(curUpdater));
 	if (!objc_moveFile(updater.absoluteFilePath(), curUpdater)) {
 		ClearAll();
 		return false;
 	}
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	if (QFile::exists(curUpdater)
 		&& unlink(QFile::encodeName(curUpdater).constData())) {
 		DEBUG_LOG(("Update Error: could not unlink current Updater."));
@@ -2187,12 +2187,12 @@ bool checkReadyUpdate() {
 		ClearAll();
 		return false;
 	}
-#endif // else for Q_OS_WIN || Q_OS_MAC
+#endif // else for Q_OS_WIN || Q_OS_MACOS
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	base::Platform::RemoveQuarantine(QFileInfo(curUpdater).absolutePath());
 	base::Platform::RemoveQuarantine(updater.absolutePath());
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 	return true;
 }

@@ -4298,13 +4298,13 @@ void ListWidget::keyPressEvent(QKeyEvent *e) {
 		&& !showCopyRestriction()
 		&& (_widgetSelection->has() || !hasCopyRestrictionForSelected())) {
 		copySelectedText(true);
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	} else if (key == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)
 		&& !showCopyRestriction()
 		&& !hasCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 	} else if (e == QKeySequence::Delete || key == Qt::Key_Backspace) {
 		_delegate->listDeleteRequest();
 	} else if (KeyboardTextSelection::IsExtendKey(key)

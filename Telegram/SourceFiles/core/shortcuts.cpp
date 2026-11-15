@@ -276,7 +276,7 @@ void WriteDefaultCustomFile() {
 	auto output = QFile(path);
 	if (input.open(QIODevice::ReadOnly)
 		&& output.open(QIODevice::WriteOnly)) {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 		auto text = qs(input.readAll());
 		const auto note = R"(
 // Note:
@@ -291,7 +291,7 @@ void WriteDefaultCustomFile() {
 		output.write(text.toUtf8());
 #else
 		output.write(input.readAll());
-#endif // !Q_OS_MAC
+#endif // !Q_OS_MACOS
 	}
 }
 

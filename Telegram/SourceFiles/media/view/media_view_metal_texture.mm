@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_metal_texture.h"
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
 #include <CoreVideo/CoreVideo.h>
@@ -160,4 +160,4 @@ void MetalTextureCache::flush() {
 } // namespace Media::View
 
 #endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS

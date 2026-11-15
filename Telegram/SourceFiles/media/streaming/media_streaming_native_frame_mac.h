@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 
 #include <QtGui/QImage>
 
@@ -19,4 +19,4 @@ struct NativeFrame;
 
 } // namespace Media::Streaming
 
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS

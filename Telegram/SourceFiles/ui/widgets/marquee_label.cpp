@@ -732,7 +732,7 @@ void MarqueeLabel::keyPressEvent(QKeyEvent *e) {
 			copySelectedText();
 			e->accept();
 		}
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	} else if (e->key() == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)) {
 		if (!_selection.empty()) {
@@ -740,7 +740,7 @@ void MarqueeLabel::keyPressEvent(QKeyEvent *e) {
 				_text.toTextForMimeData(_selection),
 				QClipboard::FindBuffer);
 		}
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 	}
 }
 

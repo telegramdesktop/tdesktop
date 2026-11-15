@@ -51,9 +51,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h" // ChildSkip().x() for new child windows.
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #include "platform/mac/global_menu_mac.h"
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 #include <QtCore/QMimeData>
 #include <QtGui/QWindow>
@@ -98,15 +98,15 @@ base::options::toggle OptionNewWindowsSizeAsFirst({
 base::options::toggle OptionDisableTouchbar({
 	.id = kOptionDisableTouchbar,
 	.name = "Disable Touch Bar (macOS only).",
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	.defaultValue = !Platform::HasTouchBar(),
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 	.scope = [] {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 		return true;
-#else // !Q_OS_MAC
+#else // !Q_OS_MACOS
 		return false;
-#endif // !Q_OS_MAC
+#endif // !Q_OS_MACOS
 	},
 	.restartRequired = true,
 });
@@ -535,11 +535,11 @@ void MainWindow::clearWidgets() {
 }
 
 void MainWindow::updateGlobalMenu() {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	Platform::RequestUpdateGlobalMenu();
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	updateGlobalMenuHook();
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 void MainWindow::updateIsActive() {

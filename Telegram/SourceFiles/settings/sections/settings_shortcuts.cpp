@@ -139,11 +139,11 @@ struct Labeled {
 		return {};
 	}
 	auto text = key.toString();
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	text.replace(u"Ctrl+"_q, u"Ctrl Cmd Command "_q);
 	text.replace(u"Meta+"_q, u"Meta Control "_q);
 	text.replace(u"Alt+"_q, u"Alt Opt Option "_q);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 	return SearchWords(text);
 }
 

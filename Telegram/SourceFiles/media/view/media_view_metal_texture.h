@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 
 #include <QtCore/QSize>
 
@@ -43,4 +43,4 @@ private:
 
 #endif // Qt >= 6.7 && !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS

@@ -175,10 +175,10 @@ int main(int argc, char *argv[]) {
 	auto app = App(argc, argv);
 	app.installNativeEventFilter(&app);
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	const auto rccName = QFileInfo(app.applicationFilePath()).baseName();
 	base::RegisterBundledResources(rccName + u".rcc"_q);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 	const auto ratio = app.devicePixelRatio();
 	const auto useRatio = std::clamp(int(std::ceil(ratio)), 1, 3);

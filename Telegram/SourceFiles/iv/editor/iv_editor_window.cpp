@@ -17,10 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 
 #include <windows.h>
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 #include "core/sandbox.h"
 #include "platform/mac/native_event_mac.h"
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 
 namespace Iv::Editor {
 namespace {
@@ -127,7 +127,7 @@ bool Window::nativeEvent(
 	return false;
 }
 
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 
 bool Window::nativeEvent(
 		const QByteArray &eventType,
@@ -143,7 +143,7 @@ bool Window::nativeEvent(
 	return false;
 }
 
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 
 bool CloseActiveWindow() {
 	if (const auto window = ActiveWindow()) {

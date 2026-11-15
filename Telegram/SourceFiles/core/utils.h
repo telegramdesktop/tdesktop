@@ -31,7 +31,7 @@ inline bool in_range(Value &&value, From &&from, Till &&till) {
 }
 
 inline bool CanReadDirectory(const QString &path) {
-#ifndef Q_OS_MAC // directory_iterator since 10.15
+#ifndef Q_OS_MACOS // directory_iterator since 10.15
 	std::error_code error;
 	std::filesystem::directory_iterator(path.toStdString(), error);
 	return !error;

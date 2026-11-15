@@ -19,8 +19,8 @@ class MainWindow;
 
 #ifdef Q_OS_WIN
 #include "platform/win/main_window_win.h"
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 #include "platform/mac/main_window_mac.h"
-#else // Q_OS_WIN || Q_OS_MAC
+#else // Q_OS_WIN || Q_OS_MACOS
 #include "platform/linux/main_window_linux.h"
-#endif // else Q_OS_WIN || Q_OS_MAC
+#endif // else Q_OS_WIN || Q_OS_MACOS

@@ -608,7 +608,7 @@ void Application::processCreatedWindow(
 }
 
 void Application::startMediaView() {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	// On macOS we create some windows async, otherwise they're
 	// added to the Dock Menu as a visible window and are removed
 	// only after first show and then hide.
@@ -616,7 +616,7 @@ void Application::startMediaView() {
 		_mediaView = std::make_unique<Media::View::OverlayWidget>();
 		_mediaView->setSystemMediaControls(_mediaControlsManager.get());
 	});
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_WIN
+#elif defined Q_OS_WIN // Q_OS_MACOS || Q_OS_WIN
 	// On Windows we needed such hack for the main window, otherwise
 	// somewhere inside the media viewer creating code its geometry
 	// was broken / lost to some invalid values.
@@ -627,20 +627,20 @@ void Application::startMediaView() {
 #else
 	_mediaView = std::make_unique<Media::View::OverlayWidget>();
 	_mediaView->setSystemMediaControls(_mediaControlsManager.get());
-#endif // Q_OS_MAC || Q_OS_WIN
+#endif // Q_OS_MACOS || Q_OS_WIN
 }
 
 void Application::startTray() {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	// On macOS we create some windows async, otherwise they're
 	// added to the Dock Menu as a visible window and are removed
 	// only after first show and then hide, tray icon being "Item-0".
 	InvokeQueued(this, [=] {
 		createTray();
 	});
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	createTray();
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 void Application::createTray() {
@@ -2005,7 +2005,7 @@ bool Application::isSharingScreen() const {
 
 // macOS Qt bug workaround, sometimes no leaveEvent() gets to the nested widgets.
 void Application::registerLeaveSubscription(not_null<QWidget*> widget) {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	if (const auto window = widget->window()) {
 		auto i = _leaveFilters.find(window);
 		if (i == end(_leaveFilters)) {
@@ -2033,11 +2033,11 @@ void Application::registerLeaveSubscription(not_null<QWidget*> widget) {
 		}
 		i->second.registered.push_back(widget.get());
 	}
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	if (const auto topLevel = widget->window()) {
 		const auto i = _leaveFilters.find(topLevel);
 		if (i != end(_leaveFilters)) {
@@ -2049,7 +2049,7 @@ void Application::unregisterLeaveSubscription(not_null<QWidget*> widget) {
 			});
 		}
 	}
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 void Application::postponeCall(FnMut<void()> &&callable) {

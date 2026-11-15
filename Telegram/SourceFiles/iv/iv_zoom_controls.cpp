@@ -196,7 +196,7 @@ void ZoomMenuAction::paintEvent(QPaintEvent *event) {
 }
 
 QString ZoomMenuAction::tooltipText() const {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	return tr::lng_iv_zoom_tooltip_cmd(tr::now);
 #else
 	return tr::lng_iv_zoom_tooltip_ctrl(tr::now);

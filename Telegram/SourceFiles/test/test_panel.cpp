@@ -60,11 +60,11 @@ const auto kDifferenceText = u"the walk ran and the difference across the "
 
 // Qt cocoa reports NSWindow.zoomed, always true for a fixed-size window at
 // its size, as Qt::WindowMaximized; see PanelSizeModeStates in the header.
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 constexpr auto kFixedSizeReadsZoomed = true;
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 constexpr auto kFixedSizeReadsZoomed = false;
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 struct Watch {
 	crl::time started = 0;

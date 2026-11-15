@@ -23,7 +23,7 @@ extern "C" {
 } // extern "C"
 
 #ifdef Q_OS_WIN
-#elif defined Q_OS_MAC
+#elif defined Q_OS_MACOS
 #include <mach/mach_time.h>
 #else
 #include <time.h>
@@ -68,7 +68,7 @@ namespace ThirdParty {
 			FeedSeed(li.QuadPart);
 			QueryPerformanceCounter(&li);
 			FeedSeed(li.QuadPart);
-#elif defined Q_OS_MAC
+#elif defined Q_OS_MACOS
 			mach_timebase_info_data_t tb = { 0 };
 			mach_timebase_info(&tb);
 			FeedSeed(tb);

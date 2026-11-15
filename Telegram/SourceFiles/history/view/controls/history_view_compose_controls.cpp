@@ -3289,14 +3289,14 @@ void ComposeControls::initField() {
 		updateExpandButtonVisibility();
 		updateSendLockBadge();
 	}, _wrap->lifetime());
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	// Removed an ability to insert text from the menu bar
 	// when the field is hidden.
 	_field->shownValue(
 	) | rpl::on_next([=](bool shown) {
 		_field->setEnabled(shown);
 	}, _field->lifetime());
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 	_chatStyle = InitMessageField(_show, _field, [=](not_null<DocumentData*> emoji) {
 		if (_history
 			&& Data::AllowEmojiWithoutPremium(_history->peer, emoji)) {

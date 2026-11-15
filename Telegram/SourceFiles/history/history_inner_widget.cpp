@@ -4451,12 +4451,12 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	} else if (HistoryView::IsCopyWithImageTextShortcut(e, &session())
 		&& canCopySelected()) {
 		copySelectedText(true);
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	} else if (e->key() == Qt::Key_E
 		&& e->modifiers().testFlag(Qt::ControlModifier)
 		&& !showCopyRestrictionForSelected()) {
 		TextUtilities::SetClipboardText(getSelectedText(), QClipboard::FindBuffer);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 	} else if (e == QKeySequence::Delete || e->key() == Qt::Key_Backspace) {
 		auto selectedState = getSelectionState();
 		if (selectedState.count > 0

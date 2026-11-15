@@ -2273,12 +2273,12 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		return false;
 	}
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 	if (!_externalShell) {
 		_widget->allowChildFullScreenControls(
 			!raw->widget()->inherits("QWindowContainer"));
 	}
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 	raw->setInteractionHandler([=] {
 		_lastUserInteraction = crl::now();

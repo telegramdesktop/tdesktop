@@ -14,9 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifdef Q_OS_WIN
 #include <windows.h>
 #include <WtsApi32.h>
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 #include <CoreGraphics/CoreGraphics.h>
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 
 namespace Test {
 namespace {
@@ -109,7 +109,7 @@ constexpr auto kNoConsoleSession = DWORD(0xFFFFFFFF);
 	}
 	return result;
 }
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 enum class SessionFlag {
 	Absent,
 	False,
@@ -182,23 +182,23 @@ enum class SessionFlag {
 	}
 	return result;
 }
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 
 } // namespace
 
 ConsoleLockReading ReadConsoleLock() {
 #ifdef Q_OS_WIN
 	return ReadWindowsConsoleLock();
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 	return ReadMacConsoleLock();
-#else // Q_OS_WIN || Q_OS_MAC
+#else // Q_OS_WIN || Q_OS_MACOS
 	return {
 		.source = u"none"_q,
 		.reason = u"neither a Windows nor a macOS build: nothing is read "
 			u"and no gate fires"_q,
 		.state = ConsoleLockState::NotApplicable,
 	};
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 }
 
 QString ConsoleLockText(const ConsoleLockReading &reading) {

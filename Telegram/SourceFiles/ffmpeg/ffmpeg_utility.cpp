@@ -11,10 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/options.h"
 #include "logs.h"
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 #include "base/platform/linux/base_linux_library.h"
 #include <deque>
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 #include <QImage>
 #include <cmath>
@@ -31,7 +31,7 @@ extern "C" {
 #include <libavutil/display.h>
 } // extern "C"
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 extern "C" {
 void _libvdpau_so_tramp_resolve_all(void) __attribute__((weak));
 void _libva_drm_so_tramp_resolve_all(void) __attribute__((weak));
@@ -39,7 +39,7 @@ void _libva_x11_so_tramp_resolve_all(void) __attribute__((weak));
 void _libva_so_tramp_resolve_all(void) __attribute__((weak));
 void _libdrm_so_tramp_resolve_all(void) __attribute__((weak));
 } // extern "C"
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 namespace FFmpeg {
 namespace {
@@ -166,7 +166,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 #endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API && QT_STATIC
 }
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 [[nodiscard]] auto CheckHwLibs() {
 	auto list = std::deque{
 		AV_PIX_FMT_CUDA,
@@ -193,7 +193,7 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 	}
 	return list;
 }
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 [[nodiscard]] bool InitHw(AVCodecContext *context, AVHWDeviceType type) {
 	AVCodecContext *parent = static_cast<AVCodecContext*>(context->opaque);
@@ -236,19 +236,19 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 		}
 		return false;
 	};
-#if defined Q_OS_WIN || defined Q_OS_MAC
+#if defined Q_OS_WIN || defined Q_OS_MACOS
 	const auto list = std::array{
 #ifdef Q_OS_WIN
 		AV_PIX_FMT_D3D11,
 		AV_PIX_FMT_DXVA2_VLD,
 		AV_PIX_FMT_CUDA,
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 		AV_PIX_FMT_VIDEOTOOLBOX,
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 	};
-#else // Q_OS_WIN || Q_OS_MAC
+#else // Q_OS_WIN || Q_OS_MACOS
 	static const auto list = CheckHwLibs();
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 	for (const auto format : list) {
 		if (!has(format)) {
 			continue;
@@ -259,14 +259,14 @@ void PremultiplyLine(uchar *dst, const uchar *src, int intsCount) {
 			case AV_PIX_FMT_D3D11: return AV_HWDEVICE_TYPE_D3D11VA;
 			case AV_PIX_FMT_DXVA2_VLD: return AV_HWDEVICE_TYPE_DXVA2;
 			case AV_PIX_FMT_CUDA: return AV_HWDEVICE_TYPE_CUDA;
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 			case AV_PIX_FMT_VIDEOTOOLBOX:
 				return AV_HWDEVICE_TYPE_VIDEOTOOLBOX;
-#else // Q_OS_WIN || Q_OS_MAC
+#else // Q_OS_WIN || Q_OS_MACOS
 			case AV_PIX_FMT_VAAPI: return AV_HWDEVICE_TYPE_VAAPI;
 			case AV_PIX_FMT_VDPAU: return AV_HWDEVICE_TYPE_VDPAU;
 			case AV_PIX_FMT_CUDA: return AV_HWDEVICE_TYPE_CUDA;
-#endif // Q_OS_WIN || Q_OS_MAC
+#endif // Q_OS_WIN || Q_OS_MACOS
 			}
 			return AV_HWDEVICE_TYPE_NONE;
 		}();

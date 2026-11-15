@@ -799,7 +799,7 @@ bool BottomBar::handleKeyPress(not_null<QKeyEvent*> e) {
 			return true;
 		}
 	}
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	if (e->key() == Qt::Key_G) {
 		const auto modifiers = e->modifiers();
 		if (modifiers.testFlag(Qt::ControlModifier)) {

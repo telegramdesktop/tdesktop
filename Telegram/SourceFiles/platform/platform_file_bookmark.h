@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #include "platform/mac/file_bookmark_mac.h"
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 
 namespace Platform {
 
@@ -40,4 +40,4 @@ public:
 
 } // namespace Platform
 
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS

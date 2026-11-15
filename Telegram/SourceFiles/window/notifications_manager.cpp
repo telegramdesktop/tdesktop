@@ -65,11 +65,11 @@ constexpr auto kMinimalAlertDelay = crl::time(500);
 constexpr auto kWaitingForAllGroupedDelay = crl::time(1000);
 constexpr auto kReactionNotificationEach = 60 * 60 * crl::time(1000);
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 constexpr auto kSystemAlertDuration = crl::time(1000);
-#else // !Q_OS_MAC
+#else // !Q_OS_MACOS
 constexpr auto kSystemAlertDuration = crl::time(0);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 base::options::toggle OptionCustomNotification({
 	.id = kOptionCustomNotification,

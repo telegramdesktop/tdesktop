@@ -31,7 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <execinfo.h>
 #include <sys/syscall.h>
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 
 #include <dlfcn.h>
 #include <unistd.h>
@@ -42,11 +42,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <client/crashpad_client.h>
 #endif // else for MAC_USE_BREAKPAD
 
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 
 #include <client/linux/handler/exception_handler.h>
 
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 #endif // Q_OS_WIN
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS
@@ -263,16 +263,16 @@ void SignalHandler(int signum, siginfo_t *info, void *ucontext) {
 
 bool SetSignalHandlers = true;
 bool CrashLogged = false;
-#if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
+#if !defined Q_OS_MACOS || defined MAC_USE_BREAKPAD
 google_breakpad::ExceptionHandler* BreakpadExceptionHandler = 0;
 
 #ifdef Q_OS_WIN
 bool DumpCallback(const wchar_t* _dump_dir, const wchar_t* _minidump_id, void* context, EXCEPTION_POINTERS* exinfo, MDRawAssertionInfo* assertion, bool success)
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 bool DumpCallback(const char* _dump_dir, const char* _minidump_id, void *context, bool success)
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, bool success)
-#endif // else for Q_OS_WIN || Q_OS_MAC
+#endif // else for Q_OS_WIN || Q_OS_MACOS
 {
 	if (CrashLogged) return success;
 	CrashLogged = true;
@@ -282,16 +282,16 @@ bool DumpCallback(const google_breakpad::MinidumpDescriptor &md, void *context, 
 	SignalHandler(-1);
 #else // Q_OS_WIN
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	BreakpadDumpPath = _minidump_id;
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	BreakpadDumpPath = md.path();
-#endif // else for Q_OS_MAC
+#endif // else for Q_OS_MACOS
 	SignalHandler(-1, 0, 0);
 #endif // else for Q_OS_WIN
 	return success;
 }
-#endif // !Q_OS_MAC || MAC_USE_BREAKPAD
+#endif // !Q_OS_MACOS || MAC_USE_BREAKPAD
 
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 
@@ -348,7 +348,7 @@ void StartCatching() {
 		(const wchar_t*)nullptr, // pipe_name
 		(const google_breakpad::CustomClientInfo*)nullptr
 	);
-#elif defined Q_OS_MAC // Q_OS_WIN
+#elif defined Q_OS_MACOS // Q_OS_WIN
 
 #ifdef MAC_USE_BREAKPAD
 #ifndef _DEBUG
@@ -386,17 +386,17 @@ void StartCatching() {
 		true,
 		-1
 	);
-#endif // else for Q_OS_WIN || Q_OS_MAC
+#endif // else for Q_OS_WIN || Q_OS_MACOS
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 void FinishCatching() {
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-#if !defined Q_OS_MAC || defined MAC_USE_BREAKPAD
+#if !defined Q_OS_MACOS || defined MAC_USE_BREAKPAD
 
 	delete base::take(BreakpadExceptionHandler);
 
-#endif // !Q_OS_MAC || MAC_USE_BREAKPAD
+#endif // !Q_OS_MACOS || MAC_USE_BREAKPAD
 #endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 

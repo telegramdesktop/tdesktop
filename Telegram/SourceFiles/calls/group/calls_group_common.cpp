@@ -47,7 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Calls::Group {
 
 object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	if (!Platform::IsMac10_15OrGreater()) {
 		return { nullptr };
 	}
@@ -74,9 +74,9 @@ object_ptr<Ui::GenericBox> ScreenSharingPrivacyRequestBox() {
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	});
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	return { nullptr };
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 void ShowUniqueCaptureOptions(

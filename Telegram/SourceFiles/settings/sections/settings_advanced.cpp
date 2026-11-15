@@ -72,9 +72,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 #include "base/platform/mac/base_confirm_quit.h"
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "boxes/dictionaries_manager.h"
@@ -89,12 +89,12 @@ namespace {
 
 using namespace Builder;
 
-#if defined Q_OS_MAC && !defined OS_MAC_STORE
+#if defined Q_OS_MACOS && !defined OS_MAC_STORE
 [[nodiscard]] const QImage &IconMacRound() {
 	static const auto result = QImage(u":/gui/art/icon_round512@2x.png"_q);
 	return result;
 }
-#endif // Q_OS_MAC && !OS_MAC_STORE
+#endif // Q_OS_MACOS && !OS_MAC_STORE
 
 void BuildDataStorageSection(SectionBuilder &builder) {
 	const auto controller = builder.controller();
@@ -399,7 +399,7 @@ void BuildWindowTitleSection(SectionBuilder &builder) {
 	builder.addSkip();
 }
 
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 void BuildWindowCloseBehaviorSection(SectionBuilder &builder) {
 	using Behavior = Core::Settings::CloseBehavior;
 
@@ -461,7 +461,7 @@ void BuildWindowCloseBehaviorSection(SectionBuilder &builder) {
 		builder.addSkip();
 	}, std::move(shown));
 }
-#endif // !Q_OS_WIN && !Q_OS_MAC
+#endif // !Q_OS_WIN && !Q_OS_MACOS
 
 void BuildSystemIntegrationSection(SectionBuilder &builder) {
 	const auto controller = builder.controller();
@@ -568,7 +568,7 @@ void BuildSystemIntegrationSection(SectionBuilder &builder) {
 		}
 	}
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	const auto warnBeforeQuit = builder.addCheckbox({
 		.id = u"advanced/warn_before_quit"_q,
 		.title = tr::lng_settings_mac_warn_before_quit(
@@ -632,7 +632,7 @@ void BuildSystemIntegrationSection(SectionBuilder &builder) {
 		}, roundIcon->lifetime());
 	}
 #endif // OS_MAC_STORE
-#elif defined Q_OS_WIN // Q_OS_MAC
+#elif defined Q_OS_WIN // Q_OS_MACOS
 	using Behavior = Core::Settings::CloseBehavior;
 
 	const auto container = builder.container();
@@ -668,7 +668,7 @@ void BuildSystemIntegrationSection(SectionBuilder &builder) {
 			Local::writeSettings();
 		}, closeToTaskbar->lifetime());
 	}
-#endif // Q_OS_MAC || Q_OS_WIN
+#endif // Q_OS_MACOS || Q_OS_WIN
 
 	if (Platform::AutostartSupported()) {
 		const auto minimizedToggled = [=] {
@@ -1368,7 +1368,7 @@ const auto kMeta = BuildHelper({
 	BuildDataStorageSection(builder);
 	BuildAutoDownloadSection(builder);
 	BuildWindowTitleSection(builder);
-#if !defined Q_OS_WIN && !defined Q_OS_MAC
+#if !defined Q_OS_WIN && !defined Q_OS_MACOS
 	BuildWindowCloseBehaviorSection(builder);
 #endif
 	BuildSystemIntegrationSection(builder);
@@ -1750,7 +1750,7 @@ void SetupSystemIntegrationContent(
 		}
 	}
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	const auto warnBeforeQuit = addCheckbox(
 		tr::lng_settings_mac_warn_before_quit(
 			lt_text,
@@ -1788,7 +1788,7 @@ void SetupSystemIntegrationContent(
 		Core::App().saveSettings();
 	}, roundIcon->lifetime());
 #endif // OS_MAC_STORE
-#elif defined Q_OS_WIN // Q_OS_MAC
+#elif defined Q_OS_WIN // Q_OS_MACOS
 	using Behavior = Core::Settings::CloseBehavior;
 	const auto closeToTaskbar = addSlidingCheckbox(
 		tr::lng_settings_close_to_taskbar(),
@@ -1812,7 +1812,7 @@ void SetupSystemIntegrationContent(
 		settings->setCloseBehavior(value);
 		Local::writeSettings();
 	}, closeToTaskbar->lifetime());
-#endif // Q_OS_MAC || Q_OS_WIN
+#endif // Q_OS_MACOS || Q_OS_WIN
 
 	if (Platform::AutostartSupported() && controller) {
 		const auto minimizedToggled = [=] {

@@ -86,13 +86,13 @@ Show::operator bool() const {
 
 Window::Window()
 : _layerBg(std::make_unique<Ui::LayerManager>(widget()))
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 , _controls(Ui::Platform::SetupSeparateTitleControls(
 	window(),
 	st::callTitle,
 	[=](bool maximized) { _maximizeRequests.fire_copy(maximized); },
 	_controlsTop.value()))
-#endif // !Q_OS_MAC
+#endif // !Q_OS_MACOS
 {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
 	_layerBg->setHideByBackgroundClick(true);
@@ -113,56 +113,56 @@ not_null<Ui::RpWidget*> Window::widget() const {
 }
 
 void Window::raiseControls() {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	_controls->wrap.raise();
-#endif // !Q_OS_MAC
+#endif // !Q_OS_MACOS
 }
 
 void Window::setControlsStyle(const style::WindowTitle &st) {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	_controls->controls.setStyle(st);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 void Window::setControlsShown(float64 shown) {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	_controlsTop = anim::interpolate(-_controls->wrap.height(), 0, shown);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 Ui::RpWidget *Window::controlsWrap() const {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	return &_controls->wrap;
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	return nullptr;
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 QRect Window::controlsGeometry() const {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	return _controls->controls.geometry();
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	return QRect();
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 auto Window::controlsLayoutChanges() const
 -> rpl::producer<Ui::Platform::TitleLayout> {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	return _controls->controls.layout().changes();
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	return rpl::never<Ui::Platform::TitleLayout>();
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 bool Window::controlsHasHitTest(QPoint widgetPoint) const {
-#ifndef Q_OS_MAC
+#ifndef Q_OS_MACOS
 	using Result = Ui::Platform::HitTestResult;
 	const auto windowPoint = widget()->mapTo(window(), widgetPoint);
 	return (_controls->controls.hitTest(windowPoint) != Result::None);
-#else // Q_OS_MAC
+#else // Q_OS_MACOS
 	return false;
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 }
 
 rpl::producer<bool> Window::maximizeRequests() const {

@@ -481,9 +481,9 @@ void Pip::RendererRhi::releaseResources() {
 	_trackFrameIndex = -1;
 	_chromaNV12 = false;
 	_usingExternalVideoTextures = false;
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 	_metalTextureCache.flush();
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 	delete _vertexBuffer;
 	_vertexBuffer = nullptr;
@@ -558,7 +558,7 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 
 	if (upload) {
 		auto zeroCopied = false;
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 		if (nativeTexture && data.nativeFrame
 			&& data.nativeFrame->pixelBuffer) {
 			const auto ok = _metalTextureCache.createTexturesFromPixelBuffer(
@@ -575,7 +575,7 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 				return;
 			}
 		}
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 		if (!zeroCopied) {
 			if (_usingExternalVideoTextures) {
 				delete _yTexture;
@@ -588,9 +588,9 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 				_uvTexture = nullptr;
 				_lumaSize = QSize();
 				_chromaSize = QSize();
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 				_metalTextureCache.flush();
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 			}
 			if (!yuv || yuv->size.isEmpty()) {
 				return;

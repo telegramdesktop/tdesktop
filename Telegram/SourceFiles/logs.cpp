@@ -416,7 +416,7 @@ void start() {
 	if (cWorkingDir() == psAppDataPath()) { // fix old "Telegram Win (Unofficial)" version
 		MoveOldDataFiles(psAppDataPathOld());
 	}
-#elif !defined Q_OS_MAC && !defined _DEBUG // fix first version
+#elif !defined Q_OS_MACOS && !defined _DEBUG // fix first version
 	MoveOldDataFiles(launcher.initialWorkingDir());
 #endif
 
@@ -514,7 +514,7 @@ void writeDebug(const QString &v) {
 
 #ifdef Q_OS_WIN
 	//OutputDebugString(reinterpret_cast<const wchar_t *>(msg.utf16()));
-#elif defined Q_OS_MAC
+#elif defined Q_OS_MACOS
 	//objc_outputDebugString(msg);
 #elif defined _DEBUG
 	//std::cout << msg.toUtf8().constData();

@@ -67,9 +67,9 @@ constexpr auto kDropLoudAfterQuietCount = 5;
 constexpr auto kMicrophoneTooltipLevelThreshold = 0.2;
 constexpr auto kMicrophoneTooltipCheckInterval = crl::time(500);
 
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 constexpr auto kCheckAccessibilityInterval = crl::time(500);
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 
 void SaveCallJoinMuted(
 		not_null<PeerData*> peer,
@@ -449,7 +449,7 @@ void SettingsBox(
 				Core::App().saveSettingsDelayed();
 			};
 			const auto showPrivacyRequest = [=] {
-#ifdef Q_OS_MAC
+#ifdef Q_OS_MACOS
 				if (!Platform::IsMac10_14OrGreater()) {
 					return;
 				}
@@ -494,7 +494,7 @@ void SettingsBox(
 						}, box->lifetime());
 					}
 				}));
-#endif // Q_OS_MAC
+#endif // Q_OS_MACOS
 			};
 			const auto ensureManager = [=] {
 				if (state->manager) {

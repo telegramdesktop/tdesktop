@@ -659,7 +659,7 @@ int main(int argc, char *argv[])
 			: targetwin64
 			? Arch::X64
 			: Arch::X86;
-#elif defined Q_OS_MAC
+#elif defined Q_OS_MACOS
 		V2Target.os = Os::Mac;
 		V2Target.arch = targetarmac ? Arch::Arm : Arch::X64;
 #else
@@ -702,7 +702,7 @@ int main(int argc, char *argv[])
 	if (files.isEmpty() || remove.isEmpty() || version <= 1016 || version > 999999999) {
 #ifdef Q_OS_WIN
 		cout << "Usage: Packer.exe -path {file} -version {version} OR Packer.exe -path {dir} -version {version}\n";
-#elif defined Q_OS_MAC
+#elif defined Q_OS_MACOS
 		cout << "Usage: Packer.app -path {file} -version {version} OR Packer.app -path {dir} -version {version}\n";
 #else
 		cout << "Usage: Packer -path {file} -version {version} OR Packer -path {dir} -version {version}\n";
@@ -1013,7 +1013,7 @@ int main(int argc, char *argv[])
 	RSA_free(pbKey);
 #ifdef Q_OS_WIN
 	QString outName((targetwinarm ? QString("tarm64upd%1") : targetwin64 ? QString("tx64upd%1") : QString("tupdate%1")).arg(AlphaVersion ? AlphaVersion : version));
-#elif defined Q_OS_MAC
+#elif defined Q_OS_MACOS
 	QString outName((targetarmac ? QString("tarmacupd%1") : QString("tmacupd%1")).arg(AlphaVersion ? AlphaVersion : version));
 #else
 	QString outName(QString("tlinuxupd%1").arg(AlphaVersion ? AlphaVersion : version));
