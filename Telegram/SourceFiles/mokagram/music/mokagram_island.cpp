@@ -92,17 +92,23 @@ constexpr auto kCompactPadding = 7;
 constexpr auto kCompactCover = 24;
 constexpr auto kExpandedWidth = 372;
 #ifdef Q_OS_MAC
-constexpr auto kExpandedHeight = 174;
+constexpr auto kExpandedHeight = 160;
 #else
 constexpr auto kExpandedHeight = 202;
 #endif
 constexpr auto kExpandedRadius = 46;
 constexpr auto kPadding = 18;
+#ifdef Q_OS_MAC
+constexpr auto kCover = 58;
+constexpr auto kProgressY = 97;
+constexpr auto kTransportY = 139;
+#else
 constexpr auto kCover = 52;
-constexpr auto kSmall = 22;
-constexpr auto kSmallGap = 14;
 constexpr auto kProgressY = 88;
 constexpr auto kTransportY = 130;
+#endif
+constexpr auto kSmall = 22;
+constexpr auto kSmallGap = 14;
 constexpr auto kVolumeY = 172;
 constexpr auto kBars = 5;
 constexpr auto kBarWidth = 3;
@@ -511,8 +517,11 @@ bool Island::areaVisible() const {
 
 int Island::expandedWidth() const {
 #ifdef Q_OS_MAC
+	const auto target = _notchSize.isEmpty()
+		? S(kExpandedWidth)
+		: _notchSize.width() + S(206);
 	return std::max(S(kCompactMinWidth), std::min(
-		S(kExpandedWidth), DesktopIslandArea().width() - S(24)));
+		target, DesktopIslandArea().width() - S(24)));
 #else
 	return std::max(
 		std::min(S(kExpandedWidth), _anchor->width() - S(24)),
@@ -522,7 +531,7 @@ int Island::expandedWidth() const {
 
 int Island::compactWidth() const {
 #ifdef Q_OS_MAC
-	return std::max(S(kCompactMinWidth), _notchSize.width() + S(80));
+	return std::max(S(kCompactMinWidth), _notchSize.width() + S(86));
 #else
 	// Mokagram: keep the chat header clear in narrow windows.
 	if (!isWindow() && _anchor->width() < S(600)) {
@@ -780,8 +789,8 @@ std::optional<IslandShot> Island::shot() {
 }
 
 QRectF Island::shapeRect() const {
-	const auto extra = _notchSize.isEmpty() ? 0.
-		: _notchSize.height() - (S(kCompactHeight) - S(2)) * (1. - expanded());
+	const auto extra = _notchSize.isEmpty() ? (isWindow() ? S(21) * expanded() : 0.)
+		: _notchSize.height() - S(kCompactHeight) * (1. - expanded());
 	return QRectF(_shapeLeft, 0., _width.value(), _height.value() + extra);
 }
 
@@ -793,20 +802,24 @@ QPainterPath Island::shapePath() const {
 		path.addRoundedRect(rect, radius, radius);
 		return path;
 	}
-	const auto shoulder = Lerp(S(6), S(24), expanded());
-	const auto bottom = Lerp(S(10), S(36), expanded());
+	// Ported geometry from DynamicNotch's NotchShape (GPL-3.0):
+	// https://github.com/jackson-storm/DynamicNotch
+	// Copyright 2026 Евгений Петрукович. Adapted to QPainterPath and our springs.
+	const auto baseRadius = _notchSize.height() / 3.;
+	const auto topRadius = Lerp(baseRadius - S(4), S(34), expanded());
+	const auto bottomRadius = Lerp(baseRadius, S(44), expanded());
 	const auto left = rect.left();
 	const auto right = rect.right();
 	const auto top = rect.top();
 	const auto low = rect.bottom();
-	path.moveTo(left - shoulder, top);
-	path.cubicTo(left, top, left, top, left, top + shoulder);
-	path.lineTo(left, low - bottom);
-	path.quadTo(left, low, left + bottom, low);
-	path.lineTo(right - bottom, low);
-	path.quadTo(right, low, right, low - bottom);
-	path.lineTo(right, top + shoulder);
-	path.cubicTo(right, top, right, top, right + shoulder, top);
+	path.moveTo(left, top);
+	path.quadTo(left + topRadius, top, left + topRadius, top + topRadius);
+	path.lineTo(left + topRadius, low - bottomRadius);
+	path.quadTo(left + topRadius, low, left + topRadius + bottomRadius, low);
+	path.lineTo(right - topRadius - bottomRadius, low);
+	path.quadTo(right - topRadius, low, right - topRadius, low - bottomRadius);
+	path.lineTo(right - topRadius, top + topRadius);
+	path.quadTo(right - topRadius, top, right, top);
 	path.closeSubpath();
 	return path;
 }
@@ -818,20 +831,24 @@ QRectF Island::frameRect(int width) const {
 
 QRectF Island::compactFrame() const {
 	auto result = frameRect(compactWidth());
-	result.setHeight(_notchSize.isEmpty() ? S(kCompactHeight) : _notchSize.height() + S(2));
+	result.setHeight(_notchSize.isEmpty() ? S(kCompactHeight) : _notchSize.height());
 	return result;
 }
 
 QRectF Island::fullFrame() const {
-	return frameRect(expandedWidth()).translated(0, _notchSize.height());
+	auto result = frameRect(expandedWidth());
+	if (!_notchSize.isEmpty()) {
+		result.adjust(S(37), _notchSize.height() / 2. + S(1), -S(37), 0);
+	}
+	return result;
 }
 
 QRectF Island::coverRect() const {
 	const auto c = compactFrame();
 	const auto f = fullFrame();
-	const auto small = S(kCompactCover);
+	const auto small = isWindow() ? S(23) : S(kCompactCover);
 	const auto compact = QRectF(
-		c.x() + S(kCompactPadding),
+		c.x() + (isWindow() ? S(13) : S(kCompactPadding)),
 		c.y() + (c.height() - small) / 2.,
 		small,
 		small);
@@ -847,9 +864,9 @@ QRectF Island::barsRect() const {
 	const auto c = compactFrame();
 	const auto f = fullFrame();
 	const auto width = BarsWidth();
-	const auto height = S(16);
+	const auto height = isWindow() ? Lerp(S(18), S(23), expanded()) : S(16);
 	const auto compact = QRectF(
-		c.x() + c.width() - S(kCompactPadding + 4) - width,
+		c.x() + c.width() - (isWindow() ? S(15) : S(kCompactPadding + 4)) - width,
 		c.y() + (c.height() - height) / 2.,
 		width,
 		height);
@@ -863,15 +880,15 @@ QRectF Island::barsRect() const {
 
 QRectF Island::progressRect() const {
 	const auto f = fullFrame();
-	const auto font = style::font(S(12), 0, 0);
+	const auto font = style::font(S(isWindow() ? 10 : 12), 0, 0);
 	const auto time = font->width(u"-00:00"_q) + S(8);
 	const auto left = f.x() + S(kPadding) + time;
 	const auto right = f.x() + f.width() - S(kPadding) - time;
 	return QRectF(
 		left,
-		f.y() + S(kProgressY) - S(3),
+		f.y() + S(kProgressY) - (isWindow() ? S(7) / 2. : S(3)),
 		std::max(right - left, 0.),
-		S(6));
+		S(isWindow() ? 7 : 6));
 }
 
 QRectF Island::volumeRect() const {
@@ -895,9 +912,9 @@ QPointF Island::center(Part part) const {
 	const auto volume = f.y() + S(kVolumeY);
 	if (isWindow()) {
 		if (part == Part::Heart) {
-			return { middle - S(132), transport };
+			return { f.x() + S(kPadding + 24), transport };
 		} else if (part == Part::Speaker) {
-			return { middle + S(132), transport };
+			return { f.right() - S(kPadding + 24), transport };
 		}
 	}
 	switch (part) {
@@ -1026,6 +1043,9 @@ void Island::paintEvent(QPaintEvent *e) {
 	auto path = QPainterPath();
 	path.addRoundedRect(shape, radius, radius);
 	p.fillPath(path, QColor(0, 0, 0));
+	if (isWindow()) {
+		p.strokePath(path, QPen(QColor(255, 255, 255, 51), S(1)));
+	}
 	p.setClipPath(path);
 	paintCover(p);
 	// Mokagram: fade header details as the island shrinks to its cover.
@@ -1153,7 +1173,7 @@ void Island::paintTrack(QPainter &p, const QRectF &rect, double ratio) {
 	p.setPen(Qt::NoPen);
 	const auto color = TrackColor();
 	auto track = color;
-	track.setAlpha(64);
+	track.setAlpha(isWindow() ? 38 : 64);
 	p.setBrush(track);
 	p.drawRoundedRect(rect, line, line);
 	p.setBrush(color);
@@ -1213,26 +1233,26 @@ void Island::paintPlay(QPainter &p) {
 	const auto was = _playing ? Glyph::Play : Glyph::Pause;
 	if (t < 1.) {
 		p.setOpacity(opacity * (1. - t));
-		PaintGlyphScaled(p, was, c, S(30), base * Lerp(1., 0.4, t));
+		PaintGlyphScaled(p, was, c, S(isWindow() ? 32 : 30), base * Lerp(1., 0.4, t));
 	}
 	p.setOpacity(opacity * t);
-	PaintGlyphScaled(p, now, c, S(30), base * Lerp(0.4, 1., t));
+	PaintGlyphScaled(p, now, c, S(isWindow() ? 32 : 30), base * Lerp(0.4, 1., t));
 	p.setOpacity(opacity);
 }
 
 void Island::paintExpanded(QPainter &p) {
 	const auto f = fullFrame();
 	const auto heart = center(Part::Heart);
-	const auto left = int(f.x() + S(kPadding + kCover + 12));
+	const auto left = int(f.x() + S(kPadding + kCover + (isWindow() ? 15 : 12)));
 	const auto titleRight = isWindow()
 		? f.right() - S(kPadding) - BarsWidth() - S(12)
 		: heart.x() - S(kSmall) / 2. - S(10);
 	const auto width = std::max(
 		int(titleRight) - left,
 		0);
-	const auto titleFont = style::font(S(15), style::FontFlag::Bold, 0);
-	const auto artistFont = style::font(S(13), 0, 0);
-	const auto timeFont = style::font(S(12), 0, 0);
+	const auto titleFont = style::font(S(isWindow() ? 16 : 15), style::FontFlag::Bold, 0);
+	const auto artistFont = style::font(S(isWindow() ? 14 : 13), 0, 0);
+	const auto timeFont = style::font(S(isWindow() ? 10 : 12), 0, 0);
 	const auto top = int(f.y() + S(kPadding) + (S(kCover)
 		- titleFont->height - S(2) - artistFont->height) / 2.);
 	p.setPen(Qt::white);
@@ -1268,7 +1288,9 @@ void Island::paintExpanded(QPainter &p) {
 	p.drawText(
 		QRect(int(progress.x() + progress.width()) + S(8), timeTop, timeWidth, timeFont->height),
 		Qt::AlignRight | Qt::AlignVCenter,
-		u"-"_q + Ui::FormatDurationText(std::max(_length - played, crl::time(0)) / 1000));
+		isWindow()
+			? Ui::FormatDurationText(_length / 1000)
+			: u"-"_q + Ui::FormatDurationText(std::max(_length - played, crl::time(0)) / 1000));
 
 	const auto &settings = Core::App().settings();
 	const auto skip = [&](Part part, Glyph glyph, bool enabled) {
