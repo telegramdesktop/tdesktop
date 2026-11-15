@@ -599,10 +599,10 @@ jobs:
           codesign --force --deep -s - mokaGram.app
           mkdir -p "$GITHUB_WORKSPACE/dist"
           ditto -c -k --keepParent mokaGram.app "$GITHUB_WORKSPACE/dist/mokagram-macos-arm64.zip"
-          mkdir dmgroot
-          cp -R mokaGram.app dmgroot/
-          ln -s /Applications dmgroot/Applications
-          hdiutil create -volname mokaGram -srcfolder dmgroot -ov -format UDZO "$GITHUB_WORKSPACE/dist/mokagram-macos-arm64.dmg"
+          python3 -m venv "$RUNNER_TEMP/mokagram-dmg"
+          "$RUNNER_TEMP/mokagram-dmg/bin/python" -m pip install dmgbuild==1.6.7
+          "$RUNNER_TEMP/mokagram-dmg/bin/python" ../../tools/mokagram/package_dmg.py \
+            mokaGram.app "$GITHUB_WORKSPACE/dist/mokagram-macos-arm64.dmg"
           ls -la "$GITHUB_WORKSPACE/dist"
 
       - uses: actions/upload-artifact@v7
