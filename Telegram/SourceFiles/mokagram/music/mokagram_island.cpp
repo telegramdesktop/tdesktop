@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QPointer>
 #include <QtGui/QPainterPath>
+#include <QtGui/QRegion>
 #include <QtSvg/QSvgRenderer>
 
 namespace Mokagram::Music {
@@ -743,6 +744,13 @@ void Island::applyGeometry() {
 	if (geometry() != rect) {
 		setGeometry(rect);
 	}
+#ifdef Q_OS_MAC
+	// Transparent parts of the stable canvas must pass clicks to other apps.
+	auto path = QPainterPath();
+	const auto radius = std::clamp(_radius.value(), 0., _height.value() / 2.);
+	path.addRoundedRect(shapeRect(), radius, radius);
+	setMask(QRegion(path.toFillPolygon().toPolygon()));
+#endif
 }
 
 std::optional<IslandShot> Island::shot() {
