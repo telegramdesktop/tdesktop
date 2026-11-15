@@ -57,6 +57,7 @@
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_peer_menu.h"
+#include "boxes/peer_list_controllers.h"
 #include "styles/style_menu_icons.h"
 #include "storage/localimageloader.h"
 #include "storage/serialize_document.h"
@@ -103,6 +104,7 @@
 #include "window/window_session_controller.h"
 #include "mainwidget.h"
 #include "window/window_peer_menu.h"
+#include "boxes/peer_list_controllers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
@@ -131,6 +133,102 @@
 
 namespace Mokagram::Music {
 namespace {
+
+class MusicSourceController final
+	: public ChatsListBoxController
+	, public base::has_weak_ptr {
+public:
+	MusicSourceController(
+		not_null<Main::Session*> session,
+		Fn<void(not_null<Data::Thread*>)> chosen)
+	: ChatsListBoxController(session)
+	, _session(session)
+	, _chosen(std::move(chosen))
+	, _key(u"music.pinned_sources.%1"_q.arg(session->uniqueId())) {
+		_pins = Settings::String(_key).split(u',', Qt::SkipEmptyParts);
+	}
+
+	Main::Session &session() const override { return *_session; }
+
+	void rowClicked(not_null<PeerListRow*> row) override {
+		_chosen(_session->data().history(row->peer()));
+	}
+
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+			QWidget *parent,
+			not_null<PeerListRow*> row) override {
+		auto menu = base::make_unique_q<Ui::PopupMenu>(parent, st::popupMenuWithIcons);
+		const auto id = QString::number(row->peer()->id.value);
+		const auto pinned = _pins.contains(id);
+		menu->addAction(QString::fromUtf8(Lang::Tr(pinned
+			? "Открепить источник" : "Закрепить источник")), [=] {
+			if (pinned) {
+				_pins.removeAll(id);
+			} else {
+				_pins.prepend(id);
+				if (!delegate()->peerListFindRow(row->id())) {
+					delegate()->peerListPrependRow(createRow(
+						_session->data().history(row->peer())));
+				}
+			}
+			Settings::SetString(_key, _pins.join(u','));
+			sortPins();
+		});
+		return menu;
+	}
+
+protected:
+	void prepareViewHook() override {
+		delegate()->peerListSetTitle(rpl::single(
+			QString::fromUtf8(Lang::Tr("Источник музыки"))));
+		for (const auto &id : _pins) {
+			if (const auto peer = _session->data().peerLoaded(PeerId(id.toULongLong()))) {
+				if (auto row = createRow(_session->data().history(peer))) {
+					delegate()->peerListAppendRow(std::move(row));
+				}
+			}
+		}
+	}
+
+	std::unique_ptr<Row> createRow(not_null<History*> history) override {
+		const auto peer = history->peer;
+		if (peer->isRepliesChat() || peer->isVerifyCodes()) return nullptr;
+		crl::on_main(this, [=] { sortPins(); });
+		return std::make_unique<Row>(history);
+	}
+
+private:
+	void sortPins() {
+		delegate()->peerListSortRows([=](const PeerListRow &a, const PeerListRow &b) {
+			const auto rank = [&](const PeerListRow &row) {
+				const auto i = _pins.indexOf(QString::number(row.peer()->id.value));
+				return i < 0 ? _pins.size() : i;
+			};
+			return rank(a) < rank(b);
+		});
+		delegate()->peerListRefreshRows();
+	}
+
+	const not_null<Main::Session*> _session;
+	Fn<void(not_null<Data::Thread*>)> _chosen;
+	const QString _key;
+	QStringList _pins;
+};
+
+void ShowMusicSourceBox(
+		not_null<Window::SessionController*> controller,
+		Fn<bool(not_null<Data::Thread*>)> chosen) {
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
+	*weak = controller->show(Box<PeerListBox>(
+		std::make_unique<MusicSourceController>(&controller->session(),
+			[=](not_null<Data::Thread*> thread) {
+				if (chosen(thread) && *weak) (*weak)->closeBox();
+			}),
+		[](not_null<PeerListBox*> box) {
+			box->addButton(rpl::single(QString::fromUtf8(Lang::Tr("Отмена"))),
+				[=] { box->closeBox(); });
+		}));
+}
 
 constexpr auto kRowHeight = 76;
 constexpr auto kSwitchDuration = crl::time(220);
@@ -6799,7 +6897,7 @@ public:
 			st::defaultLightButton);
 		_chooseSearchChat->hide();
 		_chooseSearchChat->setClickedCallback([=] {
-			Window::ShowChooseRecipientBox(
+			ShowMusicSourceBox(
 				_controller,
 				crl::guard(this, [=](not_null<Data::Thread*> thread) {
 					_searchChat = thread->owningHistory()->peer->id;
@@ -6808,8 +6906,7 @@ public:
 						.arg(thread->owningHistory()->peer->name())));
 					runSearch();
 					return true;
-				}),
-				rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Выберите чат с музыкой"))));
+				}));
 		});
 		_sourceSwitch = Ui::CreateChild<Segmented>(
 			this,
@@ -11889,7 +11986,7 @@ void ShowMusicBoxWith(
 		};
 		*runSearch = search;
 		chooseChat->setClickedCallback([=] {
-			Window::ShowChooseRecipientBox(
+			ShowMusicSourceBox(
 				controller,
 				[=](not_null<Data::Thread*> thread) {
 					QueueState().selectedChat = thread->owningHistory()->peer->id;
@@ -11901,8 +11998,7 @@ void ShowMusicBoxWith(
 						(*runSearch)();
 					}
 					return true;
-				},
-				rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Выберите чат с музыкой"))));
+				});
 		});
 		const auto updateSource = [=] {
 			const auto chats = QueueState().telegramSearch;
