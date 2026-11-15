@@ -33,6 +33,10 @@
 #include "main/main_domain.h"
 #include "window/main_window.h"
 #include <QtGui/QPixmap>
+#ifdef Q_OS_MAC
+#include <QtGui/QPainter>
+#include <QtGui/QPainterPath>
+#endif
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QWidget>
 #include "ui/power_saving.h"
@@ -367,6 +371,27 @@ QIcon CustomAppIcon() {
 		kAppIcons[index - 1],
 		uint(kAppIconSizes[index - 1]),
 		"PNG");
+#ifdef Q_OS_MAC
+	if (!pixmap.isNull()) {
+		// Dock uses the supplied alpha channel without adding an icon mask.
+		// Proportions are relative to the image, independent of UI scaling.
+		const auto side = pixmap.width();
+		const auto inset = side * (100. / 1024.);
+		const auto bounds = QRectF(inset, inset, side - 2 * inset, side - 2 * inset);
+		auto rounded = QPixmap(pixmap.size());
+		rounded.fill(Qt::transparent);
+		auto painter = QPainter(&rounded);
+		painter.setRenderHint(QPainter::Antialiasing);
+		painter.setRenderHint(QPainter::SmoothPixmapTransform);
+		auto mask = QPainterPath();
+		const auto radius = bounds.width() * 0.24;
+		mask.addRoundedRect(bounds, radius, radius);
+		painter.setClipPath(mask);
+		painter.drawPixmap(bounds, pixmap, QRectF(pixmap.rect()));
+		painter.end();
+		pixmap = std::move(rounded);
+	}
+#endif
 	return pixmap.isNull() ? QIcon() : QIcon(pixmap);
 }
 
