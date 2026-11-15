@@ -12,7 +12,9 @@ void InitDesktopIsland(not_null<QWidget*> widget) {
 	Ui::Platform::InitOnTopPanel(widget);
 	const auto window = [reinterpret_cast<NSView*>(widget->winId()) window];
 	[window setHasShadow:NO];
-	[window setLevel:NSFloatingWindowLevel];
+	[window setLevel:NSMainMenuWindowLevel + 3];
+	[window setAnimationBehavior:NSWindowAnimationBehaviorNone];
+	[window setMovable:NO];
 }
 
 QRect DesktopIslandArea() {
@@ -31,16 +33,12 @@ QRect DesktopIslandArea() {
 		}
 	}
 	const auto frame = selected.frame;
-	auto inset = NSMaxY(frame) - NSMaxY(selected.visibleFrame);
-	if (@available(macOS 12.0, *)) {
-		inset = std::max(inset, selected.safeAreaInsets.top);
-	}
 	// AppKit uses a bottom-left origin, Qt uses the primary screen's top-left.
 	return QRect(
 		int(NSMinX(frame)),
-		int(NSMaxY(primary.frame) - NSMaxY(frame) + inset),
+		int(NSMaxY(primary.frame) - NSMaxY(frame)),
 		int(NSWidth(frame)),
-		int(NSHeight(frame) - inset));
+		int(NSHeight(frame)));
 }
 
 } // namespace Mokagram::Music

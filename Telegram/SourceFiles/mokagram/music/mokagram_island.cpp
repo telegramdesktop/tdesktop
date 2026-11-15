@@ -76,7 +76,11 @@ constexpr auto kResize = Motion{ 0.5, 0.82 };
 
 // Размеры в точках iPhone из lib/island/metrics.ts.
 constexpr auto kIdleWidth = 95;
+#ifdef Q_OS_MAC
+constexpr auto kCompactHeight = 32;
+#else
 constexpr auto kCompactHeight = 37;
+#endif
 constexpr auto kCompactMinWidth = 150;
 constexpr auto kCompactMaxWidth = 260;
 constexpr auto kCompactPadding = 7;
@@ -494,6 +498,9 @@ int Island::expandedWidth() const {
 }
 
 int Island::compactWidth() const {
+#ifdef Q_OS_MAC
+	return S(kCompactMinWidth);
+#else
 	// Mokagram: keep the chat header clear in narrow windows.
 	if (!isWindow() && _anchor->width() < S(600)) {
 		return S(kCompactHeight);
@@ -505,6 +512,7 @@ int Island::compactWidth() const {
 	return std::min(
 		std::clamp(wanted, S(kCompactMinWidth), S(kCompactMaxWidth)),
 		expandedWidth());
+#endif
 }
 
 double Island::expanded() const {
@@ -684,7 +692,7 @@ void Island::relayout() {
 		hide();
 		return;
 	}
-	_shapeTop = area.y() + S(4);
+	_shapeTop = area.y() + S(8);
 #else
 	const auto area = _anchor->geometry();
 	_shapeTop = area.y() + (st::topBarHeight - S(kCompactHeight)) / 2;
@@ -699,7 +707,7 @@ void Island::relayout() {
 	if (_shown || _alpha.value() > 0.) {
 		show();
 		// Чёрная дыра растёт из островка и лежит над ним, пока идёт.
-		if (!Mokagram::BlackHole::Running()) {
+		if (!isWindow() && !Mokagram::BlackHole::Running()) {
 			raise();
 		}
 	}
@@ -709,10 +717,12 @@ void Island::relayout() {
 // сдвиг окна каждый кадр Qt догоняет копией старой картинки и всё дрожит.
 // В покое окно обжимается по форме, чтобы не перекрывать чат.
 void Island::applyGeometry() {
-	const auto shape = _moving
+	// Keep the native tracking area stable while the shape expands or collapses.
+	const auto stableCanvas = isWindow() || _moving;
+	const auto shape = stableCanvas
 		? double(expandedWidth() + S(48))
 		: _width.value();
-	const auto height = _moving
+	const auto height = stableCanvas
 		? double(S(kExpandedHeight + 24))
 		: _height.value();
 	const auto left = _centerX - shape / 2.;
@@ -1055,6 +1065,9 @@ void Island::paintHeart(QPainter &p) {
 }
 
 void Island::paintCompactTitle(QPainter &p) {
+#ifdef Q_OS_MAC
+	return;
+#endif
 	const auto c = compactFrame();
 	const auto font = style::font(S(13), style::FontFlag::Bold, 0);
 	const auto left = c.x() + S(kCompactPadding + kCompactCover + 10);
