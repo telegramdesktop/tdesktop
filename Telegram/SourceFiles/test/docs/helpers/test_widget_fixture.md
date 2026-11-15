@@ -1231,6 +1231,166 @@ x64, ARM64, the Store build, Windows before 10 1809, a Release runtime
 (the non-Debug gate was only preprocessed) and macOS or Linux compilation
 of the shared files.
 
+The [Windows lowbox](#remote-engines), its network denials and the
+Windows default ran on the same machine, Win32 Debug (x86 on WOW64) on
+Windows 11 Pro 10.0.26300.9711 with the firewall services running, every
+profile on and no loopback exemption for the package, in the evidence
+campaign of
+`2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
+(its `work/test.md`): Attempt 1 Runs 1-5 before the switch was turned
+on, Attempt 2 Run 1 after it. A scratch driver that built the channel,
+tokens, job and policies with the product's functions, mirrored its
+launch and checks and started the real executable's `-widgethelper`
+entry read the suspended child before its resume (Attempt 1 Run 1). Its
+actual primary was Low, restricted to `S-1-0-0`, with its user and every
+group but the integrity label deny-only and only
+`SeChangeNotifyPrivilege`, and an LPAC token (`WIN://NOALLAPPPKG` 1) of
+the package SID the driver derived itself, with no capability; its
+attached startup token was a regular AppContainer token of the same
+package at the impersonation level, with no capability. Only the pipe
+and the stderr file were inherited, Ready came 50 ms after the Opening,
+and no thread held a token after it. Six defective primaries (no lowbox,
+both tokens boxed for one other package, no LPAC attribute, the
+`internetClient` or the `registryRead` capability, the user as a second
+restricting SID) were each refused by the parent's check of the actual
+child token, never resumed and ended through the job with `exit 1067`;
+resumed on purpose, the real helper refused each before Ready with `the
+widget helper is not sandboxed:` and the same reason. Five defective
+startup tokens (no lowbox, another package, a capability, an LPAC token,
+an identification-level token) were refused on the attached token before
+the resume. A helper created outside the product's job and one created
+without the dynamic-code policy refused before Ready (`the job's limits
+are 0x2000 for 0 processes`, `the mitigation policy 2 reads 0x0`); a
+creation that set the signature policy always off built no defect, since
+the helper still enabled it itself. A wrong-build Opening was refused as
+a protocol error, not by the lockdown. The launcher, channel and `tgw`
+sources and the framework pin were unchanged since the task above, so
+its evidence for the entry, the wire, the pipe and the lockdown callback
+carries.
+
+On the network (Attempt 1 Runs 1-2), Winsock's own
+`\Device\Afd\Endpoint` call, captured in ordinary x86 and x64 processes,
+passed a 57-byte attribute whose first 48 bytes equal the probe's, and
+the probe's bytes opened there. In every probe helper the four socket
+kinds and their AFD endpoints succeeded before the lowering and were
+refused after it, with `WSAEACCES` and `STATUS_ACCESS_DENIED`, and the
+product probe's self-listener read `ok`. TCP and UDP listeners of the
+driver on 127.0.0.1 and `::1` and of a sibling process on the same
+addresses (Run 1), and of the client on those, on the host's own LAN
+address and on a scoped link-local IPv6 address, with one in the running
+WSL distribution, a separate network stack on the same machine (Run 2),
+received every ordinary control sent to them before, during and after
+the helper, by the driver in Run 1 and by the client and a sibling
+process in Run 2, and no helper marker; after the lowering every target
+the helper was given read `socket creation was denied`. Sockets that
+`connect-control` preopened before the lowering delivered nothing after
+it: TCP timed out towards the host's own addresses and was refused with
+`WSAEACCES` towards WSL, and no UDP send was received. That is recorded
+as delivering nothing, not as a denial; the ordinary helper holds no
+socket. Both actual tokens had zero capabilities, and the exemption list
+held entries but none for the package.
+
+Through the product `Launch` with `helper` (Attempt 1 Run 2) one helper
+served two static cards and a widget reading `Date`, random bytes and
+`Intl`. Read from outside, its primary had the shape above, none of its
+seven threads held a token, it was its job's only member (limits
+`0x2408`, UI `0xFF`) with every expected mitigation read back, its
+64-bit view held 35 modules, its own image and system DLLs only
+(`userenv.dll` and `profext.dll` from the package-SID derivation, no
+`WS2_32.dll`), and only `app_stderr.txt` was inheritable. The widget's
+values were those of the `in-process` control, and each runtime's thread
+started after the lowering. With `probe`, `CreateProcessW`, the three
+directories and both registry keys read `denied (error 5)` while the
+client opened the same paths in the same run, the probe's readbacks
+matched the outside reading, and the win32k disable read `not applied
+(SetProcessMitigationPolicy(4) failed: error 5)`. The helper's handles
+after Ready are the ones **What the Windows lowering leaves** lists.
+
+In ordinary helper mode (Attempt 1 Run 3) a killed helper stopped both
+cards on their last pictures, with no pixel outside the stop pill
+changed; showing them again started one new helper with the same token,
+and a second kill reached the two-crash limit with no third start. A
+quit left no helper, with a live helper (the client exited 300 ms after
+the request), an idle one (273 ms) and a suspended one with a client
+write pending past both 64 KiB pipe quotas (`exit 1067, terminated after
+1000 ms`, the client 1314 ms after the request; without the quit the
+10 s write-stall monitor ended it). A client in a job of one active
+process failed three starts with `CreateProcessAsUserW failed: Not
+enough quota is available to process this command.`, none in process,
+and the next widget died with `the widget helper failed 3 times in a
+row`; a suspended helper ended 12 ms after its client was killed, while
+the observer held no handle to its job. Two copies of the client running
+at once each had their own helper, single-member job and pipe under the
+same package SID, and stopping either, the first-started by its quit or
+the later-started by a kill, left the other's helper serving. Windows
+Defender's real-time protection stayed on, with no Defender or
+CodeIntegrity event in the window; the helpers mapped only their own
+image and Microsoft-signed system DLLs, and the one injected third-party
+module observed, `nvspcap.dll`, was in the client only.
+
+Account-free copied clients with fresh ordinary permissions (Attempt 1
+Run 4) started their own image as the helper through the product
+`Launch`, reached Ready with the token above (a loaded runtime, and `42`
+from the helper's JS engine for `6*7`) and ended `exit 0`: `setup.iss`'s
+three files for this build in a new per-user folder under `%APPDATA%`,
+that executable after an updater-style `CopyFile` over it (which kept
+the file and its descriptor), `build.bat`'s portable ZIP (`Telegram.exe`
+and `d3dcompiler_47.dll`, no `Updater.exe`) extracted with
+`Expand-Archive`, that folder moved whole to another path, and a copy on
+the WSL distribution's 9P share. With one ACE denying its user
+`FILE_EXECUTE` on the running copy's executable, `Launch` returned
+`CreateProcessAsUserW failed: Access is denied.`, the engine Tgw's
+factory made died with `the widget helper could not start: ...` before
+loading, and no child process ran; the byte-exact restore brought both
+back in the same client. No AppContainer-family ACE was added or present
+in the layouts, their data roots or the folders around them, no package
+profile, mapping, storage key or named-object directory appeared, and
+the task changed no setup, packaging or CMake file.
+
+The attack audit over all 133 corpus files in a basic group and the
+conformance runner over the 133-run automatic matrix in a private chat
+and that group, in 26 launches of one executable (Attempt 1 Run 5),
+gave 0 leaks and the same keyed rows with `helper` and `in-process`, the
+same 15 stops included, and the same conformance verdicts, stages and
+report rows, with the same baseline failures in both modes; five check
+details and one transition crop differed by timing, which focused paired
+reruns decided. Every helper launch ran its engines in exactly one
+helper, read from outside after the pack with the token above.
+
+After the switch was turned on (Attempt 2 Run 1), a client with no
+`TDESKTOP_WIDGET_ENGINES` in its environment, as the client itself read
+it, logged `Tgw: Widget engines run in the widget helper.` and served
+its widgets in one helper with the token, threads, job, mitigations,
+modules and inheritance above, and no line named the variable;
+`in-process` on the same executable started no helper and gave the
+control values. With the variable unset, an enclosing one-process job
+made three starts fail with the quota error above: the widgets stopped
+with `the widget helper could not start: ...` without loading, nothing
+ran in process, the latch held after the limit was lifted, and a fresh
+client then started its helper again. Preprocessed with the non-Debug
+and the Release-harness definitions, `tgw_remote.cpp` read no
+environment, made no probe call and opened the entry and chose the
+helper only through `Enabled()`, which is `UnsupportedReason().isEmpty()`
+in every variant. The Store and pre-1809 refusals in
+`UnsupportedReason()` are unchanged since the task above, and
+preprocessing with `OS_WIN_STORE` turns `IsWindowsStoreBuild()` true.
+
+The Windows default is therefore on for every architecture on Windows 10
+1809 or later outside the Store build, but it is measured only in Win32
+(x86 on WOW64) Debug builds on Windows 11 build 26300. Not run: x64,
+ARM64, a Release runtime (the non-Debug selection was only
+preprocessed), the Store build, Windows before build 26300 (the 1809
+floor was read and preprocessed, never run), a target on another
+machine, name resolution, ICMP and other protocols, a stopped or
+disabled firewall service, which layer refuses the sockets and AFD
+endpoints (AFD's check of the token or the filtering platform), a
+downloaded portable ZIP with its mark of the web, and macOS or Linux
+compilation of the changed `test_widget_helper_probe` sources. win32k
+system calls stay enabled (the probe's disable read error 5 under the
+lowbox), and `TokenIsLessPrivilegedAppContainer` is unreadable on this
+build (error 87), so the less privileged level is read from
+`WIN://NOALLAPPPKG`.
+
 On Linux the [remote engines](#remote-engines) ran in the x86_64 Debug
 client built in the Docker `centos_env` image, on a WSL2 6.6 kernel with
 an Ubuntu 24.04 userland, Landlock ABI 3 and unprivileged user namespaces,

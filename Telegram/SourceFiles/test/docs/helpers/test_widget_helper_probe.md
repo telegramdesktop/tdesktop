@@ -934,9 +934,56 @@ on arm64. On another layout the reading can fail and leave both rights
 `UNACCOUNTED`; as that section says, nothing promises that every
 incompatible layout fails rather than matching unrelated words.
 
-On Windows the harness lines of [Windows](#windows) (arguments, sockets,
-targets, AFD endpoints and `connect-control`) have not been run in an
-evidence campaign yet. The Windows runs of the product probe are in
+On Windows the harness lines of [Windows](#windows) ran with the Win32
+(x86 on WOW64) Debug build on Windows 11 build 26300, in the evidence
+campaign of
+`2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
+(its `work/test.md`, Attempt 1 Runs 1-2). Run 1 started the real
+executable's `-widgethelper` entry with the probe's argv tail from a
+scratch driver that built the launch with the product's functions and
+owned TCP and UDP listeners on 127.0.0.1 and `::1`; a sibling process
+listened on the same addresses at another port, given as targets. Run 2
+took the route of [Minimal use on Windows](#minimal-use-on-windows) from
+a disposable overlay, with the client's listeners on the loopback
+addresses, the host's own LAN address and a scoped link-local IPv6
+address and one in the running WSL distribution as targets, and also
+ran `probe` without a fixture through `TDESKTOP_WIDGET_ENGINES`.
+
+- Arguments: `loopback port <port>, 8 network targets` (Run 1) and `10
+  network targets` (Run 2), the scoped IPv6 targets included, with no
+  `argument: malformed` line; without a fixture `loopback port absent, 0
+  network targets`.
+- Sockets and targets: `WS2_32 bound, WSAStartup(2.2) ok`; in every
+  probe helper the four kinds read `ALLOWED` before the lowering and
+  `denied (error 10013)` after it, and every target after it `socket
+  denied (error 10013), <connect|sendto> not tried, socket creation was
+  denied`. Before the lowering, under the startup token, TCP targets read
+  `connect failed (no completion within 1000 ms)`, except `connect denied
+  (error 10013)` towards WSL, and UDP targets `sendto SENT (48 bytes)`
+  that no listener received
+  ([What the Windows controls show](#what-the-windows-controls-show)).
+- AFD endpoints: Winsock's own call, captured in ordinary x86 and x64
+  processes, passed a 57-byte attribute whose first 48 bytes equal the
+  probe's; the probe's bytes opened there with status 0, and a family of
+  `0x7FFF` failed with `0xC000000D`. In every probe helper each kind read
+  `ALLOWED (status 0x0)` before the lowering and `denied (status
+  0xC0000022)` after it, and the `EA bytes` the helpers of the network
+  legs printed were the ones opened in the ordinary processes.
+- `connect-control`: every preopened socket read `ALLOWED` before the
+  lowering; after it TCP read `connect failed (no completion within
+  1000 ms)` towards the loopback and same-host targets and `connect
+  denied (error 10013)` towards WSL, UDP `sendto SENT (48 bytes)`, each
+  with `closesocket ok`. Nothing reached a listener; no denial of a
+  preopened socket is claimed.
+- Controls: in Run 1 the driver, in Run 2 the client and a new sibling
+  process sent ordinary connections and datagrams to every listener
+  before the launch, after Ready and after the helper ended; each
+  listener received all of them and no `widget-helper-probe` marker.
+  After Ready the probe helpers of Run 2 held no `\Device\Afd` handle.
+
+Not run on Windows: a malformed argument, the 16-target limit, a probe
+helper whose lockdown fails, a helper without Winsock and architectures
+other than x86. The Windows runs of the product probe are in
 [Remote engines verification](test_widget_fixture.md#verification).
 
 On Linux the probe ran in the x86_64 Debug client (the Docker
