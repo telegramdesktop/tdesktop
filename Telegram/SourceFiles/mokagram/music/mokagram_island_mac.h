@@ -6,6 +6,6 @@ namespace Mokagram::Music {
 
 void InitDesktopIsland(not_null<QWidget*> widget);
 [[nodiscard]] QRect DesktopIslandArea();
-[[nodiscard]] int DesktopIslandNotchWidth();
+[[nodiscard]] QSize DesktopIslandNotchSize();
 
 } // namespace Mokagram::Music

@@ -91,7 +91,11 @@ constexpr auto kCompactMaxWidth = 260;
 constexpr auto kCompactPadding = 7;
 constexpr auto kCompactCover = 24;
 constexpr auto kExpandedWidth = 372;
+#ifdef Q_OS_MAC
+constexpr auto kExpandedHeight = 174;
+#else
 constexpr auto kExpandedHeight = 202;
+#endif
 constexpr auto kExpandedRadius = 46;
 constexpr auto kPadding = 18;
 constexpr auto kCover = 52;
@@ -315,6 +319,7 @@ private:
 	[[nodiscard]] int compactWidth() const;
 	[[nodiscard]] double expanded() const;
 	[[nodiscard]] QRectF shapeRect() const;
+	[[nodiscard]] QPainterPath shapePath() const;
 	[[nodiscard]] QRectF frameRect(int width) const;
 	[[nodiscard]] QRectF compactFrame() const;
 	[[nodiscard]] QRectF fullFrame() const;
@@ -371,6 +376,7 @@ private:
 	bool _playing = false;
 	bool _playingKnown = false;
 	int _shapeTop = 0;
+	QSize _notchSize = QSize(0, 0);
 	double _centerX = 0.;
 	double _shapeLeft = 0.;
 	bool _moving = false;
@@ -516,7 +522,7 @@ int Island::expandedWidth() const {
 
 int Island::compactWidth() const {
 #ifdef Q_OS_MAC
-	return std::max(S(kCompactMinWidth), DesktopIslandNotchWidth() + S(80));
+	return std::max(S(kCompactMinWidth), _notchSize.width() + S(80));
 #else
 	// Mokagram: keep the chat header clear in narrow windows.
 	if (!isWindow() && _anchor->width() < S(600)) {
@@ -704,12 +710,13 @@ void Island::relayout() {
 		return;
 	}
 #ifdef Q_OS_MAC
+	_notchSize = DesktopIslandNotchSize();
 	const auto area = DesktopIslandArea();
 	if (area.isEmpty()) {
 		hide();
 		return;
 	}
-	_shapeTop = area.y() + S(8);
+	_shapeTop = area.y() + (_notchSize.isEmpty() ? S(8) : 0);
 #else
 	const auto area = _anchor->geometry();
 	_shapeTop = area.y() + (st::topBarHeight - S(kCompactHeight)) / 2;
@@ -737,10 +744,10 @@ void Island::applyGeometry() {
 	// Keep the native tracking area stable while the shape expands or collapses.
 	const auto stableCanvas = isWindow() || _moving;
 	const auto shape = stableCanvas
-		? double(expandedWidth() + S(48))
+		? double(expandedWidth() + S(96))
 		: _width.value();
 	const auto height = stableCanvas
-		? double(S(kExpandedHeight + 24))
+		? double(S(kExpandedHeight + 24) + _notchSize.height())
 		: _height.value();
 	const auto left = _centerX - shape / 2.;
 	const auto x = int(std::floor(left));
@@ -752,11 +759,8 @@ void Island::applyGeometry() {
 		setGeometry(rect);
 	}
 #ifdef Q_OS_MAC
-	// Transparent parts of the stable canvas must pass clicks to other apps.
-	auto path = QPainterPath();
-	const auto radius = std::clamp(_radius.value(), 0., _height.value() / 2.);
-	path.addRoundedRect(shapeRect(), radius, radius);
-	setMask(QRegion(path.toFillPolygon().toPolygon()));
+	// Use the painted shape for hit testing, including the notch's top shoulders.
+	setMask(QRegion(shapePath().toFillPolygon().toPolygon()));
 #endif
 }
 
@@ -776,7 +780,35 @@ std::optional<IslandShot> Island::shot() {
 }
 
 QRectF Island::shapeRect() const {
-	return QRectF(_shapeLeft, 0., _width.value(), _height.value());
+	const auto extra = _notchSize.isEmpty() ? 0.
+		: _notchSize.height() - (S(kCompactHeight) - S(2)) * (1. - expanded());
+	return QRectF(_shapeLeft, 0., _width.value(), _height.value() + extra);
+}
+
+QPainterPath Island::shapePath() const {
+	const auto rect = shapeRect();
+	const auto radius = std::clamp(_radius.value(), 0., rect.height() / 2.);
+	auto path = QPainterPath();
+	if (_notchSize.isEmpty()) {
+		path.addRoundedRect(rect, radius, radius);
+		return path;
+	}
+	const auto shoulder = Lerp(S(6), S(24), expanded());
+	const auto bottom = Lerp(S(10), S(36), expanded());
+	const auto left = rect.left();
+	const auto right = rect.right();
+	const auto top = rect.top();
+	const auto low = rect.bottom();
+	path.moveTo(left - shoulder, top);
+	path.cubicTo(left, top, left, top, left, top + shoulder);
+	path.lineTo(left, low - bottom);
+	path.quadTo(left, low, left + bottom, low);
+	path.lineTo(right - bottom, low);
+	path.quadTo(right, low, right, low - bottom);
+	path.lineTo(right, top + shoulder);
+	path.cubicTo(right, top, right, top, right + shoulder, top);
+	path.closeSubpath();
+	return path;
 }
 
 QRectF Island::frameRect(int width) const {
@@ -785,11 +817,13 @@ QRectF Island::frameRect(int width) const {
 }
 
 QRectF Island::compactFrame() const {
-	return frameRect(compactWidth());
+	auto result = frameRect(compactWidth());
+	result.setHeight(_notchSize.isEmpty() ? S(kCompactHeight) : _notchSize.height() + S(2));
+	return result;
 }
 
 QRectF Island::fullFrame() const {
-	return frameRect(expandedWidth());
+	return frameRect(expandedWidth()).translated(0, _notchSize.height());
 }
 
 QRectF Island::coverRect() const {
@@ -798,7 +832,7 @@ QRectF Island::coverRect() const {
 	const auto small = S(kCompactCover);
 	const auto compact = QRectF(
 		c.x() + S(kCompactPadding),
-		c.y() + (S(kCompactHeight) - small) / 2.,
+		c.y() + (c.height() - small) / 2.,
 		small,
 		small);
 	const auto full = QRectF(
@@ -816,7 +850,7 @@ QRectF Island::barsRect() const {
 	const auto height = S(16);
 	const auto compact = QRectF(
 		c.x() + c.width() - S(kCompactPadding + 4) - width,
-		c.y() + (S(kCompactHeight) - height) / 2.,
+		c.y() + (c.height() - height) / 2.,
 		width,
 		height);
 	const auto full = QRectF(
@@ -859,6 +893,13 @@ QPointF Island::center(Part part) const {
 	const auto slot = S(kSmall + kSmallGap);
 	const auto transport = f.y() + S(kTransportY);
 	const auto volume = f.y() + S(kVolumeY);
+	if (isWindow()) {
+		if (part == Part::Heart) {
+			return { middle - S(132), transport };
+		} else if (part == Part::Speaker) {
+			return { middle + S(132), transport };
+		}
+	}
 	switch (part) {
 	case Part::Heart: return {
 		f.x() + f.width() - S(kPadding) - BarsWidth() - S(kSmallGap) - S(kSmall) / 2.,
@@ -878,9 +919,7 @@ QPointF Island::center(Part part) const {
 
 Island::Part Island::partAt(QPoint point) const {
 	const auto shape = shapeRect();
-	auto path = QPainterPath();
-	const auto radius = std::clamp(_radius.value(), 0., shape.height() / 2.);
-	path.addRoundedRect(shape, radius, radius);
+	const auto path = shapePath();
 	if (!path.contains(QPointF(point))) {
 		return Part::None;
 	} else if (expanded() < 0.6) {
@@ -904,13 +943,16 @@ Island::Part Island::partAt(QPoint point) const {
 			Part::Filter,
 			Part::Lyrics,
 			Part::Queue }) {
+		if (isWindow() && part != Part::Heart && part != Part::Speaker) {
+			continue;
+		}
 		if (near(part, S(16))) {
 			return part;
 		}
 	}
 	if (progressRect().adjusted(0, -S(10), 0, S(10)).contains(QPointF(point))) {
 		return Part::Progress;
-	} else if (volumeRect().adjusted(-S(4), -S(10), S(4), S(10)).contains(QPointF(point))) {
+	} else if (!isWindow() && volumeRect().adjusted(-S(4), -S(10), S(4), S(10)).contains(QPointF(point))) {
 		return Part::Volume;
 	}
 	const auto info = QRectF(
@@ -1066,7 +1108,7 @@ void Island::paintHeart(QPainter &p) {
 	const auto c = compactFrame();
 	const auto from = QPointF(
 		c.x() + c.width() - S(kCompactPadding + 4) - BarsWidth() / 2.,
-		c.y() + S(kCompactHeight) / 2.);
+		c.y() + c.height() / 2.);
 	const auto to = center(Part::Heart);
 	const auto at = QPointF(Lerp(from.x(), to.x(), e), Lerp(from.y(), to.y(), e));
 	const auto track = CurrentQueueTrack();
@@ -1182,8 +1224,11 @@ void Island::paintExpanded(QPainter &p) {
 	const auto f = fullFrame();
 	const auto heart = center(Part::Heart);
 	const auto left = int(f.x() + S(kPadding + kCover + 12));
+	const auto titleRight = isWindow()
+		? f.right() - S(kPadding) - BarsWidth() - S(12)
+		: heart.x() - S(kSmall) / 2. - S(10);
 	const auto width = std::max(
-		int(heart.x() - S(kSmall) / 2. - S(10)) - left,
+		int(titleRight) - left,
 		0);
 	const auto titleFont = style::font(S(15), style::FontFlag::Bold, 0);
 	const auto artistFont = style::font(S(13), 0, 0);
@@ -1234,6 +1279,13 @@ void Island::paintExpanded(QPainter &p) {
 		PaintGlyphScaled(p, glyph, center(part), S(34), 1. - 0.12 * press);
 		p.setOpacity(opacity);
 	};
+	if (isWindow()) {
+		skip(Part::Previous, Glyph::Back, previousAvailable());
+		paintPlay(p);
+		skip(Part::Next, Glyph::Forward, nextAvailable());
+		PaintGlyph(p, Glyph::Output, center(Part::Speaker), S(24), kMuted);
+		return;
+	}
 	paintToggle(
 		p,
 		Part::Shuffle,

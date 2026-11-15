@@ -41,17 +41,18 @@ QRect DesktopIslandArea() {
 		int(NSHeight(frame)));
 }
 
-int DesktopIslandNotchWidth() {
+QSize DesktopIslandNotchSize() {
 	if (@available(macOS 12.0, *)) {
 		for (NSScreen *screen in [NSScreen screens]) {
 			if (screen.safeAreaInsets.top > 0.) {
-				return int(NSWidth(screen.frame)
+				return QSize(int(NSWidth(screen.frame)
 					- NSWidth(screen.auxiliaryTopLeftArea)
-					- NSWidth(screen.auxiliaryTopRightArea));
+					- NSWidth(screen.auxiliaryTopRightArea)),
+					int(screen.safeAreaInsets.top));
 			}
 		}
 	}
-	return 0;
+	return QSize(0, 0);
 }
 
 } // namespace Mokagram::Music
