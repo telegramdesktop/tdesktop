@@ -154,9 +154,36 @@ void OverlayWidget::RendererSW::paintTransformedStaticContent(
 		const auto sourceRect = _owner->_stories
 			? StoryCropRect(QSizeF(image.size()), geometry.rect.size())
 			: QRectF();
-		paintTransformedImage(image, rect, rotation, sourceRect);
+		paintTransformedImage(
+			scaledStaticContent(image, geometry.rect.size()),
+			rect,
+			rotation,
+			sourceRect);
 	}
 	paintControlsFade(rect, geometry);
+}
+
+const QImage &OverlayWidget::RendererSW::scaledStaticContent(
+		const QImage &image,
+		QSizeF size) {
+	const auto ratio = _owner->widget()->devicePixelRatioF();
+	const auto target = (size * ratio).toSize();
+	if (_owner->_stories
+		|| target.isEmpty()
+		|| target.width() >= image.width()
+		|| target.height() >= image.height()) {
+		return image;
+	}
+	if (_staticContentScaledKey != image.cacheKey()
+		|| _staticContentScaled.size() != target) {
+		// QPainter samples 2x2 pixels and aliases when downscaling over 2x
+		_staticContentScaled = image.scaled(
+			target,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		_staticContentScaledKey = image.cacheKey();
+	}
+	return _staticContentScaled;
 }
 
 void OverlayWidget::RendererSW::paintControlsFade(

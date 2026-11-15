@@ -151,6 +151,7 @@ private:
 	QRhiBuffer *_fillVertexBuffer = nullptr;
 	QRhiBuffer *_uniformBuffer = nullptr;
 	QRhiSampler *_sampler = nullptr;
+	QRhiSampler *_mipmapSampler = nullptr;
 	QRhiTexture *_placeholderTexture = nullptr;
 
 	QRhiGraphicsPipeline *_imagePipeline = nullptr;

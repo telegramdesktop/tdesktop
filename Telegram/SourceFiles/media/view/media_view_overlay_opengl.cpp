@@ -560,6 +560,13 @@ void OverlayWidget::RendererGL::paintTransformedStaticContent(
 				data);
 			_rgbaSize[index] = image.size();
 		}
+		if (_f->hasOpenGLFeature(QOpenGLFunctions::NPOTTextureRepeat)) {
+			_f->glGenerateMipmap(GL_TEXTURE_2D);
+			_f->glTexParameteri(
+				GL_TEXTURE_2D,
+				GL_TEXTURE_MIN_FILTER,
+				GL_LINEAR_MIPMAP_LINEAR);
+		}
 	}
 
 	validateControlsFade();
