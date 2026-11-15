@@ -44,6 +44,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QPointer>
 #include <QtGui/QPainterPath>
+#ifdef Q_OS_MAC
+#include <QtGui/QGuiApplication>
+#include <QtGui/QScreen>
+#endif
 #include <QtSvg/QSvgRenderer>
 
 namespace Mokagram::Music {
@@ -353,7 +357,7 @@ private:
 	base::Timer _hoverTimer;
 	base::Timer _leaveTimer;
 #ifdef Q_OS_MAC
-	base::Timer _desktopTimer;
+	base::Timer _barsTimer;
 	base::Timer _proximityTimer;
 #endif
 	base::unique_qptr<Ui::PopupMenu> _menu;
@@ -423,10 +427,36 @@ Island::Island(
 	setAttribute(Qt::WA_ShowWithoutActivating);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 	InitDesktopIsland(this);
-	_desktopTimer.setCallback([=] { relayout(); });
-	_desktopTimer.callEach(1000);
+	// Mokagram: display changes are events, not a permanent polling task.
+	const auto watchScreen = [=](QScreen *screen) {
+		QObject::connect(screen, &QScreen::geometryChanged,
+			this, [=] { relayout(); }, Qt::QueuedConnection);
+	};
+	for (const auto screen : QGuiApplication::screens()) {
+		watchScreen(screen);
+	}
+	QObject::connect(qApp, &QGuiApplication::screenAdded, this,
+		[=](QScreen *screen) { watchScreen(screen); relayout(); },
+		Qt::QueuedConnection);
+	QObject::connect(qApp, &QGuiApplication::screenRemoved, this,
+		[=] { relayout(); }, Qt::QueuedConnection);
+	QObject::connect(qApp, &QGuiApplication::primaryScreenChanged, this,
+		[=] { relayout(); }, Qt::QueuedConnection);
+	_barsTimer.setCallback([=] { frame(); });
 	_proximityTimer.setCallback([=] { updateDesktopHover(); });
-	_proximityTimer.callEach(50);
+	shownValue() | rpl::on_next([=](bool shown) {
+		if (shown) {
+			_proximityTimer.callEach(50, Qt::CoarseTimer);
+		} else {
+			_proximityTimer.cancel();
+			_barsTimer.cancel();
+		}
+	}, lifetime());
+	PowerSaving::Changes() | rpl::on_next([=] {
+		if (_shown && isVisible()) {
+			startFrames();
+		}
+	}, lifetime());
 #endif
 	setMouseTracking(true);
 	hide();
@@ -659,6 +689,9 @@ void Island::refreshState(const Media::Player::TrackState &state) {
 }
 
 void Island::startFrames() {
+#ifdef Q_OS_MAC
+	_barsTimer.cancel();
+#endif
 	if (!_moving) {
 		_moving = true;
 		applyGeometry();
@@ -704,6 +737,14 @@ bool Island::frame() {
 		Shortcuts::ToggleMediaShortcuts(false);
 		return false;
 	}
+#ifdef Q_OS_MAC
+	// Mokagram: settled geometry needs only the decorative bars at 30 fps.
+	if (!moving && bars && isVisible()) {
+		update(barsRect().toAlignedRect());
+		_barsTimer.callOnce(33, Qt::CoarseTimer);
+		return false;
+	}
+#endif
 	applyGeometry();
 	update();
 	return moving || bars;
