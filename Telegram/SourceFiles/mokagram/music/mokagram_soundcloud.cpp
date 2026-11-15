@@ -1927,8 +1927,9 @@ void SetTrackLiked(const QString &trackId, bool liked, bool refreshed) {
 			QNetworkReply::NetworkError networkError,
 			QString networkMessage,
 			QByteArray data) {
-		if (status == 401 && !refreshed) {
-			// Токен входа живёт сутки: берём свежий из браузера и повторяем.
+		if ((status == 401 || status == 403) && !refreshed) {
+			// Сайт может отклонять устаревшую авторизацию и через 403.
+			// Обновляем один раз, чтобы не зациклить запрещённый запрос.
 			RefreshSoundCloudToken([=](bool ok) {
 				if (ok) {
 					SetTrackLiked(trackId, liked, true);
@@ -1953,12 +1954,12 @@ void SetTrackLiked(const QString &trackId, bool liked, bool refreshed) {
 		LikeWriteErrorsStream().fire(std::move(message));
 	};
 	auto request = QNetworkRequest(QUrl(QString::fromLatin1(kPublicApi)
-		+ u"/likes/tracks/"_q + trackId));
+		+ u"/likes/tracks/soundcloud:tracks:"_q + trackId));
 	request.setRawHeader("User-Agent", kUserAgent);
 	request.setRawHeader(
 		"Authorization",
 		QByteArray("OAuth ") + AccountToken().toUtf8());
-	// Без браузерных заголовков запись лайка упирается в защиту DataDome (403).
+	// Заголовки запроса записи совпадают с запросами сайта.
 	request.setRawHeader("Accept", "application/json, text/javascript, */*; q=0.01");
 	request.setRawHeader("Accept-Language", "en-US,en;q=0.5");
 	request.setRawHeader("Content-Type", "application/json");
@@ -2035,7 +2036,7 @@ void SetTrackLiked(const QString &trackId, bool liked, bool refreshed) {
 						: primaryNetworkMessage,
 					legacyData.isEmpty() ? primaryData : legacyData);
 			});
-		}, false);
+		}, refreshed);
 	});
 }
 
