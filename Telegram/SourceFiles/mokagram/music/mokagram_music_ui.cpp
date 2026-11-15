@@ -6860,10 +6860,9 @@ public:
 		const auto instance = Media::Player::instance();
 		_collapse->setClickedCallback([=] { close(); });
 		_heart->setClickedCallback([=] {
-			const auto &queue = QueueState();
-			if (OwnsTrack(instance->current(AudioMsgId::Type::Song))
-				&& !queue.current.id.isEmpty()) {
-				SetLiked(queue.current, !IsLiked(queue.current.id));
+			const auto track = PlayingTrack();
+			if (!track.id.isEmpty()) {
+				SetLiked(track, !IsLiked(track.id));
 			}
 		});
 		const auto step = [=](int delta) {
@@ -9315,10 +9314,9 @@ private:
 					update();
 				}));
 		}
-		const auto own = OwnsTrack(current);
-		_heartOwn = own;
-		_heart->setVisible(own);
-		_heart->setLiked(own && IsLiked(track.id));
+		_heartOwn = !track.id.isEmpty();
+		_heart->setVisible(_heartOwn);
+		_heart->setLiked(IsLiked(track.id));
 		_seek->setProgress(state.length > 0
 			? state.position / float64(state.length)
 			: 0.);
@@ -11037,11 +11035,10 @@ void ShowPlayerBox(not_null<Window::SessionController*> controller) {
 			}
 		};
 		heart->setClickedCallback([=] {
-			const auto &queue = QueueState();
-			if (OwnsTrack(instance->current(AudioMsgId::Type::Song))
-				&& !queue.current.id.isEmpty()) {
-				SetLiked(queue.current, !IsLiked(queue.current.id));
-				heart->animateLike(IsLiked(queue.current.id));
+			const auto track = PlayingTrack();
+			if (!track.id.isEmpty()) {
+				SetLiked(track, !IsLiked(track.id));
+				heart->animateLike(IsLiked(track.id));
 			}
 		});
 		previous->setClickedCallback([=] { step(-1); });
@@ -11115,10 +11112,10 @@ void ShowPlayerBox(not_null<Window::SessionController*> controller) {
 			const auto track = PlayingTrack();
 			share->setVisible(!track.id.isEmpty());
 			share->setDisabled(!CanForwardTrack(track));
-			heart->setVisible(own);
+			heart->setVisible(!track.id.isEmpty());
 			more->setVisible(own);
 			block->setVisible(own);
-			heart->setLiked(own && IsLiked(PlayingTrack().id));
+			heart->setLiked(IsLiked(track.id));
 			play->setPlaying(state.state == Media::Player::State::Playing
 				|| state.state == Media::Player::State::Starting
 				|| state.state == Media::Player::State::Resuming);
