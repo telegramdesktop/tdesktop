@@ -2933,9 +2933,22 @@ set_target_properties(Telegram PROPERTIES
     XCODE_ATTRIBUTE_COPY_PHASE_STRIP NO
     XCODE_ATTRIBUTE_ALWAYS_SEARCH_USER_PATHS NO
     XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY libc++
-    XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS --deep
     XCODE_ATTRIBUTE_CLANG_DEBUG_INFORMATION_LEVEL $<IF:$<CONFIG:Debug>,default,line-tables-only>
 )
+if (build_macstore)
+    set_target_properties(Telegram PROPERTIES XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS --deep)
+elseif (APPLE AND CMAKE_GENERATOR STREQUAL Xcode)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    add_custom_command(TARGET Telegram POST_BUILD
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/build/sign_mac.py
+            --xcode
+            --runtime
+            --entitlements ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/${bundle_entitlements}
+            $<TARGET_BUNDLE_DIR:Telegram>
+        VERBATIM
+    )
+endif()
+
 set(entitlement_sources
     "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram.entitlements"
     "${CMAKE_CURRENT_SOURCE_DIR}/Telegram/Telegram Lite.entitlements"

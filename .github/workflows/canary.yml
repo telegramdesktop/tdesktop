@@ -918,7 +918,7 @@ jobs:
           done
 
           # Stripped here: the universal app is lipo'd from these.
-          for BINARY in MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler; do
+          for BINARY in MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler Helpers/TelegramWidgetHelper; do
             strip Telegram.app/Contents/$BINARY
           done
 
@@ -1016,7 +1016,7 @@ jobs:
 
           # Use the arm64 bundle as the template and include Intel-only
           # Swift runtimes below for older macOS versions.
-          BINARIES="MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler"
+          BINARIES="MacOS/Telegram Frameworks/Updater Helpers/crashpad_handler Helpers/TelegramWidgetHelper"
           rm -rf Telegram.app
           cp -R Telegram.arm64.app Telegram.app
           for BINARY in $BINARIES; do
@@ -1082,8 +1082,8 @@ jobs:
             -s -k "$KEYCHAIN_PASSWORD" build.keychain
 
           for BUNDLE in Telegram.x86_64.app Telegram.arm64.app Telegram.app; do
-            codesign --force --deep --timestamp --options runtime \
-              --sign "$SIGN_IDENTITY" \
+            python3 ../../Telegram/build/sign_mac.py --timestamp --runtime \
+              --identity "$SIGN_IDENTITY" \
               --entitlements ../../Telegram/Telegram/Telegram.entitlements \
               "$BUNDLE"
             codesign --verify --deep --strict "$BUNDLE"

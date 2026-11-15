@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 
+import sign_mac
+
 
 def run(command, **kwargs):
     subprocess.run([str(part) for part in command], check=True, **kwargs)
@@ -50,18 +52,6 @@ def toolchain_environment(toolchain):
     environment['MACOSX_DEPLOYMENT_TARGET'] = '10.13'
     print('Using Command Line Tools 26.6, SDK 26.5, deployment target 10.13.', flush=True)
     return environment, sdk
-
-
-def macho(path):
-    if path.is_symlink() or not path.is_file():
-        return False
-    with path.open('rb') as file:
-        return file.read(4) in (
-            b'\xfe\xed\xfa\xce', b'\xce\xfa\xed\xfe',
-            b'\xfe\xed\xfa\xcf', b'\xcf\xfa\xed\xfe',
-            b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca',
-            b'\xca\xfe\xba\xbf', b'\xbf\xba\xfe\xca',
-        )
 
 
 def verify_dependencies(folder, libraries, toolchain, arch, target):
@@ -165,8 +155,8 @@ def assemble(builds, destination, toolchain, target, configuration):
             runtime.unlink()
         for relative in sorted(file_sets['arm64']):
             files = {arch: app / relative for arch, app in apps.items()}
-            if macho(files['arm64']):
-                if not macho(files['x86_64']):
+            if sign_mac.macho(files['arm64']):
+                if not sign_mac.macho(files['x86_64']):
                     raise RuntimeError('Mismatched bundle file: ' + str(relative))
                 merge_binary(lipo, files, bundle / relative, temporary)
             elif files['arm64'].is_symlink():
@@ -211,7 +201,8 @@ def assemble(builds, destination, toolchain, target, configuration):
             resources.extend(('Contents/Frameworks/Breakpad.framework/Versions/A/Breakpad',
                 'Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib'))
         else:
-            resources.extend(('Contents/Frameworks/Updater', 'Contents/Helpers/crashpad_handler'))
+            resources.extend(('Contents/Frameworks/Updater', 'Contents/Helpers/crashpad_handler',
+                'Contents/Helpers/TelegramWidgetHelper'))
         for relative in resources:
             if not (bundle / relative).is_file():
                 raise RuntimeError('Missing release resource: ' + relative)
@@ -222,8 +213,10 @@ def assemble(builds, destination, toolchain, target, configuration):
             if target == 'macstore':
                 run(['codesign', '--force', '--sign', '-', bundle
                     / 'Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib'])
-            run(['codesign', '--force', '--deep', '--sign', '-', bundle])
-            run(['codesign', '--verify', '--deep', '--strict', bundle])
+                run(['codesign', '--force', '--deep', '--sign', '-', bundle])
+                run(['codesign', '--verify', '--deep', '--strict', bundle])
+            else:
+                sign_mac.sign(bundle, '-')
         result = destination / app_name
         if result.exists():
             shutil.rmtree(result)

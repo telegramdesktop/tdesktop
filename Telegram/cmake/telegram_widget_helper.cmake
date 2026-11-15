@@ -4,6 +4,10 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
+include(cmake/generate_widget_helper_identity.cmake)
+
+set(widget_helper_identifier com.tdesktop.Telegram.WidgetHelper)
+
 add_executable(TelegramWidgetHelper)
 init_standalone_target(TelegramWidgetHelper)
 
@@ -49,6 +53,23 @@ PRIVATE
 if (APPLE)
     set_target_properties(TelegramWidgetHelper PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${output_folder}
+        XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO
+    )
+
+    if (NOT CMAKE_STRIP)
+        message(FATAL_ERROR
+            "TelegramWidgetHelper is stripped outside Debug, but no strip tool "
+            "was found (CMAKE_STRIP).")
+    endif()
+
+    # Strip and sign here, nothing may change the helper after its identity is taken.
+    add_custom_command(TARGET TelegramWidgetHelper POST_BUILD
+        COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:TelegramWidgetHelper>>"
+        COMMAND codesign --force --sign - --options runtime
+            --identifier ${widget_helper_identifier}
+            $<TARGET_FILE:TelegramWidgetHelper>
+        COMMAND_EXPAND_LISTS
+        VERBATIM
     )
 
     add_custom_target(TelegramWidgetHelper_bundle
@@ -59,6 +80,8 @@ if (APPLE)
     )
     add_dependencies(TelegramWidgetHelper_bundle TelegramWidgetHelper)
     add_dependencies(Telegram TelegramWidgetHelper_bundle)
+
+    generate_widget_helper_identity(Telegram TelegramWidgetHelper cdhash IDENTIFIER ${widget_helper_identifier})
 else()
     set(widget_helper_folder TelegramHelpers)
     if (DESKTOP_APP_USE_PACKAGED)
