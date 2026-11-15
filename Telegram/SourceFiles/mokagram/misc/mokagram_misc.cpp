@@ -2085,6 +2085,8 @@ void LagTick(LagState &state) {
 		if (S::Bool(u"lag.notify"_q)) {
 			Toast(QString::fromUtf8(Mokagram::Lang::Tr("Анти-лаг: включил экономный режим")));
 		}
+		// Mokagram: disk cache eviction adds downloads and I/O after a UI stall.
+#ifndef Q_OS_MAC
 		if (S::Bool(u"lag.cache"_q)
 			&& (now - state.lastCacheClear > 30 * 60 * 1000)) {
 			if (const auto window = Core::App().activePrimaryWindow()) {
@@ -2106,6 +2108,7 @@ void LagTick(LagState &state) {
 				}
 			}
 		}
+#endif // Q_OS_MAC
 	} else if (state.active
 		&& now - state.lastStall > crl::time(S::Int(u"lag.calm"_q)) * 1000) {
 		PowerSaving::Set(state.saved);
