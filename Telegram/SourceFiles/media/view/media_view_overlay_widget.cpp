@@ -4577,8 +4577,6 @@ void OverlayWidget::activate() {
 	_window->raise();
 	_window->activateWindow();
 	setFocus();
-	QApplication::setActiveWindow(_window);
-	setFocus();
 }
 
 void OverlayWidget::show(OpenRequest request) {
