@@ -17,6 +17,13 @@ void InitDesktopIsland(not_null<QWidget*> widget) {
 	[window setMovable:NO];
 }
 
+void SetDesktopIslandMouseInput(not_null<QWidget*> widget, bool enabled) {
+	const auto window = [reinterpret_cast<NSView*>(widget->winId()) window];
+	if (window.ignoresMouseEvents == enabled) {
+		[window setIgnoresMouseEvents:!enabled];
+	}
+}
+
 QRect DesktopIslandArea() {
 	const auto screens = [NSScreen screens];
 	const auto primary = [screens firstObject];

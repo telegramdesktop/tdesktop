@@ -1357,6 +1357,10 @@ bool Island::cursorNear() const {
 
 #ifdef Q_OS_MAC
 void Island::updateDesktopHover() {
+	// Transparent native canvas must not cover controls in the main window.
+	SetDesktopIslandMouseInput(this, _shown && !isHidden()
+		&& (_dragging != Part::None
+			|| shapePath().contains(mapFromGlobal(QCursor::pos()))));
 	if (!_shown || isHidden()) {
 		return;
 	}
@@ -1514,7 +1518,11 @@ void Island::activate(Part part) {
 		break;
 	case Part::Cover:
 		expand(false);
-		ShowFullscreenPlayer(_controller);
+		// Finish the native panel's mouse release before handing input to the app.
+		crl::on_main(this, [=] {
+			_controller->hideLayer(anim::type::instant);
+			ShowFullscreenPlayer(_controller);
+		});
 		break;
 	case Part::Heart:
 		if (const auto track = CurrentQueueTrack(); !track.id.isEmpty()) {

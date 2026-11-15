@@ -9730,10 +9730,16 @@ void ToggleLyricsPanel(
 void ShowFullscreenPlayer(not_null<Window::SessionController*> controller) {
 	BindController(controller);
 	auto &instance = FullscreenInstance();
-	if (instance) {
+	if (!instance && PlayingTrack().id.isEmpty()) {
 		return;
 	}
-	if (PlayingTrack().id.isEmpty()) {
+	// A desktop island can open this screen while the app is inactive or hidden.
+	controller->widget()->activate();
+	if (instance) {
+		instance->show();
+		instance->raise();
+		instance->setFocus();
+		controller->widget()->fixOrder();
 		return;
 	}
 	instance = Ui::CreateChild<FullscreenPlayer>(

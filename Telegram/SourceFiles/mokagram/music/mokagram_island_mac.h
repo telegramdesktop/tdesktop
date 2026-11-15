@@ -5,6 +5,7 @@
 namespace Mokagram::Music {
 
 void InitDesktopIsland(not_null<QWidget*> widget);
+void SetDesktopIslandMouseInput(not_null<QWidget*> widget, bool enabled);
 [[nodiscard]] QRect DesktopIslandArea();
 [[nodiscard]] QSize DesktopIslandNotchSize();
 
