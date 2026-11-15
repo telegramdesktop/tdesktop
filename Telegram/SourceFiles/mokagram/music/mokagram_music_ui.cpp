@@ -9243,12 +9243,12 @@ private:
 			_repeat->setAccent(_accent);
 		}
 		if (size().isEmpty() || area.isEmpty()) return;
-		// The backdrop is blurred already. Composite its gradients before
-		// enlarging it, instead of rasterizing them over every Retina pixel.
+		// Keep the blurred backdrop small, but retain colour precision while
+		// compositing the gradients so dark transitions do not become steps.
 		const auto extent = style::ConvertScale(256);
 		const auto rasterSize = size().scaled(
 			QSize(extent, extent), Qt::KeepAspectRatio);
-		auto background = QImage(rasterSize, QImage::Format_ARGB32_Premultiplied);
+		auto background = QImage(rasterSize, QImage::Format_RGBA64_Premultiplied);
 		background.fill(QColor(0x14, 0x14, 0x15));
 		{
 			auto raster = QPainter(&background);
@@ -9262,6 +9262,27 @@ private:
 		p.setClipRect(area, Qt::IntersectClip);
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
 		p.drawImage(QRect(-origin, size()), background);
+		// A fixed, subtle grain hides the remaining display quantisation.
+		// Tile it after enlargement so it stays fine and never flickers.
+		static const auto grain = [] {
+			const auto extent = style::ConvertScale(128);
+			auto image = QImage(extent, extent, QImage::Format_ARGB32_Premultiplied);
+			auto random = uint32_t(0x6d2b79f5);
+			for (auto y = 0; y != extent; ++y) {
+				const auto line = reinterpret_cast<QRgb*>(image.scanLine(y));
+				for (auto x = 0; x != extent; ++x) {
+					random ^= random << 13;
+					random ^= random >> 17;
+					random ^= random << 5;
+					const auto value = (random & 1) ? 16 : 0;
+					line[x] = qRgba(value, value, value, 16);
+				}
+			}
+			return QBrush(image);
+		}();
+		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+		p.setBrushOrigin(-origin);
+		p.fillRect(area, grain);
 		p.restore();
 	}
 
