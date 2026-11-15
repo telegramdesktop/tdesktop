@@ -145,6 +145,12 @@ public:
 	, _session(session)
 	, _chosen(std::move(chosen))
 	, _key(u"music.pinned_sources.%1"_q.arg(session->uniqueId())) {
+		Settings::Register({
+			.key = _key,
+			.kind = Settings::Kind::String,
+			.defaultValue = QString(),
+			.hidden = true,
+		});
 		_pins = Settings::String(_key).split(u',', Qt::SkipEmptyParts);
 	}
 
