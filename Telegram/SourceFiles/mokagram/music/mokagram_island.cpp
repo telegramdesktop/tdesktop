@@ -44,7 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QPointer>
 #include <QtGui/QPainterPath>
-#include <QtGui/QRegion>
 #include <QtSvg/QSvgRenderer>
 
 namespace Mokagram::Music {
@@ -767,10 +766,8 @@ void Island::applyGeometry() {
 	if (geometry() != rect) {
 		setGeometry(rect);
 	}
-#ifdef Q_OS_MAC
-	// Use the painted shape for hit testing, including the notch's top shoulders.
-	setMask(QRegion(shapePath().toFillPolygon().toPolygon()));
-#endif
+	// Leave native clipping to the translucent surface. QRegion masks cut off
+	// antialiased edge pixels and make the notch's curves visibly jagged.
 }
 
 std::optional<IslandShot> Island::shot() {
@@ -1039,9 +1036,7 @@ void Island::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	p.setOpacity(alpha);
 	const auto shape = shapeRect();
-	const auto radius = std::clamp(_radius.value(), 0., shape.height() / 2.);
-	auto path = QPainterPath();
-	path.addRoundedRect(shape, radius, radius);
+	const auto path = shapePath();
 	p.fillPath(path, QColor(0, 0, 0));
 	if (isWindow()) {
 		p.strokePath(path, QPen(QColor(255, 255, 255, 51), S(1)));
@@ -1171,7 +1166,7 @@ void Island::paintCompactTitle(QPainter &p) {
 void Island::paintTrack(QPainter &p, const QRectF &rect, double ratio) {
 	const auto line = rect.height() / 2.;
 	p.setPen(Qt::NoPen);
-	const auto color = TrackColor();
+	const auto color = isWindow() ? QColor(255, 255, 255, 128) : TrackColor();
 	auto track = color;
 	track.setAlpha(isWindow() ? 38 : 64);
 	p.setBrush(track);
