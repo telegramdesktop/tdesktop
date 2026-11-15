@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/mount.h>
 #include <sys/sysctl.h>
 #include <sys/xattr.h>
+#include <unistd.h>
 
 #include <Cocoa/Cocoa.h>
 #include <CoreFoundation/CFURL.h>
@@ -328,6 +329,14 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 #else // OS_MAC_STORE
 	return objc_documentsPath() + hash.left(4);
 #endif // OS_MAC_STORE
+}
+
+bool LocalSocketPeerAllowed(qintptr descriptor) {
+	auto uid = uid_t();
+	auto gid = gid_t();
+	return (descriptor >= 0)
+		&& !getpeereid(int(descriptor), &uid, &gid)
+		&& (uid == geteuid());
 }
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 5, 0)
