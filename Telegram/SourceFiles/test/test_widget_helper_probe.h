@@ -22,12 +22,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // the sandbox must deny and refuses the stream with a summary instead of
 // serving any widget. On Windows a probe helper runs the native probe of
 // Platform::WidgetHelper::PrepareProbe() and the harness's own network
-// attempts around the real lockdown, writes their report to stderr and goes
-// on serving widgets. On Linux a probe helper attempts what the lockdown
-// must deny in forked copies of itself, then locks itself down for real,
-// writes its readings to stderr and goes on serving widgets. Its only
-// product caller is the `_DEBUG` block of tgw_remote.cpp; Release builds
-// never reach it, the harness ones included.
+// attempts around the real lockdown and, once that succeeded, writes their
+// report to stderr and goes on serving widgets. On Linux a probe helper
+// attempts what the lockdown must deny in forked copies of itself, then
+// locks itself down for real, writes its readings to stderr and goes on
+// serving widgets. Its only product caller is the `_DEBUG` block of
+// tgw_remote.cpp; Release builds never reach it, the harness ones included.
 // Reference: docs/helpers/test_widget_helper_probe.md.
 //
 // Everything here is harness-only: declared here and deliberately left
@@ -50,8 +50,9 @@ struct WidgetHelperProbeFixture {
 	int loopbackPort = 0;
 	// Preopen unconnected sockets before the lockdown and use them
 	// afterwards: on macOS one TCP socket for |loopbackPort|, on Windows one
-	// socket per network target, all closed before Ready. That run holds
-	// injected descriptors or handles and is never a clean inventory.
+	// socket per network target whose creation and nonblocking switch
+	// succeeded, none without Winsock, all closed before Ready. That run
+	// holds injected descriptors or handles and is never a clean inventory.
 	bool connectControl = false;
 	// Windows only: "tcp:<address>" or "udp:<address>", the address numeric
 	// as WSAStringToAddressW reads it, port included, IPv6 in brackets with
@@ -85,15 +86,19 @@ struct WidgetHelperProbeFixture {
 // On Windows, with "probe" it calls Platform::WidgetHelper::PrepareProbe()
 // with the client's working directory argument (native separators, empty
 // when the argument is empty or missing), then takes the harness's own
-// network controls: its own WSAStartup, a fresh socket of each family and
-// protocol, the loopback port's and the network targets' attempts, native
-// AFD endpoint opens and, with "connect-control", one preopened socket per
-// target. Then |lockdown|: its failure text refuses the stream and no probe
-// line is written. On success it repeats the attempts, uses and closes the
-// preopened sockets, writes every line of the product probe's report, then
-// its own, to stderr as "Widget helper probe: <line>" and returns "", so
-// the helper serves widgets. A malformed argument is a report line, never a
-// refusal; the application-support and keychain arguments are ignored, and
+// network controls: its own WSAStartup; only when that bind and start
+// succeeded, a fresh socket of each family and protocol and the loopback
+// port's and the network targets' attempts; native AFD endpoint opens,
+// which need no Winsock; and, with "connect-control" and Winsock, one
+// preopened socket per target whose creation and nonblocking switch
+// succeeded. Then |lockdown|: its failure text refuses the stream and no
+// probe line is written. On success it repeats the attempts it made, uses
+// and closes the preopened sockets, writes every line of the product
+// probe's report, then its own, to stderr as "Widget helper probe: <line>"
+// and returns "", so the helper serves widgets. A malformed argument is a
+// report line, never a refusal, though a target that does not parse, has
+// no port or is past the limit gets one only with Winsock; the
+// application-support and keychain arguments are ignored, and
 // "probe-unsandboxed" refuses as not available.
 // On Linux, with "probe" it first runs three forked copies of the helper,
 // one at a time, each reaped within 2 s or killed: the first makes the

@@ -95,7 +95,9 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   the token runs the lockdown alone and serves. Any other mode refuses with
   `unknown widget helper mode "<mode>"`. On macOS a malformed port or
   seventh argument, a target included, is a defect in the report; on
-  Windows every malformed argument is an `argument: malformed` line
+  Windows a malformed argument is an `argument: malformed` line, except
+  that a target that does not parse, has no port or is past the limit gets
+  one only with Winsock; without it such a target is only counted
   ([Windows arguments](#windows-arguments)); on Linux every argument after
   `application-support` is ignored ([Linux](#linux)).
 - The Debug `TelegramWidgetHelper` links the same two libraries as the
@@ -116,7 +118,8 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   ended`. Each refusal counts as a helper failure, so the third probe
   latches the helper for the process. On Windows such a probe has no
   network target, so the harness's attempt lines are only the socket and
-  AFD ones, after its `arguments:` and Winsock lines.
+  AFD ones (without Winsock its `not tried` line in place of the socket
+  ones), after its `arguments:` and Winsock lines.
 - A pristine listing holds two send rights no reference service matches:
   libtrace's firehose push ports to logd. The probe names them only through
   its own [firehose reading](#firehose-reading), made in the same process
@@ -148,7 +151,9 @@ this order, once per helper:
    impersonates its startup token.
 2. The harness's own preparation, under the same token: its own
    `WSAStartup`, then its `before lowering:` socket, target and AFD endpoint
-   controls and, with `connect-control`, the preopened sockets.
+   controls and, with `connect-control`, the preopened sockets; without
+   Winsock only the AFD endpoint controls
+   ([Windows harness lines](#windows-harness-lines)).
 3. The real lockdown. A failure refuses the stream with the lockdown's own
    text, writes no probe line and closes what the harness holds.
 4. The harness's `after lowering:` attempts, then the product probe's.
@@ -159,8 +164,9 @@ this order, once per helper:
 
 The helper then serves widgets as in `helper` mode, so a probe launch is no
 helper failure. After the lockdown the hook calls only what was bound
-before it: the `WS2_32.dll` imports the product probe bound (the harness
-binds them again only as a check) and `NtCreateFile` and
+before it: the `WS2_32.dll` imports, which the product probe and then the
+harness's own Winsock start each bind (the harness uses Winsock only when
+its own bind and `WSAStartup` succeeded), and `NtCreateFile` and
 `RtlInitUnicodeString`, resolved from the already mapped ntdll. Neither
 probe is an inventory of what the helper holds. The product probe's lines,
 their controls and the measured results are in
@@ -185,10 +191,13 @@ the application-support and keychain-account arguments are ignored.
 - At most 16 targets, the loopback port's four included, each at most 64
   characters.
 - Anything else is one `argument: malformed ...` line and is skipped,
-  never a refusal: a port outside 0 to 65535 (`loopback port "<text>"`), an
-  unknown argument (`"<text>"`), a target that is too long, does not parse
-  (`WSAStringToAddressW failed: error <n>`), has port 0 (`no port`) or is
-  past the limit.
+  never a refusal: with or without Winsock a port that is no number from 0
+  to 65535 (`loopback port "<text>"`), an unknown argument (`"<text>"`) or
+  a target that is too long, and only with Winsock a target that does not
+  parse (`WSAStringToAddressW failed: error <n>`), has port 0 (`no port`)
+  or is past the limit. Without Winsock those three are never checked: they
+  write no line and only count in `<n> unresolved network targets`
+  ([Windows harness lines](#windows-harness-lines)).
 
 ### Windows harness lines
 
@@ -224,33 +233,52 @@ After the product probe's lines, in this order:
     NtCreateFile(\Device\Afd\Endpoint, EA AfdOpenPacketXX of 57 bytes,
     endpoint flags 0x<flags>): <status verdict>` for the same four kinds;
     the `before lowering:` line adds `EA bytes <hex>`, and the `after
-    lowering:` call passes the same buffer.
-- With `connect-control`, after the other `before lowering:` lines, one
-  `connect-control: before lowering: target <target>: preopened socket
-  <verdict>` per target (unconnected and nonblocking), and after the other
-  `after lowering:` lines one `connect-control: after lowering: target
-  <target>: <connect or sendto verdict>; closesocket ok` per target, then
-  `connect-control: <n> preopened sockets used and closed before Ready;
-  this run holds injected handles and is no ordinary helper`.
+    lowering:` call passes the same buffer. These lines need no Winsock.
+    When ntdll lacks `NtCreateFile` or `RtlInitUnicodeString`, each phase
+    has the one line `AFD endpoint: not tried, ntdll's NtCreateFile or
+    RtlInitUnicodeString is missing` instead.
+- With `connect-control` and Winsock, after the other `before lowering:`
+  lines, one `connect-control: before lowering: target <target>: preopened
+  socket <verdict>` per target: `ALLOWED, unconnected and nonblocking`, the
+  creation's `denied (error 10013)` or `failed (error <n>)`, or `ALLOWED,
+  FIONBIO failed (error <n>), closed`; only the first keeps a socket. After
+  the other `after lowering:` lines, per target in the same order, a kept
+  socket's `connect-control: after lowering: target <target>: <connect or
+  sendto verdict>; closesocket ok` (or `closesocket failed (error <n>)`)
+  and any other target's `connect-control: after lowering: target
+  <target>: not tried, no socket was preopened`, then `connect-control: <n>
+  preopened sockets used and closed before Ready; this run holds injected
+  handles and is no ordinary helper`, `<n>` counting the kept sockets.
+  With `connect-control` and no Winsock nothing is preopened, and the only
+  line after the other `after lowering:` lines is `connect-control: not
+  tried, Winsock is not available`, with no per-target line and no count.
 
 Verdicts:
 
 - A socket call reads `ALLOWED`, `CONNECTED` or `SENT (<n> bytes)` on
   success, `denied (error 10013)` only for `WSAEACCES`, and `failed (error
-  <n>)` for any other error: an unavailable family, a bad argument, a
-  refused or unreachable target or missing Winsock is never a denial.
-- A TCP connect is nonblocking, waits at most 1 s in `select()` and is
-  judged by `SO_ERROR`: `CONNECTED` only when it completed with `SO_ERROR`
-  0; no completion reads `failed (no completion within 1000 ms)`. On
-  success the socket sends the marker `widget-helper-probe <pid> <phase>
-  <mode>\n`, `<phase>` being `before-lowering`, `after-lowering` or
-  `connect-control`. A UDP target gets the same marker in one `sendto` on
+  <n>)` for any other error (a connect has the further forms below): an
+  unavailable family, a bad argument, a refused or unreachable target or
+  missing Winsock is never a denial.
+- A TCP connect is nonblocking and waits at most 1 s in `select()`:
+  `CONNECTED` when `connect()` succeeded at once or `select()` saw the
+  socket writable with `SO_ERROR` 0; an immediate error
+  other than `WSAEWOULDBLOCK`, or a nonzero `SO_ERROR`, reads as above. No
+  completion reads `failed (no completion within 1000 ms)`, and the other
+  failures `failed (select error <n>)`, `failed (SO_ERROR unreadable: error
+  <n>)` or `failed (SO_ERROR 0 without a completed connect)`. On success
+  the socket sends the marker `widget-helper-probe <pid> <phase> <mode>\n`,
+  `<phase>` being `before-lowering`, `after-lowering` or `connect-control`;
+  a failed or short send reads `connect CONNECTED, marker send failed
+  (error <n>)` or `(<sent> of <size> bytes)` instead of `marker sent
+  (<n> bytes)`. A UDP target gets the same marker in one `sendto` on
   a nonblocking socket too: `SENT` says the call returned the byte count,
   and only the receiving fixture shows delivery; a send that would block
   reads `failed (error 10035)` at once, never a denial.
-- An AFD open reads `ALLOWED (status 0x0)`, `denied (status 0xC0000022)`
-  only for `STATUS_ACCESS_DENIED`, and `failed (status 0x<NTSTATUS>)` for
-  any other status. A created handle is closed at once.
+- An AFD open reads `ALLOWED (status 0x<NTSTATUS>)` for a success status,
+  such as `ALLOWED (status 0x0)`, `denied (status 0xC0000022)` only for
+  `STATUS_ACCESS_DENIED`, and `failed (status 0x<NTSTATUS>)` for any other
+  status. A created handle is closed at once.
 
 Each TCP target can hold Ready back up to 1 s per attempt (before, after
 and with `connect-control`), a UDP target does not wait; the 16-target
@@ -568,8 +596,9 @@ reachability control; a helper marker that arrives after the lowering
 The report is in the client's stderr (`app_stderr.txt` in a test run), so
 the run reads it after the client exited. A second launch with
 `.connectControl = true` is the injected-socket leg: it holds one preopened
-socket per target until the hook closes them before Ready, so it is never
-the ordinary-helper inventory, which a launch without the fixture gives.
+socket per target whose preopen succeeded until the hook closes them
+before Ready, so it is never the ordinary-helper inventory, which a launch
+without the fixture gives.
 
 ## Readings and refusals
 
@@ -730,7 +759,8 @@ The helper exits after the refusal. The overlay owns the keychain item, the
 listener and the restoration of `SecKeychainSetUserInteractionAllowed`.
 
 On Windows the hook closes each fresh socket and AFD handle right after its
-attempt and each preopened socket right after its `after lowering:` use;
+attempt and each preopened socket right after its `after lowering:` use
+(one that could not be made nonblocking at once, before the lowering);
 before it returns, and on a lockdown failure, it closes whatever it still
 holds and ends its own `WSAStartup`, so no harness socket survives into
 Ready. The product probe closes its listener and ends its own start in its
@@ -992,8 +1022,11 @@ ran `probe` without a fixture through `TDESKTOP_WIDGET_ENGINES`.
   After Ready the probe helpers of Run 2 held no `\Device\Afd` handle.
 
 Not run on Windows: a malformed argument, the 16-target limit, a probe
-helper whose lockdown fails, a helper without Winsock and architectures
-other than x86. The Windows runs of the product probe are in
+helper whose lockdown fails, a helper without Winsock or without ntdll's
+two functions, a failed preopen, nonblocking switch or `closesocket`, a
+harness connect that completed or failed other than by a timeout or
+`WSAEACCES`, and architectures other than x86. The Windows runs of the
+product probe are in
 [Remote engines verification](test_widget_fixture.md#verification).
 
 On Linux the probe ran in the x86_64 Debug client (the Docker

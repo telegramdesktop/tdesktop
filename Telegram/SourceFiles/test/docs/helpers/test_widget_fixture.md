@@ -666,7 +666,8 @@ The packs, the fixture and the seams they use need no change for it.
   client working directory: not given` when it is empty) and `%APPDATA%`
   opened for listing, `HKEY_CURRENT_USER\Software` opened, `whoami.exe`
   found in the system directory, and the time zone (`bias <minutes>`); a
-  passing control reads `ok`, or `present` for the `whoami.exe` lookup.
+  passing listener, directory or registry control reads `ok`, and the
+  `whoami.exe` lookup `present`.
   The startup token reaches a directory only where it grants the package
   or `ALL APPLICATION PACKAGES`: the checkpoint named in **What the Windows
   lowering leaves** read `error 5` for the client's working directory and
@@ -674,8 +675,11 @@ The packs, the fixture and the seams they use need no change for it.
   no control in the helper, and the same paths opened by the client are
   their positive control.
   The lines that start `after lowering:` try `CreateProcessW` of that
-  `whoami.exe`, a TCP socket and a 1 s connect to the listener, the three
-  directories, `HKEY_CURRENT_USER\Software` and
+  `whoami.exe`, a TCP socket and a 1 s connect to the listener (`socket:
+  not tried, the loopback listener did not start` when Winsock failed
+  before or the listener's socket was not created), the same directories
+  (two when the client's working directory was not given),
+  `HKEY_CURRENT_USER\Software` and
   `HKEY_LOCAL_MACHINE\SOFTWARE`; read back the thread token, the process
   token and the job; try to disable win32k system calls
   (`DisallowWin32kSystemCalls: APPLIED` or `not applied
@@ -688,12 +692,13 @@ The packs, the fixture and the seams they use need no change for it.
   no denial; a success reads `ALLOWED`, a completed connect `CONNECTED`.
   `OpenProcess` of its own pid reads `opened` or `error N`. The product
   probe reads no argument but the client's working directory. After its
-  lines the harness writes its own: fresh TCP and UDP sockets of both
-  families, the fixture's loopback port and numeric network targets,
-  native `\Device\Afd\Endpoint` opens and, with `connect-control`,
-  preopened sockets used after the lowering, each before and after the
-  lowering with the same verdict rules (`denied` only for `WSAEACCES` or
-  `STATUS_ACCESS_DENIED`); their arguments, lines and controls are in
+  lines the harness writes its own: with Winsock, fresh TCP and UDP
+  sockets of both families, the fixture's loopback port and numeric
+  network targets and, with `connect-control`, preopened sockets used after
+  the lowering; with or without it, native `\Device\Afd\Endpoint` opens;
+  each before and after the lowering with the same verdict rules (`denied`
+  only for `WSAEACCES` or `STATUS_ACCESS_DENIED`); their arguments, lines
+  and controls are in
   [test_widget_helper_probe](test_widget_helper_probe.md#windows). The
   macOS probe is a different one, which refuses after its report
   ([test_widget_helper_probe](test_widget_helper_probe.md)), and so is the
@@ -718,9 +723,9 @@ The packs, the fixture and the seams they use need no change for it.
   measured four socket kinds, `AF_INET` and `AF_INET6` with TCP and UDP:
   after the lowering every fresh socket of these kinds that the probes
   asked for was refused at creation with `WSAEACCES`, and the native
-  `\Device\Afd\Endpoint` open with Winsock's own endpoint attribute for
-  each kind with `STATUS_ACCESS_DENIED`, each after the same call
-  succeeded in the helper before the lowering (the same AFD bytes
+  `\Device\Afd\Endpoint` open with the probe's copy of Winsock's endpoint
+  attribute for each kind with `STATUS_ACCESS_DENIED`, each after the same
+  call succeeded in the helper before the lowering (the same AFD bytes
   also opened in an ordinary process). Listeners of the helper's parent on
   127.0.0.1, `::1` and the host's own LAN and link-local addresses, of a
   sibling process on 127.0.0.1 and `::1`, and one in the running WSL
