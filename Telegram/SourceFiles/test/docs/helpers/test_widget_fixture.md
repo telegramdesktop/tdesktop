@@ -14,10 +14,9 @@ runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where the engines of its widgets run: by default in a sandboxed
 widget helper, packaged builds included, which on macOS outside the store
-build is the separate `TelegramWidgetHelper`, on Linux x86_64 and aarch64
-the client's own executable, and on Windows 10 1809 or later, outside the
-Store build, a restricted helper that is also the client's own
-executable.
+build and on Linux x86_64 and aarch64 is the separate Qt-free
+`TelegramWidgetHelper`, and on Windows 10 1809 or later, outside the Store
+build, a restricted helper that is the client's own executable.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -277,12 +276,12 @@ On macOS outside the store build, on Linux x86_64 and aarch64 and on
 Windows 10 1809 or later outside the Store build, packaged builds included
 on all three, every widget engine of the client runs in one shared widget
 helper process that has locked itself down, instead of the client's own
-threads, in Debug and Release builds alike and with no switch. On macOS
-that helper is the separate Qt-free executable `TelegramWidgetHelper`; on
-Linux it is the client's own executable, and on Windows a restricted
-helper that is also the client's own executable. Everywhere else the
-engines stay in process (**Store, packaged and other platforms** below).
-The packs, the fixture and the seams they use need no change for it.
+threads, in Debug and Release builds alike and with no switch. On macOS and
+Linux that helper is the separate Qt-free executable
+`TelegramWidgetHelper`; on Windows it is a restricted helper that is the
+client's own executable. Everywhere else the engines stay in process
+(**Store, packaged and other platforms** below). The packs, the fixture
+and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
   macOS, builds with packaged libraries (`DESKTOP_APP_USE_PACKAGED`)
@@ -298,12 +297,14 @@ The packs, the fixture and the seams they use need no change for it.
   distribution builds against packaged libraries, Flatpak and Snap default
   to the sandboxed helper as well (`kLockdownAvailable` in
   `widget_lockdown_linux.h`). Other Linux architectures have no seccomp
-  filter and keep their engines in process. No Linux build against
-  packaged libraries has run the helper yet: a shared library that started
-  a thread before `main` would make every helper refuse with `the widget
-  helper has <N> threads before its lockdown` (**The Linux lockdown**
-  below). The client decides once, on the main thread, when it constructs
-  its first widget host (`Tgw::PrepareRemoteEngines()` in
+  filter and keep their engines in process. The helper links no Qt, GLib
+  or other packaged library, so the libraries a build against packaged
+  libraries loads never reach it; only the helper's own link set
+  (**The shared helper** below) loads before its `main`, and a library
+  there that started a thread would make every helper refuse with `the
+  widget helper has <N> threads before its lockdown` (**The Linux
+  lockdown** below). The client decides once, on the main thread, when it
+  constructs its first widget host (`Tgw::PrepareRemoteEngines()` in
   `Runtime::construct()`), keeps that choice for the whole process and
   names it in the main log: `Tgw: Widget engines run in the widget
   helper.` or `Tgw: Widget engines run in process.`. Once it chose the
@@ -312,16 +313,18 @@ The packs, the fixture and the seams they use need no change for it.
   and the failure limit stops further starts (**Runtime log and deaths**
   and **Failure limit** below). Release builds,
   `TDESKTOP_RELEASE_TEST_HARNESS` ones included, read no switch and never
-  probe. macOS Telegram has no `-widgethelper` entry: its helper is the
-  separate `TelegramWidgetHelper` (**The shared helper** below), whose
-  Release build contains no probe and accepts only its channel token. On
-  Windows and Linux the helper is the client's own executable, whose
+  probe. macOS and Linux Telegram have no `-widgethelper` entry: their
+  helper is the separate `TelegramWidgetHelper` (**The shared helper**
+  below), whose Release build contains no probe and accepts only its
+  channel token. On Linux `Telegram -widgethelper 3` starts an ordinary
+  Telegram, which takes both arguments as start URLs and answers no
+  channel. On Windows the helper is the client's own executable, whose
   `-widgethelper` entry a Release build opens only where this default is
   true (`HelperEntryAllowed()` in `tgw_remote.cpp` returns `Enabled()`
   there); elsewhere the entry exits with status 1 before it adopts a
-  channel, as in the Windows Store build, on Windows before 10 1809 and in
-  a Release build on another Linux architecture. On Windows 10 1809 or
-  later, outside the Store build, the entry of a Release build therefore
+  channel, as in the Windows Store build and on Windows before 10 1809. On
+  Windows 10 1809 or later, outside the Store build, the entry of a Release
+  build therefore
   adopts its channel, and a helper that runs without the client's
   confinement refuses in its lowering (`LockDownHelper()`, **The Windows
   lowering** below) before Ready. Only Win32 (x86 on WOW64) Debug builds
@@ -351,11 +354,12 @@ The packs, the fixture and the seams they use need no change for it.
     widgets as `helper` does (**Windows probe** below), and
     `probe-unsandboxed` makes every helper refuse the stream with `the
     widget helper probe is not available on this platform`, each refusal
-    a failure as well. On Linux both start the sandboxed helper, which
-    writes its probe lines to `app_stderr.txt` and then serves widgets
-    (**Linux probe** below): `probe` under the real lockdown, which still
-    refuses the stream when it fails, and `probe-unsandboxed` with no
-    lockdown at all, so that helper runs its widgets unconfined.
+    a failure as well. On Linux both start the sandboxed helper, whose
+    Debug build carries the probe too; it writes its probe lines to
+    `app_stderr.txt` and then serves widgets (**Linux probe** below):
+    `probe` under the real lockdown, which still refuses the stream when
+    it fails, and `probe-unsandboxed` with no lockdown at all, so that
+    helper runs its widgets unconfined.
 
   The helper never reads the variable: the client passes a probe value to
   it as the mode argument after its channel (**The shared helper** and
@@ -376,37 +380,65 @@ The packs, the fixture and the seams they use need no change for it.
     --env TDESKTOP_WIDGET_ENGINES=helper
   ```
 
-  On Linux the first command takes `--exe out/Debug/Telegram`. The main
-  log names a recognized value: `Tgw: Widget engines run in the
-  widget helper (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
+  On Linux the first command takes `--exe out/Debug/Telegram`, whose
+  helper the same build puts at
+  `out/Debug/TelegramHelpers/TelegramWidgetHelper`. The main log names a
+  recognized value: `Tgw: Widget engines run in the widget helper
+  (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
   or `probe-unsandboxed`, or `Tgw: Widget engines run in process
   (TDESKTOP_WIDGET_ENGINES=in-process).`.
 - **Store, packaged and other platforms.** macOS, Windows and Linux have a
-  helper. An explicit `helper` or probe value on the non-Linux all-other
-  platforms fails closed instead: no engine runs in process, and each
-  widget dies with `the widget helper could not start: the widget helper
-  is not available on this platform` until the failure limit below stops
-  the attempts. On a Linux architecture other than x86_64 and aarch64 it
-  fails closed the same way, with `the widget helper could not start: the
-  widget helper is not available on this architecture`. The macOS store
-  build keeps its engines in process because `sandbox_init` cannot narrow
-  a process the App Sandbox already confines, and it builds no helper: it
-  has no `TelegramWidgetHelper` target, and its bundle no
-  `Contents/Helpers` folder. An explicit Debug `helper` there finds no
-  file to start, so its starts fail and count towards the failure limit,
-  and no engine runs in process; no store build has been launched with it.
+  helper. The non-Linux all-other platforms, FreeBSD among them, build
+  none (no `TelegramWidgetHelper` target) and start none. An explicit
+  `helper` or probe value there fails closed instead: no engine runs in
+  process, and each widget dies with `the widget helper could not start:
+  the widget helper is not available on this platform` until the failure
+  limit below stops the attempts. On a Linux architecture other than
+  x86_64 and aarch64 it fails closed the same way, with `the widget
+  helper could not start: the widget helper is not available on this
+  architecture`. The macOS store build keeps its engines in process
+  because `sandbox_init` cannot narrow a process the App Sandbox already
+  confines, and it builds no helper: it has no `TelegramWidgetHelper`
+  target, and its bundle no `Contents/Helpers` folder. An explicit Debug
+  `helper` there finds no file to start, so its starts fail and count
+  towards the failure limit, and no engine runs in process; no store
+  build has been launched with it.
   A macOS packaged build builds, stages and runs the same helper as every
   other non-store macOS build: the helper links no Qt, so the external Qt
   of the packaged workflow (Homebrew's), which lacks the patches that keep
   Qt's startup from connecting to the preferences daemon and other
-  services before `main`, never reaches it. The Windows Store build and
-  Windows before 10 1809 keep their engines in process, because the
-  default is false there; an explicit `helper` or probe value makes the
-  seam fail every launch closed the same way, with `the widget helper is
-  not available in the Store build` or `the widget helper needs Windows 10
-  1809 or later`. Neither has been run. The Windows default reads nothing
-  else, so a Windows build with packaged libraries defaults to the helper
-  as well; no such build has been run.
+  services before `main`, never reaches it. Every Linux build defines the
+  helper. A package-managed build, one with packaged libraries
+  (`DESKTOP_APP_USE_PACKAGED`) and no special target (distributions, Snap
+  and Flathub), installs it into
+  `${CMAKE_INSTALL_LIBEXECDIR}/telegram-desktop/` and builds it at the same
+  place relative to its built binary (`../libexec/telegram-desktop/` with
+  the default directories); every other build, the official tarball's
+  (packaged too, with the special target `linux`) and the Docker
+  development builds included, puts it into `TelegramHelpers/` next to the
+  binary, and the install rule of a packaged one into
+  `${CMAKE_INSTALL_BINDIR}/TelegramHelpers/` (**The shared helper**
+  below). The release scripts move their files by hand and do not pack the
+  helper yet, so a tarball they make stops its widgets with the missing
+  helper's `execve failed: No such file or directory` until
+  `2026/11/14/ship-the-linux-widget-helper-in-the-tarball-and-its-updates`
+  ships it. The Snap's `telegram` part builds with the prefix `/usr` and
+  no special target, so it stages and primes
+  `usr/libexec/telegram-desktop/TelegramWidgetHelper`, which the renamed
+  `usr/bin/telegram-desktop` finds; its part-wide `LDFLAGS` force
+  `-ldav1d` onto every executable the part links, so the Snap's helper
+  also loads `libdav1d.so.*` before `main`, the one shipped helper that
+  links more than glibc, libm and the C++ runtime. The staging and the
+  `libdav1d` link are readings of `snap/snapcraft.yaml`, and the lookup
+  ran in a Snap-shaped install ([Verification](#verification)); no Snap
+  has been built or run confined with the helper.
+  The Windows Store build and Windows before 10 1809 keep their engines in
+  process, because the default is false there; an explicit `helper` or
+  probe value makes the seam fail every launch closed the same way, with
+  `the widget helper is not available in the Store build` or `the widget
+  helper needs Windows 10 1809 or later`. Neither has been run. The Windows
+  default reads nothing else, so a Windows build with packaged libraries
+  defaults to the helper as well; no such build has been run.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. On
@@ -444,30 +476,76 @@ The packs, the fixture and the seams they use need no change for it.
   equal; when Telegram does not relink, the staging copies the build
   folder's file back and `codesign --verify --deep` of the app reports the
   nested code modified, as it does for `crashpad_handler` and `Updater`.
-  On Linux it is the client's own executable, started as
-  `/proc/self/exe -widgethelper 3`, so it runs the client's executable
-  even after an update replaced its file, with `argv[0]` the executable's
-  path as `/proc/self/exe` reads, and without `-testagent`; a Debug probe
-  value adds the same arguments after the `3` as on macOS, with the
-  client's `QStandardPaths::GenericDataLocation` as the data path. The
-  client clones it from a thread of its own that lives as long as the
+  On Linux it is `TelegramWidgetHelper` as well, built from the same
+  engine end, QuickJS, POSIX stream and `_other/widget_helper.cpp`, with
+  `_other/widget_helper_linux.cpp`, the Linux lockdown and the descriptor
+  closing (`platform/linux/widget_{lockdown,descriptors}_linux.cpp`;
+  Telegram no longer links the lockdown) in place of the macOS sources,
+  without Telegram's precompiled header and before Telegram. It links
+  only glibc's objects, libm and the C++ runtime, its Debug build too:
+  the Docker build links the C++ runtime statically, so its NEEDED are
+  `libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2` and the
+  loader, and a build that links the C++ runtime dynamically adds
+  `libstdc++.so.6` and `libgcc_s.so.1`. Its file is
+  `TelegramHelpers/TelegramWidgetHelper` next to the client's binary
+  (`out/Debug/TelegramHelpers/TelegramWidgetHelper` in the Docker
+  tree, the tarball layout) or, in a package-managed build,
+  `<libexecdir>/telegram-desktop/TelegramWidgetHelper`
+  (`/usr/libexec/telegram-desktop/` with the prefix `/usr`,
+  `/app/libexec/telegram-desktop/` inside Flatpak,
+  `$SNAP/usr/libexec/telegram-desktop/` in the Snap). The client finds it
+  as `cExeDir()`, the canonical directory of its own binary that it
+  resolved once at start from `/proc/<pid>/exe`, joined with the relative
+  path CMake fixed at configure time (`TDESKTOP_WIDGET_HELPER_PATH`, a
+  definition on `widget_helper_linux.cpp` only:
+  `TelegramHelpers/TelegramWidgetHelper`, or the path from the bindir to
+  the libexec folder, `../libexec/telegram-desktop/TelegramWidgetHelper`
+  with the default directories) and cleaned lexically (`QDir::cleanPath`).
+  So a binary started through a symlink or renamed, as the Snap's
+  `telegram-desktop` is, finds it, while a tarball folder moved under a
+  running Telegram is not followed. An absolute
+  `CMAKE_INSTALL_LIBEXECDIR`, such as `/usr/lib/x86_64-linux-gnu`, still
+  gives a path relative to the configured prefix
+  (`../lib/x86_64-linux-gnu/telegram-desktop/TelegramWidgetHelper`), so
+  `cmake --install --prefix <another prefix>` puts the helper into that
+  absolute directory while Telegram moves, and that Telegram misses it;
+  package tooling installs at the configured prefix, staged with
+  `DESTDIR`, where the path holds. The client looks the file up at every
+  start and never checks it before the spawn: a missing file fails the
+  child's `execve`. After an upgrade replaced the file under a running
+  Telegram, the next start runs the new file, whose build string differs,
+  so the opening is refused until Telegram restarts. The client starts it
+  as `[<path>, 3]`, without `-testagent`; a Debug probe value adds the
+  same arguments after the `3` as on macOS, with the client's
+  `QStandardPaths::GenericDataLocation` as the data path. When `cExeDir()`
+  is empty both spawn paths fail with `the executable path is unknown`.
+  The client clones it from a thread of its own that lives as long as the
   process, with only descriptors 0 to 3 open (0 and 1 `/dev/null`, 2 the
   client's stderr, 3 the channel), in the working directory `/`, with every
   signal at its default action, an empty signal mask and the client's
-  environment. The same clone gives it its own user, PID, network and
-  mount namespaces: inside them it is PID 1 and root of a user namespace
-  that maps it to the client's user, with only a loopback interface, while
-  the main log and `ps` show its outer pid. Where the system refuses that
-  clone, the main log has `Tgw: The widget helper starts without
-  namespaces: clone failed: <reason>.` and the client clones it again as a
-  plain child. Inside Flatpak the Flatpak portal starts it instead, through
+  environment, and the cloned child execs the helper's file. The same
+  clone gives it its own user, PID, network and mount namespaces: inside
+  them it is PID 1 and root of a user namespace that maps it to the
+  client's user, with only a loopback interface, while the main log and
+  `ps` show its outer pid. Where the system refuses that clone, the main
+  log has `Tgw: The widget helper starts without namespaces: clone
+  failed: <reason>.` and the client clones it again as a plain child.
+  Inside Flatpak the Flatpak portal starts it instead, through
   `Spawn` with the flags 28 (`SANDBOX`, `NO_NETWORK` and `WATCH_BUS`): the
-  executable's real path, the same arguments, the working directory `/`,
-  the same four descriptors and an empty environment table, so the helper
-  gets the environment of the portal's sandbox, not the client's; when
-  `/proc/self/exe` cannot be read that start fails with `the executable
-  path is unknown`. That helper is not the client's child, and the pid in
-  the main log is the portal's, not one in the client's PID namespace. The
+  same argv, `/app/libexec/telegram-desktop/TelegramWidgetHelper 3` in an
+  `/app` install, the working directory `/`, the same four
+  descriptors and an empty environment table, so the helper gets the
+  environment of the portal's sandbox, not the client's. That helper is
+  not the client's child, and the pid in the main log is the portal's, not
+  one in the client's PID namespace. At its entry, before it adopts the
+  channel, the helper's `WidgetHelper::Adopt()`
+  (`_other/widget_helper_linux.cpp`) accepts only the token `3`, limits
+  glibc's malloc to one arena (`mallopt(M_ARENA_MAX, 1)`) and makes the
+  preparation of **The Linux lockdown** below; it makes no `chdir`. A
+  Release helper refuses as on macOS: `Widget helper: unexpected
+  arguments` for any argument after the token, `Widget helper: the
+  channel could not be adopted` for another token or a descriptor 3 that
+  is no socket. The
   Windows helper is below. It has no harness, log or account data:
   everything a seam reads stays in the client. It is stopped 30 s after
   its count of open runtimes last fell to zero, and never sooner than 30 s
@@ -778,13 +856,15 @@ The packs, the fixture and the seams they use need no change for it.
   had already mapped still resolves after the lowering was not measured,
   so the advapi32 bind is a precaution. The warm-up covers the paths those
   runs found, not every load a later path can need.
-- **The Linux lockdown.** At its entry, before it adopts its channel, the
-  Linux helper asks the kernel for `SIGKILL` when its parent ends
-  (`PR_SET_PDEATHSIG`) and closes every descriptor above 3. It locks
-  itself down where the macOS helper does, once it has accepted the
-  client's opening and holds the bundles, before any runtime or engine
-  thread exists and before it answers `Ready` (`LockDownHelper()` in
-  `widget_lockdown_linux.cpp`). In this order it:
+- **The Linux lockdown.** At its entry, in `WidgetHelper::Adopt()` before
+  it adopts its channel, the Linux helper asks the kernel for `SIGKILL`
+  when its parent ends (`PR_SET_PDEATHSIG`) and closes every descriptor
+  above 3 (`PrepareHelperProcess()`). It locks itself down where the macOS
+  helper does, once it has accepted the client's opening and holds the
+  bundles, before any runtime or engine thread exists and before it
+  answers `Ready` (`LockDownHelper()` in
+  `platform/linux/widget_lockdown_linux.cpp`, compiled only into the
+  helper). In this order it:
   1. refuses unless `/proc/self/task` lists exactly one thread;
   2. reads its time zone once (`tzset()`) and keeps it;
   3. asks the kernel for its Landlock ABI and builds its seccomp filter;
@@ -808,29 +888,44 @@ The packs, the fixture and the seams they use need no change for it.
   with the stream's and the probe's flags and no address; other
   flags, `MSG_OOB` among them, or an address get `ENOSYS`), memory
   management without executable memory (an executable `mmap` or
-  `mprotect` gets `EPERM`), futexes without priority inheritance,
-  glibc's own thread creation and naming, clocks, sleeps, random
-  bytes and signals to the helper itself. It ends the helper with
-  signal 31 (`SIGSYS`) for `execve`, `execveat`, `socket`, `connect`,
-  `ptrace`, `process_vm_readv` and `process_vm_writev`, on x86_64 also
-  `fork` and `vfork`, for a `clone` that does not create a thread, and for
-  any call of another architecture or of the x32 ABI. It answers every
-  other call, opening a file included, with `ENOSYS`; `clone3` gets
-  `ENOSYS` as well, so glibc falls back to `clone`. A step that fails
-  refuses the stream as on macOS: the helper writes `Widget helper:
-  <refusal>` to its stderr and exits 1, the main log reads `Tgw: Widget
-  helper <pid> stream ended: the engine process refused the stream:
-  <refusal>.`, its widgets die with `the widget engine process ended`, and
-  the refusal counts towards the failure limit below. The refusals are
+  `mprotect` gets `EPERM`; `madvise` only with `MADV_DONTNEED` and the
+  thread-stack guard values of glibc 2.42 and later), futexes that only
+  wait and wake (`FUTEX_WAIT`, `FUTEX_WAKE` and `FUTEX_WAIT_BITSET`),
+  glibc's own thread creation, naming (`PR_SET_NAME` only) and end,
+  `clock_gettime` and `gettimeofday`, random bytes, signal set-up and
+  signals to the helper itself. It ends the helper with signal 31
+  (`SIGSYS`) for `execve`, `execveat`, `socket`, `connect`, `ptrace`,
+  `process_vm_readv` and `process_vm_writev`, on x86_64 also `fork` and
+  `vfork`, for a `clone` that does not create a thread, and for any call
+  of another architecture or of the x32 ABI. It answers every other call,
+  opening a file, sleeping and returning from a signal handler included,
+  with `ENOSYS`; `clone3` gets `ENOSYS` as well, so glibc falls back to
+  `clone`. The list was measured on `TelegramWidgetHelper` with glibc
+  2.28, 2.39 and 2.41 and lost 16 entries that nothing called after the
+  lockdown and no linked code reaches there: `clock_getres`, `time`,
+  `nanosleep`, `clock_nanosleep`, `sched_yield`, `rt_sigreturn`,
+  `PR_GET_NAME`, four futex operations and five `madvise` values. Nothing
+  in the helper sleeps after its lockdown, and a sleep added there would
+  return at once, since libstdc++ retries `nanosleep` only on `EINTR`. The
+  source note
+  `tasks/2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-linux.md`
+  lists every allowed call with its caller and the rule for adding one. A
+  step that fails refuses the stream as on macOS: the helper writes
+  `Widget helper: <refusal>` to its stderr and exits 1, the main log
+  reads `Tgw: Widget helper <pid> stream ended: the engine process
+  refused the stream: <refusal>.`, its widgets die with `the widget
+  engine process ended`, and the refusal counts towards the failure limit
+  below. The refusals are
   `the widget helper cannot count its threads: <E>`, `the widget helper
   has <N> threads before its lockdown`, `chdir failed: <E>` when the old
   root was already detached, `capset failed: <E>`,
   `prctl(PR_SET_NO_NEW_PRIVS) failed: <E>`, `landlock_create_ruleset
   failed: <E>`, `landlock_restrict_self failed: <E>` and
   `prctl(PR_SET_SECCOMP) failed: <E>`, where `<E>` is an error name such as
-  `EPERM`, or `errno<N>`; a Debug helper started by hand on another
-  architecture refuses with `the widget helper has no seccomp filter for
-  this architecture`. The main log never lists the layers that applied:
+  `EPERM`, or `errno<N>`; on a Linux architecture other than x86_64 and
+  aarch64, where Telegram never starts it, a helper started by hand
+  refuses with `the widget helper has no seccomp filter for this
+  architecture`. The main log never lists the layers that applied:
   the namespace fallback line says that the namespaces did not, and
   seccomp, no-new-privileges, the capability drop and an available
   Landlock each apply or refuse. Two cases are silent. A kernel without
@@ -845,8 +940,9 @@ The packs, the fixture and the seams they use need no change for it.
 - **Linux probe.** With `probe` or `probe-unsandboxed` the client passes
   the mode, its working directory and its
   `QStandardPaths::GenericDataLocation` after the `3`, inside Flatpak
-  through the portal's argv, and the helper's lockdown hook
-  ([test_widget_helper_probe](test_widget_helper_probe.md#linux)) probes
+  through the portal's argv, and the lockdown hook of the Debug
+  `TelegramWidgetHelper` (`test/test_widget_helper_probe_lockdown_linux.cpp`,
+  [test_widget_helper_probe](test_widget_helper_probe.md#linux)) probes
   once per helper, on serve's thread before any engine thread exists. With
   `probe` it first forks three copies of the helper, one at a time: the
   first shows Landlock and the empty root with the seccomp install made to
@@ -903,11 +999,19 @@ The packs, the fixture and the seams they use need no change for it.
   On Linux the error is `clone failed: <reason>` when the clone without
   namespaces fails as well, `<call> failed: <reason>` for another failed
   call of the spawn, such as `execve failed: <reason>` from the cloned
-  child before it became the helper, `stderr is not open` or `the widget
-  helper is not available on this architecture`; inside Flatpak it can
-  also be `the Flatpak portal is unavailable: <message>`, `Spawn failed:
-  <message>` or `the executable path is unknown`, with the D-Bus error's
-  message. The Linux `<reason>` is the system's message without a period,
+  child before it became the helper (`execve failed: No such file or
+  directory` when `TelegramHelpers/TelegramWidgetHelper` or the package's
+  libexec helper is missing; the client never checks the file before the
+  spawn), `stderr is not open`, `the widget helper is not available on
+  this architecture`, or `the executable path is unknown` on both spawn
+  paths when the client has no directory of its own (an empty
+  `cExeDir()`); inside Flatpak it can also be `the Flatpak portal is
+  unavailable: <message>` or `Spawn failed: <message>`, with the D-Bus
+  error's message. Inside Flatpak the portal's sandbox, not the client,
+  executes the file: when a `Spawn` that returned a pid started nothing
+  it can run, the stream ends before `Ready`, and that end counts towards
+  the failure limit the same way (a reading of the manager's code, not
+  run). The Linux `<reason>` is the system's message without a period,
   such as `No space left on device`.
   The Windows `<reason>` is the system's message with its own period,
   such as `Not enough quota is available to process this command.` in an
@@ -950,21 +1054,25 @@ The packs, the fixture and the seams they use need no change for it.
   by terminating its job, inside Flatpak through the portal) and waits up
   to 1 s more; an outstanding theme probe can hold the quit for its 10 s
   before that. When the client dies without a quit, the helper reads the
-  end of its channel and exits by itself. On macOS the helper's path is not
-  the client's, and `test-run`'s path-scoped kill matches only the client's
-  executable: it never kills a helper or lists one in
-  `stragglers_killed_after`, and after it kills a quiet client the helper
-  ends on the end of its channel. A run that must show no helper outlived
-  it looks for `Contents/Helpers/TelegramWidgetHelper` itself. On Windows
-  and Linux a helper left behind has the client's executable path, so that
-  kill ends it too and lists it in `stragglers_killed_after`. On Windows
-  the client's death also closes the helper's job, whose only handle the
-  client holds, and the job's kill on close ends the helper even when it
-  is not reading. On Linux the kernel kills a helper the client cloned
-  when the client dies, also when it is not reading: its
-  `PR_SET_PDEATHSIG` follows the client's spawning thread, which lives as
-  long as the client. Inside Flatpak the portal kills the helper's sandbox
-  when the client leaves the session bus (`WATCH_BUS`).
+  end of its channel and exits by itself. On macOS and Linux the helper's
+  path is not the client's, and `test-run`'s path-scoped kill matches only
+  the client's executable (on Linux by `/proc/<pid>/exe`): it never kills
+  a helper or lists one in `stragglers_killed_after`, and after it kills a
+  quiet client the helper ends on the end of its channel, on Linux also
+  through the kernel as below. A run that must show no helper outlived it
+  looks for the helper's own file itself:
+  `Contents/Helpers/TelegramWidgetHelper` on macOS, a process whose
+  `/proc/<pid>/exe` is the client's `TelegramHelpers/TelegramWidgetHelper`
+  or libexec helper on Linux. On Windows a helper left behind has the
+  client's executable path, so that kill ends it too and lists it in
+  `stragglers_killed_after`. On Windows the client's death also closes
+  the helper's job, whose only handle the client holds, and the job's
+  kill on close ends the helper even when it is not reading. On Linux the
+  kernel kills a helper the client cloned when the client dies, also when
+  it is not reading: the helper sets `PR_SET_PDEATHSIG` at its entry, and
+  its parent is the client's spawning thread, which lives as long as the
+  client. Inside Flatpak the portal kills the helper's sandbox when the
+  client leaves the session bus (`WATCH_BUS`).
 - **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
   gives in-process loopback clients only when no factory is installed, so
   engines in the helper ignore it, the macOS, Linux and Windows defaults
@@ -1399,8 +1507,10 @@ error 5 under the lowbox), and `TokenIsLessPrivilegedAppContainer` is
 unreadable on this build (error 87), so the less privileged level is
 read from `WIN://NOALLAPPPKG`.
 
-On Linux the [remote engines](#remote-engines) ran in the x86_64 Debug
-client built in the Docker `centos_env` image, on a WSL2 6.6 kernel with
+On Linux the [remote engines](#remote-engines) first ran in the
+same-binary helper, the client's own `/proc/self/exe -widgethelper 3`
+that `TelegramWidgetHelper` later replaced, in the x86_64 Debug client
+built in the Docker `centos_env` image, on a WSL2 6.6 kernel with
 an Ubuntu 24.04 userland, Landlock ABI 3 and unprivileged user namespaces,
 in the evidence campaign of
 `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-linux`
@@ -1436,6 +1546,98 @@ emulated), a confined Snap, Ubuntu's AppArmor user-namespace restriction,
 the client's death inside Flatpak (the portal's `WATCH_BUS`), a Release
 runtime, and the tdesktop attack audit and conformance runner (no account
 on that host).
+
+`TelegramWidgetHelper` then ran on the same host, in the x86_64 Debug
+client of the same image, in the evidence campaign of
+`2026/11/14/move-the-linux-widget-helper-into-a-qt-free-executable` (its
+`work/test.md`, Attempt 1, Runs 1-4), again without an account and with a
+disposable overlay that made engines through `Tgw::PrepareRemoteEngines()`
+and `twidget::SandboxEngine::make`, on a short-lived `std::thread` and on
+`crl::async`; no card, chat or harness pack ran. The probe's runs are on
+[test_widget_helper_probe](test_widget_helper_probe.md#verification).
+
+- Build (Run 1): `out/Debug/TelegramHelpers/TelegramWidgetHelper` was
+  built before Telegram from its own six objects and the two widget
+  archives, without the precompiled header and with `-Werror`; a build of
+  the helper alone linked no Telegram, and Telegram's link no longer took
+  the lockdown. Its NEEDED were `libc.so.6`, `libm.so.6`,
+  `libpthread.so.0`, `libdl.so.2` and the loader, with no RPATH and no Qt,
+  GLib, crl or lib_base symbol. A tree configured without the image's
+  `LDFLAGS` and with the allocation tracer got `-pthread`, `-ldl` and the
+  tracer only from `common_options`, linked, and linked the C++ runtime
+  dynamically.
+- With no switch (Run 2) one helper served both engines:
+  `/proc/<pid>/exe` the helper's file, not the client's, `cmdline`
+  `<path>`, `3`; its own user, PID, network and mount namespaces (PID 1,
+  only `lo`, an empty root); `Seccomp: 2`, `NoNewPrivs: 1`, one filter, no
+  capabilities; descriptors 0 and 1 `/dev/null`, 2 the client's stderr and
+  3 the socket, the client's inheritable test descriptor absent; only
+  the helper's file and glibc's objects with libm mapped; two
+  `widget.sandbox` threads in it and none in the client. `in-process`
+  started no helper. A SIGKILL ended its engines (`stream ended: the
+  engine process closed the stream.`, `ended, signal 9.`), and the next
+  engine started a new helper from the same file.
+- Under a wrapper whose inherited filter answered every seccomp install
+  of the client and its children with `EPERM` (Run 3), three helpers
+  refused with `prctl(PR_SET_SECCOMP) failed: EPERM`, each `exit 1`,
+  before any engine loaded, and the next engine died with `the widget
+  helper failed 3 times in a row`; an outer strace saw exactly three
+  `execve` of the helper's file with argv `[<path>, 3]` and none carrying
+  `-widgethelper`.
+- A package-managed tree (the same image, no special target, the prefix
+  `/usr`) compiled `../libexec/telegram-desktop/TelegramWidgetHelper`.
+  `cmake --install --prefix <prefix>` put Telegram into `<prefix>/bin` and
+  the helper into `<prefix>/libexec/telegram-desktop`, and that Telegram
+  started the installed helper (Run 4). A `DESTDIR` install with the prefix
+  `/usr` and the binary renamed `telegram-desktop`, the Snap's shape,
+  started `usr/libexec/telegram-desktop/TelegramWidgetHelper` the same way.
+  With the installed helper removed, three starts failed with `execve
+  failed: No such file or directory`, the fourth engine died with `the
+  widget helper failed 3 times in a row`, and nothing ran in process. A
+  configure with the absolute libexec directory `/usr/lib/x86_64-linux-gnu`
+  (configured, not built) compiled
+  `../lib/x86_64-linux-gnu/telegram-desktop/TelegramWidgetHelper`, and its
+  install script installs to that absolute directory. The official
+  configuration compiles `TelegramHelpers/TelegramWidgetHelper`, and its
+  install script installs to `bin/TelegramHelpers`.
+- Inside Flatpak 1.14.6 (an `/app` install of that tree in a privileged
+  container, `org.freedesktop.Platform//24.08`, Run 4) the client called
+  the portal's `Spawn` once per start with the working directory `/`, the
+  argv `/app/libexec/telegram-desktop/TelegramWidgetHelper 3`, descriptors
+  0 to 3, an empty `envs` and flags 28; the helper descended from the
+  portal, not the client, with `Seccomp: 2`, `NoNewPrivs: 1`, no
+  capabilities, user, PID, network and mount namespaces other than the
+  client's and only descriptors 0 to 3, and served both engines; at quit
+  one `SpawnExited` carried its `exit 0`.
+- `Telegram -widgethelper 3`, run as the framework harness's engine
+  process, started an ordinary Telegram and answered nothing (Run 1).
+- The framework harness's `--attacks` loop over the 133 corpus files, on
+  the host's glibc 2.39 and in the image's glibc 2.28, and the 68-widget
+  conformance automatic set on 2.39, run through the helper (Run 1), gave
+  0 leaks, attack rows equal to the same-binary helper's on 2.39 and to
+  in process on both apart from `timer-flood.html`'s `cpu-throttled`
+  (which on 2.28 an unsandboxed control of the same build reached too),
+  and conformance statuses equal to in process; every helper exited 0,
+  none with `SIGSYS`. The allowlist was measured on this helper under
+  strace with glibc 2.28, 2.39 and 2.41 and tightened by 16 entries
+  (**The Linux lockdown**). Emulated over every call number on x86_64 and
+  aarch64, the moved but untightened filter decided every call as before
+  the move, and the tightened one changed only those entries' decisions;
+  on the tightened helper only `clone3` and the probe's own opens were
+  refused (the tightening's strace legs, re-read in Run 1).
+- The Release helper (Run 1) linked the same libraries, contained no
+  probe, and exited 1 unless started with only the token `3` and a socket
+  on descriptor 3.
+
+Not run with `TelegramWidgetHelper`: aarch64 at run time (its sources
+compiled for aarch64 with `-Werror`, its filter emulated), a Snap build
+(its part-wide `-ldav1d` read only) and a confined Snap, distribution and
+Flathub toolchains, the no-namespace fallback (unchanged code that execs
+the same file), a client killed under a stopped helper (the helper's own
+`PR_SET_PDEATHSIG` read only as the probe's `pdeathsig=9`), the client's
+death inside Flatpak, a Release client, a tarball from the release
+scripts (they do not pack the helper yet), and the tdesktop attack audit
+and conformance runner (no account on that host).
 
 ## Related guidance
 

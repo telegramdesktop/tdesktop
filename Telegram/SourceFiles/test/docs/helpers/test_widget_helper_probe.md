@@ -6,7 +6,7 @@ Type: Internal dependency.
 Source contract: [test_widget_helper_probe.h](../../test_widget_helper_probe.h)
 (the client half in Telegram) and
 [test_widget_helper_probe_lockdown.h](../../test_widget_helper_probe_lockdown.h)
-(the macOS helper half and the names both halves share).
+(the helper half on macOS and Linux and the names both halves share).
 
 ## Use when
 
@@ -16,32 +16,38 @@ the lockdown hook of `TelegramWidgetHelper`'s Debug build, the Qt-free
 executable at `Telegram.app/Contents/Helpers/`: it takes the listing after
 the real `WidgetHelper::Lockdown()` (`_other/widget_helper_mac.cpp`), tries
 what the sandbox must deny and refuses the stream with a summary, so no
-widget is ever served. On Windows and Linux the helper is the client's own
-executable, started with `-widgethelper`, and the probe is that same-binary
-helper's lockdown hook in a Debug build. On Windows the hook runs a
-different, native probe and the harness's own network attempts, and the
-helper goes on serving widgets ([Windows](#windows)). On Linux it runs its
-own probe in forked copies of the helper and around the real
-`Platform::WidgetHelper::Lockdown()`, writes its lines to stderr, and the
-helper goes on serving widgets ([Linux](#linux)).
+widget is ever served. On Linux the helper is `TelegramWidgetHelper` too,
+in `TelegramHelpers/` next to the client's binary or in a package-managed
+build's `libexec/telegram-desktop/`, and the probe is again the lockdown
+hook of its Debug build
+(`test/test_widget_helper_probe_lockdown_linux.cpp`): it runs its own
+probe in forked copies of the helper and around the real
+`WidgetHelper::Lockdown()` (`_other/widget_helper_linux.cpp`), writes its
+lines to stderr, and the helper goes on serving widgets ([Linux](#linux)).
+On Windows the helper is the client's own executable, started with
+`-widgethelper`, and the probe is that same-binary helper's lockdown hook
+in a Debug build, which runs a different, native probe and the harness's
+own network attempts; the helper then goes on serving widgets
+([Windows](#windows)).
 
 Callers: the probe has two halves. In Telegram the `_DEBUG` block of
 `tgw/tgw_remote.cpp` is the only product caller of the client half.
 `ChooseRemote()` accepts `probe` and `probe-unsandboxed` as values of
 `TDESKTOP_WIDGET_ENGINES` (both select the remote engine), and
 `HelperArguments()` passes `WidgetHelperProbeArguments()` to
-`Platform::WidgetHelper::Launch()`. On macOS the Debug `main()` of
-`TelegramWidgetHelper` (`_other/widget_helper.cpp`) gives its `serve` call
-`Test::WidgetHelperProbeLockdown()` around the real lockdown. On Windows
-and Linux `HelperLockdown()` in `tgw_remote.cpp` gives the same-binary
-helper's `serve` call `WidgetHelperLockdown()`. Release builds of Telegram,
-harness ones included, return no arguments. A Release
-`TelegramWidgetHelper` contains no probe (the target never defines
+`Platform::WidgetHelper::Launch()`. On macOS and Linux the Debug `main()`
+of `TelegramWidgetHelper` (`_other/widget_helper.cpp`) gives its `serve`
+call `Test::WidgetHelperProbeLockdown()` around the real lockdown; each
+platform's helper build compiles its own definition of it. On Windows
+`HelperLockdown()` in `tgw_remote.cpp` gives the same-binary helper's
+`serve` call `WidgetHelperLockdown()`. Release builds of Telegram, harness
+ones included, return no arguments. A Release `TelegramWidgetHelper`
+contains no probe (the target never defines
 `TDESKTOP_RELEASE_TEST_HARNESS`), accepts only its token, refuses any other
 argument with `Widget helper: unexpected arguments` before it adopts the
-channel and always gives `serve` the real lockdown; on Windows and Linux
-the Release hook ignores argv and calls the real lockdown. A disposable
-overlay supplies the positive-control fixtures itself (see
+channel and always gives `serve` the real lockdown; on Windows the Release
+hook ignores argv and calls the real lockdown. A disposable overlay
+supplies the positive-control fixtures itself (see
 [Minimal use](#minimal-use)).
 
 For the widget fixture's remote-engine switch, lifecycle and logs, read the
@@ -56,8 +62,9 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   `probe-unsandboxed` refuses with `the widget helper probe is not
   available on this platform`. On Linux `probe` and `probe-unsandboxed`
   run the probe of [Linux](#linux), and both serve widgets. The non-Linux
-  all-other platforms start no helper; their hook would refuse every probe
-  mode with the same text as Windows' `probe-unsandboxed`.
+  all-other platforms build no helper and have no probe hook: an explicit
+  probe value there fails every start closed
+  ([Remote engines](test_widget_fixture.md#remote-engines)).
 - `probe` locks down, then probes. `probe-unsandboxed` runs the same probe
   without the lockdown: it is the control, always in a separate helper.
 - The real lockdown starts with its service check
@@ -84,13 +91,14 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   one. The added entries stay and are classified by the listing like any
   other. The same-binary macOS helper it replaced never needed this: Qt
   and AppKit had made those first lookups before `main`.
-- On macOS the argv after the helper's path is the token `3`, then the
-  tail `mode cwd application-support [keychain-account loopback-port
-  [connect-control] [target...]]`; on Windows and Linux the same tail
+- On macOS and Linux the argv after the helper's path is the token `3`,
+  then the tail `mode cwd application-support [keychain-account
+  loopback-port [connect-control] [target...]]`; on Windows the same tail
   follows `-widgethelper <token>`. The targets come only from a fixture's
   `networkTargets` (Windows). `cwd` is the client's `cWorkingDir()`; the
-  macOS helper's own working directory is `/`, which it moves to itself
-  before it adopts the channel. `application-support` is
+  helper's own working directory is `/`, which the macOS helper moves to
+  itself before it adopts the channel and the Linux client gives its helper
+  on both spawn paths. `application-support` is
   `QStandardPaths::GenericDataLocation`. A Debug helper with nothing after
   the token runs the lockdown alone and serves. Any other mode refuses with
   `unknown widget helper mode "<mode>"`. On macOS a malformed port or
@@ -318,13 +326,25 @@ lowering and the run is an instrumented one, not the ordinary helper.
 ## Linux
 
 With `probe` or `probe-unsandboxed` the client appends the same argv tail
-on both of its spawn paths, inside Flatpak through the portal's argv, and
-the hook runs `RunLinuxProbe()` in `test_widget_helper_probe.cpp`. It
-reads the mode, `cwd` and `application-support` (the data directory below)
-and ignores every argument after them, so it takes no fixture. It calls
-nothing in `platform/linux/` but the `lockdown` callable, which is the
-real `Platform::WidgetHelper::Lockdown()`. It runs on serve's thread while
-the helper is still single-threaded. Every line is one `write` to
+on both of its spawn paths, so the helper runs as `<helper path> 3 <mode>
+<cwd> <data>`. A direct clone execs `TelegramHelpers/TelegramWidgetHelper`
+next to the client's binary, or the package's
+`libexec/telegram-desktop/TelegramWidgetHelper` in a package-managed
+build; inside Flatpak the portal's argv starts
+`/app/libexec/telegram-desktop/TelegramWidgetHelper`
+([Remote engines](test_widget_fixture.md#remote-engines) says how the
+client finds that path). The hook, `Test::WidgetHelperProbeLockdown()` in
+`test/test_widget_helper_probe_lockdown_linux.cpp`, compiled only into the
+helper's Debug build, runs `RunLinuxProbe()` there. It takes the mode,
+`cwd` and `application-support` (the data directory below) as the argv
+bytes the client passed and ignores every argument after them, so it takes
+no fixture. It calls nothing of the helper's Linux sources but the
+`lockdown` callable, which is the real `WidgetHelper::Lockdown()`, that
+is `Platform::WidgetHelper::LockDownHelper()` in
+`widget_lockdown_linux.cpp`. It runs on serve's thread while the helper is
+still single-threaded. The Release `TelegramWidgetHelper` has no probe: it
+refuses any argument after its token with
+`Widget helper: unexpected arguments`. Every line is one `write` to
 descriptor 2, prefixed `Widget helper probe: `. That is the client's
 stderr on both spawn paths, since the portal is handed the client's
 descriptor 2 too, so the lines land in `app_stderr.txt` in a test run.
@@ -427,7 +447,7 @@ copies (b) and (c) make their attempts unconfined, and step 3 writes
 widgets unconfined. It is the control of every reading: the same calls
 reach the kernel in the same build, so a `probe` line that reads like its
 control shows a layer that did not apply. Only a Debug client passes the
-mode, and the Release `HelperLockdown()` ignores argv.
+mode, and only a Debug helper runs it: the Release helper refuses it.
 
 Where each reading is taken:
 
@@ -454,10 +474,12 @@ Where each reading is taken:
 - After its lockdown the helper only reads, writes, peeks and allocates.
   Its opens are expected to fail with `ENOSYS`.
 
-The readings below for a direct spawn with user namespaces, a plain child,
-a helper the Flatpak portal spawned and the control on a namespaced direct
-spawn were confirmed on one host ([Verification](#verification)); the
-others are expectations. They assume a kernel with Landlock ABI
+The readings below for a direct spawn with user namespaces, a helper the
+Flatpak portal spawned and the control on a namespaced direct spawn were
+confirmed on one host for `TelegramWidgetHelper` and, before it, for the
+same-binary helper it replaced; the plain child's only for the
+same-binary helper ([Verification](#verification)). The others are
+expectations. They assume a kernel with Landlock ABI
 `<N>`, a client under no seccomp filter of its own, and the client's
 working and data directories present in the client.
 
@@ -783,7 +805,10 @@ any other helper.
 The first two macOS campaigns probed the same-binary macOS helper, the
 client's own `Contents/MacOS/Telegram -widgethelper 3` that
 `TelegramWidgetHelper` later replaced, whose Qt and AppKit had started
-before `main`. The Linux campaign is the last one below.
+before `main`. The two Linux campaigns are the last ones below: the first
+probed the same-binary Linux helper, the client's own
+`/proc/self/exe -widgethelper 3`, the second `TelegramWidgetHelper`, which
+replaced it.
 
 Executed on macOS 27.0.1 arm64 in a Debug build, in the evidence campaign
 of `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`;
@@ -1029,7 +1054,8 @@ harness connect that completed or failed other than by a timeout or
 product probe are in
 [Remote engines verification](test_widget_fixture.md#verification).
 
-On Linux the probe ran in the x86_64 Debug client (the Docker
+On Linux the probe first ran in the same-binary helper, the client's own
+`/proc/self/exe -widgethelper 3`, in the x86_64 Debug client (the Docker
 `centos_env` build) on a WSL2 6.6 kernel with Landlock ABI 3, in the
 evidence campaign of
 `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-linux`
@@ -1044,6 +1070,64 @@ and `descriptors=0,1,2,3`; and `layers:` named seccomp, Landlock ABI 3,
 NNP, no capabilities, PDEATHSIG 9 and the namespaces, or
 `sandbox=flatpak`. The control read `opened`, `returned ENOENT`,
 `succeeded` and `seccomp=off`. The probed helpers went on serving widgets.
+
+`TelegramWidgetHelper` was then probed on the same host, in the x86_64
+Debug build of the same image, in the evidence campaign of
+`2026/11/14/move-the-linux-widget-helper-into-a-qt-free-executable`; its
+`work/test.md` (Attempt 1, Runs 1, 2 and 4) is the record, and its
+`work/test-overlay.patch` keeps the disposable account-free scenario. In
+every leg the probed helper went on serving widgets.
+
+- Against the same-binary helper: the framework harness ran the helper's
+  Debug build as its engine process, `unshare -Urnpm --fork --kill-child
+  -- <helper> 3 <mode> / /`, and the Debug client built before the move as
+  `... <Telegram> -widgethelper 3 <mode> / /` in the same session (Run 1).
+  For each mode the six lines were byte-identical to the same-binary
+  helper's and to that helper's lines taken earlier the same day:
+  `landlock alone: cwd=EACCES client-cwd=EACCES data=EACCES root=empty
+  lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`, `execve: killed by
+  signal 31`, `socket: killed by signal 31`, `lockdown: ok`, `after
+  lockdown: cwd=ENOSYS client-cwd=ENOSYS data=ENOSYS descriptors=0,1,2,3`
+  and `layers: seccomp=on landlock=abi3 nnp=on caps=none
+  seccomp_filters=1 pdeathsig=9 pid=1 uid_map=0:1000:1 interfaces=lo
+  root=empty sandbox=none`; the control read as described under
+  [Linux](#linux). With descriptor 9 open in the process that exec'd the
+  helper, its listing still read `descriptors=0,1,2,3`.
+- Through Telegram's direct spawn (Run 2): `TDESKTOP_WIDGET_ENGINES=probe`
+  and `probe-unsandboxed` each started one helper whose `/proc/<pid>/exe`
+  was `out/Debug/TelegramHelpers/TelegramWidgetHelper` and whose
+  `cmdline` was `<path>`, `3`, the mode, the client's working directory
+  and its data directory; its six lines in `app_stderr.txt` were
+  byte-equal to the same-binary helper's app lines of the first Linux
+  campaign (`client-cwd=ENOENT data=ENOENT` under the empty root), and no
+  core dump was written. The client's clone sets no parent-death signal,
+  so `pdeathsig=9` there reads the helper's own `PR_SET_PDEATHSIG` in its
+  `WidgetHelper::Adopt()`.
+- Inside Flatpak 1.14.6, an `/app` install of a package-managed build
+  (Run 4): the portal's `Spawn` got the argv
+  `/app/libexec/telegram-desktop/TelegramWidgetHelper 3 probe <cwd>
+  <data>`, and the six lines were byte-equal to the first Linux
+  campaign's Flatpak lines: `landlock alone: cwd=EACCES client-cwd=ENOENT
+  data=ENOENT root=kept lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`, the
+  same `execve`, `socket`, `lockdown` and `after lockdown` lines, and
+  `layers: seccomp=on landlock=abi3 nnp=on caps=none seccomp_filters=3
+  pdeathsig=9 pid=2 uid_map=1000:0:1 interfaces=lo root=kept
+  sandbox=flatpak`, the filter count one more than the client's. The
+  kernel's audit lines for the two `SIGSYS` copies named the helper's
+  path.
+- Under strace, on the helper with the tightened filter, with glibc 2.39
+  and through the loaders of glibc 2.28 and 2.41, the probe wrote the same
+  lines, and after its lockdown the filter refused only `clone3` (not
+  called on 2.28) and the probe's own three `openat` calls (the
+  tightening's legs, re-tallied in Run 1).
+- The Release helper defined neither `WidgetHelperProbeLockdown` nor
+  `RunLinuxProbe`, and `3 probe / /` exited 1 with
+  `Widget helper: unexpected arguments`, also with a connected socket on
+  descriptor 3 (Run 1).
+
+Limits: one x86_64 host and kernel. The plain child (no user namespaces)
+was not probed again with `TelegramWidgetHelper`: its clone and fallback
+are unchanged and exec the same file. aarch64 compiled only.
 
 ## Related guidance
 
