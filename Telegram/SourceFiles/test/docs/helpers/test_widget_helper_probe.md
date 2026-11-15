@@ -831,10 +831,11 @@ control, and both again with `connect-control`.
   args readings `EPERM`, and the IOKit open was refused.
 - Unsandboxed: each of these succeeded, including the item read (its value
   not kept), the lookups (except the unregistered
-  `com.apple.locationd.registration`), 2 camera and 2 audio devices and the
-  parent readings. Raising the descriptor limit did not apply there: its
-  hard limit is already unlimited, so the probe reports it `n/a`.
-  `task_for_pid` of the parent failed in both modes.
+  `com.apple.locationd.registration`), 2 camera and 2 audio devices
+  (counted in Telegram's own executable, with Telegram's entitlements; see
+  the limits below) and the parent readings. Raising the descriptor limit
+  did not apply there: its hard limit is already unlimited, so the probe
+  reports it `n/a`. `task_for_pid` of the parent failed in both modes.
 - Controls: the listener accepted the main process before and after and
   the unsandboxed helpers' tokens, none while a helper was locked. The main
   process read the item before and after the helpers, deleted it and
@@ -997,7 +998,17 @@ first, and through the probe's own [firehose reading](#firehose-reading)
 in the second and third. `TelegramWidgetHelper` was probed only natively
 on arm64. On another layout the reading can fail and leave both rights
 `UNACCOUNTED`; as that section says, nothing promises that every
-incompatible layout fails rather than matching unrelated words.
+incompatible layout fails rather than matching unrelated words. All three
+also predate
+`2026/11/14/sign-and-verify-the-macos-widget-helper-executable`: the
+unsandboxed control's 2 camera and 2 audio devices were counted in
+Telegram's own executable, with Telegram's entitlements, in the first
+campaign, and in the third in `TelegramWidgetHelper` with its plain ad hoc
+signature, without the hardened runtime or an entitlement (Run 4), and
+with the hardened runtime and Telegram's Debug entitlements that Xcode's
+`--deep` signing then gave the staged copy (Runs 5-6). The helper now has
+the hardened runtime and no entitlement, and no probe has run on it since,
+so what its unsandboxed control counts is unmeasured.
 
 On Windows the harness lines of [Windows](#windows) ran with the Win32
 (x86 on WOW64) Debug build on Windows 11 build 26300, in the evidence

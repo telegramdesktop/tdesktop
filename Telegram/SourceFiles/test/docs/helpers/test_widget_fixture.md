@@ -400,9 +400,10 @@ and the seams they use need no change for it.
   because `sandbox_init` cannot narrow a process the App Sandbox already
   confines, and it builds no helper: it has no `TelegramWidgetHelper`
   target, and its bundle no `Contents/Helpers` folder. An explicit Debug
-  `helper` there finds no file to start, so its starts fail and count
-  towards the failure limit, and no engine runs in process; no store
-  build has been launched with it.
+  `helper` there fails every start before any spawn with `the widget
+  helper is not available in the Store build`, each a failure towards the
+  failure limit, and no engine runs in process; no store build has been
+  launched with it.
   A macOS packaged build builds, stages and runs the same helper as every
   other non-store macOS build: the helper links no Qt, so the external Qt
   of the packaged workflow (Homebrew's), which lacks the patches that keep
@@ -451,12 +452,39 @@ and the seams they use need no change for it.
   child with argv `[<path>, 3]` and an empty environment: the channel on
   descriptor 3, the client's stderr, `/dev/null` for stdin and stdout and
   no other descriptor (`POSIX_SPAWN_CLOEXEC_DEFAULT`), default signal
-  actions, an empty signal mask and no exception ports. The helper moves to
-  the working directory `/` itself, in `WidgetHelper::Adopt()` before it
-  adopts the channel. It links only libSystem and libc++, its Debug build
-  too: no Qt, lib_base, crl or framework, built from widget-sandbox's
-  engine end, QuickJS, the POSIX stream and its own `_other/widget_helper*`
-  sources, without Telegram's precompiled header and before Telegram.
+  actions, an empty signal mask and no exception ports. It starts it
+  suspended (`POSIX_SPAWN_START_SUSPENDED`), with a binary preference for
+  the client's own slice, arm64 or x86_64
+  (`posix_spawnattr_setbinpref_np`), so a client under Rosetta starts the
+  helper's x86_64 slice, and, on macOS 10.14 and later, as its own
+  responsible process (`responsibility_spawnattrs_setdisclaim`), so that
+  TCC does not count the helper's requests under the client's grants:
+  `responsibility_get_pid_responsible_for_pid` of the helper returns the
+  helper's own pid. Before it resumes the helper with `SIGCONT`, the
+  client checks the dynamic code identity of the suspended child, the
+  slice it actually runs (`SecCodeCopyGuestWithAttributes` by its pid,
+  then `SecCodeCheckValidity` with one requirement), so a file put at the
+  helper's path runs no code of its own unless it passes. A
+  certificate-signed client requires `identifier
+  "com.tdesktop.Telegram.WidgetHelper" and certificate leaf = H"<SHA-1 of
+  the client's own leaf certificate>"`, read at each start from the
+  running client after it validated itself dynamically against its own
+  designated requirement (`SecCodeCopyDesignatedRequirement`, then
+  `SecCodeCheckValidity`), which binds the reading to the running image,
+  so no build records a signer. An ad hoc client, and a genuinely unsigned
+  one (no signature, and no valid status from the kernel), requires
+  `cdhash H"<digest>"` instead: the CDHash its build recorded for that
+  slice in the generated `widget_helper_identity.h`, which
+  `Telegram/cmake/widget_helper_identity.py` writes from the helper
+  target's final file. A mismatch, or a check that cannot complete, fails
+  the start: the client kills the suspended child, or spawns none when its
+  own identity is what failed (**Runtime log and deaths** below).
+  The helper moves to the working directory `/` itself, in
+  `WidgetHelper::Adopt()` before it adopts the channel. It links only
+  libSystem and libc++, its Debug build too: no Qt, lib_base, crl or
+  framework, built from widget-sandbox's engine end, QuickJS, the POSIX
+  stream and its own `_other/widget_helper*` sources, without Telegram's
+  precompiled header and before Telegram.
   Only a Debug probe value adds arguments after the `3`: the mode, the
   client's working directory and Application Support path, as
   [test_widget_helper_probe](test_widget_helper_probe.md) describes; the
@@ -468,14 +496,45 @@ and the seams they use need no change for it.
   both before it reads the channel. Its build string is the number in
   `Telegram/build/version`, which equals the client's `AppVersion`; a
   helper of another version refuses the opening with `build "<client's>",
-  this end's is "<helper's>"`. In an Xcode build, whenever Telegram
-  relinks, its `--deep` code signing re-signs the staged copy with the
-  hardened runtime and Telegram's entitlements, as it does
-  `crashpad_handler`, so the bundled file's hash then differs from the
-  build folder's `TelegramWidgetHelper` while its LC_UUID and code are
-  equal; when Telegram does not relink, the staging copies the build
-  folder's file back and `codesign --verify --deep` of the app reports the
-  nested code modified, as it does for `crashpad_handler` and `Updater`.
+  this end's is "<helper's>"`. The helper target strips its file outside
+  Debug and then signs it ad hoc with the hardened runtime and the
+  identifier `com.tdesktop.Telegram.WidgetHelper`, before its CDHash is
+  recorded; Xcode never signs that target (`CODE_SIGNING_ALLOWED NO`),
+  and no build gives the helper an entitlement. Ad hoc Xcode and Ninja
+  builds, `build_mac.py`'s included, stage that file unchanged
+  (`build_mac.py`'s universal app merges the two slices with `lipo`,
+  which keeps each slice byte for byte), so each staged slice has the
+  recorded CDHash, and `codesign --verify --deep --strict` of the Xcode
+  app and of `build_mac.py`'s universal app passes. Release and
+  certificate signing go through `Telegram/build/sign_mac.py`, which
+  `build.sh`, the canary workflow, `build_mac.py`'s Debug app and a
+  POST_BUILD step of Telegram's Xcode target call outside the store
+  build: it signs the other nested code with the caller's identity,
+  options and entitlements, re-signs the helper only for a certificate
+  identity, with that identity, the hardened runtime, its preserved
+  identifier and no entitlement, and then signs the app without `--deep`
+  (in an Xcode build Xcode signs the app itself). The release strip of
+  `build.sh` and the canary leaves the already stripped and signed helper
+  byte for byte unchanged (measured with CLT 26.6's `strip`, which still
+  warns that its changes will invalidate the code signature). The pin
+  refuses a helper whose CDHash differs from the recorded one, such as
+  another build's (an identical ad hoc re-sign can keep the CDHash),
+  while the signer rule accepts any helper with the helper identifier
+  that the client's own certificate signed, a re-signed release's
+  included, and refuses an ad hoc one, the build's own too. A copy signed
+  with a certificate for a test needs `sign_mac.py` too: `codesign
+  --force --deep` of the app gives the helper Telegram's entitlements and
+  another identifier. No helper build carries `get-task-allow`, so a
+  debugger cannot attach to the helper; observe it from the client and
+  through its stderr. A running client refuses every later start once its
+  own executable or its signed `Info.plist` changed on disk, as a
+  rebuild, a re-sign or a reinstall under it can do: start a fresh client
+  after each. A client whose code a debugger modified may lose its valid
+  status and refuse the same way (not measured); `in-process` keeps a
+  Debug client's engines out of the helper then. To test a refusal,
+  replace only `Contents/Helpers/TelegramWidgetHelper` in a copy of the
+  bundle: the client's own identity stays valid, and the check reads the
+  replacement.
   On Linux it is `TelegramWidgetHelper` as well, built from the same
   engine end, QuickJS, POSIX stream and `_other/widget_helper.cpp`, with
   `_other/widget_helper_linux.cpp`, the Linux lockdown and the descriptor
@@ -996,6 +1055,31 @@ and the seams they use need no change for it.
   the file before the spawn) or `CreateProcessAsUserW failed: <reason>` on
   Windows, and the main log adds `Tgw Error: The widget helper could not
   start: <error>.`.
+  On macOS a helper that fails the identity check of **The shared helper**
+  is killed before it runs: the error is `the widget helper failed the
+  signer check: <call> failed: <message> (<status>)`, or the same with
+  `the build identity check`, followed by the cleanup of the suspended
+  child in parentheses, `(signal 9, sent SIGKILL after N ms)`; a failed
+  resume reads `kill failed: <reason>` with the same cleanup. A helper of
+  another signer, an ad hoc one under a certificate-signed client, one
+  with another identifier or another build's reads `SecCodeCheckValidity
+  failed: code failed to satisfy specified code requirement(s) (-67050)`
+  there, and a helper file without read permission
+  `SecCodeCopyGuestWithAttributes failed: UNIX[Permission denied]
+  (100013)`. A refusal of the client's own identity comes before any
+  spawn, with neither that prefix nor a cleanup, and names the failing
+  call: `SecCodeCheckValidity failed: the code on disk does not match what
+  is running (-67034)` after the running client's own executable changed
+  on disk, `SecCodeCopyDesignatedRequirement failed: code object is not
+  signed at all (-67062)` after an unsigned file replaced it, and
+  `SecCodeCopySelf failed: object file format unrecognized, invalid, or
+  unsuitable (-67049)` when a replaced universal executable moved the
+  running slice. Without a CDHash recorded for the running slice it is
+  `the widget helper identity of this build is unknown`, and with
+  incomplete signing information `the signature of this build is
+  unreadable` or `the signing certificate of this build is unreadable`.
+  Each is a start failure for the failure limit below. The call name and
+  the status are the stable part; the message is the system's.
   On Linux the error is `clone failed: <reason>` when the clone without
   namespaces fails as well, `<call> failed: <reason>` for another failed
   call of the spawn, such as `execve failed: <reason>` from the cloned
@@ -1040,8 +1124,10 @@ and the seams they use need no change for it.
   synchronously in the channel factory, before the host's creation time
   that `loadedMs` counts from, so its `loadedMs` does not include the
   spawn itself; it can include the helper's own start-up and lockdown
-  before its engine answers. The spawn runs while the client's helper
-  manager holds its mutex. Inside Flatpak it is a synchronous portal call,
+  before its engine answers. On macOS the spawn includes both identity
+  checks of **The shared helper**, Security calls without a time bound of
+  their own. The spawn runs while the client's helper manager holds its
+  mutex. Inside Flatpak it is a synchronous portal call,
   bounded by the portal proxy's 10 s timeout and preceded, until the
   client has its proxy, by that proxy's creation, whose D-Bus calls have
   GDBus's default bound of 25 s each; until it returns, a manager call
@@ -1288,6 +1374,28 @@ folder; and the helper's CMake stage built in packaged mode
 (`DESKTOP_APP_USE_PACKAGED`) beside a placeholder Telegram target, no
 packaged Qt being installed. Not run: a packaged or store app, a Release
 client, widgets on x86_64, Linux and any macOS but 27.0.1.
+
+The signed start and its identity checks ran on macOS 27.0.1 arm64 in the
+evidence campaign of
+`2026/11/14/sign-and-verify-the-macos-widget-helper-executable` (its
+`work/test.md`, Runs 1-3), with self-signed stand-in identities in place
+of the Developer ID: `build.sh`'s steps and `sign_mac.py` gave the
+universal app and both thinned update apps a helper signed by stand-in A
+with the hardened runtime, its identifier and no entitlement; that client
+served a card from its own helper, its own responsible process, while a
+helper signed by another identity, an ad hoc helper and one with another
+identifier were each killed in the suspended check before they ran, and
+replacing the running client's main executable refused before any spawn.
+The ad hoc Ninja arm64 and `build_mac.py` universal Debug clients each
+served from their own helper and refused the helper of another build of
+the same version at the build identity check, and under Rosetta the
+universal client's x86_64 slice and the unsigned Ninja x86_64 client each
+served from the helper's x86_64 slice with its recorded CDHash. A helper
+file without read permission failed the check three times
+(`SecCodeCopyGuestWithAttributes`, 100013) with no engine in process,
+and the next widget died latched without a fourth start; not run: a
+Developer ID signature or notarization, a certificate-signed Xcode build,
+a Release client, the store and packaged builds and macOS before 27.0.1.
 
 On Windows the [remote engines](#remote-engines) ran in the Win32 Debug
 (x86) client on one Windows 11 Pro 10.0.26300 machine in the evidence
