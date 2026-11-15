@@ -5,6 +5,9 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mokagram/music/mokagram_island.h"
+#ifdef Q_OS_MAC
+#include "mokagram/music/mokagram_island_mac.h"
+#endif
 #include "mokagram/effects/mokagram_black_hole.h"
 
 #include "mokagram/music/mokagram_island_glyphs.h"
@@ -326,6 +329,9 @@ private:
 	Ui::Animations::Simple _press;
 	base::Timer _hoverTimer;
 	base::Timer _leaveTimer;
+#ifdef Q_OS_MAC
+	base::Timer _desktopTimer;
+#endif
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	Spring _width;
@@ -363,7 +369,13 @@ Island::Island(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::RpWidget*> anchor)
-: RpWidget(parent)
+: RpWidget(
+#ifdef Q_OS_MAC
+	nullptr
+#else
+	parent
+#endif
+)
 , _controller(controller)
 , _anchor(anchor)
 , _animation([=] { return frame(); })
@@ -373,6 +385,17 @@ Island::Island(
 		expand(false);
 	}
 }) {
+#ifdef Q_OS_MAC
+	// The desktop panel has an independent native window, owned by this session.
+	QObject::connect(parent, &QObject::destroyed, this, [=] { delete this; });
+	setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+	setAttribute(Qt::WA_TranslucentBackground);
+	setAttribute(Qt::WA_ShowWithoutActivating);
+	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	InitDesktopIsland(this);
+	_desktopTimer.setCallback([=] { relayout(); });
+	_desktopTimer.callEach(1000);
+#endif
 	setMouseTracking(true);
 	hide();
 	_coverScale.jump(1.);
@@ -451,19 +474,28 @@ void Island::step(int delta) {
 }
 
 bool Island::areaVisible() const {
+#ifdef Q_OS_MAC
+	return true;
+#else
 	return !_controller->adaptive().isOneColumn()
 		|| _controller->mainSectionShown();
+#endif
 }
 
 int Island::expandedWidth() const {
+#ifdef Q_OS_MAC
+	return std::max(S(kCompactMinWidth), std::min(
+		S(kExpandedWidth), DesktopIslandArea().width() - S(24)));
+#else
 	return std::max(
 		std::min(S(kExpandedWidth), _anchor->width() - S(24)),
 		S(kCompactMinWidth));
+#endif
 }
 
 int Island::compactWidth() const {
 	// Mokagram: keep the chat header clear in narrow windows.
-	if (_anchor->width() < S(600)) {
+	if (!isWindow() && _anchor->width() < S(600)) {
 		return S(kCompactHeight);
 	}
 	const auto font = style::font(S(13), style::FontFlag::Bold, 0);
@@ -642,13 +674,22 @@ void Island::relayout() {
 	if (!_shown && isHidden()) {
 		return;
 	}
-	if (!areaVisible() || _anchor->width() <= 0) {
+	if (!areaVisible() || (!isWindow() && _anchor->width() <= 0)) {
 		hide();
 		return;
 	}
+#ifdef Q_OS_MAC
+	const auto area = DesktopIslandArea();
+	if (area.isEmpty()) {
+		hide();
+		return;
+	}
+	_shapeTop = area.y() + S(4);
+#else
 	const auto area = _anchor->geometry();
-	_centerX = area.x() + area.width() / 2.;
 	_shapeTop = area.y() + (st::topBarHeight - S(kCompactHeight)) / 2;
+#endif
+	_centerX = area.x() + area.width() / 2.;
 	const auto target = _wantExpanded ? expandedWidth() : compactWidth();
 	if (_shown && _width.target() != target) {
 		_width.to(target, kResize);
@@ -686,6 +727,10 @@ void Island::applyGeometry() {
 }
 
 std::optional<IslandShot> Island::shot() {
+	// Desktop coordinates must not enter effects painted inside the chat.
+	if (isWindow()) {
+		return std::nullopt;
+	}
 	if (isHidden() || _alpha.value() < 0.5) {
 		return std::nullopt;
 	}
