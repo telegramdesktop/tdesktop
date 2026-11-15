@@ -16,13 +16,13 @@ output = args.output.resolve()
 if output.exists():
     parser.error("output already exists; choose a new filename")
 output.parent.mkdir(parents=True, exist_ok=True)
-dmgbuild.build_dmg(str(output), "mokaGram", settings={
+dmgbuild.build_dmg(str(output), "mokaGram Installer", settings={
     "format": "UDZO",
     "files": [(str(app), "mokaGram.app")],
     "symlinks": {"Applications": "/Applications"},
     "background": str(Path(__file__).resolve().parent / "dmg/background.png"),
-    "window_rect": ((160, 160), (720, 440)),
-    "icon_locations": {"mokaGram.app": (200, 242), "Applications": (520, 242)},
+    "window_rect": ((160, 160), (800, 500)),
+    "icon_locations": {"mokaGram.app": (220, 265), "Applications": (580, 265)},
     "icon_size": 96,
     "text_size": 14,
     "hide_extension": ["mokaGram.app"],
