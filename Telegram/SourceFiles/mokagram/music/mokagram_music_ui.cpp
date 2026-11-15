@@ -6794,6 +6794,23 @@ public:
 			if (_tab == Tab::Search) rebuildTab();
 			_searchTimer.start();
 		});
+		_chooseSearchChat = Ui::CreateChild<Ui::RoundButton>(this,
+			rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Выбрать чат"))),
+			st::defaultLightButton);
+		_chooseSearchChat->hide();
+		_chooseSearchChat->setClickedCallback([=] {
+			Window::ShowChooseRecipientBox(
+				_controller,
+				crl::guard(this, [=](not_null<Data::Thread*> thread) {
+					_searchChat = thread->owningHistory()->peer->id;
+					_chooseSearchChat->setText(rpl::single(
+						QString::fromUtf8(Mokagram::Lang::Tr("Чат: %1"))
+						.arg(thread->owningHistory()->peer->name())));
+					runSearch();
+					return true;
+				}),
+				rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Выберите чат с музыкой"))));
+		});
 		_sourceSwitch = Ui::CreateChild<Segmented>(
 			this,
 			std::vector<QString>{
@@ -7249,7 +7266,7 @@ protected:
 			result.scrollTop = result.center.y() + ((_tab == Tab::Home || _tab == Tab::Library || _tab == Tab::Queue || _tab == Tab::Playlists)
 				? 0
 				: (_tab == Tab::Search)
-				? ((!_searchChats && contentWidth < s(500)) ? s(172) : s(124))
+				? ((contentWidth < s(500)) ? s(172) : s(124))
 				: s(72));
 		}
 
@@ -7472,9 +7489,14 @@ protected:
 			const auto switchWidth = stacked
 				? std::min(inner, s(240))
 				: std::min(std::max((inner - s(8)) / 2, 0), s(240));
-			const auto groupWidth = (stacked || _searchChats) ? switchWidth : 2 * switchWidth + s(8);
+			const auto groupWidth = stacked ? switchWidth : 2 * switchWidth + s(8);
 			const auto groupLeft = left + (inner - groupWidth) / 2;
 			_sourceSwitch->setGeometry(groupLeft, switchTop, switchWidth, s(40));
+			_chooseSearchChat->setGeometry(
+				stacked ? groupLeft : groupLeft + switchWidth + s(8),
+				stacked ? switchTop + s(48) : switchTop,
+				switchWidth,
+				s(40));
 			_kindSwitch->setGeometry(
 				stacked ? groupLeft : groupLeft + switchWidth + s(8),
 				stacked ? switchTop + s(48) : switchTop,
@@ -7575,13 +7597,13 @@ protected:
 		_searchTimer.stop();
 		const auto query = _searchField->text().trimmed();
 		const auto generation = ++_searchGen;
-		_searchPending = !query.isEmpty();
+		_searchPending = !query.isEmpty() || (_searchChats && _searchChat);
 		_searchIndicator->setLoading(_searchPending);
 		_searchFailed = false;
 		_searchTracks.clear();
 		_albums.clear();
 		_chatSearch = nullptr;
-		_searchStatus = query.isEmpty()
+		_searchStatus = !_searchPending
 			? QString()
 			: QString::fromUtf8(Mokagram::Lang::Tr("Ищу…"));
 		const auto finish = [=](std::vector<Track> tracks, QString error) {
@@ -7595,18 +7617,21 @@ protected:
 			_searchStatus = !error.isEmpty()
 				? error
 				: _searchTracks.empty()
-				? QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено по запросу «%1»")).arg(query)
+				? (query.isEmpty()
+					? QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено"))
+					: QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено по запросу «%1»")).arg(query))
 				: QString();
 			if (_tab == Tab::Search) {
 				rebuildTab();
 			}
 		};
-		if (!query.isEmpty()) {
+		if (_searchPending) {
 			if (_searchChats) {
 				if (const auto session = QueueState().session.get()) {
 					_chatSearch = std::make_unique<ChatMusicSearch>(
 						session,
-						crl::guard(this, finish));
+						crl::guard(this, finish),
+						_searchChat);
 					_chatSearch->search(query);
 				} else {
 					finish({}, QString::fromUtf8(Mokagram::Lang::Tr("Поиск по чатам недоступен")));
@@ -8137,7 +8162,8 @@ protected:
 			_playlistsSticker = nullptr;
 		}
 		const auto searching = (_tab == Tab::Search);
-		const auto emptySearch = searching && _searchField->text().trimmed().isEmpty();
+		const auto emptySearch = searching && _searchField->text().trimmed().isEmpty()
+			&& !(_searchChats && _searchChat);
 		if (!emptySearch) {
 			_searchEmptySticker = nullptr;
 		} else if (!_searchEmptySticker) {
@@ -8151,6 +8177,7 @@ protected:
 		const auto fresh = searching && !_searchField->isVisible();
 		_searchField->setVisible(searching);
 		_sourceSwitch->setVisible(searching);
+		_chooseSearchChat->setVisible(searching && _searchChats);
 		_kindSwitch->setVisible(searching && !_searchChats);
 		_searchRetry->setVisible(searching && _searchFailed && !_openedAlbum);
 		if (fresh) {
@@ -8524,6 +8551,18 @@ protected:
 					: _searchStatus;
 			} else {
 				addRows(_searchTracks);
+				if (_searchChats && _chatSearch && _chatSearch->hasMore()) {
+					const auto more = _tabList->add(object_ptr<Ui::RoundButton>(
+						_tabList,
+						rpl::single(tr("Показать ещё")),
+						st::defaultLightButton));
+					more->setClickedCallback([=] {
+						if (_chatSearch && _chatSearch->hasMore()) {
+							more->setDisabled(true);
+							_chatSearch->searchMore();
+						}
+					});
+				}
 			}
 			break;
 		case Tab::Library: {
@@ -8766,7 +8805,8 @@ protected:
 					Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap,
 					_tabNote);
 			}
-			if (_tab == Tab::Search && _searchField->text().trimmed().isEmpty()) {
+			if (_tab == Tab::Search && _searchField->text().trimmed().isEmpty()
+				&& !(_searchChats && _searchChat)) {
 				const auto area = QRect(
 					layout.center.x(), layout.scrollTop,
 					layout.center.width(),
@@ -9376,6 +9416,8 @@ private:
 	bool _searchFailed = false;
 	bool _searchPending = false;
 	std::vector<QWidget*> _searchResultWidgets;
+	Ui::RoundButton *_chooseSearchChat = nullptr;
+	PeerId _searchChat;
 	Segmented *_sourceSwitch = nullptr;
 	Segmented *_kindSwitch = nullptr;
 	std::vector<Album> _albums;
