@@ -25,6 +25,11 @@ class SessionController;
 
 namespace Menu {
 
+[[nodiscard]] QStringList DownloadedDocumentPaths(
+	const std::vector<not_null<HistoryItem*>> &items);
+
+void AddShowInFolderAction(not_null<Ui::PopupMenu*> menu, QStringList paths);
+
 void AddDownloadFilesAction(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<Window::SessionController*> window,

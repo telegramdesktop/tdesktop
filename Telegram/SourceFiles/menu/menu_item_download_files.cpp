@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_item_download_files.h"
 
 #include "base/flat_set.h"
+#include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -284,6 +285,33 @@ void AddAction(
 }
 
 } // namespace
+
+QStringList DownloadedDocumentPaths(
+		const std::vector<not_null<HistoryItem*>> &items) {
+	auto paths = QStringList();
+	for (const auto &item : items) {
+		const auto media = item->forbidsSaving() ? nullptr : item->media();
+		const auto document = media ? media->document() : nullptr;
+		if (document) {
+			if (auto path = document->filepath(true); !path.isEmpty()) {
+				paths.push_back(std::move(path));
+			}
+		}
+	}
+	return paths;
+}
+
+void AddShowInFolderAction(not_null<Ui::PopupMenu*> menu, QStringList paths) {
+	if (paths.isEmpty()) {
+		return;
+	}
+	menu->addAction(
+		(Platform::IsMac()
+			? tr::lng_context_show_in_finder(tr::now)
+			: tr::lng_context_show_in_folder(tr::now)),
+		[paths = std::move(paths)] { File::ShowInFolder(paths); },
+		&st::menuIconShowInFolder);
+}
 
 void AddDownloadFilesAction(
 		not_null<Ui::PopupMenu*> menu,
