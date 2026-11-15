@@ -1418,16 +1418,13 @@ void SetLiked(const Track &track, bool liked) {
 				const auto title = track.title.trimmed();
 				auto matches = std::vector<Track>();
 				for (const auto &candidate : result.tracks) {
-					if (candidate.title.trimmed() == title
+					if (candidate.title.trimmed().compare(title, Qt::CaseInsensitive) == 0
+						&& (track.artist.trimmed().isEmpty()
+							|| candidate.artist.trimmed().compare(
+								track.artist.trimmed(), Qt::CaseInsensitive) == 0)
 						&& candidate.id.toULongLong()) {
 						matches.push_back(candidate);
 					}
-				}
-				if (matches.size() > 1) {
-					std::erase_if(matches, [&](const Track &candidate) {
-						return track.artist.trimmed().isEmpty()
-							|| candidate.artist.trimmed() != track.artist.trimmed();
-					});
 				}
 				if (matches.size() == 1) {
 					Music::Account::SetTrackLiked(matches.front().id, liked);
