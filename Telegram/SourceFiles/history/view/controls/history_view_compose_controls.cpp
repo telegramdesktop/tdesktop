@@ -5758,7 +5758,9 @@ bool ComposeControls::updateSendAsButton(
 }
 
 void ComposeControls::updateAttachBotsMenu() {
-	_attachBotsMenu = nullptr;
+	if (const auto menu = base::take(_attachBotsMenu)) {
+		menu->hideFast();
+	}
 	if (!_features.attachBotsMenu
 		|| !_features.attachments
 		|| !_history
