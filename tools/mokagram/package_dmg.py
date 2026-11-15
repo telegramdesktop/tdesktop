@@ -8,6 +8,7 @@ import dmgbuild
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("app", type=Path)
 parser.add_argument("output", type=Path)
+parser.add_argument("--variant", choices=("dark", "light"), default="dark")
 args = parser.parse_args()
 app = args.app.resolve()
 if not (app / "Contents/Info.plist").is_file():
@@ -16,11 +17,13 @@ output = args.output.resolve()
 if output.exists():
     parser.error("output already exists; choose a new filename")
 output.parent.mkdir(parents=True, exist_ok=True)
-dmgbuild.build_dmg(str(output), "mokaGram Installer", settings={
+background = "background-light.png" if args.variant == "light" else "background.png"
+volume = "mokaGram Light Installer" if args.variant == "light" else "mokaGram Installer"
+dmgbuild.build_dmg(str(output), volume, settings={
     "format": "UDZO",
     "files": [(str(app), "mokaGram.app")],
     "symlinks": {"Applications": "/Applications"},
-    "background": str(Path(__file__).resolve().parent / "dmg/background.png"),
+    "background": str(Path(__file__).resolve().parent / "dmg" / background),
     "window_rect": ((160, 160), (800, 500)),
     "icon_locations": {"mokaGram.app": (220, 265), "Applications": (580, 265)},
     "icon_size": 96,
