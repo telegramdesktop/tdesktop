@@ -191,7 +191,7 @@ void RegisterSettings() {
 	playerEntry({
 		.key = u"player.presentation"_q,
 		.title = QString::fromUtf8(Mokagram::Lang::Tr("Вид плеера")),
-		.description = QString::fromUtf8(Mokagram::Lang::Tr("Обычная панель сверху или Dynamic Island над чатом.")),
+		.description = QString::fromUtf8(Mokagram::Lang::Tr("Обычная панель сверху или Dynamic Island. На macOS островок находится под чёлкой, вне окна клиента.")),
 		.kind = S::Kind::Choice,
 		.defaultValue = 1,
 		.choices = {

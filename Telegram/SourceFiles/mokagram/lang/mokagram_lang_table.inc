@@ -1578,6 +1578,6 @@
 	{ "Гуляет по краю поля ввода, следит за набором и радуется отправке. Его можно взять мышкой и бросить.", "Walks along the message field, watches you type and cheers when you send. Grab it with the mouse and throw it." },
 
 	{ "Вид плеера", "Player appearance" },
-	{ "Обычная панель сверху или Dynamic Island над чатом.", "Standard top bar or Dynamic Island above the chat." },
+	{ "Обычная панель сверху или Dynamic Island. На macOS островок находится под чёлкой, вне окна клиента.", "Standard top bar or Dynamic Island. On macOS, the island sits below the notch, outside the app window." },
 	{ "Обычный плеер", "Standard player" },
 	{ "Dynamic Island", "Dynamic Island" },
