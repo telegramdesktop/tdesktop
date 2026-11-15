@@ -2325,6 +2325,8 @@ PRIVATE
     tgw/tgw_remote.h
     tgw/tgw_renderer.cpp
     tgw/tgw_renderer.h
+    tgw/tgw_renderer_work.cpp
+    tgw/tgw_renderer_work.h
     tgw/tgw_resources.cpp
     tgw/tgw_resources.h
     tgw/tgw_runtime.cpp

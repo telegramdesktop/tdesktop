@@ -8,11 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
-#include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "twidget/gesture_policy.h"
 #include "twidget/renderer.h"
-#include "ui/effects/animations.h"
 #include "ui/image/image_prepare.h"
 
 namespace twidget {
@@ -26,14 +24,12 @@ struct WidgetRequestOutcome;
 
 namespace twlite {
 class Renderer;
-struct Command;
 } // namespace twlite
 
 namespace Tgw {
 
-class CursorStyles;
 class HostLink;
-class QtBackend;
+class RendererWork;
 
 inline constexpr auto kMinWidth = 200.;
 inline constexpr auto kMinHeight = 50.;
@@ -142,29 +138,6 @@ public:
 private:
 	friend class HostLink;
 
-	struct Pointer {
-		QPointF position;
-		QPointF origin;
-		int64 hit = 0;
-		int64 hover = 0;
-		int64 press = 0;
-		int parsed = 0;
-		bool over = false;
-		bool hovering = false;
-		bool pressed = false;
-		bool moved = false;
-		bool active = false;
-		bool secondary = false;
-	};
-	struct Finger {
-		QPointF position;
-		bool pressed = false;
-	};
-	struct Held {
-		crl::time since = 0;
-		int builds = 0;
-	};
-
 	void hostLoaded();
 	void hostMessage(const twidget::Json &message);
 	void hostTheme(bool dark);
@@ -173,77 +146,15 @@ private:
 	void hostCopyText(const std::string &text);
 	void hostWatch(bool on);
 
-	[[nodiscard]] int64 elementAt(QPointF point);
-	[[nodiscard]] CursorStyles &cursorStyles();
-	void holdPointer(QPointF point, int64 hit, bool secondary);
-	void trackHover();
-	[[nodiscard]] std::vector<twidget::Json> leaveHover();
-	void inputDone(const std::vector<twidget::Json> &out, bool wasDirty);
-	void releaseInput();
-	void stop(QString reason, bool fatal);
-	[[nodiscard]] std::vector<twidget::Json> takeSettled();
-	void flushQueued();
-
-	[[nodiscard]] bool canTick() const;
-	[[nodiscard]] bool clockWanted() const;
-	void refreshClock();
-	void scheduleWake();
-	void dropHeld();
-	void releaseHeld();
-	[[nodiscard]] bool step(crl::time now);
-	void wake();
-	void tick();
-
-	[[nodiscard]] std::optional<QString> repaintFrame(
-		const std::vector<twlite::Command> &list,
-		QRect area,
-		Images::CornersMaskRef corners,
-		QSize card);
-
-	void finish(const std::vector<twidget::Json> &out, Changes changes);
-	[[nodiscard]] Changes forwardAll(const std::vector<twidget::Json> &out);
-	[[nodiscard]] Changes applySize(const twidget::Json &message);
-	void bindHeightAnchor();
-	void forward(const twidget::Json &message);
-	void notifyPosted(Changes changes);
-
 	const std::shared_ptr<HostLink> _link;
-	std::unique_ptr<QtBackend> _backend;
-	std::unique_ptr<twlite::Renderer> _renderer;
-	Ui::Animations::Basic _clock;
-	base::Timer _wake;
-	base::Timer _heldTimer;
-	std::optional<Held> _held;
-	crl::time _recentReplyUntil = 0;
 	QImage _frame;
-	QSize _frameSize;
 	QSize _frameArea;
-	Images::CornersMaskRef _frameCorners;
-	std::optional<double> _height;
-	std::string _pendingSize;
-	QString _stopReason;
 	rpl::event_stream<Changes> _updates;
 	rpl::event_stream<LinkRequest> _linkRequests;
 	rpl::event_stream<BotRequest> _botRequests;
 	rpl::event_stream<std::string> _copyRequests;
 	rpl::event_stream<bool> _watchChanges;
-	std::unique_ptr<CursorStyles> _cursor;
-	Pointer _pointer;
-	Finger _finger;
-	Changes _postedChanges;
-	bool _ready = false;
-	bool _detached = false;
-	bool _hasContent = false;
-	bool _acked = false;
-	bool _loaded = false;
-	bool _heightBottom = false;
-	bool _stopped = false;
-	bool _stopFatal = false;
-	bool _onScreen = false;
-	bool _frameRequested = false;
-	bool _frameRepaintable = false;
-	bool _idleRequest = false;
-	bool _stepBusy = false;
+	const std::unique_ptr<RendererWork> _work;
 
 };
 
