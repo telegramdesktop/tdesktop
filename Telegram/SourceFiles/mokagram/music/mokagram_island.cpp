@@ -1425,6 +1425,13 @@ void UpdateIsland(
 		bool create) {
 	auto &islands = Islands();
 	auto island = islands[parent.get()].data();
+	if (Mokagram::Settings::Int(u"player.presentation"_q) != 1) {
+		if (island) {
+			delete island;
+		}
+		islands.remove(parent.get());
+		return;
+	}
 	if (!island) {
 		if (!create) {
 			islands.remove(parent.get());

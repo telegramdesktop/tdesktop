@@ -75,6 +75,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_dropdown.h"
 #include "media/player/media_player_instance.h"
 #include "mokagram/music/mokagram_island.h"
+#include "mokagram/settings/mokagram_settings.h" // Mokagram: player presentation.
 #include "base/qthelp_regex.h"
 #include "base/options.h"
 #include "mtproto/mtproto_dc_options.h"
@@ -381,6 +382,15 @@ MainWidget::MainWidget(
 	Media::Player::instance()->updatedNotifier(
 	) | rpl::on_next([=](const Media::Player::TrackState &state) {
 		handleAudioUpdate(state);
+	}, lifetime());
+	// Mokagram: apply the player presentation without restarting playback.
+	Mokagram::Settings::Changed(
+	) | rpl::filter([](const QString &key) {
+		return key == u"player.presentation"_q;
+	}) | rpl::on_next([=] {
+		Mokagram::Music::UpdateIsland(this, _controller, _history.get(), false);
+		handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Song));
+		handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Voice));
 	}, lifetime());
 	handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Song));
 	handleAudioUpdate(Media::Player::instance()->getState(AudioMsgId::Type::Voice));
@@ -952,7 +962,8 @@ void MainWidget::handleAudioUpdate(const Media::Player::TrackState &state) {
 		const auto ttlSeconds = item
 			&& item->media()
 			&& item->media()->ttlSeconds();
-		if (!ttlSeconds && state.id.type() == AudioMsgId::Type::Song) {
+		if (!ttlSeconds && state.id.type() == AudioMsgId::Type::Song
+			&& Mokagram::Settings::Int(u"player.presentation"_q) == 1) { // Mokagram: selected player.
 			// Mokagram: музыка играет в островке, полоску плеера не показываем.
 			// Полоса могла остаться от голосового или кружка: прячем её.
 			if (_player && _player->toggled()) {
