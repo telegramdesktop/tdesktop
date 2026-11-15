@@ -1468,6 +1468,9 @@ ComposeControls::~ComposeControls() {
 	saveFieldToHistoryLocalDraft();
 	unregisterDraftSources();
 	setTabbedPanel(nullptr);
+	if (const auto menu = base::take(_attachBotsMenu)) {
+		menu->hideFast();
+	}
 	session().api().request(_inlineBotResolveRequestId).cancel();
 }
 
