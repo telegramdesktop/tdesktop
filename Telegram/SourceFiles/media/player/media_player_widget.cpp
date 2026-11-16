@@ -998,9 +998,7 @@ int Widget::songTextWidth() const {
 }
 
 int Widget::songButtonsLeft() const {
-	// По центру между названием и таймером.
-	const auto fade = st::mediaPlayerControlsFade.width();
-	const auto controls = getTimeRight() + _timeLabel->width() + fade;
+	// Mokagram: по центру между названием и таймером.
 	// Не зависит от ширины названия, чтобы кнопки не прыгали между треками.
 	const auto textStart = getNameLeft();
 	const auto controlsLeft = _rightControls->x()
