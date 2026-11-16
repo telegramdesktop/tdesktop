@@ -18,8 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <zlib.h>
 
-#include "styles/style_basic.h"
-
 namespace Tgw {
 namespace {
 
@@ -187,12 +185,6 @@ struct ImageCharges {
 	return FontKind::Regular;
 }
 
-[[nodiscard]] QFont BaseFont(FontKind kind) {
-	return (kind == FontKind::Monospace)
-		? st::normalFont->monospace()->f
-		: st::normalFont->f;
-}
-
 [[nodiscard]] std::pair<uint32, float64> ResolveFont(
 		std::string_view families,
 		float size,
@@ -207,8 +199,11 @@ struct ImageCharges {
 	return { style, requested };
 }
 
-[[nodiscard]] QFont StyledFont(uint32 style, int pixels) {
-	auto result = BaseFont(FontKind(style & 1));
+[[nodiscard]] QFont StyledFont(
+		const QString &family,
+		uint32 style,
+		int pixels) {
+	auto result = QFont(family);
 	result.setPixelSize(pixels);
 	result.setWeight(kFontWeights[style >> 2]);
 	result.setItalic((style & 2) != 0);
@@ -511,8 +506,13 @@ void AppendPngChunk(
 
 } // namespace
 
-QtBackend::QtBackend(Diagnostic diagnostic)
+QtBackend::QtBackend(
+	Diagnostic diagnostic,
+	QString regularFamily,
+	QString monospaceFamily)
 : _diagnostic(diagnostic)
+, _regularFamily(std::move(regularFamily))
+, _monospaceFamily(std::move(monospaceFamily))
 , _canvases(std::make_unique<Canvases>(std::move(diagnostic)))
 , _canvasFontsLeft(kMaxNewCanvasFonts)
 , _canvasParsesLeft(kMaxCanvasFontParses) {
@@ -544,7 +544,10 @@ int QtBackend::makeFont(
 		1.,
 		float64(kMaxFontPixelSize)));
 	const auto scale = requested / pixels;
-	const auto font = StyledFont(key.first, pixels);
+	const auto &family = (FontKind(key.first & 1) == FontKind::Monospace)
+		? _monospaceFamily
+		: _regularFamily;
+	const auto font = StyledFont(family, key.first, pixels);
 	const auto metrics = QFontMetricsF(font);
 	out.ascent = float(metrics.ascent() * scale);
 	out.descent = float(metrics.descent() * scale);

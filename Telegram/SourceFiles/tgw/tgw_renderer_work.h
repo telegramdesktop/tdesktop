@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "tgw/tgw_emoji_images.h"
 #include "tgw/tgw_renderer.h"
-#include "ui/effects/animations.h"
 
 namespace twidget {
 class Json;
@@ -25,6 +25,12 @@ namespace Tgw {
 
 class CursorStyles;
 class QtBackend;
+
+struct RendererValues {
+	QString regularFamily;
+	QString monospaceFamily;
+	EmojiSides emoji;
+};
 
 struct RendererLayout {
 	QImage picture;
@@ -87,14 +93,27 @@ public:
 		Fn<void(const std::string &json)> send;
 		Fn<void(const std::string &kind, const std::string &detail)> diag;
 		Fn<std::optional<bool>()> bottom;
+		Fn<bool()> gone;
 	};
 
 	RendererWork(
-		not_null<RendererCore*> chat,
+		base::weak_ptr<RendererCore> chat,
 		double width,
 		double dpr,
+		const RendererValues &values,
 		Host host);
 	~RendererWork();
+
+	static void Create(
+		uint64 id,
+		base::weak_ptr<RendererCore> chat,
+		double width,
+		double dpr,
+		const RendererValues &values,
+		Host host);
+	[[nodiscard]] static RendererWork *Find(uint64 id);
+	static void Destroy(uint64 id);
+	static void DestroyAll();
 
 	void hostLoaded();
 	void hostMessage(const twidget::Json &message);
@@ -176,6 +195,8 @@ private:
 		bool touched = false;
 	};
 
+	static void EmojiTilesLanded();
+
 	[[nodiscard]] bool acceptsInput() const;
 	[[nodiscard]] int64 elementAt(QPointF point);
 	[[nodiscard]] CursorStyles &cursorStyles();
@@ -200,6 +221,9 @@ private:
 	[[nodiscard]] bool canTick() const;
 	[[nodiscard]] bool clockWanted() const;
 	void refreshClock();
+	void startClock();
+	void stopClock();
+	void clockStep();
 	void scheduleWake();
 	void dropHeld();
 	void releaseHeld();
@@ -230,11 +254,11 @@ private:
 	void forward(const twidget::Json &message);
 	void post(Changes changes);
 
-	const not_null<RendererCore*> _chat;
+	const base::weak_ptr<RendererCore> _chat;
 	const Host _host;
 	std::unique_ptr<QtBackend> _backend;
 	std::unique_ptr<twlite::Renderer> _renderer;
-	Ui::Animations::Basic _clock;
+	base::Timer _clock;
 	base::Timer _wake;
 	base::Timer _heldTimer;
 	std::optional<Held> _held;
@@ -269,8 +293,10 @@ private:
 	bool _onScreen = false;
 	bool _frameRequested = false;
 	bool _frameRepaintable = false;
+	bool _emojiMissed = false;
 	bool _idleRequest = false;
 	bool _stepBusy = false;
+	bool _clockOn = false;
 	bool _scheduled = false;
 	bool _sizePending = false;
 	bool _demand = false;

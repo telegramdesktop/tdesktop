@@ -92,6 +92,7 @@ public:
 
 	[[nodiscard]] static bool IsQuitPrevent();
 	[[nodiscard]] static bool IsExitPrevent(Fn<void()> retry);
+	static void Finish();
 	static void StateChanged(
 		const base::flat_set<not_null<HistoryItem*>> &items);
 	[[nodiscard]] static auto WatchingOnScreen()

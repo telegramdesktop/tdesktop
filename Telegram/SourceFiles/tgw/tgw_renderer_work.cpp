@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_backend.h"
 #include "tgw/tgw_cursor.h"
 #include "tgw/tgw_painter.h"
+#include "tgw/tgw_render_thread.h"
 #include "twidget/json.h"
 
 #include "styles/style_basic.h"
@@ -39,6 +40,8 @@ constexpr auto kSecondaryButton = 2;
 constexpr auto kLocalQueryId = 0;
 // Mirrors the private twidget::WidgetHost::kRenderAckQid, its post-load query.
 constexpr auto kLoadAckQueryId = -1;
+
+using WorkRegistry = base::flat_map<uint64, std::unique_ptr<RendererWork>>;
 
 // WHY: one ops message draws canvas text and lays out the document through
 // the same create_font(), so only the core's canvas_font() hook can tell
@@ -322,6 +325,11 @@ void Append(
 	return stats.builds - stats.patched;
 }
 
+[[nodiscard]] WorkRegistry &Works() {
+	static auto &result = *new WorkRegistry();
+	return result;
+}
+
 CanvasFontRenderer::CanvasFontRenderer(
 	double width,
 	double dpr,
@@ -340,27 +348,89 @@ int CanvasFontRenderer::canvas_font(
 } // namespace
 
 RendererWork::RendererWork(
-	not_null<RendererCore*> chat,
+	base::weak_ptr<RendererCore> chat,
 	double width,
 	double dpr,
+	const RendererValues &values,
 	Host host)
-: _chat(chat)
+: _chat(std::move(chat))
 , _host(std::move(host))
-, _backend(std::make_unique<QtBackend>(_host.diag))
+, _backend(std::make_unique<QtBackend>(
+	_host.diag,
+	values.regularFamily,
+	values.monospaceFamily))
 , _renderer(std::make_unique<CanvasFontRenderer>(
 	width,
 	dpr,
 	false,
 	_backend.get()))
-, _clock([=](crl::time now) { return step(now); })
+, _clock([=] { clockStep(); })
 , _wake([=] { wake(); })
 , _heldTimer([=] { releaseHeld(); refreshClock(); }) {
+	ConfigureEmojiTiles(values.emoji, EmojiTilesLanded);
 }
 
 RendererWork::~RendererWork() {
-	_clock.stop();
+	_clock.cancel();
 	_wake.cancel();
 	releaseInput();
+}
+
+void RendererWork::Create(
+		uint64 id,
+		base::weak_ptr<RendererCore> chat,
+		double width,
+		double dpr,
+		const RendererValues &values,
+		Host host) {
+	Expects(OnRenderThread());
+
+	Works().emplace(
+		id,
+		std::make_unique<RendererWork>(
+			std::move(chat),
+			width,
+			dpr,
+			values,
+			std::move(host)));
+}
+
+RendererWork *RendererWork::Find(uint64 id) {
+	Expects(OnRenderThread());
+
+	const auto &works = Works();
+	const auto i = works.find(id);
+	return (i != end(works)) ? i->second.get() : nullptr;
+}
+
+void RendererWork::Destroy(uint64 id) {
+	Expects(OnRenderThread());
+
+	auto &works = Works();
+	const auto i = works.find(id);
+	if (i == end(works)) {
+		return;
+	}
+	const auto taken = std::move(i->second);
+	works.erase(i);
+}
+
+void RendererWork::DestroyAll() {
+	Expects(OnRenderThread());
+
+	base::take(Works());
+}
+
+void RendererWork::EmojiTilesLanded() {
+	Expects(OnRenderThread());
+
+	for (const auto &entry : Works()) {
+		const auto work = entry.second.get();
+		if (work->_emojiMissed) {
+			work->refreshFrame();
+			work->demand();
+		}
+	}
 }
 
 void RendererWork::detach() {
@@ -757,7 +827,7 @@ void RendererWork::drawn() {
 
 void RendererWork::dropFrame(uint64 epoch) {
 	_epoch = epoch;
-	_demand = _undrawn = false;
+	_demand = _undrawn = _emojiMissed = false;
 	dropCanvas();
 }
 
@@ -772,14 +842,16 @@ void RendererWork::schedule() {
 		return;
 	}
 	_scheduled = true;
-	crl::on_main(this, [=] {
+	PostToRenderThread(crl::guard(this, [=] {
 		work();
-	});
+	}));
 }
 
 void RendererWork::work() {
 	_scheduled = false;
-	if (base::take(_detaching)) {
+	if (_host.gone()) {
+		return;
+	} else if (base::take(_detaching)) {
 		finishDetach();
 	}
 	applySizeRequest();
@@ -887,8 +959,10 @@ std::optional<RendererLayout> RendererWork::raster() {
 		&& _renderer->damage(damage))
 		? RepaintArea(damage, _renderer->dpr(), corners, card, size)
 		: std::nullopt;
+	const auto waits = EmojiTileWaits();
 	auto limit = area ? repaintFrame(list, *area, corners, card) : std::nullopt;
 	if (!limit) {
+		_emojiMissed = false;
 		auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());
 		limit = std::move(painted.limit);
 		if (limit->isEmpty() || !fits()) {
@@ -898,6 +972,9 @@ std::optional<RendererLayout> RendererWork::raster() {
 				_frame.setDevicePixelRatio(ratio);
 			}
 		}
+	}
+	if (EmojiTileWaits() != waits) {
+		_emojiMissed = true;
 	}
 	const auto refused = !limit->isEmpty();
 	_frameRepaintable = inPlace && !refused && !_frame.isNull();
@@ -1010,11 +1087,11 @@ void RendererWork::hostMessage(const twidget::Json &message) {
 	} else if (type == "requestFrame") {
 		if (!_frameRequested) {
 			_idleRequest = canTick()
-				&& !_clock.animating()
+				&& !_clockOn
 				&& (crl::now() >= _recentReplyUntil);
 			if (_held) {
 				dropHeld();
-				_clock.stop();
+				stopClock();
 			}
 		}
 		_frameRequested = true;
@@ -1025,7 +1102,7 @@ void RendererWork::hostMessage(const twidget::Json &message) {
 	const auto quiet = (type == "ops")
 		&& canTick()
 		&& !_held
-		&& (_frameRequested ? _idleRequest : !_clock.animating())
+		&& (_frameRequested ? _idleRequest : !_clockOn)
 		&& !_renderer->wants_tick();
 	const auto builds = _renderer->stats().builds;
 	_backend->beginCanvasBatch();
@@ -1220,7 +1297,7 @@ void RendererWork::flushBuilt(int builds) {
 }
 
 bool RendererWork::canTick() const {
-	return _onScreen && _ready && !_detached && !_stopped;
+	return _onScreen && _ready && !_detached && !_stopped && !_host.gone();
 }
 
 bool RendererWork::clockWanted() const {
@@ -1231,13 +1308,34 @@ bool RendererWork::clockWanted() const {
 void RendererWork::refreshClock() {
 	if (clockWanted()) {
 		_wake.cancel();
-		if (!_clock.animating()) {
-			_clock.start();
-		}
+		startClock();
 	} else {
 		dropHeld();
-		_clock.stop();
+		stopClock();
 		scheduleWake();
+	}
+}
+
+void RendererWork::startClock() {
+	if (_clockOn) {
+		return;
+	}
+	_clockOn = true;
+	_clock.callOnce(0);
+}
+
+void RendererWork::stopClock() {
+	_clockOn = false;
+	_clock.cancel();
+}
+
+void RendererWork::clockStep() {
+	if (!_clockOn) {
+		return;
+	} else if (!step(crl::now())) {
+		stopClock();
+	} else if (_clockOn && !_clock.isActive()) {
+		_clock.callEach(kHeldTick);
 	}
 }
 

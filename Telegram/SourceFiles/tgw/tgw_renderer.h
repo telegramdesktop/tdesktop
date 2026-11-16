@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 
 namespace twidget {
-class Json;
 class WidgetHost;
 struct WalletCall;
 struct WidgetAction;
@@ -109,7 +108,7 @@ public:
 	[[nodiscard]] WalletHandler hostWalletHandler() const;
 	[[nodiscard]] CopyHandler hostCopyHandler() const;
 	[[nodiscard]] WatchHandler hostWatchHandler() const;
-	void bindHost(not_null<twidget::WidgetHost*> host);
+	void bindHost(std::weak_ptr<twidget::WidgetHost> host);
 
 	void detach();
 	[[nodiscard]] bool attached() const;
@@ -182,14 +181,13 @@ private:
 		uint64 serial = 0;
 	};
 
-	void hostLoaded();
-	void hostMessage(const twidget::Json &message);
-	void hostTheme(bool dark);
+	void hostFrozen();
 	void hostLinkRequest(const LinkRequest &request);
 	void hostBotRequest(const BotRequest &request);
 	void hostCopyText(const std::string &text);
 	void hostWatch(bool on);
 	[[nodiscard]] bool refusesHost() const;
+	void work(Fn<void(RendererWork&)> task) const;
 
 	void apply(RendererAnswer &&answer);
 	[[nodiscard]] Changes applyLayout(RendererLayout &&layout);
@@ -238,7 +236,6 @@ private:
 	bool _refresh = false;
 	bool _undrawn = false;
 	bool _hasSelection = false;
-	const std::unique_ptr<RendererWork> _work;
 
 };
 

@@ -26,7 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_media.h"
 #include "tgw/tgw_remote.h"
+#include "tgw/tgw_render_thread.h"
 #include "tgw/tgw_renderer.h"
+#include "tgw/tgw_renderer_work.h"
 #include "tgw/tgw_resources.h"
 #include "tgw/tgw_state.h"
 #include "tgw/tgw_storage.h"
@@ -733,6 +735,14 @@ bool Runtime::IsExitPrevent(Fn<void()> retry) {
 	return true;
 }
 
+void Runtime::Finish() {
+	FinishEmojiImages();
+	FinishRenderThread([] {
+		RendererWork::DestroyAll();
+		ClearEmojiTiles();
+	});
+}
+
 void Runtime::StateChanged(
 		const base::flat_set<not_null<HistoryItem*>> &items) {
 	if (items.empty()) {
@@ -1171,6 +1181,9 @@ void Runtime::Drain() {
 			strong->release();
 		}
 	}
+	if (RenderThreadBarrier([] { JobDone(); })) {
+		++registry.jobs;
+	}
 }
 
 void Runtime::Sample(const std::shared_ptr<Host> &host) {
@@ -1554,7 +1567,7 @@ void Runtime::constructed(
 	syncHostVisibility();
 	syncHostSafeArea();
 	Test::WatchWidgetHost(_item->globalId(), *_host->pointer, _live.get());
-	_live->bindHost(_host->pointer.get());
+	_live->bindHost(_host->pointer);
 	_host->pointer->start();
 }
 

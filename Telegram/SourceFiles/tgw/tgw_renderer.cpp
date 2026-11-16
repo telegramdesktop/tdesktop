@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 
 #include "base/platform/base_platform_info.h"
+#include "tgw/tgw_render_thread.h"
 #include "tgw/tgw_renderer_work.h"
 #include "tgw/tgw_touch.h"
 #include "twidget/json.h"
@@ -17,19 +18,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <mutex>
 
+#include "styles/style_basic.h"
+
 namespace Tgw {
 
 class HostLink final : public std::enable_shared_from_this<HostLink> {
 public:
-	explicit HostLink(not_null<RendererCore*> core);
+	HostLink(not_null<RendererCore*> core, uint64 work);
 
 	[[nodiscard]] bool attach(not_null<twidget::Renderer*> proxy);
 	void detach(not_null<twidget::Renderer*> proxy);
 	void close();
-	void bindHost(not_null<twidget::WidgetHost*> host);
+	void forget();
+	[[nodiscard]] bool gone() const;
+	[[nodiscard]] uint64 workId() const;
+	void bindHost(std::weak_ptr<twidget::WidgetHost> host);
 	void toHost(const std::string &json);
 	void diag(const std::string &kind, const std::string &detail);
 	[[nodiscard]] std::optional<bool> hostBottom() const;
+	void work(Fn<void(RendererWork&)> task, bool host);
 
 	void postLoaded();
 	void postMessage(twidget::Json message);
@@ -43,10 +50,12 @@ private:
 	[[nodiscard]] RendererCore *current() const;
 
 	const base::weak_ptr<RendererCore> _core;
+	const uint64 _work;
 	mutable std::mutex _mutex;
 	twidget::Renderer *_proxy = nullptr;
-	twidget::WidgetHost *_host = nullptr;
-	bool _closed = false;
+	std::weak_ptr<twidget::WidgetHost> _host;
+	std::atomic<bool> _closed = false;
+	std::atomic<bool> _gone = false;
 
 };
 
@@ -57,6 +66,8 @@ constexpr auto kDomAlt = 1;
 constexpr auto kDomCtrl = 2;
 constexpr auto kDomMeta = 4;
 constexpr auto kDomShift = 8;
+
+auto WorkSerial = uint64(0);
 
 class HostRenderer final : public twidget::Renderer {
 public:
@@ -80,6 +91,23 @@ private:
 
 void RespondFailed(const RendererCore::Respond &respond) {
 	respond({ .failure = twidget::WidgetRequestFailure::Failed });
+}
+
+[[nodiscard]] RendererWork::Host HostOf(std::shared_ptr<HostLink> link) {
+	return {
+		.send = [=](const std::string &json) {
+			link->toHost(json);
+		},
+		.diag = [=](const std::string &kind, const std::string &detail) {
+			link->diag(kind, detail);
+		},
+		.bottom = [=] {
+			return link->hostBottom();
+		},
+		.gone = [=] {
+			return link->gone();
+		},
+	};
 }
 
 HostRenderer::HostRenderer(std::shared_ptr<HostLink> link)
@@ -138,8 +166,9 @@ int LogicalHeight(double css, int scale) {
 	return int(std::ceil(css * scale / 100.));
 }
 
-HostLink::HostLink(not_null<RendererCore*> core)
-: _core(core) {
+HostLink::HostLink(not_null<RendererCore*> core, uint64 work)
+: _core(core)
+, _work(work) {
 }
 
 bool HostLink::attach(not_null<twidget::Renderer*> proxy) {
@@ -155,7 +184,7 @@ void HostLink::detach(not_null<twidget::Renderer*> proxy) {
 	auto lock = std::lock_guard(_mutex);
 	if (_proxy == proxy.get()) {
 		_proxy = nullptr;
-		_host = nullptr;
+		_host.reset();
 	}
 }
 
@@ -163,13 +192,25 @@ void HostLink::close() {
 	auto lock = std::lock_guard(_mutex);
 	_closed = true;
 	_proxy = nullptr;
-	_host = nullptr;
+	_host.reset();
 }
 
-void HostLink::bindHost(not_null<twidget::WidgetHost*> host) {
+void HostLink::forget() {
+	_gone = true;
+}
+
+bool HostLink::gone() const {
+	return _gone;
+}
+
+uint64 HostLink::workId() const {
+	return _work;
+}
+
+void HostLink::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
 	auto lock = std::lock_guard(_mutex);
 	if (!_closed) {
-		_host = host.get();
+		_host = std::move(host);
 	}
 }
 
@@ -195,7 +236,7 @@ RendererCore *HostLink::current() const {
 std::optional<bool> HostLink::hostBottom() const {
 	const auto host = [&] {
 		auto lock = std::lock_guard(_mutex);
-		return _host;
+		return _host.lock();
 	}();
 	if (!host) {
 		return std::nullopt;
@@ -211,28 +252,53 @@ std::optional<bool> HostLink::hostBottom() const {
 	return result;
 }
 
-void HostLink::postLoaded() {
-	crl::on_main([link = shared_from_this()] {
-		if (const auto core = link->current()) {
-			core->hostLoaded();
+void HostLink::work(Fn<void(RendererWork&)> task, bool host) {
+	PostToRenderThread([
+		link = shared_from_this(),
+		task = std::move(task),
+		host
+	] {
+		if (link->_gone || (host && link->_closed)) {
+			return;
+		} else if (const auto work = RendererWork::Find(link->_work)) {
+			task(*work);
 		}
 	});
+}
+
+void HostLink::postLoaded() {
+	work([](RendererWork &work) {
+		work.hostLoaded();
+	}, true);
 }
 
 void HostLink::postMessage(twidget::Json message) {
-	crl::on_main([link = shared_from_this(), message = std::move(message)] {
-		if (const auto core = link->current()) {
-			core->hostMessage(message);
-		}
-	});
+	if (message["type"].asString() == "frozen") {
+		// WHY: HtmlWidget::drawStopped() paints the themed stop pill; the
+		// core's own freeze would rebuild its badge and fatal dimming into
+		// the last frame, so the core never sees this message.
+		const auto reason = QString::fromStdString(
+			message["reason"].asString());
+		const auto fatal = message["fatal"].asBool();
+		crl::on_main([link = shared_from_this()] {
+			if (const auto core = link->current()) {
+				core->hostFrozen();
+			}
+		});
+		work([=](RendererWork &work) {
+			work.freeze(reason, fatal);
+		}, true);
+		return;
+	}
+	work([message = std::move(message)](RendererWork &work) {
+		work.hostMessage(message);
+	}, true);
 }
 
 void HostLink::postTheme(bool dark) {
-	crl::on_main([link = shared_from_this(), dark] {
-		if (const auto core = link->current()) {
-			core->hostTheme(dark);
-		}
-	});
+	work([=](RendererWork &work) {
+		work.hostTheme(dark);
+	}, true);
 }
 
 void HostLink::postLinkRequest(RendererCore::LinkRequest request) {
@@ -270,31 +336,40 @@ void HostLink::postWatch(bool on) {
 }
 
 RendererCore::RendererCore(double width, double dpr)
-: _link(std::make_shared<HostLink>(this))
+: _link(std::make_shared<HostLink>(this, ++WorkSerial))
 , _size{ .width = ValidWidth(width) ? width : kFallbackWidth }
 , _menuDeadline([=] { menuDeadline(); })
-, _claimDeadline([=] { claimDeadline(); })
-, _work(std::make_unique<RendererWork>(
-	this,
-	_size.width,
-	dpr,
-	RendererWork::Host{
-		.send = [link = _link](const std::string &json) {
-			link->toHost(json);
-		},
-		.diag = [link = _link](
-				const std::string &kind,
-				const std::string &detail) {
-			link->diag(kind, detail);
-		},
-		.bottom = [link = _link] {
-			return link->hostBottom();
-		},
-	})) {
+, _claimDeadline([=] { claimDeadline(); }) {
+	auto values = RendererValues{
+		.regularFamily = st::normalFont->f.family(),
+		.monospaceFamily = st::normalFont->monospace()->f.family(),
+		.emoji = CurrentEmojiSides(),
+	};
+	PostToRenderThread([
+		link = _link,
+		chat = base::make_weak(this),
+		width = _size.width,
+		dpr,
+		values = std::move(values)
+	] {
+		if (!link->gone()) {
+			RendererWork::Create(
+				link->workId(),
+				chat,
+				width,
+				dpr,
+				values,
+				HostOf(link));
+		}
+	});
 }
 
 RendererCore::~RendererCore() {
 	_link->close();
+	_link->forget();
+	PostToRenderThread([id = _link->workId()] {
+		RendererWork::Destroy(id);
+	});
 }
 
 twidget::RendererFactory RendererCore::hostFactory() const {
@@ -355,16 +430,18 @@ RendererCore::WatchHandler RendererCore::hostWatchHandler() const {
 	};
 }
 
-void RendererCore::bindHost(not_null<twidget::WidgetHost*> host) {
-	_link->bindHost(host);
+void RendererCore::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
+	_link->bindHost(std::move(host));
 }
 
 void RendererCore::detach() {
 	_detached = true;
 	endInput();
 	forgetSelection();
-	_work->detach();
 	_link->close();
+	work([](RendererWork &work) {
+		work.detach();
+	});
 }
 
 bool RendererCore::attached() const {
@@ -377,7 +454,9 @@ void RendererCore::setOnScreen(bool onScreen) {
 		if (!onScreen) {
 			endInput();
 		}
-		_work->setOnScreen(onScreen, ++_visibility);
+		work([=, visibility = ++_visibility](RendererWork &work) {
+			work.setOnScreen(onScreen, visibility);
+		});
 	}
 }
 
@@ -391,19 +470,25 @@ bool RendererCore::acceptsInput() const {
 
 void RendererCore::pointerEnter() {
 	if (acceptsInput() && !TouchBridge::Active()) {
-		_work->pointerEnter(++_pointerSerial);
+		work([serial = ++_pointerSerial](RendererWork &work) {
+			work.pointerEnter(serial);
+		});
 	}
 }
 
 void RendererCore::pointerMove(QPointF point, int modifiers) {
 	if (acceptsInput() && !TouchBridge::Active()) {
-		_work->pointerMove(point, modifiers, ++_pointerSerial);
+		work([=, serial = ++_pointerSerial](RendererWork &work) {
+			work.pointerMove(point, modifiers, serial);
+		});
 	}
 }
 
 void RendererCore::pointerLeave() {
 	_input.hand = false;
-	_work->pointerLeave(++_pointerSerial);
+	work([serial = ++_pointerSerial](RendererWork &work) {
+		work.pointerLeave(serial);
+	});
 }
 
 void RendererCore::pointerPress(QPointF point, int modifiers) {
@@ -414,16 +499,20 @@ void RendererCore::pointerPress(QPointF point, int modifiers) {
 	_input.pressed = true;
 	_input.menuPressed = false;
 	forgetSelection();
-	_work->pointerPress(point, modifiers, ++_pointerSerial, _selectionSerial);
+	const auto serial = ++_pointerSerial;
+	const auto selection = _selectionSerial;
+	work([=](RendererWork &work) {
+		work.pointerPress(point, modifiers, serial, selection);
+	});
 }
 
 void RendererCore::pointerRelease(QPointF point, int modifiers) {
 	_input.pressed = _input.menuPressed = false;
-	_work->pointerRelease(
-		point,
-		modifiers,
-		TouchBridge::Active(),
-		++_pointerSerial);
+	const auto cancel = TouchBridge::Active();
+	const auto serial = ++_pointerSerial;
+	work([=](RendererWork &work) {
+		work.pointerRelease(point, modifiers, cancel, serial);
+	});
 }
 
 bool RendererCore::menuPress(
@@ -440,14 +529,18 @@ bool RendererCore::menuPress(
 	const auto serial = ++_pressSerial;
 	_menu = PendingMenu{ .decided = std::move(decided), .serial = serial };
 	_menuDeadline.callOnce(kAnswerDeadline);
-	_work->menuPress(point, modifiers, serial);
+	work([=](RendererWork &work) {
+		work.menuPress(point, modifiers, serial);
+	});
 	return true;
 }
 
 void RendererCore::menuRelease(int modifiers) {
 	endMenu();
 	_input.menuPressed = false;
-	_work->menuRelease(modifiers, TouchBridge::Active());
+	work([=, cancel = TouchBridge::Active()](RendererWork &work) {
+		work.menuRelease(modifiers, cancel);
+	});
 }
 
 bool RendererCore::fingerPress(
@@ -462,37 +555,49 @@ bool RendererCore::fingerPress(
 	_input.fingerPressed = true;
 	_claim = PendingClaim{ .claimed = std::move(claimed), .serial = serial };
 	_claimDeadline.callOnce(kAnswerDeadline);
-	_work->fingerPress(point, modifiers, serial);
+	work([=](RendererWork &work) {
+		work.fingerPress(point, modifiers, serial);
+	});
 	return true;
 }
 
 void RendererCore::fingerMove(QPointF point, int modifiers) {
 	if (_input.fingerPressed) {
-		_work->fingerMove(point, modifiers);
+		work([=](RendererWork &work) {
+			work.fingerMove(point, modifiers);
+		});
 	}
 }
 
 void RendererCore::fingerHold() {
 	if (_input.fingerPressed) {
-		_work->fingerHold();
+		work([](RendererWork &work) {
+			work.fingerHold();
+		});
 	}
 }
 
 void RendererCore::fingerRelease(QPointF point, int modifiers) {
 	endClaim();
 	_input.fingerPressed = false;
-	_work->fingerRelease(point, modifiers);
+	work([=](RendererWork &work) {
+		work.fingerRelease(point, modifiers);
+	});
 }
 
 void RendererCore::fingerCancel() {
 	endClaim();
 	_input.fingerPressed = false;
-	_work->fingerCancel();
+	work([](RendererWork &work) {
+		work.fingerCancel();
+	});
 }
 
 void RendererCore::resetInput() {
 	endInput();
-	_work->resetInput();
+	work([](RendererWork &work) {
+		work.resetInput();
+	});
 }
 
 bool RendererCore::pressed() const {
@@ -517,7 +622,9 @@ QString RendererCore::selectedText() const {
 
 void RendererCore::clearSelection() {
 	forgetSelection();
-	_work->clearSelection(_selectionSerial);
+	work([serial = _selectionSerial](RendererWork &work) {
+		work.clearSelection(serial);
+	});
 }
 
 void RendererCore::setSize(RendererSize size) {
@@ -528,11 +635,15 @@ void RendererCore::setSize(RendererSize size) {
 		return;
 	}
 	_size = size;
-	_work->setSize(_size, ++_sizeSerial);
+	work([size, serial = ++_sizeSerial](RendererWork &work) {
+		work.setSize(size, serial);
+	});
 }
 
 void RendererCore::setCut(const RendererCut &cut) {
-	_work->setCut(cut);
+	work([cut](RendererWork &work) {
+		work.setCut(cut);
+	});
 }
 
 double RendererCore::width() const {
@@ -573,12 +684,16 @@ QImage RendererCore::frame(QSize cardArea) {
 		&& (_frameArea == cardArea)
 		&& (_frame.devicePixelRatio() == style::DevicePixelRatio());
 	if (base::take(_refresh) || !held) {
-		_work->demand();
+		work([](RendererWork &work) {
+			work.demand();
+		});
 	}
 	if (!held) {
 		return QImage();
 	} else if (base::take(_undrawn)) {
-		_work->drawn();
+		work([](RendererWork &work) {
+			work.drawn();
+		});
 	}
 	return _frame;
 }
@@ -591,12 +706,16 @@ void RendererCore::dropFrame() {
 	_frame = QImage();
 	_frameArea = QSize();
 	_refresh = false;
-	_work->dropFrame(++_epoch);
+	work([epoch = ++_epoch](RendererWork &work) {
+		work.dropFrame(epoch);
+	});
 }
 
 void RendererCore::refreshFrame() {
 	_refresh = true;
-	_work->refreshFrame();
+	work([](RendererWork &work) {
+		work.refreshFrame();
+	});
 }
 
 rpl::producer<RendererCore::Changes> RendererCore::updates() const {
@@ -619,30 +738,13 @@ rpl::producer<bool> RendererCore::watchChanges() const {
 	return _watchChanges.events();
 }
 
-void RendererCore::hostLoaded() {
-	_work->hostLoaded();
-}
-
-void RendererCore::hostMessage(const twidget::Json &message) {
+void RendererCore::hostFrozen() {
 	if (_frozen) {
 		return;
-	} else if (message["type"].asString() == "frozen") {
-		// WHY: HtmlWidget::drawStopped() paints the themed stop pill; the
-		// core's own freeze would rebuild its badge and fatal dimming into
-		// the last frame, so the core never sees this message.
-		_frozen = true;
-		_work->freeze(
-			QString::fromStdString(message["reason"].asString()),
-			message["fatal"].asBool());
-		endInput();
-		forgetSelection();
-		return;
 	}
-	_work->hostMessage(message);
-}
-
-void RendererCore::hostTheme(bool dark) {
-	_work->hostTheme(dark);
+	_frozen = true;
+	endInput();
+	forgetSelection();
 }
 
 void RendererCore::hostLinkRequest(const LinkRequest &request) {
@@ -673,6 +775,10 @@ void RendererCore::hostWatch(bool on) {
 
 bool RendererCore::refusesHost() const {
 	return _frozen || _stopped;
+}
+
+void RendererCore::work(Fn<void(RendererWork&)> task) const {
+	_link->work(std::move(task), false);
 }
 
 void RendererCore::apply(RendererAnswer &&answer) {
@@ -768,7 +874,9 @@ Fn<void()> RendererCore::takeMenu(const RendererMenu &menu) {
 	}
 	auto decided = std::move(base::take(_menu)->decided);
 	_menuDeadline.cancel();
-	_work->menuDecided(menu.serial, menu.taken);
+	work([serial = menu.serial, taken = menu.taken](RendererWork &work) {
+		work.menuDecided(serial, taken);
+	});
 	if (menu.taken) {
 		_input.menuPressed = true;
 	}
@@ -801,7 +909,9 @@ void RendererCore::endMenu() {
 	}
 	const auto serial = base::take(_menu)->serial;
 	_menuDeadline.cancel();
-	_work->menuDecided(serial, false);
+	work([=](RendererWork &work) {
+		work.menuDecided(serial, false);
+	});
 }
 
 void RendererCore::endClaim() {
@@ -820,7 +930,9 @@ void RendererCore::menuDeadline() {
 		return;
 	}
 	auto pending = *base::take(_menu);
-	_work->menuDecided(pending.serial, false);
+	work([serial = pending.serial](RendererWork &work) {
+		work.menuDecided(serial, false);
+	});
 	pending.decided(false);
 }
 

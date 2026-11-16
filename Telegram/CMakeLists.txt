@@ -2331,6 +2331,8 @@ PRIVATE
     tgw/tgw_painter_filters.h
     tgw/tgw_remote.cpp
     tgw/tgw_remote.h
+    tgw/tgw_render_thread.cpp
+    tgw/tgw_render_thread.h
     tgw/tgw_renderer.cpp
     tgw/tgw_renderer.h
     tgw/tgw_renderer_work.cpp

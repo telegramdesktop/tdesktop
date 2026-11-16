@@ -28,7 +28,10 @@ public:
 		const std::string &kind,
 		const std::string &detail)>;
 
-	explicit QtBackend(Diagnostic diagnostic);
+	QtBackend(
+		Diagnostic diagnostic,
+		QString regularFamily,
+		QString monospaceFamily);
 	~QtBackend();
 
 	int create_font(
@@ -90,6 +93,8 @@ private:
 	[[nodiscard]] int refuseCanvasFont(twlite::FontMetrics &out);
 
 	const Diagnostic _diagnostic;
+	const QString _regularFamily;
+	const QString _monospaceFamily;
 	base::flat_map<int, QtFont> _fonts;
 	base::flat_map<int, Image> _images;
 	base::flat_map<FontKey, CachedFont> _canvasFonts;
