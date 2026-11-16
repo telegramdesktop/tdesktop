@@ -821,6 +821,40 @@ void OpenStoryPhotoEditor(
 		QString originalPath,
 		Media::Encode::CanvasBackground background,
 		StoryEditorDone done) {
+	const auto session = &controller->session();
+	const auto items = Editor::ParseSceneItems(
+		setup.sceneItems,
+		[](int) { return QString(); });
+	for (const auto &message : items.messages) {
+		const auto peer = session->data().peer(PeerId(message.peerBare));
+		if (const auto channel = peer->asChannel()) {
+			if (!channel->accessHash() && message.channelAccessHash) {
+				channel->setAccessHash(message.channelAccessHash);
+			}
+		}
+		const auto msgId = MsgId(message.msgBare);
+		if (session->data().message(peer->id, msgId)) {
+			continue;
+		}
+		session->api().requestMessageData(peer, msgId, crl::guard(
+			controller,
+			[=] {
+				if (!session->data().message(peer->id, msgId)) {
+					controller->showToast(tr::lng_story_draft_lost(tr::now));
+					return;
+				}
+				OpenStoryPhotoEditor(
+					controller,
+					image,
+					initial,
+					setup,
+					object,
+					originalPath,
+					background,
+					done);
+			}));
+		return;
+	}
 	const auto parent = controller->widget();
 	const auto show = controller->uiShow();
 	const auto videoBased = !object.empty();

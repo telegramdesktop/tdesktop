@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_draft.h"
 
 #include "mtproto/core_types.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
 #include "editor/editor_message_source.h"
 #include "editor/photo_editor_common.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_item_weather.h"
+#include "history/history.h"
 #include "history/history_item.h"
 
 #include <QtCore/QCryptographicHash>
@@ -306,6 +308,9 @@ SceneItems CollectSceneItems(
 			const auto fullId = history->fullId();
 			result.messages.push_back({
 				.peerBare = fullId.peer.value,
+				.channelAccessHash = history->history()->peer->asChannel()
+					? history->history()->peer->asChannel()->accessHash()
+					: 0,
 				.msgBare = fullId.msg.bare,
 				.dark = message->dark(),
 				.placement = placement,
@@ -429,6 +434,8 @@ QJsonArray SerializeSceneItems(const SceneItems &items) {
 		result.append(QJsonObject{
 			{ u"kind"_q, u"message"_q },
 			{ u"peer"_q, QString::number(message.peerBare) },
+			{ u"channelAccessHash"_q,
+				QString::number(message.channelAccessHash) },
 			{ u"msgid"_q, message.msgBare },
 			{ u"dark"_q, message.dark
 				? (*message.dark ? 1 : 0)
@@ -538,6 +545,8 @@ SceneItems ParseSceneItems(
 		} else if (kind == u"message"_q) {
 			result.messages.push_back({
 				.peerBare = object[u"peer"_q].toString().toULongLong(),
+				.channelAccessHash = object[u"channelAccessHash"_q]
+					.toString().toULongLong(),
 				.msgBare = object[u"msgid"_q].toInteger(),
 				.dark = DeserializeDark(object[u"dark"_q].toInt(-1)),
 				.placement = placement,

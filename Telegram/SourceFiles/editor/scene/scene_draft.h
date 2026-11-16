@@ -60,6 +60,7 @@ struct SceneItemLine {
 
 struct SceneItemMessage {
 	uint64 peerBare = 0;
+	uint64 channelAccessHash = 0;
 	int64 msgBare = 0;
 	std::optional<bool> dark;
 	ItemBase::Placement placement;
