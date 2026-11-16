@@ -464,10 +464,8 @@ packs, the fixture and the seams they use need no change for it.
   process; that path has not run (no macOS before 27.0.1 was available).
   A macOS packaged build builds, stages and runs the same helper as every
   other non-store macOS build: the helper links no Qt, so the external Qt
-  of the packaged workflow (Homebrew's), which lacks the patches that keep
-  Qt's startup from connecting to the preferences daemon and other
-  services before `main`, never reaches it. Every Linux build defines the
-  helper. A package-managed build, one with packaged libraries
+  of the packaged workflow (Homebrew's) never reaches it. Every Linux build
+  defines the helper. A package-managed build, one with packaged libraries
   (`DESKTOP_APP_USE_PACKAGED`) and no special target (distributions, Snap
   and Flathub), installs it into
   `${CMAKE_INSTALL_LIBEXECDIR}/telegram-desktop/` and builds it at the same
