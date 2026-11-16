@@ -209,6 +209,59 @@ struct PortRights {
 	});
 	return result;
 }
+
+[[nodiscard]] std::string DropBootstrap() {
+	const auto task = mach_task_self();
+	const auto name = std::exchange(bootstrap_port, MACH_PORT_NULL);
+	const auto special = task_set_special_port(
+		task,
+		TASK_BOOTSTRAP_PORT,
+		MACH_PORT_NULL);
+	if (special != KERN_SUCCESS) {
+		return KernelError("task_set_special_port", special);
+	}
+	// launchd registers a port that mach_ports_lookup returns.
+	const auto registered = mach_ports_register(task, nullptr, 0);
+	if (registered != KERN_SUCCESS) {
+		return KernelError("mach_ports_register", registered);
+	}
+	// libxpc's bootstrap pipe holds its own references and uses the name until a send fails.
+	auto refs = mach_port_urefs_t();
+	const auto counted = mach_port_get_refs(
+		task,
+		name,
+		MACH_PORT_RIGHT_SEND,
+		&refs);
+	if (counted != KERN_SUCCESS) {
+		return KernelError("mach_port_get_refs", counted);
+	}
+	const auto removed = mach_port_mod_refs(
+		task,
+		name,
+		MACH_PORT_RIGHT_SEND,
+		-mach_port_delta_t(refs));
+	if (removed != KERN_SUCCESS) {
+		return KernelError("mach_port_mod_refs", removed);
+	}
+	auto type = mach_port_type_t();
+	if (mach_port_type(task, name, &type) != KERN_INVALID_NAME) {
+		return "the widget helper still holds its bootstrap port";
+	}
+	auto port = mach_port_t(MACH_PORT_NULL);
+	const auto release = gsl::finally([&] {
+		if (MACH_PORT_VALID(port)) {
+			mach_port_deallocate(task, port);
+		}
+	});
+	const auto found = bootstrap_look_up(
+		MACH_PORT_NULL,
+		kForbiddenServices.front(),
+		&port);
+	if (found == KERN_SUCCESS) {
+		return "the widget helper can still look up Mach services";
+	}
+	return {};
+}
 #endif // OS_MAC_STORE
 
 } // namespace
@@ -265,6 +318,10 @@ std::string Lockdown() {
 	}
 	if (setrlimit(RLIMIT_NPROC, &none) != 0) {
 		return SystemError("setrlimit", errno);
+	}
+	const auto dropped = DropBootstrap();
+	if (!dropped.empty()) {
+		return dropped;
 	}
 #endif // OS_MAC_STORE
 	return {};
