@@ -2351,7 +2351,6 @@ Section DetailsFiller::makePersonalChannel(not_null<UserData*> user) {
 				result.photoSize = 48;
 				return result;
 			}();
-			const auto &stLabeled = st::infoProfilePersonalChannelPadding;
 
 			messageChannelWrap->toggle(false, anim::type::instant);
 			clear();
