@@ -363,13 +363,15 @@ lowering and the run is an instrumented one, not the ordinary helper.
 
 With `probe` or `probe-unsandboxed` the client appends the same argv tail
 on both of its spawn paths, so the helper runs as `<helper path> 3 <mode>
-<cwd> <data>`. A direct clone execs `TelegramHelpers/TelegramWidgetHelper`
-next to the client's binary, or the package's
-`libexec/telegram-desktop/TelegramWidgetHelper` in a package-managed
-build; inside Flatpak the portal's argv starts
+<cwd> <data>`. A direct clone executes the descriptor of
+`TelegramHelpers/TelegramWidgetHelper` next to the client's binary that
+the client opened and checked against its build's SHA-256, or the
+package's `libexec/telegram-desktop/TelegramWidgetHelper` by path in a
+package-managed build; inside Flatpak the portal's argv starts
 `/app/libexec/telegram-desktop/TelegramWidgetHelper`
 ([Remote engines](test_widget_fixture.md#remote-engines) says how the
-client finds that path). The hook, `Test::WidgetHelperProbeLockdown()` in
+client finds and checks that path). The hook,
+`Test::WidgetHelperProbeLockdown()` in
 `test/test_widget_helper_probe_lockdown_linux.cpp`, compiled only into the
 helper's Debug build, runs `RunLinuxProbe()` there. It takes the mode,
 `cwd` and `application-support` (the data directory below) as the argv
@@ -381,12 +383,20 @@ is `Platform::WidgetHelper::LockDownHelper()` in
 still single-threaded. The Release `TelegramWidgetHelper` has no probe: it
 refuses any argument after its token with
 `Widget helper: unexpected arguments`. Every line is one `write` to
-descriptor 2, prefixed `Widget helper probe: `. That is the client's
-stderr on both spawn paths, since the portal is handed the client's
-descriptor 2 too, so the lines land in `app_stderr.txt` in a test run.
-Unless the helper's own lockdown refuses, the hook returns "" and the
-helper serves widgets as in `helper` mode, so a probe launch is no helper
-failure.
+descriptor 2, prefixed `Widget helper probe: `. On both spawn paths that
+descriptor is a duplicate of the client's stderr when that is not a
+terminal, so in a test run, whose stderr is a file, the lines land in
+`app_stderr.txt` unchanged. When the client's stderr is a terminal it is
+a one-way socket whose other end the client reads and relays to its
+terminal: every byte outside printable ASCII escaped as `\xNN` in
+lowercase hex and `\` as `\\`, a line over 8192 bytes cut there and
+ended with ` [cut]`, and a helper's bytes past its first 32768 dropped,
+with one line `[widget helper output over 32768 bytes dropped]` in their
+place. A printable ASCII line reaches the terminal unchanged
+([Remote engines](test_widget_fixture.md#remote-engines) describes the
+relay). Unless the helper's own lockdown refuses, the hook returns "" and
+the helper serves widgets as in `helper` mode, so a probe launch is no
+helper failure.
 
 With `probe` it goes through these steps:
 

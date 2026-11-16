@@ -468,7 +468,7 @@ packs, the fixture and the seams they use need no change for it.
   `${CMAKE_INSTALL_BINDIR}/TelegramHelpers/` (**The shared helper**
   below). The release scripts move their files by hand and do not pack the
   helper yet, so a tarball they make stops its widgets with the missing
-  helper's `execve failed: No such file or directory` until
+  helper's `open failed: No such file or directory` until
   `2026/11/14/ship-the-linux-widget-helper-in-the-tarball-and-its-updates`
   ships it. The Snap's `telegram` part builds with the prefix `/usr` and
   no special target, so it stages and primes
@@ -627,19 +627,47 @@ packs, the fixture and the seams they use need no change for it.
   absolute directory while Telegram moves, and that Telegram misses it;
   package tooling installs at the configured prefix, staged with
   `DESTDIR`, where the path holds. The client looks the file up at every
-  start and never checks it before the spawn: a missing file fails the
-  child's `execve`. After an upgrade replaced the file under a running
-  Telegram, the next start runs the new file, whose build string differs,
-  so the opening is refused until Telegram restarts. The client starts it
-  as `[<path>, 3]`, without `-testagent`; a Debug probe value adds the
-  same arguments after the `3` as on macOS, with the client's
-  `QStandardPaths::GenericDataLocation` as the data path. When `cExeDir()`
-  is empty both spawn paths fail with `the executable path is unknown`.
+  start. In the `TelegramHelpers` layout, that of every build but a
+  package-managed one, it then checks the file before each start: it
+  opens the path (`O_RDONLY | O_CLOEXEC | O_NOCTTY | O_NONBLOCK`, so a
+  symlink there is followed), requires a regular file (`fstat`,
+  `S_ISREG`) and hashes the opened descriptor with SHA-256,
+  which must equal, in lowercase hex, the single digest of the build's
+  generated `widget_helper_identity.h`.
+  `Telegram/cmake/widget_helper_identity.py --kind sha256` writes that
+  header per configuration from the helper target's final file
+  (`out/Telegram/gen/widget_helper_identity/Debug/widget_helper_identity.h`
+  in the Docker tree), and only these builds compile
+  `widget_helper_linux.cpp` with `TDESKTOP_WIDGET_HELPER_PINNED`. The
+  cloned child then executes that descriptor, never the path: it places
+  it at descriptor 4 with close-on-exec (`dup3`), closes everything from
+  5 and calls `fexecve(4, ...)`, which glibc issues as `execveat(4, "",
+  ..., AT_EMPTY_PATH)`, so a file put at the path after the check never
+  runs and the helper starts without descriptor 4. The main log has `Tgw:
+  The widget helper passed the build identity check (SHA-256 <digest>).`
+  before such a start. Any other bytes, another build's helper of the
+  same version included, fail the start (**Runtime log and deaths**
+  below), and so does anything that rewrites the file after its build,
+  such as `cmake --install --strip` of such a build (a reading of the
+  install script, not run). A package-managed build pins and checks
+  nothing: the main log has `Tgw: The widget helper is not pinned in a
+  package-managed build.` before each start, on both spawn paths, and
+  its cloned child executes the file by path (`execve`), so the build
+  string is its only check. After an upgrade replaced the file under a
+  running Telegram, the next start fails the build identity check in the
+  `TelegramHelpers` layout; in a package-managed build it runs the new
+  file, whose build string differs, so the opening is refused until
+  Telegram restarts. The client starts it as `[<path>, 3]`, without
+  `-testagent`; a Debug probe value adds the same arguments after the `3`
+  as on macOS, with the client's `QStandardPaths::GenericDataLocation` as
+  the data path. When `cExeDir()` is empty both spawn paths fail with
+  `the executable path is unknown`.
   The client clones it from a thread of its own that lives as long as the
   process, with only descriptors 0 to 3 open (0 and 1 `/dev/null`, 2 the
-  client's stderr, 3 the channel), in the working directory `/`, with every
-  signal at its default action, an empty signal mask and the client's
-  environment, and the cloned child execs the helper's file. The same
+  helper's stderr as below, 3 the channel), in the working directory `/`,
+  with every signal at its default action, an empty signal mask and the
+  client's environment, and the cloned child executes the checked
+  descriptor or, in a package-managed build, the helper's file. The same
   clone gives it its own user, PID, network and mount namespaces: inside
   them it is PID 1 and root of a user namespace that maps it to the
   client's user, with only a loopback interface, while the main log and
@@ -653,11 +681,35 @@ packs, the fixture and the seams they use need no change for it.
   descriptors and an empty environment table, so the helper gets the
   environment of the portal's sandbox, not the client's. That helper is
   not the client's child, and the pid in the main log is the portal's, not
-  one in the client's PID namespace. At its entry, before it adopts the
-  channel, the helper's `WidgetHelper::Adopt()`
-  (`_other/widget_helper_linux.cpp`) accepts only the token `3`, limits
-  glibc's malloc to one arena (`mallopt(M_ARENA_MAX, 1)`) and makes the
-  preparation of **The Linux lockdown** below; it makes no `chdir`. A
+  one in the client's PID namespace. Only a package-managed build, such as
+  Flathub's, starts it there: the portal executes a path, so a build in
+  the `TelegramHelpers` layout fails every start inside Flatpak with `the
+  widget helper's build identity cannot be checked through the Flatpak
+  portal`, before any portal call (a reading of the code, not run).
+  On both spawn paths the helper's descriptor 2 follows the client's
+  stderr at each start. When that is not a terminal (`isatty`), as under
+  `test-run`, whose `app_stderr.txt` is a file, it is a duplicate of the
+  client's stderr, and the helper's lines land there unchanged. When it
+  is a terminal, descriptor 2 is the helper's end of a one-way `AF_UNIX`
+  stream socket (`/proc/<pid>/fd/2` reads `socket:[<inode>]`), never the
+  terminal: a thread of the client reads the other end and writes each
+  line to the client's stderr with one `write`, every byte outside
+  printable ASCII (0x20 to 0x7e) escaped as `\xNN` in lowercase hex and
+  `\` as `\\`. A line longer than 8192 bytes keeps its first 8192 and
+  ends with ` [cut]`, a last line without a newline is relayed at the
+  end, and a helper's bytes past its first 32768 are dropped, with one
+  line `[widget helper output over 32768 bytes dropped]` in their place.
+  The relay ends with its helper, before the main log's `ended` line
+  below. A terminal that stops accepting writes blocks only that thread,
+  and with it the reap of its helper.
+  At its entry, before it adopts the channel, the helper's
+  `WidgetHelper::Adopt()` (`_other/widget_helper_linux.cpp`) accepts only
+  the token `3`, names its process `TelegramWidgetHelper` with
+  `PR_SET_NAME`, which the kernel keeps as `TelegramWidgetH`, the name an
+  exec by path gives (an exec through a descriptor names it `4`, as
+  kernel 6.6 does), limits glibc's malloc to one arena
+  (`mallopt(M_ARENA_MAX, 1)`) and makes the preparation of **The Linux
+  lockdown** below; it makes no `chdir`. A
   Release helper refuses as on macOS: `Widget helper: unexpected
   arguments` for any argument after the token, `Widget helper: the
   channel could not be adopted` for another token or a descriptor 3 that
@@ -1199,7 +1251,9 @@ packs, the fixture and the seams they use need no change for it.
   per engine and no `widget.sandbox`; `widget.validator` and the host's
   `twidget-host` stay, and the channel adds `widget.reader`,
   `widget.writer` and `widget.monitor` per helper and a `widget.answer` per
-  runtime that asked a synchronous question. The `widget.sandbox` engines
+  runtime that asked a synchronous question. On Linux a client whose
+  stderr is a terminal also runs one relay thread per helper, with no name
+  of its own (**The shared helper** above). The `widget.sandbox` engines
   run in the helper. Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`; each host
   keeps its `widget.client`, `widget.validator` and `twidget-host` until
@@ -1279,22 +1333,36 @@ packs, the fixture and the seams they use need no change for it.
   Each is a start failure for the failure limit below. The call name and
   the status are the stable part; the message is the system's.
   On Linux the error is `clone failed: <reason>` when the clone without
-  namespaces fails as well, `<call> failed: <reason>` for another failed
-  call of the spawn, such as `execve failed: <reason>` from the cloned
-  child before it became the helper (`execve failed: No such file or
-  directory` when `TelegramHelpers/TelegramWidgetHelper` or the package's
-  libexec helper is missing; the client never checks the file before the
-  spawn), `stderr is not open`, `the widget helper is not available on
-  this architecture`, or `the executable path is unknown` on both spawn
-  paths when the client has no directory of its own (an empty
-  `cExeDir()`); inside Flatpak it can also be `the Flatpak portal is
-  unavailable: <message>` or `Spawn failed: <message>`, with the D-Bus
-  error's message. Inside Flatpak the portal's sandbox, not the client,
-  executes the file: when a `Spawn` that returned a pid started nothing
-  it can run, the stream ends before `Ready`, and that end counts towards
-  the failure limit the same way (a reading of the manager's code, not
-  run). The Linux `<reason>` is the system's message without a period,
-  such as `No space left on device`.
+  namespaces fails as well, or `<call> failed: <reason>` for another
+  failed call of the spawn. In the `TelegramHelpers` layout the check of
+  **The shared helper** gives `open failed: <reason>` (`open failed: No
+  such file or directory` when `TelegramHelpers/TelegramWidgetHelper` is
+  missing) and `fstat failed: <reason>`, and the cloned child, before it
+  became the helper, `dup3 failed: <reason>` and `fexecve failed:
+  <reason>` (`fexecve failed: Permission denied` for the pinned bytes
+  without their execute bit); in a package-managed build the child gives
+  `execve failed: <reason>` (`execve failed: No such file or directory`
+  when the package's libexec helper is missing). When the client's stderr
+  is a terminal and the relay's socket cannot be made, the error is
+  `socketpair failed: <reason>`; the terminal is never handed to the
+  helper instead. The check itself refuses with `the widget helper is not
+  a regular file`, `the widget helper could not be read` or `the widget
+  helper failed the build identity check: SHA-256 <actual>, expected
+  <pinned>`, both digests in lowercase hex, the last for any bytes but
+  the pinned ones: another build's helper, a modified file or another
+  executable. The other errors are `stderr is not open`, `the widget
+  helper is not available on this architecture`, `the executable path is
+  unknown` on both spawn paths when the client has no directory of its
+  own (an empty `cExeDir()`) and, inside Flatpak, `the widget helper's
+  build identity cannot be checked through the Flatpak portal` for a
+  build in the `TelegramHelpers` layout, or for a package-managed one `the
+  Flatpak portal is unavailable: <message>` or `Spawn failed: <message>`,
+  with the D-Bus error's message. Inside Flatpak the portal's sandbox,
+  not the client, executes the file: when a `Spawn` that returned a pid
+  started nothing it can run, the stream ends before `Ready`, and that
+  end counts towards the failure limit the same way (a reading of the
+  manager's code, not run). The Linux `<reason>` is the system's message
+  without a period, such as `No space left on device`.
   The Windows `<reason>` is the system's message with its own period,
   such as `Not enough quota is available to process this command.` in an
   enclosing job limited to one active process, so that line ends in `..`.
@@ -1326,8 +1394,10 @@ packs, the fixture and the seams they use need no change for it.
   spawn itself; it can include the helper's own start-up and lockdown
   before its engine answers. On macOS the spawn includes both identity
   checks of **The shared helper**, Security calls without a time bound of
-  their own. The spawn runs while the client's helper manager holds its
-  mutex. Inside Flatpak it is a synchronous portal call,
+  their own, and on Linux in the `TelegramHelpers` layout the read and
+  SHA-256 of the whole helper file. The spawn runs while the client's
+  helper manager holds its mutex. Inside Flatpak it is a synchronous
+  portal call,
   bounded by the portal proxy's 10 s timeout and preceded, until the
   client has its proxy, by that proxy's creation, whose D-Bus calls have
   GDBus's default bound of 25 s each; until it returns, a manager call
