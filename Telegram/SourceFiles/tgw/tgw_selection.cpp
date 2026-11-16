@@ -77,9 +77,14 @@ void WidgetSelection::listPress(Qt::MouseButton button, bool menuShown) {
 
 void WidgetSelection::press() {
 	const auto pressed = PressedWidget();
+	const auto candidate = _pressed.get();
+	if (candidate && candidate != pressed.core) {
+		candidate->clearSelection();
+	}
 	_restore = drop(pressed.core);
 	_pressed = pressed.core;
 	_pressedItem = pressed.item;
+	watchPressed();
 	if (_restore) {
 		_changed(false);
 	}
@@ -94,8 +99,6 @@ void WidgetSelection::update() {
 
 void WidgetSelection::release() {
 	update();
-	_pressed = nullptr;
-	_pressedItem = nullptr;
 	const auto restore = base::take(_restore);
 	if (has()) {
 		return;
@@ -116,6 +119,7 @@ bool WidgetSelection::clear() {
 	if (const auto core = base::take(_pressed).get()) {
 		core->clearSelection();
 	}
+	_pressedLifetime.destroy();
 	_pressedItem = nullptr;
 	return drop(nullptr);
 }
@@ -179,6 +183,7 @@ bool WidgetSelection::drop(const RendererCore *pressed) {
 void WidgetSelection::adopt() {
 	// clearText() re-enters clear(), which must not find this selection.
 	auto core = base::take(_pressed);
+	_pressedLifetime.destroy();
 	const auto item = base::take(_pressedItem);
 	_clearText();
 	_held = std::move(core);
@@ -187,6 +192,21 @@ void WidgetSelection::adopt() {
 	_list->setFocus();
 	_changed(false);
 	TextActionsUpdated();
+}
+
+void WidgetSelection::watchPressed() {
+	using Change = RendererCore::Change;
+	_pressedLifetime.destroy();
+	const auto core = _pressed.get();
+	if (!core) {
+		return;
+	}
+	core->updates(
+	) | rpl::filter([](RendererCore::Changes changes) {
+		return bool(changes & Change::Selection);
+	}) | rpl::on_next([=] {
+		update();
+	}, _pressedLifetime);
 }
 
 void WidgetSelection::menuPress(not_null<QMouseEvent*> e) {

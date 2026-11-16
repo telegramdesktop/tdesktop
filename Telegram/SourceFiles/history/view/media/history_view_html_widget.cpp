@@ -507,7 +507,7 @@ TextState HtmlWidget::textState(
 		using Flag = Ui::Text::StateRequest::Flag;
 		const auto hand = (request.flags & Flag::LookupLink)
 			&& !OtherLinkPressed(_cardLink)
-			&& core->handCursorAt(cssPoint(point));
+			&& core->handCursor();
 		result.link = _cardLink;
 		result.cursor = hand ? CursorState::None : CursorState::Default;
 	}
@@ -580,14 +580,19 @@ void HtmlWidget::releaseCard() {
 	}
 }
 
-Tgw::RendererCore *HtmlWidget::menuPress(const ClickHandlerPtr &link) {
+Tgw::RendererCore *HtmlWidget::menuPress(
+		const ClickHandlerPtr &link,
+		Fn<void(bool taken)> decided) {
 	if (link != _cardLink || ClickHandler::getPressed()) {
 		return nullptr;
 	}
 	const auto core = pointerCore();
-	const auto taken = core
-		&& core->menuPress(cssPoint(_pointerPoint), CurrentModifiers());
-	return taken ? core : nullptr;
+	const auto pending = core
+		&& core->menuPress(
+			cssPoint(_pointerPoint),
+			CurrentModifiers(),
+			std::move(decided));
+	return pending ? core : nullptr;
 }
 
 bool HtmlWidget::hasHeavyPart() const {

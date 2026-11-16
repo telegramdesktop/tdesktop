@@ -181,6 +181,7 @@ private:
 		not_null<RendererCore*> renderer,
 		bool repaint,
 		bool client);
+	void cursorChanged(not_null<RendererCore*> renderer);
 	void coreStopped(not_null<RendererCore*> renderer, bool client);
 	void stillUpdated(
 		not_null<RendererCore*> renderer,

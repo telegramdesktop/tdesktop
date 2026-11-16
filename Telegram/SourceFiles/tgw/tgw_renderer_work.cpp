@@ -265,6 +265,25 @@ private:
 	};
 }
 
+[[nodiscard]] std::vector<twidget::Json> TakeContextMenus(
+		std::vector<twidget::Json> &out,
+		std::string_view pointerType) {
+	const auto menus = std::stable_partition(
+		begin(out),
+		end(out),
+		[&](const twidget::Json &message) {
+			const auto &event = message["ev"];
+			return (message["type"].asString() != "event")
+				|| (event["type"].asString() != "contextmenu")
+				|| (event["pointerType"].asString() != pointerType);
+		});
+	auto result = std::vector<twidget::Json>(
+		std::make_move_iterator(menus),
+		std::make_move_iterator(end(out)));
+	out.erase(menus, end(out));
+	return result;
+}
+
 void Append(
 		std::vector<twidget::Json> &to,
 		std::vector<twidget::Json> &&from) {
@@ -383,13 +402,19 @@ bool RendererWork::acceptsInput() const {
 	return canTick() && _hasContent;
 }
 
-void RendererWork::pointerEnter() {
+void RendererWork::pointerEnter(uint64 serial) {
+	_reports.pointer = serial;
+	_reports.touched = true;
+	schedule();
 	if (acceptsInput()) {
 		_pointer.over = true;
 	}
 }
 
-void RendererWork::pointerMove(QPointF point, int modifiers) {
+void RendererWork::pointerMove(QPointF point, int modifiers, uint64 serial) {
+	_reports.pointer = serial;
+	_reports.touched = true;
+	schedule();
 	if (!acceptsInput()) {
 		return;
 	}
@@ -412,7 +437,10 @@ void RendererWork::pointerMove(QPointF point, int modifiers) {
 	inputDone(out, wasDirty);
 }
 
-void RendererWork::pointerLeave() {
+void RendererWork::pointerLeave(uint64 serial) {
+	_reports.pointer = serial;
+	_reports.touched = true;
+	schedule();
 	_cursor = nullptr;
 	if (!acceptsInput()) {
 		return;
@@ -425,7 +453,15 @@ void RendererWork::pointerLeave() {
 	inputDone(leaveHover(), wasDirty);
 }
 
-void RendererWork::pointerPress(QPointF point, int modifiers) {
+void RendererWork::pointerPress(
+		QPointF point,
+		int modifiers,
+		uint64 serial,
+		uint64 selection) {
+	_reports.pointer = serial;
+	_reports.selection = selection;
+	_reports.touched = true;
+	schedule();
 	if (!acceptsInput()) {
 		return;
 	}
@@ -440,12 +476,25 @@ void RendererWork::pointerPress(QPointF point, int modifiers) {
 void RendererWork::pointerRelease(
 		QPointF point,
 		int modifiers,
+		bool cancel,
+		uint64 serial) {
+	_reports.pointer = serial;
+	_reports.touched = true;
+	schedule();
+	releasePointer(point, modifiers, cancel);
+}
+
+void RendererWork::releasePointer(
+		QPointF point,
+		int modifiers,
 		bool cancel) {
+	_pointer.menu = 0;
+	_pointer.held.clear();
 	if (!acceptsInput() || !_pointer.pressed) {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
-	// A finger's press elsewhere took this one: it ends with no click.
+	// A press the chat took for itself ends with no click.
 	auto out = cancel
 		? Touch(*_renderer, kTouchCancel, _pointer.position, 0)
 		: Touch(*_renderer, kTouchUp, point, modifiers);
@@ -459,12 +508,15 @@ void RendererWork::pointerRelease(
 	inputDone(out, wasDirty);
 }
 
-bool RendererWork::menuPress(QPointF point, int modifiers) {
+void RendererWork::menuPress(QPointF point, int modifiers, uint64 serial) {
+	_reports.menu = RendererMenu{ .serial = serial };
+	_reports.touched = true;
+	schedule();
 	if (!acceptsInput() || _pointer.pressed || _finger.pressed) {
-		return false;
+		return;
 	}
 	const auto hit = elementAt(point);
-	if (hasSelection()) {
+	if (selected()) {
 		const auto synced = (_pointer.parsed == ParsedDocuments(*_renderer));
 		const auto hover = synced ? _pointer.hover : 0;
 		const auto builds = _renderer->stats().builds;
@@ -472,7 +524,7 @@ bool RendererWork::menuPress(QPointF point, int modifiers) {
 		flushBuilt(builds);
 		// A core press drops the selection: keep it unless the hold is claimed.
 		if (!held.value_or(false)) {
-			return false;
+			return;
 		}
 	}
 	const auto wasDirty = _renderer->dirty();
@@ -494,31 +546,50 @@ bool RendererWork::menuPress(QPointF point, int modifiers) {
 	const auto taken = (verdict.owner == twidget::GestureOwner::Widget);
 	if (taken) {
 		holdPointer(point, hit, true);
+		_pointer.held = TakeContextMenus(out, "mouse");
+		_pointer.menu = serial;
 	} else {
 		Append(out, Touch(*_renderer, kTouchCancel, point, 0));
 	}
+	_reports.menu->taken = taken;
 	inputDone(out, wasDirty);
-	return taken;
+}
+
+void RendererWork::menuDecided(uint64 serial, bool deliver) {
+	if (!serial || (_pointer.menu != serial)) {
+		return;
+	}
+	_pointer.menu = 0;
+	const auto held = base::take(_pointer.held);
+	if (!_pointer.secondary || !acceptsInput()) {
+		return;
+	} else if (deliver) {
+		for (const auto &message : held) {
+			forward(message);
+		}
+	} else {
+		releasePointer(_pointer.position, 0, true);
+	}
 }
 
 void RendererWork::menuRelease(int modifiers, bool cancel) {
 	if (_pointer.secondary) {
-		pointerRelease(_pointer.position, modifiers, cancel);
+		releasePointer(_pointer.position, modifiers, cancel);
 	}
 }
 
-std::optional<twidget::WidgetGestureClaim> RendererWork::fingerPress(
-		QPointF point,
-		int modifiers) {
+void RendererWork::fingerPress(QPointF point, int modifiers, uint64 serial) {
+	_reports.claim = RendererClaim{ .serial = serial };
+	_reports.touched = true;
+	schedule();
 	if (!acceptsInput() || _finger.pressed) {
-		return std::nullopt;
+		return;
 	}
 	const auto wasDirty = _renderer->dirty();
 	auto out = Touch(*_renderer, kTouchDown, point, modifiers, kFingerPointer);
-	const auto claim = GestureClaim(out);
+	_reports.claim->claim = GestureClaim(out);
 	_finger = { .position = point, .pressed = true };
 	inputDone(out, wasDirty);
-	return claim;
 }
 
 void RendererWork::fingerMove(QPointF point, int modifiers) {
@@ -537,7 +608,9 @@ void RendererWork::fingerHold() {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
-	inputDone(_renderer->tick(), wasDirty);
+	auto out = base::take(_finger.held);
+	Append(out, _renderer->tick());
+	inputDone(out, wasDirty);
 }
 
 void RendererWork::fingerRelease(QPointF point, int modifiers) {
@@ -545,9 +618,12 @@ void RendererWork::fingerRelease(QPointF point, int modifiers) {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
-	auto out = (point != _finger.position)
-		? Touch(*_renderer, kTouchMove, point, modifiers, kFingerPointer)
-		: std::vector<twidget::Json>();
+	auto out = base::take(_finger.held);
+	if (point != _finger.position) {
+		Append(
+			out,
+			Touch(*_renderer, kTouchMove, point, modifiers, kFingerPointer));
+	}
 	_finger = Finger();
 	Append(out, Touch(*_renderer, kTouchUp, point, modifiers, kFingerPointer));
 	inputDone(out, wasDirty);
@@ -564,19 +640,7 @@ void RendererWork::fingerCancel() {
 		wasDirty);
 }
 
-bool RendererWork::hovered() const {
-	return _pointer.over;
-}
-
-bool RendererWork::pressed() const {
-	return _pointer.pressed;
-}
-
-bool RendererWork::fingerPressed() const {
-	return _finger.pressed;
-}
-
-bool RendererWork::handCursorAt(QPointF point) {
+bool RendererWork::handAt(QPointF point) {
 	if (!acceptsInput()) {
 		return false;
 	}
@@ -595,17 +659,67 @@ bool RendererWork::handCursorAt(QPointF point) {
 	return result;
 }
 
-bool RendererWork::hasSelection() const {
+bool RendererWork::selected() const {
 	return !_detached && !_stopped && _renderer->has_selection();
 }
 
-QString RendererWork::selectedText() const {
-	return (_detached || _stopped)
-		? QString()
-		: QString::fromStdString(_renderer->selected_text());
+void RendererWork::reportInput(RendererAnswer &answer) {
+	answer.cursor = reportCursor();
+	answer.selection = reportSelection();
+	answer.menu = base::take(_reports.menu);
+	answer.claim = base::take(_reports.claim);
 }
 
-void RendererWork::clearSelection() {
+std::optional<RendererCursor> RendererWork::reportCursor() {
+	if ((_reports.pointer == _reports.cursorSent)
+		&& (!_pointer.over
+			|| (_renderer->stats().builds == _reports.cursorBuilds))) {
+		return std::nullopt;
+	}
+	const auto hand = _pointer.over && handAt(_pointer.position);
+	_reports.cursorBuilds = _renderer->stats().builds;
+	if ((_reports.pointer == _reports.cursorSent)
+		&& (hand == _reports.hand)) {
+		return std::nullopt;
+	}
+	_reports.cursorSent = _reports.pointer;
+	_reports.hand = hand;
+	return RendererCursor{ .serial = _reports.pointer, .hand = hand };
+}
+
+std::optional<RendererSelection> RendererWork::reportSelection() {
+	const auto touched = base::take(_reports.touched);
+	auto text = QString();
+	if (!_detached && !_stopped) {
+		const auto builds = _renderer->stats().builds;
+		if (touched
+			|| (_reports.has && (builds != _reports.textBuilds))) {
+			_reports.textBuilds = builds;
+			text = QString::fromStdString(_renderer->selected_text());
+		} else {
+			text = _reports.text;
+		}
+	}
+	const auto has = !text.isEmpty();
+	if ((_reports.selection == _reports.textSent)
+		&& (has == _reports.has)
+		&& (text == _reports.text)) {
+		return std::nullopt;
+	}
+	_reports.textSent = _reports.selection;
+	_reports.has = has;
+	_reports.text = text;
+	return RendererSelection{
+		.text = std::move(text),
+		.serial = _reports.selection,
+		.has = has,
+	};
+}
+
+void RendererWork::clearSelection(uint64 serial) {
+	_reports.selection = serial;
+	_reports.touched = true;
+	schedule();
 	const auto wasDirty = _renderer->dirty();
 	if (_renderer->clear_selection()) {
 		inputDone({}, wasDirty);
@@ -674,20 +788,24 @@ void RendererWork::work() {
 	if (layout && !_detached) {
 		_undrawn = true;
 	}
+	auto answer = RendererAnswer{ .layout = std::move(layout) };
+	reportInput(answer);
 	const auto changes = base::take(_postedChanges);
 	const auto stopped = bool(changes & Change::Stopped);
-	if (!layout
+	if (!answer.layout
 		&& !stopped
-		&& !(changes & (Change::Content | Change::Loaded))) {
+		&& !(changes & (Change::Content | Change::Loaded))
+		&& !answer.cursor
+		&& !answer.selection
+		&& !answer.menu
+		&& !answer.claim) {
 		return;
 	}
-	deliver({
-		.layout = std::move(layout),
-		.state = { .hasContent = _hasContent, .loaded = _loaded },
-		.stop = (stopped
-			? std::make_optional(RendererStop{ _stopReason, _stopFatal })
-			: std::nullopt),
-	});
+	answer.state = { .hasContent = _hasContent, .loaded = _loaded };
+	if (stopped) {
+		answer.stop = RendererStop{ _stopReason, _stopFatal };
+	}
+	deliver(std::move(answer));
 }
 
 void RendererWork::applySizeRequest() {
@@ -1186,7 +1304,11 @@ void RendererWork::wake() {
 
 void RendererWork::tick() {
 	const auto wasDirty = _renderer->dirty();
-	auto changes = forwardAll(_renderer->tick());
+	auto out = _renderer->tick();
+	if (_finger.pressed) {
+		Append(_finger.held, TakeContextMenus(out, "touch"));
+	}
+	auto changes = forwardAll(out);
 	if (base::take(_frameRequested)) {
 		forward(FrameMessage());
 		_recentReplyUntil = crl::now() + kRecentReply;

@@ -272,6 +272,8 @@ void HostLink::postWatch(bool on) {
 RendererCore::RendererCore(double width, double dpr)
 : _link(std::make_shared<HostLink>(this))
 , _size{ .width = ValidWidth(width) ? width : kFallbackWidth }
+, _menuDeadline([=] { menuDeadline(); })
+, _claimDeadline([=] { claimDeadline(); })
 , _work(std::make_unique<RendererWork>(
 	this,
 	_size.width,
@@ -359,6 +361,8 @@ void RendererCore::bindHost(not_null<twidget::WidgetHost*> host) {
 
 void RendererCore::detach() {
 	_detached = true;
+	endInput();
+	forgetSelection();
 	_work->detach();
 	_link->close();
 }
@@ -370,6 +374,9 @@ bool RendererCore::attached() const {
 void RendererCore::setOnScreen(bool onScreen) {
 	if (_onScreen != onScreen) {
 		_onScreen = onScreen;
+		if (!onScreen) {
+			endInput();
+		}
 		_work->setOnScreen(onScreen, ++_visibility);
 	}
 }
@@ -383,91 +390,134 @@ bool RendererCore::acceptsInput() const {
 }
 
 void RendererCore::pointerEnter() {
-	if (!TouchBridge::Active()) {
-		_work->pointerEnter();
+	if (acceptsInput() && !TouchBridge::Active()) {
+		_work->pointerEnter(++_pointerSerial);
 	}
 }
 
 void RendererCore::pointerMove(QPointF point, int modifiers) {
-	if (!TouchBridge::Active()) {
-		_work->pointerMove(point, modifiers);
+	if (acceptsInput() && !TouchBridge::Active()) {
+		_work->pointerMove(point, modifiers, ++_pointerSerial);
 	}
 }
 
 void RendererCore::pointerLeave() {
-	_work->pointerLeave();
+	_input.hand = false;
+	_work->pointerLeave(++_pointerSerial);
 }
 
 void RendererCore::pointerPress(QPointF point, int modifiers) {
-	if (!TouchBridge::Active()) {
-		_work->pointerPress(point, modifiers);
+	if (!acceptsInput() || TouchBridge::Active()) {
+		return;
 	}
+	endMenu();
+	_input.pressed = true;
+	_input.menuPressed = false;
+	forgetSelection();
+	_work->pointerPress(point, modifiers, ++_pointerSerial, _selectionSerial);
 }
 
 void RendererCore::pointerRelease(QPointF point, int modifiers) {
-	_work->pointerRelease(point, modifiers, TouchBridge::Active());
+	_input.pressed = _input.menuPressed = false;
+	_work->pointerRelease(
+		point,
+		modifiers,
+		TouchBridge::Active(),
+		++_pointerSerial);
 }
 
-bool RendererCore::menuPress(QPointF point, int modifiers) {
-	return !TouchBridge::Active() && _work->menuPress(point, modifiers);
+bool RendererCore::menuPress(
+		QPointF point,
+		int modifiers,
+		MenuDecided decided) {
+	endMenu();
+	if (!acceptsInput()
+		|| TouchBridge::Active()
+		|| pressed()
+		|| _input.fingerPressed) {
+		return false;
+	}
+	const auto serial = ++_pressSerial;
+	_menu = PendingMenu{ .decided = std::move(decided), .serial = serial };
+	_menuDeadline.callOnce(kAnswerDeadline);
+	_work->menuPress(point, modifiers, serial);
+	return true;
 }
 
 void RendererCore::menuRelease(int modifiers) {
+	endMenu();
+	_input.menuPressed = false;
 	_work->menuRelease(modifiers, TouchBridge::Active());
 }
 
-std::optional<twidget::WidgetGestureClaim> RendererCore::fingerPress(
+bool RendererCore::fingerPress(
 		QPointF point,
-		int modifiers) {
-	return _work->fingerPress(point, modifiers);
+		int modifiers,
+		ClaimArrived claimed) {
+	if (!acceptsInput() || _input.fingerPressed) {
+		return false;
+	}
+	endClaim();
+	const auto serial = ++_pressSerial;
+	_input.fingerPressed = true;
+	_claim = PendingClaim{ .claimed = std::move(claimed), .serial = serial };
+	_claimDeadline.callOnce(kAnswerDeadline);
+	_work->fingerPress(point, modifiers, serial);
+	return true;
 }
 
 void RendererCore::fingerMove(QPointF point, int modifiers) {
-	_work->fingerMove(point, modifiers);
+	if (_input.fingerPressed) {
+		_work->fingerMove(point, modifiers);
+	}
 }
 
 void RendererCore::fingerHold() {
-	_work->fingerHold();
+	if (_input.fingerPressed) {
+		_work->fingerHold();
+	}
 }
 
 void RendererCore::fingerRelease(QPointF point, int modifiers) {
+	endClaim();
+	_input.fingerPressed = false;
 	_work->fingerRelease(point, modifiers);
 }
 
 void RendererCore::fingerCancel() {
+	endClaim();
+	_input.fingerPressed = false;
 	_work->fingerCancel();
 }
 
 void RendererCore::resetInput() {
+	endInput();
 	_work->resetInput();
 }
 
-bool RendererCore::hovered() const {
-	return !_detached && _work->hovered();
-}
-
 bool RendererCore::pressed() const {
-	return !_detached && _work->pressed();
+	return _input.pressed || _input.menuPressed;
 }
 
 bool RendererCore::fingerPressed() const {
-	return !_detached && _work->fingerPressed();
+	return _input.fingerPressed;
 }
 
-bool RendererCore::handCursorAt(QPointF point) {
-	return _work->handCursorAt(point);
+bool RendererCore::handCursor() const {
+	return _input.hand;
 }
 
 bool RendererCore::hasSelection() const {
-	return _work->hasSelection();
+	return _hasSelection;
 }
 
 QString RendererCore::selectedText() const {
-	return _work->selectedText();
+	return _selectedText;
 }
 
 void RendererCore::clearSelection() {
-	_work->clearSelection();
+	forgetSelection();
+	_work->clearSelection(_selectionSerial);
 }
 
 void RendererCore::setSize(RendererSize size) {
@@ -584,6 +634,8 @@ void RendererCore::hostMessage(const twidget::Json &message) {
 		_work->freeze(
 			QString::fromStdString(message["reason"].asString()),
 			message["fatal"].asBool());
+		endInput();
+		forgetSelection();
 		return;
 	}
 	_work->hostMessage(message);
@@ -641,9 +693,30 @@ void RendererCore::apply(RendererAnswer &&answer) {
 		_stopReason = std::move(answer.stop->reason);
 		_stopFatal = answer.stop->fatal;
 		changes |= Change::Stopped | Change::Repaint;
+		if (_input.hand || _frozen) {
+			changes |= Change::Cursor;
+		}
+		endInput();
+		forgetSelection();
 	}
+	if (!_detached && !refusesHost()) {
+		changes |= applyInput(answer);
+	}
+	const auto decided = answer.menu
+		? takeMenu(*answer.menu)
+		: Fn<void()>();
+	const auto claimed = answer.claim
+		? takeClaim(*answer.claim)
+		: Fn<void()>();
+	const auto weak = base::make_weak(this);
 	if (changes) {
 		_updates.fire_copy(changes);
+	}
+	if (decided && weak) {
+		decided();
+	}
+	if (claimed && weak) {
+		claimed();
 	}
 }
 
@@ -665,6 +738,98 @@ RendererCore::Changes RendererCore::applyLayout(RendererLayout &&layout) {
 	_frameSerial = layout.serial;
 	_undrawn = true;
 	return result;
+}
+
+RendererCore::Changes RendererCore::applyInput(RendererAnswer &answer) {
+	auto result = Changes();
+	if (const auto &cursor = answer.cursor) {
+		const auto current = (cursor->serial == _pointerSerial);
+		if ((current || !cursor->hand) && (_input.hand != cursor->hand)) {
+			_input.hand = cursor->hand;
+			result |= Change::Cursor;
+		}
+	}
+	if (auto &selection = answer.selection) {
+		const auto current = (selection->serial == _selectionSerial);
+		if (current
+			&& ((_hasSelection != selection->has)
+				|| (_selectedText != selection->text))) {
+			_hasSelection = selection->has;
+			_selectedText = std::move(selection->text);
+			result |= Change::Selection;
+		}
+	}
+	return result;
+}
+
+Fn<void()> RendererCore::takeMenu(const RendererMenu &menu) {
+	if (!_menu || (_menu->serial != menu.serial)) {
+		return nullptr;
+	}
+	auto decided = std::move(base::take(_menu)->decided);
+	_menuDeadline.cancel();
+	_work->menuDecided(menu.serial, menu.taken);
+	if (menu.taken) {
+		_input.menuPressed = true;
+	}
+	return [decided = std::move(decided), taken = menu.taken] {
+		decided(taken);
+	};
+}
+
+Fn<void()> RendererCore::takeClaim(const RendererClaim &claim) {
+	if (!_claim || (_claim->serial != claim.serial)) {
+		return nullptr;
+	}
+	auto claimed = std::move(base::take(_claim)->claimed);
+	_claimDeadline.cancel();
+	return [claimed = std::move(claimed), claim = claim.claim] {
+		claimed(claim);
+	};
+}
+
+void RendererCore::endInput() {
+	endMenu();
+	endClaim();
+	_input = Input();
+	++_pointerSerial;
+}
+
+void RendererCore::endMenu() {
+	if (!_menu) {
+		return;
+	}
+	const auto serial = base::take(_menu)->serial;
+	_menuDeadline.cancel();
+	_work->menuDecided(serial, false);
+}
+
+void RendererCore::endClaim() {
+	_claim = std::nullopt;
+	_claimDeadline.cancel();
+}
+
+void RendererCore::forgetSelection() {
+	_hasSelection = false;
+	_selectedText = QString();
+	++_selectionSerial;
+}
+
+void RendererCore::menuDeadline() {
+	if (!_menu) {
+		return;
+	}
+	auto pending = *base::take(_menu);
+	_work->menuDecided(pending.serial, false);
+	pending.decided(false);
+}
+
+void RendererCore::claimDeadline() {
+	if (!_claim) {
+		return;
+	}
+	auto pending = *base::take(_claim);
+	pending.claimed(twidget::gesture::NO_CLAIM);
 }
 
 } // namespace Tgw

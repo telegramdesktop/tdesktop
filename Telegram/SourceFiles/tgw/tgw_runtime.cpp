@@ -1619,9 +1619,12 @@ void Runtime::subscribeLive() {
 	renderer->updates(
 	) | rpl::on_next([=](RendererCore::Changes changes) {
 		const auto client = bool(changes & (Change::Loaded | Change::Client));
+		if (changes & Change::Cursor) {
+			cursorChanged(renderer);
+		}
 		if (changes & Change::Stopped) {
 			coreStopped(renderer, client);
-		} else {
+		} else if (changes & ~(Change::Cursor | Change::Selection)) {
 			coreUpdated(
 				renderer,
 				bool(changes
@@ -1689,6 +1692,12 @@ void Runtime::coreUpdated(
 		markHeight(true);
 	}
 	displayChanged(repaint);
+}
+
+void Runtime::cursorChanged(not_null<RendererCore*> renderer) {
+	if (renderer.get() == _live.get()) {
+		_item->history()->owner().notifyViewLayoutChange(_view);
+	}
 }
 
 void Runtime::coreStopped(not_null<RendererCore*> renderer, bool client) {

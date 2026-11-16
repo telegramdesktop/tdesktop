@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
+#include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "twidget/gesture_policy.h"
 #include "twidget/renderer.h"
@@ -27,11 +28,15 @@ namespace Tgw {
 class HostLink;
 class RendererWork;
 struct RendererAnswer;
+struct RendererClaim;
 struct RendererLayout;
+struct RendererMenu;
 
 inline constexpr auto kMinWidth = 200.;
 inline constexpr auto kMinHeight = 50.;
 inline constexpr auto kMaxHeight = 600.;
+// widget-sandbox's protocol.md treats a claim not sent in 150 ms as none.
+inline constexpr auto kAnswerDeadline = crl::time(150);
 
 struct RendererSize {
 	double width = 0.;
@@ -66,6 +71,8 @@ public:
 		Stopped = (1 << 3),
 		Loaded = (1 << 4),
 		Client = (1 << 5),
+		Cursor = (1 << 6),
+		Selection = (1 << 7),
 	};
 	friend inline constexpr bool is_flag_type(Change) { return true; }
 	using Changes = base::flags<Change>;
@@ -78,6 +85,8 @@ public:
 		Respond respond)>;
 	using CopyHandler = Fn<void(const std::string &text)>;
 	using WatchHandler = Fn<void(bool on)>;
+	using MenuDecided = Fn<void(bool taken)>;
+	using ClaimArrived = Fn<void(twidget::WidgetGestureClaim claim)>;
 
 	struct LinkRequest {
 		std::string url;
@@ -112,20 +121,23 @@ public:
 	void pointerLeave();
 	void pointerPress(QPointF point, int modifiers);
 	void pointerRelease(QPointF point, int modifiers);
-	[[nodiscard]] bool menuPress(QPointF point, int modifiers);
-	void menuRelease(int modifiers);
-	[[nodiscard]] std::optional<twidget::WidgetGestureClaim> fingerPress(
+	[[nodiscard]] bool menuPress(
 		QPointF point,
-		int modifiers);
+		int modifiers,
+		MenuDecided decided);
+	void menuRelease(int modifiers);
+	[[nodiscard]] bool fingerPress(
+		QPointF point,
+		int modifiers,
+		ClaimArrived claimed);
 	void fingerMove(QPointF point, int modifiers);
 	void fingerHold();
 	void fingerRelease(QPointF point, int modifiers);
 	void fingerCancel();
 	void resetInput();
-	[[nodiscard]] bool hovered() const;
 	[[nodiscard]] bool pressed() const;
 	[[nodiscard]] bool fingerPressed() const;
-	[[nodiscard]] bool handCursorAt(QPointF point);
+	[[nodiscard]] bool handCursor() const;
 	[[nodiscard]] bool hasSelection() const;
 	[[nodiscard]] QString selectedText() const;
 	void clearSelection();
@@ -155,6 +167,21 @@ private:
 	friend class HostLink;
 	friend class RendererWork;
 
+	struct Input {
+		bool pressed = false;
+		bool menuPressed = false;
+		bool fingerPressed = false;
+		bool hand = false;
+	};
+	struct PendingMenu {
+		MenuDecided decided;
+		uint64 serial = 0;
+	};
+	struct PendingClaim {
+		ClaimArrived claimed;
+		uint64 serial = 0;
+	};
+
 	void hostLoaded();
 	void hostMessage(const twidget::Json &message);
 	void hostTheme(bool dark);
@@ -166,6 +193,15 @@ private:
 
 	void apply(RendererAnswer &&answer);
 	[[nodiscard]] Changes applyLayout(RendererLayout &&layout);
+	[[nodiscard]] Changes applyInput(RendererAnswer &answer);
+	[[nodiscard]] Fn<void()> takeMenu(const RendererMenu &menu);
+	[[nodiscard]] Fn<void()> takeClaim(const RendererClaim &claim);
+	void endInput();
+	void endMenu();
+	void endClaim();
+	void forgetSelection();
+	void menuDeadline();
+	void claimDeadline();
 
 	const std::shared_ptr<HostLink> _link;
 	RendererSize _size;
@@ -173,15 +209,24 @@ private:
 	QSize _frameArea;
 	std::optional<double> _height;
 	QString _stopReason;
+	QString _selectedText;
 	rpl::event_stream<Changes> _updates;
 	rpl::event_stream<LinkRequest> _linkRequests;
 	rpl::event_stream<BotRequest> _botRequests;
 	rpl::event_stream<std::string> _copyRequests;
 	rpl::event_stream<bool> _watchChanges;
+	std::optional<PendingMenu> _menu;
+	std::optional<PendingClaim> _claim;
+	base::Timer _menuDeadline;
+	base::Timer _claimDeadline;
 	uint64 _sizeSerial = 0;
 	uint64 _frameSerial = 0;
 	uint64 _epoch = 0;
 	uint64 _visibility = 0;
+	uint64 _pointerSerial = 0;
+	uint64 _selectionSerial = 0;
+	uint64 _pressSerial = 0;
+	Input _input;
 	bool _hasContent = false;
 	bool _loaded = false;
 	bool _heightBottom = false;
@@ -192,6 +237,7 @@ private:
 	bool _onScreen = false;
 	bool _refresh = false;
 	bool _undrawn = false;
+	bool _hasSelection = false;
 	const std::unique_ptr<RendererWork> _work;
 
 };

@@ -47,10 +47,35 @@ struct RendererStop {
 	bool fatal = false;
 };
 
+struct RendererCursor {
+	uint64 serial = 0;
+	bool hand = false;
+};
+
+struct RendererSelection {
+	QString text;
+	uint64 serial = 0;
+	bool has = false;
+};
+
+struct RendererMenu {
+	uint64 serial = 0;
+	bool taken = false;
+};
+
+struct RendererClaim {
+	twidget::WidgetGestureClaim claim;
+	uint64 serial = 0;
+};
+
 struct RendererAnswer {
 	std::optional<RendererLayout> layout;
 	RendererState state;
 	std::optional<RendererStop> stop;
+	std::optional<RendererCursor> cursor;
+	std::optional<RendererSelection> selection;
+	std::optional<RendererMenu> menu;
+	std::optional<RendererClaim> claim;
 };
 
 class RendererWork final : public base::has_weak_ptr {
@@ -79,28 +104,29 @@ public:
 	void detach();
 	void setOnScreen(bool onScreen, uint64 visibility);
 
-	void pointerEnter();
-	void pointerMove(QPointF point, int modifiers);
-	void pointerLeave();
-	void pointerPress(QPointF point, int modifiers);
-	void pointerRelease(QPointF point, int modifiers, bool cancel);
-	[[nodiscard]] bool menuPress(QPointF point, int modifiers);
-	void menuRelease(int modifiers, bool cancel);
-	[[nodiscard]] std::optional<twidget::WidgetGestureClaim> fingerPress(
+	void pointerEnter(uint64 serial);
+	void pointerMove(QPointF point, int modifiers, uint64 serial);
+	void pointerLeave(uint64 serial);
+	void pointerPress(
 		QPointF point,
-		int modifiers);
+		int modifiers,
+		uint64 serial,
+		uint64 selection);
+	void pointerRelease(
+		QPointF point,
+		int modifiers,
+		bool cancel,
+		uint64 serial);
+	void menuPress(QPointF point, int modifiers, uint64 serial);
+	void menuDecided(uint64 serial, bool deliver);
+	void menuRelease(int modifiers, bool cancel);
+	void fingerPress(QPointF point, int modifiers, uint64 serial);
 	void fingerMove(QPointF point, int modifiers);
 	void fingerHold();
 	void fingerRelease(QPointF point, int modifiers);
 	void fingerCancel();
 	void resetInput();
-	[[nodiscard]] bool hovered() const;
-	[[nodiscard]] bool pressed() const;
-	[[nodiscard]] bool fingerPressed() const;
-	[[nodiscard]] bool handCursorAt(QPointF point);
-	[[nodiscard]] bool hasSelection() const;
-	[[nodiscard]] QString selectedText() const;
-	void clearSelection();
+	void clearSelection(uint64 serial);
 
 	void setSize(const RendererSize &size, uint64 serial);
 	void setCut(const RendererCut &cut);
@@ -113,9 +139,11 @@ private:
 	struct Pointer {
 		QPointF position;
 		QPointF origin;
+		std::vector<twidget::Json> held;
 		int64 hit = 0;
 		int64 hover = 0;
 		int64 press = 0;
+		uint64 menu = 0;
 		int parsed = 0;
 		bool over = false;
 		bool hovering = false;
@@ -126,11 +154,26 @@ private:
 	};
 	struct Finger {
 		QPointF position;
+		std::vector<twidget::Json> held;
 		bool pressed = false;
 	};
 	struct Held {
 		crl::time since = 0;
 		int builds = 0;
+	};
+	struct Reports {
+		std::optional<RendererMenu> menu;
+		std::optional<RendererClaim> claim;
+		QString text;
+		uint64 pointer = 0;
+		uint64 selection = 0;
+		uint64 cursorSent = 0;
+		uint64 textSent = 0;
+		int cursorBuilds = -1;
+		int textBuilds = -1;
+		bool hand = false;
+		bool has = false;
+		bool touched = false;
 	};
 
 	[[nodiscard]] bool acceptsInput() const;
@@ -138,6 +181,12 @@ private:
 	[[nodiscard]] CursorStyles &cursorStyles();
 	void flushBuilt(int builds);
 	void holdPointer(QPointF point, int64 hit, bool secondary);
+	void releasePointer(QPointF point, int modifiers, bool cancel);
+	[[nodiscard]] bool selected() const;
+	[[nodiscard]] bool handAt(QPointF point);
+	void reportInput(RendererAnswer &answer);
+	[[nodiscard]] std::optional<RendererCursor> reportCursor();
+	[[nodiscard]] std::optional<RendererSelection> reportSelection();
 	void trackHover();
 	[[nodiscard]] std::vector<twidget::Json> leaveHover();
 	void inputDone(const std::vector<twidget::Json> &out, bool wasDirty);
@@ -202,6 +251,7 @@ private:
 	std::unique_ptr<CursorStyles> _cursor;
 	Pointer _pointer;
 	Finger _finger;
+	Reports _reports;
 	Changes _postedChanges;
 	uint64 _sizeSerial = 0;
 	uint64 _frameSerial = 0;

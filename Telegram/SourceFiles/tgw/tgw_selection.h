@@ -63,6 +63,7 @@ public:
 private:
 	bool drop(const RendererCore *pressed);
 	void adopt();
+	void watchPressed();
 	void menuPress(not_null<QMouseEvent*> e);
 
 	const not_null<QWidget*> _list;
@@ -75,6 +76,7 @@ private:
 	HistoryItem *_heldItem = nullptr;
 	HistoryItem *_pressedItem = nullptr;
 	bool _restore = false;
+	rpl::lifetime _pressedLifetime;
 
 };
 

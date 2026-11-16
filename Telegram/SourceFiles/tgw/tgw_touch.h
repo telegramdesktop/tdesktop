@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryInner;
 class QContextMenuEvent;
+class QMouseEvent;
 
 namespace HistoryView {
 class Element;
@@ -74,6 +75,22 @@ private:
 		Scroll,
 		Lost,
 	};
+	enum class MenuState : uchar {
+		Refused,
+		Waiting,
+		Taken,
+		Dropped,
+	};
+	struct MenuEvent {
+		QPoint global;
+		Qt::KeyboardModifiers modifiers;
+	};
+	struct Move {
+		QPointF lead;
+		QPointF css;
+		double at = 0.;
+		int modifiers = 0;
+	};
 
 	[[nodiscard]] bool handoff(not_null<QTouchEvent*> e);
 	[[nodiscard]] RendererCore *held() const;
@@ -82,12 +99,19 @@ private:
 		QPoint global) const;
 	void step(QPoint global);
 	void release(QPoint global);
+	void claimed(uint64 serial, twidget::WidgetGestureClaim claim);
+	void moveTo(not_null<RendererCore*> core, const Move &move);
+	void up(not_null<RendererCore*> core, const Move &move);
+	void conclude(QPoint global);
 	void decide(const twidget::GestureVerdict &verdict);
 	void scheduleHold();
 	void hold();
 	void lose();
 	void finish();
 	void decideMenu();
+	[[nodiscard]] bool deferMenu(not_null<QContextMenuEvent*> e);
+	void menuDecided(uint64 serial, bool taken);
+	void menuPressFiltered(not_null<QMouseEvent*> e);
 	void releaseMenu();
 
 	const not_null<QWidget*> _list;
@@ -102,11 +126,22 @@ private:
 	base::weak_ptr<HistoryView::HtmlWidget> _widget;
 	base::weak_ptr<RendererCore> _core;
 	base::weak_ptr<RendererCore> _menuCore;
+	base::weak_ptr<HistoryView::HtmlWidget> _menuWidget;
+	std::optional<MenuEvent> _menuEvent;
+	std::vector<Move> _moves;
+	std::optional<Move> _releaseMove;
+	std::optional<QPoint> _endGlobal;
+	QPointF _pressLead;
+	double _pressAt = 0.;
+	uint64 _claimSerial = 0;
+	uint64 _menuSerial = 0;
 	QPoint _last;
 	Owner _owner = Owner::None;
+	MenuState _menuState = MenuState::Refused;
 	bool _released = false;
+	bool _claiming : 1 = false;
 	bool _menuPending : 1 = false;
-	bool _menuTaken : 1 = false;
+	bool _menuReplay : 1 = false;
 	bool _menuAhead : 1 = false;
 
 };
