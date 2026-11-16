@@ -78,7 +78,7 @@ constexpr auto kNoFile = -1;
 }
 
 [[nodiscard]] QString SerializeColor(const QColor &color) {
-	return color.isValid() ? color.name(QColor::HexRgb) : QString();
+	return color.isValid() ? color.name(QColor::HexArgb) : QString();
 }
 
 [[nodiscard]] QColor DeserializeColor(const QString &name) {
