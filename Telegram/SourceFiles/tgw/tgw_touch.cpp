@@ -210,10 +210,10 @@ void WidgetTouch::mouseRelease(Qt::MouseButton button) {
 		_menuPending = false;
 	}
 	if (_menuState == MenuState::Waiting) {
-		_menuState = MenuState::Dropped;
-		_menuEvent.reset();
+		_menuRelease = Modifiers();
+	} else {
+		releaseMenu();
 	}
-	releaseMenu();
 }
 
 Ui::Controls::SwipeHandoff WidgetTouch::swipeHandoff() {
@@ -539,9 +539,13 @@ void WidgetTouch::menuDecided(uint64 serial, bool taken) {
 	const auto event = base::take(_menuEvent);
 	const auto widget = base::take(_menuWidget).get();
 	if (taken) {
+		if (_menuRelease) {
+			releaseMenu();
+		}
 		return;
 	}
 	_menuCore = nullptr;
+	_menuRelease.reset();
 	if (!event || !widget) {
 		return;
 	}
@@ -573,8 +577,9 @@ void WidgetTouch::menuPressFiltered(not_null<QMouseEvent*> e) {
 }
 
 void WidgetTouch::releaseMenu() {
+	const auto modifiers = base::take(_menuRelease).value_or(Modifiers());
 	if (const auto core = base::take(_menuCore).get()) {
-		core->menuRelease(Modifiers());
+		core->menuRelease(modifiers);
 	}
 }
 

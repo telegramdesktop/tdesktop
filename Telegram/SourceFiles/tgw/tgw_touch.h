@@ -128,6 +128,7 @@ private:
 	base::weak_ptr<RendererCore> _menuCore;
 	base::weak_ptr<HistoryView::HtmlWidget> _menuWidget;
 	std::optional<MenuEvent> _menuEvent;
+	std::optional<int> _menuRelease;
 	std::vector<Move> _moves;
 	std::optional<Move> _releaseMove;
 	std::optional<QPoint> _endGlobal;
