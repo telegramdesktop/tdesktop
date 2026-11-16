@@ -85,6 +85,8 @@ if (WIN32)
         $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
     )
     add_dependencies(Telegram TelegramWidgetHelper)
+
+    generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode)
 elseif (APPLE)
     set_target_properties(TelegramWidgetHelper PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${output_folder}

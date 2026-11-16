@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/random.h"
 #include "platform/win/widget_channel_win.h"
+#include "platform/win/widget_helper_image_win.h"
 #include "platform/win/widget_sandbox_win.h"
 
 #include <QtCore/QOperatingSystemVersion>
@@ -20,17 +21,6 @@ namespace {
 constexpr auto kPathCapacity = DWORD(32768);
 constexpr auto kAbandonWait = crl::time(1000);
 constexpr auto kFirstErrorStatus = DWORD(0xC0000000);
-constexpr auto kHelperName = std::wstring_view(L"TelegramWidgetHelper.exe");
-
-#if defined _M_ARM64
-constexpr auto kHelperArchitecture = std::wstring_view(L"arm64");
-#elif defined _M_X64
-constexpr auto kHelperArchitecture = std::wstring_view(L"x64");
-#elif defined _M_IX86
-constexpr auto kHelperArchitecture = std::wstring_view(L"x86");
-#else // _M_ARM64 || _M_X64 || _M_IX86
-#error "The widget helper has no modules folder for this architecture."
-#endif // _M_ARM64 || _M_X64 || _M_IX86
 
 struct Path {
 	std::wstring value;
@@ -80,40 +70,6 @@ struct Child {
 		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
 		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
 		.toStdWString();
-}
-
-[[nodiscard]] Path ExecutablePath() {
-	auto result = std::wstring(kPathCapacity, wchar_t());
-	const auto length = GetModuleFileNameW(
-		nullptr,
-		result.data(),
-		kPathCapacity);
-	if (!length) {
-		return {
-			.error = QtSystemError("GetModuleFileNameW", GetLastError()),
-		};
-	} else if (length >= kPathCapacity) {
-		return { .error = u"the executable path is too long"_q };
-	}
-	result.resize(length);
-	return { .value = std::move(result) };
-}
-
-[[nodiscard]] Path HelperPath() {
-	auto result = ExecutablePath();
-	if (!result.error.isEmpty()) {
-		return result;
-	}
-	const auto separator = result.value.find_last_of(L'\\');
-	if (separator == std::wstring::npos) {
-		return { .error = u"the executable path has no directory"_q };
-	}
-	result.value.resize(separator + 1);
-	result.value.append(L"modules\\");
-	result.value.append(kHelperArchitecture);
-	result.value.append(L"\\");
-	result.value.append(kHelperName);
-	return result;
 }
 
 [[nodiscard]] Path SystemDirectory() {
@@ -420,9 +376,9 @@ Launched Launch(const QStringList &arguments) {
 	if (!unsupported.isEmpty()) {
 		return { .error = std::move(unsupported) };
 	}
-	auto path = HelperPath();
-	if (!path.error.isEmpty()) {
-		return { .error = std::move(path.error) };
+	const auto held = HoldHelper();
+	if (!held.error.empty()) {
+		return { .error = QString::fromStdString(held.error) };
 	}
 	auto directory = SystemDirectory();
 	if (!directory.error.isEmpty()) {
@@ -441,7 +397,7 @@ Launched Launch(const QStringList &arguments) {
 		return { .error = QString::fromStdString(job.error) };
 	}
 	auto created = CreateSuspended({
-		.path = std::move(path.value),
+		.path = held.path,
 		.directory = std::move(directory.value),
 		.arguments = arguments,
 		.token = tokens.lockdown.get(),
@@ -456,10 +412,14 @@ Launched Launch(const QStringList &arguments) {
 		.process = std::move(created.process),
 		.job = std::move(job.handle),
 	};
-	const auto error = Start(
-		child.process.get(),
-		created.thread.get(),
-		tokens.initial.get());
+	auto error = QString::fromStdString(
+		CheckStartedImage(held, child.process.get()));
+	if (error.isEmpty()) {
+		error = Start(
+			child.process.get(),
+			created.thread.get(),
+			tokens.initial.get());
+	}
 	if (!error.isEmpty()) {
 		return { .error = Abandon(child, error) };
 	}

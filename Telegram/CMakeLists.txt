@@ -1928,6 +1928,8 @@ PRIVATE
     platform/win/webauthn_win.cpp
     platform/win/widget_channel_win.cpp
     platform/win/widget_channel_win.h
+    platform/win/widget_helper_image_win.cpp
+    platform/win/widget_helper_image_win.h
     platform/win/widget_helper_win.cpp
     platform/win/widget_sandbox_win.cpp
     platform/win/widget_sandbox_win.h
