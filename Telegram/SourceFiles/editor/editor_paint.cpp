@@ -1553,11 +1553,16 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 
 void Paint::resolveStorySticker(const SceneItemSticker &sticker) {
 	const auto session = this->session();
-	if (!session || sticker.setShortName.isEmpty()) {
+	if (!session || (!sticker.setId && sticker.setShortName.isEmpty())) {
 		return;
 	}
+	const auto set = sticker.setId
+		? MTP_inputStickerSetID(
+			MTP_long(sticker.setId),
+			MTP_long(sticker.setAccessHash))
+		: MTP_inputStickerSetShortName(MTP_string(sticker.setShortName));
 	session->api().request(MTPmessages_GetStickerSet(
-		MTP_inputStickerSetShortName(MTP_string(sticker.setShortName)),
+		set,
 		MTP_int(0)
 	)).done(crl::guard(this, [=](const MTPmessages_StickerSet &result) {
 		result.match([&](const MTPDmessages_stickerSet &data) {

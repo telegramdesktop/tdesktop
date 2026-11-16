@@ -23,6 +23,8 @@ class Scene;
 struct SceneItemSticker {
 	DocumentId documentId = 0;
 	QString setShortName;
+	uint64 setId = 0;
+	uint64 setAccessHash = 0;
 	ItemBase::Placement placement;
 };
 
