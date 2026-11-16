@@ -96,7 +96,7 @@ private:
 };
 
 auto Instance = (Manager*)nullptr;
-auto Prepared = false;
+auto Place = std::optional<EnginePlace>();
 
 [[nodiscard]] std::string BuildString() {
 	return std::to_string(AppVersion);
@@ -156,10 +156,19 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return remote ? u"in the widget helper"_q : u"in process"_q;
 }
 
-[[nodiscard]] bool DefaultRemote() {
-	const auto result = Platform::WidgetHelper::Enabled();
-	LOG(("Tgw: Widget engines run %1.").arg(Placement(result)));
-	return result;
+[[nodiscard]] QString Unavailable() {
+	const auto reason = Platform::WidgetHelper::UnsupportedReason();
+	const auto text = u"no sandboxed widget helper is available here"_q;
+	return reason.isEmpty() ? text : (text + u": "_q + reason);
+}
+
+[[nodiscard]] EnginePlace DefaultPlace() {
+	if (Platform::WidgetHelper::Enabled()) {
+		LOG(("Tgw: Widget engines run %1.").arg(Placement(true)));
+		return EnginePlace::Helper;
+	}
+	LOG(("Tgw: Widget engines do not run, %1.").arg(Unavailable()));
+	return EnginePlace::Nowhere;
 }
 
 // Engine switches and probes bypass or inspect the sandbox: never shipped.
@@ -168,17 +177,17 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return qEnvironmentVariable("TDESKTOP_WIDGET_ENGINES");
 }
 
-[[nodiscard]] bool ChooseRemote() {
+[[nodiscard]] EnginePlace ChoosePlace() {
 	const auto value = EnginesSwitch();
 	if (value != u"helper"_q
 		&& value != u"in-process"_q
 		&& !Test::IsWidgetHelperProbeMode(value)) {
-		return DefaultRemote();
+		return DefaultPlace();
 	}
-	const auto result = (value != u"in-process"_q);
+	const auto remote = (value != u"in-process"_q);
 	LOG(("Tgw: Widget engines run %1 (TDESKTOP_WIDGET_ENGINES=%2)."
-		).arg(Placement(result), value));
-	return result;
+		).arg(Placement(remote), value));
+	return remote ? EnginePlace::Helper : EnginePlace::InProcess;
 }
 
 [[nodiscard]] QStringList HelperArguments() {
@@ -197,8 +206,8 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 }
 #endif // Q_OS_WIN
 #else // _DEBUG
-[[nodiscard]] bool ChooseRemote() {
-	return DefaultRemote();
+[[nodiscard]] EnginePlace ChoosePlace() {
+	return DefaultPlace();
 }
 
 [[nodiscard]] QStringList HelperArguments() {
@@ -450,22 +459,29 @@ void Manager::armIdle(crl::time deadline) {
 } // namespace
 
 void PrepareRemoteEngines() {
-	if (Prepared) {
+	if (Place) {
 		return;
 	}
-	Prepared = true;
-	if (!ChooseRemote()) {
-		return;
+	Place = ChoosePlace();
+	if (*Place == EnginePlace::Nowhere) {
+		const auto reason = Unavailable();
+		twidget::SandboxEngine::setRemoteChannelFactory([=](
+				std::shared_ptr<twidget::SandboxResources>) {
+			return Refusing(reason);
+		});
+	} else if (*Place == EnginePlace::Helper) {
+		Instance = new Manager();
+		twidget::SandboxEngine::setRemoteChannelFactory([manager = Instance](
+				std::shared_ptr<twidget::SandboxResources> resources) {
+			return manager->channel(std::move(resources));
+		});
 	}
-	Instance = new Manager();
-	twidget::SandboxEngine::setRemoteChannelFactory([manager = Instance](
-			std::shared_ptr<twidget::SandboxResources> resources) {
-		return manager->channel(std::move(resources));
-	});
 }
 
-bool RemoteEngines() {
-	return (Instance != nullptr);
+EnginePlace ChosenEnginePlace() {
+	Expects(Place.has_value());
+
+	return *Place;
 }
 
 bool StopRemoteEngines(Fn<void()> stopped) {

@@ -26,6 +26,7 @@ struct Launched {
 };
 
 [[nodiscard]] bool Enabled();
+[[nodiscard]] QString UnsupportedReason();
 [[nodiscard]] Launched Launch(const QStringList &arguments);
 #ifdef Q_OS_WIN
 [[nodiscard]] std::shared_ptr<twidget::SandboxRemoteStream> Adopt(
@@ -43,10 +44,12 @@ inline bool Enabled() {
 	return false;
 }
 
+inline QString UnsupportedReason() {
+	return u"the widget helper is not available on this platform"_q;
+}
+
 inline Launched Launch(const QStringList &arguments) {
-	return {
-		.error = u"the widget helper is not available on this platform"_q,
-	};
+	return { .error = UnsupportedReason() };
 }
 
 } // namespace Platform::WidgetHelper

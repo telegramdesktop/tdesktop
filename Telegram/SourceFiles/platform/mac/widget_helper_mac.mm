@@ -323,9 +323,7 @@ void CFReleaser::operator()(CFTypeRef value) const {
 #else // OS_MAC_STORE
 
 [[nodiscard]] Requirement HelperRequirement() {
-	return {
-		.error = u"the widget helper is not available in the Store build"_q,
-	};
+	return { .error = UnsupportedReason() };
 }
 
 #endif // OS_MAC_STORE
@@ -448,13 +446,17 @@ void CFReleaser::operator()(CFTypeRef value) const {
 
 } // namespace
 
-bool Enabled() {
+QString UnsupportedReason() {
 #ifdef OS_MAC_STORE
 	// The App Sandbox blocks the profile.
-	return false;
+	return u"the widget helper is not available in the Store build"_q;
 #else // OS_MAC_STORE
-	return true;
+	return QString();
 #endif // OS_MAC_STORE
+}
+
+bool Enabled() {
+	return UnsupportedReason().isEmpty();
 }
 
 Launched Launch(const QStringList &arguments) {

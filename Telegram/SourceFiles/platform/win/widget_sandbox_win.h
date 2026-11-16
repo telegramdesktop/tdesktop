@@ -49,8 +49,6 @@ struct Policies {
 	std::vector<Mitigation> mitigations;
 };
 
-[[nodiscard]] QString UnsupportedReason();
-
 [[nodiscard]] Tokens CreateTokens();
 [[nodiscard]] QString CheckLockdownToken(HANDLE token);
 [[nodiscard]] QString CheckInitialToken(HANDLE token);

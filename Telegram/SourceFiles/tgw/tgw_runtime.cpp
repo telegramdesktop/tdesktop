@@ -456,6 +456,15 @@ void ApplyTheme(
 	Unexpected("State in Tgw::StateName.");
 }
 
+[[nodiscard]] QString StartedNote(EnginePlace place) {
+	switch (place) {
+	case EnginePlace::InProcess: return u"Started."_q;
+	case EnginePlace::Helper: return u"Started, its engine is remote."_q;
+	case EnginePlace::Nowhere: return u"Started, its engine does not run."_q;
+	}
+	Unexpected("Place in Tgw::StartedNote.");
+}
+
 [[nodiscard]] int Bytes(const QString &line) {
 	return (int(line.size()) + 1) * int(sizeof(QChar));
 }
@@ -1515,9 +1524,7 @@ void Runtime::constructed(
 	_lastHost = _host->id;
 	_logDone = nullptr;
 	_state = State::Live;
-	addNote(RemoteEngines()
-		? u"Started, its engine is remote."_q
-		: u"Started."_q);
+	addNote(StartedNote(ChosenEnginePlace()));
 	const auto width = CssFromLogical(_width);
 	if (_live->width() != width) {
 		_live->setWidth(width);

@@ -634,15 +634,19 @@ void ServePortal(std::promise<PortalLookup> found) {
 
 } // namespace
 
+QString UnsupportedReason() {
+	return kLockdownAvailable
+		? QString()
+		: u"the widget helper is not available on this architecture"_q;
+}
+
 bool Enabled() {
 	return kLockdownAvailable;
 }
 
 Launched Launch(const QStringList &arguments) {
 	if (!kLockdownAvailable) {
-		return {
-			.error = u"the widget helper is not available on this architecture"_q,
-		};
+		return { .error = UnsupportedReason() };
 	} else if (fcntl(STDERR_FILENO, F_GETFD) < 0) {
 		return { .error = u"stderr is not open"_q };
 	}

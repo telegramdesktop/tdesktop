@@ -9,8 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Tgw {
 
+enum class EnginePlace : uchar {
+	InProcess,
+	Helper,
+	Nowhere,
+};
+
 void PrepareRemoteEngines();
-[[nodiscard]] bool RemoteEngines();
+[[nodiscard]] EnginePlace ChosenEnginePlace();
 [[nodiscard]] bool StopRemoteEngines(Fn<void()> stopped);
 
 #ifdef Q_OS_WIN
