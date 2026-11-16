@@ -15,13 +15,9 @@ namespace {
 constexpr auto kMinorPartLength = 9;
 constexpr auto kMaxChoppedZero = kMinorPartLength - 2;
 constexpr auto kZero = QChar('0');
+const auto DecimalPoint = QString() + QLocale().decimalPoint();
 
 using EarnInt = Data::EarnInt;
-
-[[nodiscard]] const QString &DecimalPoint() {
-	static const auto result = QString() + QLocale().decimalPoint();
-	return result;
-}
 
 } // namespace
 
@@ -37,13 +33,13 @@ QString MajorPart(CreditsAmount value) {
 
 QString MinorPart(EarnInt value) {
 	if (!value) {
-		return DecimalPoint() + kZero + kZero;
+		return DecimalPoint + kZero + kZero;
 	}
 	const auto string = QString::number(value);
 	const auto diff = int(string.size()) - kMinorPartLength;
 	const auto result = (diff < 0)
-		? DecimalPoint() + u"%1"_q.arg(0, std::abs(diff), 10, kZero) + string
-		: DecimalPoint() + string.mid(diff);
+		? DecimalPoint + u"%1"_q.arg(0, std::abs(diff), 10, kZero) + string
+		: DecimalPoint + string.mid(diff);
 	const auto begin = (result.constData());
 	const auto end = (begin + result.size());
 	auto ch = end - 1;
@@ -60,13 +56,13 @@ QString MinorPart(EarnInt value) {
 }
 
 QString MinorPart(CreditsAmount value) {
-	static const int DecimalPointLength = DecimalPoint().length();
+	static const int DecimalPointLength = DecimalPoint.length();
 
 	const auto fractional = std::abs(int(value.value() * 100)) % 100;
 	auto result = QString(DecimalPointLength + 2, Qt::Uninitialized);
 
 	for (int i = 0; i < DecimalPointLength; ++i) {
-		result[i] = DecimalPoint()[i];
+		result[i] = DecimalPoint[i];
 	}
 
 	result[DecimalPointLength] = QChar('0' + fractional / 10);
