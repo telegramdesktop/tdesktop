@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/mac/widget_helper_mac.h"
 #include "platform/posix/widget_channel_posix.h"
+#include "platform/posix/widget_stderr_posix.h"
 #include "widget_helper_identity.h"
 
 #include <QtCore/QCryptographicHash>
@@ -223,6 +224,7 @@ using details::SystemError;
 constexpr auto kSpareDescriptorMin = 10;
 constexpr auto kPollDelay = crl::time(10);
 constexpr auto kAbandonWait = crl::time(1000);
+constexpr auto kRelayEndWait = std::chrono::milliseconds(1000);
 
 #if defined __arm64__
 constexpr auto kCpuType = cpu_type_t(CPU_TYPE_ARM64);
@@ -249,6 +251,7 @@ struct Requirement {
 
 [[nodiscard]] QString PrepareActions(
 		not_null<posix_spawn_file_actions_t*> actions,
+		int errorOutput,
 		int spare) {
 	if (const auto error = posix_spawn_file_actions_addopen(
 			actions,
@@ -266,10 +269,11 @@ struct Requirement {
 			0)) {
 		return SystemError("posix_spawn_file_actions_addopen", error);
 	}
-	if (const auto error = posix_spawn_file_actions_addinherit_np(
+	if (const auto error = posix_spawn_file_actions_adddup2(
 			actions,
+			errorOutput,
 			STDERR_FILENO)) {
-		return SystemError("posix_spawn_file_actions_addinherit_np", error);
+		return SystemError("posix_spawn_file_actions_adddup2", error);
 	}
 	if (const auto error = posix_spawn_file_actions_adddup2(
 			actions,
@@ -491,6 +495,13 @@ Launched Launch(const QStringList &arguments) {
 	const auto closeSpare = gsl::finally([=] {
 		close(spare);
 	});
+	auto output = PrepareHelperStderr(kSpareDescriptorMin);
+	if (!output.error.empty()) {
+		return { .error = QString::fromStdString(output.error) };
+	}
+	const auto closeOutput = gsl::finally([descriptor = output.descriptor] {
+		close(descriptor);
+	});
 
 	auto actions = posix_spawn_file_actions_t();
 	if (const auto error = posix_spawn_file_actions_init(&actions)) {
@@ -506,7 +517,7 @@ Launched Launch(const QStringList &arguments) {
 	const auto destroyAttributes = gsl::finally([&] {
 		posix_spawnattr_destroy(&attributes);
 	});
-	auto prepared = PrepareActions(&actions, spare);
+	auto prepared = PrepareActions(&actions, output.descriptor, spare);
 	if (prepared.isEmpty()) {
 		prepared = PrepareAttributes(&attributes);
 	}
@@ -539,10 +550,16 @@ Launched Launch(const QStringList &arguments) {
 	const auto pid = owned.get();
 	auto result = Launched{
 		.stream = std::move(channel.parent),
-		.complete = [owned = std::move(owned)](
+		.complete = [owned = std::move(owned), relay = std::move(output.relay)](
 				crl::time exitWait,
-				crl::time killWait) {
-			return Complete(base::take(*owned), exitWait, killWait);
+				crl::time killWait) mutable {
+			auto completion = Complete(base::take(*owned), exitWait, killWait);
+			if (relay && completion.reaped) {
+				// macOS discards the queued bytes once the end is shut.
+				relay->drain(kRelayEndWait);
+			}
+			relay = nullptr;
+			return completion;
 		},
 	};
 	if (const auto error = posix_spawn(

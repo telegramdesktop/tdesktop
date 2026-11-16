@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <array>
 #include <cerrno>
 #include <fcntl.h>
+#include <future>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -157,13 +158,25 @@ HelperStderr PrepareHelperStderr(int minimum) {
 }
 
 StderrRelay::StderrRelay(std::unique_ptr<PosixStream> stream)
-: _stream(std::move(stream))
-, _thread(Run, _stream->descriptor()) {
+: _stream(std::move(stream)) {
+	auto ended = std::promise<void>();
+	_ended = ended.get_future();
+	_thread = std::thread([
+		descriptor = _stream->descriptor(),
+		ended = std::move(ended)
+	]() mutable {
+		Run(descriptor);
+		ended.set_value();
+	});
 }
 
 StderrRelay::~StderrRelay() {
 	::shutdown(_stream->descriptor(), SHUT_RD);
 	_thread.join();
+}
+
+void StderrRelay::drain(std::chrono::milliseconds timeout) {
+	_ended.wait_for(timeout);
 }
 
 } // namespace Platform::WidgetHelper

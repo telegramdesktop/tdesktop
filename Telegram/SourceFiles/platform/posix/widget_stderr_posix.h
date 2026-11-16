@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <chrono>
+#include <future>
 #include <memory>
 #include <string>
 #include <thread>
@@ -31,8 +33,11 @@ public:
 	StderrRelay &operator=(const StderrRelay &other) = delete;
 	~StderrRelay();
 
+	void drain(std::chrono::milliseconds timeout);
+
 private:
 	const std::unique_ptr<PosixStream> _stream;
+	std::future<void> _ended;
 	std::thread _thread;
 
 };
