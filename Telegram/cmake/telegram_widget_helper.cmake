@@ -182,6 +182,19 @@ else()
     set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
         "TDESKTOP_WIDGET_HELPER_PATH=\"${widget_helper_folder}/TelegramWidgetHelper\"")
     if (widget_helper_pinned)
+        if (NOT CMAKE_STRIP)
+            message(FATAL_ERROR
+                "TelegramWidgetHelper is stripped outside Debug, but no strip tool "
+                "was found (CMAKE_STRIP).")
+        endif()
+
+        # Strip here, nothing may change the helper after its identity is taken.
+        add_custom_command(TARGET TelegramWidgetHelper POST_BUILD
+            COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:TelegramWidgetHelper>>"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
+
         set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
             TDESKTOP_WIDGET_HELPER_PINNED)
         generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256)
