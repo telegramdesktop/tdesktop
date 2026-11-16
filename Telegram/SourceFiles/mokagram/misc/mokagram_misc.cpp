@@ -1298,6 +1298,34 @@ void ApplyRemote(
 	auto &state = Data();
 	state.fresh = true;
 	state.inFlight = false;
+	// Повторный ответ без изменений не требует записи и обновления профилей.
+	auto received = base::flat_set<quint64>();
+	for (const auto id : ids) {
+		received.emplace(id);
+	}
+	auto same = (!icon || icon == state.icon)
+		&& received.size() == state.remote.size()
+		&& custom.size() == state.custom.size();
+	for (const auto id : received) {
+		if (!state.remote.contains(id)) {
+			same = false;
+			break;
+		}
+	}
+	if (same) {
+		for (const auto &[id, value] : custom) {
+			const auto i = state.custom.find(id);
+			if (i == state.custom.end()
+				|| i->second.icon != value.icon
+				|| i->second.text != value.text) {
+				same = false;
+				break;
+			}
+		}
+	}
+	if (same) {
+		return;
+	}
 	const auto old = base::take(state.remote);
 	auto changedIds = base::flat_set<quint64>();
 	for (const auto &[id, value] : state.custom) {
@@ -1310,9 +1338,7 @@ void ApplyRemote(
 	if (icon) {
 		state.icon = icon;
 	}
-	for (const auto id : ids) {
-		state.remote.emplace(id);
-	}
+	state.remote = std::move(received);
 	SaveCache();
 	auto all = old;
 	for (const auto id : state.remote) {
