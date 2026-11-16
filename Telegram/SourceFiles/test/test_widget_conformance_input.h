@@ -42,9 +42,9 @@ enum class ConformancePointerKind {
 	RightClick,
 };
 
-// press, move, release, dblclick (Qt's MouseButtonDblClick), menu
-// (Test::OpenChatListContextMenu: its enter, context-menu event and leave)
-// and leave.
+// press, move, release, dblclick (Qt's MouseButtonDblClick), menu (the
+// chat-list menu reader's enter and context-menu event, its wait for a menu
+// the list builds on a later turn, and its leave) and leave.
 enum class ConformancePointerEventType {
 	Press,
 	Move,
@@ -89,9 +89,9 @@ struct ConformancePointerStep {
 // crl::now() from the first event's send: the previous event's |handled|
 // plus |gap|, when it was sent - only once the clock is past |due|, so no
 // gap the list sees is ever shorter than planned - and when its handling
-// (Test::Settle's drain included) returned. |turn| numbers the event-loop
-// turns the sequence delivered in: an event with a gap always has a turn
-// of its own. |button|
+// (Test::Settle's drain included, and for a menu the reader's wait) ended.
+// |turn| numbers the event-loop turns the sequence delivered in: an event
+// with a gap always has a turn of its own. |button|
 // and |buttons| are the mouse event's; |held| is what the list holds after
 // it. A leave's |local| and |global| are the point the pointer left from.
 // |before| and |after| are the caller's observations. |aborting| marks a
@@ -140,11 +140,12 @@ enum class ConformancePointerRefusal {
 // sent. |trigger| is "press" or "release"
 // for a right click: the context-menu trigger tgw_touch.cpp's
 // MenuOnRelease() reads, which decides whether the menu follows the press
-// or the release. |menu| is that reader's own reading; |menuHidden| says
-// this sequence hid the menu it built and attributed, and |menuAfter| is
-// that menu's lifecycle right after. |left| means the last event the list
-// got was a leave. |complete| means every planned event was sent to a live
-// list; delivered() is that, finished and unrefused.
+// or the release. |menu| is that reader's own reading, its |deferred| and
+// |waited| included; |menuHidden| says this sequence hid the menu it built
+// and attributed, and |menuAfter| is that menu's lifecycle right after.
+// |left| means the last event the list got was a leave. |complete| means
+// every planned event was sent to a live list; delivered() is that,
+// finished and unrefused.
 struct ConformancePointerReading {
 	std::vector<ConformancePointerEvent> events;
 	ChatListMenuReading menu;
@@ -199,26 +200,34 @@ struct ConformancePointerReading {
 // - dblclick: press, release 40 ms later, MouseButtonDblClick 60 ms after
 //   that and its release 40 ms later: the order QWidgetWindow gives a
 //   widget, whose second press becomes the double click;
-// - rightclick: the right press and, 60 ms later, its release, with
-//   Test::OpenChatListContextMenu for |item| at |from| in the turn of the
+// - rightclick: the right press and its release, with
+//   Test::BeginChatListContextMenu for |item| at |from| in the turn of the
 //   press on a press trigger and of the release on a release trigger, as
-//   QWidgetWindow sends the context-menu event; a menu that reader built
-//   and attributed is hidden at once (Ui::PopupMenu::hideMenu(true)), and a
-//   refused one is left to the reader, which hides only what it built. The
-//   reader's enter resolves the real cursor first (HistoryInner's
-//   enterEventHook) and its leave ends the list's hover even while the
-//   right button is still down.
+//   QWidgetWindow sends the context-menu event. When that turn built no
+//   menu and the list accepted the event (over a widget card the list
+//   builds it once the widget's answer arrives), the sequence polls
+//   Test::PollChatListContextMenu every 5 ms until a menu appears or 250 ms
+//   pass, and only then calls Test::EndChatListContextMenu, so a menu built
+//   in the event's own turn is read in that turn as before. A menu the
+//   reader built and attributed is hidden at once
+//   (Ui::PopupMenu::hideMenu(true)), and a refused one is left to the
+//   reader, which hides only what it built. On a press trigger the release
+//   comes 60 ms after the end of that wait, so a press the widget took
+//   stays down for the whole bound. The reader's enter resolves the real
+//   cursor first (HistoryInner's enterEventHook) and its leave, after the
+//   wait, ends the list's hover even while the right button is still down.
 // Every gap is measured from the end of the handling of the event before,
 // and a timer that fires early is re-armed for the rest, so a late timer
 // may lengthen a hold or a drag and never shortens one. Every completed
 // sequence ends with a leave: its own, or on a release trigger the
 // reader's.
 //
-// abort() cancels the timer, sends a release for every button still held
-// and a leave, and ends the sequence aborted; with buttons held and the
-// list already gone it ends receiver-gone. The caller aborts before it
-// removes the fixture's messages. Destroying a sequence cancels its timer
-// and sends nothing.
+// abort() cancels the timer, ends a menu wait with the reader's own End
+// (its leave), sends a release for every button still held and a leave,
+// and ends the sequence aborted; with buttons held and the list already
+// gone it ends receiver-gone. The caller aborts before it removes the
+// fixture's messages. Destroying a sequence cancels its timer and sends
+// nothing, a menu wait's leave included.
 class ConformancePointer final {
 public:
 	explicit ConformancePointer(ConformancePointerArgs args);
@@ -239,9 +248,12 @@ private:
 		not_null<QWidget*> list,
 		const ConformancePointerStep &planned,
 		ConformancePointerEvent &record);
-	void deliverMenu(
+	[[nodiscard]] bool beginMenu(
 		not_null<QWidget*> list,
 		ConformancePointerEvent &record);
+	[[nodiscard]] bool pollMenu();
+	void endMenu(ConformancePointerEvent record);
+	void complete(ConformancePointerEvent record);
 	void finish(ConformancePointerRefusal refusal, QString reason);
 	[[nodiscard]] QString observe() const;
 
@@ -249,9 +261,11 @@ private:
 	const QPointer<QWidget> _list;
 	std::vector<ConformancePointerStep> _plan;
 	ConformancePointerReading _reading;
+	std::optional<ConformancePointerEvent> _menuEvent;
 	base::Timer _timer;
 	QPoint _point;
 	crl::time _last = 0;
+	crl::time _menuUntil = 0;
 	Qt::MouseButtons _held = Qt::NoButton;
 	int _next = 0;
 	int _turn = 0;
@@ -268,8 +282,8 @@ private:
 [[nodiscard]] QString ConformancePointerRefusalName(
 	ConformancePointerRefusal refusal);
 
-// The sum of a sequence's planned gaps, the least time it takes: for the
-// caller's stage timeout.
+// The sum of a sequence's planned gaps plus, for a right click, the 250 ms
+// bound of its menu wait: for the caller's stage timeout.
 [[nodiscard]] crl::time ConformancePointerPlannedMs(
 	ConformancePointerKind kind,
 	crl::time hold,

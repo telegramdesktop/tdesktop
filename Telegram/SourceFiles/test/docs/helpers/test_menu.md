@@ -8,7 +8,7 @@ Source contract: [test_menu.h](../../test_menu.h).
 
 ## Use when
 
-Same-turn menu readings, actions and captures. Read the contract below and the source header before use. A custom `Ui::Menu::ItemBase` row whose `QAction` carries no text is activated by its full accessible name and real keys instead: [Accessible custom rows](#accessible-custom-rows).
+Same-turn menu readings, actions and captures. Read the contract below and the source header before use. A custom `Ui::Menu::ItemBase` row whose `QAction` carries no text is activated by its full accessible name and real keys instead: [Accessible custom rows](#accessible-custom-rows). A receiver that accepts the event and builds its menu only on a later turn is read with a retake of the same reading: [Menus built on a later turn](#menus-built-on-a-later-turn).
 
 ## Contract and usage
 
@@ -40,8 +40,11 @@ Windows `PopupMenu::showPrepared`'s synchronous repaint can drain
 `crl::on_main` work there. A menu that exists but is hidden or empty is
 reported, not refused; the refusals are `receiver-gone`, `no-menu` (with
 `reshown` counting a kept menu shown again) and `several-menus` (naming every
-candidate). `ReadContextMenuLifecycle` is the pure reading a later poll takes,
-and `ContextMenuDetails` prints recorded values only. An optional trailing
+candidate). The reading keeps its pre-event snapshot (`before`, one
+`ContextMenuSnapshotEntry` per menu alive then), which
+[`RetakeContextMenu`](#menus-built-on-a-later-turn) takes against on a later
+turn. `ReadContextMenuLifecycle` is the pure reading a later poll takes, and
+`ContextMenuDetails` prints recorded values only, `retakes` included. An optional trailing
 at-build observer, `OpenContextMenu(receiver, point, reason, observeAtBuild)`,
 is called once, synchronously, inside the settle action after the event was
 delivered and the fresh menu was collected, immediately before the at-build
@@ -201,6 +204,108 @@ It needs no account, session or network. A missing primary window fails its
 first fixture-gate Check, and the later stages but the teardown are N/A.
 Approval needs every Check to PASS with no N/A. This page describes that
 design; executed results belong to the run's task evidence.
+
+## Menus built on a later turn
+
+### When to use it
+
+A receiver that accepts the context-menu event and opens its menu only when
+an answer arrives reads `no-menu` from `OpenContextMenu`, correctly: nothing
+was built in the event's turn. A chat list over a widget card is such a
+receiver: `WidgetTouch` (`tgw_touch.cpp`) accepts the event, records it, and
+re-sends it to the list's own `contextMenuEvent` once the widget's answer
+says the widget did not take the press, or at `tgw_renderer.cpp`'s 150 ms
+answer deadline. `RetakeContextMenu(reading)` repeats the fresh-menu take of
+that reading on a later turn, against the same pre-event snapshot. On a chat
+list use `BeginChatListContextMenu`, `PollChatListContextMenu` and
+`EndChatListContextMenu` ([chat-list menus built on a later
+turn](test_chat_menu.md#menus-built-on-a-later-turn)), which retake through
+it and attribute the menu. A handler that builds its menu inside the event
+is still read in that turn with `OpenContextMenu` alone: never poll for such
+a menu (the context-menu row of the [diagnostic reference](../diagnostics.md)).
+
+### Preconditions and limits
+
+- The reading comes from `OpenContextMenu`. A default reading has no
+  receiver and is never retaken.
+- Only a `no-menu` reading whose receiver still lives is retaken. A `built()`,
+  `several-menus` or `receiver-gone` reading is left exactly as it is, so the
+  first menu found stays the reading's menu.
+- The take's rules are the event's: exactly one `Ui::PopupMenu` that was not
+  alive in the snapshot, a submenu not counted, a kept menu shown again
+  counted in `reshown` only, two new menus refused `several-menus` (which
+  ends the retakes).
+- It is a poll, so a menu built and closed between two calls is never seen.
+  Nothing guarantees that a popup outlives its turn (the diagnostic row
+  above), and on a locked Windows console Qt closes a shown menu before the
+  next turn (`AppendPopupMenuCaptureSelfTest`'s lock gate in
+  `test_menu.h`). A later-turn `no-menu` reading counts as a product result
+  only beside a positive control read the same way, and is undecidable on
+  a locked console.
+- `atBuild` stays the event's own turn's lifecycle, alive=0 for a menu built
+  later; `afterSettle` is the latest retake's. A retaken menu has no
+  at-build reading: it was built on a turn the helper did not run in.
+- The caller owns the timer and the bound; the helper never waits, sends
+  nothing, calls no observer, hides nothing and turns no event loop.
+
+### Minimal use
+
+```cpp
+runner->add({
+	.name = u"deferred menu: deliver"_q,
+	.run = [=] {
+		state->sentAt = crl::now();
+		state->menu = Test::OpenContextMenu(state->receiver, state->point);
+	},
+});
+runner->add({
+	.name = u"deferred menu: read"_q,
+	.until = [=] {
+		const auto built = Test::RetakeContextMenu(state->menu);
+		return built
+			|| (state->menu.refusal != Test::ContextMenuRefusal::NoMenu)
+			|| (crl::now() - state->sentAt >= kMenuBound);
+	},
+	.then = [=] {
+		Test::Check(
+			state->menu.built(),
+			u"deferred menu: built on a later turn"_q,
+			Test::ContextMenuDetails(state->menu));
+		// Trigger an entry or hide the menu here, in this same turn.
+	},
+});
+```
+
+`kMenuBound` is the caller's: the product's own deadline plus slack, so a
+menu that has not come by then never comes. A Runner `until` is polled on
+its 50 ms tick; a caller that needs a finer poll keeps its own timer, as
+`Test::ConformancePointer` does with 5 ms
+([timed pointer sequences](test_widget_conformance.md#timed-pointer-sequences)).
+
+### Readings and refusals
+
+The answer is `built()`. Every repeat counts in `retakes` and rewrites what
+the take fills - `menu`, `parent`, their identities and `parentIsReceiver`,
+`fresh`, `freshMenus`, `reshown`, `menusAfter`, `texts`, `actions`,
+`separators`, `refusal` and `reason` - so a reading printed with
+`ContextMenuDetails` reads as the latest retake found the menus; the
+delivery fields (`delivered`, `accepted`, `receiverAlive`, `local`,
+`global`, `menusBefore`) stay the event's. `TriggerContextMenuAction`
+accepts a retaken reading like any other, while its menu lives.
+
+### Lifetime and cleanup
+
+The snapshot holds `QPointer`s only, so a reading stays safe to keep and
+retake after any menu in it died. A retaken menu is open: hide it
+(`Ui::PopupMenu::hideMenu(true)`) or trigger it in the turn that found it.
+
+### Verification
+
+No self-test of its own: `AppendContextMenuReaderSelfTest` covers the take
+it repeats, and the later-turn path is exercised through the chat-list
+reader by a right click on a widget card (`auto/16-sdk-taps-b` of the
+[conformance runner](test_widget_conformance.md)). That run's results belong
+to its task evidence.
 
 ## Related guidance
 

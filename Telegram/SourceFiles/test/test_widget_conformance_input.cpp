@@ -48,6 +48,16 @@ constexpr auto kDoublePress = crl::time(60);
 // A right click's release after its press.
 constexpr auto kRightRelease = crl::time(60);
 
+// How long a right click waits for a menu the list builds on a later turn:
+// tgw_renderer.cpp's 150 ms answer deadline and 100 ms of slack. The list
+// opens the menu when the widget's answer says the widget did not take the
+// press, or at that deadline, so a menu that has not come by then never
+// comes; a right click the widget took builds none and waits it all.
+constexpr auto kDeferredMenuBound = crl::time(250);
+
+// The menu reader's poll while it waits.
+constexpr auto kDeferredMenuPoll = crl::time(5);
+
 // The rule tgw_touch.cpp's MenuOnRelease() applies, Qt guard included: on
 // a release trigger the context-menu event follows the release.
 [[nodiscard]] bool MenuOnRelease() {
@@ -244,6 +254,8 @@ void Summarize(ConformancePointerReading &reading, int planned) {
 		{ u"opened"_q, reading.menuOpened },
 		{ u"trigger"_q, reading.trigger },
 		{ u"built"_q, menu.built() },
+		{ u"deferred"_q, menu.deferred },
+		{ u"waited"_q, qint64(menu.waited) },
 		{ u"refusal"_q, ChatListMenuRefusalName(menu.refusal) },
 		{ u"reason"_q, menu.reason },
 		{ u"attributed"_q, menu.attributed },
@@ -332,6 +344,12 @@ void ConformancePointer::abort(const QString &reason) {
 	_timer.cancel();
 	_reading.aborted = true;
 	_reading.abortReason = reason;
+	if (_menuEvent) {
+		endMenu(*base::take(_menuEvent));
+		if (_reading.finished) {
+			return;
+		}
+	}
 	if (!_reading.started) {
 		finish(
 			Refusal::Aborted,
@@ -381,11 +399,18 @@ const ConformancePointerReading &ConformancePointer::reading() const {
 
 // One timed event per turn: an event with a gap waits for a turn of its
 // own even when it is overdue, and the events without one follow it in
-// the same turn, as a context menu follows its press.
+// the same turn, as a context menu follows its press. While a right click
+// waits for its menu the timer polls the reader instead, and those polls
+// are no delivery turns.
 void ConformancePointer::step() {
+	if (_menuEvent && !pollMenu()) {
+		return;
+	}
 	++_turn;
 	auto sentThisTurn = false;
-	while (!_reading.finished && (_next < int(_plan.size()))) {
+	while (!_reading.finished
+		&& !_menuEvent
+		&& (_next < int(_plan.size()))) {
 		const auto planned = _plan[_next];
 		const auto due = _last + planned.gap;
 		const auto now = crl::now() - _reading.startedAt;
@@ -398,7 +423,7 @@ void ConformancePointer::step() {
 		deliver(planned, due, false);
 		sentThisTurn = true;
 	}
-	if (!_reading.finished) {
+	if (!_reading.finished && !_menuEvent) {
 		finish(Refusal::None, QString());
 	}
 }
@@ -433,7 +458,14 @@ void ConformancePointer::deliver(
 	record.before = observe();
 	record.at = crl::now() - _reading.startedAt;
 	if (planned.type == Type::Menu) {
-		deliverMenu(list, record);
+		if (beginMenu(list, record)) {
+			_menuEvent = std::move(record);
+			_menuUntil = crl::now() + kDeferredMenuBound;
+			_timer.callOnce(kDeferredMenuPoll, Qt::PreciseTimer);
+		} else {
+			endMenu(std::move(record));
+		}
+		return;
 	} else if (planned.type == Type::Leave) {
 		record.global = list->mapToGlobal(planned.local);
 		auto leave = QEvent(QEvent::Leave);
@@ -445,6 +477,11 @@ void ConformancePointer::deliver(
 	} else {
 		deliverMouse(list, planned, record);
 	}
+	complete(std::move(record));
+}
+
+void ConformancePointer::complete(ConformancePointerEvent record) {
+	const auto type = record.type;
 	record.held = _held;
 	record.handled = crl::now() - _reading.startedAt;
 	_last = record.handled;
@@ -457,7 +494,7 @@ void ConformancePointer::deliver(
 			Refusal::ReceiverGone,
 			u"the list was destroyed while it handled event %1 (%2)%3"_q
 				.arg(int(_reading.events.size()))
-				.arg(ConformancePointerEventName(planned.type))
+				.arg(ConformancePointerEventName(type))
 				.arg(HeldText(_held)));
 	}
 }
@@ -485,16 +522,41 @@ void ConformancePointer::deliverMouse(
 	_point = planned.local;
 }
 
-void ConformancePointer::deliverMenu(
+bool ConformancePointer::beginMenu(
 		not_null<QWidget*> list,
 		ConformancePointerEvent &record) {
 	const auto item = _args.item ? _args.item() : nullptr;
 	_reading.menuOpened = true;
-	_reading.menu = OpenChatListContextMenu(list, item, record.local);
+	_reading.menu = BeginChatListContextMenu(list, item, record.local);
 	const auto &menu = _reading.menu;
 	record.global = menu.menu.global;
 	record.delivered = menu.menuRead && menu.menu.delivered;
 	record.accepted = menu.menu.accepted;
+	return menu.pending()
+		&& record.delivered
+		&& record.accepted
+		&& (menu.menu.refusal == ContextMenuRefusal::NoMenu)
+		&& (_list.data() != nullptr);
+}
+
+bool ConformancePointer::pollMenu() {
+	const auto over = !_list
+		|| PollChatListContextMenu(_reading.menu)
+		|| (crl::now() >= _menuUntil);
+	if (!over) {
+		const auto left = _menuUntil - crl::now();
+		_timer.callOnce(
+			std::clamp(left, crl::time(1), kDeferredMenuPoll),
+			Qt::PreciseTimer);
+		return false;
+	}
+	endMenu(*base::take(_menuEvent));
+	return true;
+}
+
+void ConformancePointer::endMenu(ConformancePointerEvent record) {
+	EndChatListContextMenu(_reading.menu);
+	const auto &menu = _reading.menu;
 	if (menu.built()) {
 		const auto popup = dynamic_cast<Ui::PopupMenu*>(
 			menu.menu.menu.data());
@@ -507,6 +569,7 @@ void ConformancePointer::deliverMenu(
 	}
 	_reading.menuAfter = ContextMenuLifecycleText(
 		ReadContextMenuLifecycle(menu.menu));
+	complete(std::move(record));
 }
 
 void ConformancePointer::finish(Refusal refusal, QString reason) {
@@ -579,7 +642,9 @@ crl::time ConformancePointerPlannedMs(
 		ConformancePointerKind kind,
 		crl::time hold,
 		int steps) {
-	auto result = crl::time(0);
+	auto result = (kind == Kind::RightClick)
+		? kDeferredMenuBound
+		: crl::time(0);
 	const auto plan = Plan({
 		.kind = kind,
 		.hold = hold,

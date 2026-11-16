@@ -635,11 +635,14 @@ void ResolveAction(ConformanceRun &run, int i) {
 		FullMsgId id) {
 	const auto runtime = fixture ? FixtureOwnRuntime(*fixture, id) : nullptr;
 	const auto core = runtime ? runtime->interactive() : nullptr;
-	return core
-		? u"pressed=%1 hovered=%2"_q.arg(
-			NumberText(core->pressed() ? 1 : 0),
-			NumberText(core->hovered() ? 1 : 0))
-		: u"no core"_q;
+	if (!core) {
+		return u"no core"_q;
+	}
+	const auto hovered = (HistoryView::Element::HoveredLink()
+		== runtime->view().get());
+	return u"pressed=%1 hovered=%2"_q.arg(
+		NumberText(core->pressed() ? 1 : 0),
+		NumberText(hovered ? 1 : 0));
 }
 
 void StartSequence(

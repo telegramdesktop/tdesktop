@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStringList>
 #include <QtGui/QContextMenuEvent>
 
+#include <vector>
+
 namespace Test {
 
 // A Ui::PopupMenu cannot be waited on through the visibility of the
@@ -313,14 +315,24 @@ struct ContextMenuLifecycle {
 	bool ready = false;
 };
 
+// One Ui::PopupMenu alive right before the event, as the reader found it,
+// held as a QPointer so a menu destroyed since matches nothing.
+struct ContextMenuSnapshotEntry {
+	QPointer<QWidget> menu;
+	bool visible = false;
+};
+
 // |receiver|, |identity| and |parentIdentity| are WidgetDescription values
 // recorded while their widgets lived ("none" is printed for an empty one);
 // |freshMenus| names every new candidate, so a several-menus refusal shows
 // them all; |reason| is the refusal's text and stays empty when built().
+// |before| is the pre-event snapshot every take compares against, and
+// |retakes| counts the RetakeContextMenu calls that repeated the take.
 struct ContextMenuReading {
 	QPointer<QWidget> receiverWidget;
 	QPointer<QWidget> menu;
 	QPointer<QWidget> parent;
+	std::vector<ContextMenuSnapshotEntry> before;
 	QString receiver;
 	QString identity;
 	QString parentIdentity;
@@ -339,6 +351,7 @@ struct ContextMenuReading {
 	int reshown = 0;
 	int actions = 0;
 	int separators = 0;
+	int retakes = 0;
 	bool receiverEnabled = false;
 	bool receiverVisible = false;
 	bool delivered = false;
@@ -363,6 +376,19 @@ struct ContextMenuReading {
 	QPoint point,
 	QContextMenuEvent::Reason reason = QContextMenuEvent::Mouse,
 	Fn<void()> observeAtBuild = {});
+
+// The same take on a later turn, for a receiver that accepts the event and
+// builds its menu only once an answer arrives: against the reading's own
+// |before| snapshot, with the event's rules (one new menu, submenus not
+// counted, a kept menu shown again only counted in |reshown|). It repeats
+// the take only while the reading is no-menu and its receiver lives, and
+// otherwise changes nothing. A repeat counts in |retakes|, recounts the
+// menus, texts, actions and separators, records the menu and its parent
+// and reads |afterSettle| again; |atBuild| stays the event's own turn's. It
+// sends nothing, calls no observer, hides nothing and turns no event loop.
+// Answers built(). A menu built and closed between two calls is never seen
+// (docs/helpers/test_menu.md#menus-built-on-a-later-turn).
+[[nodiscard]] bool RetakeContextMenu(ContextMenuReading &reading);
 
 // Pure: no grab, no mutation, safe on a reading whose menu is gone. A
 // caller polls it on later turns to watch the menu close, if it must.

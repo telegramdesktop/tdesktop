@@ -943,19 +943,27 @@ wheel and keys stay with [test_widgets](test_widgets.md#input-helpers).
   the action show's hover point). `hold` is a press's ms, `steps` a drag's
   moves (10 when not positive). `item` answers the message a right click's
   menu must belong to; `observe` is called right before and after every
-  event and must only read (the runner reads the core's `pressed()` and
-  `hovered()`).
+  event and must only read (the runner prints `pressed=`, the core's
+  `pressed()`: the chat's own flag of what it forwarded to the widget, set
+  and cleared in the call that forwards, never a value the renderer
+  computed, which also reads a right press while the widget holds it after
+  an in-time "taken" answer; and `hovered=`, whether the list's hovered
+  link, `HistoryView::Element::HoveredLink()`, belongs to the card's view,
+  `Tgw::Runtime::view()`, since the core keeps no hover flag of its own).
 - **Plans.** `press`: press, then the release once `hold` ms passed since the
   press was handled. `drag`: press, `steps` moves from `from` towards `to`
   with the left button held, each at least 24 ms after the event before it,
   then the release at `to` 24 ms after the last move. `dblclick`: press,
   release 40 ms later, `MouseButtonDblClick` 60 ms after that and its release
   40 ms later, the order `QWidgetWindow` gives a widget. `rightclick`: the
-  right press and, 60 ms later, its release, with
-  `Test::OpenChatListContextMenu` ([test_chat_menu](test_chat_menu.md)) for
-  `item` at `from` in the turn of the press on a press trigger and of the
-  release on a release trigger, as `QWidgetWindow` sends the context-menu
-  event. The trigger is read as `tgw_touch.cpp`'s `MenuOnRelease()` reads it:
+  right press and its release, with the chat-list menu reader's
+  `Test::BeginChatListContextMenu` ([menus built on a later
+  turn](test_chat_menu.md#menus-built-on-a-later-turn)) for `item` at `from`
+  in the turn of the press on a press trigger and of the release on a
+  release trigger, as `QWidgetWindow` sends the context-menu event, then the
+  menu wait below and `Test::EndChatListContextMenu`; the release follows
+  60 ms after the end of that wait on a press trigger. The trigger is read
+  as `tgw_touch.cpp`'s `MenuOnRelease()` reads it:
   `QStyleHints::contextMenuTrigger()` from Qt 6.8, `Platform::IsWindows()`
   before.
 - **Delivery.** Each event is a `QMouseEvent` with its local and global
@@ -971,34 +979,61 @@ wheel and keys stay with [test_widgets](test_widgets.md#input-helpers).
   with a gap always gets an event-loop turn of its own, so an overdue move is
   sent late, never in one burst with the next. A late timer may lengthen a
   hold or a drag and never shortens one. `ConformancePointerPlannedMs()` is
-  the sum of the planned gaps; the runner's stage timeout is that plus
+  the sum of the planned gaps plus, for a right click, the menu wait's
+  250 ms bound; the runner's stage timeout is that plus
   `kDefaultStageTimeout`.
-- **Menus.** A menu the reader built and attributed is hidden at once
-  (`Ui::PopupMenu::hideMenu(true)`); a refused one is left to the reader,
-  which hides only what it built. The reader's enter resolves the real cursor
-  first (`HistoryInner`'s `enterEventHook`), and its leave ends the list's
-  hover even while the right button is still down. Every completed sequence
-  ends with a leave: its own, or on a release trigger the reader's.
+- **Menus.** Over a widget card the list accepts the context-menu event
+  without building anything and opens its menu on a later turn, once the
+  widget's answer says the widget did not take the press (or at the
+  product's 150 ms answer deadline); a press the widget took builds none.
+  So when the event's own turn built no menu and the list accepted the
+  event, the sequence keeps its timer polling
+  `Test::PollChatListContextMenu` every 5 ms until a menu appears or 250 ms
+  (`kDeferredMenuBound`: the deadline plus 100 ms of slack) pass, and only
+  then calls `Test::EndChatListContextMenu`. A menu built in the event's own
+  turn - every target but a widget card's, and on a release trigger usually
+  a card's too, whose answer came before the release - is taken in that
+  turn and ended at once, as before. The polls are no delivery turns: the
+  menu event's `handled` is the end of the wait and its `after` is read
+  then, the next planned gap counts from there, and a press the widget took
+  stays down for the whole bound plus the release's 60 ms, under the
+  500 ms `HOLD_MS`. A menu the reader built and attributed is hidden at
+  once (`Ui::PopupMenu::hideMenu(true)`); a refused one is left to the
+  reader, which hides only what it built. The reader's enter resolves the
+  real cursor first (`HistoryInner`'s `enterEventHook`), and its leave,
+  after the wait, ends the list's hover even while the right button is
+  still down. A deferred menu is read in the poll that finds it, so one
+  that Qt closed before that poll reads no menu (a locked Windows console
+  closes a shown menu before the next turn: [menus built on a later
+  turn](test_chat_menu.md#menus-built-on-a-later-turn)). Every completed
+  sequence ends with a leave: its own, or on a release trigger the
+  reader's.
 - **Reading.** `ConformancePointerReading`: every event as sent (its
   observations, local and global points, `gap`, `due`, `at` and `handled` in
   ms from the first send, its event-loop `turn`, button, buttons, the buttons
   held after it, `delivered`, `accepted`, `aborting`); `elapsed`, from the
   first press's handling to the last release's send, the least time a button
-  was down; `minGap`, `maxLate`, `moves`; for a right click `trigger`, the
-  menu reading, `menuHidden` and `menuAfter`; `left`, `complete`, `aborted`,
-  `heldAtEnd`. `delivered()` is finished, complete and unrefused.
+  was down (for a press-trigger right click it includes the menu wait);
+  `minGap`, `maxLate`, `moves`; for a right click `trigger`, the menu
+  reading (with `deferred`, the menu came on a poll, and `waited`, the ms
+  from the event to the latest poll), `menuHidden` and `menuAfter`; `left`,
+  `complete`, `aborted`, `heldAtEnd`. `delivered()` is finished, complete
+  and unrefused.
   `ConformancePointerJson()` is the whole reading, the action's `sequence`.
 - **Refusals.** Before anything is sent: `no-list`, `not-history-inner`,
   `point-outside`. Later: `receiver-gone` (the list was destroyed before an
-  event or by its own handler; the buttons it held are named) and `aborted`.
+  event, by its own handler or during a menu wait; the buttons it held are
+  named) and `aborted`.
   The runner refuses an undelivered sequence `input-not-delivered` (a menu
   event the reader refused before delivery among them); a delivered right
   click for which the product built no menu is product behaviour.
-- **Abort.** `abort()` cancels the timer, sends a release for every button
-  still held and a leave, and ends the sequence aborted; with a button held
-  and the list already gone it ends `receiver-gone`. Destroying a sequence
-  cancels its timer and sends nothing. The runner aborts from `onFinish`
-  before the fixture's release removes the messages.
+- **Abort.** `abort()` cancels the timer, ends a menu wait with
+  `Test::EndChatListContextMenu` (its leave, its decision), sends a release
+  for every button still held and a leave, and ends the sequence aborted;
+  with a button held and the list already gone it ends `receiver-gone`.
+  Destroying a sequence cancels its timer and sends nothing, so a menu
+  wait's list stays entered. The runner aborts from `onFinish` before the
+  fixture's release removes the messages.
 
 ## Bridge calls and uncaught errors
 
@@ -1240,6 +1275,14 @@ the pack runs it; that task's evidence loop runs it and a synthetic smoke
 of a paint stop, and neither has run yet. Before that build this page
 recorded no Windows build or run of the pack; the code is portable C++ and
 Qt.
+
+The right click's [menu wait](#timed-pointer-sequences) (the chat-list
+reader's `Begin`, `Poll` and `End` with the 250 ms bound) was added by
+`2026/11/16/deliver-widget-cursor-selection-right-click-and-finger-claim-as-messages`,
+whose campaign runs the automatic set through it, `auto/16-sdk-taps-b`'s
+right click on a `touch-action: auto` element followed by taps included;
+no offline check covers it, and its results belong to that task's
+evidence.
 
 The [window sizing](#preconditions-and-limits) and the move of the host
 readings into `test_widget_conformance_hosts.{h,cpp}` have not run in the

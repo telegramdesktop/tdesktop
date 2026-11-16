@@ -63,6 +63,19 @@ namespace Test {
 // The leave also follows a delivery that ended in a refusal, and nothing
 // is delivered at all for a request refused before the enter.
 //
+// A menu built on a later turn. Over a widget card the list accepts a right
+// click's event without building anything and builds its menu once the
+// widget's answer arrives, re-entering its own contextMenuEvent
+// (tgw_touch.cpp's WidgetTouch). So the reader also comes as three calls:
+// BeginChatListContextMenu (the refusals before delivery, the enter and
+// steps 1-2, no leave, so the list's gate stays open for the later menu's
+// own mouseActionUpdate()), PollChatListContextMenu (a
+// Test::RetakeContextMenu of a no-menu reading, and in the poll that finds
+// the menu the at-build resolution and the list's own _menu read again) and
+// EndChatListContextMenu (step 3, the decision below and the hide of a
+// refused menu). The caller owns the timer between them and the bound
+// (docs/helpers/test_chat_menu.md#menus-built-on-a-later-turn).
+//
 // Attribution. The reading is built() only when the resolution gate was
 // open when the context-menu event was delivered - read right after the
 // enter drained, because showContextMenu resolves first and only then
@@ -143,8 +156,8 @@ namespace Test {
 // TriggerContextMenuAction(reading.menu, text) in the same turn, while the
 // menu still lives. On an accepted reading "Select" selects the target.
 //
-// Neither function Notes nor Fails; the caller judges the reading, as with
-// Test::OpenContextMenu.
+// None of these functions Notes or Fails; the caller judges the reading, as
+// with Test::OpenContextMenu.
 enum class ChatListMenuRefusal {
 	None,
 	NoList,
@@ -207,8 +220,12 @@ struct ChatListResolution {
 // that Test::OpenContextMenu was called (|menu| is default otherwise and
 // is printed as not read), |observed| that the at-build observer ran,
 // |listMenu| that the fresh menu was the list's own _menu, |menuHidden|
-// that a refusal hid it. |attributed| is set only by an observed, agreeing
-// resolution; built() is never true on default state.
+// that a refusal hid it. |sentAt| is the crl::now() right before the
+// context-menu event was sent (0 when none was), |waited| the ms from it to
+// the latest poll, and |deferred| that a poll, not the event's own turn,
+// found the fresh menu. |attributed| is set only by an observed, agreeing
+// resolution; built() is never true on default state. pending() is a
+// delivered request that EndChatListContextMenu has not decided yet.
 struct ChatListMenuReading {
 	ContextMenuReading menu;
 	ChatListResolution before;
@@ -223,6 +240,8 @@ struct ChatListMenuReading {
 	FullMsgId requested;
 	QPoint local;
 	QRect viewport;
+	crl::time sentAt = 0;
+	crl::time waited = 0;
 	ChatListMenuRefusal refusal = ChatListMenuRefusal::None;
 	bool enterSent = false;
 	bool leaveSent = false;
@@ -230,10 +249,16 @@ struct ChatListMenuReading {
 	bool observed = false;
 	bool listMenu = false;
 	bool menuHidden = false;
+	bool deferred = false;
 	bool attributed = false;
 
 	[[nodiscard]] bool built() const {
 		return attributed && (refusal == ChatListMenuRefusal::None);
+	}
+	[[nodiscard]] bool pending() const {
+		return enterSent
+			&& !attributed
+			&& (refusal == ChatListMenuRefusal::None);
 	}
 };
 
@@ -253,6 +278,35 @@ struct ChatListMenuReading {
 	QWidget *list,
 	HistoryItem *target,
 	QPoint point);
+
+// OpenChatListContextMenu in three calls, for a menu the list may build on
+// a later turn; Open is exactly Begin, then End, in one call.
+//
+// Begin takes the arguments Open takes, refuses before delivery as Open
+// does (a refused reading is final, and End changes nothing on it), and
+// otherwise sends the enter and, while the list still shows the target, the
+// context-menu event with the at-build observer, and returns a pending()
+// reading with the list still entered.
+//
+// Poll, on a later turn, answers whether the wait is over: true once the
+// reading holds a fresh menu or a several-menus refusal, or when no menu can
+// come any more (nothing pending, no event delivered, the list gone); false
+// while its no-menu reading may still turn into a menu. Each poll of a
+// no-menu reading updates |waited| and retakes it; the poll that finds the
+// menu sets |deferred| and reads the at-build resolution and the list's own
+// _menu again, in that turn. It sends nothing.
+//
+// End sends the leave, decides the reading as Open does and hides a refused
+// menu; it changes nothing on a reading that is not pending(). Call it in
+// every case, also when the caller's bound passed with no menu, which
+// decides the reading menu-refused (no-menu). Until it runs the list stays
+// entered (_mouseActive), so call it before any other input to the list.
+[[nodiscard]] ChatListMenuReading BeginChatListContextMenu(
+	QWidget *list,
+	HistoryItem *target,
+	QPoint point);
+[[nodiscard]] bool PollChatListContextMenu(ChatListMenuReading &reading);
+void EndChatListContextMenu(ChatListMenuReading &reading);
 
 // The one formatter for a reading, for a Check's details and a Note. It
 // prints recorded values only: the requested and resolved messages and

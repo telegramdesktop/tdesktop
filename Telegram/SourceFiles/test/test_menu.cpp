@@ -86,14 +86,6 @@ struct Fixture {
 	return true;
 }
 
-// One Ui::PopupMenu alive before a context-menu event. The QPointer makes a
-// menu destroyed since read as null, so it matches nothing - a new menu
-// allocated at a dead one's address is never taken for the old one.
-struct MenuSnapshotEntry {
-	QPointer<Ui::PopupMenu> menu;
-	bool visible = false;
-};
-
 // Every Ui::PopupMenu in the application, wherever it is parented. Every
 // popup is its own window, but the walk does not lean on window flags:
 // QApplication::allWidgets() holds every widget, and the dynamic_cast is
@@ -109,8 +101,11 @@ struct MenuSnapshotEntry {
 	return result;
 }
 
-[[nodiscard]] std::vector<MenuSnapshotEntry> SnapshotPopupMenus() {
-	auto result = std::vector<MenuSnapshotEntry>();
+// The QPointer in each entry makes a menu destroyed since read as null, so
+// it matches nothing - a new menu allocated at a dead one's address is never
+// taken for the old one.
+[[nodiscard]] std::vector<ContextMenuSnapshotEntry> SnapshotPopupMenus() {
+	auto result = std::vector<ContextMenuSnapshotEntry>();
 	for (const auto menu : LivePopupMenus()) {
 		result.push_back({ .menu = menu, .visible = menu->isVisible() });
 	}
@@ -156,16 +151,16 @@ struct MenuSnapshotEntry {
 
 // Called inside the settle action, right after sendEvent returned and
 // before any postponed call runs, so it reads the menu in the turn - and
-// the very call - that built it.
-void TakeFreshMenu(
-		ContextMenuReading &result,
-		const std::vector<MenuSnapshotEntry> &before) {
+// the very call - that built it. RetakeContextMenu calls it again on a
+// later turn, against the same snapshot.
+void TakeFreshMenu(ContextMenuReading &result) {
+	const auto &before = result.before;
 	const auto live = LivePopupMenus();
 	result.menusAfter = int(live.size());
 	auto fresh = std::vector<Ui::PopupMenu*>();
 	for (const auto menu : live) {
 		const auto known = ranges::find_if(before, [&](
-				const MenuSnapshotEntry &entry) {
+				const ContextMenuSnapshotEntry &entry) {
 			return (entry.menu.data() == menu);
 		});
 		if (known != end(before)) {
@@ -919,15 +914,15 @@ ContextMenuReading OpenContextMenu(
 	result.receiverEnabled = receiver->isEnabled();
 	result.receiverVisible = receiver->isVisible();
 	result.global = receiver->mapToGlobal(point);
-	const auto before = SnapshotPopupMenus();
-	result.menusBefore = int(before.size());
+	result.before = SnapshotPopupMenus();
+	result.menusBefore = int(result.before.size());
 	auto event = QContextMenuEvent(reason, point, result.global);
 	Settle([&] {
 		QApplication::sendEvent(receiver, &event);
 		result.delivered = true;
 		result.accepted = event.isAccepted();
 		result.receiverAlive = (result.receiverWidget.data() != nullptr);
-		TakeFreshMenu(result, before);
+		TakeFreshMenu(result);
 		if (!result.receiverAlive) {
 			result.refusal = ContextMenuRefusal::ReceiverGone;
 			result.reason = u"the receiving widget was destroyed while it "
@@ -948,6 +943,32 @@ ContextMenuReading OpenContextMenu(
 	});
 	result.afterSettle = ReadContextMenuLifecycle(result);
 	return result;
+}
+
+bool RetakeContextMenu(ContextMenuReading &reading) {
+	if ((reading.refusal != ContextMenuRefusal::NoMenu)
+		|| !reading.receiverWidget) {
+		return reading.built();
+	}
+	// Everything TakeFreshMenu fills, so a repeat counts the menus alive now
+	// rather than adding to what the event's own turn found.
+	reading.menu.clear();
+	reading.parent.clear();
+	reading.identity = QString();
+	reading.parentIdentity = QString();
+	reading.freshMenus.clear();
+	reading.texts.clear();
+	reading.reason = QString();
+	reading.refusal = ContextMenuRefusal::None;
+	reading.fresh = 0;
+	reading.reshown = 0;
+	reading.actions = 0;
+	reading.separators = 0;
+	reading.parentIsReceiver = false;
+	++reading.retakes;
+	TakeFreshMenu(reading);
+	reading.afterSettle = ReadContextMenuLifecycle(reading);
+	return reading.built();
 }
 
 QString ContextMenuDetails(const ContextMenuReading &reading) {
@@ -979,6 +1000,7 @@ QString ContextMenuDetails(const ContextMenuReading &reading) {
 		u"texts=[%1]"_q.arg(reading.texts.join(u" | "_q)),
 		u"actions=%1"_q.arg(reading.actions),
 		u"separators=%1"_q.arg(reading.separators),
+		u"retakes=%1"_q.arg(reading.retakes),
 		u"atBuild={%1}"_q.arg(ContextMenuLifecycleText(reading.atBuild)),
 		u"afterSettle={%1}"_q.arg(
 			ContextMenuLifecycleText(reading.afterSettle)),

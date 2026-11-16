@@ -465,6 +465,13 @@ QWidget *ListWidgetAdapter::ownMenu() const {
 	return nullptr;
 }
 
+// The adapter of a reading's list, or null once the list is gone.
+[[nodiscard]] std::unique_ptr<ListAdapter> ReadingAdapter(
+		const ChatListMenuReading &reading) {
+	const auto list = reading.list.data();
+	return list ? MakeAdapter(list) : nullptr;
+}
+
 // What the list resolved right now, or a reading that says it was never
 // taken when the list is gone.
 [[nodiscard]] ChatListResolution ReadChatListResolution(
@@ -713,6 +720,15 @@ ChatListMenuReading OpenChatListContextMenu(
 		QWidget *list,
 		HistoryItem *target,
 		QPoint point) {
+	auto result = BeginChatListContextMenu(list, target, point);
+	EndChatListContextMenu(result);
+	return result;
+}
+
+ChatListMenuReading BeginChatListContextMenu(
+		QWidget *list,
+		HistoryItem *target,
+		QPoint point) {
 	auto result = ChatListMenuReading();
 	result.local = point;
 	result.requested = IdOf(target);
@@ -747,6 +763,7 @@ ChatListMenuReading OpenChatListContextMenu(
 	auto listMenuAtBuild = QPointer<QWidget>();
 	if (adapter->alive() && adapter->ownView(adapter->message(targetId))) {
 		result.menuRead = true;
+		result.sentAt = crl::now();
 		result.menu = OpenContextMenu(
 			adapter->widget(),
 			point,
@@ -759,20 +776,61 @@ ChatListMenuReading OpenChatListContextMenu(
 				listMenuAtBuild = adapter->ownMenu();
 			});
 	}
-	if (adapter->alive()) {
+	// EndChatListContextMenu keeps this only while the menu still lives
+	// after its leave, as the one-call reader always decided it.
+	result.listMenu = (result.menu.menu.data() != nullptr)
+		&& (result.menu.menu.data() == listMenuAtBuild.data());
+	return result;
+}
+
+bool PollChatListContextMenu(ChatListMenuReading &result) {
+	if (!result.pending()
+		|| !result.menuRead
+		|| (result.menu.refusal != ContextMenuRefusal::NoMenu)) {
+		return true;
+	}
+	const auto adapter = ReadingAdapter(result);
+	if (!adapter) {
+		return true;
+	}
+	result.waited = crl::now() - result.sentAt;
+	const auto built = RetakeContextMenu(result.menu);
+	if (result.menu.refusal == ContextMenuRefusal::NoMenu) {
+		return false;
+	}
+	// The list built it on a turn of the wait, right after its own
+	// mouseActionUpdate(e->globalPos()). The caller sends the list nothing
+	// between Begin and End, so the resolution and _menu read here are the
+	// ones that menu was built from, unless the product itself resolved
+	// again in between (a later mouseActionUpdate() resolves the same
+	// stored point).
+	result.deferred = true;
+	result.atBuild = adapter->resolve(result.requested);
+	result.listMenu = built
+		&& (result.menu.menu.data() == adapter->ownMenu());
+	return true;
+}
+
+void EndChatListContextMenu(ChatListMenuReading &result) {
+	if (!result.pending()) {
+		return;
+	}
+	const auto adapter = ReadingAdapter(result);
+	if (adapter) {
 		DeliverLeave(adapter->widget());
 		result.leaveSent = true;
 	}
-	result.afterLeave = ReadChatListResolution(*adapter, targetId);
-	result.listMenu = (result.menu.menu.data() != nullptr)
-		&& (result.menu.menu.data() == listMenuAtBuild.data());
-	DecideDelivered(result, adapter->alive());
+	result.afterLeave = adapter
+		? ReadChatListResolution(*adapter, result.requested)
+		: ChatListResolution();
+	result.listMenu = result.listMenu
+		&& (result.menu.menu.data() != nullptr);
+	DecideDelivered(result, adapter && adapter->alive());
 	if (result.refusal == ChatListMenuRefusal::None) {
 		result.attributed = true;
 	} else {
 		DropRefusedMenu(result);
 	}
-	return result;
 }
 
 QString ChatListMenuDetails(const ChatListMenuReading &reading) {
@@ -799,6 +857,8 @@ QString ChatListMenuDetails(const ChatListMenuReading &reading) {
 		u"observed=%1"_q.arg(flag(reading.observed)),
 		u"listMenu=%1"_q.arg(flag(reading.listMenu)),
 		u"menuHidden=%1"_q.arg(flag(reading.menuHidden)),
+		u"deferred=%1"_q.arg(flag(reading.deferred)),
+		u"waited=%1"_q.arg(qint64(reading.waited)),
 		u"before={%1}"_q.arg(ResolutionText(reading.before)),
 		u"afterEnter={%1}"_q.arg(ResolutionText(reading.afterEnter)),
 		u"atBuild={%1}"_q.arg(ResolutionText(reading.atBuild)),
