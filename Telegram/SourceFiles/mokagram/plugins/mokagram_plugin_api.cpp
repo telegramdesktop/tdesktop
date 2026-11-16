@@ -96,6 +96,7 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QFileInfo>
+#include <QtCore/QSaveFile>
 #include <QtCore/QRegularExpression>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QThread>
@@ -3014,19 +3015,39 @@ QJsonArray EntitiesToJsonArray(const EntitiesInText &list) {
 
 namespace {
 
-void CopyTree(const QString &from, const QString &to) {
+bool CopyTree(const QString &from, const QString &to) {
 	const auto dir = QDir(from);
-	QDir().mkpath(to);
+	if (!QDir().mkpath(to)) {
+		return false;
+	}
 	for (const auto &info : dir.entryInfoList(
 			QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot)) {
 		const auto target = QDir(to).filePath(info.fileName());
-		if (info.isDir()) {
-			CopyTree(info.absoluteFilePath(), target);
+		if (info.isSymLink()) {
+			return false;
+		} else if (info.isDir()) {
+			if (!CopyTree(info.absoluteFilePath(), target)) {
+				return false;
+			}
 		} else if (info.fileName() != u"secrets.enc"_q) {
-			QFile::remove(target);
-			QFile::copy(info.absoluteFilePath(), target);
+			auto source = QFile(info.absoluteFilePath());
+			auto destination = QSaveFile(target);
+			if (!source.open(QIODevice::ReadOnly)
+				|| !destination.open(QIODevice::WriteOnly)) {
+				return false;
+			}
+			while (!source.atEnd()) {
+				const auto chunk = source.read(64 * 1024);
+				if (chunk.isEmpty() || destination.write(chunk) != chunk.size()) {
+					return false;
+				}
+			}
+			if (source.error() != QFileDevice::NoError || !destination.commit()) {
+				return false;
+			}
 		}
 	}
+	return true;
 }
 
 } // namespace
@@ -3049,24 +3070,40 @@ void ApplyPendingRestore() {
 		}
 		auto source = QFile(from);
 		if (!source.open(QIODevice::ReadOnly)) {
-			continue;
+			LOG(("[mokagram] Restore: cannot read %1").arg(name));
+			return;
 		}
 		// Фильтр настроек применяем и здесь: карантин мог быть заполнен в обход Python.
 		auto data = source.readAll();
+		if (source.error() != QFileDevice::NoError) {
+			LOG(("[mokagram] Restore: cannot read %1").arg(name));
+			return;
+		}
 		if (name == u"moka_settings.json"_q) {
 			data = FilterPortableSettings(data);
 		}
-		QFile::remove(tdata + name + u".bak"_q);
-		QFile::rename(tdata + name, tdata + name + u".bak"_q);
-		auto target = QFile(tdata + name);
-		if (target.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-			target.write(data);
+		const auto path = tdata + name;
+		const auto backup = path + u".bak"_q;
+		if (QFile::exists(path) && !QFile::exists(backup)
+			&& !QFile::copy(path, backup)) {
+			LOG(("[mokagram] Restore: cannot back up %1").arg(name));
+			return;
+		}
+		auto target = QSaveFile(path);
+		if (!target.open(QIODevice::WriteOnly)
+			|| target.write(data) != data.size()
+			|| !target.commit()) {
+			LOG(("[mokagram] Restore: cannot write %1").arg(name));
+			return;
 		}
 	}
 	if (QDir(root + u"plugin_data"_q).exists()) {
 		const auto base = QDir::cleanPath(
 			QString::fromStdString(PluginsDir()) + u"/../plugin_data"_q);
-		CopyTree(root + u"plugin_data"_q, base);
+		if (!CopyTree(root + u"plugin_data"_q, base)) {
+			LOG(("[mokagram] Restore: cannot copy plugin data"));
+			return;
+		}
 	}
 	QDir(root).removeRecursively();
 }
