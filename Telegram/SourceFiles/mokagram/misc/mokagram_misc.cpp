@@ -408,10 +408,8 @@ QImage AppIconImage(int index) {
 }
 
 void ApplyAppIcon() {
-	const auto icon = CustomAppIcon();
-	if (icon.isNull()) {
-		return;
-	}
+	const auto custom = CustomAppIcon();
+	const auto icon = custom.isNull() ? QIcon(QPixmap::fromImage(Window::Logo())) : custom;
 	QGuiApplication::setWindowIcon(icon);
 	for (const auto widget : QApplication::topLevelWidgets()) {
 		widget->setWindowIcon(icon);
