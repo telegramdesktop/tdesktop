@@ -64,16 +64,23 @@ PRIVATE
     src/intl.cpp
     src/js_thread.cpp
     src/quickjs_context.cpp
+    src/remote_coding.cpp
     src/remote_engine.cpp
     src/remote_hosted.cpp
     src/remote_internal.h
     src/remote_stream.cpp
+    src/remote_stream_engine.cpp
+    src/remote_wire.h
     src/resources.cpp
     src/sandbox_engine.cpp
     src/sandbox_engine_client.cpp
+    src/sandbox_engine_shared.cpp
     src/sdk_policy.cpp
+    src/steady_clock.h
     src/trusted_validator.cpp
     src/widget_host.cpp
+    src/widget_host_internal.h
+    src/widget_host_local.cpp
 )
 
 target_include_directories(lib_widget_sandbox
