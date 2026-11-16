@@ -275,7 +275,7 @@ Clawd::Clawd(Host host)
 	_watchdog.callEach(400);
 	QObject::connect(qApp, &QGuiApplication::applicationStateChanged, _stage.get(), [=] {
 		watchdog();
-	});
+	}, Qt::QueuedConnection);
 	watchdog();
 }
 
