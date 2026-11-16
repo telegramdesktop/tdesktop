@@ -276,7 +276,6 @@ private:
 	void paintBurst(QPainter &p, const Burst &b, crl::time now) {
 		const auto T = Clamp01((now - b.start) / double(b.duration));
 		const auto sec = (now - b.start) / 1000.;
-		const auto dpr = b.image.devicePixelRatio();
 		const auto center = b.area.center();
 		const auto drawTile = [&](const Tile &t, QPointF pos, double angle, double scale, double alpha) {
 			if (alpha <= 0.01 || scale <= 0.01) {
