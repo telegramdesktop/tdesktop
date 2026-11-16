@@ -219,6 +219,7 @@ struct Descriptor {
 	int statusFlags = 0;
 	int domain = 0;
 	int type = 0;
+	int state = 0;
 };
 
 struct Descriptors {
@@ -1070,12 +1071,14 @@ void IdentifySocket(Descriptor &descriptor) {
 	}
 	descriptor.domain = info.psi.soi_family;
 	descriptor.type = info.psi.soi_type;
+	descriptor.state = info.psi.soi_state;
 	auto text = Format(
-		"domain=%d type=%d protocol=%d kind=%d",
+		"domain=%d type=%d protocol=%d kind=%d state=0x%x",
 		info.psi.soi_family,
 		info.psi.soi_type,
 		info.psi.soi_protocol,
-		info.psi.soi_kind);
+		info.psi.soi_kind,
+		unsigned(uint16_t(info.psi.soi_state)));
 	if (info.psi.soi_family == AF_UNIX) {
 		auto pid = pid_t();
 		auto size = socklen_t(sizeof(pid));
@@ -1358,6 +1361,7 @@ private:
 	OwnedFd _preopened;
 	int _preopenError = 0;
 	int _incomplete = 0;
+	bool _ownStderrTerminal = false;
 
 };
 
@@ -1390,6 +1394,7 @@ std::string Probe::run() {
 	_parentStderr = FileIdentity(_ppid, STDERR_FILENO);
 	_ownStderr = FileIdentity(_pid, STDERR_FILENO);
 	_ownStderrPath = DescriptorPath(STDERR_FILENO);
+	_ownStderrTerminal = (isatty(STDERR_FILENO) == 1);
 	reportPreLockdown();
 	lockDown();
 	_post = SnapshotMach();
@@ -1492,10 +1497,12 @@ void Probe::preopen() {
 
 void Probe::reportPreLockdown() {
 	_report.row(Format(
-		"fd 2 before the lockdown: parent's %s, own %s path=%s",
+		"fd 2 before the lockdown: parent's %s, own %s path=%s"
+		" own-terminal=%s",
 		_parentStderr.c_str(),
 		_ownStderr.c_str(),
-		_ownStderrPath.empty() ? "(none)" : _ownStderrPath.c_str()));
+		_ownStderrPath.empty() ? "(none)" : _ownStderrPath.c_str(),
+		_ownStderrTerminal ? "yes" : "no"));
 	if (!_pre.error.empty()) {
 		_report.row("pre-lockdown snapshot FAILED: " + _pre.error);
 		_failures.push_back("pre-lockdown snapshot: " + _pre.error);
@@ -1815,6 +1822,11 @@ void Probe::listDescriptors() {
 			}
 		} else if (descriptor.fd == STDERR_FILENO) {
 			const auto unchanged = stderrUnchanged(descriptor);
+			const auto relay = (descriptor.kind == PROX_FDTYPE_SOCKET)
+				&& (descriptor.domain == AF_UNIX)
+				&& (descriptor.type == SOCK_STREAM)
+				&& (descriptor.peerPid == _ppid)
+				&& ((descriptor.state & SOI_S_CANTRCVMORE) != 0);
 			if (_parentStderr.rfind("unreadable", 0) == 0
 				|| _ownStderr.rfind("unreadable", 0) == 0) {
 				label = "stderr, UNVERIFIED: the parent's fd 2 was "
@@ -1822,17 +1834,23 @@ void Probe::listDescriptors() {
 				brief = "stderr-unverified";
 				_failures.push_back("fd 2 not compared: parent's "
 					+ _parentStderr + ", own " + _ownStderr);
-			} else if (_ownStderr != _parentStderr) {
-				defect = "fd 2 (" + _ownStderr + ") is not the parent's fd 2 ("
-					+ _parentStderr + ")";
+			} else if (_ownStderrTerminal) {
+				defect = "fd 2 (" + _ownStderr + ") is a terminal";
 			} else if (!unchanged) {
-				defect = "fd 2 differs from the one compared"
+				defect = "fd 2 differs from the one read"
 					" before the lockdown";
-			} else {
+			} else if (_ownStderr == _parentStderr) {
 				label = "stderr, the parent's fd 2 (" + _ownStderr
 					+ ", compared before the lockdown, same "
 					+ (vnode ? "path" : "object") + " after)";
 				brief = "stderr";
+			} else if (relay) {
+				label = "stderr relay, AF_UNIX stream to the parent"
+					" (receive side shut; same object after lockdown)";
+				brief = "stderr-relay";
+			} else {
+				defect = "fd 2 (" + _ownStderr + ") is not the parent's fd 2 ("
+					+ _parentStderr + ")";
 			}
 		} else if (descriptor.fd == 3) {
 			if (descriptor.kind == PROX_FDTYPE_SOCKET

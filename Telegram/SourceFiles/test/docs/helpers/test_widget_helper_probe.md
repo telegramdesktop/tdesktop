@@ -835,13 +835,15 @@ without the fixture gives.
 
 ## Readings and refusals
 
-Every row goes to the helper's stderr, which is the client's
-(`app_stderr.txt` in a test run). Each row is one `write`, cut past 2048
-bytes with a marker, prefixed `widget-helper-probe <pid> <mode>: `. The rows
-come in this order:
+Every row goes to the helper's stderr: the client's own when that is not a
+terminal (`app_stderr.txt` in a test run), and the client's relay to its
+terminal otherwise (the paragraph on terminal runs below). Each row is one
+`write`, cut past 2048 bytes with a marker, prefixed `widget-helper-probe
+<pid> <mode>: `. The rows come in this order:
 
-- `begin`, `paths` and the fd 2 identities of the parent and the helper, read
-  before the lockdown.
+- `begin`, `paths` and `fd 2 before the lockdown`: the fd 2 identities of
+  the parent and the helper, read before the lockdown, then
+  `own-terminal=yes|no`, the helper's own `isatty(2)` at that time.
 - `pre` rows of the first Mach snapshot; `warm-up lookup <name>: lookup
   kr=1102 (Unknown service name)` and one `first bootstrap lookup added:
   +<entry>` row per entry the warm-up added (or `first bootstrap lookup
@@ -870,11 +872,36 @@ and no change by the reference lookups.
 Each `fd` row gives the kind, access and close-on-exec flags. A vnode row
 adds `F_GETPATH` and `fstat` (after the lockdown the sandbox refuses `fstat`
 on write-only `/dev/null`: `fstat=EPERM`). A socket row adds its domain,
-type, protocol and, for `AF_UNIX`, the peer pid. Accounted descriptors are 0
-`/dev/null` read, 1 `/dev/null` write, 2 the same file as the parent's fd 2,
-and 3 an `AF_UNIX` stream whose peer is the parent. Anything else is a defect.
-The Mac App Store service's parent, accounting, `state:` and extra rows
-differ ([Mac App Store](#mac-app-store)).
+type, protocol, kind, `state=0x<hex>` (the socket's `soi_state` from
+`PROC_PIDFDSOCKETINFO`) and, for `AF_UNIX`, the peer pid. Accounted
+descriptors are 0 `/dev/null` read, 1 `/dev/null` write, 2 the client's
+stderr or its relay, and 3 an `AF_UNIX` stream whose peer is the parent.
+Anything else is a defect.
+
+Descriptor 2 is accounted only when it was no terminal before the lockdown
+(`own-terminal=no`) and is unchanged after it (the same path for a file,
+the same object otherwise), and then only as one of two things:
+
+- the same file as the parent's fd 2, `stderr`;
+- the one-way stream of the client's relay, `stderr-relay` (`stderr relay,
+  AF_UNIX stream to the parent (receive side shut; same object after
+  lockdown)`): an `AF_UNIX` stream socket whose peer is the parent and
+  whose state has `SOI_S_CANTRCVMORE` (0x20), since the client shut its
+  own sending side. That bit tells it from the channel at 3, which is
+  duplex.
+
+In the direct-download helper a terminal at fd 2 is a defect, `fd 2
+(<identity>) is a terminal`, even when it is the parent's fd 2, and so are
+a changed one (`fd 2 differs from the one read before the lockdown`) and
+any other (`fd 2 (<own>) is not the parent's fd 2 (<parent>)`). The
+probe identifies the stream, not where it leads: that the client relays it
+to its terminal, and that the helper's fd 2 is not that terminal, is shown
+from the client's side, by its own `isatty(2)`, `lsof -p` of both
+processes (`unix` at the helper's fd 2, paired with a socket of the
+client) and a capture of the terminal's bytes. The Mac App Store
+service's parent, accounting, `state:` and extra rows differ
+([Mac App Store](#mac-app-store)): it writes the same `own-terminal=`
+reading, but its accounting of fd 2 does not use it.
 
 Each `mach` row gives every rights bit, urefs, the object hash and the kernel
 object type. Receive rights also get their status, port sets their members.
@@ -912,7 +939,25 @@ libtrace's two push ports only through the reading made in the same helper;
 any other unknown send right still makes it not clean. `unaccounted: none`
 appears only on a complete listing. Otherwise it reads `unaccounted: unknown
 (listing incomplete)`. When items do not fit, the summary says `SUMMARY
-CUT ... INCOMPLETE` and the stderr listing stays authoritative.
+CUT ... INCOMPLETE` and the stderr listing stays authoritative, if it is
+complete itself.
+
+In a run whose client stderr is a terminal the rows reach that terminal
+through the client's relay
+([Remote engines](test_widget_fixture.md#remote-engines), **The shared
+helper**): every byte outside printable ASCII escaped, a line over 8192
+bytes cut, and the helper's output past its first 32768 bytes replaced by
+the one line `[widget helper output over 32768 bytes dropped]`. A
+direct-download probe's rows come close to that bound, so the end of the
+listing, the attempt rows and the helper's `Widget helper:` line with the
+refusal can be cut there; a cut transcript is not the complete listing.
+The channel still carries the refusal, untouched by the relay: the manager
+puts it in the main log's `Tgw: Widget helper <pid> stream ended: ...`
+line, while an overlay that launches the helper itself
+([Minimal use](#minimal-use)) gets no manager line and must save the
+reason its `ended` callback received. A summary that says `SUMMARY CUT`
+next to a cut transcript leaves the inventory undecided: take it from a
+run whose stderr is a file.
 
 ### Firehose reading
 

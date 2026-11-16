@@ -520,8 +520,10 @@ packs, the fixture and the seams they use need no change for it.
   which starts, signs and ends differently). The
   client starts it with `posix_spawn`, without LaunchServices, as its
   child with argv `[<path>, 3]` and an empty environment: the channel on
-  descriptor 3, the client's stderr, `/dev/null` for stdin and stdout and
-  no other descriptor (`POSIX_SPAWN_CLOEXEC_DEFAULT`), default signal
+  descriptor 3, on descriptor 2 the client's stderr when that is not a
+  terminal and the client's relay otherwise (the descriptor 2 paragraph
+  below), `/dev/null` for stdin and stdout and no other descriptor
+  (`POSIX_SPAWN_CLOEXEC_DEFAULT`), default signal
   actions, an empty signal mask and no exception ports. It starts it
   suspended (`POSIX_SPAWN_START_SUSPENDED`), with a binary preference for
   the client's own slice, arm64 or x86_64
@@ -700,13 +702,15 @@ packs, the fixture and the seams they use need no change for it.
   the `TelegramHelpers` layout fails every start inside Flatpak with `the
   widget helper's build identity cannot be checked through the Flatpak
   portal`, before any portal call (a reading of the code, not run).
-  On both spawn paths the helper's descriptor 2 follows the client's
-  stderr at each start. When that is not a terminal (`isatty`), as under
-  `test-run`, whose `app_stderr.txt` is a file, it is a duplicate of the
-  client's stderr, and the helper's lines land there unchanged. When it
-  is a terminal, descriptor 2 is the helper's end of a one-way `AF_UNIX`
-  stream socket (`/proc/<pid>/fd/2` reads `socket:[<inode>]`), never the
-  terminal: a thread of the client reads the other end and writes each
+  On both Linux spawn paths, and for the direct-download macOS helper
+  above, the helper's descriptor 2 follows the client's stderr at each
+  start. When that is not a terminal (`isatty`), as under `test-run`,
+  whose `app_stderr.txt` is a file, it is a duplicate of the client's
+  stderr, and the helper's lines land there unchanged. When it is a
+  terminal, descriptor 2 is the helper's end of a one-way `AF_UNIX`
+  stream socket (on Linux `/proc/<pid>/fd/2` reads `socket:[<inode>]`, on
+  macOS `lsof -p <pid>` shows `unix` at fd 2), never the terminal: a
+  thread of the client reads the other end and writes each
   line to the client's stderr with one `write`, every byte outside
   printable ASCII (0x20 to 0x7e) escaped as `\xNN` in lowercase hex and
   `\` as `\\`. A line longer than 8192 bytes keeps its first 8192 and
@@ -714,8 +718,17 @@ packs, the fixture and the seams they use need no change for it.
   end, and a helper's bytes past its first 32768 are dropped, with one
   line `[widget helper output over 32768 bytes dropped]` in their place.
   The relay ends with its helper, before the main log's `ended` line
-  below. A terminal that stops accepting writes blocks only that thread,
-  and with it the reap of its helper.
+  below. On macOS, after a helper that was reaped, the client first waits
+  up to 1000 ms for the relay to end on its own, at the end of the stream
+  once every queued byte was relayed, and only then shuts the relay's end
+  and joins its thread, still before the `ended` line: macOS discards the
+  bytes still queued on a socket end shut for reading, which could lose the
+  helper's last line, written right before it exits. A helper that was
+  not reaped ends its relay at once, as on Linux. A terminal that stops
+  accepting writes blocks only that thread, and with it the reap of its
+  helper; on macOS the join after the wait blocks the same way, so
+  1000 ms limits that wait, not the reap. The Mac App Store service still
+  gets the client's stderr itself (**The Mac App Store service** below).
   At its entry, before it adopts the channel, the helper's
   `WidgetHelper::Adopt()` (`_other/widget_helper_linux.cpp`) accepts only
   the token `3`, names its process `TelegramWidgetHelper` with
@@ -1428,10 +1441,11 @@ packs, the fixture and the seams they use need no change for it.
   per engine and no `widget.sandbox`; `widget.validator` and the host's
   `twidget-host` stay, and the channel adds `widget.reader`,
   `widget.writer` and `widget.monitor` per helper and a `widget.answer` per
-  runtime that asked a synchronous question. On Linux a client whose
-  stderr is a terminal also runs one relay thread per helper, with no name
-  of its own (**The shared helper** above). The `widget.sandbox` engines
-  run in the helper. Without a helper the client has no `widget.sandbox`
+  runtime that asked a synchronous question. On macOS (outside the Mac
+  App Store build) and Linux a client whose stderr is a terminal also runs
+  one relay thread per helper, with no name of its own (**The shared
+  helper** above). The `widget.sandbox` engines run in the helper.
+  Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`; each host
   keeps its `widget.client`, `widget.validator` and `twidget-host` until
   its death retires it. Windows threads carry none of these names (the
@@ -1509,6 +1523,14 @@ packs, the fixture and the seams they use need no change for it.
   `the widget helper identity of this build is unknown`, and with
   incomplete signing information `the signature of this build is
   unreadable` or `the signing certificate of this build is unreadable`.
+  As on Linux below, when the client's stderr is a terminal and the relay
+  of **The shared helper** cannot be made, the start fails before any spawn
+  with `socketpair failed: <reason>`, `shutdown failed: <reason>` or
+  `fcntl failed: <reason>`, or with a setup error the relay's socket
+  shares with the channel (`getsockopt failed: <reason>`, `setsockopt
+  failed: <reason>`); the terminal is never handed to the helper instead.
+  `fcntl failed: <reason>` is also the error when the duplicate of a
+  stderr that is no terminal cannot be made.
   Each is a start failure for the failure limit below. The call name and
   the status are the stable part; the message is the system's.
   On Linux the error is `clone failed: <reason>` when the clone without
