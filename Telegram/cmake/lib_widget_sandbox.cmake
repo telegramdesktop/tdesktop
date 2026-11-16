@@ -49,6 +49,7 @@ PRIVATE
     include/twidget/json.h
     include/twidget/quickjs_context.h
     include/twidget/remote_engine.h
+    include/twidget/remote_hosted.h
     include/twidget/remote_stream.h
     include/twidget/renderer.h
     include/twidget/resources.h
@@ -64,6 +65,8 @@ PRIVATE
     src/js_thread.cpp
     src/quickjs_context.cpp
     src/remote_engine.cpp
+    src/remote_hosted.cpp
+    src/remote_internal.h
     src/remote_stream.cpp
     src/resources.cpp
     src/sandbox_engine.cpp
