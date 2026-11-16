@@ -420,7 +420,62 @@ void CreateGhosts(
 	}
 }
 
+// Восстановление больших страниц не должно занимать главный поток целиком.
+struct GhostQueue {
+	struct Page {
+		base::weak_ptr<Main::Session> session;
+		std::vector<Snapshot> rows;
+		size_t offset = 0;
+	};
+	std::deque<Page> pending;
+	base::Timer timer;
+};
+
+[[nodiscard]] GhostQueue &GhostPages() {
+	static auto result = new GhostQueue();
+	return *result;
+}
+
+void ProcessGhostPages() {
+	auto &queue = GhostPages();
+	if (queue.pending.empty()) {
+		return;
+	}
+	auto &page = queue.pending.front();
+	if (const auto session = page.session.get(); session && GhostsEnabled()) {
+		const auto end = std::min(page.offset + size_t(50), page.rows.size());
+		auto rows = std::vector<Snapshot>();
+		rows.reserve(end - page.offset);
+		while (page.offset != end) {
+			rows.push_back(std::move(page.rows[page.offset++]));
+		}
+		CreateGhosts(session, std::move(rows));
+	} else {
+		page.offset = page.rows.size();
+	}
+	if (page.offset == page.rows.size()) {
+		queue.pending.pop_front();
+	}
+	if (!queue.pending.empty()) {
+		queue.timer.callOnce(10);
+	}
+}
+
+void QueueGhostPage(not_null<Main::Session*> session, std::vector<Snapshot> rows) {
+	if (rows.empty()) {
+		return;
+	}
+	auto &queue = GhostPages();
+	queue.pending.push_back({ base::make_weak(session), std::move(rows) });
+	if (!queue.timer.isActive()) {
+		queue.timer.setCallback(ProcessGhostPages);
+		queue.timer.callOnce(1);
+	}
+}
+
 void DestroyAllGhosts() {
+	GhostPages().timer.cancel();
+	GhostPages().pending.clear();
 	for (const auto &[session, ghosts] : AllGhosts()) {
 		auto list = std::vector<not_null<HistoryItem*>>(
 			ghosts->items.begin(),
@@ -876,7 +931,7 @@ void OnChatShown(not_null<::History*> history) {
 		std::sort(rows.begin(), rows.end(), [](const auto &a, const auto &b) {
 			return a.id < b.id;
 		});
-		CreateGhosts(owner, std::move(rows));
+		QueueGhostPage(owner, std::move(rows));
 	});
 }
 
