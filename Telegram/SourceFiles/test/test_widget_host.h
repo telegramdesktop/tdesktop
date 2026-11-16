@@ -24,7 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // onChange (stats, nodes, load, death, diags, error logs), merged on its
 // host thread into a record that holds no host; and the renderer work of
 // its RendererCore, timed by scopes a disposable overlay places in the
-// core's Tgw::RendererWork.
+// core's Tgw::RendererWork on the widget render thread, recorded into a
+// work log that the main thread reserves and reads under one lock.
 // Reference: docs/helpers/test_widget_host.md.
 
 namespace Test {
@@ -162,20 +163,27 @@ struct WidgetHostReading {
 
 // Main thread. Later constructions for |id| keep the product's options and
 // get no watch; hosts already attached keep updating their own records.
-// Every core the watch registered is unregistered: their scopes record
-// nothing more. Pass the id that was armed, as kept by the caller.
+// Every core the watch registered is unregistered: their scopes opened
+// after it record nothing, while one open on the render thread at that
+// moment still lands its event in the log. Pass the id that was armed, as
+// kept by the caller.
 void DisarmWidgetHostWatch(GlobalMsgId id);
 
 // Main thread. A snapshot; each host's record is copied under its own lock.
 [[nodiscard]] WidgetHostReading ReadWidgetHost(const WidgetHostWatch &watch);
 
 // What one WidgetWorkScope timed, by where the overlay puts it. All three
-// run on the main thread outside the chat list's paint; their changes
-// reach the chat later, through RendererCore::apply().
+// run on the widget render thread, never on the main thread, so never
+// inside the chat list's paint; their changes reach the chat later, through
+// RendererCore::apply(), which RendererWork::deliver() posts to the main
+// thread.
 enum class WidgetWorkKind : uint8 {
 	// RendererWork::hostMessage() past its stopped and requestFrame
 	// returns: one host message applied, up to posting its changes. A
-	// frozen, intercepted by RendererCore::hostMessage(), never gets there.
+	// frozen never gets there: HostLink::postMessage() splits it into
+	// RendererCore::hostFrozen() on the main thread and
+	// RendererWork::freeze() on the render thread, which no scope times and
+	// after which every message returns at the stopped check.
 	Message,
 	// RendererWork::tick(), whole.
 	Tick,
@@ -186,8 +194,9 @@ enum class WidgetWorkKind : uint8 {
 };
 
 // One outermost scope of a registered core. Both stamps are crl::profile()
-// (monotonic microseconds, on the main thread): `started` the scope's last
-// act of construction, `finished` the first act of its destruction.
+// (monotonic microseconds, read on the widget render thread; one process
+// clock with the main thread's stamps): `started` the scope's last act of
+// construction, `finished` the first act of its destruction.
 struct WidgetWorkEvent {
 	crl::profile_time started = 0;
 	crl::profile_time finished = 0;
@@ -226,10 +235,13 @@ struct WidgetWorkReading {
 // events and drops, allocates room for |capacity| events at once, so no
 // scope allocates, and stamps `reservedAt`. The first |capacity| scopes to
 // close after it are recorded, every later one only counts in `dropped`.
+// It swaps the new room in under the work lock, allocating before and
+// freeing the old room after it.
 void ReserveWidgetWork(WidgetHostWatch &watch, int capacity);
 
 // Main thread. A copy of |watch|'s work log, its events limited to those
-// whose `finished` is at or after |since|.
+// whose `finished` is at or after |since|, and the count of its registered
+// cores, both taken under one hold of the work lock.
 [[nodiscard]] WidgetWorkReading ReadWidgetWork(
 	const WidgetHostWatch &watch,
 	crl::profile_time since = 0);
@@ -238,13 +250,19 @@ void ReserveWidgetWork(WidgetHostWatch &watch, int capacity);
 // the start of the timed part, guarded by the harness condition:
 //     const auto workScope = Test::WidgetWorkScope(_chat.get(), kind);
 // (non-const in raster(), which also gives displayList() and replayed()).
-// |core| is the worker's RendererCore, the address WatchWidgetHost()
-// registered; the worker's own address is never registered.
+// |core| is the worker's RendererCore as its base::weak_ptr _chat gives it:
+// the address WatchWidgetHost() registered while that core lives, null once
+// it is gone, and a null |core| records nothing and takes no lock. The
+// worker's own address is never registered.
 // It records one event from its construction to its destruction into the
 // log of the watch whose WatchWidgetHost() attachment registered |core|,
 // unless another scope of that watch is open around it, whose event
 // already holds its time. For any other core it only compares |core| with
-// the registered addresses; |core| is never dereferenced. Main thread only.
+// the registered addresses; |core| is never dereferenced.
+// Widget render thread, where every RendererWork runs. The lookup in the
+// constructor and the append in the destructor take the work lock that
+// registration, reservation and reading take on the main thread; the timed
+// part between them holds no lock, and neither stamp includes a wait for it.
 // No retained product code creates one.
 class WidgetWorkScope final {
 public:

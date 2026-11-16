@@ -147,8 +147,10 @@ screen choice and stay-on-top hint.
   `RendererCore::apply()` takes: only then do the core's `stopped()`,
   `stopReason()` and `stopFatal()` read it and the runtime retire, so the
   reading stays empty until that answer arrives. A host's `frozen` is
-  latched by `RendererCore::hostMessage()` at once, but its stop, too, is
-  published only by the posted answer. Such a stop reaches no host death:
+  latched by `RendererCore::hostFrozen()` as soon as the host link's post
+  of it to the main thread runs (`HostLink::postMessage()` also posts
+  `RendererWork::freeze()` to the widget render thread), but its stop, too,
+  is published only by the posted answer. Such a stop reaches no host death:
   the host watch's `dead` stays null, or reads `terminated` once the
   retired host is destroyed ([test_widget_host](test_widget_host.md)).
   The identity is the caller's: `core` is `WidgetHostSample::core` of the

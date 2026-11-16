@@ -114,11 +114,11 @@ Use something else when:
   microseconds, the clock of [test_widget_host](test_widget_host.md)'s
   stamps) taken on the host thread when the host handed the batch to the
   tap, before the tap parsed it. That is before the renderer applies the
-  batch on the main thread, and it is not the widget's own `t`. The list
-  keeps the first `kWidgetStressValuesLimit` (4096) values, about 34
-  minutes of the kit's 500 ms publications; each later value only counts in
-  `stressDropped`, and a nonzero `stressDropped` makes the list incomplete,
-  never silently shortened.
+  batch on the widget render thread, and it is not the widget's own `t`.
+  The list keeps the first `kWidgetStressValuesLimit` (4096) values, about
+  34 minutes of the kit's 500 ms publications; each later value only counts
+  in `stressDropped`, and a nonzero `stressDropped` makes the list
+  incomplete, never silently shortened.
 - **Batch counts are the newest host's.** `batches`, `ops` and
   `maxBatchOps` count every `ops` message with an `ops` array that the
   newest host sent, with or without a result attribute, from its selection
@@ -341,9 +341,10 @@ runtime log to cover every host.
   scans first and then forwards the very same string, and `setTheme()`
   records the scheme first and then forwards it. Renderer callbacks are
   forwarded on whatever thread the product renderer calls them from
-  (`HostLink` calls them on main, under its own mutex), reading the tap's own
-  `onMessage` / `onDiag` at call time, because `WidgetHost` assigns those
-  after the factory returned.
+  (`HostLink` calls them on the widget render thread, where
+  `Tgw::RendererWork` forwards its answers, under its own mutex), reading
+  the tap's own `onMessage` / `onDiag` at call time, because `WidgetHost`
+  assigns those after the factory returned.
 - The tap's record is one mutex shared by those threads. Parsing and scanning
   happen outside it, and nothing calls out while holding it, so the lock order
   `HostLink` mutex, then tap mutex, has no reverse path.

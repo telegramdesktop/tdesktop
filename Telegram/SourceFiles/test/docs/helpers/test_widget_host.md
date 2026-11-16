@@ -21,9 +21,12 @@ validated-ops tap sees only what reaches the renderer.
 
 The watch also times the renderer's own work on that host's widget: a
 disposable overlay puts a `WidgetWorkScope` into three calls of the core's
-worker, `Tgw::RendererWork`, each given its `Tgw::RendererCore`'s address,
-and each scope of the core the watch's attachment registered records one
-event into the watch's work log ([Renderer work](#renderer-work)).
+worker, `Tgw::RendererWork`, which runs on the widget render thread
+(`widget.render`, one thread for every widget's worker), each given its
+`Tgw::RendererCore`'s address, and each scope of the core the watch's
+attachment registered records one event into the watch's work log, which
+the main thread reserves and reads under the lock the scopes take
+([Renderer work](#renderer-work)).
 
 Callers: the widget fixture arms a watch for a record whose `watchHost` is
 set ([test_widget_fixture](test_widget_fixture.md)). Its consumers are the
@@ -242,10 +245,12 @@ compiles in both harness configurations and nowhere else:
 - `#include "test/test_widget_host.h"`;
 - `RendererWork::hostMessage()`: right after the stopped and `requestFrame`
   returns, `const auto workScope = Test::WidgetWorkScope(_chat.get(),
-  Test::WidgetWorkKind::Message);`. A `frozen` never gets there:
-  `RendererCore::hostMessage()` latches it, hands its reason to
-  `RendererWork::freeze()`, which no scope times, and drops every later
-  message;
+  Test::WidgetWorkKind::Message);`. A `frozen` never gets there: the host
+  thread's `HostLink::postMessage()` splits it into a main-thread post to
+  `RendererCore::hostFrozen()`, which latches it in the chat's half, and a
+  render-thread post to `RendererWork::freeze()`, which no scope times and
+  which stops the worker, so every later message returns at the stopped
+  check;
 - `RendererWork::tick()`: at entry, the same with `WidgetWorkKind::Tick`;
 - `RendererWork::raster()`: right after the unchanged-picture
   `return std::nullopt;` under "A released core shows its last picture",
@@ -267,18 +272,29 @@ compiles in both harness configurations and nowhere else:
   it in `_frame`, so `!_frame.isNull()` would count that refusal as a
   replay.
 
-Every scope gets `_chat.get()`, the `RendererCore` that owns the worker:
+Every scope gets `_chat.get()`, the `RendererCore` whose worker it is:
 `WatchWidgetHost()` registers that address, and the worker's own `this`, a
 different object, is never registered, so a scope given it records nothing.
+`_chat` is a `base::weak_ptr` the core made on the main thread, and `get()`
+reads it atomically on the render thread: while the core lives it is the
+registered address, and once the core is destroyed it is null, so a scope
+opened after that records nothing and takes no lock (the worker's `gone`
+checks leave few such calls before the render thread destroys it). A
+scope already open when its core is destroyed on the main thread keeps
+its log and lands its event; the address is only compared, never
+dereferenced.
 Without the overlay a registered core records nothing, so an empty log for
 a widget whose content changes is a missing overlay: an invalid
 measurement, never zero renderer work.
 
 ### What the events include
 
-All three run on the main thread, from the scope's construction to its
-destruction, and none inside the chat list's paint
-([The delivery to the chat](#the-delivery-to-the-chat)):
+All three run on the widget render thread, from the scope's construction
+to its destruction: none runs on the main thread, so none inside the chat
+list's paint ([The delivery to the chat](#the-delivery-to-the-chat)). The
+thread runs every widget's worker in one queue, so an event of one widget
+never overlaps another widget's render-thread work, while the main
+thread's work, and every host and JS thread's, can overlap any event:
 
 - **`Message`**: one host message applied. `beginCanvasBatch()` and
   TwidgetCore's `receive()` (the batch's ops, an `anim` or a query, and,
@@ -288,16 +304,21 @@ destruction, and none inside the chat list's paint
   clock refresh and `post()`, which adds the message's changes, if any, to
   the next work turn and posts that turn unless one is posted already. The
   message's JSON parse on the host thread (`HostRenderer::send()`), its
-  `crl::on_main` hop and `RendererCore::hostMessage()`'s `frozen` check come
+  post from there straight to the render thread (`HostLink::postMessage()`
+  through `PostToRenderThread()`, no main-thread hop) and, there, the host
+  link's `closed` and `gone` checks and the worker's lookup by id come
   before it; the chat's handling of its changes comes later.
 - **`Tick`**: the whole `RendererWork::tick()`, run by `step()` on the
-  app's animation timer, by `wake()` or by `releaseHeld()`: TwidgetCore's
+  worker's own frame timer (a `base::Timer` on the render thread at lib_ui's
+  animation cadence, `kHeldTick`, 8 ms, not lib_ui's main-thread animation
+  manager), by `wake()` or by `releaseHeld()`: TwidgetCore's
   `tick()` (its timers, animations and a build a due frame deferred),
   forwarding its output and the `frame` message that answers the widget's
   `requestAnimationFrame`, and posting its changes to the work turn.
 - **`Frame`**: one raster attempt past the unchanged-picture return, on a
-  work turn (`RendererWork::work()`, which `schedule()` posts with
-  `crl::on_main`). `paint()` (the settle: style, layout and the display
+  work turn (`RendererWork::work()`, which `schedule()` posts to the
+  render thread with `PostToRenderThread()`, guarded by the worker's
+  lifetime). `paint()` (the settle: style, layout and the display
   list, or its reuse), the replay (`PaintFrame()`, the QPainter replay
   into an ARGB32 image on the CPU, then `RoundFrame()`; or the partial
   `repaintFrame()` of the damaged area into the worker's canvas), after a
@@ -320,11 +341,14 @@ destruction, and none inside the chat list's paint
 Not included: the chat list's own painting around the card and its
 `drawImage()` of the held picture, `RendererCore::apply()` and the chat's
 handling of each answer, the window's backing-store flush (BitBlt) and DWM
-composition, `hostTheme()`, `hostLoaded()`, `freeze()`, input forwarding,
-the rest of a work turn (the deferred detach cleanup `finishDetach()`, the
-size request's `set_width()` and `set_max_height()` with the rebuild a
-changed value starts, and the answer's post), every early return named
-above (an unchanged picture's `raster()` included), any host-thread or
+composition, `hostTheme()`, `hostLoaded()`, `freeze()` and
+`RendererCore::hostFrozen()`, input forwarding (the chat's posts and the
+worker's input calls), the rest of a work turn (the deferred detach cleanup
+`finishDetach()`, the size request's `set_width()` and `set_max_height()`
+with the rebuild a changed value starts, and the answer's post), every
+early return named above (an unchanged picture's `raster()` included), the
+time a posted call, message or turn waits in the render thread's queue
+behind its own widget's or other widgets' work, any host-thread or
 JS-thread work (`stats.jsMs`, the ops tap's parse and scan) and other
 widgets' cores.
 
@@ -334,39 +358,51 @@ The worker's results reach the chat at one posted delivery, outside every
 event. A work turn applies the pending size request, rasters when wanted
 and sends one `RendererAnswer` (a layout pairing the height with its
 picture, the content and load state, a stop) through
-`RendererWork::deliver()`, another `crl::on_main` hop, to
-`RendererCore::apply()`. That call publishes the chat's height, held
-picture and state and fires `updates()`, whose handlers,
-`Tgw::Runtime::coreUpdated()`, `stillUpdated()` or `coreStopped()`, make
-the repaint or resize request, the height memory and any retirement there.
-What a message or a tick changes thus reaches the chat at the earliest two
-posted hops after its event (its work turn, then the delivery), a `Frame`
+`RendererWork::deliver()`, a `crl::on_main` hop from the render thread to
+the main thread, guarded by the core's `base::weak_ptr` so that a gone
+core gets nothing, to `RendererCore::apply()`. That call publishes the
+chat's height, held picture and state and fires `updates()`, whose
+handlers, `Tgw::Runtime::coreUpdated()`, `stillUpdated()` or
+`coreStopped()`, make the repaint or resize request, the height memory and
+any retirement there. What a message or a tick changes thus reaches the
+chat at the earliest two posted hops after its event (its work turn, in the
+render thread's queue, then the delivery, in the main thread's), a `Frame`
 event's picture one hop after it, and only a later list paint draws it.
 
 The chat list's paint draws the picture `RendererCore::frame()` selects
 from what was delivered. Its calls into the core (`frame()`'s demand and
-drawn notices, `setCut()`, a size request, a retirement's detach) only
-store values and post the work turn, and a detach leaves its renderer
-cleanup to that turn's `finishDetach()`, so no scope runs inside a list
-paint and a list paint's time holds no renderer work. A reading that pairs
-events with list paints must use their stamps, not nesting.
+drawn notices, `setCut()`, a size request, a retirement's detach) each post
+a call to the render thread, where the worker only stores the value and
+posts its work turn, and a detach leaves its renderer cleanup to that
+turn's `finishDetach()`, so no scope runs inside a list paint and a list
+paint's time holds no renderer work. The two run on different threads and
+can overlap in time: a reading that pairs events with list paints must use
+their stamps, not nesting.
 
 Overhead: an event runs from the constructor's last act, its clock read, to
 the destructor's first, so it holds about one `crl::profile()` read
-(QueryPerformanceCounter) and the registry lookup of any scope nested in it.
-The lookup and the log reference copy before the start and the append after
-the end are outside every event but are main-thread time the app's frames
-see. A scope of a core nobody registered costs a walk of the registered
-addresses, none while nothing is registered.
+(QueryPerformanceCounter on Windows, `mach_absolute_time()` on macOS) and
+the locked lookup of any scope nested in it. The lookup and the log
+reference copy before the start and the append after the end, each under
+the work lock, are outside every event but are render-thread time that
+every widget's work shares. The main thread holds that lock only for a
+registration change, a reservation's swap and a reading's copy, so a
+scope's wait for it lies outside its event and is short, unless it meets
+the copy of a long log (read once a level, after its window). A scope
+given a null core returns at once; one of a core nobody registered costs
+the lock and a walk of the registered addresses, an empty walk while
+nothing is registered.
 
 ### Registration, nesting and storage
 
 - **Which core.** `WatchWidgetHost()` of an armed watch (so only with an
   active harness) registers the `core` address it got, for its attachment's
   index in `hosts`; scopes compare the `core` they were given (the
-  worker's `_chat`) with the registered addresses and never dereference
-  either. `DisarmWidgetHostWatch()` unregisters every core of the watch.
-  An address belongs to one live core, so a newer attachment of the same
+  worker's `_chat.get()`, null once that core is gone) with the registered
+  addresses and never dereference either. `DisarmWidgetHostWatch()`
+  unregisters every core of the watch; a scope already open on the render
+  thread at that moment still lands its event in the log it holds. An
+  address belongs to one live core, so a newer attachment of the same
   address, by any watch, replaces an older registration.
 - **Replaced hosts and address reuse.** Each event carries its attachment's
   `host` index, so a second host's work is never merged silently, and a
@@ -378,25 +414,31 @@ addresses, none while nothing is registered.
   alive at a time.
 - **Nesting.** Only the outermost open scope of a watch records; one opened
   inside it is inert, its time already in the outer event, so no work is
-  counted twice. Scopes of different watches record independently.
+  counted twice. Every scope runs on the one render thread, so the
+  outermost is the call stack's. Scopes of different watches record
+  independently.
 - **Storage.** `ReserveWidgetWork(watch, capacity)` starts the log over for
   one level: it forgets earlier events and drops, allocates room for
   `capacity` events at once, so recording never allocates, and stamps
-  `reservedAt`. The first `capacity` events to close after it are kept;
-  each later one only counts in `dropped`, and a nonzero `dropped` makes the
-  level invalid. Before the first reservation the capacity is 0 and every
-  event is dropped. Size the capacity for the whole period the level reads:
-  the app's animation tick runs every 8 ms (about 125 ticks a second), and
-  messages and rebuilt frames come at most about as often, so 65536 events
-  (2 MiB at 32 bytes each) cover more than two minutes at that pace.
-- **Reading.** `ReadWidgetWork(watch, since)` copies the events whose
-  `finished` is at or after `since`, in the order they finished: with one
-  open scope per watch at a time, `finished` never decreases.
+  `reservedAt`; it allocates the new room before taking the work lock,
+  swaps it in under the lock and frees the old room after it. The first
+  `capacity` events to close after it are kept; each later one only counts
+  in `dropped`, and a nonzero `dropped` makes the level invalid. Before the
+  first reservation the capacity is 0 and every event is dropped. Size the
+  capacity for the whole period the level reads: the worker's frame timer
+  ticks every 8 ms, lib_ui's animation cadence (about 125 ticks a second),
+  and messages and rebuilt frames come at most about as often, so 65536
+  events (2 MiB at 32 bytes each) cover more than two minutes at that pace.
+- **Reading.** `ReadWidgetWork(watch, since)` copies, under the work lock,
+  the events whose `finished` is at or after `since`, in the order they
+  finished, and counts the watch's registered cores in the same hold: with
+  one open scope per watch at a time, all on the render thread, `finished`
+  never decreases.
 
 | `WidgetWorkEvent` field | Meaning |
 | --- | --- |
 | `kind` | `Message`, `Tick` or `Frame`, by the scope's place. |
-| `started`, `finished` | `crl::profile()` microseconds at the scope's construction and destruction. |
+| `started`, `finished` | `crl::profile()` microseconds at the scope's construction and destruction, read on the render thread with the process clock of the main thread's stamps. |
 | `displayList` | The display list size a `Frame` scope was given; -1 otherwise. |
 | `replayed` | A `Frame` scope whose `PaintFrame()` returned an image, or whose partial repaint painted where the overlay instruments it; never the retained canvas or held picture. False for an attempt that returned before the replay, for one the paint bounds refused, and for every other kind. |
 | `host` | The index in `WidgetHostReading::hosts` of the attachment that registered the core. |
@@ -461,22 +503,33 @@ addresses, none while nothing is registered.
   come at most about five times a second, plus each log, diag, load and death.
   It is host-thread work, not JS or main-thread work, and a measurement
   discloses it.
-- The work registry, each work log and every scope are main-thread only,
-  with no lock: registration in `WatchWidgetHost()`, unregistration in
-  `DisarmWidgetHostWatch()`, `ReserveWidgetWork()`, `ReadWidgetWork()` and
-  the `RendererWork` calls that hold the scopes all run there. A scope keeps
-  a reference to its log, so a disarm or a released watch while it is open
-  cannot leave it writing freed memory; its event still lands in that log.
+- The work registry and every work log share one mutex, the work lock.
+  Registration in `WatchWidgetHost()`, unregistration in
+  `DisarmWidgetHostWatch()`, `ReserveWidgetWork()` and `ReadWidgetWork()`
+  take it on the main thread. The scopes, in `RendererWork` calls on the
+  widget render thread, take it for their lookup and their append only,
+  never across the timed work, and `displayList()` and `replayed()` touch
+  only the scope. No other harness or product lock is taken while it is
+  held, so it has no lock order to keep. The lock and the registry are
+  never destroyed: a render thread that `Tgw::Runtime::Finish()`'s bounded
+  join left running at quit cannot meet them destroyed by static
+  destructors.
+- A scope keeps a reference to its log (a `std::shared_ptr`, its count
+  atomic), so a disarm or a released watch on the main thread while the
+  scope is open on the render thread cannot leave it writing freed memory;
+  its event still lands in that log, and whichever thread drops the last
+  reference frees it.
 
 ## Lifetime and cleanup
 
 `ArmWidgetHostWatch()` returns a shared watch that the armed map keeps until
 `DisarmWidgetHostWatch()`; keep the caller's copy (the fixture's
 `WidgetFixtureMessage::host`) until its last reading. Disarming stops later
-constructions and unregisters the watch's cores, so their scopes record
-nothing more; hosts already attached keep merging into their records until
-they are destroyed. A work log keeps its reserved room until the watch is
-released. The fixture disarms in `RemoveFixtureMessage()` and
+constructions and unregisters the watch's cores, so their scopes opened
+after it record nothing (one open on the render thread at that moment still
+lands its event); hosts already attached keep merging into their records
+until they are destroyed. A work log keeps its reserved room until the
+watch and every scope holding the log are released. The fixture disarms in `RemoveFixtureMessage()` and
 `ReleaseWidgetFixture()`; a direct caller disarms on its `Runner::onFinish`
 path. Nothing is written to the account, the disk or the clipboard.
 
@@ -497,7 +550,11 @@ paint and `updates()` fired inside a message's event. Since
 `2026/11/16/deliver-widget-heights-and-finished-pictures-as-messages` the
 work is `RendererWork`'s, on posted turns; the placement above, its
 `_chat.get()` identity and the partial-repaint line have not been compiled
-or run in an overlay yet.
+or run in an overlay yet. Since
+`2026/11/14/run-the-widget-renderer-on-a-thread-of-its-own` that work runs
+on the widget render thread, `_chat` is a `base::weak_ptr` and the scopes
+share the work lock with the main thread; no overlay has timed the work on
+that thread yet.
 
 Executed by the conformance task
 `2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`,

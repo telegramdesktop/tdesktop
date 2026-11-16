@@ -58,8 +58,9 @@ struct HostRecord {
 
 } // namespace
 
-// Main thread only: written by the scopes of the watch's registered cores,
-// reserved and read by its consumer.
+// Every field is under WorkMutex(): written by the scopes of the watch's
+// registered cores on the widget render thread, reserved and read by its
+// consumer on the main thread.
 class WidgetWorkLog final {
 public:
 	std::vector<WidgetWorkEvent> events;
@@ -82,7 +83,8 @@ public:
 
 	[[nodiscard]] WidgetHostReading read() const;
 
-	// Main thread.
+	// Main thread, each taking WorkMutex() for its access to the log or the
+	// registry.
 	void reserveWork(int capacity);
 	[[nodiscard]] WidgetWorkReading readWork(crl::profile_time since) const;
 	void unregisterWork();
@@ -106,15 +108,26 @@ using ArmedMap = std::map<GlobalMsgId, std::shared_ptr<WidgetHostWatch>>;
 }
 
 // A core whose scopes record into |log|, for the attachment |host| of the
-// watch that owns it. Main thread only.
+// watch that owns it. Under WorkMutex(): changed on the main thread, looked
+// up by the scopes on the widget render thread.
 struct WorkRegistration {
 	const void *core = nullptr;
 	std::shared_ptr<WidgetWorkLog> log;
 	int host = 0;
 };
 
+// The one lock of the work registry and of every work log. It is held only
+// for a scope's lookup or append, a registration change, a reservation or a
+// reading's copy, never across timed work. Like the registry it is never
+// destroyed: a render thread that the bounded join at quit left running may
+// still close a scope while static destructors run.
+[[nodiscard]] std::mutex &WorkMutex() {
+	static auto &result = *new std::mutex();
+	return result;
+}
+
 [[nodiscard]] std::vector<WorkRegistration> &WorkRegistrations() {
-	static auto result = std::vector<WorkRegistration>();
+	static auto &result = *new std::vector<WorkRegistration>();
 	return result;
 }
 
@@ -122,6 +135,7 @@ void RegisterWork(
 		const void *core,
 		const std::shared_ptr<WidgetWorkLog> &log,
 		int host) {
+	const auto lock = std::lock_guard(WorkMutex());
 	auto &list = WorkRegistrations();
 	// A live core owns its address: an older registration names a dead one.
 	std::erase_if(list, [&](const WorkRegistration &registration) {
@@ -131,12 +145,14 @@ void RegisterWork(
 }
 
 void UnregisterWork(const WidgetWorkLog *log) {
+	const auto lock = std::lock_guard(WorkMutex());
 	std::erase_if(WorkRegistrations(), [&](
 			const WorkRegistration &registration) {
 		return (registration.log.get() == log);
 	});
 }
 
+// Under WorkMutex(), which its caller holds for the whole reading.
 [[nodiscard]] int RegisteredWork(const WidgetWorkLog *log) {
 	const auto &list = WorkRegistrations();
 	return int(std::count_if(list.begin(), list.end(), [&](
@@ -314,15 +330,19 @@ WidgetHostReading WidgetHostWatch::read() const {
 }
 
 void WidgetHostWatch::reserveWork(int capacity) {
+	// The room is allocated before the lock and the old one freed after it.
+	auto events = std::vector<WidgetWorkEvent>();
+	events.reserve(std::max(capacity, 0));
+	const auto lock = std::lock_guard(WorkMutex());
 	auto &log = *_work;
+	std::swap(log.events, events);
 	log.capacity = std::max(capacity, 0);
-	log.events.clear();
-	log.events.reserve(log.capacity);
 	log.dropped = 0;
 	log.reservedAt = crl::profile();
 }
 
 WidgetWorkReading WidgetHostWatch::readWork(crl::profile_time since) const {
+	const auto lock = std::lock_guard(WorkMutex());
 	const auto &log = *_work;
 	const auto before = [&](const WidgetWorkEvent &event) {
 		return (event.finished < since);
@@ -346,16 +366,24 @@ void WidgetHostWatch::unregisterWork() {
 
 WidgetWorkScope::WidgetWorkScope(const void *core, WidgetWorkKind kind)
 : _kind(kind) {
-	for (const auto &registration : WorkRegistrations()) {
-		if (registration.core == core) {
-			if (!registration.log->open) {
-				registration.log->open = true;
-				_log = registration.log;
-				_host = registration.host;
-				_started = crl::profile();
+	if (!core) {
+		return;
+	}
+	{
+		const auto lock = std::lock_guard(WorkMutex());
+		for (const auto &registration : WorkRegistrations()) {
+			if (registration.core == core) {
+				if (!registration.log->open) {
+					registration.log->open = true;
+					_log = registration.log;
+					_host = registration.host;
+				}
+				break;
 			}
-			return;
 		}
+	}
+	if (_log) {
+		_started = crl::profile();
 	}
 }
 
@@ -364,6 +392,7 @@ WidgetWorkScope::~WidgetWorkScope() {
 		return;
 	}
 	const auto finished = crl::profile();
+	const auto lock = std::lock_guard(WorkMutex());
 	auto &log = *_log;
 	log.open = false;
 	if (int(log.events.size()) < log.capacity) {
