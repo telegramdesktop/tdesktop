@@ -1218,9 +1218,9 @@ void Stories::finish(not_null<Upload*> upload, StoryId id) {
 	auto sent = base::take(upload->story.sent);
 	upload->story.failed = nullptr;
 	auto expiresAt = TimeId(0);
-	if (sent && !edit) {
+	if (sent) {
 		if (const auto story = _session->data().stories().lookup(
-				{ peer->id, id })) {
+				{ peer->id, edit ? upload->story.editId : id })) {
 			expiresAt = (*story)->expires();
 		}
 	}
