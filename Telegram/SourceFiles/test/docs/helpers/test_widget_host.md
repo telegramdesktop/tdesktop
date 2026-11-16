@@ -20,9 +20,10 @@ Nothing else gives these: `WidgetHost` keeps its options private,
 validated-ops tap sees only what reaches the renderer.
 
 The watch also times the renderer's own work on that host's widget: a
-disposable overlay puts a `WidgetWorkScope` into three `Tgw::RendererCore`
-calls, and each scope of the core the watch's attachment registered records
-one event into the watch's work log ([Renderer work](#renderer-work)).
+disposable overlay puts a `WidgetWorkScope` into three calls of the core's
+worker, `Tgw::RendererWork`, each given its `Tgw::RendererCore`'s address,
+and each scope of the core the watch's attachment registered records one
+event into the watch's work log ([Renderer work](#renderer-work)).
 
 Callers: the widget fixture arms a watch for a record whose `watchHost` is
 set ([test_widget_fixture](test_widget_fixture.md)). Its consumers are the
@@ -93,12 +94,13 @@ Use something else when:
   more change: read the widget's own death before the removal; `terminated`
   after it is the destruction. `dead` comes only from the host's
   `WidgetDiagnostics::dead`. A stop the desktop decides itself, such as a
-  paint bound's refusal of the widget's frames, stops the `RendererCore`
-  and retires the runtime without the host: the watch keeps `dead` null,
-  or `terminated` with that destruction's `diedAtMs` once the retired host
-  is destroyed. The runners read such a stop with the fixture's
-  `WidgetDesktopStop()` ([test_widget_fixture](test_widget_fixture.md)),
-  never from this record.
+  paint bound's refusal of the widget's frames (found in
+  `RendererWork::raster()` on a work turn, published to the chat by its
+  posted answer), stops the `RendererCore` and retires the runtime without
+  the host: the watch keeps `dead` null, or `terminated` with that
+  destruction's `diedAtMs` once the retired host is destroyed. The runners
+  read such a stop with the fixture's `WidgetDesktopStop()`
+  ([test_widget_fixture](test_widget_fixture.md)), never from this record.
 - **Logs and diags.** `errors` keeps the first 20 console texts of level
   `error`, verbatim; `errorLogs` counts them all. The host keeps at most 5000
   console entries (`logs`), so later ones reach neither. `diags` is kind to
@@ -223,36 +225,51 @@ Every `...At` stamp is 0 until its event. A reading with more than one
 The renderer's own work on one widget, as the stress kit's
 `packages/stress/CLIENTS.md` ("The renderer's own work") asks an own
 renderer to time it, recorded as raw events; turning them into per-frame
-samples is the consumer's (the stress runner groups each `frame()` attempt
+samples is the consumer's (the stress runner groups each raster attempt
 with the work since the previous one, counts the attempts that replayed
 apart and documents that grouping next to its figures).
 
 ### The overlay
 
-No retained code times anything: `tgw_renderer.cpp` has no scope, counter
-or condition, and without the harness this module defines no
-`WidgetWorkScope` member. A task that measures applies a disposable hunk to
-`tgw/tgw_renderer.cpp`, never commits it and restores the file afterwards.
-Every added line sits inside `#if defined _DEBUG || defined
-TDESKTOP_RELEASE_TEST_HARNESS`, so the hunk compiles in both harness
-configurations and nowhere else:
+No retained code times anything: neither `tgw_renderer_work.cpp` nor
+`tgw_renderer.cpp` has a scope, counter or condition, and without the
+harness this module defines no `WidgetWorkScope` member. A task that
+measures applies a disposable hunk to `tgw/tgw_renderer_work.cpp`, never
+commits it and restores the file afterwards. Every added line sits inside
+`#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS`, so the hunk
+compiles in both harness configurations and nowhere else:
 
 - `#include "test/test_widget_host.h"`;
-- `RendererCore::hostMessage()`: right after the stopped, `requestFrame` and
-  `frozen` returns, `const auto workScope = Test::WidgetWorkScope(this,
-  Test::WidgetWorkKind::Message);`;
-- `RendererCore::tick()`: at entry, the same with `WidgetWorkKind::Tick`;
-- `RendererCore::frame()`: right after the cached-frame `return _frame;`,
-  `auto workScope = Test::WidgetWorkScope(this, Test::WidgetWorkKind::Frame);`,
-  right after `const auto list = _renderer->paint();`,
+- `RendererWork::hostMessage()`: right after the stopped and `requestFrame`
+  returns, `const auto workScope = Test::WidgetWorkScope(_chat.get(),
+  Test::WidgetWorkKind::Message);`. A `frozen` never gets there:
+  `RendererCore::hostMessage()` latches it, hands its reason to
+  `RendererWork::freeze()`, which no scope times, and drops every later
+  message;
+- `RendererWork::tick()`: at entry, the same with `WidgetWorkKind::Tick`;
+- `RendererWork::raster()`: right after the unchanged-picture
+  `return std::nullopt;` under "A released core shows its last picture",
+  `auto workScope = Test::WidgetWorkScope(_chat.get(),
+  Test::WidgetWorkKind::Frame);`, right after
+  `const auto list = _renderer->paint();`,
   `workScope.displayList(list.size());`, and right after
   `auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());`,
-  `workScope.replayed(!painted.image.isNull());`. The flag reads the image
-  this attempt's replay produced, before it is moved into `_frame`, never
-  the retained `_frame`: a frame the paint bounds refuse keeps the card's
-  last picture that fits it in `_frame`, so `!_frame.isNull()` would count
-  that refusal as a replay.
+  `workScope.replayed(!painted.image.isNull());`. To count a partial
+  repaint as a replay as well, right after
+  `auto limit = area ? repaintFrame(list, *area, corners, card) : std::nullopt;`,
+  `if (limit) { workScope.replayed(!area->isEmpty() && limit->isEmpty()); }`:
+  an empty limit is a painted damage area, a nonempty one a refusal that
+  restored the canvas, and no limit falls through to `PaintFrame()`.
+  Without that line a partial repaint reads `replayed` false. The flag
+  reads what this attempt's replay produced, before it is moved into the
+  worker's canvas `_frame`, never that canvas or the chat's held picture:
+  a frame the paint bounds refuse keeps the card's last picture that fits
+  it in `_frame`, so `!_frame.isNull()` would count that refusal as a
+  replay.
 
+Every scope gets `_chat.get()`, the `RendererCore` that owns the worker:
+`WatchWidgetHost()` registers that address, and the worker's own `this`, a
+different object, is never registered, so a scope given it records nothing.
 Without the overlay a registered core records nothing, so an empty log for
 a widget whose content changes is a missing overlay: an invalid
 measurement, never zero renderer work.
@@ -260,39 +277,79 @@ measurement, never zero renderer work.
 ### What the events include
 
 All three run on the main thread, from the scope's construction to its
-destruction:
+destruction, and none inside the chat list's paint
+([The delivery to the chat](#the-delivery-to-the-chat)):
 
 - **`Message`**: one host message applied. `beginCanvasBatch()` and
   TwidgetCore's `receive()` (the batch's ops, an `anim` or a query, and,
   when no frame is due, the settle it starts at once: style, layout and the
   display list), the settled viewport answer on the load, then `finish()`:
   forwarding the answers to the host link (a post to the host thread), the
-  clock refresh and the synchronous `updates()` handler,
-  `Tgw::Runtime::coreUpdated()`, whose repaint or resize request and height
-  memory are therefore included. The message's JSON parse on the host
-  thread (`HostRenderer::send()`) and its `crl::on_main` hop come before it.
-- **`Tick`**: the whole `RendererCore::tick()`, run by `step()` on the
-  app's animation timer or by `wake()`: TwidgetCore's `tick()` (its timers,
-  animations and a build a due frame deferred), forwarding its output and
-  the `frame` message that answers the widget's `requestAnimationFrame`,
-  and posting the change notice.
-- **`Frame`**: one attempt at a picture past the cache, while the chat list
-  paints. `paint()` (the settle: style, layout and the display list, or its
-  reuse), `PaintFrame()` (the QPainter replay into an ARGB32 image on the
-  CPU), `RoundFrame()` and, after a settle, `flushQueued()`. A size the list
-  has not laid out yet runs `paint()` and keeps the earlier picture without
-  a replay; that call is a `Frame` event too, with `replayed` false, while
-  an attempt whose `PaintFrame()` returned an image has `replayed` true.
-  One the paint bounds refused returned none, so it is `replayed` false,
-  whatever picture the card keeps.
-  `displayList` is the size of the list `paint()` returned.
+  clock refresh and `post()`, which adds the message's changes, if any, to
+  the next work turn and posts that turn unless one is posted already. The
+  message's JSON parse on the host thread (`HostRenderer::send()`), its
+  `crl::on_main` hop and `RendererCore::hostMessage()`'s `frozen` check come
+  before it; the chat's handling of its changes comes later.
+- **`Tick`**: the whole `RendererWork::tick()`, run by `step()` on the
+  app's animation timer, by `wake()` or by `releaseHeld()`: TwidgetCore's
+  `tick()` (its timers, animations and a build a due frame deferred),
+  forwarding its output and the `frame` message that answers the widget's
+  `requestAnimationFrame`, and posting its changes to the work turn.
+- **`Frame`**: one raster attempt past the unchanged-picture return, on a
+  work turn (`RendererWork::work()`, which `schedule()` posts with
+  `crl::on_main`). `paint()` (the settle: style, layout and the display
+  list, or its reuse), the replay (`PaintFrame()`, the QPainter replay
+  into an ARGB32 image on the CPU, then `RoundFrame()`; or the partial
+  `repaintFrame()` of the damaged area into the worker's canvas), after a
+  settle `flushQueued()`, and `completed()`, which pairs the canvas with
+  the settled height as the answer's layout (a shared `QImage`, no pixel
+  copy; while the chat holds that picture, the next partial repaint first
+  detaches the canvas from it, a whole-canvas copy inside that later
+  event). A size the list has not laid out yet (a `FitsCard()` refusal)
+  runs `paint()` and keeps the earlier canvas without a replay; that call
+  is a `Frame` event too, with `replayed` false, while an attempt whose
+  `PaintFrame()` returned an image has `replayed` true, as has one whose
+  partial repaint painted when the overlay instruments that path. One the
+  paint bounds refused returned none, so it is `replayed` false, whatever
+  picture the card keeps. `displayList` is the size of the list `paint()`
+  returned. A work turn rasters (`rasterWanted()`) a loaded core with a
+  card cut on a draw's demand (`RendererCore::frame()` held no picture for
+  the card, a refresh or a changed cut) or, live on screen, unless its
+  last delivered picture is still undrawn; a kept core only on demand.
 
 Not included: the chat list's own painting around the card and its
-`drawImage()` of the returned picture, the window's backing-store flush
-(BitBlt) and DWM composition, `hostTheme()`, `hostLoaded()`, input
-forwarding, every early return named above (a cached `frame()` included),
-any host-thread or JS-thread work (`stats.jsMs`, the ops tap's parse and
-scan) and other widgets' cores.
+`drawImage()` of the held picture, `RendererCore::apply()` and the chat's
+handling of each answer, the window's backing-store flush (BitBlt) and DWM
+composition, `hostTheme()`, `hostLoaded()`, `freeze()`, input forwarding,
+the rest of a work turn (the deferred detach cleanup `finishDetach()`, the
+size request's `set_width()` and `set_max_height()` with the rebuild a
+changed value starts, and the answer's post), every early return named
+above (an unchanged picture's `raster()` included), any host-thread or
+JS-thread work (`stats.jsMs`, the ops tap's parse and scan) and other
+widgets' cores.
+
+### The delivery to the chat
+
+The worker's results reach the chat at one posted delivery, outside every
+event. A work turn applies the pending size request, rasters when wanted
+and sends one `RendererAnswer` (a layout pairing the height with its
+picture, the content and load state, a stop) through
+`RendererWork::deliver()`, another `crl::on_main` hop, to
+`RendererCore::apply()`. That call publishes the chat's height, held
+picture and state and fires `updates()`, whose handlers,
+`Tgw::Runtime::coreUpdated()`, `stillUpdated()` or `coreStopped()`, make
+the repaint or resize request, the height memory and any retirement there.
+What a message or a tick changes thus reaches the chat at the earliest two
+posted hops after its event (its work turn, then the delivery), a `Frame`
+event's picture one hop after it, and only a later list paint draws it.
+
+The chat list's paint draws the picture `RendererCore::frame()` selects
+from what was delivered. Its calls into the core (`frame()`'s demand and
+drawn notices, `setCut()`, a size request, a retirement's detach) only
+store values and post the work turn, and a detach leaves its renderer
+cleanup to that turn's `finishDetach()`, so no scope runs inside a list
+paint and a list paint's time holds no renderer work. A reading that pairs
+events with list paints must use their stamps, not nesting.
 
 Overhead: an event runs from the constructor's last act, its clock read, to
 the destructor's first, so it holds about one `crl::profile()` read
@@ -306,11 +363,11 @@ addresses, none while nothing is registered.
 
 - **Which core.** `WatchWidgetHost()` of an armed watch (so only with an
   active harness) registers the `core` address it got, for its attachment's
-  index in `hosts`; scopes compare their `this` with the registered
-  addresses and never dereference either. `DisarmWidgetHostWatch()`
-  unregisters every core of the watch. An address belongs to one live core,
-  so a newer attachment of the same address, by any watch, replaces an
-  older registration.
+  index in `hosts`; scopes compare the `core` they were given (the
+  worker's `_chat`) with the registered addresses and never dereference
+  either. `DisarmWidgetHostWatch()` unregisters every core of the watch.
+  An address belongs to one live core, so a newer attachment of the same
+  address, by any watch, replaces an older registration.
 - **Replaced hosts and address reuse.** Each event carries its attachment's
   `host` index, so a second host's work is never merged silently, and a
   single-host consumer refuses a reading with more than one host. A core
@@ -341,7 +398,7 @@ addresses, none while nothing is registered.
 | `kind` | `Message`, `Tick` or `Frame`, by the scope's place. |
 | `started`, `finished` | `crl::profile()` microseconds at the scope's construction and destruction. |
 | `displayList` | The display list size a `Frame` scope was given; -1 otherwise. |
-| `replayed` | A `Frame` scope whose `PaintFrame()` ran and returned an image; false for an attempt that returned before the replay, for one the paint bounds refused, and for every other kind. |
+| `replayed` | A `Frame` scope whose `PaintFrame()` returned an image, or whose partial repaint painted where the overlay instruments it; never the retained canvas or held picture. False for an attempt that returned before the replay, for one the paint bounds refused, and for every other kind. |
 | `host` | The index in `WidgetHostReading::hosts` of the attachment that registered the core. |
 
 | `WidgetWorkReading` field | Meaning |
@@ -407,7 +464,7 @@ addresses, none while nothing is registered.
 - The work registry, each work log and every scope are main-thread only,
   with no lock: registration in `WatchWidgetHost()`, unregistration in
   `DisarmWidgetHostWatch()`, `ReserveWidgetWork()`, `ReadWidgetWork()` and
-  the `RendererCore` calls that hold the scopes all run there. A scope keeps
+  the `RendererWork` calls that hold the scopes all run there. A scope keeps
   a reference to its log, so a disarm or a released watch while it is open
   cannot leave it writing freed memory; its event still lands in that log.
 
@@ -434,7 +491,13 @@ and safe area kept, `loaded` with `loadedMs`, verbatim `dead` with
 yet run in the app, and the stress self-check counts it on synthetic events.
 The overlay line on `PaintFrame()`'s `PaintedFrame` result above is a
 description: the retained tree has no such line, so it compiles only in
-the overlay of a task that applies it.
+the overlay of a task that applies it. Those runs timed the scopes in
+`RendererCore`'s own calls, while `frame()` still rastered inside the list
+paint and `updates()` fired inside a message's event. Since
+`2026/11/16/deliver-widget-heights-and-finished-pictures-as-messages` the
+work is `RendererWork`'s, on posted turns; the placement above, its
+`_chat.get()` identity and the partial-repaint line have not been compiled
+or run in an overlay yet.
 
 Executed by the conformance task
 `2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`,

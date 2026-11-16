@@ -113,7 +113,7 @@ struct StressFrames {
 };
 
 struct StressRenderer {
-	// One per complete group: a frame() attempt's own time plus the message
+	// One per complete group: a raster attempt's own time plus the message
 	// and tick work since the attempt before it, ms, replayed or not.
 	std::vector<double> samples;
 	std::optional<double> msPerFrame;
@@ -121,12 +121,12 @@ struct StressRenderer {
 	std::optional<int64> displayListOps;
 	// The first group in the window, discarded: its work began before.
 	std::optional<double> partialMs;
-	// Message and tick work after the window's last frame() attempt.
+	// Message and tick work after the window's last raster attempt.
 	double trailingMs = 0.;
 	int trailingEvents = 0;
 	// Events that finished inside the window, by kind, and those of
-	// another attachment; the frame() attempts split by whether they
-	// replayed the display list into an image.
+	// another attachment; the raster attempts split by whether they
+	// replayed the display list.
 	int frames = 0;
 	int replayedFrames = 0;
 	int unreplayedFrames = 0;
@@ -650,7 +650,7 @@ namespace {
 }
 
 // ---------------------------------------------------------------------
-// Renderer: the measured core's work, grouped by frame() attempt.
+// Renderer: the measured core's work, grouped by raster attempt.
 
 [[nodiscard]] StressRenderer ComputeRenderer(
 		const WidgetWorkReading &work,
@@ -1385,19 +1385,24 @@ namespace {
 			u"display-performance limit, and \"none\" for a sparse or "
 			u"static load is not a stall. longTaskMs and mainThreadMsPerSec "
 			u"are null: not measured."_q,
-		u"renderer: the work of the measured widget's RendererCore on the "
-			u"main thread, timed by harness scopes: each host message "
-			u"applied (ops, animations, queries), each tick and each timed "
-			u"frame() attempt past its cached-frame return (TwidgetCore's "
-			u"style, layout and display list, then its QPainter replay into "
-			u"an ARGB32 image on the CPU and the rounding), never the "
+		u"renderer: the work of the measured widget's RendererCore, done "
+			u"by its RendererWork on the main thread and timed by harness "
+			u"scopes: each host message applied (ops, animations, queries) "
+			u"up to posting its changes, each tick and each timed raster "
+			u"attempt past its unchanged-picture return, on a posted work "
+			u"turn (TwidgetCore's style, layout and display list, then its "
+			u"QPainter replay into an ARGB32 image on the CPU, or a partial "
+			u"repaint of its damage, and the rounding), never the chat's "
+			u"handling of the delivered answer, the list's paint, the "
 			u"window's flush or other chat painting. An attempt may end "
 			u"before the QPainter replay when the list has not laid out the "
 			u"card's size; desktop.rendererWork.replayedFrames counts the "
-			u"attempts inside the window that painted an image and "
-			u"unreplayedFrames those that did not. A sample is one attempt's "
-			u"own time plus the message and tick work since the attempt "
-			u"before it, replayed or not: work before the window is dropped, "
+			u"attempts inside the window whose own replay painted (a partial "
+			u"repaint only where the timing overlay instruments it), never "
+			u"read from the picture the card keeps, and unreplayedFrames "
+			u"those that did not. A sample is one attempt's own time plus "
+			u"the message and tick work since the attempt before it, "
+			u"replayed or not: work before the window is dropped, "
 			u"the first group in the window is partial and discarded, only "
 			u"complete groups whose attempt finished inside the window "
 			u"count, and the work after the window's last attempt is "

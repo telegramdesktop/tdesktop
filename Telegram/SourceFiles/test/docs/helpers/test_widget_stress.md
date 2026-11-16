@@ -64,7 +64,7 @@ Use something else when:
   under the runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most 3600 s) and
   let the driver merge the launches.
 - **Renderer timing overlay.** The renderer figures need the disposable
-  `tgw_renderer.cpp` hunk of [test_widget_host](test_widget_host.md#the-overlay),
+  `tgw_renderer_work.cpp` hunk of [test_widget_host](test_widget_host.md#the-overlay),
   kept in the campaign's overlay with the scenario and never committed.
   Without it every measured level is a runner error ("no renderer work was
   recorded"), never an all-null success.
@@ -391,7 +391,7 @@ delivered since install) and `stopped` when the ladder stopped.
 | `loaded`, `bootMs` | The host's `loaded` and its own `loadedMs`, from the host's creation. |
 | `dead`, `diedAtMs` | The level's death ([below](#deaths)): the host's first dead reason verbatim, and steady-clock ms from the host's creation to the change that carried it; for a stop the desktop decided itself, `RendererCore`'s stop reason and an estimate of the host clock at the runner's first reading of it. |
 | `frames` | `count` intervals, nearest-rank `p50`/`p95` and `max` of the window's update intervals (above); fewer than two updates give count 0 and nulls. |
-| `renderer` | Complete groups of the measured core's work inside the window: each timed `frame()` attempt's own time plus the message and tick work since the attempt before it; the first group is partial and discarded, trailing work is kept apart. An attempt may end before the QPainter replay when the list has not laid out the card's size; it still closes its group, and `desktop.rendererWork` counts the attempts that painted an image apart. `msPerFrame` the mean, `p95Ms` the nearest rank, `displayListOps` the last sampled attempt's list size; no sample gives nulls. |
+| `renderer` | Complete groups of the measured core's work inside the window: each timed raster attempt's own time (`RendererWork::raster()` past its unchanged-picture return, on a posted work turn outside the list's paint) plus the message and tick work since the attempt before it; the first group is partial and discarded, trailing work is kept apart. An attempt may end before the QPainter replay when the list has not laid out the card's size; it still closes its group, and `desktop.rendererWork` counts apart the attempts whose own replay painted. `msPerFrame` the mean, `p95Ms` the nearest rank, `displayListOps` the last sampled attempt's list size; no sample gives nulls. |
 | `host` | `SandboxStats` deltas of `jsMs`, `queries`, `queryMs` over the snapshots' actual seconds; `throttledTasks` the delta; `opsPerSec` the newest host's validated ops in the window; `maxBatchOps` its largest batch since creation; `nodes` and `memoryBytes` at the end. A counter going backwards is a named error and null. |
 | `widget` | The last `data-stress` value at or before the start (else the first after it) and the last at or before the end: `fps`, `frames` and `jank` differences, `maxGap` the largest published inside the window, `last` the end value. |
 | `errors`, `diags` | The host's first 20 error logs verbatim, then the runner's errors, each `runner: `; diag kind to count. |
@@ -406,9 +406,11 @@ instrument failures are runner errors, never deaths.
 
 A level's death is, in order: the host's own `dead` other than
 `terminated`; a stop the desktop decided itself; then the host's own value,
-`terminated` included. A paint bound's refusal of the widget's frames stops
-its `RendererCore` and retires the runtime without the host, so the host
-watch never carries that stop ([test_widget_host](test_widget_host.md)).
+`terminated` included. A paint bound's refusal of the widget's frames,
+found in `RendererWork::raster()` on a work turn, stops its `RendererCore`
+once the posted answer carrying it reaches the chat, and that retires the
+runtime without the host, so the host watch never carries that stop
+([test_widget_host](test_widget_host.md)).
 The runner reads it with the fixture's `WidgetDesktopStop()` for the
 level's watched core ([test_widget_fixture](test_widget_fixture.md)) and
 latches its first answer with that reading's `crl::profile()`. It reads on
@@ -426,8 +428,9 @@ reading, and `diedAtMs` `loadedMs + (that reading - loadedAt) / 1000` in
 floating point, the host clock at the first reading that saw the stop,
 null without both loading anchors (`loadedMs`, and `loadedAt`, the merge
 that saw `loaded`). That is an estimate, not a measurement of the stop:
-the first reading comes after the stop by the readings' lag (main-thread
-painting, the posted retirement, the gaps between stages), and the merge
+the first reading comes after the stop by the readings' lag (the work
+turn that found it, the posted answer that publishes it and retires the
+runtime, main-thread painting, the gaps between stages), and the merge
 that saw `loaded` after the load by the host callback's. The run file's
 notes say so. A window's
 end takes only a stop seen before its stamp: one first seen later is never
@@ -435,9 +438,10 @@ dated into it, as a host death after the end is not. A host's own reason
 is never replaced, and without a desktop stop a `terminated` stays.
 
 `desktop` of an entry: `measured`, `windowMs`, `updates`, `rendererWork`
-(samples, frames, `replayedFrames` and `unreplayedFrames` (the frame()
-attempts inside the window that replayed the display list into an image,
-and those that returned before it), ticks, messages, foreign,
+(samples, frames, `replayedFrames` and `unreplayedFrames` (the raster
+attempts inside the window whose own replay painted, a partial repaint
+only where the timing overlay instruments it, and those that did not),
+ticks, messages, foreign,
 `partialGroupMs`, `trailingWorkMs`, `trailingWorkEvents`), `statsAgeMs`
 (`start`, `end`), `errorLogs`, `values` (`received`, `inWindow`, `late`,
 `lastText`), `runnerErrors`; and the live runner's: `oneAlive` (what was
@@ -520,8 +524,12 @@ endpoint and 500 ms main-thread window checks, the self-check with
 Not yet in the app: the worker's in-window samples, the card capture and
 the replay counts, compiled in Debug and Release (Win32, MSVC), their
 arithmetic passing the 15 rows `RunWidgetStressSelfCheck()` had then,
-outside it. The Release runs above ran the placement while its reading,
-target and settle were still the runner's own; since
+outside it. The executed passes timed `RendererCore::frame()` attempts
+inside the list's paint; no pass has timed the raster attempts on posted
+work turns described above yet
+([test_widget_host](test_widget_host.md#verification)). The Release runs
+above ran the placement while its reading, target and settle were still
+the runner's own; since
 `2026/10/31/put-the-conformance-runners-window-in-the-one-column-layout`
 they are the [fixture's](test_widget_fixture.md#one-column-window), and
 the runner has not placed its window through them in the app yet: that

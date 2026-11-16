@@ -109,7 +109,7 @@ void AppendWidgetStress(not_null<Runner*> runner, WidgetStressArgs args);
 // exact-window update intervals 8, 8, 8 and 33 ms giving count 4, p50 8,
 // p95 33, max 33 and a null dropped; renderer work groups M2 T1 F3 and
 // T1 F2 after a partial first group giving samples 6 and 3 whether their
-// frame() attempts replayed or not, the attempts counted 2 replayed and 1
+// raster attempts replayed or not, the attempts counted 2 replayed and 1
 // unreplayed, trailing work kept apart, and an overflowed, late-reserved,
 // empty or foreign work log refused with null fields; the in-window
 // console-lock and covering-window samples' first failure latched with
