@@ -248,6 +248,8 @@ if [ "$BuildTarget" == "linux" ]; then
   cp "$ReleasePath/root/$BinaryName" "$ReleasePath/$BinaryName"
   cp "$ReleasePath/root/Updater" "$ReleasePath/Updater"
   cp "$ReleasePath/root/Packer" "$ReleasePath/Packer"
+  mkdir -p "$ReleasePath/TelegramHelpers"
+  cp "$ReleasePath/root/TelegramHelpers/TelegramWidgetHelper" "$ReleasePath/TelegramHelpers/TelegramWidgetHelper"
 
   echo "Dumping debug symbols.."
   "$ReleasePath/dump_syms" "$ReleasePath/$BinaryName" > "$ReleasePath/$BinaryName.sym"
@@ -259,7 +261,7 @@ if [ "$BuildTarget" == "linux" ]; then
 
   echo "Preparing version $AppVersionStrFull, executing Packer.."
   cd "$ReleasePath"
-  PackUpdate -path "$BinaryName" -path Updater
+  PackUpdate -path "$BinaryName" -path Updater -path TelegramHelpers/TelegramWidgetHelper
   echo "Packer done!"
 
   if [ "$AlphaVersion" != "0" ]; then
@@ -289,11 +291,13 @@ if [ "$BuildTarget" == "linux" ]; then
     mkdir "$ReleasePath/deploy/$AppVersionStrMajor"
   fi
 
-  echo "Copying $BinaryName, Updater and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStrFull..";
+  echo "Copying $BinaryName, Updater, TelegramWidgetHelper and $UpdateFile to deploy/$AppVersionStrMajor/$AppVersionStrFull..";
   mkdir "$DeployPath"
   mkdir "$DeployPath/$BinaryName"
+  mkdir "$DeployPath/$BinaryName/TelegramHelpers"
   mv "$ReleasePath/$BinaryName" "$DeployPath/$BinaryName/"
   mv "$ReleasePath/Updater" "$DeployPath/$BinaryName/"
+  mv "$ReleasePath/TelegramHelpers/TelegramWidgetHelper" "$DeployPath/$BinaryName/TelegramHelpers/"
   mv "$ReleasePath/$UpdateFile" "$DeployPath/"
   if [ "$AlphaVersion" != "0" ]; then
     mv "$ReleasePath/$AlphaKeyFile" "$DeployPath/"

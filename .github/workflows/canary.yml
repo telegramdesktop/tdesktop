@@ -1386,7 +1386,7 @@ jobs:
       - name: Pack v2 update.
         run: |
           cd out/Release
-          ./Packer -path Telegram -path Updater \
+          ./Packer -path Telegram -path Updater -path TelegramHelpers/TelegramWidgetHelper \
             -version ${{ needs.version.outputs.base }} \
             -channel canary-${{ needs.version.outputs.channel }} \
             -counter $CANARY_COUNTER \
@@ -1414,9 +1414,10 @@ jobs:
           # folders from dropping TelegramForcePortable.
           PORTABLE=td-portable-linux-x64-$CANARY_VERSION$CANARY_SUFFIX.tar.xz
           rm -rf portable
-          mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable portable/$CANARY_FOLDER/TelegramHelpers
           touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
           cp Telegram Updater portable/$CANARY_FOLDER/
+          cp TelegramHelpers/TelegramWidgetHelper portable/$CANARY_FOLDER/TelegramHelpers/
           tar -cJf $PORTABLE -C portable $CANARY_FOLDER
 
           mkdir -p artifact/update artifact/portable

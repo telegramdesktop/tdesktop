@@ -48,8 +48,14 @@ if [ ! -f "$ReleasePath/Updater" ]; then
   Error "Updater not found!"
 fi
 
+if [ ! -f "$ReleasePath/TelegramHelpers/TelegramWidgetHelper" ]; then
+  Error "TelegramWidgetHelper not found!"
+fi
+
 rm -rf "$ReleasePath/root"
 mkdir "$ReleasePath/root"
 mv "$ReleasePath/$BinaryName" "$ReleasePath/root/"
 mv "$ReleasePath/Updater" "$ReleasePath/root/"
 mv "$ReleasePath/Packer" "$ReleasePath/root/"
+mkdir "$ReleasePath/root/TelegramHelpers"
+mv "$ReleasePath/TelegramHelpers/TelegramWidgetHelper" "$ReleasePath/root/TelegramHelpers/"
