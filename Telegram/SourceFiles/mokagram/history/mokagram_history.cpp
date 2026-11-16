@@ -320,7 +320,8 @@ void RelinkReplies(
 // Создаёт призраков и один раз вставляет их в блоки по дате.
 void CreateGhosts(
 		not_null<Main::Session*> session,
-		std::vector<Snapshot> rows) {
+		std::vector<Snapshot> rows,
+		bool relink = true) {
 	if (!GhostsEnabled()) {
 		return;
 	}
@@ -398,13 +399,15 @@ void CreateGhosts(
 	for (const auto &history : touched) {
 		history->checkLocalMessages();
 	}
-	for (const auto &row : rows) {
-		if (const auto history = session->data().historyLoaded(PeerId(row.peer))) {
-			touched.emplace(history);
+	if (relink) {
+		for (const auto &row : rows) {
+			if (const auto history = session->data().historyLoaded(PeerId(row.peer))) {
+				touched.emplace(history);
+			}
 		}
-	}
-	for (const auto &history : touched) {
-		RelinkReplies(history, ghosts.histories[history].byOrigin);
+		for (const auto &history : touched) {
+			RelinkReplies(history, ghosts.histories[history].byOrigin);
+		}
 	}
 	if (!qEnvironmentVariableIsEmpty("MOKAGRAM_DEBUG_CMD")) {
 		for (const auto &item : made) {
@@ -449,7 +452,7 @@ void ProcessGhostPages() {
 		while (page.offset != end) {
 			rows.push_back(std::move(page.rows[page.offset++]));
 		}
-		CreateGhosts(session, std::move(rows));
+		CreateGhosts(session, std::move(rows), end == page.rows.size());
 	} else {
 		page.offset = page.rows.size();
 	}
