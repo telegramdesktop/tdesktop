@@ -1551,6 +1551,7 @@ void EditStory(
 					.urls = std::move(result.urls),
 					.locations = std::move(result.locations),
 					.weather = std::move(result.weather),
+					.channelPosts = std::move(result.channelPosts),
 					.editId = (*found)->id(),
 					.editCaption = captionChanged,
 					.sent = pending
