@@ -791,7 +791,7 @@ struct CollectedStoryDraft {
 			.volume = video.volume,
 		};
 		media.photo = hasScene
-			? ComposeStoryPhoto(image, background, {})
+			? ComposeStoryPhoto(image, background, mods, false)
 			: StillFromScene(image, background, mods);
 		media.videoPath = video.path;
 		media.videoContent = video.content;
