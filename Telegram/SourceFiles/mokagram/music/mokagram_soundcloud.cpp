@@ -1979,6 +1979,7 @@ void SetTrackLiked(const QString &trackId, bool liked, bool refreshed) {
 		const auto networkMessage = reply->errorString();
 		const auto data = reply->readAll();
 		reply->deleteLater();
+		LOG(("[moka-dbg] like %1 primary HTTP %2 err %3 body %4").arg(trackId).arg(status).arg(networkMessage.left(120)).arg(QString::fromUtf8(data.left(200))));
 		if (status >= 200 && status < 300) {
 			return;
 		}
@@ -2023,6 +2024,7 @@ void SetTrackLiked(const QString &trackId, bool liked, bool refreshed) {
 				const auto legacyMessage = legacyReply->errorString();
 				const auto legacyData = legacyReply->readAll();
 				legacyReply->deleteLater();
+				LOG(("[moka-dbg] like %1 legacy HTTP %2 err %3 body %4").arg(trackId).arg(legacyStatus).arg(legacyMessage.left(120)).arg(QString::fromUtf8(legacyData.left(200))));
 				if (legacyStatus >= 200 && legacyStatus < 300) {
 					return;
 				}
@@ -2113,6 +2115,7 @@ void SyncLikes(
 				if (track.id.isEmpty() || remoteIds.contains(track.id)) {
 					continue;
 				}
+				LOG(("[moka-dbg] push like %1 %2").arg(track.id).arg(track.title.left(30)));
 				SetTrackLiked(track.id, true);
 				++pushed;
 			}
