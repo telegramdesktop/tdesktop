@@ -69,6 +69,8 @@ struct SceneItemVideo {
 	QString file;
 	crl::time duration = 0;
 	bool round = false;
+	bool background = false;
+	bool backgroundLocked = false;
 	bool hasAudio = false;
 	crl::time from = 0;
 	crl::time till = 0;

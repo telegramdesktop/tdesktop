@@ -1478,6 +1478,8 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 				.round = video.round,
 			}),
 			std::move(itemData));
+		item->setBackground(video.background);
+		item->setBackgroundLocked(video.backgroundLocked);
 		item->applyPlacement(video.placement);
 		item->keepInitialState();
 		addMediaItem(std::move(item));
