@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/src/png.h"
 #include "tgw/tgw_canvas.h"
 #include "tgw/tgw_emoji.h"
+#include "tgw/tgw_renderer_work.h"
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageReader>
@@ -509,10 +510,12 @@ void AppendPngChunk(
 QtBackend::QtBackend(
 	Diagnostic diagnostic,
 	QString regularFamily,
-	QString monospaceFamily)
+	QString monospaceFamily,
+	std::vector<FontPosition> positions)
 : _diagnostic(diagnostic)
 , _regularFamily(std::move(regularFamily))
 , _monospaceFamily(std::move(monospaceFamily))
+, _positions(std::move(positions))
 , _canvases(std::make_unique<Canvases>(std::move(diagnostic)))
 , _canvasFontsLeft(kMaxNewCanvasFonts)
 , _canvasParsesLeft(kMaxCanvasFontParses) {
@@ -548,6 +551,7 @@ int QtBackend::makeFont(
 		? _monospaceFamily
 		: _regularFamily;
 	const auto font = StyledFont(family, key.first, pixels);
+	AdoptFontPositions(font, _positions);
 	const auto metrics = QFontMetricsF(font);
 	out.ascent = float(metrics.ascent() * scale);
 	out.descent = float(metrics.descent() * scale);

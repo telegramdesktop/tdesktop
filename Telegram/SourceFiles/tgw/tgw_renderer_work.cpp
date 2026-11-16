@@ -14,6 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_render_thread.h"
 #include "twidget/json.h"
 
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
+#include <private/qfont_p.h>
+#include <private/qfontengine_p.h>
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
+
 #include "styles/style_basic.h"
 
 namespace Tgw {
@@ -330,6 +335,37 @@ void Append(
 	return result;
 }
 
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
+[[nodiscard]] FontPosition PositionOf(const QFontDef &def, int count) {
+	return {
+		.family = def.families.value(0),
+		.styleName = def.styleName,
+		.pixelSize = def.pixelSize,
+		.weight = int(def.weight),
+		.style = int(def.style),
+		.stretch = int(def.stretch),
+		.hint = int(def.styleHint),
+		.strategy = int(def.styleStrategy),
+		.hinting = int(def.hintingPreference),
+		.count = count,
+	};
+}
+
+[[nodiscard]] bool SameRequest(
+		const FontPosition &a,
+		const FontPosition &b) {
+	return (a.family == b.family)
+		&& (a.styleName == b.styleName)
+		&& (a.pixelSize == b.pixelSize)
+		&& (a.weight == b.weight)
+		&& (a.style == b.style)
+		&& (a.stretch == b.stretch)
+		&& (a.hint == b.hint)
+		&& (a.strategy == b.strategy)
+		&& (a.hinting == b.hinting);
+}
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
+
 CanvasFontRenderer::CanvasFontRenderer(
 	double width,
 	double dpr,
@@ -347,6 +383,65 @@ int CanvasFontRenderer::canvas_font(
 
 } // namespace
 
+#ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
+std::vector<FontPosition> CurrentFontPositions() {
+	auto result = std::vector<FontPosition>();
+	auto seen = base::flat_set<const QFontEngine*>();
+	const auto &engines = QFontCache::instance()->engineCache;
+	for (auto i = engines.cbegin(); i != engines.cend(); ++i) {
+		const auto engine = i.value().data;
+		if (i.key().multi
+			|| !engine
+			|| (engine->m_subPixelPositionCount <= 0)
+			|| !seen.emplace(engine).second) {
+			continue;
+		}
+		result.push_back(
+			PositionOf(i.key().def, engine->m_subPixelPositionCount));
+	}
+	return result;
+}
+
+void AdoptFontPositions(
+		const QFont &font,
+		const std::vector<FontPosition> &positions) {
+	if (positions.empty()) {
+		return;
+	}
+	auto engine = QFontPrivate::get(font)->engineForScript(
+		QChar::Script_Common);
+	if (engine && (engine->type() == QFontEngine::Multi)) {
+		engine = static_cast<QFontEngineMulti*>(engine)->engine(0);
+	}
+	if (!engine || engine->m_subPixelPositionCount) {
+		return;
+	}
+	const auto &engines = QFontCache::instance()->engineCache;
+	for (auto i = engines.cbegin(); i != engines.cend(); ++i) {
+		if (i.key().multi || (i.value().data != engine)) {
+			continue;
+		}
+		const auto request = PositionOf(i.key().def, 0);
+		const auto j = ranges::find_if(positions, [&](
+				const FontPosition &position) {
+			return SameRequest(position, request);
+		});
+		if (j != end(positions)) {
+			// Qt fixes it at the first glyph; the base used the UI's engine.
+			engine->m_subPixelPositionCount = j->count;
+		}
+		return;
+	}
+}
+#else // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
+std::vector<FontPosition> CurrentFontPositions() {
+	return {};
+}
+
+void AdoptFontPositions(const QFont &, const std::vector<FontPosition> &) {
+}
+#endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
+
 RendererWork::RendererWork(
 	base::weak_ptr<RendererCore> chat,
 	double width,
@@ -358,7 +453,8 @@ RendererWork::RendererWork(
 , _backend(std::make_unique<QtBackend>(
 	_host.diag,
 	values.regularFamily,
-	values.monospaceFamily))
+	values.monospaceFamily,
+	values.positions))
 , _renderer(std::make_unique<CanvasFontRenderer>(
 	width,
 	dpr,

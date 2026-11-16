@@ -343,6 +343,7 @@ RendererCore::RendererCore(double width, double dpr)
 	auto values = RendererValues{
 		.regularFamily = st::normalFont->f.family(),
 		.monospaceFamily = st::normalFont->monospace()->f.family(),
+		.positions = CurrentFontPositions(),
 		.emoji = CurrentEmojiSides(),
 	};
 	PostToRenderThread([

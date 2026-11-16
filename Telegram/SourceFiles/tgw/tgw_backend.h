@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tgw {
 
 class Canvases;
+struct FontPosition;
 
 struct QtFont {
 	QFont font;
@@ -31,7 +32,8 @@ public:
 	QtBackend(
 		Diagnostic diagnostic,
 		QString regularFamily,
-		QString monospaceFamily);
+		QString monospaceFamily,
+		std::vector<FontPosition> positions);
 	~QtBackend();
 
 	int create_font(
@@ -95,6 +97,7 @@ private:
 	const Diagnostic _diagnostic;
 	const QString _regularFamily;
 	const QString _monospaceFamily;
+	const std::vector<FontPosition> _positions;
 	base::flat_map<int, QtFont> _fonts;
 	base::flat_map<int, Image> _images;
 	base::flat_map<FontKey, CachedFont> _canvasFonts;

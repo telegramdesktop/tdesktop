@@ -26,9 +26,28 @@ namespace Tgw {
 class CursorStyles;
 class QtBackend;
 
+struct FontPosition {
+	QString family;
+	QString styleName;
+	float64 pixelSize = 0.;
+	int weight = 0;
+	int style = 0;
+	int stretch = 0;
+	int hint = 0;
+	int strategy = 0;
+	int hinting = 0;
+	int count = 0;
+};
+
+[[nodiscard]] std::vector<FontPosition> CurrentFontPositions();
+void AdoptFontPositions(
+	const QFont &font,
+	const std::vector<FontPosition> &positions);
+
 struct RendererValues {
 	QString regularFamily;
 	QString monospaceFamily;
+	std::vector<FontPosition> positions;
 	EmojiSides emoji;
 };
 
