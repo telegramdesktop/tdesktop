@@ -215,34 +215,107 @@ Store service**). The probe is the same hook; what differs:
   the warm-up lookup reads `kr=1100 (Permission denied)` (the App Sandbox
   denies the unregistered name) and adds one own send-receive right, and
   the [firehose reading](#firehose-reading) accepts the push ports in
-  both modes. The listing (32 entries on macOS 27.0.1) also holds one send
-  right that no reference matches, `UNACCOUNTED`, and one send-once right
-  whose kernel-object query fails (`IDENTITY QUERY FAILED`, `kr=17`);
-  neither has been attributed. A Store inventory is therefore never
-  clean: `inventory: NOT clean (... 1 enumeration/identity failures, 1
+  both modes. Right after the references, still inside the window that
+  `reference lookups left the space as it was` checks, the probe records
+  by object the launchd ports the service can get without a lookup and
+  releases each right it got: `launchd before the lockdown: bootstrap
+  <name> object=<object> special=same; registered <n> of <slots> slots
+  (objects ...); parent kr=0 (Success) object=<object>`. `special=` reads
+  `none`, `FAILED <kr>` or another name with its object when
+  `task_get_special_port(TASK_BOOTSTRAP_PORT)` does not give the
+  bootstrap name; the registered ports are the valid slots of
+  `mach_ports_lookup()`, the parent what `bootstrap_parent()` of that
+  special port returns. A port whose object could not be read adds
+  `ERROR <reason>` and a failure. The Store lockdown's last step drops
+  the bootstrap port ([Remote engines](test_widget_fixture.md#remote-engines),
+  **Lockdown**), so with `probe` the listing reads `mach identities: ...
+  bootstrap=0x0` and the row `changed between the reference snapshot and
+  the listing: -<bootstrap name> S urefs=<n> object=<its object>`. A
+  listed right whose object is one of the recorded ones is a launchd
+  port: with `probe` the defect `a launchd port (<label>) after the
+  lockdown`, with `probe-unsandboxed` `bootstrap (bootstrap_port)` for the
+  bootstrap name and `launchd port (<label>)` for any other. The summary
+  counts them as `launchd <n>` after `bootstrap <n>`. The listing (32
+  entries on macOS 27.0.1 before the cut) also holds one send right that
+  no reference matches, `UNACCOUNTED`, and one send-once right whose
+  kernel-object query fails (`IDENTITY QUERY FAILED`, `kr=17`); neither
+  has been attributed. A Store inventory is therefore never clean:
+  `inventory: NOT clean (... 1 enumeration/identity failures, 1
   unaccounted)`, and the failed query ends the summary with `this listing
-  is INCOMPLETE`.
-- **More attempts.** `attemptFiles()` adds `own-container` (the
-  service's `HOME`), the positive control that the App Sandbox allows, and
-  `user-home`, `user-documents` and `user-downloads` from
-  `getpwuid(getuid())`. After the parent attempts `self responsible`
-  reads `responsibility_get_pid_responsible_for_pid()` of the service:
+  is INCOMPLETE`. A scratch XPC service that mirrors this one matched the
+  unattributed send right's object with the client's own receive right:
+  it is the peer connection's port, which is immovable, and a request
+  that carried it as a descriptor killed that service with
+  `OS_REASON_GUARD` (`kGUARD_EXC_IMMOVABLE`) and no crash report. Never put
+  that right, or any right the listing does not attribute, into a message:
+  a lookup "through" it does exactly that.
+- **More attempts.** Right after the listing four `launchd` attempts read
+  the routes to a launchd right again, releasing what they get: `launchd
+  special-port` (`none` or `HELD`), `launchd registered` (`none` or the
+  count of valid slots), `launchd parent` (the `kr` code of
+  `bootstrap_parent()` of that special port) and `launchd in-space` (the
+  listed launchd ports). With `probe` a `HELD`, a registered port or an
+  `ok` parent is a defect as well. A call that fails, or launchd ports
+  that were not all read before the lockdown, make that attempt
+  `INCOMPLETE`. `attemptFiles()` adds `own-container` (the service's
+  `HOME`), the positive control that the App Sandbox allows, and
+  `user-home`, `user-documents` and `user-downloads` from the part of
+  `HOME` before `/Library/Containers/<id>/Data`: `getpwuid()` asks
+  opendirectoryd, which the cut leaves unreachable (a scratch reading got
+  NULL with `EMFILE`). A `HOME` of another shape makes those twelve
+  attempts `INCOMPLETE` with `no user home: <reason>`. After the parent
+  attempts `self responsible` reads
+  `responsibility_get_pid_responsible_for_pid()` of the service:
   `parent`, `self` or `other`. After the window-server attempts
   `screen-capture preflight` reads `CGPreflightScreenCaptureAccess()`,
   `GRANTED` or `not-granted`, and never requests access or captures.
 - **Service listing.** Each `WidgetHelperProbeFixture::serviceNames`
   entry is passed as `service:<name>` after the network targets and gets
-  one `attempt service <name>: <code> <detail>` row after the service
-  attempts: `sandbox_check(pid, "mach-lookup", 2, name)` (2, the global
-  name filter) reads `denied`, or `allowed/<lookup>` after a
-  `bootstrap_look_up` whose right is released at once: `allowed/ok` for a
-  registered name, `allowed/kr1102` for an unregistered one. The rows are
-  not attempts of the summary, which gets `services: <n> listed, <a>
-  allowed, <r> allowed and registered`. No name, as in an
-  environment-selected probe, or a `sandbox_check` that answers neither
-  way makes a `service listing` attempt `INCOMPLETE`. The names come from
-  outside the sandbox. This task's evidence built 2138: the
-  `(global-name "...")` literals of
+  one `attempt service <name>: <policy>/<special>/<libxpc> <detail>` row
+  after the service attempts. Every name is read through each lookup
+  path, in both modes:
+  - `<policy>`: `sandbox_check(pid, "mach-lookup", 2, name)` (2, the
+    global name filter), `allowed` or `denied`. It reads the App Sandbox's
+    policy, not reachability, so it stays `allowed` after the cut.
+  - `<special>`: `bootstrap_look_up()` through what
+    `task_get_special_port(TASK_BOOTSTRAP_PORT)` returns after the
+    lockdown (read once, released after the listing), its right released
+    at once: `ok`, `kr1102` for an unregistered name, `kr1100` for a
+    denied one, `kr32` once the cut has broken libxpc's bootstrap pipe.
+    After the cut the special port is `0x0`, so the call reads libxpc's
+    routine with no launchd right.
+  - `<libxpc>`: libxpc's own lookup, the one
+    `xpc_connection_create_mach_service()` makes. The connections of each
+    batch of 256 names are created on one private serial queue and
+    resumed together with no message, so no daemon gets one. A connection
+    with no error event within 500 ms reads `xpc-ok`, reachable; a failed
+    one reads `xpc<N>` from the `error <N>` of
+    `xpc_connection_copy_invalidation_reason()` (macOS 12 and later):
+    `xpc159` for a sandbox restriction, `xpc3` for an unregistered name,
+    `xpc32` for the broken pipe. Then all of them are canceled. Each one
+    after the cut makes libxpc log `failed to do a bootstrap look-up:
+    xpc_error=[32: Broken pipe]`.
+
+  The third path, a send right to launchd left in the space, is read by
+  object in the listing and by `launchd in-space`, never by a per-name
+  lookup through each right: libxpc sends every lookup on its own pipe
+  with the given right as the request's domain port, so such a lookup
+  says what launchd thinks of the right (an own port nobody receives on
+  read `kr112`), not whether the right reaches launchd, and through the
+  peer connection's right it kills the service. The rows are not
+  attempts of the summary, which gets `services: <n> listed, <a> allowed;
+  reachable through the special port <s>, libxpc <x>`. No name, as in an
+  environment-selected probe, a `sandbox_check` that answers neither
+  way, a special port that cannot be read or a failed libxpc lookup with
+  no `error <N>` in its reason (`xpc-error`, every failed one before
+  macOS 12) makes a `service listing` attempt `INCOMPLETE`. The `lookup
+  <name>` attempts of the service, keychain, camera, microphone and
+  window-server groups still look up through the global `bootstrap_port`,
+  which the cut clears, so after it they too read libxpc's routine; the
+  per-name rows carry the path readings. The names come from outside the
+  sandbox. The evidence of
+  `2026/11/14/run-mac-app-store-widget-engines-in-an-xpc-service-helper`
+  built 2138: the `(global-name "...")` literals of
   `/System/Library/Sandbox/Profiles/application.sb` (176) and
   `appsandbox-common.sb` (32, 31 of them new), then every endpoint of
   `launchctl print system` (705), `user/<uid>` (1428) and `gui/<uid>`
@@ -252,21 +325,29 @@ Store service**). The probe is the same hook; what differs:
 - **Controls.** In the Store build `probe-unsandboxed` is still
   App-Sandboxed (`state: sandboxed=1`); it only skips the lockdown
   (`lockdown: skipped (unsandboxed control)`, `nofile` and `nproc` not
-  lowered). Its denials are the App Sandbox's own, and what it allows
-  where `probe` is refused (`socket`, `fork`, `posix_spawn`, `socket after
-  close`, and `opendir` where the App Sandbox allows it) is what the Store
-  lockdown's two limits remove.
-  `own-container` is the positive control of the file rows in both modes.
+  lowered, the bootstrap port kept). Its denials are the App Sandbox's
+  own, and what it allows where `probe` is refused (`socket`, `fork`,
+  `posix_spawn`, `socket after close`, and `opendir` where the App Sandbox
+  allows it) is what the Store lockdown's two limits remove. It reads the
+  same lookup paths with the bootstrap port in place, so it is the
+  control of the cut: on macOS 27.0.1 it is expected to read `launchd
+  special-port: HELD`, `launchd registered: 1`, `launchd parent: ok` and
+  `launchd in-space: 1` (the bootstrap entry), its allowed and registered
+  names reachable through the special port and libxpc and its denied ones
+  `kr1100`/`xpc159`. `own-container` is the positive control of the file
+  rows in both modes.
 - **Keychain.** No item fixture was made for the Store probe: its
-  evidence read an absent run-only account. The locked service got
-  `status100024`, `kPOSIXErrorBase` plus `EMFILE`: the zero descriptor
-  limit stopped its query. The control got `status-25300`
+  evidence read an absent run-only account. Before the cut the locked
+  service got `status100024`, `kPOSIXErrorBase` plus `EMFILE`: the zero
+  descriptor limit stopped its query. The control got `status-25300`
   (`errSecItemNotFound`): the App Sandbox alone lets the service query
-  the keychain and get an answer. Telegram's macOS sources add no
-  keychain item (only the probe calls `SecItem*`; the wallet's Secure
-  Enclave keys are not permanent), so the Store claim rests on that
-  reading, those statuses and the keychain services the listing shows
-  reachable.
+  the keychain and get an answer. After the cut the `SecurityServer` and
+  `securityd.xpc` lookups fail, so the query has no daemon to ask (a
+  scratch service with the same lockdown read `-50`). Telegram's macOS
+  sources add no keychain item (only the probe calls `SecItem*`; the
+  wallet's Secure Enclave keys are not permanent), so the Store claim
+  rests on that reading, those statuses and the per-name rows of the
+  keychain services.
 
 Expected readings of `probe` on macOS 27.0.1 arm64: `lockdown: ok`,
 `state: sandboxed=1 nofile=0/0 nproc=0/0`, descriptors 0 to 3 (and the
@@ -279,36 +360,57 @@ and `posix_spawn` `EAGAIN`; `client-cwd`, `app-support` (Telegram's
 container), `user-home`, `user-documents` and `user-downloads` `access`
 `EPERM`, policy `denied`, `opendir` `EMFILE`, while `own-container` reads
 `access: ok` and policy `allowed`; `parent kill-0` `EPERM` and `parent
-task_for_pid` `kr5`; the `cmio`, `locationd` and `locationd.desktop`
-lookups `kr1100` and both device policies `denied`.
+task_for_pid` `kr5`; both device policies `denied`. After the cut:
+`launchd special-port: none`, `launchd registered: none`, `launchd
+parent: kr32` and `launchd in-space: 0`; every service row
+`<policy>/kr32/xpc32`, `services: <n> listed, <a> allowed; reachable
+through the special port 0, libxpc 0`; the `lookup` rows of tccd,
+tccd.system, locationd, locationd.desktop, SecurityServer, securityd.xpc,
+cmio, audiohald and windowserver `kr32`; `windowserver connection: none`,
+`microphone devices: ok/0/0` and `screen-capture preflight: not-granted`.
 
-What the service can still reach is App Sandbox reach that `sandbox_init`
-cannot narrow there (it does not stack); the direct-download profile denies
-all of it. These rows succeed, and they are limits of the confinement,
-never passes:
+The Store lockdown's last step cuts every new Mach lookup
+([Remote engines](test_widget_fixture.md#remote-engines), **Lockdown**).
+Before it the locked service could look up 259 of the 2138 names (218
+registered, 41 unregistered), among them tccd, cfprefsd, the window
+server, CARenderServer, the pasteboard, SecurityServer and securityd,
+audiohald, runningboard, trustd, `lsd.mapdb` and the dock, open a window
+server connection (`CONNECTED`) and count two audio devices through
+audiohald. What it can still reach needs no lookup, and is App Sandbox
+reach that `sandbox_init` cannot narrow there (it does not stack); the
+direct-download profile denies all of it. These rows succeed, and they are
+limits of the confinement, never passes:
 
 - Telegram's process information: `parent task_name_for_pid`,
   `PROC_PIDTBSDINFO`, `proc_pidpath`, `KERN_PROC_PID` and `KERN_PROCARGS2`,
   Telegram's argv and environment. "Cannot inspect Telegram" holds only for
   signals, the task port and the descriptor table.
-- 259 of the 2138 names (218 registered, 41 unregistered), among them
-  tccd, cfprefsd, the window server, CARenderServer, the pasteboard,
-  SecurityServer and securityd, audiohald, logd, the notification center,
-  runningboard, trustd, `lsd.mapdb` and the dock; the `lookup` rows of
-  tccd, tccd.system, SecurityServer, securityd.xpc, audiohald and the
-  window server read `ok`.
-- `windowserver connection: CONNECTED`, `iokit open: ok`
-  (`IOSurfaceRoot`), `iokit property: ok` (`IOPlatformSerialNumber`), and
-  `microphone devices: ok/2/1` through audiohald while the microphone
-  policy stays denied (`camera devices: ok/0`).
-- `self responsible: parent`: TCC counts the service's requests under
-  Telegram's grants. Screen Recording has no App Sandbox entitlement to
-  gate it; `not-granted` only says the copy had no grant, and a capture
-  through a Telegram that holds one is unmeasured.
+- The Mach rights it already holds: logd and the firehose push ports, so
+  logging keeps working, the notification center and the peer connection
+  to Telegram; its task-access special port and its corpse-notify
+  exception port, which the kernel keeps and launchd does not serve, left
+  in place so that crash reporting works. No probe row sends to them.
+- `iokit open: ok` (`IOSurfaceRoot`) and `iokit property: ok`
+  (`IOPlatformSerialNumber`): IOKit is a kernel path, not a lookup.
+- `self responsible: parent`: TCC would count the service's requests
+  under Telegram's grants, but tccd is unreachable, and with neither a
+  window server connection nor tccd the screen-capture path is closed
+  whatever Telegram holds. `not-granted` only says the copy had no grant.
 - `stat` metadata of every path, the denied ones included (the `stat`
   rows), and system files such as `/etc/hosts`, which the App Sandbox
   lets it read (a scratch reading before the evidence; no probe row reads
   those).
+
+Only macOS 27.0.1 arm64 was measured. On macOS 12 to 26 libxpc may hold
+its references to the bootstrap port differently: a cut step that fails
+there refuses the lockdown. One port has one name in a space, so a
+launchd right left under another name is another port, and the `launchd`
+rows recognise only the objects recorded before the lockdown. Such a
+port would show as a further `UNACCOUNTED` right in the listing, and a
+lookup libxpc still serves through it as reachable names in the
+per-name `<libxpc>` column, while the lockdown would not refuse it: the
+bootstrap name is gone, and a lookup through the cleared port fails with
+or without a live pipe.
 
 Each service start's failing `sandbox_init` used to leave libsandbox's
 syslog socket, an `AF_UNIX` datagram socket connected to logd, open past
@@ -921,7 +1023,11 @@ The classes are matched against actual self references:
   names;
 - `libSystem service com.apple.logd` and `com.apple.system.notification_center`;
 - `libSystem firehose push port`, only for the two names that the firehose
-  reading of the same helper accepted.
+  reading of the same helper accepted;
+- in the Mac App Store build, a right to one of the launchd ports read
+  before the lockdown, by object ([Mac App Store](#mac-app-store)): a
+  defect with `probe`, `launchd port (<label>)` or the bootstrap class
+  with `probe-unsandboxed`.
 
 A right to any other reference service, any other kernel object, a thread or
 task port that is not the helper's own, or a failed identity query is a

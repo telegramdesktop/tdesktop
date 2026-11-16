@@ -62,14 +62,30 @@ inline constexpr auto kWidgetHelperServicePrefix = "service:";
 // and a recorded failure when that cannot be read). Descriptors 0 and 1 are
 // accounted as launchd's /dev/null and 2 as the stderr Telegram passed, not
 // compared with Telegram's descriptor, which the App Sandbox does not let it
-// read. The state also reads the process limit. The file attempts add the
-// service's own container (HOME), their positive control, and the user's
-// home, Documents and Downloads. After the parent attempts one row reads the
-// service's responsible process and whether it is the parent. After the
-// service attempts every "service:<name>" argument gets one row: its App
-// Sandbox mach-lookup reading and, when allowed, a lookup whose right is
-// released at once; the summary counts them, and no such argument leaves
-// that listing incomplete. After the window server attempts one row reads
+// read. Inside the window its reference lookups must leave unchanged it
+// records, by object, the launchd ports it can get without a lookup: the
+// bootstrap port, the bootstrap special port, the registered ports and the
+// bootstrap parent, releasing what it got. A listed entry with one of those
+// objects counts as a launchd port, a defect with "probe". After the listing
+// the "launchd" attempts read those routes again: the special port ("none"
+// or "HELD"), the registered ports ("none" or a count), the parent's code
+// and the launchd ports listed; with "probe" a held special port, a
+// registered port or a parent is a defect too. The state also reads the
+// process limit. The file attempts add the service's own container (HOME),
+// their positive control, and the user's home, Documents and Downloads, the
+// home taken from HOME ("<home>/Library/Containers/<id>/Data") with no IPC.
+// After the parent attempts one row reads the service's responsible process
+// and whether it is the parent. After the service attempts every
+// "service:<name>" argument gets one row, "<policy>/<special>/<libxpc>": its
+// App Sandbox mach-lookup reading, a lookup through the special port read
+// after the lockdown, whose right is released at once (no other right is
+// ever passed to a lookup), and libxpc's own lookup of the name, made by
+// resuming a connection without a message: "xpc-ok" when no error came
+// within 500 ms, otherwise "xpc<N>" from its invalidation reason, read on
+// macOS 12 and later. The summary counts the allowed names and those
+// reachable through each path; no such argument, a policy or special port
+// that cannot be read, or a reason not read leaves that listing incomplete.
+// After the window server attempts one row reads
 // CGPreflightScreenCaptureAccess(), never requesting access or capturing.
 // The direct-download helper ignores "service:<name>" arguments.
 // On Linux, with "probe" it first runs three forked copies of the helper,

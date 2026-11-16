@@ -59,8 +59,9 @@ struct WidgetHelperProbeFixture {
 	QStringList networkTargets;
 	// macOS only: Mach service names, each passed as "service:<name>". The
 	// Mac App Store probe lists each one's App Sandbox mach-lookup reading
-	// and looks up the allowed ones; the direct-download and Linux probes
-	// ignore them, and the Windows one reports them as malformed arguments.
+	// and looks every one up through the bootstrap special port and through
+	// libxpc's own named lookup; the direct-download and Linux probes ignore
+	// them, and the Windows one reports them as malformed arguments.
 	QStringList serviceNames;
 };
 

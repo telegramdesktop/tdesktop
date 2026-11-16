@@ -845,7 +845,9 @@ packs, the fixture and the seams they use need no change for it.
   `_Exit`s on any error event of its peer connection. It is a child of
   launchd with its own container as `HOME`, launchd's `/dev/null` on 0
   and 1, Telegram's stderr on 2 and the channel on 3, and its responsible
-  process is Telegram, so TCC counts its requests under Telegram's grants
+  process is Telegram, so TCC would count its requests under Telegram's
+  grants; after its lockdown it can look up no Mach service, tccd and the
+  window server included, and keeps only the services it already holds
   ([test_widget_helper_probe](test_widget_helper_probe.md#mac-app-store)
   lists what it can still reach). A start took about 20 ms, 90 ms when it
   created the service's container.
@@ -1143,7 +1145,7 @@ packs, the fixture and the seams they use need no change for it.
   <reason>.`, its widgets die with `the widget engine process ended`, and
   the refusal counts towards the failure limit below. No engine ever runs
   in process instead.
-  The Mac App Store service runs the same lockdown with three
+  The Mac App Store service runs the same lockdown with four
   differences, each `#ifdef OS_MAC_STORE` in `_other/widget_helper_mac.cpp`.
   Its service check takes `BOOTSTRAP_NOT_PRIVILEGED` (1100) as not held:
   the App Sandbox denies three of the names (LaunchServices, the camera
@@ -1156,10 +1158,29 @@ packs, the fixture and the seams they use need no change for it.
   ceiling it closes every descriptor that the failing call added
   (libsandbox's syslog socket to logd) and sets its process limit to zero,
   so `fork` and `posix_spawn` fail with `EAGAIN` while threads still start;
-  `setrlimit failed: <error>` refuses. The App Sandbox still lets it reach
-  more than the profile would: Telegram's process information, the allowed
-  Mach services, the window server, IOKit properties and audio device
-  counts ([test_widget_helper_probe](test_widget_helper_probe.md#mac-app-store)).
+  `setrlimit failed: <error>` refuses. Its last step, `DropBootstrap()`,
+  cuts every new Mach lookup with public calls only: it clears
+  `bootstrap_port` and the bootstrap special port, unregisters the ports
+  that `mach_ports_lookup()` would return (launchd registers one that it
+  serves) and removes every send reference of the bootstrap name,
+  libxpc's own included. libxpc's bootstrap pipe still names it and keeps
+  sending to it until a send fails, so the step then makes one
+  `bootstrap_look_up()` of the first forbidden name through the cleared
+  port: its send to the gone name fails and breaks the pipe at once,
+  before Mach can reuse that name for another right. From then on
+  `bootstrap_look_up()`, `bootstrap_parent()` and
+  `xpc_connection_create_mach_service()` fail, while libxpc, libdispatch
+  and logging keep serving through the rights the service already holds.
+  A failed call refuses with `<call> failed: <error> (<code>)`
+  (`task_set_special_port`, `mach_ports_register`, `mach_port_get_refs`
+  or `mach_port_mod_refs`), a bootstrap name still in the space
+  afterwards with `the widget helper still holds its bootstrap port`, and
+  a lookup that succeeds with `the widget helper can still look up Mach
+  services`; any error code of that lookup passes. The App Sandbox still
+  lets it reach more than the profile would, but nothing that needs a
+  lookup: Telegram's process information, the services it already holds,
+  IOKit and file metadata
+  ([test_widget_helper_probe](test_widget_helper_probe.md#mac-app-store)).
 - **The Windows lowering.** The Windows helper drops its impersonation in
   the framework's lockdown callback, after it accepted the opening and
   holds the bundles and before it answers Ready, so before any runtime

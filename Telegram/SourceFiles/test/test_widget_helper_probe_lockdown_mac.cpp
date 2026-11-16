@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <CoreMediaIO/CMIOHardware.h>
 #include <IOKit/IOKitLib.h>
 #include <Security/Security.h>
+#include <dispatch/dispatch.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 #include <mach_debug/mach_debug.h>
@@ -29,13 +30,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/sysctl.h>
 #include <sys/un.h>
 #include <sys/wait.h>
+#include <xpc/xpc.h>
 
 #include <dirent.h>
 #include <dlfcn.h>
 #include <fcntl.h>
 #include <libproc.h>
 #include <poll.h>
-#include <pwd.h>
 #include <signal.h>
 #include <spawn.h>
 #include <unistd.h>
@@ -55,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <exception>
 #include <functional>
 #include <iterator>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -99,6 +101,12 @@ constexpr auto kSandboxFilterPath = 1;
 // sandbox_check()'s filter type for a Mach global name
 // (SANDBOX_FILTER_GLOBAL_NAME).
 constexpr auto kSandboxFilterGlobalName = 2;
+
+// libxpc's lookups of the listed names run this many at once, and a name
+// whose connection reports no error within the wait of its batch counts as
+// reachable (every answer came within 300 ms when measured).
+constexpr auto kXpcBatch = size_t(256);
+constexpr auto kXpcWaitMs = int64_t(500);
 #endif // OS_MAC_STORE
 
 constexpr auto kTrue = "/usr/bin/true";
@@ -255,7 +263,60 @@ struct Counts {
 	int deadName = 0;
 	int libSystem = 0;
 	int firehose = 0;
+	int launchd = 0;
 };
+
+#ifdef OS_MAC_STORE
+// A right to a port launchd serves, known by its object: the bootstrap
+// port, a registered port or the bootstrap parent, as read before the
+// lockdown (the name is the one it had then).
+struct LaunchdPort {
+	std::string label;
+	mach_port_name_t name = MACH_PORT_NULL;
+	natural_t object = 0;
+};
+
+// The routes to a launchd right that need no lookup by name: the bootstrap
+// special port, the registered ports and the bootstrap parent. |ports| are
+// the rights they returned, other than the bootstrap name given, each with
+// the object read while it was held; all were released before the return.
+struct LaunchdReading {
+	std::vector<LaunchdPort> ports;
+	std::string error;
+	mach_port_name_t special = MACH_PORT_NULL;
+	kern_return_t specialRead = KERN_SUCCESS;
+	kern_return_t registeredRead = KERN_SUCCESS;
+	kern_return_t parentRead = KERN_SUCCESS;
+	int registered = 0;
+	int slots = 0;
+};
+
+// libxpc's own lookup of one listed name, read without a message: |code|
+// is "xpc-ok" when its connection reported no error within kXpcWaitMs,
+// "xpc<N>" for an invalidation reason that names "error <N>", and
+// "xpc-error" (|unreadable|) when that reason cannot be read.
+struct XpcLookup {
+	std::string code;
+	std::string detail;
+	bool reachable = false;
+	bool unreadable = false;
+};
+
+// One batch of libxpc lookups, written on their queue until |closed|: the
+// description of each connection's first error event, empty for none.
+struct XpcBatch {
+	std::vector<std::string> errors;
+	dispatch_semaphore_t answered = nullptr;
+	size_t waiting = 0;
+	bool closed = false;
+};
+
+// The user's home, read without IPC, or why it cannot be.
+struct HomeReading {
+	std::string path;
+	std::string failure;
+};
+#endif // OS_MAC_STORE
 
 [[nodiscard]] std::string Format(const char *format, ...)
 __attribute__((format(printf, 1, 2)));
@@ -891,6 +952,234 @@ using PreflightScreenCaptureAccess = bool(*)();
 	return result;
 }
 
+#ifdef OS_MAC_STORE
+// Only kernel calls and bootstrap_parent() of the special port it got: it
+// never sends through a right it cannot attribute (a message that carries
+// the peer connection's immovable right kills the process).
+[[nodiscard]] LaunchdReading ReadLaunchd(mach_port_t bootstrap) {
+	const auto task = mach_task_self();
+	auto result = LaunchdReading();
+	auto special = mach_port_t(MACH_PORT_NULL);
+	auto registered = mach_port_array_t();
+	auto slots = mach_msg_type_number_t();
+	auto parent = mach_port_t(MACH_PORT_NULL);
+	const auto release = gsl::finally([&] {
+		if (MACH_PORT_VALID(special)) {
+			mach_port_deallocate(task, special);
+		}
+		if (registered) {
+			for (auto i = mach_msg_type_number_t(); i != slots; ++i) {
+				if (MACH_PORT_VALID(registered[i])) {
+					mach_port_deallocate(task, registered[i]);
+				}
+			}
+			vm_deallocate(
+				task,
+				vm_address_t(registered),
+				slots * sizeof(*registered));
+		}
+		if (MACH_PORT_VALID(parent)) {
+			mach_port_deallocate(task, parent);
+		}
+	});
+	result.specialRead = task_get_special_port(
+		task,
+		TASK_BOOTSTRAP_PORT,
+		&special);
+	result.special = special;
+	result.registeredRead = mach_ports_lookup(task, &registered, &slots);
+	result.slots = int(slots);
+	result.parentRead = bootstrap_parent(special, &parent);
+
+	auto held = std::vector<LaunchdPort>();
+	if (MACH_PORT_VALID(special) && special != bootstrap) {
+		held.push_back({ .label = "special", .name = special });
+	}
+	for (auto i = mach_msg_type_number_t(); registered && i != slots; ++i) {
+		if (MACH_PORT_VALID(registered[i])) {
+			++result.registered;
+			held.push_back({
+				.label = Format("registered[%u]", i),
+				.name = registered[i],
+			});
+		}
+	}
+	if (MACH_PORT_VALID(parent)) {
+		held.push_back({ .label = "parent", .name = parent });
+	}
+	if (held.empty()) {
+		return result;
+	}
+	const auto snapshot = SnapshotMach();
+	if (!snapshot.error.empty()) {
+		result.error = snapshot.error;
+		return result;
+	}
+	for (auto &port : held) {
+		if (const auto entry = FindEntry(snapshot, port.name)) {
+			port.object = entry->object;
+			result.ports.push_back(std::move(port));
+		} else {
+			result.error += (result.error.empty() ? "" : "; ")
+				+ Format(
+					"%s 0x%x is not in the space",
+					port.label.c_str(),
+					port.name);
+		}
+	}
+	return result;
+}
+
+// The user's home from HOME, the service's container
+// "<home>/Library/Containers/<id>/Data": getpwuid() asks opendirectoryd,
+// which the Store lockdown leaves unreachable.
+[[nodiscard]] HomeReading UserHome() {
+	constexpr auto kContainers = std::string_view("/Library/Containers/");
+	constexpr auto kData = std::string_view("/Data");
+	const auto value = std::getenv("HOME");
+	if (!value || !*value) {
+		return { .failure = "HOME is not set" };
+	}
+	const auto home = std::string_view(value);
+	const auto containers = home.rfind(kContainers);
+	const auto rest = (containers == std::string_view::npos)
+		? std::string_view()
+		: home.substr(containers + kContainers.size());
+	const auto id = rest.ends_with(kData)
+		? rest.substr(0, rest.size() - kData.size())
+		: std::string_view();
+	if (!containers
+		|| id.empty()
+		|| id.find('/') != std::string_view::npos) {
+		return {
+			.failure = "HOME " + std::string(home)
+				+ " is not <home>/Library/Containers/<id>/Data",
+		};
+	}
+	return { .path = std::string(home.substr(0, containers)) };
+}
+
+void MarkXpcEvent(XpcBatch &batch, size_t index, xpc_object_t event) {
+	auto &error = batch.errors[index];
+	if (batch.closed
+		|| !error.empty()
+		|| xpc_get_type(event) != XPC_TYPE_ERROR) {
+		return;
+	}
+	const auto description = xpc_dictionary_get_string(
+		event,
+		XPC_ERROR_KEY_DESCRIPTION);
+	error = (description && *description) ? description : "an XPC error";
+	if (!--batch.waiting) {
+		dispatch_semaphore_signal(batch.answered);
+	}
+}
+
+// N of the first "error <N>" in an invalidation reason, otherwise -1.
+[[nodiscard]] int XpcErrorCode(std::string_view reason) {
+	constexpr auto kError = std::string_view("error ");
+	const auto position = reason.find(kError);
+	if (position == std::string_view::npos) {
+		return -1;
+	}
+	const auto digits = reason.substr(position + kError.size());
+	const auto end = digits.data() + digits.size();
+	auto value = -1;
+	const auto [parsed, error] = std::from_chars(digits.data(), end, value);
+	return (error == std::errc() && value >= 0) ? value : -1;
+}
+
+[[nodiscard]] XpcLookup ReadXpcLookup(
+		xpc_connection_t connection,
+		const std::string &error) {
+	if (error.empty()) {
+		return {
+			.code = "xpc-ok",
+			.detail = Format(
+				"libxpc lookup: no error within %d ms",
+				int(kXpcWaitMs)),
+			.reachable = true,
+		};
+	}
+	auto reason = std::string();
+	if (__builtin_available(macOS 12.0, *)) {
+		if (const auto copied = xpc_connection_copy_invalidation_reason(
+				connection)) {
+			reason = copied;
+			free(copied);
+		}
+	}
+	const auto code = XpcErrorCode(reason);
+	const auto detail = "libxpc lookup: "
+		+ error
+		+ " ("
+		+ (reason.empty() ? "no invalidation reason read" : reason)
+		+ ")";
+	if (code < 0) {
+		return { .code = "xpc-error", .detail = detail, .unreadable = true };
+	}
+	return { .code = Format("xpc%d", code), .detail = detail };
+}
+
+// libxpc's own lookup of each name, in order, without a message: the
+// connections of one batch share a serial queue and are resumed together,
+// which makes libxpc look each name up through its own bootstrap pipe.
+// After the wait the reason of each failed one is read, then all of them
+// are canceled.
+[[nodiscard]] std::vector<XpcLookup> XpcLookups(
+		const std::vector<std::string> &names) {
+	auto result = std::vector<XpcLookup>();
+	result.reserve(names.size());
+	const auto queue = dispatch_queue_create(
+		"org.telegram.desktop.widget-helper-probe.xpc",
+		DISPATCH_QUEUE_SERIAL);
+	const auto releaseQueue = gsl::finally([&] {
+		dispatch_release(queue);
+	});
+	for (auto from = size_t(); from < names.size(); from += kXpcBatch) {
+		const auto till = std::min(names.size(), from + kXpcBatch);
+		const auto batch = std::make_shared<XpcBatch>();
+		batch->errors.resize(till - from);
+		batch->waiting = till - from;
+		batch->answered = dispatch_semaphore_create(0);
+		auto connections = std::vector<xpc_connection_t>();
+		const auto release = gsl::finally([&] {
+			for (const auto connection : connections) {
+				xpc_connection_cancel(connection);
+				xpc_release(connection);
+			}
+			dispatch_release(batch->answered);
+		});
+		for (auto i = from; i != till; ++i) {
+			const auto connection = xpc_connection_create_mach_service(
+				names[i].c_str(),
+				queue,
+				0);
+			const auto index = i - from;
+			xpc_connection_set_event_handler(connection, ^(xpc_object_t event) {
+				MarkXpcEvent(*batch, index, event);
+			});
+			connections.push_back(connection);
+			xpc_connection_resume(connection);
+		}
+		dispatch_semaphore_wait(
+			batch->answered,
+			dispatch_time(
+				DISPATCH_TIME_NOW,
+				kXpcWaitMs * int64_t(NSEC_PER_MSEC)));
+
+		// Events after this one, the cancels' included, change nothing.
+		dispatch_sync_f(queue, batch.get(), [](void *context) {
+			static_cast<XpcBatch*>(context)->closed = true;
+		});
+		for (auto i = size_t(); i != connections.size(); ++i) {
+			result.push_back(ReadXpcLookup(connections[i], batch->errors[i]));
+		}
+	}
+	return result;
+}
+#endif // OS_MAC_STORE
+
 [[nodiscard]] FirehoseReading ReadFirehosePorts(mach_port_name_t logd) {
 	// The header is one chunk; the metadata returned ends it.
 	constexpr auto kChunk = size_t(4096);
@@ -1272,6 +1561,9 @@ private:
 	void listDescriptors();
 	[[nodiscard]] bool stderrUnchanged(const Descriptor &descriptor) const;
 	void listMach();
+#ifdef OS_MAC_STORE
+	void attemptLaunchd();
+#endif // OS_MAC_STORE
 	void classifyEntry(
 		const MachEntry &entry,
 		const std::vector<mach_port_name_t> &threads,
@@ -1339,6 +1631,9 @@ private:
 	MachSnapshot _post;
 	WarmupReading _warmup;
 	std::vector<ReferenceReading> _references;
+#ifdef OS_MAC_STORE
+	LaunchdReading _launchd;
+#endif // OS_MAC_STORE
 	std::vector<std::string> _warmupChanges;
 	std::vector<std::string> _referenceChanges;
 	std::vector<std::string> _lockdownChanges;
@@ -1387,6 +1682,22 @@ std::string Probe::run() {
 	// held-before is read against the untouched space, the changes against
 	// the warmed one.
 	_references = LookUpReferences(_pre);
+#ifdef OS_MAC_STORE
+	// Inside the reference window, so its releases are checked too.
+	_launchd = ReadLaunchd(bootstrap_port);
+	if (const auto entry = FindEntry(_pre, bootstrap_port)) {
+		_launchd.ports.insert(_launchd.ports.begin(), {
+			.label = "bootstrap",
+			.name = entry->name,
+			.object = entry->object,
+		});
+	} else {
+		_launchd.error += (_launchd.error.empty() ? "" : "; ")
+			+ Format(
+				"the bootstrap port 0x%x is not in the pre-lockdown snapshot",
+				bootstrap_port);
+	}
+#endif // OS_MAC_STORE
 	_referenced = SnapshotMach();
 	if (_warmed.error.empty() && _referenced.error.empty()) {
 		_referenceChanges = CompareSnapshots(_warmed, _referenced);
@@ -1406,6 +1717,9 @@ std::string Probe::run() {
 
 	listDescriptors();
 	listMach();
+#ifdef OS_MAC_STORE
+	attemptLaunchd();
+#endif // OS_MAC_STORE
 
 	attemptProcesses();
 	attemptNetwork();
@@ -1569,6 +1883,53 @@ void Probe::reportPreLockdown() {
 				"reference " + reading.service + ": " + reading.error);
 		}
 	}
+#ifdef OS_MAC_STORE
+	const auto objects = [&](std::string_view label) {
+		auto result = std::string();
+		for (const auto &port : _launchd.ports) {
+			if (port.label.starts_with(label)) {
+				result += Format(
+					"%s0x%x",
+					result.empty() ? "" : " ",
+					port.object);
+			}
+		}
+		return result.empty() ? std::string("?") : result;
+	};
+	const auto special = (_launchd.specialRead != KERN_SUCCESS)
+		? ("FAILED " + KernText(_launchd.specialRead))
+		: !MACH_PORT_VALID(_launchd.special)
+		? std::string("none")
+		: (_launchd.special == bootstrap_port)
+		? std::string("same")
+		: Format(
+			"0x%x object=%s",
+			_launchd.special,
+			objects("special").c_str());
+	const auto registered = (_launchd.registeredRead != KERN_SUCCESS)
+		? ("FAILED " + KernText(_launchd.registeredRead))
+		: Format(
+			"%d of %d slots (objects %s)",
+			_launchd.registered,
+			_launchd.slots,
+			_launchd.registered ? objects("registered").c_str() : "none");
+	const auto parent = KernText(_launchd.parentRead)
+		+ ((_launchd.parentRead == KERN_SUCCESS)
+			? (" object=" + objects("parent"))
+			: std::string());
+	_report.row(Format(
+		"launchd before the lockdown: bootstrap 0x%x object=%s special=%s;"
+		" registered %s; parent %s%s",
+		bootstrap_port,
+		objects("bootstrap").c_str(),
+		special.c_str(),
+		registered.c_str(),
+		parent.c_str(),
+		_launchd.error.empty() ? "" : (" ERROR " + _launchd.error).c_str()));
+	if (!_launchd.error.empty()) {
+		_failures.push_back("launchd before the lockdown: " + _launchd.error);
+	}
+#endif // OS_MAC_STORE
 	if (!_referenced.error.empty()) {
 		_failures.push_back("post-reference snapshot: " + _referenced.error);
 	} else if (!_referenceChanges.empty()) {
@@ -1981,6 +2342,16 @@ void Probe::classifyEntry(
 		}
 		return nullptr;
 	}();
+#ifdef OS_MAC_STORE
+	const auto launchd = [&]() -> const LaunchdPort* {
+		for (const auto &port : _launchd.ports) {
+			if (port.object && port.object == entry.object) {
+				return &port;
+			}
+		}
+		return nullptr;
+	}();
+#endif // OS_MAC_STORE
 	if (kernel != KERN_SUCCESS && (entry.type & ports)) {
 		_failures.push_back(Format("0x%x kernel object query: ", entry.name)
 			+ KernText(kernel));
@@ -2024,6 +2395,20 @@ void Probe::classifyEntry(
 		}
 	} else if (isKernel) {
 		defect = "kernel object " + kernelText;
+#ifdef OS_MAC_STORE
+	} else if (launchd) {
+		++_counts.launchd;
+		if (_locking) {
+			defect = "a launchd port ("
+				+ launchd->label
+				+ ") after the lockdown";
+		} else if (entry.name == bootstrap_port) {
+			label = "bootstrap (bootstrap_port)";
+			++_counts.bootstrap;
+		} else {
+			label = "launchd port (" + launchd->label + ")";
+		}
+#endif // OS_MAC_STORE
 	} else if (entry.name == bootstrap_port) {
 		label = "bootstrap (bootstrap_port)";
 		++_counts.bootstrap;
@@ -2173,6 +2558,80 @@ void Probe::listMach() {
 		classifyEntry(entry, threads, host, taskName);
 	}
 }
+
+#ifdef OS_MAC_STORE
+void Probe::attemptLaunchd() {
+	const auto reading = ReadLaunchd(bootstrap_port);
+	if (!reading.error.empty()) {
+		_failures.push_back("launchd after the lockdown: " + reading.error);
+	}
+	const auto defect = [&](const std::string &what) {
+		if (_locking) {
+			_defects.push_back(what + " after the lockdown");
+		}
+	};
+	if (reading.specialRead != KERN_SUCCESS) {
+		incomplete(
+			"launchd special-port",
+			"task_get_special_port(TASK_BOOTSTRAP_PORT) "
+				+ KernText(reading.specialRead));
+	} else {
+		const auto held = MACH_PORT_VALID(reading.special);
+		attempt(
+			"launchd special-port",
+			held ? "HELD" : "none",
+			Format(
+				"task_get_special_port(TASK_BOOTSTRAP_PORT) = 0x%x%s,"
+				" bootstrap_port 0x%x",
+				reading.special,
+				held ? " (copy released)" : "",
+				bootstrap_port));
+		if (held) {
+			defect("the bootstrap special port");
+		}
+	}
+	if (reading.registeredRead != KERN_SUCCESS) {
+		incomplete(
+			"launchd registered",
+			"mach_ports_lookup " + KernText(reading.registeredRead));
+	} else {
+		attempt(
+			"launchd registered",
+			reading.registered
+				? Format("%d", reading.registered)
+				: std::string("none"),
+			Format(
+				"mach_ports_lookup: %d of %d slots valid (released)",
+				reading.registered,
+				reading.slots));
+		if (reading.registered) {
+			defect(Format("%d registered port(s)", reading.registered));
+		}
+	}
+	attemptKern(
+		"launchd parent",
+		reading.parentRead,
+		Format("bootstrap_parent(0x%x)", reading.special));
+	if (reading.parentRead == KERN_SUCCESS) {
+		defect("a bootstrap parent");
+	}
+	if (!_post.error.empty()) {
+		incomplete("launchd in-space", "no listing");
+	} else if (_launchd.ports.empty() || !_launchd.error.empty()) {
+		incomplete(
+			"launchd in-space",
+			"the launchd ports were not all read before the lockdown");
+	} else {
+		attempt(
+			"launchd in-space",
+			Format("%d", _counts.launchd),
+			Format(
+				"listed entries whose object is one of the %d launchd ports"
+				" read before the lockdown",
+				int(_launchd.ports.size())));
+	}
+}
+#endif // OS_MAC_STORE
 
 void Probe::attempt(
 		const std::string &name,
@@ -2415,28 +2874,21 @@ void Probe::attemptFiles() {
 	} else {
 		incomplete("own-container", "HOME is not set");
 	}
-	// The user's database entry: HOME is the service's own container.
-	errno = 0;
-	const auto user = getpwuid(getuid());
-	const auto userError = errno;
-	const auto home = (user && user->pw_dir && *user->pw_dir)
-		? std::string(user->pw_dir)
-		: std::string();
+	const auto home = UserHome();
 	const auto folders = std::array{
 		std::pair{ "user-home", "" },
 		std::pair{ "user-documents", "/Documents" },
 		std::pair{ "user-downloads", "/Downloads" },
 	};
 	for (const auto &[label, folder] : folders) {
-		if (!home.empty()) {
-			attemptFile(label, home + folder);
+		if (!home.path.empty()) {
+			attemptFile(label, home.path + folder);
 			continue;
 		}
 		for (const auto call : { " opendir", " stat", " access", " policy" }) {
 			incomplete(
 				label + std::string(call),
-				"getpwuid(getuid()) gave no home directory: "
-					+ ErrnoText(userError));
+				"no user home: " + home.failure);
 		}
 	}
 #endif // OS_MAC_STORE
@@ -2591,59 +3043,105 @@ void Probe::attemptServices() {
 #ifdef OS_MAC_STORE
 void Probe::attemptServiceListing() {
 	const auto &names = _arguments.serviceNames;
+	auto special = mach_port_t(MACH_PORT_NULL);
+	const auto specialRead = task_get_special_port(
+		mach_task_self(),
+		TASK_BOOTSTRAP_PORT,
+		&special);
+	const auto releaseSpecial = gsl::finally([&] {
+		if (MACH_PORT_VALID(special)) {
+			mach_port_deallocate(mach_task_self(), special);
+		}
+	});
+	const auto lookups = XpcLookups(names);
 	auto allowed = 0;
-	auto registered = 0;
 	auto unreadable = 0;
+	auto unreadReasons = 0;
+	auto throughSpecial = 0;
+	auto throughXpc = 0;
 	// One row each, not one attempt each: the summary keeps only counts.
-	for (const auto &name : names) {
+	for (auto i = size_t(); i != names.size(); ++i) {
+		const auto &name = names[i];
+		const auto &lookup = lookups[i];
 		const auto policy = sandbox_check(
 			_pid,
 			"mach-lookup",
 			kSandboxFilterGlobalName,
 			name.c_str());
-		auto code = PolicyCode(policy);
-		auto detail = Format(
-			"sandbox_check(mach-lookup, global-name) = %d",
-			policy);
 		if (policy == 0) {
 			++allowed;
-			auto port = mach_port_t(MACH_PORT_NULL);
-			const auto result = bootstrap_look_up(
-				bootstrap_port,
-				name.c_str(),
-				&port);
-			const auto valid = MACH_PORT_VALID(port);
-			if (valid) {
-				mach_port_deallocate(mach_task_self(), port);
-			}
-			if (result == KERN_SUCCESS && valid) {
-				++registered;
-			}
-			code += "/" + KernCode(result);
-			detail += ", bootstrap_look_up " + KernText(result)
-				+ (valid ? " (right released)" : "");
 		} else if (policy != 1) {
 			++unreadable;
 		}
-		_report.row("attempt service " + name + ": " + code + " " + detail);
+		// A lookup carries the right it is given: never pass another one.
+		auto port = mach_port_t(MACH_PORT_NULL);
+		const auto result = bootstrap_look_up(special, name.c_str(), &port);
+		const auto valid = MACH_PORT_VALID(port);
+		if (valid) {
+			mach_port_deallocate(mach_task_self(), port);
+		}
+		if (result == KERN_SUCCESS && valid) {
+			++throughSpecial;
+		}
+		if (lookup.reachable) {
+			++throughXpc;
+		} else if (lookup.unreadable) {
+			++unreadReasons;
+		}
+		_report.row("attempt service "
+			+ name
+			+ ": "
+			+ PolicyCode(policy)
+			+ "/"
+			+ KernCode(result)
+			+ "/"
+			+ lookup.code
+			+ Format(
+				" sandbox_check(mach-lookup, global-name) = %d,"
+				" bootstrap_look_up(special port 0x%x) ",
+				policy,
+				special)
+			+ KernText(result)
+			+ (valid ? " (right released)" : "")
+			+ ", "
+			+ lookup.detail);
 	}
+	auto missing = std::vector<std::string>();
 	if (names.empty()) {
-		incomplete(
-			"service listing",
+		missing.push_back(
 			Format("no \"%s<name>\" argument", kWidgetHelperServicePrefix));
-	} else if (unreadable) {
-		incomplete(
-			"service listing",
-			Format(
-				"sandbox_check failed for %d of %d names",
-				unreadable,
-				int(names.size())));
+	}
+	if (specialRead != KERN_SUCCESS) {
+		missing.push_back("task_get_special_port(TASK_BOOTSTRAP_PORT) "
+			+ KernText(specialRead));
+	}
+	if (unreadable) {
+		missing.push_back(Format(
+			"sandbox_check failed for %d of %d names",
+			unreadable,
+			int(names.size())));
+	}
+	if (unreadReasons) {
+		missing.push_back(Format(
+			"the libxpc lookup of %d of %d names failed for a reason not"
+			" read",
+			unreadReasons,
+			int(names.size())));
+	}
+	if (!missing.empty()) {
+		auto joined = std::string();
+		for (const auto &reason : missing) {
+			joined += (joined.empty() ? "" : "; ") + reason;
+		}
+		incomplete("service listing", joined);
 	}
 	_services = Format(
-		"services: %d listed, %d allowed, %d allowed and registered",
+		"services: %d listed, %d allowed; reachable through the special port"
+		" %d, libxpc %d",
 		int(names.size()),
 		allowed,
-		registered);
+		throughSpecial,
+		throughXpc);
 	_report.row(_services);
 }
 #endif // OS_MAC_STORE
@@ -3158,10 +3656,15 @@ std::string Probe::summary() const {
 	for (const auto &label : _fdLabels) {
 		fds += " " + label + ";";
 	}
+#ifdef OS_MAC_STORE
+	const auto launchd = Format(", launchd %d", _counts.launchd);
+#else // OS_MAC_STORE
+	const auto launchd = std::string();
+#endif // OS_MAC_STORE
 	const auto mach = _post.error.empty()
 		? Format(
 			"mach %d: task %d, thread %d, host %d, semaphore %d, clock %d,"
-			" voucher %d, task-name %d, bootstrap %d, receive %d,"
+			" voucher %d, task-name %d, bootstrap %d%s, receive %d,"
 			" send-receive %d, port-set %d, dead %d, libSystem services %d,"
 			" firehose push ports %d, defects %d, unaccounted %d",
 			int(_post.entries.size()),
@@ -3173,6 +3676,7 @@ std::string Probe::summary() const {
 			_counts.voucher,
 			_counts.ownName,
 			_counts.bootstrap,
+			launchd.c_str(),
 			_counts.receive,
 			_counts.sendReceive,
 			_counts.portSet,
