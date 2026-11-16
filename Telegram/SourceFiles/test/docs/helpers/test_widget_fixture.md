@@ -1753,6 +1753,19 @@ hidden at once by `HideFixtureLayers()` and recorded, never confirmed. The
 scroll position is not restored. The log callback holds its record weakly
 and is never called after the record is gone.
 
+`RemoveFixtureMessage()` hides a shown layer, disarms the record's tap and
+host watch, destroys the message by id and then fires the history change
+the removal parks (`HistoryItem::removeMainView()` calls
+`notifyHistoryChangeDelayed()`, which only
+`Data::Session::sendHistoryChangeNotifications()` fires), as after an
+injection and as the product's deletion paths do
+(`delete_messages_box.cpp`, `api_updates.cpp`);
+`HistoryWidget::handleHistoryChange()` recounts the list in that call, so
+the next reading has no row and no height for the removed message. Before,
+the list kept the removed card's height until some later trigger, for
+seconds. Call it from a stage's run, never from an until. The fixture's
+release still destroys its messages with its own loop.
+
 ## Verification
 
 Executed: the macOS arm64 Debug build of the moved module and its attack
@@ -2666,6 +2679,14 @@ ARM lines of `build.bat` read), LTO, the owner's certificate and
 KeyLocker signing, an x64 update or portable copy, the canary job on a
 real runner (its sign and pack steps were simulated locally) and Windows
 builds before 26300.
+
+The settle in `RemoveFixtureMessage()` compiled in the macOS arm64 Debug
+build of
+`2026/11/16/decide-a-right-click-released-before-the-widgets-answer`; its
+reading (no row and no height for the removed message, a kept neighbour as
+the control, and a removal without the settle as the negative) is planned
+as that task's campaign check H2, which records its result in that task's
+`work/test.md`.
 
 ## Related guidance
 

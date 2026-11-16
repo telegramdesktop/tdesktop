@@ -763,7 +763,9 @@ void CheckLegacyOpened(WidgetFixture &state) {
 // The legacy list recounts a pending history layout in HistoryWidget's
 // paint, and History::addNewItem leaves it to whoever calls
 // Data::Session::sendHistoryChangeNotifications next. This is that call,
-// made only in the injecting stage, never from an until.
+// made after an injection and after a removal (whose
+// HistoryItem::removeMainView() parks the change the same way
+// History::addNewItem does), from a stage's run, never from an until.
 void ProcessPendingLayout(History *history) {
 	if (history && history->hasPendingResizedItems()) {
 		history->owner().notifyHistoryChangeDelayed(history);
@@ -1934,7 +1936,9 @@ void RemoveFixtureMessage(
 	HideFixtureLayers(state, message, u"before the removal"_q);
 	DisarmMessage(message);
 	if (const auto item = WidgetFixtureItem(state, message.id)) {
+		const auto history = item->history();
 		item->destroy();
+		ProcessPendingLayout(history);
 	}
 	message.removed = true;
 	message.removedAt = crl::now();

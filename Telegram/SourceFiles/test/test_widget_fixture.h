@@ -309,8 +309,10 @@ void HideFixtureLayers(
 	WidgetFixtureMessage &message,
 	const QString &when);
 
-// Hides layers, disarms the tap and the host watch and destroys the message
-// by id.
+// Hides layers, disarms the tap and the host watch, destroys the message by
+// id and fires the history change the removal parks, so the list's next
+// reading has no row and no height for it. Call it from a stage's run, never
+// from an until.
 void RemoveFixtureMessage(
 	WidgetFixture &fixture,
 	WidgetFixtureMessage &message);
