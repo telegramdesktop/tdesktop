@@ -114,6 +114,7 @@ Dictionaries Inner::enabledRows() const {
 
 auto AddButtonWithLoader(
 		not_null<Ui::VerticalLayout*> content,
+		int position,
 		not_null<Main::Session*> session,
 		const Spellchecker::Dict &dict,
 		bool buttonEnabled,
@@ -128,7 +129,8 @@ auto AddButtonWithLoader(
 		QLocale::countryToString(locale.country())
 	};
 
-	const auto wrap = content->add(
+	const auto wrap = content->insert(
+		position,
 		object_ptr<Ui::SlideWrap<Ui::SettingsButton>>(
 			content,
 			object_ptr<Ui::SettingsButton>(
@@ -305,7 +307,7 @@ auto AddButtonWithLoader(
 	const auto contextMenu = button->lifetime()
 		.make_state<base::unique_qptr<Ui::PopupMenu>>();
 	const auto showMenu = [=] {
-		if (!DictExists(id)) {
+		if (!Spellchecker::DictionaryDownloaded(id)) {
 			return false;
 		}
 		*contextMenu = base::make_unique_q<Ui::PopupMenu>(
@@ -344,42 +346,46 @@ void Inner::setupContent(
 	const auto queryStream = content->lifetime()
 		.make_state<rpl::event_stream<QStringView>>();
 
-	// Rows are created once, when Spellchecker::Dictionaries() becomes
-	// non-empty. Manifest is fetched lazily and may arrive after the box
-	// opens, so we subscribe to DictionariesChanged and populate rows
-	// then if we haven't already.
-	const auto built = content->lifetime().make_state<bool>(false);
+	const auto added = content->lifetime().make_state<Dictionaries>();
+	const auto systemRows = content->lifetime().make_state<int>(0);
+	const auto addRow = [=](const Spellchecker::Dict &dict, int position) {
+		const auto id = dict.id;
+		added->push_back(id);
+		const auto row = AddButtonWithLoader(
+			content,
+			position,
+			session,
+			dict,
+			ranges::contains(enabledDictionaries, id),
+			queryStream->events());
+		row->toggledValue(
+		) | rpl::on_next([=](auto enabled) {
+			if (enabled) {
+				_enabledRows.push_back(id);
+			} else {
+				auto &rows = _enabledRows;
+				rows.erase(ranges::remove(rows, id), end(rows));
+			}
+		}, row->lifetime());
+	};
+	// The manifest is fetched lazily, so its rows go after the system ones
 	const auto buildRows = [=] {
-		if (*built) {
-			return;
+		for (const auto &dict : Spellchecker::DictionariesFromSystem()) {
+			if (!ranges::contains(*added, dict.id)) {
+				addRow(dict, (*systemRows)++);
+			}
 		}
-		const auto dicts = Spellchecker::Dictionaries();
-		if (dicts.empty()) {
-			return;
-		}
-		*built = true;
-		for (const auto &dict : dicts) {
-			const auto id = dict.id;
-			const auto row = AddButtonWithLoader(
-				content,
-				session,
-				dict,
-				ranges::contains(enabledDictionaries, id),
-				queryStream->events());
-			row->toggledValue(
-			) | rpl::on_next([=](auto enabled) {
-				if (enabled) {
-					_enabledRows.push_back(id);
-				} else {
-					auto &rows = _enabledRows;
-					rows.erase(ranges::remove(rows, id), end(rows));
-				}
-			}, row->lifetime());
+		for (const auto &dict : Spellchecker::Dictionaries()) {
+			if (!ranges::contains(*added, dict.id)) {
+				addRow(dict, content->count());
+			}
 		}
 	};
 
 	buildRows();
-	Spellchecker::DictionariesChanged(
+	rpl::merge(
+		Spellchecker::DictionariesChanged(),
+		Spellchecker::SystemDictionariesChanged()
 	) | rpl::on_next(buildRows, content->lifetime());
 	Spellchecker::RefreshDictionariesManifest(session);
 

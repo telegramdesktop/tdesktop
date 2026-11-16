@@ -59,12 +59,38 @@ inline auto LWC(QLocale::Language language, QLocale::Country country) {
 	return (language * 1000) + country;
 }
 
+// Unlike the manifest, keeps the country of any language
+[[nodiscard]] int SystemDictionaryId(const QString &name) {
+	const auto locale = QLocale(name);
+	const auto language = locale.language();
+	return (locale.territory() == QLocale(language).territory())
+		? int(language)
+		: LWC(language, locale.territory());
+}
+
 inline auto LanguageFromLocale(QLocale loc) {
+	if (const auto exact = SystemDictionaryId(loc.name())
+		; IsSystemDictionary(exact)) {
+		return exact;
+	}
 	const auto locLang = loc.language();
 	return (ranges::contains(kLangsForLWC, locLang)
 		&& (loc.country() != QLocale::AnyCountry))
 			? LWC(locLang, loc.country())
 			: int(locLang);
+}
+
+[[nodiscard]] QString SystemDictionaryName(const QLocale &locale) {
+	auto result = locale.nativeLanguageName();
+	if (result.isEmpty()) {
+		result = QLocale::languageToString(locale.language());
+	}
+	result[0] = result[0].toUpper();
+	return (locale.territory() == QLocale(locale.language()).territory())
+		? result
+		: u"%1 (%2)"_q.arg(
+			result,
+			QLocale::territoryToString(locale.territory()));
 }
 
 constexpr auto kDictionariesManifestChannel = "tdhbcfiles"_cs;
@@ -304,7 +330,8 @@ void DownloadDictionaryInBackground(
 
 		DownloadDictionaryInBackground(session, counter, langs, done, force);
 	};
-	if (DictionaryExists(id) && !(force && IsSupportedLang(id))) {
+	if (DictionaryExists(id)
+		&& !(force && IsSupportedLang(id) && !IsSystemDictionary(id))) {
 		destroyer();
 		return;
 	}
@@ -447,6 +474,7 @@ void ForceRefreshDictionaries(
 			// so they don't hold the one-time revision back.
 			const auto complete = ranges::all_of(list, [](int id) {
 				return !IsSupportedLang(id)
+					|| IsSystemDictionary(id)
 					|| ranges::all_of(kDictExtensions, [&](const auto ext) {
 						const auto name = Spellchecker::LocaleFromLangId(id)
 							.name();
@@ -535,6 +563,17 @@ rpl::producer<> DictionariesChanged() {
 	return DictionariesListChanged.events();
 }
 
+std::vector<Dict> DictionariesFromSystem() {
+	auto result = std::vector<Dict>();
+	for (const auto &name : SystemDictionaries()) {
+		auto dict = Dict();
+		dict.id = SystemDictionaryId(name);
+		dict.name = SystemDictionaryName(QLocale(name));
+		result.push_back(std::move(dict));
+	}
+	return result;
+}
+
 void RefreshDictionariesManifest(not_null<Main::Session*> session) {
 	StartManifestRefresh(session);
 }
@@ -588,7 +627,7 @@ bool UnpackDictionary(const QString &path, int langId) {
 	return true;
 }
 
-bool DictionaryExists(int langId) {
+bool DictionaryDownloaded(int langId) {
 	if (!langId) {
 		return true;
 	}
@@ -597,6 +636,17 @@ bool DictionaryExists(int langId) {
 		const auto name = Spellchecker::LocaleFromLangId(langId).name();
 		return !QFile(folder + name + '.' + ext).exists();
 	});
+}
+
+bool IsSystemDictionary(int langId) {
+	return ranges::contains(
+		SystemDictionaries(),
+		langId,
+		SystemDictionaryId);
+}
+
+bool DictionaryExists(int langId) {
+	return DictionaryDownloaded(langId) || IsSystemDictionary(langId);
 }
 
 bool RemoveDictionary(int langId) {
@@ -611,7 +661,7 @@ bool RemoveDictionary(int langId) {
 		return false;
 	}
 	RemoveDictionaryFiles(folder);
-	return !DictionaryExists(langId);
+	return !DictionaryDownloaded(langId);
 }
 
 rpl::producer<QString> ButtonManageDictsState(
@@ -643,6 +693,7 @@ rpl::producer<QString> ButtonManageDictsState(
 		rpl::merge(
 			Spellchecker::SupportedScriptsChanged(),
 			Spellchecker::DictionariesChanged(),
+			Spellchecker::SystemDictionariesChanged(),
 			Core::App().settings().dictionariesEnabledChanges(
 			) | rpl::to_empty,
 			Core::App().settings().spellcheckerEnabledChanges(
@@ -656,7 +707,8 @@ std::vector<int> DefaultLanguages() {
 
 	const auto append = [&](const auto loc) {
 		const auto l = LanguageFromLocale(loc);
-		if (!ranges::contains(langs, l) && IsSupportedLang(l)) {
+		if (!ranges::contains(langs, l)
+			&& (IsSupportedLang(l) || IsSystemDictionary(l))) {
 			langs.push_back(l);
 		}
 	};
