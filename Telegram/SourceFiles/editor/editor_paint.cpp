@@ -1619,6 +1619,7 @@ void Paint::addRoundVideo(QByteArray content, crl::time duration) {
 			.content = std::move(content),
 			.thumbnail = thumbnail,
 			.duration = duration,
+			.hasAudio = true,
 			.round = true,
 		}),
 		std::move(data)));
