@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "_other/widget_helper.h"
 
+#include "platform/posix/widget_channel_posix.h"
+
 #include <gsl/gsl>
 
 #include <mach/mach.h>
@@ -210,6 +212,14 @@ struct PortRights {
 #endif // OS_MAC_STORE
 
 } // namespace
+
+std::unique_ptr<twidget::SandboxRemoteStream> Adopt(std::string_view token) {
+	constexpr auto kDescriptor = Platform::WidgetHelper::kChannelDescriptor;
+	if (token != std::to_string(kDescriptor) || chdir("/") != 0) {
+		return nullptr;
+	}
+	return Platform::WidgetHelper::AdoptPosixChannel(kDescriptor);
+}
 
 std::string Lockdown() {
 	tzset();

@@ -21,7 +21,6 @@ PRIVATE
     _other/widget_helper.h
     _other/widget_helper_linux.cpp
     _other/widget_helper_mac.cpp
-    _other/widget_helper_posix.cpp
     _other/widget_helper_service_mac.cpp
     _other/widget_helper_win.cpp
     platform/linux/widget_descriptors_linux.cpp
@@ -39,12 +38,6 @@ PRIVATE
     test/test_widget_helper_probe_lockdown_mac.cpp
     test/test_widget_helper_probe_lockdown_win.cpp
 )
-
-if (NOT APPLE)
-    remove_target_sources(TelegramWidgetHelper ${src_loc}
-        _other/widget_helper_posix.cpp
-    )
-endif()
 
 if (NOT build_macstore)
     remove_target_sources(TelegramWidgetHelper ${src_loc}
