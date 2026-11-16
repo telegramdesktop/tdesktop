@@ -41,6 +41,7 @@ parts:
     source-type: git
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
       - LDFLAGS: ${LDFLAGS:+$LDFLAGS} -Wl,--push-state,--no-as-needed,-ldav1d,--pop-state
     build-packages:
       - libboost-regex-dev
@@ -269,6 +270,7 @@ parts:
       - --enable-decoder=wmavoice
       - --enable-encoder=aac
       - --enable-encoder=libopenh264
+      - --enable-encoder=libvpx_vp9
       - --enable-encoder=libopus
       - --enable-encoder=pcm_s16le
       - --enable-filter=atempo
@@ -297,9 +299,13 @@ parts:
       - --enable-muxer=ogg
       - --enable-muxer=opus
       - --enable-muxer=wav
+      - --enable-muxer=webm
     override-pull: |
       craftctl default
       sed -i 's/disable ffnvcodec cuvid nvdec nvenc/:/g' configure
+    override-build: |
+      craftctl default
+      sed -i 's,^\(libdir\|includedir\)=/usr/,\1=${prefix}/,' "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"/lib*.pc
     prime: [-./*]
     after:
       - nv-codec-headers
@@ -516,6 +522,8 @@ parts:
     source-depth: 1
     source-commit: 020feec5c040fdae2cf752c2c2be62ddde7c236d
     plugin: cmake
+    build-environment:
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     build-packages:
       - libopenh264-dev
       - libopus-dev
