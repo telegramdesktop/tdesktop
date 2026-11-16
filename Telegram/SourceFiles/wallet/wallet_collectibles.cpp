@@ -610,7 +610,16 @@ void Activate(
 		const CollectibleRecord &item,
 		Fn<std::vector<Ui::UniqueGiftCoverAction>(
 			not_null<Ui::GenericBox*>)> extra) {
-	if (item.gift) {
+	if (OnOwnSale(item)) {
+		show->showBox(Box(
+			::Settings::GlobalStarGiftBox,
+			MakeChatShow(show, false),
+			*item.gift,
+			::Settings::StarGiftResaleInfo(),
+			::Settings::CreditsEntryBoxStyleOverrides(),
+			nullptr));
+		return;
+	} else if (item.gift) {
 		const auto weak = std::weak_ptr(media);
 		const auto address = item.address;
 		const auto slug = item.key;
@@ -1132,6 +1141,7 @@ std::optional<FlightPose> CollectiblesGrid::dragSource(
 	const auto &gift = _records[index].gift;
 	if (!gift
 		|| !gift->unique
+		|| OnOwnSale(_records[index])
 		|| !_host.painter
 		|| ownCard().contains(address)
 		|| _flights.contains(address)
@@ -1241,7 +1251,9 @@ void CollectiblesGrid::dropDrag(const FlightPose &released) {
 	const auto address = _drag.address;
 	const auto generation = _drag.generation;
 	const auto index = indexOf(address);
-	const auto gift = (index >= 0) ? _records[index].gift : nullptr;
+	const auto gift = (index >= 0 && !OnOwnSale(_records[index]))
+		? _records[index].gift
+		: nullptr;
 	if (!gift || !gift->unique || ownCard().contains(address)) {
 		vanishDrag();
 		return;
@@ -1444,7 +1456,7 @@ int CollectiblesGrid::indexOf(const QString &address) const {
 
 std::optional<QRect> CollectiblesGrid::hintTarget() const {
 	const auto gift = [](const CollectibleRecord &record) {
-		return (record.gift != nullptr);
+		return (record.gift != nullptr) && !OnOwnSale(record);
 	};
 	const auto i = ranges::find_if(_records, gift);
 	if (i == end(_records)) {
@@ -1576,11 +1588,14 @@ void CollectiblesGrid::applySquare(
 		if (fresh) {
 			square.gift = createGiftButton(record.address);
 		}
-		const auto leaving = (_leaving == record.address);
-		const auto onCard = !leaving
+		const auto eligible = !OnOwnSale(record);
+		const auto leaving = eligible && (_leaving == record.address);
+		const auto onCard = eligible
+			&& !leaving
 			&& (_onCard.contains(record.address)
 				|| _returning.contains(record.address));
-		const auto silhouette = leaving || (_lifted == record.address);
+		const auto silhouette = eligible
+			&& (leaving || (_lifted == record.address));
 		// A reparse allocates the gift anew, equal values keep the player.
 		if (fresh
 			|| !SameServedGift(square.record, record)
@@ -1619,7 +1634,7 @@ void CollectiblesGrid::activate(const QString &address) {
 std::optional<CoverCardState> CollectiblesGrid::coverState(
 		const QString &address) const {
 	const auto index = indexOf(address);
-	if (index < 0 || !_records[index].gift) {
+	if (index < 0 || !_records[index].gift || OnOwnSale(_records[index])) {
 		return std::nullopt;
 	}
 	const auto collections = CardColorCollections(&_show->session());
@@ -1753,6 +1768,7 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 	if (_menu
 		|| index < 0
 		|| !_records[index].gift
+		|| OnOwnSale(_records[index])
 		|| _leaving == address
 		|| !_press.address.isEmpty()
 		|| dragFollowing()) {
@@ -1798,7 +1814,10 @@ void CollectiblesGrid::prepareColor(int index) {
 
 void CollectiblesGrid::cardAction(const QString &address, bool add) {
 	const auto index = indexOf(address);
-	if (index < 0 || !_records[index].gift || _leaving == address) {
+	if (index < 0
+		|| !_records[index].gift
+		|| OnOwnSale(_records[index])
+		|| _leaving == address) {
 		return;
 	}
 	const auto onCard = ownCard().contains(address);
@@ -1815,6 +1834,7 @@ void CollectiblesGrid::colorAction(const QString &address, bool apply) {
 	const auto index = indexOf(address);
 	if (index < 0
 		|| !_records[index].gift
+		|| OnOwnSale(_records[index])
 		|| _leaving == address
 		|| colorSource(address) == apply) {
 		return;
@@ -1822,7 +1842,9 @@ void CollectiblesGrid::colorAction(const QString &address, bool apply) {
 	if (apply) {
 		const auto collections = CardColorCollections(&_show->session());
 		if (!CardColorAllowed(_records[index], collections)) {
-			_colorToast.show(collections, _records);
+			auto held = _records;
+			held.erase(ranges::remove_if(held, OnOwnSale), end(held));
+			_colorToast.show(collections, held);
 			return;
 		} else if (!ownCard().contains(address)) {
 			addToCard(_records[index], true);
@@ -2148,6 +2170,7 @@ std::optional<FlightPose> CollectiblesGrid::squarePose(
 	const auto index = indexOf(address);
 	const auto i = _squares.find(address);
 	if (index < 0
+		|| OnOwnSale(_records[index])
 		|| i == end(_squares)
 		|| !i->second.gift
 		|| !i->second.gift->isVisible()) {

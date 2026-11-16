@@ -33,6 +33,8 @@ struct CollectibleRecord : Gram::NftItem {
 	const CollectibleRecord &a,
 	const CollectibleRecord &b);
 
+[[nodiscard]] bool OnOwnSale(const CollectibleRecord &record);
+
 [[nodiscard]] bool FillServedGift(
 	not_null<Main::Session*> session,
 	CollectibleRecord &record,

@@ -242,6 +242,7 @@ bool SameServedStarGift(const StarGift &a, const StarGift &b) {
 			unique.burned,
 			unique.onchainSale,
 			unique.fixedSale,
+			unique.mySale,
 			unique.model,
 			unique.pattern,
 			unique.backdrop,

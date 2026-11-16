@@ -27,6 +27,12 @@ bool SameServedGift(
 	return Data::SameServedStarGift(*a.gift, *b.gift);
 }
 
+bool OnOwnSale(const CollectibleRecord &record) {
+	return record.gift
+		&& record.gift->unique
+		&& record.gift->unique->mySale;
+}
+
 bool FillServedGift(
 		not_null<Main::Session*> session,
 		CollectibleRecord &record,

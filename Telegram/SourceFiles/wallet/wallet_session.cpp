@@ -7757,7 +7757,7 @@ void Session::applyCollectibles(
 	const auto &data = result.data();
 	auto loaded = CollectiblesFromServer(_session, data.vitems().v);
 	if (!request.more && _collectiblesPaged) {
-		// A paged list keeps its pages and cursor; only arrivals are added.
+		// A paged list keeps its pages; the head page refreshes its records.
 		const auto left = [&](const CollectibleRecord &item) {
 			const auto i = _collectibleFollowUps.find(item.address);
 			return (i != end(_collectibleFollowUps))
@@ -7772,6 +7772,15 @@ void Session::applyCollectibles(
 			std::vector<CollectibleRecord>(loaded));
 		list.insert(end(list), begin(_collectibles), end(_collectibles));
 		list.erase(ranges::remove_if(list, left), end(list));
+		for (auto &item : list) {
+			const auto i = ranges::find(
+				loaded,
+				item.address,
+				&Gram::NftItem::address);
+			if (i != end(loaded)) {
+				item = *i;
+			}
+		}
 		spendCollectibleFollowUps(&loaded);
 		if (!SameCollectibles(_collectibles, list)) {
 			setCollectibles(std::move(list));
@@ -7878,9 +7887,12 @@ void Session::spendCollectibleFollowUps(
 		const std::vector<CollectibleRecord> *list) {
 	auto &followUps = _collectibleFollowUps;
 	for (auto i = begin(followUps); i != end(followUps);) {
-		const auto listed = list
-			&& ranges::contains(*list, i->first, &Gram::NftItem::address);
-		const auto reflected = list && (listed == i->second.incoming);
+		// A gift sent to its own sale stays listed, held by the contract.
+		const auto heldHere = [&](const CollectibleRecord &item) {
+			return (item.address == i->first) && !OnOwnSale(item);
+		};
+		const auto held = list && ranges::any_of(*list, heldHere);
+		const auto reflected = list && (held == i->second.incoming);
 		if (!reflected && (--i->second.left > 0)) {
 			++i;
 		} else {

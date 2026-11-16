@@ -140,6 +140,7 @@ struct UniqueGift {
 	bool burned = false;
 	bool onchainSale = false;
 	bool fixedSale = false;
+	bool mySale = false;
 	TimeId exportAt = 0;
 	TimeId canTransferAt = 0;
 	TimeId canResellAt = 0;

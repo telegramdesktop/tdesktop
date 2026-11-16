@@ -152,12 +152,17 @@ private:
 [[nodiscard]] Ownership LookupOwnership(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
-	if ((gift.ownerId && !gift.fixedSale)
-		|| gift.ownerAddress.isEmpty()
-		|| gift.slug.isEmpty()
+	if (gift.slug.isEmpty()
 		|| gift.burned
 		|| !session->appConfig().walletAvailable()
 		|| session->supportMode()) {
+		return Ownership::Other;
+	} else if (gift.mySale) {
+		return session->wallet().address()
+			? Ownership::Own
+			: Ownership::Unknown;
+	} else if ((gift.ownerId && !gift.fixedSale)
+		|| gift.ownerAddress.isEmpty()) {
 		return Ownership::Other;
 	}
 	const auto owner = Wallet::CanonicalAddress(gift.ownerAddress);
