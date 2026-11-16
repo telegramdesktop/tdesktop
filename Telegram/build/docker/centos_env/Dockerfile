@@ -95,14 +95,14 @@ cd build
 implib() {
 	LIBFILE=$(basename $1)
 	LIBNAME=$(basename $1 .so)
-	../implib-gen.py -q $1
+	../implib-gen.py -q "$@"
 	gcc $CFLAGS -g0 -c -o $LIBFILE.tramp.o $LIBFILE.tramp.S
 	gcc $CFLAGS -c -o $LIBFILE.init.o $LIBFILE.init.c
 	ar rcs /usr/local/lib64/$LIBNAME.a $LIBFILE.tramp.o $LIBFILE.init.o
 }
 
 implib /usr/lib64/libgtk-3.so
-implib /usr/lib64/libgdk-3.so
+implib /usr/lib64/libgdk-3.so --dlsym-callback=implib_gdk_dlsym
 implib /usr/lib64/libgdk_pixbuf-2.0.so
 implib /usr/lib64/libvdpau.so
 implib /usr/lib64/libva-x11.so
@@ -151,6 +151,29 @@ void (*_XUnlockMutex_fn)(LockInfoPtr) = UnlockMutex;
 EOF2
 gcc $CFLAGS -c -o libX11.locks.o libX11.locks.c
 ar rs /usr/local/lib64/libX11.a libX11.locks.o
+
+# Qt checks the GdkWindow type of both backends, while GTK
+# may be built without one of them.
+cat > libgdk-3.dlsym.c <<'EOF2'
+#include <dlfcn.h>
+#include <string.h>
+
+static unsigned long InvalidType(void) {
+	return 0;
+}
+
+void *implib_gdk_dlsym(void *handle, const char *name) {
+	void *result = dlsym(handle, name);
+	if (!result
+		&& (!strcmp(name, "gdk_wayland_window_get_type")
+			|| !strcmp(name, "gdk_x11_window_get_type"))) {
+		return (void*)InvalidType;
+	}
+	return result;
+}
+EOF2
+gcc $CFLAGS -c -o libgdk-3.dlsym.o libgdk-3.dlsym.c
+ar rs /usr/local/lib64/libgdk-3.a libgdk-3.dlsym.o
 
 cd ../..
 rm -rf Implib.so
