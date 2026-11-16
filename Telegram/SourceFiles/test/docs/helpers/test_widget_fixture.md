@@ -373,8 +373,10 @@ packs, the fixture and the seams they use need no change for it.
   ([Verification](#verification)). A Windows helper that runs without the
   client's confinement refuses in its lowering (`LockDownHelper()`, **The
   Windows lowering** below) before Ready. The Windows helper has run only
-  in Win32 (x86 on WOW64) and x64 Debug builds on Windows 11 build 26300
-  (10.0.26300); ARM64, a Release runtime, the Store build and Windows
+  on Windows 11 build 26300 (10.0.26300): in Win32 (x86 on WOW64) and x64
+  Debug builds, and from Release packages (test harness on, LTO off), x86
+  installed, portable and updated and x64 installed
+  ([Verification](#verification)); ARM64, the Store build and Windows
   before that build have not.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
@@ -950,16 +952,27 @@ packs, the fixture and the seams they use need no change for it.
   engine in process, and a path it cannot build still fails with
   `GetModuleFileNameW failed: <reason>`, `the executable path is too long`
   or `the executable path has no directory`. Telegram's build depends on
-  the helper target, which puts the file there. The release scripts do not
-  pack it yet (`setup.iss` and `build.bat` name no helper), so a package
-  they make fails every start at the hold with `could not hold
-  modules\<arch>\TelegramWidgetHelper.exe: CreateFileW failed: <reason>`
-  until
-  `2026/11/14/ship-the-windows-widget-helper-in-the-installer-portable-archive-and-updates`
-  ships it. With `modules\x86` present and the file missing, x86 reads
-  `could not hold ...: CreateFileW failed: The system cannot find the file
-  specified.`; an ARM64 package ships no `modules` folder at all, and no
-  package has been run. The
+  the helper target, which puts the file there. Every Windows package
+  outside the Store build ships it: `setup.iss` installs it for every
+  target, ARM64 included, as
+  `{app}\modules\<arch>\TelegramWidgetHelper.exe`; `build.bat` signs it
+  right after `Updater.exe`, puts it into the update package as the entry
+  `modules/<arch>/TelegramWidgetHelper.exe` and copies it into the
+  portable ZIP's `modules\<arch>\`, so the setup, the update package and
+  the portable ZIP all carry the signed file; the canary workflow's Windows
+  job, an x64 build, signs and verifies it with the other binaries and
+  packs it into its update and its portable ZIP as
+  `modules/x64/TelegramWidgetHelper.exe`. The uninstaller removes it with
+  the rest of `{app}\modules` (its `[UninstallDelete]`), and
+  `Telegram.exe -cleanup` deletes it from `modules\x86`, `modules\x64` and
+  `modules\arm64` (`DeleteMyModules()` in `specific_win.cpp`, which
+  deletes only the files it names and removes only folders left empty). A
+  layout without the file, such as an install or a portable copy made
+  before the helper shipped, fails every start at the hold with `could
+  not hold modules\<arch>\TelegramWidgetHelper.exe: CreateFileW failed:
+  <reason>` until an update brings the file; with `modules\x86` present
+  and the file missing, x86 reads `could not hold ...: CreateFileW failed:
+  The system cannot find the file specified.`. The
   client starts it as `"<path>" <handle>`, where `<handle>`
   is the decimal value of the pipe handle it inherits, without
   `-testagent`, with the client's environment and the system directory as
@@ -2585,6 +2598,38 @@ and a client built before a helper change refused the rebuilt helper while
 the rebuilt client accepted it. ARM64, the Store build and a Release client
 were not run; the cached-image-section technique is out of the task's
 threat model (that task's known problems).
+
+The shipped packages (**The Windows helper** above) ran on an x64 host
+with Windows 11 build 26300 (10.0.26300), x86 under WOW64, in the
+evidence campaign of
+`2026/11/14/ship-the-windows-widget-helper-in-the-installer-portable-archive-and-updates`
+(its `work/test.md`). `build.bat`'s release steps, with a stand-in
+code-signing certificate and stand-in update keys in place of the owner's
+signing, built Release x86 and x64 packages with the test harness on and
+LTO off. Each build signed its helper once, and the setup, the portable
+ZIP and the update package carried byte-identical signed copies and no
+`.pdb`; `widget_helper_identity.py` over the signed helper reproduced the
+build's pin, so signing kept it, and a Telegram of another build refused
+that helper with `the widget helper digest does not match this build`.
+The Release helper imported only ADVAPI32 and KERNEL32 and delay-loaded
+only `bcrypt.dll`. The x86 and x64 setups installed it and their
+uninstallers removed it, and `-cleanup` deleted every helper copy from
+the `x86`, `x64` and `arm64` folders, idle and while its client served
+live widgets. x86 copies were updated through a loopback update server,
+installed and portable, from no helper (an install from a setup without
+it, and a portable copy without `modules`, whose folders the Updater
+created) and from an older helper, the installed one also through
+`Core::Restart()` with live widgets, and each updated layout served its
+widgets from the new helper. Installed, portable and updated, the helper
+reached Ready as the LPAC process of the package (a lowbox token with
+`WIN://NOALLAPPPKG`, no capability, Low, its job's only member), and no
+folder scanned held a grant for the package SID; none of 23 Release
+helper starts on x86 and x64 ended with `0xC0000135`, `0xC06D007E` or
+`0xC06D007F`. Not run: ARM64 at run time (its setup was compiled and the
+ARM lines of `build.bat` read), LTO, the owner's certificate and
+KeyLocker signing, an x64 update or portable copy, the canary job on a
+real runner (its sign and pack steps were simulated locally) and Windows
+builds before 26300.
 
 ## Related guidance
 
