@@ -9,9 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "tgw/tgw_renderer_work.h"
+#include "tgw/tgw_touch.h"
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
 #include "twidget/widget_host.h"
+#include "ui/style/style_core_scale.h"
 
 #include <mutex>
 
@@ -50,6 +52,7 @@ private:
 
 namespace {
 
+constexpr auto kFallbackWidth = 1.;
 constexpr auto kDomAlt = 1;
 constexpr auto kDomCtrl = 2;
 constexpr auto kDomMeta = 4;
@@ -70,6 +73,10 @@ private:
 	const std::shared_ptr<HostLink> _link;
 
 };
+
+[[nodiscard]] bool ValidWidth(double width) {
+	return std::isfinite(width) && (width > 0.);
+}
 
 void RespondFailed(const RendererCore::Respond &respond) {
 	respond({ .failure = twidget::WidgetRequestFailure::Failed });
@@ -125,6 +132,10 @@ int DomModifiers(Qt::KeyboardModifiers modifiers) {
 		}
 	}
 	return result;
+}
+
+int LogicalHeight(double css, int scale) {
+	return int(std::ceil(css * scale / 100.));
 }
 
 HostLink::HostLink(not_null<RendererCore*> core)
@@ -260,8 +271,10 @@ void HostLink::postWatch(bool on) {
 
 RendererCore::RendererCore(double width, double dpr)
 : _link(std::make_shared<HostLink>(this))
+, _size{ .width = ValidWidth(width) ? width : kFallbackWidth }
 , _work(std::make_unique<RendererWork>(
-	width,
+	this,
+	_size.width,
 	dpr,
 	RendererWork::Host{
 		.send = [link = _link](const std::string &json) {
@@ -275,8 +288,7 @@ RendererCore::RendererCore(double width, double dpr)
 		.bottom = [link = _link] {
 			return link->hostBottom();
 		},
-	},
-	[=](Changes changes) { _updates.fire_copy(changes); })) {
+	})) {
 }
 
 RendererCore::~RendererCore() {
@@ -346,28 +358,40 @@ void RendererCore::bindHost(not_null<twidget::WidgetHost*> host) {
 }
 
 void RendererCore::detach() {
+	_detached = true;
 	_work->detach();
 	_link->close();
 }
 
 bool RendererCore::attached() const {
-	return _work->attached();
+	return !_detached;
 }
 
 void RendererCore::setOnScreen(bool onScreen) {
-	_work->setOnScreen(onScreen);
+	if (_onScreen != onScreen) {
+		_onScreen = onScreen;
+		_work->setOnScreen(onScreen, ++_visibility);
+	}
 }
 
 bool RendererCore::acceptsInput() const {
-	return _work->acceptsInput();
+	return _onScreen
+		&& !_detached
+		&& !_frozen
+		&& !_stopped
+		&& _hasContent;
 }
 
 void RendererCore::pointerEnter() {
-	_work->pointerEnter();
+	if (!TouchBridge::Active()) {
+		_work->pointerEnter();
+	}
 }
 
 void RendererCore::pointerMove(QPointF point, int modifiers) {
-	_work->pointerMove(point, modifiers);
+	if (!TouchBridge::Active()) {
+		_work->pointerMove(point, modifiers);
+	}
 }
 
 void RendererCore::pointerLeave() {
@@ -375,19 +399,21 @@ void RendererCore::pointerLeave() {
 }
 
 void RendererCore::pointerPress(QPointF point, int modifiers) {
-	_work->pointerPress(point, modifiers);
+	if (!TouchBridge::Active()) {
+		_work->pointerPress(point, modifiers);
+	}
 }
 
 void RendererCore::pointerRelease(QPointF point, int modifiers) {
-	_work->pointerRelease(point, modifiers);
+	_work->pointerRelease(point, modifiers, TouchBridge::Active());
 }
 
 bool RendererCore::menuPress(QPointF point, int modifiers) {
-	return _work->menuPress(point, modifiers);
+	return !TouchBridge::Active() && _work->menuPress(point, modifiers);
 }
 
 void RendererCore::menuRelease(int modifiers) {
-	_work->menuRelease(modifiers);
+	_work->menuRelease(modifiers, TouchBridge::Active());
 }
 
 std::optional<twidget::WidgetGestureClaim> RendererCore::fingerPress(
@@ -417,15 +443,15 @@ void RendererCore::resetInput() {
 }
 
 bool RendererCore::hovered() const {
-	return _work->hovered();
+	return !_detached && _work->hovered();
 }
 
 bool RendererCore::pressed() const {
-	return _work->pressed();
+	return !_detached && _work->pressed();
 }
 
 bool RendererCore::fingerPressed() const {
-	return _work->fingerPressed();
+	return !_detached && _work->fingerPressed();
 }
 
 bool RendererCore::handCursorAt(QPointF point) {
@@ -444,57 +470,66 @@ void RendererCore::clearSelection() {
 	_work->clearSelection();
 }
 
-void RendererCore::setWidth(double width) {
-	_work->setWidth(width);
+void RendererCore::setSize(RendererSize size) {
+	if (!ValidWidth(size.width)) {
+		size.width = _size.width;
+	}
+	if (_sizeSerial && (_size == size)) {
+		return;
+	}
+	_size = size;
+	_work->setSize(_size, ++_sizeSerial);
 }
 
-void RendererCore::setMaxHeight(double height) {
-	_work->setMaxHeight(height);
+void RendererCore::setCut(const RendererCut &cut) {
+	_work->setCut(cut);
 }
 
 double RendererCore::width() const {
-	return _work->width();
+	return _size.width;
 }
 
 std::optional<double> RendererCore::height() const {
-	return _work->height();
+	return _height;
 }
 
 bool RendererCore::bottomAnchored() const {
-	return _work->bottomAnchored();
+	return _heightBottom;
 }
 
 bool RendererCore::hasContent() const {
-	return _work->hasContent();
+	return _hasContent;
 }
 
 bool RendererCore::loaded() const {
-	return _work->loaded();
+	return _loaded;
 }
 
 bool RendererCore::stopped() const {
-	return _work->stopped();
+	return _stopped;
 }
 
 const QString &RendererCore::stopReason() const {
-	return _work->stopReason();
+	return _stopReason;
 }
 
 bool RendererCore::stopFatal() const {
-	return _work->stopFatal();
+	return _stopFatal;
 }
 
-not_null<twlite::Renderer*> RendererCore::renderer() const {
-	return _work->renderer();
-}
-
-const QImage &RendererCore::frame(
-		Images::CornersMaskRef corners,
-		QSize cardArea,
-		bool autoHeight) {
-	_frame = QImage();
-	_frame = _work->frame(corners, cardArea, autoHeight);
-	_frameArea = _work->frameArea();
+QImage RendererCore::frame(QSize cardArea) {
+	const auto held = !_frame.isNull()
+		&& (_frameSerial == _sizeSerial)
+		&& (_frameArea == cardArea)
+		&& (_frame.devicePixelRatio() == style::DevicePixelRatio());
+	if (base::take(_refresh) || !held) {
+		_work->demand();
+	}
+	if (!held) {
+		return QImage();
+	} else if (base::take(_undrawn)) {
+		_work->drawn();
+	}
 	return _frame;
 }
 
@@ -503,19 +538,15 @@ int64 RendererCore::frameBytes() const {
 }
 
 void RendererCore::dropFrame() {
-	_work->dropFrame();
 	_frame = QImage();
 	_frameArea = QSize();
+	_refresh = false;
+	_work->dropFrame(++_epoch);
 }
 
 void RendererCore::refreshFrame() {
+	_refresh = true;
 	_work->refreshFrame();
-}
-
-void RendererCore::takeFrameFrom(RendererCore &other) {
-	_work->takeFrameFrom(*other._work);
-	_frame = base::take(other._frame);
-	_frameArea = base::take(other._frameArea);
 }
 
 rpl::producer<RendererCore::Changes> RendererCore::updates() const {
@@ -543,6 +574,18 @@ void RendererCore::hostLoaded() {
 }
 
 void RendererCore::hostMessage(const twidget::Json &message) {
+	if (_frozen) {
+		return;
+	} else if (message["type"].asString() == "frozen") {
+		// WHY: HtmlWidget::drawStopped() paints the themed stop pill; the
+		// core's own freeze would rebuild its badge and fatal dimming into
+		// the last frame, so the core never sees this message.
+		_frozen = true;
+		_work->freeze(
+			QString::fromStdString(message["reason"].asString()),
+			message["fatal"].asBool());
+		return;
+	}
 	_work->hostMessage(message);
 }
 
@@ -551,13 +594,13 @@ void RendererCore::hostTheme(bool dark) {
 }
 
 void RendererCore::hostLinkRequest(const LinkRequest &request) {
-	if (!_work->stopped()) {
+	if (!refusesHost()) {
 		_linkRequests.fire_copy(request);
 	}
 }
 
 void RendererCore::hostBotRequest(const BotRequest &request) {
-	if (_work->stopped() || !_botRequests.has_consumers()) {
+	if (refusesHost() || !_botRequests.has_consumers()) {
 		RespondFailed(request.respond);
 	} else {
 		_botRequests.fire_copy(request);
@@ -565,15 +608,63 @@ void RendererCore::hostBotRequest(const BotRequest &request) {
 }
 
 void RendererCore::hostCopyText(const std::string &text) {
-	if (!_work->stopped()) {
+	if (!refusesHost()) {
 		_copyRequests.fire_copy(text);
 	}
 }
 
 void RendererCore::hostWatch(bool on) {
-	if (!_work->stopped()) {
+	if (!refusesHost()) {
 		_watchChanges.fire_copy(on);
 	}
+}
+
+bool RendererCore::refusesHost() const {
+	return _frozen || _stopped;
+}
+
+void RendererCore::apply(RendererAnswer &&answer) {
+	auto changes = Changes();
+	if (answer.state.hasContent && !_hasContent) {
+		_hasContent = true;
+		changes |= Change::Content;
+	}
+	if (answer.state.loaded && !_loaded) {
+		_loaded = true;
+		changes |= Change::Loaded;
+	}
+	if (answer.layout) {
+		changes |= applyLayout(std::move(*answer.layout));
+	}
+	if (answer.stop && !_stopped) {
+		_stopped = true;
+		_stopReason = std::move(answer.stop->reason);
+		_stopFatal = answer.stop->fatal;
+		changes |= Change::Stopped | Change::Repaint;
+	}
+	if (changes) {
+		_updates.fire_copy(changes);
+	}
+}
+
+RendererCore::Changes RendererCore::applyLayout(RendererLayout &&layout) {
+	if ((layout.serial != _sizeSerial) || (layout.epoch != _epoch)) {
+		return {};
+	}
+	auto result = Changes(Change::Repaint);
+	if (_height != layout.height) {
+		_height = layout.height;
+		result |= Change::Height;
+	}
+	if (layout.client || (layout.visibility != _visibility)) {
+		result |= Change::Client;
+	}
+	_heightBottom = layout.bottom;
+	_frame = std::move(layout.picture);
+	_frameArea = layout.area;
+	_frameSerial = layout.serial;
+	_undrawn = true;
+	return result;
 }
 
 } // namespace Tgw

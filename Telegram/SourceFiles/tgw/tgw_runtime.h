@@ -16,6 +16,10 @@ namespace HistoryView {
 class Element;
 } // namespace HistoryView
 
+namespace Images {
+struct CornersMaskRef;
+} // namespace Images
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -34,6 +38,7 @@ namespace Tgw {
 class Bridge;
 class RendererCore;
 struct MessageMemory;
+struct RendererCut;
 
 enum class HeightChange : uchar {
 	Own,
@@ -111,6 +116,7 @@ public:
 		Fn<void()> repaint,
 		Fn<void()> heavyChanged);
 	void setSize(int width, double maxHeight);
+	void setCut(Images::CornersMaskRef corners, bool autoHeight);
 	void setSafeArea(ContentSafeArea area);
 	void laidOut(int height);
 	void setTheme(std::shared_ptr<const twidget::WidgetTheme> theme);
@@ -150,7 +156,8 @@ private:
 	[[nodiscard]] bool queryVisible() const;
 
 	[[nodiscard]] bool recordStop(not_null<RendererCore*> renderer);
-	void breakCrashRun();
+	[[nodiscard]] bool countCrash(bool fatal);
+	int breakCrashRun();
 	void start();
 	void release();
 	void resourcesReady(
@@ -163,17 +170,23 @@ private:
 		const twidget::WidgetData &data,
 		const QString &error,
 		uint64 storage);
-	void retire(State state);
+	void retire(State state, int brokenCrashes = 0);
 	void stopForCrashes();
 	void fail(const QString &error);
 	void failResources();
 
 	void subscribeLive();
+	void subscribeStill();
 	void coreUpdated(
 		not_null<RendererCore*> renderer,
 		bool repaint,
-		bool finished);
-	void coreStopped(not_null<RendererCore*> renderer);
+		bool client);
+	void coreStopped(not_null<RendererCore*> renderer, bool client);
+	void stillUpdated(
+		not_null<RendererCore*> renderer,
+		bool stopped,
+		bool repaint,
+		bool client);
 	void linkRequested(
 		not_null<RendererCore*> renderer,
 		const std::string &url,
@@ -221,12 +234,14 @@ private:
 	std::shared_ptr<const twidget::WidgetTheme> _hostTheme;
 	std::unique_ptr<RendererCore> _live;
 	std::unique_ptr<RendererCore> _still;
+	std::unique_ptr<RendererCut> _cut;
 	std::vector<QString> _notes;
 	QString _stopReason;
 	QString _summary;
 	Fn<void(const QString &text)> _logDone;
 	QPointer<QWidget> _window;
 	rpl::lifetime _liveLifetime;
+	rpl::lifetime _stillLifetime;
 	rpl::lifetime _windowLifetime;
 	std::optional<int> _shownHeight;
 	const uint64 _contentSerial = 0;
@@ -240,6 +255,7 @@ private:
 	double _maxHeight = 0.;
 	int _generation = 0;
 	int _width = 0;
+	int _brokenCrashes = 0;
 	HeightLayout _layout;
 	ContentSafeArea _safeArea;
 	ContentSafeArea _hostSafeArea;
@@ -252,7 +268,6 @@ private:
 	bool _summaryLast = false;
 	bool _displayDeferred = false;
 	bool _displayPosted = false;
-	bool _sizing = false;
 	bool _clientPending = false;
 
 };

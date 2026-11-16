@@ -22,20 +22,40 @@ struct WidgetRequest;
 struct WidgetRequestOutcome;
 } // namespace twidget
 
-namespace twlite {
-class Renderer;
-} // namespace twlite
-
 namespace Tgw {
 
 class HostLink;
 class RendererWork;
+struct RendererAnswer;
+struct RendererLayout;
 
 inline constexpr auto kMinWidth = 200.;
 inline constexpr auto kMinHeight = 50.;
 inline constexpr auto kMaxHeight = 600.;
 
+struct RendererSize {
+	double width = 0.;
+	double maxHeight = 0.;
+	int cardWidth = 0;
+	int scale = 0;
+
+	friend inline bool operator==(
+		const RendererSize &,
+		const RendererSize &) = default;
+};
+
+struct RendererCut {
+	std::array<QImage, 4> corners;
+	int ratio = 0;
+	bool autoHeight = false;
+
+	friend inline bool operator==(
+		const RendererCut &,
+		const RendererCut &) = default;
+};
+
 [[nodiscard]] int DomModifiers(Qt::KeyboardModifiers modifiers);
+[[nodiscard]] int LogicalHeight(double css, int scale);
 
 class RendererCore final : public base::has_weak_ptr {
 public:
@@ -45,6 +65,7 @@ public:
 		Content = (1 << 2),
 		Stopped = (1 << 3),
 		Loaded = (1 << 4),
+		Client = (1 << 5),
 	};
 	friend inline constexpr bool is_flag_type(Change) { return true; }
 	using Changes = base::flags<Change>;
@@ -109,8 +130,8 @@ public:
 	[[nodiscard]] QString selectedText() const;
 	void clearSelection();
 
-	void setWidth(double width);
-	void setMaxHeight(double height);
+	void setSize(RendererSize size);
+	void setCut(const RendererCut &cut);
 	[[nodiscard]] double width() const;
 	[[nodiscard]] std::optional<double> height() const;
 	[[nodiscard]] bool bottomAnchored() const;
@@ -119,15 +140,10 @@ public:
 	[[nodiscard]] bool stopped() const;
 	[[nodiscard]] const QString &stopReason() const;
 	[[nodiscard]] bool stopFatal() const;
-	[[nodiscard]] not_null<twlite::Renderer*> renderer() const;
-	[[nodiscard]] const QImage &frame(
-		Images::CornersMaskRef corners,
-		QSize cardArea,
-		bool autoHeight);
+	[[nodiscard]] QImage frame(QSize cardArea);
 	[[nodiscard]] int64 frameBytes() const;
 	void dropFrame();
 	void refreshFrame();
-	void takeFrameFrom(RendererCore &other);
 
 	[[nodiscard]] rpl::producer<Changes> updates() const;
 	[[nodiscard]] rpl::producer<LinkRequest> linkRequests() const;
@@ -137,6 +153,7 @@ public:
 
 private:
 	friend class HostLink;
+	friend class RendererWork;
 
 	void hostLoaded();
 	void hostMessage(const twidget::Json &message);
@@ -145,15 +162,36 @@ private:
 	void hostBotRequest(const BotRequest &request);
 	void hostCopyText(const std::string &text);
 	void hostWatch(bool on);
+	[[nodiscard]] bool refusesHost() const;
+
+	void apply(RendererAnswer &&answer);
+	[[nodiscard]] Changes applyLayout(RendererLayout &&layout);
 
 	const std::shared_ptr<HostLink> _link;
+	RendererSize _size;
 	QImage _frame;
 	QSize _frameArea;
+	std::optional<double> _height;
+	QString _stopReason;
 	rpl::event_stream<Changes> _updates;
 	rpl::event_stream<LinkRequest> _linkRequests;
 	rpl::event_stream<BotRequest> _botRequests;
 	rpl::event_stream<std::string> _copyRequests;
 	rpl::event_stream<bool> _watchChanges;
+	uint64 _sizeSerial = 0;
+	uint64 _frameSerial = 0;
+	uint64 _epoch = 0;
+	uint64 _visibility = 0;
+	bool _hasContent = false;
+	bool _loaded = false;
+	bool _heightBottom = false;
+	bool _stopped = false;
+	bool _stopFatal = false;
+	bool _frozen = false;
+	bool _detached = false;
+	bool _onScreen = false;
+	bool _refresh = false;
+	bool _undrawn = false;
 	const std::unique_ptr<RendererWork> _work;
 
 };

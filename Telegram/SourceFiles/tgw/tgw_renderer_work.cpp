@@ -11,16 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_backend.h"
 #include "tgw/tgw_cursor.h"
 #include "tgw/tgw_painter.h"
-#include "tgw/tgw_touch.h"
 #include "twidget/json.h"
-#include "ui/style/style_core_scale.h"
 
 #include "styles/style_basic.h"
 
 namespace Tgw {
 namespace {
 
-constexpr auto kFallbackWidth = 1.;
 constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
 constexpr auto kPaintBoundsKind = "paint-bounds";
 constexpr auto kMinWakeDelay = crl::time(1);
@@ -63,10 +60,6 @@ private:
 
 };
 
-[[nodiscard]] bool ValidWidth(double width) {
-	return std::isfinite(width) && (width > 0.);
-}
-
 [[nodiscard]] int DeviceSide(uint32 side) {
 	return int(std::min(side, uint32(std::numeric_limits<int>::max())));
 }
@@ -85,6 +78,16 @@ private:
 	return (std::abs(frame.width() - card.width()) <= ratio)
 		&& (!autoHeight
 			|| (std::abs(frame.height() - card.height()) <= ratio));
+}
+
+[[nodiscard]] Images::CornersMaskRef CornersOf(const RendererCut &cut) {
+	auto result = Images::CornersMaskRef();
+	for (auto i = 0; i != 4; ++i) {
+		if (!cut.corners[i].isNull()) {
+			result.p[i] = &cut.corners[i];
+		}
+	}
+	return result;
 }
 
 [[nodiscard]] QRect CornerPatch(
@@ -318,15 +321,15 @@ int CanvasFontRenderer::canvas_font(
 } // namespace
 
 RendererWork::RendererWork(
+	not_null<RendererCore*> chat,
 	double width,
 	double dpr,
-	Host host,
-	Fn<void(Changes changes)> changed)
-: _host(std::move(host))
-, _changed(std::move(changed))
+	Host host)
+: _chat(chat)
+, _host(std::move(host))
 , _backend(std::make_unique<QtBackend>(_host.diag))
 , _renderer(std::make_unique<CanvasFontRenderer>(
-	ValidWidth(width) ? width : kFallbackWidth,
+	width,
 	dpr,
 	false,
 	_backend.get()))
@@ -342,31 +345,38 @@ RendererWork::~RendererWork() {
 }
 
 void RendererWork::detach() {
-	resetInput();
-	_renderer->clear_selection();
-	_detached = true;
+	_detached = _detaching = true;
+	_undrawn = false;
 	_pendingSize = std::string();
-	if (_loaded) {
-		notifyPosted(forwardAll(takeSettled()));
-	}
+	releaseCanvas();
 	refreshClock();
+	schedule();
+}
+
+void RendererWork::finishDetach() {
+	cancelInput();
+	releaseInput();
+	_renderer->clear_selection();
+	if (_loaded) {
+		post(forwardAll(takeSettled()));
+	}
 	_backend->releaseCanvasFonts();
 }
 
-bool RendererWork::attached() const {
-	return !_detached;
-}
-
-void RendererWork::setOnScreen(bool onScreen) {
+void RendererWork::setOnScreen(bool onScreen, uint64 visibility) {
+	_visibility = visibility;
 	if (_onScreen == onScreen) {
 		return;
 	}
 	_onScreen = onScreen;
-	_stepBusy = false;
+	_stepBusy = _undrawn = false;
 	if (!onScreen) {
 		resetInput();
 	}
 	refreshClock();
+	if (onScreen) {
+		schedule();
+	}
 }
 
 bool RendererWork::acceptsInput() const {
@@ -374,13 +384,13 @@ bool RendererWork::acceptsInput() const {
 }
 
 void RendererWork::pointerEnter() {
-	if (acceptsInput() && !TouchBridge::Active()) {
+	if (acceptsInput()) {
 		_pointer.over = true;
 	}
 }
 
 void RendererWork::pointerMove(QPointF point, int modifiers) {
-	if (!acceptsInput() || TouchBridge::Active()) {
+	if (!acceptsInput()) {
 		return;
 	}
 	_pointer.position = point;
@@ -416,10 +426,10 @@ void RendererWork::pointerLeave() {
 }
 
 void RendererWork::pointerPress(QPointF point, int modifiers) {
-	if (!acceptsInput() || TouchBridge::Active()) {
+	if (!acceptsInput()) {
 		return;
 	}
-	menuRelease(modifiers);
+	menuRelease(modifiers, false);
 	const auto hit = elementAt(point);
 	const auto wasDirty = _renderer->dirty();
 	auto out = Touch(*_renderer, kTouchDown, point, modifiers);
@@ -427,13 +437,16 @@ void RendererWork::pointerPress(QPointF point, int modifiers) {
 	inputDone(out, wasDirty);
 }
 
-void RendererWork::pointerRelease(QPointF point, int modifiers) {
+void RendererWork::pointerRelease(
+		QPointF point,
+		int modifiers,
+		bool cancel) {
 	if (!acceptsInput() || !_pointer.pressed) {
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
 	// A finger's press elsewhere took this one: it ends with no click.
-	auto out = TouchBridge::Active()
+	auto out = cancel
 		? Touch(*_renderer, kTouchCancel, _pointer.position, 0)
 		: Touch(*_renderer, kTouchUp, point, modifiers);
 	_pointer.position = point;
@@ -447,18 +460,18 @@ void RendererWork::pointerRelease(QPointF point, int modifiers) {
 }
 
 bool RendererWork::menuPress(QPointF point, int modifiers) {
-	if (!acceptsInput()
-		|| TouchBridge::Active()
-		|| _pointer.pressed
-		|| _finger.pressed) {
+	if (!acceptsInput() || _pointer.pressed || _finger.pressed) {
 		return false;
 	}
 	const auto hit = elementAt(point);
 	if (hasSelection()) {
 		const auto synced = (_pointer.parsed == ParsedDocuments(*_renderer));
 		const auto hover = synced ? _pointer.hover : 0;
+		const auto builds = _renderer->stats().builds;
+		const auto held = cursorStyles().hold(*_renderer, hit, hover);
+		flushBuilt(builds);
 		// A core press drops the selection: keep it unless the hold is claimed.
-		if (!cursorStyles().hold(*_renderer, hit, hover).value_or(false)) {
+		if (!held.value_or(false)) {
 			return false;
 		}
 	}
@@ -488,9 +501,9 @@ bool RendererWork::menuPress(QPointF point, int modifiers) {
 	return taken;
 }
 
-void RendererWork::menuRelease(int modifiers) {
+void RendererWork::menuRelease(int modifiers, bool cancel) {
 	if (_pointer.secondary) {
-		pointerRelease(_pointer.position, modifiers);
+		pointerRelease(_pointer.position, modifiers, cancel);
 	}
 }
 
@@ -576,7 +589,10 @@ bool RendererWork::handCursorAt(QPointF point) {
 	const auto active = (synced && _pointer.active && hover == _pointer.hover)
 		? hover
 		: 0;
-	return cursorStyles().pointer(*_renderer, hit, hover, active);
+	const auto builds = _renderer->stats().builds;
+	const auto result = cursorStyles().pointer(*_renderer, hit, hover, active);
+	flushBuilt(builds);
+	return result;
 }
 
 bool RendererWork::hasSelection() const {
@@ -596,89 +612,133 @@ void RendererWork::clearSelection() {
 	}
 }
 
-void RendererWork::setWidth(double width) {
-	if (!ValidWidth(width)) {
+void RendererWork::setSize(const RendererSize &size, uint64 serial) {
+	_size = size;
+	_sizeSerial = serial;
+	_sizePending = true;
+	_undrawn = false;
+	schedule();
+}
+
+void RendererWork::setCut(const RendererCut &cut) {
+	if (_cut && (*_cut == cut)) {
 		return;
 	}
-	const auto was = _renderer->width();
-	auto out = std::vector<twidget::Json>();
-	_renderer->set_width(width, out);
-	auto changes = Changes();
-	if (_renderer->width() != was) {
-		changes |= Change::Repaint;
+	_cut = cut;
+	_demand = true;
+	_undrawn = false;
+	schedule();
+}
+
+void RendererWork::demand() {
+	_demand = true;
+	schedule();
+}
+
+void RendererWork::drawn() {
+	if (base::take(_undrawn)) {
+		schedule();
 	}
-	finish(out, changes);
 }
 
-void RendererWork::setMaxHeight(double height) {
-	const auto wasDirty = _renderer->dirty();
-	const auto was = DeviceSize(*_renderer);
-	auto out = std::vector<twidget::Json>();
-	_renderer->set_max_height(height, out);
-	auto changes = Changes();
-	if ((DeviceSize(*_renderer) != was)
-		|| (!wasDirty && _renderer->dirty())) {
-		changes |= Change::Repaint;
+void RendererWork::dropFrame(uint64 epoch) {
+	_epoch = epoch;
+	_demand = _undrawn = false;
+	dropCanvas();
+}
+
+void RendererWork::refreshFrame() {
+	// A paint-stopped core's replay is refused, so its last picture stays.
+	_frameSize = QSize();
+	_frameRepaintable = false;
+}
+
+void RendererWork::schedule() {
+	if (_scheduled) {
+		return;
 	}
-	finish(out, changes);
+	_scheduled = true;
+	crl::on_main(this, [=] {
+		work();
+	});
 }
 
-double RendererWork::width() const {
-	return _renderer->width();
+void RendererWork::work() {
+	_scheduled = false;
+	if (base::take(_detaching)) {
+		finishDetach();
+	}
+	applySizeRequest();
+	auto layout = rasterWanted() ? raster() : std::nullopt;
+	_demand = false;
+	if (layout && !_detached) {
+		_undrawn = true;
+	}
+	const auto changes = base::take(_postedChanges);
+	const auto stopped = bool(changes & Change::Stopped);
+	if (!layout
+		&& !stopped
+		&& !(changes & (Change::Content | Change::Loaded))) {
+		return;
+	}
+	deliver({
+		.layout = std::move(layout),
+		.state = { .hasContent = _hasContent, .loaded = _loaded },
+		.stop = (stopped
+			? std::make_optional(RendererStop{ _stopReason, _stopFatal })
+			: std::nullopt),
+	});
 }
 
-std::optional<double> RendererWork::height() const {
-	return _height;
+void RendererWork::applySizeRequest() {
+	if (!base::take(_sizePending)) {
+		return;
+	}
+	auto out = std::vector<twidget::Json>();
+	_renderer->set_width(_size.width, out);
+	_renderer->set_max_height(_size.maxHeight, out);
+	_client = true;
+	finish(out, {});
 }
 
-bool RendererWork::bottomAnchored() const {
-	return _heightBottom;
+bool RendererWork::rasterWanted() const {
+	return _loaded
+		&& _cut
+		&& (_size.cardWidth > 0)
+		&& (_demand || (canTick() && !_undrawn));
 }
 
-bool RendererWork::hasContent() const {
-	return _hasContent;
+QSize RendererWork::layoutArea() const {
+	const auto css = _cut->autoHeight
+		? std::clamp(
+			double(_renderer->viewport_height()),
+			kMinHeight,
+			kMaxHeight)
+		: _size.maxHeight;
+	return QSize(_size.cardWidth, LogicalHeight(css, _size.scale));
 }
 
-bool RendererWork::loaded() const {
-	return _loaded;
-}
-
-bool RendererWork::stopped() const {
-	return _stopped;
-}
-
-const QString &RendererWork::stopReason() const {
-	return _stopReason;
-}
-
-bool RendererWork::stopFatal() const {
-	return _stopFatal;
-}
-
-not_null<twlite::Renderer*> RendererWork::renderer() const {
-	return _renderer.get();
-}
-
-const QImage &RendererWork::frame(
-		Images::CornersMaskRef corners,
-		QSize cardArea,
-		bool autoHeight) {
-	const auto ratio = style::DevicePixelRatio();
-	const auto card = cardArea * ratio;
+std::optional<RendererLayout> RendererWork::raster() {
+	const auto &cut = *_cut;
+	const auto ratio = cut.ratio;
+	const auto corners = CornersOf(cut);
+	auto cardArea = layoutArea();
+	auto card = cardArea * ratio;
 	const auto fits = [&] {
 		return !_frame.isNull()
 			&& (_frameArea == cardArea)
-			&& (_frameCorners == corners)
+			&& (_frameCut == cut)
 			&& (_frame.devicePixelRatio() == ratio)
-			&& FitsCard(_frame.size(), card, ratio, autoHeight);
+			&& FitsCard(_frame.size(), card, ratio, cut.autoHeight);
 	};
 	// A released core shows its last picture, whatever build it holds.
 	if ((_detached || !_renderer->dirty())
 		&& (_frameSize == DeviceSize(*_renderer))
-		&& (_frameCorners == corners)
+		&& (_frameSerial == _sizeSerial)
+		&& (_frameCut == cut)
 		&& (_frameArea == cardArea)
 		&& (_frame.isNull() || fits())) {
-		return _frame;
+		return std::nullopt;
 	}
 	const auto builds = _renderer->stats().builds;
 	// WHY: the display list names backend font handles that a later build
@@ -687,16 +747,17 @@ const QImage &RendererWork::frame(
 	const auto list = _renderer->paint();
 	const auto size = DeviceSize(*_renderer);
 	const auto settled = (_renderer->stats().builds != builds);
-	if (!FitsCard(size, card, ratio, autoHeight)) {
-		// A size the list has not laid out yet keeps this card's picture.
+	cardArea = layoutArea();
+	card = cardArea * ratio;
+	if (!FitsCard(size, card, ratio, cut.autoHeight)) {
 		_frameRepaintable = false;
 		if (settled) {
 			flushQueued();
 		}
 		if (!fits()) {
-			dropFrame();
+			dropCanvas();
 		}
-		return _frame;
+		return std::nullopt;
 	}
 	const auto inPlace = RepaintsInPlace(list);
 	auto damage = std::vector<twlite::Rect>();
@@ -723,18 +784,46 @@ const QImage &RendererWork::frame(
 	const auto refused = !limit->isEmpty();
 	_frameRepaintable = inPlace && !refused && !_frame.isNull();
 	_frameSize = size;
-	_frameCorners = corners;
+	_frameSerial = _sizeSerial;
+	_frameCut = cut;
 	_frameArea = cardArea;
 	if (refused && !_detached && !_stopped) {
 		_host.diag(kPaintBoundsKind, limit->toStdString());
 		stop(std::move(*limit), true);
 		refreshClock();
-		notifyPosted(Change::Stopped | Change::Repaint);
+		post(Change::Stopped | Change::Repaint);
 	}
 	if (settled) {
 		flushQueued(); // paint() holds its build's output for the next call
 	}
-	return _frame;
+	auto result = refused ? std::nullopt : completed(cardArea);
+	if (_detached) {
+		releaseCanvas();
+	}
+	return result;
+}
+
+std::optional<RendererLayout> RendererWork::completed(QSize cardArea) {
+	if (_frame.isNull()) {
+		return std::nullopt;
+	} else if (!_height
+		|| (_cut->autoHeight
+			&& (LogicalHeight(*_height, _size.scale) != cardArea.height()))) {
+		_frameSize = QSize();
+		return std::nullopt;
+	}
+	const auto client = base::take(_client) || !_reported || _detached;
+	_reported = true;
+	return RendererLayout{
+		.picture = _frame,
+		.area = cardArea,
+		.height = *_height,
+		.serial = _sizeSerial,
+		.visibility = _visibility,
+		.epoch = _epoch,
+		.bottom = _heightBottom,
+		.client = client,
+	};
 }
 
 std::optional<QString> RendererWork::repaintFrame(
@@ -765,31 +854,23 @@ std::optional<QString> RendererWork::repaintFrame(
 	return result;
 }
 
-QSize RendererWork::frameArea() const {
-	return _frameArea;
+void RendererWork::releaseCanvas() {
+	_frame = QImage();
+	_frameRepaintable = false;
 }
 
-void RendererWork::dropFrame() {
+void RendererWork::dropCanvas() {
 	_frame = QImage();
 	_frameSize = QSize();
 	_frameArea = QSize();
-	_frameCorners = Images::CornersMaskRef();
+	_frameCut = RendererCut();
 	_frameRepaintable = false;
 }
 
-void RendererWork::refreshFrame() {
-	// A paint-stopped core's replay is refused, so its last picture stays.
-	_frameSize = QSize();
-	_frameRepaintable = false;
-}
-
-void RendererWork::takeFrameFrom(RendererWork &other) {
-	_frame = base::take(other._frame);
-	_frameSize = base::take(other._frameSize);
-	_frameArea = base::take(other._frameArea);
-	_frameCorners = base::take(other._frameCorners);
-	_frameRepaintable = false;
-	other._frameRepaintable = false;
+void RendererWork::deliver(RendererAnswer &&answer) {
+	crl::on_main(_chat, [chat = _chat, answer = std::move(answer)]() mutable {
+		chat->apply(std::move(answer));
+	});
 }
 
 void RendererWork::hostLoaded() {
@@ -820,15 +901,6 @@ void RendererWork::hostMessage(const twidget::Json &message) {
 		}
 		_frameRequested = true;
 		refreshClock();
-		return;
-	} else if (type == "frozen") {
-		// WHY: HtmlWidget::drawStopped() paints the themed stop pill; the
-		// core's own freeze would rebuild its badge and fatal dimming into
-		// the last frame, so the core never sees this message.
-		stop(
-			QString::fromStdString(message["reason"].asString()),
-			message["fatal"].asBool());
-		finish({}, Change::Stopped | Change::Repaint);
 		return;
 	}
 	const auto wasDirty = _renderer->dirty();
@@ -893,6 +965,14 @@ void RendererWork::hostTheme(bool dark) {
 	finish(out, Change::Repaint);
 }
 
+void RendererWork::freeze(QString reason, bool fatal) {
+	if (_stopped) {
+		return;
+	}
+	stop(std::move(reason), fatal);
+	finish({}, Change::Stopped | Change::Repaint);
+}
+
 int64 RendererWork::elementAt(QPointF point) {
 	const auto wasDirty = _renderer->dirty();
 	auto out = _renderer->receive(ElementAtQuery(point));
@@ -901,7 +981,7 @@ int64 RendererWork::elementAt(QPointF point) {
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
 	}
-	notifyPosted(changes);
+	post(changes);
 	return int64(result);
 }
 
@@ -950,34 +1030,40 @@ void RendererWork::inputDone(
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
 	}
-	notifyPosted(changes);
+	post(changes);
 	refreshClock();
 }
 
 void RendererWork::resetInput() {
-	if (!_detached
-		&& !_stopped
-		&& (_pointer.pressed || _pointer.hovering || _finger.pressed)) {
-		const auto wasDirty = _renderer->dirty();
-		auto out = _pointer.pressed
-			? Touch(*_renderer, kTouchCancel, _pointer.position, 0)
-			: std::vector<twidget::Json>();
-		if (_finger.pressed) {
-			Append(out, Touch(
-				*_renderer,
-				kTouchCancel,
-				_finger.position,
-				0,
-				kFingerPointer));
-		}
-		if (_pointer.hovering) {
-			Append(out, leaveHover());
-		}
-		_pointer = Pointer();
-		_finger = Finger();
-		inputDone(out, wasDirty);
+	if (!_detached) {
+		cancelInput();
 	}
 	releaseInput();
+}
+
+void RendererWork::cancelInput() {
+	if (_stopped
+		|| !(_pointer.pressed || _pointer.hovering || _finger.pressed)) {
+		return;
+	}
+	const auto wasDirty = _renderer->dirty();
+	auto out = _pointer.pressed
+		? Touch(*_renderer, kTouchCancel, _pointer.position, 0)
+		: std::vector<twidget::Json>();
+	if (_finger.pressed) {
+		Append(out, Touch(
+			*_renderer,
+			kTouchCancel,
+			_finger.position,
+			0,
+			kFingerPointer));
+	}
+	if (_pointer.hovering) {
+		Append(out, leaveHover());
+	}
+	_pointer = Pointer();
+	_finger = Finger();
+	inputDone(out, wasDirty);
 }
 
 void RendererWork::releaseInput() {
@@ -1001,11 +1087,18 @@ std::vector<twidget::Json> RendererWork::takeSettled() {
 }
 
 void RendererWork::flushQueued() {
-	if (_detached || _stopped) {
-		return;
+	auto changes = forwardAll(takeSettled());
+	if (_renderer->dirty()) {
+		changes |= Change::Repaint;
 	}
-	notifyPosted(forwardAll(takeSettled()));
+	post(changes);
 	refreshClock();
+}
+
+void RendererWork::flushBuilt(int builds) {
+	if (_renderer->stats().builds != builds) {
+		flushQueued();
+	}
 }
 
 bool RendererWork::canTick() const {
@@ -1047,11 +1140,7 @@ void RendererWork::dropHeld() {
 		&& canTick()
 		&& (_held->builds != _renderer->stats().builds)
 		&& _renderer->dirty()) {
-		crl::on_main(this, [=] {
-			if (canTick() && _renderer->dirty()) {
-				_changed(Change::Repaint);
-			}
-		});
+		post(Change::Repaint);
 	}
 	_held = std::nullopt;
 	_heldTimer.cancel();
@@ -1105,7 +1194,7 @@ void RendererWork::tick() {
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
 	}
-	notifyPosted(changes);
+	post(changes);
 }
 
 void RendererWork::finish(
@@ -1113,9 +1202,7 @@ void RendererWork::finish(
 		Changes changes) {
 	changes |= forwardAll(out);
 	refreshClock();
-	if (changes) {
-		_changed(changes);
-	}
+	post(changes);
 }
 
 RendererWork::Changes RendererWork::forwardAll(
@@ -1145,6 +1232,9 @@ RendererWork::Changes RendererWork::applySize(
 	}
 	bindHeightAnchor();
 	_height = clamped;
+	if (!_onScreen) {
+		_client = true;
+	}
 	return Change::Height;
 }
 
@@ -1164,16 +1254,10 @@ void RendererWork::forward(const twidget::Json &message) {
 	}
 }
 
-void RendererWork::notifyPosted(Changes changes) {
-	if (!changes) {
-		return;
-	}
-	const auto queued = bool(_postedChanges);
-	_postedChanges |= changes;
-	if (!queued) {
-		crl::on_main(this, [=] {
-			_changed(base::take(_postedChanges));
-		});
+void RendererWork::post(Changes changes) {
+	if (changes) {
+		_postedChanges |= changes;
+		schedule();
 	}
 }
 

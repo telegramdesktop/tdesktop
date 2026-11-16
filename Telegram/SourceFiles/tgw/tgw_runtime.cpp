@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
-#include "core/src/renderer.h"
 #include "core/application.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -285,6 +284,15 @@ void HostDeleter::operator()(twidget::WidgetHost *host) const {
 
 [[nodiscard]] double CoreRatio() {
 	return style::DevicePixelRatio() * style::Scale() / 100.;
+}
+
+[[nodiscard]] RendererSize SizeRequest(int width, double maxHeight) {
+	return {
+		.width = CssFromLogical(width),
+		.maxHeight = maxHeight,
+		.cardWidth = width,
+		.scale = style::Scale(),
+	};
 }
 
 [[nodiscard]] ResizeAnchor AnchorOf(const RendererCore &core) {
@@ -688,6 +696,7 @@ Runtime::~Runtime() {
 	}
 	invalidate_weak_ptrs(this);
 	_liveLifetime.destroy();
+	_stillLifetime.destroy();
 	breakCrashRun();
 	if (_live) {
 		_live->detach();
@@ -792,7 +801,10 @@ std::optional<int> Runtime::height() const {
 }
 
 RendererCore *Runtime::core() const {
-	return (_live && _live->loaded()) ? _live.get() : _still.get();
+	const auto live = _live
+		&& _live->loaded()
+		&& (!_still || _live->height().has_value());
+	return live ? _live.get() : _still.get();
 }
 
 RendererCore *Runtime::interactive() const {
@@ -835,13 +847,30 @@ void Runtime::attachView(
 }
 
 void Runtime::setSize(int width, double maxHeight) {
-	if (_width == width && _maxHeight == maxHeight) {
-		return;
-	}
 	_width = width;
 	_maxHeight = maxHeight;
-	if (_live || _still) {
-		applySize();
+	applySize();
+}
+
+void Runtime::setCut(Images::CornersMaskRef corners, bool autoHeight) {
+	auto cut = RendererCut{
+		.ratio = style::DevicePixelRatio(),
+		.autoHeight = autoHeight,
+	};
+	for (auto i = 0; i != 4; ++i) {
+		if (const auto mask = corners.p[i]) {
+			cut.corners[i] = *mask;
+		}
+	}
+	if (_cut && (*_cut == cut)) {
+		return;
+	}
+	_cut = std::make_unique<RendererCut>(std::move(cut));
+	if (_live) {
+		_live->setCut(*_cut);
+	}
+	if (_still) {
+		_still->setCut(*_cut);
 	}
 }
 
@@ -934,7 +963,7 @@ void Runtime::unload() {
 	if (wasHeavy) {
 		addNote(u"Released with the unloaded messages."_q);
 	}
-	if (_still && _still->frameBytes()) {
+	if (_still) {
 		_keptSerial = ++Runtimes().keptSerial;
 		TrimKeptPictures();
 	}
@@ -1334,29 +1363,23 @@ bool Runtime::queryVisible() const {
 bool Runtime::recordStop(not_null<RendererCore*> renderer) {
 	_stopReason = Clip(renderer->stopReason());
 	_stopFatal = renderer->stopFatal();
-	if (_stopFatal
-		&& currentContent()
-		&& (_memory->crashes < kMaxCrashes)) {
+	return countCrash(_stopFatal);
+}
+
+bool Runtime::countCrash(bool fatal) {
+	if (fatal && currentContent() && (_memory->crashes < kMaxCrashes)) {
 		return (++_memory->crashes == kMaxCrashes);
 	}
 	return false;
 }
 
-void Runtime::breakCrashRun() {
-	if (_state == State::Live && _live->stopped()) {
-		// A release may overtake the stop that RendererCore::frame() posted.
-		if (recordStop(_live.get())) {
-			_item->history()->owner().requestItemRepaint(_item);
-		}
-		return;
-	}
-	if (_state == State::Live
+int Runtime::breakCrashRun() {
+	const auto healthy = (_state == State::Live)
 		&& _live->hasContent()
 		&& !_live->stopped()
 		&& currentContent()
-		&& (_memory->crashes < kMaxCrashes)) {
-		_memory->crashes = 0;
-	}
+		&& (_memory->crashes < kMaxCrashes);
+	return healthy ? base::take(_memory->crashes) : 0;
 }
 
 void Runtime::start() {
@@ -1377,8 +1400,7 @@ void Runtime::start() {
 
 void Runtime::release() {
 	if (heavy()) {
-		breakCrashRun();
-		retire(State::Released);
+		retire(State::Released, breakCrashRun());
 	} else if (stopped() && currentContent() && !crashedOut()) {
 		retire(State::Released);
 	}
@@ -1415,7 +1437,10 @@ void Runtime::construct(
 	const auto width = CssFromLogical(_width);
 	const auto ratio = CoreRatio();
 	_live = std::make_unique<RendererCore>(width, ratio);
-	_live->setMaxHeight(_maxHeight);
+	if (_cut) {
+		_live->setCut(*_cut);
+	}
+	_live->setSize(SizeRequest(_width, _maxHeight));
 	subscribeLive();
 	_state = State::Constructing;
 	_hostVisible = _visible;
@@ -1525,11 +1550,7 @@ void Runtime::constructed(
 	_logDone = nullptr;
 	_state = State::Live;
 	addNote(StartedNote(ChosenEnginePlace()));
-	const auto width = CssFromLogical(_width);
-	if (_live->width() != width) {
-		_live->setWidth(width);
-	}
-	_live->setMaxHeight(_maxHeight);
+	_live->setSize(SizeRequest(_width, _maxHeight));
 	syncHostVisibility();
 	syncHostSafeArea();
 	Test::WatchWidgetHost(_item->globalId(), *_host->pointer, _live.get());
@@ -1537,7 +1558,7 @@ void Runtime::constructed(
 	_host->pointer->start();
 }
 
-void Runtime::retire(State state) {
+void Runtime::retire(State state, int brokenCrashes) {
 	const auto wasHeavy = heavy();
 	++_generation;
 	_state = state;
@@ -1546,13 +1567,18 @@ void Runtime::retire(State state) {
 	_liveLifetime.destroy();
 	if (_live) {
 		_live->detach();
-		if (_live->loaded()) {
-			_still = std::move(_live);
-			_displayDeferred = _displayDeferred
-				|| (height() != _shownHeight);
-		} else {
+		if (!_live->loaded()) {
 			addNote(u"Its start did not finish."_q);
 			_live = nullptr;
+		} else if (_still && !_live->height()) {
+			_live = nullptr;
+		} else {
+			_stillLifetime.destroy();
+			_still = std::move(_live);
+			_brokenCrashes = brokenCrashes;
+			subscribeStill();
+			_displayDeferred = _displayDeferred
+				|| (height() != _shownHeight);
 		}
 	}
 	if (const auto host = base::take(_host)) {
@@ -1592,14 +1618,15 @@ void Runtime::subscribeLive() {
 	const auto renderer = _live.get();
 	renderer->updates(
 	) | rpl::on_next([=](RendererCore::Changes changes) {
+		const auto client = bool(changes & (Change::Loaded | Change::Client));
 		if (changes & Change::Stopped) {
-			coreStopped(renderer);
+			coreStopped(renderer, client);
 		} else {
 			coreUpdated(
 				renderer,
 				bool(changes
 					& (Change::Repaint | Change::Content | Change::Loaded)),
-				bool(changes & Change::Loaded));
+				client);
 		}
 	}, _liveLifetime);
 
@@ -1629,25 +1656,42 @@ void Runtime::subscribeLive() {
 	}, _liveLifetime);
 }
 
+void Runtime::subscribeStill() {
+	using Change = RendererCore::Change;
+	const auto renderer = _still.get();
+	renderer->updates(
+	) | rpl::on_next([=](RendererCore::Changes changes) {
+		stillUpdated(
+			renderer,
+			bool(changes & Change::Stopped),
+			bool(changes & Change::Repaint),
+			bool(changes & Change::Client));
+	}, _stillLifetime);
+}
+
 void Runtime::coreUpdated(
 		not_null<RendererCore*> renderer,
 		bool repaint,
-		bool finished) {
-	if (renderer.get() != _live.get() || !renderer->loaded()) {
+		bool client) {
+	if (renderer.get() != _live.get()
+		|| !renderer->loaded()
+		|| (_still && !renderer->height())) {
 		return;
 	}
-	if (_still) {
-		renderer->takeFrameFrom(*_still);
+	const auto handoff = (_still != nullptr);
+	if (handoff) {
+		_stillLifetime.destroy();
+		_still = nullptr;
+		_keptSerial = 0;
+		_brokenCrashes = 0;
 	}
-	_still = nullptr;
-	_keptSerial = 0;
-	if (finished) {
+	if (handoff || client) {
 		markHeight(true);
 	}
 	displayChanged(repaint);
 }
 
-void Runtime::coreStopped(not_null<RendererCore*> renderer) {
+void Runtime::coreStopped(not_null<RendererCore*> renderer, bool client) {
 	if (renderer.get() != _live.get() || _state != State::Live) {
 		return;
 	}
@@ -1658,12 +1702,47 @@ void Runtime::coreStopped(not_null<RendererCore*> renderer) {
 	addNote(u"Stopped%1: %2"_q.arg(
 		_stopFatal ? u" (fatal)"_q : QString(),
 		_stopReason));
+	if (client) {
+		markHeight(true);
+	}
 	displayChanged(true);
 	if (!_visible) {
 		release();
 	}
 	if (limitReached) {
 		// Other views of the message apply the limit only when painted.
+		_item->history()->owner().requestItemRepaint(_item);
+	}
+}
+
+void Runtime::stillUpdated(
+		not_null<RendererCore*> renderer,
+		bool stopped,
+		bool repaint,
+		bool client) {
+	if (renderer.get() != _still.get() || !currentContent()) {
+		return;
+	}
+	auto limitReached = false;
+	if (stopped) {
+		const auto fatal = renderer->stopFatal();
+		addNote(u"Stopped after it was released%1: %2"_q.arg(
+			fatal ? u" (fatal)"_q : QString(),
+			renderer->stopReason()));
+		// The release that kept this core may have overtaken its stop.
+		_memory->crashes = std::max(
+			_memory->crashes,
+			base::take(_brokenCrashes));
+		limitReached = countCrash(fatal);
+	}
+	if (repaint && _keptSerial) {
+		TrimKeptPictures();
+	}
+	if (client) {
+		markHeight(true);
+	}
+	displayChanged(repaint);
+	if (limitReached) {
 		_item->history()->owner().requestItemRepaint(_item);
 	}
 }
@@ -1824,23 +1903,13 @@ void Runtime::syncHostSafeArea() {
 }
 
 void Runtime::applySize() {
-	// WHY: the list layout that calls HtmlWidget::countCurrentSize() lays
-	// the new height out right after setSize(), so a resize or a repaint
-	// requested from here would re-enter that same layout.
-	_sizing = true;
-	const auto guard = gsl::finally([&] { _sizing = false; });
-	const auto was = effectiveHeight();
-	const auto width = CssFromLogical(_width);
+	const auto size = SizeRequest(_width, _maxHeight);
 	if (_still) {
-		_still->setWidth(width);
-		_still->setMaxHeight(_maxHeight);
+		_still->setSize(size);
 	}
 	if (_live) {
-		_live->setWidth(width);
-		_live->setMaxHeight(_maxHeight);
+		_live->setSize(size);
 	}
-	displayChanged(false);
-	markHeight(effectiveHeight() != was);
 }
 
 int Runtime::effectiveHeight() const {
@@ -1880,10 +1949,6 @@ void Runtime::displayChanged(bool repaint) {
 	const auto hidden = !_visible
 		&& (_state == State::Live || _state == State::Stopped);
 	markHeight(hidden);
-	if (_sizing) {
-		_shownHeight = now;
-		return;
-	}
 	const auto resize = (_shownHeight != now);
 	if (!resize && !repaint) {
 		return;
@@ -1901,10 +1966,6 @@ void Runtime::displayChanged(bool repaint) {
 }
 
 void Runtime::postShownDisplay() {
-	const auto shown = core();
-	if (shown && shown->renderer()->dirty()) {
-		_displayDeferred = true;
-	}
 	if (!_displayDeferred || _displayPosted) {
 		return;
 	}
@@ -1971,7 +2032,7 @@ double CssFromLogical(int logical) {
 }
 
 int LogicalHeight(double css) {
-	return int(std::ceil(css * style::Scale() / 100.));
+	return LogicalHeight(css, style::Scale());
 }
 
 int LogicalWidth(double css) {
