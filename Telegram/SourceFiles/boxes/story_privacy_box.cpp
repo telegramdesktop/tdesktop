@@ -200,6 +200,10 @@ object_ptr<Ui::BoxContent> ChooseStoryPostAsBox(StoryPostAsArgs &&args) {
 				session->api().stories().checkCanSend(peer, crl::guard(
 					controller,
 					[=](Api::CanSendStory result) {
+						const auto strong = weak.get();
+						if (!strong || !strong->isBoxShown()) {
+							return;
+						}
 						if (!result.allowed()) {
 							Media::Stories::ShowCanSendStoryError(
 								controller,

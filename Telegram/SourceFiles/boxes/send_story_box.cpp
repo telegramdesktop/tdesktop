@@ -320,9 +320,9 @@ void SetupPostAs(
 			.controller = controller,
 			.peers = state->postToList.current(),
 			.selected = state->postTo.current(),
-			.done = [=](not_null<PeerData*> peer) {
+			.done = crl::guard(box, [=](not_null<PeerData*> peer) {
 				state->postTo = peer;
-			},
+			}),
 		}));
 	});
 	Ui::AddSkip(inner);
