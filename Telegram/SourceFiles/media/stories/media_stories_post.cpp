@@ -360,14 +360,10 @@ void SetupStoryEditorClose(
 	if (canvas.isEmpty() || rect.isEmpty()) {
 		return false;
 	}
-	return (rect.width() >= canvas.width() * 0.95)
-		&& (rect.width() <= canvas.width() * 1.25)
-		&& (rect.height() >= canvas.height() * 0.95)
-		&& (rect.height() <= canvas.height() * 1.25)
-		&& (std::abs(rect.center().x() - canvas.center().x())
-			<= canvas.width() * 0.05)
-		&& (std::abs(rect.center().y() - canvas.center().y())
-			<= canvas.height() * 0.05);
+	return (std::abs(rect.width() - canvas.width()) < 0.001)
+		&& (std::abs(rect.height() - canvas.height()) < 0.001)
+		&& (std::abs(rect.center().x() - canvas.center().x()) < 0.001)
+		&& (std::abs(rect.center().y() - canvas.center().y()) < 0.001);
 }
 
 [[nodiscard]] std::optional<Api::SendStoryMedia> StoryVideoPassthroughMedia(
