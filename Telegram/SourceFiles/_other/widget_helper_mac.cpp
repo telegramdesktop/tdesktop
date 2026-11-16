@@ -16,10 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <fcntl.h>
 #include <sandbox.h>
 #include <string>
 #include <system_error>
 #include <time.h>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -186,6 +188,27 @@ struct PortRights {
 	return "the widget helper's port rights kept changing";
 }
 
+#ifdef OS_MAC_STORE
+[[nodiscard]] std::vector<int> OpenDescriptors() {
+	auto result = std::vector<int>();
+	for (auto fd = 0, till = getdtablesize(); fd != till; ++fd) {
+		if (fcntl(fd, F_GETFD) != -1) {
+			result.push_back(fd);
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] std::vector<int> AddedDescriptors(
+		const std::vector<int> &before) {
+	auto result = OpenDescriptors();
+	std::erase_if(result, [&](int fd) {
+		return std::ranges::binary_search(before, fd);
+	});
+	return result;
+}
+#endif // OS_MAC_STORE
+
 } // namespace
 
 std::string Lockdown() {
@@ -194,6 +217,9 @@ std::string Lockdown() {
 	if (!refused.empty()) {
 		return refused;
 	}
+#ifdef OS_MAC_STORE
+	const auto before = OpenDescriptors();
+#endif // OS_MAC_STORE
 	auto error = (char*)nullptr;
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
@@ -206,6 +232,9 @@ std::string Lockdown() {
 #ifdef OS_MAC_STORE
 	// sandbox_init fails with EPERM inside the App Sandbox, which already confines the helper.
 	const auto failed = (result != 0) && (code != EPERM);
+	const auto added = (result != 0)
+		? AddedDescriptors(before)
+		: std::vector<int>();
 #else // OS_MAC_STORE
 	const auto failed = (result != 0);
 #endif // OS_MAC_STORE
@@ -220,6 +249,10 @@ std::string Lockdown() {
 		return SystemError("setrlimit", errno);
 	}
 #ifdef OS_MAC_STORE
+	// libsandbox's failure report leaves its log socket open.
+	for (const auto fd : added) {
+		close(fd);
+	}
 	if (setrlimit(RLIMIT_NPROC, &none) != 0) {
 		return SystemError("setrlimit", errno);
 	}
