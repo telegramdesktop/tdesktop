@@ -1185,11 +1185,11 @@ packs, the fixture and the seams they use need no change for it.
   not exactly S-1-0-0`, `the job's limits are 0x<flags> for <n>
   processes` or `the mitigation policy <policy> reads 0x<flags>`.
 - **Windows probe.** With `probe` the client passes the mode to the
-  Windows helper, and the lockdown hook of its Debug build
-  (`test/test_widget_helper_probe_lockdown_win.cpp`,
-  [test_widget_helper_probe](test_widget_helper_probe.md#windows)) adds a
-  native probe to the lowering, once per helper: it takes the probe's
-  positive controls while the helper still impersonates, lowers the helper
+  Windows helper, and the lockdown hook of its Debug build adds the
+  native probe of `test/test_widget_helper_probe_lockdown_win.cpp`
+  ([test_widget_helper_probe](test_widget_helper_probe.md#windows)) to the
+  lowering, once per helper: it takes the probe's positive controls while
+  the helper still impersonates, lowers the helper
   and, after a successful lowering and before Ready, writes one `Widget
   helper probe: <line>` per line to its stderr (`app_stderr.txt` under
   `test-run`); its widgets then run as with `helper`. A failed lowering
@@ -1420,9 +1420,10 @@ packs, the fixture and the seams they use need no change for it.
   the mode, its working directory and its
   `QStandardPaths::GenericDataLocation` after the `3`, inside Flatpak
   through the portal's argv, and the lockdown hook of the Debug
-  `TelegramWidgetHelper` (`test/test_widget_helper_probe_lockdown_linux.cpp`,
-  [test_widget_helper_probe](test_widget_helper_probe.md#linux)) probes
-  once per helper, on serve's thread before any engine thread exists. With
+  `TelegramWidgetHelper` runs the probe of
+  `test/test_widget_helper_probe_lockdown_linux.cpp`
+  ([test_widget_helper_probe](test_widget_helper_probe.md#linux)) once per
+  helper, on serve's thread before any engine thread exists. With
   `probe` it first forks three copies of the helper, one at a time: the
   first shows Landlock and the empty root with the seccomp install made to
   fail, the other two lock down and try `execve` and `socket`, which must

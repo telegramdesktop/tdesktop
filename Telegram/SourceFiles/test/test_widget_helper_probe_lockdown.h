@@ -104,4 +104,15 @@ inline constexpr auto kWidgetHelperServicePrefix = "service:";
 	const std::vector<std::string> &arguments,
 	const std::function<std::string()> &lockdown);
 
+// Each platform's half of WidgetHelperProbeLockdown(), defined in its
+// test_widget_helper_probe_lockdown_<platform>.cpp of the same Debug build
+// and called only by it: the refusal of a |mode| other than "probe" and
+// "probe-unsandboxed", and the probe of either of them, |sandboxed| for
+// "probe".
+[[nodiscard]] std::string RefuseWidgetHelperMode(const std::string &mode);
+[[nodiscard]] std::string RunWidgetHelperProbe(
+	bool sandboxed,
+	const std::vector<std::string> &arguments,
+	const std::function<std::string()> &lockdown);
+
 } // namespace Test

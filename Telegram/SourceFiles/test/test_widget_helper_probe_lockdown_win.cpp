@@ -1496,25 +1496,21 @@ void NetworkProbe::close() {
 
 } // namespace
 
-std::string WidgetHelperProbeLockdown(
+std::string RefuseWidgetHelperMode(const std::string &mode) {
+	const auto wide = Wide(mode);
+	return wide.ok
+		? ("unknown widget helper mode \""
+			+ Utf8(Left(wide.text, kModeTextLimit))
+			+ '"')
+		: ("unknown widget helper mode, "
+			+ NumberedError("MultiByteToWideChar", wide.error));
+}
+
+std::string RunWidgetHelperProbe(
+		bool sandboxed,
 		const std::vector<std::string> &arguments,
 		const std::function<std::string()> &lockdown) {
-	if (arguments.size() < 2) {
-		return lockdown
-			? lockdown()
-			: std::string("no lockdown callable");
-	}
-	const auto &mode = arguments[1];
-	if (mode != kWidgetHelperProbeMode
-		&& mode != kWidgetHelperUnsandboxedMode) {
-		const auto wide = Wide(mode);
-		return wide.ok
-			? ("unknown widget helper mode \""
-				+ Utf8(Left(wide.text, kModeTextLimit))
-				+ '"')
-			: ("unknown widget helper mode, "
-				+ NumberedError("MultiByteToWideChar", wide.error));
-	} else if (mode == kWidgetHelperProbeMode) {
+	if (sandboxed) {
 		return LockDownWithProbe(arguments, lockdown);
 	}
 	return "the widget helper probe is not available on this platform";

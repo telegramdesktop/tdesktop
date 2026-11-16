@@ -22,18 +22,18 @@ the App-Sandboxed XPC service `Contents/XPCServices/TelegramWidgetHelper.xpc`,
 and the probe runs there with the differences of
 [Mac App Store](#mac-app-store). On Linux the helper is `TelegramWidgetHelper` too,
 in `TelegramHelpers/` next to the client's binary or in a package-managed
-build's `libexec/telegram-desktop/`, and the probe is again the lockdown
-hook of its Debug build
-(`test/test_widget_helper_probe_lockdown_linux.cpp`): it runs its own
-probe in forked copies of the helper and around the real
+build's `libexec/telegram-desktop/`, and its Debug build's lockdown hook
+again runs a probe, that of
+`test/test_widget_helper_probe_lockdown_linux.cpp`: it runs its own probe
+in forked copies of the helper and around the real
 `WidgetHelper::Lockdown()` (`_other/widget_helper_linux.cpp`), writes its
 lines to stderr, and the helper goes on serving widgets ([Linux](#linux)).
 On Windows the helper is `TelegramWidgetHelper.exe`, in `modules\<arch>\`
-next to `Telegram.exe`, and the probe is the lockdown hook of its Debug
-build as well (`test/test_widget_helper_probe_lockdown_win.cpp`): it runs
-a different, native probe and the harness's own network attempts around
-the real `WidgetHelper::Lockdown()` (`_other/widget_helper_win.cpp`),
-writes their report to stderr, and the helper goes on serving widgets
+next to `Telegram.exe`, and its Debug build's lockdown hook runs a
+different, native probe of `test/test_widget_helper_probe_lockdown_win.cpp`
+and the harness's own network attempts around the real
+`WidgetHelper::Lockdown()` (`_other/widget_helper_win.cpp`), writes their
+report to stderr, and the helper goes on serving widgets
 ([Windows](#windows)).
 
 Callers: the probe has two halves. In Telegram the `_DEBUG` block of
@@ -45,9 +45,14 @@ Callers: the probe has two halves. In Telegram the `_DEBUG` block of
 `Run()` of `TelegramWidgetHelper` (`_other/widget_helper.cpp`), which
 `main()` calls with argv and the Mac App Store service with its channel
 message's arguments, gives its `serve` call
-`Test::WidgetHelperProbeLockdown()` around the real lockdown; each
-platform's helper build compiles its own definition of it. Release builds
-of Telegram, harness ones included, return no arguments. A Release
+`Test::WidgetHelperProbeLockdown()` around the real lockdown. That hook,
+in `test/test_widget_helper_probe_lockdown.cpp`, is the same on all
+three: with nothing after the token it runs the lockdown alone, it
+refuses any mode but `probe` and `probe-unsandboxed` with the platform's
+`RefuseWidgetHelperMode()`, and otherwise runs the platform's
+`RunWidgetHelperProbe()`; each platform's helper build compiles both from
+its own `test/test_widget_helper_probe_lockdown_<platform>.cpp`. Release
+builds of Telegram, harness ones included, return no arguments. A Release
 `TelegramWidgetHelper` contains no probe (the target never defines
 `TDESKTOP_RELEASE_TEST_HARNESS`), accepts only its token, refuses any other
 argument with `Widget helper: unexpected arguments` before it adopts the
@@ -326,8 +331,9 @@ path being `modules\<arch>\TelegramWidgetHelper.exe` next to
 `Telegram.exe` ([Remote engines](test_widget_fixture.md#remote-engines)
 says how the client builds it). The hook,
 `Test::WidgetHelperProbeLockdown()` in
-`test/test_widget_helper_probe_lockdown_win.cpp`, compiled only into the
-helper's Debug build, runs `LockDownWithProbe()` there, which goes in this
+`test/test_widget_helper_probe_lockdown.cpp`, compiled only into the
+helper's Debug build, runs `LockDownWithProbe()` of
+`test/test_widget_helper_probe_lockdown_win.cpp`, which goes in this
 order, once per helper:
 
 1. The native probe of the same file, with the client's working directory
@@ -537,8 +543,9 @@ package-managed build; inside Flatpak the portal's argv starts
 ([Remote engines](test_widget_fixture.md#remote-engines) says how the
 client finds and checks that path). The hook,
 `Test::WidgetHelperProbeLockdown()` in
-`test/test_widget_helper_probe_lockdown_linux.cpp`, compiled only into the
-helper's Debug build, runs `RunLinuxProbe()` there. It takes the mode,
+`test/test_widget_helper_probe_lockdown.cpp`, compiled only into the
+helper's Debug build, runs `RunLinuxProbe()` of
+`test/test_widget_helper_probe_lockdown_linux.cpp`. It takes the mode,
 `cwd` and `application-support` (the data directory below) as the argv
 bytes the client passed and ignores every argument after them, so it takes
 no fixture. It calls nothing of the helper's Linux sources but the

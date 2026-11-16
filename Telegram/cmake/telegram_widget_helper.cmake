@@ -33,6 +33,7 @@ PRIVATE
     platform/win/widget_channel_win.h
     platform/win/widget_sandbox_win.cpp
     platform/win/widget_sandbox_win.h
+    test/test_widget_helper_probe_lockdown.cpp
     test/test_widget_helper_probe_lockdown.h
     test/test_widget_helper_probe_lockdown_linux.cpp
     test/test_widget_helper_probe_lockdown_mac.cpp

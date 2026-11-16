@@ -3250,19 +3250,14 @@ std::string Probe::summary() const {
 
 } // namespace
 
-std::string WidgetHelperProbeLockdown(
+std::string RefuseWidgetHelperMode(const std::string &mode) {
+	return "unknown widget helper mode \"" + mode.substr(0, 64) + "\"";
+}
+
+std::string RunWidgetHelperProbe(
+		bool,
 		const std::vector<std::string> &arguments,
 		const std::function<std::string()> &lockdown) {
-	if (arguments.size() < 2) {
-		return lockdown
-			? lockdown()
-			: std::string("no lockdown callable");
-	}
-	const auto &mode = arguments[1];
-	if (mode != kWidgetHelperProbeMode
-		&& mode != kWidgetHelperUnsandboxedMode) {
-		return "unknown widget helper mode \"" + mode.substr(0, 64) + "\"";
-	}
 	return Probe(ParseArguments(arguments), lockdown).run();
 }
 
