@@ -1147,9 +1147,7 @@ void Stories::sendRequest(
 	if (story.editId) {
 		using Flag = MTPstories_EditStory::Flag;
 		const auto flags = (media ? Flag::f_media : Flag())
-			| ((media && !areas.v.isEmpty())
-				? Flag::f_media_areas
-				: Flag())
+			| (media ? Flag::f_media_areas : Flag())
 			| (story.editCaption ? Flag::f_caption : Flag())
 			| (story.editPrivacy ? Flag::f_privacy_rules : Flag());
 		upload->requestId = _api.request(MTPstories_EditStory(
