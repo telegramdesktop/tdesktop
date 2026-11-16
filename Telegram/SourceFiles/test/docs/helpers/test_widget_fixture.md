@@ -16,7 +16,9 @@ says where the engines of its widgets run: by default in a sandboxed
 widget helper, packaged builds included, which on macOS outside the store
 build and on Linux x86_64 and aarch64 is the separate Qt-free
 `TelegramWidgetHelper`, and on Windows 10 1809 or later, outside the Store
-build, a restricted helper that is the client's own executable.
+build, a restricted helper that is the client's own executable. Where no
+such helper exists no widget engine runs: every widget stops with `no
+sandboxed widget helper is available here: <reason>`.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
 ([test_widget_attacks](test_widget_attacks.md)),
@@ -279,27 +281,37 @@ helper process that has locked itself down, instead of the client's own
 threads, in Debug and Release builds alike and with no switch. On macOS and
 Linux that helper is the separate Qt-free executable
 `TelegramWidgetHelper`; on Windows it is a restricted helper that is the
-client's own executable. Everywhere else the engines stay in process
-(**Store, packaged and other platforms** below). The packs, the fixture
-and the seams they use need no change for it.
+client's own executable. Everywhere else no widget engine runs: every
+widget stops with `no sandboxed widget helper is available here:
+<reason>` (**Store, packaged and other platforms** below), and only the
+Debug switch `in-process` runs the engines in the client there. The
+packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
-  macOS, builds with packaged libraries (`DESKTOP_APP_USE_PACKAGED`)
-  included, and on Windows, so a launch with no switch runs every engine
-  in the sandboxed helper, and false in the macOS store build
-  (`OS_MAC_STORE`), in the Windows Store build, on Windows before 10 1809
-  and on the non-Linux all-other platforms, which keep their engines in
-  process. On Windows it is true exactly when `UnsupportedReason()` in
-  `widget_sandbox_win.cpp`, which also refuses every Windows launch,
-  returns no reason, whatever the architecture.
+  macOS outside the store build, builds with packaged libraries
+  (`DESKTOP_APP_USE_PACKAGED`) included, on Windows 10 1809 or later
+  outside the Store build and on Linux x86_64 and aarch64, so a launch
+  with no switch runs every engine in the sandboxed helper. Everywhere
+  else it is false, and a launch with no switch stops every widget with
+  `no sandboxed widget helper is available here: <reason>`, the reason of
+  `Platform::WidgetHelper::UnsupportedReason()`, which is empty exactly
+  when `Enabled()` is true and with which each platform's `Launch()`
+  refuses before any spawn: `the widget helper is not available in the
+  Store build` in the macOS store build (`OS_MAC_STORE`) and in the
+  Windows Store build, `the widget helper needs Windows 10 1809 or later`
+  on Windows before 10 1809, `the widget helper is not available on this
+  architecture` on other Linux architectures and `the widget helper is
+  not available on this platform` on the non-Linux all-other platforms.
+  On Windows it is true exactly when `UnsupportedReason()`, defined in
+  `widget_sandbox_win.cpp`, returns no reason, whatever the architecture.
   On Linux it is true on x86_64 and aarch64 in every build, Debug and
   Release, with or without the harness, and has no packaged exclusion:
   distribution builds against packaged libraries, Flatpak and Snap default
   to the sandboxed helper as well (`kLockdownAvailable` in
   `widget_lockdown_linux.h`). Other Linux architectures have no seccomp
-  filter and keep their engines in process. The helper links no Qt, GLib
-  or other packaged library, so the libraries a build against packaged
-  libraries loads never reach it; only the helper's own link set
+  filter and stop their widgets. The helper links no Qt, GLib or other
+  packaged library, so the libraries a build against packaged libraries
+  loads never reach it; only the helper's own link set
   (**The shared helper** below) loads before its `main`, and a library
   there that started a thread would make every helper refuse with `the
   widget helper has <N> threads before its lockdown` (**The Linux
@@ -307,13 +319,18 @@ and the seams they use need no change for it.
   constructs its first widget host (`Tgw::PrepareRemoteEngines()` in
   `Runtime::construct()`), keeps that choice for the whole process and
   names it in the main log: `Tgw: Widget engines run in the widget
-  helper.` or `Tgw: Widget engines run in process.`. Once it chose the
+  helper.` or `Tgw: Widget engines do not run, no sandboxed widget helper
+  is available here: <reason>.`. Once it chose the
   helper no engine of that process falls back to in process: a helper that
   cannot start or refuses its lockdown ends its widgets with a diagnostic,
   and the failure limit stops further starts (**Runtime log and deaths**
   and **Failure limit** below). Release builds,
-  `TDESKTOP_RELEASE_TEST_HARNESS` ones included, read no switch and never
-  probe. macOS and Linux Telegram have no `-widgethelper` entry: their
+  `TDESKTOP_RELEASE_TEST_HARNESS` ones included, read no switch, never
+  probe and, like every build other than Debug, run no engine in process
+  on any platform: the default never chooses in process and always
+  installs a channel factory, the helper's or one that refuses every
+  engine, with which `twidget::SandboxEngine::make()` builds no in-process
+  engine. macOS and Linux Telegram have no `-widgethelper` entry: their
   helper is the separate `TelegramWidgetHelper` (**The shared helper**
   below), whose Release build contains no probe and accepts only its
   channel token. On Linux `Telegram -widgethelper 3` starts an ordinary
@@ -336,13 +353,16 @@ and the seams they use need no change for it.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
   - unset or any other value: the platform default, so a Debug build runs
-    its engines in the helper wherever that default is true;
+    its engines in the helper wherever that default is true and stops
+    every widget elsewhere;
   - `helper`: the sandboxed helper explicitly, the same as the default on
     macOS, on Linux and on Windows 10 1809 or later outside the Store
     build, so command lines that name it keep working; on Windows it is the
     restricted helper (**The Windows helper** below);
-  - `in-process`: the engines stay in the client, the control of a run
-    that compares the two modes;
+  - `in-process`: the engines run in the client, also where the default
+    stops them; it is the only way to run widget engines in the client's
+    own process, for tests and the harness, and the control of a run that
+    compares the two modes;
   - `probe` and `probe-unsandboxed`: on macOS every helper, whose Debug
     build carries the probe, probes its lockdown, or runs the same probe
     without it as the control, and refuses the stream instead of serving a
@@ -389,21 +409,28 @@ and the seams they use need no change for it.
   (TDESKTOP_WIDGET_ENGINES=in-process).`.
 - **Store, packaged and other platforms.** macOS, Windows and Linux have a
   helper. The non-Linux all-other platforms, FreeBSD among them, build
-  none (no `TelegramWidgetHelper` target) and start none. An explicit
-  `helper` or probe value there fails closed instead: no engine runs in
+  none (no `TelegramWidgetHelper` target) and start none: their default
+  stops every widget with `no sandboxed widget helper is available here:
+  the widget helper is not available on this platform`. An explicit
+  `helper` or probe value there fails closed as well: no engine runs in
   process, and each widget dies with `the widget helper could not start:
   the widget helper is not available on this platform` until the failure
   limit below stops the attempts. On a Linux architecture other than
-  x86_64 and aarch64 it fails closed the same way, with `the widget
-  helper could not start: the widget helper is not available on this
-  architecture`. The macOS store build keeps its engines in process
-  because `sandbox_init` cannot narrow a process the App Sandbox already
-  confines, and it builds no helper: it has no `TelegramWidgetHelper`
-  target, and its bundle no `Contents/Helpers` folder. An explicit Debug
-  `helper` there fails every start before any spawn with `the widget
-  helper is not available in the Store build`, each a failure towards the
-  failure limit, and no engine runs in process; no store build has been
-  launched with it.
+  x86_64 and aarch64 the default stops every widget the same way, with
+  `no sandboxed widget helper is available here: the widget helper is not
+  available on this architecture`, and an explicit value fails closed
+  with `the widget helper could not start: the widget helper is not
+  available on this architecture`. The macOS store build stops every
+  widget with `no sandboxed widget helper is available here: the widget
+  helper is not available in the Store build`, because `sandbox_init`
+  cannot narrow a process the App Sandbox already confines, and it builds
+  no helper: it has no `TelegramWidgetHelper` target, and its bundle no
+  `Contents/Helpers` folder. An explicit Debug `helper` or probe value
+  there fails every start before any spawn with `the widget helper could
+  not start: the widget helper is not available in the Store build`, each
+  a failure towards the failure limit, and no engine runs in process;
+  with `helper` this ran once, in a store build copy outside the App
+  Sandbox ([Verification](#verification)).
   A macOS packaged build builds, stages and runs the same helper as every
   other non-store macOS build: the helper links no Qt, so the external Qt
   of the packaged workflow (Homebrew's), which lacks the patches that keep
@@ -433,13 +460,16 @@ and the seams they use need no change for it.
   `libdav1d` link are readings of `snap/snapcraft.yaml`, and the lookup
   ran in a Snap-shaped install ([Verification](#verification)); no Snap
   has been built or run confined with the helper.
-  The Windows Store build and Windows before 10 1809 keep their engines in
-  process, because the default is false there; an explicit `helper` or
-  probe value makes the seam fail every launch closed the same way, with
-  `the widget helper is not available in the Store build` or `the widget
-  helper needs Windows 10 1809 or later`. Neither has been run. The Windows
-  default reads nothing else, so a Windows build with packaged libraries
-  defaults to the helper as well; no such build has been run.
+  The Windows Store build and Windows before 10 1809 stop every widget
+  with `no sandboxed widget helper is available here: <reason>`, because
+  the default is false there, with the reason `the widget helper is not
+  available in the Store build` or `the widget helper needs Windows 10
+  1809 or later`; an explicit `helper` or probe value makes the seam fail
+  every launch closed with the same reason, `the widget helper could not
+  start: <reason>`, each a failure towards the failure limit. Neither has
+  been run. The Windows default reads nothing else, so a Windows build
+  with packaged libraries defaults to the helper as well; no such build
+  has been run.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. On
@@ -1022,7 +1052,10 @@ and the seams they use need no change for it.
   `twidget-host` stay, and the channel adds `widget.reader`,
   `widget.writer` and `widget.monitor` per helper and a `widget.answer` per
   runtime that asked a synchronous question. The `widget.sandbox` engines
-  run in the helper. Windows threads carry none of these names (the
+  run in the helper. Without a helper the client has no `widget.sandbox`
+  and no `widget.reader`, `widget.writer` or `widget.monitor`; each host
+  keeps its `widget.client`, `widget.validator` and `twidget-host` until
+  its death retires it. Windows threads carry none of these names (the
   framework names its threads only on Apple platforms and Linux): there
   the `Telegram.exe -widgethelper` child, the runtime log's `Started, its
   engine is remote.` note and the main log's `Widget helper <pid>` lines
@@ -1038,9 +1071,15 @@ and the seams they use need no change for it.
   the client engine handed the host. The client's Qt provider of
   `tgw_intl.cpp` answers the engines' `Intl` questions over the channel.
 - **Runtime log and deaths.** The note of a host's start reads `Started,
-  its engine is remote.` instead of `Started.`, chosen by the client's
-  mode; the summary and its first `Died:` line, which the packs parse, are
-  unchanged. A helper that ends under live widgets (killed, crashed or cut
+  its engine is remote.` with the helper and `Started, its engine does
+  not run.` where no helper is available, instead of the in-process
+  `Started.`, chosen by the client's mode; the summary and its first
+  `Died:` line, which the packs parse, are unchanged. Where no helper is
+  available every widget dies at its start with `no sandboxed widget
+  helper is available here: <reason>`, in the summary's `Died:` line and
+  the host watch's `dead`: a fatal stop that counts towards the widget's
+  crashes in a row like any other, with no `Tgw Error` line and no helper
+  start. A helper that ends under live widgets (killed, crashed or cut
   off by a stream violation) kills each of them with `the widget engine
   process ended`, the host watch's `dead`; the helper's own reason is only
   in the main log's `stream ended` line, `the engine process closed the
@@ -1113,7 +1152,9 @@ and the seams they use need no change for it.
   reaped`. Two kills already stop the widgets they killed, so a test of
   this limit needs fresh widgets. Once a quit has stopped the helper,
   widgets die with `the widget helper was stopped`. None of these falls
-  back to an in-process engine.
+  back to an in-process engine. The stop of every widget where no helper
+  is available is no helper failure: no start is attempted, so nothing
+  counts towards this limit or stops launches.
 - **Timing.** Queries and probes cross the channel.
   `SandboxStats::queries` and `queryMs` are counted by the engine in the
   helper and reach the client with its stats, so each uncached query's
@@ -1162,9 +1203,10 @@ and the seams they use need no change for it.
 - **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
   gives in-process loopback clients only when no factory is installed, so
   engines in the helper ignore it, the macOS, Linux and Windows defaults
-  included, and with `in-process`, or where the default keeps engines in
-  process, its engines keep the `Started.` note while running in the
-  client. Leave it unset in both modes.
+  included, and so does a client without a helper, whose default installs
+  a factory that refuses every engine; with `in-process` its engines keep
+  the `Started.` note while running in the client. Leave it unset in both
+  modes.
 
 ## Readings and refusals
 
@@ -1322,9 +1364,9 @@ with an `(allow default)` profile, made every helper refuse with
 `sandbox_init failed: Operation not permitted` before its widgets loaded,
 and after the third the next widget died with `the widget helper failed 3
 times in a row` without a fourth helper (Run 3). None of this has run on
-Windows, Linux, the store build or a packaged build: the store build keeps
-its engines in process, and packaged builds were then excluded from the
-macOS helper default.
+Windows, Linux, the store build or a packaged build: the store build then
+kept its engines in process, and packaged builds were then excluded from
+the macOS helper default.
 
 `TelegramWidgetHelper` ran in the macOS 27.0.1 arm64 Debug client in the
 evidence campaign of
@@ -1396,6 +1438,50 @@ file without read permission failed the check three times
 and the next widget died latched without a fourth start; not run: a
 Developer ID signature or notarization, a certificate-signed Xcode build,
 a Release client, the store and packaged builds and macOS before 27.0.1.
+
+The stop of every widget where no sandboxed helper is available ran on
+macOS 27.0.1 arm64 in the evidence campaign of
+`2026/11/14/stop-widgets-in-builds-without-a-sandboxed-helper` (its
+`work/test.md`, Run 1), in a copy of the `OS_MAC_STORE` Debug build
+re-signed ad hoc with no entitlement, so outside the App Sandbox and able
+to read a copied portable account, and the unchanged helper default
+ran in the direct-download Debug client. With no switch the store
+copy stopped its two fixture cards at their start: each host watch's
+`dead` and each summary's `Died:` line read
+`no sandboxed widget helper is available here: the widget helper is not
+available in the Store build`, the notes had `Started, its engine does not
+run.`, the headers `Crashes in a row: 1 of 2.`, and `loadedHosts`,
+`batches` and `ops` stayed 0; a sampler reading the client's threads and
+children at most 3.6 ms apart saw no `widget.sandbox`, `widget.reader`,
+`widget.writer` or `widget.monitor` thread and no child process while it
+saw the refused hosts' `widget.client`, `widget.validator` and
+`twidget-host`. The main log had one `Tgw` line, `Tgw: Widget engines do
+not run, no sandboxed widget helper is available here: the widget helper
+is not available in the Store build.`, and no `Tgw Error`. With
+`in-process` the same copy loaded its card with the note `Started.` and a
+`widget.sandbox` thread in the client, the positive control of that
+sampler; with `helper` its card died with `the widget helper could not
+start: the widget helper is not available in the Store build`, one
+`Tgw Error` line for its one host, no `widget.sandbox` thread and no child
+process. With no switch the direct-download client loaded its card through
+its bundle's `TelegramWidgetHelper` child, with `Started, its engine is
+remote.`, no `widget.sandbox` thread in the client and the main log's
+`Tgw: Widget engines run in the widget helper.`. The `unifdef -U_DEBUG`
+view of `tgw_remote.cpp`, `Q_OS_WIN` left unresolved, read no
+`TDESKTOP_WIDGET_ENGINES` and no `in-process`, chose only the helper or no
+engine and installed a channel factory for both, the only
+`setRemoteChannelFactory` calls in `Telegram/SourceFiles`. An unsandboxed
+store build keeps its single-instance socket in the TCC-guarded
+`~/Documents` (`SingleInstanceLocalServerName()`), so the store legs set
+`CFFIXED_USER_HOME` to an empty run-owned folder with a short path, since
+a socket path must fit in 104 bytes; the socket, the downloads and
+`Library/Sounds` went there, but `cfprefsd` still wrote
+`~/Library/Preferences/org.telegram.desktop.plist`, removed afterwards.
+Not run: the Windows Store build, Windows before 10 1809, Linux on other
+architectures and the non-Linux all-other platforms, whose reasons were
+only read, any Windows or Linux compile, a store build under its App
+Sandbox, a Release client (the non-Debug rule was only preprocessed) and
+the `probe` and `probe-unsandboxed` values.
 
 On Windows the [remote engines](#remote-engines) ran in the Win32 Debug
 (x86) client on one Windows 11 Pro 10.0.26300 machine in the evidence

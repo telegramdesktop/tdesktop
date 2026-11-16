@@ -32,7 +32,7 @@ own network attempts; the helper then goes on serving widgets
 
 Callers: the probe has two halves. In Telegram the `_DEBUG` block of
 `tgw/tgw_remote.cpp` is the only product caller of the client half.
-`ChooseRemote()` accepts `probe` and `probe-unsandboxed` as values of
+`ChoosePlace()` accepts `probe` and `probe-unsandboxed` as values of
 `TDESKTOP_WIDGET_ENGINES` (both select the remote engine), and
 `HelperArguments()` passes `WidgetHelperProbeArguments()` to
 `Platform::WidgetHelper::Launch()`. On macOS and Linux the Debug `main()`
