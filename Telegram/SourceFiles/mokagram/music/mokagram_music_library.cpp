@@ -1471,6 +1471,7 @@ int MergeRemoteLikes(const std::vector<Track> &remote, bool complete) {
 	}
 	auto remoteSet = std::set<QString>(remoteIds.begin(), remoteIds.end());
 	auto imported = 0;
+	auto fresh = std::vector<Liked>();
 	for (const auto &track : remote) {
 		if (track.id.isEmpty() || IsTelegramId(track.id)) {
 			continue;
@@ -1482,7 +1483,10 @@ int MergeRemoteLikes(const std::vector<Track> &remote, bool complete) {
 			auto copy = track;
 			copy.transcodingUrl.clear();
 			copy.authorization.clear();
-			lib.liked.insert(lib.liked.begin(), {
+			// Собираем в порядке аккаунта (новые лайки первыми), в начало
+			// списка вставим блоком ниже: по одному в begin порядок
+			// переворачивался и свежие лайки уезжали вниз.
+			fresh.push_back({
 				std::move(copy),
 				QDateTime::currentSecsSinceEpoch(),
 				true });
@@ -1497,6 +1501,9 @@ int MergeRemoteLikes(const std::vector<Track> &remote, bool complete) {
 			*i = std::move(fresh);
 		}
 	}
+	if (!fresh.empty()) {
+		lib.liked.insert(lib.liked.begin(), fresh.begin(), fresh.end());
+	}
 	// Лайк сняли в аккаунте — убираем его и из локального списка.
 	auto removed = 0;
 	if (complete) {
@@ -1509,7 +1516,32 @@ int MergeRemoteLikes(const std::vector<Track> &remote, bool complete) {
 			}
 		}
 	}
-	if (imported || removed) {
+	// Порядок лайков из аккаунта: раскладываем их по тем же местам списка
+	// в порядке remoteIds (чинит и уже перевёрнутый список).
+	auto reordered = false;
+	if (complete) {
+		auto slots = std::vector<int>();
+		auto byId = std::map<QString, Liked>();
+		for (auto i = 0; i != int(lib.liked.size()); ++i) {
+			const auto &id = lib.liked[i].track.id;
+			if (lib.liked[i].remote && remoteSet.contains(id)) {
+				slots.push_back(i);
+				byId.emplace(id, lib.liked[i]);
+			}
+		}
+		auto k = size_t(0);
+		for (const auto &id : remoteIds) {
+			const auto j = byId.find(id);
+			if (j == byId.end() || k >= slots.size()) {
+				continue;
+			}
+			if (lib.liked[slots[k]].track.id != id) {
+				reordered = true;
+			}
+			lib.liked[slots[k++]] = j->second;
+		}
+	}
+	if (imported || removed || reordered) {
 		lib.likesChanged.fire({});
 	}
 	Save();
