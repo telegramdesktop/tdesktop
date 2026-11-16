@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #ifdef Q_OS_LINUX
 
 #include "platform/linux/widget_descriptors_linux.h"
+#include "platform/linux/widget_helper_linux.h"
 #include "platform/linux/widget_lockdown_linux.h"
 #include "platform/posix/widget_channel_posix.h"
 #include "platform/posix/widget_reaping_posix.h"
@@ -50,6 +51,8 @@ namespace {
 using namespace gi::repository;
 
 constexpr auto kSpareDescriptorMin = 10;
+constexpr auto kHelperOpenFlags = O_RDONLY | O_NOCTTY | O_NONBLOCK;
+constexpr auto kHashChunk = size_t(64 * 1024);
 constexpr auto kExecutedDescriptor = kChannelDescriptor + 1;
 constexpr auto kDenyGroups = std::string_view("deny");
 constexpr auto kChildStackSize = size_t(64 * 1024);
@@ -74,6 +77,8 @@ constexpr auto kPinnedDigest = std::string_view(
 #else // TDESKTOP_WIDGET_HELPER_PINNED
 constexpr auto kPinnedDigest = std::string_view();
 #endif // TDESKTOP_WIDGET_HELPER_PINNED
+
+auto HeldExecutable = -1;
 
 using KernelSignalSet = uint64_t;
 
@@ -197,32 +202,63 @@ SpawnPlan::~SpawnPlan() {
 	return (descriptor < 0) ? SystemError("fcntl", error) : QString();
 }
 
+[[nodiscard]] QString RequireRegular(int descriptor) {
+	struct stat info = {};
+	if (fstat(descriptor, &info) != 0) {
+		return SystemError("fstat", errno);
+	} else if (!S_ISREG(info.st_mode)) {
+		return u"the widget helper is not a regular file"_q;
+	}
+	return QString();
+}
+
+[[nodiscard]] QString OpenHelper(const std::string &path, int &descriptor) {
+	if (HeldExecutable >= 0) {
+		descriptor = fcntl(
+			HeldExecutable,
+			F_DUPFD_CLOEXEC,
+			kSpareDescriptorMin);
+		return (descriptor < 0) ? SystemError("fcntl", errno) : QString();
+	}
+	return OpenAbove(path.c_str(), kHelperOpenFlags, descriptor);
+}
+
+[[nodiscard]] bool HashHelper(int descriptor, QCryptographicHash &hash) {
+	auto buffer = std::array<char, kHashChunk>();
+	auto offset = off_t(0);
+	while (true) {
+		const auto count = pread(
+			descriptor,
+			buffer.data(),
+			buffer.size(),
+			offset);
+		if (count < 0 && errno == EINTR) {
+			continue;
+		} else if (count < 0) {
+			return false;
+		} else if (!count) {
+			return true;
+		}
+		hash.addData(QByteArray::fromRawData(buffer.data(), int(count)));
+		offset += count;
+	}
+}
+
 [[nodiscard]] QString CheckHelper(SpawnPlan &plan) {
 	if (kPinnedDigest.empty()) {
 		LOG(("Tgw: The widget helper is not pinned "
 			"in a package-managed build."));
 		return QString();
 	}
-	auto error = OpenAbove(
-		plan.exe.c_str(),
-		O_RDONLY | O_NOCTTY | O_NONBLOCK,
-		plan.executable);
+	auto error = OpenHelper(plan.exe, plan.executable);
+	if (error.isEmpty()) {
+		error = RequireRegular(plan.executable);
+	}
 	if (!error.isEmpty()) {
 		return error;
 	}
-	struct stat info = {};
-	if (fstat(plan.executable, &info) != 0) {
-		return SystemError("fstat", errno);
-	} else if (!S_ISREG(info.st_mode)) {
-		return u"the widget helper is not a regular file"_q;
-	}
-	auto file = QFile();
 	auto hash = QCryptographicHash(QCryptographicHash::Sha256);
-	if (!file.open(
-			plan.executable,
-			QIODevice::ReadOnly,
-			QFileDevice::DontCloseHandle)
-		|| !hash.addData(&file)) {
+	if (!HashHelper(plan.executable, hash)) {
 		return u"the widget helper could not be read"_q;
 	}
 	const auto digest = QString::fromLatin1(hash.result().toHex());
@@ -685,6 +721,34 @@ Launched Launch(const QStringList &arguments) {
 	return KSandbox::isFlatpak()
 		? LaunchThroughPortal(std::move(channel), arguments)
 		: LaunchDirectly(std::move(channel), arguments);
+}
+
+void Hold() {
+	if (kPinnedDigest.empty()
+		|| !kLockdownAvailable
+		|| KSandbox::isFlatpak()) {
+		return;
+	}
+	const auto path = HelperPath();
+	if (path.empty()) {
+		return;
+	}
+	auto descriptor = -1;
+	const auto guard = gsl::finally([&] {
+		if (descriptor >= 0) {
+			close(descriptor);
+		}
+	});
+	auto error = OpenAbove(path.c_str(), kHelperOpenFlags, descriptor);
+	if (error.isEmpty()) {
+		error = RequireRegular(descriptor);
+	}
+	if (!error.isEmpty()) {
+		LOG(("Tgw: The widget helper is not held, each start opens it: %1."
+			).arg(error));
+		return;
+	}
+	HeldExecutable = std::exchange(descriptor, -1);
 }
 
 } // namespace Platform::WidgetHelper

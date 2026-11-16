@@ -1847,6 +1847,7 @@ PRIVATE
     platform/linux/widget_descriptors_linux.cpp
     platform/linux/widget_descriptors_linux.h
     platform/linux/widget_helper_linux.cpp
+    platform/linux/widget_helper_linux.h
     platform/linux/widget_lockdown_linux.h
     platform/mac/file_utilities_mac.mm
     platform/mac/file_utilities_mac.h
