@@ -980,13 +980,13 @@ Island::Part Island::partAt(QPoint point) const {
 	} else if (expanded() < 0.6) {
 		return Part::Body;
 	}
-	const auto near = [&](Part part, int hit) {
+	const auto isNear = [&](Part part, int hit) {
 		const auto c = center(part);
 		return std::abs(point.x() - c.x()) <= hit
 			&& std::abs(point.y() - c.y()) <= hit;
 	};
 	for (const auto part : { Part::Previous, Part::Play, Part::Next }) {
-		if (near(part, S(24))) {
+		if (isNear(part, S(24))) {
 			return part;
 		}
 	}
@@ -1001,7 +1001,7 @@ Island::Part Island::partAt(QPoint point) const {
 		if (isWindow() && part != Part::Heart && part != Part::Speaker) {
 			continue;
 		}
-		if (near(part, S(16))) {
+		if (isNear(part, S(16))) {
 			return part;
 		}
 	}
