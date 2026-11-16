@@ -1239,8 +1239,12 @@ FeedSection::FeedSection(
 		_scroll->updateBars();
 	}, lifetime());
 	_session->downloaderTaskFinished() | rpl::on_next([=] {
+		if (!_content->isVisible()) {
+			return;
+		}
 		for (const auto child : _content->children()) {
-			if (const auto widget = qobject_cast<QWidget*>(child)) {
+			if (const auto widget = qobject_cast<QWidget*>(child);
+					widget && widget->isVisible()) {
 				widget->update();
 			}
 		}
