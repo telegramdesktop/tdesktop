@@ -438,7 +438,9 @@ private:
 	void orderControls();
 	void updateFieldPlaceholder();
 	void updateSilentBroadcast();
-	void editMessage(not_null<HistoryItem*> item);
+	void editMessage(
+		not_null<HistoryItem*> item,
+		const TextWithTags &editData);
 
 	void escape();
 	void fieldChanged();

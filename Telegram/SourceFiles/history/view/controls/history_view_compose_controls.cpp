@@ -5934,20 +5934,23 @@ void ComposeControls::editMessage(
 	} else if (Iv::Editor::ActivateEditWindowFor(_session, id)) {
 		return;
 	}
-	editMessage(item);
+	const auto editData = PrepareEditText(item);
+	editMessage(item, editData);
 	if (_header->editMsgId() != id) {
 		return;
 	}
 	if (!item->richPage()) {
 		SelectTextInFieldWithMargins(
 			_field,
-			EditFieldSelection(PrepareEditText(item), selection));
+			EditFieldSelection(editData, selection));
 	}
 	saveDraftWithTextNow();
 	focus();
 }
 
-void ComposeControls::editMessage(not_null<HistoryItem*> item) {
+void ComposeControls::editMessage(
+		not_null<HistoryItem*> item,
+		const TextWithTags &editData) {
 	Expects(_history != nullptr);
 
 	if (draftKey(DraftType::Edit) == Data::DraftKey::None()) {
@@ -5974,7 +5977,6 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	if (!isEditingMessage()) {
 		saveFieldToHistoryLocalDraft();
 	}
-	const auto editData = PrepareEditText(item);
 	const auto length = uint16(editData.text.size());
 	const auto position = EditFieldSelection(editData, { length, length }).from;
 	const auto cursor = MessageCursor{
