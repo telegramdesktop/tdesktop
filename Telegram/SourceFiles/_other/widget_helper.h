@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace twidget {
 class SandboxRemoteStream;
@@ -20,5 +22,8 @@ namespace WidgetHelper {
 [[nodiscard]] std::unique_ptr<twidget::SandboxRemoteStream> Adopt(
 	std::string_view token);
 [[nodiscard]] std::string Lockdown();
+
+[[noreturn]] void ServeService(
+	std::function<void(std::vector<std::string>)> run);
 
 } // namespace WidgetHelper

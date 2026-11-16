@@ -15,7 +15,7 @@
 # There is no packaged branch: the API still changes between releases.
 
 add_library(lib_quickjs STATIC)
-if (APPLE AND NOT build_macstore)
+if (APPLE)
     init_standalone_target(lib_quickjs "(external)")
 else()
     init_target(lib_quickjs "(external)")

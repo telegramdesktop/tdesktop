@@ -56,12 +56,7 @@ constexpr auto kMaxReasonBytes = size_t(4096);
 	std::_Exit(reason.empty() ? 0 : 1);
 }
 
-} // namespace
-
-int main(int argc, char *argv[]) {
-	const auto arguments = std::vector<std::string>(
-		argv + std::min(argc, 1),
-		argv + argc);
+[[noreturn]] void Run(std::vector<std::string> arguments) {
 	if (!ArgumentsAllowed(arguments)) {
 		Exit("unexpected arguments");
 	}
@@ -73,4 +68,14 @@ int main(int argc, char *argv[]) {
 		*stream,
 		BuildString(),
 		[&] { return Lockdown(arguments); }));
+}
+
+} // namespace
+
+int main(int argc, char *argv[]) {
+#ifdef OS_MAC_STORE
+	WidgetHelper::ServeService(Run);
+#else // OS_MAC_STORE
+	Run(std::vector<std::string>(argv + std::min(argc, 1), argv + argc));
+#endif // OS_MAC_STORE
 }

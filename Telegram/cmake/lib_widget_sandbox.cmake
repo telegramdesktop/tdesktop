@@ -14,7 +14,7 @@
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_widget_sandbox STATIC)
-if (APPLE AND NOT build_macstore)
+if (APPLE)
     init_standalone_target(lib_widget_sandbox "(external)")
 else()
     init_target(lib_widget_sandbox "(external)")

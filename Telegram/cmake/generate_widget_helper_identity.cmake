@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 function(generate_widget_helper_identity target_name helper_name kind)
-    cmake_parse_arguments(PARSE_ARGV 3 arg "" "IDENTIFIER" "")
+    cmake_parse_arguments(PARSE_ARGV 3 arg "" "IDENTIFIER;ENTITLEMENTS" "")
 
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
@@ -18,6 +18,11 @@ function(generate_widget_helper_identity target_name helper_name kind)
         set(identifier_arguments --identifier ${arg_IDENTIFIER})
     endif()
 
+    set(entitlements_arguments)
+    if (DEFINED arg_ENTITLEMENTS)
+        set(entitlements_arguments --entitlements ${arg_ENTITLEMENTS})
+    endif()
+
     add_custom_command(
     OUTPUT
         ${gen_file}
@@ -27,6 +32,7 @@ function(generate_widget_helper_identity target_name helper_name kind)
         --kind
         ${kind}
         ${identifier_arguments}
+        ${entitlements_arguments}
         --helper
         $<TARGET_FILE:${helper_name}>
         --output
@@ -35,6 +41,7 @@ function(generate_widget_helper_identity target_name helper_name kind)
     DEPENDS
         ${helper_name}
         ${gen_script}
+        ${arg_ENTITLEMENTS}
     VERBATIM
     )
     generate_target(${target_name} widget_helper_identity ${gen_file} "" ${gen_dst})

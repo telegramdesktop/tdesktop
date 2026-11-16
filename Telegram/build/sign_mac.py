@@ -12,6 +12,7 @@ import subprocess
 import sys
 
 HELPER = pathlib.Path('Contents/Helpers/TelegramWidgetHelper')
+SERVICE = pathlib.Path('Contents/XPCServices/TelegramWidgetHelper.xpc')
 
 
 def macho(path):
@@ -26,11 +27,15 @@ def macho(path):
         )
 
 
+def skipped(relative, excluded):
+    return relative in excluded or SERVICE in relative.parents or 'Resources' in relative.parts
+
+
 def nested_code(bundle):
     info = plistlib.loads((bundle / 'Contents/Info.plist').read_bytes())
     excluded = {pathlib.Path('Contents/MacOS') / info['CFBundleExecutable'], HELPER}
     paths = [path for path in bundle.rglob('*')
-        if macho(path) and path.relative_to(bundle) not in excluded]
+        if not skipped(path.relative_to(bundle), excluded) and macho(path)]
     return sorted(paths, key=lambda path: (-len(path.parts), path))
 
 
@@ -55,6 +60,9 @@ def sign(bundle, identity, entitlements=None, timestamp=None, runtime=False, key
     if (bundle / HELPER).exists() and identity != '-':
         codesign(identity, bundle / HELPER, timestamp=timestamp, runtime=True, keychain=keychain,
             extra=['--preserve-metadata=identifier'])
+    if (bundle / SERVICE).exists() and identity != '-':
+        codesign(identity, bundle / SERVICE, timestamp=timestamp, runtime=True, keychain=keychain,
+            extra=['--preserve-metadata=identifier,entitlements'])
     if nested_only:
         return
     codesign(identity, bundle, entitlements, timestamp, runtime, keychain)

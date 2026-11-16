@@ -6,7 +6,11 @@
 
 include(cmake/generate_widget_helper_identity.cmake)
 
-set(widget_helper_identifier com.tdesktop.Telegram.WidgetHelper)
+if (build_macstore)
+    set(widget_helper_identifier ${bundle_identifier}.WidgetHelper)
+else()
+    set(widget_helper_identifier com.tdesktop.Telegram.WidgetHelper)
+endif()
 
 add_executable(TelegramWidgetHelper)
 init_standalone_target(TelegramWidgetHelper)
@@ -18,6 +22,7 @@ PRIVATE
     _other/widget_helper_linux.cpp
     _other/widget_helper_mac.cpp
     _other/widget_helper_posix.cpp
+    _other/widget_helper_service_mac.cpp
     _other/widget_helper_win.cpp
     platform/linux/widget_descriptors_linux.cpp
     platform/linux/widget_descriptors_linux.h
@@ -38,6 +43,12 @@ PRIVATE
 if (NOT APPLE)
     remove_target_sources(TelegramWidgetHelper ${src_loc}
         _other/widget_helper_posix.cpp
+    )
+endif()
+
+if (NOT build_macstore)
+    remove_target_sources(TelegramWidgetHelper ${src_loc}
+        _other/widget_helper_service_mac.cpp
     )
 endif()
 
@@ -92,6 +103,22 @@ elseif (APPLE)
         RUNTIME_OUTPUT_DIRECTORY ${output_folder}
         XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO
     )
+    if (build_macstore)
+        set(widget_helper_entitlements ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/TelegramWidgetHelper.entitlements)
+        set_target_properties(TelegramWidgetHelper PROPERTIES
+            MACOSX_BUNDLE TRUE
+            BUNDLE_EXTENSION xpc
+            MACOSX_BUNDLE_INFO_PLIST ${CMAKE_CURRENT_SOURCE_DIR}/TelegramWidgetHelper.plist
+            XCODE_PRODUCT_TYPE com.apple.product-type.xpc-service
+            XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${widget_helper_identifier}
+            LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/TelegramWidgetHelper.plist;${widget_helper_entitlements}"
+        )
+        set(widget_helper_sign_options --entitlements ${widget_helper_entitlements})
+        set(widget_helper_signed $<TARGET_BUNDLE_DIR:TelegramWidgetHelper>)
+    else()
+        set(widget_helper_sign_options)
+        set(widget_helper_signed $<TARGET_FILE:TelegramWidgetHelper>)
+    endif()
 
     if (NOT CMAKE_STRIP)
         message(FATAL_ERROR
@@ -104,21 +131,41 @@ elseif (APPLE)
         COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:TelegramWidgetHelper>>"
         COMMAND codesign --force --sign - --options runtime
             --identifier ${widget_helper_identifier}
-            $<TARGET_FILE:TelegramWidgetHelper>
+            ${widget_helper_sign_options}
+            ${widget_helper_signed}
         COMMAND_EXPAND_LISTS
         VERBATIM
     )
 
-    add_custom_target(TelegramWidgetHelper_bundle
-        COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Telegram>/../Helpers"
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_FILE:TelegramWidgetHelper>" "$<TARGET_FILE_DIR:Telegram>/../Helpers/"
-        VERBATIM
-    )
+    if (build_macstore)
+        set(widget_helper_built "$<TARGET_BUNDLE_CONTENT_DIR:TelegramWidgetHelper>")
+        set(widget_helper_service "$<TARGET_FILE_DIR:Telegram>/../XPCServices/TelegramWidgetHelper.xpc/Contents")
+        add_custom_target(TelegramWidgetHelper_bundle
+            COMMAND ${CMAKE_COMMAND} -E make_directory
+                "${widget_helper_service}/MacOS"
+                "${widget_helper_service}/_CodeSignature"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${widget_helper_built}/Info.plist" "${widget_helper_service}/"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${widget_helper_built}/MacOS/TelegramWidgetHelper" "${widget_helper_service}/MacOS/"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "${widget_helper_built}/_CodeSignature/CodeResources" "${widget_helper_service}/_CodeSignature/"
+            VERBATIM
+        )
+        generate_widget_helper_identity(Telegram TelegramWidgetHelper cdhash
+            IDENTIFIER ${widget_helper_identifier}
+            ENTITLEMENTS ${widget_helper_entitlements})
+    else()
+        add_custom_target(TelegramWidgetHelper_bundle
+            COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Telegram>/../Helpers"
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:TelegramWidgetHelper>" "$<TARGET_FILE_DIR:Telegram>/../Helpers/"
+            VERBATIM
+        )
+        generate_widget_helper_identity(Telegram TelegramWidgetHelper cdhash IDENTIFIER ${widget_helper_identifier})
+    endif()
     add_dependencies(TelegramWidgetHelper_bundle TelegramWidgetHelper)
     add_dependencies(Telegram TelegramWidgetHelper_bundle)
-
-    generate_widget_helper_identity(Telegram TelegramWidgetHelper cdhash IDENTIFIER ${widget_helper_identifier})
 else()
     set(widget_helper_folder TelegramHelpers)
     set(widget_helper_pinned ON)

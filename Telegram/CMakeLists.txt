@@ -25,7 +25,7 @@ get_filename_component(src_loc SourceFiles REALPATH)
 get_filename_component(res_loc Resources REALPATH)
 
 include(cmake/telegram_options.cmake)
-if ((APPLE AND NOT build_macstore)
+if (APPLE
     OR (WIN32 AND NOT build_winstore)
     OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(cmake/init_standalone_target.cmake)
@@ -1882,7 +1882,9 @@ PRIVATE
     platform/mac/wallet_protection_mac.h
     platform/mac/wallet_protection_mac.mm
     platform/mac/webauthn_mac.mm
+    platform/mac/widget_helper_mac.h
     platform/mac/widget_helper_mac.mm
+    platform/mac/widget_helper_store_mac.mm
     platform/mac/window_title_mac.mm
     platform/mac/touchbar/items/mac_formatter_item.h
     platform/mac/touchbar/items/mac_formatter_item.mm
@@ -2718,6 +2720,12 @@ if (NOT build_winstore)
     )
 endif()
 
+if (NOT build_macstore)
+    remove_target_sources(Telegram ${src_loc}
+        platform/mac/widget_helper_store_mac.mm
+    )
+endif()
+
 if (DESKTOP_APP_USE_PACKAGED)
     remove_target_sources(Telegram ${src_loc}
         platform/mac/mac_iconv_helper.c
@@ -2943,9 +2951,7 @@ set_target_properties(Telegram PROPERTIES
     XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY libc++
     XCODE_ATTRIBUTE_CLANG_DEBUG_INFORMATION_LEVEL $<IF:$<CONFIG:Debug>,default,line-tables-only>
 )
-if (build_macstore)
-    set_target_properties(Telegram PROPERTIES XCODE_ATTRIBUTE_OTHER_CODE_SIGN_FLAGS --deep)
-elseif (APPLE AND CMAKE_GENERATOR STREQUAL Xcode)
+if (APPLE AND CMAKE_GENERATOR STREQUAL Xcode)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
     add_custom_command(TARGET Telegram POST_BUILD
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/build/sign_mac.py
@@ -3087,7 +3093,7 @@ endif()
 
 target_prepare_qrc(Telegram)
 
-if ((APPLE AND NOT build_macstore)
+if (APPLE
     OR (WIN32 AND NOT build_winstore)
     OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(cmake/telegram_widget_helper.cmake)

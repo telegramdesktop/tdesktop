@@ -7,10 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/platform_widget_helper.h"
 
+#include "platform/mac/widget_helper_mac.h"
 #include "platform/posix/widget_channel_posix.h"
-#ifndef OS_MAC_STORE
 #include "widget_helper_identity.h"
-#endif // OS_MAC_STORE
 
 #include <QtCore/QCryptographicHash>
 
@@ -26,25 +25,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <thread>
 #include <unistd.h>
 
-#ifndef OS_MAC_STORE
-extern "C" int responsibility_spawnattrs_setdisclaim(
-	posix_spawnattr_t *attributes,
-	int disclaim) API_AVAILABLE(macos(10.14));
-#endif // OS_MAC_STORE
-
 namespace Platform::WidgetHelper {
 namespace {
 
-constexpr auto kSpareDescriptorMin = 10;
-constexpr auto kPollDelay = crl::time(10);
-constexpr auto kAbandonWait = crl::time(1000);
-
 #if defined __arm64__
 constexpr auto kArchitecture = "arm64";
-constexpr auto kCpuType = cpu_type_t(CPU_TYPE_ARM64);
 #elif defined __x86_64__
 constexpr auto kArchitecture = "x86_64";
-constexpr auto kCpuType = cpu_type_t(CPU_TYPE_X86_64);
 #else // __arm64__ || __x86_64__
 #error "The widget helper starts only arm64 or x86_64 slices."
 #endif // __arm64__ || __x86_64__
@@ -56,20 +43,8 @@ struct CFReleaser {
 template <typename Ref>
 using CFHolder = std::unique_ptr<std::remove_pointer_t<Ref>, CFReleaser>;
 
-struct Requirement {
-	CFHolder<SecRequirementRef> value;
-	QString check;
-	QString error;
-};
-
 void CFReleaser::operator()(CFTypeRef value) const {
 	CFRelease(value);
-}
-
-[[nodiscard]] QString SystemError(const char *call, int error) {
-	return u"%1 failed: %2"_q.arg(
-		QString::fromLatin1(call),
-		qt_error_string(error));
 }
 
 [[nodiscard]] QString SecurityError(const char *call, OSStatus status) {
@@ -83,6 +58,183 @@ void CFReleaser::operator()(CFTypeRef value) const {
 			QString::number(status))
 		: u"%1 failed: %2"_q.arg(name, QString::number(status));
 }
+
+[[nodiscard]] details::RequirementText SignerRequirement(
+		const QString &identifier,
+		CFTypeRef certificates) {
+	const auto list = (certificates
+		&& CFGetTypeID(certificates) == CFArrayGetTypeID())
+		? (CFArrayRef)certificates
+		: nullptr;
+	const auto leaf = (list && CFArrayGetCount(list) > 0)
+		? CFArrayGetValueAtIndex(list, 0)
+		: nullptr;
+	const auto der = (leaf && CFGetTypeID(leaf) == SecCertificateGetTypeID())
+		? CFHolder<CFDataRef>(SecCertificateCopyData((SecCertificateRef)leaf))
+		: nullptr;
+	if (!der) {
+		return {
+			.error = u"the signing certificate of this build is unreadable"_q,
+		};
+	}
+	const auto hash = QCryptographicHash::hash(
+		QByteArray::fromRawCFData(der.get()),
+		QCryptographicHash::Sha1).toHex();
+	return {
+		.text = u"identifier \"%1\" and certificate leaf = H\"%2\""_q.arg(
+			identifier,
+			QString::fromLatin1(hash)),
+		.check = u"signer"_q,
+	};
+}
+
+[[nodiscard]] details::RequirementText BuiltRequirement() {
+	for (const auto &built : details::kBuiltDigests) {
+		if (std::string_view(built.architecture) == kArchitecture) {
+			return {
+				.text = u"cdhash H\"%1\""_q.arg(
+					QString::fromLatin1(built.digest)),
+				.check = u"build identity"_q,
+			};
+		}
+	}
+	return {
+		.error = u"the widget helper identity of this build is unknown"_q,
+	};
+}
+
+[[nodiscard]] bool RunningUnsigned(SecCodeRef code) {
+	auto dynamic = CFDictionaryRef();
+	const auto read = SecCodeCopySigningInformation(
+		code,
+		kSecCSDynamicInformation,
+		&dynamic);
+	const auto information = CFHolder<CFDictionaryRef>(dynamic);
+	const auto status = (read == errSecSuccess)
+		? CFDictionaryGetValue(information.get(), kSecCodeInfoStatus)
+		: nullptr;
+	auto value = int64_t();
+	return status
+		&& CFGetTypeID(status) == CFNumberGetTypeID()
+		&& CFNumberGetValue((CFNumberRef)status, kCFNumberSInt64Type, &value)
+		&& !(value & kSecCodeStatusValid);
+}
+
+} // namespace
+
+namespace details {
+
+QString SystemError(const char *call, int error) {
+	return u"%1 failed: %2"_q.arg(
+		QString::fromLatin1(call),
+		qt_error_string(error));
+}
+
+RequirementText HelperRequirementText(const QString &identifier) {
+	auto self = SecCodeRef();
+	const auto copied = SecCodeCopySelf(kSecCSDefaultFlags, &self);
+	const auto code = CFHolder<SecCodeRef>(self);
+	if (copied != errSecSuccess) {
+		return { .error = SecurityError("SecCodeCopySelf", copied) };
+	}
+	auto own = SecRequirementRef();
+	const auto described = SecCodeCopyDesignatedRequirement(
+		code.get(),
+		kSecCSDefaultFlags,
+		&own);
+	const auto designated = CFHolder<SecRequirementRef>(own);
+	if (described == errSecCSUnsigned && RunningUnsigned(code.get())) {
+		return BuiltRequirement();
+	} else if (described != errSecSuccess) {
+		return {
+			.error = SecurityError(
+				"SecCodeCopyDesignatedRequirement",
+				described),
+		};
+	}
+	const auto checked = SecCodeCheckValidity(
+		code.get(),
+		kSecCSDefaultFlags,
+		designated.get());
+	if (checked != errSecSuccess) {
+		return { .error = SecurityError("SecCodeCheckValidity", checked) };
+	}
+	auto signing = CFDictionaryRef();
+	const auto read = SecCodeCopySigningInformation(
+		code.get(),
+		kSecCSSigningInformation,
+		&signing);
+	const auto information = CFHolder<CFDictionaryRef>(signing);
+	if (read != errSecSuccess) {
+		return {
+			.error = SecurityError("SecCodeCopySigningInformation", read),
+		};
+	}
+	const auto ownIdentifier = CFDictionaryGetValue(
+		information.get(),
+		kSecCodeInfoIdentifier);
+	const auto flags = CFDictionaryGetValue(
+		information.get(),
+		kSecCodeInfoFlags);
+	auto value = int64_t();
+	if (!ownIdentifier
+		|| !flags
+		|| CFGetTypeID(flags) != CFNumberGetTypeID()
+		|| !CFNumberGetValue((CFNumberRef)flags, kCFNumberSInt64Type, &value)) {
+		return { .error = u"the signature of this build is unreadable"_q };
+	} else if (value & kSecCodeSignatureAdhoc) {
+		return BuiltRequirement();
+	}
+	return SignerRequirement(
+		identifier,
+		CFDictionaryGetValue(information.get(), kSecCodeInfoCertificates));
+}
+
+} // namespace details
+
+QString UnsupportedReason() {
+#ifdef OS_MAC_STORE
+	if (@available(macOS 12.0, *)) {
+		return QString();
+	}
+	return u"the widget helper needs macOS 12 or later in the Store build"_q;
+#else // OS_MAC_STORE
+	return QString();
+#endif // OS_MAC_STORE
+}
+
+bool Enabled() {
+	return UnsupportedReason().isEmpty();
+}
+
+} // namespace Platform::WidgetHelper
+
+#ifndef OS_MAC_STORE
+
+extern "C" int responsibility_spawnattrs_setdisclaim(
+	posix_spawnattr_t *attributes,
+	int disclaim) API_AVAILABLE(macos(10.14));
+
+namespace Platform::WidgetHelper {
+namespace {
+
+using details::SystemError;
+
+constexpr auto kSpareDescriptorMin = 10;
+constexpr auto kPollDelay = crl::time(10);
+constexpr auto kAbandonWait = crl::time(1000);
+
+#if defined __arm64__
+constexpr auto kCpuType = cpu_type_t(CPU_TYPE_ARM64);
+#elif defined __x86_64__
+constexpr auto kCpuType = cpu_type_t(CPU_TYPE_X86_64);
+#endif // __arm64__ || __x86_64__
+
+struct Requirement {
+	CFHolder<SecRequirementRef> value;
+	QString check;
+	QString error;
+};
 
 [[nodiscard]] QByteArray HelperPath() {
 	@autoreleasepool {
@@ -171,7 +323,6 @@ void CFReleaser::operator()(CFTypeRef value) const {
 			"posix_spawnattr_setbinpref_np",
 			preferenceError ? preferenceError : EINVAL);
 	}
-#ifndef OS_MAC_STORE
 	if (@available(macOS 10.14, *)) {
 		// TCC must not attribute the helper's requests to Telegram's grants.
 		if (const auto error = responsibility_spawnattrs_setdisclaim(
@@ -180,11 +331,8 @@ void CFReleaser::operator()(CFTypeRef value) const {
 			return SystemError("responsibility_spawnattrs_setdisclaim", error);
 		}
 	}
-#endif // OS_MAC_STORE
 	return QString();
 }
-
-#ifndef OS_MAC_STORE
 
 [[nodiscard]] Requirement MakeRequirement(
 		const QString &text,
@@ -203,130 +351,6 @@ void CFReleaser::operator()(CFTypeRef value) const {
 	}
 	return { .value = std::move(value), .check = std::move(check) };
 }
-
-[[nodiscard]] Requirement SignerRequirement(CFTypeRef certificates) {
-	const auto list = (certificates
-		&& CFGetTypeID(certificates) == CFArrayGetTypeID())
-		? (CFArrayRef)certificates
-		: nullptr;
-	const auto leaf = (list && CFArrayGetCount(list) > 0)
-		? CFArrayGetValueAtIndex(list, 0)
-		: nullptr;
-	const auto der = (leaf && CFGetTypeID(leaf) == SecCertificateGetTypeID())
-		? CFHolder<CFDataRef>(SecCertificateCopyData((SecCertificateRef)leaf))
-		: nullptr;
-	if (!der) {
-		return {
-			.error = u"the signing certificate of this build is unreadable"_q,
-		};
-	}
-	const auto hash = QCryptographicHash::hash(
-		QByteArray::fromRawCFData(der.get()),
-		QCryptographicHash::Sha1).toHex();
-	return MakeRequirement(
-		u"identifier \"%1\" and certificate leaf = H\"%2\""_q.arg(
-			QString::fromLatin1(details::kIdentifier),
-			QString::fromLatin1(hash)),
-		u"signer"_q);
-}
-
-[[nodiscard]] Requirement BuiltRequirement() {
-	for (const auto &built : details::kBuiltDigests) {
-		if (std::string_view(built.architecture) == kArchitecture) {
-			return MakeRequirement(
-				u"cdhash H\"%1\""_q.arg(QString::fromLatin1(built.digest)),
-				u"build identity"_q);
-		}
-	}
-	return {
-		.error = u"the widget helper identity of this build is unknown"_q,
-	};
-}
-
-[[nodiscard]] bool RunningUnsigned(SecCodeRef code) {
-	auto dynamic = CFDictionaryRef();
-	const auto read = SecCodeCopySigningInformation(
-		code,
-		kSecCSDynamicInformation,
-		&dynamic);
-	const auto information = CFHolder<CFDictionaryRef>(dynamic);
-	const auto status = (read == errSecSuccess)
-		? CFDictionaryGetValue(information.get(), kSecCodeInfoStatus)
-		: nullptr;
-	auto value = int64_t();
-	return status
-		&& CFGetTypeID(status) == CFNumberGetTypeID()
-		&& CFNumberGetValue((CFNumberRef)status, kCFNumberSInt64Type, &value)
-		&& !(value & kSecCodeStatusValid);
-}
-
-[[nodiscard]] Requirement HelperRequirement() {
-	auto self = SecCodeRef();
-	const auto copied = SecCodeCopySelf(kSecCSDefaultFlags, &self);
-	const auto code = CFHolder<SecCodeRef>(self);
-	if (copied != errSecSuccess) {
-		return { .error = SecurityError("SecCodeCopySelf", copied) };
-	}
-	auto own = SecRequirementRef();
-	const auto described = SecCodeCopyDesignatedRequirement(
-		code.get(),
-		kSecCSDefaultFlags,
-		&own);
-	const auto designated = CFHolder<SecRequirementRef>(own);
-	if (described == errSecCSUnsigned && RunningUnsigned(code.get())) {
-		return BuiltRequirement();
-	} else if (described != errSecSuccess) {
-		return {
-			.error = SecurityError(
-				"SecCodeCopyDesignatedRequirement",
-				described),
-		};
-	}
-	const auto checked = SecCodeCheckValidity(
-		code.get(),
-		kSecCSDefaultFlags,
-		designated.get());
-	if (checked != errSecSuccess) {
-		return { .error = SecurityError("SecCodeCheckValidity", checked) };
-	}
-	auto signing = CFDictionaryRef();
-	const auto read = SecCodeCopySigningInformation(
-		code.get(),
-		kSecCSSigningInformation,
-		&signing);
-	const auto information = CFHolder<CFDictionaryRef>(signing);
-	if (read != errSecSuccess) {
-		return {
-			.error = SecurityError("SecCodeCopySigningInformation", read),
-		};
-	}
-	const auto identifier = CFDictionaryGetValue(
-		information.get(),
-		kSecCodeInfoIdentifier);
-	const auto flags = CFDictionaryGetValue(
-		information.get(),
-		kSecCodeInfoFlags);
-	auto value = int64_t();
-	if (!identifier
-		|| !flags
-		|| CFGetTypeID(flags) != CFNumberGetTypeID()
-		|| !CFNumberGetValue((CFNumberRef)flags, kCFNumberSInt64Type, &value)) {
-		return { .error = u"the signature of this build is unreadable"_q };
-	} else if (value & kSecCodeSignatureAdhoc) {
-		return BuiltRequirement();
-	}
-	return SignerRequirement(CFDictionaryGetValue(
-		information.get(),
-		kSecCodeInfoCertificates));
-}
-
-#else // OS_MAC_STORE
-
-[[nodiscard]] Requirement HelperRequirement() {
-	return { .error = UnsupportedReason() };
-}
-
-#endif // OS_MAC_STORE
 
 [[nodiscard]] QString CheckStarted(
 		pid_t pid,
@@ -446,19 +470,6 @@ void CFReleaser::operator()(CFTypeRef value) const {
 
 } // namespace
 
-QString UnsupportedReason() {
-#ifdef OS_MAC_STORE
-	// The App Sandbox blocks the profile.
-	return u"the widget helper is not available in the Store build"_q;
-#else // OS_MAC_STORE
-	return QString();
-#endif // OS_MAC_STORE
-}
-
-bool Enabled() {
-	return UnsupportedReason().isEmpty();
-}
-
 Launched Launch(const QStringList &arguments) {
 	auto path = HelperPath();
 	if (path.isEmpty()) {
@@ -502,7 +513,12 @@ Launched Launch(const QStringList &arguments) {
 	if (!prepared.isEmpty()) {
 		return { .error = std::move(prepared) };
 	}
-	auto requirement = HelperRequirement();
+	auto text = details::HelperRequirementText(
+		QString::fromLatin1(details::kIdentifier));
+	if (!text.error.isEmpty()) {
+		return { .error = std::move(text.error) };
+	}
+	auto requirement = MakeRequirement(text.text, std::move(text.check));
 	if (!requirement.error.isEmpty()) {
 		return { .error = std::move(requirement.error) };
 	}
@@ -552,3 +568,5 @@ Launched Launch(const QStringList &arguments) {
 }
 
 } // namespace Platform::WidgetHelper
+
+#endif // OS_MAC_STORE

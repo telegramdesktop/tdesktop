@@ -381,6 +381,9 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       if [ ! -d "$ReleasePath/$BundleName/Contents/Frameworks/Breakpad.framework" ]; then
         Error "Breakpad.framework not found!"
       fi
+      if [ ! -f "$ReleasePath/$BundleName/Contents/XPCServices/TelegramWidgetHelper.xpc/Contents/MacOS/TelegramWidgetHelper" ]; then
+        Error "TelegramWidgetHelper.xpc not found!"
+      fi
     fi
 
     if [ "$MacArch" == "" ]; then
@@ -419,7 +422,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       python3 "$FullScriptPath/sign_mac.py" --identity "Developer ID Application: Telegram FZ-LLC (C67CF9S4VU)" --entitlements "$HomePath/Telegram/Telegram.entitlements" --timestamp --runtime "$ReleasePath/$BundleName"
     elif [ "$BuildTarget" == "macstore" ]; then
       codesign --force --timestamp --options runtime --sign "3rd Party Mac Developer Application: Telegram FZ-LLC (C67CF9S4VU)" "$ReleasePath/$BundleName/Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib" --entitlements "$HomePath/Telegram/Breakpad.entitlements"
-      codesign --force --deep --timestamp --options runtime --sign "3rd Party Mac Developer Application: Telegram FZ-LLC (C67CF9S4VU)" "$ReleasePath/$BundleName" --entitlements "$HomePath/Telegram/Telegram Lite.entitlements"
+      python3 "$FullScriptPath/sign_mac.py" --identity "3rd Party Mac Developer Application: Telegram FZ-LLC (C67CF9S4VU)" --entitlements "$HomePath/Telegram/Telegram Lite.entitlements" --timestamp --runtime "$ReleasePath/$BundleName"
       echo "Making an installer.."
       productbuild --sign "3rd Party Mac Developer Installer: Telegram FZ-LLC (C67CF9S4VU)" --component "$ReleasePath/$BundleName" /Applications "$ReleasePath/$BinaryName.pkg"
     fi

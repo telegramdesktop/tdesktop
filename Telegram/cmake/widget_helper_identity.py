@@ -69,6 +69,19 @@ def entitlements(helper, arch):
     return parsed
 
 
+def expected_entitlements(path):
+    if path is None:
+        return {}
+    try:
+        parsed = plistlib.loads(path.read_bytes())
+    except (ValueError, xml.parsers.expat.ExpatError) as error:
+        raise RuntimeError(
+            path.name + ' has unreadable entitlements: ' + str(error))
+    if not isinstance(parsed, dict):
+        raise RuntimeError(path.name + ' has unreadable entitlements')
+    return parsed
+
+
 def find(pattern, text, error):
     found = re.search(pattern, text, re.MULTILINE)
     if not found:
@@ -76,9 +89,10 @@ def find(pattern, text, error):
     return found.group(1)
 
 
-def cdhashes(helper, identifier):
+def cdhashes(helper, identifier, entitlements_file):
+    expected = expected_entitlements(entitlements_file)
     architectures = find(
-        r'^Format=Mach-O (?:thin|universal) \(([^)]*)\)$',
+        r'^Format=(?:bundle with )?Mach-O (?:thin|universal) \(([^)]*)\)$',
         display(helper),
         'the helper is not a Mach-O executable').split()
     if not architectures:
@@ -101,9 +115,13 @@ def cdhashes(helper, identifier):
                 info,
                 name + ' has no identifier ' + identifier)
         keys = entitlements(helper, arch)
-        if keys:
+        if keys != expected:
+            listed = ', '.join(sorted(keys))
+            if not expected:
+                raise RuntimeError(name + ' has entitlements: ' + listed)
             raise RuntimeError(
-                name + ' has entitlements: ' + ', '.join(sorted(keys)))
+                name + "'s entitlements differ from "
+                + entitlements_file.name + ': ' + listed)
         digest = find(
             r'^CDHash=([0-9a-f]{40})$',
             info,
@@ -316,6 +334,7 @@ def main():
     parser.add_argument('--helper', type=pathlib.Path, required=True)
     parser.add_argument('--output', type=pathlib.Path, required=True)
     parser.add_argument('--identifier')
+    parser.add_argument('--entitlements', type=pathlib.Path)
     args = parser.parse_args()
     if args.kind == 'authenticode':
         if args.identifier is not None:
@@ -324,7 +343,7 @@ def main():
     elif args.kind == 'sha256':
         digests = sha256_digests(args.helper)
     else:
-        digests = cdhashes(args.helper, args.identifier)
+        digests = cdhashes(args.helper, args.identifier, args.entitlements)
     write(args.output, header(digests, args.identifier))
 
 

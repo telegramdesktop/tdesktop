@@ -52,6 +52,7 @@ struct Helper {
 	uint64 id = 0;
 	bool retiring = false;
 	bool intentional = false;
+	bool launching = false;
 };
 
 class Manager final {
@@ -217,7 +218,7 @@ Channel Manager::channel(
 			return Refusing(_disabled);
 		} else if (!_helper) {
 			return launch(lock, *resources);
-		} else if (_helper->retiring) {
+		} else if (_helper->retiring || _helper->launching) {
 			_reaped.wait(lock);
 		} else if (!Read(*_helper->reports).ended) {
 			return handOut(lock);
@@ -238,7 +239,9 @@ bool Manager::stop(Fn<void()> stopped) {
 	if (!_helper || _whenStopped) {
 		return false;
 	}
-	const auto retired = _helper->retiring ? 0 : retireLocked(true);
+	const auto retired = (_helper->retiring || _helper->launching)
+		? 0
+		: retireLocked(true);
 	lock.unlock();
 
 	_whenStopped = std::move(stopped);
@@ -275,20 +278,44 @@ Channel Manager::launch(
 	const auto id = ++_serial;
 	auto reports = std::make_shared<Reports>();
 	auto events = EventsFor(reports, id);
-	auto launched = Platform::WidgetHelper::Launch(HelperArguments());
+	const auto arguments = HelperArguments();
+	_helper = Helper{
+		.reports = std::move(reports),
+		.id = id,
+		.launching = true,
+	};
+	lock.unlock();
+	auto launched = Platform::WidgetHelper::Launched();
+	try {
+		launched = Platform::WidgetHelper::Launch(arguments);
+	} catch (const std::exception &e) {
+		launched.error = QString::fromUtf8(e.what());
+	}
+	lock.lock();
 	if (!launched.error.isEmpty()) {
 		const auto reason = CouldNotStart(launched.error);
+		_helper = std::nullopt;
+		_reaped.notify_all();
 		failedLocked(0);
+		if (_stopped) {
+			crl::on_main([=] {
+				finished();
+			});
+		}
 		return Refusing(reason);
 	}
-	_helper = Helper{
-		.stream = std::move(launched.stream),
-		.reports = std::move(reports),
-		.complete = std::move(launched.complete),
-		.started = crl::now(),
-		.pid = launched.pid,
-		.id = id,
-	};
+	_helper->stream = std::move(launched.stream);
+	_helper->complete = std::move(launched.complete);
+	_helper->started = crl::now();
+	_helper->pid = launched.pid;
+	_helper->launching = false;
+	_reaped.notify_all();
+	if (_stopped) {
+		const auto retired = retireLocked(true);
+		lock.unlock();
+		scheduleReap(retired);
+		return Refusing(u"the widget helper was stopped"_q);
+	}
 	try {
 		_helper->end = twidget::SandboxRemoteHostEnd::start(
 			_helper->stream,
@@ -331,7 +358,7 @@ uint64 Manager::retireLocked(bool intentional) {
 }
 
 crl::time Manager::idleDeadlineLocked() const {
-	if (_stopped || !_helper || _helper->retiring) {
+	if (_stopped || !_helper || _helper->retiring || _helper->launching) {
 		return 0;
 	}
 	const auto reading = Read(*_helper->reports);

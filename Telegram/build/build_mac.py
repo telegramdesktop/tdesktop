@@ -199,7 +199,9 @@ def assemble(builds, destination, toolchain, target, configuration):
             'Contents/Resources/external_microtex_bundled.rcc']
         if target == 'macstore':
             resources.extend(('Contents/Frameworks/Breakpad.framework/Versions/A/Breakpad',
-                'Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib'))
+                'Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib',
+                'Contents/XPCServices/TelegramWidgetHelper.xpc/Contents/MacOS/TelegramWidgetHelper',
+                'Contents/XPCServices/TelegramWidgetHelper.xpc/Contents/Info.plist'))
         else:
             resources.extend(('Contents/Frameworks/Updater', 'Contents/Helpers/crashpad_handler',
                 'Contents/Helpers/TelegramWidgetHelper'))
@@ -213,10 +215,7 @@ def assemble(builds, destination, toolchain, target, configuration):
             if target == 'macstore':
                 run(['codesign', '--force', '--sign', '-', bundle
                     / 'Contents/Frameworks/Breakpad.framework/Versions/A/Resources/breakpadUtilities.dylib'])
-                run(['codesign', '--force', '--deep', '--sign', '-', bundle])
-                run(['codesign', '--verify', '--deep', '--strict', bundle])
-            else:
-                sign_mac.sign(bundle, '-')
+            sign_mac.sign(bundle, '-')
         result = destination / app_name
         if result.exists():
             shutil.rmtree(result)

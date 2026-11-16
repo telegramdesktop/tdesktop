@@ -132,7 +132,14 @@ struct PortRights {
 	});
 	const auto result = bootstrap_look_up(bootstrap_port, service, &port);
 	const auto text = std::string(service);
-	if (result == BOOTSTRAP_UNKNOWN_SERVICE) {
+#ifdef OS_MAC_STORE
+	// The App Sandbox denies the lookup from before any initializer runs, so no right can be held.
+	const auto absent = (result == BOOTSTRAP_UNKNOWN_SERVICE)
+		|| (result == BOOTSTRAP_NOT_PRIVILEGED);
+#else // OS_MAC_STORE
+	const auto absent = (result == BOOTSTRAP_UNKNOWN_SERVICE);
+#endif // OS_MAC_STORE
+	if (absent) {
 		return {};
 	} else if (result != KERN_SUCCESS) {
 		return KernelError("bootstrap_look_up(" + text + ")", result);
@@ -196,7 +203,13 @@ std::string Lockdown() {
 		sandbox_free_error(error);
 	});
 #pragma clang diagnostic pop
-	if (result != 0) {
+#ifdef OS_MAC_STORE
+	// sandbox_init fails with EPERM inside the App Sandbox, which already confines the helper.
+	const auto failed = (result != 0) && (code != EPERM);
+#else // OS_MAC_STORE
+	const auto failed = (result != 0);
+#endif // OS_MAC_STORE
+	if (failed) {
 		return "sandbox_init failed: " + (error
 			? std::string(error)
 			: std::generic_category().message(code));
@@ -206,6 +219,11 @@ std::string Lockdown() {
 	if (setrlimit(RLIMIT_NOFILE, &none) != 0) {
 		return SystemError("setrlimit", errno);
 	}
+#ifdef OS_MAC_STORE
+	if (setrlimit(RLIMIT_NPROC, &none) != 0) {
+		return SystemError("setrlimit", errno);
+	}
+#endif // OS_MAC_STORE
 	return {};
 }
 
