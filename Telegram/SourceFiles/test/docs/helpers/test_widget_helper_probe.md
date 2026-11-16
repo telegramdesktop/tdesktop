@@ -67,6 +67,14 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   ([Remote engines](test_widget_fixture.md#remote-engines)).
 - `probe` locks down, then probes. `probe-unsandboxed` runs the same probe
   without the lockdown: it is the control, always in a separate helper.
+- On Windows every probe mode goes through the same gate as an ordinary
+  launch (`HoldHelper()`, the build-pinned Authenticode digest and the
+  started-image check, **The Windows helper** in
+  [Remote engines](test_widget_fixture.md#remote-engines)), so the probe
+  helper must be the one built with the running client: a relinked
+  `modules\<arch>\TelegramWidgetHelper.exe` under an unchanged client is
+  refused with `the widget helper digest does not match this build` until
+  the client is rebuilt too.
 - The real lockdown starts with its service check
   ([Remote engines](test_widget_fixture.md#remote-engines)). Its lookups
   run after the probe's reference snapshot and are released, so they show

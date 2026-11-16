@@ -691,19 +691,41 @@ packs, the fixture and the seams they use need no change for it.
   (`build_winarm`, `build_win64` or neither in CMake, `_M_ARM64`,
   `_M_X64` or `_M_IX86` for the client's `kHelperArchitecture`). The
   client takes the directory of the path `GetModuleFileNameW(nullptr)`
-  gives and appends that folder and file name; it searches nothing and
-  never checks the file before the spawn, and a path it cannot build fails
-  the launch with `GetModuleFileNameW failed: <reason>`, `the executable
-  path is too long` or `the executable path has no directory`. Telegram's
-  build depends on the helper target, which puts the file there. The
-  release scripts do not pack it yet (`setup.iss` and `build.bat` name no
-  helper), so a package they make fails every start with
-  `CreateProcessAsUserW failed: <reason>` until
+  gives and appends that folder and file name. Before it spawns it checks
+  the file through the handle it will start: `HoldHelper()`
+  (`platform/win/widget_helper_image_win.cpp`) opens the helper with
+  `GENERIC_READ` and `FILE_SHARE_READ` (no write or delete sharing) and the
+  folders on its path (the executable folder, `modules`, `modules\<arch>`)
+  with `FILE_TRAVERSE | FILE_READ_ATTRIBUTES | SYNCHRONIZE` and no delete
+  sharing, rejects a name-surrogate reparse on any of them, computes the
+  Authenticode PE-image digest (the file without its checksum field, its
+  certificate-table directory entry and the certificate table, the hash
+  that signing does not change) through the held handle with
+  System32 `wintrust.dll`'s `CryptCATAdminCalcHashFromFileHandle2`, and
+  compares it with the digest pinned into this build. The pin is generated
+  from the helper target at build time by `widget_helper_identity.py
+  --kind authenticode` into `widget_helper_identity.h` (`kBuiltDigests`),
+  so each build's client matches only the helper built with it, signed or
+  not. The client keeps every handle held, creates the suspended process
+  from the held file's own normalized path, and before it resumes confirms
+  the child's image is that same file (its `PROCESS_NAME_NATIVE` name equals
+  the held file's and its `FILE_ID_INFO` matches); then it attaches the
+  initial token and resumes. A digest mismatch, a file it cannot open that
+  way, a failed digest call, a redirected path component or a started image
+  that is not the held file stops widgets with a diagnostic and starts no
+  engine in process, and a path it cannot build still fails with
+  `GetModuleFileNameW failed: <reason>`, `the executable path is too long`
+  or `the executable path has no directory`. Telegram's build depends on
+  the helper target, which puts the file there. The release scripts do not
+  pack it yet (`setup.iss` and `build.bat` name no helper), so a package
+  they make fails every start at the hold with `could not hold
+  modules\<arch>\TelegramWidgetHelper.exe: CreateFileW failed: <reason>`
+  until
   `2026/11/14/ship-the-windows-widget-helper-in-the-installer-portable-archive-and-updates`
-  ships it. With `modules\x86` present and the file missing, x86 read
-  `CreateProcessAsUserW failed: The system cannot find the file
-  specified.` ([Verification](#verification), Run 2b); an ARM64 package
-  ships no `modules` folder at all, and no package has been run. The
+  ships it. With `modules\x86` present and the file missing, x86 reads
+  `could not hold ...: CreateFileW failed: The system cannot find the file
+  specified.`; an ARM64 package ships no `modules` folder at all, and no
+  package has been run. The
   client starts it as `"<path>" <handle>`, where `<handle>`
   is the decimal value of the pipe handle it inherits, without
   `-testagent`, with the client's environment and the system directory as
@@ -1217,11 +1239,20 @@ packs, the fixture and the seams they use need no change for it.
   <error>`, the seam's error such as `posix_spawn failed: <reason>` on
   macOS (`posix_spawn failed: No such file or directory` when the bundle
   has no `Contents/Helpers/TelegramWidgetHelper`; the client never checks
-  the file before the spawn) or `CreateProcessAsUserW failed: <reason>` on
-  Windows (`CreateProcessAsUserW failed: The system cannot find the file
-  specified.` on x86 when the file is missing from an existing
-  `modules\<arch>` folder), and the main log adds `Tgw Error: The widget
-  helper could not start: <error>.`.
+  the file before the spawn) or a Windows gate error. On Windows the file
+  is checked through the handle it is started from (**The Windows helper**
+  above), so a missing file reads `could not hold
+  modules\<arch>\TelegramWidgetHelper.exe: CreateFileW failed: The system
+  cannot find the file specified.`, and the other gate refusals are `the
+  widget helper digest does not match this build` (another build, a
+  modified helper or a foreign executable at the path), `the widget helper
+  identity of this build is unknown` (no pin for this architecture), `the
+  widget helper path is redirected: <item>` (a name-surrogate reparse at
+  `modules` or `modules\<arch>` or the file), `<function> is not available`
+  or `CryptCATAdminCalcHashFromFileHandle2 failed: <reason>` (catalog
+  hashing), and `the image check failed: the started image is not the
+  checked file` (the suspended child is not the held file); the main log
+  adds `Tgw Error: The widget helper could not start: <error>.`.
   On macOS a helper that fails the identity check of **The shared helper**
   is killed before it runs: the error is `the widget helper failed the
   signer check: <call> failed: <message> (<status>)`, or the same with
@@ -2133,6 +2164,26 @@ probe's `pdeathsig=9`), the client's death inside Flatpak, a Release
 client without the test harness, a tarball from the release scripts
 (they do not pack the helper yet), and the tdesktop attack audit and
 conformance runner (no account in either campaign).
+
+The Windows build-pinned gate (**The Windows helper** above) was verified
+on an x64 host (Windows 10.0.26300) in the evidence campaign of
+`2026/11/14/verify-the-windows-widget-helper-through-the-handle-it-starts`
+(its `work/test.md`). The build pins the Authenticode digest per
+architecture (x86 and x64) and regenerates it when the helper is relinked;
+the native `CryptCATAdminCalcHashFromFileHandle2` digest through the held
+handle equals that pin, and a test-signed copy keeps the same digest. A
+component probe over the shipped `HoldHelper()` and `CheckStartedImage()`
+showed, on x86 and x64, the hold denying every write, rename, delete and
+replacement and the folder renames, refusing a pre-existing writer, a
+writable mapping and a name-surrogate reparse at `modules` or
+`modules\<arch>`, and the `FILE_ID_INFO` comparator refusing a different
+file under an equal name. Through the shipped `Launch()` the client started
+its own helper and a test-signed copy and refused a modified helper and a
+foreign executable with the digest diagnostic and no engine in process,
+and a client built before a helper change refused the rebuilt helper while
+the rebuilt client accepted it. ARM64, the Store build and a Release client
+were not run; the cached-image-section technique is out of the task's
+threat model (that task's known problems).
 
 ## Related guidance
 
