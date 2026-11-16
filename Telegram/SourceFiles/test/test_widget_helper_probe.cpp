@@ -28,6 +28,10 @@ namespace {
 	return QString::fromLatin1(kWidgetHelperConnectControl);
 }
 
+[[nodiscard]] QString ServiceArgument(const QString &name) {
+	return QString::fromLatin1(kWidgetHelperServicePrefix) + name;
+}
+
 } // namespace
 
 bool IsWidgetHelperProbeMode(const QString &mode) {
@@ -53,13 +57,17 @@ QStringList WidgetHelperProbeArguments(
 	if (!fixture.keychainAccount.isEmpty()
 		|| fixture.loopbackPort > 0
 		|| fixture.connectControl
-		|| !fixture.networkTargets.isEmpty()) {
+		|| !fixture.networkTargets.isEmpty()
+		|| !fixture.serviceNames.isEmpty()) {
 		result.push_back(fixture.keychainAccount);
 		result.push_back(QString::number(std::max(fixture.loopbackPort, 0)));
 		if (fixture.connectControl) {
 			result.push_back(ConnectControlArgument());
 		}
 		result += fixture.networkTargets;
+		for (const auto &name : fixture.serviceNames) {
+			result.push_back(ServiceArgument(name));
+		}
 	}
 	return result;
 }

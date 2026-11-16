@@ -33,8 +33,13 @@ inline constexpr auto kWidgetHelperProbeMode = "probe";
 inline constexpr auto kWidgetHelperUnsandboxedMode = "probe-unsandboxed";
 
 // The probe argument after the loopback port when the run preopens its
-// connect control; only a fixture's network targets (Windows) follow it.
+// connect control; only a fixture's network targets (Windows) and service
+// names (macOS) follow it.
 inline constexpr auto kWidgetHelperConnectControl = "connect-control";
+
+// The prefix of a probe argument after the loopback port that names one Mach
+// service for the Mac App Store probe's service listing: "service:<name>".
+inline constexpr auto kWidgetHelperServicePrefix = "service:";
 
 // The helper's lockdown hook on macOS, Linux and Windows, called once on
 // serve's thread after the opening was accepted. |arguments| is everything
@@ -51,6 +56,22 @@ inline constexpr auto kWidgetHelperConnectControl = "connect-control";
 // its attempts call are loaded only after the listing, so the listing
 // reports what the helper holds without them; a framework that cannot be
 // loaded leaves its attempt incomplete.
+// In the Mac App Store build the helper is an XPC service, a child of
+// launchd, so there "the parent" of its attempts and of its channel check is
+// the channel's peer, Telegram (LOCAL_PEERPID of descriptor 3; getppid()
+// and a recorded failure when that cannot be read). Descriptors 0 and 1 are
+// accounted as launchd's /dev/null and 2 as the stderr Telegram passed, not
+// compared with Telegram's descriptor, which the App Sandbox does not let it
+// read. The state also reads the process limit. The file attempts add the
+// service's own container (HOME), their positive control, and the user's
+// home, Documents and Downloads. After the parent attempts one row reads the
+// service's responsible process and whether it is the parent. After the
+// service attempts every "service:<name>" argument gets one row: its App
+// Sandbox mach-lookup reading and, when allowed, a lookup whose right is
+// released at once; the summary counts them, and no such argument leaves
+// that listing incomplete. After the window server attempts one row reads
+// CGPreflightScreenCaptureAccess(), never requesting access or capturing.
+// The direct-download helper ignores "service:<name>" arguments.
 // On Linux, with "probe" it first runs three forked copies of the helper,
 // one at a time, each reaped within 2 s or killed: the first makes the
 // seccomp install of |lockdown| fail through an outer filter, so every step

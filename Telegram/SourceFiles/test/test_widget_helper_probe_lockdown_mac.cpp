@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifdef _DEBUG
 
+#include "platform/posix/widget_channel_posix.h"
+
 #include <CoreAudio/AudioHardware.h>
 #include <CoreFoundation/CoreFoundation.h>
 #include <CoreMediaIO/CMIOHardware.h>
@@ -33,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <fcntl.h>
 #include <libproc.h>
 #include <poll.h>
+#include <pwd.h>
 #include <signal.h>
 #include <spawn.h>
 #include <unistd.h>
@@ -47,11 +50,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <exception>
 #include <functional>
 #include <iterator>
 #include <string>
+#include <string_view>
 #include <system_error>
 #include <thread>
 #include <utility>
@@ -63,6 +68,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // is disabled).
 extern "C" int sandbox_check(pid_t pid, const char *operation, int type, ...);
 extern "C" void *voucher_activity_get_metadata_buffer(size_t *length);
+
+#ifdef OS_MAC_STORE
+// Exported by libquarantine, declared in no SDK header: the process whose
+// grants TCC counts |pid|'s requests under.
+extern "C" pid_t responsibility_get_pid_responsible_for_pid(pid_t pid);
+#endif // OS_MAC_STORE
 
 namespace Test {
 namespace {
@@ -83,6 +94,12 @@ constexpr auto kProcArgsBytes = size_t(1) << 20;
 // sandbox_check()'s filter type for a path argument (SANDBOX_FILTER_PATH).
 constexpr auto kSandboxFilterNone = 0;
 constexpr auto kSandboxFilterPath = 1;
+
+#ifdef OS_MAC_STORE
+// sandbox_check()'s filter type for a Mach global name
+// (SANDBOX_FILTER_GLOBAL_NAME).
+constexpr auto kSandboxFilterGlobalName = 2;
+#endif // OS_MAC_STORE
 
 constexpr auto kTrue = "/usr/bin/true";
 
@@ -134,8 +151,16 @@ struct Arguments {
 	std::string applicationSupport;
 	std::string keychainAccount;
 	std::vector<std::string> malformed;
+	std::vector<std::string> serviceNames;
 	int loopbackPort = 0;
 	bool connectControl = false;
+};
+
+// The process the parent attempts target: the client. A direct helper is
+// its child; an XPC service is launchd's, so there it is the channel's peer.
+struct Parent {
+	std::string failure;
+	pid_t pid = 0;
 };
 
 struct ReferenceReading {
@@ -432,20 +457,71 @@ std::string Format(const char *format, ...) {
 				"loopback port \"" + port.substr(0, 16) + "\"");
 		}
 	}
-	if (arguments.size() > 6) {
-		if (arguments[6] == kWidgetHelperConnectControl) {
+	const auto prefix = std::string_view(kWidgetHelperServicePrefix);
+	auto past = 0;
+	for (auto i = size_t(6); i < arguments.size(); ++i) {
+		const auto &argument = arguments[i];
+		if (argument.starts_with(prefix)) {
+			if (argument.size() > prefix.size()) {
+				result.serviceNames.push_back(argument.substr(prefix.size()));
+			} else {
+				result.malformed.push_back("empty service name");
+			}
+		} else if (i > 6) {
+			++past;
+		} else if (argument == kWidgetHelperConnectControl) {
 			result.connectControl = true;
 		} else {
 			result.malformed.push_back(
-				"seventh argument \"" + arguments[6].substr(0, 32) + "\"");
+				"seventh argument \"" + argument.substr(0, 32) + "\"");
 		}
 	}
-	if (arguments.size() > 7) {
+	if (past) {
 		result.malformed.push_back(Format(
 			"%d arguments past connect-control",
-			int(arguments.size() - 7)));
+			past));
 	}
 	return result;
+}
+
+[[nodiscard]] Parent ReadParent() {
+#ifdef OS_MAC_STORE
+	constexpr auto kChannel = Platform::WidgetHelper::kChannelDescriptor;
+	auto pid = pid_t();
+	auto size = socklen_t(sizeof(pid));
+	const auto read = getsockopt(
+		kChannel,
+		SOL_LOCAL,
+		LOCAL_PEERPID,
+		&pid,
+		&size);
+	const auto error = read ? errno : 0;
+	if (!read && pid > 0 && pid != getpid()) {
+		return { .pid = pid };
+	}
+	const auto fallback = getppid();
+	return {
+		.failure = (read
+			? (Format("LOCAL_PEERPID of fd %d failed: ", kChannel)
+				+ ErrnoText(error))
+			: Format("LOCAL_PEERPID of fd %d gave pid %d", kChannel, int(pid)))
+			+ Format(", getppid() = %d used instead", int(fallback)),
+		.pid = fallback,
+	};
+#else // OS_MAC_STORE
+	return { .pid = getppid() };
+#endif // OS_MAC_STORE
+}
+
+// "<soft>/<hard>" of |resource|, or "?<errno>" when it cannot be read.
+[[nodiscard]] std::string LimitText(int resource) {
+	auto limit = rlimit();
+	return (getrlimit(resource, &limit) == 0)
+		? Format(
+			"%llu/%llu",
+			(unsigned long long)limit.rlim_cur,
+			(unsigned long long)limit.rlim_max)
+		: ("?" + ErrnoCode(errno));
 }
 
 class OwnedFd final {
@@ -641,6 +717,12 @@ using SetInteractionAllowed = OSStatus(*)(Boolean);
 // no SDK header: the process's window server connection, 0 when there is
 // none and none can be made.
 using MainConnectionID = int(*)();
+
+#ifdef OS_MAC_STORE
+// CGPreflightScreenCaptureAccess(), CoreGraphics, macOS 10.15 and later:
+// whether TCC lets the process capture the screen, read without a prompt.
+using PreflightScreenCaptureAccess = bool(*)();
+#endif // OS_MAC_STORE
 
 [[nodiscard]] MachSnapshot SnapshotMach() {
 	auto result = MachSnapshot();
@@ -1185,6 +1267,7 @@ private:
 	void readFirehose();
 	[[nodiscard]] std::string firehoseRefusal(mach_port_name_t name) const;
 	void listDescriptors();
+	[[nodiscard]] bool stderrUnchanged(const Descriptor &descriptor) const;
 	void listMach();
 	void classifyEntry(
 		const MachEntry &entry,
@@ -1216,7 +1299,13 @@ private:
 	void attemptFiles();
 	void attemptFile(const std::string &label, const std::string &path);
 	void attemptParent();
+#ifdef OS_MAC_STORE
+	void attemptResponsible();
+#endif // OS_MAC_STORE
 	void attemptServices();
+#ifdef OS_MAC_STORE
+	void attemptServiceListing();
+#endif // OS_MAC_STORE
 	void attemptKeychain();
 	void attemptCamera();
 	void attemptCameraDevices();
@@ -1224,6 +1313,9 @@ private:
 	void attemptMicrophoneDevices();
 	void attemptIOKit();
 	void attemptWindowServer();
+#ifdef OS_MAC_STORE
+	void attemptScreenCapture();
+#endif // OS_MAC_STORE
 	void attemptThread();
 	void attemptAfterClose();
 
@@ -1232,6 +1324,7 @@ private:
 	const Arguments _arguments;
 	const std::function<std::string()> _lockdown;
 	const pid_t _pid = 0;
+	const Parent _parent;
 	const pid_t _ppid = 0;
 	const bool _locking = false;
 	Report _report;
@@ -1255,6 +1348,7 @@ private:
 	std::string _ownStderrPath;
 	std::string _lockdownResult;
 	std::string _state;
+	std::string _services;
 	std::vector<std::string> _defects;
 	std::vector<std::string> _unaccounted;
 	std::vector<std::string> _failures;
@@ -1271,7 +1365,8 @@ Probe::Probe(Arguments arguments, std::function<std::string()> lockdown)
 : _arguments(std::move(arguments))
 , _lockdown(std::move(lockdown))
 , _pid(getpid())
-, _ppid(getppid())
+, _parent(ReadParent())
+, _ppid(_parent.pid)
 , _locking(_arguments.mode == kWidgetHelperProbeMode)
 , _report(_pid, _arguments.mode) {
 }
@@ -1312,12 +1407,21 @@ std::string Probe::run() {
 	attemptConnectControl();
 	attemptFiles();
 	attemptParent();
+#ifdef OS_MAC_STORE
+	attemptResponsible();
+#endif // OS_MAC_STORE
 	attemptServices();
+#ifdef OS_MAC_STORE
+	attemptServiceListing();
+#endif // OS_MAC_STORE
 	attemptKeychain();
 	attemptCamera();
 	attemptMicrophone();
 	attemptIOKit();
 	attemptWindowServer();
+#ifdef OS_MAC_STORE
+	attemptScreenCapture();
+#endif // OS_MAC_STORE
 	attemptThread();
 	attemptAfterClose();
 
@@ -1348,6 +1452,19 @@ void Probe::begin() {
 		_report.row("malformed argument: " + malformed);
 		_defects.push_back("malformed argument: " + malformed);
 	}
+#ifdef OS_MAC_STORE
+	if (_parent.failure.empty()) {
+		_report.row(Format(
+			"parent: pid %d, the channel's peer (LOCAL_PEERPID of fd %d);"
+			" getppid() = %d",
+			int(_ppid),
+			Platform::WidgetHelper::kChannelDescriptor,
+			int(getppid())));
+	} else {
+		_report.row("parent: FAILED " + _parent.failure);
+		_failures.push_back("parent: " + _parent.failure);
+	}
+#endif // OS_MAC_STORE
 	const auto shown = [](const std::string &path) {
 		return path.empty() ? std::string("(absent)") : path;
 	};
@@ -1476,17 +1593,13 @@ void Probe::lockDown() {
 	} else {
 		_report.row("lockdown: skipped (unsandboxed control)");
 	}
-	auto limit = rlimit();
-	const auto limitRead = getrlimit(RLIMIT_NOFILE, &limit);
 	_state = Format(
 		"sandboxed=%d nofile=%s",
 		sandbox_check(_pid, nullptr, kSandboxFilterNone),
-		(limitRead == 0)
-			? Format(
-				"%llu/%llu",
-				(unsigned long long)limit.rlim_cur,
-				(unsigned long long)limit.rlim_max).c_str()
-			: ("?" + ErrnoCode(errno)).c_str());
+		LimitText(RLIMIT_NOFILE).c_str());
+#ifdef OS_MAC_STORE
+	_state += " nproc=" + LimitText(RLIMIT_NPROC);
+#endif // OS_MAC_STORE
 	_report.row("state: " + _state);
 }
 
@@ -1658,6 +1771,34 @@ void Probe::listDescriptors() {
 			label = "connect-control fixture socket"
 				" (injected before the lockdown)";
 			brief = "connect-control-fixture";
+#ifdef OS_MAC_STORE
+		} else if (descriptor.fd == STDIN_FILENO
+			|| descriptor.fd == STDOUT_FILENO) {
+			const auto name = std::string(
+				(descriptor.fd == STDIN_FILENO) ? "stdin" : "stdout");
+			if (vnode && descriptor.path == "/dev/null") {
+				label = name + ", launchd's /dev/null";
+				brief = name;
+			} else {
+				defect = Format(
+					"fd %d is not launchd's /dev/null",
+					descriptor.fd);
+			}
+		} else if (descriptor.fd == STDERR_FILENO) {
+			// Not compared: the App Sandbox refuses Telegram's descriptors.
+			if (_ownStderr.rfind("unreadable", 0) == 0) {
+				label = "stderr, UNVERIFIED: own " + _ownStderr;
+				brief = "stderr-unverified";
+				_failures.push_back("fd 2 not identified: own " + _ownStderr);
+			} else if (!stderrUnchanged(descriptor)) {
+				defect = "fd 2 differs from the one read before the lockdown";
+			} else {
+				label = "stderr, the stderr Telegram passed (" + _ownStderr
+					+ ", read before the lockdown, same "
+					+ (vnode ? "path" : "object") + " after)";
+				brief = "stderr";
+			}
+#endif // OS_MAC_STORE
 		} else if (descriptor.fd == STDIN_FILENO) {
 			if (vnode && descriptor.path == "/dev/null" && access == O_RDONLY) {
 				label = "stdin /dev/null";
@@ -1673,12 +1814,7 @@ void Probe::listDescriptors() {
 				defect = "fd 1 is not /dev/null opened for writing";
 			}
 		} else if (descriptor.fd == STDERR_FILENO) {
-			const auto unchanged = vnode
-				? (!_ownStderrPath.empty()
-					&& descriptor.path == _ownStderrPath
-					&& (descriptor.statIdentity.empty()
-						|| descriptor.statIdentity == _ownStderr))
-				: (FileIdentity(_pid, STDERR_FILENO) == _ownStderr);
+			const auto unchanged = stderrUnchanged(descriptor);
 			if (_parentStderr.rfind("unreadable", 0) == 0
 				|| _ownStderr.rfind("unreadable", 0) == 0) {
 				label = "stderr, UNVERIFIED: the parent's fd 2 was "
@@ -1723,6 +1859,15 @@ void Probe::listDescriptors() {
 			descriptor.identity.c_str(),
 			label.c_str()));
 	}
+}
+
+bool Probe::stderrUnchanged(const Descriptor &descriptor) const {
+	return (descriptor.kind == PROX_FDTYPE_VNODE)
+		? (!_ownStderrPath.empty()
+			&& descriptor.path == _ownStderrPath
+			&& (descriptor.statIdentity.empty()
+				|| descriptor.statIdentity == _ownStderr))
+		: (FileIdentity(_pid, STDERR_FILENO) == _ownStderr);
 }
 
 std::string Probe::receiveStatus(mach_port_name_t name) {
@@ -2244,6 +2389,39 @@ void Probe::attemptFiles() {
 	attemptFile("cwd .", ".");
 	attemptFile("client-cwd", _arguments.cwd);
 	attemptFile("app-support", _arguments.applicationSupport);
+#ifdef OS_MAC_STORE
+	// The positive control: the App Sandbox lets the service read its own.
+	const auto container = std::getenv("HOME");
+	if (container && *container) {
+		attemptFile("own-container", container);
+	} else {
+		incomplete("own-container", "HOME is not set");
+	}
+	// The user's database entry: HOME is the service's own container.
+	errno = 0;
+	const auto user = getpwuid(getuid());
+	const auto userError = errno;
+	const auto home = (user && user->pw_dir && *user->pw_dir)
+		? std::string(user->pw_dir)
+		: std::string();
+	const auto folders = std::array{
+		std::pair{ "user-home", "" },
+		std::pair{ "user-documents", "/Documents" },
+		std::pair{ "user-downloads", "/Downloads" },
+	};
+	for (const auto &[label, folder] : folders) {
+		if (!home.empty()) {
+			attemptFile(label, home + folder);
+			continue;
+		}
+		for (const auto call : { " opendir", " stat", " access", " policy" }) {
+			incomplete(
+				label + std::string(call),
+				"getpwuid(getuid()) gave no home directory: "
+					+ ErrnoText(userError));
+		}
+	}
+#endif // OS_MAC_STORE
 	if (_arguments.cwd.empty()) {
 		incomplete("client-file open", "no path argument");
 		return;
@@ -2356,6 +2534,33 @@ void Probe::attemptParent() {
 	}
 }
 
+#ifdef OS_MAC_STORE
+void Probe::attemptResponsible() {
+	errno = 0;
+	const auto responsible = responsibility_get_pid_responsible_for_pid(_pid);
+	const auto error = errno;
+	const auto call = Format(
+		"responsibility_get_pid_responsible_for_pid(%d) = %d",
+		int(_pid),
+		int(responsible));
+	if (responsible <= 0) {
+		attempt(
+			"self responsible",
+			error ? ErrnoCode(error) : std::string("failed"),
+			error ? (call + ": " + ErrnoText(error)) : call);
+		return;
+	}
+	const auto parent = (responsible == _ppid);
+	attempt(
+		"self responsible",
+		parent ? "parent" : (responsible == _pid) ? "self" : "other",
+		call + Format(
+			", %s the parent %d",
+			parent ? "equal to" : "not",
+			int(_ppid)));
+}
+#endif // OS_MAC_STORE
+
 void Probe::attemptServices() {
 	attemptLookup("lookup tccd", "com.apple.tccd");
 	attemptLookup("lookup tccd.system", "com.apple.tccd.system");
@@ -2364,6 +2569,66 @@ void Probe::attemptServices() {
 		"lookup locationd.desktop",
 		"com.apple.locationd.desktop.registration");
 }
+
+#ifdef OS_MAC_STORE
+void Probe::attemptServiceListing() {
+	const auto &names = _arguments.serviceNames;
+	auto allowed = 0;
+	auto registered = 0;
+	auto unreadable = 0;
+	// One row each, not one attempt each: the summary keeps only counts.
+	for (const auto &name : names) {
+		const auto policy = sandbox_check(
+			_pid,
+			"mach-lookup",
+			kSandboxFilterGlobalName,
+			name.c_str());
+		auto code = PolicyCode(policy);
+		auto detail = Format(
+			"sandbox_check(mach-lookup, global-name) = %d",
+			policy);
+		if (policy == 0) {
+			++allowed;
+			auto port = mach_port_t(MACH_PORT_NULL);
+			const auto result = bootstrap_look_up(
+				bootstrap_port,
+				name.c_str(),
+				&port);
+			const auto valid = MACH_PORT_VALID(port);
+			if (valid) {
+				mach_port_deallocate(mach_task_self(), port);
+			}
+			if (result == KERN_SUCCESS && valid) {
+				++registered;
+			}
+			code += "/" + KernCode(result);
+			detail += ", bootstrap_look_up " + KernText(result)
+				+ (valid ? " (right released)" : "");
+		} else if (policy != 1) {
+			++unreadable;
+		}
+		_report.row("attempt service " + name + ": " + code + " " + detail);
+	}
+	if (names.empty()) {
+		incomplete(
+			"service listing",
+			Format("no \"%s<name>\" argument", kWidgetHelperServicePrefix));
+	} else if (unreadable) {
+		incomplete(
+			"service listing",
+			Format(
+				"sandbox_check failed for %d of %d names",
+				unreadable,
+				int(names.size())));
+	}
+	_services = Format(
+		"services: %d listed, %d allowed, %d allowed and registered",
+		int(names.size()),
+		allowed,
+		registered);
+	_report.row(_services);
+}
+#endif // OS_MAC_STORE
 
 void Probe::attemptKeychain() {
 	attemptLookup("lookup SecurityServer", "com.apple.SecurityServer");
@@ -2733,6 +2998,27 @@ void Probe::attemptWindowServer() {
 		Format("CGSMainConnectionID() = %d", connection));
 }
 
+#ifdef OS_MAC_STORE
+void Probe::attemptScreenCapture() {
+	const auto preflight = _frameworks.function<PreflightScreenCaptureAccess>(
+		Framework::CoreGraphics,
+		"CGPreflightScreenCaptureAccess");
+	const auto failure = _frameworks.takeFailure();
+	if (!failure.empty()) {
+		incomplete("screen-capture preflight", failure);
+		return;
+	}
+	const auto granted = preflight();
+	attempt(
+		"screen-capture preflight",
+		granted ? "GRANTED" : "not-granted",
+		Format(
+			"CGPreflightScreenCaptureAccess() = %s, nothing requested or"
+			" captured",
+			granted ? "true" : "false"));
+}
+#endif // OS_MAC_STORE
+
 void Probe::attemptThread() {
 	auto ran = false;
 	try {
@@ -2914,6 +3200,9 @@ std::string Probe::summary() const {
 	}
 
 	auto result = head + " | " + fds + " | " + mach;
+	if (!_services.empty()) {
+		result += " | " + _services;
+	}
 	const auto room = [&](size_t more) {
 		return result.size() + more + tail.size() <= kSummaryBytes;
 	};

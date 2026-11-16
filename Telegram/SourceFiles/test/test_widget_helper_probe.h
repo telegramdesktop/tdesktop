@@ -57,6 +57,11 @@ struct WidgetHelperProbeFixture {
 	// caller. The macOS probe reports them as malformed arguments, and the
 	// Linux one ignores them.
 	QStringList networkTargets;
+	// macOS only: Mach service names, each passed as "service:<name>". The
+	// Mac App Store probe lists each one's App Sandbox mach-lookup reading
+	// and looks up the allowed ones; the direct-download and Linux probes
+	// ignore them, and the Windows one reports them as malformed arguments.
+	QStringList serviceNames;
 };
 
 // True for "probe" (lock down, then probe) and "probe-unsandboxed" (the same
@@ -67,8 +72,8 @@ struct WidgetHelperProbeFixture {
 // application-support", the client's working directory and
 // QStandardPaths::GenericDataLocation, then with a |fixture| the keychain
 // account and the loopback port, then "connect-control" when asked, then
-// the network targets. Empty for any other |mode|: a normal helper gets no
-// arguments. Main thread.
+// the network targets, then "service:<name>" for each service name. Empty
+// for any other |mode|: a normal helper gets no arguments. Main thread.
 [[nodiscard]] QStringList WidgetHelperProbeArguments(const QString &mode);
 [[nodiscard]] QStringList WidgetHelperProbeArguments(
 	const QString &mode,
