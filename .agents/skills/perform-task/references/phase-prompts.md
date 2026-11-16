@@ -391,20 +391,28 @@ Assess the plan:
    the change, and where it stays contained. The performer reruns Phase 1 as
    a fresh leaf with those lines as input.
 11. Intrinsic scope: decide whether one fresh reviewer and one coherent
-   evidence campaign can judge the final retained result. Strong split signals
-   are multiple parts with their own useful outcome and oracle; a stable
-   dependency order where a later part can consume an earlier approved part;
-   separate network, persistence, concurrency/ownership, engine, lifecycle, or
-   UI boundaries; materially different fixtures or platforms; or a diff too
-   broad for one reviewer to reason about as one invariant set. Phase count,
-   changed-file count, and acceptance count are warning signals, not automatic
-   thresholds. Keep inseparable API-plus-only-caller changes together.
+   evidence campaign can judge the final retained result, and split only when
+   they cannot. Every task pays its own context, plan, assessment, review
+   fan-out, Debug build and evidence campaign, hours each, so a split must buy
+   more than it costs. Strong split signals are separate network, persistence,
+   concurrency/ownership, engine, lifecycle, or UI boundaries whose failures
+   need different analysis; materially different fixtures or platforms; or a
+   diff too broad for one reviewer to reason about as one invariant set.
+   Several parts with their own outcome and oracle, a stable dependency order
+   between them, phase count, changed-file count, and acceptance count are
+   warning signals only: one campaign checks several oracles. Keep inseparable
+   API-plus-only-caller changes together.
 
    When this fails because of the request rather than the proposed approach,
    add `Scope: split-required` to Status, do NOT add `Assessed: yes`, and write
    `<WORK_DIR>/split-proposal.md` with:
    - why one review/test campaign is not coherent;
-   - the smallest independently buildable and testable replacement tasks;
+   - two replacement tasks by default, each independently buildable and
+     testable: a first part that ships and is tested on its own, and the rest
+     built on it, cut where the dependency order is stable. Propose a third
+     only when one of the two would still fail this gate, and say why for it.
+     A replacement that is still too broad splits again when its own
+     assessment runs, so never cut finer in advance;
    - each task's shipped boundary, acceptance oracle, and dependencies;
    - which current source or validated artifacts, if any, can be salvaged;
    - a final integration task only when integration itself has behavior not
@@ -938,7 +946,9 @@ exactly one verdict:
   use this to disguise multiple independent product outcomes as phases.
 - RESCOPE_REQUIRED: why one review/evidence campaign is incoherent and a
   split-proposal.md containing independently buildable/testable replacement
-  tasks, acceptance oracles, dependencies, and salvageable work.
+  tasks, acceptance oracles, dependencies, and salvageable work. Propose two
+  replacements by default, and a third only when one of the two would still
+  be incoherent, saying why.
 - HARD_STOP: the exact unsafe or unavailable condition and required human
   action, such as funded value, credentials or a server change. Slow
   convergence, a round count or a difficult design is never a HARD_STOP.

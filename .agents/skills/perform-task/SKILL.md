@@ -164,9 +164,10 @@ and is approved produces:
 
 New and unfinished tasks use the single adaptive `implement` path. Assessment
 must first confirm that the request is one cohesive implementation/review/test
-unit. If it contains independently useful and independently testable product
-boundaries, record `Scope: split-required` and a concrete split proposal before
-source edits. The same result may arise later from the review convergence
+unit. If one review and one evidence campaign cannot coherently judge it,
+record `Scope: split-required` and a concrete split proposal, two replacements
+by default, before source edits. Separately testable parts alone are not that
+reason: one campaign checks several oracles. The same result may arise later from the review convergence
 assessment when the retained implementation proves that one review/evidence
 campaign is not coherent. Do not force the broad request through smaller
 implementation phases and call it one task. The independent assessment has

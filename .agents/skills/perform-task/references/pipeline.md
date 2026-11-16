@@ -313,13 +313,13 @@ Run sequentially:
    the approach against the closest repository precedent and its containment
    against the shared modules it touches, and reject over-engineering rather
    than refining it. Before approving the plan, apply the intrinsic-scope gate:
-   if it contains several useful boundaries with separate acceptance or
-   evidence, stable dependency order, or materially different subsystems and
-   failure analysis, write `work/split-proposal.md`, record
-   `Scope: split-required`, and stop before source edits. Phase count and line
-   count are warning signals, not automatic decisions; the decisive question
-   is whether one fresh reviewer and one coherent evidence campaign can judge
-   the retained result. On layout tasks verify the visual contract's anchors
+   if one fresh reviewer and one coherent evidence campaign cannot judge the
+   retained result, because it spans materially different subsystems and
+   failure analysis, fixtures or platforms, write `work/split-proposal.md`
+   with two replacements by default, record `Scope: split-required`, and stop
+   before source edits. Several useful parts with their own acceptance, a
+   stable dependency order, phase count and line count are warning signals,
+   not automatic decisions: each extra task costs a whole campaign. On layout tasks verify the visual contract's anchors
    and derivation; on a fast-path plan verify the sizing itself. Require
    `Phases: <N>` and `Assessed: yes`, or a recorded `Fast-Path: rejected` /
    `Approach: rejected` outcome that reruns Phase 1 as a fresh leaf — an
