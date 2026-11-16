@@ -8796,7 +8796,7 @@ protected:
 			}
 		}
 		for (auto i = 0; i != int(tracks.size()); ++i) {
-			const auto row = _tabList->add(object_ptr<Row>(
+			_tabList->add(object_ptr<Row>(
 				_tabList,
 				_controller,
 				tracks[i],
