@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/main_window.h"
 #include "mokagram/misc/mokagram_misc.h"
+// Mokagram: обновляем системные значки при выборе варианта.
+#include "mokagram/settings/mokagram_settings.h"
 
 #include "api/api_updates.h"
 #include "storage/localstorage.h"
@@ -433,6 +435,12 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 	Core::App().unreadBadgeChanges(
 	) | rpl::on_next([=] {
 		updateTitle();
+		unreadCounterChangedHook();
+		Core::App().tray().updateIconCounters();
+	}, lifetime());
+
+	// Mokagram: Windows хранит отдельные значки окна и панели задач.
+	Mokagram::Settings::IntValue(u"look.app_icon"_q) | rpl::on_next([=] {
 		unreadCounterChangedHook();
 		Core::App().tray().updateIconCounters();
 	}, lifetime());
