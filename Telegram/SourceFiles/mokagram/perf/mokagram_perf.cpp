@@ -192,6 +192,8 @@ void Start() {
 		Trim();
 	});
 
+	// Mokagram: on macOS trim once on background entry, not periodically.
+#ifndef Q_OS_MAC
 	static auto trimTimer = QTimer();
 	trimTimer.setTimerType(Qt::VeryCoarseTimer);
 	trimTimer.setInterval(int(kTrimActive));
@@ -200,6 +202,7 @@ void Start() {
 		trimTimer.setInterval(int(Data().looking ? kTrimActive : kTrimIdle));
 	});
 	trimTimer.start();
+#endif // Q_OS_MAC
 
 	QObject::connect(qApp, &QGuiApplication::applicationStateChanged, [](
 			Qt::ApplicationState state) {

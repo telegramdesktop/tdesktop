@@ -5,6 +5,9 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "mokagram/music/mokagram_island.h"
+#ifdef Q_OS_MAC
+#include "mokagram/music/mokagram_island_mac.h"
+#endif
 #include "mokagram/effects/mokagram_black_hole.h"
 
 #include "mokagram/music/mokagram_island_glyphs.h"
@@ -41,6 +44,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QPointer>
 #include <QtGui/QPainterPath>
+#ifdef Q_OS_MAC
+#include <QtGui/QGuiApplication>
+#include <QtGui/QScreen>
+#endif
 #include <QtSvg/QSvgRenderer>
 
 namespace Mokagram::Music {
@@ -48,7 +55,11 @@ namespace {
 
 constexpr auto kType = AudioMsgId::Type::Song;
 constexpr auto kHoverDelay = crl::time(220);
+#ifdef Q_OS_MAC
+constexpr auto kLeaveDelay = crl::time(1000);
+#else
 constexpr auto kLeaveDelay = crl::time(450);
+#endif
 constexpr auto kSwapDuration = crl::time(320);
 constexpr auto kPressInDuration = crl::time(90);
 constexpr auto kPressOutDuration = crl::time(320);
@@ -73,20 +84,34 @@ constexpr auto kResize = Motion{ 0.5, 0.82 };
 
 // Размеры в точках iPhone из lib/island/metrics.ts.
 constexpr auto kIdleWidth = 95;
+#ifdef Q_OS_MAC
+constexpr auto kCompactHeight = 32;
+#else
 constexpr auto kCompactHeight = 37;
+#endif
 constexpr auto kCompactMinWidth = 150;
 constexpr auto kCompactMaxWidth = 260;
 constexpr auto kCompactPadding = 7;
 constexpr auto kCompactCover = 24;
 constexpr auto kExpandedWidth = 372;
+#ifdef Q_OS_MAC
+constexpr auto kExpandedHeight = 160;
+#else
 constexpr auto kExpandedHeight = 202;
+#endif
 constexpr auto kExpandedRadius = 46;
 constexpr auto kPadding = 18;
+#ifdef Q_OS_MAC
+constexpr auto kCover = 58;
+constexpr auto kProgressY = 97;
+constexpr auto kTransportY = 139;
+#else
 constexpr auto kCover = 52;
-constexpr auto kSmall = 22;
-constexpr auto kSmallGap = 14;
 constexpr auto kProgressY = 88;
 constexpr auto kTransportY = 130;
+#endif
+constexpr auto kSmall = 22;
+constexpr auto kSmallGap = 14;
 constexpr auto kVolumeY = 172;
 constexpr auto kBars = 5;
 constexpr auto kBarWidth = 3;
@@ -278,6 +303,10 @@ private:
 		Queue,
 	};
 
+	[[nodiscard]] bool cursorNear() const;
+#ifdef Q_OS_MAC
+	void updateDesktopHover();
+#endif
 	void dismiss();
 	void expand(bool expanded);
 	void refreshTrack();
@@ -299,6 +328,7 @@ private:
 	[[nodiscard]] int compactWidth() const;
 	[[nodiscard]] double expanded() const;
 	[[nodiscard]] QRectF shapeRect() const;
+	[[nodiscard]] QPainterPath shapePath() const;
 	[[nodiscard]] QRectF frameRect(int width) const;
 	[[nodiscard]] QRectF compactFrame() const;
 	[[nodiscard]] QRectF fullFrame() const;
@@ -326,6 +356,10 @@ private:
 	Ui::Animations::Simple _press;
 	base::Timer _hoverTimer;
 	base::Timer _leaveTimer;
+#ifdef Q_OS_MAC
+	base::Timer _barsTimer;
+	base::Timer _proximityTimer;
+#endif
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	Spring _width;
@@ -351,6 +385,7 @@ private:
 	bool _playing = false;
 	bool _playingKnown = false;
 	int _shapeTop = 0;
+	QSize _notchSize = QSize(0, 0);
 	double _centerX = 0.;
 	double _shapeLeft = 0.;
 	bool _moving = false;
@@ -363,16 +398,66 @@ Island::Island(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::RpWidget*> anchor)
-: RpWidget(parent)
+: RpWidget(
+#ifdef Q_OS_MAC
+	nullptr
+#else
+	parent
+#endif
+)
 , _controller(controller)
 , _anchor(anchor)
 , _animation([=] { return frame(); })
 , _hoverTimer([=] { expand(true); })
 , _leaveTimer([=] {
-	if (_dragging == Part::None) {
-		expand(false);
+	if (_dragging != Part::None || (_menu && !_menu->isHidden())) {
+		return;
 	}
+	// Native window changes may deliver a leave event without cursor movement.
+	if (cursorNear()) {
+		return;
+	}
+	expand(false);
 }) {
+#ifdef Q_OS_MAC
+	// The desktop panel has an independent native window, owned by this session.
+	QObject::connect(parent, &QObject::destroyed, this, [=] { delete this; });
+	setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+	setAttribute(Qt::WA_TranslucentBackground);
+	setAttribute(Qt::WA_ShowWithoutActivating);
+	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
+	InitDesktopIsland(this);
+	// Mokagram: display changes are events, not a permanent polling task.
+	const auto watchScreen = [=](QScreen *screen) {
+		QObject::connect(screen, &QScreen::geometryChanged,
+			this, [=] { relayout(); }, Qt::QueuedConnection);
+	};
+	for (const auto screen : QGuiApplication::screens()) {
+		watchScreen(screen);
+	}
+	QObject::connect(qApp, &QGuiApplication::screenAdded, this,
+		[=](QScreen *screen) { watchScreen(screen); relayout(); },
+		Qt::QueuedConnection);
+	QObject::connect(qApp, &QGuiApplication::screenRemoved, this,
+		[=] { relayout(); }, Qt::QueuedConnection);
+	QObject::connect(qApp, &QGuiApplication::primaryScreenChanged, this,
+		[=] { relayout(); }, Qt::QueuedConnection);
+	_barsTimer.setCallback([=] { frame(); });
+	_proximityTimer.setCallback([=] { updateDesktopHover(); });
+	shownValue() | rpl::on_next([=](bool shown) {
+		if (shown) {
+			_proximityTimer.callEach(50, Qt::CoarseTimer);
+		} else {
+			_proximityTimer.cancel();
+			_barsTimer.cancel();
+		}
+	}, lifetime());
+	PowerSaving::Changes() | rpl::on_next([=] {
+		if (_shown && isVisible()) {
+			startFrames();
+		}
+	}, lifetime());
+#endif
 	setMouseTracking(true);
 	hide();
 	_coverScale.jump(1.);
@@ -451,19 +536,34 @@ void Island::step(int delta) {
 }
 
 bool Island::areaVisible() const {
+#ifdef Q_OS_MAC
+	return true;
+#else
 	return !_controller->adaptive().isOneColumn()
 		|| _controller->mainSectionShown();
+#endif
 }
 
 int Island::expandedWidth() const {
+#ifdef Q_OS_MAC
+	const auto target = _notchSize.isEmpty()
+		? S(kExpandedWidth)
+		: _notchSize.width() + S(206);
+	return std::max(S(kCompactMinWidth), std::min(
+		target, DesktopIslandArea().width() - S(24)));
+#else
 	return std::max(
 		std::min(S(kExpandedWidth), _anchor->width() - S(24)),
 		S(kCompactMinWidth));
+#endif
 }
 
 int Island::compactWidth() const {
+#ifdef Q_OS_MAC
+	return std::max(S(kCompactMinWidth), _notchSize.width() + S(86));
+#else
 	// Mokagram: keep the chat header clear in narrow windows.
-	if (_anchor->width() < S(600)) {
+	if (!isWindow() && _anchor->width() < S(600)) {
 		return S(kCompactHeight);
 	}
 	const auto font = style::font(S(13), style::FontFlag::Bold, 0);
@@ -473,6 +573,7 @@ int Island::compactWidth() const {
 	return std::min(
 		std::clamp(wanted, S(kCompactMinWidth), S(kCompactMaxWidth)),
 		expandedWidth());
+#endif
 }
 
 double Island::expanded() const {
@@ -588,6 +689,9 @@ void Island::refreshState(const Media::Player::TrackState &state) {
 }
 
 void Island::startFrames() {
+#ifdef Q_OS_MAC
+	_barsTimer.cancel();
+#endif
 	if (!_moving) {
 		_moving = true;
 		applyGeometry();
@@ -633,6 +737,14 @@ bool Island::frame() {
 		Shortcuts::ToggleMediaShortcuts(false);
 		return false;
 	}
+#ifdef Q_OS_MAC
+	// Mokagram: settled geometry needs only the decorative bars at 30 fps.
+	if (!moving && bars && isVisible()) {
+		update(barsRect().toAlignedRect());
+		_barsTimer.callOnce(33, Qt::CoarseTimer);
+		return false;
+	}
+#endif
 	applyGeometry();
 	update();
 	return moving || bars;
@@ -642,13 +754,23 @@ void Island::relayout() {
 	if (!_shown && isHidden()) {
 		return;
 	}
-	if (!areaVisible() || _anchor->width() <= 0) {
+	if (!areaVisible() || (!isWindow() && _anchor->width() <= 0)) {
 		hide();
 		return;
 	}
+#ifdef Q_OS_MAC
+	_notchSize = DesktopIslandNotchSize();
+	const auto area = DesktopIslandArea();
+	if (area.isEmpty()) {
+		hide();
+		return;
+	}
+	_shapeTop = area.y() + (_notchSize.isEmpty() ? S(8) : 0);
+#else
 	const auto area = _anchor->geometry();
-	_centerX = area.x() + area.width() / 2.;
 	_shapeTop = area.y() + (st::topBarHeight - S(kCompactHeight)) / 2;
+#endif
+	_centerX = area.x() + area.width() / 2.;
 	const auto target = _wantExpanded ? expandedWidth() : compactWidth();
 	if (_shown && _width.target() != target) {
 		_width.to(target, kResize);
@@ -658,7 +780,7 @@ void Island::relayout() {
 	if (_shown || _alpha.value() > 0.) {
 		show();
 		// Чёрная дыра растёт из островка и лежит над ним, пока идёт.
-		if (!Mokagram::BlackHole::Running()) {
+		if (!isWindow() && !Mokagram::BlackHole::Running()) {
 			raise();
 		}
 	}
@@ -668,11 +790,13 @@ void Island::relayout() {
 // сдвиг окна каждый кадр Qt догоняет копией старой картинки и всё дрожит.
 // В покое окно обжимается по форме, чтобы не перекрывать чат.
 void Island::applyGeometry() {
-	const auto shape = _moving
-		? double(expandedWidth() + S(48))
+	// Keep the native tracking area stable while the shape expands or collapses.
+	const auto stableCanvas = isWindow() || _moving;
+	const auto shape = stableCanvas
+		? double(expandedWidth() + S(96))
 		: _width.value();
-	const auto height = _moving
-		? double(S(kExpandedHeight + 24))
+	const auto height = stableCanvas
+		? double(S(kExpandedHeight + 24) + _notchSize.height())
 		: _height.value();
 	const auto left = _centerX - shape / 2.;
 	const auto x = int(std::floor(left));
@@ -683,9 +807,15 @@ void Island::applyGeometry() {
 	if (geometry() != rect) {
 		setGeometry(rect);
 	}
+	// Leave native clipping to the translucent surface. QRegion masks cut off
+	// antialiased edge pixels and make the notch's curves visibly jagged.
 }
 
 std::optional<IslandShot> Island::shot() {
+	// Desktop coordinates must not enter effects painted inside the chat.
+	if (isWindow()) {
+		return std::nullopt;
+	}
 	if (isHidden() || _alpha.value() < 0.5) {
 		return std::nullopt;
 	}
@@ -697,7 +827,39 @@ std::optional<IslandShot> Island::shot() {
 }
 
 QRectF Island::shapeRect() const {
-	return QRectF(_shapeLeft, 0., _width.value(), _height.value());
+	const auto extra = _notchSize.isEmpty() ? (isWindow() ? S(21) * expanded() : 0.)
+		: _notchSize.height() - S(kCompactHeight) * (1. - expanded());
+	return QRectF(_shapeLeft, 0., _width.value(), _height.value() + extra);
+}
+
+QPainterPath Island::shapePath() const {
+	const auto rect = shapeRect();
+	const auto radius = std::clamp(_radius.value(), 0., rect.height() / 2.);
+	auto path = QPainterPath();
+	if (_notchSize.isEmpty()) {
+		path.addRoundedRect(rect, radius, radius);
+		return path;
+	}
+	// Ported geometry from DynamicNotch's NotchShape (GPL-3.0):
+	// https://github.com/jackson-storm/DynamicNotch
+	// Copyright 2026 Евгений Петрукович. Adapted to QPainterPath and our springs.
+	const auto baseRadius = _notchSize.height() / 3.;
+	const auto topRadius = Lerp(baseRadius - S(4), S(34), expanded());
+	const auto bottomRadius = Lerp(baseRadius, S(44), expanded());
+	const auto left = rect.left();
+	const auto right = rect.right();
+	const auto top = rect.top();
+	const auto low = rect.bottom();
+	path.moveTo(left, top);
+	path.quadTo(left + topRadius, top, left + topRadius, top + topRadius);
+	path.lineTo(left + topRadius, low - bottomRadius);
+	path.quadTo(left + topRadius, low, left + topRadius + bottomRadius, low);
+	path.lineTo(right - topRadius - bottomRadius, low);
+	path.quadTo(right - topRadius, low, right - topRadius, low - bottomRadius);
+	path.lineTo(right - topRadius, top + topRadius);
+	path.quadTo(right - topRadius, top, right, top);
+	path.closeSubpath();
+	return path;
 }
 
 QRectF Island::frameRect(int width) const {
@@ -706,20 +868,26 @@ QRectF Island::frameRect(int width) const {
 }
 
 QRectF Island::compactFrame() const {
-	return frameRect(compactWidth());
+	auto result = frameRect(compactWidth());
+	result.setHeight(_notchSize.isEmpty() ? S(kCompactHeight) : _notchSize.height());
+	return result;
 }
 
 QRectF Island::fullFrame() const {
-	return frameRect(expandedWidth());
+	auto result = frameRect(expandedWidth());
+	if (!_notchSize.isEmpty()) {
+		result.adjust(S(37), _notchSize.height() / 2. + S(1), -S(37), 0);
+	}
+	return result;
 }
 
 QRectF Island::coverRect() const {
 	const auto c = compactFrame();
 	const auto f = fullFrame();
-	const auto small = S(kCompactCover);
+	const auto small = isWindow() ? S(23) : S(kCompactCover);
 	const auto compact = QRectF(
-		c.x() + S(kCompactPadding),
-		c.y() + (S(kCompactHeight) - small) / 2.,
+		c.x() + (isWindow() ? S(13) : S(kCompactPadding)),
+		c.y() + (c.height() - small) / 2.,
 		small,
 		small);
 	const auto full = QRectF(
@@ -734,10 +902,10 @@ QRectF Island::barsRect() const {
 	const auto c = compactFrame();
 	const auto f = fullFrame();
 	const auto width = BarsWidth();
-	const auto height = S(16);
+	const auto height = isWindow() ? Lerp(S(18), S(23), expanded()) : S(16);
 	const auto compact = QRectF(
-		c.x() + c.width() - S(kCompactPadding + 4) - width,
-		c.y() + (S(kCompactHeight) - height) / 2.,
+		c.x() + c.width() - (isWindow() ? S(15) : S(kCompactPadding + 4)) - width,
+		c.y() + (c.height() - height) / 2.,
 		width,
 		height);
 	const auto full = QRectF(
@@ -750,15 +918,15 @@ QRectF Island::barsRect() const {
 
 QRectF Island::progressRect() const {
 	const auto f = fullFrame();
-	const auto font = style::font(S(12), 0, 0);
+	const auto font = style::font(S(isWindow() ? 10 : 12), 0, 0);
 	const auto time = font->width(u"-00:00"_q) + S(8);
 	const auto left = f.x() + S(kPadding) + time;
 	const auto right = f.x() + f.width() - S(kPadding) - time;
 	return QRectF(
 		left,
-		f.y() + S(kProgressY) - S(3),
+		f.y() + S(kProgressY) - (isWindow() ? S(7) / 2. : S(3)),
 		std::max(right - left, 0.),
-		S(6));
+		S(isWindow() ? 7 : 6));
 }
 
 QRectF Island::volumeRect() const {
@@ -780,6 +948,13 @@ QPointF Island::center(Part part) const {
 	const auto slot = S(kSmall + kSmallGap);
 	const auto transport = f.y() + S(kTransportY);
 	const auto volume = f.y() + S(kVolumeY);
+	if (isWindow()) {
+		if (part == Part::Heart) {
+			return { f.x() + S(kPadding + 24), transport };
+		} else if (part == Part::Speaker) {
+			return { f.right() - S(kPadding + 24), transport };
+		}
+	}
 	switch (part) {
 	case Part::Heart: return {
 		f.x() + f.width() - S(kPadding) - BarsWidth() - S(kSmallGap) - S(kSmall) / 2.,
@@ -799,9 +974,7 @@ QPointF Island::center(Part part) const {
 
 Island::Part Island::partAt(QPoint point) const {
 	const auto shape = shapeRect();
-	auto path = QPainterPath();
-	const auto radius = std::clamp(_radius.value(), 0., shape.height() / 2.);
-	path.addRoundedRect(shape, radius, radius);
+	const auto path = shapePath();
 	if (!path.contains(QPointF(point))) {
 		return Part::None;
 	} else if (expanded() < 0.6) {
@@ -825,13 +998,16 @@ Island::Part Island::partAt(QPoint point) const {
 			Part::Filter,
 			Part::Lyrics,
 			Part::Queue }) {
+		if (isWindow() && part != Part::Heart && part != Part::Speaker) {
+			continue;
+		}
 		if (near(part, S(16))) {
 			return part;
 		}
 	}
 	if (progressRect().adjusted(0, -S(10), 0, S(10)).contains(QPointF(point))) {
 		return Part::Progress;
-	} else if (volumeRect().adjusted(-S(4), -S(10), S(4), S(10)).contains(QPointF(point))) {
+	} else if (!isWindow() && volumeRect().adjusted(-S(4), -S(10), S(4), S(10)).contains(QPointF(point))) {
 		return Part::Volume;
 	}
 	const auto info = QRectF(
@@ -901,10 +1077,11 @@ void Island::paintEvent(QPaintEvent *e) {
 	auto hq = PainterHighQualityEnabler(p);
 	p.setOpacity(alpha);
 	const auto shape = shapeRect();
-	const auto radius = std::clamp(_radius.value(), 0., shape.height() / 2.);
-	auto path = QPainterPath();
-	path.addRoundedRect(shape, radius, radius);
+	const auto path = shapePath();
 	p.fillPath(path, QColor(0, 0, 0));
+	if (isWindow()) {
+		p.strokePath(path, QPen(QColor(255, 255, 255, 51), S(1)));
+	}
 	p.setClipPath(path);
 	paintCover(p);
 	// Mokagram: fade header details as the island shrinks to its cover.
@@ -987,7 +1164,7 @@ void Island::paintHeart(QPainter &p) {
 	const auto c = compactFrame();
 	const auto from = QPointF(
 		c.x() + c.width() - S(kCompactPadding + 4) - BarsWidth() / 2.,
-		c.y() + S(kCompactHeight) / 2.);
+		c.y() + c.height() / 2.);
 	const auto to = center(Part::Heart);
 	const auto at = QPointF(Lerp(from.x(), to.x(), e), Lerp(from.y(), to.y(), e));
 	const auto track = CurrentQueueTrack();
@@ -1010,6 +1187,9 @@ void Island::paintHeart(QPainter &p) {
 }
 
 void Island::paintCompactTitle(QPainter &p) {
+#ifdef Q_OS_MAC
+	return;
+#endif
 	const auto c = compactFrame();
 	const auto font = style::font(S(13), style::FontFlag::Bold, 0);
 	const auto left = c.x() + S(kCompactPadding + kCompactCover + 10);
@@ -1027,9 +1207,9 @@ void Island::paintCompactTitle(QPainter &p) {
 void Island::paintTrack(QPainter &p, const QRectF &rect, double ratio) {
 	const auto line = rect.height() / 2.;
 	p.setPen(Qt::NoPen);
-	const auto color = TrackColor();
+	const auto color = isWindow() ? QColor(255, 255, 255, 128) : TrackColor();
 	auto track = color;
-	track.setAlpha(64);
+	track.setAlpha(isWindow() ? 38 : 64);
 	p.setBrush(track);
 	p.drawRoundedRect(rect, line, line);
 	p.setBrush(color);
@@ -1089,23 +1269,26 @@ void Island::paintPlay(QPainter &p) {
 	const auto was = _playing ? Glyph::Play : Glyph::Pause;
 	if (t < 1.) {
 		p.setOpacity(opacity * (1. - t));
-		PaintGlyphScaled(p, was, c, S(30), base * Lerp(1., 0.4, t));
+		PaintGlyphScaled(p, was, c, S(isWindow() ? 32 : 30), base * Lerp(1., 0.4, t));
 	}
 	p.setOpacity(opacity * t);
-	PaintGlyphScaled(p, now, c, S(30), base * Lerp(0.4, 1., t));
+	PaintGlyphScaled(p, now, c, S(isWindow() ? 32 : 30), base * Lerp(0.4, 1., t));
 	p.setOpacity(opacity);
 }
 
 void Island::paintExpanded(QPainter &p) {
 	const auto f = fullFrame();
 	const auto heart = center(Part::Heart);
-	const auto left = int(f.x() + S(kPadding + kCover + 12));
+	const auto left = int(f.x() + S(kPadding + kCover + (isWindow() ? 15 : 12)));
+	const auto titleRight = isWindow()
+		? f.right() - S(kPadding) - BarsWidth() - S(12)
+		: heart.x() - S(kSmall) / 2. - S(10);
 	const auto width = std::max(
-		int(heart.x() - S(kSmall) / 2. - S(10)) - left,
+		int(titleRight) - left,
 		0);
-	const auto titleFont = style::font(S(15), style::FontFlag::Bold, 0);
-	const auto artistFont = style::font(S(13), 0, 0);
-	const auto timeFont = style::font(S(12), 0, 0);
+	const auto titleFont = style::font(S(isWindow() ? 16 : 15), style::FontFlag::Bold, 0);
+	const auto artistFont = style::font(S(isWindow() ? 14 : 13), 0, 0);
+	const auto timeFont = style::font(S(isWindow() ? 10 : 12), 0, 0);
 	const auto top = int(f.y() + S(kPadding) + (S(kCover)
 		- titleFont->height - S(2) - artistFont->height) / 2.);
 	p.setPen(Qt::white);
@@ -1141,7 +1324,9 @@ void Island::paintExpanded(QPainter &p) {
 	p.drawText(
 		QRect(int(progress.x() + progress.width()) + S(8), timeTop, timeWidth, timeFont->height),
 		Qt::AlignRight | Qt::AlignVCenter,
-		u"-"_q + Ui::FormatDurationText(std::max(_length - played, crl::time(0)) / 1000));
+		isWindow()
+			? Ui::FormatDurationText(_length / 1000)
+			: u"-"_q + Ui::FormatDurationText(std::max(_length - played, crl::time(0)) / 1000));
 
 	const auto &settings = Core::App().settings();
 	const auto skip = [&](Part part, Glyph glyph, bool enabled) {
@@ -1152,6 +1337,13 @@ void Island::paintExpanded(QPainter &p) {
 		PaintGlyphScaled(p, glyph, center(part), S(34), 1. - 0.12 * press);
 		p.setOpacity(opacity);
 	};
+	if (isWindow()) {
+		skip(Part::Previous, Glyph::Back, previousAvailable());
+		paintPlay(p);
+		skip(Part::Next, Glyph::Forward, nextAvailable());
+		PaintGlyph(p, Glyph::Output, center(Part::Speaker), S(24), kMuted);
+		return;
+	}
 	paintToggle(
 		p,
 		Part::Shuffle,
@@ -1197,22 +1389,62 @@ void Island::paintExpanded(QPainter &p) {
 	paintToggle(p, Part::Queue, Glyph::Queue, false, true);
 }
 
+
+bool Island::cursorNear() const {
+	const auto margin = isWindow() ? S(16) : 0;
+	return shapeRect().adjusted(-margin, -margin, margin, margin)
+		.contains(mapFromGlobal(QCursor::pos()));
+}
+
+#ifdef Q_OS_MAC
+void Island::updateDesktopHover() {
+	// Transparent native canvas must not cover controls in the main window.
+	SetDesktopIslandMouseInput(this, _shown && !isHidden()
+		&& (_dragging != Part::None
+			|| shapePath().contains(mapFromGlobal(QCursor::pos()))));
+	if (!_shown || isHidden()) {
+		return;
+	}
+	// Observe proximity without extending the native mask or intercepting clicks.
+	if (cursorNear()) {
+		_leaveTimer.cancel();
+		if (!_wantExpanded && !_hoverTimer.isActive()) {
+			_hoverTimer.callOnce(kHoverDelay);
+		}
+	} else {
+		_hoverTimer.cancel();
+		if (_wantExpanded && !_leaveTimer.isActive()) {
+			_leaveTimer.callOnce(kLeaveDelay);
+		}
+	}
+}
+#endif
+
 void Island::enterEventHook(QEnterEvent *e) {
+#ifdef Q_OS_MAC
+	updateDesktopHover();
+#else
 	if (partAt(mapFromGlobal(QCursor::pos())) != Part::None) {
 		_leaveTimer.cancel();
 		if (!_wantExpanded) {
 			_hoverTimer.callOnce(kHoverDelay);
 		}
 	}
+
+#endif
 	RpWidget::enterEventHook(e);
 }
 
 void Island::leaveEventHook(QEvent *e) {
+#ifdef Q_OS_MAC
+	updateDesktopHover();
+#else
 	_hoverTimer.cancel();
 	if (_wantExpanded) {
 		_leaveTimer.callOnce(kLeaveDelay);
 	}
 	setCursor(style::cur_default);
+#endif
 	RpWidget::leaveEventHook(e);
 }
 
@@ -1228,6 +1460,9 @@ void Island::dragTo(QPoint point) {
 
 void Island::mouseMoveEvent(QMouseEvent *e) {
 	const auto part = partAt(e->pos());
+#ifdef Q_OS_MAC
+	updateDesktopHover();
+#else
 	if (part == Part::None) {
 		_hoverTimer.cancel();
 		if (_wantExpanded && _dragging == Part::None && !_leaveTimer.isActive()) {
@@ -1239,6 +1474,7 @@ void Island::mouseMoveEvent(QMouseEvent *e) {
 			_hoverTimer.callOnce(kHoverDelay);
 		}
 	}
+#endif
 	if (_dragging != Part::None) {
 		dragTo(e->pos());
 	}
@@ -1323,7 +1559,11 @@ void Island::activate(Part part) {
 		break;
 	case Part::Cover:
 		expand(false);
-		ShowFullscreenPlayer(_controller);
+		// Finish the native panel's mouse release before handing input to the app.
+		crl::on_main(this, [=] {
+			_controller->hideLayer(anim::type::instant);
+			ShowFullscreenPlayer(_controller);
+		});
 		break;
 	case Part::Heart:
 		if (const auto track = CurrentQueueTrack(); !track.id.isEmpty()) {
@@ -1425,6 +1665,13 @@ void UpdateIsland(
 		bool create) {
 	auto &islands = Islands();
 	auto island = islands[parent.get()].data();
+	if (Mokagram::Settings::Int(u"player.presentation"_q) != 1) {
+		if (island) {
+			delete island;
+		}
+		islands.remove(parent.get());
+		return;
+	}
 	if (!island) {
 		if (!create) {
 			islands.remove(parent.get());

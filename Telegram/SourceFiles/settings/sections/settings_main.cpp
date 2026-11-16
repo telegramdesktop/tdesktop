@@ -607,6 +607,16 @@ void MokagramSettings::setupContent() {
 			},
 			.keywords = { u"music"_q, u"mokagram"_q },
 		});
+		// Mokagram: resource controls have a dedicated settings page.
+		builder.addButton({
+			.id = u"main/performance"_q,
+			.title = rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Производительность"))),
+			.icon = { &st::menuIconPowerUsage },
+			.onClick = [=] {
+				Mokagram::Settings::ShowSettingsPage(controller, u"performance"_q);
+			},
+			.keywords = { u"performance"_q, u"fps"_q, u"lag"_q, u"battery"_q, u"производительность"_q, u"экономия"_q, u"mokagram"_q },
+		});
 		builder.addButton({
 			.id = u"main/system"_q,
 			.title = rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Система"))),

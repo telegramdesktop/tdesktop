@@ -2825,6 +2825,10 @@ PRIVATE
 )
 
 if (APPLE)
+    nice_target_sources(Telegram ${src_loc} PRIVATE
+        mokagram/music/mokagram_island_mac.h
+        mokagram/music/mokagram_island_mac.mm
+    )
     nice_target_sources(Telegram ${src_loc}
     PRIVATE
         tray_accounts_menu.cpp

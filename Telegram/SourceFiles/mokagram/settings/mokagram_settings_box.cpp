@@ -1652,7 +1652,9 @@ void AskForRestart() {
 		return u"history"_q;
 	} else if (starts({ "player.", "lyrics." })) {
 		return u"music"_q;
-	} else if (starts({ "lag.", "misc.ping", "net." })
+	} else if (starts({ "lag." })) {
+		return u"performance"_q;
+	} else if (starts({ "misc.ping", "net." })
 		|| group.name == U(Mokagram::Lang::Tr("Аккаунты"))) {
 		return u"system"_q;
 	} else if (starts({ "fx.startup" })) {
@@ -1671,6 +1673,7 @@ void AskForRestart() {
 	if (page == u"history"_q) return U(Mokagram::Lang::Tr("Удалёнки"));
 	if (page == u"music"_q) return U(Mokagram::Lang::Tr("Музыка"));
 	if (page == u"system"_q) return U(Mokagram::Lang::Tr("Система"));
+	if (page == u"performance"_q) return U(Mokagram::Lang::Tr("Производительность"));
 	if (page == u"chats"_q) return U(Mokagram::Lang::Tr("Чаты"));
 	if (page == u"tools"_q) return U(Mokagram::Lang::Tr("Инструменты"));
 	return U(Mokagram::Lang::Tr("Кастомизация"));

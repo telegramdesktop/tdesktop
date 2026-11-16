@@ -58,6 +58,7 @@
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_peer_menu.h"
+#include "boxes/peer_list_controllers.h"
 #include "styles/style_menu_icons.h"
 #include "storage/localimageloader.h"
 #include "storage/serialize_document.h"
@@ -104,6 +105,7 @@
 #include "window/window_session_controller.h"
 #include "mainwidget.h"
 #include "window/window_peer_menu.h"
+#include "boxes/peer_list_controllers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_media_player.h"
@@ -132,6 +134,108 @@
 
 namespace Mokagram::Music {
 namespace {
+
+class MusicSourceController final
+	: public ChatsListBoxController
+	, public base::has_weak_ptr {
+public:
+	MusicSourceController(
+		not_null<Main::Session*> session,
+		Fn<void(not_null<Data::Thread*>)> chosen)
+	: ChatsListBoxController(session)
+	, _session(session)
+	, _chosen(std::move(chosen))
+	, _key(u"music.pinned_sources.%1"_q.arg(session->uniqueId())) {
+		Settings::Register({
+			.key = _key,
+			.kind = Settings::Kind::String,
+			.defaultValue = QString(),
+			.hidden = true,
+		});
+		_pins = Settings::String(_key).split(u',', Qt::SkipEmptyParts);
+	}
+
+	Main::Session &session() const override { return *_session; }
+
+	void rowClicked(not_null<PeerListRow*> row) override {
+		_chosen(_session->data().history(row->peer()));
+	}
+
+	base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+			QWidget *parent,
+			not_null<PeerListRow*> row) override {
+		auto menu = base::make_unique_q<Ui::PopupMenu>(parent, st::popupMenuWithIcons);
+		const auto id = QString::number(row->peer()->id.value);
+		const auto pinned = _pins.contains(id);
+		menu->addAction(QString::fromUtf8(Lang::Tr(pinned
+			? "Открепить источник" : "Закрепить источник")), [=] {
+			if (pinned) {
+				_pins.removeAll(id);
+			} else {
+				_pins.prepend(id);
+				if (!delegate()->peerListFindRow(row->id())) {
+					delegate()->peerListPrependRow(createRow(
+						_session->data().history(row->peer())));
+				}
+			}
+			Settings::SetString(_key, _pins.join(u','));
+			sortPins();
+		});
+		return menu;
+	}
+
+protected:
+	void prepareViewHook() override {
+		delegate()->peerListSetTitle(rpl::single(
+			QString::fromUtf8(Lang::Tr("Источник музыки"))));
+		for (const auto &id : _pins) {
+			if (const auto peer = _session->data().peerLoaded(PeerId(id.toULongLong()))) {
+				if (auto row = createRow(_session->data().history(peer))) {
+					delegate()->peerListAppendRow(std::move(row));
+				}
+			}
+		}
+	}
+
+	std::unique_ptr<Row> createRow(not_null<History*> history) override {
+		const auto peer = history->peer;
+		if (peer->isRepliesChat() || peer->isVerifyCodes()) return nullptr;
+		crl::on_main(this, [=] { sortPins(); });
+		return std::make_unique<Row>(history);
+	}
+
+private:
+	void sortPins() {
+		delegate()->peerListSortRows([=](const PeerListRow &a, const PeerListRow &b) {
+			const auto rank = [&](const PeerListRow &row) {
+				const auto i = _pins.indexOf(QString::number(row.peer()->id.value));
+				return i < 0 ? _pins.size() : i;
+			};
+			return rank(a) < rank(b);
+		});
+		delegate()->peerListRefreshRows();
+	}
+
+	const not_null<Main::Session*> _session;
+	Fn<void(not_null<Data::Thread*>)> _chosen;
+	const QString _key;
+	QStringList _pins;
+};
+
+void ShowMusicSourceBox(
+		not_null<Window::SessionController*> controller,
+		Fn<bool(not_null<Data::Thread*>)> chosen) {
+	const auto weak = std::make_shared<base::weak_qptr<Ui::BoxContent>>();
+	*weak = controller->show(Box<PeerListBox>(
+		std::make_unique<MusicSourceController>(&controller->session(),
+			[=](not_null<Data::Thread*> thread) {
+				if (chosen(thread) && *weak) (*weak)->closeBox();
+			}),
+		[](not_null<PeerListBox*> box) {
+			box->addButton(rpl::single(QString::fromUtf8(Lang::Tr("Отмена"))),
+				[=] { box->closeBox(); });
+		}));
+}
 
 constexpr auto kRowHeight = 76;
 constexpr auto kSwitchDuration = crl::time(220);
@@ -6526,11 +6630,16 @@ public:
 			}
 			update();
 		});
+		connect(qApp, &QGuiApplication::applicationStateChanged, this, [=] {
+			setLoading(_loading);
+		});
 	}
 
 	void setLoading(bool loading) {
 		_loading = loading;
-		if (_loading && isVisible() && !PowerSaving::On(PowerSaving::kAnimations)) {
+		if (_loading && isVisible()
+			&& QGuiApplication::applicationState() == Qt::ApplicationActive
+			&& !PowerSaving::On(PowerSaving::kAnimations)) {
 			_clock.start();
 			_timer.start();
 		} else {
@@ -6795,6 +6904,22 @@ public:
 			if (_tab == Tab::Search) rebuildTab();
 			_searchTimer.start();
 		});
+		_chooseSearchChat = Ui::CreateChild<Ui::RoundButton>(this,
+			rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Выбрать чат"))),
+			st::defaultLightButton);
+		_chooseSearchChat->hide();
+		_chooseSearchChat->setClickedCallback([=] {
+			ShowMusicSourceBox(
+				_controller,
+				crl::guard(this, [=](not_null<Data::Thread*> thread) {
+					_searchChat = thread->owningHistory()->peer->id;
+					_chooseSearchChat->setText(rpl::single(
+						QString::fromUtf8(Mokagram::Lang::Tr("Чат: %1"))
+						.arg(thread->owningHistory()->peer->name())));
+					runSearch();
+					return true;
+				}));
+		});
 		_sourceSwitch = Ui::CreateChild<Segmented>(
 			this,
 			std::vector<QString>{
@@ -6844,10 +6969,9 @@ public:
 		const auto instance = Media::Player::instance();
 		_collapse->setClickedCallback([=] { close(); });
 		_heart->setClickedCallback([=] {
-			const auto &queue = QueueState();
-			if (OwnsTrack(instance->current(AudioMsgId::Type::Song))
-				&& !queue.current.id.isEmpty()) {
-				SetLiked(queue.current, !IsLiked(queue.current.id));
+			const auto track = PlayingTrack();
+			if (!track.id.isEmpty()) {
+				SetLiked(track, !IsLiked(track.id));
 			}
 		});
 		const auto step = [=](int delta) {
@@ -6966,10 +7090,13 @@ public:
 			}
 			_seek->update();
 		});
-		_ambientTimer.start();
+		connect(qApp, &QGuiApplication::applicationStateChanged, this, [=] {
+			updateAmbientTimer();
+		});
 
 		PowerSaving::Changes(
 		) | rpl::on_next([=] {
+			updateAmbientTimer();
 			update();
 			_view->update();
 		}, lifetime());
@@ -7005,6 +7132,7 @@ public:
 			return;
 		}
 		_closing = true;
+		_ambientTimer.stop();
 		if (_cancelMotion) _cancelMotion();
 		_motionCover = nullptr;
 		_spotifyCanvas = nullptr;
@@ -7023,6 +7151,14 @@ public:
 	}
 
 protected:
+	void showEvent(QShowEvent *event) override {
+		RpWidget::showEvent(event);
+		updateAmbientTimer();
+	}
+	void hideEvent(QHideEvent *event) override {
+		_ambientTimer.stop();
+		RpWidget::hideEvent(event);
+	}
 	bool eventFilter(QObject *watched, QEvent *event) override {
 		if (_tab == Tab::Search && event->type() == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(event);
@@ -7250,7 +7386,7 @@ protected:
 			result.scrollTop = result.center.y() + ((_tab == Tab::Home || _tab == Tab::Library || _tab == Tab::Queue || _tab == Tab::Playlists)
 				? 0
 				: (_tab == Tab::Search)
-				? ((!_searchChats && contentWidth < s(500)) ? s(172) : s(124))
+				? ((contentWidth < s(500)) ? s(172) : s(124))
 				: s(72));
 		}
 
@@ -7473,9 +7609,14 @@ protected:
 			const auto switchWidth = stacked
 				? std::min(inner, s(240))
 				: std::min(std::max((inner - s(8)) / 2, 0), s(240));
-			const auto groupWidth = (stacked || _searchChats) ? switchWidth : 2 * switchWidth + s(8);
+			const auto groupWidth = stacked ? switchWidth : 2 * switchWidth + s(8);
 			const auto groupLeft = left + (inner - groupWidth) / 2;
 			_sourceSwitch->setGeometry(groupLeft, switchTop, switchWidth, s(40));
+			_chooseSearchChat->setGeometry(
+				stacked ? groupLeft : groupLeft + switchWidth + s(8),
+				stacked ? switchTop + s(48) : switchTop,
+				switchWidth,
+				s(40));
 			_kindSwitch->setGeometry(
 				stacked ? groupLeft : groupLeft + switchWidth + s(8),
 				stacked ? switchTop + s(48) : switchTop,
@@ -7576,13 +7717,13 @@ protected:
 		_searchTimer.stop();
 		const auto query = _searchField->text().trimmed();
 		const auto generation = ++_searchGen;
-		_searchPending = !query.isEmpty();
+		_searchPending = !query.isEmpty() || (_searchChats && _searchChat);
 		_searchIndicator->setLoading(_searchPending);
 		_searchFailed = false;
 		_searchTracks.clear();
 		_albums.clear();
 		_chatSearch = nullptr;
-		_searchStatus = query.isEmpty()
+		_searchStatus = !_searchPending
 			? QString()
 			: QString::fromUtf8(Mokagram::Lang::Tr("Ищу…"));
 		const auto finish = [=](std::vector<Track> tracks, QString error) {
@@ -7596,18 +7737,21 @@ protected:
 			_searchStatus = !error.isEmpty()
 				? error
 				: _searchTracks.empty()
-				? QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено по запросу «%1»")).arg(query)
+				? (query.isEmpty()
+					? QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено"))
+					: QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено по запросу «%1»")).arg(query))
 				: QString();
 			if (_tab == Tab::Search) {
 				rebuildTab();
 			}
 		};
-		if (!query.isEmpty()) {
+		if (_searchPending) {
 			if (_searchChats) {
 				if (const auto session = QueueState().session.get()) {
 					_chatSearch = std::make_unique<ChatMusicSearch>(
 						session,
-						crl::guard(this, finish));
+						crl::guard(this, finish),
+						_searchChat);
 					_chatSearch->search(query);
 				} else {
 					finish({}, QString::fromUtf8(Mokagram::Lang::Tr("Поиск по чатам недоступен")));
@@ -8138,7 +8282,8 @@ protected:
 			_playlistsSticker = nullptr;
 		}
 		const auto searching = (_tab == Tab::Search);
-		const auto emptySearch = searching && _searchField->text().trimmed().isEmpty();
+		const auto emptySearch = searching && _searchField->text().trimmed().isEmpty()
+			&& !(_searchChats && _searchChat);
 		if (!emptySearch) {
 			_searchEmptySticker = nullptr;
 		} else if (!_searchEmptySticker) {
@@ -8152,6 +8297,7 @@ protected:
 		const auto fresh = searching && !_searchField->isVisible();
 		_searchField->setVisible(searching);
 		_sourceSwitch->setVisible(searching);
+		_chooseSearchChat->setVisible(searching && _searchChats);
 		_kindSwitch->setVisible(searching && !_searchChats);
 		_searchRetry->setVisible(searching && _searchFailed && !_openedAlbum);
 		if (fresh) {
@@ -8525,6 +8671,18 @@ protected:
 					: _searchStatus;
 			} else {
 				addRows(_searchTracks);
+				if (_searchChats && _chatSearch && _chatSearch->hasMore()) {
+					const auto more = _tabList->add(object_ptr<Ui::RoundButton>(
+						_tabList,
+						rpl::single(tr("Показать ещё")),
+						st::defaultLightButton));
+					more->setClickedCallback([=] {
+						if (_chatSearch && _chatSearch->hasMore()) {
+							more->setDisabled(true);
+							_chatSearch->searchMore();
+						}
+					});
+				}
 			}
 			break;
 		case Tab::Library: {
@@ -8767,7 +8925,8 @@ protected:
 					Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap,
 					_tabNote);
 			}
-			if (_tab == Tab::Search && _searchField->text().trimmed().isEmpty()) {
+			if (_tab == Tab::Search && _searchField->text().trimmed().isEmpty()
+				&& !(_searchChats && _searchChat)) {
 				const auto area = QRect(
 					layout.center.x(), layout.scrollTop,
 					layout.center.width(),
@@ -9101,17 +9260,63 @@ private:
 			_shuffle->setAccent(_accent);
 			_repeat->setAccent(_accent);
 		}
+		if (size().isEmpty() || area.isEmpty()) return;
+		// Keep the blurred backdrop small, but retain colour precision while
+		// compositing the gradients so dark transitions do not become steps.
+		const auto extent = style::ConvertScale(256);
+		const auto rasterSize = size().scaled(
+			QSize(extent, extent), Qt::KeepAspectRatio);
+		auto background = QImage(rasterSize, QImage::Format_RGBA64_Premultiplied);
+		background.fill(QColor(0x14, 0x14, 0x15));
+		{
+			auto raster = QPainter(&background);
+			auto hq = PainterHighQualityEnabler(raster);
+			raster.scale(
+				rasterSize.width() / double(width()),
+				rasterSize.height() / double(height()));
+			paintBackdrop(raster);
+		}
+		p.save();
+		p.setClipRect(area, Qt::IntersectClip);
+		p.setRenderHint(QPainter::SmoothPixmapTransform);
+		p.drawImage(QRect(-origin, size()), background);
+		// A fixed, subtle grain hides the remaining display quantisation.
+		// Tile it after enlargement so it stays fine and never flickers.
+		static const auto grain = [] {
+			const auto extent = style::ConvertScale(128);
+			auto image = QImage(extent, extent, QImage::Format_ARGB32_Premultiplied);
+			auto random = uint32_t(0x6d2b79f5);
+			for (auto y = 0; y != extent; ++y) {
+				const auto line = reinterpret_cast<QRgb*>(image.scanLine(y));
+				for (auto x = 0; x != extent; ++x) {
+					random ^= random << 13;
+					random ^= random >> 17;
+					random ^= random << 5;
+					const auto value = (random & 1) ? 16 : 0;
+					line[x] = qRgba(value, value, value, 16);
+				}
+			}
+			return QBrush(image);
+		}();
+		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
+		p.setBrushOrigin(-origin);
+		p.fillRect(area, grain);
+		p.restore();
+	}
+
+	void paintBackdrop(QPainter &p) {
+		const auto area = rect();
 		if (Mokagram::Settings::Bool(u"player.cover_colors"_q)) {
 			if (_canvasBackground.isNull()) {
-				_backdrop.paint(p, area, QRect(-origin, size()));
+				_backdrop.paint(p, area, area);
 			} else {
-				p.drawImage(QRect(-origin, size()), canvasBackgroundFrame());
+				p.drawImage(area, canvasBackgroundFrame());
 			}
 			p.fillRect(area, QColor(0x10, 0x10, 0x12, 100));
 			if (Mokagram::Settings::Bool(u"player.dynamic_background"_q)) {
 				const auto phase = crl::now() / 14000.;
 				const auto center = QPointF(width() * (0.5 + 0.25 * std::sin(phase)),
-					height() * (0.5 + 0.25 * std::cos(phase * 0.7))) - origin;
+					height() * (0.5 + 0.25 * std::cos(phase * 0.7)));
 				auto glow = QRadialGradient(center, std::max(width(), height()) * 0.7);
 				auto color = _accent;
 				color.setAlpha(60);
@@ -9132,7 +9337,7 @@ private:
 				: 0.;
 			const auto cover = QRectF(layout.cover);
 			auto glow = QRadialGradient(
-				cover.center() - QPointF(origin),
+				cover.center(),
 				std::max(cover.width(), cover.height()) * 0.8);
 			auto color = _accent;
 			color.setAlpha(int(45 + 15 * pulse));
@@ -9161,6 +9366,8 @@ private:
 			return;
 		}
 		if (track.id.isEmpty()) {
+			_isPlaying = false;
+			updateAmbientTimer();
 			if (_cancelMotion) _cancelMotion();
 			_cancelMotion = nullptr;
 			_motionFor.clear();
@@ -9228,6 +9435,7 @@ private:
 			track.title, track.artist, playing && _tab == Tab::Now);
 		if (_isPlaying != playing) {
 			_isPlaying = playing;
+			updateAmbientTimer();
 			_playAnim.start([=] { update(); }, playing ? 0. : 1., playing ? 1. : 0., 180, anim::easeOutCubic);
 		}
 		_play->setPlaying(playing);
@@ -9251,10 +9459,9 @@ private:
 					update();
 				}));
 		}
-		const auto own = OwnsTrack(current);
-		_heartOwn = own;
-		_heart->setVisible(own);
-		_heart->setLiked(own && IsLiked(track.id));
+		_heartOwn = !track.id.isEmpty();
+		_heart->setVisible(_heartOwn);
+		_heart->setLiked(IsLiked(track.id));
 		_seek->setProgress(state.length > 0
 			? state.position / float64(state.length)
 			: 0.);
@@ -9352,6 +9559,8 @@ private:
 	bool _searchFailed = false;
 	bool _searchPending = false;
 	std::vector<QWidget*> _searchResultWidgets;
+	Ui::RoundButton *_chooseSearchChat = nullptr;
+	PeerId _searchChat;
 	Segmented *_sourceSwitch = nullptr;
 	Segmented *_kindSwitch = nullptr;
 	std::vector<Album> _albums;
@@ -9442,6 +9651,16 @@ private:
 	QImage _spotifyPaletteFrame;
 	QString _canvasPaletteFor;
 	crl::time _canvasPaletteNext = 0;
+	void updateAmbientTimer() {
+		const auto needed = !_closing && isVisible() && _isPlaying
+			&& QGuiApplication::applicationState() == Qt::ApplicationActive
+			&& !PowerSaving::On(PowerSaving::kAnimations);
+		if (needed && !_ambientTimer.isActive()) {
+			_ambientTimer.start();
+		} else if (!needed) {
+			_ambientTimer.stop();
+		}
+	}
 	QTimer _ambientTimer;
 	Media::Clip::ReaderPointer _motionCover;
 	Media::Clip::ReaderPointer _playlistsSticker;
@@ -9731,10 +9950,16 @@ void ToggleLyricsPanel(
 void ShowFullscreenPlayer(not_null<Window::SessionController*> controller) {
 	BindController(controller);
 	auto &instance = FullscreenInstance();
-	if (instance) {
+	if (!instance && PlayingTrack().id.isEmpty()) {
 		return;
 	}
-	if (PlayingTrack().id.isEmpty()) {
+	// A desktop island can open this screen while the app is inactive or hidden.
+	controller->widget()->activate();
+	if (instance) {
+		instance->show();
+		instance->raise();
+		instance->setFocus();
+		controller->widget()->fixOrder();
 		return;
 	}
 	instance = Ui::CreateChild<FullscreenPlayer>(
@@ -10965,11 +11190,10 @@ void ShowPlayerBox(not_null<Window::SessionController*> controller) {
 			}
 		};
 		heart->setClickedCallback([=] {
-			const auto &queue = QueueState();
-			if (OwnsTrack(instance->current(AudioMsgId::Type::Song))
-				&& !queue.current.id.isEmpty()) {
-				SetLiked(queue.current, !IsLiked(queue.current.id));
-				heart->animateLike(IsLiked(queue.current.id));
+			const auto track = PlayingTrack();
+			if (!track.id.isEmpty()) {
+				SetLiked(track, !IsLiked(track.id));
+				heart->animateLike(IsLiked(track.id));
 			}
 		});
 		previous->setClickedCallback([=] { step(-1); });
@@ -11043,10 +11267,10 @@ void ShowPlayerBox(not_null<Window::SessionController*> controller) {
 			const auto track = PlayingTrack();
 			share->setVisible(!track.id.isEmpty());
 			share->setDisabled(!CanForwardTrack(track));
-			heart->setVisible(own);
+			heart->setVisible(!track.id.isEmpty());
 			more->setVisible(own);
 			block->setVisible(own);
-			heart->setLiked(own && IsLiked(PlayingTrack().id));
+			heart->setLiked(IsLiked(track.id));
 			play->setPlaying(state.state == Media::Player::State::Playing
 				|| state.state == Media::Player::State::Starting
 				|| state.state == Media::Player::State::Resuming);
@@ -11820,7 +12044,7 @@ void ShowMusicBoxWith(
 		};
 		*runSearch = search;
 		chooseChat->setClickedCallback([=] {
-			Window::ShowChooseRecipientBox(
+			ShowMusicSourceBox(
 				controller,
 				[=](not_null<Data::Thread*> thread) {
 					QueueState().selectedChat = thread->owningHistory()->peer->id;
@@ -11832,8 +12056,7 @@ void ShowMusicBoxWith(
 						(*runSearch)();
 					}
 					return true;
-				},
-				rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Выберите чат с музыкой"))));
+				});
 		});
 		const auto updateSource = [=] {
 			const auto chats = QueueState().telegramSearch;

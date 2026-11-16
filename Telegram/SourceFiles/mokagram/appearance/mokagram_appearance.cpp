@@ -189,6 +189,17 @@ void RegisterSettings() {
 		S::Register(std::move(entry));
 	};
 	playerEntry({
+		.key = u"player.presentation"_q,
+		.title = QString::fromUtf8(Mokagram::Lang::Tr("Вид плеера")),
+		.description = QString::fromUtf8(Mokagram::Lang::Tr("Обычная панель сверху или Dynamic Island. На macOS островок находится под чёлкой, вне окна клиента.")),
+		.kind = S::Kind::Choice,
+		.defaultValue = 1,
+		.choices = {
+			QString::fromUtf8(Mokagram::Lang::Tr("Обычный плеер")),
+			QString::fromUtf8(Mokagram::Lang::Tr("Dynamic Island")),
+		},
+	});
+	playerEntry({
 		.key = u"player.cover_colors"_q,
 		.title = QString::fromUtf8(Mokagram::Lang::Tr("Цвета плеера из обложки")),
 		.description = QString::fromUtf8(Mokagram::Lang::Tr("Фон полноэкранного плеера под цвет обложки и лёгкий оттенок на панели воспроизведения.")),

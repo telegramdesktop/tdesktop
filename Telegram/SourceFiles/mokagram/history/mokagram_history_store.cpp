@@ -168,29 +168,22 @@ void Exec(sqlite3 *db, const char *sql) {
 	return true;
 }
 
-// Открывает базу; при повреждении переименовывает файл в .bad и создаёт новый.
+// При ошибке оставляем базу и журнал нетронутыми для восстановления.
 [[nodiscard]] sqlite3 *OpenWriter(const QString &path) {
-	for (auto attempt = 0; attempt != 2; ++attempt) {
-		auto db = (sqlite3*)nullptr;
-		const auto utf8 = path.toUtf8();
-		if (sqlite3_open_v2(
-			utf8.constData(),
-			&db,
-			SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-			nullptr) == SQLITE_OK
-			&& CreateSchema(db)) {
-			return db;
-		}
-		if (db) {
-			sqlite3_close(db);
-		}
-		if (attempt == 0) {
-			const auto bad = path + u".bad"_q;
-			QFile::remove(bad);
-			QFile::rename(path, bad);
-			QFile::remove(path + u"-wal"_q);
-			QFile::remove(path + u"-shm"_q);
-		}
+	auto db = (sqlite3*)nullptr;
+	const auto utf8 = path.toUtf8();
+	if (sqlite3_open_v2(
+		utf8.constData(),
+		&db,
+		SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
+		nullptr) == SQLITE_OK
+		&& CreateSchema(db)) {
+		return db;
+	}
+	if (db) {
+		LOG(("[mokagram] History: cannot open database: %1"
+			).arg(QString::fromUtf8(sqlite3_errmsg(db))));
+		sqlite3_close(db);
 	}
 	return nullptr;
 }

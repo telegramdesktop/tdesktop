@@ -6,6 +6,8 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/tray_win.h"
+// Mokagram: выбранный значок используется и в панели задач.
+#include "mokagram/misc/mokagram_misc.h"
 
 #include "base/invoke_queued.h"
 #include "base/qt_signal_producer.h"
@@ -111,7 +113,9 @@ bool DarkTasbarValueValid/* = false*/;
 	static auto ScaledLogoDark = base::flat_map<int, QImage>();
 	static auto ScaledLogoLight = base::flat_map<int, QImage>();
 
-	const auto darkMode = IsDarkTaskbar();
+	// Mokagram: пользовательский значок нельзя брать из кеша стандартного.
+	const auto custom = Mokagram::Misc::CustomAppIcon();
+	const auto darkMode = custom.isNull() ? IsDarkTaskbar() : std::nullopt;
 	auto &scaled = (monochrome && darkMode)
 		? (*darkMode
 			? ScaledLogoDark
@@ -121,6 +125,9 @@ bool DarkTasbarValueValid/* = false*/;
 		: ScaledLogo;
 
 	auto result = [&] {
+		if (!custom.isNull()) {
+			return custom.pixmap(args.size, args.size).toImage();
+		}
 		if (const auto it = scaled.find(args.size); it != scaled.end()) {
 			return it->second;
 		} else if (monochrome && darkMode) {

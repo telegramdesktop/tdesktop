@@ -96,11 +96,16 @@ bool BypassLinkGuard = false;
 	static const auto subject = QRegularExpression(
 		u"(@\\w{4,}|user ?name|nft|gift|юзернейм|юзер|подарок|нфт)"_q,
 		QRegularExpression::CaseInsensitiveOption);
-	return phrase.match(text).hasMatch() && subject.match(text).hasMatch();
+	// Большинство сообщений не содержит объекта сделки: проверяем его первым.
+	return subject.match(text).hasMatch() && phrase.match(text).hasMatch();
 }
 
 // Гарант-боты: настоящие площадки не торгуют через гарантов в Telegram.
 [[nodiscard]] bool GarantMention(const QString &text) {
+	// Каждая ветка выражения содержит одно из этих слов.
+	if (!ContainsAny(text, { "garant", "гарант", "escrow", "guarant" })) {
+		return false;
+	}
 	static const auto re = QRegularExpression(
 		u"(@\\w*(garant|гарант|escrow|guarant)\\w*|"
 		"t\\.me/\\w*(garant|escrow|guarant)\\w*|"
@@ -230,6 +235,7 @@ void MarkText(
 		TextWithEntities &text) {
 	const auto testing = qEnvironmentVariableIsSet("MOKAGRAM_SCAM_TEST");
 	if (!S::Bool(u"scam.enabled"_q)
+		|| text.text.isEmpty()
 		|| item->isService()
 		|| (item->out() && !testing)
 		|| item->isPost()) {

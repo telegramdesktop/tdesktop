@@ -22,19 +22,20 @@
 
 **mokaGram** — кастомный форк Telegram Desktop с полностью переработанным визуалом в md3-стиле и кучей новых полезных функций. Все секции в настройках лежат отдельными скруглёнными карточками, каждая функция включается отдельно, и включать нужно только то, что нужно.
 
-Клиент работает с обычным аккаунтом Telegram и обычными серверами. Плагины из экстеры, но на ПК: свой API, нативный движок на C++ и магазин прямо в клиенте.
+Клиент работает с обычным аккаунтом Telegram и обычными серверами. Плагины из экстеры, но на ПК: свой API, Python runtime и магазин прямо в клиенте.
 
 ## Что умеет
 
 - **Приватность**: режим стримера прячет номер, юзернейм и ID, режим призрака не отмечает прочитанным и скрывает, что ты в сети
 - **Удалённые и правки** сообщений
 - **Безопасность**
-- **Музыка** с текстом песни и подсветкой строки
+- **Музыка**: SoundCloud и треки из Telegram, плейлисты, синхронизация лайков, текст песни и комментарии с таймкодами
+- **Плеер**: обычная панель или Dynamic Island, на macOS отдельный островок у верхнего края экрана
 - **Быстрые команды**
 - **Система**: анти-лаг и экономия в фоне
 - **Кастомизация** интерфейса
 - **Инструменты**: скриншот сообщений карточкой
-- **Плагины** в формате `.plugin`, нативный движок и магазин прямо в клиенте
+- **Плагины** в формате `.plugin`, Python runtime и магазин прямо в клиенте
 
 Всё лежит в одном месте: **Настройки → Настройки mokaGram**. Подробно со скриншотами: [docs/FEATURES.md](docs/FEATURES.md).
 
@@ -42,15 +43,28 @@
 
 | Система | Версия | Файл |
 |---|---|---|
-| **macOS Apple Silicon (arm64)** | v0.1.8 | [mokagram-arm64.dmg](https://github.com/mokagram/mokagram/releases/download/v0.1.8/mokaGram-0.1.8-arm64.dmg) |
+| **macOS Apple Silicon (arm64)** | v0.1.9 | [mokaGram-7.3.3-arm64.dmg](https://github.com/mokagram/mokagram/releases/download/v0.1.9/mokaGram-7.3.3-arm64.dmg) |
 | **Windows** | v0.1.7 | [mokagram-win-x64.zip](https://github.com/mokagram/mokagram/releases/download/v0.1.7/mokagram-win-x64.zip) |
-| **Linux** | v0.1.3 | [AppImage](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-x86_64.AppImage) · [.deb](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram_0.1.3_amd64.deb) · [.rpm](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-0.1.3-1.x86_64.rpm) · [pacman](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-0.1.3-1-x86_64.pkg.tar.zst) · [tar.xz](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-linux-x64.tar.xz) |
+| **Linux x86_64** | v0.1.10 | [AppImage](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-x86_64.AppImage) · [.deb](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram_0.1.10_amd64.deb) · [.rpm](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-0.1.10-1.x86_64.rpm) · [pacman](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-0.1.10-1-x86_64.pkg.tar.zst) · [tar.xz](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-linux-x64.tar.xz) |
 
-Сборка для Windows без подписи разработчика, система может предупредить при первом запуске.
+macOS: откройте DMG и перетащите **mokaGram** в **Applications**. Версия клиента в macOS: **7.3.3**. В **v0.1.10** обновлены пять Linux-пакетов; macOS доступен из v0.1.9, Windows из v0.1.7.
+
+Сборки macOS и Windows без подписи разработчика, система может предупредить при первом запуске.
+
+### Новое в v0.1.10 для Linux
+
+- Linux получил функции текущей версии клиента: полноэкранный плеер, Dynamic Island, импорт и синхронизацию плейлистов SoundCloud, выбор и закрепление источников музыки.
+- Плавающее поле ввода, обновлённые пузыри сообщений, лента каналов и отдельная страница настроек производительности.
+- Исправления авторизации SoundCloud, истории сообщений, файловых прав плагинов и работы плеера в узком окне.
+- Все пять форматов включают Qt и библиотеки среды выполнения. Для Python-плагинов установите `python3`, для их изоляции также `bubblewrap` (`bwrap`).
+
+**AppImage:** разрешите выполнение файла и запустите его. **tar.xz:** распакуйте и запустите `mokaGram/Telegram`. Пакеты deb, rpm и pacman устанавливаются штатным менеджером пакетов; команда запуска: `mokagram`.
+
+[Release notes v0.1.10](https://github.com/mokagram/mokagram/releases/tag/v0.1.10) · [Текст в репозитории](docs/releases/v0.1.10.md) · [SHA256SUMS](https://github.com/mokagram/mokagram/releases/download/v0.1.10/SHA256SUMS).
 
 ## Плагины
 
-Плагин: один файл `.plugin` с классом, наследующим `BasePlugin`. Метаданные, права и команды лежат в самом файле, лимит 300 действий в минуту, каждое действие пишется в журнал. Нативный движок на C++ выполняет поддерживаемые конструкции API без встроенного интерпретатора Python; произвольный Python-код не поддерживается.
+Плагин: один файл `.plugin` с классом, наследующим `BasePlugin`. Метаданные, права и команды лежат в самом файле, лимит 300 действий в минуту, каждое действие пишется в журнал. Плагины выполняются на Python runtime и работают с клиентом через API mokaGram.
 
 Полное описание: [docs-plugins-api.md](docs-plugins-api.md), пример: [examples/showcase.plugin](examples/showcase.plugin).
 

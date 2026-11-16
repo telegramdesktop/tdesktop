@@ -33,6 +33,10 @@
 #include "main/main_domain.h"
 #include "window/main_window.h"
 #include <QtGui/QPixmap>
+#ifdef Q_OS_MAC
+#include <QtGui/QPainter>
+#include <QtGui/QPainterPath>
+#endif
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QWidget>
 #include "ui/power_saving.h"
@@ -367,6 +371,27 @@ QIcon CustomAppIcon() {
 		kAppIcons[index - 1],
 		uint(kAppIconSizes[index - 1]),
 		"PNG");
+#ifdef Q_OS_MAC
+	if (!pixmap.isNull()) {
+		// Dock uses the supplied alpha channel without adding an icon mask.
+		// Proportions are relative to the image, independent of UI scaling.
+		const auto side = pixmap.width();
+		const auto inset = side * (100. / 1024.);
+		const auto bounds = QRectF(inset, inset, side - 2 * inset, side - 2 * inset);
+		auto rounded = QPixmap(pixmap.size());
+		rounded.fill(Qt::transparent);
+		auto painter = QPainter(&rounded);
+		painter.setRenderHint(QPainter::Antialiasing);
+		painter.setRenderHint(QPainter::SmoothPixmapTransform);
+		auto mask = QPainterPath();
+		const auto radius = bounds.width() * 0.24;
+		mask.addRoundedRect(bounds, radius, radius);
+		painter.setClipPath(mask);
+		painter.drawPixmap(bounds, pixmap, QRectF(pixmap.rect()));
+		painter.end();
+		pixmap = std::move(rounded);
+	}
+#endif
 	return pixmap.isNull() ? QIcon() : QIcon(pixmap);
 }
 
@@ -383,10 +408,8 @@ QImage AppIconImage(int index) {
 }
 
 void ApplyAppIcon() {
-	const auto icon = CustomAppIcon();
-	if (icon.isNull()) {
-		return;
-	}
+	const auto custom = CustomAppIcon();
+	const auto icon = custom.isNull() ? QIcon(QPixmap::fromImage(Window::Logo())) : custom;
 	QGuiApplication::setWindowIcon(icon);
 	for (const auto widget : QApplication::topLevelWidgets()) {
 		widget->setWindowIcon(icon);
@@ -1275,6 +1298,34 @@ void ApplyRemote(
 	auto &state = Data();
 	state.fresh = true;
 	state.inFlight = false;
+	// Повторный ответ без изменений не требует записи и обновления профилей.
+	auto received = base::flat_set<quint64>();
+	for (const auto id : ids) {
+		received.emplace(id);
+	}
+	auto same = (!icon || icon == state.icon)
+		&& received.size() == state.remote.size()
+		&& custom.size() == state.custom.size();
+	for (const auto id : received) {
+		if (!state.remote.contains(id)) {
+			same = false;
+			break;
+		}
+	}
+	if (same) {
+		for (const auto &[id, value] : custom) {
+			const auto i = state.custom.find(id);
+			if (i == state.custom.end()
+				|| i->second.icon != value.icon
+				|| i->second.text != value.text) {
+				same = false;
+				break;
+			}
+		}
+	}
+	if (same) {
+		return;
+	}
 	const auto old = base::take(state.remote);
 	auto changedIds = base::flat_set<quint64>();
 	for (const auto &[id, value] : state.custom) {
@@ -1287,9 +1338,7 @@ void ApplyRemote(
 	if (icon) {
 		state.icon = icon;
 	}
-	for (const auto id : ids) {
-		state.remote.emplace(id);
-	}
+	state.remote = std::move(received);
 	SaveCache();
 	auto all = old;
 	for (const auto id : state.remote) {
@@ -2085,6 +2134,8 @@ void LagTick(LagState &state) {
 		if (S::Bool(u"lag.notify"_q)) {
 			Toast(QString::fromUtf8(Mokagram::Lang::Tr("Анти-лаг: включил экономный режим")));
 		}
+		// Mokagram: disk cache eviction adds downloads and I/O after a UI stall.
+#ifndef Q_OS_MAC
 		if (S::Bool(u"lag.cache"_q)
 			&& (now - state.lastCacheClear > 30 * 60 * 1000)) {
 			if (const auto window = Core::App().activePrimaryWindow()) {
@@ -2106,6 +2157,7 @@ void LagTick(LagState &state) {
 				}
 			}
 		}
+#endif // Q_OS_MAC
 	} else if (state.active
 		&& now - state.lastStall > crl::time(S::Int(u"lag.calm"_q)) * 1000) {
 		PowerSaving::Set(state.saved);
