@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QSaveFile>
+#include <QtCore/QUuid>
 
 namespace Data {
 namespace {
@@ -54,12 +55,13 @@ namespace {
 [[nodiscard]] QString SceneFilePath(
 		const QString &folder,
 		uint64 id,
+		const QString &generation,
 		int index,
 		const QString &suffix) {
 	const auto ext = suffix.isEmpty() ? u"png"_q : suffix;
 	return folder
 		+ QString::number(id)
-		+ u"_scene%1.%2"_q.arg(index).arg(ext);
+		+ u"_scene_%1_%2.%3"_q.arg(generation).arg(index).arg(ext);
 }
 
 [[nodiscard]] QJsonObject SerializeCaption(const TextWithTags &caption) {
@@ -348,6 +350,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 		draft.audio = StoryDraftAudio();
 	}
 
+	const auto generation = QUuid::createUuid().toString(QUuid::WithoutBraces);
 	auto sceneNames = QStringList();
 	for (auto i = 0, count = int(media.sceneFiles.size()); i != count; ++i) {
 		const auto &file = media.sceneFiles[i];
@@ -359,6 +362,7 @@ uint64 StoryDrafts::save(StoryDraft draft, const StoryDraftMedia &media) {
 			const auto path = SceneFilePath(
 				folder(),
 				draft.id,
+				generation,
 				i,
 				file.suffix);
 			if (!file.image.isNull()) {
