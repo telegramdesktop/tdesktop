@@ -13,11 +13,12 @@ outgoing widget messages with tapped validated ops, card readings, the
 runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where the engines of its widgets run: by default in a sandboxed
-widget helper, packaged builds included, which on macOS outside the store
-build, on Linux x86_64 and aarch64 and on Windows 10 1809 or later outside
-the Store build is the separate Qt-free `TelegramWidgetHelper`, on Windows
-a restricted `modules\<arch>\TelegramWidgetHelper.exe`. Where no such
-helper exists no widget engine runs: every widget stops with `no
+widget helper, packaged builds included, which on macOS, on Linux x86_64
+and aarch64 and on Windows 10 1809 or later outside the Store build is the
+separate Qt-free `TelegramWidgetHelper` (in the Mac App Store build, from
+macOS 12, an App-Sandboxed XPC service), on Windows a restricted
+`modules\<arch>\TelegramWidgetHelper.exe`. Where no such helper exists no
+widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>`.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
@@ -297,30 +298,36 @@ stay with each caller (their policies close this section).
 
 ## Remote engines
 
-On macOS outside the store build, on Linux x86_64 and aarch64 and on
-Windows 10 1809 or later outside the Store build, packaged builds included
-on all three, every widget engine of the client runs in one shared widget
-helper process that has locked itself down, instead of the client's own
-threads, in Debug and Release builds alike and with no switch. That helper
-is the separate Qt-free executable `TelegramWidgetHelper`, on Windows the
-restricted `TelegramWidgetHelper.exe`. Everywhere else no widget engine
-runs: every widget stops with `no sandboxed widget helper is available
-here: <reason>` (**Store, packaged and other platforms** below), and only
-the Debug switch `in-process` runs the engines in the client there. The
+On macOS (in the Mac App Store build from macOS 12), on Linux x86_64 and
+aarch64 and on Windows 10 1809 or later outside the Store build, packaged
+builds included on all three, every widget engine of the client runs in
+one shared widget helper process that has locked itself down, instead of
+the client's own threads, in Debug and Release builds alike and with no
+switch. That helper is the separate Qt-free executable
+`TelegramWidgetHelper`, on Windows the restricted
+`TelegramWidgetHelper.exe`; the Mac App Store build packages it as an
+App-Sandboxed XPC service (**The Mac App Store service** below).
+Everywhere else no widget engine runs: every widget stops with `no
+sandboxed widget helper is available here: <reason>` (**Store, packaged
+and other platforms** below), and only the Debug switch `in-process` runs
+the engines in the client there. The
 packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
-  macOS outside the store build, builds with packaged libraries
-  (`DESKTOP_APP_USE_PACKAGED`) included, on Windows 10 1809 or later
-  outside the Store build and on Linux x86_64 and aarch64, so a launch
-  with no switch runs every engine in the sandboxed helper. Everywhere
-  else it is false, and a launch with no switch stops every widget with
-  `no sandboxed widget helper is available here: <reason>`, the reason of
+  macOS, builds with packaged libraries (`DESKTOP_APP_USE_PACKAGED`)
+  included and the Mac App Store build (`OS_MAC_STORE`) from macOS 12, on
+  Windows 10 1809 or later outside the Store build and on Linux x86_64
+  and aarch64, so a launch with no switch runs every engine in the
+  sandboxed helper. Everywhere else it is false, and a launch with no
+  switch stops every widget with `no sandboxed widget helper is available
+  here: <reason>`, the reason of
   `Platform::WidgetHelper::UnsupportedReason()`, which is empty exactly
   when `Enabled()` is true and with which each platform's `Launch()`
-  refuses before any spawn: `the widget helper is not available in the
-  Store build` in the macOS store build (`OS_MAC_STORE`) and in the
-  Windows Store build, `the widget helper needs Windows 10 1809 or later`
+  refuses before any spawn or connection: `the widget helper needs macOS
+  12 or later in the Store build` in the Mac App Store build before macOS
+  12 (`@available(macOS 12.0, *)` in `widget_helper_mac.mm`), `the widget
+  helper is not available in the Store build` in the Windows Store build,
+  `the widget helper needs Windows 10 1809 or later`
   on Windows before 10 1809, `the widget helper is not available on this
   architecture` on other Linux architectures and `the widget helper is
   not available on this platform` on the non-Linux all-other platforms.
@@ -373,9 +380,10 @@ packs, the fixture and the seams they use need no change for it.
     its engines in the helper wherever that default is true and stops
     every widget elsewhere;
   - `helper`: the sandboxed helper explicitly, the same as the default on
-    macOS, on Linux and on Windows 10 1809 or later outside the Store
-    build, so command lines that name it keep working; on Windows it is the
-    restricted helper (**The Windows helper** below);
+    macOS (the Mac App Store build from macOS 12), on Linux and on Windows
+    10 1809 or later outside the Store build, so command lines that name
+    it keep working; on Windows it is the restricted helper (**The Windows
+    helper** below);
   - `in-process`: the engines run in the client, also where the default
     stops them; it is the only way to run widget engines in the client's
     own process, for tests and the harness, and the control of a run that
@@ -385,7 +393,9 @@ packs, the fixture and the seams they use need no change for it.
     without it as the control, and refuses the stream instead of serving a
     widget; its listing goes to
     `app_stderr.txt` and its summary to the main log's `stream ended` line
-    ([test_widget_helper_probe](test_widget_helper_probe.md)). Each
+    ([test_widget_helper_probe](test_widget_helper_probe.md); the Mac App
+    Store service gets the mode in its channel message,
+    [Mac App Store](test_widget_helper_probe.md#mac-app-store)). Each
     refusal counts as a failure (see the failure limit below). On Windows
     `probe` runs the restricted helper with its native probe and serves
     widgets as `helper` does (**Windows probe** below), and
@@ -399,8 +409,9 @@ packs, the fixture and the seams they use need no change for it.
     helper runs its widgets unconfined.
 
   The helper never reads the variable: the client passes a probe value to
-  it as the mode argument after its channel (**The shared helper** and
-  **The Windows helper** below). The launch passes the variable to the
+  it as the mode argument after its channel (**The shared helper**, **The
+  Mac App Store service** and **The Windows helper** below). The launch
+  passes the variable to the
   client, on macOS:
 
   ```sh
@@ -440,17 +451,17 @@ packs, the fixture and the seams they use need no change for it.
   `no sandboxed widget helper is available here: the widget helper is not
   available on this architecture`, and an explicit value fails closed
   with `the widget helper could not start: the widget helper is not
-  available on this architecture`. The macOS store build stops every
-  widget with `no sandboxed widget helper is available here: the widget
-  helper is not available in the Store build`, because `sandbox_init`
-  cannot narrow a process the App Sandbox already confines, and it builds
-  no helper: it has no `TelegramWidgetHelper` target, and its bundle no
-  `Contents/Helpers` folder. An explicit Debug `helper` or probe value
-  there fails every start before any spawn with `the widget helper could
-  not start: the widget helper is not available in the Store build`, each
-  a failure towards the failure limit, and no engine runs in process;
-  with `helper` this ran once, in a store build copy outside the App
-  Sandbox ([Verification](#verification)).
+  available on this architecture`. The Mac App Store build is no build
+  without a helper any more: from macOS 12 it runs its engines in the
+  App-Sandboxed XPC service of **The Mac App Store service** below, and it
+  has no `Contents/Helpers` folder. Below macOS 12, where XPC has no peer
+  code-signing requirement, its default stops every widget with `no
+  sandboxed widget helper is available here: the widget helper needs
+  macOS 12 or later in the Store build`, and an explicit Debug `helper` or
+  probe value fails every start before any connection with `the widget
+  helper could not start: the widget helper needs macOS 12 or later in the
+  Store build`, each a failure towards the failure limit, with no engine in
+  process; that path has not run (no macOS before 27.0.1 was available).
   A macOS packaged build builds, stages and runs the same helper as every
   other non-store macOS build: the helper links no Qt, so the external Qt
   of the packaged workflow (Homebrew's), which lacks the patches that keep
@@ -491,7 +502,7 @@ packs, the fixture and the seams they use need no change for it.
   1809 or later`; an explicit `helper` or probe value makes the seam fail
   every launch closed with the same reason, `the widget helper could not
   start: <reason>`, before it builds the helper's path, each a failure
-  towards the failure limit. The Store build also has no
+  towards the failure limit. The Windows Store build also has no
   `TelegramWidgetHelper` target: `Telegram/CMakeLists.txt` includes
   `init_standalone_target.cmake` and `telegram_widget_helper.cmake` on
   Windows only without `build_winstore`. Neither has been run. The Windows
@@ -504,7 +515,9 @@ packs, the fixture and the seams they use need no change for it.
   client's bundle at `Contents/Helpers/TelegramWidgetHelper`, next to
   `crashpad_handler` (the client takes `[[NSBundle mainBundle]
   bundlePath]` plus that path); the `TelegramWidgetHelper_bundle` target
-  stages it there on every Telegram build outside the store build. The
+  stages it there on every Telegram build outside the store build (the
+  Mac App Store build's helper is **The Mac App Store service** below,
+  which starts, signs and ends differently). The
   client starts it with `posix_spawn`, without LaunchServices, as its
   child with argv `[<path>, 3]` and an empty environment: the channel on
   descriptor 3, the client's stderr, `/dev/null` for stdin and stdout and
@@ -565,12 +578,13 @@ packs, the fixture and the seams they use need no change for it.
   app and of `build_mac.py`'s universal app passes. Release and
   certificate signing go through `Telegram/build/sign_mac.py`, which
   `build.sh`, the canary workflow, `build_mac.py`'s Debug app and a
-  POST_BUILD step of Telegram's Xcode target call outside the store
-  build: it signs the other nested code with the caller's identity,
-  options and entitlements, re-signs the helper only for a certificate
-  identity, with that identity, the hardened runtime, its preserved
-  identifier and no entitlement, and then signs the app without `--deep`
-  (in an Xcode build Xcode signs the app itself). The release strip of
+  POST_BUILD step of Telegram's Xcode target call, the Mac App Store
+  build's included: it signs the other nested code with the caller's
+  identity, options and entitlements, except the Mac App Store service and
+  any Mach-O inside a `Resources` folder, re-signs the helper only for a
+  certificate identity, with that identity, the hardened runtime, its
+  preserved identifier and no entitlement, and then signs the app without
+  `--deep` (in an Xcode build Xcode signs the app itself). The release strip of
   `build.sh` and the canary leaves the already stripped and signed helper
   byte for byte unchanged (measured with CLT 26.6's `strip`, which still
   warns that its changes will invalidate the code signature). The pin
@@ -737,6 +751,152 @@ packs, the fixture and the seams they use need no change for it.
   `app_stderr.txt`. That exit is no helper failure: after a stop by the
   client only whether the helper was reaped counts (**Failure limit**
   below).
+- **The Mac App Store service.** In the Mac App Store build
+  (`OS_MAC_STORE`, `Telegram Lite.app`) the helper is the same
+  `TelegramWidgetHelper` code packaged as the XPC service
+  `Contents/XPCServices/TelegramWidgetHelper.xpc`, executable
+  `Contents/MacOS/TelegramWidgetHelper`, with `CFBundlePackageType` `XPC!`
+  and `XPCService` `ServiceType` `Application`
+  (`Telegram/TelegramWidgetHelper.plist`). Its identifier is the main
+  bundle's plus `.WidgetHelper` (`org.telegram.desktop.WidgetHelper` as
+  built) and its only entitlement the App Sandbox
+  (`Telegram/Telegram/TelegramWidgetHelper.entitlements`), so it runs in
+  its own empty container with no network, file, device or keychain
+  entitlement. The target's POST_BUILD strips it outside Debug and signs
+  the bundle ad hoc with the hardened runtime, that identifier and that
+  file; the generated pin is that signature's CDHash
+  (`widget_helper_identity.py --entitlements` requires the slice's
+  entitlements to equal the file's exactly), and
+  `TelegramWidgetHelper_bundle` copies the bundle's `Info.plist`,
+  executable and `CodeResources` into the app. An edit of the plist
+  template or the entitlements relinks, re-signs and re-pins it. It links
+  only libSystem and libc++. `sign_mac.py` leaves it as built for an ad
+  hoc identity, since its build signature is the pin, and re-signs it for
+  a certificate identity with the hardened runtime and
+  `--preserve-metadata=identifier,entitlements` (the identifier alone
+  would drop the App Sandbox). It also skips every Mach-O inside a
+  `Resources` folder, so Breakpad's `Resources/breakpadUtilities.dylib`
+  keeps what each caller's own line gives it. `build.sh`'s macstore branch signs that
+  dylib, then the app through `sign_mac.py` with the Mac App Store
+  identity, `Telegram Lite.entitlements`, a timestamp and the hardened
+  runtime; `build_mac.py`'s Store Debug signs the dylib ad hoc and calls
+  `sign_mac.sign(bundle, '-')`; the Xcode Store target runs the same
+  `sign_mac.py --xcode` POST_BUILD as other Xcode builds, without
+  `--deep`. `build.sh`'s and `build_mac.py`'s lines end with
+  `sign_mac.sign()`'s `codesign --verify --deep --strict`. The Xcode
+  POST_BUILD signs only the nested code, and Xcode signs the app after it
+  without a strict verify, so verify an Xcode product with `codesign
+  --verify --deep --strict` yourself. `codesign --force --deep` keeps the
+  service's identifier and gives it that command's entitlements: with
+  `Telegram Lite.entitlements` (`build.sh`'s old line) Telegram Lite's
+  nine, the network, camera, microphone, location and user file grants
+  among them; with none (`build_mac.py`'s old ad hoc line) none, so the
+  service loses the App Sandbox and its pinned CDHash.
+  Telegram's `Launch()` (`platform/mac/widget_helper_store_mac.mm`) names
+  the service after its own `[[NSBundle mainBundle] bundleIdentifier]`
+  plus `.WidgetHelper`, so a copy re-identified for a test reaches its
+  own service. It builds the requirement as on direct download,
+  `identifier "<main bundle id>.WidgetHelper" and certificate leaf =
+  H"<SHA-1 of the client's own leaf>"` for a certificate-signed client and
+  `cdhash H"<pin>"` for an ad hoc one, and sets it with
+  `xpc_connection_set_peer_code_signing_requirement`. XPC checks it only
+  on replies and delivers an outgoing message before it checks the peer,
+  so the first message, the hello, carries no descriptor. Only after XPC
+  verified its empty reply does the client read the pid
+  (`xpc_connection_get_pid`), watch it for `NOTE_EXIT` and send the
+  channel message: `channel`, the child end of the socketpair, whose own
+  copy it then closes, `stderr`, its descriptor 2, and, in a Debug probe
+  launch, `arguments`. After that reply it also refuses when the watched
+  instance ended or the connection's pid changed (`the widget helper
+  ended before it took the channel`), then sends the keep request, which
+  the service holds unanswered until it exits: the pending reply keeps the
+  service at Telegram's priority (31 while serving; an XPC service with no
+  request pending ran at 4) and out of the system's idle exit. Both
+  replies share one 15 s deadline (`kStartWait`).
+  The service runs `xpc_main()`: it accepts one peer connection and
+  cancels any other, answers the hello, puts `stderr` on descriptor 2 and
+  `channel` on 3, refuses a second `channel`, and starts one serve thread
+  (8 MiB stack) that runs the direct helper's argument check,
+  `WidgetHelper::Adopt()` (`chdir("/")`) and `serve` with the lockdown; it
+  `_Exit`s on any error event of its peer connection. It is a child of
+  launchd with its own container as `HOME`, launchd's `/dev/null` on 0
+  and 1, Telegram's stderr on 2 and the channel on 3, and its responsible
+  process is Telegram, so TCC counts its requests under Telegram's grants
+  ([test_widget_helper_probe](test_widget_helper_probe.md#mac-app-store)
+  lists what it can still reach). A start took about 20 ms, 90 ms when it
+  created the service's container.
+  A start failure reads `the widget helper could not start: <error>`, the
+  errors among them `stderr is not open`, `the bundle identifier of this
+  build is unknown`,
+  the client's own identity errors of **Runtime log and deaths**,
+  `xpc_connection_set_peer_code_signing_requirement failed: <error>`, `the
+  widget helper failed the signer check: <XPC error>` or the same with
+  `the build identity check` (`Peer Forbidden` on macOS 27.0.1), `the
+  widget helper service <name> is unavailable (<XPC error>)` (a bundle
+  without the service: `Connection invalid (Connection init failed at
+  lookup with error 3 - No such process)`), `the widget helper ended
+  before it took the channel`, `the widget helper did not answer within
+  15000 ms` or `the widget helper refused the channel: <reason>`; once
+  the client watches a pid, the cleanup follows in parentheses.
+  launchd, not Telegram, owns the process, and the App-Sandboxed client
+  cannot signal it (`kill` gives `EPERM`), so `complete` waits for
+  `NOTE_EXIT` and otherwise cancels the connection, whose error event ends
+  a responsive service. The `ended` line's status is `ended`, `ended after its
+  connection was canceled after N ms` (a serve thread stuck while the
+  XPC queue still answers ends this way), or `did not end within N ms of
+  its connection being canceled`, which is not reaped and latches `the
+  widget helper was not reaped` for the process. A `SIGSTOP`ped service
+  reads so, and launchd ends it about 5 s after Telegram exits. launchd
+  defers the next start in the same Telegram process when the previous
+  instance lived less than 10 s: the hello's reply then comes about
+  10.04 s after the request, not 10 s after that spawn, about 5 s inside
+  `kStartWait`. After an instance that lived longer the next start is
+  immediate, even right after its end, and a new Telegram process starts
+  at once. The manager releases its mutex during the
+  start (**Timing** below). The idle stop, the crash counting and the
+  failure limit are the manager's, as on direct download; after a kill
+  the `stream ended` line reads `the engine process closed the stream`.
+- **Mac App Store test runs.** A Store leg runs a copy with a test-only
+  identifier, such as `com.tdesktop.tasktest.xpchelper.telegram`, never a
+  production one: every App-Sandboxed identifier leaves a container
+  (`~/Library/Containers/<id>`) whose folder and
+  `.com.apple.containermanagerd.metadata.plist` a shell cannot remove
+  (`EPERM`; remove them in Finder), and a production-named one would
+  belong to the real Telegram Lite later. Clone the Store product (`cp -c
+  -R`), set Telegram's `CFBundleIdentifier` to the test id, remove
+  `CFBundleURLTypes` and `CFBundleDocumentTypes` so that the copy never
+  becomes the `tg://` handler, set the service's `CFBundleIdentifier` to
+  `<test id>.WidgetHelper` and re-sign the service ad hoc with that
+  identifier, the hardened runtime and `TelegramWidgetHelper.entitlements`,
+  then sign the copy with `sign_mac.py --identity <stand-in>
+  --entitlements <file> --runtime --keychain <throwaway keychain>`, never
+  a real identity or the owner's keychains. The file is `Telegram
+  Lite.entitlements` plus test-only keys: a
+  `com.apple.security.temporary-exception.files.absolute-path.read-write`
+  for the leg root, the only way the App-Sandboxed client reaches the
+  portable account, the run directory and copied inputs (keep every input
+  under it), and, for any signature without a Team ID (a self-signed
+  stand-in or ad hoc), `com.apple.security.cs.disable-library-validation`,
+  without which the
+  hardened runtime refuses the embedded `Breakpad.framework` (`mapping
+  process and mapped file (non-platform) have different Team IDs`); the
+  service gets neither. Sign each identifier with one signer only: a
+  container keeps its first signer, and another one risks a container
+  prompt or refusal during a run, so a leaf refusal and an ad hoc pin
+  refusal each take their own identifier. Launch with `workspace.py
+  test-run --exe "<copy>/Contents/MacOS/Telegram Lite" --portable-root
+  <leg> --run-dir <leg>/run`; inside the App Sandbox `HOME` and the
+  single-instance socket are in the container, so `CFFIXED_USER_HOME` is
+  not needed. `--env` values reach Telegram only, never the service. A
+  shell may not read or list a signed copy's container (macOS App Data
+  protection: `Operation not permitted`; `stat` works), so a service-side
+  marker leaves through the stderr Telegram passed (`app_stderr.txt`) or,
+  from a service refused before it got that stderr, as a darwin
+  notification. A start after an instance that lived under 10 s, such as
+  every relaunch after a probe or a refused service, meets launchd's 10 s
+  deferral. At the end unregister the copies (`lsregister -u`) and remove
+  `~/Library/Application Scripts/<id>`; the containers stay until removed
+  in Finder.
 - **The Windows helper.** It is `TelegramWidgetHelper.exe`, a separate
   executable in the `modules\<arch>\` folder next to the client's own,
   `<arch>` being `x86`, `x64` or `arm64` for the client's architecture
@@ -948,6 +1108,23 @@ packs, the fixture and the seams they use need no change for it.
   <reason>.`, its widgets die with `the widget engine process ended`, and
   the refusal counts towards the failure limit below. No engine ever runs
   in process instead.
+  The Mac App Store service runs the same lockdown with three
+  differences, each `#ifdef OS_MAC_STORE` in `_other/widget_helper_mac.cpp`.
+  Its service check takes `BOOTSTRAP_NOT_PRIVILEGED` (1100) as not held:
+  the App Sandbox denies three of the names (LaunchServices, the camera
+  assistant registration and the desktop location registration) from
+  before any initializer runs. `sandbox_init` fails there with `EPERM`,
+  which it takes as the App Sandbox's confinement; libsandbox then prints
+  `sandbox initialization failed: Operation not permitted` to stderr once
+  per service, no refusal. Any other failure still refuses, and a service
+  that was not sandboxed gets the profile. After the zero descriptor
+  ceiling it closes every descriptor that the failing call added
+  (libsandbox's syslog socket to logd) and sets its process limit to zero,
+  so `fork` and `posix_spawn` fail with `EAGAIN` while threads still start;
+  `setrlimit failed: <error>` refuses. The App Sandbox still lets it reach
+  more than the profile would: Telegram's process information, the allowed
+  Mach services, the window server, IOKit properties and audio device
+  counts ([test_widget_helper_probe](test_widget_helper_probe.md#mac-app-store)).
 - **The Windows lowering.** The Windows helper drops its impersonation in
   the framework's lockdown callback, after it accepted the opening and
   holds the bundles and before it answers Ready, so before any runtime
@@ -1306,8 +1483,10 @@ packs, the fixture and the seams they use need no change for it.
   or `CryptCATAdminCalcHashFromFileHandle2 failed: <reason>` (catalog
   hashing), and `the image check failed: the started image is not the
   checked file` (the suspended child is not the held file); the main log
-  adds `Tgw Error: The widget helper could not start: <error>.`.
-  On macOS a helper that fails the identity check of **The shared helper**
+  adds `Tgw Error: The widget helper could not start: <error>.`. The Mac
+  App Store build's errors are listed under **The Mac App Store service**.
+  On macOS outside the Mac App Store build a helper that fails the
+  identity check of **The shared helper**
   is killed before it runs: the error is `the widget helper failed the
   signer check: <call> failed: <message> (<status>)`, or the same with
   `the build identity check`, followed by the cleanup of the suspended
@@ -1374,7 +1553,9 @@ packs, the fixture and the seams they use need no change for it.
   failures; an end after at least 60 s of helper uptime starts a new run at
   one, and a finished idle stop resets the run. The third failure in a row
   stops launches for the rest of the process: later widgets die with `the
-  widget helper failed 3 times in a row`. A helper that did not exit even
+  widget helper failed 3 times in a row`. A `Launch()` that throws counts
+  as one start failure, `the widget helper could not start: <what()>`. A
+  helper that did not exit even
   when killed stops them the same way, with `the widget helper was not
   reaped`. Two kills already stop the widgets they killed, so a test of
   this limit needs fresh widgets. Once a quit has stopped the helper,
@@ -1395,35 +1576,51 @@ packs, the fixture and the seams they use need no change for it.
   before its engine answers. On macOS the spawn includes both identity
   checks of **The shared helper**, Security calls without a time bound of
   their own, and on Linux in the `TelegramHelpers` layout the read and
-  SHA-256 of the whole helper file. The spawn runs while the client's
-  helper manager holds its mutex. Inside Flatpak it is a synchronous
+  SHA-256 of the whole helper file; in the Mac App Store build the start
+  waits for the service's two replies, at most 15 s together, and takes
+  about 10 s when launchd defers it. Inside Flatpak it is a synchronous
   portal call,
   bounded by the portal proxy's 10 s timeout and preceded, until the
   client has its proxy, by that proxy's creation, whose D-Bus calls have
-  GDBus's default bound of 25 s each; until it returns, a manager call
-  from the main thread waits for it.
+  GDBus's default bound of 25 s each. The client's helper manager does
+  not hold its mutex across the start: `Manager::launch()` in
+  `tgw_remote.cpp` marks the helper as launching, and other widgets'
+  channel requests wait for it while the main thread's manager calls do
+  not (one ran 15 ms after its post during a 10 s deferred Store start).
 - **Quit.** A quit stops the helper, live or idle, once no widget host,
   build, sample or theme job is left, as one more tgw job that holds the
   quit (`Tgw prevents quit, stopping widget sandboxes...`); `Tgw doesn't
   prevent quit any more.` can appear twice, before and after that job. The
   stop waits up to 1 s for the helper to exit, then kills it (on Windows
-  by terminating its job, inside Flatpak through the portal) and waits up
-  to 1 s more; an outstanding theme probe can hold the quit for its 10 s
-  before that. When the client dies without a quit, the helper reads the
-  end of its channel and exits by itself. The helper's path is not the
-  client's, and `test-run`'s path-scoped kill matches only the client's
-  executable (on Linux by `/proc/<pid>/exe`, on Windows by the process's
+  by terminating its job, inside Flatpak through the portal, in the Mac
+  App Store build by canceling its XPC connection) and waits up to 1 s
+  more; an outstanding theme probe can hold the quit for its 10 s
+  before that. Since the stop waits for build jobs, a build that is
+  starting a Mac App Store service holds the quit for that start: at most
+  16 s (`kStartWait` plus the 1 s cleanup) per start, with waiting builds
+  starting one after another up to the failure limit, so about 48 s only
+  for a service that neither answers nor ends and about 12 s for a
+  launchd-deferred start and its stop. Measured Store quits: 0.1-0.2 s
+  with a live service, 1.1 s with a stuck serve thread and 2.1 s with a
+  `SIGSTOP`ped service, which launchd ended about 5 s after Telegram
+  exited.
+  When the client dies without a quit, the helper reads the
+  end of its channel and exits by itself (the Mac App Store service also
+  on its connection's end). The helper's path is not the client's, and
+  `test-run`'s path-scoped kill matches only the client's executable (on
+  Linux by `/proc/<pid>/exe`, on Windows by the process's
   `ExecutablePath`): it never kills a helper or lists one in
   `stragglers_killed_after`, and after it kills a quiet client the helper
   ends on the end of its channel, on Windows and Linux also as below. A
   run that must show no helper outlived it looks for the helper's own file
-  itself: `Contents/Helpers/TelegramWidgetHelper` on macOS, a process
-  whose `/proc/<pid>/exe` is the client's
-  `TelegramHelpers/TelegramWidgetHelper` or libexec helper on Linux, the
-  client's `modules\<arch>\TelegramWidgetHelper.exe` on Windows. On
-  Windows the client's death also closes the helper's job, whose only
-  handle the client holds, and the job's kill on close ends the helper
-  even when it is not reading. On Linux the
+  itself: `Contents/Helpers/TelegramWidgetHelper` on macOS,
+  `Contents/XPCServices/TelegramWidgetHelper.xpc/Contents/MacOS/TelegramWidgetHelper`
+  in the Mac App Store build, a process whose `/proc/<pid>/exe` is the
+  client's `TelegramHelpers/TelegramWidgetHelper` or libexec helper on
+  Linux, the client's `modules\<arch>\TelegramWidgetHelper.exe` on
+  Windows. On Windows the client's death also closes the helper's job,
+  whose only handle the client holds, and the job's kill on close ends the
+  helper even when it is not reading. On Linux the
   kernel kills a helper the client cloned when the client dies, also when
   it is not reading: the helper sets `PR_SET_PDEATHSIG` at its entry, and
   its parent is the client's spawning thread, which lives as long as the
@@ -1640,8 +1837,8 @@ official CLT 26.6 and SDK 26.5 targets (x86_64 at 10.13, arm64 at 11.0,
 `-Werror`) imported only `libc++.1` and `libSystem.B`, the Release one
 without the probe; the Release argument gate, and a `Ready` only after
 the lockdown, held natively on arm64 and on x86_64 under Rosetta; a store
-build compiled and linked with no helper target, file or `Helpers`
-folder; and the helper's CMake stage built in packaged mode
+build of that time, before the Mac App Store service, compiled and linked
+with no helper target, file or `Helpers` folder; and the helper's CMake stage built in packaged mode
 (`DESKTOP_APP_USE_PACKAGED`) beside a placeholder Telegram target, no
 packaged Qt being installed. Not run: a packaged or store app, a Release
 client, widgets on x86_64, Linux and any macOS but 27.0.1.
@@ -1671,7 +1868,8 @@ a Release client, the store and packaged builds and macOS before 27.0.1.
 The stop of every widget where no sandboxed helper is available ran on
 macOS 27.0.1 arm64 in the evidence campaign of
 `2026/11/14/stop-widgets-in-builds-without-a-sandboxed-helper` (its
-`work/test.md`, Run 1), in a copy of the `OS_MAC_STORE` Debug build
+`work/test.md`, Run 1), in a copy of the `OS_MAC_STORE` Debug build of
+that time, before the Mac App Store service replaced its stop,
 re-signed ad hoc with no entitlement, so outside the App Sandbox and able
 to read a copied portable account, and the unchanged helper default
 ran in the direct-download Debug client. With no switch the store
@@ -1711,6 +1909,67 @@ architectures and the non-Linux all-other platforms, whose reasons were
 only read, any Windows or Linux compile, a store build under its App
 Sandbox, a Release client (the non-Debug rule was only preprocessed) and
 the `probe` and `probe-unsandboxed` values.
+
+The Mac App Store service ran on macOS 27.0.1 (26A434) arm64 in the
+evidence campaign of
+`2026/11/14/run-mac-app-store-widget-engines-in-an-xpc-service-helper`
+(its `work/test.md`), in App-Sandboxed copies of the Store Xcode Debug
+product (arm64, deployment target 12.0) made as **Mac App Store test runs**
+describes, signed through `sign_mac.py` by self-signed stand-ins, with a
+disposable overlay. With no switch the fixture's card loaded in one
+service under the copy's `XPCServices`, a child of launchd read
+App-Sandboxed in every sample, signed by the stand-in with the App Sandbox
+only; Telegram had no `widget.sandbox` thread and no child, the logged
+requirement named the service's identifier and the stand-in's leaf, which
+XPC accepted, stderr held exactly one `sandbox initialization failed`
+line, the card rendered, the service's running threads read priority 31
+through a 30 s hold, and its responsible process was Telegram (Runs 12 and
+31); after the lockdown repair it held only descriptors 0 to 3 (Run 31).
+`in-process` on the same copy started no service. A copy whose service
+another stand-in signed and an ad hoc copy whose service did not match the
+pin failed three starts each with `failed the signer check: Peer
+Forbidden` and `failed the build identity check: Peer Forbidden`, their
+services received only the hello (markers the overlay posted from inside
+them) and never Telegram's stderr, and the next widget died latched; a
+copy without the service failed with `is unavailable (Connection invalid
+(Connection init failed at lookup with error 3 - No such process))`;
+`probe` refused three services, and a `Launch()` that threw once was one
+counted failure before the next widget's service served (Run 14). A
+SIGKILL 12.8 s into a service's life ended its stream with `the engine
+process closed the stream`, and re-entry served the card from a fresh
+service started in 25 ms; a second kill reached `Crashes in a row: 2 of
+2.` without a latch; a start right after that kill, 0.74 s after the
+killed service had started, took 10044 ms while a posted main-thread
+manager call ran 15 ms after its post; the idle stop
+came 29.96 s after the last release; and quits were bounded as **Quit**
+says, a stuck serve thread ending with `ended after its connection was
+canceled after 1002 ms` and a `SIGSTOP`ped service with `did not end
+within 1002 ms of its connection being canceled` and `Tgw Error: The
+widget helper <pid> was not reaped, it is not started again.` (Run 32).
+The direct helper still started and restarted in the direct-download
+client. The attack audit over all 133 corpus files and the conformance
+runner over the 133-run automatic matrix ran with no switch and with
+`in-process` on one copy (Runs 33-36): every default launch ran in one
+App-Sandboxed service, 0 leaks in both modes, 0 semantic differences in
+conformance, and identical attack rows apart from
+`paint-backdrop-replay.html`'s box count, 300 in the service and 100 in
+process in three pairs with the same op stream. Outside the app (Runs
+1-3): the Xcode Store service was `org.telegram.desktop.WidgetHelper`, ad
+hoc with the hardened runtime and the App Sandbox only, its CDHash equal
+to the pin and unchanged by an unchanged rebuild, every other nested
+identity as before; the official CLT 26.6 and SDK 26.5 Ninja Store trees
+(x86_64 at 10.13, arm64 at 11.0, `-Werror`) built the service and the
+changed Telegram objects, rejected an unguarded macOS 12 XPC call, linked
+the Release service with libSystem and libc++ only and no private name,
+and merged the two slices into a universal service with both pins;
+`build_mac.py`'s and `build.sh`'s Store lines (the latter with a stand-in)
+signed the service as above and passed `codesign --verify --deep
+--strict`. Not run: macOS before 27.0.1, so the service on macOS 12-26
+and the below-12 stop; Apple's Mac App Store re-signing and review, under
+which the leaf is Apple's, shared by every Mac App Store app, so the
+signer clause binds the identifier and that leaf rather than Telegram's
+own; a trusted Apple leaf or a Team ID; a Release client; x86_64 at run
+time; a Screen Recording grant; `build.sh`'s `productbuild`.
 
 On Windows the [remote engines](#remote-engines) first ran in the
 same-binary helper, the client's own `Telegram.exe -widgethelper <handle>`

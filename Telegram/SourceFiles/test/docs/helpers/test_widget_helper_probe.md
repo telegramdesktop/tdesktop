@@ -17,7 +17,10 @@ the lockdown hook of `TelegramWidgetHelper`'s Debug build, the Qt-free
 executable at `Telegram.app/Contents/Helpers/`: it takes the listing after
 the real `WidgetHelper::Lockdown()` (`_other/widget_helper_mac.cpp`), tries
 what the sandbox must deny and refuses the stream with a summary, so no
-widget is ever served. On Linux the helper is `TelegramWidgetHelper` too,
+widget is ever served. In the Mac App Store build the same executable is
+the App-Sandboxed XPC service `Contents/XPCServices/TelegramWidgetHelper.xpc`,
+and the probe runs there with the differences of
+[Mac App Store](#mac-app-store). On Linux the helper is `TelegramWidgetHelper` too,
 in `TelegramHelpers/` next to the client's binary or in a package-managed
 build's `libexec/telegram-desktop/`, and the probe is again the lockdown
 hook of its Debug build
@@ -39,10 +42,12 @@ Callers: the probe has two halves. In Telegram the `_DEBUG` block of
 `TDESKTOP_WIDGET_ENGINES` (both select the remote engine), and
 `HelperArguments()` passes `WidgetHelperProbeArguments()` to
 `Platform::WidgetHelper::Launch()`. On macOS, Linux and Windows the Debug
-`main()` of `TelegramWidgetHelper` (`_other/widget_helper.cpp`) gives its
-`serve` call `Test::WidgetHelperProbeLockdown()` around the real lockdown;
-each platform's helper build compiles its own definition of it. Release
-builds of Telegram, harness ones included, return no arguments. A Release
+`Run()` of `TelegramWidgetHelper` (`_other/widget_helper.cpp`), which
+`main()` calls with argv and the Mac App Store service with its channel
+message's arguments, gives its `serve` call
+`Test::WidgetHelperProbeLockdown()` around the real lockdown; each
+platform's helper build compiles its own definition of it. Release builds
+of Telegram, harness ones included, return no arguments. A Release
 `TelegramWidgetHelper` contains no probe (the target never defines
 `TDESKTOP_RELEASE_TEST_HARNESS`), accepts only its token, refuses any other
 argument with `Widget helper: unexpected arguments` before it adopts the
@@ -101,17 +106,24 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   and AppKit had made those first lookups before `main`.
 - The argv after the helper's path is the token, then the tail `mode cwd
   application-support [keychain-account loopback-port [connect-control]
-  [target...]]`. The token is `3` on macOS and Linux and the decimal value
-  of the inherited pipe handle on Windows. The targets come only from a
-  fixture's `networkTargets` (Windows). `cwd` is the client's
-  `cWorkingDir()`; the helper's own working directory is `/`, which the
-  macOS helper moves to itself before it adopts the channel and the Linux
-  client gives its helper on both spawn paths, and on Windows the system
-  directory the client creates it in. `application-support` is
+  [target...] [service:<name>...]]`. The token is `3` on macOS and Linux
+  and the decimal value of the inherited pipe handle on Windows; the Mac
+  App Store service gets the same vector from its channel message
+  ([Mac App Store](#mac-app-store)). The targets come only from a
+  fixture's `networkTargets` (Windows), the `service:` names only from its
+  `serviceNames` (macOS). `cwd` is the client's `cWorkingDir()`; the
+  helper's own working directory is `/`, which the macOS helper moves to
+  itself before it adopts the channel and the Linux client gives its helper
+  on both spawn paths, and on Windows the system directory the client
+  creates it in. `application-support` is
   `QStandardPaths::GenericDataLocation`. A Debug helper with nothing after
   the token runs the lockdown alone and serves. Any other mode refuses with
-  `unknown widget helper mode "<mode>"`. On macOS a malformed port or
-  seventh argument, a target included, is a defect in the report; on
+  `unknown widget helper mode "<mode>"`. On macOS a malformed port, a
+  seventh argument other than `connect-control`, any later argument, a
+  target included, and an empty `service:` name are defects in the
+  report, while a `service:<name>` at the seventh place or later is not:
+  the Mac App Store probe lists it and the direct-download probe ignores
+  it; on
   Windows a malformed argument is an `argument: malformed` line, except
   that a target that does not parse, has no port or is past the limit gets
   one only with Winsock; without it such a target is only counted
@@ -152,6 +164,159 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 - Never AVFoundation discovery: it crashes a locked process. Devices are
   counted with CoreMediaIO and CoreAudio property sizes only, with no capture,
   no consent prompt and no keychain UI.
+
+## Mac App Store
+
+In the Mac App Store build (`OS_MAC_STORE`) `TelegramWidgetHelper` is the
+XPC service `Telegram Lite.app/Contents/XPCServices/TelegramWidgetHelper.xpc`,
+signed with the App Sandbox as its only entitlement and started by
+launchd, not by Telegram: its parent process is launchd, its `HOME` its
+own container `~/Library/Containers/<main bundle id>.WidgetHelper/Data`
+([Remote engines](test_widget_fixture.md#remote-engines), **The Mac App
+Store service**). The probe is the same hook; what differs:
+
+- **Reaching the service.** A Debug `TDESKTOP_WIDGET_ENGINES=probe` or
+  `probe-unsandboxed`, or an overlay's direct
+  `Platform::WidgetHelper::Launch(WidgetHelperProbeArguments(mode,
+  fixture))` as in [Minimal use](#minimal-use), goes through the Store
+  `Launch()` in `platform/mac/widget_helper_store_mac.mm`. Once XPC has
+  verified the service's reply to the hello, the channel message carries
+  the channel, Telegram's descriptor 2 and the probe tail as `arguments`,
+  an array of strings sent only when the tail is not empty. The service
+  (`_other/widget_helper_service_mac.cpp`) puts the two descriptors on 2
+  and 3 and calls `Run()` on its serve thread with `3` and those
+  arguments, so the hook reads the vector a direct-download helper reads
+  from argv. The service's environment is launchd's: `test-run --env`
+  values reach Telegram only, and only what Telegram sends selects the
+  service's behaviour. Every row goes to the stderr Telegram passed,
+  `app_stderr.txt` under `test-run`. A Release service refuses any
+  argument with `Widget helper: unexpected arguments`; a Release Telegram
+  sends none.
+- **Parent and descriptors.** "The parent" of `begin`'s `ppid=`, of the
+  parent attempts and of the channel check is the channel's peer,
+  Telegram: a `parent: pid <pid>, the channel's peer (LOCAL_PEERPID of fd
+  3); getppid() = 1` row follows `begin`. When the peer cannot be read the
+  row is `parent: FAILED <reason>, getppid() = <pid> used instead`, a
+  failure. Descriptors 0 and 1 are accounted as launchd's `/dev/null`
+  (`stdin, launchd's /dev/null`, `stdout, launchd's /dev/null`), 2 as
+  `stderr, the stderr Telegram passed (...)`, compared only with the
+  probe's own reading before the lockdown because the App Sandbox refuses
+  Telegram's descriptors (`fd 2 before the lockdown: parent's unreadable:
+  EPERM(1) Operation not permitted, ...`), and 3 as the channel to the
+  parent; anything else is a defect. `state:` adds
+  `nproc=<soft>/<hard>`.
+- **Mach listing.** libxpc connects before the serve thread exists, so
+  the logd and notification-center references read `held-before=yes`,
+  the warm-up lookup reads `kr=1100 (Permission denied)` (the App Sandbox
+  denies the unregistered name) and adds one own send-receive right, and
+  the [firehose reading](#firehose-reading) accepts the push ports in
+  both modes. The listing (32 entries on macOS 27.0.1) also holds one send
+  right that no reference matches, `UNACCOUNTED`, and one send-once right
+  whose kernel-object query fails (`IDENTITY QUERY FAILED`, `kr=17`);
+  neither has been attributed. A Store inventory is therefore never
+  clean: `inventory: NOT clean (... 1 enumeration/identity failures, 1
+  unaccounted)`, and the failed query ends the summary with `this listing
+  is INCOMPLETE`.
+- **More attempts.** `attemptFiles()` adds `own-container` (the
+  service's `HOME`), the positive control that the App Sandbox allows, and
+  `user-home`, `user-documents` and `user-downloads` from
+  `getpwuid(getuid())`. After the parent attempts `self responsible`
+  reads `responsibility_get_pid_responsible_for_pid()` of the service:
+  `parent`, `self` or `other`. After the window-server attempts
+  `screen-capture preflight` reads `CGPreflightScreenCaptureAccess()`,
+  `GRANTED` or `not-granted`, and never requests access or captures.
+- **Service listing.** Each `WidgetHelperProbeFixture::serviceNames`
+  entry is passed as `service:<name>` after the network targets and gets
+  one `attempt service <name>: <code> <detail>` row after the service
+  attempts: `sandbox_check(pid, "mach-lookup", 2, name)` (2, the global
+  name filter) reads `denied`, or `allowed/<lookup>` after a
+  `bootstrap_look_up` whose right is released at once: `allowed/ok` for a
+  registered name, `allowed/kr1102` for an unregistered one. The rows are
+  not attempts of the summary, which gets `services: <n> listed, <a>
+  allowed, <r> allowed and registered`. No name, as in an
+  environment-selected probe, or a `sandbox_check` that answers neither
+  way makes a `service listing` attempt `INCOMPLETE`. The names come from
+  outside the sandbox. This task's evidence built 2138: the
+  `(global-name "...")` literals of
+  `/System/Library/Sandbox/Profiles/application.sb` (176) and
+  `appsandbox-common.sb` (32, 31 of them new), then every endpoint of
+  `launchctl print system` (705), `user/<uid>` (1428) and `gui/<uid>`
+  (1428, externally hosted, none new), deduplicated. The profiles' prefix
+  and regex rules are no literals, so a name they allow is listed only
+  when it is registered.
+- **Controls.** In the Store build `probe-unsandboxed` is still
+  App-Sandboxed (`state: sandboxed=1`); it only skips the lockdown
+  (`lockdown: skipped (unsandboxed control)`, `nofile` and `nproc` not
+  lowered). Its denials are the App Sandbox's own, and what it allows
+  where `probe` is refused (`socket`, `fork`, `posix_spawn`, `socket after
+  close`, and `opendir` where the App Sandbox allows it) is what the Store
+  lockdown's two limits remove.
+  `own-container` is the positive control of the file rows in both modes.
+- **Keychain.** No item fixture was made for the Store probe: its
+  evidence read an absent run-only account. The locked service got
+  `status100024`, `kPOSIXErrorBase` plus `EMFILE`: the zero descriptor
+  limit stopped its query. The control got `status-25300`
+  (`errSecItemNotFound`): the App Sandbox alone lets the service query
+  the keychain and get an answer. Telegram's macOS sources add no
+  keychain item (only the probe calls `SecItem*`; the wallet's Secure
+  Enclave keys are not permanent), so the Store claim rests on that
+  reading, those statuses and the keychain services the listing shows
+  reachable.
+
+Expected readings of `probe` on macOS 27.0.1 arm64: `lockdown: ok`,
+`state: sandboxed=1 nofile=0/0 nproc=0/0`, descriptors 0 to 3 (and the
+`connect-control` fixture's 4) and nothing else, and one `sandbox
+initialization failed: Operation not permitted` line per service on
+stderr: libsandbox's report of the `sandbox_init` the Store lockdown
+expects to fail with `EPERM`. Then `socket` and `socket after close`
+`EMFILE`, `connect-control` `EPERM` with nothing at the listener, `fork`
+and `posix_spawn` `EAGAIN`; `client-cwd`, `app-support` (Telegram's
+container), `user-home`, `user-documents` and `user-downloads` `access`
+`EPERM`, policy `denied`, `opendir` `EMFILE`, while `own-container` reads
+`access: ok` and policy `allowed`; `parent kill-0` `EPERM` and `parent
+task_for_pid` `kr5`; the `cmio`, `locationd` and `locationd.desktop`
+lookups `kr1100` and both device policies `denied`.
+
+What the service can still reach is App Sandbox reach that `sandbox_init`
+cannot narrow there (it does not stack); the direct-download profile denies
+all of it. These rows succeed, and they are limits of the confinement,
+never passes:
+
+- Telegram's process information: `parent task_name_for_pid`,
+  `PROC_PIDTBSDINFO`, `proc_pidpath`, `KERN_PROC_PID` and `KERN_PROCARGS2`,
+  Telegram's argv and environment. "Cannot inspect Telegram" holds only for
+  signals, the task port and the descriptor table.
+- 259 of the 2138 names (218 registered, 41 unregistered), among them
+  tccd, cfprefsd, the window server, CARenderServer, the pasteboard,
+  SecurityServer and securityd, audiohald, logd, the notification center,
+  runningboard, trustd, `lsd.mapdb` and the dock; the `lookup` rows of
+  tccd, tccd.system, SecurityServer, securityd.xpc, audiohald and the
+  window server read `ok`.
+- `windowserver connection: CONNECTED`, `iokit open: ok`
+  (`IOSurfaceRoot`), `iokit property: ok` (`IOPlatformSerialNumber`), and
+  `microphone devices: ok/2/1` through audiohald while the microphone
+  policy stays denied (`camera devices: ok/0`).
+- `self responsible: parent`: TCC counts the service's requests under
+  Telegram's grants. Screen Recording has no App Sandbox entitlement to
+  gate it; `not-granted` only says the copy had no grant, and a capture
+  through a Telegram that holds one is unmeasured.
+- `stat` metadata of every path, the denied ones included (the `stat`
+  rows), and system files such as `/etc/hosts`, which the App Sandbox
+  lets it read (a scratch reading before the evidence; no probe row reads
+  those).
+
+Each service start's failing `sandbox_init` used to leave libsandbox's
+syslog socket, an `AF_UNIX` datagram socket connected to logd, open past
+the zero descriptor limit (`fd 5 socket ... peer-pid=<logd> ...
+class=DEFECT: unexpected fd 5`). The Store `Lockdown()` now closes every
+descriptor that call added, right after it sets the limit, so the listing
+reads `fds 5` with the `connect-control` fixture and `defects 0`; such a
+socket in a Store probe is a regression of that repair.
+
+The Debug service imports three private names for the probe:
+`sandbox_check`, `voucher_activity_get_metadata_buffer` and, in the Store
+build only, `responsibility_get_pid_responsible_for_pid`. The Release
+service imports none.
 
 ## Windows
 
@@ -708,6 +873,8 @@ on write-only `/dev/null`: `fstat=EPERM`). A socket row adds its domain,
 type, protocol and, for `AF_UNIX`, the peer pid. Accounted descriptors are 0
 `/dev/null` read, 1 `/dev/null` write, 2 the same file as the parent's fd 2,
 and 3 an `AF_UNIX` stream whose peer is the parent. Anything else is a defect.
+The Mac App Store service's parent, accounting, `state:` and extra rows
+differ ([Mac App Store](#mac-app-store)).
 
 Each `mach` row gives every rights bit, urefs, the object hash and the kernel
 object type. Receive rights also get their status, port sets their members.
@@ -1058,6 +1225,39 @@ with the hardened runtime and Telegram's Debug entitlements that Xcode's
 `--deep` signing then gave the staged copy (Runs 5-6). The helper now has
 the hardened runtime and no entitlement, and no probe has run on it since,
 so what its unsandboxed control counts is unmeasured.
+
+The [Mac App Store](#mac-app-store) service was probed on macOS 27.0.1
+(26A434) arm64 in a Debug Store build, in the evidence campaign of
+`2026/11/14/run-mac-app-store-widget-engines-in-an-xpc-service-helper`;
+its `work/test.md` (Runs 13, 14 and 31) is the record, and its
+`work/test-overlay.patch` keeps the disposable driver. The client was an
+App-Sandboxed test-identifier copy of the Store product, made and signed
+through `sign_mac.py` by a self-signed stand-in as **Mac App Store test
+runs** in [Remote engines](test_widget_fixture.md#remote-engines)
+describes. The driver of [Minimal use](#minimal-use) launched `probe`, then
+`probe-unsandboxed`, through the Store `Launch()` with an absent run-only
+keychain account, a live 127.0.0.1 listener with `connect-control` and the
+2138 service names; the second launch waited out launchd's restart
+deferral (10043-10044 ms). Both services were children of launchd whose
+`parent:` row named Telegram, each refused the stream with its summary and
+ended `ended`, reaped, and the listener received only the client's two
+controls. The first run (Run 13) listed libsandbox's logd socket as `fd 5
+... DEFECT`; after the repair (Run 31) the locked service held only
+descriptors 0 to 4, `defects 0`, every reading of the expected list above
+held, and a script compared both runs row by row: the same code for each of
+the 67 other attempts and each of the 2138 service rows in both modes, and
+the two modes agreed on every service row (`services: 2138 listed, 259
+allowed, 218 allowed and registered`). `TDESKTOP_WIDGET_ENGINES=probe`
+through the widget fixture (Run 14) started three services, each ending
+in a `stream ended: the engine process refused the stream: widget helper
+probe ... mode=probe lockdown=ok sandboxed=1 nofile=0/0 nproc=0/0 ...`
+line with an `INCOMPLETE` service listing, and the next widget died
+latched. Limits:
+one macOS, arm64 only; a stand-in leaf without a Team ID (the copy needed
+`disable-library-validation`), never the Mac App Store's own signature or
+Apple's re-signing; no Screen Recording grant; the two unattributed Mach
+entries were not traced; and the allowed and registered counts depend on
+the host's registered services.
 
 On Windows the harness lines of [Windows](#windows) first ran in the
 same-binary helper, the client's own `Telegram.exe -widgethelper
