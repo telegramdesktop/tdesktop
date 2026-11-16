@@ -3764,7 +3764,9 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 		const auto thread = suggestionsCoverList()
 			? _suggestions->updateFromParentDrag(global)
 			: _inner->updateFromParentDrag(global);
-		_stories->dragLeft();
+		if (_stories) {
+			_stories->dragLeft();
+		}
 		addStoryDragLeft();
 		e->setDropAction(thread ? Qt::CopyAction : Qt::IgnoreAction);
 	} else {
@@ -3785,7 +3787,7 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 }
 
 bool Widget::updateStoriesDrag(not_null<QDragMoveEvent*> e) {
-	if (_stories->isHidden()) {
+	if (!_stories || _stories->isHidden()) {
 		return false;
 	}
 	const auto peer = session().data().peer(session().userPeerId());
@@ -3840,7 +3842,9 @@ void Widget::dragLeaveEvent(QDragLeaveEvent *e) {
 		_suggestions->dragLeft();
 	}
 	_inner->dragLeft();
-	_stories->dragLeft();
+	if (_stories) {
+		_stories->dragLeft();
+	}
 	addStoryDragLeft();
 	e->accept();
 }
@@ -3870,7 +3874,9 @@ void Widget::dropEvent(QDropEvent *e) {
 			session().user(),
 			e->mimeData());
 	} else if (_scroll->geometry().contains(e->pos())) {
-		_stories->dragLeft();
+		if (_stories) {
+			_stories->dragLeft();
+		}
 		const auto globalPosition = mapToGlobal(e->pos());
 		const auto thread = suggestionsCoverList()
 			? _suggestions->updateFromParentDrag(globalPosition)
@@ -3893,7 +3899,7 @@ void Widget::dropEvent(QDropEvent *e) {
 			controller()->widget()->raise();
 			controller()->widget()->activateWindow();
 		}
-	} else if (!_stories->isHidden()
+	} else if (_stories && !_stories->isHidden()
 		&& _stories->geometry().contains(e->pos())) {
 		const auto id = _stories->finishDropAt(mapToGlobal(e->pos()));
 		const auto peer = id
