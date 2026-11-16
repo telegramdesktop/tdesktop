@@ -285,7 +285,10 @@ SceneItems CollectSceneItems(
 		} else if (item->type() == ItemImage::Type) {
 			const auto image = static_cast<ItemImage*>(item.get());
 			const auto pixmap = image->pixmap();
-			const auto index = storeImage(pixmap.toImage());
+			const auto pixels = pixmap.toImage();
+			const auto index = storeImage(placement.flipped
+				? pixels.transformed(QTransform().scale(-1, 1))
+				: pixels);
 			if (index >= 0) {
 				result.images.push_back({
 					.file = QString::number(index),
