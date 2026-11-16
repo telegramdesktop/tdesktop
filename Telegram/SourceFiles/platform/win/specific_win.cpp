@@ -143,27 +143,13 @@ void DeleteMyModules() {
 		return;
 	}
 	const auto modules = exe.substr(0, last + 1) + L"modules";
-	const auto deleteOne = [&](const wchar_t *name, const wchar_t *arch) {
-		const auto path = modules + L'\\' + arch + L'\\' + name;
-		DeleteFile(path.c_str());
-	};
-	const auto deleteBoth = [&](const wchar_t *name) {
-		deleteOne(name, L"x86");
-		deleteOne(name, L"x64");
-	};
-	const auto removeOne = [&](const std::wstring &name) {
-		const auto path = modules + L'\\' + name;
-		RemoveDirectory(path.c_str());
-	};
-	const auto removeBoth = [&](const std::wstring &name) {
-		removeOne(L"x86\\" + name);
-		removeOne(L"x64\\" + name);
-	};
-	deleteBoth(L"d3d\\d3dcompiler_47.dll");
-
-	removeBoth(L"d3d");
-	removeOne(L"x86");
-	removeOne(L"x64");
+	for (const auto arch : { L"x86", L"x64", L"arm64" }) {
+		const auto folder = modules + L'\\' + arch;
+		DeleteFile((folder + L"\\d3d\\d3dcompiler_47.dll").c_str());
+		DeleteFile((folder + L"\\TelegramWidgetHelper.exe").c_str());
+		RemoveDirectory((folder + L"\\d3d").c_str());
+		RemoveDirectory(folder.c_str());
+	}
 	RemoveDirectory(modules.c_str());
 }
 

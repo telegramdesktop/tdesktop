@@ -638,12 +638,14 @@ jobs:
           export SM_CLIENT_CERT_FILE=/tmp/keylocker.p12
           smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Telegram.exe
           smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input Updater.exe
-          # Both binaries are verified here, on the exact bytes that get
+          smctl sign --keypair-alias "$SM_KEYPAIR_ALIAS" --input modules/x64/TelegramWidgetHelper.exe
+          # Every binary is verified here, on the exact bytes that get
           # packed: Updater.exe travels only inside the update envelope,
           # the publish job can re-check just the portable's Telegram.exe.
           # Per command: smctl needs Git Bash to convert SM_CLIENT_CERT_FILE.
           MSYS_NO_PATHCONV=1 signtool verify /pa /all Telegram.exe
           MSYS_NO_PATHCONV=1 signtool verify /pa /all Updater.exe
+          MSYS_NO_PATHCONV=1 signtool verify /pa /all modules/x64/TelegramWidgetHelper.exe
           echo "signed=true" >> $GITHUB_OUTPUT
 
       - name: Azure login for update signing.
@@ -664,6 +666,7 @@ jobs:
           # while CI would grab whatever the runner's SDK ships. Canary
           # machines use the system compiler dll.
           ./Packer.exe -path Telegram.exe -path Updater.exe \
+            -path modules/x64/TelegramWidgetHelper.exe \
             -target win64 \
             -version $BASE \
             -channel canary-${{ needs.version.outputs.channel }} \
@@ -694,9 +697,10 @@ jobs:
           # folders from dropping it.
           PORTABLE=td-portable-win-x64-$CANARY_VERSION$CANARY_SUFFIX.zip
           rm -rf portable
-          mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable
+          mkdir -p portable/$CANARY_FOLDER/TelegramForcePortable portable/$CANARY_FOLDER/modules/x64
           touch portable/$CANARY_FOLDER/TelegramForcePortable/.keep
           cp Telegram.exe portable/$CANARY_FOLDER/
+          cp modules/x64/TelegramWidgetHelper.exe portable/$CANARY_FOLDER/modules/x64/
           (cd portable && 7z a -mx9 ../$PORTABLE $CANARY_FOLDER/)
 
           mkdir -p artifact/update artifact/portable
@@ -1492,8 +1496,8 @@ jobs:
         if: needs.version.outputs.unsigned != 'true'
         run: |
           # Publishing unsigned binaries is never allowed: this is a hard
-          # gate, not a warning. Both binaries inside the update envelope
-          # were verified with signtool right after signing in the build
+          # gate, not a warning. Every binary inside the update envelope
+          # was verified with signtool right after signing in the build
           # job; here the portable's Telegram.exe is re-checked as the
           # publish-side witness.
           sudo apt-get update && sudo apt-get install -y osslsigncode
