@@ -3075,6 +3075,7 @@ class MechanicsTest(unittest.TestCase):
 					build_root=str(build),
 					exe=str(exe),
 					artifact=[str(exe), str(obj)],
+					failed_log=None,
 					wait=0,
 				)
 			self.assertTrue(result["safe_to_retry"])
@@ -3119,8 +3120,327 @@ class MechanicsTest(unittest.TestCase):
 					build_root=str(build),
 					exe=str(exe),
 					artifact=[str(outside)],
+					failed_log=None,
 					wait=0,
 				)
+
+	def failed_build_tree(self, root):
+		source, _, _, _ = source_repo_with_task(root)
+		build = source / "out"
+		project = build / "Telegram" / "Telegram.vcxproj"
+		library = build / "Telegram" / "lib_widget_sandbox.vcxproj"
+		project.parent.mkdir(parents=True)
+		(build / "CMakeCache.txt").write_text(
+			f"CMAKE_HOME_DIRECTORY:INTERNAL={source}\n",
+			encoding="utf-8",
+		)
+		code = source / "Telegram" / "SourceFiles"
+		tree = SimpleNamespace(
+			source=source,
+			build=build,
+			project=project,
+			library=library,
+			exe=build / "Debug" / "Telegram.exe",
+			watch=code / "test" / "test_widget_host.cpp",
+			runtime=code / "tgw" / "tgw_runtime.cpp",
+			unrelated=code / "tgw" / "tgw_bridge.cpp",
+			escaped=code / "tgw" / "tgw_escaped.cpp",
+			header=source / "Telegram" / "ThirdParty" / "widget_host.h",
+			host=source / "Telegram" / "ThirdParty" / "widget_host.cpp",
+			outside=source / "Telegram" / "outside.obj",
+		)
+		debug = build / "Telegram" / "Telegram.dir" / "Debug"
+		release = build / "Telegram" / "Telegram.dir" / "Release"
+		library_debug = build / "Telegram" / "lib_widget_sandbox.dir" / "Debug"
+		tree.watch_obj = debug / "test_widget_host.obj"
+		tree.runtime_obj = debug / "tgw_runtime.obj"
+		tree.unrelated_obj = debug / "tgw_bridge.obj"
+		tree.release_obj = release / "test_widget_host.obj"
+		tree.host_obj = library_debug / "widget_host.obj"
+		for path in (
+			tree.exe,
+			tree.watch,
+			tree.runtime,
+			tree.unrelated,
+			tree.escaped,
+			tree.header,
+			tree.host,
+			tree.outside,
+			tree.watch_obj,
+			tree.runtime_obj,
+			tree.unrelated_obj,
+			tree.release_obj,
+			tree.host_obj,
+		):
+			path.parent.mkdir(parents=True, exist_ok=True)
+			path.write_bytes(b"x")
+		items = {
+			debug / "Telegram.tlog": [
+				(tree.watch, tree.watch_obj),
+				(tree.runtime, tree.runtime_obj),
+				(tree.unrelated, tree.unrelated_obj),
+				(tree.escaped, tree.outside),
+			],
+			release / "Telegram.tlog": [(tree.watch, tree.release_obj)],
+			library_debug / "lib_widg.F284E820.tlog": [(tree.host, tree.host_obj)],
+		}
+		for directory, rows in items.items():
+			directory.mkdir(parents=True)
+			(directory / "Cl.items.tlog").write_text(
+				"".join(f"{item};{output}\n" for item, output in rows),
+				encoding="utf-8",
+			)
+		return tree
+
+	def test_build_lock_recovery_deletes_failed_compile_objects(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			tree = self.failed_build_tree(Path(temporary).resolve())
+			relative = "../../Telegram/SourceFiles"
+			first = tree.build / "first.log"
+			first.write_text(
+				f"{tree.watch}(1,1): error C3859: Failed to create virtual"
+				f" memory for PCH [{tree.project}]\n"
+				"  tgw_runtime.cpp\n"
+				f"  (compiling source file '{relative}/test/test_widget_host.cpp')\n"
+				f"{tree.watch}(1,1): error C1076: compiler limit: internal"
+				f" heap limit reached [{tree.project}]\n"
+				f"  (compiling source file '{relative}/test/test_widget_host.cpp')\n"
+				f"{tree.header}(12,5): error C2065: 'value': undeclared"
+				f" identifier [{tree.project}]\n"
+				f"  (compiling source file '{relative}/tgw/tgw_runtime.cpp')\n"
+				f"{tree.header}(14,1): warning C4100: 'unused': unreferenced"
+				f" parameter [{tree.project}]\n"
+				f"  (compiling source file '{relative}/tgw/tgw_bridge.cpp')\n"
+				f"{tree.unrelated}(3,1): warning C4996: 'old': deprecated"
+				f" [{tree.project}]\n"
+				f"LINK : fatal error LNK1104: cannot open file '{tree.exe}'"
+				f" [{tree.project}]\n"
+				f"{tree.unrelated}(1,1): error MSB6006: \"CL.exe\" exited with"
+				f" code 2. [{tree.project}]\n"
+				"cl : command line error D8016: '/ZI' and '/Gy-' command-line"
+				f" options are incompatible [{tree.project}]\n",
+				encoding="utf-8",
+			)
+			second = tree.build / "second.log"
+			second.write_text(
+				f"{tree.watch}(1,1): error C3859: Failed to create virtual"
+				f" memory for PCH [{tree.project}]\n"
+				f"{tree.host}(40,1): fatal error C1004: unexpected end-of-file"
+				f" found [{tree.library}]",
+				encoding="utf-8",
+			)
+			with (
+				mock.patch.object(
+					workspace,
+					"kill_processes_with_executable",
+					return_value=[],
+				),
+				mock.patch.object(
+					workspace,
+					"locking_process_ids",
+					side_effect=[([], None), ([], None)],
+				),
+				mock.patch.object(
+					workspace,
+					"windows_process_records",
+					return_value=[],
+				),
+				mock.patch.object(
+					workspace,
+					"terminate_process_ids",
+					return_value=[],
+				),
+			):
+				result = run_command(
+					workspace.command_build_lock_recover,
+					source_root=str(tree.source),
+					build_root=str(tree.build),
+					exe=str(tree.exe),
+					artifact=[str(tree.exe)],
+					failed_log=[str(first), str(second), str(first)],
+					wait=0,
+				)
+			self.assertTrue(result["safe_to_retry"])
+			self.assertEqual(
+				[Path(path) for path in result["failed_logs"]],
+				[first, second, first],
+			)
+			self.assertEqual(
+				[Path(path) for path in result["failed_sources"]],
+				[tree.watch, tree.runtime, tree.host],
+			)
+			self.assertEqual(
+				[Path(path) for path in result["artifacts"]],
+				[tree.exe, tree.watch_obj, tree.runtime_obj, tree.host_obj],
+			)
+			self.assertEqual(
+				{Path(path) for path in result["deleted"]},
+				{tree.exe, tree.watch_obj, tree.runtime_obj, tree.host_obj},
+			)
+			for path in (tree.unrelated_obj, tree.release_obj, tree.outside):
+				self.assertTrue(path.is_file())
+
+	def test_build_lock_recovery_takes_attribution_from_the_error_stream(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			tree = self.failed_build_tree(Path(temporary).resolve())
+			relative = "../../Telegram/SourceFiles"
+			log = tree.build / "failed.log"
+			log.write_text(
+				f"2>{tree.watch}(1,1): error C3859: Failed to create virtual"
+				f" memory for PCH [{tree.project}]\n"
+				f"3>  (compiling source file '{relative}/tgw/tgw_bridge.cpp')\n"
+				f"2>  (compiling source file '{relative}/test/test_widget_host.cpp')\n"
+				f"     1>{tree.header}(12,5): error C2065: 'value': undeclared"
+				f" identifier [{tree.project}]\n"
+				f"         (compiling source file '{relative}/tgw/tgw_runtime.cpp')\n",
+				encoding="utf-8",
+			)
+			with (
+				mock.patch.object(
+					workspace,
+					"kill_processes_with_executable",
+					return_value=[],
+				),
+				mock.patch.object(
+					workspace,
+					"locking_process_ids",
+					side_effect=[([], None), ([], None)],
+				),
+				mock.patch.object(
+					workspace,
+					"windows_process_records",
+					return_value=[],
+				),
+				mock.patch.object(
+					workspace,
+					"terminate_process_ids",
+					return_value=[],
+				),
+			):
+				result = run_command(
+					workspace.command_build_lock_recover,
+					source_root=str(tree.source),
+					build_root=str(tree.build),
+					exe=str(tree.exe),
+					artifact=None,
+					failed_log=[str(log)],
+					wait=0,
+				)
+			self.assertTrue(result["safe_to_retry"])
+			self.assertEqual(
+				[Path(path) for path in result["failed_sources"]],
+				[tree.watch, tree.runtime],
+			)
+			self.assertEqual(
+				{Path(path) for path in result["deleted"]},
+				{tree.watch_obj, tree.runtime_obj},
+			)
+			for path in (tree.exe, tree.unrelated_obj, tree.host_obj):
+				self.assertTrue(path.is_file())
+
+	def test_build_lock_recovery_rejects_unresolved_failed_build_before_mutation(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			tree = self.failed_build_tree(Path(temporary).resolve())
+			log = tree.build / "failed.log"
+			outside_project = tree.source / "Telegram" / "Outside.vcxproj"
+			cases = {
+				"neither": (None, "--artifact or --failed-log"),
+				"missing": ("", "log not found"),
+				"unassigned": (
+					f"{tree.header}(12,5): error C2065: 'value': undeclared"
+					f" identifier [{tree.project}]\n"
+					"  tgw_runtime.cpp\n"
+					"  (compiling source file '../../Telegram/SourceFiles/tgw/"
+					"tgw_runtime.cpp')\n",
+					"not attributed",
+				),
+				"contradictory": (
+					f"{tree.runtime}(1,1): error C3859: Failed to create virtual"
+					f" memory for PCH [{tree.project}]\n"
+					f"{tree.watch}(1,1): error C3859: Failed to create virtual"
+					f" memory for PCH [{tree.project}]\n"
+					"  (compiling source file '../../Telegram/SourceFiles/tgw/"
+					"tgw_runtime.cpp')\n"
+					"  (compiling source file '../../Telegram/SourceFiles/test/"
+					"test_widget_host.cpp')\n",
+					"attributed to another source",
+				),
+				"other stream": (
+					f"2>{tree.header}(12,5): error C2065: 'value': undeclared"
+					f" identifier [{tree.project}]\n"
+					"3>  (compiling source file '../../Telegram/SourceFiles/tgw/"
+					"tgw_runtime.cpp')\n",
+					"not attributed",
+				),
+				"unrecognized": (
+					f"{tree.watch}(1,1): error C3859: Failed to create virtual"
+					" memory for PCH\n",
+					"Unrecognized compile error",
+				),
+				"unmapped": (
+					f"{tree.source / 'Telegram' / 'unlisted.cpp'}(1,1): error"
+					f" C3859: Failed to create virtual memory for PCH"
+					f" [{tree.project}]\n",
+					"No Debug compile item",
+				),
+				"outside project": (
+					f"{tree.watch}(1,1): error C3859: Failed to create virtual"
+					f" memory for PCH [{outside_project}]\n",
+					"project is outside the build root",
+				),
+				"outside object": (
+					f"{tree.escaped}(1,1): error C3859: Failed to create virtual"
+					f" memory for PCH [{tree.project}]\n",
+					"artifact is outside the build root",
+				),
+				"utf-16": (
+					f"{tree.watch}(1,1): error C3859: Failed to create virtual"
+					f" memory for PCH [{tree.project}]\n".encode("utf-16"),
+					"not UTF-8 text",
+				),
+			}
+			for name, (content, message) in cases.items():
+				with self.subTest(case=name):
+					log.unlink(missing_ok=True)
+					if isinstance(content, bytes):
+						log.write_bytes(content)
+					elif content:
+						log.write_text(content, encoding="utf-8")
+					with (
+						mock.patch.object(
+							workspace,
+							"kill_processes_with_executable",
+						) as kill,
+						mock.patch.object(
+							workspace,
+							"locking_process_ids",
+						) as holders,
+						mock.patch.object(
+							workspace,
+							"terminate_process_ids",
+						) as terminate,
+						self.assertRaisesRegex(workspace.WorkspaceError, message),
+					):
+						run_command(
+							workspace.command_build_lock_recover,
+							source_root=str(tree.source),
+							build_root=str(tree.build),
+							exe=str(tree.exe),
+							artifact=None,
+							failed_log=None if content is None else [str(log)],
+							wait=0,
+						)
+					kill.assert_not_called()
+					holders.assert_not_called()
+					terminate.assert_not_called()
+					for path in (
+						tree.exe,
+						tree.watch_obj,
+						tree.runtime_obj,
+						tree.host_obj,
+						tree.outside,
+					):
+						self.assertTrue(path.is_file())
 
 	def test_parse_env_values_requires_name_value_pairs(self):
 		self.assertEqual(

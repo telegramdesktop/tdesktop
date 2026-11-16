@@ -103,6 +103,17 @@ BUILD_LOCK_PROCESS_NAMES = {
 }
 # mspdbsrv.exe idles on after the build it served; its CPU still counts
 HOST_LOAD_BUILD_TOOLS = BUILD_LOCK_PROCESS_NAMES - {"mspdbsrv.exe"}
+COMPILE_ERROR_MARK_PATTERN = re.compile(r"\berror C[0-9]+")
+COMPILE_ERROR_PATTERN = re.compile(
+	r"\s*(?:(?P<stream>[0-9]+)>)?(?P<file>.+?)(?:\([0-9]+(?:,[0-9]+)*\))?"
+	r"\s*:\s*(?:fatal )?error C[0-9]+\s*:.*"
+	r"\[(?P<project>[^\[\]]+\.vcxproj)\]\s*"
+)
+COMPILE_SOURCE_PATTERN = re.compile(
+	r"\s*(?:(?P<stream>[0-9]+)>)?\s*"
+	r"\(compiling source file '(?P<source>.+)'\)\s*"
+)
+COMPILED_SOURCE_SUFFIXES = {".c", ".cc", ".cpp", ".cxx"}
 # Xcode's build services can idle on like mspdbsrv.exe, so only their CPU counts
 HOST_LOAD_MACOS_BUILD_TOOLS = {
 	"clang",
@@ -4584,6 +4595,94 @@ def build_root_matches_source(build, source):
 	return False
 
 
+def failed_compile_units(text):
+	lines = text.splitlines()
+	units = []
+	for index, line in enumerate(lines):
+		if not COMPILE_ERROR_MARK_PATTERN.search(line):
+			continue
+		diagnostic = line.strip()
+		match = COMPILE_ERROR_PATTERN.fullmatch(line)
+		if not match or not Path(match["project"]).is_absolute():
+			raise WorkspaceError(f"Unrecognized compile error: {diagnostic}")
+		project = Path(match["project"]).resolve()
+		attribution = (
+			COMPILE_SOURCE_PATTERN.fullmatch(lines[index + 1])
+			if index + 1 < len(lines)
+			else None
+		)
+		# MSBuild prefixes an error line, not its attribution continuation
+		if attribution and attribution["stream"] not in (None, match["stream"]):
+			attribution = None
+		direct = project.parent / match["file"]
+		compiled = direct.suffix.casefold() in COMPILED_SOURCE_SUFFIXES
+		if attribution:
+			source = (project.parent / attribution["source"]).resolve()
+			if compiled and (
+				normalized_path_text(direct) != normalized_path_text(source)
+			):
+				raise WorkspaceError(
+					"Compile error is attributed to another source file: "
+					f"{diagnostic} {lines[index + 1].strip()}"
+				)
+		elif compiled:
+			source = direct.resolve()
+		else:
+			raise WorkspaceError(
+				f"Compile error is not attributed to a source file: {diagnostic}"
+			)
+		unit = (project, source)
+		if unit not in units:
+			units.append(unit)
+	return units
+
+
+def failed_build_objects(build, logs):
+	units = []
+	for value in logs:
+		path = Path(value).expanduser().resolve()
+		if not path.is_file():
+			raise WorkspaceError(f"Failed build log not found: {path}")
+		text = path.read_text(encoding="utf-8", errors="replace")
+		if "\0" in text:
+			raise WorkspaceError(f"Failed build log is not UTF-8 text: {path}")
+		for unit in failed_compile_units(text):
+			if unit not in units:
+				units.append(unit)
+	items = {}
+	objects = []
+	sources = []
+	for project, source in units:
+		if not path_inside(project, build):
+			raise WorkspaceError(
+				f"Failed compile project is outside the build root: {project}"
+			)
+		if project not in items:
+			items[project] = {}
+			pattern = f"{project.stem}.dir/Debug/*.tlog/Cl.items.tlog"
+			for tlog in sorted(project.parent.glob(pattern)):
+				text = tlog.read_text(encoding="utf-8-sig", errors="replace")
+				for line in text.splitlines():
+					item, separator, output = line.partition(";")
+					if separator:
+						items[project].setdefault(
+							normalized_path_text(project.parent / item),
+							[],
+						).append(project.parent / output)
+		mapped = items[project].get(normalized_path_text(source))
+		if not mapped:
+			raise WorkspaceError(
+				f"No Debug compile item of {project} maps failed unit {source}"
+			)
+		for output in mapped:
+			path = output.resolve()
+			if path not in objects:
+				objects.append(path)
+		if str(source) not in sources:
+			sources.append(str(source))
+	return objects, sources
+
+
 def command_build_lock_recover(args):
 	source = source_root(args.source_root)
 	build = Path(args.build_root).expanduser().resolve()
@@ -4599,13 +4698,22 @@ def command_build_lock_recover(args):
 		)
 	if not path_inside(exe, build):
 		raise WorkspaceError(f"Executable is outside the build root: {exe}")
+	failed_logs = [
+		str(Path(value).expanduser().resolve())
+		for value in args.failed_log or []
+	]
+	if not args.artifact and not failed_logs:
+		raise WorkspaceError("Pass at least one --artifact or --failed-log")
+	failed_objects, failed_sources = failed_build_objects(build, failed_logs)
 	artifacts = []
-	for value in args.artifact:
-		path = Path(value).expanduser().resolve()
+	for path in [
+		*(Path(value).expanduser().resolve() for value in args.artifact or []),
+		*failed_objects,
+	]:
 		if not path_inside(path, build):
-			raise WorkspaceError(f"Locked artifact is outside the build root: {path}")
+			raise WorkspaceError(f"Recovery artifact is outside the build root: {path}")
 		if path.is_dir():
-			raise WorkspaceError(f"Locked artifact must be a file: {path}")
+			raise WorkspaceError(f"Recovery artifact must be a file: {path}")
 		if path not in artifacts:
 			artifacts.append(path)
 	if not 0 <= args.wait <= 60:
@@ -4672,6 +4780,8 @@ def command_build_lock_recover(args):
 		"delete_errors": delete_errors,
 		"deleted": deleted,
 		"exact_exe_killed": exact_exe_killed,
+		"failed_logs": failed_logs,
+		"failed_sources": failed_sources,
 		"holder_query_error": holder_query_error,
 		"remaining_holder_query_error": remaining_query_error,
 		"remaining_holders": remaining_holders,
@@ -8161,7 +8271,8 @@ def parse_args():
 	build_lock_recover.add_argument("--source-root", required=True)
 	build_lock_recover.add_argument("--build-root", required=True)
 	build_lock_recover.add_argument("--exe", required=True)
-	build_lock_recover.add_argument("--artifact", action="append", required=True)
+	build_lock_recover.add_argument("--artifact", action="append")
+	build_lock_recover.add_argument("--failed-log", action="append")
 	build_lock_recover.add_argument("--wait", type=float, default=10.0)
 	build_lock_recover.set_defaults(handler=command_build_lock_recover)
 

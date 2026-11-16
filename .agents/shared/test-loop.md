@@ -635,8 +635,10 @@ command, environment, exit-code, log, artifact and control evidence.
   Do not try to unlock the session and do not return BLOCKED because the lock screen is present.
 - Build with `BUILD`. A single changed TU compiles fast; only the overlay-touched files + link
   rebuild between rounds. On Windows, run the shared exact-path proactive cleanup before every
-  build. If the build reports `LNK1104`, `C1041`, access denied, or file in use, follow
-  `.agents/shared/build-lock-recovery.md` and retry within its bounded budget.
+  build. If the build exits nonzero or its complete output holds any
+  `(error|fatal error) (C|LNK|MSB)[0-9]+` line, even under exit 0, recover it through
+  `.agents/shared/build-lock-recovery.md` before the next build (its failed compile objects, and
+  any `LNK1104`, `C1041`, access denied, or file in use lock) and retry within its bounded budget.
 - **Codegen does not track resource mtimes.** If the task changed only a resource the style codegen
   consumes (an icon `.svg`, etc.) without touching a `.style`, an incremental build will NOT re-pack
   it and the binary keeps the OLD asset. Before building such a task force regeneration — touch the

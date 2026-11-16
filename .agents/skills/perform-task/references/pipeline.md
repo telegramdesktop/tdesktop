@@ -1230,9 +1230,12 @@ delays finishing the work actually in hand.
   it never waits for the owner. The
   publication helper rejects a test block whose report still says `TEST_FLAW`,
   cites the run cap, or lacks the required recovery-exhaustion record.
-- A Windows file-lock build error follows the shared bounded exact-checkout
-  recovery, including its delayed retries. Only its exhausted or unsafe outcome
-  stops the run; the task remains `in-progress`.
+- Every failed Windows Debug build of the task's tree (pre-review and final
+  validation, `project-sync` and rebase builds, evidence and overlay builds)
+  follows the shared bounded exact-checkout recovery before the next build:
+  its failed compile objects always, and a file lock with its delayed retries.
+  Only its exhausted, unresolved or unsafe outcome stops the run; the task
+  remains `in-progress`.
 - Never ask the owner during a `continue` run. Decide, record the decision in
   `work/decisions.md`, and continue. The only global stops are a server scheme
   mismatch and a missing golden test account; unexplained dirty source that

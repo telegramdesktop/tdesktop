@@ -516,19 +516,24 @@ Steps:
    Telegram Debug build, use `<BUILD>`; on WSL that is the repository Docker
    entry point and native Windows CMake must not touch that tree.
 3. If validation succeeds, update plan.md: change `- [ ] Pre-review validation` to `- [x] Pre-review validation`.
-4. If validation fails:
+4. If validation fails (for a Windows build, a nonzero exit or any error line
+   the contract's `Recover a failed build` names, even under exit 0):
    a. Read the error messages carefully
    b. Read the relevant source files
    c. Fix the errors in accordance with the plan and AGENTS.md conventions
-   d. Rebuild and repeat until the build passes
-   e. Update plan.md status when done
+   d. When the failed command wrote the native Windows build tree, recover
+      each such failed build through the contract's `Recover a failed build`
+      on its complete log before building again
+   e. Rebuild and repeat until the build passes
+   f. Update plan.md status when done
 
 Rules:
 - Only fix task-owned validation failures. Do not refactor or improve code beyond what is needed for a passing check.
 - Follow AGENTS.md conventions.
-- If the build fails with C1041, LNK1104, "cannot open output file", or a similar
-  access-denied lock, follow the shared bounded recovery contract. Do not edit
-  source to work around an environment lock.
+- If the build fails with C1041, LNK1104, "cannot open output file", a similar
+  access-denied lock, or a PCH commit or heap failure (C3859, C1076, C1060),
+  follow the shared bounded recovery contract. Do not edit source to work
+  around an environment failure.
 - You are not alone in the codebase. Respect existing changes and do not revert unrelated work.
 
 When finished, report the build result and which files, if any, you changed.
