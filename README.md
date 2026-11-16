@@ -45,20 +45,22 @@
 |---|---|---|
 | **macOS Apple Silicon (arm64)** | v0.1.9 | [mokaGram-7.3.3-arm64.dmg](https://github.com/mokagram/mokagram/releases/download/v0.1.9/mokaGram-7.3.3-arm64.dmg) |
 | **Windows** | v0.1.7 | [mokagram-win-x64.zip](https://github.com/mokagram/mokagram/releases/download/v0.1.7/mokagram-win-x64.zip) |
-| **Linux** | v0.1.3 | [AppImage](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-x86_64.AppImage) · [.deb](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram_0.1.3_amd64.deb) · [.rpm](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-0.1.3-1.x86_64.rpm) · [pacman](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-0.1.3-1-x86_64.pkg.tar.zst) · [tar.xz](https://github.com/mokagram/mokagram/releases/download/v0.1.3/mokagram-linux-x64.tar.xz) |
+| **Linux x86_64** | v0.1.10 | [AppImage](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-x86_64.AppImage) · [.deb](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram_0.1.10_amd64.deb) · [.rpm](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-0.1.10-1.x86_64.rpm) · [pacman](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-0.1.10-1-x86_64.pkg.tar.zst) · [tar.xz](https://github.com/mokagram/mokagram/releases/download/v0.1.10/mokagram-linux-x64.tar.xz) |
 
-macOS: откройте DMG и перетащите **mokaGram** в **Applications**. Версия релиза mokaGram: **v0.1.9**, версия клиента в macOS: **7.3.3**. В этом релизе обновлена только сборка для Apple Silicon; ссылки Windows и Linux ведут на предыдущие версии.
+macOS: откройте DMG и перетащите **mokaGram** в **Applications**. Версия клиента в macOS: **7.3.3**. В **v0.1.10** обновлены пять Linux-пакетов; macOS доступен из v0.1.9, Windows из v0.1.7.
 
 Сборки macOS и Windows без подписи разработчика, система может предупредить при первом запуске.
 
-### Новое в v0.1.9
+### Новое в v0.1.10 для Linux
 
-- Плеер с Dynamic Island, анимациями и цветами обложки или Canvas; на macOS островок работает отдельно от окна клиента.
-- Импорт и синхронизация плейлистов SoundCloud, подборки, похожие исполнители и просмотр комментариев по времени трека.
-- Выбор чатов и каналов для поиска музыки, закрепление источников, лайки локальных треков через SoundCloud.
-- Плавающее поле ввода, обновлённые пузыри сообщений, настройки производительности на отдельной странице и новый DMG с подсказкой установки.
+- Linux получил функции текущей версии клиента: полноэкранный плеер, Dynamic Island, импорт и синхронизацию плейлистов SoundCloud, выбор и закрепление источников музыки.
+- Плавающее поле ввода, обновлённые пузыри сообщений, лента каналов и отдельная страница настроек производительности.
+- Исправления авторизации SoundCloud, истории сообщений, файловых прав плагинов и работы плеера в узком окне.
+- Все пять форматов включают Qt и библиотеки среды выполнения. Для Python-плагинов установите `python3`, для их изоляции также `bubblewrap` (`bwrap`).
 
-Все изменения: [release notes v0.1.9](https://github.com/mokagram/mokagram/releases/tag/v0.1.9).
+**AppImage:** разрешите выполнение файла и запустите его. **tar.xz:** распакуйте и запустите `mokaGram/Telegram`. Пакеты deb, rpm и pacman устанавливаются штатным менеджером пакетов; команда запуска: `mokagram`.
+
+[Release notes v0.1.10](https://github.com/mokagram/mokagram/releases/tag/v0.1.10) · [Текст в репозитории](docs/releases/v0.1.10.md) · [SHA256SUMS](https://github.com/mokagram/mokagram/releases/download/v0.1.10/SHA256SUMS).
 
 ## Плагины
 
