@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/mac/widget_helper_mac.h"
 #include "platform/posix/widget_channel_posix.h"
+#include "platform/posix/widget_reaping_posix.h"
 #include "platform/posix/widget_stderr_posix.h"
 #include "widget_helper_identity.h"
 
@@ -18,12 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <Security/Security.h>
 #include <mach/mach.h>
 #include <mach/machine.h>
-#include <sys/wait.h>
 
 #include <fcntl.h>
 #include <signal.h>
 #include <spawn.h>
-#include <thread>
 #include <unistd.h>
 
 namespace Platform::WidgetHelper {
@@ -222,7 +221,6 @@ namespace {
 using details::SystemError;
 
 constexpr auto kSpareDescriptorMin = 10;
-constexpr auto kPollDelay = crl::time(10);
 constexpr auto kAbandonWait = crl::time(1000);
 constexpr auto kRelayEndWait = std::chrono::milliseconds(1000);
 
@@ -402,73 +400,8 @@ struct Requirement {
 		: QString();
 }
 
-[[nodiscard]] QString DescribeStatus(int status) {
-	if (WIFEXITED(status)) {
-		return u"exit %1"_q.arg(WEXITSTATUS(status));
-	} else if (WIFSIGNALED(status)) {
-		return u"signal %1"_q.arg(WTERMSIG(status));
-	}
-	return u"status %1"_q.arg(status);
-}
-
-[[nodiscard]] std::optional<Completion> WaitFor(
-		pid_t pid,
-		crl::time timeout) {
-	const auto deadline = crl::now() + timeout;
-	while (true) {
-		auto status = 0;
-		const auto result = waitpid(pid, &status, WNOHANG);
-		const auto error = (result < 0) ? errno : 0;
-		if (result == pid) {
-			return Completion{
-				.detail = DescribeStatus(status),
-				.reaped = true,
-			};
-		} else if (error == ECHILD) {
-			return Completion{
-				.detail = u"reaped elsewhere"_q,
-				.reaped = true,
-			};
-		} else if (error && error != EINTR) {
-			return Completion{ .detail = SystemError("waitpid", error) };
-		} else if (crl::now() >= deadline) {
-			return std::nullopt;
-		} else if (!error) {
-			std::this_thread::sleep_for(std::chrono::milliseconds(kPollDelay));
-		}
-	}
-}
-
-[[nodiscard]] Completion Complete(
-		pid_t pid,
-		crl::time exitWait,
-		crl::time killWait) {
-	Expects(pid > 0);
-
-	const auto started = crl::now();
-	auto exited = WaitFor(pid, exitWait);
-	if (exited && exited->reaped) {
-		return std::move(*exited);
-	}
-	const auto signaled = crl::now() - started;
-	const auto killError = (kill(pid, SIGKILL) == 0) ? 0 : errno;
-	auto result = WaitFor(pid, killWait);
-	if (!result) {
-		result = Completion{
-			.detail = u"not reaped after %1 ms"_q.arg(crl::now() - started),
-		};
-	}
-	if (exited) {
-		result->detail = exited->detail + u", "_q + result->detail;
-	}
-	result->detail += u", "_q + (killError
-		? SystemError("kill", killError)
-		: u"sent SIGKILL after %1 ms"_q.arg(signaled));
-	return std::move(*result);
-}
-
 [[nodiscard]] QString Abandon(pid_t pid, const QString &error) {
-	const auto cleanup = Complete(pid, 0, kAbandonWait);
+	const auto cleanup = CompleteChild(pid, 0, kAbandonWait);
 	return u"%1 (%2)"_q.arg(error, cleanup.detail);
 }
 
@@ -553,7 +486,10 @@ Launched Launch(const QStringList &arguments) {
 		.complete = [owned = std::move(owned), relay = std::move(output.relay)](
 				crl::time exitWait,
 				crl::time killWait) mutable {
-			auto completion = Complete(base::take(*owned), exitWait, killWait);
+			auto completion = CompleteChild(
+				base::take(*owned),
+				exitWait,
+				killWait);
 			if (relay && completion.reaped) {
 				// macOS discards the queued bytes once the end is shut.
 				relay->drain(kRelayEndWait);

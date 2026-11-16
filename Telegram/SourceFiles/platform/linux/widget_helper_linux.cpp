@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/widget_descriptors_linux.h"
 #include "platform/linux/widget_lockdown_linux.h"
 #include "platform/posix/widget_channel_posix.h"
+#include "platform/posix/widget_reaping_posix.h"
 #include "platform/posix/widget_stderr_posix.h"
 #include "settings.h"
 #ifdef TDESKTOP_WIDGET_HELPER_PINNED
@@ -50,7 +51,6 @@ using namespace gi::repository;
 
 constexpr auto kSpareDescriptorMin = 10;
 constexpr auto kExecutedDescriptor = kChannelDescriptor + 1;
-constexpr auto kPollDelay = crl::time(10);
 constexpr auto kDenyGroups = std::string_view("deny");
 constexpr auto kChildStackSize = size_t(64 * 1024);
 constexpr auto kChildFailed = 127;
@@ -167,82 +167,6 @@ SpawnPlan::~SpawnPlan() {
 	return u"%1 failed: %2"_q.arg(
 		QString::fromLatin1(call),
 		qt_error_string(error));
-}
-
-[[nodiscard]] QString DescribeStatus(int status) {
-	if (WIFEXITED(status)) {
-		return u"exit %1"_q.arg(WEXITSTATUS(status));
-	} else if (WIFSIGNALED(status)) {
-		return u"signal %1"_q.arg(WTERMSIG(status));
-	}
-	return u"status %1"_q.arg(status);
-}
-
-[[nodiscard]] std::optional<Completion> WaitFor(
-		pid_t pid,
-		crl::time timeout) {
-	const auto deadline = crl::now() + timeout;
-	while (true) {
-		auto status = 0;
-		const auto result = waitpid(pid, &status, WNOHANG);
-		const auto error = (result < 0) ? errno : 0;
-		if (result == pid) {
-			return Completion{
-				.detail = DescribeStatus(status),
-				.reaped = true,
-			};
-		} else if (error == ECHILD) {
-			return Completion{
-				.detail = u"reaped elsewhere"_q,
-				.reaped = true,
-			};
-		} else if (error && error != EINTR) {
-			return Completion{ .detail = SystemError("waitpid", error) };
-		} else if (crl::now() >= deadline) {
-			return std::nullopt;
-		} else if (!error) {
-			std::this_thread::sleep_for(std::chrono::milliseconds(kPollDelay));
-		}
-	}
-}
-
-template <typename WaitExit, typename SendKill>
-[[nodiscard]] Completion CompleteWith(
-		crl::time exitWait,
-		crl::time killWait,
-		WaitExit &&waitExit,
-		SendKill &&sendKill) {
-	const auto started = crl::now();
-	if (auto exited = waitExit(exitWait)) {
-		return std::move(*exited);
-	}
-	const auto signaled = crl::now() - started;
-	const auto killError = sendKill();
-	auto result = waitExit(killWait);
-	if (!result) {
-		result = Completion{
-			.detail = u"not reaped after %1 ms"_q.arg(crl::now() - started),
-		};
-	}
-	result->detail += u", "_q + (killError.isEmpty()
-		? u"sent SIGKILL after %1 ms"_q.arg(signaled)
-		: killError);
-	return std::move(*result);
-}
-
-[[nodiscard]] Completion Complete(
-		pid_t pid,
-		crl::time exitWait,
-		crl::time killWait) {
-	Expects(pid > 0);
-
-	return CompleteWith(exitWait, killWait, [&](crl::time timeout) {
-		return WaitFor(pid, timeout);
-	}, [&] {
-		return (kill(pid, SIGKILL) == 0)
-			? QString()
-			: SystemError("kill", errno);
-	});
 }
 
 [[nodiscard]] std::string HelperPath() {
@@ -706,7 +630,10 @@ void ServePortal(std::promise<PortalLookup> found) {
 		.complete = [owned = std::move(owned), relay = std::move(plan.relay)](
 				crl::time exitWait,
 				crl::time killWait) mutable {
-			auto completion = Complete(base::take(*owned), exitWait, killWait);
+			auto completion = CompleteChild(
+				base::take(*owned),
+				exitWait,
+				killWait);
 			relay = nullptr;
 			return completion;
 		},

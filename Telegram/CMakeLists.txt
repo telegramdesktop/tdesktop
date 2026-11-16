@@ -1906,6 +1906,8 @@ PRIVATE
     platform/mac/touchbar/mac_touchbar_media_view.mm
     platform/posix/widget_channel_posix.cpp
     platform/posix/widget_channel_posix.h
+    platform/posix/widget_reaping_posix.cpp
+    platform/posix/widget_reaping_posix.h
     platform/posix/widget_stderr_posix.cpp
     platform/posix/widget_stderr_posix.h
     platform/win/file_utilities_win.cpp
