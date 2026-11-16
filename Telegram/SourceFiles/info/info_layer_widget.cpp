@@ -359,7 +359,6 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 
 	const auto clip = e->rect();
 	const auto radius = 32;
-	const auto &corners = Ui::CachedCornerPixmaps(Ui::BoxCorners);
 	// Mokagram: нижние углы слоя скруглены радиусом 20.
 	{
 		const auto bradius = 20;
