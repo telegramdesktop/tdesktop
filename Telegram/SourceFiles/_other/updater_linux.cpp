@@ -29,11 +29,11 @@ using std::deque;
 using std::vector;
 using std::cout;
 
-bool do_mkdir(const char *path) { // from http://stackoverflow.com/questions/675039/how-can-i-create-directory-tree-in-c-linux
+bool do_mkdir(const char *path, mode_t mode = S_IRWXU) { // from http://stackoverflow.com/questions/675039/how-can-i-create-directory-tree-in-c-linux
 	struct stat statbuf;
 	if (stat(path, &statbuf) != 0) {
 		/* Directory does not exist. EEXIST for race condition */
-		if (mkdir(path, S_IRWXU) != 0 && errno != EEXIST) return false;
+		if (mkdir(path, mode) != 0 && errno != EEXIST) return false;
 	} else if (!S_ISDIR(statbuf.st_mode)) {
 		errno = ENOTDIR;
 		return false;
@@ -50,6 +50,9 @@ string workDir;
 string exeName;
 string exePath;
 string argv0;
+
+// Every user of a root-owned install must be able to enter the folders an update adds.
+constexpr auto kInstallDirMode = S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH;
 
 FILE *_logFile = 0;
 void openLog() {
@@ -195,7 +198,7 @@ bool remove_directory(const string &path) { // from http://stackoverflow.com/que
 	return !rmdir(path.c_str());
 }
 
-bool mkpath(const char *path) {
+bool mkpath(const char *path, mode_t mode) {
 	int status = 0, pathsize = strlen(path) + 1;
 	char *copypath = new char[pathsize];
 	memcpy(copypath, path, pathsize);
@@ -205,7 +208,7 @@ bool mkpath(const char *path) {
 		if (sp != pp) {
 			/* Neither root nor double slash in path */
 			*sp = '\0';
-			if (!do_mkdir(copypath)) {
+			if (!do_mkdir(copypath, mode)) {
 				delete[] copypath;
 				return false;
 			}
@@ -214,7 +217,7 @@ bool mkpath(const char *path) {
 		pp = sp + 1;
 	}
 	delete[] copypath;
-	return do_mkdir(path);
+	return do_mkdir(path, mode);
 }
 
 bool equal(string a, string b) {
@@ -315,7 +318,7 @@ bool update() {
 	for (size_t i = 0; i < forcedirs.size(); ++i) {
 		string forcedir = forcedirs[i];
 		writeLog("Forcing dir '%s'..", forcedir.c_str());
-		if (!forcedir.empty() && !mkpath(forcedir.c_str())) {
+		if (!forcedir.empty() && !mkpath(forcedir.c_str(), kInstallDirMode)) {
 			writeLog("Error: failed to create dir '%s'..", forcedir.c_str());
 			delFolder();
 			return false;
