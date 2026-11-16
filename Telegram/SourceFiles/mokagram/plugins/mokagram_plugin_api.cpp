@@ -2098,11 +2098,11 @@ std::string InvokeRaw(const QJsonObject &args) {
 
 std::atomic<int> FilterCount = 0;
 std::set<std::string> FilterPlugins;
-std::map<FullMsgId, bool> FilterCache;
+std::map<FullMsgId, std::pair<QString, bool>> FilterCache;
 
 std::atomic<int> TextHookCount = 0;
 std::set<std::string> TextHookPlugins;
-std::map<FullMsgId, std::pair<TimeId, TextWithEntities>> TextTransformCache;
+std::map<FullMsgId, std::pair<TextWithEntities, TextWithEntities>> TextTransformCache;
 
 std::atomic<int> BadgeHookCount = 0;
 std::set<std::string> BadgeHookPlugins;
@@ -3159,9 +3159,9 @@ void TransformMessageText(
 		return;
 	}
 	const auto id = item->fullId();
-	const auto edited = TimeId(qHash(item->originalText().text) & 0x7fffffff);
+	const auto original = text;
 	const auto i = TextTransformCache.find(id);
-	if (i != TextTransformCache.end() && i->second.first == edited) {
+	if (i != TextTransformCache.end() && i->second.first == original) {
 		text = i->second.second;
 		return;
 	}
@@ -3176,7 +3176,7 @@ void TransformMessageText(
 	message.insert("date", double(item->date()));
 	const auto answer = CallTextHook(Json(message), PluginLog);
 	if (answer.size() < 1) {
-		TextTransformCache[id] = { edited, text };
+		TextTransformCache[id] = { original, text };
 		return;
 	}
 	if (answer[0] == 'T') {
@@ -3194,7 +3194,7 @@ void TransformMessageText(
 			EntitiesFromJson(object.value("entities").toArray(), changed.size(), true),
 		};
 	}
-	TextTransformCache[id] = { edited, text };
+	TextTransformCache[id] = { original, text };
 }
 
 QString MessageBadge(not_null<const HistoryItem*> item) {
@@ -3222,15 +3222,16 @@ bool HiddenByPlugin(not_null<const HistoryItem*> item) {
 		return false;
 	}
 	const auto id = item->fullId();
+	const auto &text = item->originalText().text;
 	const auto i = FilterCache.find(id);
-	if (i != FilterCache.end()) {
-		return i->second;
+	if (i != FilterCache.end() && i->second.first == text) {
+		return i->second.second;
 	}
 	if (FilterCache.size() > 5000) {
 		FilterCache.clear();
 	}
 	const auto result = CallMessageFilter(Json(ItemBrief(item)), PluginLog);
-	FilterCache[id] = result;
+	FilterCache[id] = { text, result };
 	return result;
 }
 
