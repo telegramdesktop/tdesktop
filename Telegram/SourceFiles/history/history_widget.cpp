@@ -10806,9 +10806,11 @@ void HistoryWidget::editMessage(
 	}
 
 	const auto editData = PrepareEditText(item);
+	const auto length = uint16(editData.text.size());
+	const auto position = EditFieldSelection(editData, { length, length }).from;
 	const auto cursor = MessageCursor {
-		int(editData.text.size()),
-		int(editData.text.size()),
+		position,
+		position,
 		Ui::kQFixedMax
 	};
 	const auto previewDraft = Data::WebPageDraft::FromItem(item);
@@ -10830,7 +10832,7 @@ void HistoryWidget::editMessage(
 	updateReplyToName();
 	updateControlsGeometry();
 	updateField();
-	SelectTextInFieldWithMargins(_field, selection);
+	SelectTextInFieldWithMargins(_field, EditFieldSelection(editData, selection));
 
 	saveDraftWithTextNow();
 	setInnerFocus();

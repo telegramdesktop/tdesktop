@@ -224,6 +224,10 @@ void SelectTextInFieldWithMargins(
 	not_null<Ui::InputField*> field,
 	const TextSelection &selection);
 
+[[nodiscard]] TextSelection EditFieldSelection(
+	const TextWithTags &text,
+	TextSelection selection);
+
 [[nodiscard]] TextWithEntities PaidSendButtonText(tr::now_t, int stars);
 [[nodiscard]] rpl::producer<TextWithEntities> PaidSendButtonText(
 	rpl::producer<int> stars,

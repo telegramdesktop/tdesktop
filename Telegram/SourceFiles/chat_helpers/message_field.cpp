@@ -1499,6 +1499,57 @@ std::unique_ptr<Ui::AbstractButton> FrozenWriteRestriction(
 	return result;
 }
 
+TextSelection EditFieldSelection(
+		const TextWithTags &text,
+		TextSelection selection) {
+	const auto data = text.text.constData();
+	const auto size = int(text.text.size());
+	const auto isCustomEmoji = [](const QString &id) {
+		for (const auto &tag : TextUtilities::SplitTags(id)) {
+			if (tag.startsWith(Ui::InputField::kCustomEmojiTagStart)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	const auto fieldOffset = [&](int requested, bool isEnd) {
+		const auto offset = std::min(requested, size);
+		auto result = 0;
+		auto p = 0;
+		while (p < offset) {
+			auto length = 1;
+			auto collapsed = false;
+			for (const auto &tag : text.tags) {
+				if (tag.offset == p && isCustomEmoji(tag.id)) {
+					length = tag.length;
+					collapsed = true;
+					break;
+				}
+			}
+			if (!collapsed) {
+				auto emojiLength = 0;
+				if (Ui::Emoji::Find(data + p, data + size, &emojiLength)) {
+					length = emojiLength;
+					collapsed = true;
+				}
+			}
+			if (p + length > offset) {
+				return result
+					+ (collapsed
+						? (isEnd ? 1 : 0)
+						: (offset - p));
+			}
+			result += collapsed ? 1 : length;
+			p += length;
+		}
+		return result + (offset - p);
+	};
+	return TextSelection{
+		uint16(fieldOffset(selection.from, false)),
+		uint16(fieldOffset(selection.to, true)),
+	};
+}
+
 void SelectTextInFieldWithMargins(
 		not_null<Ui::InputField*> field,
 		const TextSelection &selection) {
