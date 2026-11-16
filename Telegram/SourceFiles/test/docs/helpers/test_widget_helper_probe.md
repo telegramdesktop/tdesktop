@@ -238,17 +238,22 @@ Store service**). The probe is the same hook; what differs:
   counts them as `launchd <n>` after `bootstrap <n>`. The listing (32
   entries on macOS 27.0.1 before the cut) also holds one send right that
   no reference matches, `UNACCOUNTED`, and one send-once right whose
-  kernel-object query fails (`IDENTITY QUERY FAILED`, `kr=17`); neither
-  has been attributed. A Store inventory is therefore never clean:
+  kernel-object query fails (`IDENTITY QUERY FAILED`, `kr=17`); the
+  probe attributes neither. A Store inventory is therefore never clean:
   `inventory: NOT clean (... 1 enumeration/identity failures, 1
   unaccounted)`, and the failed query ends the summary with `this listing
-  is INCOMPLETE`. A scratch XPC service that mirrors this one matched the
-  unattributed send right's object with the client's own receive right:
-  it is the peer connection's port, which is immovable, and a request
-  that carried it as a descriptor killed that service with
-  `OS_REASON_GUARD` (`kGUARD_EXC_IMMOVABLE`) and no crash report. Never put
-  that right, or any right the listing does not attribute, into a message:
-  a lookup "through" it does exactly that.
+  is INCOMPLETE`. Telegram's own receive rights, read while the service
+  lived, hold both objects ([Verification](#verification)): the send
+  right is the peer connection's port, the send-once the reply port of
+  Telegram's keep request, which
+  `xpc_connection_send_message_with_reply()` creates. The kernel reuses a
+  freed port, so such objects compare only while both processes still
+  hold their rights. The peer connection's port is immovable: in a
+  scratch XPC service that mirrors this one, a request that carried it
+  as a descriptor killed that service with `OS_REASON_GUARD`
+  (`kGUARD_EXC_IMMOVABLE`) and no crash report. Never put that right, or
+  any right the listing does not attribute, into a message: a lookup
+  "through" it does exactly that.
 - **More attempts.** Right after the listing four `launchd` attempts read
   the routes to a launchd right again, releasing what they get: `launchd
   special-port` (`none` or `HELD`), `launchd registered` (`none` or the
@@ -1402,7 +1407,9 @@ ended `ended`, reaped, and the listener received only the client's two
 controls. The first run (Run 13) listed libsandbox's logd socket as `fd 5
 ... DEFECT`; after the repair (Run 31) the locked service held only
 descriptors 0 to 4, `defects 0`, every reading of the expected list above
-held, and a script compared both runs row by row: the same code for each of
+up to its "After the cut" part held (the `cmio`, `locationd` and
+`locationd.desktop` lookups then read `kr1100`; that run predates the
+cut), and a script compared both runs row by row: the same code for each of
 the 67 other attempts and each of the 2138 service rows in both modes, and
 the two modes agreed on every service row (`services: 2138 listed, 259
 allowed, 218 allowed and registered`). `TDESKTOP_WIDGET_ENGINES=probe`
@@ -1416,6 +1423,95 @@ one macOS, arm64 only; a stand-in leaf without a Team ID (the copy needed
 Apple's re-signing; no Screen Recording grant; the two unattributed Mach
 entries were not traced; and the allowed and registered counts depend on
 the host's registered services.
+
+The cut that now ends the Store lockdown
+([Remote engines](test_widget_fixture.md#remote-engines), **Lockdown**)
+was probed on macOS 27.0.1 arm64 in a Debug Store build, in the evidence
+campaign of
+`2026/11/16/cut-new-mach-lookups-from-the-mac-app-store-widget-service-after-its-lockdown`;
+its `work/test.md` (Part A Run 1, Part B Runs 11 and 12) is the record,
+and its `work/test-overlay.patch` keeps the disposable driver and a Debug
+client hunk that logs the objects of Telegram's own Mach rights. A copy
+remade from that build as above ran the same probe leg, `probe` and then
+`probe-unsandboxed` after launchd's deferral (10042 ms), with the 2138
+names (Run 11); its rerun for the attribution (Run 12) read the same
+`services:` rows and `launchd` attempts.
+
+- Launchd: both modes read `launchd before the lockdown: bootstrap 0x807
+  object=0x81ee79a1 special=same; registered 1 of 3 slots (objects
+  0x4cab68f9); parent kr=0 (Success) object=0x64e5a2a2`. With `probe` the
+  only lockdown change was `-0x807 S urefs=4 object=0x81ee79a1`, the
+  listing read `bootstrap=0x0`, the summary `bootstrap 0, launchd 0`, and
+  the attempts `launchd special-port: none`, `launchd registered: none`
+  (0 of 3 slots valid), `launchd parent: kr32` and `launchd in-space: 0`;
+  `probe-unsandboxed` read `bootstrap=0x807`, `bootstrap 1, launchd 1`,
+  `HELD`, `1`, `ok` and `1`.
+- Names: `probe` read `services: 2138 listed, 259 allowed; reachable
+  through the special port 0, libxpc 0`, every row `kr32` and `xpc32`
+  (1879 `denied`, 259 `allowed`); `probe-unsandboxed` read `... special
+  port 218, libxpc 218`: 218 `allowed/ok/xpc-ok`, 1879
+  `denied/kr1100/xpc159`, 37 `allowed/kr1102/xpc3` and 4
+  `allowed/kr1102/xpc145`, its two paths agreeing on every name. The
+  policy column was equal in both modes, and 218 equals Run 31's allowed
+  and registered count above. launchd logged the locked service's 9 denied
+  lookups before its lockdown and none after it, against 3770 denied and
+  94 failed lookups of the control; the locked service logged 2147
+  `failed to do a bootstrap look-up: xpc_error=[32: Broken pipe]` lines
+  after its lockdown (the probe's 2138 and 9 from frameworks), the
+  control none.
+- WindowServer and the other readings that moved with the cut: `probe`
+  read `windowserver connection: none CGSMainConnectionID() = 0`, every
+  `lookup` attempt `kr32` (`(os/kern) exception protected`), the
+  per-name rows of the window server, tccd, tccd.system, the pasteboard,
+  SecurityServer, securityd.xpc and audiohald `allowed/kr32/xpc32`,
+  `microphone devices: ok/0/0` and the keychain item `status-50`
+  (`status100024` before the cut); `probe-unsandboxed` read `CONNECTED`,
+  the `lookup` rows of tccd, tccd.system, SecurityServer, securityd.xpc,
+  audiohald and the window server `ok`, those seven names
+  `allowed/ok/xpc-ok` and `microphone devices: ok/2/1`. The locked
+  service's log showed its TCC request ending
+  `XPC_ERROR_CONNECTION_INVALID` towards `com.apple.tccd.system` and
+  SkyLight's `This user is not allowed access to the window system right
+  now.`; `screen-capture preflight` read `not-granted`, with no grant.
+- Inventory: `lockdown: ok`, `fds 5` (0 to 3 and the `connect-control`
+  fixture's 4), `mach 31` with `defects 0`, one `UNACCOUNTED` send right
+  and one `IDENTITY QUERY FAILED` send-once, as in Run 31 above but for
+  the bootstrap right (`mach 32` there). The locked probe ended 98 ms
+  after its launch; launchd logged no exit reason, signal or
+  `OS_REASON_GUARD` for either service, and no crash report appeared.
+- Attribution: Run 11's client hunk listed the objects of Telegram's
+  receive and send rights after the channel reply (`after-channel`) and
+  100 ms after the keep request (`after-keep`). For `probe` the second
+  reading came 32 ms after the service had ended and held one of that
+  service's own receive objects as a new Telegram right: the kernel
+  reuses a freed port, so objects compare only while both holders live.
+  Run 12 added readings right after
+  `xpc_connection_send_message_with_reply()` of the keep request returned
+  (`after-keep-send`) and 10 ms later (`after-keep-10ms`), and read only
+  those taken before the service ended. In both modes each of them held
+  the `UNACCOUNTED` object as a Telegram receive right, the peer
+  connection's port; `after-keep-send` and `after-keep-10ms`, but not
+  `after-channel`, held the send-once's object as one too: the reply port
+  of the keep request, which that call creates (for `probe` Telegram's
+  receive count grew by one between `after-channel` and
+  `after-keep-send`, in the same millisecond). logd's and the
+  notification center's objects were among Telegram's send rights in
+  every reading, and none of a service's 15 own receive objects among
+  Telegram's receive rights while it lived.
+- Build (Part A Run 1): the Debug service imported exactly the probe's
+  three private names and the Release service none, and the probe's unit
+  compiled at a 10.13 target, arm64 and x86_64, with
+  `-Werror=unguarded-availability-new` and no availability diagnostic.
+  The serve, lifecycle and widget-pack reruns on the locked service are
+  in [Remote engines verification](test_widget_fixture.md#verification).
+
+Limits: one macOS, arm64 only, so the cut on macOS 12 to 26 is
+unmeasured; the stand-in signature, never Apple's; no Screen Recording
+grant, so the capture claim rests on the WindowServer and tccd readings;
+the attribution comes from a disposable client hunk, not from the probe,
+and holds only for readings taken while the service lives; and what the
+service can do through the rights it already holds, IOKit and system
+calls was not measured.
 
 On Windows the harness lines of [Windows](#windows) first ran in the
 same-binary helper, the client's own `Telegram.exe -widgethelper

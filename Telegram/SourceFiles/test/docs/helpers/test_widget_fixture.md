@@ -2030,7 +2030,22 @@ the Release service with libSystem and libc++ only and no private name,
 and merged the two slices into a universal service with both pins;
 `build_mac.py`'s and `build.sh`'s Store lines (the latter with a stand-in)
 signed the service as above and passed `codesign --verify --deep
---strict`. Not run: macOS before 27.0.1, so the service on macOS 12-26
+--strict`. Once the lockdown cut every new Mach lookup, the evidence
+campaign of
+`2026/11/16/cut-new-mach-lookups-from-the-mac-app-store-widget-service-after-its-lockdown`
+(its `work/test.md`, Runs 13-16) reran the serve leg, the kill leg and
+the attack and conformance comparison on a copy made the same way: card
+A served for 30 s with its engine remote from a service with one
+`sandbox initialization failed` line, no `Widget helper:` refusal,
+descriptors 0 to 3 and priority 31; a kill 12.8 s in was followed by a
+fresh service in 28 ms, a second kill by `Crashes in a row: 2 of 2.`
+without a latch, the idle stop 30.15 s after the last release and
+Telegram's exit within 0.13 s of the quit; and against `in-process` 132
+of the 133 attack files gave identical rows (the replay file's box count
+again 300 in the service and 100 in process), the 133 conformance runs 0
+semantic, verdict and judgement differences, with 0 leaks and every
+default launch in one service that never refused.
+Not run: macOS before 27.0.1, so the service on macOS 12-26
 and the below-12 stop; Apple's Mac App Store re-signing and review, under
 which the leaf is Apple's, shared by every Mac App Store app, so the
 signer clause binds the identifier and that leaf rather than Telegram's
