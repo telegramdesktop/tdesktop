@@ -12,11 +12,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/widget_descriptors_linux.h"
 #include "platform/linux/widget_lockdown_linux.h"
 #include "platform/posix/widget_channel_posix.h"
+#include "platform/posix/widget_stderr_posix.h"
 #include "settings.h"
+#ifdef TDESKTOP_WIDGET_HELPER_PINNED
+#include "widget_helper_identity.h"
+#endif // TDESKTOP_WIDGET_HELPER_PINNED
+
+#include <QtCore/QCryptographicHash>
 
 #include <crl/crl_object_on_thread.h>
 #include <flatpakportal/flatpakportal.hpp>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/wait.h>
 
@@ -42,6 +49,7 @@ namespace {
 using namespace gi::repository;
 
 constexpr auto kSpareDescriptorMin = 10;
+constexpr auto kExecutedDescriptor = kChannelDescriptor + 1;
 constexpr auto kPollDelay = crl::time(10);
 constexpr auto kDenyGroups = std::string_view("deny");
 constexpr auto kChildStackSize = size_t(64 * 1024);
@@ -59,6 +67,14 @@ constexpr auto kPortalNoNetwork = uint32(8);
 constexpr auto kPortalWatchBus = uint32(16);
 constexpr auto kMaxPortalExits = size_t(64);
 
+#ifdef TDESKTOP_WIDGET_HELPER_PINNED
+static_assert(std::size(details::kBuiltDigests) == 1);
+constexpr auto kPinnedDigest = std::string_view(
+	details::kBuiltDigests[0].digest);
+#else // TDESKTOP_WIDGET_HELPER_PINNED
+constexpr auto kPinnedDigest = std::string_view();
+#endif // TDESKTOP_WIDGET_HELPER_PINNED
+
 using KernelSignalSet = uint64_t;
 
 constexpr auto kSignalSetSize = sizeof(KernelSignalSet);
@@ -67,10 +83,11 @@ enum class ChildStep {
 	None,
 	SignalAction,
 	Duplicate,
-	DescriptorFlags,
+	DuplicateExecutable,
 	WorkingDirectory,
 	SignalMask,
 	Execute,
+	ExecuteDescriptor,
 };
 
 struct ChildSlot {
@@ -92,7 +109,10 @@ struct SpawnPlan {
 	std::string gidMap;
 	int devnullRead = -1;
 	int devnullWrite = -1;
+	int errorOutput = -1;
 	int spare = -1;
+	int executable = -1;
+	std::unique_ptr<StderrRelay> relay;
 };
 
 struct ChildArguments {
@@ -129,7 +149,14 @@ struct PortalLookup {
 };
 
 SpawnPlan::~SpawnPlan() {
-	for (const auto descriptor : { devnullRead, devnullWrite, spare }) {
+	const auto descriptors = std::array{
+		devnullRead,
+		devnullWrite,
+		errorOutput,
+		spare,
+		executable,
+	};
+	for (const auto descriptor : descriptors) {
 		if (descriptor >= 0) {
 			close(descriptor);
 		}
@@ -232,8 +259,11 @@ template <typename WaitExit, typename SendKill>
 	return "0 " + std::to_string(id) + " 1\n";
 }
 
-[[nodiscard]] QString OpenNull(int &descriptor, int flags) {
-	const auto opened = open("/dev/null", flags | O_CLOEXEC);
+[[nodiscard]] QString OpenAbove(
+		const char *path,
+		int flags,
+		int &descriptor) {
+	const auto opened = open(path, flags | O_CLOEXEC);
 	if (opened < 0) {
 		return SystemError("open", errno);
 	}
@@ -243,6 +273,47 @@ template <typename WaitExit, typename SendKill>
 	return (descriptor < 0) ? SystemError("fcntl", error) : QString();
 }
 
+[[nodiscard]] QString CheckHelper(SpawnPlan &plan) {
+	if (kPinnedDigest.empty()) {
+		LOG(("Tgw: The widget helper is not pinned "
+			"in a package-managed build."));
+		return QString();
+	}
+	auto error = OpenAbove(
+		plan.exe.c_str(),
+		O_RDONLY | O_NOCTTY | O_NONBLOCK,
+		plan.executable);
+	if (!error.isEmpty()) {
+		return error;
+	}
+	struct stat info = {};
+	if (fstat(plan.executable, &info) != 0) {
+		return SystemError("fstat", errno);
+	} else if (!S_ISREG(info.st_mode)) {
+		return u"the widget helper is not a regular file"_q;
+	}
+	auto file = QFile();
+	auto hash = QCryptographicHash(QCryptographicHash::Sha256);
+	if (!file.open(
+			plan.executable,
+			QIODevice::ReadOnly,
+			QFileDevice::DontCloseHandle)
+		|| !hash.addData(&file)) {
+		return u"the widget helper could not be read"_q;
+	}
+	const auto digest = QString::fromLatin1(hash.result().toHex());
+	const auto pinned = QString::fromLatin1(
+		kPinnedDigest.data(),
+		kPinnedDigest.size());
+	if (digest != pinned) {
+		return u"the widget helper failed the build identity check: "
+			"SHA-256 %1, expected %2"_q.arg(digest, pinned);
+	}
+	LOG(("Tgw: The widget helper passed the build identity check "
+		"(SHA-256 %1).").arg(digest));
+	return QString();
+}
+
 [[nodiscard]] QString PrepareSpawn(
 		SpawnPlan &plan,
 		int child,
@@ -250,6 +321,10 @@ template <typename WaitExit, typename SendKill>
 	plan.exe = HelperPath();
 	if (plan.exe.empty()) {
 		return u"the executable path is unknown"_q;
+	}
+	auto checked = CheckHelper(plan);
+	if (!checked.isEmpty()) {
+		return checked;
 	}
 	plan.token = std::to_string(kChannelDescriptor);
 	plan.tail.reserve(arguments.size());
@@ -263,25 +338,35 @@ template <typename WaitExit, typename SendKill>
 	plan.argv.push_back(nullptr);
 	plan.uidMap = IdentityMap(geteuid());
 	plan.gidMap = IdentityMap(getegid());
-	auto error = OpenNull(plan.devnullRead, O_RDONLY);
+	auto error = OpenAbove("/dev/null", O_RDONLY, plan.devnullRead);
 	if (error.isEmpty()) {
-		error = OpenNull(plan.devnullWrite, O_WRONLY);
+		error = OpenAbove("/dev/null", O_WRONLY, plan.devnullWrite);
 	}
 	if (!error.isEmpty()) {
 		return error;
 	}
 	plan.spare = fcntl(child, F_DUPFD_CLOEXEC, kSpareDescriptorMin);
-	return (plan.spare < 0) ? SystemError("fcntl", errno) : QString();
+	if (plan.spare < 0) {
+		return SystemError("fcntl", errno);
+	}
+	auto output = PrepareHelperStderr(kSpareDescriptorMin);
+	if (!output.error.empty()) {
+		return QString::fromStdString(output.error);
+	}
+	plan.errorOutput = output.descriptor;
+	plan.relay = std::move(output.relay);
+	return QString();
 }
 
 [[nodiscard]] const char *CallName(ChildStep step) {
 	switch (step) {
 	case ChildStep::SignalAction: return "rt_sigaction";
 	case ChildStep::Duplicate: return "dup2";
-	case ChildStep::DescriptorFlags: return "fcntl";
+	case ChildStep::DuplicateExecutable: return "dup3";
 	case ChildStep::WorkingDirectory: return "chdir";
 	case ChildStep::SignalMask: return "rt_sigprocmask";
 	case ChildStep::Execute: return "execve";
+	case ChildStep::ExecuteDescriptor: return "fexecve";
 	case ChildStep::None: break;
 	}
 	Unexpected("Step in CallName.");
@@ -329,16 +414,20 @@ int SpawnChild(void *raw) {
 		WriteMapping("/proc/self/gid_map", plan.gidMap);
 	}
 	if (dup2(plan.devnullRead, STDIN_FILENO) < 0
-		|| dup2(plan.devnullWrite, STDOUT_FILENO) < 0) {
+		|| dup2(plan.devnullWrite, STDOUT_FILENO) < 0
+		|| dup2(plan.errorOutput, STDERR_FILENO) < 0
+		|| dup2(plan.spare, kChannelDescriptor) < 0) {
 		FailChild(slot, ChildStep::Duplicate);
 	}
-	if (fcntl(STDERR_FILENO, F_SETFD, 0) != 0) {
-		FailChild(slot, ChildStep::DescriptorFlags);
+	const auto executed = (plan.executable >= 0);
+	// Close-on-exec, so the checked file never reaches the helper.
+	if (executed
+		&& dup3(plan.executable, kExecutedDescriptor, O_CLOEXEC) < 0) {
+		FailChild(slot, ChildStep::DuplicateExecutable);
 	}
-	if (dup2(plan.spare, kChannelDescriptor) < 0) {
-		FailChild(slot, ChildStep::Duplicate);
-	}
-	CloseDescriptorsFrom(kChannelDescriptor + 1);
+	CloseDescriptorsFrom(executed
+		? (kExecutedDescriptor + 1)
+		: (kChannelDescriptor + 1));
 	if (chdir("/") != 0) {
 		FailChild(slot, ChildStep::WorkingDirectory);
 	}
@@ -350,6 +439,10 @@ int SpawnChild(void *raw) {
 			nullptr,
 			kSignalSetSize) != 0) {
 		FailChild(slot, ChildStep::SignalMask);
+	}
+	if (executed) {
+		fexecve(kExecutedDescriptor, plan.argv.data(), environ);
+		FailChild(slot, ChildStep::ExecuteDescriptor);
 	}
 	execve(plan.exe.c_str(), plan.argv.data(), environ);
 	FailChild(slot, ChildStep::Execute);
@@ -544,17 +637,10 @@ void ServePortal(std::promise<PortalLookup> found) {
 	if (!prepared.isEmpty()) {
 		return { .error = std::move(prepared) };
 	}
-	const auto errorOutput = fcntl(
-		STDERR_FILENO,
-		F_DUPFD_CLOEXEC,
-		kSpareDescriptorMin);
-	if (errorOutput < 0) {
-		return { .error = SystemError("fcntl", errno) };
-	}
 	auto descriptors = std::array{
 		std::exchange(plan.devnullRead, -1),
 		std::exchange(plan.devnullWrite, -1),
-		errorOutput,
+		std::exchange(plan.errorOutput, -1),
 		std::exchange(plan.spare, -1),
 	};
 	auto list = Gio::UnixFDList::new_from_array(
@@ -590,8 +676,16 @@ void ServePortal(std::promise<PortalLookup> found) {
 	const auto portal = not_null(lookup.portal);
 	return {
 		.stream = std::move(channel.parent),
-		.complete = [=](crl::time exitWait, crl::time killWait) {
-			return CompleteThroughPortal(portal, pid, exitWait, killWait);
+		.complete = [portal, pid, relay = std::move(plan.relay)](
+				crl::time exitWait,
+				crl::time killWait) mutable {
+			auto completion = CompleteThroughPortal(
+				portal,
+				pid,
+				exitWait,
+				killWait);
+			relay = nullptr;
+			return completion;
 		},
 		.pid = pid,
 	};
@@ -609,10 +703,12 @@ void ServePortal(std::promise<PortalLookup> found) {
 	const auto pid = owned.get();
 	auto result = Launched{
 		.stream = std::move(channel.parent),
-		.complete = [owned = std::move(owned)](
+		.complete = [owned = std::move(owned), relay = std::move(plan.relay)](
 				crl::time exitWait,
-				crl::time killWait) {
-			return Complete(base::take(*owned), exitWait, killWait);
+				crl::time killWait) mutable {
+			auto completion = Complete(base::take(*owned), exitWait, killWait);
+			relay = nullptr;
+			return completion;
 		},
 	};
 	auto cloned = Cloned();
@@ -649,6 +745,11 @@ Launched Launch(const QStringList &arguments) {
 		return { .error = UnsupportedReason() };
 	} else if (fcntl(STDERR_FILENO, F_GETFD) < 0) {
 		return { .error = u"stderr is not open"_q };
+	} else if (KSandbox::isFlatpak() && !kPinnedDigest.empty()) {
+		return {
+			.error = u"the widget helper's build identity cannot be checked "
+				"through the Flatpak portal"_q,
+		};
 	}
 	auto channel = CreatePosixChannel();
 	if (!channel.error.empty()) {

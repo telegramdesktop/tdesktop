@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 '''
 
 import argparse
+import hashlib
 import pathlib
 import plistlib
 import re
@@ -22,6 +23,7 @@ PE_ARCHITECTURES = {
 }
 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 SHA256_SIZE = 32
+ELF_MACHINES = {62: 'x86_64', 183: 'aarch64'}
 
 
 def codesign(arguments):
@@ -255,6 +257,17 @@ def authenticode(helper):
     return [(arch, bytes(digest).hex())]
 
 
+def sha256_digests(helper):
+    data = helper.read_bytes()
+    if len(data) < 20 or not data.startswith(b'\x7fELF'):
+        raise RuntimeError('the helper is not an ELF executable')
+    order = 'little' if data[5] == 1 else 'big'
+    machine = int.from_bytes(data[18:20], order)
+    return [(
+        ELF_MACHINES.get(machine, 'elf-' + str(machine)),
+        hashlib.sha256(data).hexdigest())]
+
+
 def header(digests, identifier):
     lines = [
         '// This file was generated from the widget helper target,',
@@ -298,7 +311,7 @@ def main():
         description='Record the identity of the built widget helper.')
     parser.add_argument(
         '--kind',
-        choices=['cdhash', 'authenticode'],
+        choices=['cdhash', 'authenticode', 'sha256'],
         required=True)
     parser.add_argument('--helper', type=pathlib.Path, required=True)
     parser.add_argument('--output', type=pathlib.Path, required=True)
@@ -308,6 +321,8 @@ def main():
         if args.identifier is not None:
             parser.error('--identifier does not apply to --kind authenticode')
         digests = authenticode(args.helper)
+    elif args.kind == 'sha256':
+        digests = sha256_digests(args.helper)
     else:
         digests = cdhashes(args.helper, args.identifier)
     write(args.output, header(digests, args.identifier))
