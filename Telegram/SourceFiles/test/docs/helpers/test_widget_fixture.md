@@ -14,10 +14,10 @@ runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where the engines of its widgets run: by default in a sandboxed
 widget helper, packaged builds included, which on macOS outside the store
-build and on Linux x86_64 and aarch64 is the separate Qt-free
-`TelegramWidgetHelper`, and on Windows 10 1809 or later, outside the Store
-build, a restricted helper that is the client's own executable. Where no
-such helper exists no widget engine runs: every widget stops with `no
+build, on Linux x86_64 and aarch64 and on Windows 10 1809 or later outside
+the Store build is the separate Qt-free `TelegramWidgetHelper`, on Windows
+a restricted `modules\<arch>\TelegramWidgetHelper.exe`. Where no such
+helper exists no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>`.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
@@ -278,13 +278,12 @@ On macOS outside the store build, on Linux x86_64 and aarch64 and on
 Windows 10 1809 or later outside the Store build, packaged builds included
 on all three, every widget engine of the client runs in one shared widget
 helper process that has locked itself down, instead of the client's own
-threads, in Debug and Release builds alike and with no switch. On macOS and
-Linux that helper is the separate Qt-free executable
-`TelegramWidgetHelper`; on Windows it is a restricted helper that is the
-client's own executable. Everywhere else no widget engine runs: every
-widget stops with `no sandboxed widget helper is available here:
-<reason>` (**Store, packaged and other platforms** below), and only the
-Debug switch `in-process` runs the engines in the client there. The
+threads, in Debug and Release builds alike and with no switch. That helper
+is the separate Qt-free executable `TelegramWidgetHelper`, on Windows the
+restricted `TelegramWidgetHelper.exe`. Everywhere else no widget engine
+runs: every widget stops with `no sandboxed widget helper is available
+here: <reason>` (**Store, packaged and other platforms** below), and only
+the Debug switch `in-process` runs the engines in the client there. The
 packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
@@ -302,8 +301,9 @@ packs, the fixture and the seams they use need no change for it.
   on Windows before 10 1809, `the widget helper is not available on this
   architecture` on other Linux architectures and `the widget helper is
   not available on this platform` on the non-Linux all-other platforms.
-  On Windows it is true exactly when `UnsupportedReason()`, defined in
-  `widget_sandbox_win.cpp`, returns no reason, whatever the architecture.
+  On Windows it is true exactly when `UnsupportedReason()`, defined in the
+  client's `platform/win/widget_helper_win.cpp`, returns no reason,
+  whatever the architecture.
   On Linux it is true on x86_64 and aarch64 in every build, Debug and
   Release, with or without the harness, and has no packaged exclusion:
   distribution builds against packaged libraries, Flatpak and Snap default
@@ -330,26 +330,20 @@ packs, the fixture and the seams they use need no change for it.
   on any platform: the default never chooses in process and always
   installs a channel factory, the helper's or one that refuses every
   engine, with which `twidget::SandboxEngine::make()` builds no in-process
-  engine. macOS and Linux Telegram have no `-widgethelper` entry: their
-  helper is the separate `TelegramWidgetHelper` (**The shared helper**
-  below), whose Release build contains no probe and accepts only its
-  channel token. On Linux `Telegram -widgethelper 3` starts an ordinary
-  Telegram, which takes both arguments as start URLs and answers no
-  channel. On Windows the helper is the client's own executable, whose
-  `-widgethelper` entry a Release build opens only where this default is
-  true (`HelperEntryAllowed()` in `tgw_remote.cpp` returns `Enabled()`
-  there); elsewhere the entry exits with status 1 before it adopts a
-  channel, as in the Windows Store build and on Windows before 10 1809. On
-  Windows 10 1809 or later, outside the Store build, the entry of a Release
-  build therefore
-  adopts its channel, and a helper that runs without the client's
-  confinement refuses in its lowering (`LockDownHelper()`, **The Windows
-  lowering** below) before Ready. Only Win32 (x86 on WOW64) Debug builds
-  on Windows 11 build 26300 (10.0.26300) have run the Windows helper; x64,
-  ARM64, a Release runtime, the Store build and Windows before that build
-  have not, and measuring the x64 build's own creation and verification
-  policies (high-entropy ASLR, CET user shadow stacks, no DEP entry) is
-  the work of `2026/11/14/run-the-restricted-windows-widget-helper-on-x64`.
+  engine. Telegram has no `-widgethelper` entry on any platform; its
+  helper, where it has one, is the separate `TelegramWidgetHelper` (**The
+  shared helper** and **The Windows helper** below), whose Release build
+  contains no probe and accepts only its channel token. On Linux
+  `Telegram -widgethelper 3` starts an ordinary Telegram, which takes both
+  arguments as start URLs and answers no channel, and on Windows
+  `Telegram.exe -widgethelper <handle>` started an ordinary client that
+  answered no valid opening on the inherited pipe
+  ([Verification](#verification)). A Windows helper that runs without the
+  client's confinement refuses in its lowering (`LockDownHelper()`, **The
+  Windows lowering** below) before Ready. The Windows helper has run only
+  in Win32 (x86 on WOW64) and x64 Debug builds on Windows 11 build 26300
+  (10.0.26300); ARM64, a Release runtime, the Store build and Windows
+  before that build have not.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
   - unset or any other value: the platform default, so a Debug build runs
@@ -402,7 +396,10 @@ packs, the fixture and the seams they use need no change for it.
 
   On Linux the first command takes `--exe out/Debug/Telegram`, whose
   helper the same build puts at
-  `out/Debug/TelegramHelpers/TelegramWidgetHelper`. The main log names a
+  `out/Debug/TelegramHelpers/TelegramWidgetHelper`. The Windows command's
+  Win32 build puts its helper at
+  `out/Debug/modules/x86/TelegramWidgetHelper.exe`, and an x64 build into
+  `modules/x64/` next to its own `Telegram.exe`. The main log names a
   recognized value: `Tgw: Widget engines run in the widget helper
   (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
   or `probe-unsandboxed`, or `Tgw: Widget engines run in process
@@ -466,10 +463,13 @@ packs, the fixture and the seams they use need no change for it.
   available in the Store build` or `the widget helper needs Windows 10
   1809 or later`; an explicit `helper` or probe value makes the seam fail
   every launch closed with the same reason, `the widget helper could not
-  start: <reason>`, each a failure towards the failure limit. Neither has
-  been run. The Windows default reads nothing else, so a Windows build
-  with packaged libraries defaults to the helper as well; no such build
-  has been run.
+  start: <reason>`, before it builds the helper's path, each a failure
+  towards the failure limit. The Store build also has no
+  `TelegramWidgetHelper` target: `Telegram/CMakeLists.txt` includes
+  `init_standalone_target.cmake` and `telegram_widget_helper.cmake` on
+  Windows only without `build_winstore`. Neither has been run. The Windows
+  default reads nothing else, so a Windows build with packaged libraries
+  defaults to the helper as well; no such build has been run.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. On
@@ -658,15 +658,33 @@ packs, the fixture and the seams they use need no change for it.
   `app_stderr.txt`. That exit is no helper failure: after a stop by the
   client only whether the helper was reaped counts (**Failure limit**
   below).
-- **The Windows helper.** It is the client's own executable, the path
-  `GetModuleFileNameW(nullptr)` gives, started as `"<path>" -widgethelper
-  <handle>`, where `<handle>` is the decimal value of the pipe handle it
-  inherits, without `-testagent`, with the client's environment and the
-  system directory as its working directory (`C:\WINDOWS\system32` as
-  `GetCurrentDirectoryW` reads it, which an x86 helper on 64-bit Windows
-  holds open through WOW64 as `C:\Windows\SysWOW64`). Only a Debug probe
-  value adds arguments after the handle, the same ones as on macOS: the
-  mode, the client's working directory and its
+- **The Windows helper.** It is `TelegramWidgetHelper.exe`, a separate
+  executable in the `modules\<arch>\` folder next to the client's own,
+  `<arch>` being `x86`, `x64` or `arm64` for the client's architecture
+  (`build_winarm`, `build_win64` or neither in CMake, `_M_ARM64`,
+  `_M_X64` or `_M_IX86` for the client's `kHelperArchitecture`). The
+  client takes the directory of the path `GetModuleFileNameW(nullptr)`
+  gives and appends that folder and file name; it searches nothing and
+  never checks the file before the spawn, and a path it cannot build fails
+  the launch with `GetModuleFileNameW failed: <reason>`, `the executable
+  path is too long` or `the executable path has no directory`. Telegram's
+  build depends on the helper target, which puts the file there. The
+  release scripts do not pack it yet (`setup.iss` and `build.bat` name no
+  helper), so a package they make fails every start with
+  `CreateProcessAsUserW failed: <reason>` until
+  `2026/11/14/ship-the-windows-widget-helper-in-the-installer-portable-archive-and-updates`
+  ships it. With `modules\x86` present and the file missing, x86 read
+  `CreateProcessAsUserW failed: The system cannot find the file
+  specified.` ([Verification](#verification), Run 2b); an ARM64 package
+  ships no `modules` folder at all, and no package has been run. The
+  client starts it as `"<path>" <handle>`, where `<handle>`
+  is the decimal value of the pipe handle it inherits, without
+  `-testagent`, with the client's environment and the system directory as
+  its working directory (`C:\WINDOWS\system32` as `GetCurrentDirectoryW`
+  reads it, which an x86 helper on 64-bit Windows holds open through
+  WOW64 as `C:\Windows\SysWOW64`). Only a Debug probe value adds
+  arguments after the handle, the same ones as on macOS: the mode, the
+  client's working directory and its
   `QStandardPaths::GenericDataLocation`, each quoted for
   `CommandLineToArgvW` when it is empty or holds whitespace or a quote;
   the Windows probe reads the mode and the client's working directory, and
@@ -690,12 +708,47 @@ packs, the fixture and the seams they use need no change for it.
   package, and the creation makes the primary a less privileged one
   (**The Windows lowbox** below). The creation puts the helper in a new job
   (one active process, kill on job close, death on an unhandled exception
-  and the eight UI restrictions) and sets its creation mitigations: DEP on
-  32-bit, bottom-up and forced-relocation ASLR (high entropy on 64-bit),
-  extension points disabled, dynamic code prohibited, CET user shadow
-  stacks in x64 builds where the system offers them, and no child
-  processes. A creation the system refuses, the job included, is a start
-  failure: no helper runs outside its job or without these policies.
+  and the eight UI restrictions) and sets every mitigation the helper
+  takes at its creation, from `SandboxPolicies()` in
+  `widget_sandbox_win.cpp`, the one table the client's creation and the
+  helper's readback share: DEP on x86, bottom-up and forced-relocation
+  ASLR (high entropy on x64 and ARM64), extension points disabled, dynamic
+  code prohibited, win32k system calls disabled, CET user shadow stacks in
+  x64 builds where `IsUserCetAvailableInEnvironment` says the system offers
+  them, only Microsoft-signed images, strict handle checks, non-system
+  fonts disabled, System32 images preferred, and no child processes (the
+  separate child-process attribute). The creation words are
+  `0x1001101111010101` (8 bytes) on x86 and `0x1001101111110100
+  0x10000000` (16 bytes) on x64 with CET, the set that
+  `2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
+  measured candidate by candidate on the suspended child on x86 and x64
+  (its `work/decisions.md`, P7); without CET an x64 creation passes the
+  first word alone. The image-load policies that refuse remote and
+  Low-labelled images depend on where the user put the files, and CFG and
+  strict CET need another binary contract, so none of them is set. A
+  creation the system refuses, the job included, is a start failure: no
+  helper runs outside its job or without these policies.
+  The helper links no Qt, user32 or gdi32: it is built from
+  widget-sandbox's engine end, QuickJS, the shared `main()` of
+  `_other/widget_helper.cpp`, `_other/widget_helper_win.cpp` and the
+  client's own Qt-free `platform/win/widget_channel_win.cpp` and
+  `widget_sandbox_win.cpp`, which Telegram compiles too, without Telegram's
+  precompiled header, as a Windows GUI image with `/ENTRY:mainCRTStartup`
+  (so that no console is started) and the static CRT. Its static imports
+  are ADVAPI32 and KERNEL32, both KnownDLLs, loaded from the system
+  directory (`/DEPENDENTLOADFLAG:0x800`); `bcrypt.dll` is delay-loaded in
+  every configuration and bound in its lowering (**The Windows lowering**
+  below), and the Debug build's `WS2_32.dll`, delay-loaded too, has no
+  caller but the probe. Its build string, argument gate and Release
+  refusals are the shared `main()`'s, as on macOS and Linux (**The shared
+  helper** above). At its entry, in `WidgetHelper::Adopt()`
+  (`_other/widget_helper_win.cpp`), it first limits its later DLL loads to
+  the system directory (`SetDefaultDllDirectories` with
+  `LOAD_LIBRARY_SEARCH_SYSTEM32`), then takes the token only as a decimal
+  handle value without a sign, a leading zero or trailing text that is no
+  pseudo-handle, and adopts only the byte-mode client end of a pipe, whose
+  inheritance it clears; anything else is `Widget helper: the channel
+  could not be adopted`, exit 1, before it reads the channel.
 - **The Windows lowbox.** `NtCreateLowBoxToken` boxes each of the two
   restricted tokens with one package SID, derived from the fixed name
   `telegram.desktop.widget-helper` by
@@ -741,21 +794,26 @@ packs, the fixture and the seams they use need no change for it.
   attributes are malformed`, `the token's WIN://NOALLAPPPKG type is <n>`,
   `the token's WIN://NOALLAPPPKG has <n> values`, `the token's
   WIN://NOALLAPPPKG value is <n>` and `GetTokenInformation failed: error
-  <n>`. The design makes no grant: the client opens the image, its static
-  imports are kernel32 and ntdll and every later DLL comes from the system
-  directory. That task's checkpoint (its `work/checkpoint-2.md`) reached
-  Ready that way from the checkout's `out\Debug\Telegram.exe`, and its
-  evidence campaign (its `work/test.md`, Attempt 1 Run 4) from copied
-  clients with fresh ordinary permissions: `setup.iss`'s files in a
-  per-user folder under `%APPDATA%`, also after an updater-style
-  `CopyFile` over the executable, a fresh extraction of `build.bat`'s
-  portable ZIP, that folder moved whole to another path, and a copy on
-  the WSL distribution's 9P share, which has no NTFS permissions. No ACE,
-  package profile or AppContainer state appeared. With execute access to
-  the client's own executable denied to its user, the start failed closed
-  with `CreateProcessAsUserW failed: Access is denied.` and the engine
-  that asked for it died with that error, none in process. All of it ran
-  in Win32 Debug builds only.
+  <n>`. The design makes no grant: the client opens the image, the
+  helper's static imports are KnownDLLs and every later DLL comes from the
+  system directory. The evidence campaign of
+  `2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
+  (its `work/test.md`, Attempt 1 Run 3, Win32 Debug only) started
+  `TelegramWidgetHelper.exe` to Ready that way through the product
+  `Launch()` of account-free clients with fresh ordinary permissions:
+  from the checkout's `out\Debug\modules\x86\`, from `setup.iss`'s files
+  plus the helper in a new per-user folder under `%APPDATA%`, from
+  `build.bat`'s portable ZIP plus the helper extracted with
+  `Expand-Archive` into `Downloads`, and from that folder moved whole to
+  `C:\Tmp`. No AppContainer-family ACE, package profile, mapping or
+  storage key appeared, and no grant was needed. With execute access to
+  the helper's image denied to the user, the start failed closed with
+  `CreateProcessAsUserW failed: Access is denied.`, the engine that asked
+  for it died with that error and none ran in process, and the
+  byte-exact restore brought Ready back in the same client. The
+  same-binary helper's no-grant runs, which also covered an updater-style
+  `CopyFile` over the executable and a copy on the WSL distribution's 9P
+  share, are under [Verification](#verification).
 - **Lockdown.** On macOS the helper locks itself down once it has accepted
   the client's opening and holds the bundles, before any runtime exists and
   before it answers `Ready`. It first checks, once per helper, that it
@@ -792,33 +850,53 @@ packs, the fixture and the seams they use need no change for it.
 - **The Windows lowering.** The Windows helper drops its impersonation in
   the framework's lockdown callback, after it accepted the opening and
   holds the bundles and before it answers Ready, so before any runtime
-  exists. While still impersonating it binds the delay-loaded advapi32
-  imports, derives its package SID once (which loads `USERENV.dll`; the
-  checkpoint of
+  exists (`LockDownHelper()` in `widget_sandbox_win.cpp`, which
+  `WidgetHelper::Lockdown()` calls). While still impersonating it checks
+  that the mitigation readback is available (`the mitigation policy
+  functions are not available` otherwise), binds the delay-loaded
+  `bcrypt.dll` imports with `__HrLoadAllImportsForDll`, derives its
+  package SID once (which loads `USERENV.dll`; the checkpoint of
   `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
   saw it map `profext.dll` as well, the host of the API set USERENV
   delay-imports for the derivation) and draws random bytes once, which
   starts the random provider that a widget's `crypto.getRandomValues` uses
-  later. Then it reverts to its lockdown token, disables the predefined
-  registry key cache and closes the cached roots, lets only
-  Microsoft-signed images load, turns strict handle checks on and verifies
-  itself: no thread token, the lockdown token above, an LPAC token of
-  exactly its package with no capability (the AppContainer check's errors
-  above), its job's limits and UI restrictions, and every expected
-  mitigation read back. The first step that fails refuses the stream: the
-  helper writes `Widget helper: the widget helper is not sandboxed:
-  <error>` to stderr and exits 1, the main log reads `Tgw: Widget helper
-  <pid> stream ended: the engine process refused the stream: the widget
-  helper is not sandboxed: <error>.`, and the widget dies. The errors
+  later. `bcrypt.dll` was the image's one static import that is no
+  KnownDLL, and the system directory does not let the LPAC primary open
+  it, so it is delay-loaded and the impersonating main thread maps it.
+  While the helper still imported it statically, 3 of 5 confined launches
+  on x86 and on x64 died before any frame with `0xC0000135`, and a load
+  trace pointed to Windows' parallel loader opening it on a worker thread
+  that runs as the primary
+  (`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`,
+  its `work/decisions.md`, P6). Telegram, which compiles the same unit and
+  delay-loads `bcrypt.dll` too, never runs this lowering. A failed bind
+  stays closed before Ready either way: a missing delay descriptor refuses
+  with `__HrLoadAllImportsForDll(bcrypt.dll) failed: 0x<hresult>`, and a
+  module that cannot be loaded raises the delay-load exception, which
+  nothing catches, so the helper dies before any frame with `exit
+  0xC06D007E` or `exit 0xC06D007F`; no run has seen either. Then it
+  reverts to its lockdown token, disables the predefined registry key
+  cache and closes the cached roots, and verifies itself: no thread token,
+  the lockdown token above, an LPAC token of exactly its package with no
+  capability (the AppContainer check's errors above), its job's limits and
+  UI restrictions, and every mitigation of its creation read back (**The
+  Windows helper** above); it sets no mitigation itself. The first step
+  that fails refuses the stream: the helper writes `Widget helper: the
+  widget helper is not sandboxed: <error>` to stderr and exits 1, the main
+  log reads `Tgw: Widget helper <pid> stream ended: the engine process
+  refused the stream: the widget helper is not sandboxed: <error>.`, and
+  the widget dies. The errors
   after the revert carry Windows error numbers, such as
-  `SetProcessMitigationPolicy(<policy>) failed: error N`, or name the
+  `RegDisablePredefinedCacheEx failed: error N` or
+  `GetProcessMitigationPolicy(<policy>) failed: error N`, or name the
   reading that failed, such as `the token's integrity 0x2000 is not Low`,
   `the token's user is not deny-only`, `the token's restricting SIDs are
   not exactly S-1-0-0`, `the job's limits are 0x<flags> for <n>
   processes` or `the mitigation policy <policy> reads 0x<flags>`.
 - **Windows probe.** With `probe` the client passes the mode to the
-  Windows helper, and the helper's lockdown hook
-  ([test_widget_helper_probe](test_widget_helper_probe.md#windows)) adds a
+  Windows helper, and the lockdown hook of its Debug build
+  (`test/test_widget_helper_probe_lockdown_win.cpp`,
+  [test_widget_helper_probe](test_widget_helper_probe.md#windows)) adds a
   native probe to the lowering, once per helper: it takes the probe's
   positive controls while the helper still impersonates, lowers the helper
   and, after a successful lowering and before Ready, writes one `Widget
@@ -848,16 +926,21 @@ packs, the fixture and the seams they use need no change for it.
   (two when the client's working directory was not given),
   `HKEY_CURRENT_USER\Software` and
   `HKEY_LOCAL_MACHINE\SOFTWARE`; read back the thread token, the process
-  token and the job; try to disable win32k system calls
-  (`DisallowWin32kSystemCalls: APPLIED` or `not applied
-  (SetProcessMitigationPolicy(4) failed: error N)`); read back nine
-  mitigation policies; and run a thread, an event, `OpenProcess` of its
-  own pid, 32 random bytes and the time zone again. A refused process,
+  token and the job; read back the win32k disable of the helper's creation
+  (`win32k system calls: DISABLED (ProcessSystemCallDisablePolicy
+  0x<flags>)`, `ENABLED (...)` when `DisallowWin32kSystemCalls` is clear,
+  or `not read (GetProcessMitigationPolicy(4) failed: error N)`, never
+  `DISABLED` for a failed read); read back eleven mitigation policies, one
+  `mitigation <name>: 0x<flags>` or `error N` row each for `DEP`, `ASLR`,
+  `dynamic code`, `handles`, `win32k`, `extension points`, `signature`,
+  `child process`, `shadow stack`, `font disable` and `image load`; and
+  run a thread, an event, `OpenProcess` of its own pid, 32 random bytes
+  and the time zone again. A refused process,
   socket, connect, directory or key reads `denied (error N)` only for
   access denied (5, or `WSAEACCES` for the socket and the connect) and
   `failed (error N)` for any other error, so a connect that timed out is
   no denial; a success reads `ALLOWED`, a completed connect `CONNECTED`.
-  `OpenProcess` of its own pid reads `opened` or `error N`. The product
+  `OpenProcess` of its own pid reads `opened` or `error N`. The native
   probe reads no argument but the client's working directory. After its
   lines the harness writes its own: with Winsock, fresh TCP and UDP
   sockets of both families, the fixture's loopback port and numeric
@@ -897,10 +980,15 @@ packs, the fixture and the seams they use need no change for it.
   127.0.0.1, `::1` and the host's own LAN and link-local addresses, of a
   sibling process on 127.0.0.1 and `::1`, and one in the running WSL
   distribution received every ordinary control before, during and after
-  the helper and nothing from it. Native code in the lowered helper could
-  therefore create no TCP or UDP socket over IPv4 or IPv6 and open no AFD
-  endpoint for those kinds, and the ordinary helper holds no socket from
-  before the lowering (its handles are below). Sockets that the probe's
+  the helper and nothing from it. `TelegramWidgetHelper.exe` read the same
+  socket and AFD denials on x86 and on x64, while listeners of the client
+  on 127.0.0.1 and `::1` received every control of the client and of new
+  sibling processes and nothing from it; the other targets and
+  `connect-control` were not run with it ([Verification](#verification)).
+  Native code in the lowered helper could therefore create no TCP or UDP
+  socket over IPv4 or IPv6 and open no AFD endpoint for those kinds, and
+  the ordinary helper holds no socket from before the lowering (its
+  handles are below). Sockets that the probe's
   `connect-control` opens before the lowering delivered nothing after it:
   TCP connects to the host's own addresses timed out and one to WSL was
   refused with `WSAEACCES`, and UDP sends reached no listener; the
@@ -910,30 +998,34 @@ packs, the fixture and the seams they use need no change for it.
   types and their AFD endpoints, name resolution, ICMP, other protocols,
   and routing off the machine (the WSL distribution is a separate network
   stack behind the same machine's virtual switch).
-  win32k system calls stay enabled: in both runs without the lowbox the
-  runtime disable failed with error 19 (`ERROR_WRITE_PROTECT`; the probe's
-  `DisallowWin32kSystemCalls: not applied (SetProcessMitigationPolicy(4)
-  failed: error 19)`, then `mitigation win32k: 0x0`), because every
-  Telegram process loads user32 during its static initialisation, and the
-  job's UI restrictions limit some window-system operations without
-  blocking those calls. Under the lowbox the same attempt read error 5,
-  and `mitigation win32k: 0x4` is the LPAC creation's
-  `DisallowFsctlSystemCalls` bit, not a win32k disable (the same
-  checkpoint).
-  Registry key handles that system DLLs opened during static
-  initialisation, before the lowering, stayed open with the access they
-  had been granted (nine without the lowbox, eight in
-  `HKEY_LOCAL_MACHINE` and one in the user's hive; seven in the lowbox
-  helper, all in `HKEY_LOCAL_MACHINE` with read access only), and an open
-  relative to one is checked against its target key; the probe's fresh
-  opens were denied. The lowbox helper's other handles after Ready, in
-  Run 2 of the campaign above, were the pipe, the stderr copy, the WOW64
-  pair of its working directory with traverse access only, the crypto
-  devices of the random warm-up, the `\KnownDlls` and `\KnownDlls32`
-  directories, user32's window station and desktop, its own threads and
-  unnamed thread-pool, synchronisation, timer, ETW and ALPC objects: no
-  socket, AFD endpoint or section. A thread on the lockdown token, in
-  a scratch process that
+  win32k system calls are disabled from the helper's creation, and its
+  verification requires `DisallowWin32kSystemCalls`: on x86 and on x64 the
+  suspended child read `ProcessSystemCallDisablePolicy` 0x5 before its
+  first instruction, the probe `win32k system calls: DISABLED
+  (ProcessSystemCallDisablePolicy 0x5)`, an outside reader the same
+  through every widget run, and a creation without the flag read 0x4 and
+  was refused with `the mitigation policy 4 reads 0x4`. The 0x4 bit is the
+  LPAC creation's `DisallowFsctlSystemCalls`, not a win32k disable (the
+  checkpoint above). The same-binary helper that `TelegramWidgetHelper.exe`
+  replaced could not take it: `Telegram.exe` loads user32 during its
+  static initialisation, so its runtime disable failed with error 19
+  (`ERROR_WRITE_PROTECT`) without the lowbox and with error 5 under it.
+  After Ready, on x86, the helper held as File handles only the WOW64 pair
+  of its working directory (`\Windows` and `\Windows\SysWOW64`, traverse
+  access only), the crypto devices `\Device\KsecDD` and `\Device\CNG` of
+  the random warm-up, the pipe and the stderr copy, the only inheritable
+  handle; as Key handles only two read-only ones, the Image File
+  Execution Options root and `Nls\Sorting\Versions`; and no section,
+  mutant, symbolic link, window station, desktop, socket or AFD endpoint.
+  The same held after 10 s of widget work. On x64 at Ready its File
+  handles were `C:\Windows\System32`, the same crypto devices, the pipe
+  and the stderr copy, with the same two keys and no socket or AFD
+  endpoint. An open relative to a kept key is checked
+  against its target key; the probe's fresh opens were denied. The
+  same-binary helper had kept more: user32's window station and desktop,
+  the `\KnownDlls` and `\KnownDlls32` directories and seven read-only
+  `HKEY_LOCAL_MACHINE` keys under the lowbox (Run 2 of the campaign above).
+  A thread on the lockdown token, in a scratch process that
   `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-windows`
   launched with the helper's tokens, job and policies (its
   `work/logs/phase-4-impl-4.notes.md`), could not load the DLLs it tried
@@ -941,10 +1033,17 @@ packs, the fixture and the seams they use need no change for it.
   KnownDll `ws2_32.dll`), so a path that needs a delay-loaded DLL the
   helper had not mapped before the lowering can end it: before the random
   warm-up existed, a widget's `crypto.getRandomValues` ended the helper
-  with `exit 0xC06D007E`. Whether an unbound import of a DLL the helper
-  had already mapped still resolves after the lowering was not measured,
-  so the advapi32 bind is a precaution. The warm-up covers the paths those
-  runs found, not every load a later path can need.
+  with `exit 0xC06D007E`. `TelegramWidgetHelper.exe` imports ADVAPI32
+  statically and binds `bcrypt.dll` before the lowering (**The Windows
+  lowering** above). At ordinary Ready and after widget work its modules
+  were its own image and system DLLs only: on x86 ntdll, KERNEL32,
+  KERNELBASE, ADVAPI32, msvcrt, sechost, RPCRT4, bcrypt, userenv,
+  ucrtbase, profext and bcryptprimitives beside it, with WOW64's six x64
+  modules, and 13 x64 modules on x64; none from outside the system
+  directories, no user32, gdi32, win32u, Qt or `WS2_32.dll`, and
+  `bcrypt.dll` from the system directory. On x86 the first start of a copy
+  at a new path also mapped `apphelp.dll` from there. The warm-up covers
+  the paths those runs found, not every load a later path can need.
 - **The Linux lockdown.** At its entry, in `WidgetHelper::Adopt()` before
   it adopts its channel, the Linux helper asks the kernel for `SIGKILL`
   when its parent ends (`PR_SET_PDEATHSIG`) and closes every descriptor
@@ -1057,7 +1156,7 @@ packs, the fixture and the seams they use need no change for it.
   keeps its `widget.client`, `widget.validator` and `twidget-host` until
   its death retires it. Windows threads carry none of these names (the
   framework names its threads only on Apple platforms and Linux): there
-  the `Telegram.exe -widgethelper` child, the runtime log's `Started, its
+  the `TelegramWidgetHelper.exe` child, the runtime log's `Started, its
   engine is remote.` note and the main log's `Widget helper <pid>` lines
   show where the engines run.
 - **Seams.** [test_widget_ops](test_widget_ops.md),
@@ -1092,8 +1191,10 @@ packs, the fixture and the seams they use need no change for it.
   macOS (`posix_spawn failed: No such file or directory` when the bundle
   has no `Contents/Helpers/TelegramWidgetHelper`; the client never checks
   the file before the spawn) or `CreateProcessAsUserW failed: <reason>` on
-  Windows, and the main log adds `Tgw Error: The widget helper could not
-  start: <error>.`.
+  Windows (`CreateProcessAsUserW failed: The system cannot find the file
+  specified.` on x86 when the file is missing from an existing
+  `modules\<arch>` folder), and the main log adds `Tgw Error: The widget
+  helper could not start: <error>.`.
   On macOS a helper that fails the identity check of **The shared helper**
   is killed before it runs: the error is `the widget helper failed the
   signer check: <call> failed: <message> (<status>)`, or the same with
@@ -1181,20 +1282,20 @@ packs, the fixture and the seams they use need no change for it.
   by terminating its job, inside Flatpak through the portal) and waits up
   to 1 s more; an outstanding theme probe can hold the quit for its 10 s
   before that. When the client dies without a quit, the helper reads the
-  end of its channel and exits by itself. On macOS and Linux the helper's
-  path is not the client's, and `test-run`'s path-scoped kill matches only
-  the client's executable (on Linux by `/proc/<pid>/exe`): it never kills
-  a helper or lists one in `stragglers_killed_after`, and after it kills a
-  quiet client the helper ends on the end of its channel, on Linux also
-  through the kernel as below. A run that must show no helper outlived it
-  looks for the helper's own file itself:
-  `Contents/Helpers/TelegramWidgetHelper` on macOS, a process whose
-  `/proc/<pid>/exe` is the client's `TelegramHelpers/TelegramWidgetHelper`
-  or libexec helper on Linux. On Windows a helper left behind has the
-  client's executable path, so that kill ends it too and lists it in
-  `stragglers_killed_after`. On Windows the client's death also closes
-  the helper's job, whose only handle the client holds, and the job's
-  kill on close ends the helper even when it is not reading. On Linux the
+  end of its channel and exits by itself. The helper's path is not the
+  client's, and `test-run`'s path-scoped kill matches only the client's
+  executable (on Linux by `/proc/<pid>/exe`, on Windows by the process's
+  `ExecutablePath`): it never kills a helper or lists one in
+  `stragglers_killed_after`, and after it kills a quiet client the helper
+  ends on the end of its channel, on Windows and Linux also as below. A
+  run that must show no helper outlived it looks for the helper's own file
+  itself: `Contents/Helpers/TelegramWidgetHelper` on macOS, a process
+  whose `/proc/<pid>/exe` is the client's
+  `TelegramHelpers/TelegramWidgetHelper` or libexec helper on Linux, the
+  client's `modules\<arch>\TelegramWidgetHelper.exe` on Windows. On
+  Windows the client's death also closes the helper's job, whose only
+  handle the client holds, and the job's kill on close ends the helper
+  even when it is not reading. On Linux the
   kernel kills a helper the client cloned when the client dies, also when
   it is not reading: the helper sets `PR_SET_PDEATHSIG` at its entry, and
   its parent is the client's spawning thread, which lives as long as the
@@ -1483,7 +1584,9 @@ only read, any Windows or Linux compile, a store build under its App
 Sandbox, a Release client (the non-Debug rule was only preprocessed) and
 the `probe` and `probe-unsandboxed` values.
 
-On Windows the [remote engines](#remote-engines) ran in the Win32 Debug
+On Windows the [remote engines](#remote-engines) first ran in the
+same-binary helper, the client's own `Telegram.exe -widgethelper <handle>`
+that `TelegramWidgetHelper.exe` later replaced, in the Win32 Debug
 (x86) client on one Windows 11 Pro 10.0.26300 machine in the evidence
 campaign of
 `2026/11/14/run-widget-engines-in-a-restricted-helper-on-windows-behind-a-debug-switch`
@@ -1541,7 +1644,8 @@ x64, ARM64, the Store build, Windows before 10 1809, a Release runtime
 of the shared files.
 
 The [Windows lowbox](#remote-engines), its network denials and the
-Windows default ran on the same machine, Win32 Debug (x86 on WOW64) on
+Windows default then ran in the same-binary helper on the same machine,
+Win32 Debug (x86 on WOW64) on
 Windows 11 Pro 10.0.26300.9711 with the firewall services running, every
 profile on and no loopback exemption for the package, in the evidence
 campaign of
@@ -1583,7 +1687,7 @@ passed a 57-byte attribute whose first 48 bytes equal the probe's, and
 the probe's bytes opened there. In every probe helper the four socket
 kinds and their AFD endpoints succeeded before the lowering and were
 refused after it, with `WSAEACCES` and `STATUS_ACCESS_DENIED`, and the
-product probe's self-listener read `ok`. TCP and UDP listeners of the
+native probe's self-listener read `ok`. TCP and UDP listeners of the
 driver on 127.0.0.1 and `::1` and of a sibling process on the same
 addresses (Run 1), and of the client on those, on the host's own LAN
 address and on a scoped link-local IPv6 address, with one in the running
@@ -1684,10 +1788,9 @@ in every variant. The Store and pre-1809 refusals in
 `UnsupportedReason()` are unchanged since the task above, and
 preprocessing with `OS_WIN_STORE` turns `IsWindowsStoreBuild()` true.
 
-The Windows default is therefore on for every architecture on Windows 10
-1809 or later outside the Store build, but it is measured only in Win32
-(x86 on WOW64) Debug builds on Windows 11 build 26300. Not run: x64,
-ARM64, a Release runtime (the non-Debug selection was only
+With the same-binary helper the Windows default was measured only in
+Win32 (x86 on WOW64) Debug builds on Windows 11 build 26300. Not run with
+it: x64, ARM64, a Release runtime (the non-Debug selection was only
 preprocessed), the Store build, Windows before build 26300 (the 1809
 floor was read and preprocessed, never run), a target on another
 machine, socket families and types, and their AFD endpoints, other than
@@ -1696,10 +1799,149 @@ other protocols, a stopped or disabled firewall service, which layer
 refuses the sockets and AFD endpoints (AFD's check of the token or the
 filtering platform), a downloaded portable ZIP with its mark of the web,
 and macOS or Linux compilation of the changed `test_widget_helper_probe`
-sources. win32k system calls stay enabled (the probe's disable read
-error 5 under the lowbox), and `TokenIsLessPrivilegedAppContainer` is
-unreadable on this build (error 87), so the less privileged level is
+sources. win32k system calls stayed enabled in it (the probe's disable
+read error 5 under the lowbox), and `TokenIsLessPrivilegedAppContainer`
+is unreadable on this build (error 87), so the less privileged level is
 read from `WIN://NOALLAPPPKG`.
+
+`TelegramWidgetHelper.exe` then replaced the same-binary helper and ran on
+the same machine, Windows 11 build 26300 (10.0.26300.9711, 26H2) on x64,
+where `IsUserCetAvailableInEnvironment(USER_CET_ENVIRONMENT_WIN32_PROCESS)`
+read 1 in an x64 process and 0 in a WOW64 one and no system or
+image-name mitigation override existed, in the evidence campaign of
+`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`;
+its `work/test.md` (Attempt 1, Runs 1-4) is the record, and its
+`work/test-overlay.patch` keeps the disposable scenario. It ran in the
+Win32 Debug build (x86 on WOW64) and in an x64 Debug build of the same
+commit, and no reading is carried from one architecture to the other.
+The probe's lines are on
+[test_widget_helper_probe](test_widget_helper_probe.md#verification).
+
+On both architectures a native driver built the channel, tokens, job and
+creation attributes with the product's functions and started the
+committed images (Run 1). Both were built before Telegram, each into its
+build's `modules\x86` or `modules\x64` folder, without a precompiled
+header or a Qt input, as Windows GUI images entered through
+`mainCRTStartup` with `/DEPENDENTLOADFLAG:0x800`, Dynamic base and NX,
+and on x64 High Entropy VA but no CET-compatible flag; each imported
+only ADVAPI32 and KERNEL32 and delay-loaded `bcrypt.dll` and the Debug
+`WS2_32.dll`, whose 19 functions only the probe's object referenced. A
+product launch read every
+creation policy back from the suspended child before its resume (x86 DEP
+0x3, ASLR 0xB, dynamic code 0x1, strict handles 0x3, win32k 0x5,
+extension points 0x1, signature 0x5, font disable 0x1, image load 0x4 and
+child process 0x1; x64 the same with ASLR 0xF and shadow stack 0x105, no
+DEP being expected), reached Ready in 3-6 ms with no expectation missing,
+and held the handles and modules of **What the Windows lowering leaves**
+there. A creation without one adopted flag, or for strict handles with
+its always-off value, read that policy off on the suspended child and was
+refused at its readback: `the mitigation policy 3 reads 0x0` (strict
+handles), `8 reads 0x0` (signature), `9 reads 0x0` (font disable), `10
+reads 0x0` (image load) and `4 reads 0x4` (win32k). Strict handles merely
+left out still read 0x3, as the lowbox sets them, and reached Ready.
+`Telegram.exe -widgethelper <handle> -many -workdir <empty folder>`, given
+the same valid opening on an inherited pipe, started an ordinary client
+that wrote its own data folder and sent no frame within 5 s, while the
+helper answered `Ready` to that opening.
+
+On x86 alone the same driver (Run 1) made a helper created outside the
+job, without the lowbox, without the LPAC attribute, with the user as a
+second restricting SID, without the dynamic-code policy or without the
+win32k flag refuse before Ready with `the job's limits are 0x2000 for 0
+processes`, `the token is not an AppContainer token`, `the token is not a
+less privileged AppContainer token`, `the token's restricting SIDs are
+not exactly S-1-0-0`, `the mitigation policy 2 reads 0x0` and `the
+mitigation policy 4 reads 0x4`. The parent's own check abandoned the
+three token defects before the resume (`the process token check failed:
+...`), and a startup token without the lowbox or of another package as
+well (`the attached token check failed: the token's impersonation level
+is 1`). With no argument the helper wrote `Widget helper: unexpected
+arguments`; an empty token, a leading zero, an overflow, `-1`, each
+pseudo-handle value, trailing text and a third inherited file handle got
+`Widget helper: the channel could not be adopted`, each exit 1 with no
+frame. A token naming the helper's own inherited stderr copy sent no frame
+either but ended `exit 0xC0000008` with no diagnostic: the rejected handle
+is closed, and the refusal's write then meets it under strict handle
+checks.
+
+The x86 client `out\Debug\Telegram.exe` then ran with a Test account and
+local widget messages (Runs 2-3b). With no switch one helper,
+`out\Debug\modules\x86\TelegramWidgetHelper.exe` with argv `"<helper>"
+<handle>`, served every widget of a launch: Low, restricted to `S-1-0-0`
+with every group but the integrity label deny-only and only
+`SeChangeNotifyPrivilege`, an LPAC token of the package
+(`WIN://NOALLAPPPKG` one UINT64 value 1) with no capability, no thread
+token, its job's only member (limits `0x2408`, UI `0xFF`), and the
+outside mitigation reading `DEP=0x3 ASLR=0xB DynamicCode=0x1
+StrictHandle=0x3 SystemCallDisable=0x5 ExtensionPoint=0x1 CFG=0x0
+Signature=0x5 FontDisable=0x1 ImageLoad=0x4 ChildProcess=0x1
+UserShadowStack=0x100`, through 10 s of work with four runtimes whose
+`Date` and `Intl` readings equalled the `in-process` control's and whose
+random bytes were nonzero; `in-process` started no helper. A killed
+helper left both cards' last pictures unchanged outside the stop pill,
+re-entry started one new confined helper, and a second kill reached the
+two-crash limit with no third start. A quit ended a live helper 24 to
+28 ms and an idle one 2 ms after the request and the client within
+0.3 s; a suspended helper with a client write past both 64 KiB pipe
+quotas ended `exit 1067, terminated after 999 ms` and the client 1.2 s
+after the quit, and without the quit the 10 s write-stall monitor ended
+it. With the helper missing from a copied layout three starts failed with
+`CreateProcessAsUserW failed: The system cannot find the file
+specified.`, nothing ran in process, the fourth widget died with `the
+widget helper failed 3 times in a row`, and the same layout with the
+helper served. The layouts and the execute denial of
+[the Windows lowbox](#remote-engines) ran with that client too (Run 3),
+with no grant. The attack audit over all 133 corpus files and the
+conformance runner over the 133-run automatic matrix gave 0 leaks and the
+same keyed rows, verdicts, report rows and stage judgements with no
+switch and with `in-process`, the same 15 stops and baseline failures
+included; the other differences were timing values and one crop's
+anti-aliased edge, each shown in both versions by its paired rerun, and
+every default launch ran in exactly one confined helper (Runs 3-3b). One
+`in-process` control launch died once with an access violation in
+`Test::WatchWidgetHost()`, called from `Tgw::Runtime::constructed()` on a
+`WidgetHost` it could not read; its rerun passed, and that path is the
+in-process one, which the move did not change.
+
+On x64 alone the driver (Run 1) started the helper with the 16-byte
+mitigation attribute and the LPAC attribute in one creation list, and it
+reached Ready: the product checks read its actual primary as an LPAC
+token and its attached startup token as a regular lowbox of the same
+package at the impersonation level, both with no capability, and an
+independent reader of the 64-bit security-attribute layout agreed
+(`WIN://NOALLAPPPKG`, one UINT64 value 1, on the primary only). Without
+the LPAC attribute the helper refused, and the parent's check abandoned
+it before the resume. With `HIGH_ENTROPY_ASLR_ALWAYS_OFF` in place of
+the flag the suspended child lacked high entropy and the helper refused
+with `the mitigation policy 1 reads 0xb`; with the flag only left out the
+image's own high-entropy ASLR still applied, and the helper reached
+Ready. Without the CET flag, and with its always-off value, it lacked user
+shadow stacks and refused with `the mitigation policy 15 reads 0x100`. The
+x64 client then ran with a copy of the Test account (Runs 4-4b): its
+compiled table read `creation=[0x1001101111110100 0x10000000] size=16`
+with ten expectations and none for DEP, and with no switch one helper,
+`modules\x64\TelegramWidgetHelper.exe` with argv `"<helper>" <handle>`,
+served five runtimes for 10 s, among them an event widget through two
+trusted click cycles, with the token and job above and the outside
+mitigation reading `DEP=0x3 ASLR=0xF ... UserShadowStack=0x105`, and
+ended `exit 0` at the quit, with no crash under user shadow stacks. The
+x64 client's own checks of that helper's primary passed
+`CheckLockdownToken` and `CheckAppContainerToken` for `LessPrivileged`
+and failed it for `Regular` with `the token is a less privileged
+AppContainer token`; `TokenIsLessPrivilegedAppContainer` failed with
+error 87 there too. `in-process` ran the static and reading widgets and
+the event widget's two click cycles with no helper.
+
+Not run with `TelegramWidgetHelper.exe`: ARM64 (not built), a Release
+runtime (the non-Debug gate was preprocessed and its link options read
+only), the Store build, Windows before 10.0.26300 (the 1809 floor of
+each new creation flag and readback rests on Microsoft's documentation
+and SDK guards), the layouts, kill, quit, missing-image, attack and
+conformance legs on x64 (x86 only), an updater-style copy, a 9P share
+and a downloaded ZIP with its mark of the web, a DLL planted in
+`modules\<arch>` (so the `SetDefaultDllDirectories` call in `Adopt()`
+has no observed effect), either failed `bcrypt.dll` bind, a client killed
+under its helper, and two clients at once.
 
 On Linux the [remote engines](#remote-engines) first ran in the
 same-binary helper, the client's own `/proc/self/exe -widgethelper 3`

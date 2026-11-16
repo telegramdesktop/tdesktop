@@ -6,7 +6,8 @@ Type: Internal dependency.
 Source contract: [test_widget_helper_probe.h](../../test_widget_helper_probe.h)
 (the client half in Telegram) and
 [test_widget_helper_probe_lockdown.h](../../test_widget_helper_probe_lockdown.h)
-(the helper half on macOS and Linux and the names both halves share).
+(the helper half on macOS, Linux and Windows and the names both halves
+share).
 
 ## Use when
 
@@ -24,10 +25,12 @@ hook of its Debug build
 probe in forked copies of the helper and around the real
 `WidgetHelper::Lockdown()` (`_other/widget_helper_linux.cpp`), writes its
 lines to stderr, and the helper goes on serving widgets ([Linux](#linux)).
-On Windows the helper is the client's own executable, started with
-`-widgethelper`, and the probe is that same-binary helper's lockdown hook
-in a Debug build, which runs a different, native probe and the harness's
-own network attempts; the helper then goes on serving widgets
+On Windows the helper is `TelegramWidgetHelper.exe`, in `modules\<arch>\`
+next to `Telegram.exe`, and the probe is the lockdown hook of its Debug
+build as well (`test/test_widget_helper_probe_lockdown_win.cpp`): it runs
+a different, native probe and the harness's own network attempts around
+the real `WidgetHelper::Lockdown()` (`_other/widget_helper_win.cpp`),
+writes their report to stderr, and the helper goes on serving widgets
 ([Windows](#windows)).
 
 Callers: the probe has two halves. In Telegram the `_DEBUG` block of
@@ -35,18 +38,15 @@ Callers: the probe has two halves. In Telegram the `_DEBUG` block of
 `ChoosePlace()` accepts `probe` and `probe-unsandboxed` as values of
 `TDESKTOP_WIDGET_ENGINES` (both select the remote engine), and
 `HelperArguments()` passes `WidgetHelperProbeArguments()` to
-`Platform::WidgetHelper::Launch()`. On macOS and Linux the Debug `main()`
-of `TelegramWidgetHelper` (`_other/widget_helper.cpp`) gives its `serve`
-call `Test::WidgetHelperProbeLockdown()` around the real lockdown; each
-platform's helper build compiles its own definition of it. On Windows
-`HelperLockdown()` in `tgw_remote.cpp` gives the same-binary helper's
-`serve` call `WidgetHelperLockdown()`. Release builds of Telegram, harness
-ones included, return no arguments. A Release `TelegramWidgetHelper`
-contains no probe (the target never defines
+`Platform::WidgetHelper::Launch()`. On macOS, Linux and Windows the Debug
+`main()` of `TelegramWidgetHelper` (`_other/widget_helper.cpp`) gives its
+`serve` call `Test::WidgetHelperProbeLockdown()` around the real lockdown;
+each platform's helper build compiles its own definition of it. Release
+builds of Telegram, harness ones included, return no arguments. A Release
+`TelegramWidgetHelper` contains no probe (the target never defines
 `TDESKTOP_RELEASE_TEST_HARNESS`), accepts only its token, refuses any other
 argument with `Widget helper: unexpected arguments` before it adopts the
-channel and always gives `serve` the real lockdown; on Windows the Release
-hook ignores argv and calls the real lockdown. A disposable overlay
+channel and always gives `serve` the real lockdown. A disposable overlay
 supplies the positive-control fixtures itself (see
 [Minimal use](#minimal-use)).
 
@@ -91,14 +91,15 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   one. The added entries stay and are classified by the listing like any
   other. The same-binary macOS helper it replaced never needed this: Qt
   and AppKit had made those first lookups before `main`.
-- On macOS and Linux the argv after the helper's path is the token `3`,
-  then the tail `mode cwd application-support [keychain-account
-  loopback-port [connect-control] [target...]]`; on Windows the same tail
-  follows `-widgethelper <token>`. The targets come only from a fixture's
-  `networkTargets` (Windows). `cwd` is the client's `cWorkingDir()`; the
-  helper's own working directory is `/`, which the macOS helper moves to
-  itself before it adopts the channel and the Linux client gives its helper
-  on both spawn paths. `application-support` is
+- The argv after the helper's path is the token, then the tail `mode cwd
+  application-support [keychain-account loopback-port [connect-control]
+  [target...]]`. The token is `3` on macOS and Linux and the decimal value
+  of the inherited pipe handle on Windows. The targets come only from a
+  fixture's `networkTargets` (Windows). `cwd` is the client's
+  `cWorkingDir()`; the helper's own working directory is `/`, which the
+  macOS helper moves to itself before it adopts the channel and the Linux
+  client gives its helper on both spawn paths, and on Windows the system
+  directory the client creates it in. `application-support` is
   `QStandardPaths::GenericDataLocation`. A Debug helper with nothing after
   the token runs the lockdown alone and serves. Any other mode refuses with
   `unknown widget helper mode "<mode>"`. On macOS a malformed port or
@@ -146,41 +147,58 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 
 ## Windows
 
-With `probe` the client appends the same argv tail to the same-binary
-`-widgethelper` helper, and its hook, `WidgetHelperLockdown()` in Telegram,
-runs `LockDownWithProbe()` in `test_widget_helper_probe.cpp`, which goes in
-this order, once per helper:
+With `probe` the client appends the same argv tail after the handle, so
+the helper runs as `"<helper path>" <handle> probe <cwd> <data> ...`, the
+path being `modules\<arch>\TelegramWidgetHelper.exe` next to
+`Telegram.exe` ([Remote engines](test_widget_fixture.md#remote-engines)
+says how the client builds it). The hook,
+`Test::WidgetHelperProbeLockdown()` in
+`test/test_widget_helper_probe_lockdown_win.cpp`, compiled only into the
+helper's Debug build, runs `LockDownWithProbe()` there, which goes in this
+order, once per helper:
 
-1. `Platform::WidgetHelper::PrepareProbe()` with the client's working
-   directory argument (native separators; empty or missing names no
-   target): the product's native probe in
-   `platform/win/widget_sandbox_win.cpp` binds the delay-loaded `WS2_32.dll`
-   imports and takes its `before lowering:` controls while the helper still
-   impersonates its startup token.
+1. The native probe of the same file, with the client's working directory
+   argument (native separators; empty or missing names no target):
+   `PrepareProbeNetwork()` binds the delay-loaded `WS2_32.dll` imports and
+   starts its own Winsock and 127.0.0.1 listener, and
+   `PrepareProbeTargets()` takes its other `before lowering:` controls,
+   while the helper still impersonates its startup token.
 2. The harness's own preparation, under the same token: its own
    `WSAStartup`, then its `before lowering:` socket, target and AFD endpoint
    controls and, with `connect-control`, the preopened sockets; without
    Winsock only the AFD endpoint controls
    ([Windows harness lines](#windows-harness-lines)).
-3. The real lockdown. A failure refuses the stream with the lockdown's own
-   text, writes no probe line and closes what the harness holds.
-4. The harness's `after lowering:` attempts, then the product probe's.
-5. Every line of the product probe's report, then every harness line, to
+3. The real lockdown: the `lockdown` callable, which is
+   `WidgetHelper::Lockdown()`, that is
+   `Platform::WidgetHelper::LockDownHelper()` in `widget_sandbox_win.cpp`.
+   A failure refuses the stream with the lockdown's own text, writes no
+   probe line and closes what both probes hold.
+4. The harness's `after lowering:` attempts, then the native probe's,
+   after which the native probe closes its listener and ends its own
+   `WSAStartup`.
+5. Every line of the native probe's report, then every harness line, to
    stderr as `Widget helper probe: <line>` (`app_stderr.txt` in a test
    run); then the harness closes every socket it still holds and ends its
    own `WSAStartup`, and the hook returns "".
 
 The helper then serves widgets as in `helper` mode, so a probe launch is no
 helper failure. After the lockdown the hook calls only what was bound
-before it: the `WS2_32.dll` imports, which the product probe and then the
-harness's own Winsock start each bind (the harness uses Winsock only when
-its own bind and `WSAStartup` succeeded), and `NtCreateFile` and
-`RtlInitUnicodeString`, resolved from the already mapped ntdll. Neither
-probe is an inventory of what the helper holds. The product probe's lines,
-their controls and the measured results are in
+before it: the helper's static imports, the delay-loaded `bcrypt.dll`
+imports, which the lockdown's warm-up binds, the `WS2_32.dll` imports,
+which the native probe and then the harness's own Winsock start each bind
+(the harness uses Winsock only when its own bind and `WSAStartup`
+succeeded), and `NtCreateFile` and `RtlInitUnicodeString`, resolved from
+the already mapped ntdll. A probe helper therefore maps `WS2_32.dll` and
+`mswsock.dll`, which the ordinary helper does not load: every `WS2_32.dll`
+import of the image is the probe's. Neither probe is an inventory of what
+the helper holds. The native probe's lines, their controls and the
+measured results are in
 [Remote engines](test_widget_fixture.md#remote-engines) (**Windows probe**
-and **What the Windows lowering leaves**), and its runs in that page's
-[Verification](test_widget_fixture.md#verification).
+and **What the Windows lowering leaves**), and its runs under
+[Verification](#verification) and in that page's
+[Verification](test_widget_fixture.md#verification). The Release
+`TelegramWidgetHelper.exe` has no probe: it refuses any argument after its
+token with `Widget helper: unexpected arguments`.
 
 ### Windows arguments
 
@@ -188,6 +206,16 @@ The hook reads the client's working directory (index 2 of the arguments,
 the token at 0), the loopback port (index 5) and everything from index 6;
 the application-support and keychain-account arguments are ignored.
 
+- The arguments are the CRT's narrow argv, which it made from the command
+  line in the ANSI code page, and the hook converts each one it reads back
+  with `MultiByteToWideChar(CP_ACP)`; a character that code page lacks
+  arrives as the CRT replaced it, which no run has tried. A failed
+  conversion of the working directory reads `before lowering: client
+  working directory: MultiByteToWideChar failed: error <n>` and names no
+  target; one of the port or a later argument is an `argument: malformed
+  argument <index>: ...` line, and one of the mode refuses with `unknown
+  widget helper mode, MultiByteToWideChar failed: error <n>`. An unknown
+  mode's text is cut at 64 characters.
 - A loopback port of `0`, empty or missing means none. A port from 1 to
   65535 adds four targets: `tcp:127.0.0.1:<port>`, `udp:127.0.0.1:<port>`,
   `tcp:[::1]:<port>` and `udp:[::1]:<port>`.
@@ -209,7 +237,7 @@ the application-support and keychain-account arguments are ignored.
 
 ### Windows harness lines
 
-After the product probe's lines, in this order:
+After the native probe's lines, in this order:
 
 - `arguments: loopback port <port|absent>, <n> network targets,
   connect-control yes|no`, `<n>` counting the targets that passed every
@@ -785,9 +813,9 @@ attempt and each preopened socket right after its `after lowering:` use
 (one that could not be made nonblocking at once, before the lowering);
 before it returns, and on a lockdown failure, it closes whatever it still
 holds and ends its own `WSAStartup`, so no harness socket survives into
-Ready. The product probe closes its listener and ends its own start in its
-report step. The overlay owns its listeners and closes them after the
-helper ended.
+Ready. The native probe closes its listener and ends its own start after
+its `after lowering:` attempts, and on a lockdown failure too. The overlay
+owns its listeners and closes them after the helper ended.
 
 On Linux the probe keeps no state either. Each forked copy sets
 `PR_SET_PDEATHSIG(SIGKILL)`, makes itself non-dumpable and ends only with
@@ -805,8 +833,11 @@ any other helper.
 The first two macOS campaigns probed the same-binary macOS helper, the
 client's own `Contents/MacOS/Telegram -widgethelper 3` that
 `TelegramWidgetHelper` later replaced, whose Qt and AppKit had started
-before `main`. The two Linux campaigns are the last ones below: the first
-probed the same-binary Linux helper, the client's own
+before `main`. Of the two Windows campaigns the first probed the
+same-binary Windows helper, the client's own `Telegram.exe -widgethelper
+<handle>`, the second `TelegramWidgetHelper.exe`, which replaced it. The
+two Linux campaigns are the last ones below: the first probed the
+same-binary Linux helper, the client's own
 `/proc/self/exe -widgethelper 3`, the second `TelegramWidgetHelper`, which
 replaced it.
 
@@ -1010,9 +1041,10 @@ with the hardened runtime and Telegram's Debug entitlements that Xcode's
 the hardened runtime and no entitlement, and no probe has run on it since,
 so what its unsandboxed control counts is unmeasured.
 
-On Windows the harness lines of [Windows](#windows) ran with the Win32
-(x86 on WOW64) Debug build on Windows 11 build 26300, in the evidence
-campaign of
+On Windows the harness lines of [Windows](#windows) first ran in the
+same-binary helper, the client's own `Telegram.exe -widgethelper
+<handle>`, with the Win32 (x86 on WOW64) Debug build on Windows 11 build
+26300, in the evidence campaign of
 `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
 (its `work/test.md`, Attempt 1 Runs 1-2). Run 1 started the real
 executable's `-widgethelper` entry with the probe's argv tail from a
@@ -1057,12 +1089,74 @@ ran `probe` without a fixture through `TDESKTOP_WIDGET_ENGINES`.
   listener received all of them and no `widget-helper-probe` marker.
   After Ready the probe helpers of Run 2 held no `\Device\Afd` handle.
 
-Not run on Windows: a malformed argument, the 16-target limit, a probe
-helper whose lockdown fails, a helper without Winsock or without ntdll's
-two functions, a failed preopen, nonblocking switch or `closesocket`, a
-harness connect that completed or failed other than by a timeout or
-`WSAEACCES`, and architectures other than x86. The Windows runs of the
-product probe are in
+`TelegramWidgetHelper.exe` was then probed on the same host, Windows 11
+build 26300 (10.0.26300.9711, 26H2) on x64 with user-mode CET available
+to x64 processes, in the Win32 (x86 on WOW64) Debug build and in an x64
+Debug build of the same commit, in the evidence campaign of
+`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`;
+its `work/test.md` (Attempt 1, Runs 1, 2b and 4b) is the record, and its
+`work/test-overlay.patch` keeps the disposable scenario. In the app each
+probe helper was started through the product `Launch()`, once with
+`TDESKTOP_WIDGET_ENGINES=probe` and once through
+[Minimal use on Windows](#minimal-use-on-windows) with a loopback port,
+per architecture; it wrote no `Widget helper:` line and served until it
+was stopped. No reading is carried from one architecture to the other.
+
+- Argv: `"<client dir>\modules\x86\TelegramWidgetHelper.exe" <handle>
+  probe <cwd> <data>` (x86, Run 2b) and the same from `modules\x64` (x64,
+  Run 4b), `<cwd>` the client's `cWorkingDir()` with its forward slashes
+  and `<data>` its `GenericDataLocation`.
+- Native probe, x86 (Run 2b): after the lowering `CreateProcessW` of
+  `whoami.exe`, the helper's and the client's working directories,
+  `%APPDATA%` and both registry keys read `denied (error 5)` and the
+  socket `denied (error 10013)`, while the client, in the same run and
+  while the helper served, opened the same paths and keys, ran the same
+  `whoami.exe` and opened the helper's process. `thread token: none
+  (ERROR_NO_TOKEN)`, the token and job checks passed, `win32k system
+  calls: DISABLED (ProcessSystemCallDisablePolicy 0x5)`, and the rows read
+  `DEP 0x3`, `ASLR 0xb`, `dynamic code 0x1`, `handles 0x3`, `win32k 0x5`,
+  `extension points 0x1`, `signature 0x5`, `child process 0x1`, `shadow
+  stack 0x100`, `font disable 0x1` and `image load 0x4`, as an outside
+  reading of the same helper did; the thread, the event, `BCryptGenRandom`
+  and the time zone rows passed, and `OpenProcess` of its own pid read
+  `error 5`. That helper mapped `WS2_32.dll` and `mswsock.dll`, which no
+  ordinary helper did.
+- Native probe, x64 (Run 4b): the same denials, checks and rows, but for
+  `ASLR 0xf` and `shadow stack 0x105` (`EnableUserShadowStack` set); its
+  `DEP 0x3` row is a reading only, since the x64 build expects no DEP
+  policy ([Remote engines](test_widget_fixture.md#remote-engines)).
+- Harness lines, x86 and x64 (Runs 2b and 4b): in every probe helper the
+  four socket kinds read `ALLOWED` before the lowering and `denied (error
+  10013)` after it, and each AFD kind `ALLOWED (status 0x0)` then `denied
+  (status 0xC0000022)`. The loopback legs read `arguments: loopback port
+  <port>, 4 network targets, connect-control no` with no `argument:
+  malformed` line, `WS2_32 bound, WSAStartup(2.2) ok`, and every target
+  after the lowering `socket denied (error 10013), <connect|sendto> not
+  tried, socket creation was denied`; before it, under the startup token,
+  the TCP targets timed out after 1000 ms and the UDP datagrams read
+  `SENT` and were not received. The client's TCP and UDP listeners on
+  127.0.0.1 and `::1` received every control the client and three new
+  sibling processes sent before the launch, after Ready and after the
+  helper ended, 24 per leg, and no `widget-helper-probe` marker.
+- A driver launch with the probe's tail on the committed images of both
+  architectures (Run 1) reached Ready with the `handles 0x3`, `signature
+  0x5`, `font disable 0x1` and `image load 0x4` rows that the suspended
+  child had read back before its resume, and its thread, event and
+  `BCryptGenRandom` rows passed.
+- The helper's units preprocessed without `_DEBUG` (Run 1) held no probe:
+  `main()` accepted only the token and gave `serve` only
+  `WidgetHelper::Lockdown()`, and the Windows probe unit was empty. No
+  Release helper ran.
+
+Not run on Windows with either helper: a malformed argument, the 16-target
+limit, a probe helper whose lockdown fails, a helper without Winsock or
+without ntdll's two functions, a failed preopen, nonblocking switch or
+`closesocket`, a harness connect that completed or failed other than by a
+timeout or `WSAEACCES`, and ARM64. The same-binary helper ran only on x86.
+With `TelegramWidgetHelper.exe` also not run: `connect-control`,
+`probe-unsandboxed`, a target other than the loopback port's four, a
+`win32k system calls:` line other than `DISABLED`, and an argument outside
+the ANSI code page. The other Windows runs of the native probe are in
 [Remote engines verification](test_widget_fixture.md#verification).
 
 On Linux the probe first ran in the same-binary helper, the client's own
