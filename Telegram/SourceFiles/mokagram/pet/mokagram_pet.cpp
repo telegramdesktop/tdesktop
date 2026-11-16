@@ -273,6 +273,9 @@ Clawd::Clawd(Host host)
 	}, _lifetime);
 
 	_watchdog.callEach(400);
+	QObject::connect(qApp, &QGuiApplication::applicationStateChanged, _stage.get(), [=] {
+		watchdog();
+	});
 	watchdog();
 }
 
@@ -375,6 +378,12 @@ void Clawd::watchdog() {
 		_stage->show();
 		_hit->show();
 		restack();
+	}
+	if (QGuiApplication::applicationState() != Qt::ApplicationActive) {
+		if (_animation.animating()) {
+			_animation.stop();
+		}
+		return;
 	}
 	if (!_animation.animating()) {
 		_last = 0;
