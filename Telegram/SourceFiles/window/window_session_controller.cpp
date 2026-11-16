@@ -3189,13 +3189,14 @@ void SessionController::showCalendar(ShowCalendarDescriptor &&descriptor) {
 	const auto searchCalendarResult = [&]() -> SearchCalendarResult {
 		using Factory = Fn<void(QDate, Ui::CalendarImageSetter)>;
 		using CustomJump = Fn<void(const QDate &, Fn<void()>)>;
-		if (!descriptor.mediaPhoto && !descriptor.mediaVideo) {
+		const auto hasMediaFilter = descriptor.mediaPhoto || descriptor.mediaVideo;
+		if (!hasMediaFilter && (topic || sublist)) {
 			return {};
 		}
 		const auto search = std::make_shared<Api::SearchCalendarController>(
 			&session(),
 			history->peer->id,
-			(descriptor.mediaPhoto && descriptor.mediaVideo)
+			(!hasMediaFilter || (descriptor.mediaPhoto && descriptor.mediaVideo))
 				? Storage::SharedMediaType::PhotoVideo
 				: descriptor.mediaPhoto
 				? Storage::SharedMediaType::Photo
@@ -3212,7 +3213,7 @@ void SessionController::showCalendar(ShowCalendarDescriptor &&descriptor) {
 				});
 		};
 		auto customJump = CustomJump(nullptr);
-		if (const auto performJump = descriptor.customJump) {
+		if (hasMediaFilter && performJump) {
 			customJump = [=](const QDate &d, Fn<void()> close) {
 				const auto date = base::unixtime::serialize(
 					QDateTime(d, QTime()));
