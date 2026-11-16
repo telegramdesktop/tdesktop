@@ -9,28 +9,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/win/widget_channel_win.h"
 
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
+
 namespace Platform::WidgetHelper {
 
 struct Tokens {
 	UniqueHandle lockdown;
 	UniqueHandle initial;
-	QString error;
+	std::string error;
 };
 
 struct Job {
 	UniqueHandle handle;
 	DWORD creationFlags = 0;
-	QString error;
+	std::string error;
 };
 
-enum class AppContainerLevel : uchar {
+struct JobState {
+	JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits = {};
+	JOBOBJECT_BASIC_UI_RESTRICTIONS restrictions = {};
+	const char *failed = nullptr;
+	DWORD error = 0;
+	BOOL inJob = FALSE;
+};
+
+enum class AppContainerLevel : std::uint8_t {
 	Regular,
 	LessPrivileged,
-};
-
-enum class MitigationStage : uchar {
-	Creation,
-	Startup,
 };
 
 struct Mitigation {
@@ -38,7 +47,6 @@ struct Mitigation {
 	DWORD size = 0;
 	DWORD required = 0;
 	DWORD forbidden = 0;
-	MitigationStage stage = MitigationStage::Creation;
 };
 
 struct Policies {
@@ -50,18 +58,29 @@ struct Policies {
 };
 
 [[nodiscard]] Tokens CreateTokens();
-[[nodiscard]] QString CheckLockdownToken(HANDLE token);
-[[nodiscard]] QString CheckInitialToken(HANDLE token);
-[[nodiscard]] QString CheckAppContainerToken(
+[[nodiscard]] std::string CheckLockdownToken(HANDLE token);
+[[nodiscard]] std::string CheckInitialToken(HANDLE token);
+[[nodiscard]] std::string CheckAppContainerToken(
 	HANDLE token,
 	AppContainerLevel level);
 
 [[nodiscard]] Job CreateJob();
+[[nodiscard]] JobState ReadJob();
+[[nodiscard]] std::string VerifyJob();
 
 [[nodiscard]] const Policies &SandboxPolicies();
+[[nodiscard]] std::optional<DWORD> ReadMitigation(
+	PROCESS_MITIGATION_POLICY policy,
+	DWORD size);
 
-[[nodiscard]] QString LockDownHelper();
-[[nodiscard]] Fn<QString()> PrepareHelperProbe(
-	const QString &clientDirectory);
+[[nodiscard]] std::string Hex(DWORD value);
+[[nodiscard]] std::string NumberedError(const char *call, DWORD error);
+[[nodiscard]] std::string PolicyError(
+	const char *call,
+	PROCESS_MITIGATION_POLICY policy,
+	DWORD error);
+
+[[nodiscard]] std::string VerifyNoThreadToken();
+[[nodiscard]] std::string LockDownHelper();
 
 } // namespace Platform::WidgetHelper

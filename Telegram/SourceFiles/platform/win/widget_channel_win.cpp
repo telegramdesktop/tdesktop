@@ -7,32 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/widget_channel_win.h"
 
-#include "base/random.h"
+#include <gsl/gsl>
+
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <utility>
+#include <vector>
 
 namespace Platform::WidgetHelper {
 namespace {
 
 constexpr auto kBufferSize = DWORD(64 * 1024);
 
-[[nodiscard]] QString SystemError(const char *call, DWORD error) {
-	return u"%1 failed: %2"_q.arg(
-		QString::fromLatin1(call),
-		qt_error_string(int(error)));
-}
-
 [[nodiscard]] UniqueHandle Own(HANDLE handle) {
 	return UniqueHandle((handle != INVALID_HANDLE_VALUE) ? handle : nullptr);
 }
 
-[[nodiscard]] std::wstring PipeName() {
-	return u"\\\\.\\pipe\\telegram-widget-helper-%1-%2%3"_q
-		.arg(GetCurrentProcessId())
-		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
-		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
-		.toStdWString();
-}
-
-[[nodiscard]] QString CreateEvents(WinStream::Handles &handles) {
+[[nodiscard]] std::string CreateEvents(WinStream::Handles &handles) {
 	const auto events = std::array{
 		&handles.stop,
 		&handles.reading,
@@ -44,10 +36,10 @@ constexpr auto kBufferSize = DWORD(64 * 1024);
 			return SystemError("CreateEventW", GetLastError());
 		}
 	}
-	return QString();
+	return std::string();
 }
 
-[[nodiscard]] QString CreateServer(
+[[nodiscard]] std::string CreateServer(
 		WinStream::Handles &handles,
 		const std::wstring &name) {
 	auto token = HANDLE();
@@ -113,19 +105,19 @@ constexpr auto kBufferSize = DWORD(64 * 1024);
 	if (!handles.pipe) {
 		return SystemError("CreateNamedPipeW", GetLastError());
 	}
-	return QString();
+	return std::string();
 }
 
-[[nodiscard]] QString Connect(const WinStream::Handles &handles) {
+[[nodiscard]] std::string Connect(const WinStream::Handles &handles) {
 	const auto pipe = handles.pipe.get();
 	auto overlapped = OVERLAPPED();
 	overlapped.hEvent = handles.reading.get();
 	if (ConnectNamedPipe(pipe, &overlapped)) {
-		return u"ConnectNamedPipe accepted another client"_q;
+		return "ConnectNamedPipe accepted another client";
 	}
 	const auto error = GetLastError();
 	if (error == ERROR_PIPE_CONNECTED) {
-		return QString();
+		return std::string();
 	} else if (error == ERROR_IO_PENDING) {
 		CancelIoEx(pipe, &overlapped);
 		auto done = DWORD();
@@ -206,14 +198,13 @@ void WinStream::shutdown() {
 	SetEvent(_handles.stop.get());
 }
 
-WinChannel CreateWinChannel() {
-	const auto name = PipeName();
+WinChannel CreateWinChannel(const std::wstring &name) {
 	auto handles = WinStream::Handles();
 	auto error = CreateEvents(handles);
-	if (error.isEmpty()) {
+	if (error.empty()) {
 		error = CreateServer(handles, name);
 	}
-	if (!error.isEmpty()) {
+	if (!error.empty()) {
 		return { .error = std::move(error) };
 	}
 	auto child = Own(CreateFileW(
@@ -228,7 +219,7 @@ WinChannel CreateWinChannel() {
 		return { .error = SystemError("CreateFileW", GetLastError()) };
 	}
 	error = Connect(handles);
-	if (!error.isEmpty()) {
+	if (!error.empty()) {
 		return { .error = std::move(error) };
 	}
 	return {
@@ -247,10 +238,64 @@ std::unique_ptr<WinStream> AdoptWinChannel(UniqueHandle pipe) {
 		return nullptr;
 	}
 	auto handles = WinStream::Handles{ .pipe = std::move(pipe) };
-	if (!CreateEvents(handles).isEmpty()) {
+	if (!CreateEvents(handles).empty()) {
 		return nullptr;
 	}
 	return std::make_unique<WinStream>(std::move(handles));
+}
+
+std::string Utf8(std::wstring_view text) {
+	const auto length = int(text.size());
+	const auto size = WideCharToMultiByte(
+		CP_UTF8,
+		0,
+		text.data(),
+		length,
+		nullptr,
+		0,
+		nullptr,
+		nullptr);
+	if (size <= 0) {
+		return std::string();
+	}
+	auto result = std::string(std::size_t(size), char());
+	const auto written = WideCharToMultiByte(
+		CP_UTF8,
+		0,
+		text.data(),
+		length,
+		result.data(),
+		size,
+		nullptr,
+		nullptr);
+	if (written != size) {
+		return std::string();
+	}
+	return result;
+}
+
+std::string SystemError(const char *call, DWORD error) {
+	auto buffer = LPWSTR();
+	const auto length = FormatMessageW(
+		(FORMAT_MESSAGE_ALLOCATE_BUFFER
+			| FORMAT_MESSAGE_FROM_SYSTEM
+			| FORMAT_MESSAGE_IGNORE_INSERTS),
+		nullptr,
+		error,
+		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		reinterpret_cast<LPWSTR>(&buffer),
+		0,
+		nullptr);
+	const auto guard = gsl::finally([&] {
+		LocalFree(buffer);
+	});
+	auto message = length
+		? Utf8(std::wstring_view(buffer, length))
+		: std::string();
+	message.erase(message.find_last_not_of("\r\n ") + 1);
+	return std::string(call)
+		+ " failed: "
+		+ (message.empty() ? ("error " + std::to_string(error)) : message);
 }
 
 } // namespace Platform::WidgetHelper

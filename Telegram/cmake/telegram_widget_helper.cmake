@@ -18,15 +18,21 @@ PRIVATE
     _other/widget_helper_linux.cpp
     _other/widget_helper_mac.cpp
     _other/widget_helper_posix.cpp
+    _other/widget_helper_win.cpp
     platform/linux/widget_descriptors_linux.cpp
     platform/linux/widget_descriptors_linux.h
     platform/linux/widget_lockdown_linux.cpp
     platform/linux/widget_lockdown_linux.h
     platform/posix/widget_channel_posix.cpp
     platform/posix/widget_channel_posix.h
+    platform/win/widget_channel_win.cpp
+    platform/win/widget_channel_win.h
+    platform/win/widget_sandbox_win.cpp
+    platform/win/widget_sandbox_win.h
     test/test_widget_helper_probe_lockdown.h
     test/test_widget_helper_probe_lockdown_linux.cpp
     test/test_widget_helper_probe_lockdown_mac.cpp
+    test/test_widget_helper_probe_lockdown_win.cpp
 )
 
 if (NOT APPLE)
@@ -50,7 +56,36 @@ PRIVATE
     desktop-app::external_gsl
 )
 
-if (APPLE)
+if (WIN32)
+    if (build_winarm)
+        set(widget_helper_arch arm64)
+    elseif (build_win64)
+        set(widget_helper_arch x64)
+    else()
+        set(widget_helper_arch x86)
+    endif()
+
+    set_target_properties(TelegramWidgetHelper PROPERTIES
+        WIN32_EXECUTABLE TRUE
+        RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/modules/${widget_helper_arch}"
+    )
+    target_link_libraries(TelegramWidgetHelper
+    PRIVATE
+        advapi32
+        bcrypt
+        $<$<CONFIG:Debug>:ws2_32>
+        delayimp
+    )
+    target_link_options(TelegramWidgetHelper
+    PRIVATE
+        # GUI image with main(): a console one would start a conhost.exe the job forbids.
+        /ENTRY:mainCRTStartup
+        # Not a KnownDLL, which the LPAC primary cannot open: WarmUp() binds it while impersonating.
+        /DELAYLOAD:bcrypt.dll
+        $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
+    )
+    add_dependencies(Telegram TelegramWidgetHelper)
+elseif (APPLE)
     set_target_properties(TelegramWidgetHelper PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${output_folder}
         XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO

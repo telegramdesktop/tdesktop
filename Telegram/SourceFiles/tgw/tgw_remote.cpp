@@ -14,8 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "twidget/remote_stream.h"
 
 #include <condition_variable>
-#include <cstdio>
-#include <cstdlib>
 #include <mutex>
 
 namespace Tgw {
@@ -193,18 +191,6 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 [[nodiscard]] QStringList HelperArguments() {
 	return Test::WidgetHelperProbeArguments(EnginesSwitch());
 }
-
-#ifdef Q_OS_WIN
-[[nodiscard]] bool HelperEntryAllowed() {
-	return true;
-}
-
-[[nodiscard]] std::string HelperLockdown(const QStringList &arguments) {
-	return Test::WidgetHelperLockdown(arguments, [] {
-		return Platform::WidgetHelper::Lockdown();
-	});
-}
-#endif // Q_OS_WIN
 #else // _DEBUG
 [[nodiscard]] EnginePlace ChoosePlace() {
 	return DefaultPlace();
@@ -213,16 +199,6 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 [[nodiscard]] QStringList HelperArguments() {
 	return {};
 }
-
-#ifdef Q_OS_WIN
-[[nodiscard]] bool HelperEntryAllowed() {
-	return Platform::WidgetHelper::Enabled();
-}
-
-[[nodiscard]] std::string HelperLockdown(const QStringList &) {
-	return Platform::WidgetHelper::Lockdown().toStdString();
-}
-#endif // Q_OS_WIN
 #endif // _DEBUG
 
 Manager::Manager()
@@ -487,26 +463,5 @@ EnginePlace ChosenEnginePlace() {
 bool StopRemoteEngines(Fn<void()> stopped) {
 	return Instance && Instance->stop(std::move(stopped));
 }
-
-#ifdef Q_OS_WIN
-void RunWidgetHelper(const QStringList &arguments) {
-	if (!HelperEntryAllowed()) {
-		std::_Exit(1);
-	}
-	const auto stream = Platform::WidgetHelper::Adopt(arguments.value(0));
-	if (!stream) {
-		std::_Exit(1);
-	}
-	const auto reason = twidget::SandboxRemoteEngineEnd::serve(
-		*stream,
-		BuildString(),
-		[&] { return HelperLockdown(arguments); });
-	if (!reason.empty()) {
-		const auto size = std::min(reason.size(), kMaxReasonBytes);
-		std::fprintf(stderr, "Widget helper: %.*s\n", int(size), reason.data());
-	}
-	std::_Exit(reason.empty() ? 0 : 1);
-}
-#endif // Q_OS_WIN
 
 } // namespace Tgw

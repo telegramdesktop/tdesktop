@@ -11,10 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <string>
 #include <vector>
 
-// The helper half of the widget helper's Debug probe on macOS and Linux and
-// the names both halves share. Qt-free: TelegramWidgetHelper's Debug build
-// compiles it, its Release build contains no probe. The client half is
-// test_widget_helper_probe.h.
+// The helper half of the widget helper's Debug probe on macOS, Linux and
+// Windows and the names both halves share. Qt-free: TelegramWidgetHelper's
+// Debug build compiles it, its Release build contains no probe. The client
+// half is test_widget_helper_probe.h.
 // Reference: docs/helpers/test_widget_helper_probe.md.
 
 namespace Test {
@@ -36,11 +36,12 @@ inline constexpr auto kWidgetHelperUnsandboxedMode = "probe-unsandboxed";
 // connect control; only a fixture's network targets (Windows) follow it.
 inline constexpr auto kWidgetHelperConnectControl = "connect-control";
 
-// The helper's lockdown hook on macOS and Linux, called once on serve's
-// thread after the opening was accepted. |arguments| is everything after the
-// helper's path, the token first. With no argument after the token it
-// returns |lockdown|() alone: "" serves widgets, any other text refuses with
-// it. Any mode but "probe" and "probe-unsandboxed" refuses with its name.
+// The helper's lockdown hook on macOS, Linux and Windows, called once on
+// serve's thread after the opening was accepted. |arguments| is everything
+// after the helper's path, the token first. With no argument after the
+// token it returns |lockdown|() alone: "" serves widgets, any other text
+// refuses with it. Any mode but "probe" and "probe-unsandboxed" refuses
+// with its name.
 // On macOS, with "probe" it calls |lockdown| itself between its snapshots
 // and always returns a non-empty report, so the stream is refused and no
 // widget is served; with "probe-unsandboxed" it never calls |lockdown| and
@@ -64,6 +65,19 @@ inline constexpr auto kWidgetHelperConnectControl = "connect-control";
 // <line>". With "probe-unsandboxed" it does the same without any |lockdown|
 // call or outer filter, and the helper serves widgets unconfined. The
 // arguments after the data directory are ignored there.
+// On Windows, with "probe" it takes its native controls, opening the
+// client's working directory argument (separators made native; empty or
+// missing names none), and its network ones: its own Winsock start, the
+// loopback port's four targets and the numeric targets after it, AFD
+// endpoint opens and, with "connect-control" and Winsock, one preopened
+// socket per target. A refusal of |lockdown| is returned with no probe line
+// and every socket closed. Otherwise it repeats the attempts, uses and
+// closes the preopened sockets, writes every line to stderr as "Widget
+// helper probe: <line>" and returns "", so the helper serves widgets. A
+// malformed argument is a report line, never a refusal; the data directory
+// and keychain arguments are ignored, and "probe-unsandboxed" refuses as
+// not available. Lines, limits and controls:
+// docs/helpers/test_widget_helper_probe.md#windows.
 // Defined only in TelegramWidgetHelper's Debug build.
 [[nodiscard]] std::string WidgetHelperProbeLockdown(
 	const std::vector<std::string> &arguments,

@@ -10,24 +10,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "test/test_widget_helper_probe_lockdown.h"
 
-#include <string>
-
 // The Debug probe of the widget helper's lockdown on macOS, Windows and
-// Linux, its half in Telegram: the probe mode test, the arguments a client
-// appends after the helper's token and, on Windows only, the lockdown hook
-// the same-binary helper gives SandboxRemoteEngineEnd::serve(). On macOS
-// and Linux the probe runs inside TelegramWidgetHelper's Debug build
+// Linux, its half in Telegram: the probe mode test and the arguments a
+// client appends after the helper's token. On all three the probe runs
+// inside TelegramWidgetHelper's Debug build
 // (test_widget_helper_probe_lockdown.h): on macOS a probe helper lists every
 // descriptor and Mach right it holds after the real lockdown, attempts what
 // the sandbox must deny and refuses the stream with a summary instead of
 // serving any widget; on Linux a probe helper attempts what the lockdown
 // must deny in forked copies of itself, then locks itself down for real,
-// writes its readings to stderr and goes on serving widgets. On Windows a
-// probe helper runs the native probe of
-// Platform::WidgetHelper::PrepareProbe() and the harness's own network
-// attempts around the real lockdown and, once that succeeded, writes their
-// report to stderr and goes on serving widgets. Its only product caller is
-// the `_DEBUG` block of tgw_remote.cpp; Release builds never reach it, the
+// writes its readings to stderr and goes on serving widgets; on Windows a
+// probe helper runs its native probe and the harness's own network attempts
+// around the real lockdown and, once that succeeded, writes their report to
+// stderr and goes on serving widgets. Its only product caller is the
+// `_DEBUG` block of tgw_remote.cpp; Release builds never reach it, the
 // harness ones included.
 // Reference: docs/helpers/test_widget_helper_probe.md.
 //
@@ -77,33 +73,5 @@ struct WidgetHelperProbeFixture {
 [[nodiscard]] QStringList WidgetHelperProbeArguments(
 	const QString &mode,
 	const WidgetHelperProbeFixture &fixture);
-
-#ifdef Q_OS_WIN
-// The same-binary helper's lockdown hook on Windows, called once on serve's
-// thread after the opening was accepted. |arguments| is everything after
-// `-widgethelper`, the token first. With no argument after the token it
-// returns |lockdown|() alone: "" serves widgets, any other text refuses with
-// it. Any mode but "probe" and "probe-unsandboxed" refuses with its name.
-// With "probe" it calls Platform::WidgetHelper::PrepareProbe() with the
-// client's working directory argument (native separators, empty when the
-// argument is empty or missing), then takes the harness's own
-// network controls: its own WSAStartup; only when that bind and start
-// succeeded, a fresh socket of each family and protocol and the loopback
-// port's and the network targets' attempts; native AFD endpoint opens,
-// which need no Winsock; and, with "connect-control" and Winsock, one
-// preopened socket per target whose creation and nonblocking switch
-// succeeded. Then |lockdown|: its failure text refuses the stream and no
-// probe line is written. On success it repeats the attempts it made, uses
-// and closes the preopened sockets, writes every line of the product
-// probe's report, then its own, to stderr as "Widget helper probe: <line>"
-// and returns "", so the helper serves widgets. A malformed argument is a
-// report line, never a refusal, though a target that does not parse, has
-// no port or is past the limit gets one only with Winsock; the
-// application-support and keychain arguments are ignored, and
-// "probe-unsandboxed" refuses as not available.
-[[nodiscard]] std::string WidgetHelperLockdown(
-	const QStringList &arguments,
-	Fn<QString()> lockdown);
-#endif // Q_OS_WIN
 
 } // namespace Test

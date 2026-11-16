@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/update_checker.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "platform/win/update_install_win.h"
-#include "tgw/tgw_remote.h"
 
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
@@ -161,12 +160,6 @@ int Launcher::exec() {
 			native ? *native : arguments())) {
 		return *result;
 	}
-	for (auto i = arguments().begin(), e = arguments().end(); i != e; ++i) {
-		if (*i == u"-widgethelper"_q) {
-			Tgw::RunWidgetHelper(QStringList(i + 1, e));
-		}
-	}
-
 	return Core::Launcher::exec();
 }
 

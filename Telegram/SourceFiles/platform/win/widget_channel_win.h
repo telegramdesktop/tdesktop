@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <windows.h>
 
 #include <atomic>
+#include <memory>
+#include <optional>
+#include <string>
+#include <string_view>
 
 namespace Platform::WidgetHelper {
 
@@ -48,10 +52,13 @@ private:
 struct WinChannel {
 	std::unique_ptr<WinStream> parent;
 	UniqueHandle child;
-	QString error;
+	std::string error;
 };
 
-[[nodiscard]] WinChannel CreateWinChannel();
+[[nodiscard]] WinChannel CreateWinChannel(const std::wstring &name);
 [[nodiscard]] std::unique_ptr<WinStream> AdoptWinChannel(UniqueHandle pipe);
+
+[[nodiscard]] std::string Utf8(std::wstring_view text);
+[[nodiscard]] std::string SystemError(const char *call, DWORD error);
 
 } // namespace Platform::WidgetHelper

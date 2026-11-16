@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/platform_widget_helper.h"
 
+#include "base/platform/base_platform_info.h"
+#include "base/random.h"
 #include "platform/win/widget_channel_win.h"
 #include "platform/win/widget_sandbox_win.h"
 
-#include <charconv>
+#include <QtCore/QOperatingSystemVersion>
 
 namespace Platform::WidgetHelper {
 namespace {
@@ -18,6 +20,17 @@ namespace {
 constexpr auto kPathCapacity = DWORD(32768);
 constexpr auto kAbandonWait = crl::time(1000);
 constexpr auto kFirstErrorStatus = DWORD(0xC0000000);
+constexpr auto kHelperName = std::wstring_view(L"TelegramWidgetHelper.exe");
+
+#if defined _M_ARM64
+constexpr auto kHelperArchitecture = std::wstring_view(L"arm64");
+#elif defined _M_X64
+constexpr auto kHelperArchitecture = std::wstring_view(L"x64");
+#elif defined _M_IX86
+constexpr auto kHelperArchitecture = std::wstring_view(L"x86");
+#else // _M_ARM64 || _M_X64 || _M_IX86
+#error "The widget helper has no modules folder for this architecture."
+#endif // _M_ARM64 || _M_X64 || _M_IX86
 
 struct Path {
 	std::wstring value;
@@ -57,10 +70,16 @@ struct Child {
 	UniqueHandle job;
 };
 
-[[nodiscard]] QString SystemError(const char *call, DWORD error) {
-	return u"%1 failed: %2"_q.arg(
-		QString::fromLatin1(call),
-		qt_error_string(int(error)));
+[[nodiscard]] QString QtSystemError(const char *call, DWORD error) {
+	return QString::fromStdString(SystemError(call, error));
+}
+
+[[nodiscard]] std::wstring PipeName() {
+	return u"\\\\.\\pipe\\telegram-widget-helper-%1-%2%3"_q
+		.arg(GetCurrentProcessId())
+		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
+		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
+		.toStdWString();
 }
 
 [[nodiscard]] Path ExecutablePath() {
@@ -70,7 +89,9 @@ struct Child {
 		result.data(),
 		kPathCapacity);
 	if (!length) {
-		return { .error = SystemError("GetModuleFileNameW", GetLastError()) };
+		return {
+			.error = QtSystemError("GetModuleFileNameW", GetLastError()),
+		};
 	} else if (length >= kPathCapacity) {
 		return { .error = u"the executable path is too long"_q };
 	}
@@ -78,11 +99,30 @@ struct Child {
 	return { .value = std::move(result) };
 }
 
+[[nodiscard]] Path HelperPath() {
+	auto result = ExecutablePath();
+	if (!result.error.isEmpty()) {
+		return result;
+	}
+	const auto separator = result.value.find_last_of(L'\\');
+	if (separator == std::wstring::npos) {
+		return { .error = u"the executable path has no directory"_q };
+	}
+	result.value.resize(separator + 1);
+	result.value.append(L"modules\\");
+	result.value.append(kHelperArchitecture);
+	result.value.append(L"\\");
+	result.value.append(kHelperName);
+	return result;
+}
+
 [[nodiscard]] Path SystemDirectory() {
 	auto result = std::wstring(kPathCapacity, wchar_t());
 	const auto length = GetSystemDirectoryW(result.data(), kPathCapacity);
 	if (!length) {
-		return { .error = SystemError("GetSystemDirectoryW", GetLastError()) };
+		return {
+			.error = QtSystemError("GetSystemDirectoryW", GetLastError()),
+		};
 	} else if (length >= kPathCapacity) {
 		return { .error = u"the system directory path is too long"_q };
 	}
@@ -122,7 +162,7 @@ struct Child {
 			0,
 			TRUE,
 			DUPLICATE_SAME_ACCESS)) {
-		return { .error = SystemError("DuplicateHandle", GetLastError()) };
+		return { .error = QtSystemError("DuplicateHandle", GetLastError()) };
 	}
 	return { .handle = UniqueHandle(copy) };
 }
@@ -192,7 +232,7 @@ struct Child {
 		storage.data());
 	if (!size || !InitializeProcThreadAttributeList(list, count, 0, &size)) {
 		return {
-			.error = SystemError(
+			.error = QtSystemError(
 				"InitializeProcThreadAttributeList",
 				GetLastError()),
 		};
@@ -210,7 +250,7 @@ struct Child {
 				nullptr,
 				nullptr)) {
 			return {
-				.error = SystemError(
+				.error = QtSystemError(
 					"UpdateProcThreadAttribute",
 					GetLastError()),
 			};
@@ -222,7 +262,7 @@ struct Child {
 		| STARTF_FORCEOFFFEEDBACK;
 	startup.StartupInfo.hStdError = diagnostics.handle.get();
 	startup.lpAttributeList = list;
-	auto commandLine = L"\"" + spawn.path + L"\" -widgethelper "
+	auto commandLine = L"\"" + spawn.path + L"\" "
 		+ std::to_wstring(reinterpret_cast<uintptr_t>(pipe.handle.get()));
 	for (const auto &argument : spawn.arguments) {
 		commandLine += L' ' + QuotedArgument(argument);
@@ -242,7 +282,9 @@ struct Child {
 			spawn.directory.c_str(),
 			&startup.StartupInfo,
 			&information)) {
-		return { .error = SystemError("CreateProcessAsUserW", GetLastError()) };
+		return {
+			.error = QtSystemError("CreateProcessAsUserW", GetLastError()),
+		};
 	}
 	return {
 		.process = UniqueHandle(information.hProcess),
@@ -254,13 +296,13 @@ struct Child {
 [[nodiscard]] QString CheckProcessToken(HANDLE process) {
 	auto token = HANDLE();
 	if (!OpenProcessToken(process, TOKEN_QUERY, &token)) {
-		return SystemError("OpenProcessToken", GetLastError());
+		return QtSystemError("OpenProcessToken", GetLastError());
 	}
 	const auto guard = UniqueHandle(token);
 	const auto error = CheckLockdownToken(token);
-	return error.isEmpty()
+	return QString::fromStdString(error.empty()
 		? CheckAppContainerToken(token, AppContainerLevel::LessPrivileged)
-		: error;
+		: error);
 }
 
 [[nodiscard]] QString Start(HANDLE process, HANDLE thread, HANDLE initial) {
@@ -270,21 +312,22 @@ struct Child {
 	}
 	auto target = thread;
 	if (!SetThreadToken(&target, initial)) {
-		return SystemError("SetThreadToken", GetLastError());
+		return QtSystemError("SetThreadToken", GetLastError());
 	}
 	auto attached = HANDLE();
 	if (!OpenThreadToken(thread, TOKEN_QUERY, TRUE, &attached)) {
-		return SystemError("OpenThreadToken", GetLastError());
+		return QtSystemError("OpenThreadToken", GetLastError());
 	}
 	const auto guard = UniqueHandle(attached);
-	error = CheckInitialToken(attached);
+	error = QString::fromStdString(CheckInitialToken(attached));
 	if (error.isEmpty()) {
-		error = CheckAppContainerToken(attached, AppContainerLevel::Regular);
+		error = QString::fromStdString(
+			CheckAppContainerToken(attached, AppContainerLevel::Regular));
 	}
 	if (!error.isEmpty()) {
 		return u"the attached token check failed: "_q + error;
 	} else if (ResumeThread(thread) == DWORD(-1)) {
-		return SystemError("ResumeThread", GetLastError());
+		return QtSystemError("ResumeThread", GetLastError());
 	}
 	return QString();
 }
@@ -296,7 +339,7 @@ struct Child {
 [[nodiscard]] QString ExitText(HANDLE process) {
 	auto code = DWORD();
 	if (!GetExitCodeProcess(process, &code)) {
-		return SystemError("GetExitCodeProcess", GetLastError());
+		return QtSystemError("GetExitCodeProcess", GetLastError());
 	}
 	return (code >= kFirstErrorStatus)
 		? u"exit 0x%1"_q.arg(QString::number(code, 16).toUpper())
@@ -313,7 +356,7 @@ struct Child {
 		return std::nullopt;
 	}
 	return Completion{
-		.detail = SystemError("WaitForSingleObject", GetLastError()),
+		.detail = QtSystemError("WaitForSingleObject", GetLastError()),
 	};
 }
 
@@ -342,7 +385,7 @@ struct Child {
 		result->detail = exited->detail + u", "_q + result->detail;
 	}
 	result->detail += u", "_q + (killError
-		? SystemError("TerminateJobObject", killError)
+		? QtSystemError("TerminateJobObject", killError)
 		: u"terminated after %1 ms"_q.arg(terminated));
 	return std::move(*result);
 }
@@ -352,34 +395,21 @@ struct Child {
 	return u"%1 (%2)"_q.arg(error, cleanup.detail);
 }
 
-[[nodiscard]] bool Sentinel(HANDLE handle) {
-	const auto sentinels = std::array{
-		INVALID_HANDLE_VALUE,
-		GetCurrentThread(),
-		GetCurrentProcessToken(),
-		GetCurrentThreadToken(),
-		GetCurrentThreadEffectiveToken(),
-	};
-	return ranges::contains(sentinels, handle);
-}
-
-[[nodiscard]] HANDLE ParseHandle(const QString &channel) {
-	const auto text = channel.toLatin1();
-	const auto begin = text.constData();
-	const auto end = begin + text.size();
-	auto value = uintptr_t();
-	const auto parsed = std::from_chars(begin, end, value);
-	if (text.isEmpty()
-		|| text.front() == '0'
-		|| parsed.ec != std::errc()
-		|| parsed.ptr != end) {
-		return nullptr;
-	}
-	const auto result = reinterpret_cast<HANDLE>(value);
-	return Sentinel(result) ? nullptr : result;
-}
-
 } // namespace
+
+QString UnsupportedReason() {
+	if (::Platform::IsWindowsStoreBuild()) {
+		return u"the widget helper is not available in the Store build"_q;
+	}
+	const auto minimum = QOperatingSystemVersion(
+		QOperatingSystemVersion::Windows,
+		10,
+		0,
+		17763);
+	return (QOperatingSystemVersion::current() >= minimum)
+		? QString()
+		: u"the widget helper needs Windows 10 1809 or later"_q;
+}
 
 bool Enabled() {
 	return UnsupportedReason().isEmpty();
@@ -390,7 +420,7 @@ Launched Launch(const QStringList &arguments) {
 	if (!unsupported.isEmpty()) {
 		return { .error = std::move(unsupported) };
 	}
-	auto path = ExecutablePath();
+	auto path = HelperPath();
 	if (!path.error.isEmpty()) {
 		return { .error = std::move(path.error) };
 	}
@@ -398,17 +428,17 @@ Launched Launch(const QStringList &arguments) {
 	if (!directory.error.isEmpty()) {
 		return { .error = std::move(directory.error) };
 	}
-	auto channel = CreateWinChannel();
-	if (!channel.error.isEmpty()) {
-		return { .error = std::move(channel.error) };
+	auto channel = CreateWinChannel(PipeName());
+	if (!channel.error.empty()) {
+		return { .error = QString::fromStdString(channel.error) };
 	}
 	auto tokens = CreateTokens();
-	if (!tokens.error.isEmpty()) {
-		return { .error = std::move(tokens.error) };
+	if (!tokens.error.empty()) {
+		return { .error = QString::fromStdString(tokens.error) };
 	}
 	auto job = CreateJob();
-	if (!job.error.isEmpty()) {
-		return { .error = std::move(job.error) };
+	if (!job.error.empty()) {
+		return { .error = QString::fromStdString(job.error) };
 	}
 	auto created = CreateSuspended({
 		.path = std::move(path.value),
@@ -442,22 +472,6 @@ Launched Launch(const QStringList &arguments) {
 		},
 		.pid = int64(created.pid),
 	};
-}
-
-std::shared_ptr<twidget::SandboxRemoteStream> Adopt(const QString &channel) {
-	const auto handle = ParseHandle(channel);
-	if (!handle) {
-		return nullptr;
-	}
-	return AdoptWinChannel(UniqueHandle(handle));
-}
-
-QString Lockdown() {
-	return LockDownHelper();
-}
-
-Fn<QString()> PrepareProbe(const QString &clientDirectory) {
-	return PrepareHelperProbe(clientDirectory);
 }
 
 } // namespace Platform::WidgetHelper

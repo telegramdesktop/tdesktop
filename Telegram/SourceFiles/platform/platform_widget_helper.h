@@ -28,11 +28,6 @@ struct Launched {
 [[nodiscard]] bool Enabled();
 [[nodiscard]] QString UnsupportedReason();
 [[nodiscard]] Launched Launch(const QStringList &arguments);
-#ifdef Q_OS_WIN
-[[nodiscard]] std::shared_ptr<twidget::SandboxRemoteStream> Adopt(
-	const QString &channel);
-[[nodiscard]] QString Lockdown();
-#endif // Q_OS_WIN
 
 } // namespace Platform::WidgetHelper
 
@@ -55,13 +50,3 @@ inline Launched Launch(const QStringList &arguments) {
 } // namespace Platform::WidgetHelper
 
 #endif // !Q_OS_MAC && !Q_OS_WIN && !Q_OS_LINUX
-
-#ifdef Q_OS_WIN
-
-namespace Platform::WidgetHelper {
-
-[[nodiscard]] Fn<QString()> PrepareProbe(const QString &clientDirectory);
-
-} // namespace Platform::WidgetHelper
-
-#endif // Q_OS_WIN

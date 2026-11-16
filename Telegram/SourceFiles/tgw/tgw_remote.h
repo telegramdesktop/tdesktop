@@ -19,8 +19,4 @@ void PrepareRemoteEngines();
 [[nodiscard]] EnginePlace ChosenEnginePlace();
 [[nodiscard]] bool StopRemoteEngines(Fn<void()> stopped);
 
-#ifdef Q_OS_WIN
-[[noreturn]] void RunWidgetHelper(const QStringList &arguments);
-#endif // Q_OS_WIN
-
 } // namespace Tgw
