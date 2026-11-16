@@ -1043,13 +1043,23 @@ void WaitForStoryMedia(
 	if (ready()) {
 		done();
 		return;
+	} else if (failed()) {
+		return;
 	}
 	struct Waiting {
 		rpl::lifetime lifetime;
 		bool finished = false;
 	};
 	const auto waiting = std::make_shared<Waiting>();
-	controller->session().downloaderTaskFinished(
+	controller->lifetime().add([weak = std::weak_ptr(waiting)] {
+		if (const auto strong = weak.lock()) {
+			strong->lifetime.destroy();
+		}
+	});
+	auto &data = controller->session().data();
+	rpl::merge(
+		data.photoLoadProgress() | rpl::map([] { return rpl::empty_value(); }),
+		data.documentLoadProgress() | rpl::map([] { return rpl::empty_value(); })
 	) | rpl::on_next(crl::guard(controller, [=] {
 		const auto loaded = ready();
 		if (waiting->finished || (!loaded && !failed())) {
