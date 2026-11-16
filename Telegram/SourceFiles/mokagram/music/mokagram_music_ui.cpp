@@ -7084,10 +7084,13 @@ public:
 			}
 			_seek->update();
 		});
-		_ambientTimer.start();
+		connect(qApp, &QGuiApplication::applicationStateChanged, this, [=] {
+			updateAmbientTimer();
+		});
 
 		PowerSaving::Changes(
 		) | rpl::on_next([=] {
+			updateAmbientTimer();
 			update();
 			_view->update();
 		}, lifetime());
@@ -7123,6 +7126,7 @@ public:
 			return;
 		}
 		_closing = true;
+		_ambientTimer.stop();
 		if (_cancelMotion) _cancelMotion();
 		_motionCover = nullptr;
 		_spotifyCanvas = nullptr;
@@ -7141,6 +7145,14 @@ public:
 	}
 
 protected:
+	void showEvent(QShowEvent *event) override {
+		RpWidget::showEvent(event);
+		updateAmbientTimer();
+	}
+	void hideEvent(QHideEvent *event) override {
+		_ambientTimer.stop();
+		RpWidget::hideEvent(event);
+	}
 	bool eventFilter(QObject *watched, QEvent *event) override {
 		if (_tab == Tab::Search && event->type() == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(event);
@@ -9348,6 +9360,8 @@ private:
 			return;
 		}
 		if (track.id.isEmpty()) {
+			_isPlaying = false;
+			updateAmbientTimer();
 			if (_cancelMotion) _cancelMotion();
 			_cancelMotion = nullptr;
 			_motionFor.clear();
@@ -9415,6 +9429,7 @@ private:
 			track.title, track.artist, playing && _tab == Tab::Now);
 		if (_isPlaying != playing) {
 			_isPlaying = playing;
+			updateAmbientTimer();
 			_playAnim.start([=] { update(); }, playing ? 0. : 1., playing ? 1. : 0., 180, anim::easeOutCubic);
 		}
 		_play->setPlaying(playing);
@@ -9630,6 +9645,16 @@ private:
 	QImage _spotifyPaletteFrame;
 	QString _canvasPaletteFor;
 	crl::time _canvasPaletteNext = 0;
+	void updateAmbientTimer() {
+		const auto needed = !_closing && isVisible() && _isPlaying
+			&& QGuiApplication::applicationState() == Qt::ApplicationActive
+			&& !PowerSaving::On(PowerSaving::kAnimations);
+		if (needed && !_ambientTimer.isActive()) {
+			_ambientTimer.start();
+		} else if (!needed) {
+			_ambientTimer.stop();
+		}
+	}
 	QTimer _ambientTimer;
 	Media::Clip::ReaderPointer _motionCover;
 	Media::Clip::ReaderPointer _playlistsSticker;
