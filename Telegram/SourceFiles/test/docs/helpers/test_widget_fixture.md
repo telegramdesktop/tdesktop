@@ -450,13 +450,17 @@ packs, the fixture and the seams they use need no change for it.
   ships it. The Snap's `telegram` part builds with the prefix `/usr` and
   no special target, so it stages and primes
   `usr/libexec/telegram-desktop/TelegramWidgetHelper`, which the renamed
-  `usr/bin/telegram-desktop` finds; its part-wide `LDFLAGS` force
-  `-ldav1d` onto every executable the part links, so the Snap's helper
-  also loads `libdav1d.so.*` before `main`, the one shipped helper that
-  links more than glibc, libm and the C++ runtime. The staging and the
-  `libdav1d` link are readings of `snap/snapcraft.yaml`, and the lookup
-  ran in a Snap-shaped install ([Verification](#verification)); no Snap
-  has been built or run confined with the helper.
+  `usr/bin/telegram-desktop` finds. The Snap's `avif` part writes the
+  forced `dav1d` link,
+  `-Wl,--push-state,--no-as-needed,-ldav1d,--pop-state`, into the `Libs:`
+  line of the `libavif.pc` it builds, so the link reaches only the
+  executables that link the avif decoder, Telegram and the
+  `codegen_emoji` build tool, and the Snap's helper links only glibc,
+  libm and the C++ runtime, like the other builds' helpers. A Snap built
+  with snapcraft staged the helper, and a Release Telegram with the test
+  harness, linked as that Snap's, started it from the Snap's unpacked
+  tree, unconfined ([Verification](#verification)); no Snap has run
+  confined with it.
   The Windows Store build and Windows before 10 1809 stop every widget
   with `no sandboxed widget helper is available here: <reason>`, because
   the default is false there, with the reason `the widget helper is not
@@ -2064,16 +2068,48 @@ and `twidget::SandboxEngine::make`, on a short-lived `std::thread` and on
 - The Release helper (Run 1) linked the same libraries, contained no
   probe, and exited 1 unless started with only the token `3` and a socket
   on descriptor 3.
+- The Snap ran in the evidence campaign of
+  `2026/11/16/keep-the-snaps-dav1d-link-flag-off-the-linux-widget-helper`
+  (its `work/test.md`, Attempt 1, Runs 3-4), in an Ubuntu 24.04 VM
+  (kernel 6.8): snapcraft 9.2.1 built the recipe with and without that
+  task's change in destructive mode. With the change the `.snap`'s
+  `usr/libexec/telegram-desktop/TelegramWidgetHelper` had the NEEDED
+  `libstdc++.so.6`, `libm.so.6`, `libgcc_s.so.1`, `libc.so.6` and
+  `ld-linux-x86-64.so.2`; without it `libdav1d.so.7` came first, before
+  the same five. `usr/bin/telegram-desktop` had the same 80 NEEDED
+  entries in the same order in both, `libdav1d.so.7` first. A Release
+  client of the changed recipe built with the test harness
+  (`TDESKTOP_RELEASE_TEST_HARNESS`), whose NEEDED and link edge equalled
+  the plain build's, ran account-free and unconfined under Xvfb, with the
+  overlay above and an AVIF leg added, from a copy of the unpacked
+  `.snap` tree in which only `usr/bin/telegram-desktop` was replaced, and
+  with the `LD_LIBRARY_PATH` that the Snap's launch composes from snapd,
+  `meta/snap.yaml`, `mesa-2404` and `gnome-46-2404`. It started that
+  tree's `usr/libexec/telegram-desktop/TelegramWidgetHelper`
+  (`/proc/<pid>/exe` that file, the path its lookup computes from the
+  tree's `usr/bin/`), whose maps held its own file, glibc's objects, libm
+  and the C++ runtime and nothing of `libdav1d`, while the client's held
+  `libdav1d.so.7.0.0`; both engines loaded in it. In another launch of
+  the same tree that client decoded a 16x16 lossless AVIF to its source's
+  exact pixel through `Images::Read`, read no image from a truncated copy
+  and decoded a PNG control. This was the first run of
+  `TelegramWidgetHelper` under Ubuntu's AppArmor user-namespace
+  restriction (`kernel.apparmor_restrict_unprivileged_userns=1`): the
+  helper got its own user, PID, network and mount namespaces without the
+  fallback line, with `Seccomp: 2`, `NoNewPrivs: 1` and no capabilities,
+  but its root still listed the system root, because its empty-root step
+  was refused without a diagnostic (the silent case of **The Linux
+  lockdown**).
 
 Not run with `TelegramWidgetHelper`: aarch64 at run time (its sources
-compiled for aarch64 with `-Werror`, its filter emulated), a Snap build
-(its part-wide `-ldav1d` read only) and a confined Snap, distribution and
-Flathub toolchains, the no-namespace fallback (unchanged code that execs
-the same file), a client killed under a stopped helper (the helper's own
-`PR_SET_PDEATHSIG` read only as the probe's `pdeathsig=9`), the client's
-death inside Flatpak, a Release client, a tarball from the release
-scripts (they do not pack the helper yet), and the tdesktop attack audit
-and conformance runner (no account on that host).
+compiled for aarch64 with `-Werror`, its filter emulated), a confined
+Snap, distribution and Flathub toolchains, the no-namespace fallback
+(unchanged code that execs the same file), a client killed under a
+stopped helper (the helper's own `PR_SET_PDEATHSIG` read only as the
+probe's `pdeathsig=9`), the client's death inside Flatpak, a Release
+client without the test harness, a tarball from the release scripts
+(they do not pack the helper yet), and the tdesktop attack audit and
+conformance runner (no account in either campaign).
 
 ## Related guidance
 
