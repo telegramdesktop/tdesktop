@@ -257,6 +257,7 @@
 	{ "установка", "install" },
 	{ "установки", "installs" },
 	{ "клиент не ответил вовремя", "the client did not respond in time" },
+	{ "операция началась, результат неизвестен", "the operation started, its result is unknown" },
 	{ "нет открытого окна", "no window is open" },
 	{ "неверные параметры", "invalid arguments" },
 	{ "нет открытой сессии", "no active session" },

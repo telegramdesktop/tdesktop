@@ -258,8 +258,14 @@ template <typename Callback>
 		return callback();
 	}
 	auto promise = std::make_shared<std::promise<std::string>>();
+	// 0 ожидает, 1 выполняется, 2 отменено до начала.
+	const auto state = std::make_shared<std::atomic<int>>(0);
 	auto future = promise->get_future();
 	crl::on_main([=]() mutable {
+		auto expected = 0;
+		if (!state->compare_exchange_strong(expected, 1)) {
+			return;
+		}
 		promise->set_value(callback());
 	});
 	for (auto waited = 0; waited != 50; ++waited) {
@@ -271,7 +277,11 @@ template <typename Callback>
 			break;
 		}
 	}
-	return Reply(false, U(Mokagram::Lang::Tr("клиент не ответил вовремя")));
+	auto expected = 0;
+	if (state->compare_exchange_strong(expected, 2)) {
+		return Reply(false, U(Mokagram::Lang::Tr("клиент не ответил вовремя")));
+	}
+	return Reply(false, U(Mokagram::Lang::Tr("операция началась, результат неизвестен")));
 }
 
 std::string ShowToast(const QJsonObject &args) {
