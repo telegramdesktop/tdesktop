@@ -475,11 +475,20 @@ packs, the fixture and the seams they use need no change for it.
   development builds included, puts it into `TelegramHelpers/` next to the
   binary, and the install rule of a packaged one into
   `${CMAKE_INSTALL_BINDIR}/TelegramHelpers/` (**The shared helper**
-  below). The release scripts move their files by hand and do not pack the
-  helper yet, so a tarball they make stops its widgets with the missing
-  helper's `open failed: No such file or directory` until
-  `2026/11/14/ship-the-linux-widget-helper-in-the-tarball-and-its-updates`
-  ships it. The Snap's `telegram` part builds with the prefix `/usr` and
+  below). The release scripts, `Telegram/build/docker/build.sh` and
+  `Telegram/build/build.sh`, carry `TelegramHelpers/TelegramWidgetHelper`
+  unmodified (no strip, no `minidebug.sh`) into the tarball and its v2
+  update package, and the canary workflow's Linux job into its update and
+  its portable archive ([Verification](#verification)). An update creates
+  a missing `TelegramHelpers/` with mode 0755, the umask applied, as the
+  Linux Updater does for every install folder it adds, and replaces the
+  file; whoever repackages the official tarball must keep that file,
+  unchanged, next to the binary. A Telegram of an older version still
+  running from the same install, with another working folder or as another
+  user of a shared root-owned install, fails the build identity check at
+  each later helper start once another instance installed the update, and
+  after three such failures the failure limit stops its starts until it
+  restarts. The Snap's `telegram` part builds with the prefix `/usr` and
   no special target, so it stages and primes
   `usr/libexec/telegram-desktop/TelegramWidgetHelper`, which the renamed
   `usr/bin/telegram-desktop` finds. The Snap's `avif` part writes the
@@ -2505,15 +2514,55 @@ and `twidget::SandboxEngine::make`, on a short-lived `std::thread` and on
   was refused without a diagnostic (the silent case of **The Linux
   lockdown**).
 
+The shipped helper ran in the evidence campaign of
+`2026/11/14/ship-the-linux-widget-helper-in-the-tarball-and-its-updates`
+(its `work/test.md`, Attempt 1, Runs 1-3), account-free, with engines
+made by an overlay as above. `Telegram/build/build.sh` and
+`Telegram/build/docker/build.sh` ran unmodified in an isolated
+`tdesktop:centos_env` container on the outputs of an x86_64 Debug build,
+with test update keys, which that build trusted, and stubs only for the
+build, the symbol dump and the cloud signer. Their tarball held
+`Telegram/TelegramHelpers/TelegramWidgetHelper` `-rwxr-xr-x`, their
+update package exactly `Telegram`, `Updater` and the helper, all
+executable, and every shipped copy of the helper had the pinned digest;
+the base commit's scripts packed none. A fresh extract of that tarball
+passed the identity check and loaded the engines in its helper, while
+the base tarball's extract failed three starts with `open failed: No
+such file or directory` and reached the failure limit. The client's own
+update path (that package as `tupdates/ready-package` in its working
+folder, then a plain launch), in installs their user can write, created
+`TelegramHelpers/` 0755 with the helper where the folder was missing,
+replaced an older helper and reached the helper of a binary renamed
+`telegram-desktop`. `-installupdate` as root, in a container, did the
+same for a root-owned install without the folder, the folder and the
+helper root 0755. Run directly as root with the arguments that
+`-installupdate` gives the Updater, on two identical staged updates
+holding only the helper, the base Updater made the folder 0700, so the
+user could not read the helper in it, and the changed one made it
+0755. Each updated install loaded the engines in its new
+helper. A local replay of the canary Linux job's "Pack v2 update." step
+put the helper with the pinned digest into its update and its portable
+archive. A Snap that snapcraft built from the base commit in an Ubuntu
+24.04 VM like the one above (the Snap builds no Updater and reads none
+of the other changed files) shipped
+`usr/libexec/telegram-desktop/TelegramWidgetHelper` `-rwxr-xr-x`,
+byte-equal to its build tree's, with its symbol table and without the
+`.gnu_debugdata` that `usr/bin/telegram-desktop` had. A Release client
+with the test harness, unconfined in a copy of that unpacked tree with
+only `usr/bin/telegram-desktop` replaced, logged `Tgw: The widget helper
+is not pinned in a package-managed build.` before each of its two helper
+starts and loaded the engines in that file; as in the run above, the
+helper mapped the C++ runtime and, under the AppArmor user-namespace
+restriction, its root still listed the system root.
+
 Not run with `TelegramWidgetHelper`: aarch64 at run time (its sources
 compiled for aarch64 with `-Werror`, its filter emulated), a confined
 Snap, distribution and Flathub toolchains, the no-namespace fallback
 (unchanged code that execs the same file), a client killed under a
 stopped helper (the helper's own `PR_SET_PDEATHSIG` read only as the
 probe's `pdeathsig=9`), the client's death inside Flatpak, a Release
-client without the test harness, a tarball from the release scripts
-(they do not pack the helper yet), and the tdesktop attack audit and
-conformance runner (no account in either campaign).
+client without the test harness, and the tdesktop attack audit and
+conformance runner (no account in any of these campaigns).
 
 The Windows build-pinned gate (**The Windows helper** above) was verified
 on an x64 host (Windows 10.0.26300) in the evidence campaign of
