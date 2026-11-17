@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "base/flat_map.h"
+#include <vector>
 
 namespace Export {
 namespace Output {
@@ -92,6 +93,9 @@ struct Settings {
 	uint64 singleTopicPeerId = 0;
 	QString singleTopicTitle;
 
+	bool splitTopics = false;
+	base::flat_map<uint64, std::vector<int32>> topicSelection;
+
 	TimeId availableAt = 0;
 
 	bool onlySinglePeer() const {
@@ -100,6 +104,12 @@ struct Settings {
 
 	bool onlySingleTopic() const {
 		return onlySinglePeer() && singleTopicRootId != 0;
+	}
+
+	bool includesTopic(uint64 peerId, int32 topicId) const {
+		const auto i = topicSelection.find(peerId);
+		return i == end(topicSelection)
+			|| ranges::contains(i->second, topicId);
 	}
 
 	static inline Types DefaultTypes() {
