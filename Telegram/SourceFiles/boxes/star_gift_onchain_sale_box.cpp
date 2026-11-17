@@ -342,12 +342,11 @@ void ApplySale(const SaleCompletion &completion) {
 		gift->starsForResale = StarsFromTon(session, price).whole();
 		gift->nanoTonForResale = completion.price;
 	}
-	if (!pending) {
-		session->data().notifyGiftUpdate({
-			.slug = gift->slug,
-			.action = Data::GiftUpdate::Action::ResaleChange,
-		});
-	}
+	session->data().notifyGiftUpdate({
+		.slug = gift->slug,
+		.action = Data::GiftUpdate::Action::ResaleChange,
+		.listingChanged = (completion.kind != SaleKind::Change),
+	});
 	if (const auto box = completion.priceBox.get()) {
 		box->closeBox();
 	}

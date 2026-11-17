@@ -1817,11 +1817,16 @@ void GenericCreditsEntryBody(
 		? owner->peer(PeerId(e.barePeerId)).get()
 		: nullptr;
 
-	if (auto savedId = EntryToSavedStarGiftId(session, e)) {
-		session->data().giftUpdates(
+	const auto entryId = EntryToSavedStarGiftId(session, e);
+	const auto slug = uniqueGift ? uniqueGift->slug : QString();
+	if (entryId || !slug.isEmpty()) {
+		owner->giftUpdates(
 		) | rpl::on_next([=](const Data::GiftUpdate &update) {
-			if (update.id == savedId
-				&& update.action != Data::GiftUpdate::Action::ResaleChange) {
+			using Action = Data::GiftUpdate::Action;
+			const auto close = (update.action == Action::ResaleChange)
+				? (update.listingChanged && !slug.isEmpty() && update.slug == slug)
+				: (entryId && update.id == entryId);
+			if (close) {
 				box->closeBox();
 			}
 		}, box->lifetime());

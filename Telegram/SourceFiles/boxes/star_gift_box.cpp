@@ -3069,6 +3069,7 @@ void UpdateGiftSellPrice(
 			.id = savedId,
 			.slug = unique->slug,
 			.action = Data::GiftUpdate::Action::ResaleChange,
+			.listingChanged = (wasOnResale != bool(price)),
 		});
 	}).fail([=](const MTP::Error &error) {
 		const auto earlyPrefix = u"STARGIFT_RESELL_TOO_EARLY_"_q;
