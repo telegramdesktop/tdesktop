@@ -14,11 +14,11 @@ runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where the engines of its widgets run: by default in a sandboxed
 widget helper, packaged builds included, which on macOS, on Linux x86_64
-and aarch64 and on Windows 10 1809 or later outside the Store build is the
-separate Qt-free `TelegramWidgetHelper` (in the Mac App Store build, from
-macOS 12, an App-Sandboxed XPC service), on Windows a restricted
-`modules\<arch>\TelegramWidgetHelper.exe`. Where no such helper exists no
-widget engine runs: every widget stops with `no
+and aarch64 and on Windows 10 1809 or later, the Windows Store build too,
+is the separate Qt-free `TelegramWidgetHelper` (in the Mac App Store
+build, from macOS 12, an App-Sandboxed XPC service), on Windows a
+restricted `modules\<arch>\TelegramWidgetHelper.exe`. Where no such
+helper exists no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>`.
 
 Callers: `Test::AppendWidgetAttackAudit` in `test_widget_attacks.cpp`
@@ -301,14 +301,16 @@ stay with each caller (their policies close this section).
 ## Remote engines
 
 On macOS (in the Mac App Store build from macOS 12), on Linux x86_64 and
-aarch64 and on Windows 10 1809 or later outside the Store build, packaged
-builds included on all three, every widget engine of the client runs in
-one shared widget helper process that has locked itself down, instead of
-the client's own threads, in Debug and Release builds alike and with no
-switch. That helper is the separate Qt-free executable
+aarch64 and on Windows 10 1809 or later (the Windows Store build too),
+packaged builds included on all three, every widget engine of the client
+runs in one shared widget helper process that has locked itself down,
+instead of the client's own threads, in Debug and Release builds alike
+and with no switch. That helper is the separate Qt-free executable
 `TelegramWidgetHelper`, on Windows the restricted
-`TelegramWidgetHelper.exe`; the Mac App Store build packages it as an
-App-Sandboxed XPC service (**The Mac App Store service** below).
+`TelegramWidgetHelper.exe`, which the Windows Store build carries in its
+package (**The Windows Store build** below); the Mac App Store build
+packages it as an App-Sandboxed XPC service (**The Mac App Store
+service** below).
 Everywhere else no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>` (**Store, packaged
 and other platforms** below), and only the Debug switch `in-process` runs
@@ -318,24 +320,24 @@ packs, the fixture and the seams they use need no change for it.
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
   macOS, builds with packaged libraries (`DESKTOP_APP_USE_PACKAGED`)
   included and the Mac App Store build (`OS_MAC_STORE`) from macOS 12, on
-  Windows 10 1809 or later outside the Store build and on Linux x86_64
-  and aarch64, so a launch with no switch runs every engine in the
-  sandboxed helper. Everywhere else it is false, and a launch with no
-  switch stops every widget with `no sandboxed widget helper is available
-  here: <reason>`, the reason of
+  Windows 10 1809 or later, the Windows Store build (`OS_WIN_STORE`)
+  included, and on Linux x86_64 and aarch64, so a launch with no switch
+  runs every engine in the sandboxed helper. Everywhere else it is
+  false, and a launch with no switch stops every widget with `no
+  sandboxed widget helper is available here: <reason>`, the reason of
   `Platform::WidgetHelper::UnsupportedReason()`, which is empty exactly
   when `Enabled()` is true and with which each platform's `Launch()`
   refuses before any spawn or connection: `the widget helper needs macOS
   12 or later in the Store build` in the Mac App Store build before macOS
   12 (`@available(macOS 12.0, *)` in `widget_helper_mac.mm`), `the widget
-  helper is not available in the Store build` in the Windows Store build,
-  `the widget helper needs Windows 10 1809 or later`
-  on Windows before 10 1809, `the widget helper is not available on this
-  architecture` on other Linux architectures and `the widget helper is
-  not available on this platform` on the non-Linux all-other platforms.
+  helper needs Windows 10 1809 or later` on Windows before 10 1809, `the
+  widget helper is not available on this architecture` on other Linux
+  architectures and `the widget helper is not available on this
+  platform` on the non-Linux all-other platforms.
   On Windows it is true exactly when `UnsupportedReason()`, defined in the
   client's `platform/win/widget_helper_win.cpp`, returns no reason,
-  whatever the architecture.
+  whatever the architecture and in the Store build alike: it checks only
+  the 1809 floor.
   On Linux it is true on x86_64 and aarch64 in every build, Debug and
   Release, with or without the harness, and has no packaged exclusion:
   distribution builds against packaged libraries, Flatpak and Snap default
@@ -375,9 +377,10 @@ packs, the fixture and the seams they use need no change for it.
   Windows lowering** below) before Ready. The Windows helper has run only
   on Windows 11 build 26300 (10.0.26300): in Win32 (x86 on WOW64) and x64
   Debug builds, and from Release packages (test harness on, LTO off), x86
-  installed, portable and updated and x64 installed
-  ([Verification](#verification)); ARM64, the Store build and Windows
-  before that build have not.
+  installed, portable and updated and x64 installed, and in an x64 Store
+  Debug build installed as a test package
+  ([Verification](#verification)); ARM64, an x86 or Release Store build
+  and Windows before that build have not.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
   - unset or any other value: the platform default, so a Debug build runs
@@ -385,9 +388,8 @@ packs, the fixture and the seams they use need no change for it.
     every widget elsewhere;
   - `helper`: the sandboxed helper explicitly, the same as the default on
     macOS (the Mac App Store build from macOS 12), on Linux and on Windows
-    10 1809 or later outside the Store build, so command lines that name
-    it keep working; on Windows it is the restricted helper (**The Windows
-    helper** below);
+    10 1809 or later, so command lines that name it keep working; on
+    Windows it is the restricted helper (**The Windows helper** below);
   - `in-process`: the engines run in the client, also where the default
     stops them; it is the only way to run widget engines in the client's
     own process, for tests and the harness, and the control of a run that
@@ -437,7 +439,9 @@ packs, the fixture and the seams they use need no change for it.
   `out/Debug/TelegramHelpers/TelegramWidgetHelper`. The Windows command's
   Win32 build puts its helper at
   `out/Debug/modules/x86/TelegramWidgetHelper.exe`, and an x64 build into
-  `modules/x64/` next to its own `Telegram.exe`. The main log names a
+  `modules/x64/` next to its own `Telegram.exe`. A Store build is run from
+  an installed test package through its alias instead (**Windows Store
+  test runs** below). The main log names a
   recognized value: `Tgw: Widget engines run in the widget helper
   (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
   or `probe-unsandboxed`, or `Tgw: Widget engines run in process
@@ -514,19 +518,19 @@ packs, the fixture and the seams they use need no change for it.
   strict confinement and started as the snap's app, ran its helper,
   byte-equal to the plain recipe's, under the app's AppArmor label
   ([Verification](#verification)).
-  The Windows Store build and Windows before 10 1809 stop every widget
-  with `no sandboxed widget helper is available here: <reason>`, because
-  the default is false there, with the reason `the widget helper is not
-  available in the Store build` or `the widget helper needs Windows 10
-  1809 or later`; an explicit `helper` or probe value makes the seam fail
-  every launch closed with the same reason, `the widget helper could not
-  start: <reason>`, before it builds the helper's path, each a failure
-  towards the failure limit. The Windows Store build also has no
-  `TelegramWidgetHelper` target: `Telegram/CMakeLists.txt` includes
-  `init_standalone_target.cmake` and `telegram_widget_helper.cmake` on
-  Windows only without `build_winstore`. Neither has been run. The Windows
-  default reads nothing else, so a Windows build with packaged libraries
-  defaults to the helper as well; no such build has been run.
+  The Windows Store build is no build without a helper any more: it
+  builds, packages and starts `TelegramWidgetHelper.exe` like the other
+  Windows builds (**The Windows Store build** below). Windows before 10
+  1809 stops every widget with `no sandboxed widget helper is available
+  here: the widget helper needs Windows 10 1809 or later`, because the
+  default is false there; an explicit `helper` or probe value makes the
+  seam fail every launch closed with the same reason, `the widget helper
+  could not start: <reason>`, before it builds the helper's path, each a
+  failure towards the failure limit. That floor holds for the Store build
+  too, whose package declares Windows 10.0.14316 as its minimum; it has
+  not been run. The Windows default reads nothing else, so a Windows
+  build with packaged libraries defaults to the helper as well; no such
+  build has been run.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. On
@@ -997,8 +1001,9 @@ packs, the fixture and the seams they use need no change for it.
   gives and appends that folder and file name. Before it spawns it checks
   the file through the handle it will start: `HoldHelper()`
   (`platform/win/widget_helper_image_win.cpp`) opens the helper with
-  `GENERIC_READ` and `FILE_SHARE_READ` (no write or delete sharing) and the
-  folders on its path (the executable folder, `modules`, `modules\<arch>`)
+  `GENERIC_READ` and `FILE_SHARE_READ` (no write or delete sharing) and
+  every folder on its path (from the root of its volume or share down to
+  the executable folder, then `modules` and `modules\<arch>`)
   with `FILE_TRAVERSE | FILE_READ_ATTRIBUTES | SYNCHRONIZE` and no delete
   sharing, rejects a name-surrogate reparse on any of them, computes the
   Authenticode PE-image digest (the file without its checksum field, its
@@ -1020,8 +1025,9 @@ packs, the fixture and the seams they use need no change for it.
   `GetModuleFileNameW failed: <reason>`, `the executable path is too long`
   or `the executable path has no directory`. Telegram's build depends on
   the helper target, which puts the file there. Every Windows package
-  outside the Store build ships it: `setup.iss` installs it for every
-  target, ARM64 included, as
+  ships it, the Store build's AppX package included (**The Windows Store
+  build** below): `setup.iss` installs it for every target, ARM64
+  included, as
   `{app}\modules\<arch>\TelegramWidgetHelper.exe`; `build.bat` signs it
   right after `Updater.exe`, puts it into the update package as the entry
   `modules/<arch>/TelegramWidgetHelper.exe` and copies it into the
@@ -1325,7 +1331,11 @@ packs, the fixture and the seams they use need no change for it.
   (two when the client's working directory was not given),
   `HKEY_CURRENT_USER\Software` and
   `HKEY_LOCAL_MACHINE\SOFTWARE`; read back the thread token, the process
-  token and the job; read back the win32k disable of the helper's creation
+  token and the job; read the helper's package identity (`package
+  identity: none (APPMODEL_ERROR_NO_PACKAGE)` in a process without one,
+  the package full name in an installed Store package, **The Windows
+  Store build** below, or `GetCurrentPackageFullName failed: error N`);
+  read back the win32k disable of the helper's creation
   (`win32k system calls: DISABLED (ProcessSystemCallDisablePolicy
   0x<flags>)`, `ENABLED (...)` when `DisallowWin32kSystemCalls` is clear,
   or `not read (GetProcessMitigationPolicy(4) failed: error N)`, never
@@ -1443,6 +1453,119 @@ packs, the fixture and the seams they use need no change for it.
   `bcrypt.dll` from the system directory. On x86 the first start of a copy
   at a new path also mapped `apphelp.dll` from there. The warm-up covers
   the paths those runs found, not every load a later path can need.
+- **The Windows Store build.** In the Windows Store build
+  (`OS_WIN_STORE`, the special targets `uwp`, `uwp64` and `uwparm`) the
+  helper is the same `TelegramWidgetHelper.exe` with its own pin:
+  `Telegram/CMakeLists.txt` includes `init_standalone_target.cmake` and
+  `telegram_widget_helper.cmake` in every Windows build, so the Store
+  build compiles the helper and its client pins the Store helper's own
+  Authenticode digest. `UnsupportedReason()` keeps only the Windows 10
+  1809 floor, so the Store client starts the helper like the other
+  Windows builds, with the same `Launch()`, hold, pin, started-image
+  check, tokens, job and creation policies; the widget helper code of
+  the client and of the helper has no Store branch. `build.bat` signs
+  `modules\%Platform%\TelegramWidgetHelper.exe` after `StartupTask.exe`
+  for every Store target and copies it into the AppX folder's
+  `modules\%Platform%\` (which it creates on ARM64, where no `d3d` folder
+  is made), stopping at a failed copy, before `MakeAppx` packs that
+  folder. The package therefore carries the helper at the same relative
+  path next to `Telegram.exe`, and an installed package starts
+  `<package root>\modules\<arch>\TelegramWidgetHelper.exe`, `<package
+  root>` being its install folder, by default
+  `C:\Program Files\WindowsApps\<package full name>`. `build.bat` does
+  not sign the package; signing keeps the pinned digest, and a Store
+  processing that changed the helper's image would fail every start at
+  the pin (not tried). From an installed x64 test package on Windows
+  10.0.26300.9711 ([Verification](#verification)) the hold took every
+  folder from the volume's root through `Program Files`, `WindowsApps`
+  and the package root down to `modules\x64` and the file, and the pin
+  and the started-image check passed; an unpackaged process of the same
+  user was refused that folder access on `WindowsApps` and on another
+  package's root (error 5). The packaged client ran in a package job
+  that allows breakaway, started through its alias and through
+  activation alike: limit flags `0x800`, `JOB_OBJECT_LIMIT_BREAKAWAY_OK`
+  alone, with no silent breakaway, process limit or UI restriction.
+  `CreateJob()` (`widget_sandbox_win.cpp`) adds
+  `CREATE_BREAKAWAY_FROM_JOB` whenever the client's immediate job allows
+  breakaway and not silent breakaway, so the helper leaves the package
+  job for its own job, which read back as in the other builds (limits
+  `0x2408`, one active process, UI `0xFF`, the helper its only member).
+  Its tokens, LPAC level and mitigations and the probe's denials read as
+  on x64 but for four measured differences, each with its reading and
+  status on
+  [test_widget_helper_probe](test_widget_helper_probe.md#windows-store):
+  the package SID is a child AppContainer SID of the client's package,
+  since the derivation runs in a packaged process; the probe's
+  `CreateProcessW` row reads `failed (error 31)` instead of `denied
+  (error 5)`, with no child created and the child-process policy and job
+  limit unchanged, its cause not isolated; the helper has the package's
+  identity; and the probe helper held two more System32 modules and
+  three more read-only `HKEY_LOCAL_MACHINE` handles, inferred to be taken
+  before the lowering.
+- **Windows Store test runs.** A Store leg installs a test package with a
+  stand-in identity and publisher, such as
+  `TelegramDesktopAiStoreTest.Telegram` by `CN=Telegram Desktop AI Store
+  Test`, never the production `TelegramMessengerLLP.TelegramDesktop` or
+  its publisher. Its manifest is the production one with that identity,
+  `ProcessorArchitecture="x64"`, test display names and
+  `AppListEntry="none"`, without the `tg`, `tonsite` and `ton` protocol
+  extensions, so that it never offers itself as a handler of the owner's
+  links, with the startup task kept disabled, the same Application Id and
+  `Dependencies`, and one
+  `uap3:Extension Category="windows.appExecutionAlias"` with a
+  `desktop:ExecutionAlias` such as `tdesktop-ai-store-telegram.exe`;
+  Windows accepted the alias with the production `MaxVersionTested`
+  10.0.14316.0. Lay the package out from the build output as
+  `build.bat`'s Store lines do (`Telegram.exe`, `StartupTask.exe`,
+  `modules\x64\TelegramWidgetHelper.exe`,
+  `modules\x64\d3d\d3dcompiler_47.dll`, the AppX assets and the `makepri`
+  resources), pack it with `makeappx pack`, sign it with the stand-in's
+  PFX through `signtool sign /fd SHA256 /f <pfx> /p <password>`, never
+  through a certificate store search, and install it with
+  `Add-AppxPackage`; a Debug build needs no runtime DLL beside it (the CRT
+  is static). Windows installs it only once the stand-in certificate is
+  trusted in the local machine's Trusted People store, an elevated action
+  that the owner takes and undoes at the end: trust in the current user's
+  Trusted People store is not enough (`0x800B0109`), an unsigned package
+  with an executable is refused without elevation (`0x80073D2B`), and a
+  Developer Mode loose registration would run from its loose folder, not
+  from `WindowsApps`. Launch through the alias, `workspace.py test-run --exe
+  %LOCALAPPDATA%\Microsoft\WindowsApps\<alias> --portable-root <leg>
+  --run-dir <run>`: the alias passes the `--env` values, the redirected
+  stdout and stderr (`app_stderr.txt`) and the exit code, and the process
+  it starts is the packaged client with the package's identity.
+  `test-run`'s `-workdir <leg>\TelegramForcePortable` selects the account,
+  since portable mode never engages there: it looks for
+  `TelegramForcePortable` next to `Telegram.exe`, in the read-only
+  package folder. `test-run`'s own path-scoped cleanups match the alias
+  path, which never equals the running image under `WindowsApps`, so
+  bracket each launch with `workspace.py test-cleanup --exe <package
+  root>\Telegram.exe` and `--exe "\\?\<package
+  root>\modules\x64\TelegramWidgetHelper.exe"` (the helper runs under the
+  held file's `\\?\` DOS final path, so its `Win32_Process.ExecutablePath`
+  carries that prefix and a plain path never matches), never with
+  `--delete-exe`. A packaged client's writes outside its working folder
+  land in the package's private locations: the Store build creates
+  `%APPDATA%\Telegram Desktop UWP` before `-workdir` applies, and it
+  appeared as
+  `%LOCALAPPDATA%\Packages\<family>\LocalCache\Roaming\Telegram Desktop UWP`,
+  never in the real `%APPDATA%`; its `HKEY_CURRENT_USER` writes, such as
+  the URL handler registration a fresh working folder makes, left the
+  user's `HKCU\Software\Classes\tg`, `tonsite` and `ton` unchanged in
+  every launch, while the package's private hive under
+  `%LOCALAPPDATA%\Packages\<family>\SystemAppData\Helium` was written (its
+  contents were not read). Bracket every launch with an owner-state
+  snapshot and compare all the same. A package activation,
+  `IApplicationActivationManager::ActivateApplication` of
+  `<family>!Telegram.TelegramDesktop.Store` with the arguments, starts the
+  client the way production does, with the alias route's identity and
+  package job, but passes only the arguments: the client read no test
+  variable, started in the activating caller's working directory and
+  wrote its test log into `<workdir>\test_evidence`; with an account-free
+  root it quit at the harness's no-test-account gate. At the end remove
+  the package with `Remove-AppxPackage`, which removed its alias and its
+  `%LOCALAPPDATA%\Packages` folder, and have the owner remove the
+  certificate.
 - **The Linux lockdown.** At its entry, in `WidgetHelper::Adopt()` before
   it adopts its channel, the Linux helper asks the kernel for `SIGKILL`
   when its parent ends (`PR_SET_PDEATHSIG`) and closes every descriptor
@@ -2902,6 +3025,37 @@ ARM lines of `build.bat` read), LTO, the owner's certificate and
 KeyLocker signing, an x64 update or portable copy, the canary job on a
 real runner (its sign and pack steps were simulated locally) and Windows
 builds before 26300.
+
+The Windows Store build (**The Windows Store build** above) ran on
+2026-11-17 on Windows 10.0.26300.9711 x64, in the evidence campaign of
+`2026/11/14/run-windows-store-widget-engines-in-the-restricted-helper`
+(its `evidence/c2/readings.md`; its `work/decisions.md`, W1, is the
+confinement record): an x64 Store Debug build (`uwp64`), laid out by a
+task script the way `build.bat`'s Store lines lay out the AppX folder,
+packed, signed by the stand-in and installed under
+`C:\Program Files\WindowsApps` as **Windows Store test runs** describes,
+not as a Developer Mode registration. The installed helper was
+byte-equal to the build's, and its Authenticode digest was the build's
+pin. Through the alias, with a Test account, the `probe` leg's client
+logged `Tgw: Widget engines run in the widget helper
+(TDESKTOP_WIDGET_ENGINES=probe).`, started one helper
+from the package with no hold, digest or start-image error and served
+three live cards with it until the quit (helper and client `exit 0`),
+and a network leg passed its 62 checks; the probe's rows are on
+[test_widget_helper_probe](test_widget_helper_probe.md#verification). An
+outside reading of the helper read its token, job and mitigations as the
+x64 records of
+`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
+but for the differences that **The Windows Store build** lists. Each
+client read the package job above, and an activation through
+`IApplicationActivationManager` read the same identity and job. Every
+owner-state bracket compared equal, and the real `%APPDATA%\Telegram
+Desktop UWP` was never created. Not run: the x86 and ARM64 Store builds,
+a Release Store build, `build.bat` on a Store target, the Store's
+submission, certification and signing, Windows builds other than
+26300.9711, and, in the Store build, the default path with no switch, a
+killed helper, the fail-closed starts, and the attack and conformance
+sets.
 
 The settle in `RemoveFixtureMessage()` compiled in the macOS arm64 Debug
 build of

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <appmodel.h>
 #include <bcrypt.h>
 #include <delayimp.h>
 #include <process.h>
@@ -682,6 +683,23 @@ void PrepareProbeTargets(
 		+ (check.empty() ? std::string("passed") : check);
 }
 
+[[nodiscard]] std::string ProbePackage() {
+	auto length = UINT32();
+	auto result = GetCurrentPackageFullName(&length, nullptr);
+	auto name = std::wstring();
+	if (result == ERROR_INSUFFICIENT_BUFFER) {
+		name.resize(length);
+		result = GetCurrentPackageFullName(&length, name.data());
+	}
+	if (result == APPMODEL_ERROR_NO_PACKAGE) {
+		return "package identity: none (APPMODEL_ERROR_NO_PACKAGE)";
+	} else if (result != ERROR_SUCCESS) {
+		return "package identity: "
+			+ NumberedError("GetCurrentPackageFullName", DWORD(result));
+	}
+	return "package identity: " + Utf8(name.c_str());
+}
+
 // The helper disables win32k system calls at its creation: read it back.
 [[nodiscard]] std::string ProbeWin32k() {
 	const auto flags = Platform::WidgetHelper::ReadMitigation(
@@ -836,6 +854,7 @@ void CloseProbeNetwork(NativeProbe &probe) {
 		+ (thread.empty() ? std::string("none (ERROR_NO_TOKEN)") : thread));
 	add(ProbeToken());
 	add(ProbeJob());
+	add(ProbePackage());
 	add(ProbeWin32k());
 	for (const auto &entry : kProbePolicies) {
 		add(ProbeMitigation(entry));

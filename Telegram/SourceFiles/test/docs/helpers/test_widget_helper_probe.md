@@ -29,9 +29,11 @@ in forked copies of the helper and around the real
 `WidgetHelper::Lockdown()` (`_other/widget_helper_linux.cpp`), writes its
 lines to stderr, and the helper goes on serving widgets ([Linux](#linux)).
 On Windows the helper is `TelegramWidgetHelper.exe`, in `modules\<arch>\`
-next to `Telegram.exe`, and its Debug build's lockdown hook runs a
-different, native probe of `test/test_widget_helper_probe_lockdown_win.cpp`
-and the harness's own network attempts around the real
+next to `Telegram.exe`, in the Windows Store build's installed package
+too ([Windows Store](#windows-store)), and its Debug build's lockdown
+hook runs a different, native probe of
+`test/test_widget_helper_probe_lockdown_win.cpp` and the harness's own
+network attempts around the real
 `WidgetHelper::Lockdown()` (`_other/widget_helper_win.cpp`), writes their
 report to stderr, and the helper goes on serving widgets
 ([Windows](#windows)).
@@ -650,6 +652,108 @@ helper attempt that the fixture did not receive is no denial.
 With `connect-control` the helper holds the preopened sockets across the
 lowering and the run is an instrumented one, not the ordinary helper.
 
+### Windows Store
+
+In the Windows Store build (`OS_WIN_STORE`: the `uwp`, `uwp64` and
+`uwparm` targets) the helper is the same `TelegramWidgetHelper.exe`,
+which the AppX package carries in `modules\<arch>\` next to
+`Telegram.exe`. An installed package starts
+`<package root>\modules\<arch>\TelegramWidgetHelper.exe`, `<package
+root>` being its install folder, by default
+`C:\Program Files\WindowsApps\<package full name>`, through the same
+`Launch()`, hold, pin, tokens, job and creation policies as the other
+Windows builds ([Remote engines](test_widget_fixture.md#remote-engines),
+**The Windows Store build**). The probe is the same hook with the same
+rows. What differs was measured on Windows 10.0.26300.9711 x64 in a
+`uwp64` Debug build ([Verification](#verification)):
+
+- **Reaching a packaged client.** The client gets the package's identity
+  when it is started through its package. A test installs a stand-in
+  identity package that declares an app execution alias and launches
+  `workspace.py test-run --exe <alias> --portable-root <root>`
+  (**Windows Store test runs** in
+  [Remote engines](test_widget_fixture.md#remote-engines)). Through the
+  alias the client gets `test-run`'s arguments and `--env` values
+  (`TDESKTOP_WIDGET_ENGINES=probe` among them), its redirected stderr
+  carries the rows into `app_stderr.txt`, its exit code comes back, and
+  it runs with the package's identity. A package activation through
+  `IApplicationActivationManager`, the way production starts Telegram,
+  gave the client the same identity and the same package job, but it
+  passes only arguments (the activated client read no test variable), so
+  an environment-selected probe needs the alias route.
+- **Command line and job.** The command line starts with the held file's
+  DOS final path: `"\\?\C:\Program Files\WindowsApps\<package full
+  name>\modules\x64\TelegramWidgetHelper.exe" <handle> probe <cwd>
+  <data>`. Every Windows build creates its helper through that path, so a
+  reader that finds the helper by its command line must accept the
+  `\\?\` prefix. The packaged client ran in a package job whose only limit
+  was `JOB_OBJECT_LIMIT_BREAKAWAY_OK` (`0x800`: no silent breakaway, no
+  process limit, no UI restriction), so the client's `CreateJob()` adds
+  `CREATE_BREAKAWAY_FROM_JOB` and the helper leaves the package job for
+  its own: the `job:` row reads as on x64, `in a job 1, limits 0x2408,
+  active processes 1, UI 0xff, check passed`. The row reads the immediate
+  job only; the package job's members were not listed.
+- **`package identity`.** Right after `job:` the native probe writes
+  `after lowering: package identity: <reading>` from
+  `GetCurrentPackageFullName()`: `none (APPMODEL_ERROR_NO_PACKAGE)` in a
+  process without package identity, the reading expected of every
+  non-Store helper (no non-Store probe has run with the row yet), the
+  package full name in one with it, and `GetCurrentPackageFullName
+  failed: error <n>` for any other result. The Store helper read the
+  package's full name: it inherits the identity of the package its client
+  runs in. Nothing in the confinement relies on its absence; the hold,
+  every token check and every denial held with it.
+
+Measured differences from the x64 non-Store helper, the probe of
+`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
+(Run 4b) and its outside readings; every other row, the harness's
+socket and AFD lines included, was equal after normalization:
+
+1. **Package SID.** Called by a packaged process,
+   `DeriveAppContainerSidFromAppContainerName` of
+   `telegram.desktop.widget-helper` returns a child AppContainer SID of
+   the caller's package: `S-1-15-2-`, the package family's seven
+   sub-authorities, then the last four of the unpackaged SID
+   (`...-153869053-3443934028-2520258059-2811718137`); an unpackaged
+   control derived the x64 SID and the family's own. The client's
+   `ExpectedPackage()` and the helper's re-derivation both run packaged
+   and agree, so every SID check passes, and the helper's primary stays
+   an LPAC token of that SID with no capability (`WIN://NOALLAPPPKG` 1).
+   Whether an ACE that names the parent package admits the helper was not
+   measured.
+2. **Child process.** `after lowering: CreateProcessW
+   C:\WINDOWS\system32\whoami.exe: failed (error 31)` where x64 reads
+   `denied (error 5)`. No child was created either way, the `child
+   process` row (`0x1`) and the job's one-process limit read back
+   unchanged, and the packaged client's own `CreateProcessW` of
+   `whoami.exe` in the same run created the process. Error 31 is
+   `ERROR_GEN_FAILURE`; what returns it was not isolated, so this is the
+   current reading on 26300.9711, not an attribution. By the verdict rules
+   the row is `failed`, never a denial: that no child can exist rests on
+   the policy and job readings.
+3. **Helper identity.** `package identity:` reads the package's full name
+   where a non-Store helper reads `none (APPMODEL_ERROR_NO_PACKAGE)`.
+4. **Inventory.** An outside reading of the probe helper listed 17
+   modules against the x64 probe leg's 15, the two more being Microsoft
+   System32 images (`kernel.appcore.dll` and the KnownDll `combase.dll`),
+   and 95 handles against 75, three more of them read-only (`KEY_READ`)
+   registry handles: `\REGISTRY\MACHINE`,
+   `\REGISTRY\MACHINE\SYSTEM\ControlSet001\Control\Nls\Sorting\Ids` and
+   `\REGISTRY\MACHINE\Software\Microsoft\Ole`. Inferred, not traced: they
+   were taken before the lowering, after which the probe's own
+   `HKEY_LOCAL_MACHINE\SOFTWARE` open is denied. What takes them, and
+   whether the ordinary Store helper holds them too, is not established.
+
+To read a Store probe against the x64 references, normalize paths, pids
+and the package full name, set the `package identity` row aside (a
+reference made before the row has none, which shifts a line-for-line
+comparison by one) and compare with the x64 non-Store probe of the same
+Windows build: every other row must be equal but for the `CreateProcessW`
+row's `failed (error 31)` on 26300.9711, and an outside reading differs by
+the package SID and the inventory above. Any other difference, an
+`ALLOWED` after the lowering above all, is a finding, not a Store
+difference. The x86 and ARM64 Store builds have no reference reading.
+
 ## Linux
 
 With `probe` or `probe-unsandboxed` the client appends the same argv tail
@@ -1216,9 +1320,10 @@ any other helper.
 The first two macOS campaigns probed the same-binary macOS helper, the
 client's own `Contents/MacOS/Telegram -widgethelper 3` that
 `TelegramWidgetHelper` later replaced, whose Qt and AppKit had started
-before `main`. Of the two Windows campaigns the first probed the
+before `main`. Of the three Windows campaigns the first probed the
 same-binary Windows helper, the client's own `Telegram.exe -widgethelper
-<handle>`, the second `TelegramWidgetHelper.exe`, which replaced it. The
+<handle>`, the second `TelegramWidgetHelper.exe`, which replaced it, and
+the third that helper in the Windows Store build's package. The
 two Linux campaigns are the last ones below: the first probed the
 same-binary Linux helper, the client's own
 `/proc/self/exe -widgethelper 3`, the second `TelegramWidgetHelper`, which
@@ -1723,6 +1828,42 @@ With `TelegramWidgetHelper.exe` also not run: `connect-control`,
 `win32k system calls:` line other than `DISABLED`, and an argument outside
 the ANSI code page. The other Windows runs of the native probe are in
 [Remote engines verification](test_widget_fixture.md#verification).
+
+The [Windows Store](#windows-store) helper was probed on 2026-11-17 on
+Windows 10.0.26300.9711 x64, the build of the x64 records above, in an
+x64 Store Debug build (`uwp64`) installed as a stand-in test package
+under `C:\Program Files\WindowsApps`, in the evidence campaign of
+`2026/11/14/run-windows-store-widget-engines-in-the-restricted-helper`;
+its `evidence/c2/readings.md` is the record and its `work/decisions.md`
+(W1) the confinement record. The two legs started their client through
+the package's alias under `test-run`.
+
+- Probe leg (`TDESKTOP_WIDGET_ENGINES=probe`, a Test account): one helper
+  from the package reached Ready with no hold, digest or start-image
+  error, wrote its report, served three live cards and ended `exit 0` at
+  the quit. Its rows equal Run 4b's x64 probe above but for the
+  differences under [Windows Store](#windows-store). Six checks of the
+  leg's disposable overlay failed because its helper match expected the
+  command line without the `\\?\` prefix; the helper served throughout.
+- Network leg ([Minimal use on Windows](#minimal-use-on-windows) with a
+  loopback port): `arguments: loopback port <port>, 4 network targets,
+  connect-control no`; the four socket kinds and AFD kinds read `ALLOWED`
+  before the lowering and `denied (error 10013)` and `denied (status
+  0xC0000022)` after it, and every target after it `socket creation was
+  denied`. The client's listeners on 127.0.0.1 and `::1` received the 24
+  controls of the client and new sibling processes and no marker; the
+  leg's 62 checks passed.
+- Activation control: `ActivateApplication` of the package's application
+  with `test-run`'s arguments started a client with the alias route's
+  package identity and package job; with an account-free root it quit at
+  the harness's no-test-account gate, before any widget.
+
+Not run: the x86 (`uwp`) and ARM64 (`uwparm`) Store builds, a Release
+Store build, the Store's submission, certification and signing, Windows
+builds other than 26300.9711, in the Store build `probe-unsandboxed`,
+`connect-control` and a target other than the loopback port's four, the
+isolation of the `CreateProcessW` error and of the extra modules and
+handles, and any non-Store probe with the `package identity` row.
 
 On Linux the probe first ran in the same-binary helper, the client's own
 `/proc/self/exe -widgethelper 3`, in the x86_64 Debug client (the Docker
