@@ -159,32 +159,28 @@ TextWithEntities AddTimestampLinks(
 		}
 
 		auto &entities = text.entities;
+		const auto allowsTimestampLink = [](const EntityInText &entity) {
+			return (entity.type() == EntityType::Spoiler)
+				|| (entity.type() == EntityType::Blockquote);
+		};
+		const auto intersectsTimestamp = [&](const EntityInText &entity) {
+			return (entity.offset() < till)
+				&& (entity.offset() + entity.length() > from);
+		};
+		if (ranges::any_of(entities, [&](const EntityInText &entity) {
+			return intersectsTimestamp(entity) && !allowsTimestampLink(entity);
+		})) {
+			continue;
+		}
 		auto i = ranges::lower_bound(
 			entities,
 			from,
 			std::less<>(),
 			&EntityInText::offset);
-		const auto allowsTimestampLink = [](const EntityInText &entity) {
-			return (entity.type() == EntityType::Spoiler)
-				|| (entity.type() == EntityType::Blockquote);
-		};
 		while (i != entities.end()
 			&& i->offset() < till
 			&& allowsTimestampLink(*i)) {
 			++i;
-		}
-		if (i != entities.end() && i->offset() < till) {
-			continue;
-		}
-
-		const auto intersects = [&](const EntityInText &entity) {
-			return (entity.offset() + entity.length() > from)
-				&& !allowsTimestampLink(entity);
-		};
-		auto j = std::make_reverse_iterator(i);
-		const auto e = std::make_reverse_iterator(entities.begin());
-		if (std::find_if(j, e, intersects) != e) {
-			continue;
 		}
 
 		entities.insert(
