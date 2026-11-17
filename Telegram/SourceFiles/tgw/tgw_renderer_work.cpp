@@ -28,6 +28,8 @@ constexpr auto kReadyMessage = "{\"type\":\"ready\"}";
 constexpr auto kPaintBoundsKind = "paint-bounds";
 constexpr auto kMinWakeDelay = crl::time(1);
 constexpr auto kMaxWakeDelay = crl::time(std::numeric_limits<int>::max());
+constexpr auto kMinRatio = 0.25;
+constexpr auto kMaxRatio = 64.;
 // Mirrors lib_ui's private kAnimationTick, the cadence every clock runs at.
 constexpr auto kHeldTick = crl::time(1000) / st::universalDuration;
 // A request this soon after a reply may continue a frame loop.
@@ -88,6 +90,17 @@ private:
 			|| (std::abs(frame.height() - card.height()) <= ratio));
 }
 
+[[nodiscard]] QString FrameSizeMismatch(
+		QSize reported,
+		std::optional<QSize> computed) {
+	const auto text = [](QSize size) {
+		return u"%1x%2"_q.arg(size.width()).arg(size.height());
+	};
+	return u"Frame size mismatch: %1 reported, %2 computed"_q.arg(
+		text(reported),
+		computed ? text(*computed) : u"none"_q);
+}
+
 [[nodiscard]] Images::CornersMaskRef CornersOf(const RendererCut &cut) {
 	auto result = Images::CornersMaskRef();
 	for (auto i = 0; i != 4; ++i) {
@@ -143,6 +156,11 @@ private:
 	return std::move(frame);
 }
 
+[[nodiscard]] bool LateAt(std::size_t scanned, crl::time started) {
+	return !(scanned % kDeadlineStride)
+		&& (crl::now() - started > kMaxRasterTime);
+}
+
 // WHY: a widget may report damage of any size, so it is bounded before it
 // meets an int, and one rectangle grown over the corner patches it touches
 // keeps antialiased edges and masked corners as a whole paint makes them.
@@ -151,11 +169,16 @@ private:
 		float64 cssToDevice,
 		Images::CornersMaskRef corners,
 		QSize card,
-		QSize frame) {
+		QSize frame,
+		crl::time started) {
 	const auto bounds = QRect(QPoint(), frame);
 	const auto reach = QRectF(bounds).adjusted(-1., -1., 1., 1.);
 	auto result = QRect();
+	auto scanned = std::size_t();
 	for (const auto &rect : damage) {
+		if (LateAt(++scanned, started)) {
+			return std::nullopt;
+		}
 		const auto mapped = QRectF(
 			rect.x * cssToDevice,
 			rect.y * cssToDevice,
@@ -190,9 +213,15 @@ private:
 }
 
 // Backdrops read the pixels under them; nested filters damage too little.
-[[nodiscard]] bool RepaintsInPlace(const twlite::DisplayList &list) {
+[[nodiscard]] bool RepaintsInPlace(
+		const twlite::DisplayList &list,
+		crl::time started) {
 	auto filters = 0;
+	auto scanned = std::size_t();
 	for (const auto &command : list) {
+		if (LateAt(++scanned, started)) {
+			return false;
+		}
 		switch (command.kind) {
 		case twlite::Cmd::Backdrop: return false;
 		case twlite::Cmd::FilterPush:
@@ -450,8 +479,10 @@ RendererWork::RendererWork(
 	Host host)
 : _chat(std::move(chat))
 , _host(std::move(host))
+, _dpr(std::isnan(dpr) ? kMinRatio : std::clamp(dpr, kMinRatio, kMaxRatio))
 , _backend(std::make_unique<QtBackend>(
 	_host.diag,
+	[=] { backendRefused(); },
 	values.regularFamily,
 	values.monospaceFamily,
 	values.positions))
@@ -462,7 +493,11 @@ RendererWork::RendererWork(
 	_backend.get()))
 , _clock([=] { clockStep(); })
 , _wake([=] { wake(); })
-, _heldTimer([=] { releaseHeld(); refreshClock(); }) {
+, _heldTimer([=] {
+	const auto operation = this->operation();
+	releaseHeld();
+	refreshClock();
+}) {
 	ConfigureEmojiTiles(values.emoji, EmojiTilesLanded);
 }
 
@@ -517,6 +552,10 @@ void RendererWork::DestroyAll() {
 	base::take(Works());
 }
 
+WidgetMeter::Operation RendererWork::operation() {
+	return _backend->operation();
+}
+
 void RendererWork::EmojiTilesLanded() {
 	Expects(OnRenderThread());
 
@@ -531,7 +570,7 @@ void RendererWork::EmojiTilesLanded() {
 
 void RendererWork::detach() {
 	_detached = _detaching = true;
-	_undrawn = false;
+	_undrawn = _rasterThrottled = false;
 	_pendingSize = std::string();
 	releaseCanvas();
 	refreshClock();
@@ -944,6 +983,7 @@ void RendererWork::schedule() {
 }
 
 void RendererWork::work() {
+	const auto operation = _backend->operation();
 	_scheduled = false;
 	if (_host.gone()) {
 		return;
@@ -951,8 +991,22 @@ void RendererWork::work() {
 		finishDetach();
 	}
 	applySizeRequest();
-	auto layout = rasterWanted() ? raster() : std::nullopt;
-	_demand = false;
+	const auto refused = _backend->refused();
+	if (refused) {
+		refuse(_backend->refusal());
+	}
+	const auto wanted = !refused && rasterWanted();
+	const auto throttled = wanted && (_backend->heldFor() > 0);
+	auto layout = (wanted && !throttled) ? raster() : std::nullopt;
+	if (throttled) {
+		_rasterThrottled = true;
+		if (!_clockOn) {
+			scheduleWake();
+		}
+	} else {
+		_rasterThrottled = false;
+		_demand = false;
+	}
 	if (layout && !_detached) {
 		_undrawn = true;
 	}
@@ -1004,6 +1058,24 @@ QSize RendererWork::layoutArea() const {
 	return QSize(_size.cardWidth, LogicalHeight(css, _size.scale));
 }
 
+std::optional<QSize> RendererWork::frameSize() const {
+	if (!_height) {
+		return std::nullopt;
+	}
+	const auto height = std::min(*_height, _size.maxHeight);
+	const auto width = std::ceil(_size.width * _dpr);
+	const auto rows = std::ceil(height * _dpr);
+	const auto valid = [](double side) {
+		return std::isfinite(side)
+			&& (side > 0.)
+			&& (side <= double(std::numeric_limits<int>::max()));
+	};
+	if (!valid(width) || !valid(rows)) {
+		return std::nullopt;
+	}
+	return QSize(int(width), int(rows));
+}
+
 std::optional<RendererLayout> RendererWork::raster() {
 	const auto &cut = *_cut;
 	const auto ratio = cut.ratio;
@@ -1019,33 +1091,45 @@ std::optional<RendererLayout> RendererWork::raster() {
 	};
 	// A released core shows its last picture, whatever build it holds.
 	if ((_detached || !_renderer->dirty())
-		&& (_frameSize == DeviceSize(*_renderer))
+		&& (_frameSize == frameSize().value_or(QSize()))
 		&& (_frameSerial == _sizeSerial)
 		&& (_frameCut == cut)
 		&& (_frameArea == cardArea)
 		&& (_frame.isNull() || fits())) {
 		return std::nullopt;
+	} else if (!_detached && !_stopped) {
+		_backend->beginFrame();
 	}
 	const auto builds = _renderer->stats().builds;
 	// WHY: the display list names backend font handles that a later build
 	// may delete with an idle face, so it is rasterized at once and only
 	// the pixels are kept.
 	const auto list = _renderer->paint();
-	const auto size = DeviceSize(*_renderer);
-	const auto settled = (_renderer->stats().builds != builds);
+	const auto built = _renderer->stats().builds;
+	if (built != builds) {
+		flushQueued(); // paint() holds its build's output for the next call
+		if (_renderer->stats().builds != built) {
+			return std::nullopt;
+		}
+	}
+	const auto computed = frameSize();
+	const auto size = computed.value_or(QSize());
+	const auto reported = DeviceSize(*_renderer);
 	cardArea = layoutArea();
 	card = cardArea * ratio;
-	if (!FitsCard(size, card, ratio, cut.autoHeight)) {
+	if (!computed || (reported != size)) {
+		refuse(FrameSizeMismatch(reported, computed));
+		return std::nullopt;
+	} else if (!FitsCard(size, card, ratio, cut.autoHeight)) {
 		_frameRepaintable = false;
-		if (settled) {
-			flushQueued();
-		}
 		if (!fits()) {
 			dropCanvas();
 		}
 		return std::nullopt;
 	}
-	const auto inPlace = RepaintsInPlace(list);
+	const auto work = _backend->work();
+	const auto started = crl::now();
+	const auto inPlace = RepaintsInPlace(list, started);
 	auto damage = std::vector<twlite::Rect>();
 	const auto area = (inPlace
 		&& _frameRepaintable
@@ -1053,13 +1137,15 @@ std::optional<RendererLayout> RendererWork::raster() {
 		&& (_frameSize == size)
 		&& (_frame.size() == size)
 		&& _renderer->damage(damage))
-		? RepaintArea(damage, _renderer->dpr(), corners, card, size)
+		? RepaintArea(damage, _dpr, corners, card, size, started)
 		: std::nullopt;
 	const auto waits = EmojiTileWaits();
-	auto limit = area ? repaintFrame(list, *area, corners, card) : std::nullopt;
+	auto limit = area
+		? repaintFrame(list, *area, corners, card, started)
+		: std::nullopt;
 	if (!limit) {
 		_emojiMissed = false;
-		auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());
+		auto painted = PaintFrame(list, *_backend, size, _dpr, started);
 		limit = std::move(painted.limit);
 		if (limit->isEmpty() || !fits()) {
 			_frame = std::move(painted.image);
@@ -1078,14 +1164,8 @@ std::optional<RendererLayout> RendererWork::raster() {
 	_frameSerial = _sizeSerial;
 	_frameCut = cut;
 	_frameArea = cardArea;
-	if (refused && !_detached && !_stopped) {
-		_host.diag(kPaintBoundsKind, limit->toStdString());
-		stop(std::move(*limit), true);
-		refreshClock();
-		post(Change::Stopped | Change::Repaint);
-	}
-	if (settled) {
-		flushQueued(); // paint() holds its build's output for the next call
+	if (refused) {
+		refuse(std::move(*limit));
 	}
 	auto result = refused ? std::nullopt : completed(cardArea);
 	if (_detached) {
@@ -1121,7 +1201,8 @@ std::optional<QString> RendererWork::repaintFrame(
 		const std::vector<twlite::Command> &list,
 		QRect area,
 		Images::CornersMaskRef corners,
-		QSize card) {
+		QSize card,
+		crl::time started) {
 	if (area.isEmpty()) {
 		return QString();
 	}
@@ -1133,7 +1214,8 @@ std::optional<QString> RendererWork::repaintFrame(
 		*_backend,
 		_frame,
 		area,
-		_renderer->dpr());
+		_dpr,
+		started);
 	if (result && result->isEmpty()) {
 		_frame = RoundFrame(std::move(_frame), corners, card, area);
 	} else {
@@ -1201,7 +1283,6 @@ void RendererWork::hostMessage(const twidget::Json &message) {
 		&& (_frameRequested ? _idleRequest : !_clockOn)
 		&& !_renderer->wants_tick();
 	const auto builds = _renderer->stats().builds;
-	_backend->beginCanvasBatch();
 	auto out = _renderer->receive(message);
 	auto changes = Changes();
 	if (type == "ops" && !message["ops"].arr().empty()) {
@@ -1317,6 +1398,7 @@ std::vector<twidget::Json> RendererWork::leaveHover() {
 void RendererWork::inputDone(
 		const std::vector<twidget::Json> &out,
 		bool wasDirty) {
+	_backend->input();
 	auto changes = forwardAll(out);
 	if (!wasDirty && _renderer->dirty()) {
 		changes |= Change::Repaint;
@@ -1365,10 +1447,26 @@ void RendererWork::releaseInput() {
 
 void RendererWork::stop(QString reason, bool fatal) {
 	_stopped = true;
-	_frameRequested = false;
+	_frameRequested = _rasterThrottled = false;
 	_stopReason = std::move(reason);
 	_stopFatal = fatal;
 	releaseInput();
+}
+
+void RendererWork::refuse(QString limit) {
+	if (_detached || _stopped) {
+		return;
+	}
+	_host.diag(kPaintBoundsKind, limit.toStdString());
+	stop(std::move(limit), true);
+	refreshClock();
+	post(Change::Stopped | Change::Repaint);
+}
+
+void RendererWork::backendRefused() {
+	PostToRenderThread(crl::guard(this, [=] {
+		refuse(_backend->refusal());
+	}));
 }
 
 std::vector<twidget::Json> RendererWork::takeSettled() {
@@ -1426,6 +1524,7 @@ void RendererWork::stopClock() {
 }
 
 void RendererWork::clockStep() {
+	const auto operation = _backend->operation();
 	if (!_clockOn) {
 		return;
 	} else if (!step(crl::now())) {
@@ -1439,8 +1538,16 @@ void RendererWork::scheduleWake() {
 	const auto seconds = canTick()
 		? _renderer->next_tick_in()
 		: std::numeric_limits<double>::infinity();
-	if (std::isfinite(seconds)) {
-		_wake.callOnce(WakeDelay(seconds));
+	const auto held = std::min(_backend->heldFor(), kMaxWakeDelay);
+	auto delay = std::isfinite(seconds)
+		? std::make_optional(std::max(WakeDelay(seconds), held))
+		: std::optional<crl::time>();
+	if (_rasterThrottled) {
+		const auto resume = std::max(held, kMinWakeDelay);
+		delay = std::min(delay.value_or(resume), resume);
+	}
+	if (delay) {
+		_wake.callOnce(*delay);
 	} else {
 		_wake.cancel();
 	}
@@ -1490,13 +1597,24 @@ bool RendererWork::step(crl::time now) {
 }
 
 void RendererWork::wake() {
+	const auto operation = _backend->operation();
 	if (canTick()) {
 		tick();
+	} else if (_rasterThrottled && !_backend->heldFor()) {
+		_rasterThrottled = false;
+		schedule();
 	}
 	refreshClock();
 }
 
 void RendererWork::tick() {
+	if (_backend->heldFor()) {
+		return;
+	}
+	_backend->beginFrame();
+	if (base::take(_rasterThrottled)) {
+		schedule();
+	}
 	const auto wasDirty = _renderer->dirty();
 	auto out = _renderer->tick();
 	if (_finger.pressed) {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "tgw/tgw_emoji_images.h"
 #include "tgw/tgw_renderer.h"
+#include "tgw/tgw_widget_meter.h"
 
 namespace twidget {
 class Json;
@@ -134,6 +135,8 @@ public:
 	static void Destroy(uint64 id);
 	static void DestroyAll();
 
+	[[nodiscard]] WidgetMeter::Operation operation();
+
 	void hostLoaded();
 	void hostMessage(const twidget::Json &message);
 	void hostTheme(bool dark);
@@ -234,6 +237,8 @@ private:
 	void releaseInput();
 	void finishDetach();
 	void stop(QString reason, bool fatal);
+	void refuse(QString limit);
+	void backendRefused();
 	[[nodiscard]] std::vector<twidget::Json> takeSettled();
 	void flushQueued();
 
@@ -255,13 +260,15 @@ private:
 	void applySizeRequest();
 	[[nodiscard]] bool rasterWanted() const;
 	[[nodiscard]] QSize layoutArea() const;
+	[[nodiscard]] std::optional<QSize> frameSize() const;
 	[[nodiscard]] std::optional<RendererLayout> raster();
 	[[nodiscard]] std::optional<RendererLayout> completed(QSize cardArea);
 	[[nodiscard]] std::optional<QString> repaintFrame(
 		const std::vector<twlite::Command> &list,
 		QRect area,
 		Images::CornersMaskRef corners,
-		QSize card);
+		QSize card,
+		crl::time started);
 	void releaseCanvas();
 	void dropCanvas();
 	void deliver(RendererAnswer &&answer);
@@ -275,6 +282,7 @@ private:
 
 	const base::weak_ptr<RendererCore> _chat;
 	const Host _host;
+	const double _dpr = 0.;
 	std::unique_ptr<QtBackend> _backend;
 	std::unique_ptr<twlite::Renderer> _renderer;
 	base::Timer _clock;
@@ -319,6 +327,7 @@ private:
 	bool _scheduled = false;
 	bool _sizePending = false;
 	bool _demand = false;
+	bool _rasterThrottled = false;
 	bool _undrawn = false;
 	bool _client = false;
 	bool _reported = false;

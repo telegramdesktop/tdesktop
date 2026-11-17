@@ -16,6 +16,9 @@ namespace Tgw {
 
 class QtBackend;
 
+inline constexpr auto kMaxRasterTime = crl::time(1000);
+inline constexpr auto kDeadlineStride = std::size_t(1024);
+
 class PaintAllowance final {
 public:
 	PaintAllowance();
@@ -83,6 +86,7 @@ void PrepareHints(QPainter &painter);
 [[nodiscard]] float64 StrokeReach(float64 width, float64 miterLimit);
 [[nodiscard]] int StackRadius(float64 sigma);
 [[nodiscard]] QImage ShadowFromCoverage(QImage mask, int radius, QRgb color);
+[[nodiscard]] QString PaintLimit(const QString &what, int64 max);
 
 struct PaintedFrame {
 	QImage image;
@@ -91,16 +95,18 @@ struct PaintedFrame {
 
 [[nodiscard]] PaintedFrame PaintFrame(
 	const twlite::DisplayList &list,
-	const QtBackend &backend,
+	QtBackend &backend,
 	QSize deviceSize,
-	float64 cssToDevice);
+	float64 cssToDevice,
+	crl::time started = crl::now());
 
 // The limit, empty when painted, nullopt when |frame| took no painter.
 [[nodiscard]] std::optional<QString> RepaintFrame(
 	const twlite::DisplayList &list,
-	const QtBackend &backend,
+	QtBackend &backend,
 	QImage &frame,
 	QRect area,
-	float64 cssToDevice);
+	float64 cssToDevice,
+	crl::time started = crl::now());
 
 } // namespace Tgw

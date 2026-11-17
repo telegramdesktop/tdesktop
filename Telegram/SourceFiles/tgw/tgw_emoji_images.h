@@ -19,6 +19,20 @@ struct EmojiSides {
 	int isolated = 0;
 };
 
+class EmojiAccount final {
+public:
+	EmojiAccount();
+	EmojiAccount(const EmojiAccount &) = delete;
+	EmojiAccount &operator=(const EmojiAccount &) = delete;
+	~EmojiAccount();
+
+	[[nodiscard]] uint64 id() const;
+
+private:
+	const uint64 _id = 0;
+
+};
+
 [[nodiscard]] EmojiSides CurrentEmojiSides();
 [[nodiscard]] rpl::producer<> EmojiRefreshes();
 void FinishEmojiImages();
@@ -28,7 +42,8 @@ void PaintEmoji(
 	QPainter &p,
 	EmojiPtr emoji,
 	const QRectF &box,
-	float64 deviceSide);
+	float64 deviceSide,
+	const EmojiAccount &account);
 [[nodiscard]] uint64 EmojiTileWaits();
 void ClearEmojiTiles();
 

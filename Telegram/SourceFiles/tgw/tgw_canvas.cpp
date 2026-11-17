@@ -20,6 +20,11 @@ constexpr auto kMaxTotalBytes = int64(128 * 1024 * 1024);
 constexpr auto kMaxLayerBytes = int64(64 * 1024 * 1024);
 constexpr auto kMaxReadBytes = int64(64 * 1024 * 1024);
 constexpr auto kMaxPixelWork = int64(1) << 25;
+constexpr auto kMaxCanvases = 128;
+constexpr auto kMaxOpText = std::size_t(4096);
+constexpr auto kMaxOpStops = std::size_t(256);
+constexpr auto kMaxOpDashes = std::size_t(128);
+constexpr auto kMaxOpClips = std::size_t(1025);
 constexpr auto kLayerPasses = int64(1);
 constexpr auto kMaskPasses = int64(1);
 constexpr auto kShadowPasses = int64(8);
@@ -48,7 +53,7 @@ constexpr auto kDegrees = 180. / M_PI;
 constexpr auto kLimitKind = std::string_view("canvas-limit");
 constexpr auto kModeKind = std::string_view("canvas-composite: ");
 constexpr auto kWorkDetail = std::string_view(
-	"canvas drawing exceeded the work allowance of a message,"
+	"canvas drawing exceeded the work allowance of a frame,"
 	" the rest of its drawing was skipped");
 constexpr auto kMemoryDetail = std::string_view(
 	"a canvas exceeded the canvas memory allowance and stays transparent");
@@ -592,6 +597,39 @@ void CoverageFromAlpha(QImage &image) {
 	}
 }
 
+[[nodiscard]] bool Late(crl::time started) {
+	return crl::now() - started > kMaxRasterTime;
+}
+
+[[nodiscard]] QString BatchTimeLimit(crl::time started) {
+	return PaintLimit(
+		u"a canvas batch of %1 ms"_q.arg(crl::now() - started),
+		kMaxRasterTime);
+}
+
+[[nodiscard]] QString OpLimit(const twlite::CanvasOp &op) {
+	const auto clips = op.clips ? op.clips->size() : std::size_t();
+	if (op.text.size() > kMaxOpText) {
+		return PaintLimit(
+			u"%1 bytes of text in one canvas op"_q.arg(op.text.size()),
+			int64(kMaxOpText));
+	} else if (op.paint.stops.size() > kMaxOpStops) {
+		return PaintLimit(
+			u"%1 gradient stops in one canvas op"_q.arg(
+				op.paint.stops.size()),
+			int64(kMaxOpStops));
+	} else if (op.dashes.size() > kMaxOpDashes) {
+		return PaintLimit(
+			u"%1 dashes in one canvas op"_q.arg(op.dashes.size()),
+			int64(kMaxOpDashes));
+	} else if (clips > kMaxOpClips) {
+		return PaintLimit(
+			u"%1 clips in one canvas op"_q.arg(clips),
+			int64(kMaxOpClips));
+	}
+	return QString();
+}
+
 } // namespace
 
 class Canvases::Executor final {
@@ -604,6 +642,7 @@ public:
 	~Executor();
 
 	void execute(const twlite::CanvasOp &op);
+	[[nodiscard]] const QString &refusal() const;
 
 private:
 	using Mode = QPainter::CompositionMode;
@@ -709,6 +748,7 @@ private:
 	std::vector<QPainterPath> _clipPaths;
 	std::vector<GlyphProbe> _probes;
 	QRect _clipBounds;
+	QString _refusal;
 	int64 _heldBytes = 0;
 	int64 _layerBytes = 0;
 	bool _clipPrepared = false;
@@ -742,7 +782,10 @@ Canvases::Executor::~Executor() {
 
 void Canvases::Executor::execute(const twlite::CanvasOp &op) {
 	using Kind = twlite::CanvasOp::Kind;
-	if (op.kind == Kind::Reset) {
+	_refusal = OpLimit(op);
+	if (!_refusal.isEmpty()) {
+		return;
+	} else if (op.kind == Kind::Reset) {
 		reset();
 		return;
 	} else if (_canvases._exhausted
@@ -758,6 +801,10 @@ void Canvases::Executor::execute(const twlite::CanvasOp &op) {
 	case Kind::PutImage: putImage(op); break;
 	case Kind::Reset: break;
 	}
+}
+
+const QString &Canvases::Executor::refusal() const {
+	return _refusal;
 }
 
 void Canvases::Executor::reset() {
@@ -1571,33 +1618,35 @@ Canvases::~Canvases() {
 	TotalBytes() -= _bytes;
 }
 
-void Canvases::run(
+QString Canvases::run(
 		int id,
 		int width,
 		int height,
 		const std::vector<twlite::CanvasOp> &ops,
 		const QtBackend &backend) {
-	const auto reset = [](const twlite::CanvasOp &op) {
-		return (op.kind == twlite::CanvasOp::Reset);
-	};
 	if (!ValidSize(width, height)) {
 		release(id);
-		return;
+		return QString();
+	} else if (!_sizes.contains(id)
+		&& (int(_sizes.size()) >= kMaxCanvases)) {
+		return PaintLimit(
+			u"%1 canvases"_q.arg(_sizes.size() + 1),
+			kMaxCanvases);
 	}
-	_sizes[id] = QSize(width, height);
-	if (_exhausted) {
-		const auto i = _bitmaps.find(id);
-		if (i != end(_bitmaps)
-			&& (i->second.size() != QSize(width, height)
-				|| ranges::any_of(ops, reset))) {
-			discard(id);
-		}
-		return;
-	}
-	auto executor = Executor(*this, backend, id, QSize(width, height));
+	const auto size = QSize(width, height);
+	_sizes[id] = size;
+	const auto started = crl::now();
+	auto executor = Executor(*this, backend, id, size);
 	for (const auto &op : ops) {
+		if (Late(started)) {
+			return BatchTimeLimit(started);
+		}
 		executor.execute(op);
+		if (!executor.refusal().isEmpty()) {
+			return executor.refusal();
+		}
 	}
+	return Late(started) ? BatchTimeLimit(started) : QString();
 }
 
 bool Canvases::read(
@@ -1610,7 +1659,7 @@ bool Canvases::read(
 	const auto pixels = int64(width) * height;
 	if (width <= 0
 		|| height <= 0
-		|| pixels * kPixelBytes > kMaxReadBytes
+		|| pixels > kMaxReadBytes / kPixelBytes
 		|| !chargePixels(pixels)) {
 		return false;
 	}
@@ -1624,6 +1673,9 @@ bool Canvases::read(
 	const auto top = std::max(int64(y), int64(0));
 	const auto right = std::min(int64(x) + width, int64(bitmap.width()));
 	const auto bottom = std::min(int64(y) + height, int64(bitmap.height()));
+	if (left >= right || top >= bottom) {
+		return true;
+	}
 	for (auto row = top; row < bottom; ++row) {
 		const auto from = reinterpret_cast<const QRgb*>(
 			bitmap.constScanLine(int(row)));

@@ -261,6 +261,7 @@ void HostLink::work(Fn<void(RendererWork&)> task, bool host) {
 		if (link->_gone || (host && link->_closed)) {
 			return;
 		} else if (const auto work = RendererWork::Find(link->_work)) {
+			const auto operation = work->operation();
 			task(*work);
 		}
 	});

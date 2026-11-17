@@ -2328,6 +2328,8 @@ PRIVATE
     tgw/tgw_media.h
     tgw/tgw_painter.cpp
     tgw/tgw_painter.h
+    tgw/tgw_painter_clips.cpp
+    tgw/tgw_painter_clips.h
     tgw/tgw_painter_filters.cpp
     tgw/tgw_painter_filters.h
     tgw/tgw_remote.cpp
@@ -2361,6 +2363,8 @@ PRIVATE
     tgw/tgw_touch_lists.cpp
     tgw/tgw_wallet.cpp
     tgw/tgw_wallet.h
+    tgw/tgw_widget_meter.cpp
+    tgw/tgw_widget_meter.h
     ui/boxes/edit_invite_link_session.cpp
     ui/boxes/edit_invite_link_session.h
     ui/boxes/emoji_stake_box.cpp

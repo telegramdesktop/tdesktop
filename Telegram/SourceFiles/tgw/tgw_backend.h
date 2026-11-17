@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/src/backend.h"
+#include "tgw/tgw_widget_meter.h"
 
 #include <QtGui/QFontMetricsF>
 
 namespace Tgw {
 
 class Canvases;
+class EmojiAccount;
 struct FontPosition;
 
 struct QtFont {
@@ -31,6 +33,7 @@ public:
 
 	QtBackend(
 		Diagnostic diagnostic,
+		Fn<void()> refused,
 		QString regularFamily,
 		QString monospaceFamily,
 		std::vector<FontPosition> positions);
@@ -42,6 +45,12 @@ public:
 		int weight,
 		bool italic,
 		const std::string &features,
+		twlite::FontMetrics &out) override;
+	int create_canvas_font(
+		const std::string &families,
+		float size,
+		int weight,
+		bool italic,
 		twlite::FontMetrics &out) override;
 	void delete_font(int font) override;
 	float text_width(int font, const std::string &text) override;
@@ -68,11 +77,19 @@ public:
 	[[nodiscard]] const QImage *image(int id) const;
 	[[nodiscard]] QSizeF imageSize(int id) const;
 	[[nodiscard]] const QImage *canvas(int id) const;
-	void beginCanvasBatch();
+	[[nodiscard]] const EmojiAccount &emoji() const;
+	void beginFrame();
 	[[nodiscard]] int canvasFont(
 		const std::string &css,
 		twlite::FontMetrics &metrics);
 	void releaseCanvasFonts();
+
+	[[nodiscard]] WidgetMeter::Operation operation();
+	[[nodiscard]] WidgetMeter::Work work();
+	[[nodiscard]] crl::time heldFor() const;
+	void input();
+	[[nodiscard]] bool refused() const;
+	[[nodiscard]] const QString &refusal() const;
 
 private:
 	using FontKey = std::pair<uint32, float64>;
@@ -91,10 +108,13 @@ private:
 		FontKey key,
 		twlite::FontMetrics &out,
 		bool canvas);
+	[[nodiscard]] bool admitFamilies(const std::string &families);
 	[[nodiscard]] int admitCanvasFont(FontKey key, twlite::FontMetrics &out);
 	[[nodiscard]] int refuseCanvasFont(twlite::FontMetrics &out);
+	void refuse(QString reason);
 
 	const Diagnostic _diagnostic;
+	const Fn<void()> _refused;
 	const QString _regularFamily;
 	const QString _monospaceFamily;
 	const std::vector<FontPosition> _positions;
@@ -103,6 +123,10 @@ private:
 	base::flat_map<FontKey, CachedFont> _canvasFonts;
 	base::flat_map<std::string, FontKey> _canvasSpellings;
 	const std::unique_ptr<Canvases> _canvases;
+	const std::unique_ptr<EmojiAccount> _emoji;
+	WidgetMeter _meter;
+	QString _refusal;
+	crl::time _framed = 0;
 	int64 _imageBytes = 0;
 	int _lastFontId = 0;
 	int _canvasFontsLeft = 0;

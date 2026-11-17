@@ -296,8 +296,10 @@ thread runs every widget's worker in one queue, so an event of one widget
 never overlaps another widget's render-thread work, while the main
 thread's work, and every host and JS thread's, can overlap any event:
 
-- **`Message`**: one host message applied. `beginCanvasBatch()` and
-  TwidgetCore's `receive()` (the batch's ops, an `anim` or a query, and,
+- **`Message`**: one host message applied, with no canvas refill (that
+  runs at the widget's display frames: `QtBackend::beginFrame()` in
+  `RendererWork::tick()` and in a raster that paints). TwidgetCore's
+  `receive()` (the batch's ops, an `anim` or a query, and,
   when no frame is due, the settle it starts at once: style, layout and the
   display list), the settled viewport answer on the load, then `finish()`:
   forwarding the answers to the host link (a post to the host thread), the

@@ -17,7 +17,7 @@ public:
 	explicit Canvases(QtBackend::Diagnostic diagnostic);
 	~Canvases();
 
-	void run(
+	[[nodiscard]] QString run(
 		int id,
 		int width,
 		int height,
