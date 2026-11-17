@@ -1241,6 +1241,8 @@ PRIVATE
     history/view/history_view_self_forwards_tagger.h
     history/view/history_view_send_action.cpp
     history/view/history_view_send_action.h
+    history/view/history_view_selection_modifier.cpp
+    history/view/history_view_selection_modifier.h
     history/view/history_view_service_message.cpp
     history/view/history_view_service_message.h
     history/view/history_view_sponsored_click_handler.cpp

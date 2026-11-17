@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_selection_modifier.h"
 #include "history/view/history_view_translate_tracker.h"
 #include "history/view/history_view_read_metrics_tracker.h"
 #include "history/view/history_view_add_poll_option.h"
@@ -5310,7 +5311,7 @@ void ListWidget::mouseActionStart(
 				pressElement->selectionFromStates(
 					_mouseTextAnchor,
 					dragState,
-					_mouseSelectType));
+					HistoryView::MouseTextSelectType(_mouseSelectType)));
 			_mouseAction = MouseAction::Selecting;
 			mouseActionUpdate();
 			_trippleClickStartTime = crl::now();
@@ -5819,7 +5820,7 @@ void ListWidget::mouseActionUpdate() {
 					view->selectionFromStates(
 						_mouseTextAnchor,
 						dragState,
-						_mouseSelectType));
+						HistoryView::MouseTextSelectType(_mouseSelectType)));
 				clearDragSelection();
 			} else if (_pressState.itemId) {
 				updateDragSelection();

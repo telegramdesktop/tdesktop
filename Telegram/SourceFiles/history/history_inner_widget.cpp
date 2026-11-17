@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_selection_modifier.h"
 #include "history/view/history_view_reply_button.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_copy_selection.h"
@@ -2333,7 +2334,7 @@ void HistoryInner::mouseActionStart(
 							mouseActionView->selectionFromStates(
 								_mouseTextAnchor,
 								dragState,
-								_mouseSelectType));
+								HistoryView::MouseTextSelectType(_mouseSelectType)));
 						_mouseAction = MouseAction::Selecting;
 					} else if (!hasSelectRestriction()) {
 						_mouseAction = MouseAction::PrepareSelect;
@@ -5764,7 +5765,7 @@ void HistoryInner::mouseActionUpdate() {
 					view->selectionFromStates(
 						_mouseTextAnchor,
 						dragState,
-						_mouseSelectType));
+						HistoryView::MouseTextSelectType(_mouseSelectType)));
 				updateDragSelection(nullptr, nullptr, false);
 			} else {
 				auto selectingDown = (itemTop(_mouseActionItem) < itemTop(item)) || (_mouseActionItem == item && _dragStartPosition.y() < m.y());
