@@ -718,7 +718,7 @@ ChatWidget::ChatWidget(
 
 	if (_sublist) {
 		subscribeToSublist();
-	} else if (!_topic) {
+	} else {
 		_history->session().changes().historyUpdates(
 			_history,
 			Data::HistoryUpdate::Flag::OutboxRead
