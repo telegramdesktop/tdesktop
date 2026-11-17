@@ -198,9 +198,9 @@ Store service**). The probe is the same hook; what differs:
   Telegram passed, `app_stderr.txt` under `test-run`, or, when Telegram's
   stderr is a terminal, through the relay to that terminal, escaped and
   with the service's output past its first 32768 bytes dropped. A listing
-  with service names always passes that bound, so under a terminal its
-  full rows come from a run whose stderr is a file, while the summary
-  over the channel stays whole
+  with the full service list (2138 names) passes that bound, so under a
+  terminal its full rows come from a run whose stderr is a file, while the
+  summary over the channel stays whole
   ([Readings and refusals](#readings-and-refusals)). A Release service
   refuses any argument with `Widget helper: unexpected arguments`; a
   Release Telegram sends none.
@@ -1085,9 +1085,12 @@ the one line `[widget helper output over 32768 bytes dropped]`. A
 direct-download probe's rows come close to that bound, so the end of the
 listing, the attempt rows and the helper's `Widget helper:` line with the
 refusal can be cut there; a cut transcript is not the complete listing.
-A Mac App Store probe that lists service names, one row per name, always
-passes it: its `fd` rows come early enough to reach the terminal, while
-its service rows and its `Widget helper:` line never do.
+A Mac App Store probe with the full service list, one row per name,
+passes it: its `fd` rows, every other row before the listing and only
+about its first 30 service rows come early enough to reach the terminal,
+while the rest of the listing, the rows after it and its `Widget helper:`
+line do not. One with no names stayed inside it, its `Widget helper:`
+line included ([Verification](#verification)).
 The channel still carries the refusal, untouched by the relay: the manager
 puts it in the main log's `Tgw: Widget helper <pid> stream ended: ...`
 line, while an overlay that launches the helper itself
@@ -1531,6 +1534,64 @@ the attribution comes from a disposable client hunk, not from the probe,
 and holds only for readings taken while the service lives; and what the
 service can do through the rights it already holds, IOKit and system
 calls was not measured.
+
+The [Mac App Store](#mac-app-store) service's descriptor 2 was probed
+under a file and under a terminal on macOS 27.0.1 (26A434) arm64 in a
+Debug Store build, in the evidence campaign of
+`2026/11/16/give-the-mac-app-store-widget-service-a-descriptor-2-that-is-not-telegrams-terminal`;
+its `work/test.md` (Runs 3, 4 and 6) is the record, and its
+`work/test-overlay.patch` keeps the disposable driver, a main-log line
+for each completion's relay ending and the Debug knob of Run 6. A copy
+remade from that build as above ran one leg per run, each launch through
+the Store `Launch()`: three services whose only argument was a payload of
+control bytes, which the Debug service refused as an unknown mode in its
+last line before `_Exit(1)`, then `probe` with no fixture, so with no
+service names. Telegram's stderr was `app_stderr.txt` (Run 3) or the
+slave of a raw pseudo-terminal whose master a driver outside the App
+Sandbox read continuously into a capture (Runs 4 and 6); `lsof` ran in
+that driver, never in Telegram. The App-Sandboxed Telegram Lite read its
+own `isatty(2)` as 0 under the file and 1 under the pseudo-terminal.
+
+- File (Run 3): `fd 2 before the lockdown: parent's unreadable: EPERM(1)
+  Operation not permitted, own vnode dev=<dev> ino=<inode>
+  path=<leg>/run/app_stderr.txt own-terminal=no`, the inode `lsof` read
+  at Telegram's fd 2; after the lockdown the fd-2 row read that vnode and
+  path with `class=stderr, the stderr Telegram passed (...)`, and the
+  summary over the channel `fds 4: 0 stdin; 1 stdout; 2 stderr; 3
+  channel;`. The payload lines landed in the file raw.
+- Terminal (Run 4): `lsof` read Telegram's fd 2 as the slave. The probe
+  read `own socket ... own-terminal=no` before the lockdown and after it
+  `fd 2 socket ... state=0x22 peer-pid=<Telegram> ... class=stderr relay,
+  AF_UNIX stream to the parent (receive side shut; same object after
+  lockdown)` (bit 0x20, `SOI_S_CANTRCVMORE`, set), and the summary `fds 4:
+  0 stdin; 1 stdout; 2 stderr-relay; 3 channel;`. All 180 rows and the
+  probe's last `Widget helper:` line reached the terminal, with no drop
+  line. Each payload's refusal arrived once, escaped, the first as
+  `Widget helper: unknown widget helper mode
+  "1\x1b[31mRED\x1b[0m\x1b]0;TASK-TITLE\x07\x08\x0d\x7f\\\xc2\x9b"`, and
+  no line of the capture held a byte outside 0x20 to 0x7e (no raw ESC,
+  BEL, DEL or `C2 9B`).
+- Neither summary of Runs 3 and 4 named fd 2 among its defects or
+  failures: each read `lockdown=ok` and `stable=yes`, its only failure the
+  `kr=17` identity query and its only unaccounted item the send right of
+  [Mac App Store](#mac-app-store).
+- Terminal passed (Run 6): the knob sent the service Telegram's own
+  descriptor 2, as before that task, and the service's fd 2 was the slave
+  by its `rdev`, by its inode (the `lsof` node of Telegram's fd 2) and by
+  its path. The App-Sandboxed service read its own `isatty(2)` as 1: `fd
+  2 before the lockdown: ... own vnode dev=<dev> ino=<inode>
+  path=/dev/ttys<n> own-terminal=yes`, the fd-2 row `class=DEFECT: fd 2
+  (vnode dev=<dev> ino=<inode>) is a terminal`, and over the channel `fds
+  4: 0 stdin; 1 stdout; 2 DEFECT; 3 channel;` with `inventory: NOT clean
+  (1 enumeration/identity failures, 1 defects, 1 unaccounted)` and the
+  item `defect: fd 2 (vnode dev=<dev> ino=<inode>) is a terminal [...]`.
+  The payload lines reached the terminal raw.
+
+Limits: one macOS, arm64 only, the stand-in signature; `isatty` was read
+only on a pseudo-terminal's slave, never on a terminal emulator's; and no
+probe with service names ran under a terminal, so the relay's cut of
+that listing was not observed. The relay's lifetime readings are in
+[Remote engines verification](test_widget_fixture.md#verification).
 
 On Windows the harness lines of [Windows](#windows) first ran in the
 same-binary helper, the client's own `Telegram.exe -widgethelper

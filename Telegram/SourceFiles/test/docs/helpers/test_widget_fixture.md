@@ -781,8 +781,9 @@ packs, the fixture and the seams they use need no change for it.
   helper's last line, written right before it exits. A helper that was
   not reaped ends its relay at once, as on Linux. A terminal that stops
   accepting writes blocks only that thread, and with it the reap of its
-  helper; on macOS the join after the wait blocks the same way, so
-  1000 ms limits that wait, not the reap.
+  helper (or the return of a Mac App Store start that failed after a
+  service wrote to its relay); on macOS the join after the wait blocks
+  the same way, so 1000 ms limits that wait, not the reap.
   At its entry, before it adopts the channel, the helper's
   `WidgetHelper::Adopt()` (`_other/widget_helper_linux.cpp`) accepts only
   the token `3`, names its process `TelegramWidgetHelper` with
@@ -2127,6 +2128,46 @@ which the leaf is Apple's, shared by every Mac App Store app, so the
 signer clause binds the identifier and that leaf rather than Telegram's
 own; a trusted Apple leaf or a Team ID; a Release client; x86_64 at run
 time; a Screen Recording grant; `build.sh`'s `productbuild`.
+
+The Mac App Store service's relay (**The shared helper** above) ran on
+macOS 27.0.1 (26A434) arm64 in the evidence campaign of
+`2026/11/16/give-the-mac-app-store-widget-service-a-descriptor-2-that-is-not-telegrams-terminal`
+(its `work/test.md`, Runs 3-5), in a copy of the Store Xcode Debug
+product made as above, with a disposable overlay that logged `Overlay:
+relay end pid=<pid> relay=<yes|no> reaped=<0|1> drainMs=<n|none>` for
+each completion. Telegram's stderr was `app_stderr.txt` (Run 3) or the
+slave of a raw pseudo-terminal whose master a driver outside the App
+Sandbox read continuously into a capture, from before the launch until
+Telegram exited (Runs 4 and 5); `lsof` ran in that driver, never in
+Telegram. The App-Sandboxed Telegram Lite read its own `isatty(2)` as 1
+under the pseudo-terminal and 0 under the file, where every completion
+read `relay=no`. Under the terminal `lsof` read Telegram's fd 2 as the
+slave and the fd 2 of both services, the one killed below and the fresh
+one, as `unix`, neither as a character device; the killed one's, read on
+both sides while it lived, was paired both ways with a Telegram socket
+other than the channel's at its fd 3 (Run 5). Three services that each
+wrote, right before `_Exit(1)`, a Debug refusal line holding ESC, BEL,
+BS, CR, DEL, `\` and U+009B put it on the terminal once, escaped
+(`\x1b[31mRED\x1b[0m\x1b]0;TASK-TITLE\x07\x08\x0d\x7f\\\xc2\x9b`), and no
+line of the capture held a byte outside 0x20 to 0x7e (Run 4); with the
+file the same lines landed raw (Run 3). Every reaped completion under the
+terminal, five in all, read `relay=yes reaped=1 drainMs=0`: the drain
+returned at once, so nothing queued was discarded and nothing else held
+the service's end. A service killed with `SIGKILL` logged `stream ended:
+the engine process closed the stream.`, its relay's ending and `ended,
+ended.` in that order, and 3.3 s later Telegram held neither that
+relay's socket nor the channel's; re-entry started a fresh service in
+21 ms with a relay at its fd 2, and the card was live again (Run 5). A
+stopped service at the quit ended `did not end within 1002 ms of its
+connection being canceled` with `relay=yes reaped=0 drainMs=none`, its
+relay ending in the same millisecond, and Telegram exited 2.01-2.13 s
+after the quit, as without a relay (Run 5). `lsof` showed the fresh
+service's sockets at the killed one's addresses, so such addresses pair
+only while both ends live. The probe's readings of that descriptor are
+on [test_widget_helper_probe](test_widget_helper_probe.md#verification).
+Not run: a terminal emulator, a stopped terminal or an unread master, a
+relay that could not be made and a start that failed after its relay was
+made (both read from the code only), and any macOS but 27.0.1 arm64.
 
 On Windows the [remote engines](#remote-engines) first ran in the
 same-binary helper, the client's own `Telegram.exe -widgethelper <handle>`
