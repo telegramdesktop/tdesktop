@@ -341,7 +341,7 @@ void EmojiTiles::makeRoom(int64 bytes, crl::time now) {
 		return tile->used;
 	});
 	auto evicted = 0;
-	for (const auto tile : old) {
+	for (const auto &tile : old) {
 		if (_tileBytes + bytes <= kMaxTileBytes) {
 			break;
 		}
