@@ -499,7 +499,7 @@ packs, the fixture and the seams they use need no change for it.
     serves, the helper fills TwidgetCore's lazily built `ImageData`
     decoding table on its main thread, so the widgets' glue threads only
     read it. The client builds a hosted `WidgetHost` (no
-    QuickJS runtime, no validator, no litehtml document, cursor styles
+    Nova runtime, no validator, no litehtml document, cursor styles
     included), whose client decides every privileged call again on the
     presses its stream writer admitted (*Presses and grants* below), and
     one `RendererWork` per widget on
@@ -892,7 +892,7 @@ packs, the fixture and the seams they use need no change for it.
   - *Failure.* A helper that cannot start or refuses its lockdown ends its
     widgets with the diagnostic and counts towards the failure limit, as
     below. Where no helper is available a build that renders in the helper
-    builds only a refusing hosted client, so no QuickJS runtime, validator
+    builds only a refusing hosted client, so no Nova runtime, validator
     or litehtml document exists in the client either.
   - *Seams and probes.* The ops tap installs itself on the hosted host
     ([Hosted widgets](test_widget_ops.md#hosted-widgets)) and, in a
@@ -1037,7 +1037,7 @@ packs, the fixture and the seams they use need no change for it.
   The helper moves to the working directory `/` itself, in
   `WidgetHelper::Adopt()` before it adopts the channel. It links only
   libSystem and libc++, its Debug build too: no Qt, lib_base, crl or
-  framework, built from widget-sandbox's engine end, QuickJS, the POSIX
+  framework, built from widget-sandbox's engine end, the Nova engine, the POSIX
   stream and its own `_other/widget_helper*` sources, without Telegram's
   precompiled header and before Telegram. On macOS it also links the
   served host's half of widget-sandbox, TwidgetCore's renderer end and the
@@ -1099,7 +1099,7 @@ packs, the fixture and the seams they use need no change for it.
   bundle: the client's own identity stays valid, and the check reads the
   replacement.
   On Linux it is `TelegramWidgetHelper` as well, built from the same
-  engine end, QuickJS, POSIX stream and `_other/widget_helper.cpp`, with
+  engine end, Nova engine, POSIX stream and `_other/widget_helper.cpp`, with
   `_other/widget_helper_linux.cpp`, the Linux lockdown and the descriptor
   closing (`platform/linux/widget_{lockdown,descriptors}_linux.cpp`;
   Telegram no longer links the lockdown) in place of the macOS sources,
@@ -1575,7 +1575,7 @@ packs, the fixture and the seams they use need no change for it.
   creation the system refuses, the job included, is a start failure: no
   helper runs outside its job or without these policies.
   The helper links no Qt, user32 or gdi32: it is built from
-  widget-sandbox's engine end, QuickJS, the shared `main()` of
+  widget-sandbox's engine end, the Nova engine, the shared `main()` of
   `_other/widget_helper.cpp`, `_other/widget_helper_win.cpp` and the
   client's own Qt-free `platform/win/widget_channel_win.cpp` and
   `widget_sandbox_win.cpp`, which Telegram compiles too, without Telegram's
