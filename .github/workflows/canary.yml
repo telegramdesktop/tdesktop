@@ -641,8 +641,9 @@ jobs:
           # Both binaries are verified here, on the exact bytes that get
           # packed: Updater.exe travels only inside the update envelope,
           # the publish job can re-check just the portable's Telegram.exe.
-          signtool verify /pa /all Telegram.exe
-          signtool verify /pa /all Updater.exe
+          # Per command: smctl needs Git Bash to convert SM_CLIENT_CERT_FILE.
+          MSYS_NO_PATHCONV=1 signtool verify /pa /all Telegram.exe
+          MSYS_NO_PATHCONV=1 signtool verify /pa /all Updater.exe
           echo "signed=true" >> $GITHUB_OUTPUT
 
       - name: Azure login for update signing.
