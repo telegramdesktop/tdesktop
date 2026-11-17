@@ -5044,6 +5044,16 @@ void OverlayWidget::showAndActivate() {
 	_helper->afterShow(_fullscreen);
 	_widget->update();
 	activate();
+
+	// After a display layout change (e.g. monitors waking from sleep)
+	// Windows may show the fullscreen window on another monitor. Qt
+	// reports that position only after the checks above ran, so check
+	// again once it has been processed.
+	InvokeQueued(_window, [=] {
+		if (!isHidden()) {
+			moveToScreen();
+		}
+	});
 }
 
 bool OverlayWidget::canInitStreaming() const {
