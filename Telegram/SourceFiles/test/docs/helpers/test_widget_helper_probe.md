@@ -186,30 +186,43 @@ Store service**). The probe is the same hook; what differs:
   fixture))` as in [Minimal use](#minimal-use), goes through the Store
   `Launch()` in `platform/mac/widget_helper_store_mac.mm`. Once XPC has
   verified the service's reply to the hello, the channel message carries
-  the channel, Telegram's descriptor 2 and the probe tail as `arguments`,
-  an array of strings sent only when the tail is not empty. The service
-  (`_other/widget_helper_service_mac.cpp`) puts the two descriptors on 2
-  and 3 and calls `Run()` on its serve thread with `3` and those
-  arguments, so the hook reads the vector a direct-download helper reads
-  from argv. The service's environment is launchd's: `test-run --env`
-  values reach Telegram only, and only what Telegram sends selects the
-  service's behaviour. Every row goes to the stderr Telegram passed,
-  `app_stderr.txt` under `test-run`. A Release service refuses any
-  argument with `Widget helper: unexpected arguments`; a Release Telegram
-  sends none.
+  the channel, Telegram's descriptor 2 (or, when that is a terminal, the
+  helper's end of Telegram's stderr relay) and the probe tail as
+  `arguments`, an array of strings sent only when the tail is not empty.
+  The service (`_other/widget_helper_service_mac.cpp`) puts the two
+  descriptors on 2 and 3 and calls `Run()` on its serve thread with `3`
+  and those arguments, so the hook reads the vector a direct-download
+  helper reads from argv. The service's environment is launchd's:
+  `test-run --env` values reach Telegram only, and only what Telegram
+  sends selects the service's behaviour. Every row goes to the stderr
+  Telegram passed, `app_stderr.txt` under `test-run`, or, when Telegram's
+  stderr is a terminal, through the relay to that terminal, escaped and
+  with the service's output past its first 32768 bytes dropped. A listing
+  with service names always passes that bound, so under a terminal its
+  full rows come from a run whose stderr is a file, while the summary
+  over the channel stays whole
+  ([Readings and refusals](#readings-and-refusals)). A Release service
+  refuses any argument with `Widget helper: unexpected arguments`; a
+  Release Telegram sends none.
 - **Parent and descriptors.** "The parent" of `begin`'s `ppid=`, of the
   parent attempts and of the channel check is the channel's peer,
   Telegram: a `parent: pid <pid>, the channel's peer (LOCAL_PEERPID of fd
   3); getppid() = 1` row follows `begin`. When the peer cannot be read the
   row is `parent: FAILED <reason>, getppid() = <pid> used instead`, a
   failure. Descriptors 0 and 1 are accounted as launchd's `/dev/null`
-  (`stdin, launchd's /dev/null`, `stdout, launchd's /dev/null`), 2 as
-  `stderr, the stderr Telegram passed (...)`, compared only with the
-  probe's own reading before the lockdown because the App Sandbox refuses
-  Telegram's descriptors (`fd 2 before the lockdown: parent's unreadable:
-  EPERM(1) Operation not permitted, ...`), and 3 as the channel to the
-  parent; anything else is a defect. `state:` adds
-  `nproc=<soft>/<hard>`.
+  (`stdin, launchd's /dev/null`, `stdout, launchd's /dev/null`) and 3 as
+  the channel to the parent. Descriptor 2 is compared only with the
+  probe's own reading before the lockdown, because the App Sandbox
+  refuses Telegram's descriptors (`fd 2 before the lockdown: parent's
+  unreadable: EPERM(1) Operation not permitted, ...`). It is accounted
+  only with `own-terminal=no` and unchanged after the lockdown: as
+  `stderr-relay` when it is the one-way stream of Telegram's relay (the
+  direct-download test of [Readings and refusals](#readings-and-refusals)
+  without the parent comparison), otherwise as `stderr, the stderr
+  Telegram passed (...)`, since Telegram's descriptor cannot be read to
+  tell it from anything else. A terminal at 2 (`fd 2 (<own>) is a
+  terminal`) and a changed one are defects, as is a descriptor at any
+  other number. `state:` adds `nproc=<soft>/<hard>`.
 - **Mach listing.** libxpc connects before the serve thread exists, so
   the logd and notification-center references read `held-before=yes`,
   the warm-up lookup reads `kr=1100 (Permission denied)` (the App Sandbox
@@ -996,7 +1009,9 @@ Descriptor 2 is accounted only when it was no terminal before the lockdown
 (`own-terminal=no`) and is unchanged after it (the same path for a file,
 the same object otherwise), and then only as one of two things:
 
-- the same file as the parent's fd 2, `stderr`;
+- the same file as the parent's fd 2, `stderr` (the Mac App Store
+  service, which cannot read the parent's, takes as `stderr` any such
+  descriptor that is not the relay below);
 - the one-way stream of the client's relay, `stderr-relay` (`stderr relay,
   AF_UNIX stream to the parent (receive side shut; same object after
   lockdown)`): an `AF_UNIX` stream socket whose peer is the parent and
@@ -1004,9 +1019,9 @@ the same object otherwise), and then only as one of two things:
   own sending side. That bit tells it from the channel at 3, which is
   duplex.
 
-In the direct-download helper a terminal at fd 2 is a defect, `fd 2
-(<identity>) is a terminal`, even when it is the parent's fd 2, and so are
-a changed one (`fd 2 differs from the one read before the lockdown`) and
+A terminal at fd 2 is a defect, `fd 2 (<identity>) is a terminal`, even
+when it is the parent's fd 2, and so is a changed one (`fd 2 differs from
+the one read before the lockdown`); in the direct-download helper so is
 any other (`fd 2 (<own>) is not the parent's fd 2 (<parent>)`). The
 probe identifies the stream, not where it leads: that the client relays it
 to its terminal, and that the helper's fd 2 is not that terminal, is shown
@@ -1014,8 +1029,9 @@ from the client's side, by its own `isatty(2)`, `lsof -p` of both
 processes (`unix` at the helper's fd 2, paired with a socket of the
 client) and a capture of the terminal's bytes. The Mac App Store
 service's parent, accounting, `state:` and extra rows differ
-([Mac App Store](#mac-app-store)): it writes the same `own-terminal=`
-reading, but its accounting of fd 2 does not use it.
+([Mac App Store](#mac-app-store)): its fd 2 accounting uses the same
+`own-terminal=` reading and the same relay test, but it never compares
+with the parent's fd 2, which it cannot read.
 
 Each `mach` row gives every rights bit, urefs, the object hash and the kernel
 object type. Receive rights also get their status, port sets their members.
@@ -1069,6 +1085,9 @@ the one line `[widget helper output over 32768 bytes dropped]`. A
 direct-download probe's rows come close to that bound, so the end of the
 listing, the attempt rows and the helper's `Widget helper:` line with the
 refusal can be cut there; a cut transcript is not the complete listing.
+A Mac App Store probe that lists service names, one row per name, always
+passes it: its `fd` rows come early enough to reach the terminal, while
+its service rows and its `Widget helper:` line never do.
 The channel still carries the refusal, untouched by the relay: the manager
 puts it in the main log's `Tgw: Widget helper <pid> stream ended: ...`
 line, while an overlay that launches the helper itself

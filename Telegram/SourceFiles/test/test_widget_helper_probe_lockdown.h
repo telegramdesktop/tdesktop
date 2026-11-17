@@ -60,8 +60,10 @@ inline constexpr auto kWidgetHelperServicePrefix = "service:";
 // launchd, so there "the parent" of its attempts and of its channel check is
 // the channel's peer, Telegram (LOCAL_PEERPID of descriptor 3; getppid()
 // and a recorded failure when that cannot be read). Descriptors 0 and 1 are
-// accounted as launchd's /dev/null and 2 as the stderr Telegram passed, not
-// compared with Telegram's descriptor, which the App Sandbox does not let it
+// accounted as launchd's /dev/null and 2 as the stderr Telegram passed
+// or, when Telegram's stderr is a terminal, the one-way stream of
+// its relay, and a terminal there as a defect; neither is compared
+// with Telegram's descriptor, which the App Sandbox does not let it
 // read. Inside the window its reference lookups must leave unchanged it
 // records, by object, the launchd ports it can get without a lookup: the
 // bootstrap port, the bootstrap special port, the registered ports and the

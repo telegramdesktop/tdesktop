@@ -111,6 +111,10 @@ constexpr auto kXpcWaitMs = int64_t(500);
 
 constexpr auto kTrue = "/usr/bin/true";
 
+constexpr auto kStderrRelayLabel
+	= "stderr relay, AF_UNIX stream to the parent"
+	" (receive side shut; same object after lockdown)";
+
 struct Reference {
 	const char *service = nullptr;
 	bool libSystem = false;
@@ -1397,6 +1401,14 @@ void IdentifySocket(Descriptor &descriptor) {
 	descriptor.identity += " " + text;
 }
 
+[[nodiscard]] bool IsStderrRelay(const Descriptor &descriptor, pid_t parent) {
+	return (descriptor.kind == PROX_FDTYPE_SOCKET)
+		&& (descriptor.domain == AF_UNIX)
+		&& (descriptor.type == SOCK_STREAM)
+		&& (descriptor.peerPid == parent)
+		&& ((descriptor.state & SOI_S_CANTRCVMORE) != 0);
+}
+
 [[nodiscard]] Descriptor Identify(const proc_fdinfo &info) {
 	auto result = Descriptor{
 		.fd = info.proc_fd,
@@ -2158,8 +2170,13 @@ void Probe::listDescriptors() {
 				label = "stderr, UNVERIFIED: own " + _ownStderr;
 				brief = "stderr-unverified";
 				_failures.push_back("fd 2 not identified: own " + _ownStderr);
+			} else if (_ownStderrTerminal) {
+				defect = "fd 2 (" + _ownStderr + ") is a terminal";
 			} else if (!stderrUnchanged(descriptor)) {
 				defect = "fd 2 differs from the one read before the lockdown";
+			} else if (IsStderrRelay(descriptor, _ppid)) {
+				label = kStderrRelayLabel;
+				brief = "stderr-relay";
 			} else {
 				label = "stderr, the stderr Telegram passed (" + _ownStderr
 					+ ", read before the lockdown, same "
@@ -2183,11 +2200,6 @@ void Probe::listDescriptors() {
 			}
 		} else if (descriptor.fd == STDERR_FILENO) {
 			const auto unchanged = stderrUnchanged(descriptor);
-			const auto relay = (descriptor.kind == PROX_FDTYPE_SOCKET)
-				&& (descriptor.domain == AF_UNIX)
-				&& (descriptor.type == SOCK_STREAM)
-				&& (descriptor.peerPid == _ppid)
-				&& ((descriptor.state & SOI_S_CANTRCVMORE) != 0);
 			if (_parentStderr.rfind("unreadable", 0) == 0
 				|| _ownStderr.rfind("unreadable", 0) == 0) {
 				label = "stderr, UNVERIFIED: the parent's fd 2 was "
@@ -2205,9 +2217,8 @@ void Probe::listDescriptors() {
 					+ ", compared before the lockdown, same "
 					+ (vnode ? "path" : "object") + " after)";
 				brief = "stderr";
-			} else if (relay) {
-				label = "stderr relay, AF_UNIX stream to the parent"
-					" (receive side shut; same object after lockdown)";
+			} else if (IsStderrRelay(descriptor, _ppid)) {
+				label = kStderrRelayLabel;
 				brief = "stderr-relay";
 			} else {
 				defect = "fd 2 (" + _ownStderr + ") is not the parent's fd 2 ("

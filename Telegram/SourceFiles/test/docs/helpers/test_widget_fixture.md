@@ -754,23 +754,26 @@ packs, the fixture and the seams they use need no change for it.
   the `TelegramHelpers` layout fails every start inside Flatpak with `the
   widget helper's build identity cannot be checked through the Flatpak
   portal`, before any portal call (a reading of the code, not run).
-  On both Linux spawn paths, and for the direct-download macOS helper
-  above, the helper's descriptor 2 follows the client's stderr at each
-  start. When that is not a terminal (`isatty`), as under `test-run`,
-  whose `app_stderr.txt` is a file, it is a duplicate of the client's
-  stderr, and the helper's lines land there unchanged. When it is a
-  terminal, descriptor 2 is the helper's end of a one-way `AF_UNIX`
-  stream socket (on Linux `/proc/<pid>/fd/2` reads `socket:[<inode>]`, on
-  macOS `lsof -p <pid>` shows `unix` at fd 2), never the terminal: a
-  thread of the client reads the other end and writes each
-  line to the client's stderr with one `write`, every byte outside
-  printable ASCII (0x20 to 0x7e) escaped as `\xNN` in lowercase hex and
-  `\` as `\\`. A line longer than 8192 bytes keeps its first 8192 and
-  ends with ` [cut]`, a last line without a newline is relayed at the
+  On both Linux spawn paths, for the direct-download macOS helper above
+  and for **The Mac App Store service** below, the helper's descriptor 2
+  follows the client's stderr at each start. When that is not a terminal
+  (`isatty`), as under `test-run`, whose `app_stderr.txt` is a file, it is
+  a duplicate of the client's stderr, and the helper's lines land there
+  unchanged. When it is a terminal, descriptor 2 is the helper's end of a
+  one-way `AF_UNIX` stream socket (on Linux `/proc/<pid>/fd/2` reads
+  `socket:[<inode>]`, on macOS `lsof -p <pid>` shows `unix` at fd 2),
+  never the terminal: a thread of the client reads the other end and
+  writes each line to the client's stderr with one `write`, every byte
+  outside printable ASCII (0x20 to 0x7e) escaped as `\xNN` in lowercase
+  hex and `\` as `\\`. A line longer than 8192 bytes keeps its first 8192
+  and ends with ` [cut]`, a last line without a newline is relayed at the
   end, and a helper's bytes past its first 32768 are dropped, with one
   line `[widget helper output over 32768 bytes dropped]` in their place.
+  The Mac App Store client sends its service that duplicate or that end
+  as the channel message's `stderr`.
   The relay ends with its helper, before the main log's `ended` line
-  below. On macOS, after a helper that was reaped, the client first waits
+  below. On macOS, after a helper that was reaped (for the Mac App Store
+  service, one whose `NOTE_EXIT` the client saw), the client first waits
   up to 1000 ms for the relay to end on its own, at the end of the stream
   once every queued byte was relayed, and only then shuts the relay's end
   and joins its thread, still before the `ended` line: macOS discards the
@@ -779,8 +782,7 @@ packs, the fixture and the seams they use need no change for it.
   not reaped ends its relay at once, as on Linux. A terminal that stops
   accepting writes blocks only that thread, and with it the reap of its
   helper; on macOS the join after the wait blocks the same way, so
-  1000 ms limits that wait, not the reap. The Mac App Store service still
-  gets the client's stderr itself (**The Mac App Store service** below).
+  1000 ms limits that wait, not the reap.
   At its entry, before it adopts the channel, the helper's
   `WidgetHelper::Adopt()` (`_other/widget_helper_linux.cpp`) accepts only
   the token `3`, names its process `TelegramWidgetHelper` with
@@ -870,14 +872,17 @@ packs, the fixture and the seams they use need no change for it.
   verified its empty reply does the client read the pid
   (`xpc_connection_get_pid`), watch it for `NOTE_EXIT` and send the
   channel message: `channel`, the child end of the socketpair, whose own
-  copy it then closes, `stderr`, its descriptor 2, and, in a Debug probe
-  launch, `arguments`. After that reply it also refuses when the watched
-  instance ended or the connection's pid changed (`the widget helper
-  ended before it took the channel`), then sends the keep request, which
-  the service holds unanswered until it exits: the pending reply keeps the
-  service at Telegram's priority (31 while serving; an XPC service with no
-  request pending ran at 4) and out of the system's idle exit. Both
-  replies share one 15 s deadline (`kStartWait`).
+  copy it then closes, `stderr`, a duplicate of its descriptor 2 when
+  that is no terminal and the helper's end of its relay otherwise (**The
+  shared helper** above), whose own copy it closes when `Launch()`
+  returns, and, in a Debug probe launch, `arguments`. After that reply it
+  also refuses when the watched instance ended or the connection's pid
+  changed (`the widget helper ended before it took the channel`), then
+  sends the keep request, which the service holds unanswered until it
+  exits: the pending reply keeps the service at Telegram's priority (31
+  while serving; an XPC service with no request pending ran at 4) and out
+  of the system's idle exit. Both replies share one 15 s deadline
+  (`kStartWait`).
   The service runs `xpc_main()`: it accepts one peer connection and
   cancels any other, answers the hello, puts `stderr` on descriptor 2 and
   `channel` on 3, refuses a second `channel`, and starts one serve thread
@@ -885,10 +890,11 @@ packs, the fixture and the seams they use need no change for it.
   `WidgetHelper::Adopt()` (`chdir("/")`) and `serve` with the lockdown; it
   `_Exit`s on any error event of its peer connection. It is a child of
   launchd with its own container as `HOME`, launchd's `/dev/null` on 0
-  and 1, Telegram's stderr on 2 and the channel on 3, and its responsible
-  process is Telegram, so TCC would count its requests under Telegram's
-  grants; after its lockdown it can look up no Mach service, tccd and the
-  window server included, and keeps only the services it already holds
+  and 1, on 2 Telegram's stderr when that is no terminal and the relay's
+  end otherwise, the channel on 3, and its responsible process is
+  Telegram, so TCC would count its requests under Telegram's grants;
+  after its lockdown it can look up no Mach service, tccd and the window
+  server included, and keeps only the services it already holds
   ([test_widget_helper_probe](test_widget_helper_probe.md#mac-app-store)
   lists what it can still reach). A start took about 20 ms, 90 ms when it
   created the service's container.
@@ -904,7 +910,16 @@ packs, the fixture and the seams they use need no change for it.
   lookup with error 3 - No such process)`), `the widget helper ended
   before it took the channel`, `the widget helper did not answer within
   15000 ms` or `the widget helper refused the channel: <reason>`; once
-  the client watches a pid, the cleanup follows in parentheses.
+  the client watches a pid, the cleanup follows in parentheses. As for
+  the direct-download helper, when Telegram's stderr is a terminal and
+  the relay of **The shared helper** cannot be made, the start fails
+  before the client creates its connection, with `socketpair failed:
+  <reason>`, `shutdown failed: <reason>` or `fcntl failed: <reason>`, or
+  with a setup error the relay's socket shares with the channel
+  (`getsockopt failed: <reason>`, `setsockopt failed: <reason>`); the
+  terminal is never handed to the service instead. `fcntl failed:
+  <reason>` is also the error when the duplicate of a stderr that is no
+  terminal cannot be made.
   launchd, not Telegram, owns the process, and the App-Sandboxed client
   cannot signal it (`kill` gives `EPERM`), so `complete` waits for
   `NOTE_EXIT` and otherwise cancels the connection, whose error event ends
@@ -959,11 +974,16 @@ packs, the fixture and the seams they use need no change for it.
   protection: `Operation not permitted`; `stat` works), so a service-side
   marker leaves through the stderr Telegram passed (`app_stderr.txt`) or,
   from a service refused before it got that stderr, as a darwin
-  notification. A start after an instance that lived under 10 s, such as
-  every relaunch after a probe or a refused service, meets launchd's 10 s
-  deferral. At the end unregister the copies (`lsregister -u`) and remove
-  `~/Library/Application Scripts/<id>`; the containers stay until removed
-  in Finder.
+  notification. When Telegram's stderr is a terminal the markers pass its
+  relay (**The shared helper** above), escaped and bounded. `test-run`
+  gives Telegram a file, so a terminal leg needs a pseudo-terminal whose
+  master is read continuously from before the launch until Telegram
+  exits: a master nobody reads blocks the relay thread and, through its
+  join, the reap of that service. A start after an instance that lived
+  under 10 s, such as every relaunch after a probe or a refused service,
+  meets launchd's 10 s deferral. At the end unregister the copies
+  (`lsregister -u`) and remove `~/Library/Application Scripts/<id>`; the
+  containers stay until removed in Finder.
 - **The Windows helper.** It is `TelegramWidgetHelper.exe`, a separate
   executable in the `modules\<arch>\` folder next to the client's own,
   `<arch>` being `x86`, `x64` or `arm64` for the client's architecture
@@ -1526,10 +1546,10 @@ packs, the fixture and the seams they use need no change for it.
   per engine and no `widget.sandbox`; `widget.validator` and the host's
   `twidget-host` stay, and the channel adds `widget.reader`,
   `widget.writer` and `widget.monitor` per helper and a `widget.answer` per
-  runtime that asked a synchronous question. On macOS (outside the Mac
-  App Store build) and Linux a client whose stderr is a terminal also runs
-  one relay thread per helper, with no name of its own (**The shared
-  helper** above). The `widget.sandbox` engines run in the helper.
+  runtime that asked a synchronous question. On macOS and Linux a client
+  whose stderr is a terminal also runs one relay thread per helper, with
+  no name of its own (**The shared helper** above). The `widget.sandbox`
+  engines run in the helper.
   Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`; each host
   keeps its `widget.client`, `widget.validator` and `twidget-host` until
