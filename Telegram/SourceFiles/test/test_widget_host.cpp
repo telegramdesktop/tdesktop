@@ -303,7 +303,7 @@ void WidgetHostWatch::attach(twidget::WidgetHost &host, const void *core) {
 	if (core) {
 		RegisterWork(core, _work, int(_hosts.size()) - 1);
 	}
-	// WHY: a stale validator bytecode posts a diag from the constructor, so
+	// WHY: a mismatched validator bundle posts a diag from the constructor, so
 	// the host thread may already run changed(); there the snapshot and the
 	// new callback leave no change between them and race no onChange read.
 	host.onHostThread([&] {
