@@ -461,7 +461,7 @@ scaled to what the code is for:
   prompt of a harness task carries this bar (phase prompts, "Harness tasks").
 - **Models.** On Codex, the plan assessment, every review and synthesis, the
   convergence assessments and the evidence assessments of a harness task run
-  on `gpt-6.1-sol` ([phase effort](../../../shared/phase-effort.md#lens-models)).
+  on `gpt-6.2-sol` ([phase effort](../../../shared/phase-effort.md#review-models)).
 - **Evidence.** The harness self-test, or one consumer run, shows that the
   helper gives its consumers what they need.
 

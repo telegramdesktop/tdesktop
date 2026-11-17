@@ -47,8 +47,9 @@ on your own: a missing `work` login is reported, not replaced with `~/.codex`.
 Select effort with [phase effort](phase-effort.md) and pass it as `--effort`
 (`medium`, `high` or `xhigh`; review and assessment phases default to
 `xhigh`). Pass `--model` only where
-[lens models](phase-effort.md#lens-models) pin one (the reuse, structure and
-performance lenses, and every review and assessment leaf of a harness task);
+[review models](phase-effort.md#review-models) pin one (every review and
+assessment leaf: `gpt-6.2-sol` for the reuse, structure and performance
+lenses and for every leaf of a harness task, `gpt-6.2-astra` for the rest);
 otherwise the leaf uses the model configured for the
 user's Codex CLI. Record the effort and any pinned model in the phase result
 `NOTES:`.

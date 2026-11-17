@@ -592,7 +592,7 @@ rounds and convergence follow the ordinary rules.
 
 Append the harness bar to the prompt of every lens, general review, synthesis,
 focused re-review and convergence assessment of a harness task. On Codex these
-leaves run on `gpt-6.1-sol`.
+leaves run on `gpt-6.2-sol`.
 
 ~~~text
 HARNESS BAR. This task changes harness or testing code that no user runs
@@ -1188,7 +1188,7 @@ For review iterations, include the iteration and lens in the file name, for exam
 For a review or assessment phase under the `codex` or `codex-default` review
 provider, replace step 2 with one `codex_leaf.py start` per leaf — working
 directory `WORK_DIR`, `workspace-write` sandbox, `--no-project-doc`, the
-selected `--effort`, `--model` where the effort policy's lens models pin one,
+selected `--effort`, `--model` where the effort policy's review models pin one,
 `--home default` under `codex-default`, and the
 Codex CLI leaves preamble before the prompt — followed by
 foreground `codex_leaf.py wait` calls until they all finish. Steps 3 and 4 are
@@ -1220,7 +1220,7 @@ Use this pattern conceptually for delegated phases:
    `fork_turns: "none"` unless a small recent-turn fork is required. Pass
    the selected `reasoning_effort` when supported, per the shared phase
    effort policy; omit `model` to inherit the parent model, except where
-   the policy's lens models pin one.
+   the policy's review models pin one.
 3. Wait for the child's final result under the shared Codex completion and
    recovery contract. Keep heartbeat and progress checks out of the parent.
 4. Validate the expected artifacts or code changes after completion with small
