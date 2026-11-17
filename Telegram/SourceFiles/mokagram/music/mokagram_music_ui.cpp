@@ -6818,25 +6818,11 @@ public:
 				0,
 				_tabTransitionNow);
 		}, lifetime());
-		_topFade = Ui::CreateChild<HomeEdgeFade>(this, HomeEdgeFade::Edge::Top);
-		_topFade->setColor([=] {
-			auto color = pageBackgroundAt(_topFade->y());
-			if (_tab == Tab::Home && _homeArtistOpen && !_homeArtistBannerUrl.isEmpty()) {
-				color.setAlphaF(std::clamp(_tabScroll->scrollTop() / double(style::ConvertScale(128)), 0., 1.));
-			}
-			return color;
-		});
-		_bottomFade = Ui::CreateChild<HomeEdgeFade>(this, HomeEdgeFade::Edge::Bottom);
-		_bottomFade->setColor([=] { return pageBackgroundAt(_bottomFade->y() + _bottomFade->height()); });
 		_homeMoreRetryTimer.setSingleShot(true);
 		connect(&_homeMoreRetryTimer, &QTimer::timeout, this, [=] {
 			scheduleHomeMoreIfNeeded();
 		});
 		_tabScroll->scrollTopChanges() | rpl::on_next([=](int top) {
-			_topFade->setVisible((_tab != Tab::Now || showsQueue())
-				&& ((_tab != Tab::Search && _tab != Tab::Library && !showsQueue()) || top > 0));
-			_topFade->update();
-			_bottomFade->update();
 			if (_tab == Tab::Home && _homeAlbumOpen) {
 				update();
 			}
@@ -7566,18 +7552,6 @@ protected:
 			std::max(layout.center.y() + layout.center.height() - layout.scrollTop - s(12), 0));
 		_tabList->resizeToWidth(_tabScroll->width());
 		if (_homeAlbumHeader) _homeAlbumHeader->setBannerTopInset(_tabScroll->y());
-		_topFade->setVisible((_tab != Tab::Now || showsQueue())
-			&& ((_tab != Tab::Search && _tab != Tab::Library && !showsQueue()) || _tabScroll->scrollTop() > 0));
-		_topFade->setGeometry(
-			_tabScroll->x(), _tabScroll->y(), _tabScroll->width(), s(28));
-		_topFade->raise();
-		_bottomFade->setVisible(_tab != Tab::Now || showsQueue());
-		_bottomFade->setGeometry(
-			_tabScroll->x(),
-			_tabScroll->y() + _tabScroll->height() - s(36),
-			_tabScroll->width(),
-			s(36));
-		_bottomFade->raise();
 
 		// Навигация: ряд пилюль сверху по центру.
 		{
@@ -9560,8 +9534,6 @@ private:
 			tint.blueF() + (base.blueF() - tint.blueF()) * t);
 	}
 
-	HomeEdgeFade *_topFade = nullptr;
-	HomeEdgeFade *_bottomFade = nullptr;
 	Ui::VerticalLayout *_tabList = nullptr;
 	QPointer<HomeAlbumHeader> _homeAlbumHeader;
 	std::array<NavItem*, 6> _nav = {};
