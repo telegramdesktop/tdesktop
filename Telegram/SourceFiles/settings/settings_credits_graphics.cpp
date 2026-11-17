@@ -1579,13 +1579,6 @@ void GenericCreditsEntryCover(
 			}
 			: Fn<void()>();
 		auto coverActions = std::vector<Ui::UniqueGiftCoverAction>();
-		if (actions && actions->transfer) {
-			coverActions.push_back({
-				.text = tr::lng_gift_transfer_button(),
-				.icon = rpl::single(&st::menuIconReplace),
-				.callback = actions->transfer,
-			});
-		}
 		if (actions && actions->extra) {
 			for (auto &action : actions->extra(box)) {
 				coverActions.push_back(std::move(action));

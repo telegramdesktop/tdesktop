@@ -98,6 +98,7 @@ using TouchScreenDevice = QPointer<const QPointingDevice>;
 #endif // Qt >= 6.0.0
 
 struct CoverCardState {
+	bool onSale = false;
 	bool onCard = false;
 	bool source = false;
 	bool allowed = false;
@@ -193,6 +194,7 @@ private:
 	[[nodiscard]] std::vector<Ui::UniqueGiftCoverAction> coverActions(
 		not_null<Ui::GenericBox*> box,
 		const QString &address);
+	void coverTransferPressed(const QString &address);
 	void coverColorPressed(
 		not_null<Ui::GenericBox*> box,
 		const QString &address);
@@ -610,29 +612,12 @@ void Activate(
 		const CollectibleRecord &item,
 		Fn<std::vector<Ui::UniqueGiftCoverAction>(
 			not_null<Ui::GenericBox*>)> extra) {
-	if (OnOwnSale(item)) {
-		show->showBox(Box(
-			::Settings::GlobalStarGiftBox,
-			MakeChatShow(show, false),
-			*item.gift,
-			::Settings::StarGiftResaleInfo(),
-			::Settings::CreditsEntryBoxStyleOverrides(),
-			nullptr));
-		return;
-	} else if (item.gift) {
-		const auto weak = std::weak_ptr(media);
-		const auto address = item.address;
-		const auto slug = item.key;
+	if (item.gift) {
 		const auto unique = item.gift->unique;
 		auto actions = std::make_shared<::Settings::UniqueGiftCoverActions>();
-		actions->transfer = [=] {
-			if (const auto strong = weak.lock()) {
-				ShowCollectibleTransfer(show, strong, address, slug, unique);
-			}
-		};
 		actions->extra = std::move(extra);
 		actions->aboveButtons = [=](not_null<Ui::GenericBox*> box) {
-			if (unique) {
+			if (unique && !unique->mySale) {
 				AddShowInGiftsCheckbox(box, show, unique);
 			}
 		};
@@ -1141,7 +1126,6 @@ std::optional<FlightPose> CollectiblesGrid::dragSource(
 	const auto &gift = _records[index].gift;
 	if (!gift
 		|| !gift->unique
-		|| OnOwnSale(_records[index])
 		|| !_host.painter
 		|| ownCard().contains(address)
 		|| _flights.contains(address)
@@ -1251,7 +1235,7 @@ void CollectiblesGrid::dropDrag(const FlightPose &released) {
 	const auto address = _drag.address;
 	const auto generation = _drag.generation;
 	const auto index = indexOf(address);
-	const auto gift = (index >= 0 && !OnOwnSale(_records[index]))
+	const auto gift = (index >= 0)
 		? _records[index].gift
 		: nullptr;
 	if (!gift || !gift->unique || ownCard().contains(address)) {
@@ -1456,7 +1440,7 @@ int CollectiblesGrid::indexOf(const QString &address) const {
 
 std::optional<QRect> CollectiblesGrid::hintTarget() const {
 	const auto gift = [](const CollectibleRecord &record) {
-		return (record.gift != nullptr) && !OnOwnSale(record);
+		return record.gift != nullptr;
 	};
 	const auto i = ranges::find_if(_records, gift);
 	if (i == end(_records)) {
@@ -1588,14 +1572,11 @@ void CollectiblesGrid::applySquare(
 		if (fresh) {
 			square.gift = createGiftButton(record.address);
 		}
-		const auto eligible = !OnOwnSale(record);
-		const auto leaving = eligible && (_leaving == record.address);
-		const auto onCard = eligible
-			&& !leaving
+		const auto leaving = (_leaving == record.address);
+		const auto onCard = !leaving
 			&& (_onCard.contains(record.address)
 				|| _returning.contains(record.address));
-		const auto silhouette = eligible
-			&& (leaving || (_lifted == record.address));
+		const auto silhouette = leaving || (_lifted == record.address);
 		// A reparse allocates the gift anew, equal values keep the player.
 		if (fresh
 			|| !SameServedGift(square.record, record)
@@ -1634,11 +1615,12 @@ void CollectiblesGrid::activate(const QString &address) {
 std::optional<CoverCardState> CollectiblesGrid::coverState(
 		const QString &address) const {
 	const auto index = indexOf(address);
-	if (index < 0 || !_records[index].gift || OnOwnSale(_records[index])) {
+	if (index < 0 || !_records[index].gift) {
 		return std::nullopt;
 	}
 	const auto collections = CardColorCollections(&_show->session());
 	return CoverCardState{
+		.onSale = OnOwnSale(_records[index]),
 		.onCard = ownCard().contains(address),
 		.source = colorSource(address),
 		.allowed = CardColorAllowed(_records[index], collections),
@@ -1658,6 +1640,7 @@ std::vector<Ui::UniqueGiftCoverAction> CollectiblesGrid::coverActions(
 		rpl::variable<CoverCardState>>(*initial);
 	rpl::merge(
 		ownCard().shownValue() | rpl::to_empty,
+		_show->session().wallet().collectiblesUpdates(),
 		_show->session().appConfig().refreshed()
 	) | rpl::on_next([=] {
 		if (const auto strong = weak.get()) {
@@ -1683,6 +1666,9 @@ std::vector<Ui::UniqueGiftCoverAction> CollectiblesGrid::coverActions(
 			}
 		}
 	}, box->lifetime());
+	const auto onSale = [](const CoverCardState &now) {
+		return now.onSale;
+	};
 	const auto source = [](const CoverCardState &now) {
 		return now.source;
 	};
@@ -1690,6 +1676,16 @@ std::vector<Ui::UniqueGiftCoverAction> CollectiblesGrid::coverActions(
 		return now.onCard;
 	};
 	auto result = std::vector<Ui::UniqueGiftCoverAction>();
+	result.push_back({
+		.text = tr::lng_gift_transfer_button(),
+		.icon = flag(onSale) | rpl::map([](bool locked) {
+			return locked ? &st::menuIconLock : &st::menuIconReplace;
+		}),
+		.callback = crl::guard(this, [=] {
+			coverTransferPressed(address);
+		}),
+		.faded = flag(onSale),
+	});
 	result.push_back({
 		.text = flag(source) | rpl::map([](bool remove) {
 			return remove
@@ -1727,6 +1723,25 @@ std::vector<Ui::UniqueGiftCoverAction> CollectiblesGrid::coverActions(
 		}),
 	});
 	return result;
+}
+
+void CollectiblesGrid::coverTransferPressed(const QString &address) {
+	const auto index = indexOf(address);
+	if (index < 0 || !_records[index].gift) {
+		_show->showToast(tr::lng_wallet_collectible_not_owned(tr::now));
+		return;
+	}
+	const auto &record = _records[index];
+	if (OnOwnSale(record)) {
+		_show->showToast(tr::lng_wallet_collectible_transfer_on_sale(tr::now));
+		return;
+	}
+	ShowCollectibleTransfer(
+		_show,
+		_media,
+		record.address,
+		record.key,
+		record.gift->unique);
 }
 
 void CollectiblesGrid::coverColorPressed(
@@ -1768,7 +1783,6 @@ void CollectiblesGrid::showCardMenu(const QString &address, QPoint point) {
 	if (_menu
 		|| index < 0
 		|| !_records[index].gift
-		|| OnOwnSale(_records[index])
 		|| _leaving == address
 		|| !_press.address.isEmpty()
 		|| dragFollowing()) {
@@ -1816,7 +1830,6 @@ void CollectiblesGrid::cardAction(const QString &address, bool add) {
 	const auto index = indexOf(address);
 	if (index < 0
 		|| !_records[index].gift
-		|| OnOwnSale(_records[index])
 		|| _leaving == address) {
 		return;
 	}
@@ -1834,7 +1847,6 @@ void CollectiblesGrid::colorAction(const QString &address, bool apply) {
 	const auto index = indexOf(address);
 	if (index < 0
 		|| !_records[index].gift
-		|| OnOwnSale(_records[index])
 		|| _leaving == address
 		|| colorSource(address) == apply) {
 		return;
@@ -1842,9 +1854,7 @@ void CollectiblesGrid::colorAction(const QString &address, bool apply) {
 	if (apply) {
 		const auto collections = CardColorCollections(&_show->session());
 		if (!CardColorAllowed(_records[index], collections)) {
-			auto held = _records;
-			held.erase(ranges::remove_if(held, OnOwnSale), end(held));
-			_colorToast.show(collections, held);
+			_colorToast.show(collections, _records);
 			return;
 		} else if (!ownCard().contains(address)) {
 			addToCard(_records[index], true);
@@ -2170,7 +2180,6 @@ std::optional<FlightPose> CollectiblesGrid::squarePose(
 	const auto index = indexOf(address);
 	const auto i = _squares.find(address);
 	if (index < 0
-		|| OnOwnSale(_records[index])
 		|| i == end(_squares)
 		|| !i->second.gift
 		|| !i->second.gift->isVisible()) {

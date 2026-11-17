@@ -8953,6 +8953,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_wallet_collectible_nft_about" = "A collectible stored on The Open Network (TON) blockchain.";
 "lng_wallet_collectible_send" = "Send {name}";
 "lng_wallet_collectible_not_owned" = "This collectible is no longer in your wallet.";
+"lng_wallet_collectible_transfer_on_sale" = "Unlist this gift from sale before transferring it.";
 "lng_wallet_collectible_own_wallet" = "This collectible is already in your wallet.";
 "lng_wallet_collectible_show_in_gifts" = "also show in my gifts";
 "lng_wallet_card_add" = "Add to Card";

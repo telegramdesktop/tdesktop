@@ -141,7 +141,6 @@ struct CreditsEntryBoxStyleOverrides {
 [[nodiscard]] CreditsEntryBoxStyleOverrides DarkCreditsEntryBoxStyle();
 
 struct UniqueGiftCoverActions {
-	Fn<void()> transfer;
 	Fn<std::vector<Ui::UniqueGiftCoverAction>(
 		not_null<Ui::GenericBox*>)> extra;
 	Fn<void(not_null<Ui::GenericBox*>)> aboveButtons;
