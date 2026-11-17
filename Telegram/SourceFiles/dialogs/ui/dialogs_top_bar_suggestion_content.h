@@ -70,10 +70,11 @@ private:
 };
 
 not_null<UnconfirmedAuthWrap*> CreateUnconfirmedAuthContent(
-		not_null<Ui::RpWidget*> parent,
-		rpl::producer<std::vector<Data::UnreviewedAuth>> list,
-		Fn<void(bool)> callback,
-		rpl::producer<float64> collapseProgress);
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<std::vector<Data::UnreviewedAuth>> list,
+	Fn<void(bool, Fn<void()>)> callback,
+	rpl::producer<float64> collapseProgress,
+	rpl::producer<bool> busy = rpl::single(false));
 
 struct TopBarSuggestionGeometry {
 	int cardInnerHeight = 0;

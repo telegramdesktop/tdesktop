@@ -81,7 +81,12 @@ QByteArray SessionSettings::serialize() const {
 		+ (_ratedTranscriptions.size() * sizeof(quint64))
 		+ sizeof(qint32); // _unreviewed size
 	for (const auto &auth : _unreviewed) {
-		size += sizeof(quint64) + sizeof(qint32) + sizeof(qint32)
+		if (auth.botId) {
+			continue;
+		}
+		size += sizeof(quint64)
+			+ sizeof(qint32)
+			+ sizeof(qint32)
 			+ Serialize::stringSize(auth.device)
 			+ Serialize::stringSize(auth.location);
 	}
@@ -97,6 +102,17 @@ QByteArray SessionSettings::serialize() const {
 		size += sizeof(quint64) + Serialize::stringSize(id.emoji());
 	}
 	size += sizeof(qint32); // _stashHintShowsCount
+	size += sizeof(qint32);
+	for (const auto &auth : _unreviewed) {
+		if (auth.botId) {
+			size += sizeof(quint64)
+				+ sizeof(quint64)
+				+ sizeof(qint32)
+				+ Serialize::stringSize(auth.device)
+				+ Serialize::stringSize(auth.location)
+				+ Serialize::stringSize(auth.botName);
+		}
+	}
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -165,8 +181,14 @@ QByteArray SessionSettings::serialize() const {
 		for (const auto &transcriptionId : _ratedTranscriptions) {
 			stream << quint64(transcriptionId);
 		}
-		stream << qint32(_unreviewed.size());
+		const auto bots = ranges::count_if(_unreviewed, [](const auto &auth) {
+			return auth.botId != 0;
+		});
+		stream << qint32(_unreviewed.size() - bots);
 		for (const auto &auth : _unreviewed) {
+			if (auth.botId) {
+				continue;
+			}
 			stream
 				<< quint64(auth.hash)
 				<< qint32(auth.unconfirmed ? 1 : 0)
@@ -190,6 +212,18 @@ QByteArray SessionSettings::serialize() const {
 			stream << quint64(id.custom()) << id.emoji();
 		}
 		stream << qint32(_stashHintShowsCount);
+		stream << qint32(bots);
+		for (const auto &auth : _unreviewed) {
+			if (auth.botId) {
+				stream
+					<< quint64(auth.botId)
+					<< quint64(auth.botAccessHash)
+					<< qint32(auth.date)
+					<< auth.device
+					<< auth.location
+					<< auth.botName;
+			}
+		}
 	}
 
 	Ensures(result.size() == size);
@@ -754,6 +788,33 @@ void SessionSettings::addFromSerialized(
 	}
 	if (!stream.atEnd()) {
 		stream >> stashHintShowsCount;
+	}
+	if (!stream.atEnd()) {
+		auto count = qint32();
+		stream >> count;
+		if (count < 0 || count > stream.device()->bytesAvailable() / 32) {
+			LOG(("App Error: Bad unreviewed bots count in session settings"));
+			return;
+		}
+		for (auto i = 0; i != count; ++i) {
+			auto botId = quint64();
+			auto accessHash = quint64();
+			auto date = qint32();
+			auto auth = Data::UnreviewedAuth{ .unconfirmed = true };
+			stream
+				>> botId
+				>> accessHash
+				>> date
+				>> auth.device
+				>> auth.location
+				>> auth.botName;
+			auth.botId = botId;
+			auth.botAccessHash = accessHash;
+			auth.date = date;
+			if (botId) {
+				unreviewed.push_back(std::move(auth));
+			}
+		}
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "

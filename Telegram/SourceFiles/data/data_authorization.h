@@ -15,6 +15,13 @@ struct UnreviewedAuth {
 	TimeId date = 0;
 	QString device;
 	QString location;
+	uint64 botId = 0;
+	uint64 botAccessHash = 0;
+	QString botName;
+
+	friend bool operator==(
+		const UnreviewedAuth &,
+		const UnreviewedAuth &) = default;
 };
 
 } // namespace Data

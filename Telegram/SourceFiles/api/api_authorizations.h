@@ -7,10 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "data/data_authorization.h"
 #include "mtproto/sender.h"
 
 class ApiWrap;
+
+namespace Main {
+class Session;
+} // namespace Main
 
 namespace Api {
 
@@ -37,6 +42,9 @@ public:
 		std::optional<uint64> hash = std::nullopt);
 
 	void apply(const MTPUpdate &update);
+	void reconcileBots(
+		const MTPaccount_ConnectedBots &result,
+		const std::vector<Data::UnreviewedAuth> &snapshot);
 
 	[[nodiscard]] crl::time lastReceivedTime();
 
@@ -48,7 +56,12 @@ public:
 	[[nodiscard]] const std::vector<Data::UnreviewedAuth> &unreviewed();
 	[[nodiscard]] rpl::producer<> unreviewedChanges() const;
 
-	void review(const std::vector<uint64> &hashes, bool confirm);
+	void review(
+		const std::vector<Data::UnreviewedAuth> &list,
+		bool confirm,
+		Fn<void(std::vector<Data::UnreviewedAuth>)> done);
+
+	[[nodiscard]] rpl::producer<bool> reviewingValue() const;
 
 	void updateTTL(int days);
 	[[nodiscard]] rpl::producer<int> ttlDays() const;
@@ -63,9 +76,31 @@ public:
 	[[nodiscard]] static QString ActiveDateString(TimeId active);
 
 private:
+	struct ReviewRequest {
+		mtpRequestId id = 0;
+		bool confirm = false;
+		Data::UnreviewedAuth auth;
+		std::vector<Fn<void(bool)>> callbacks;
+	};
+
 	void refreshCallsDisabledHereFromCloud();
 	void removeExpiredUnreviewed();
+	void reconcileAuthorizations(
+		const MTPaccount_Authorizations &result,
+		const std::vector<Data::UnreviewedAuth> &snapshot);
+	void reviewTimedOut();
+	void reviewOne(Data::UnreviewedAuth auth, bool confirm);
+	void reviewBotLoaded(
+		Data::UnreviewedAuth auth,
+		bool confirm,
+		const MTPaccount_ConnectedBots &result);
+	void finishReview(
+		Data::UnreviewedAuth auth,
+		bool success,
+		bool resolved = false);
+	void refreshBotNames();
 
+	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 	mtpRequestId _requestId = 0;
 
@@ -76,12 +111,16 @@ private:
 	std::vector<Data::UnreviewedAuth> _unreviewed;
 	rpl::event_stream<> _unreviewedChanges;
 	Fn<void()> _saveUnreviewed;
+	base::Timer _unreviewedTimer;
 
 	mtpRequestId _ttlRequestId = 0;
 	rpl::variable<int> _ttlDays = 0;
 
 	base::flat_map<uint64, mtpRequestId> _toggleCallsDisabledRequests;
-	base::flat_map<uint64, mtpRequestId> _reviewRequests;
+	base::flat_map<std::pair<uint64, uint64>, ReviewRequest> _reviewRequests;
+	base::flat_map<std::pair<uint64, uint64>, TimeId> _reviewed;
+	rpl::variable<bool> _reviewing = false;
+	base::Timer _reviewTimer;
 	rpl::variable<bool> _callsDisabledHere;
 
 	crl::time _lastReceived = 0;

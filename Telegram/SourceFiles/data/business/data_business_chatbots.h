@@ -34,6 +34,8 @@ public:
 	~Chatbots();
 
 	void preload();
+	void reload();
+	[[nodiscard]] rpl::producer<> loadFailed() const;
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] const ChatbotsSettings &current() const;
 	[[nodiscard]] rpl::producer<ChatbotsSettings> changes() const;
@@ -48,6 +50,14 @@ public:
 	void removeFrom(not_null<PeerData*> peer);
 
 private:
+	void saveNext();
+
+	struct PendingSave {
+		ChatbotsSettings settings;
+		Fn<void()> done;
+		Fn<void(QString)> fail;
+	};
+
 	enum class SentRequestType {
 		Pause,
 		Unpause,
@@ -58,13 +68,14 @@ private:
 		mtpRequestId requestId = 0;
 	};
 
-	void reload();
-
 	const not_null<Session*> _owner;
 
 	rpl::variable<ChatbotsSettings> _settings;
 	mtpRequestId _requestId = 0;
 	bool _loaded = false;
+	bool _saving = false;
+	std::vector<PendingSave> _pendingSaves;
+	rpl::event_stream<> _loadFailed;
 
 	base::flat_map<not_null<PeerData*>, SentRequest> _sentRequests;
 

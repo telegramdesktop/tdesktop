@@ -48,12 +48,35 @@ namespace {
 		return QString();
 	} else if (list.size() == 1) {
 		const auto &auth = list.at(0);
+		if (auth.botId) {
+			return tr::lng_unconfirmed_auth_single_bot(
+				tr::now,
+				lt_bot,
+				auth.botName.isEmpty()
+					? tr::lng_status_bot(tr::now)
+					: auth.botName,
+				lt_from,
+				auth.device.isEmpty()
+					? auth.location
+					: auth.location.isEmpty()
+					? auth.device
+					: auth.device + u", "_q + auth.location);
+		}
 		return tr::lng_unconfirmed_auth_single(
 			tr::now,
 			lt_from,
 			auth.device,
 			lt_country,
 			auth.location);
+	}
+	const auto hasBots = ranges::any_of(list, [](const auto &auth) {
+		return auth.botId != 0;
+	});
+	if (hasBots) {
+		return tr::lng_unconfirmed_auth_connections(
+			tr::now,
+			lt_count,
+			list.size());
 	}
 	auto commonLocation = list.at(0).location;
 	for (auto i = 1; i < list.size(); ++i) {
@@ -204,8 +227,9 @@ int UnconfirmedAuthWrap::resizeGetHeight(int newWidth) {
 not_null<UnconfirmedAuthWrap*> CreateUnconfirmedAuthContent(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<std::vector<Data::UnreviewedAuth>> list,
-		Fn<void(bool)> callback,
-		rpl::producer<float64> collapseProgress) {
+		Fn<void(bool, Fn<void()>)> callback,
+		rpl::producer<float64> collapseProgress,
+		rpl::producer<bool> busy) {
 	const auto wrap = Ui::CreateChild<UnconfirmedAuthWrap>(
 		parent,
 		object_ptr<Ui::VerticalLayout>(parent));
@@ -229,7 +253,11 @@ not_null<UnconfirmedAuthWrap*> CreateUnconfirmedAuthContent(
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
-			tr::lng_unconfirmed_auth_title(),
+			rpl::duplicate(list) | rpl::map([](const auto &list) {
+				return (list.size() == 1 && list.front().botId)
+					? tr::lng_unconfirmed_auth_title_bot()
+					: tr::lng_unconfirmed_auth_title();
+			}) | rpl::flatten_latest(),
 			st::dialogsUnconfirmedAuthTitle),
 		padding,
 		style::al_top);
@@ -239,7 +267,9 @@ not_null<UnconfirmedAuthWrap*> CreateUnconfirmedAuthContent(
 	content->add(
 		object_ptr<Ui::FlatLabel>(
 			content,
-			std::move(list) | rpl::map(FormatUnconfirmedAuthMessage),
+			rpl::duplicate(list) | rpl::filter([](const auto &list) {
+				return !list.empty();
+			}) | rpl::map(FormatUnconfirmedAuthMessage),
 			st::dialogsUnconfirmedAuthAbout),
 		padding,
 		style::al_top)->setTryMakeSimilarLines(true);
@@ -256,18 +286,35 @@ not_null<UnconfirmedAuthWrap*> CreateUnconfirmedAuthContent(
 		buttons,
 		tr::lng_unconfirmed_auth_deny(),
 		st::dialogsUnconfirmedAuthButtonNo);
-	yes->setClickedCallback([=] {
-		wrap->toggle(false, anim::type::normal);
-		base::call_delayed(st::universalDuration, wrap, [=] {
-			callback(true);
-		});
-	});
-	no->setClickedCallback([=] {
-		wrap->toggle(false, anim::type::normal);
-		base::call_delayed(st::universalDuration, wrap, [=] {
-			callback(false);
-		});
-	});
+	struct State {
+		bool busy = false;
+		bool empty = false;
+	};
+	const auto state = wrap->lifetime().make_state<State>();
+	rpl::combine(std::move(list), std::move(busy)) | rpl::on_next([=](
+			const auto &list,
+			bool busy) {
+		state->busy = busy;
+		state->empty = list.empty();
+		yes->setDisabled(busy || state->empty);
+		no->setDisabled(busy || state->empty);
+		yes->setText(busy
+			? tr::lng_contacts_loading()
+			: tr::lng_unconfirmed_auth_confirm());
+	}, wrap->lifetime());
+	const auto submit = [=](bool confirmed) {
+		if (yes->isDisabled()) {
+			return;
+		}
+		yes->setDisabled(true);
+		no->setDisabled(true);
+		callback(confirmed, crl::guard(wrap, [=] {
+			yes->setDisabled(state->busy || state->empty);
+			no->setDisabled(state->busy || state->empty);
+		}));
+	};
+	yes->setClickedCallback([=] { submit(true); });
+	no->setClickedCallback([=] { submit(false); });
 	buttons->sizeValue(
 	) | rpl::filter_size(
 	) | rpl::on_next([=](const QSize &s) {

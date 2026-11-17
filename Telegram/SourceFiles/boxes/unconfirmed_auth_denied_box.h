@@ -16,6 +16,8 @@ namespace Dialogs {
 void ShowAuthDeniedBox(
 	not_null<Ui::GenericBox*> box,
 	float64 count,
-	const QString &messageText);
+	const QString &messageText,
+	bool bot = false,
+	bool mixed = false);
 
 } // namespace Dialogs

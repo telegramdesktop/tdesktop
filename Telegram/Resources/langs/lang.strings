@@ -5163,6 +5163,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_suggestions_credits_sub_low_about" = "Insufficient funds to cover your subscription.";
 
 "lng_unconfirmed_auth_title" = "Someone just got access to your messages!";
+"lng_unconfirmed_auth_connections#one" = "We detected {count} new connection to your account. Was this you?";
+"lng_unconfirmed_auth_connections#other" = "We detected {count} new connections to your account. Was this you?";
+"lng_unconfirmed_auth_connections_allowed" = "New Connections Allowed";
+"lng_unconfirmed_auth_connections_denied" = "Access Revoked";
+"lng_unconfirmed_auth_title_bot" = "A bot just got access to your messages!";
+"lng_unconfirmed_auth_single_bot" = "{bot} connected to your account from {from}. Was this you?";
+"lng_unconfirmed_auth_confirmed_bot" = "New Bot Allowed";
+"lng_unconfirmed_auth_confirmed_bot_message" = "You can manage your connected bot in {link}.";
+"lng_unconfirmed_auth_denied_title_bot" = "Bot Disconnected";
+"lng_unconfirmed_auth_denied_single_bot" = "We have disconnected the bot connected from {country}.";
+"lng_unconfirmed_auth_denied_warning_bot" = "Only connect bots you trust. Connected bots can access your messages and act on your behalf!";
+"lng_unconfirmed_auth_review_failed" = "Couldn't complete the request. Please try again.";
 "lng_unconfirmed_auth_confirm" = "Yes, it’s me";
 "lng_unconfirmed_auth_deny" = "No, it’s not me!";
 "lng_unconfirmed_auth_single" = "We detected a new login to your account from {from}, {country}. Is it you?";

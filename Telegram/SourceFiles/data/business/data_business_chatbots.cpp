@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/business/data_business_chatbots.h"
 
+#include "api/api_authorizations.h"
 #include "apiwrap.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "data/business/data_business_common.h"
@@ -25,9 +26,11 @@ Chatbots::Chatbots(not_null<Session*> owner)
 Chatbots::~Chatbots() = default;
 
 void Chatbots::preload() {
-	if (_loaded || _requestId) {
+	if (_loaded || _requestId || _saving) {
 		return;
 	}
+	const auto authorizations = &_owner->session().api().authorizations();
+	const auto snapshot = authorizations->unreviewed();
 	_requestId = _owner->session().api().request(
 		MTPaccount_GetConnectedBots()
 	).done([=](const MTPaccount_ConnectedBots &result) {
@@ -40,20 +43,26 @@ void Chatbots::preload() {
 		if (!list.isEmpty()) {
 			const auto &bot = list.front().data();
 			const auto botId = bot.vbot_id().v;
-			_settings = ChatbotsSettings{
+			_settings.force_assign(ChatbotsSettings{
 				.bot = _owner->session().data().user(botId),
 				.recipients = FromMTP(_owner, bot.vrecipients()),
 				.permissions = FromMTP(bot.vrights()),
-			};
+			});
 		} else {
 			_settings.force_assign(ChatbotsSettings());
 		}
+		authorizations->reconcileBots(result, snapshot);
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
+		_loadFailed.fire({});
 		LOG(("API Error: Could not get connected bots %1 (%2)"
 			).arg(error.code()
 			).arg(error.type()));
 	}).send();
+}
+
+rpl::producer<> Chatbots::loadFailed() const {
+	return _loadFailed.events();
 }
 
 bool Chatbots::loaded() const {
@@ -77,11 +86,25 @@ void Chatbots::save(
 		Fn<void()> done,
 		Fn<void(QString)> fail) {
 	const auto was = _settings.current();
+	if (_saving) {
+		_pendingSaves.push_back({
+			std::move(settings),
+			std::move(done),
+			std::move(fail),
+		});
+		return;
+	}
 	if (was == settings) {
+		if (done) {
+			done();
+		}
+		saveNext();
 		return;
 	} else if (was.bot || settings.bot) {
 		using Flag = MTPaccount_UpdateConnectedBot::Flag;
 		const auto api = &_owner->session().api();
+		api->request(base::take(_requestId)).cancel();
+		_saving = true;
 		api->request(MTPaccount_UpdateConnectedBot(
 			MTP_flags(!settings.bot ? Flag::f_deleted : Flag::f_rights),
 			ToMTP(settings.permissions),
@@ -89,17 +112,36 @@ void Chatbots::save(
 			ForBotsToMTP(settings.recipients)
 		)).done([=](const MTPUpdates &result) {
 			api->applyUpdates(result);
+			_saving = false;
 			if (done) {
 				done();
 			}
+			saveNext();
 		}).fail([=](const MTP::Error &error) {
+			_saving = false;
 			_settings = was;
 			if (fail) {
 				fail(error.type());
 			}
+			saveNext();
 		}).send();
 	}
 	_settings = settings;
+}
+
+void Chatbots::saveNext() {
+	if (_saving) {
+		return;
+	} else if (_pendingSaves.empty()) {
+		reload();
+		return;
+	}
+	auto pending = std::move(_pendingSaves.front());
+	_pendingSaves.erase(begin(_pendingSaves));
+	save(
+		std::move(pending.settings),
+		std::move(pending.done),
+		std::move(pending.fail));
 }
 
 void Chatbots::togglePaused(not_null<PeerData*> peer, bool paused) {
@@ -174,6 +216,9 @@ void Chatbots::removeFrom(not_null<PeerData*> peer) {
 }
 
 void Chatbots::reload() {
+	if (_saving) {
+		return;
+	}
 	_loaded = false;
 	_owner->session().api().request(base::take(_requestId)).cancel();
 	preload();
