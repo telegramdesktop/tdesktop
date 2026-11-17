@@ -34,11 +34,19 @@ Data::StatisticalChart StatisticalChartFromJSON(const QByteArray &json) {
 	}
 
 	const auto hiddenLinesRaw = root.value(u"hidden"_q).toArray();
+#if defined __GNUC__ && !defined __clang__
+// GCC 15 -O3 sees UB on a loop path of vector::assign that never runs.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waggressive-loop-optimizations"
+#endif // __GNUC__ && !__clang__
 	const auto hiddenLines = ranges::views::all(
 		hiddenLinesRaw
 	) | ranges::views::transform([](const auto &q) {
 		return q.toString();
 	}) | ranges::to_vector;
+#if defined __GNUC__ && !defined __clang__
+#pragma GCC diagnostic pop
+#endif // __GNUC__ && !__clang__
 
 	auto result = Data::StatisticalChart();
 

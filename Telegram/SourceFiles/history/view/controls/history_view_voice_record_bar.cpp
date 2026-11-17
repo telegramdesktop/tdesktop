@@ -1366,6 +1366,11 @@ void ListenWrap::initPlayProgress() {
 			}
 			progress = std::clamp(progress, leftBoundary, rightBoundary);
 		}
+#if defined __GNUC__ && !defined __clang__
+// GCC 15 -O3 reports these live locals as dangling.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif // __GNUC__ && !__clang__
 		if (IsStopped(state.state)) {
 			if (ended) {
 				startTrimPreviewLoop();
@@ -1376,6 +1381,9 @@ void ListenWrap::initPlayProgress() {
 		} else {
 			_playProgress.start(progress);
 		}
+#if defined __GNUC__ && !defined __clang__
+#pragma GCC diagnostic pop
+#endif // __GNUC__ && !__clang__
 		animation->start();
 	}, _lifetime);
 
