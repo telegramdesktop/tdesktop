@@ -1475,33 +1475,42 @@ packs, the fixture and the seams they use need no change for it.
   `C:\Program Files\WindowsApps\<package full name>`. `build.bat` does
   not sign the package; signing keeps the pinned digest, and a Store
   processing that changed the helper's image would fail every start at
-  the pin (not tried). From an installed x64 test package on Windows
-  10.0.26300.9711 ([Verification](#verification)) the hold took every
-  folder from the volume's root through `Program Files`, `WindowsApps`
-  and the package root down to `modules\x64` and the file, and the pin
-  and the started-image check passed; an unpackaged process of the same
-  user was refused that folder access on `WindowsApps` and on another
-  package's root (error 5). The packaged client ran in a package job
-  that allows breakaway, started through its alias and through
+  the pin, as an installed test package whose helper differed in one
+  byte did (no Store processing was tried). From an installed x64 test
+  package on Windows 10.0.26300.9711 ([Verification](#verification)) the
+  hold took every folder from the volume's root through `Program Files`,
+  `WindowsApps` and the package root down to `modules\x64` and the file,
+  and the pin and the started-image check passed; an unpackaged process
+  of the same user was refused that folder access on `WindowsApps` and on
+  another package's root (error 5). The packaged client ran in a package
+  job that allows breakaway, started through its alias and through
   activation alike: limit flags `0x800`, `JOB_OBJECT_LIMIT_BREAKAWAY_OK`
   alone, with no silent breakaway, process limit or UI restriction.
   `CreateJob()` (`widget_sandbox_win.cpp`) adds
   `CREATE_BREAKAWAY_FROM_JOB` whenever the client's immediate job allows
   breakaway and not silent breakaway, so the helper leaves the package
   job for its own job, which read back as in the other builds (limits
-  `0x2408`, one active process, UI `0xFF`, the helper its only member).
-  Its tokens, LPAC level and mitigations and the probe's denials read as
-  on x64 but for four measured differences, each with its reading and
-  status on
+  `0x2408`, one active process, UI `0xFF`, the helper its only member);
+  a helper that a test variant of the client left in the package job
+  refused itself before Ready with `the widget helper is not sandboxed:
+  the job's limits are 0x800 for 0 processes`. Its tokens, LPAC level and
+  mitigations and the probe's denials read as on x64 but for four
+  measured differences, each with its reading and status on
   [test_widget_helper_probe](test_widget_helper_probe.md#windows-store):
   the package SID is a child AppContainer SID of the client's package,
-  since the derivation runs in a packaged process; the probe's
-  `CreateProcessW` row reads `failed (error 31)` instead of `denied
-  (error 5)`, with no child created and the child-process policy and job
-  limit unchanged, its cause not isolated; the helper has the package's
-  identity; and the probe helper held two more System32 modules and
-  three more read-only `HKEY_LOCAL_MACHINE` handles, inferred to be taken
-  before the lowering.
+  since the derivation runs in a packaged process, and an ACE naming the
+  parent package admitted the helper neither before nor after the
+  lowering; the probe's `CreateProcessW` row reads `failed (error 31)`
+  instead of `denied (error 5)`, with no child created and the
+  child-process policy and job limit unchanged, and comes with the
+  package, since the same tree's x86 and x64 non-Store helpers read
+  `denied (error 5)` (what returns it was not traced); the helper has the
+  package's identity; and the probe helper and the ordinary helper alike
+  hold two more System32 modules, `kernel.appcore.dll` and `combase.dll`,
+  three read-only `HKEY_LOCAL_MACHINE` handles, 7 unnamed events and more
+  `EtwRegistration` handles than the same tree's non-Store helpers, and
+  no other extra handle type, all coming with the package (the client
+  loads both modules packaged or not).
 - **Windows Store test runs.** A Store leg installs a test package with a
   stand-in identity and publisher, such as
   `TelegramDesktopAiStoreTest.Telegram` by `CN=Telegram Desktop AI Store
@@ -3029,33 +3038,84 @@ builds before 26300.
 The Windows Store build (**The Windows Store build** above) ran on
 2026-11-17 on Windows 10.0.26300.9711 x64, in the evidence campaign of
 `2026/11/14/run-windows-store-widget-engines-in-the-restricted-helper`
-(its `evidence/c2/readings.md`; its `work/decisions.md`, W1, is the
-confinement record): an x64 Store Debug build (`uwp64`), laid out by a
-task script the way `build.bat`'s Store lines lay out the AppX folder,
-packed, signed by the stand-in and installed under
-`C:\Program Files\WindowsApps` as **Windows Store test runs** describes,
-not as a Developer Mode registration. The installed helper was
-byte-equal to the build's, and its Authenticode digest was the build's
-pin. Through the alias, with a Test account, the `probe` leg's client
-logged `Tgw: Widget engines run in the widget helper
-(TDESKTOP_WIDGET_ENGINES=probe).`, started one helper
-from the package with no hold, digest or start-image error and served
-three live cards with it until the quit (helper and client `exit 0`),
-and a network leg passed its 62 checks; the probe's rows are on
-[test_widget_helper_probe](test_widget_helper_probe.md#verification). An
-outside reading of the helper read its token, job and mitigations as the
-x64 records of
+(its `work/test.md`, Attempt 1, and `evidence/`; its
+`work/decisions.md`, W1, is the confinement record): an x64 Store Debug
+build (`uwp64`), laid out by a task script the way `build.bat`'s Store
+lines lay out the AppX folder, packed, signed by the stand-in and
+installed under `C:\Program Files\WindowsApps` as **Windows Store test
+runs** describes, not as a Developer Mode registration. The installed
+helper was byte-equal to the build's, and its Authenticode digest was
+the build's pin. A build of the change before its commit gave the first
+readings (`evidence/c2/readings.md`): through the alias, with a Test
+account, the `probe` leg's client logged `Tgw: Widget engines run in the
+widget helper (TDESKTOP_WIDGET_ENGINES=probe).`, started one helper from
+the package with no hold, digest or start-image error and served three
+live cards with it until the quit (helper and client `exit 0`), and a
+network leg passed its 62 checks. An outside reading of the helper read
+its token, job and mitigations as the x64 records of
 `2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
 but for the differences that **The Windows Store build** lists. Each
 client read the package job above, and an activation through
-`IApplicationActivationManager` read the same identity and job. Every
-owner-state bracket compared equal, and the real `%APPDATA%\Telegram
-Desktop UWP` was never created. Not run: the x86 and ARM64 Store builds,
-a Release Store build, `build.bat` on a Store target, the Store's
-submission, certification and signing, Windows builds other than
-26300.9711, and, in the Store build, the default path with no switch, a
-killed helper, the fail-closed starts, and the attack and conformance
-sets.
+`IApplicationActivationManager` read the same identity and job. The
+committed change then ran from packages installed the same way:
+
+- Default path: with no switch the client logged `Tgw: Widget engines
+  run in the widget helper.` and started exactly one helper,
+  `"\\?\<package root>\modules\x64\TelegramWidgetHelper.exe" <handle>`
+  with the client as its parent, which served the fixture's cards
+  through 10 s of work, read from outside with the token, job and
+  mitigations above, and ended at the quit; the `in-process` control
+  showed the same cards with no helper. The probe and network legs,
+  repeated, and a parent-package ACE leg are on
+  [test_widget_helper_probe](test_widget_helper_probe.md#verification).
+- Kill and restart: killing the helper stopped its cards with `the
+  widget engine process ended`, their last picture unchanged outside the
+  stop pill, with no restart while they stayed on screen; re-entry
+  started one new helper with the same confinement, and a second kill
+  reached the crash limit, after which nothing started. The client
+  survived both kills.
+- Fail-closed packages: a package without the helper stopped the first
+  three widgets with `the widget helper could not start: could not hold
+  \Device\HarddiskVolume<n>\Program Files\WindowsApps\<package full
+  name>\modules\x64\TelegramWidgetHelper.exe: CreateFileW failed: The
+  system cannot find the file specified.`; one whose helper differed in
+  one byte with `the widget helper could not start: the widget helper
+  digest does not match this build`, no helper process ever existing;
+  and a disposable client variant that left its helper in the package
+  job (no job list, no breakaway) got helpers that refused before Ready
+  with `VerifyJob()`'s `the job's limits are 0x800 for 0 processes` and
+  exited 1, each card stopping with `the widget engine process ended`.
+  In each a fourth widget then met the latch (`the widget helper failed
+  3 times in a row`), and no engine ran in process.
+- Parity: the attack corpus and the automatic conformance set gave the
+  same results in the helper and in process, 0 keyed differences and 0
+  leaks over the attacks, 0 verdict or row differences and byte-identical
+  crops over the conformance runs, with exactly one confined helper in
+  every default launch that ran a widget and none in process.
+- `build.bat`, run on the `uwp64` Debug tree through a disposable overlay
+  with the stand-in signer in place of the owner's: it signed
+  `Telegram.exe`, `StartupTask.exe` and
+  `modules\x64\TelegramWidgetHelper.exe` and packed the signed helper
+  into the AppX folder and `Telegram.x64.appx` at `modules\x64\`, its
+  Authenticode digest the build's pin. Its AppX folder held the test
+  layout's files, byte-equal but for the manifest, `resources.pri` and
+  the three signed executables, and its manifest differed from the
+  source only in `ProcessorArchitecture="x64"`.
+- Non-Store controls: the x86 and x64 non-Store Debug builds of the same
+  tree, probed unpackaged, read `package identity: none
+  (APPMODEL_ERROR_NO_PACKAGE)`, and with outside readings of that tree's
+  x64 helpers they attribute the probe's `CreateProcessW` row and the
+  extra modules and handles to the package
+  ([test_widget_helper_probe](test_widget_helper_probe.md#verification)).
+
+No Store install or launch changed the owner's state in its bracket, and
+the real `%APPDATA%\Telegram Desktop UWP` was never created. Not run: the
+x86 and ARM64 Store builds (their `build.bat` lines were read), a Release
+Store build, the Store's submission, certification and signing, Windows
+builds other than 26300.9711, a package on a volume other than the
+system's, the startup-task and protocol-activation starts, and, in the
+Store build, `probe-unsandboxed`, `connect-control` and targets other
+than the loopback ones.
 
 The settle in `RemoveFixtureMessage()` compiled in the macOS arm64 Debug
 build of

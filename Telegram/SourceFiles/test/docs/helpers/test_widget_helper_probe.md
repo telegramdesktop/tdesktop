@@ -696,17 +696,17 @@ rows. What differs was measured on Windows 10.0.26300.9711 x64 in a
 - **`package identity`.** Right after `job:` the native probe writes
   `after lowering: package identity: <reading>` from
   `GetCurrentPackageFullName()`: `none (APPMODEL_ERROR_NO_PACKAGE)` in a
-  process without package identity, the reading expected of every
-  non-Store helper (no non-Store probe has run with the row yet), the
-  package full name in one with it, and `GetCurrentPackageFullName
-  failed: error <n>` for any other result. The Store helper read the
-  package's full name: it inherits the identity of the package its client
-  runs in. Nothing in the confinement relies on its absence; the hold,
-  every token check and every denial held with it.
+  process without package identity, as the x86 and x64 non-Store helpers
+  read it, the package full name in one with it, and
+  `GetCurrentPackageFullName failed: error <n>` for any other result.
+  The Store helper read the package's full name: it inherits the identity
+  of the package its client runs in. Nothing in the confinement relies on
+  its absence; the hold, every token check and every denial held with it.
 
 Measured differences from the x64 non-Store helper, the probe of
 `2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
-(Run 4b) and its outside readings; every other row, the harness's
+(Run 4b) and its outside readings, and from the x64 non-Store helper of
+the same tree on the same Windows build; every other row, the harness's
 socket and AFD lines included, was equal after normalization:
 
 1. **Package SID.** Called by a packaged process,
@@ -719,40 +719,58 @@ socket and AFD lines included, was equal after normalization:
    `ExpectedPackage()` and the helper's re-derivation both run packaged
    and agree, so every SID check passes, and the helper's primary stays
    an LPAC token of that SID with no capability (`WIN://NOALLAPPPKG` 1).
-   Whether an ACE that names the parent package admits the helper was not
-   measured.
+   An ACE that names the parent package did not admit the helper: with
+   the inheritable full-access ACEs that the package's
+   `%LOCALAPPDATA%\Packages\<family>` folders carry for the family's
+   capability SID (`S-1-15-3-...`), and the same for its package SID
+   (`S-1-15-2-...`), set on the leg's root and inherited by the client
+   working directory, the helper's `before lowering:` and `after
+   lowering:` rows of that folder read `error 5` and `denied (error 5)`,
+   while the client's own open of it succeeded: such an ACE admitted the
+   helper at neither stage on 26300.9711.
 2. **Child process.** `after lowering: CreateProcessW
    C:\WINDOWS\system32\whoami.exe: failed (error 31)` where x64 reads
    `denied (error 5)`. No child was created either way, the `child
    process` row (`0x1`) and the job's one-process limit read back
    unchanged, and the packaged client's own `CreateProcessW` of
    `whoami.exe` in the same run created the process. Error 31 is
-   `ERROR_GEN_FAILURE`; what returns it was not isolated, so this is the
-   current reading on 26300.9711, not an attribution. By the verdict rules
-   the row is `failed`, never a denial: that no child can exist rests on
-   the policy and job readings.
+   `ERROR_GEN_FAILURE`. The x64 and x86 non-Store helpers of the same
+   tree, on the same host and Windows build, read `denied (error 5)`, so
+   the error comes with the package; what inside the packaged creation
+   path returns it was not traced. By the verdict rules the row is
+   `failed`, never a denial: that no child can exist rests on the policy
+   and job readings.
 3. **Helper identity.** `package identity:` reads the package's full name
-   where a non-Store helper reads `none (APPMODEL_ERROR_NO_PACKAGE)`.
-4. **Inventory.** An outside reading of the probe helper listed 17
-   modules against the x64 probe leg's 15, the two more being Microsoft
-   System32 images (`kernel.appcore.dll` and the KnownDll `combase.dll`),
-   and 95 handles against 75, three more of them read-only (`KEY_READ`)
-   registry handles: `\REGISTRY\MACHINE`,
+   where the non-Store helpers read `none (APPMODEL_ERROR_NO_PACKAGE)`.
+4. **Inventory.** Against the same tree's x64 non-Store helpers, outside
+   readings of the Store probe helper and of the ordinary Store helper
+   both list exactly two more modules, the Microsoft System32 images
+   `kernel.appcore.dll` and the KnownDll `combase.dll`, and, of handles,
+   three read-only (`KEY_READ`) registry handles, `\REGISTRY\MACHINE`,
    `\REGISTRY\MACHINE\SYSTEM\ControlSet001\Control\Nls\Sorting\Ids` and
-   `\REGISTRY\MACHINE\Software\Microsoft\Ole`. Inferred, not traced: they
-   were taken before the lowering, after which the probe's own
-   `HKEY_LOCAL_MACHINE\SOFTWARE` open is denied. What takes them, and
-   whether the ordinary Store helper holds them too, is not established.
+   `\REGISTRY\MACHINE\Software\Microsoft\Ole`, 7 unnamed events and
+   `EtwRegistration` handles (4 in the probe helper, 10 in the ordinary
+   one), and no other handle type: no file, section, port, token,
+   process, directory or writable handle. They come with the package;
+   the client loads both modules packaged or not. What opens the keys was
+   not traced; after the lowering the probe's own
+   `HKEY_LOCAL_MACHINE\SOFTWARE` open is denied. Against the move task's
+   x64 probe leg the Store probe helper holds 10 more `EtwRegistration`
+   handles, 6 of which the same tree's non-Store probe helper holds too,
+   with an `apphelp.dll` that no Store helper maps: a change of the
+   non-Store probe leg since that record (not traced), not a Store
+   difference.
 
 To read a Store probe against the x64 references, normalize paths, pids
-and the package full name, set the `package identity` row aside (a
-reference made before the row has none, which shifts a line-for-line
-comparison by one) and compare with the x64 non-Store probe of the same
-Windows build: every other row must be equal but for the `CreateProcessW`
-row's `failed (error 31)` on 26300.9711, and an outside reading differs by
-the package SID and the inventory above. Any other difference, an
-`ALLOWED` after the lowering above all, is a finding, not a Store
-difference. The x86 and ARM64 Store builds have no reference reading.
+and the package full name, set the `package identity` row aside on both
+sides (a reference made before the row has none, which shifts a
+line-for-line comparison by one) and compare with the x64 non-Store probe
+of the same Windows build: every other row must be equal but for the
+`CreateProcessW` row's `failed (error 31)`, which comes with the package
+on 26300.9711, and an outside reading differs by the package SID and the
+inventory above. Any other difference, an `ALLOWED` after the lowering
+above all, is a finding, not a Store difference. The x86 and ARM64 Store
+builds have no reference reading.
 
 ## Linux
 
@@ -1833,18 +1851,23 @@ The [Windows Store](#windows-store) helper was probed on 2026-11-17 on
 Windows 10.0.26300.9711 x64, the build of the x64 records above, in an
 x64 Store Debug build (`uwp64`) installed as a stand-in test package
 under `C:\Program Files\WindowsApps`, in the evidence campaign of
-`2026/11/14/run-windows-store-widget-engines-in-the-restricted-helper`;
-its `evidence/c2/readings.md` is the record and its `work/decisions.md`
-(W1) the confinement record. The two legs started their client through
-the package's alias under `test-run`.
+`2026/11/14/run-windows-store-widget-engines-in-the-restricted-helper`,
+first in a build of the change before its commit (its
+`evidence/c2/readings.md`), then in the committed change (its
+`work/test.md`, Attempt 1); its `work/decisions.md` (W1) is the
+confinement record. The probe, network and ACE legs started their
+client through the package's alias under `test-run`.
 
 - Probe leg (`TDESKTOP_WIDGET_ENGINES=probe`, a Test account): one helper
   from the package reached Ready with no hold, digest or start-image
   error, wrote its report, served three live cards and ended `exit 0` at
   the quit. Its rows equal Run 4b's x64 probe above but for the
-  differences under [Windows Store](#windows-store). Six checks of the
-  leg's disposable overlay failed because its helper match expected the
-  command line without the `\\?\` prefix; the helper served throughout.
+  differences under [Windows Store](#windows-store), and in the same run
+  the client opened the same paths and keys, ran `whoami.exe` and opened
+  the helper's process. In the first build six checks of the leg's
+  disposable overlay failed because its helper match expected the
+  command line without the `\\?\` prefix (the helper served throughout);
+  with a match that accepts it every overlay check passed.
 - Network leg ([Minimal use on Windows](#minimal-use-on-windows) with a
   loopback port): `arguments: loopback port <port>, 4 network targets,
   connect-control no`; the four socket kinds and AFD kinds read `ALLOWED`
@@ -1852,18 +1875,36 @@ the package's alias under `test-run`.
   0xC0000022)` after it, and every target after it `socket creation was
   denied`. The client's listeners on 127.0.0.1 and `::1` received the 24
   controls of the client and new sibling processes and no marker; the
-  leg's 62 checks passed.
+  leg's 62 checks passed in both builds.
+- Parent-package ACE: a probe leg whose root carried the ACEs of item 1
+  under [Windows Store](#windows-store) read `client working directory
+  <root>\TelegramForcePortable: FILE_LIST_DIRECTORY error 5` before the
+  lowering and `... denied (error 5)` after it, every other row as in the
+  probe leg.
+- Non-Store controls: probe legs of the x86 and x64 non-Store Debug
+  builds of the same tree, started unpackaged on the same host, read
+  `after lowering: package identity: none (APPMODEL_ERROR_NO_PACKAGE)`
+  and `CreateProcessW` of `whoami.exe` `denied (error 5)`, every other
+  row equal to Run 2b's and Run 4b's above; against the Store probe the
+  x64 one differed only in the `CreateProcessW` row. Outside readings of
+  that x64 probe helper and of an ordinary x64 non-Store helper of the
+  same tree gave the attribution of item 4.
 - Activation control: `ActivateApplication` of the package's application
   with `test-run`'s arguments started a client with the alias route's
   package identity and package job; with an account-free root it quit at
   the harness's no-test-account gate, before any widget.
 
-Not run: the x86 (`uwp`) and ARM64 (`uwparm`) Store builds, a Release
-Store build, the Store's submission, certification and signing, Windows
-builds other than 26300.9711, in the Store build `probe-unsandboxed`,
-`connect-control` and a target other than the loopback port's four, the
-isolation of the `CreateProcessW` error and of the extra modules and
-handles, and any non-Store probe with the `package identity` row.
+That campaign's default path, kill and restart, fail-closed packages,
+attack and conformance parity and `build.bat` run are in
+[Remote engines verification](test_widget_fixture.md#verification).
+
+Not run: the x86 (`uwp`) and ARM64 (`uwparm`) Store builds (their
+`build.bat` lines were read), a Release Store build, the Store's
+submission, certification and signing, Windows builds other than
+26300.9711, a package on a volume other than the system's, the
+startup-task and protocol-activation starts, and, in the Store build,
+`probe-unsandboxed`, `connect-control` and a target other than the
+loopback port's four.
 
 On Linux the probe first ran in the same-binary helper, the client's own
 `/proc/self/exe -widgethelper 3`, in the x86_64 Debug client (the Docker
