@@ -110,16 +110,11 @@ void Feed(RelayState &state, std::string_view bytes) {
 	}
 }
 
-void Run(int descriptor) {
+void Run(PosixStream &stream) {
 	auto state = RelayState();
 	auto buffer = std::array<char, kReadBufferSize>();
-	while (true) {
-		const auto received = ::read(descriptor, buffer.data(), buffer.size());
-		if (received > 0) {
-			Feed(state, std::string_view(buffer.data(), size_t(received)));
-		} else if (received == 0 || errno != EINTR) {
-			break;
-		}
+	while (const auto received = stream.read(buffer.data(), buffer.size())) {
+		Feed(state, std::string_view(buffer.data(), received));
 	}
 	if (!state.line.empty()) {
 		Emit(state);
@@ -162,10 +157,10 @@ StderrRelay::StderrRelay(std::unique_ptr<PosixStream> stream)
 	auto ended = std::promise<void>();
 	_ended = ended.get_future();
 	_thread = std::thread([
-		descriptor = _stream->descriptor(),
+		stream = _stream.get(),
 		ended = std::move(ended)
 	]() mutable {
-		Run(descriptor);
+		Run(*stream);
 		ended.set_value();
 	});
 }

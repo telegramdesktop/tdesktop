@@ -12,6 +12,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <sys/socket.h>
 #include <sys/stat.h>
 
+#ifdef __APPLE__
+#include <poll.h>
+#include <sys/select.h>
+#endif // __APPLE__
+
 #include <array>
 #include <cerrno>
 #include <fcntl.h>
@@ -27,6 +32,13 @@ constexpr auto kSendFlags = 0;
 #else // SO_NOSIGPIPE
 constexpr auto kSendFlags = MSG_NOSIGNAL;
 #endif // SO_NOSIGPIPE
+
+// A blocking recv on macOS can sleep through an end that comes as it waits.
+#ifdef __APPLE__
+constexpr auto kReceiveFlags = MSG_DONTWAIT;
+#else // __APPLE__
+constexpr auto kReceiveFlags = 0;
+#endif // __APPLE__
 
 [[nodiscard]] std::string SystemError(const char *call, int error) {
 	return std::string(call)
@@ -64,6 +76,28 @@ constexpr auto kSendFlags = MSG_NOSIGNAL;
 	return {};
 }
 
+#ifdef __APPLE__
+[[nodiscard]] bool WaitReadable(int descriptor) {
+	if (descriptor < 0) {
+		return false;
+	} else if (descriptor < FD_SETSIZE) {
+		auto set = fd_set();
+		FD_ZERO(&set);
+		FD_SET(descriptor, &set);
+		// The helper's RLIMIT_NOFILE of 0 makes poll fail, select still works.
+		if (select(descriptor + 1, &set, nullptr, nullptr, nullptr) >= 0) {
+			return true;
+		}
+	} else {
+		auto request = pollfd{ .fd = descriptor, .events = POLLIN };
+		if (poll(&request, 1, -1) >= 0) {
+			return true;
+		}
+	}
+	return (errno == EINTR);
+}
+#endif // __APPLE__
+
 } // namespace
 
 PosixStream::PosixStream(int descriptor) : _descriptor(descriptor) {
@@ -79,9 +113,15 @@ int PosixStream::descriptor() const {
 
 size_t PosixStream::read(char *out, size_t size) {
 	while (!_stopped) {
-		const auto received = ::recv(_descriptor, out, size, 0);
+		const auto received = ::recv(_descriptor, out, size, kReceiveFlags);
 		if (received > 0) {
 			return size_t(received);
+#ifdef __APPLE__
+		} else if (received < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+			if (!WaitReadable(_descriptor)) {
+				break;
+			}
+#endif // __APPLE__
 		} else if (received == 0 || errno != EINTR) {
 			break;
 		}
