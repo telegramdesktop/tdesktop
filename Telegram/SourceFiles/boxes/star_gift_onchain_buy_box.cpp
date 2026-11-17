@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_helpers.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 #include "lang/lang_keys.h"
+#include "lang/lang_tag.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/table_rows.h"
 #include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/separate_panel.h"
@@ -1247,13 +1249,24 @@ void AddPurchaseTerms(
 			st::giveawayGiftCodeTableMargin),
 		style::margins());
 	const auto table = terms->entity();
+	auto helper = Text::CustomEmojiHelper();
+	const auto mark = Wallet::GramMark(
+		helper,
+		st::giveawayGiftMessage.style.font);
+	const auto context = helper.context();
 	const auto gram = [=](rpl::producer<int64> value) {
 		return object_ptr<FlatLabel>(
 			table,
-			std::move(value) | rpl::map([](int64 nanos) {
-				return Data::FormatGiftResaleTon(nanos);
+			std::move(value) | rpl::map([=](int64 nanos) {
+				auto result = mark;
+				result.append(QChar(' ')).append(
+					Lang::FormatCreditsAmountDecimal(
+						CreditsAmount(0, nanos, CreditsType::Ton)));
+				return result;
 			}),
-			st::giveawayGiftMessage);
+			st::giveawayGiftMessage,
+			st::defaultPopupMenu,
+			context);
 	};
 	AddTableRow(
 		table,
