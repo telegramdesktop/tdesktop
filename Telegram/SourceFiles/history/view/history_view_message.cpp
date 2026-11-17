@@ -76,6 +76,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_iv.h"
 #include "styles/style_polls.h"
 
+#include <unordered_map>
+
 namespace Mokagram::Badges {
 [[nodiscard]] Ui::BotVerifyDetails Synthetic(not_null<UserData*> user);
 } // namespace Mokagram::Badges
@@ -83,7 +85,9 @@ namespace Mokagram::Badges {
 namespace HistoryView {
 namespace {
 
-base::flat_map<const void*, std::unique_ptr<Ui::Text::CustomEmoji>> MokaBadgeEmojis;
+// Mokagram: сообщения создаются пачками при открытии истории. flat_map
+// с линейной вставкой превращал создание галочек в квадратичную работу.
+std::unordered_map<const void*, std::unique_ptr<Ui::Text::CustomEmoji>> MokaBadgeEmojis;
 
 
 base::options::toggle UnlimitedMessageWidth({
