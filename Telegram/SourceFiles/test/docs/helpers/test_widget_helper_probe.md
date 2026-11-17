@@ -785,7 +785,10 @@ copies (b) and (c) make their attempts unconfined, and step 3 writes
 widgets unconfined. It is the control of every reading: the same calls
 reach the kernel in the same build, so a `probe` line that reads like its
 control shows a layer that did not apply. Only a Debug client passes the
-mode, and only a Debug helper runs it: the Release helper refuses it.
+mode, and only a Debug helper runs it: the Release helper refuses it. For
+the confined Snap's probe ([Verification](#verification)) disposable
+overlays opened those gates in a Release build made for that campaign
+only.
 
 Where each reading is taken:
 
@@ -815,8 +818,9 @@ Where each reading is taken:
 The readings below for a direct spawn with user namespaces, a helper the
 Flatpak portal spawned and the control on a namespaced direct spawn were
 confirmed on one host for `TelegramWidgetHelper` and, before it, for the
-same-binary helper it replaced; the plain child's only for the
-same-binary helper ([Verification](#verification)). The others are
+same-binary helper it replaced; the plain child's for the same-binary
+helper and, with its control, for `TelegramWidgetHelper` inside a
+strictly confined Snap ([Verification](#verification)). The others are
 expectations. They assume a kernel with Landlock ABI
 `<N>`, a client under no seccomp filter of its own, and the client's
 working and data directories present in the client.
@@ -841,7 +845,13 @@ working and data directories present in the client.
   - the same `execve`, `socket`, `lockdown` and `after lockdown` lines;
   - the same `layers:` line but for `pid=<its pid>`, `uid_map=<the
     client's>` (`init` in the initial user namespace), `interfaces=<the
-    client's>` and `root=kept`.
+    client's>` and `root=kept`;
+  - inside a strictly confined Snap, where AppArmor refuses the clone
+    (`clone failed: Permission denied`), also `seccomp_filters=3`, one
+    more than the client's two there, `sandbox=snap`, and `uid_map=none`
+    instead of `init`: AppArmor denies the helper's read of
+    `/proc/<pid>/uid_map` (the snap's profile has no rule for it),
+    although the helper shares the client's initial user namespace.
 - A helper the Flatpak portal spawned:
   - `landlock alone: cwd=EACCES client-cwd=<r> data=<r> root=kept
     lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`: the portal's sandbox
@@ -869,6 +879,9 @@ working and data directories present in the client.
   namespaced helper, which is root of its user namespace, and `caps=none`
   in a plain one. Inside Flatpak, bubblewrap's own filter and
   no-new-privileges make the control read `seccomp=on` and `nnp=on`.
+  Inside a strictly confined Snap, the client's two filters there make
+  the plain child's control read `seccomp=on` and `seccomp_filters=2`,
+  with `nnp=off`.
 
 Limits:
 
@@ -1782,9 +1795,53 @@ every leg the probed helper went on serving widgets.
   `Widget helper: unexpected arguments`, also with a connected socket on
   descriptor 3 (Run 1).
 
-Limits: one x86_64 host and kernel. The plain child (no user namespaces)
-was not probed again with `TelegramWidgetHelper`: its clone and fallback
-are unchanged and exec the same file. aarch64 compiled only.
+`TelegramWidgetHelper` was probed as a plain child inside the Snap
+installed with strict confinement, in the evidence campaign of
+`2026/11/16/prove-the-linux-widget-helper-in-the-strictly-confined-snap`
+(its `work/test.md`, Attempt 1, Run 4), in an Ubuntu 24.04 VM with
+kernel 6.8, snapd 2.78 and AppArmor enforcing. The client was a Release
+Telegram with the test harness and the helper a Release helper, and
+disposable overlays opened the probe's gates in both; the run of the
+helper bytes the plain recipe ships had no probe
+([Remote engines verification](test_widget_fixture.md#verification)).
+Each client logged `Tgw: The widget helper starts without namespaces:
+clone failed: Permission denied.`, and its helper ran under the app's
+label, `snap.telegram-desktop.telegram-desktop (enforce)`, as
+`$SNAP/usr/libexec/telegram-desktop/TelegramWidgetHelper 3 <mode> <cwd>
+<data>`, `<cwd>` the client's working directory and `<data>`
+`$SNAP_USER_DATA/.local/share`, and went on serving widgets. With
+`probe` its six lines in `app_stderr.txt` were `landlock alone:
+cwd=EACCES client-cwd=EACCES data=EACCES root=kept
+lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`, `execve: killed by signal
+31`, `socket: killed by signal 31`, `lockdown: ok`, `after lockdown:
+cwd=ENOSYS client-cwd=ENOSYS data=ENOSYS descriptors=0,1,2,3` and
+`layers: seccomp=on landlock=abi4 nnp=on caps=none seccomp_filters=3
+pdeathsig=9 pid=<n> uid_map=none interfaces=lo,enp0s2 root=kept
+sandbox=snap`; the kernel logged the two copies' `SIGSYS` kills
+(`syscall=59` and `syscall=41`) and, from snapd's filter, a refused
+`unshare` (`syscall=272`) for each of the three copies and the helper,
+the empty root's first step, which kept the root. With
+`probe-unsandboxed` they were `landlock alone: cwd=opened
+client-cwd=opened data=opened root=kept lockdown=skipped`, `execve:
+returned ENOENT`, `socket: succeeded`, `lockdown: skipped (unsandboxed
+control)`, `after lockdown: cwd=opened client-cwd=opened data=opened
+descriptors=0,1,2,3` and `layers: seccomp=on landlock=abi4,not-enforced
+nnp=off caps=none seccomp_filters=2 pdeathsig=9 pid=<n> uid_map=none
+interfaces=lo,enp0s2 root=kept sandbox=snap`, with no kill logged. In
+both, `pid=` was the pid of the main log's `started` line and
+`interfaces=` the client's, and `uid_map=none` came from AppArmor's
+denial of the probe's `openat` of `/proc/<pid>/uid_map`, while the
+helper's map, read as root, was the initial namespace's
+`0 0 4294967295`. Read as root, the `probe` helper matched the helper
+with the plain recipe's bytes in its filters over the client's two,
+no-new-privileges, capabilities, the namespaces it shared with the
+client, descriptors 0 to 3 and root listing.
+
+Limits: x86_64 only, on one WSL2 6.6 host and, for the confined Snap,
+one Ubuntu 24.04 VM with kernel 6.8. `TelegramWidgetHelper` was probed
+as a plain child only inside that Snap, as a Release helper whose probe
+gates an overlay opened; outside it only the same-binary helper's plain
+child was probed (`bwrap --disable-userns`). aarch64 compiled only.
 
 ## Related guidance
 

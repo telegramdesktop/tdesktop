@@ -509,8 +509,11 @@ packs, the fixture and the seams they use need no change for it.
   libm and the C++ runtime, like the other builds' helpers. A Snap built
   with snapcraft staged the helper, and a Release Telegram with the test
   harness, linked as that Snap's, started it from the Snap's unpacked
-  tree, unconfined ([Verification](#verification)); no Snap has run
-  confined with it.
+  tree, unconfined. A Snap that snapcraft built from the recipe, with the
+  test harness and a test overlay added to its Telegram, installed with
+  strict confinement and started as the snap's app, ran its helper,
+  byte-equal to the plain recipe's, under the app's AppArmor label
+  ([Verification](#verification)).
   The Windows Store build and Windows before 10 1809 stop every widget
   with `no sandboxed widget helper is available here: <reason>`, because
   the default is false there, with the reason `the widget helper is not
@@ -1517,10 +1520,10 @@ packs, the fixture and the seams they use need no change for it.
   is off at boot), leaves the helper to seccomp alone. A root the helper
   could not empty, because a step of the empty root before its last change
   of directory failed (for an ordinary user without a user namespace,
-  inside Flatpak and, by snapd's policy, under Snap), stays the root it was
-  given. Seccomp still answers every path call with `ENOSYS` in both, and
-  in a Debug build the probe's `layers:` line shows them (**Linux probe**
-  below).
+  inside Flatpak and under Snap, where snapd's seccomp filter answers its
+  `unshare` with `EPERM`), stays the root it was given. Seccomp still
+  answers every path call with `ENOSYS` in both, and in a Debug build the
+  probe's `layers:` line shows them (**Linux probe** below).
 - **Linux probe.** With `probe` or `probe-unsandboxed` the client passes
   the mode, its working directory and its
   `QStandardPaths::GenericDataLocation` after the `3`, inside Flatpak
@@ -2723,6 +2726,62 @@ starts and loaded the engines in that file; as in the run above, the
 helper mapped the C++ runtime and, under the AppArmor user-namespace
 restriction, its root still listed the system root.
 
+A Snap installed with strict confinement ran the helper in the evidence
+campaign of
+`2026/11/16/prove-the-linux-widget-helper-in-the-strictly-confined-snap`
+(its `work/test.md`, Attempt 1, Runs 0-4), account-free, in an Ubuntu
+24.04 VM like the one above (kernel 6.8, snapd 2.78, AppArmor enforcing,
+`kernel.apparmor_restrict_unprivileged_userns=1`). snapcraft 9.2.1 built
+the recipe in destructive mode as it is, and again with the test harness
+(`TDESKTOP_RELEASE_TEST_HARNESS`) and a disposable overlay, which let its
+Release client read `TDESKTOP_WIDGET_ENGINES` and pass a probe mode and
+made engines as above; the harness build's helper was byte-equal to the
+plain recipe's. A third Snap was the harness build's tree with only the
+helper replaced, repacked with `snap pack`: a Release helper rebuilt in
+that build's directory after a second disposable overlay had opened its
+three probe gates, with only those three objects recompiled. Each was
+installed with `snap install --dangerous`: `snap debug confinement` read
+`strict`, `snap info --verbose` read `confinement: strict`, `devmode:
+false` and `jailmode: false`, the profile
+`snap.telegram-desktop.telegram-desktop` was in enforce mode, and the
+two test installs had the plain install's AppArmor profile and seccomp
+source but for the revision. Started as the snap's app with `snap run
+telegram-desktop` under Xvfb, the client ran from
+`/snap/telegram-desktop/<rev>/usr/bin/telegram-desktop` with the label
+`snap.telegram-desktop.telegram-desktop (enforce)` in snap-confine's
+mount namespace, and before each start it logged `Tgw: The widget helper
+is not pinned in a package-managed build.` and `Tgw: The widget helper
+starts without namespaces: clone failed: Permission denied.`, after
+AppArmor had denied its namespaced `clone` (`userns_create`). Read as
+root, the helper with the plain recipe's bytes, which ran without the
+probe, had `/proc/<pid>/exe`
+`$SNAP/usr/libexec/telegram-desktop/TelegramWidgetHelper` with that
+file's device and inode, the client's label, the client as its parent
+and the `cmdline` `<path>`, `3`. It shared the client's user, PID,
+network and mount namespaces, its `uid_map` the initial namespace's, and
+its root listed the client's entries; it had `Seccomp: 2`, three filters
+on the client's two, `NoNewPrivs: 1` where the client had 0, no
+capabilities, like the client, and only descriptors 0 and 1 `/dev/null`,
+2 `app_stderr.txt` and 3 the socket whose other end only the client
+held. Both engines loaded in it, two `widget.sandbox` threads there and
+none in the client. The probe helper, read the same way, matched it in
+label, filters, no-new-privileges, capabilities, namespaces, root and
+descriptors, read Landlock ABI 4 enforced and had its copies' `execve`
+and `socket` killed
+([test_widget_helper_probe](test_widget_helper_probe.md#verification)).
+With journald's audit socket on and no audit record lost, the kernel
+logged for the helper: that `userns_create` denial, once per start; one
+seccomp refusal of the empty root's `unshare` (`syscall=272`) per
+lockdown call, from snapd's filter, which a control under the app's
+label read as `EPERM`, so the root stayed; in both probe modes an
+AppArmor denial of the probe's `openat` of `/proc/<pid>/uid_map`; and,
+with `probe`, the `SIGSYS` kills of the `execve` and `socket` copies by
+the helper's own filter. No record showed a call that the helper's
+filter allows refused after its lockdown, and that filter's own `ENOSYS`
+and `EPERM` answers are never logged. Not run there: a Telegram without
+the test harness (the plain install was only read) and the terminal
+relay of descriptor 2 (`test-run`'s stderr is a file).
+
 The held and stripped helper ran in the evidence campaign of
 `2026/11/17/hold-the-linux-widget-helper-for-telegrams-lifetime-and-strip-it`
 (its `work/test.md`, Attempt 1, Runs 1-4) on a WSL2 6.18 kernel,
@@ -2785,13 +2844,12 @@ MinSizeRel helpers (their graphs only), the official LTO configuration,
 and the release scripts on the stripped helper.
 
 Not run with `TelegramWidgetHelper`: aarch64 at run time (its sources
-compiled for aarch64 with `-Werror`, its filter emulated), a confined
-Snap, distribution and Flathub toolchains, the no-namespace fallback
-(unchanged code that execs the same file), a client killed under a
-stopped helper (the helper's own `PR_SET_PDEATHSIG` read only as the
-probe's `pdeathsig=9`), the client's death inside Flatpak, a Release
-client without the test harness, and the tdesktop attack audit and
-conformance runner (no account in any of these campaigns).
+compiled for aarch64 with `-Werror`, its filter emulated), distribution
+and Flathub toolchains, a client killed under a stopped helper (the
+helper's own `PR_SET_PDEATHSIG` read only as the probe's `pdeathsig=9`),
+the client's death inside Flatpak, a Release client without the test
+harness, and the tdesktop attack audit and conformance runner (no
+account in any of these campaigns).
 
 The Windows build-pinned gate (**The Windows helper** above) was verified
 on an x64 host (Windows 10.0.26300) in the evidence campaign of
