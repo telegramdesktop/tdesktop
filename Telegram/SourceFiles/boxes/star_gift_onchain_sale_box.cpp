@@ -524,9 +524,7 @@ void OnchainSale::start() {
 			walletAbsent();
 		}, _lifetime);
 	}
-	if (_args.kind != SaleKind::Unlist) {
-		request();
-	}
+	request();
 }
 
 void OnchainSale::press() {
