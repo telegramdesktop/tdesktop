@@ -481,19 +481,24 @@ packs, the fixture and the seams they use need no change for it.
   `${CMAKE_INSTALL_BINDIR}/TelegramHelpers/` (**The shared helper**
   below). The release scripts, `Telegram/build/docker/build.sh` and
   `Telegram/build/build.sh`, carry `TelegramHelpers/TelegramWidgetHelper`
-  unmodified (no strip, no `minidebug.sh`) into the tarball and its v2
-  update package, and the canary workflow's Linux job into its update and
-  its portable archive ([Verification](#verification)). An update creates
-  a missing `TelegramHelpers/` with mode 0755, the umask applied, as the
-  Linux Updater does for every install folder it adds, and replaces the
-  file; whoever repackages the official tarball must keep that file,
-  unchanged, next to the binary. A Telegram of an older version still
-  running from the same install, with another working folder or as another
-  user of a shared root-owned install, fails the build identity check at
-  each later helper start once another instance installed the update, and
-  after three such failures the failure limit stops its starts until it
-  restarts. The Snap's `telegram` part builds with the prefix `/usr` and
-  no special target, so it stages and primes
+  as the build left it into the tarball and its v2 update package, and
+  the canary workflow's Linux job into its update and its portable
+  archive ([Verification](#verification)): outside Debug the helper
+  target of a build in that layout has already stripped the file in its
+  own POST_BUILD (`CMAKE_STRIP`, a full strip) before its digest was
+  generated, and the scripts run neither `strip` nor `minidebug.sh` on
+  it. An update creates a missing `TelegramHelpers/` with mode 0755, the
+  umask applied, as the Linux Updater does for every install folder it
+  adds, and replaces the file; whoever repackages the official tarball
+  must keep that file, unchanged, next to the binary. A Telegram that
+  keeps running from the same install while another instance installs an
+  update, with another working folder or as another user of a shared
+  root-owned install, keeps starting the helper file it held at launch
+  (its helper's `/proc/<pid>/exe` then ends in ` (deleted)`), while a
+  Telegram launched after the update holds and checks the new file; a
+  package-managed build holds no file (**The shared helper** below). The
+  Snap's `telegram` part builds with the prefix `/usr` and no special
+  target, so it stages and primes
   `usr/libexec/telegram-desktop/TelegramWidgetHelper`, which the renamed
   `usr/bin/telegram-desktop` finds. The Snap's `avif` part writes the
   forced `dav1d` link,
@@ -645,49 +650,85 @@ packs, the fixture and the seams they use need no change for it.
   the libexec folder, `../libexec/telegram-desktop/TelegramWidgetHelper`
   with the default directories) and cleaned lexically (`QDir::cleanPath`).
   So a binary started through a symlink or renamed, as the Snap's
-  `telegram-desktop` is, finds it, while a tarball folder moved under a
-  running Telegram is not followed. An absolute
-  `CMAKE_INSTALL_LIBEXECDIR`, such as `/usr/lib/x86_64-linux-gnu`, still
-  gives a path relative to the configured prefix
+  `telegram-desktop` is, finds it. The path does not follow a folder
+  moved under a running Telegram: from a moved tarball folder that
+  Telegram keeps starting the file it held at launch, if it holds one
+  (below; a reading of the code, not run), and a package-managed build,
+  which looks the old path up at each start, misses its helper. An
+  absolute `CMAKE_INSTALL_LIBEXECDIR`, such as `/usr/lib/x86_64-linux-gnu`,
+  still gives a path relative to the configured prefix
   (`../lib/x86_64-linux-gnu/telegram-desktop/TelegramWidgetHelper`), so
   `cmake --install --prefix <another prefix>` puts the helper into that
   absolute directory while Telegram moves, and that Telegram misses it;
   package tooling installs at the configured prefix, staged with
-  `DESTDIR`, where the path holds. The client looks the file up at every
-  start. In the `TelegramHelpers` layout, that of every build but a
-  package-managed one, it then checks the file before each start: it
-  opens the path (`O_RDONLY | O_CLOEXEC | O_NOCTTY | O_NONBLOCK`, so a
-  symlink there is followed), requires a regular file (`fstat`,
-  `S_ISREG`) and hashes the opened descriptor with SHA-256,
-  which must equal, in lowercase hex, the single digest of the build's
-  generated `widget_helper_identity.h`.
+  `DESTDIR`, where the path holds. A package-managed build looks the
+  file up at every start. In the `TelegramHelpers` layout, that of every
+  build but a package-managed one, the client takes the file once, at
+  launch, where it can start a helper (outside Flatpak, on x86_64 and
+  aarch64): `Platform::WidgetHelper::Hold()`, the first call of
+  `Platform::start()` and so before any widget, opens the path
+  (`O_RDONLY | O_CLOEXEC | O_NOCTTY | O_NONBLOCK`, so a symlink there is
+  followed), moves the descriptor to 10 or above, close-on-exec, and
+  keeps it for the rest of the process if it is a regular file (`fstat`,
+  `S_ISREG`). It hashes nothing then and never closes that descriptor,
+  so a file unlinked under it stays on disk until that Telegram exits.
+  Before each start the client takes a duplicate of it
+  (`F_DUPFD_CLOEXEC`, 10 or above), requires a regular file again and
+  hashes the file with SHA-256 from its first byte (`pread`, which never
+  moves the offset the duplicates share), which must equal, in lowercase
+  hex, the single digest of the build's generated
+  `widget_helper_identity.h`. When that open, the move or `fstat` fails,
+  or the file is not a regular one, nothing is held, the main log has
+  `Tgw: The widget helper is not held, each start opens it: <error>.` at
+  launch (no start failure; for a missing helper `<error>` is `open
+  failed: No such file or directory`), and each start opens the path
+  itself with the same flags and checks the file the same way; a file a
+  start opened is never kept.
   `Telegram/cmake/widget_helper_identity.py --kind sha256` writes that
   header per configuration from the helper target's final file
   (`out/Telegram/gen/widget_helper_identity/Debug/widget_helper_identity.h`
   in the Docker tree), and only these builds compile
-  `widget_helper_linux.cpp` with `TDESKTOP_WIDGET_HELPER_PINNED`. The
-  cloned child then executes that descriptor, never the path: it places
-  it at descriptor 4 with close-on-exec (`dup3`), closes everything from
-  5 and calls `fexecve(4, ...)`, which glibc issues as `execveat(4, "",
-  ..., AT_EMPTY_PATH)`, so a file put at the path after the check never
-  runs and the helper starts without descriptor 4. The main log has `Tgw:
-  The widget helper passed the build identity check (SHA-256 <digest>).`
-  before such a start. Any other bytes, another build's helper of the
-  same version included, fail the start (**Runtime log and deaths**
-  below), and so does anything that rewrites the file after its build,
-  such as `cmake --install --strip` of such a build (a reading of the
-  install script, not run). A package-managed build pins and checks
-  nothing: the main log has `Tgw: The widget helper is not pinned in a
-  package-managed build.` before each start, on both spawn paths, and
-  its cloned child executes the file by path (`execve`), so the build
-  string is its only check. After an upgrade replaced the file under a
-  running Telegram, the next start fails the build identity check in the
-  `TelegramHelpers` layout; in a package-managed build it runs the new
-  file, whose build string differs, so the opening is refused until
-  Telegram restarts. The client starts it as `[<path>, 3]`, without
-  `-testagent`; a Debug probe value adds the same arguments after the `3`
-  as on macOS, with the client's `QStandardPaths::GenericDataLocation` as
-  the data path. When `cExeDir()` is empty both spawn paths fail with
+  `widget_helper_linux.cpp` with `TDESKTOP_WIDGET_HELPER_PINNED`.
+  Outside Debug that final file is already stripped: the helper target's
+  own POST_BUILD runs `CMAKE_STRIP` on it with no options (GNU strip's
+  `--strip-all`: no `.debug_*` section, no symbol table) before the
+  generator reads it, as on macOS, and a configure of these builds
+  without a strip tool fails with `TelegramWidgetHelper is stripped
+  outside Debug, but no strip tool was found (CMAKE_STRIP).`. A Debug
+  helper keeps its debug sections, and a package-managed build's helper
+  is left as its build links it. The cloned child then executes the
+  checked descriptor, never the path: it places it at descriptor 4 with
+  close-on-exec (`dup3`), closes everything from 5, its copy of the held
+  descriptor included, and calls `fexecve(4, ...)`, which glibc issues
+  as `execveat(4, "", ..., AT_EMPTY_PATH)`, so a file put at the path
+  after the check never runs, nor, in a Telegram that holds the file,
+  one put there after launch, and the helper starts without
+  descriptor 4. The main log has `Tgw: The widget helper passed the
+  build identity check (SHA-256 <digest>).` before such a start. Any
+  other bytes, another build's helper of the same version included,
+  fail the start (**Runtime log and deaths** below), and so does
+  anything that rewrites the file after its build, such as
+  `cmake --install --strip` of such a build (a reading of the install
+  script, not run). A held file rewritten in place fails the next start
+  the same way. Replacing the file at the path does not reach a Telegram
+  that holds another one: a Telegram whose held file fails the check
+  (one launched while another instance's update was still being copied
+  can hold the other version's helper) keeps failing until the failure
+  limit stops its starts, and only a restart takes the file now at the
+  path. A package-managed build pins and checks nothing: the main log
+  has `Tgw: The widget helper is not pinned in a package-managed
+  build.` before each start, on both spawn paths, and its cloned child
+  executes the file by path (`execve`), so the build string is its only
+  check. After an upgrade replaced the file under a running Telegram, in
+  the `TelegramHelpers` layout that Telegram keeps starting the file it
+  held (`/proc/<pid>/exe` of its helper then reads `<path> (deleted)`),
+  and one that holds none checks the new file; in a package-managed
+  build it runs the new file, whose build string differs, so the opening
+  is refused until Telegram restarts. The client starts it as
+  `[<path>, 3]`, without `-testagent`; a Debug probe value adds the same
+  arguments after the `3` as on macOS, with the client's
+  `QStandardPaths::GenericDataLocation` as the data path. When
+  `cExeDir()` is empty nothing is held and both spawn paths fail with
   `the executable path is unknown`.
   The client clones it from a thread of its own that lives as long as the
   process, with only descriptors 0 to 3 open (0 and 1 `/dev/null`, 2 the
@@ -1580,9 +1621,11 @@ packs, the fixture and the seams they use need no change for it.
   On Linux the error is `clone failed: <reason>` when the clone without
   namespaces fails as well, or `<call> failed: <reason>` for another
   failed call of the spawn. In the `TelegramHelpers` layout the check of
-  **The shared helper** gives `open failed: <reason>` (`open failed: No
+  **The shared helper** gives `fcntl failed: <reason>` when it cannot
+  duplicate the held descriptor, `fstat failed: <reason>` and, only in a
+  Telegram that holds none, `open failed: <reason>` (`open failed: No
   such file or directory` when `TelegramHelpers/TelegramWidgetHelper` is
-  missing) and `fstat failed: <reason>`, and the cloned child, before it
+  missing), and the cloned child, before it
   became the helper, `dup3 failed: <reason>` and `fexecve failed:
   <reason>` (`fexecve failed: Permission denied` for the pinned bytes
   without their execute bit); in a package-managed build the child gives
@@ -2618,6 +2661,67 @@ is not pinned in a package-managed build.` before each of its two helper
 starts and loaded the engines in that file; as in the run above, the
 helper mapped the C++ runtime and, under the AppArmor user-namespace
 restriction, its root still listed the system root.
+
+The held and stripped helper ran in the evidence campaign of
+`2026/11/17/hold-the-linux-widget-helper-for-telegrams-lifetime-and-strip-it`
+(its `work/test.md`, Attempt 1, Runs 1-4) on a WSL2 6.18 kernel,
+account-free, with engines made by an overlay as above. A Release tree
+with the test harness (`TDESKTOP_RELEASE_TEST_HARNESS`), configured by
+the official `configure.sh` with the special target `linux` in
+`tdesktop:centos_env` and compiled with the official flags, the debug
+information flags `-g -gdwarf64 -gz` among them, but without LTO, which
+the harness refuses, and with `-Wno-error` appended, was built at the
+base commit and again with the change and the overlay. The base build's
+Release helper had compressed `.debug_info`, `.debug_abbrev`,
+`.debug_line` and `.debug_str` sections and a symbol table: 12589504
+bytes, 9726632 with `xz -9e --check=crc64`, the update packer's liblzma
+settings. With the change each non-Debug configuration's helper link
+step stripped the file in its POST_BUILD, before the identity step that
+reads it; the Release build relinked and stripped the helper (GNU strip
+2.44), then generated a digest equal to the stripped file's SHA-256.
+That helper had no `.debug_*` section and no symbol table: 3354080
+bytes, 1141720 compressed, byte-identical to the base helper stripped by
+the same tool; `minidebug.sh` would have made the base helper 3430976
+bytes, 1220296 compressed. The Docker tree's Debug helper kept its debug
+sections, the Debug link steps of both trees ran no strip, and a
+package-managed tree, configured but not built, had no strip, no
+identity step and no pinned define. In installs of the changed build in
+the `TelegramHelpers` layout (its Telegram, its Updater and its stripped
+helper) the install's own Updater, run with `-justupdate` and only a
+helper staged, replaced the helper during a launch or between launches:
+it unlinked the file and copied the staged helper into a new one. A
+running Telegram held one descriptor of its helper from launch, before
+any start, at 10 or above with close-on-exec, and its `/proc/self/fd`
+link read `<path> (deleted)` once the base helper had replaced the file.
+That Telegram then started its helper again after a SIGKILL of the first
+one and after the second one's idle exit, and in another install the
+first start came after the replacement: each of these starts passed the
+identity check with the build's own digest, ran the held file
+(`/proc/<pid>/exe` read `<path> (deleted)` with the inode held at
+launch) and loaded an engine, with no refusal and no failure limit. A
+Telegram launched after the replacement held the base helper and
+refused three starts with the build identity check's error, naming the
+base helper's digest and its own, and its fourth engine died with `the
+widget helper failed 3 times in a row`; once the Updater had put the
+build's own helper back, a fresh launch held that file, started it from
+`<path>` and loaded an engine. One byte appended in place to a held file
+after its helper's idle exit made the next three starts refuse with the
+changed digest, followed by the failure limit. With no
+`TelegramHelpers/` at launch the main log had `Tgw: The widget helper is
+not held, each start opens it: open failed: No such file or directory.`
+and the first start failed with `open failed: No such file or
+directory`; once the helper was written into place, the next start
+opened the path, passed and loaded an engine, and nothing was held at
+the end. An earlier launch of a binary whose stale `specific_linux.cpp`
+object had no `Hold()` call held nothing, and after the replacement its
+starts were refused with the base helper's digest until the failure
+limit stopped them, which is what a per-start lookup gives. Not run:
+aarch64, a second running Telegram installing a whole update package, a
+shared root-owned install, a folder moved under a running Telegram, a
+hold failing other than for a missing file, a failed duplicate, Flatpak
+and a package-managed build at run time, built RelWithDebInfo and
+MinSizeRel helpers (their graphs only), the official LTO configuration,
+and the release scripts on the stripped helper.
 
 Not run with `TelegramWidgetHelper`: aarch64 at run time (its sources
 compiled for aarch64 with `-Werror`, its filter emulated), a confined
