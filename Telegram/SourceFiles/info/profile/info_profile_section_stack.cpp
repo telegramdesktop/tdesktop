@@ -68,8 +68,8 @@ namespace {
 	return wrap;
 }
 
-constexpr auto kCardRadius = style::ConvertScale(22); // Mokagram: как карточки настроек.
-constexpr auto kCardInset = style::ConvertScale(4);
+const auto kCardRadius = style::ConvertScale(22); // Mokagram: как карточки настроек.
+const auto kCardInset = style::ConvertScale(4);
 
 // Mokagram: секция профиля как отдельная скруглённая таблетка.
 // Фон рисуется под содержимым, а углы закрывают четыре маленьких виджета
