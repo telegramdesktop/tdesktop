@@ -1650,6 +1650,12 @@ void ApiWrap::saveStickerSets(
 		const Data::StickersSetsOrder &localOrder,
 		const Data::StickersSetsOrder &localRemoved,
 		Data::StickersType type) {
+	if (local().stickerCacheLoading()) {
+		local().afterStickerCacheLoaded(crl::guard(_session, [=] {
+			saveStickerSets(localOrder, localRemoved, type);
+		}));
+		return;
+	}
 	auto &setDisenableRequests = (type == Data::StickersType::Emoji)
 		? _customEmojiSetDisenableRequests
 		: (type == Data::StickersType::Masks)
@@ -3115,6 +3121,12 @@ void ApiWrap::gotWebPages(
 }
 
 void ApiWrap::updateStickers() {
+	if (local().stickerCacheLoading()) {
+		local().afterStickerCacheLoaded(crl::guard(_session, [=] {
+			updateStickers();
+		}));
+		return;
+	}
 	const auto now = crl::now();
 	requestStickers(now);
 	requestRecentStickers(now, false);
@@ -3128,12 +3140,24 @@ void ApiWrap::updateSavedGifs() {
 }
 
 void ApiWrap::updateMasks() {
+	if (local().stickerCacheLoading()) {
+		local().afterStickerCacheLoaded(crl::guard(_session, [=] {
+			updateMasks();
+		}));
+		return;
+	}
 	const auto now = crl::now();
 	requestMasks(now);
 	requestRecentStickers(now, true);
 }
 
 void ApiWrap::updateCustomEmoji() {
+	if (local().stickerCacheLoading()) {
+		local().afterStickerCacheLoaded(crl::guard(_session, [=] {
+			updateCustomEmoji();
+		}));
+		return;
+	}
 	const auto now = crl::now();
 	requestCustomEmoji(now);
 	requestFeaturedEmoji(now);
@@ -3303,6 +3327,12 @@ void ApiWrap::requestCustomEmoji(TimeId now) {
 void ApiWrap::requestRecentStickers(
 		std::optional<TimeId> now,
 		bool attached) {
+	if (local().stickerCacheLoading()) {
+		local().afterStickerCacheLoaded(crl::guard(_session, [=] {
+			requestRecentStickers(now, attached);
+		}));
+		return;
+	}
 	const auto needed = !now
 		? true
 		: attached
@@ -3361,6 +3391,12 @@ void ApiWrap::requestRecentStickers(
 }
 
 void ApiWrap::requestFavedStickers(std::optional<TimeId> now) {
+	if (local().stickerCacheLoading()) {
+		local().afterStickerCacheLoaded(crl::guard(_session, [=] {
+			requestFavedStickers(now);
+		}));
+		return;
+	}
 	if (now) {
 		if (!_session->data().stickers().favedUpdateNeeded(*now)
 			|| _favedStickersUpdateRequest) {

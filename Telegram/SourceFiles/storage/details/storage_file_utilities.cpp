@@ -753,7 +753,8 @@ bool FileWriteDescriptor::finish() {
 bool ReadFile(
 		FileReadDescriptor &result,
 		const QString &name,
-		const QString &basePath) {
+		const QString &basePath,
+		ReadFileCleanup cleanup) {
 	const auto base = basePath + name;
 
 	// detect order of read attempts
@@ -852,7 +853,8 @@ bool ReadFile(
 		result.stream.setDevice(&result.buffer);
 		result.stream.setVersion(QDataStream::Qt_5_1);
 
-		if ((i == 0 && !toTry[1].isEmpty()) || i == 1) {
+		if (cleanup == ReadFileCleanup::RemoveAlternate
+			&& ((i == 0 && !toTry[1].isEmpty()) || i == 1)) {
 			QFile::remove(toTry[1 - i]);
 		}
 
@@ -904,8 +906,9 @@ bool ReadEncryptedFile(
 		FileReadDescriptor &result,
 		const QString &name,
 		const QString &basePath,
-		const MTP::AuthKeyPtr &key) {
-	if (!ReadFile(result, name, basePath)) {
+		const MTP::AuthKeyPtr &key,
+		ReadFileCleanup cleanup) {
+	if (!ReadFile(result, name, basePath, cleanup)) {
 		return false;
 	}
 	QByteArray encrypted;
@@ -940,8 +943,9 @@ bool ReadEncryptedFile(
 		FileReadDescriptor &result,
 		const FileKey &fkey,
 		const QString &basePath,
-		const MTP::AuthKeyPtr &key) {
-	return ReadEncryptedFile(result, ToFilePart(fkey), basePath, key);
+		const MTP::AuthKeyPtr &key,
+		ReadFileCleanup cleanup) {
+	return ReadEncryptedFile(result, ToFilePart(fkey), basePath, key, cleanup);
 }
 
 void ScheduleRemoveFiles(std::vector<QString> paths) {

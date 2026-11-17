@@ -234,34 +234,11 @@ Session::Session(
 			saveSettingsDelayed();
 		}
 	}, [=] {
-		// Storage::Account uses Main::Account::session() in those methods.
-		// So they can't be called during Main::Session construction.
-		//
-		// They are deferred via crl::on_main which fires after the
-		// constructor returns and _session is set.
-		//
-		// Steps are chained via crl::on_main so that paint events
-		// can be processed between heavy file reads.
-		local().readInstalledStickers();
-	}, [=] {
-		local().readInstalledMasks();
-	}, [=] {
-		local().readInstalledCustomEmoji();
-	}, [=] {
-		local().readFeaturedStickers();
-	}, [=] {
-		local().readFeaturedCustomEmoji();
-	}, [=] {
-		local().readRecentStickers();
-		local().readRecentMasks();
-		local().readFavedStickers();
-		local().readSavedGifs();
-	}, [=] {
-		data().stickers().notifyUpdated(Data::StickersType::Stickers);
-		data().stickers().notifyUpdated(Data::StickersType::Masks);
-		data().stickers().notifyUpdated(Data::StickersType::Emoji);
-		data().stickers().notifySavedGifsUpdated();
-		DEBUG_LOG(("Init: Account stored data load finished."));
+		if (_account->maybeSession() == this) {
+			local().readStickerCache(this);
+			local().readSavedGifs();
+			data().stickers().notifySavedGifsUpdated();
+		}
 	} }).dispatch();
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
