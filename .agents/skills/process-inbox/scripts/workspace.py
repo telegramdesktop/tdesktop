@@ -126,6 +126,8 @@ HOST_LOAD_SNAPSHOT_ATTEMPTS = 8
 HOST_LOAD_LAST_SAMPLES = 5
 HOST_LOAD_TOP = 3
 HOST_LOAD_SAMPLES_FILE = "host_load_samples.jsonl"
+RELAUNCH_POLL_INTERVAL = 0.5
+FILETIME_UNIX_EPOCH_SECONDS = 11644473600
 
 
 class WorkspaceError(RuntimeError):
@@ -3910,9 +3912,9 @@ def processes_with_executable(exe):
 	return pids
 
 
-def kill_processes_with_executable(exe):
+def kill_process_ids(pids):
 	killed = []
-	for pid in processes_with_executable(exe):
+	for pid in pids:
 		try:
 			if sys.platform == "win32":
 				subprocess.run(
@@ -3926,6 +3928,10 @@ def kill_processes_with_executable(exe):
 		except (OSError, subprocess.SubprocessError):
 			continue
 	return killed
+
+
+def kill_processes_with_executable(exe):
+	return kill_process_ids(processes_with_executable(exe))
 
 
 @contextlib.contextmanager
@@ -4114,6 +4120,16 @@ def windows_process_snapshot(size):
 	if not records:
 		raise OSError("process snapshot listed no process")
 	return size, records
+
+
+def executable_process_starts(exe):
+	pids = processes_with_executable(exe)
+	_, records = windows_process_snapshot(HOST_LOAD_SNAPSHOT_SIZE)
+	return {
+		pid: records[pid]["created"] / 10**7 - FILETIME_UNIX_EPOCH_SECONDS
+		for pid in pids
+		if pid in records
+	}
 
 
 def macos_system_library():
@@ -4926,6 +4942,16 @@ def host_load_unsupported_reason(platform=None):
 	return f"host-load sampling needs Windows or macOS, this host is {platform}"
 
 
+def relaunch_unsupported_reason(platform=None):
+	platform = sys.platform if platform is None else platform
+	if platform == "win32":
+		return None
+	return (
+		"keeping a relaunched client reads process start times on Windows only, "
+		f"this host is {platform}"
+	)
+
+
 def host_load_tools_json(seen):
 	return [
 		{"name": name, "pid": pid}
@@ -5259,6 +5285,39 @@ class HostLoadMonitor:
 		return report
 
 
+def keep_relaunched_clients(
+		exe, launched_at, exited_at, bound, clock=time.time, sleep=time.sleep):
+	kept = set()
+	stragglers = []
+	while True:
+		old = []
+		for pid, started in executable_process_starts(exe).items():
+			if started > launched_at:
+				kept.add((pid, started))
+			elif pid not in stragglers:
+				old.append(pid)
+		if old:
+			stragglers.extend(kill_process_ids(old))
+		remaining = exited_at + bound - clock()
+		if remaining <= 0:
+			break
+		sleep(min(RELAUNCH_POLL_INTERVAL, remaining))
+	ended = kill_processes_with_executable(exe)
+	report = {
+		"bound_seconds": bound,
+		"clients": [
+			{
+				"exited_by_itself": pid not in ended,
+				"pid": pid,
+				"started_seconds": round(started - exited_at, 3),
+			}
+			for pid, started in sorted(kept, key=lambda client: (client[1], client[0]))
+		],
+		"ended_at_bound": ended,
+	}
+	return stragglers, report
+
+
 def command_test_run(args):
 	extra_environment = parse_env_values(args.env)
 	if LAUNCH_ACTIVATION_VARIABLE in extra_environment:
@@ -5271,6 +5330,12 @@ def command_test_run(args):
 			raise WorkspaceError("--wait-idle must be a positive number of seconds")
 		if not 0 <= args.wait_idle_max < float("inf"):
 			raise WorkspaceError("--wait-idle-max must be zero or more seconds")
+	if args.keep_relaunched is not None:
+		if not 0 < args.keep_relaunched < float("inf"):
+			raise WorkspaceError("--keep-relaunched must be a positive number of seconds")
+		unsupported = relaunch_unsupported_reason()
+		if unsupported:
+			raise WorkspaceError(f"--keep-relaunched: {unsupported}")
 	host_load = host_load_parameters(args)
 	exe = resolved_exe(args.exe)
 	run_dir = Path(args.run_dir).expanduser().resolve()
@@ -5341,6 +5406,7 @@ def command_test_run(args):
 	if monitor is not None:
 		monitor.wait()
 	_, input_before = console_input_reading()
+	relaunched = None
 	launched_at = time.time()
 	with executable_killed_on_abort(exe), contextlib.ExitStack() as streams:
 		if bundle is None:
@@ -5398,7 +5464,12 @@ def command_test_run(args):
 		ended_at = time.time()
 		if monitor is not None:
 			monitor.stop_trace()
-		stragglers_after = kill_processes_with_executable(exe)
+		if args.keep_relaunched is None:
+			stragglers_after = kill_processes_with_executable(exe)
+		else:
+			stragglers_after, relaunched = keep_relaunched_clients(
+				exe, launched_at, ended_at, args.keep_relaunched
+			)
 	launcher_exit_code = None
 	if bundle is not None:
 		# open -W exits 0 whatever the client's status, so only open's own is known
@@ -5453,7 +5524,7 @@ def command_test_run(args):
 	)
 	host_load_report = monitor.report(run_dir) if monitor is not None else None
 
-	print(json.dumps({
+	report = {
 		"account": account,
 		"crash_report": str(working) if working.is_file() else None,
 		"crash_report_excerpt": (
@@ -5489,7 +5560,10 @@ def command_test_run(args):
 		"verdict_hint": verdict_hint,
 		"wait_idle": wait_idle,
 		"workdir": str(workdir) if workdir is not None else None,
-	}, indent=2, sort_keys=True))
+	}
+	if relaunched is not None:
+		report["relaunched"] = relaunched
+	print(json.dumps(report, indent=2, sort_keys=True))
 
 
 def command_test_cleanup(args):
@@ -8126,6 +8200,7 @@ def parse_args():
 	)
 	test_run.add_argument("--activate", action="store_true")
 	test_run.add_argument("--env", action="append")
+	test_run.add_argument("--keep-relaunched", type=float)
 	test_run.set_defaults(handler=command_test_run)
 
 	test_cleanup = subparsers.add_parser("test-cleanup")

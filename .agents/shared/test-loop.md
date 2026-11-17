@@ -937,6 +937,50 @@ command, environment, exit-code, log, artifact and control evidence.
     reads its `wait`, its `trace` and the series' `top` contributors, and on macOS
     `unattributed_percent`, before counting it; whether a loaded launch counts stays the assessor's
     judgement.
+  - **Relaunched client (Windows).** `--keep-relaunched <seconds>` keeps a client the product
+    started again by itself (a `Core::Restart()` relaunch, or the client `Updater.exe` starts after
+    an install) alive for that many seconds after the exit `test-run` saw, instead of ending it in
+    the post-exit straggler kill; without the flag nothing changes, the report included. It reads
+    process start times on Windows only: a value that is not a positive finite number (zero,
+    negative, `inf`, `nan`), or the flag on any other host, is refused before SETUP with nothing
+    created, as a malformed `--env` value is. What it reads: the processes whose path is `EXE` (the
+    same `Win32_Process` `ExecutablePath` query as the straggler kills), each with its creation
+    time from one `NtQuerySystemInformation` process snapshot, the host load gate's reader (a pid
+    the query lists but the snapshot no longer does is left out of that reading). The first
+    reading comes at the exit, where the post-exit kill runs without the flag; each next one
+    follows a pause of at most half a second, and a reading takes about half a second, so they come
+    about once a second. A process that started after the launch (its creation time is later
+    than the moment `test-run` took right before starting `EXE`) is kept, whether it already ran at
+    the exit (`JustRelaunch` starts the new client while the old one is still quitting) or starts
+    during the bound (`Updater.exe` starts it after copying the files). Any other one, older than
+    the launch, is ended at once by pid and listed in `stragglers_killed_after`, which with the
+    flag never lists a kept client. The bound always runs to its end, also after every kept client
+    is gone, so a later relaunch cannot outlive `test-run`: the readings go on until one finishes
+    at or after the exit plus the bound, and then every process with that path, kept or not, is
+    ended by exact path. An interrupt or termination of `test-run` during the bound (SIGINT, as
+    from Ctrl-C, or SIGTERM) ends them the same way, through the path-scoped kill on abort; a
+    forced end of `test-run` itself (`taskkill /F`, `TerminateProcess`) runs neither kill, so run
+    `workspace.py test-cleanup --exe EXE` then (the next `test-run`'s pre-launch kill also ends
+    them). The flag adds the bound, and about a second for the last reading and the kill, after
+    the exit: size the command's timeout for `--deadline` plus the bound, or run it in the
+    background while a driver works with the kept client. A driver's `EXE -workdir <wd> -quit`
+    command is such a process too: it starts after the launch, so it is never killed as a
+    straggler, and it is listed when a reading sees it; a process that starts and ends between two
+    readings is never seen. The report adds `relaunched` only with the flag (without it the key is
+    absent, not `null`): `bound_seconds` echoes the bound; `clients` lists every kept process a
+    reading saw, by start time, each with `pid`, `started_seconds` and `exited_by_itself`; and
+    `ended_at_bound` lists every pid the bound's end ended (that kill adds nothing to
+    `stragglers_killed_after`). `started_seconds` is the start relative to the exit `test-run` saw,
+    which lags the real exit by up to half a second (its exit poll), so it is negative for a client
+    already running then, such as a `JustRelaunch` client; `exited_by_itself` is `true` when the
+    client was gone before the bound's end, for example after a `-quit`, and `false` when that end
+    ended it. With the flag the log, crash and dump readings are taken when the bound ends, so they
+    include whatever a kept client wrote by then; `duration_seconds` and the `--host-load` trace
+    still end at the launched client's exit. A kept client that the bound's end ended was killed
+    while running, so it leaves its non-empty `tdata/working` behind, which reads as
+    `crash_report_fresh` when it ran in the live folder, as a relaunched client the post-exit kill
+    ends without the flag does; one stopped with `-quit` inside the bound exits cleanly and removes
+    it (`CrashReports::Finish()`, `core/crash_reports.cpp`).
 
 ### Crashes & assertions (always launch the test binary with `-testagent`)
 

@@ -2138,6 +2138,7 @@ def run_test_run(exe, run_dir, **overrides):
 		"host_load_interval": workspace.HOST_LOAD_INTERVAL_DEFAULT,
 		"activate": False,
 		"env": None,
+		"keep_relaunched": None,
 	}
 	arguments.update(overrides)
 	return run_command(workspace.command_test_run, **arguments)
@@ -2411,6 +2412,78 @@ def background_client_env(script, seconds, record, announced):
 		f"HOST_LOAD_HELPER_SECONDS={seconds}",
 		f"HOST_LOAD_HELPER_RECORD={record}",
 	]
+
+
+RELAUNCHING_CLIENT_SOURCE = """\
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+
+static class RelaunchingClient {
+	static string Setting(string name) {
+		string value = Environment.GetEnvironmentVariable(name);
+		if (string.IsNullOrEmpty(value)) {
+			Environment.Exit(2);
+		}
+		return value;
+	}
+
+	static int Main(string[] args) {
+		string self = Process.GetCurrentProcess().MainModule.FileName;
+		string record = Setting("RELAUNCH_FIXTURE_RECORD");
+		if (args.Length == 3 && args[0] == "-update") {
+			try {
+				Process.GetProcessById(int.Parse(args[1])).WaitForExit();
+			} catch (ArgumentException) {
+			}
+			Thread.Sleep(1000);
+			ProcessStartInfo restart = new ProcessStartInfo(args[2], "-noupdate");
+			restart.UseShellExecute = false;
+			Process started = Process.Start(restart);
+			File.WriteAllText(record + ".tmp", started.Id.ToString());
+			File.Move(record + ".tmp", record);
+			return 0;
+		}
+		if (args.Length == 1 && args[0] == "-noupdate") {
+			Stopwatch alive = Stopwatch.StartNew();
+			while (alive.ElapsedMilliseconds < 60000) {
+				File.AppendAllText(
+					record + ".beats", DateTime.UtcNow.ToFileTimeUtc() + "\\n");
+				Thread.Sleep(100);
+			}
+			return 0;
+		}
+		ProcessStartInfo updater = new ProcessStartInfo(
+			Path.Combine(Path.GetDirectoryName(self), "relaunch-updater.exe"),
+			"-update " + Process.GetCurrentProcess().Id + " \\"" + self + "\\"");
+		updater.UseShellExecute = false;
+		Process.Start(updater);
+		File.AppendAllText(
+			Path.Combine(Setting("TDESKTOP_TEST_EVIDENCE_DIR"), "test_log.txt"),
+			"TEST_COMPLETE\\n");
+		return 0;
+	}
+}
+"""
+
+
+def compile_relaunching_client(debug):
+	debug.mkdir(parents=True, exist_ok=True)
+	source = debug / "relaunch-client.cs"
+	source.write_text(RELAUNCHING_CLIENT_SOURCE, encoding="utf-8")
+	exe = debug / "relaunch-client.exe"
+	compiler = (
+		Path(os.environ["SystemRoot"])
+		/ "Microsoft.NET" / "Framework64" / "v4.0.30319" / "csc.exe"
+	)
+	subprocess.run(
+		[str(compiler), "-nologo", f"-out:{exe}", str(source)],
+		check=True,
+	)
+	updater = debug / "relaunch-updater.exe"
+	shutil.copyfile(exe, updater)
+	return exe, updater
 
 
 def write_python_client(path, *arguments):
@@ -3501,6 +3574,210 @@ class MechanicsTest(unittest.TestCase):
 				self.assertEqual(
 					signal.getsignal(signal.SIGTERM), signal.SIG_DFL,
 				)
+
+	def test_keep_relaunched_clients_tells_relaunches_from_stragglers(self):
+		exe = Path("/synthetic/out/Debug/Telegram.exe")
+		clock = FakeClock()
+		clock.now = 1010.0
+		reads = []
+
+		def starts(path):
+			reads.append(path)
+			listed = {}
+			if clock.now <= 1010.5:
+				listed[11] = 990.0
+			if clock.now <= 1011.5:
+				listed[21] = 1009.8
+			if clock.now >= 1011.0:
+				listed[22] = 1010.6
+			return listed
+
+		with (
+			mock.patch.object(
+				workspace, "executable_process_starts", side_effect=starts,
+			),
+			mock.patch.object(
+				workspace, "kill_process_ids", side_effect=list,
+			) as kill_ids,
+			mock.patch.object(
+				workspace, "kill_processes_with_executable", return_value=[22],
+			) as kill,
+		):
+			stragglers, report = workspace.keep_relaunched_clients(
+				exe, 1000.0, 1010.0, 3.0, clock=clock, sleep=clock.sleep,
+			)
+		self.assertEqual(stragglers, [11])
+		self.assertEqual(kill_ids.call_args_list, [mock.call([11])])
+		self.assertEqual(kill.call_args_list, [mock.call(exe)])
+		self.assertEqual(report, {
+			"bound_seconds": 3.0,
+			"clients": [
+				{"exited_by_itself": True, "pid": 21, "started_seconds": -0.2},
+				{"exited_by_itself": False, "pid": 22, "started_seconds": 0.6},
+			],
+			"ended_at_bound": [22],
+		})
+		self.assertEqual(reads, [exe] * 7)
+		self.assertEqual(clock.sleeps, [workspace.RELAUNCH_POLL_INTERVAL] * 6)
+
+	def test_test_run_refuses_a_bad_or_unsupported_keep_relaunched(self):
+		self.assertIsNone(workspace.relaunch_unsupported_reason(platform="win32"))
+		for platform in ("darwin", "linux"):
+			with self.subTest(platform=platform):
+				self.assertIn(
+					f"this host is {platform}",
+					workspace.relaunch_unsupported_reason(platform=platform),
+				)
+
+		def refused(bound):
+			with tempfile.TemporaryDirectory() as temporary:
+				root = Path(temporary)
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				run_dir = root / "run1"
+				with self.assertRaises(workspace.WorkspaceError) as raised:
+					run_test_run(exe, run_dir, keep_relaunched=bound)
+				self.assertFalse(run_dir.exists())
+				self.assertFalse((debug / workspace.PORTABLE_LIVE).exists())
+			return str(raised.exception)
+
+		for bound in (0.0, -1.0, float("inf"), float("nan")):
+			with self.subTest(bound=bound):
+				self.assertRegex(refused(bound), "--keep-relaunched must be")
+		unsupported = workspace.relaunch_unsupported_reason(platform="darwin")
+		with mock.patch.object(
+			workspace, "relaunch_unsupported_reason", return_value=unsupported,
+		):
+			self.assertEqual(refused(5.0), f"--keep-relaunched: {unsupported}")
+
+	def test_test_run_ends_kept_clients_when_interrupted_during_the_bound(self):
+		def interrupt():
+			raise KeyboardInterrupt
+
+		def terminate():
+			signal.getsignal(signal.SIGTERM)(signal.SIGTERM, None)
+
+		previous = signal.signal(signal.SIGTERM, signal.SIG_DFL)
+		self.addCleanup(signal.signal, signal.SIGTERM, previous)
+		for stop, expected, args in (
+			(interrupt, KeyboardInterrupt, ()),
+			(terminate, SystemExit, (128 + signal.SIGTERM,)),
+		):
+			with (
+				self.subTest(stop=stop.__name__),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary).resolve()
+				debug = make_portable_root(root)
+				exe = write_complete_markers_exe(debug / "Telegram")
+				events = []
+
+				def kill(path):
+					events.append(("kill", path))
+					return []
+
+				def starts(path):
+					events.append(("read", path))
+					stop()
+
+				with (
+					mock.patch.object(
+						workspace, "relaunch_unsupported_reason", return_value=None,
+					),
+					mock.patch.object(
+						workspace, "console_input_reading", return_value=(0.0, {}),
+					),
+					mock.patch.object(
+						workspace, "kill_processes_with_executable", side_effect=kill,
+					),
+					mock.patch.object(
+						workspace, "executable_process_starts", side_effect=starts,
+					),
+					self.assertRaises(expected) as raised,
+				):
+					run_test_run(exe, root / "run1", keep_relaunched=30.0)
+				self.assertEqual(raised.exception.args, args)
+				self.assertEqual(
+					events, [("kill", exe), ("read", exe), ("kill", exe)],
+				)
+				self.assertEqual(
+					signal.getsignal(signal.SIGTERM), signal.SIG_DFL,
+				)
+
+	@needs_windows
+	def test_test_run_keeps_a_relaunched_client_for_the_bound(self):
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe, updater = compile_relaunching_client(debug)
+			record = root / "restarted.txt"
+			try:
+				result = run_test_run(
+					exe, root / "run1", keep_relaunched=6.0,
+					env=[f"RELAUNCH_FIXTURE_RECORD={record}"],
+				)
+				returned = time.time()
+				leftovers = workspace.processes_with_executable(exe)
+			finally:
+				workspace.kill_processes_with_executable(updater)
+				workspace.kill_processes_with_executable(exe)
+			restarted = int(record.read_text(encoding="utf-8"))
+			self.assertEqual(result["outcome"], "exited")
+			self.assertEqual(result["verdict_hint"], "complete")
+			self.assertEqual(result["stragglers_killed_after"], [])
+			relaunched = result["relaunched"]
+			self.assertEqual(
+				[client["pid"] for client in relaunched["clients"]], [restarted],
+			)
+			self.assertGreater(relaunched["clients"][0]["started_seconds"], 0)
+			self.assertIs(relaunched["clients"][0]["exited_by_itself"], False)
+			self.assertEqual(relaunched["ended_at_bound"], [restarted])
+			self.assertEqual(relaunched["bound_seconds"], 6.0)
+			self.assertEqual(leftovers, [])
+			beats = Path(f"{record}.beats").read_text(encoding="utf-8")
+			last_beat = (
+				int(beats.splitlines()[-1]) / 10**7
+				- workspace.FILETIME_UNIX_EPOCH_SECONDS
+			)
+			self.assertGreater(last_beat, returned - 2.0)
+
+	@needs_windows
+	def test_test_run_without_keep_relaunched_ends_the_relaunched_client(self):
+		real_kill = workspace.kill_processes_with_executable
+		with tempfile.TemporaryDirectory() as temporary:
+			root = Path(temporary).resolve()
+			debug = make_portable_root(root)
+			exe, updater = compile_relaunching_client(debug)
+			record = root / "restarted.txt"
+			calls = []
+
+			def kill(path):
+				calls.append(path)
+				if len(calls) == 2:
+					deadline = time.monotonic() + HOST_LOAD_FIXTURE_TIMEOUT
+					while not record.is_file():
+						if time.monotonic() > deadline:
+							self.fail(f"the fixture never restarted the client: {record}")
+						time.sleep(0.01)
+				return real_kill(path)
+
+			try:
+				with mock.patch.object(
+					workspace, "kill_processes_with_executable", side_effect=kill,
+				):
+					result = run_test_run(
+						exe, root / "run1", env=[f"RELAUNCH_FIXTURE_RECORD={record}"],
+					)
+				leftovers = workspace.processes_with_executable(exe)
+			finally:
+				real_kill(updater)
+				real_kill(exe)
+			restarted = int(record.read_text(encoding="utf-8"))
+			self.assertNotIn("relaunched", result)
+			self.assertEqual(calls, [exe, exe])
+			self.assertEqual(result["stragglers_killed"], [])
+			self.assertEqual(result["stragglers_killed_after"], [restarted])
+			self.assertEqual(leftovers, [])
 
 	def test_parse_test_log_lists_skipped_rows_beside_pass_and_fail(self):
 		markers = workspace.parse_test_log("\n".join([
