@@ -166,9 +166,6 @@ struct UniqueGift {
 	const UniqueGift &gift,
 	bool preferTon);
 
-inline constexpr auto kFixedSaleFeeBps = 200;
-
-[[nodiscard]] int FixedSaleFeeBps(const UniqueGift &gift);
 [[nodiscard]] std::optional<int64> PriceWithSaleFee(int64 price, int feeBps);
 [[nodiscard]] std::optional<int64> UniqueGiftBuyerPays(
 	const UniqueGift &gift);

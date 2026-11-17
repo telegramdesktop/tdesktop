@@ -147,10 +147,6 @@ bool UniqueGiftResaleBuyTon(const UniqueGift &gift, bool preferTon) {
 			|| (gift.starsForResale <= 0));
 }
 
-int FixedSaleFeeBps(const UniqueGift &gift) {
-	return gift.feeBps.value_or(kFixedSaleFeeBps);
-}
-
 std::optional<int64> PriceWithSaleFee(int64 price, int feeBps) {
 	if (price < 0 || feeBps < 0) {
 		return std::nullopt;
@@ -172,9 +168,12 @@ std::optional<int64> PriceWithSaleFee(int64 price, int feeBps) {
 }
 
 std::optional<int64> UniqueGiftBuyerPays(const UniqueGift &gift) {
+	if (gift.fixedSale && !gift.feeBps) {
+		return std::nullopt;
+	}
 	return PriceWithSaleFee(
 		gift.nanoTonForResale,
-		gift.fixedSale ? FixedSaleFeeBps(gift) : 0);
+		gift.fixedSale ? *gift.feeBps : 0);
 }
 
 TextWithEntities FormatGiftResaleStars(const UniqueGift &gift) {

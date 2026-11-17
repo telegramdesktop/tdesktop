@@ -50,7 +50,6 @@ namespace {
 using Wallet::SendError;
 
 constexpr auto kBasisPointsInOne = 10000;
-constexpr auto kOfferFeeBasisPoints = 200;
 
 struct OfferTerms {
 	OnchainGiftOfferRequest request;
@@ -127,7 +126,11 @@ void AddTermsTable(not_null<GenericBox*> box, const OfferTerms &terms) {
 	const auto &st = st::giveawayGiftMessage;
 	const auto amount = terms.request.amount;
 	const auto value = terms.operation.messages.front().value;
-	const auto fee = amount * kOfferFeeBasisPoints / kBasisPointsInOne;
+	const auto feeBps = terms.request.gift->feeBps;
+	const auto fee = (feeBps && *feeBps >= 0 && *feeBps <= kBasisPointsInOne)
+		? std::make_optional((amount / kBasisPointsInOne) * *feeBps
+			+ (amount % kBasisPointsInOne) * *feeBps / kBasisPointsInOne)
+		: std::nullopt;
 	const auto table = box->addRow(
 		object_ptr<TableLayout>(box, st::giveawayGiftCodeTable),
 		st::giveawayGiftCodeTableMargin);
@@ -142,22 +145,27 @@ void AddTermsTable(not_null<GenericBox*> box, const OfferTerms &terms) {
 			st::defaultPopupMenu,
 			context);
 	};
-	const auto gram = [&](int64 nanos) {
+	const auto gram = [&](std::optional<int64> nanos) {
+		if (!nanos) {
+			return label(tr::marked(u"—"_q));
+		}
 		auto text = mark;
-		text.append(QChar(' ')).append(FormatTonAmount(nanos).full);
+		text.append(QChar(' ')).append(FormatTonAmount(*nanos).full);
 		return label(std::move(text));
 	};
 	AddTableRow(
 		table,
 		tr::lng_gift_offer_onchain_your_offer(),
-		gram(amount - fee));
+		gram(fee ? std::make_optional(amount - *fee) : std::nullopt));
 	AddTableRow(
 		table,
 		tr::lng_gift_offer_onchain_platform_fee(),
 		MakeMultilineValueWithSmallButton(
 			table,
 			gram(fee).release(),
-			rpl::single(QString::number(kOfferFeeBasisPoints / 100.) + '%')
+			rpl::single(fee
+				? (QString::number(*feeBps / 100.) + '%')
+				: u"—"_q)
 		).widget);
 	if (value > amount) {
 		AddTableRow(

@@ -91,7 +91,7 @@ public:
 
 	[[nodiscard]] rpl::producer<int64> amountValue() const;
 	[[nodiscard]] rpl::producer<bool> fixedValue() const;
-	[[nodiscard]] int feeBps() const;
+	[[nodiscard]] std::optional<int> feeBps() const;
 	[[nodiscard]] std::optional<int64> buyersPay() const;
 	[[nodiscard]] rpl::producer<std::optional<int64>> feeValue() const;
 	[[nodiscard]] rpl::producer<bool> insufficientValue() const;
@@ -123,7 +123,7 @@ private:
 	const base::weak_ptr<Main::Session> _weakSession;
 	const not_null<Wallet::Session*> _wallet;
 	MTP::Sender _api;
-	const int _feeBps = 0;
+	const std::optional<int> _feeBps;
 	std::optional<Wallet::ServedOperation> _operation;
 	rpl::variable<bool> _requesting = false;
 	rpl::variable<int64> _amount = 0;
@@ -248,12 +248,6 @@ private:
 	}
 	const auto text = Wallet::SendErrorText(error, 0);
 	return text.isEmpty() ? tr::lng_gift_buy_onchain_error(tr::now) : text;
-}
-
-[[nodiscard]] int BuyersFeeBps(SaleKind kind, const Data::UniqueGift &gift) {
-	return (kind == SaleKind::Change && gift.fixedSale)
-		? Data::FixedSaleFeeBps(gift)
-		: Data::kFixedSaleFeeBps;
 }
 
 [[nodiscard]] std::optional<int64> MessagesValue(
@@ -415,6 +409,7 @@ void FillSaleTerms(
 		not_null<TableLayout*> table,
 		SaleKind kind,
 		int64 price,
+		bool listing,
 		std::optional<int64> buyers,
 		int64 amount) {
 	if (kind != SaleKind::Unlist) {
@@ -425,6 +420,11 @@ void FillSaleTerms(
 			table,
 			tr::lng_gift_sell_onchain_buyers_pay(),
 			rpl::single(*buyers));
+	} else if (listing) {
+		AddTableRow(
+			table,
+			tr::lng_gift_sell_onchain_buyers_pay(),
+			rpl::single(tr::marked(u"—"_q)));
 	}
 	AddGramRow(
 		table,
@@ -440,7 +440,7 @@ OnchainSale::OnchainSale(not_null<GenericBox*> box, SaleArgs args)
 , _weakSession(base::make_weak(_session))
 , _wallet(&_session->wallet())
 , _api(&_session->mtp())
-, _feeBps(BuyersFeeBps(_args.kind, *_args.gift))
+, _feeBps(_args.gift->feeBps)
 , _signing({
 	.box = box,
 	.show = _args.show,
@@ -481,12 +481,14 @@ rpl::producer<bool> OnchainSale::fixedValue() const {
 	return _fixed.value();
 }
 
-int OnchainSale::feeBps() const {
+std::optional<int> OnchainSale::feeBps() const {
 	return _feeBps;
 }
 
 std::optional<int64> OnchainSale::buyersPay() const {
-	return Data::PriceWithSaleFee(_args.price, _feeBps);
+	return _feeBps
+		? Data::PriceWithSaleFee(_args.price, *_feeBps)
+		: std::nullopt;
 }
 
 rpl::producer<std::optional<int64>> OnchainSale::feeValue() const {
@@ -653,7 +655,7 @@ void OnchainSale::fixedAnswered(Wallet::ServedOperation operation) {
 	if (amount <= 0
 		|| !gasless
 		|| (*gasless > amount)
-		|| (listing && !buyersPay())) {
+		|| (listing && _feeBps && !buyersPay())) {
 		LOG(("API Error: %1 answered a malformed fixed sale "
 			"(%2 messages, price %3)."
 			).arg(RequestMethod(_args.kind)
@@ -791,13 +793,14 @@ void OnchainSaleBox(not_null<GenericBox*> box, SaleArgs args) {
 			terms->entity(),
 			kind,
 			price,
+			listing,
 			listing ? sale->buyersPay() : std::nullopt,
 			amount);
 	}, terms->lifetime());
 	terms->toggleOn(sale->amountValue() | rpl::map(rpl::mappers::_1 > 0));
 	box->addSkip(st::walletConnectCardMargin.bottom() - padding.bottom());
-	if (kind != SaleKind::Unlist) {
-		const auto percent = QString::number(sale->feeBps() / 100.) + '%';
+	if (kind != SaleKind::Unlist && sale->feeBps()) {
+		const auto percent = QString::number(*sale->feeBps() / 100.) + '%';
 		const auto caption = box->addRow(
 			object_ptr<SlideWrap<FlatLabel>>(
 				box,

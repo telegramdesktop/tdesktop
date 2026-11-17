@@ -381,7 +381,7 @@ OnchainPurchase::OnchainPurchase(
 , _cost(Data::UniqueGiftBuyerPays(*_gift).value_or(0))
 , _price(_gift->nanoTonForResale)
 , _total(_cost)
-, _feeBps(_gift->fixedSale ? Data::FixedSaleFeeBps(*_gift) : 0)
+, _feeBps(_gift->fixedSale ? *_gift->feeBps : 0)
 , _fixed(_gift->fixedSale)
 , _signing({
 	.box = box,
@@ -1141,7 +1141,7 @@ void OnchainPurchase::repriced(const Data::UniqueGift &gift, int64 cost) {
 	_error = SendError::None;
 	_fee = std::nullopt;
 	_fixed = gift.fixedSale;
-	_feeBps = gift.fixedSale ? Data::FixedSaleFeeBps(gift) : 0;
+	_feeBps = gift.fixedSale ? *gift.feeBps : 0;
 	_price = gift.nanoTonForResale;
 	_cost = cost;
 	_total = cost;
