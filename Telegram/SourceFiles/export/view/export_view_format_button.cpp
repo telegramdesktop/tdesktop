@@ -15,14 +15,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_export.h"
 #include "styles/style_media_player.h"
 
+#include <QtGui/QMouseEvent>
+
 namespace Export::View {
+namespace {
+
+class FormatButton final : public Ui::RoundButton {
+public:
+	using Ui::RoundButton::RoundButton;
+
+protected:
+	void mousePressEvent(QMouseEvent *e) override;
+
+};
+
+void FormatButton::mousePressEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton) {
+		return RoundButton::mousePressEvent(e);
+	}
+	e->accept();
+	clicked(e->modifiers(), e->button());
+}
+
+} // namespace
 
 object_ptr<Ui::RoundButton> CreateFormatButton(
 		not_null<QWidget*> parent,
 		rpl::producer<Output::Format> value,
 		Fn<void(Output::Format)> changed) {
 	using Format = Output::Format;
-	auto result = object_ptr<Ui::RoundButton>(
+	auto result = object_ptr<FormatButton>(
 		parent,
 		rpl::single(QString()),
 		st::exportFormatButton);
@@ -68,6 +90,9 @@ object_ptr<Ui::RoundButton> CreateFormatButton(
 		if (menu->prepareGeometryFor(button->mapToGlobal(QPoint()))) {
 			const auto shadow = Ui::BoxShadow::ExtendFor(menu->st().shadow);
 			menu->move(menu->pos() - QPoint(shadow.left(), shadow.bottom()));
+			if (QGuiApplication::mouseButtons() & Qt::LeftButton) {
+				menu->menu()->handlePressedOutside(QCursor::pos());
+			}
 			menu->popupPrepared();
 		}
 	});
