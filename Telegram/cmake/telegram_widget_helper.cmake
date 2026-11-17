@@ -60,6 +60,7 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
 target_link_libraries(TelegramWidgetHelper
 PRIVATE
     tdesktop::lib_widget_sandbox
+    tdesktop::lib_nova_engine
     desktop-app::external_gsl
 )
 

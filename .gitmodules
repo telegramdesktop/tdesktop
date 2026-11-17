@@ -112,3 +112,6 @@
 [submodule "Telegram/ThirdParty/widget-sandbox"]
 	path = Telegram/ThirdParty/widget-sandbox
 	url = https://github.com/TelegramMessenger/widget-sandbox.git
+[submodule "Telegram/ThirdParty/nova-safe"]
+	path = Telegram/ThirdParty/nova-safe
+	url = https://github.com/TelegramMessenger/nova-safe.git

@@ -14,11 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tgw {
 namespace {
 
-constexpr auto kBytecodeHeader = 24;
-constexpr auto kBytecodeFormat = uint64(1);
-constexpr auto kHashBasis = uint64(1469598103934665603ULL);
-constexpr auto kHashPrime = uint64(1099511628211ULL);
-
 enum class Status : uchar {
 	Idle,
 	Preparing,
@@ -29,7 +24,6 @@ enum class Status : uchar {
 struct Script {
 	QString name;
 	QByteArray source;
-	QByteArray bytecode;
 };
 
 struct Package {
@@ -60,48 +54,13 @@ struct State {
 	return result;
 }
 
-[[nodiscard]] uint64 ReadLittleEndian(
-		const QByteArray &bytes,
-		int offset,
-		int size) {
-	auto result = uint64();
-	for (auto i = 0; i != size; ++i) {
-		result |= uint64(uchar(bytes.at(offset + i))) << (8 * i);
-	}
-	return result;
-}
-
-[[nodiscard]] uint64 Hash(const QByteArray &bytes) {
-	auto result = kHashBasis;
-	for (const auto byte : bytes) {
-		result ^= uint64(uchar(byte));
-		result *= kHashPrime;
-	}
-	return result;
-}
-
-[[nodiscard]] bool MatchesSource(
-		const QByteArray &bytecode,
-		const QByteArray &source) {
-	return (bytecode.size() > kBytecodeHeader)
-		&& bytecode.startsWith("TWQB")
-		&& (ReadLittleEndian(bytecode, 4, 4) == kBytecodeFormat)
-		&& (ReadLittleEndian(bytecode, 8, 8) == uint64(source.size()))
-		&& (ReadLittleEndian(bytecode, 16, 8) == Hash(source));
-}
-
 [[nodiscard]] std::optional<Script> ReadScript(const QString &name) {
 	auto result = Script{
 		.name = name,
 		.source = ReadSource(name + u".js"_q),
-		.bytecode = ReadAsset(name + u".qbc"_q),
 	};
 	if (result.source.isEmpty()) {
 		LOG(("Tgw Error: Missing packaged '%1.js'.").arg(name));
-		return std::nullopt;
-	} else if (!MatchesSource(result.bytecode, result.source)) {
-		LOG(("Tgw Error: Packaged '%1.qbc' does not match its source."
-			).arg(name));
 		return std::nullopt;
 	}
 	return result;
@@ -131,9 +90,7 @@ struct State {
 }
 
 [[nodiscard]] bool WriteScript(const QString &folder, const Script &script) {
-	const auto path = folder + '/' + script.name;
-	return WriteAsset(path + u".js"_q, script.source)
-		&& WriteAsset(path + u".qbc"_q, script.bytecode);
+	return WriteAsset(folder + '/' + script.name + u".js"_q, script.source);
 }
 
 [[nodiscard]] bool WritePackage(
@@ -159,31 +116,18 @@ struct State {
 	return nullptr;
 }
 
-template <typename Bytes>
-[[nodiscard]] bool Same(const QByteArray &bytes, const Bytes &loaded) {
-	return (size_t(bytes.size()) == loaded.size())
-		&& (loaded.empty()
-			|| !memcmp(bytes.constData(), loaded.data(), loaded.size()));
-}
-
 [[nodiscard]] bool SameScript(
 		const Script &script,
-		const std::string &source,
-		const std::vector<uint8_t> &bytecode) {
-	return Same(script.source, source) && Same(script.bytecode, bytecode);
+		const std::string &loaded) {
+	return (size_t(script.source.size()) == loaded.size())
+		&& !memcmp(script.source.constData(), loaded.data(), loaded.size());
 }
 
 [[nodiscard]] bool CheckLoaded(
 		const twidget::SandboxResources &resources,
 		const Package &package) {
-	return SameScript(
-			package.sandbox,
-			resources.sandboxBundle,
-			resources.sandboxBytecode)
-		&& SameScript(
-			package.validator,
-			resources.validatorBundle,
-			resources.validatorBytecode);
+	return SameScript(package.sandbox, resources.sandboxBundle)
+		&& SameScript(package.validator, resources.validatorBundle);
 }
 
 [[nodiscard]] std::shared_ptr<twidget::SandboxResources> Prepare(

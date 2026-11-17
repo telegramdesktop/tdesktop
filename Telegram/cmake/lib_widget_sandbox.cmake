@@ -5,11 +5,13 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 # The shared widget sandbox from ThirdParty/widget-sandbox (packages/desktop):
-# the Qt-free C++ host that runs untrusted widget scripts in QuickJS, checks
-# every DOM operation with the shared validator and talks the shared host
-# protocol to a renderer. Its JavaScript bundles live next to it in
+# the Qt-free C++ host that runs untrusted widget scripts in the Nova engine,
+# checks every DOM operation with the shared validator and talks the shared
+# host protocol to a renderer. Its JavaScript bundles live next to it in
 # packages/desktop/WidgetJS. Only the library sources are compiled here; the
 # package's own CMakeLists always builds its harness and tests as well.
+# Nova (ThirdParty/nova-safe, engine crates without unsafe code) is linked by
+# whoever links this library (cmake/lib_nova_engine.cmake); nova_engine.h is its C interface.
 # On Windows IcuIntl (src/icu_intl.cpp) is built too, linking icu; Telegram delay-loads icu.dll.
 # There is no packaged branch: no distribution ships this library.
 
@@ -47,7 +49,7 @@ PRIVATE
     include/twidget/intl.h
     include/twidget/js_thread.h
     include/twidget/json.h
-    include/twidget/quickjs_context.h
+    include/twidget/nova_context.h
     include/twidget/remote_engine.h
     include/twidget/remote_hosted.h
     include/twidget/remote_stream.h
@@ -63,7 +65,7 @@ PRIVATE
     src/gesture_policy.cpp
     src/intl.cpp
     src/js_thread.cpp
-    src/quickjs_context.cpp
+    src/nova_context.cpp
     src/remote_coding.cpp
     src/remote_engine.cpp
     src/remote_hosted.cpp
@@ -88,9 +90,10 @@ PUBLIC
     ${widget_sandbox_loc}/include
 )
 
-target_link_libraries(lib_widget_sandbox
-PUBLIC
-    tdesktop::lib_quickjs
+# Not SYSTEM, so that an engine update rebuilds the object compiled against nova_engine.h.
+target_include_directories(lib_widget_sandbox
+PRIVATE
+    ${nova_loc}/nova_embed_ffi/include
 )
 
 if (WIN32)

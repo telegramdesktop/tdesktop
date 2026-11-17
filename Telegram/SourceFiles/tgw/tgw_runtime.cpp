@@ -86,7 +86,7 @@ static_assert(kMaxNotes * kMaxNoteLength * int(sizeof(QChar))
 static_assert(kSnapshotBytes + kNotesBytes < kLogBytes);
 
 #ifdef _DEBUG
-constexpr auto kCpuLimitScale = 4.; // unoptimized Debug QuickJS runs ~3x slower
+constexpr auto kCpuLimitScale = 4.; // unoptimized Debug glue runs slower
 #else
 constexpr auto kCpuLimitScale = 1.;
 #endif // _DEBUG

@@ -37,8 +37,8 @@ include(cmake/lib_prisma.cmake)
 include(cmake/lib_fido2.cmake)
 include(cmake/lib_zxcvbn.cmake)
 include(cmake/lib_litehtml.cmake)
-include(cmake/lib_quickjs.cmake)
 include(cmake/lib_widget_renderer.cmake)
+include(cmake/lib_nova_engine.cmake)
 include(cmake/lib_widget_sandbox.cmake)
 include(cmake/td_export.cmake)
 include(cmake/td_gram.cmake)
@@ -87,9 +87,9 @@ target_link_libraries(Telegram
 PRIVATE
     tdesktop::lib_fido2
     tdesktop::lib_litehtml
-    tdesktop::lib_quickjs
     tdesktop::lib_widget_renderer
     tdesktop::lib_widget_sandbox
+    tdesktop::lib_nova_engine_private
     tdesktop::lib_tgcalls
     tdesktop::td_export
     tdesktop::td_gram
