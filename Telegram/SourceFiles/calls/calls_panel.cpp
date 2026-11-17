@@ -398,7 +398,9 @@ void Panel::initWidget() {
 }
 
 void Panel::initControls() {
-	createPinOnTop();
+	if (!Platform::IsWayland()) {
+		createPinOnTop();
+	}
 
 	for (const auto &button : bottomButtons()) {
 		setupButtonTooltip(button);
@@ -1030,7 +1032,9 @@ void Panel::showControls() {
 	Expects(_call != nullptr);
 
 	widget()->showChildren();
-	_pinOnTop->setVisible(!_fullScreenOrMaximized.current());
+	if (_pinOnTop) {
+		_pinOnTop->setVisible(!_fullScreenOrMaximized.current());
+	}
 	if (_rateCall) {
 		hideControlsForRating();
 	} else {
