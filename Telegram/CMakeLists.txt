@@ -2942,7 +2942,11 @@ if (WIN32)
     # pythonNNN.dll грузим отложенно: если архив распаковали не целиком или exe запустили
     # из архива, клиент всё равно стартует (без плагинов), а не падает «не найден python312.dll».
     target_link_libraries(Telegram PRIVATE delayimp)
-    target_link_options(Telegram PRIVATE /DELAYLOAD:python${Python3_VERSION_MAJOR}${Python3_VERSION_MINOR}.dll)
+    # Mokagram: интерпретатор для подготовки может отличаться от embed
+    # runtime. Берём имя DLL из выбранного runtime, иначе /DELAYLOAD не
+    # совпадает с импортом python312.dll.
+    get_filename_component(mokagram_python_dll "${Python3_RUNTIME_LIBRARY_RELEASE}" NAME)
+    target_link_options(Telegram PRIVATE /DELAYLOAD:${mokagram_python_dll})
 
     if (DESKTOP_APP_WIN7_BASELINE)
         # The loader reads the subsystem version as the minimal Windows.
