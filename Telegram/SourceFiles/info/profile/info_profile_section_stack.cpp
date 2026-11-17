@@ -68,8 +68,8 @@ namespace {
 	return wrap;
 }
 
-constexpr auto kCardRadius = 22; // Mokagram: как карточки настроек.
-constexpr auto kCardInset = 4;
+constexpr auto kCardRadius = style::ConvertScale(22); // Mokagram: как карточки настроек.
+constexpr auto kCardInset = style::ConvertScale(4);
 
 // Mokagram: секция профиля как отдельная скруглённая таблетка.
 // Фон рисуется под содержимым, а углы закрывают четыре маленьких виджета
@@ -79,7 +79,9 @@ void MakeCard(not_null<Ui::RpWidget*> card) {
 	card->paintRequest(
 	) | rpl::on_next([=](QRect clip) {
 		auto p = QPainter(card);
-		p.fillRect(clip, st::windowBg);
+		// Mokagram: windowBg совпадает с фоном страницы. Для карточки нужен
+		// отдельный слой, иначе на тёмной палитре она визуально исчезает.
+		p.fillRect(clip, st::windowBgOver);
 	}, card->lifetime());
 
 	struct Corner {
