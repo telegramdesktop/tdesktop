@@ -7616,7 +7616,7 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 								lt_user,
 								tr::link(from->shortName(), 1),
 								tr::marked);
-			} else if (action.is_assigned()) {
+			} else if (action.is_assigned() && !resale) {
 				const auto gift = Api::FromTL(
 					&history()->session(),
 					action.vgift());
