@@ -219,10 +219,10 @@ namespace Platform::WidgetHelper {
 namespace {
 
 using details::SystemError;
+using details::kRelayEndWait;
 
 constexpr auto kSpareDescriptorMin = 10;
 constexpr auto kAbandonWait = crl::time(1000);
-constexpr auto kRelayEndWait = std::chrono::milliseconds(1000);
 
 #if defined __arm64__
 constexpr auto kCpuType = cpu_type_t(CPU_TYPE_ARM64);

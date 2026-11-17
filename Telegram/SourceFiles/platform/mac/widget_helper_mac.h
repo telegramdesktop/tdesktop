@@ -7,7 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <chrono>
+
 namespace Platform::WidgetHelper::details {
+
+constexpr auto kRelayEndWait = std::chrono::milliseconds(1000);
 
 struct RequirementText {
 	QString text;

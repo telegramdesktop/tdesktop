@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "platform/mac/widget_helper_mac.h"
 #include "platform/posix/widget_channel_posix.h"
+#include "platform/posix/widget_stderr_posix.h"
 
 #include <Foundation/Foundation.h>
 #include <sys/event.h>
@@ -23,6 +24,7 @@ namespace Platform::WidgetHelper {
 namespace {
 
 using details::SystemError;
+using details::kRelayEndWait;
 
 constexpr auto kStartWait = crl::time(15000);
 constexpr auto kAbandonWait = crl::time(1000);
@@ -209,10 +211,11 @@ QString ReplyError(
 
 [[nodiscard]] XpcHolder ChannelMessage(
 		int channel,
+		int errorOutput,
 		const QStringList &arguments) {
 	auto result = XpcHolder(xpc_dictionary_create(nullptr, nullptr, 0));
 	xpc_dictionary_set_fd(result.get(), "channel", channel);
-	xpc_dictionary_set_fd(result.get(), "stderr", STDERR_FILENO);
+	xpc_dictionary_set_fd(result.get(), "stderr", errorOutput);
 	if (!arguments.isEmpty()) {
 		const auto list = XpcHolder(xpc_array_create(nullptr, 0));
 		for (const auto &argument : arguments) {
@@ -291,6 +294,13 @@ Launched LaunchService(const QStringList &arguments) {
 	if (!channel.error.empty()) {
 		return { .error = QString::fromStdString(channel.error) };
 	}
+	auto output = PrepareHelperStderr(STDERR_FILENO + 1);
+	if (!output.error.empty()) {
+		return { .error = QString::fromStdString(output.error) };
+	}
+	const auto closeOutput = gsl::finally([descriptor = output.descriptor] {
+		close(descriptor);
+	});
 
 	const auto state = std::make_shared<State>();
 	const auto connection = xpc_connection_create(
@@ -335,7 +345,10 @@ Launched LaunchService(const QStringList &arguments) {
 		return { .error = Abandon(std::move(service), watched) };
 	}
 
-	auto message = ChannelMessage(channel.child->descriptor(), arguments);
+	auto message = ChannelMessage(
+		channel.child->descriptor(),
+		output.descriptor,
+		arguments);
 	channel.child = nullptr;
 	const auto reply = Send(connection, std::move(message), state, deadline);
 	auto refused = ReplyError(
@@ -360,10 +373,17 @@ Launched LaunchService(const QStringList &arguments) {
 		});
 	return {
 		.stream = std::move(channel.parent),
-		.complete = [service = std::move(service)](
-				crl::time exitWait,
-				crl::time killWait) mutable {
-			return Complete(std::move(service), exitWait, killWait);
+		.complete = [
+			service = std::move(service),
+			relay = std::move(output.relay)
+		](crl::time exitWait, crl::time killWait) mutable {
+			auto completion = Complete(std::move(service), exitWait, killWait);
+			if (relay && completion.reaped) {
+				// macOS discards the queued bytes once the end is shut.
+				relay->drain(kRelayEndWait);
+			}
+			relay = nullptr;
+			return completion;
 		},
 		.pid = pid,
 	};
