@@ -1560,9 +1560,6 @@ QString CursorCover::text() const {
 			QString::number(cursor.y));
 }
 #else // Q_OS_WIN
-CursorCover::CursorCover(not_null<QScreen*>, QPoint) {
-}
-
 bool CursorCover::shown() const {
 	return false;
 }
