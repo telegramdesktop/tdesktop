@@ -7,9 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/widget_helper_image_win.h"
 
-#ifndef OS_WIN_STORE
 #include "widget_helper_identity.h"
-#endif // OS_WIN_STORE
 
 #include <gsl/gsl>
 
@@ -115,14 +113,12 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 }
 
 [[nodiscard]] std::string_view ExpectedDigest() {
-#ifndef OS_WIN_STORE
 	const auto architecture = Utf8(kHelperArchitecture);
 	for (const auto &built : details::kBuiltDigests) {
 		if (built.architecture == architecture) {
 			return built.digest;
 		}
 	}
-#endif // OS_WIN_STORE
 	return std::string_view();
 }
 

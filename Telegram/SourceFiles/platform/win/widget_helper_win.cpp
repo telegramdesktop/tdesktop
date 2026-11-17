@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/platform_widget_helper.h"
 
-#include "base/platform/base_platform_info.h"
 #include "base/random.h"
 #include "platform/win/widget_channel_win.h"
 #include "platform/win/widget_helper_image_win.h"
@@ -354,9 +353,6 @@ struct Child {
 } // namespace
 
 QString UnsupportedReason() {
-	if (::Platform::IsWindowsStoreBuild()) {
-		return u"the widget helper is not available in the Store build"_q;
-	}
 	const auto minimum = QOperatingSystemVersion(
 		QOperatingSystemVersion::Windows,
 		10,

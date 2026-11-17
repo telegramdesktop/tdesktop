@@ -26,7 +26,7 @@ get_filename_component(res_loc Resources REALPATH)
 
 include(cmake/telegram_options.cmake)
 if (APPLE
-    OR (WIN32 AND NOT build_winstore)
+    OR WIN32
     OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(cmake/init_standalone_target.cmake)
 endif()
@@ -3099,7 +3099,7 @@ endif()
 target_prepare_qrc(Telegram)
 
 if (APPLE
-    OR (WIN32 AND NOT build_winstore)
+    OR WIN32
     OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
     include(cmake/telegram_widget_helper.cmake)
 endif()

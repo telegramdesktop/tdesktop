@@ -290,6 +290,7 @@ if %BuildUWP% equ 0 (
   )
 ) else (
   call :sign "StartupTask.exe"
+  call :sign "modules\%Platform%\TelegramWidgetHelper.exe"
 )
 
 for /f ^"usebackq^ eol^=^
@@ -311,7 +312,9 @@ if %BuildUWP% neq 0 (
   cd "%HomePath%"
 
   if %BuildARM% equ 0 (
-    mkdir "%ReleasePath%\AppX\modules\%Platform%\d3d"
+    mkdir "%ReleasePath%\AppX\modules\%Platform%\d3d" || goto error
+  ) else (
+    mkdir "%ReleasePath%\AppX\modules\%Platform%" || goto error
   )
   xcopy "Resources\uwp\AppX\*" "%ReleasePath%\AppX\" /E
   set "ResourcePath=%ReleasePath%\AppX\AppxManifest.xml"
@@ -320,6 +323,7 @@ if %BuildUWP% neq 0 (
 
   xcopy "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\AppX\"
   xcopy "%ReleasePath%\StartupTask.exe" "%ReleasePath%\AppX\"
+  xcopy "%ReleasePath%\modules\%Platform%\TelegramWidgetHelper.exe" "%ReleasePath%\AppX\modules\%Platform%\" || goto error
   if %BuildARM% equ 0 (
     xcopy "%ReleasePath%\modules\%Platform%\d3d\d3dcompiler_47.dll" "%ReleasePath%\AppX\modules\%Platform%\d3d\"
   )
