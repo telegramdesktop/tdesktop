@@ -100,6 +100,11 @@ void PromoSuggestions::refreshTopPromotion() {
 
 		result.match([&](const MTPDhelp_promoDataEmpty &data) {
 			setTopPromoted(nullptr, QString(), QString());
+			if (!_pendingSuggestions.empty() || _custom) {
+				_pendingSuggestions.clear();
+				_custom = std::nullopt;
+				_refreshed.fire({});
+			}
 		}, [&](const MTPDhelp_promoData &data) {
 			_session->data().processChats(data.vchats());
 			_session->data().processUsers(data.vusers());
