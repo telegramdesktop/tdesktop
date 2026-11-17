@@ -167,6 +167,13 @@ void DeleteMyModules() {
 	RemoveDirectory(modules.c_str());
 }
 
+void DeleteMyStartLogs() {
+	Logs::closeMain();
+	for (auto i = 0; i != 10; ++i) {
+		QFile::remove(cWorkingDir() + u"log_start%1.txt"_q.arg(i));
+	}
+}
+
 bool ManageAppLink(
 		bool create,
 		bool silent,
@@ -272,6 +279,7 @@ void psDoCleanup() {
 		psSendToMenu(false, true);
 		AppUserModelId::CleanupShortcut();
 		DeleteMyModules();
+		DeleteMyStartLogs();
 	} catch (...) {
 	}
 }
