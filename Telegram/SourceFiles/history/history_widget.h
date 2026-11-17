@@ -979,7 +979,7 @@ private:
 	std::unique_ptr<Ui::RpWidget> _sendRestriction;
 	using CharactersLimitLabel = HistoryView::Controls::CharactersLimitLabel;
 	base::unique_qptr<CharactersLimitLabel> _charsLimitation;
-	QString _sendRestrictionKey;
+	std::tuple<PeerId, QString, int> _sendRestrictionKey;
 	Ui::Animations::Simple _inPhotoEditOver;
 	bool _inDetails = false;
 	bool _inPhotoEdit = false;

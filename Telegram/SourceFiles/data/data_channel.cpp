@@ -1097,12 +1097,12 @@ void ChannelData::setBoostsUnrestrict(int applied, int unrestrict) {
 		info->boostsApplied = applied;
 		info->boostsUnrestrict = unrestrict;
 		const auto nowUnrestricted = unrestrictedByBoosts();
+		auto flags = Data::PeerUpdate::Flags(UpdateFlag::Rights);
 		if (wasUnrestricted != nowUnrestricted) {
 			info->unrestrictedByBoostsChanges.fire_copy(nowUnrestricted);
-			session().changes().peerUpdated(
-				this,
-				UpdateFlag::Rights | UpdateFlag::Slowmode);
+			flags |= UpdateFlag::Slowmode;
 		}
+		session().changes().peerUpdated(this, flags);
 	}
 }
 
