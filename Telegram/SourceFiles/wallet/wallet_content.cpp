@@ -8887,7 +8887,12 @@ void WalletSendBox(
 		if (state->heldFee) {
 			if (const auto quote = draft->quote.current()) {
 				const auto shown = *base::take(state->heldFee);
-				if (shown != QuoteConfirmFee(*quote)) {
+				const auto updated = QuoteConfirmFee(*quote);
+				if (shown.gasless != updated.gasless
+					|| shown.pending != updated.pending
+					|| FeeChangeNeedsConfirmation(
+						shown.feeNano,
+						updated.feeNano)) {
 					const auto held = state->sendAuthorization;
 					stopSending();
 					state->heldAuthorization = held;
@@ -9036,7 +9041,7 @@ void WalletSendBox(
 			return;
 		}
 		// WHY: Enter reaches here whatever the button shows, so a press made
-		// while counting waits and goes on only at the fee shown; this press
+		// while counting waits and checks the displayed fee; this press
 		// answers the previous held press's "review the new fee" refusal.
 		if (state->previewError.current() == SendError::QuoteExpired) {
 			state->previewError = SendError::None;

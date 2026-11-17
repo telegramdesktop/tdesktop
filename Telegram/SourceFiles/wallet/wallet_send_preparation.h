@@ -21,6 +21,10 @@ namespace Wallet {
 inline constexpr auto kSendRefusalRetries = 3;
 inline constexpr auto kSigningReadyTimeout = 30 * crl::time(1000);
 
+[[nodiscard]] bool FeeChangeNeedsConfirmation(
+	std::optional<int64> shown,
+	std::optional<int64> updated);
+
 struct SendCallbacks {
 	Fn<void(SendStarted)> started;
 	Fn<void(SendError)> sent;

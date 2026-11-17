@@ -14,6 +14,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Wallet {
 
+bool FeeChangeNeedsConfirmation(
+		std::optional<int64> shown,
+		std::optional<int64> updated) {
+	if (shown == updated) {
+		return false;
+	} else if (!shown || !updated || *shown <= 0 || *updated < 0) {
+		return true;
+	}
+	constexpr auto kPercent = 20;
+	const auto change = (*updated > *shown)
+		? (*updated - *shown)
+		: (*shown - *updated);
+	const auto threshold = (*shown / 100) * kPercent
+		+ ((*shown % 100) * kPercent + 99) / 100;
+	return change >= threshold;
+}
+
 SendPreparation::SendPreparation(SendPreparationDescriptor &&descriptor)
 : _show(std::move(descriptor.show))
 , _session(&_show->session())

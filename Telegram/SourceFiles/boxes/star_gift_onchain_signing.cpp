@@ -291,7 +291,9 @@ void OnchainSigning::estimated(Wallet::FeeResult result) {
 	} else if (error != SendError::None) {
 		refused(error);
 	} else if (stage == Stage::Estimating
-		|| _fee.current() != result.feeNano) {
+		|| Wallet::FeeChangeNeedsConfirmation(
+			_fee.current(),
+			result.feeNano)) {
 		quoted(result.feeNano);
 	} else {
 		_prepared = std::move(result.prepared);
