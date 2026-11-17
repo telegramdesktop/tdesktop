@@ -22,7 +22,13 @@ using Spellchecker::ConvertLangId;
 using Spellchecker::LangIdSchemeForAppVersion;
 using Spellchecker::RecoverLangIdFromSerialized;
 
+#if defined Q_OS_MAC || defined Q_PROCESSOR_ARM
+constexpr auto kFirstQt6Release = 0;
+#elif defined Q_OS_LINUX
+constexpr auto kFirstQt6Release = 3001012;
+#else
 constexpr auto kFirstQt6Release = 7003002;
+#endif
 
 void Check(
 		LangIdsMigrationReport &report,
@@ -134,12 +140,19 @@ void CheckTable(LangIdsMigrationReport &report) {
 
 void CheckSchemeForAppVersion(LangIdsMigrationReport &report) {
 	Check(report, LangIdSchemeForAppVersion(0) == 6, u"scheme fresh"_q);
-	Check(report, LangIdSchemeForAppVersion(1) == 5, u"scheme ancient"_q);
-	Check(report, LangIdSchemeForAppVersion(7002009) == 5, u"scheme 7.2.9"_q);
-	Check(report, LangIdSchemeForAppVersion(7003001) == 5, u"scheme 7.3.1"_q);
+	if constexpr (kFirstQt6Release > 0) {
+		Check(report, LangIdSchemeForAppVersion(1) == 5, u"scheme ancient"_q);
+		Check(report, LangIdSchemeForAppVersion(kFirstQt6Release - 1) == 5,
+			u"scheme before Qt6"_q);
+	}
 	Check(report, LangIdSchemeForAppVersion(kFirstQt6Release) == 6,
-		u"scheme 7.3.2"_q);
-	Check(report, LangIdSchemeForAppVersion(7003003) == 6, u"scheme next"_q);
+		u"scheme first Qt6"_q);
+	Check(report, LangIdSchemeForAppVersion(kFirstQt6Release + 1) == 6,
+		u"scheme after Qt6"_q);
+#if defined Q_OS_LINUX
+	Check(report, LangIdSchemeForAppVersion(7002009) == 6,
+		u"scheme Linux 7.2.9"_q);
+#endif
 }
 
 void CheckRecover(LangIdsMigrationReport &report) {
@@ -157,6 +170,7 @@ void CheckRecover(LangIdsMigrationReport &report) {
 
 void CheckBlob(LangIdsMigrationReport &report) {
 	auto origin = Core::Settings();
+	origin.setDictionariesEnabled({ 94, 239 });
 	origin.setSkipTranslationLanguages({ Lang(94), Lang(31) });
 	origin.setTranslateTo(Lang(84));
 
@@ -186,6 +200,24 @@ void CheckBlob(LangIdsMigrationReport &report) {
 		currentAgain.serialize() == savedOnce,
 		u"qt6 file save idempotent"_q);
 
+#if defined Q_OS_LINUX
+	for (const auto version : { 3001012, 4000000, 7002009, 7003001 }) {
+		auto linuxReader = Core::Settings();
+		linuxReader.addFromSerialized(OldFormatBlob(origin), version);
+		Check(report, linuxReader.translateTo() == origin.translateTo(),
+			u"Linux Qt6 target preserved"_q);
+		Check(report,
+			linuxReader.skipTranslationLanguages() == origin.skipTranslationLanguages(),
+			u"Linux Qt6 skip languages preserved"_q);
+		Check(report,
+			linuxReader.dictionariesEnabled() == origin.dictionariesEnabled(),
+			u"Linux Qt6 dictionaries preserved"_q);
+	}
+#endif
+
+	if constexpr (kFirstQt6Release == 0) {
+		return;
+	}
 	auto migrated = Core::Settings();
 	migrated.addFromSerialized(OldFormatBlob(origin), kFirstQt6Release - 1);
 	Check(
