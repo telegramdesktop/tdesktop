@@ -28,6 +28,26 @@ exportFileSizeLabel: LabelSimple(defaultLabelSimple) {
 exportFileSizePadding: margins(22px, 8px, 22px, 8px);
 exportFileSizeLabelBottom: 18px;
 
+exportFormatButtonTop: 1px;
+exportFormatButton: RoundButton(defaultLightButton) {
+	width: -14px;
+	height: 20px;
+	textTop: 2px;
+	fullRadius: true;
+	textFg: windowBoldFg;
+	textFgOver: windowBoldFg;
+	textBg: windowBgOver;
+	textBgOver: windowBgRipple;
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px semibold);
+	}
+	ripple: defaultRippleAnimation;
+}
+exportFormatDropdownArrow: IconEmoji {
+	icon: icon {{ "arrows_select", windowSubTextFg }};
+	padding: margins(3px, 4px, 0px, 0px);
+}
+
 exportLocationLabel: FlatLabel(boxLabel) {
 	maxHeight: 21px;
 }

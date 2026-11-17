@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/view/export_view_settings.h"
 
 #include "export/output/export_output_abstract.h"
+#include "export/view/export_view_format_button.h"
 #include "export/view/export_view_panel_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/checkbox.h"
@@ -65,32 +66,6 @@ constexpr auto kMegabyte = int64(1024) * 1024;
 		- st::exportSettingPadding.left()
 		- st::exportFileSizePadding.right();
 	return (optionWidth + labelWidth <= available);
-}
-
-void ChooseFormatBox(
-		not_null<Ui::GenericBox*> box,
-		Output::Format format,
-		Fn<void(Output::Format)> done) {
-	using Format = Output::Format;
-	const auto group = std::make_shared<Ui::RadioenumGroup<Format>>(format);
-	const auto addFormatOption = [&](QString label, Format format) {
-		box->addRow(
-			object_ptr<Ui::Radioenum<Format>>(
-				box,
-				group,
-				format,
-				label,
-				st::defaultBoxCheckbox),
-			st::exportSettingPadding);
-	};
-	box->setTitle(tr::lng_export_option_choose_format());
-	addFormatOption(tr::lng_export_option_html(tr::now), Format::Html);
-	addFormatOption(tr::lng_export_option_json(tr::now), Format::Json);
-	addFormatOption(
-		tr::lng_export_option_html_and_json(tr::now),
-		Format::HtmlAndJson);
-	box->addButton(tr::lng_settings_save(), [=] { done(group->current()); });
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 } // namespace
@@ -275,7 +250,7 @@ void SettingsWidget::setupOtherOptions(
 void SettingsWidget::setupPathAndFormat(
 		not_null<Ui::VerticalLayout*> container) {
 	if (_singlePeerId != 0) {
-		addFormatAndLocationLabel(container);
+		addFormatAndLocation(container);
 		addLimitsLabel(container);
 		return;
 	}
@@ -334,27 +309,20 @@ void SettingsWidget::addLocationLabel(
 #endif // OS_MAC_STORE
 }
 
-void SettingsWidget::chooseFormat() {
-	const auto shared = std::make_shared<base::weak_qptr<Ui::GenericBox>>();
-	const auto callback = [=](Format format) {
-		changeData([&](Settings &data) {
-			data.format = format;
-		});
-		if (const auto strong = shared->get()) {
-			strong->closeBox();
-		}
-	};
-	auto box = Box(
-		ChooseFormatBox,
-		readData().format,
-		callback);
-	*shared = base::make_weak(box.data());
-	_showBoxCallback(std::move(box));
-}
-
-void SettingsWidget::addFormatAndLocationLabel(
+void SettingsWidget::addFormatAndLocation(
 		not_null<Ui::VerticalLayout*> container) {
-#ifndef OS_MAC_STORE
+#ifdef OS_MAC_STORE
+	container->add(
+		CreateFormatButton(
+			container,
+			value() | rpl::map([](const Settings &data) {
+				return data.format;
+			}) | rpl::distinct_until_changed(),
+			[=](Format format) {
+				changeData([&](Settings &data) { data.format = format; });
+			}),
+		st::exportLocationPadding);
+#else
 	auto pathLink = value() | rpl::map([](const Settings &data) {
 		return data.path;
 	}) | rpl::distinct_until_changed(
@@ -364,41 +332,27 @@ void SettingsWidget::addFormatAndLocationLabel(
 			? u"Downloads/"_q + File::DefaultDownloadPathFolder(_session)
 			: tr::lng_download_path_temp(tr::now)
 			: path;
-		return tr::link(
-			QDir::toNativeSeparators(text),
-			u"internal:edit_export_path"_q);
+		return tr::link(QDir::toNativeSeparators(text));
 	});
-	auto formatLink = value() | rpl::map([](const Settings &data) {
-		return data.format;
-	}) | rpl::distinct_until_changed(
-	) | rpl::map([](Format format) {
-		const auto text = (format == Format::Html)
-			? "HTML"
-			: (format == Format::Json)
-			? "JSON"
-			: tr::lng_export_option_html_and_json(tr::now);
-		return tr::link(text, u"internal:edit_format"_q);
-	});
-	const auto label = container->add(
-		object_ptr<Ui::FlatLabel>(
+	container->add(
+		CreateFormatAndLocation(
 			container,
+			value() | rpl::map([](const Settings &data) {
+				return data.format;
+			}) | rpl::distinct_until_changed(),
 			tr::lng_export_option_format_location(
 				lt_format,
-				std::move(formatLink),
+				rpl::single(tr::marked(QString(QChar(0xFFFC)))),
 				lt_path,
 				std::move(pathLink),
 				tr::marked),
-			st::exportLocationLabel),
+			[=](Format format) {
+				changeData([&](Settings &data) {
+					data.format = format;
+				});
+			},
+			[=] { chooseFolder(); }),
 		st::exportLocationPadding);
-	label->overrideLinkClickHandler([=](const QString &url) {
-		if (url == u"internal:edit_export_path"_q) {
-			chooseFolder();
-		} else if (url == u"internal:edit_format"_q) {
-			chooseFormat();
-		} else {
-			Unexpected("Click handler URL in export limits edit.");
-		}
-	});
 #endif // OS_MAC_STORE
 }
 

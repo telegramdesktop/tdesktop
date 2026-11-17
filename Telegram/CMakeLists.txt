@@ -1002,6 +1002,8 @@ PRIVATE
     export/export_manager.h
     export/view/export_view_content.cpp
     export/view/export_view_content.h
+    export/view/export_view_format_button.cpp
+    export/view/export_view_format_button.h
     export/view/export_view_panel_controller.cpp
     export/view/export_view_panel_controller.h
     export/view/export_view_progress.cpp

@@ -88,12 +88,11 @@ private:
 		not_null<Ui::Checkbox*> above);
 	void addLocationLabel(
 		not_null<Ui::VerticalLayout*> container);
-	void addFormatAndLocationLabel(
+	void addFormatAndLocation(
 		not_null<Ui::VerticalLayout*> container);
 	void addLimitsLabel(
 		not_null<Ui::VerticalLayout*> container);
 	void chooseFolder();
-	void chooseFormat();
 	void refreshButtons(
 		not_null<Ui::RpWidget*> container,
 		bool canStart);
