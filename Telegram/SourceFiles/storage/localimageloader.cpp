@@ -540,6 +540,7 @@ FileLoadTask::FileLoadTask(VoiceArgs &&args)
 , _duration(args.duration)
 , _waveform(std::move(args.waveform))
 , _type(args.video ? SendMediaType::Round : SendMediaType::Audio)
+, _videoSource(std::move(args.videoSource))
 , _caption(std::move(args.caption)) {
 }
 
@@ -954,6 +955,27 @@ void FileLoadTask::process(ProcessArgs &&args) {
 				MTPDdocumentAttributeVideo::Flag::f_round_message);
 			if (video->supportsStreaming) {
 				flags |= MTPDdocumentAttributeVideo::Flag::f_supports_streaming;
+			}
+			if (_videoSource) {
+				_result->videoSource = _videoSource;
+				const auto duration = Media::Encode::TranscodedDuration(
+					*_videoSource,
+					video->duration);
+				video->duration = duration;
+				const auto target = Media::Encode::TranscodedSize(
+					*_videoSource,
+					video->thumbnail.size());
+				if (!target.isEmpty()) {
+					coverWidth = target.width();
+					coverHeight = target.height();
+					if (!video->thumbnail.isNull()) {
+						video->thumbnail = base::take(video->thumbnail)
+							.scaled(
+								target,
+								Qt::IgnoreAspectRatio,
+								Qt::SmoothTransformation);
+					}
+				}
 			}
 			const auto realSeconds = video->duration / 1000.;
 			attributes.push_back(MTP_documentAttributeVideo(

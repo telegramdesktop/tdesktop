@@ -15,6 +15,10 @@ enum class SendProgressType;
 struct SendAction;
 } // namespace Api
 
+namespace Media::Encode {
+struct VideoSource;
+} // namespace Media::Encode
+
 namespace Data {
 class GroupCall;
 } // namespace Data
@@ -38,6 +42,7 @@ struct VoiceToSend {
 	crl::time duration = 0;
 	Api::SendOptions options;
 	bool video = false;
+	std::shared_ptr<::Media::Encode::VideoSource> videoSource;
 };
 struct SendActionUpdate {
 	Api::SendProgressType type = Api::SendProgressType();

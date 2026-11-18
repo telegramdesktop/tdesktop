@@ -4313,6 +4313,7 @@ void ApiWrap::sendVoiceMessage(
 		VoiceWaveform waveform,
 		crl::time duration,
 		bool video,
+		std::shared_ptr<Media::Encode::VideoSource> videoSource,
 		const SendAction &action) {
 	const auto caption = TextWithTags();
 	const auto to = FileLoadTaskOptions(action);
@@ -4323,6 +4324,7 @@ void ApiWrap::sendVoiceMessage(
 			.duration = duration,
 			.waveform = waveform,
 			.video = video,
+			.videoSource = std::move(videoSource),
 			.to = to,
 			.caption = caption,
 		}));

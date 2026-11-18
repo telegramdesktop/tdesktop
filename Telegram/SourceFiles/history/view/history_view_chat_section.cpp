@@ -2435,6 +2435,7 @@ void ChatWidget::sendVoice(const ComposeControls::VoiceToSend &data) {
 		data.waveform,
 		data.duration,
 		data.video,
+		data.videoSource,
 		std::move(action));
 
 	_composeControls->cancelReplyMessage();

@@ -824,6 +824,7 @@ void ScheduledWidget::sendVoice(
 		data.waveform,
 		data.duration,
 		data.video,
+		data.videoSource,
 		prepareSendAction(options));
 	_composeControls->clearListenState();
 }

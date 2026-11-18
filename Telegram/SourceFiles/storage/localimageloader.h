@@ -281,6 +281,7 @@ public:
 		crl::time duration = 0;
 		VoiceWaveform waveform;
 		bool video = false;
+		std::shared_ptr<Media::Encode::VideoSource> videoSource;
 		FileLoadTo to;
 		TextWithTags caption;
 	};
@@ -339,6 +340,7 @@ private:
 	crl::time _duration = 0;
 	VoiceWaveform _waveform;
 	SendMediaType _type;
+	std::shared_ptr<Media::Encode::VideoSource> _videoSource;
 	TextWithTags _caption;
 	bool _spoiler = false;
 	bool _forceFile = false;

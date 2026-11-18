@@ -24,6 +24,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Media::Encode {
+struct VideoSource;
+} // namespace Media::Encode
+
 namespace Iv {
 struct RichPage;
 } // namespace Iv
@@ -375,6 +379,7 @@ public:
 		VoiceWaveform waveform,
 		crl::time duration,
 		bool video,
+		std::shared_ptr<Media::Encode::VideoSource> videoSource,
 		const SendAction &action);
 	void sendFiles(
 		Ui::PreparedList &&list,

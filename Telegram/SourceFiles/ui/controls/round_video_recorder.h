@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <crl/crl_object_on_queue.h>
 
+namespace Media::Encode {
+struct VideoSource;
+} // namespace Media::Encode
+
 namespace Media::Capture {
 struct Chunk;
 struct Update;
@@ -49,6 +53,7 @@ struct RoundVideoResult {
 	QImage minithumbs;
 	int minithumbsCount = 0;
 	int minithumbSize = 0;
+	std::shared_ptr<Media::Encode::VideoSource> videoSource;
 };
 
 struct RoundVideoPartial {

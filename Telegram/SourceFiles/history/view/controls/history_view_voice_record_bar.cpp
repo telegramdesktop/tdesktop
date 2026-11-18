@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_send_progress.h"
 #include "base/event_filter.h"
 #include "base/random.h"
+#include "base/timer.h"
 #include "base/unixtime.h"
 #include "ui/boxes/confirm_box.h"
 #include "calls/calls_instance.h"
@@ -27,12 +28,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "media/audio/media_audio_edit.h"
 #include "media/audio/media_audio_capture.h"
+#include "media/media_video_encode.h"
+#include "media/media_video_frames.h"
 #include "media/player/media_player_button.h"
 #include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_round_preview.h"
 #include "storage/storage_account.h"
-#include "ui/controls/round_video_recorder.h"
 #include "ui/controls/send_button.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animation_value_f.h"
@@ -57,6 +59,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView::Controls {
 namespace {
 
+constexpr auto kTrimLoopInterval = crl::time(40);
+constexpr auto kTrimPreviewLastFrameOffset = crl::time(100); // no frame is decoded at the very end of the file
 constexpr auto kAudioVoiceUpdateView = crl::time(200);
 constexpr auto kAudioVoiceMaxLength = 100 * 60; // 100 minutes
 constexpr auto kMaxSamples
@@ -77,17 +81,49 @@ enum class FilterType {
 	Cancel,
 };
 
+struct RoundTrimPreview {
+	bool frozen = false;
+	bool trimmed = false;
+	QImage frame;
+	bool extracting = false;
+	crl::time position = 0;
+};
+
+void ExtractTrimPreviewFrame(
+		std::shared_ptr<RoundTrimPreview> preview,
+		base::weak_qptr<Ui::RpWidget> weak,
+		not_null<rpl::event_stream<>*> repaints,
+		QByteArray content) {
+	const auto position = preview->position;
+	preview->extracting = true;
+	crl::async([=] {
+		auto frame = ::Media::Video::ExtractFrame({}, content, position, {});
+		crl::on_main(weak, [=, frame = std::move(frame)]() mutable {
+			preview->extracting = false;
+			if (!frame.isNull()) {
+				preview->frame = std::move(frame);
+				repaints->fire({});
+			}
+			if (preview->position != position) {
+				ExtractTrimPreviewFrame(preview, weak, repaints, content);
+			}
+		});
+	});
+}
+
 class SoundedPreview final : public Ui::DynamicImage {
 public:
 	SoundedPreview(
 		not_null<DocumentData*> document,
-		rpl::producer<> repaints);
+		rpl::producer<> repaints,
+		std::shared_ptr<RoundTrimPreview> trimPreview);
 	std::shared_ptr<DynamicImage> clone() override;
 	QImage image(int size) override;
 	void subscribeToUpdates(Fn<void()> callback) override;
 
 private:
 	const not_null<DocumentData*> _document;
+	const std::shared_ptr<RoundTrimPreview> _trimPreview;
 	QImage _roundingMask;
 	Fn<void()> _repaint;
 	rpl::lifetime _lifetime;
@@ -96,8 +132,10 @@ private:
 
 SoundedPreview::SoundedPreview(
 	not_null<DocumentData*> document,
-	rpl::producer<> repaints)
-: _document(document) {
+	rpl::producer<> repaints,
+	std::shared_ptr<RoundTrimPreview> trimPreview)
+: _document(document)
+, _trimPreview(std::move(trimPreview)) {
 	std::move(repaints) | rpl::on_next([=] {
 		if (const auto onstack = _repaint) {
 			onstack();
@@ -110,15 +148,38 @@ std::shared_ptr<Ui::DynamicImage> SoundedPreview::clone() {
 }
 
 QImage SoundedPreview::image(int size) {
-	const auto player = ::Media::Player::instance();
-	const auto streamed = player->roundVideoPreview(_document);
-	if (!streamed) {
-		return {};
-	}
-
 	const auto full = QSize(size, size) * style::DevicePixelRatio();
 	if (_roundingMask.size() != full) {
 		_roundingMask = Images::EllipseMask(full);
+	}
+	const auto player = ::Media::Player::instance();
+	const auto streamed = _trimPreview->frozen
+		? nullptr
+		: player->roundVideoPreview(_document);
+	if (!streamed) {
+		if (!_trimPreview->frozen && !_trimPreview->trimmed) {
+			return {};
+		}
+		if (_trimPreview->frame.isNull()) {
+			auto result = QImage(full, QImage::Format_ARGB32_Premultiplied);
+			result.fill(Qt::transparent);
+			return result;
+		}
+		auto result = _trimPreview->frame.scaled(
+			full,
+			Qt::KeepAspectRatioByExpanding,
+			Qt::SmoothTransformation);
+		if (result.size() != full) {
+			result = result.copy(QRect(
+				(result.width() - full.width()) / 2,
+				(result.height() - full.height()) / 2,
+				full.width(),
+				full.height()));
+		}
+		auto p = QPainter(&result);
+		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		p.drawImage(QRect(QPoint(), full), _roundingMask);
+		return result;
 	}
 	const auto frame = streamed->frameWithInfo({
 		.resize = full,
@@ -671,6 +732,7 @@ public:
 		not_null<Main::Session*> session,
 		not_null<Ui::RoundVideoResult*> data,
 		bool allowTrim,
+		bool video,
 		const style::font &font);
 
 	void requestPaintProgress(float64 progress);
@@ -732,8 +794,13 @@ private:
 	const not_null<DocumentData*> _document;
 	const std::unique_ptr<VoiceData> _voiceData;
 	const std::shared_ptr<Data::DocumentMedia> _mediaView;
+	const std::shared_ptr<RoundTrimPreview> _trimPreview;
+	base::Timer _trimLoopTimer;
 	const not_null<Ui::RoundVideoResult*> _data;
 	const bool _allowTrim = false;
+	const bool _video = false;
+	const crl::time _originalDuration;
+	const VoiceWaveform _originalWaveform;
 	const base::unique_qptr<Ui::IconButton> _delete;
 	const style::font &_durationFont;
 	QString _duration;
@@ -777,6 +844,7 @@ ListenWrap::ListenWrap(
 	not_null<Main::Session*> session,
 	not_null<Ui::RoundVideoResult*> data,
 	bool allowTrim,
+	bool video,
 	const style::font &font)
 : _parent(parent)
 , _st(st)
@@ -785,8 +853,12 @@ ListenWrap::ListenWrap(
 , _document(DummyDocument(&session->data()))
 , _voiceData(ProcessCaptureResult(data->waveform))
 , _mediaView(_document->createMediaView())
+, _trimPreview(std::make_shared<RoundTrimPreview>())
 , _data(data)
 , _allowTrim(allowTrim)
+, _video(video)
+, _originalDuration(data->duration)
+, _originalWaveform(data->waveform)
 , _delete(base::make_unique_q<Ui::IconButton>(parent, _st.remove))
 , _durationFont(font)
 , _duration(FormatTrimDuration(_data->duration))
@@ -1153,10 +1225,66 @@ void ListenWrap::initPlayProgress() {
 	const auto trimPlaybackSeekInProgress = _lifetime.make_state<bool>(false);
 	const auto &voice = AudioMsgId::Type::Voice;
 	const auto stopPlayingPreviewOnTrim = [=] {
+		_trimLoopTimer.cancel();
+		if (_video) {
+			_trimPreview->frozen = true;
+			_trimPreview->frame = {};
+			instance()->pause(voice);
+			return;
+		}
 		const auto state = instance()->getState(voice);
 		if (isInPlayer(state) && ShowPauseIcon(state.state)) {
 			instance()->stop(voice, true);
 		}
+	};
+	const auto updateTrimPreviewFrame = [=](crl::time position) {
+		if (!_video) {
+			return;
+		}
+		_trimPreview->position = std::clamp(
+			position,
+			crl::time(0),
+			std::max(
+				crl::time(0),
+				_originalDuration - kTrimPreviewLastFrameOffset));
+		if (!_trimPreview->extracting) {
+			ExtractTrimPreviewFrame(
+				_trimPreview,
+				base::make_weak(_parent),
+				&_videoRepaints,
+				_data->content);
+		}
+	};
+	const auto freezeTrimPreviewAtStart = [=] {
+		if (!_video) {
+			return;
+		}
+		_trimPreview->frozen = true;
+		_trimPreview->frame = {};
+		updateTrimPreviewFrame(crl::time(base::SafeRound(
+			_originalDuration * selectedTrimBoundaries().left)));
+	};
+	const auto startTrimPreviewLoop = [=] {
+		if (!_video) {
+			return;
+		}
+		const auto bounds = selectedTrimBoundaries();
+		const auto left = crl::time(
+			base::SafeRound(_originalDuration * bounds.left));
+		const auto length = crl::time(
+			base::SafeRound(_originalDuration * bounds.right)) - left;
+		if (length <= 0) {
+			freezeTrimPreviewAtStart();
+			return;
+		}
+		const auto started = crl::now();
+		_trimPreview->frozen = true;
+		_trimPreview->frame = {};
+		updateTrimPreviewFrame(left);
+		_trimLoopTimer.setCallback([=] {
+			updateTrimPreviewFrame(left + ((crl::now() - started) % length));
+		});
+		_trimLoopTimer.callEach(kTrimLoopInterval);
 	};
 	const auto canSeekAt = [=](const QPoint &p) {
 		return isInPlayer()
@@ -1187,7 +1315,7 @@ void ListenWrap::initPlayProgress() {
 
 	instance()->updatedNotifier(
 	) | rpl::on_next([=](const State &state) {
-		if (*trimPlaybackSeekInProgress) {
+		if (*trimPlaybackSeekInProgress || _trimPreview->frozen) {
 			return;
 		}
 		if (!isInPlayer(state)) {
@@ -1204,6 +1332,10 @@ void ListenWrap::initPlayProgress() {
 		auto progress = length
 			? Progress(position, length)
 			: 0.;
+		const auto ended = playbackTrimmed
+			&& (length > 0)
+			&& (Progress(position, length)
+				>= (rightBoundary - kTrimPlaybackEpsilon));
 		if (playbackTrimmed && length > 0) {
 			if (ShowPauseIcon(state.state)
 				&& (progress < (leftBoundary - kTrimPlaybackEpsilon))) {
@@ -1215,6 +1347,7 @@ void ListenWrap::initPlayProgress() {
 			}
 			if (ShowPauseIcon(state.state)
 				&& (progress >= (rightBoundary - kTrimPlaybackEpsilon))) {
+				startTrimPreviewLoop();
 				instance()->stop(voice, true);
 				_playProgress = anim::value(leftBoundary, leftBoundary);
 				_parent->update(_waveformFgRect);
@@ -1223,6 +1356,9 @@ void ListenWrap::initPlayProgress() {
 			progress = std::clamp(progress, leftBoundary, rightBoundary);
 		}
 		if (IsStopped(state.state)) {
+			if (ended) {
+				startTrimPreviewLoop();
+			}
 			_playProgress = playbackTrimmed
 				? anim::value(leftBoundary, leftBoundary)
 				: anim::value();
@@ -1269,11 +1405,15 @@ void ListenWrap::initPlayProgress() {
 		if (type == QEvent::MouseButtonPress) {
 			if (canTrim() && _trimLeftHandleRect.contains(pos)) {
 				stopPlayingPreviewOnTrim();
+				updateTrimPreviewFrame(crl::time(base::SafeRound(
+					_originalDuration * _trimLeftProgress)));
 				*dragMode = DragMode::TrimLeft;
 				_parent->setCursor(style::cur_sizehor);
 				return;
 			} else if (canTrim() && _trimRightHandleRect.contains(pos)) {
 				stopPlayingPreviewOnTrim();
+				updateTrimPreviewFrame(crl::time(base::SafeRound(
+					_originalDuration * _trimRightProgress)));
 				*dragMode = DragMode::TrimRight;
 				_parent->setCursor(style::cur_sizehor);
 				return;
@@ -1284,7 +1424,6 @@ void ListenWrap::initPlayProgress() {
 			}
 			return;
 		}
-
 		const auto isRelease = (type == QEvent::MouseButtonRelease);
 		if (*dragMode == DragMode::Seek) {
 			if (isRelease || (type == QEvent::MouseMove)) {
@@ -1309,24 +1448,39 @@ void ListenWrap::initPlayProgress() {
 			if (isRelease || (type == QEvent::MouseMove)) {
 				const auto progress = trimProgressFromPosition(pos.x());
 				const auto minDelta = minimumTrimProgress();
+				auto handleProgress = progress;
 				if (*dragMode == DragMode::TrimLeft) {
-					_trimLeftProgress = std::clamp(
+					handleProgress = std::clamp(
 						progress,
 						0.,
 						std::max(0., _trimRightProgress - minDelta));
+					_trimLeftProgress = handleProgress;
 				} else {
-					_trimRightProgress = std::clamp(
+					handleProgress = std::clamp(
 						progress,
 						std::min(1., _trimLeftProgress + minDelta),
 						1.);
+					_trimRightProgress = handleProgress;
 				}
-				updateDurationText();
+				if (isRelease) {
+					updateDurationText();
+				} else {
+					_duration = FormatTrimDuration(crl::time(base::SafeRound(
+						_originalDuration * handleProgress)));
+					_durationWidth = _durationFont->width(_duration);
+				}
 				updateTrimGeometry();
 				updateControlGeometry();
+				_playProgress = anim::value(handleProgress, handleProgress);
 				_parent->update();
+				if (_video) {
+					updateTrimPreviewFrame(crl::time(base::SafeRound(
+						_originalDuration * handleProgress)));
+				}
 				if (isRelease) {
 					*dragMode = DragMode::None;
 					updateCursor(pos);
+					startTrimPreviewLoop();
 				}
 			}
 			return;
@@ -1420,7 +1574,10 @@ std::optional<ListenWrap::TrimRange> ListenWrap::selectedTrimRange() const {
 	if ((left <= 0.) && (right >= 1.)) {
 		return std::nullopt;
 	}
-	const auto currentSamples = int((_data->duration
+	const auto duration = _video
+		? _originalDuration
+		: _data->duration;
+	const auto currentSamples = int((duration
 		* ::Media::Player::kDefaultFrequency) / crl::time(1000));
 	if (currentSamples <= 0) {
 		return std::nullopt;
@@ -1441,7 +1598,7 @@ std::optional<ListenWrap::TrimRange> ListenWrap::selectedTrimRange() const {
 }
 
 ListenWrap::TrimBoundaries ListenWrap::selectedTrimBoundaries() const {
-	const auto dur = _data->duration;
+	const auto dur = _video ? _originalDuration : _data->duration;
 	if (const auto range = selectedTrimRange(); range && (dur > 0)) {
 		const auto left = std::clamp(float64(range->from) / dur, 0., 1.);
 		const auto right = std::clamp(float64(range->till) / dur, left, 1.);
@@ -1544,6 +1701,7 @@ void ListenWrap::updateControlGeometry() {
 }
 
 void ListenWrap::updateTrimGeometry() {
+	_trimPreview->trimmed = selectedTrimRange().has_value();
 	if (!canTrim() || _waveformBgFinalCenterRect.isEmpty()) {
 		_trimFrameRect = QRect();
 		_trimLeftHandleRect = QRect();
@@ -1579,11 +1737,28 @@ void ListenWrap::applyTrimSelection(bool resetSelection) {
 	}
 	const auto range = selectedTrimRange();
 	if (!range) {
+		if (_video) {
+			_data->videoSource = nullptr;
+			_data->duration = _originalDuration;
+			_data->waveform = _originalWaveform;
+			_mediaView->setBytes(_data->content);
+			_document->size = _data->content.size();
+			_voiceData->waveform = _data->waveform;
+			_voiceData->wavemax = _voiceData->waveform.empty()
+				? uchar(0)
+				: *ranges::max_element(_voiceData->waveform);
+			updateDurationText();
+			_waveformFgRect = computeWaveformRect(_waveformBgFinalCenterRect);
+			updateTrimGeometry();
+			updateControlGeometry();
+			_playProgress = anim::value();
+			_parent->update();
+		}
 		return;
 	}
 	const auto [waveLeft, waveRight] = selectedTrimBoundaries();
 	auto waveform = ResampleWaveformToRange(
-		_data->waveform,
+		_video ? _originalWaveform : _data->waveform,
 		waveLeft,
 		waveRight);
 	const auto from = range->from;
@@ -1594,28 +1769,57 @@ void ListenWrap::applyTrimSelection(bool resetSelection) {
 	if (selectedSamples < kMinSamples) {
 		return;
 	}
-	const auto trimmed = ::Media::TrimAudioToRange(_data->content, from, till);
-	if (trimmed.content.isEmpty()) {
-		return;
-	}
-	if (isInPlayer()) {
-		::Media::Player::instance()->stop(AudioMsgId::Type::Voice, true);
-	}
-	_data->content = std::move(trimmed.content);
-	if (waveform.isEmpty()) {
-		waveform = std::move(trimmed.waveform);
-	}
-	_data->waveform = std::move(waveform);
-	_data->duration = trimmed.duration;
-	_mediaView->setBytes(_data->content);
-	_document->size = _data->content.size();
-	_voiceData->waveform = _data->waveform;
-	_voiceData->wavemax = _voiceData->waveform.empty()
-		? uchar(0)
-		: *ranges::max_element(_voiceData->waveform);
-	if (resetSelection) {
-		_trimLeftProgress = 0.;
-		_trimRightProgress = 1.;
+	if (_video) {
+		if (isInPlayer()) {
+			::Media::Player::instance()->stop(AudioMsgId::Type::Voice, true);
+		}
+		if (!_data->videoSource) {
+			_data->videoSource
+				= std::make_shared<::Media::Encode::VideoSource>();
+		}
+		auto &source = *_data->videoSource;
+		source.path.clear();
+		source.bytes = _data->content;
+		source.from = from;
+		source.till = till;
+		source.mode = ::Media::Encode::VideoSource::Mode::Mp4;
+		source.removeAudio = false;
+		source.silentAudio = false;
+		_data->duration = selected;
+		if (!waveform.isEmpty()) {
+			_data->waveform = std::move(waveform);
+		}
+		_mediaView->setBytes(_data->content);
+		_document->size = _data->content.size();
+		_voiceData->waveform = _data->waveform;
+		_voiceData->wavemax = _voiceData->waveform.empty()
+			? uchar(0)
+			: *ranges::max_element(_voiceData->waveform);
+	} else {
+		const auto trimmed = ::Media::TrimAudioToRange(
+			_data->content, from, till);
+		if (trimmed.content.isEmpty()) {
+			return;
+		}
+		if (isInPlayer()) {
+			::Media::Player::instance()->stop(AudioMsgId::Type::Voice, true);
+		}
+		_data->content = std::move(trimmed.content);
+		if (waveform.isEmpty()) {
+			waveform = std::move(trimmed.waveform);
+		}
+		_data->waveform = std::move(waveform);
+		_data->duration = trimmed.duration;
+		_mediaView->setBytes(_data->content);
+		_document->size = _data->content.size();
+		_voiceData->waveform = _data->waveform;
+		_voiceData->wavemax = _voiceData->waveform.empty()
+			? uchar(0)
+			: *ranges::max_element(_voiceData->waveform);
+		if (resetSelection) {
+			_trimLeftProgress = 0.;
+			_trimRightProgress = 1.;
+		}
 	}
 	updateDurationText();
 	_waveformFgRect = computeWaveformRect(_waveformBgFinalCenterRect);
@@ -1662,6 +1866,12 @@ void ListenWrap::prepareForSendAnimation() {
 }
 
 void ListenWrap::playPause() {
+	if (_video) {
+		_trimLoopTimer.cancel();
+		_trimPreview->frozen = false;
+		_trimPreview->frame = {};
+		_videoRepaints.fire({});
+	}
 	::Media::Player::instance()->playPause({ _document, FullMsgId() });
 }
 
@@ -1699,7 +1909,8 @@ rpl::producer<> ListenWrap::stopRequests() const {
 std::shared_ptr<Ui::DynamicImage> ListenWrap::videoPreview() {
 	return std::make_shared<SoundedPreview>(
 		_document,
-		_videoRepaints.events());
+		_videoRepaints.events(),
+		_trimPreview);
 }
 
 rpl::lifetime &ListenWrap::lifetime() {
@@ -2923,6 +3134,7 @@ Ui::RoundVideoResult VoiceRecordBar::mergeWithResumePrefix(
 		.content = std::move(combined.content),
 		.waveform = std::move(waveform),
 		.duration = duration,
+		.videoSource = _resumePrefixData.videoSource,
 	};
 }
 
@@ -2952,7 +3164,8 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 						_send,
 						&_show->session(),
 						&_data,
-						false,
+						true,
+						true,
 						_cancelFont);
 					_listenChanges.fire({});
 
@@ -2989,6 +3202,7 @@ void VoiceRecordBar::stopRecording(StopType type, bool ttlBeforeHide) {
 					&_show->session(),
 					&_data,
 					true,
+					_recordingVideo,
 					_cancelFont);
 				_listenChanges.fire({});
 			}));
@@ -3112,7 +3326,8 @@ void VoiceRecordBar::requestToSendWithOptions(Api::SendOptions options) {
 			.waveform = _data.waveform,
 			.duration = _data.duration,
 			.options = options,
-			.video = !_data.minithumbs.isNull(),
+			.video = _recordingVideo,
+			.videoSource = _data.videoSource,
 		});
 	}
 }
