@@ -1259,9 +1259,7 @@ void AddPurchaseTerms(
 			table,
 			std::move(value) | rpl::map([=](int64 nanos) {
 				auto result = mark;
-				result.append(QChar(' ')).append(
-					Lang::FormatCreditsAmountDecimal(
-						CreditsAmount(0, nanos, CreditsType::Ton)));
+				result.append(QChar(' ')).append(FormatTonAmount(nanos).full);
 				return result;
 			}),
 			st::giveawayGiftMessage,

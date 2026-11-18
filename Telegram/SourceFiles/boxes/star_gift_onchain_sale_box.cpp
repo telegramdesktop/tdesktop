@@ -17,13 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_star_gift.h"
 #include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
-#include "lang/lang_tag.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/table_rows.h"
+#include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/widgets/buttons.h"
@@ -396,9 +396,7 @@ void AddGramRow(
 		std::move(label),
 		std::move(nanos) | rpl::map([=](int64 value) {
 			auto result = mark;
-			result.append(QChar(' ')).append(
-				Lang::FormatCreditsAmountDecimal(
-					CreditsAmount(0, value, CreditsType::Ton)));
+			result.append(QChar(' ')).append(FormatTonAmount(value).full);
 			return result;
 		}),
 		helper.context());
