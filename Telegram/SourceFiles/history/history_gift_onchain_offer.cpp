@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_gift_onchain_offer.h"
 
 #include "api/api_premium.h"
+#include "base/unixtime.h"
 #include "data/data_media_types.h"
 #include "data/data_star_gift.h"
 #include "history/history.h"
@@ -106,11 +107,34 @@ using State = GiftOnchainOfferState;
 	return result;
 }
 
+[[nodiscard]] QString ResolutionText(
+		not_null<const HistoryServiceGiftOnchainOffer*> offer,
+		State state) {
+	switch (state) {
+	case State::Cancelled:
+		return tr::lng_action_gift_onchain_offer_withdrawn(tr::now);
+	case State::Declined:
+		return offer->buyer
+			? tr::lng_action_gift_onchain_offer_declined(tr::now)
+			: tr::lng_action_gift_onchain_offer_declined_you(tr::now);
+	case State::Expired:
+		return tr::lng_action_gift_onchain_offer_expired(tr::now);
+	case State::Open:
+	case State::PastExpiry:
+	case State::Cancelling:
+	case State::Settled:
+	case State::Accepted:
+		return QString();
+	}
+	Unexpected("State in ResolutionText.");
+}
+
 [[nodiscard]] TextWithEntities StatusText(
 		not_null<const HistoryServiceGiftOnchainOffer*> offer,
 		TimeId now) {
 	const auto buyer = offer->buyer;
-	switch (ComputeGiftOnchainOfferState(offer, now)) {
+	const auto state = ComputeGiftOnchainOfferState(offer, now);
+	switch (state) {
 	case State::Open:
 		return tr::lng_action_gift_onchain_offer_expires(
 			tr::now,
@@ -127,16 +151,14 @@ using State = GiftOnchainOfferState;
 			tr::marked);
 	case State::Cancelled:
 		return WithServedMoney(
-			tr::lng_action_gift_onchain_offer_withdrawn(tr::now),
+			ResolutionText(offer, state),
 			buyer ? offer->buyerRefund : std::nullopt,
 			buyer ? offer->fine : std::nullopt);
 	case State::Declined:
-		return tr::marked(buyer
-			? tr::lng_action_gift_onchain_offer_declined(tr::now)
-			: tr::lng_action_gift_onchain_offer_declined_you(tr::now));
+		return tr::marked(ResolutionText(offer, state));
 	case State::Expired:
 		return WithServedMoney(
-			tr::lng_action_gift_onchain_offer_expired(tr::now),
+			ResolutionText(offer, state),
 			buyer ? offer->buyerRefund : std::nullopt,
 			std::nullopt);
 	case State::Settled:
@@ -230,10 +252,20 @@ PreparedServiceText PrepareGiftOnchainOfferText(
 		not_null<const HistoryItem*> item) {
 	auto result = PreparedServiceText();
 	const auto offer = item->Get<HistoryServiceGiftOnchainOffer>();
-	if (offer && offer->gift) {
-		result.text = offer->accepted
-			? CompletedText(offer)
-			: OfferText(item, offer);
+	if (!offer || !offer->gift) {
+		return result;
+	}
+	const auto state = ComputeGiftOnchainOfferState(
+		offer,
+		base::unixtime::now());
+	if (state == State::Accepted) {
+		result.text = CompletedText(offer);
+		return result;
+	}
+	result.text = OfferText(item, offer);
+	const auto resolution = ResolutionText(offer, state);
+	if (!resolution.isEmpty()) {
+		result.text.append(QChar(' ')).append(resolution);
 	}
 	return result;
 }

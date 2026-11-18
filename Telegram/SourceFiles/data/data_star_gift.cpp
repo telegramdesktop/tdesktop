@@ -61,18 +61,6 @@ constexpr auto kBasisPointsInOne = int64(10'000);
 	});
 }
 
-[[nodiscard]] int64 GiftDisplayNanos(int64 nanos) {
-	// Keep leading fractional zeroes when there is no nonzero prefix.
-	constexpr auto kFourZeroes = 10'000;
-	for (auto place = Ui::kNanosInOne; place > kFourZeroes; place /= 10) {
-		const auto tail = nanos % place;
-		if ((nanos / place != 0) && std::abs(tail) < place / kFourZeroes) {
-			return nanos - tail;
-		}
-	}
-	return nanos;
-}
-
 } // namespace
 
 QString UniqueGiftName(const UniqueGift &gift) {
@@ -160,33 +148,31 @@ bool UniqueGiftResaleBuyTon(const UniqueGift &gift, bool preferTon) {
 			|| (gift.starsForResale <= 0));
 }
 
-std::optional<int64> PriceWithSaleFee(int64 price, int feeBps) {
-	if (price < 0 || feeBps < 0) {
-		return std::nullopt;
-	} else if (!feeBps) {
-		return price;
-	}
-	const auto room = std::numeric_limits<int64>::max() - price;
-	const auto whole = price / kBasisPointsInOne;
-	if (whole > room / feeBps) {
+std::optional<int64> PriceAfterSaleFee(
+		int64 price,
+		std::optional<int> feeBps) {
+	if (price < 0
+		|| !feeBps
+		|| *feeBps < 0
+		|| *feeBps > kBasisPointsInOne) {
 		return std::nullopt;
 	}
-	const auto part = price % kBasisPointsInOne;
-	const auto fee = whole * feeBps
-		+ (part * feeBps + kBasisPointsInOne - 1) / kBasisPointsInOne;
-	if (fee > room) {
-		return std::nullopt;
-	}
-	return price + fee;
+	const auto bps = int64(*feeBps);
+	const auto fee = (price / kBasisPointsInOne) * bps
+		+ (price % kBasisPointsInOne) * bps / kBasisPointsInOne;
+	return price - fee;
 }
 
-std::optional<int64> UniqueGiftBuyerPays(const UniqueGift &gift) {
-	if (gift.fixedSale && !gift.feeBps) {
-		return std::nullopt;
+int64 GiftDisplayNanos(int64 nanos) {
+	// Keep leading fractional zeroes when there is no nonzero prefix.
+	constexpr auto kFourZeroes = 10'000;
+	for (auto place = Ui::kNanosInOne; place > kFourZeroes; place /= 10) {
+		const auto tail = nanos % place;
+		if ((nanos / place != 0) && std::abs(tail) < place / kFourZeroes) {
+			return nanos - tail;
+		}
 	}
-	return PriceWithSaleFee(
-		gift.nanoTonForResale,
-		gift.fixedSale ? *gift.feeBps : 0);
+	return nanos;
 }
 
 QString FormatGiftGramAmount(int64 nanos) {

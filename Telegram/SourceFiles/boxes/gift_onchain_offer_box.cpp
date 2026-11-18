@@ -54,7 +54,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kBasisPointsInOne = 10000;
 constexpr auto kWalletResolveTimeout = 20 * crl::time(1000);
 
 using SendError = Wallet::SendError;
@@ -171,18 +170,6 @@ private:
 		&& (a.gift->id == b.gift->id)
 		&& (a.amount == b.amount)
 		&& (a.feeBps == b.feeBps);
-}
-
-[[nodiscard]] bool ValidTerms(const OfferTerms &terms) {
-	return (terms.amount >= 0)
-		&& (terms.feeBps >= 0)
-		&& (terms.feeBps <= kBasisPointsInOne);
-}
-
-[[nodiscard]] int64 ReceiveAmount(const OfferTerms &terms) {
-	const auto whole = (terms.amount / kBasisPointsInOne) * terms.feeBps;
-	const auto part = (terms.amount % kBasisPointsInOne) * terms.feeBps;
-	return terms.amount - (whole + part / kBasisPointsInOne);
 }
 
 [[nodiscard]] bool SaleIdle(SalePhase phase) {
@@ -598,13 +585,13 @@ void SaleFlow::stop() {
 		lt_amount,
 		rpl::single(tr::bold(Data::FormatGiftGramAmountWithUnit(terms.amount))),
 		tr::marked);
-	if (!terms.feeBps) {
+	const auto proceeds = Data::PriceAfterSaleFee(terms.amount, terms.feeBps);
+	if (!terms.feeBps || !proceeds) {
 		return question;
 	}
 	auto receive = tr::lng_gift_offer_you_get(
 		lt_cost,
-		rpl::single(tr::bold(Data::FormatGiftGramAmountWithUnit(
-			ReceiveAmount(terms)))),
+		rpl::single(tr::bold(Data::FormatGiftGramAmountWithUnit(*proceeds))),
 		tr::marked);
 	return rpl::combine(
 		std::move(question),
@@ -865,7 +852,7 @@ void ShowGiftOnchainOfferReview(
 	const auto terms = LookupOfferTerms(&controller->session(), itemId);
 	if (!terms) {
 		return;
-	} else if (!ValidTerms(*terms)) {
+	} else if (!Data::PriceAfterSaleFee(terms->amount, terms->feeBps)) {
 		LOG(("API Error: Bad on-chain gift offer amount %1 with fee %2."
 			).arg(terms->amount
 			).arg(terms->feeBps));

@@ -586,6 +586,32 @@ auto GenerateGiftMedia(
 			tr::marked);
 }
 
+[[nodiscard]] TextWithEntities GramSellAmountText(int64 nanos) {
+	const auto shown = Data::GiftDisplayNanos(nanos);
+	auto part = shown % kNanosInOne;
+	if (part % 1000) {
+		while (!(part % 10)) {
+			part /= 10;
+		}
+		if (part > 999'999) {
+			part = 900'000 + part % 100'000;
+		}
+	} else {
+		part /= 1000;
+	}
+	const auto amount = Data::FormatGiftGramAmount(nanos);
+	return tr::lng_gift_sell_amount_ton(
+		tr::now,
+		lt_count,
+		shown / kNanosInOne + part / 1'000'000.,
+		[&](QString text) {
+			return tr::rich(Lang::ReplaceTag<QString>::Call(
+				std::move(text),
+				ushort(lt_count),
+				amount));
+		});
+}
+
 [[nodiscard]] PreviewContent GiftPreviewContent(
 		not_null<PeerData*> recipient,
 		const GiftSendDetails &details) {
@@ -3175,6 +3201,20 @@ void UniqueGiftSellBox(
 				lt_amount,
 				tr::marked(maximum),
 				tr::rich);
+		}
+		if (onchain) {
+			const auto entered = (good && unique->feeBps)
+				? state->computePrice()
+				: std::optional<CreditsAmount>();
+			const auto nanos = entered
+				? (entered->whole() * Ui::kNanosInOne + entered->nano())
+				: int64();
+			const auto receive = (nanos > 0)
+				? Data::PriceAfterSaleFee(nanos, unique->feeBps)
+				: std::optional<int64>();
+			if (receive) {
+				return GramSellAmountText(*receive);
+			}
 		}
 		const auto value = onchain
 			? std::optional<CreditsAmount>()

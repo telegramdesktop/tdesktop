@@ -47,8 +47,6 @@ namespace {
 
 using Wallet::SendError;
 
-constexpr auto kBasisPointsInOne = 10000;
-
 struct OfferTerms {
 	OnchainGiftOfferRequest request;
 	Wallet::ServedOperation operation;
@@ -125,9 +123,9 @@ void AddTermsTable(not_null<GenericBox*> box, const OfferTerms &terms) {
 	const auto amount = terms.request.amount;
 	const auto value = terms.operation.messages.front().value;
 	const auto feeBps = terms.request.gift->feeBps;
-	const auto fee = (feeBps && *feeBps >= 0 && *feeBps <= kBasisPointsInOne)
-		? std::make_optional((amount / kBasisPointsInOne) * *feeBps
-			+ (amount % kBasisPointsInOne) * *feeBps / kBasisPointsInOne)
+	const auto receive = Data::PriceAfterSaleFee(amount, feeBps);
+	const auto fee = receive
+		? std::make_optional(amount - *receive)
 		: std::nullopt;
 	const auto table = box->addRow(
 		object_ptr<TableLayout>(box, st::giveawayGiftCodeTable),
@@ -153,8 +151,8 @@ void AddTermsTable(not_null<GenericBox*> box, const OfferTerms &terms) {
 	};
 	AddTableRow(
 		table,
-		tr::lng_gift_offer_onchain_your_offer(),
-		gram(fee ? std::make_optional(amount - *fee) : std::nullopt));
+		tr::lng_gift_offer_onchain_owner_receives(),
+		gram(receive));
 	AddTableRow(
 		table,
 		tr::lng_gift_offer_onchain_platform_fee(),

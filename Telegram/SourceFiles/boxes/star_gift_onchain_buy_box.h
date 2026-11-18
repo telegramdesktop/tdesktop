@@ -33,7 +33,6 @@ enum class OnchainBuyRefusal : uchar {
 	NotOnchainLot,
 	WalletUnavailable,
 	SupportMode,
-	PriceInvalid,
 	SlugMissing,
 	OwnGift,
 };

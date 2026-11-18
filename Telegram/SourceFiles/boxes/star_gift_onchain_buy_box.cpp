@@ -106,8 +106,6 @@ public:
 	[[nodiscard]] rpl::producer<int64> priceValue() const;
 	[[nodiscard]] rpl::producer<int64> totalValue() const;
 	[[nodiscard]] rpl::producer<int64> gasValue() const;
-	[[nodiscard]] rpl::producer<int64> royaltyValue() const;
-	[[nodiscard]] rpl::producer<QString> feePercentValue() const;
 	[[nodiscard]] rpl::producer<bool> fixedValue() const;
 	[[nodiscard]] rpl::producer<std::optional<int64>> feeValue() const;
 	[[nodiscard]] rpl::producer<bool> shortValue() const;
@@ -165,7 +163,7 @@ private:
 	void reread();
 	void reloaded(const MTPpayments_UniqueStarGift &result);
 	void failed(const MTP::Error &error, const QString &method);
-	void repriced(const Data::UniqueGift &gift, int64 cost);
+	void repriced(const Data::UniqueGift &gift);
 	void sign();
 	void refused(SendError error);
 	void dismissed();
@@ -196,11 +194,9 @@ private:
 	Fn<void()> _afterPreflight;
 	std::optional<int64> _spend;
 	std::optional<int64> _earnings;
-	int64 _cost = 0;
 	rpl::variable<int64> _price;
 	rpl::variable<int64> _total;
 	rpl::variable<int64> _gas;
-	rpl::variable<int> _feeBps;
 	rpl::variable<bool> _fixed;
 	rpl::variable<std::optional<int64>> _fee;
 	rpl::variable<QString> _refusal;
@@ -384,10 +380,8 @@ OnchainPurchase::OnchainPurchase(
 , _api(&_session->mtp())
 , _waitTimer([=] { waited(); })
 , _address(_gift->giftAddress)
-, _cost(Data::UniqueGiftBuyerPays(*_gift).value_or(0))
 , _price(_gift->nanoTonForResale)
-, _total(_cost)
-, _feeBps(_gift->fixedSale ? *_gift->feeBps : 0)
+, _total(_gift->nanoTonForResale)
 , _fixed(_gift->fixedSale)
 , _signing({
 	.box = box,
@@ -430,21 +424,6 @@ rpl::producer<int64> OnchainPurchase::totalValue() const {
 
 rpl::producer<int64> OnchainPurchase::gasValue() const {
 	return _gas.value();
-}
-
-rpl::producer<int64> OnchainPurchase::royaltyValue() const {
-	return rpl::combine(
-		_price.value(),
-		_feeBps.value()
-	) | rpl::map([](int64 price, int feeBps) {
-		return Data::PriceWithSaleFee(price, feeBps).value_or(price) - price;
-	});
-}
-
-rpl::producer<QString> OnchainPurchase::feePercentValue() const {
-	return _feeBps.value() | rpl::map([](int feeBps) {
-		return QString::number(feeBps / 100.) + '%';
-	});
 }
 
 rpl::producer<bool> OnchainPurchase::fixedValue() const {
@@ -1046,10 +1025,11 @@ void OnchainPurchase::fixedAnswered(Wallet::ServedOperation operation) {
 		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
 		return;
 	}
+	const auto price = _price.current();
 	_served = std::move(operation);
 	_total = value;
-	_gas = std::max(value - _cost, int64(0));
-	if (value - _cost <= kFixedSaleGasAllowance) {
+	_gas = std::max(value - price, int64(0));
+	if (value - price <= kFixedSaleGasAllowance) {
 		sign();
 		return;
 	}
@@ -1095,13 +1075,9 @@ void OnchainPurchase::reloaded(const MTPpayments_UniqueStarGift &result) {
 	}
 	const auto parsed = Api::FromTL(_session, data.vgift());
 	const auto unique = parsed ? parsed->unique : nullptr;
-	const auto cost = unique
-		? Data::UniqueGiftBuyerPays(*unique)
-		: std::nullopt;
 	if (!unique
 		|| (unique->slug != _gift->slug)
-		|| !CanBuyOnchainGift(_to, *unique)
-		|| !cost) {
+		|| !CanBuyOnchainGift(_to, *unique)) {
 		_signing.closeWithToast(
 			tr::lng_gift_buy_onchain_not_for_sale(tr::now));
 		return;
@@ -1109,8 +1085,8 @@ void OnchainPurchase::reloaded(const MTPpayments_UniqueStarGift &result) {
 	_stage = Stage::Repricing;
 	refresh();
 	_priceBox = _show->show(MakeResaleGiftPriceChangeBox(
-		CreditsAmount(0, *cost, CreditsType::Ton),
-		crl::guard(this, [=] { repriced(*unique, *cost); }),
+		Data::UniqueGiftResaleTon(*unique),
+		crl::guard(this, [=] { repriced(*unique); }),
 		crl::guard(this, [=] {
 			if (_stage == Stage::Repricing) {
 				_signing.close();
@@ -1147,7 +1123,7 @@ void OnchainPurchase::failed(const MTP::Error &error, const QString &method) {
 	}
 }
 
-void OnchainPurchase::repriced(const Data::UniqueGift &gift, int64 cost) {
+void OnchainPurchase::repriced(const Data::UniqueGift &gift) {
 	if (_stage != Stage::Repricing) {
 		return;
 	}
@@ -1158,10 +1134,8 @@ void OnchainPurchase::repriced(const Data::UniqueGift &gift, int64 cost) {
 	_error = SendError::None;
 	_fee = std::nullopt;
 	_fixed = gift.fixedSale;
-	_feeBps = gift.fixedSale ? *gift.feeBps : 0;
 	_price = gift.nanoTonForResale;
-	_cost = cost;
-	_total = cost;
+	_total = gift.nanoTonForResale;
 	_gas = 0;
 	walletChanged();
 }
@@ -1206,7 +1180,7 @@ void OnchainPurchase::stopAttempt() {
 	}
 	_afterPreflight = nullptr;
 	if (base::take(_served)) {
-		_total = _cost;
+		_total = _price.current();
 		_gas = 0;
 		_fee = std::nullopt;
 		_spend = std::nullopt;
@@ -1287,14 +1261,6 @@ void AddPurchaseTerms(
 		table,
 		tr::lng_gift_resale_price(),
 		gram(purchase->priceValue()));
-	AddTableRow(
-		table,
-		tr::lng_gift_buy_onchain_platform_fee(),
-		MakeMultilineValueWithSmallButton(
-			table,
-			gram(purchase->royaltyValue()).release(),
-			purchase->feePercentValue()
-		).widget);
 	AddTableRow(
 		table,
 		tr::lng_gift_buy_onchain_total(),
@@ -1511,8 +1477,6 @@ OnchainBuyRefusal LookupOnchainBuyRefusal(
 		return Refusal::WalletUnavailable;
 	} else if (session->supportMode()) {
 		return Refusal::SupportMode;
-	} else if (!Data::UniqueGiftBuyerPays(gift).has_value()) {
-		return Refusal::PriceInvalid;
 	} else if (gift.slug.isEmpty()) {
 		return Refusal::SlugMissing;
 	} else if ((gift.ownerId == session->userPeerId())
@@ -1531,7 +1495,6 @@ QString OnchainBuyRefusalText(OnchainBuyRefusal refusal) {
 		case Refusal::SaleFlagsInvalid: return u"GIFT_BUY_FLAGS_INVALID"_q;
 		case Refusal::NotOnchainLot: return u"GIFT_BUY_NOT_ONCHAIN"_q;
 		case Refusal::SupportMode: return u"GIFT_BUY_SUPPORT_MODE"_q;
-		case Refusal::PriceInvalid: return u"GIFT_BUY_PRICE_INVALID"_q;
 		case Refusal::SlugMissing: return u"GIFT_BUY_SLUG_EMPTY"_q;
 		case Refusal::OwnGift: return u"GIFT_BUY_OWN_GIFT"_q;
 		}
@@ -1564,8 +1527,7 @@ void ShowBuyOnchainGiftBox(
 	if (!ReadyToOpenPurchase(show, gift, to)) {
 		return;
 	}
-	const auto cost = Data::FormatGiftResaleTon(
-		*Data::UniqueGiftBuyerPays(*gift));
+	const auto cost = Data::FormatGiftResaleTon(*gift);
 	ShowResaleGiftComposer(
 		show,
 		gift,

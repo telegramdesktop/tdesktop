@@ -166,10 +166,11 @@ struct UniqueGift {
 	const UniqueGift &gift,
 	bool preferTon);
 
-[[nodiscard]] std::optional<int64> PriceWithSaleFee(int64 price, int feeBps);
-[[nodiscard]] std::optional<int64> UniqueGiftBuyerPays(
-	const UniqueGift &gift);
+[[nodiscard]] std::optional<int64> PriceAfterSaleFee(
+	int64 price,
+	std::optional<int> feeBps);
 
+[[nodiscard]] int64 GiftDisplayNanos(int64 nanos);
 [[nodiscard]] QString FormatGiftGramAmount(int64 nanos);
 [[nodiscard]] QString FormatGiftGramAmountWithUnit(int64 nanos);
 [[nodiscard]] TextWithEntities FormatGiftResaleStars(const UniqueGift &gift);

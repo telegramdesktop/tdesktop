@@ -2635,19 +2635,24 @@ void GenericCreditsEntryBody(
 		}, showNextToUpgrade
 			? st::giveawayGiftCodeBoxUpgradeNext
 			: st::giveawayGiftCodeBox.button);
-		if (canBuyResold) {
-			const auto stars = (uniqueGift->starsForResale > 0);
-			const auto ton = Data::UniqueGiftResaleBuyTon(
-				*uniqueGift,
-				e.giftResaleForceTon);
+		if (canBuyResold || canBuyOnchain) {
+			const auto ton = !canBuyResold
+				|| Data::UniqueGiftResaleBuyTon(
+					*uniqueGift,
+					e.giftResaleForceTon);
+			const auto stars = canBuyResold
+				&& (uniqueGift->starsForResale > 0);
+			auto title = tr::lng_gift_buy_resale_button(
+				lt_cost,
+				rpl::single(ton
+					? Data::FormatGiftResaleTon(*uniqueGift)
+					: Data::FormatGiftResaleStars(*uniqueGift)),
+				tr::marked);
 			if (ton && stars) {
 				button->setText(rpl::single(QString()));
 				Ui::SetButtonTwoLabels(
 					button,
-					tr::lng_gift_buy_resale_button(
-						lt_cost,
-						rpl::single(Data::FormatGiftResaleTon(*uniqueGift)),
-						tr::marked),
+					std::move(title),
 					tr::lng_gift_buy_resale_equals(
 						lt_cost,
 						rpl::single(Ui::Text::IconEmoji(
@@ -2657,24 +2662,9 @@ void GenericCreditsEntryBody(
 						tr::marked),
 					st::resaleButtonTitle,
 					st::resaleButtonSubtitle);
-			} else if (ton) {
-				button->setText(tr::lng_gift_buy_resale_button(
-					lt_cost,
-					rpl::single(Data::FormatGiftResaleTon(*uniqueGift)),
-					tr::marked));
 			} else {
-				button->setText(tr::lng_gift_buy_resale_button(
-					lt_cost,
-					rpl::single(Ui::Text::IconEmoji(&st::starIconEmoji).append(
-						Lang::FormatCountDecimal(uniqueGift->starsForResale))),
-					tr::marked));
+				button->setText(std::move(title));
 			}
-		} else if (canBuyOnchain) {
-			const auto cost = Data::UniqueGiftBuyerPays(*uniqueGift);
-			button->setText(tr::lng_gift_buy_resale_button(
-				lt_cost,
-				rpl::single(Data::FormatGiftResaleTon(*cost)),
-				tr::marked));
 		} else if (showNextToUpgrade) {
 			const auto session = &show->session();
 			const auto sticker = e.nextToUpgradeStickerId
