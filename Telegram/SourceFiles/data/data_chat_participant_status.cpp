@@ -303,7 +303,12 @@ SendError RestrictionError(
 			.text = tr::lng_frozen_restrict_title(tr::now),
 			.frozen = true,
 		});
-	} else if (const auto restricted = peer->amRestricted(restriction)) {
+	} else if (const auto user = peer->asUser()) {
+		if (user->isInaccessible()) {
+			return tr::lng_deleted(tr::now);
+		}
+	}
+	if (const auto restricted = peer->amRestricted(restriction)) {
 		if (const auto user = peer->asUser()) {
 			if (user->requiresPremiumToWrite()
 				&& !user->session().premium()) {
