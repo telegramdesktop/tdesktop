@@ -1021,17 +1021,11 @@ void OnchainPurchase::answered(
 	if (answer.type() == mtpc_payments_starGiftOnchainFixedSalePayload) {
 		fixedAnswered(std::move(operation));
 		return;
-	} else if (!_to->isSelf()) {
-		_signing.closeWithToast(tr::lng_gift_buy_onchain_not_for_sale(tr::now));
-		return;
 	}
-	const auto &message = operation.messages.front();
-	if (message.value != expected || !message.body.isEmpty()) {
-		LOG(("API Error: payments.buyStarGiftOnchain answered %1 "
-			"for %2 with a %3-byte payload."
-			).arg(message.value
-			).arg(expected
-			).arg(message.body.size()));
+	const auto amount = operation.messages.front().value;
+	if (amount != expected) {
+		LOG(("API Error: payments.buyStarGiftOnchain answered %1 for %2."
+			).arg(amount).arg(expected));
 		_signing.closeWithToast(tr::lng_gift_buy_onchain_error(tr::now));
 		return;
 	}
