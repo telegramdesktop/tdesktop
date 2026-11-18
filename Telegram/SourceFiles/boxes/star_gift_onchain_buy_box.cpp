@@ -9,8 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_earn.h"
 #include "api/api_premium.h"
+#include "api/api_text_entities.h"
 #include "base/timer.h"
 #include "boxes/peers/replace_boost_box.h"
+#include "boxes/star_gift_box.h"
 #include "boxes/star_gift_onchain_sale_box.h"
 #include "boxes/star_gift_onchain_signing.h"
 #include "boxes/transfer_gift_box.h"
@@ -97,6 +99,7 @@ public:
 		std::shared_ptr<Data::UniqueGift> gift,
 		not_null<PeerData*> to,
 		base::weak_ptr<OnchainBuyMemory> memory,
+		ResaleGiftMessage message,
 		Fn<void()> bought);
 	~OnchainPurchase();
 
@@ -177,6 +180,7 @@ private:
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const std::shared_ptr<Data::UniqueGift> _gift;
 	const not_null<PeerData*> _to;
+	const ResaleGiftMessage _message;
 	const Fn<void()> _bought;
 	const base::weak_ptr<OnchainBuyMemory> _memory;
 	const not_null<Main::Session*> _session;
@@ -365,11 +369,13 @@ OnchainPurchase::OnchainPurchase(
 	std::shared_ptr<Data::UniqueGift> gift,
 	not_null<PeerData*> to,
 	base::weak_ptr<OnchainBuyMemory> memory,
+	ResaleGiftMessage message,
 	Fn<void()> bought)
 : _box(box)
 , _show(std::move(show))
 , _gift(std::move(gift))
 , _to(to)
+, _message(std::move(message))
 , _bought(std::move(bought))
 , _memory(std::move(memory))
 , _session(&_show->session())
@@ -974,13 +980,22 @@ void OnchainPurchase::request() {
 	using Flag = MTPpayments_BuyStarGiftOnchain::Flag;
 	const auto forRecipient = !_to->isSelf();
 	const auto expected = _price.current();
+	const auto &message = _message.text;
 	_stage = Stage::Buying;
 	refresh();
 	_requestId = _api.request(MTPpayments_BuyStarGiftOnchain(
-		MTP_flags(forRecipient ? Flag::f_peer : Flag()),
+		MTP_flags((forRecipient ? Flag::f_peer : Flag())
+			| (message.empty() ? Flag() : Flag::f_message)
+			| (_message.hideName ? Flag() : Flag::f_show_name)),
 		MTP_string(_gift->slug),
 		MTP_long(expected),
-		forRecipient ? _to->input() : MTPInputPeer()
+		forRecipient ? _to->input() : MTPInputPeer(),
+		MTP_textWithEntities(
+			MTP_string(message.text),
+			Api::EntitiesToMTP(
+				_session,
+				message.entities,
+				Api::ConvertOption::SkipLocal))
 	)).done([=](const MTPpayments_StarGiftOnchainSalePayload &result) {
 		_requestId = 0;
 		answered(result, expected);
@@ -1124,7 +1139,12 @@ void OnchainPurchase::failed(const MTP::Error &error, const QString &method) {
 	};
 	const auto inactive = _fixed.current()
 		&& (type == u"STARGIFT_ONCHAIN_SALE_INACTIVE"_q);
-	if (inactive || ranges::contains(gone, type)) {
+	if (current() && ShowGiftErrorToast(_show, error)) {
+		_signing.close();
+	} else if (type == u"USER_DISALLOWED_STARGIFTS"_q) {
+		_signing.closeWithToast(
+			tr::lng_edit_privacy_gifts_restricted(tr::now));
+	} else if (inactive || ranges::contains(gone, type)) {
 		_signing.closeWithToast(
 			tr::lng_gift_buy_onchain_not_for_sale(tr::now));
 	} else {
@@ -1313,6 +1333,7 @@ void OnchainBuyBox(
 		std::shared_ptr<Data::UniqueGift> gift,
 		not_null<PeerData*> to,
 		base::weak_ptr<OnchainBuyMemory> memory,
+		ResaleGiftMessage message,
 		Fn<void()> bought) {
 	const auto purchase = box->lifetime().make_state<OnchainPurchase>(
 		box,
@@ -1320,6 +1341,7 @@ void OnchainBuyBox(
 		gift,
 		to,
 		std::move(memory),
+		std::move(message),
 		std::move(bought));
 	const auto &padding = st::boxPadding;
 	const auto margins = QMargins(padding.left(), 0, padding.right(), 0);
@@ -1461,6 +1483,26 @@ void OnchainBuyBox(
 	purchase->start();
 }
 
+[[nodiscard]] bool ReadyToOpenPurchase(
+		const std::shared_ptr<ChatHelpers::Show> &show,
+		const std::shared_ptr<Data::UniqueGift> &gift,
+		not_null<PeerData*> to) {
+	if (!show
+		|| !show->valid()
+		|| !gift
+		|| !CanBuyOnchainGift(to, *gift)) {
+		return false;
+	}
+	const auto session = &show->session();
+	const auto wallet = &session->wallet();
+	wallet->ensureLoaded();
+	if (WalletReadiness(wallet) == Readiness::Absent) {
+		Wallet::ShowWallet(session);
+		return false;
+	}
+	return true;
+}
+
 } // namespace
 
 OnchainBuyRefusal LookupOnchainBuyRefusal(
@@ -1525,26 +1567,39 @@ void ShowBuyOnchainGiftBox(
 		not_null<PeerData*> to,
 		base::weak_ptr<OnchainBuyMemory> memory,
 		Fn<void()> bought) {
-	if (!show
-		|| !show->valid()
-		|| !gift
-		|| !CanBuyOnchainGift(to, *gift)) {
+	if (!ReadyToOpenPurchase(show, gift, to)) {
 		return;
 	}
-	const auto session = &show->session();
-	const auto wallet = &session->wallet();
-	wallet->ensureLoaded();
-	if (WalletReadiness(wallet) == Readiness::Absent) {
-		Wallet::ShowWallet(session);
-		return;
-	}
-	show->show(Box(
-		OnchainBuyBox,
+	const auto cost = Data::FormatGiftResaleTon(
+		*Data::UniqueGiftBuyerPays(*gift));
+	ShowResaleGiftComposer(
 		show,
-		std::move(gift),
+		gift,
 		to,
-		std::move(memory),
-		std::move(bought)));
+		cost,
+		[=](not_null<GenericBox*> composer, ResaleGiftMessage message)
+		-> base::weak_qptr<GenericBox> {
+			if (!ReadyToOpenPurchase(show, gift, to)) {
+				return nullptr;
+			}
+			const auto weak = base::make_weak(composer);
+			const auto done = [=] {
+				if (const auto strong = weak.get()) {
+					strong->closeBox();
+				}
+				if (bought) {
+					bought();
+				}
+			};
+			return show->show(Box(
+				OnchainBuyBox,
+				show,
+				gift,
+				to,
+				memory,
+				std::move(message),
+				done));
+		});
 }
 
 } // namespace Ui

@@ -62,6 +62,18 @@ void ShowGiftSaleRejectBox(
 	not_null<HistoryItem*> item,
 	not_null<HistoryMessageSuggestion*> suggestion);
 
+struct ResaleGiftMessage {
+	TextWithEntities text;
+	bool hideName = false;
+};
+void ShowResaleGiftComposer(
+	std::shared_ptr<ChatHelpers::Show> show,
+	std::shared_ptr<Data::UniqueGift> gift,
+	not_null<PeerData*> to,
+	TextWithEntities cost,
+	Fn<base::weak_qptr<Ui::GenericBox>(
+		not_null<Ui::GenericBox*> composer,
+		ResaleGiftMessage message)> confirm);
 [[nodiscard]] bool CanBuyResaleGiftByInvoice(const Data::UniqueGift &gift);
 void ShowBuyResaleGiftBox(
 	std::shared_ptr<ChatHelpers::Show> show,

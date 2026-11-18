@@ -1930,28 +1930,24 @@ bool CanBuyResaleGiftByInvoice(const Data::UniqueGift &gift) {
 		&& !(gift.fixedSale && !gift.onchainSale);
 }
 
-void ShowBuyResaleGiftBox(
+void ShowResaleGiftComposer(
 		std::shared_ptr<ChatHelpers::Show> show,
 		std::shared_ptr<Data::UniqueGift> gift,
-		bool forceTon,
 		not_null<PeerData*> to,
-		Fn<void(bool ok)> closeParentBox) {
-	if (!CanBuyResaleGiftByInvoice(*gift)) {
-		return;
-	}
-	const auto attempt = std::make_shared<ResaleGiftAttemptState>();
+		TextWithEntities cost,
+		Fn<base::weak_qptr<Ui::GenericBox>(
+			not_null<Ui::GenericBox*> composer,
+			ResaleGiftMessage message)> confirm) {
 	show->show(Box([=](not_null<Ui::GenericBox*> box) {
 		struct State {
 			rpl::variable<TextWithEntities> message;
 			rpl::variable<bool> hideName;
 			rpl::variable<bool> messageAllowed;
-			std::shared_ptr<ResaleGiftAttemptState> attempt;
 			bool confirmationOpen = false;
 		};
 		const auto state = box->lifetime().make_state<State>();
 		state->hideName = to->isSelf();
 		state->messageAllowed = Ui::StarGiftMessageAllowedValue(to);
-		state->attempt = attempt;
 
 		box->setStyle(st::giftBox);
 		box->setWidth(st::boxWideWidth);
@@ -1962,12 +1958,6 @@ void ShowBuyResaleGiftBox(
 		});
 
 		const auto container = box->verticalLayout();
-		const auto initiallyTon = Data::UniqueGiftResaleBuyTon(
-			*gift,
-			forceTon);
-		const auto initialCost = initiallyTon
-			? Data::FormatGiftResaleTon(*gift)
-			: Data::FormatGiftResaleStars(*gift);
 		auto message = rpl::combine(
 			state->message.value(),
 			tr::lng_gift_send_message_preview(),
@@ -1989,7 +1979,7 @@ void ShowBuyResaleGiftBox(
 			container,
 			to,
 			gift,
-			initialCost,
+			cost,
 			std::move(message)));
 
 		const auto messageWrap = container->add(
@@ -2047,30 +2037,18 @@ void ShowBuyResaleGiftBox(
 					rpl::single(to->shortName()))));
 
 		const auto button = box->addButton(rpl::single(QString()), [=] {
-			if (state->confirmationOpen || state->attempt->inFlight) {
+			if (state->confirmationOpen) {
 				return;
 			}
 			state->confirmationOpen = true;
-			const auto finish = crl::guard(box, [=](bool ok) {
-				closeParentBox(ok);
-				box->closeBox();
-			});
-			const auto confirmation = ShowBuyResaleGiftConfirm(
-				show,
-				ResaleGiftPurchase{
-					.slug = gift->slug,
-					.recipient = to,
-					.gift = gift,
-					.message = state->messageAllowed.current()
+			const auto confirmation = confirm(
+				box,
+				ResaleGiftMessage{
+					.text = (state->messageAllowed.current()
 						? state->message.current()
-						: tr::marked(),
+						: tr::marked()),
 					.hideName = state->hideName.current(),
-					.currency = initiallyTon
-						? CreditsType::Ton
-						: CreditsType::Stars,
-				},
-				state->attempt,
-				finish);
+				});
 			if (const auto strong = confirmation.get()) {
 				strong->boxClosing() | rpl::on_next(crl::guard(box, [=] {
 					state->confirmationOpen = false;
@@ -2081,9 +2059,51 @@ void ShowBuyResaleGiftBox(
 		});
 		button->setText(tr::lng_gift_buy_resale_button(
 			lt_cost,
-			rpl::single(initialCost),
+			rpl::single(cost),
 			tr::marked));
 	}));
+}
+
+void ShowBuyResaleGiftBox(
+		std::shared_ptr<ChatHelpers::Show> show,
+		std::shared_ptr<Data::UniqueGift> gift,
+		bool forceTon,
+		not_null<PeerData*> to,
+		Fn<void(bool ok)> closeParentBox) {
+	if (!CanBuyResaleGiftByInvoice(*gift)) {
+		return;
+	}
+	const auto attempt = std::make_shared<ResaleGiftAttemptState>();
+	const auto ton = Data::UniqueGiftResaleBuyTon(*gift, forceTon);
+	ShowResaleGiftComposer(
+		show,
+		gift,
+		to,
+		(ton
+			? Data::FormatGiftResaleTon(*gift)
+			: Data::FormatGiftResaleStars(*gift)),
+		[=](not_null<Ui::GenericBox*> box, ResaleGiftMessage message)
+		-> base::weak_qptr<Ui::GenericBox> {
+			if (attempt->inFlight) {
+				return nullptr;
+			}
+			const auto finish = crl::guard(box, [=](bool ok) {
+				closeParentBox(ok);
+				box->closeBox();
+			});
+			return ShowBuyResaleGiftConfirm(
+				show,
+				ResaleGiftPurchase{
+					.slug = gift->slug,
+					.recipient = to,
+					.gift = gift,
+					.message = std::move(message.text),
+					.hideName = message.hideName,
+					.currency = ton ? CreditsType::Ton : CreditsType::Stars,
+				},
+				attempt,
+				finish);
+		});
 }
 
 bool ShowResaleGiftLater(
