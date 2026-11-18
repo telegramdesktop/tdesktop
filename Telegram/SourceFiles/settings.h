@@ -81,6 +81,7 @@ DeclareSetting(bool, NoStartUpdate);
 DeclareSetting(bool, StartToSettings);
 DeclareSetting(bool, DebugMode);
 DeclareSetting(bool, TestAgent);
+DeclareSetting(bool, NoLiquidGlass);
 DeclareReadSetting(bool, ManyInstance);
 DeclareSetting(bool, Quit);
 
