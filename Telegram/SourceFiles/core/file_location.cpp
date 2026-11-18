@@ -127,7 +127,9 @@ bool FileLocation::accessEnable() const {
 }
 
 void FileLocation::accessDisable() const {
-	return _bookmark ? _bookmark->disable() : (void)0;
+	if (_bookmark) {
+		_bookmark->disable();
+	}
 }
 
 } // namespace Core
