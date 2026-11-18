@@ -201,6 +201,12 @@ void VoiceRecordButton::init() {
 
 	_state.changes(
 	) | rpl::on_next([=](Type newState) {
+		if (_showProgress.current() == 0.) {
+			_stateChangedAnimation.stop();
+			*currentState = newState;
+			update();
+			return;
+		}
 		const auto to = 1.;
 		auto callback = [=](float64 value) {
 			if (value >= (to * .5)) {
