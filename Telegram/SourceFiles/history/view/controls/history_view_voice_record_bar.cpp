@@ -74,6 +74,7 @@ constexpr auto kLockArcAngle = 15.;
 
 constexpr auto kHideWaveformBgOffset = 50;
 constexpr auto kTrimPlaybackEpsilon = 0.0001;
+constexpr auto kControlWidthDuration = crl::time(150);
 
 enum class FilterType {
 	Continue,
@@ -767,6 +768,10 @@ private:
 	void initPlayProgress();
 	void applyTrimSelection(bool resetSelection);
 	void updateControlGeometry();
+	void placePlayButton();
+	[[nodiscard]] QRect shownControlRect() const;
+	[[nodiscard]] int controlIconLeft(const QRect &rect) const;
+	[[nodiscard]] float64 controlTextOpacity(const QRect &rect) const;
 	void updateTrimGeometry();
 	[[nodiscard]] TrimGeometry computeTrimGeometry(
 		const QRect &trimRect) const;
@@ -816,7 +821,7 @@ private:
 	QRect _waveformBgFinalCenterRect;
 	QRect _waveformFgRect;
 	QRect _controlRect;
-	bool _controlHasDuration = true;
+	Ui::Animations::Simple _controlWidthAnimation;
 	QRect _trimFrameRect;
 	QRect _trimLeftHandleRect;
 	QRect _trimRightHandleRect;
@@ -1111,26 +1116,32 @@ void ListenWrap::init() {
 					}
 				}
 
-				if (!_controlRect.isEmpty()) {
+				const auto controlRect = shownControlRect();
+				if (!controlRect.isEmpty()) {
 					p.setPen(Qt::NoPen);
 					p.setBrush(_st.cancelActive);
 					p.drawRoundedRect(
-						_controlRect,
-						_controlRect.height() / 2.,
-						_controlRect.height() / 2.);
+						controlRect,
+						controlRect.height() / 2.,
+						controlRect.height() / 2.);
 
-					if (_controlHasDuration) {
+					const auto textOpacity = controlTextOpacity(controlRect);
+					if (textOpacity > 0.) {
+						p.save();
+						p.setClipRect(controlRect);
+						p.setOpacity(p.opacity() * textOpacity);
 						p.setFont(_durationFont);
 						p.setPen(st::historyRecordVoiceFgActiveIcon);
 						const auto ascent = _durationFont->ascent;
-						const auto left = rect::right(_playPauseButton)
-							/*+ st::historyRecordCenterControlTextSkip*/;
-						const auto top = _controlRect.y()
-							+ (_controlRect.height() - ascent) / 2;
+						const auto left = controlIconLeft(controlRect)
+							+ controlRect.height();
+						const auto top = controlRect.y()
+							+ (controlRect.height() - ascent) / 2;
 						p.drawText(
 							QRect(left, top, _durationWidth, ascent),
 							style::al_left,
 							_duration);
+						p.restore();
 					}
 				}
 			}
@@ -1660,12 +1671,13 @@ ListenWrap::TrimGeometry ListenWrap::computeTrimGeometry(
 }
 
 void ListenWrap::updateControlGeometry() {
+	const auto shown = shownControlRect();
+	const auto previousWidth = _controlRect.width();
 	const auto availableRect = (canTrim() && !_trimFrameRect.isEmpty())
 		? _trimFrameRect
 		: _waveformBgFinalCenterRect;
 	if (availableRect.isEmpty()) {
 		_controlRect = QRect();
-		_controlHasDuration = false;
 		return;
 	}
 	const auto controlHeight = std::min(
@@ -1678,12 +1690,11 @@ void ListenWrap::updateControlGeometry() {
 		+ st::historyRecordCenterControlTextSkip
 		+ _durationWidth;
 	const auto skip = st::historyRecordCenterControlMinimumProgressPadding;
-	_controlHasDuration = (availableRect.width() - skip * 2 >= fullWidth);
-	auto controlWidth = _controlHasDuration ? fullWidth : iconOnlyWidth;
+	const auto hasDuration = (availableRect.width() - skip * 2 >= fullWidth);
+	auto controlWidth = hasDuration ? fullWidth : iconOnlyWidth;
 	controlWidth = std::min(controlWidth, availableRect.width());
 	if (controlWidth <= 0 || controlHeight <= 0) {
 		_controlRect = QRect();
-		_controlHasDuration = false;
 		return;
 	}
 	_controlRect = QRect(
@@ -1691,13 +1702,64 @@ void ListenWrap::updateControlGeometry() {
 		availableRect.y() + (availableRect.height() - controlHeight) / 2,
 		controlWidth,
 		controlHeight);
+	if (shown.isEmpty()) {
+		_controlWidthAnimation.stop();
+	} else if (previousWidth != _controlRect.width()) {
+		_controlWidthAnimation.start(
+			[=] {
+				placePlayButton();
+				_parent->update();
+			},
+			shown.width(),
+			_controlRect.width(),
+			kControlWidthDuration,
+			anim::easeOutCirc);
+	}
 	_playPauseButton->resize(iconWidth, controlHeight);
-	const auto iconLeft = _controlHasDuration
-		? (_controlRect.x() + st::historyRecordCenterControlPadding)
-		: (_controlRect.x() + (_controlRect.width() - iconWidth) / 2);
-	_playPauseButton->moveToLeft(
-		iconLeft,
-		_controlRect.y());
+	placePlayButton();
+}
+
+void ListenWrap::placePlayButton() {
+	const auto rect = shownControlRect();
+	if (rect.isEmpty()) {
+		return;
+	}
+	_playPauseButton->moveToLeft(controlIconLeft(rect), rect.y());
+}
+
+QRect ListenWrap::shownControlRect() const {
+	if (_controlRect.isEmpty()) {
+		return {};
+	}
+	const auto width = int(base::SafeRound(
+		_controlWidthAnimation.value(_controlRect.width())));
+	return QRect(
+		_controlRect.x() + (_controlRect.width() - width) / 2,
+		_controlRect.y(),
+		width,
+		_controlRect.height());
+}
+
+int ListenWrap::controlIconLeft(const QRect &rect) const {
+	return rect.x() + std::min(
+		st::historyRecordCenterControlPadding,
+		(rect.width() - rect.height()) / 2);
+}
+
+float64 ListenWrap::controlTextOpacity(const QRect &rect) const {
+	const auto iconOnlyWidth = (st::historyRecordCenterControlPadding * 2)
+		+ rect.height();
+	const auto fullWidth = iconOnlyWidth
+		+ st::historyRecordCenterControlTextSkip
+		+ _durationWidth;
+	if (fullWidth <= iconOnlyWidth) {
+		return 0.;
+	}
+	return std::clamp(
+		float64(rect.width() - iconOnlyWidth)
+			/ (fullWidth - iconOnlyWidth),
+		0.,
+		1.);
 }
 
 void ListenWrap::updateTrimGeometry() {
