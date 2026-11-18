@@ -10,16 +10,16 @@ DetailedSettingsButton::DetailedSettingsButton(
 	rpl::producer<QString> title,
 	rpl::producer<QString> description,
 	Settings::IconDescriptor icon,
-	rpl::producer<bool> toggled,
+	std::optional<rpl::producer<bool>> toggled,
 	const style::DetailedSettingsButtonStyle &rowStyle)
 : Ui::RippleButton(parent, rowStyle.button.ripple)
 , _style(rowStyle)
 , _title(0)
 , _description(0)
-, _toggle(std::make_unique<Ui::ToggleView>(
+, _toggle(toggled ? std::make_unique<Ui::ToggleView>(
 	_style.button.toggle,
 	false,
-	[this] { rtlupdate(toggleRect()); }))
+	[this] { rtlupdate(toggleRect()); }) : nullptr)
 , _iconForeground(icon.icon)
 , _iconBackground(icon.background)
 , _iconBackgroundBrush(std::move(icon.backgroundBrush)) {
@@ -42,19 +42,21 @@ DetailedSettingsButton::DetailedSettingsButton(
 			kDefaultTextOptions);
 		refreshLayout();
 	}, lifetime());
-	addClickHandler([=] {
-		if (!_toggleLocked) {
-			_toggle->setChecked(!_toggle->checked(), anim::type::normal);
-		}
-	});
-	std::move(
-		toggled
-	) | rpl::on_next([=](bool checked) {
-		_toggle->setChecked(checked, anim::type::normal);
-	}, lifetime());
-	_toggle->checkedChanges() | rpl::on_next([=] {
-		accessibilityStateChanged({ .checked = true });
-	}, lifetime());
+	if (_toggle) {
+		addClickHandler([=] {
+			if (!_toggleLocked) {
+				_toggle->setChecked(!_toggle->checked(), anim::type::normal);
+			}
+		});
+		std::move(
+			*toggled
+		) | rpl::on_next([=](bool checked) {
+			_toggle->setChecked(checked, anim::type::normal);
+		}, lifetime());
+		_toggle->checkedChanges() | rpl::on_next([=] {
+			accessibilityStateChanged({ .checked = true });
+		}, lifetime());
+	}
 	widthValue() | rpl::on_next([=](int width) {
 		if (width > 0) {
 			refreshLayout();
@@ -67,30 +69,34 @@ QString DetailedSettingsButton::accessibilityName() {
 }
 
 Ui::AccessibilityState DetailedSettingsButton::accessibilityState() const {
-	return { .checkable = true, .checked = _toggle->checked() };
+	return { .checkable = bool(_toggle), .checked = toggled() };
 }
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 11, 0)
 QAccessible::Role DetailedSettingsButton::accessibilityRole() {
-	return QAccessible::Role::Switch;
+	return _toggle ? QAccessible::Role::Switch : QAccessible::Role::Button;
 }
 #endif
 
 bool DetailedSettingsButton::toggled() const {
-	return _toggle->checked();
+	return _toggle && _toggle->checked();
 }
 
 rpl::producer<bool> DetailedSettingsButton::toggledChanges() const {
-	return _toggle->checkedChanges();
+	return _toggle ? _toggle->checkedChanges() : rpl::never<bool>();
 }
 
 void DetailedSettingsButton::setToggleLocked(bool locked) {
 	_toggleLocked = locked;
-	_toggle->setLocked(locked);
+	if (_toggle) {
+		_toggle->setLocked(locked);
+	}
 }
 
 void DetailedSettingsButton::finishAnimating() {
-	_toggle->finishAnimating();
+	if (_toggle) {
+		_toggle->finishAnimating();
+	}
 }
 
 void DetailedSettingsButton::onStateChanged(
@@ -101,10 +107,11 @@ void DetailedSettingsButton::onStateChanged(
 	if (!nowDisabled || !isDown()) {
 		RippleButton::onStateChanged(was, source);
 	}
-	_toggle->setStyle(
-		isOver()
+	if (_toggle) {
+		_toggle->setStyle(isOver()
 			? _style.button.toggleOver
 			: _style.button.toggle);
+	}
 	if (nowDisabled != wasDisabled) {
 		setPointerCursor(!nowDisabled);
 	}
@@ -124,12 +131,21 @@ void DetailedSettingsButton::paintEvent(QPaintEvent *e) {
 	p.setPen(over
 		? _style.button.textFgOver
 		: _style.button.textFg);
-	_title.drawLeftElided(
-		p,
-		_style.button.padding.left(),
-		titleTop(),
-		_titleWidth,
-		width());
+	if (_toggle) {
+		_title.drawLeftElided(
+			p,
+			_style.button.padding.left(),
+			titleTop(),
+			_titleWidth,
+			width());
+	} else {
+		_title.drawLeft(
+			p,
+			_style.button.padding.left(),
+			titleTop(),
+			_titleWidth,
+			width());
+	}
 	p.setPen(_style.description.textFg);
 	if (_descriptionHeight > 0) {
 		_description.drawLeft(
@@ -140,8 +156,10 @@ void DetailedSettingsButton::paintEvent(QPaintEvent *e) {
 			width());
 	}
 
-	const auto toggle = toggleRect();
-	_toggle->paint(p, toggle.left(), toggle.top(), width());
+	if (_toggle) {
+		const auto toggle = toggleRect();
+		_toggle->paint(p, toggle.left(), toggle.top(), width());
+	}
 }
 
 int DetailedSettingsButton::resizeGetHeight(int newWidth) {
@@ -170,7 +188,7 @@ int DetailedSettingsButton::titleTop() const {
 }
 
 int DetailedSettingsButton::titleHeight() const {
-	return _style.button.height;
+	return _toggle ? _style.button.height : _title.countHeight(_titleWidth);
 }
 
 int DetailedSettingsButton::descriptionTopValue() const {
@@ -187,14 +205,15 @@ int DetailedSettingsButton::firstDescriptionLineBottom() const {
 }
 
 int DetailedSettingsButton::textAvailableWidth(int outerw) const {
-	const auto toggle = _toggle->getSize();
+	const auto toggleWidth = _toggle
+		? _style.button.toggleSkip + _toggle->getSize().width()
+		: 0;
 	return std::max(
 		1,
 		outerw
 			- _style.button.padding.left()
 			- _style.button.padding.right()
-			- _style.button.toggleSkip
-			- toggle.width());
+			- toggleWidth);
 }
 
 QRect DetailedSettingsButton::toggleRect() const {
@@ -268,6 +287,16 @@ void DetailedSettingsButton::paintIcon(QPainter &p) const {
 		const auto source = _iconForeground->size();
 		if (!source.isEmpty()) {
 			const auto foreground = iconForegroundRect(rect);
+			if (!_toggle
+				&& source.width() <= foreground.width()
+				&& source.height() <= foreground.height()) {
+				const auto x = foreground.x()
+					+ (foreground.width() - source.width()) / 2;
+				const auto y = foreground.y()
+					+ (foreground.height() - source.height()) / 2;
+				_iconForeground->paint(p, x, y, width());
+				return;
+			}
 			const auto scale = std::min(
 				double(foreground.width()) / source.width(),
 				double(foreground.height()) / source.height());
@@ -276,6 +305,7 @@ void DetailedSettingsButton::paintIcon(QPainter &p) const {
 			const auto shiftY = (foreground.height()
 				- (source.height() * scale)) / 2.;
 			p.save();
+			p.setRenderHint(QPainter::SmoothPixmapTransform);
 			p.translate(foreground.x() + shiftX, foreground.y() + shiftY);
 			p.scale(scale, scale);
 			_iconForeground->paint(p, 0, 0, source.width());

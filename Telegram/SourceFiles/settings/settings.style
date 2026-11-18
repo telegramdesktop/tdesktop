@@ -769,4 +769,14 @@ detailedSettingsButtonStyle: DetailedSettingsButtonStyle {
 	descriptionRightSkip: 4px;
 }
 
+logoutOptionsButtonStyle: DetailedSettingsButtonStyle(detailedSettingsButtonStyle) {
+	iconPadding: 3px;
+	iconForegroundPadding: 2px;
+}
+
+logoutIconAddAccount: icon {{ "logout/add_account-24x24", menuIconColor }};
+logoutIconSetPasscode: icon {{ "logout/set_passcode-24x24", menuIconColor }};
+logoutIconClearCache: icon {{ "logout/clear_cache-24x24", menuIconColor }};
+logoutIconContactSupport: icon {{ "logout/contact_support-24x24", menuIconColor }};
+
 settingsToastStarIcon: icon {{ "toast/star", toastFg }};

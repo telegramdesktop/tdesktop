@@ -1358,6 +1358,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_credits" = "My Stars";
 "lng_settings_currency" = "Gram Earnings";
 "lng_settings_logout" = "Log out";
+"lng_logout_alternatives" = "Alternative options";
+"lng_logout_add_account_about" = "Connect another Telegram account and easily switch between your accounts.";
+"lng_logout_set_passcode" = "Set a Passcode";
+"lng_logout_set_passcode_about" = "Lock Telegram Desktop with a passcode so that others can't open it.";
+"lng_logout_clear_cache" = "Clear Cache";
+"lng_logout_clear_cache_about" = "Free up disk space by removing cached media.";
+"lng_logout_contact_support" = "Contact Support";
+"lng_logout_contact_support_about" = "Tell us about any issues. Logging out doesn't usually help.";
 "lng_sure_logout" = "Are you sure you want to log out?";
 "lng_sure_logout_wallet_local#one" = "Your Gram wallet's keys are stored only on this device and Telegram has no backup of them. Continuing destroys them — only your recovery phrase can restore the wallet.";
 "lng_sure_logout_wallet_local#other" = "{count} of your Gram wallets have their keys stored only on this device, with no Telegram backup. Continuing destroys them — only their recovery phrases can restore them.";

@@ -217,7 +217,7 @@ void MainWindow::createGlobalMenu() {
 		this,
 		[=] {
 			ensureWindowShown();
-			controller().showLogoutConfirmation();
+			controller().showLogoutOptions();
 		});
 
 	auto quit = file->addAction(

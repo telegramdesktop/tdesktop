@@ -2588,6 +2588,8 @@ PRIVATE
     window/window_history_hider.h
     window/window_lock_widgets.cpp
     window/window_lock_widgets.h
+    window/window_logout_box.cpp
+    window/window_logout_box.h
     window/window_main_menu.cpp
     window/window_main_menu.h
     window/window_main_menu_helpers.cpp

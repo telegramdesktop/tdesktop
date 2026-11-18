@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_dc_options.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "window/window_logout_box.h"
 #include "window/window_peer_menu.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
@@ -67,7 +68,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/random.h"
 #include "styles/style_chat.h" // popupMenuExpandedSeparator
-#include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_window.h"
@@ -921,21 +921,9 @@ void SetupAccountsWrap(
 		}
 
 		if (!isActive) {
-			auto logoutCallback = [=] {
-				const auto callback = [=](Fn<void()> &&close) {
-					close();
-					Core::App().logoutWithChecks(&session->account());
-				};
-				window->show(
-					Ui::MakeConfirmBox({
-						.text = Window::LogoutConfirmationText(
-							&session->account()),
-						.confirmed = crl::guard(session, callback),
-						.confirmText = tr::lng_settings_logout(),
-						.confirmStyle = &st::attentionBoxButton,
-					}),
-					Ui::LayerOption::CloseOther);
-			};
+			auto logoutCallback = crl::guard(session, [=] {
+				Window::ShowLogoutOptions(&window->window(), session);
+			});
 			addAction({
 				.text = tr::lng_settings_logout(tr::now),
 				.handler = std::move(logoutCallback),

@@ -451,7 +451,7 @@ void Manager::buildAppleMenu(QMenu *main) {
 void Manager::buildFileMenu(QMenu *file) {
 	auto callback = [this] {
 		withActiveWindow([](not_null<Window::Controller*> window) {
-			window->showLogoutConfirmation();
+			window->showLogoutOptions();
 		});
 	};
 	_logout = file->addAction(

@@ -20,7 +20,7 @@ public:
 		rpl::producer<QString> title,
 		rpl::producer<QString> description,
 		Settings::IconDescriptor icon,
-		rpl::producer<bool> toggled,
+		std::optional<rpl::producer<bool>> toggled,
 		const style::DetailedSettingsButtonStyle &rowStyle);
 
 	QString accessibilityName() override;
