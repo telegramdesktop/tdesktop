@@ -43,7 +43,7 @@ enum class OnchainBuyRefusal : uchar {
 	const Data::UniqueGift &gift);
 [[nodiscard]] QString OnchainBuyRefusalText(OnchainBuyRefusal refusal);
 [[nodiscard]] bool CanBuyOnchainGift(
-	not_null<Main::Session*> session,
+	not_null<PeerData*> recipient,
 	const Data::UniqueGift &gift);
 
 void ShowBuyOnchainGiftBox(

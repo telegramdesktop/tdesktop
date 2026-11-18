@@ -692,7 +692,7 @@ void ShowSelectGiftBox(
 
 	const auto session = &controller->session();
 	const auto state = std::make_shared<State>();
-	const auto resaleOptions = LookupResaleGiftsOptions(session, true);
+	const auto resaleOptions = LookupResaleGiftsOptions(session->user(), true);
 
 	const auto make = [=](not_null<GenericBox*> box) {
 		box->setTitle(tr::lng_gift_craft_select_title());

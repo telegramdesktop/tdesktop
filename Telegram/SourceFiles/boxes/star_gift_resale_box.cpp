@@ -608,10 +608,10 @@ void GiftResaleBox(
 } // namespace
 
 ResaleGiftsOptions LookupResaleGiftsOptions(
-		not_null<Main::Session*> session,
+		not_null<PeerData*> recipient,
 		bool forCraft) {
 	using Mode = Main::GiftResaleFilterMode;
-	const auto &config = session->appConfig();
+	const auto &config = recipient->session().appConfig();
 	const auto ton = config.giftResaleTonFilter();
 	const auto stars = config.giftResaleStarsFilter();
 	return {
@@ -622,7 +622,9 @@ ResaleGiftsOptions LookupResaleGiftsOptions(
 		},
 		.tonShown = (ton != Mode::Hidden),
 		.starsShown = (stars != Mode::Hidden),
-		.fragmentShown = !forCraft && config.giftResaleFragmentEnabled(),
+		.fragmentShown = !forCraft
+			&& recipient->isSelf()
+			&& config.giftResaleFragmentEnabled(),
 	};
 }
 
@@ -881,7 +883,7 @@ rpl::lifetime ShowStarGiftResale(
 		Fn<void()> finishRequesting) {
 	const auto weak = base::make_weak(controller);
 	const auto session = &controller->session();
-	const auto options = LookupResaleGiftsOptions(session, false);
+	const auto options = LookupResaleGiftsOptions(peer, false);
 	return Data::ResaleGiftsSlice(
 		session,
 		giftId,

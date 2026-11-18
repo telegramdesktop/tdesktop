@@ -1006,6 +1006,9 @@ void OnchainPurchase::answered(
 	if (answer.type() == mtpc_payments_starGiftOnchainFixedSalePayload) {
 		fixedAnswered(std::move(operation));
 		return;
+	} else if (!_to->isSelf()) {
+		_signing.closeWithToast(tr::lng_gift_buy_onchain_not_for_sale(tr::now));
+		return;
 	}
 	const auto &message = operation.messages.front();
 	if (message.value != expected || !message.body.isEmpty()) {
@@ -1088,7 +1091,7 @@ void OnchainPurchase::reloaded(const MTPpayments_UniqueStarGift &result) {
 		: std::nullopt;
 	if (!unique
 		|| (unique->slug != _gift->slug)
-		|| !Data::UniqueGiftOnchainPurchase(*unique)
+		|| !CanBuyOnchainGift(_to, *unique)
 		|| !cost) {
 		_signing.closeWithToast(
 			tr::lng_gift_buy_onchain_not_for_sale(tr::now));
@@ -1509,9 +1512,11 @@ QString OnchainBuyRefusalText(OnchainBuyRefusal refusal) {
 }
 
 bool CanBuyOnchainGift(
-		not_null<Main::Session*> session,
+		not_null<PeerData*> recipient,
 		const Data::UniqueGift &gift) {
-	return (LookupOnchainBuyRefusal(session, gift) == OnchainBuyRefusal::None);
+	return (recipient->isSelf() || gift.fixedSale)
+		&& (LookupOnchainBuyRefusal(&recipient->session(), gift)
+			== OnchainBuyRefusal::None);
 }
 
 void ShowBuyOnchainGiftBox(
@@ -1523,7 +1528,7 @@ void ShowBuyOnchainGiftBox(
 	if (!show
 		|| !show->valid()
 		|| !gift
-		|| !CanBuyOnchainGift(&show->session(), *gift)) {
+		|| !CanBuyOnchainGift(to, *gift)) {
 		return;
 	}
 	const auto session = &show->session();

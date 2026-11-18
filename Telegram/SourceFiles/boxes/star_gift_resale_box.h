@@ -14,7 +14,6 @@ struct GiftTypeStars;
 } // namespace Info::PeerGifts
 
 namespace Main {
-class Session;
 class SessionShow;
 } // namespace Main
 
@@ -34,7 +33,7 @@ struct ResaleGiftsOptions {
 };
 
 [[nodiscard]] ResaleGiftsOptions LookupResaleGiftsOptions(
-	not_null<Main::Session*> session,
+	not_null<PeerData*> recipient,
 	bool forCraft);
 
 [[nodiscard]] bool ShouldShowResaleGifts(
