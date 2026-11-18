@@ -161,7 +161,7 @@ private:
 		rpl::lifetime mediaLifetime;
 	};
 	struct Emoji {
-		DocumentData *document;
+		DocumentData *document = nullptr;
 		std::shared_ptr<Text::CustomEmoji> custom;
 	};
 

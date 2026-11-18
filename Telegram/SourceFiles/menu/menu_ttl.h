@@ -16,7 +16,7 @@ namespace TTLMenu {
 
 struct Args {
 	std::shared_ptr<Ui::Show> show;
-	TimeId startTtl;
+	TimeId startTtl = 0;
 	rpl::producer<TextWithEntities> about;
 	Fn<void(TimeId, Fn<void()>)> callback;
 	bool hideDisable = false;

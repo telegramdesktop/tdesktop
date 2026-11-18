@@ -64,7 +64,7 @@ namespace {
 using namespace Builder;
 
 struct Entry {
-	const style::icon *icon;
+	const style::icon *icon = nullptr;
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
 	PremiumFeature feature = PremiumFeature::BusinessLocation;

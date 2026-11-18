@@ -218,7 +218,7 @@ struct Data {
 } // namespace Ref
 
 struct Entry {
-	const style::icon *icon;
+	const style::icon *icon = nullptr;
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
 	PremiumFeature section = PremiumFeature::DoubleLimits;

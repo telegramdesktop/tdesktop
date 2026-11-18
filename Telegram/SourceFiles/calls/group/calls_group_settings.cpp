@@ -706,7 +706,7 @@ void SettingsBox(
 
 		struct State {
 			base::unique_qptr<Ui::PopupMenu> menu;
-			mtpRequestId requestId;
+			mtpRequestId requestId = 0;
 			rpl::event_stream<RtmpInfo> data;
 		};
 		const auto top = box->addTopButton(st::groupCallMenuToggle);

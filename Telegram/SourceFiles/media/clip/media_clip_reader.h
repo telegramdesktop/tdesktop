@@ -172,7 +172,7 @@ private:
 
 	QAtomicInt _autoPausedGif = 0;
 	QAtomicInt _videoPauseRequest = 0;
-	int32 _threadIndex;
+	int32 _threadIndex = 0;
 
 	friend class Manager;
 

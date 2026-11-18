@@ -59,7 +59,7 @@ enum class ValidateIconAnimations {
 
 struct GifSection {
 	DocumentData *document = nullptr;
-	EmojiPtr emoji;
+	EmojiPtr emoji = nullptr;
 
 	friend inline constexpr auto operator<=>(
 		GifSection,

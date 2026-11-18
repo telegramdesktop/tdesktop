@@ -19,8 +19,8 @@ public:
 	DragArea(QWidget *parent);
 
 	struct Areas {
-		DragArea *document;
-		DragArea *photo;
+		DragArea *document = nullptr;
+		DragArea *photo = nullptr;
 	};
 
 	using CallbackComputeState

@@ -12,8 +12,8 @@ namespace RoundVideoData {
 constexpr auto kLogoSize = 80;
 
 struct LogoRLENode final {
-	uint16_t count;
-	uint8_t value;
+	uint16_t count = 0;
+	uint8_t value = 0;
 };
 using LogoRLEFrame = std::vector<LogoRLENode>;
 

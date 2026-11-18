@@ -33,7 +33,7 @@ struct StepData {
 	QString password;
 	QString hint;
 	QString email;
-	int unconfirmedEmailLengthCode;
+	int unconfirmedEmailLengthCode = 0;
 	bool setOnlyRecoveryEmail = false;
 	bool suggestionValidate = false;
 

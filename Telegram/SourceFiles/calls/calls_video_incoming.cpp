@@ -543,10 +543,10 @@ void Panel::Incoming::RendererSW::fillBottomShadow(QPainter &p) {
 // std140 puts the vec3 at offset 16, the NDC Y flip fills the hole.
 struct IncomingShadowUniforms {
 	float viewport[2];
-	float fragCoordYUp;
-	float flipY;
+	float fragCoordYUp = 0.;
+	float flipY = 0.;
 	float shadow[3];
-	float _pad1;
+	float _pad1 = 0.;
 };
 static_assert(sizeof(IncomingShadowUniforms) == 32);
 

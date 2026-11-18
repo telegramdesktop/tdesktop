@@ -190,7 +190,7 @@ const auto kGiftAnimations = std::array<GiftAnimationConfig, 7>{{ {
 		float64 rotationY,
 		int faceIndex) {
 	struct Vec3 {
-		float64 x, y, z;
+		float64 x = 0., y = 0., z = 0.;
 
 		Vec3 operator+(const Vec3 &o) const {
 			return { x + o.x, y + o.y, z + o.z };
@@ -372,7 +372,7 @@ void PaintCubeFace(
 		float64 rotationX,
 		float64 rotationY) {
 	struct Vec3 {
-		float64 x, y, z;
+		float64 x = 0., y = 0., z = 0.;
 
 		Vec3 operator*(float64 s) const {
 			return { x * s, y * s, z * s };
@@ -400,8 +400,8 @@ void PaintCubeFace(
 	}};
 
 	struct FaceDepth {
-		int index;
-		float64 z;
+		int index = 0;
+		float64 z = 0.;
 	};
 	auto visible = std::vector<FaceDepth>();
 	visible.reserve(3);
@@ -685,7 +685,7 @@ void PaintCube(
 
 struct GiftFlightPosition {
 	QPointF origin;
-	float64 scale;
+	float64 scale = 0.;
 };
 
 [[nodiscard]] GiftFlightPosition ComputeGiftFlightPosition(
@@ -720,7 +720,7 @@ struct GiftFlightPosition {
 [[nodiscard]] FacePlacement GetCameraFacingFreeFace(
 		not_null<const CraftAnimationState*> state) {
 	struct Vec3 {
-		float64 x, y, z;
+		float64 x = 0., y = 0., z = 0.;
 	};
 
 	const auto rotateY = [](Vec3 v, float64 angle) {

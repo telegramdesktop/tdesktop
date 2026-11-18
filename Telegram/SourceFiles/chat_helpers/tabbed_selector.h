@@ -75,7 +75,7 @@ struct PhotoChosen {
 };
 
 struct EmojiChosen {
-	EmojiPtr emoji;
+	EmojiPtr emoji = nullptr;
 	Ui::MessageSendingAnimationFrom messageSendingFrom;
 };
 

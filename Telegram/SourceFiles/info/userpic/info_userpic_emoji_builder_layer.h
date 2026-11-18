@@ -32,7 +32,7 @@ protected:
 
 private:
 	Ui::CornersPixmaps _corners;
-	Ui::RpWidget *_content;
+	Ui::RpWidget *_content = nullptr;
 
 };
 

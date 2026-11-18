@@ -49,18 +49,18 @@ const float kQuadVertices[kQuadVertexCount * 2] = {
 };
 
 struct alignas(16) ComputeInitUniforms {
-	uint32_t particleCountX;
-	uint32_t particleCountY;
-	uint32_t seed;
-	uint32_t _pad;
+	uint32_t particleCountX = 0;
+	uint32_t particleCountY = 0;
+	uint32_t seed = 0;
+	uint32_t _pad = 0;
 };
 static_assert(sizeof(ComputeInitUniforms) % 16 == 0);
 
 struct alignas(16) ComputeUpdateUniforms {
-	uint32_t particleCountX;
-	uint32_t particleCountY;
-	float phase;
-	float timeStep;
+	uint32_t particleCountX = 0;
+	uint32_t particleCountY = 0;
+	float phase = 0.;
+	float timeStep = 0.;
 };
 static_assert(sizeof(ComputeUpdateUniforms) % 16 == 0);
 
@@ -69,7 +69,7 @@ struct alignas(16) RenderUniforms {
 	float size[2];
 	uint32_t particleResolution[2];
 	float scale[4];
-	float flipY;
+	float flipY = 0.;
 	float _pad0[3];
 };
 static_assert(sizeof(RenderUniforms) % 16 == 0);

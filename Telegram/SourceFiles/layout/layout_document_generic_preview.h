@@ -13,7 +13,7 @@ struct DocumentGenericPreview final {
 	static DocumentGenericPreview Create(DocumentData *document);
 	static DocumentGenericPreview Create(const QString &filename);
 	const style::icon *icon() const;
-	const int index;
+	const int index = 0;
 	const style::color &color;
 	const style::color &dark;
 	const style::color &over;

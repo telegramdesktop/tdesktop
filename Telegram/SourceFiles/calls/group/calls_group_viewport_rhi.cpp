@@ -33,11 +33,11 @@ constexpr auto kBlurOpacity = 0.65f;
 // The NDC Y flip stays at offset 12 in every block, see NdcFlipY().
 struct GroupFrameUniforms {
 	float viewport[2];
-	float _pad0;
-	float flipY;
+	float _pad0 = 0.;
+	float flipY = 0.;
 	float frameBg[4];
 	float shadow[4];
-	float paused;
+	float paused = 0.;
 	float _pad1[3];
 	float roundRect[4];
 	float radiusOutline[2];
@@ -48,15 +48,15 @@ struct GroupFrameUniforms {
 static_assert(sizeof(GroupFrameUniforms) == 128);
 
 struct BlurUniforms {
-	float texelOffset;
+	float texelOffset = 0.;
 	float _pad[3];
 };
 static_assert(sizeof(BlurUniforms) == 16);
 
 struct ImageUniforms {
 	float viewport[2];
-	float g_opacity;
-	float flipY;
+	float g_opacity = 0.;
+	float flipY = 0.;
 };
 static_assert(sizeof(ImageUniforms) == 16);
 

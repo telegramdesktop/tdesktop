@@ -35,8 +35,8 @@ constexpr auto kStoriesSliceLimit = 100;
 constexpr auto kProfileMusicSliceLimit = 100;
 
 struct LocationKey {
-	uint64 type;
-	uint64 id;
+	uint64 type = 0;
+	uint64 id = 0;
 
 	inline bool operator<(const LocationKey &other) const {
 		return std::tie(type, id) < std::tie(other.type, other.id);

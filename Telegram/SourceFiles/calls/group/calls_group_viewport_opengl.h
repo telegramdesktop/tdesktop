@@ -129,7 +129,7 @@ private:
 	int _ifactor = 1;
 	QSize _viewport;
 	bool _rgbaFrame = false;
-	bool _userpicFrame;
+	bool _userpicFrame = false;
 	std::optional<QOpenGLBuffer> _frameBuffer;
 	Program _downscaleProgram;
 	std::optional<QOpenGLShaderProgram> _blurProgram;

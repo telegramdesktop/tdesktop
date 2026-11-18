@@ -28,42 +28,42 @@ using namespace Ui::GL;
 // The NDC Y flip stays at offset 12 in every block, see NdcFlipY().
 struct ImageUniforms {
 	float viewport[2];
-	float g_opacity;
-	float flipY;
+	float g_opacity = 0.;
+	float flipY = 0.;
 };
 static_assert(sizeof(ImageUniforms) % 16 == 0);
 
 struct ContentUniforms {
 	float viewport[2];
-	float fragCoordYUp;
-	float flipY;
+	float fragCoordYUp = 0.;
+	float flipY = 0.;
 	float shadowTopRect[4];
 	float shadowBottomSkipOpacityFullFade[4];
 	float roundRect[4];
-	float roundRadius;
+	float roundRadius = 0.;
 	float _pad1[3];
 };
 static_assert(sizeof(ContentUniforms) == 80);
 
 struct TransparentContentUniforms {
 	float viewport[2];
-	float fragCoordYUp;
-	float flipY;
+	float fragCoordYUp = 0.;
+	float flipY = 0.;
 	float shadowTopRect[4];
 	float shadowBottomSkipOpacityFullFade[4];
 	float transparentBg[4];
 	float transparentFg[4];
-	float transparentSize;
+	float transparentSize = 0.;
 	float _pad1[3];
 };
 static_assert(sizeof(TransparentContentUniforms) == 96);
 
 struct RoundedCornersUniforms {
 	float viewport[2];
-	float fragCoordYUp;
-	float flipY;
+	float fragCoordYUp = 0.;
+	float flipY = 0.;
 	float roundRect[4];
-	float roundRadius;
+	float roundRadius = 0.;
 	float _pad1[3];
 };
 static_assert(sizeof(RoundedCornersUniforms) == 48);

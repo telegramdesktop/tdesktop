@@ -59,7 +59,7 @@ private:
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<Types> _quits;
 
-	std::any *_stepData;
+	std::any *_stepData = nullptr;
 
 };
 

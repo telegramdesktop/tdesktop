@@ -347,7 +347,7 @@ QPainterPath BuildConnectedBackground(
 		}
 	}
 
-	struct V { float64 x, y; };
+	struct V { float64 x = 0., y = 0.; };
 	auto verts = std::vector<V>();
 
 	verts.push_back({ rects[0].left, rects[0].top });

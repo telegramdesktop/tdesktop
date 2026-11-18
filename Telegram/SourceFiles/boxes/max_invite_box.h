@@ -28,7 +28,7 @@ private:
 	not_null<ChannelData*> _channel;
 
 	Ui::Text::String _text;
-	int32 _textWidth, _textHeight;
+	int32 _textWidth = 0, _textHeight = 0;
 
 	QRect _invitationLink;
 	bool _linkOver = false;

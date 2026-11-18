@@ -94,7 +94,7 @@ private:
 	rpl::event_stream<> _changes;
 
 	struct {
-		const bool looped;
+		const bool looped = false;
 		int minIndex = 0;
 		int maxIndex = 0;
 	} _loopData;
@@ -103,7 +103,7 @@ private:
 
 	struct {
 		bool pressed = false;
-		int lastPositionY;
+		int lastPositionY = 0;
 		bool clickDisabled = false;
 	} _mouse;
 

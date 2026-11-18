@@ -127,9 +127,9 @@ public:
 
 	struct AnimatedPatternPoint {
 		QPointF basePosition;
-		float64 size;
-		float64 startTime;
-		float64 endTime;
+		float64 size = 0.;
+		float64 startTime = 0.;
+		float64 endTime = 0.;
 	};
 
 	TopBar(not_null<Ui::RpWidget*> parent, Descriptor descriptor);

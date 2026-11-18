@@ -59,7 +59,7 @@ public:
 	}
 
 private:
-	AbstractStructure *_p;
+	AbstractStructure *_p = nullptr;
 
 };
 

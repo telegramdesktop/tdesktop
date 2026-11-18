@@ -26,10 +26,10 @@ using namespace Ui::GL;
 
 struct PipUniforms {
 	float viewport[2];
-	float fragCoordYUp;
-	float _pad0;
+	float fragCoordYUp = 0.;
+	float _pad0 = 0.;
 	float roundRect[4];
-	float roundRadius;
+	float roundRadius = 0.;
 	float _pad1[3];
 	float fadeColor[4];
 	float h_size[2];
@@ -42,9 +42,9 @@ static_assert(sizeof(PipUniforms) % 16 == 0);
 // The NDC Y flip stays at offset 12 in every block, see NdcFlipY().
 struct ImageUniforms {
 	float viewport[2];
-	float g_opacity;
-	float flipY;
-	float o_opacity;
+	float g_opacity = 0.;
+	float flipY = 0.;
+	float o_opacity = 0.;
 	float _pad0[3];
 };
 static_assert(sizeof(ImageUniforms) % 16 == 0);

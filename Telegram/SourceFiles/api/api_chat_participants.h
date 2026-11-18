@@ -88,7 +88,7 @@ private:
 class ChatParticipants final {
 public:
 	struct Parsed {
-		const int availableCount;
+		const int availableCount = 0;
 		const std::vector<ChatParticipant> list;
 	};
 

@@ -56,9 +56,9 @@ private:
 	mtpRequestId _enumRequest = 0;
 
 	struct SpecialEndpoint {
-		DcId dcId;
+		DcId dcId = 0;
 		std::string ip;
-		int port;
+		int port = 0;
 		bytes::vector secret;
 	};
 	friend bool operator==(const SpecialEndpoint &a, const SpecialEndpoint &b);

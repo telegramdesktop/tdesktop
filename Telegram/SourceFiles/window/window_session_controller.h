@@ -784,8 +784,8 @@ private:
 	int countDialogsWidthFromRatio(int bodyWidth) const;
 	int countThirdColumnWidthFromRatio(int bodyWidth) const;
 	struct ShrinkResult {
-		int dialogsWidth;
-		int thirdWidth;
+		int dialogsWidth = 0;
+		int thirdWidth = 0;
 	};
 	ShrinkResult shrinkDialogsAndThirdColumns(
 		int dialogsWidth,

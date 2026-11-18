@@ -96,8 +96,8 @@ template <typename T, typename U>
 class FieldAutocomplete::Inner final : public Ui::RpWidget {
 public:
 	struct ScrollTo {
-		int top;
-		int bottom;
+		int top = 0;
+		int bottom = 0;
 	};
 
 	Inner(

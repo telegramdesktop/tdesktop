@@ -23,9 +23,9 @@ constexpr auto kVersion = 2;
 using namespace details;
 
 struct BuiltInDc {
-	int id;
-	const char *ip;
-	int port;
+	int id = 0;
+	const char *ip = nullptr;
+	int port = 0;
 };
 
 const BuiltInDc kBuiltInDcs[] = {
@@ -418,7 +418,7 @@ QByteArray DcOptions::serialize() const {
 		count += keysInDc.second.size();
 	}
 	struct SerializedPublicKey {
-		DcId dcId;
+		DcId dcId = 0;
 		bytes::vector n;
 		bytes::vector e;
 	};

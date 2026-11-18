@@ -45,7 +45,7 @@ struct InfographicDescriptor {
 	float64 defaultLimit = 0;
 	float64 current = 0;
 	float64 premiumLimit = 0;
-	const style::icon *icon;
+	const style::icon *icon = nullptr;
 	std::optional<tr::phrase<lngtag_count>> phrase;
 	bool complexRatio = false;
 };

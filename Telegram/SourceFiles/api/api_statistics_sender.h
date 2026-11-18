@@ -40,8 +40,8 @@ protected:
 
 private:
 	struct Registered final {
-		mtpRequestId id;
-		MTP::DcId dcId;
+		mtpRequestId id = 0;
+		MTP::DcId dcId = 0;
 	};
 	[[nodiscard]] Registered ensureRequestIsRegistered();
 	void checkRequests();
