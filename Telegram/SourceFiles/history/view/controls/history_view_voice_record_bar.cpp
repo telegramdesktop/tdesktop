@@ -1876,7 +1876,9 @@ void ListenWrap::playPause() {
 }
 
 QRect ListenWrap::computeWaveformRect(const QRect &centerRect) const {
-	const auto top = computeTopMargin(st::msgWaveformMax);
+	const auto top = _video
+		? int(st::msgWaveformMin)
+		: computeTopMargin(st::msgWaveformMax);
 	const auto left = st::historyRecordTrimHandleWidth;
 	return centerRect - style::margins(left, top, left, top);
 }
