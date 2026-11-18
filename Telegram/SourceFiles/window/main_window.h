@@ -209,6 +209,7 @@ private:
 	void rememberOwnBodyMargins(QRect inner);
 	void rememberOwnRequestedGeometry();
 	void recoverOwnGeometry();
+	void placeOnScreenIfLost();
 
 	bool computeIsActive() const;
 
