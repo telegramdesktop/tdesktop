@@ -5688,7 +5688,9 @@ QByteArray HtmlWriter::Wrap::composeStart() {
 }
 
 HtmlWriter::Wrap::~Wrap() {
-	(void)close();
+	if (const auto closed = close(); !closed) {
+		LOG(("Export Error: Failed to close '%1'.").arg(closed.path));
+	}
 }
 
 HtmlWriter::HtmlWriter() = default;
