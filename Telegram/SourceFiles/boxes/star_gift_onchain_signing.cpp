@@ -142,6 +142,13 @@ void OnchainSigning::confirm() {
 	reestimate();
 }
 
+void OnchainSigning::confirm(const Wallet::ServedOperation &operation) {
+	if (_stage.current() == Stage::Ready) {
+		_operation = operation;
+		confirm();
+	}
+}
+
 void OnchainSigning::resume() {
 	if (_stage.current() != Stage::Waiting) {
 		return;

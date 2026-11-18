@@ -93,6 +93,7 @@ public:
 	[[nodiscard]] rpl::producer<int64> feeValue() const;
 	[[nodiscard]] bool closable() const;
 
+	void prepare();
 	void sell();
 	void decline();
 
@@ -103,11 +104,10 @@ private:
 	void declineConfirmed(Fn<void()> close);
 	void declined();
 	void declineFailed(const MTP::Error &error);
-	void waitWallet();
 	void walletChanged();
 	void walletReady();
 	void stopWaiting();
-	void accept();
+	void requestTransaction();
 	void accepted(const MTPpayments_StarGiftOnchainOfferTx &result);
 	void acceptFailed(const MTP::Error &error);
 	void ended(Wallet::ServedOutcome outcome);
@@ -197,6 +197,10 @@ private:
 		|| (phase == SalePhase::Sending);
 }
 
+[[nodiscard]] bool SaleCanDecline(SalePhase phase) {
+	return SaleIdle(phase) || (phase == SalePhase::Preparing);
+}
+
 [[nodiscard]] bool SaleFeeShown(SalePhase phase) {
 	return (phase == SalePhase::Confirm)
 		|| (phase == SalePhase::Signing)
@@ -283,21 +287,22 @@ void SaleFlow::sell() {
 	const auto phase = _phase.current();
 	if (!SaleIdle(phase)) {
 		return;
-	} else if (!current()) {
+	} else if (!cardCurrent()) {
 		closeBoxes();
-		return;
-	}
-	if (phase == SalePhase::Confirm) {
+	} else if (phase == SalePhase::Confirm) {
 		_phase = SalePhase::Signing;
-		_signing.confirm();
+		if (base::unixtime::now() < _answerExpiresAt) {
+			_signing.confirm();
+		} else {
+			requestTransaction();
+		}
 	} else {
-		_phase = SalePhase::Preparing;
-		waitWallet();
+		prepare();
 	}
 }
 
 void SaleFlow::decline() {
-	if (_declineBox || !SaleIdle(_phase.current())) {
+	if (_declineBox || !SaleCanDecline(_phase.current())) {
 		return;
 	}
 	const auto weak = base::make_weak(this);
@@ -333,13 +338,17 @@ bool SaleFlow::usable(Ui::OnchainSigningCheck check) {
 
 void SaleFlow::declineConfirmed(Fn<void()> close) {
 	const auto phase = _phase.current();
-	if (!SaleIdle(phase)) {
+	if (!SaleCanDecline(phase)) {
 		return;
 	} else if (!cardCurrent()) {
 		closeBoxes();
 		return;
 	}
-	_declineFrom = phase;
+	if (phase == SalePhase::Preparing) {
+		_session->api().request(base::take(_acceptRequestId)).cancel();
+		toReview();
+	}
+	_declineFrom = _phase.current();
 	_phase = SalePhase::Declining;
 	const auto session = _session;
 	const auto weak = base::make_weak(this);
@@ -379,7 +388,8 @@ void SaleFlow::declineFailed(const MTP::Error &error) {
 	}
 }
 
-void SaleFlow::waitWallet() {
+void SaleFlow::prepare() {
+	_phase = SalePhase::Preparing;
 	if (!_polling) {
 		_polling = true;
 		_wallet->startPolling();
@@ -416,12 +426,12 @@ void SaleFlow::walletChanged() {
 }
 
 void SaleFlow::walletReady() {
-	if (!current()) {
+	if (!cardCurrent()) {
 		closeBoxes();
-	} else if (_operation) {
+	} else if (_operation && base::unixtime::now() < _answerExpiresAt) {
 		_signing.quote(*_operation);
 	} else {
-		accept();
+		requestTransaction();
 	}
 }
 
@@ -430,7 +440,7 @@ void SaleFlow::stopWaiting() {
 	_waitLifetime.destroy();
 }
 
-void SaleFlow::accept() {
+void SaleFlow::requestTransaction() {
 	_acceptRequestId = _session->api().request(
 		MTPpayments_AcceptStarGiftOnchainOffer(
 			MTP_int(_terms.itemId.msg.bare))
@@ -445,7 +455,8 @@ void SaleFlow::accept() {
 }
 
 void SaleFlow::accepted(const MTPpayments_StarGiftOnchainOfferTx &result) {
-	if (_phase.current() != SalePhase::Preparing) {
+	const auto phase = _phase.current();
+	if (phase != SalePhase::Preparing && phase != SalePhase::Signing) {
 		return;
 	}
 	const auto &data = result.data();
@@ -461,13 +472,16 @@ void SaleFlow::accepted(const MTPpayments_StarGiftOnchainOfferTx &result) {
 	_answerExpiresAt = data.vexpires_at().v;
 	if (!current()) {
 		closeBoxes();
-		return;
+	} else if (phase == SalePhase::Signing) {
+		_signing.confirm(*_operation);
+	} else {
+		_signing.quote(*_operation);
 	}
-	_signing.quote(*_operation);
 }
 
 void SaleFlow::acceptFailed(const MTP::Error &error) {
-	if (_phase.current() != SalePhase::Preparing) {
+	const auto phase = _phase.current();
+	if (phase != SalePhase::Preparing && phase != SalePhase::Signing) {
 		return;
 	}
 	const auto &type = error.type();
@@ -840,6 +854,7 @@ void ConfirmSaleBox(
 		box->setCloseByEscape(!sending);
 		box->setCloseByOutsideClick(!sending);
 	}, box->lifetime());
+	flow->prepare();
 }
 
 } // namespace

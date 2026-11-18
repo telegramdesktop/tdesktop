@@ -88,6 +88,7 @@ public:
 	void sign(const Wallet::ServedOperation &operation);
 	void quote(const Wallet::ServedOperation &operation);
 	void confirm();
+	void confirm(const Wallet::ServedOperation &operation);
 	void awaitWallet();
 	void resume();
 	void refused(Wallet::SendError error);

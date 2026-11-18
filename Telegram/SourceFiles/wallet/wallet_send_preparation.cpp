@@ -27,8 +27,8 @@ bool FeeChangeNeedsConfirmation(
 		? (*updated - *shown)
 		: (*shown - *updated);
 	const auto threshold = (*shown / 100) * kPercent
-		+ ((*shown % 100) * kPercent + 99) / 100;
-	return change >= threshold;
+		+ ((*shown % 100) * kPercent) / 100;
+	return change > threshold;
 }
 
 SendPreparation::SendPreparation(SendPreparationDescriptor &&descriptor)
