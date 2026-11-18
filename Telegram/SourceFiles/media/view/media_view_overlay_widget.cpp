@@ -85,6 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_media_rotation.h"
+#include "data/data_peer_values.h"
 #include "data/data_photo_media.h"
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
@@ -7841,6 +7842,7 @@ void OverlayWidget::setContext(
 		ItemContext,
 		not_null<PeerData*>,
 		StoriesContext> context) {
+	_screenshotProtectionLifetime.destroy();
 	if (const auto item = std::get_if<ItemContext>(&context)) {
 		if (_message != item->item) {
 			checkSingleViewMediaBurn();
@@ -7895,7 +7897,23 @@ void OverlayWidget::setContext(
 	}
 	_user = _peer ? _peer->asUser() : nullptr;
 	++_displayGeneration;
-	refreshScreenshotProtection();
+	if (_history) {
+		Data::AllowsForwardingValue(
+			_history->peer
+		) | rpl::on_next([=] {
+			refreshScreenshotProtection();
+		}, _screenshotProtectionLifetime);
+	} else {
+		refreshScreenshotProtection();
+	}
+	if (_message) {
+		_message->history()->owner().itemDataChanges(
+		) | rpl::filter(
+			rpl::mappers::_1 == _message
+		) | rpl::on_next([=] {
+			refreshScreenshotProtection();
+		}, _screenshotProtectionLifetime);
+	}
 }
 
 void OverlayWidget::setStoriesPeer(PeerData *peer) {
@@ -8954,6 +8972,7 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 
 // #TODO unite and check
 void OverlayWidget::clearBeforeHide() {
+	_screenshotProtectionLifetime.destroy();
 	checkSingleViewMediaBurn();
 	_message = nullptr;
 	_sharedMedia = nullptr;
