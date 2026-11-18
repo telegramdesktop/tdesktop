@@ -20,13 +20,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_facade.h"
-#include "core/application.h"
-#include "core/core_settings.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "apiwrap.h"
-#include "mainwidget.h"
 #include "styles/style_dialogs.h"
 
 namespace Data {
