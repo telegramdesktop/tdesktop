@@ -1892,7 +1892,7 @@ void StartCraftAnimation(
 					const auto wasTotal = box->parentWidget()->height();
 					const auto wasButtons = wasTotal - wasContent;
 
-					container->clear();
+					container->detachRows();
 					container->add(std::move(success->owned));
 
 					box->setStyle(st::giftBox);
