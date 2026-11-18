@@ -981,7 +981,8 @@ void Mixer::stop(const AudioMsgId &audio, State state) {
 }
 
 void Mixer::stopAndClear() {
-	Track *current_audio = nullptr, *current_song = nullptr;
+	auto current_audio = (Track*)nullptr;
+	auto current_song = (Track*)nullptr;
 	{
 		QMutexLocker lock(&AudioMutex);
 		if ((current_audio = trackForType(AudioMsgId::Type::Voice))) {

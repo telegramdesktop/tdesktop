@@ -946,8 +946,8 @@ namespace {
 		}
 		return result;
 	}
-	const StressValue *before = nullptr;
-	const StressValue *firstInside = nullptr;
+	auto before = (const StressValue*)nullptr;
+	auto firstInside = (const StressValue*)nullptr;
 	for (const auto &value : parsed) {
 		if (value.receivedAt <= *start) {
 			before = &value;
