@@ -14,8 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Media::Streaming {
 
 struct NativeFrame;
+struct FrameColor;
 
-[[nodiscard]] QImage ConvertNativeFrameToARGB32(const NativeFrame &frame);
+[[nodiscard]] bool SupportedPixelBufferFormat(uint32 format);
+[[nodiscard]] bool HighBitDepthPixelBufferFormat(uint32 format);
+[[nodiscard]] QImage ConvertNativeFrameToARGB32(
+	const NativeFrame &frame,
+	const FrameColor &color);
 
 } // namespace Media::Streaming
 

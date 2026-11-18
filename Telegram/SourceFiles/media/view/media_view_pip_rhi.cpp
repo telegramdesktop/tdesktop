@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rhi/rhi_shader.h"
 #include "ui/widgets/shadow.h"
+#include "media/streaming/media_streaming_color.h"
 #include "media/streaming/media_streaming_common.h"
 #include "base/platform/base_platform_info.h"
 #include "styles/style_basic.h"
@@ -36,6 +37,8 @@ struct PipUniforms {
 	float _pad2[2];
 	float h_extend[4];
 	float h_components[4];
+	std::array<float, 16> yuvToRgb;
+	std::array<float, 4> hdr;
 };
 static_assert(sizeof(PipUniforms) % 16 == 0);
 
@@ -188,6 +191,9 @@ void Pip::RendererRhi::initialize(
 	if (!_placeholderTexture->create()) {
 		return;
 	}
+
+	_hdrSupported = rhi->isTextureFormatSupported(QRhiTexture::R16)
+		&& rhi->isTextureFormatSupported(QRhiTexture::RG16);
 
 	if (!createPipelines()) {
 		return;
@@ -480,6 +486,7 @@ void Pip::RendererRhi::releaseResources() {
 	_chromaSize = QSize();
 	_trackFrameIndex = -1;
 	_chromaNV12 = false;
+	_videoHighBitDepth = false;
 	_usingExternalVideoTextures = false;
 #ifdef Q_OS_MAC
 	_metalTextureCache.flush();
@@ -534,7 +541,7 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 	if (!_initialized) {
 		return;
 	}
-	const auto data = _owner->videoFrameWithInfo();
+	const auto data = _owner->videoFrameWithInfo(_hdrSupported);
 	if (data.format == Streaming::FrameFormat::None) {
 		return;
 	}
@@ -595,9 +602,13 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 			if (!yuv || yuv->size.isEmpty()) {
 				return;
 			}
-			if (!_yTexture || _lumaSize != yuv->size) {
+			const auto highBitDepth = yuv->highBitDepth;
+			const auto formatChanged = (_videoHighBitDepth != highBitDepth);
+			if (!_yTexture || _lumaSize != yuv->size || formatChanged) {
 				delete _yTexture;
-				_yTexture = _rhi->newTexture(QRhiTexture::R8, yuv->size);
+				_yTexture = _rhi->newTexture(
+					highBitDepth ? QRhiTexture::R16 : QRhiTexture::R8,
+					yuv->size);
 				if (!_yTexture->create()) {
 					_initialized = false;
 					return;
@@ -612,11 +623,12 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 					QRhiTextureUploadEntry(0, 0, yDesc)));
 
 			if (nv12) {
-				if (!_uvTexture || nv12changed
+				if (!_uvTexture || nv12changed || formatChanged
 					|| _chromaSize != yuv->chromaSize) {
 					delete _uvTexture;
 					_uvTexture = _rhi->newTexture(
-						QRhiTexture::RG8, yuv->chromaSize);
+						highBitDepth ? QRhiTexture::RG16 : QRhiTexture::RG8,
+						yuv->chromaSize);
 					if (!_uvTexture->create()) {
 						_initialized = false;
 						return;
@@ -630,18 +642,19 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 					QRhiTextureUploadDescription(
 						QRhiTextureUploadEntry(0, 0, uvDesc)));
 			} else {
-				if (!_uTexture || nv12changed
+				if (!_uTexture || nv12changed || formatChanged
 					|| _chromaSize != yuv->chromaSize) {
+					const auto format = highBitDepth
+						? QRhiTexture::R16
+						: QRhiTexture::R8;
 					delete _uTexture;
-					_uTexture = _rhi->newTexture(
-						QRhiTexture::R8, yuv->chromaSize);
+					_uTexture = _rhi->newTexture(format, yuv->chromaSize);
 					if (!_uTexture->create()) {
 						_initialized = false;
 						return;
 					}
 					delete _vTexture;
-					_vTexture = _rhi->newTexture(
-						QRhiTexture::R8, yuv->chromaSize);
+					_vTexture = _rhi->newTexture(format, yuv->chromaSize);
 					if (!_vTexture->create()) {
 						_initialized = false;
 						return;
@@ -661,6 +674,7 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 					QRhiTextureUploadDescription(
 						QRhiTextureUploadEntry(0, 0, vDesc)));
 			}
+			_videoHighBitDepth = highBitDepth;
 		} // !zeroCopied
 		_chromaNV12 = nv12;
 		_usingExternalVideoTextures = zeroCopied;
@@ -672,6 +686,12 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 		return;
 	}
 
+	const auto color = Streaming::PrepareColorUniforms(
+		data.color ? *data.color : Streaming::FrameColor(),
+		nv12,
+		nativeTexture
+			? (data.nativeFrame && data.nativeFrame->highBitDepth)
+			: _videoHighBitDepth);
 	if (nv12) {
 		const auto slot = allocateDrawSlot();
 		if (slot < 0) {
@@ -701,7 +721,7 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 			_initialized = false;
 			return;
 		}
-		paintTransformedContent(_nv12Pipeline, srb, geometry, slot);
+		paintTransformedContent(_nv12Pipeline, srb, geometry, slot, color);
 	} else {
 		const auto slot = allocateDrawSlot();
 		if (slot < 0) {
@@ -734,7 +754,7 @@ void Pip::RendererRhi::paintTransformedVideoFrame(
 			_initialized = false;
 			return;
 		}
-		paintTransformedContent(_yuv420Pipeline, srb, geometry, slot);
+		paintTransformedContent(_yuv420Pipeline, srb, geometry, slot, color);
 	}
 }
 
@@ -802,14 +822,15 @@ void Pip::RendererRhi::paintTransformedStaticContent(
 		return;
 	}
 
-	paintTransformedContent(_argb32Pipeline, srb, geometry, slot);
+	paintTransformedContent(_argb32Pipeline, srb, geometry, slot, {});
 }
 
 void Pip::RendererRhi::paintTransformedContent(
 		QRhiGraphicsPipeline *pipeline,
 		QRhiShaderResourceBindings *srb,
 		ContentGeometry geometry,
-		int slot) {
+		int slot,
+		const Streaming::ColorUniforms &color) {
 	if (!_initialized) {
 		return;
 	}
@@ -884,6 +905,8 @@ void Pip::RendererRhi::paintTransformedContent(
 	uniforms.h_components[1] = PipShadow().topLeft.height() * globalFactor;
 	uniforms.h_components[2] = PipShadow().left.width() * globalFactor;
 	uniforms.h_components[3] = PipShadow().top.height() * globalFactor;
+	uniforms.yuvToRgb = color.yuvToRgb;
+	uniforms.hdr = color.hdr;
 
 	_rub->updateDynamicBuffer(
 		_uniformBuffer,
