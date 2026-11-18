@@ -15,11 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_onchain_signing.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_star_gift.h"
-#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/controls/table_rows.h"
-#include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text_utilities.h"
@@ -150,7 +148,7 @@ void AddTermsTable(not_null<GenericBox*> box, const OfferTerms &terms) {
 			return label(tr::marked(u"—"_q));
 		}
 		auto text = mark;
-		text.append(QChar(' ')).append(FormatTonAmount(*nanos).full);
+		text.append(QChar(' ')).append(Data::FormatGiftGramAmount(*nanos));
 		return label(std::move(text));
 	};
 	AddTableRow(
@@ -219,7 +217,7 @@ void CompleteOffer(const OfferCompletion &completion) {
 		.text = tr::lng_gift_offer_onchain_sent_text(
 			tr::now,
 			lt_amount,
-			tr::bold(PrepareGramAmountText(completion.value)),
+			tr::bold(Data::FormatGiftGramAmountWithUnit(completion.value)),
 			lt_date,
 			tr::marked(langDateTime(
 				base::unixtime::parse(completion.expiresAt))),

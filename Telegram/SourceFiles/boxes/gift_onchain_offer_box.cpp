@@ -582,14 +582,15 @@ void SaleFlow::stop() {
 		lt_name,
 		rpl::single(tr::bold(Data::UniqueGiftName(*terms.gift))),
 		lt_amount,
-		rpl::single(tr::bold(PrepareGramAmountText(terms.amount))),
+		rpl::single(tr::bold(Data::FormatGiftGramAmountWithUnit(terms.amount))),
 		tr::marked);
 	if (!terms.feeBps) {
 		return question;
 	}
 	auto receive = tr::lng_gift_offer_you_get(
 		lt_cost,
-		rpl::single(tr::bold(PrepareGramAmountText(ReceiveAmount(terms)))),
+		rpl::single(tr::bold(Data::FormatGiftGramAmountWithUnit(
+			ReceiveAmount(terms)))),
 		tr::marked);
 	return rpl::combine(
 		std::move(question),
@@ -609,7 +610,7 @@ void SaleFlow::stop() {
 	text.append(QChar(' ')).append(PrepareGramAmountWithFiat(
 		session,
 		amount,
-		tr::marked(PrepareGramAmountText(amount))));
+		tr::marked(Data::FormatGiftGramAmountWithUnit(amount))));
 	return object_ptr<Ui::FlatLabel>(
 		table,
 		rpl::single(std::move(text)),
@@ -710,7 +711,7 @@ not_null<Ui::SlideWrap<Ui::FlatLabel>*> AddGiftOnchainFeeLine(
 				box,
 				tr::lng_gift_onchain_offer_network_fee(
 					lt_amount,
-					std::move(fee) | rpl::map(PrepareGramAmountText)),
+					std::move(fee) | rpl::map(Data::FormatGiftGramAmountWithUnit)),
 				st::walletConnectCaptionLabel),
 			st::walletConnectCaptionMargin),
 		style::margins(),

@@ -503,7 +503,7 @@ void OnchainOfferBox(
 			return amount
 				? tr::lng_suggest_options_offer(
 					lt_amount,
-					rpl::single(PrepareGramAmountText(*amount)))
+					rpl::single(Data::FormatGiftGramAmountWithUnit(*amount)))
 				: tr::lng_gift_offer_button();
 		}) | rpl::flatten_latest(),
 		press).data();

@@ -1259,7 +1259,7 @@ void AddPurchaseTerms(
 			table,
 			std::move(value) | rpl::map([=](int64 nanos) {
 				auto result = mark;
-				result.append(QChar(' ')).append(FormatTonAmount(nanos).full);
+				result.append(QChar(' ')).append(Data::FormatGiftGramAmount(nanos));
 				return result;
 			}),
 			st::giveawayGiftMessage,
@@ -1327,13 +1327,12 @@ void OnchainBuyBox(
 			gift,
 			to),
 		QMargins(0, padding.top(), 0, 0));
-	auto total = purchase->totalValue() | rpl::map([](int64 nanos) {
-		return nanos / float64(kNanosInOne);
+	auto price = rpl::combine(
+		purchase->totalValue(),
+		rpl::single(rpl::empty) | rpl::then(Lang::Updated())
+	) | rpl::map([](int64 nanos, rpl::empty_value) {
+		return tr::bold(Data::FormatGiftGramAmountWithUnit(nanos));
 	});
-	auto price = tr::lng_action_gift_for_ton(
-		lt_count_decimal,
-		std::move(total),
-		tr::bold);
 	box->addRow(
 		object_ptr<FlatLabel>(
 			box,
@@ -1360,7 +1359,7 @@ void OnchainBuyBox(
 	) | rpl::filter([](std::optional<int64> fee) {
 		return fee.has_value();
 	}) | rpl::map([](std::optional<int64> fee) {
-		return FormatTonAmount(*fee).full;
+		return Data::FormatGiftGramAmount(*fee);
 	});
 	const auto fee = box->addRow(
 		object_ptr<SlideWrap<FlatLabel>>(

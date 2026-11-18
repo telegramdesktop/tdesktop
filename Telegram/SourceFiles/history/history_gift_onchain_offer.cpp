@@ -29,7 +29,7 @@ using State = GiftOnchainOfferState;
 }
 
 [[nodiscard]] TextWithEntities AmountText(int64 nanos) {
-	return tr::bold(PrepareGramAmountText(nanos));
+	return tr::bold(Data::FormatGiftGramAmountWithUnit(nanos));
 }
 
 [[nodiscard]] TextWithEntities GiftNameText(

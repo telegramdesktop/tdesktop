@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
-#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -23,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/table_rows.h"
-#include "ui/controls/ton_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/widgets/buttons.h"
@@ -291,7 +289,7 @@ private:
 		lt_name,
 		rpl::single(tr::bold(name)),
 		lt_price,
-		rpl::single(tr::bold(PrepareGramAmountText(price))),
+		rpl::single(tr::bold(Data::FormatGiftGramAmountWithUnit(price))),
 		tr::marked);
 }
 
@@ -306,7 +304,7 @@ private:
 				lt_name,
 				name,
 				lt_price,
-				PrepareGramAmountText(completion.price));
+				Data::FormatGiftGramAmountWithUnit(completion.price));
 	case SaleKind::Change:
 		return tr::lng_gift_sell_updated(tr::now, lt_name, name);
 	case SaleKind::Unlist:
@@ -396,7 +394,7 @@ void AddGramRow(
 		std::move(label),
 		std::move(nanos) | rpl::map([=](int64 value) {
 			auto result = mark;
-			result.append(QChar(' ')).append(FormatTonAmount(value).full);
+			result.append(QChar(' ')).append(Data::FormatGiftGramAmount(value));
 			return result;
 		}),
 		helper.context());

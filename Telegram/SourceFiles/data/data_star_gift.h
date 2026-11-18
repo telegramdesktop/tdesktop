@@ -170,6 +170,8 @@ struct UniqueGift {
 [[nodiscard]] std::optional<int64> UniqueGiftBuyerPays(
 	const UniqueGift &gift);
 
+[[nodiscard]] QString FormatGiftGramAmount(int64 nanos);
+[[nodiscard]] QString FormatGiftGramAmountWithUnit(int64 nanos);
 [[nodiscard]] TextWithEntities FormatGiftResaleStars(const UniqueGift &gift);
 [[nodiscard]] TextWithEntities FormatGiftResaleTon(int64 nanos);
 [[nodiscard]] TextWithEntities FormatGiftResaleTon(const UniqueGift &gift);

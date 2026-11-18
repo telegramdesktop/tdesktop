@@ -1362,18 +1362,19 @@ base::weak_qptr<Ui::GenericBox> ShowBuyResaleGiftConfirm(
 			BuyResaleGift(show, std::move(selected), done);
 		};
 
-		auto price = state->ton.value() | rpl::map([=](bool ton) {
+		auto price = rpl::combine(
+			state->ton.value(),
+			rpl::single(rpl::empty) | rpl::then(Lang::Updated())
+		) | rpl::map([=](bool ton, rpl::empty_value) {
 			return ton
-				? tr::lng_action_gift_for_ton(
-					lt_count_decimal,
-					rpl::single(gift->nanoTonForResale
-						/ float64(Ui::kNanosInOne)),
-					tr::bold)
+				? tr::bold(Data::FormatGiftGramAmountWithUnit(
+					gift->nanoTonForResale))
 				: tr::lng_action_gift_for_stars(
+					tr::now,
 					lt_count_decimal,
-					rpl::single(gift->starsForResale * 1.),
+					gift->starsForResale * 1.,
 					tr::bold);
-		}) | rpl::flatten_latest();
+		});
 		Ui::ConfirmBox(box, {
 			.text = to->isSelf()
 				? tr::lng_gift_buy_resale_confirm_self(
@@ -1403,8 +1404,8 @@ object_ptr<Ui::GenericBox> MakeResaleGiftPriceChangeBox(
 		Fn<void()> confirmed,
 		Fn<void()> cancelled) {
 	const auto cost = price.ton()
-		? Ui::Text::IconEmoji(&st::tonIconEmoji).append(
-			Lang::FormatCreditsAmountDecimal(price))
+		? Data::FormatGiftResaleTon(
+			price.whole() * Ui::kNanosInOne + price.nano())
 		: Ui::Text::IconEmoji(&st::starIconEmoji).append(
 			Lang::FormatCountDecimal(price.whole()));
 	return Ui::MakeConfirmBox({

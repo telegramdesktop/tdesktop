@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
 #include "main/main_session.h"
@@ -58,6 +59,18 @@ constexpr auto kBasisPointsInOne = int64(10'000);
 			.type = GiftAttributeIdType::Pattern,
 		};
 	});
+}
+
+[[nodiscard]] int64 GiftDisplayNanos(int64 nanos) {
+	// Keep leading fractional zeroes when there is no nonzero prefix.
+	constexpr auto kFourZeroes = 10'000;
+	for (auto place = Ui::kNanosInOne; place > kFourZeroes; place /= 10) {
+		const auto tail = nanos % place;
+		if ((nanos / place != 0) && std::abs(tail) < place / kFourZeroes) {
+			return nanos - tail;
+		}
+	}
+	return nanos;
 }
 
 } // namespace
@@ -176,6 +189,14 @@ std::optional<int64> UniqueGiftBuyerPays(const UniqueGift &gift) {
 		gift.fixedSale ? *gift.feeBps : 0);
 }
 
+QString FormatGiftGramAmount(int64 nanos) {
+	return Ui::FormatTonAmount(GiftDisplayNanos(nanos)).full;
+}
+
+QString FormatGiftGramAmountWithUnit(int64 nanos) {
+	return PrepareGramAmountText(GiftDisplayNanos(nanos));
+}
+
 TextWithEntities FormatGiftResaleStars(const UniqueGift &gift) {
 	return Ui::Text::IconEmoji(
 		&st::starIconEmoji
@@ -185,10 +206,7 @@ TextWithEntities FormatGiftResaleStars(const UniqueGift &gift) {
 TextWithEntities FormatGiftResaleTon(int64 nanos) {
 	return Ui::Text::IconEmoji(
 		&st::tonIconEmoji
-	).append(Lang::FormatCreditsAmountDecimal(CreditsAmount(
-		nanos / Ui::kNanosInOne,
-		nanos % Ui::kNanosInOne,
-		CreditsType::Ton)));
+	).append(FormatGiftGramAmount(nanos));
 }
 
 TextWithEntities FormatGiftResaleTon(const UniqueGift &gift) {

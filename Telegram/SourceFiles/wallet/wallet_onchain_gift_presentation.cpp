@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_star_gift.h"
 #include "lang/lang_keys.h"
 #include "ui/controls/table_rows.h"
-#include "ui/controls/ton_common.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text.h"
 #include "ui/widgets/labels.h"
@@ -279,7 +278,7 @@ void SetCollectibleChipSubtitle(
 	auto helper = Ui::Text::CustomEmojiHelper();
 	auto amount = GramMark(helper, textStyle.font);
 	amount.append(QChar(' '));
-	amount.append(Ui::FormatTonAmount(amountNano).full);
+	amount.append(Data::FormatGiftGramAmount(amountNano));
 	auto priced = (*phrase)(
 		tr::now,
 		lt_amount,

@@ -12,10 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_onchain_signing.h"
 #include "chat_helpers/compose/compose_show.h"
 #include "data/data_session.h"
+#include "data/data_star_gift.h"
 #include "history/history_gift_onchain_offer.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "history/history_item_helpers.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
@@ -61,13 +61,13 @@ void ShowWithdrawError(const std::shared_ptr<ChatHelpers::Show> &show) {
 		result.append(tr::lng_gift_onchain_offer_withdraw_fine(
 			tr::now,
 			lt_amount,
-			tr::bold(PrepareGramAmountText(fine)),
+			tr::bold(Data::FormatGiftGramAmountWithUnit(fine)),
 			tr::marked)).append(u"\n\n"_q);
 	}
 	result.append(tr::lng_gift_onchain_offer_withdraw_rest(
 		tr::now,
 		lt_amount,
-		tr::bold(PrepareGramAmountText(amount)),
+		tr::bold(Data::FormatGiftGramAmountWithUnit(amount)),
 		tr::marked));
 	return result;
 }
@@ -209,7 +209,7 @@ void WithdrawOfferBox(
 	auto confirmText = (fine > 0)
 		? tr::lng_gift_onchain_offer_withdraw_for(
 			lt_amount,
-			rpl::single(PrepareGramAmountText(fine)))
+			rpl::single(Data::FormatGiftGramAmountWithUnit(fine)))
 		: tr::lng_gift_onchain_offer_withdraw();
 	box->setWidth(st::boxWideWidth);
 	ConfirmBox(box, {
