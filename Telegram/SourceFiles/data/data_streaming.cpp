@@ -88,7 +88,7 @@ Streaming::Streaming(not_null<Session*> owner)
 Streaming::~Streaming() = default;
 
 template <typename Data>
-[[nodiscard]] std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
+std::shared_ptr<Streaming::Reader> Streaming::sharedReader(
 		base::flat_map<not_null<Data*>, std::weak_ptr<Reader>> &readers,
 		not_null<Data*> data,
 		FileOrigin origin,
@@ -116,7 +116,7 @@ template <typename Data>
 }
 
 template <typename Data>
-[[nodiscard]] std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
+std::shared_ptr<Streaming::Document> Streaming::sharedDocument(
 		base::flat_map<not_null<Data*>, std::weak_ptr<Document>> &documents,
 		base::flat_map<not_null<Data*>, std::weak_ptr<Reader>> &readers,
 		not_null<Data*> data,

@@ -192,7 +192,7 @@ WebLoadManager::~WebLoadManager() {
 	_thread.wait();
 }
 
-[[nodiscard]] rpl::producer<Update> WebLoadManager::updates(
+rpl::producer<Update> WebLoadManager::updates(
 		not_null<webFileLoader*> loader) const {
 	return _updates.events(
 	) | rpl::filter([=](const UpdateForLoader &update) {

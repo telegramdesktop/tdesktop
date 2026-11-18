@@ -2174,7 +2174,7 @@ bool Session::queryDocumentVisibility(
 }
 
 
-[[nodiscard]] auto Session::itemVisibilityQueries() const
+auto Session::itemVisibilityQueries() const
 -> rpl::producer<Session::ItemVisibilityQuery> {
 	return _itemVisibilityQueries.events();
 }

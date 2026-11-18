@@ -476,7 +476,7 @@ void PhotoData::updateImages(
 	}
 }
 
-[[nodiscard]] bool PhotoData::hasAttachedStickers() const {
+bool PhotoData::hasAttachedStickers() const {
 	return _hasStickers;
 }
 

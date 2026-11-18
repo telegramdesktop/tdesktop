@@ -218,7 +218,7 @@ void Thread::setUnreadMarkFlag(bool unread) {
 	}
 }
 
-[[nodiscard]] bool Thread::hasPinnedMessages() const {
+bool Thread::hasPinnedMessages() const {
 	return (_flags & Flag::HasPinnedMessages);
 }
 

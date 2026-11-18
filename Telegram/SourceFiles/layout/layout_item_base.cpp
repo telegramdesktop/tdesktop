@@ -9,13 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_cursor_state.h"
 
-[[nodiscard]] HistoryView::TextState LayoutItemBase::getState(
+HistoryView::TextState LayoutItemBase::getState(
 		QPoint point,
 		StateRequest request) const {
 	return {};
 }
 
-[[nodiscard]] TextSelection LayoutItemBase::adjustSelection(
+TextSelection LayoutItemBase::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
 	return selection;

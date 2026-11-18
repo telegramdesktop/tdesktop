@@ -2711,7 +2711,7 @@ void Widget::scrollToDefault(bool verytop) {
 		anim::sineInOut);
 }
 
-[[nodiscard]] QPixmap Widget::grabNonNarrowScrollFrame() {
+QPixmap Widget::grabNonNarrowScrollFrame() {
 	auto scrollGeometry = _scroll->geometry();
 	const auto top = _searchControls->y() + _searchControls->height();
 	const auto skip = scrollGeometry.y() - top;

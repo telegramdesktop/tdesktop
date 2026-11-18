@@ -1610,7 +1610,7 @@ bool Document::uploading() const {
 	return _data->uploading();
 }
 
-[[nodiscard]] int Document::thumbedLinkMaxWidth() const {
+int Document::thumbedLinkMaxWidth() const {
 	if (Has<HistoryDocumentThumbed>()) {
 		const auto w = [](const QString &text) {
 			return st::semiboldFont->width(text.toUpper());

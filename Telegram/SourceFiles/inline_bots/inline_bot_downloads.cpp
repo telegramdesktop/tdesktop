@@ -262,7 +262,7 @@ void Downloads::action(
 	}
 }
 
-[[nodiscard]] auto Downloads::progress(not_null<UserData*> bot)
+auto Downloads::progress(not_null<UserData*> bot)
 ->rpl::producer<DownloadsProgress> {
 	read();
 

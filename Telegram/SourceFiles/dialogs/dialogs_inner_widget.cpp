@@ -1879,7 +1879,7 @@ void InnerWidget::fillRightButton(
 	button.activeBg = generateBg(st.button.textFg);
 }
 
-[[nodiscard]] RightButton *InnerWidget::maybeCacheRightButton(Row *row) {
+RightButton *InnerWidget::maybeCacheRightButton(Row *row) {
 	if (const auto user = MaybeBotWithApp(row)) {
 		const auto it = _rightButtons.find(user->id);
 		if (it == _rightButtons.end()) {

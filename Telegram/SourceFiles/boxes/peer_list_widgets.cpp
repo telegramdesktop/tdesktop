@@ -171,7 +171,7 @@ int PeerListWidgets::fullRowsCount() {
 	return _rows.size();
 }
 
-[[nodiscard]] not_null<PeerListRow*> PeerListWidgets::rowAt(int index) {
+not_null<PeerListRow*> PeerListWidgets::rowAt(int index) {
 	Expects(index >= 0 && index < _rows.size());
 
 	return _rows[index].get();
