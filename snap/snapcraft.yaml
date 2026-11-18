@@ -151,7 +151,7 @@ parts:
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
-    source-branch: n6.1.6
+    source-branch: n8.1.3
     plugin: autotools
     build-packages:
       - nasm
@@ -302,6 +302,7 @@ parts:
       - --enable-muxer=webm
     override-pull: |
       craftctl default
+      find $CRAFT_STAGE/patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply -v
       sed -i 's/disable ffnvcodec cuvid nvdec nvenc/:/g' configure
     override-build: |
       craftctl default
@@ -309,6 +310,7 @@ parts:
     prime: [-./*]
     after:
       - nv-codec-headers
+      - patches
 
   minizip:
     source: https://github.com/madler/zlib.git
