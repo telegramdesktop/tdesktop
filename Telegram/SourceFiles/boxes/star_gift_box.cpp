@@ -3097,6 +3097,8 @@ void UniqueGiftSellBox(
 	const auto &appConfig = session->appConfig();
 	const auto starsMin = appConfig.giftResaleStarsMin();
 	const auto nanoTonMin = appConfig.giftResaleNanoTonMin();
+	const auto starsMax = appConfig.giftResaleStarsMax();
+	const auto nanoTonMax = appConfig.giftResaleNanoTonMax();
 	const auto starsThousandths = appConfig.giftResaleStarsThousandths();
 	const auto nanoTonThousandths = appConfig.giftResaleNanoTonThousandths();
 
@@ -3105,6 +3107,7 @@ void UniqueGiftSellBox(
 		rpl::variable<CreditsAmount> price;
 		Fn<std::optional<CreditsAmount>()> computePrice;
 		rpl::event_stream<> errors;
+		bool aboveMaximum = false;
 	};
 	const auto state = box->lifetime().make_state<State>();
 	const auto onSale = Data::UniqueGiftOnSale(*unique);
@@ -3140,10 +3143,15 @@ void UniqueGiftSellBox(
 		.showTon = state->onlyTon.value(),
 		.price = state->price.current(),
 		.starsMin = starsMin,
-		.starsMax = appConfig.giftResaleStarsMax(),
+		.starsMax = starsMax,
 		.nanoTonMin = nanoTonMin,
-		.nanoTonMax = appConfig.giftResaleNanoTonMax(),
+		.nanoTonMax = nanoTonMax,
 		.allowEmpty = true,
+		.errorHook = [=](CreditsAmount amount) {
+			state->aboveMaximum = amount.ton()
+				? (amount.whole() * Ui::kNanosInOne + amount.nano() > nanoTonMax)
+				: (amount.whole() > starsMax);
+		},
 	});
 	state->price = std::move(priceInput.result);
 	state->computePrice = std::move(priceInput.computeResult);
@@ -3155,6 +3163,19 @@ void UniqueGiftSellBox(
 		state->errors.events() | rpl::map_to(false)
 	) | rpl::start_spawning(box->lifetime());
 	auto text = rpl::duplicate(goods) | rpl::map([=](bool good) {
+		if (!good && state->aboveMaximum) {
+			const auto maximum = state->onlyTon.current()
+				? PrepareGramAmountText(nanoTonMax)
+				: tr::lng_action_gift_for_stars(
+					tr::now,
+					lt_count_decimal,
+				starsMax);
+			return tr::lng_gift_sell_max_price(
+				tr::now,
+				lt_amount,
+				tr::marked(maximum),
+				tr::rich);
+		}
 		const auto value = onchain
 			? std::optional<CreditsAmount>()
 			: state->computePrice();
@@ -3237,6 +3258,7 @@ void UniqueGiftSellBox(
 	}, details->lifetime());
 
 	const auto submit = [=] {
+		state->aboveMaximum = false;
 		const auto value = state->computePrice();
 		if (!value || (onchain && !*value)) {
 			state->errors.fire({});

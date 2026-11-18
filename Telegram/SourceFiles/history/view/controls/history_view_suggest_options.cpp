@@ -113,12 +113,19 @@ StarsTonPriceInput AddStarsTonPriceInput(
 	struct State {
 		rpl::variable<bool> ton;
 		rpl::variable<CreditsAmount> price;
+		rpl::variable<bool> priceValid = true;
 		rpl::event_stream<> updates;
 		rpl::event_stream<> submits;
 	};
 	const auto state = container->lifetime().make_state<State>();
 	state->ton = std::move(args.showTon);
 	state->price = args.price;
+	const auto estimate = [=](rpl::producer<CreditsAmount> price) {
+		return rpl::conditional(
+			state->priceValid.value(),
+			std::move(price),
+			rpl::single(CreditsAmount()));
+	};
 
 	const auto session = args.session;
 	const auto added = st::boxRowPadding - st::defaultSubsectionTitlePadding;
@@ -147,7 +154,7 @@ StarsTonPriceInput AddStarsTonPriceInput(
 	AddApproximateUsd(
 		starsField,
 		session,
-		StarsPriceValue(state->price.value()));
+		estimate(StarsPriceValue(state->price.value())));
 
 	Ui::AddSkip(starsInner);
 	Ui::AddSkip(starsInner);
@@ -179,7 +186,7 @@ StarsTonPriceInput AddStarsTonPriceInput(
 	AddApproximateUsd(
 		tonField,
 		session,
-		TonPriceValue(state->price.value()));
+		estimate(TonPriceValue(state->price.value())));
 
 	Ui::AddSkip(tonInner);
 	Ui::AddSkip(tonInner);
@@ -227,9 +234,11 @@ StarsTonPriceInput AddStarsTonPriceInput(
 	};
 
 	const auto updatePrice = [=] {
-		if (auto result = computeResult()) {
+		const auto result = computeResult();
+		if (result) {
 			state->price = *result;
 		}
+		state->priceValid = result.has_value();
 		state->updates.fire({});
 	};
 	const auto updateTonFromStars = [=] {

@@ -4609,6 +4609,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_gift_sell_amount_ton#other" = "You will receive **{count}** Grams.";
 "lng_gift_sell_min_price_ton#one" = "Minimum price is {count} Gram.";
 "lng_gift_sell_min_price_ton#other" = "Minimum price is {count} Grams.";
+"lng_gift_sell_max_price" = "Maximum price is {amount}.";
 "lng_gift_sell_title_ton" = "Price in Grams";
 "lng_gift_sell_put" = "Put for Sale";
 "lng_gift_sell_update" = "Update the Price";
