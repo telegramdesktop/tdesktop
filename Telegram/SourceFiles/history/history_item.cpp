@@ -6181,18 +6181,24 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 			const auto peerId = data.vreply_to_peer_id()
 				? peerFromMTP(*data.vreply_to_peer_id())
 				: _history->peer->id;
-			if (const auto dependent = GetServiceDependentData()) {
-				const auto id = data.vreply_to_msg_id().value_or_empty();
-				if (id) {
-					dependent->peerId = (peerId != _history->peer->id)
-						? peerId
-						: 0;
-					dependent->msgId = id;
-					dependent->topId = data.vreply_to_top_id().value_or(id);
-					dependent->topicPost = data.is_forum_topic()
-						|| Has<HistoryServiceTopicInfo>();
-					updateServiceDependent();
-				}
+			const auto id = data.vreply_to_msg_id().value_or_empty();
+			if (!id) {
+				return;
+			}
+			if (const auto offer = Get<HistoryServiceGiftOnchainOffer>()) {
+				offer->originalOfferLink = JumpToMessageClickHandler(
+					_history->owner().peer(peerId),
+					id,
+					fullId());
+			} else if (const auto dependent = GetServiceDependentData()) {
+				dependent->peerId = (peerId != _history->peer->id)
+					? peerId
+					: 0;
+				dependent->msgId = id;
+				dependent->topId = data.vreply_to_top_id().value_or(id);
+				dependent->topicPost = data.is_forum_topic()
+					|| Has<HistoryServiceTopicInfo>();
+				updateServiceDependent();
 			}
 		}, [](const MTPDmessageReplyStoryHeader &data) {
 		});

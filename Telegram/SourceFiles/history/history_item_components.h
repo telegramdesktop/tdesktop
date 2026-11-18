@@ -911,6 +911,7 @@ struct HistoryServiceTonConnectRequest
 
 struct HistoryServiceGiftOnchainOffer
 : RuntimeComponent<HistoryServiceGiftOnchainOffer, HistoryItem> {
+	ClickHandlerPtr originalOfferLink;
 	std::shared_ptr<Data::UniqueGift> gift;
 	QString address;
 	uint64 offerId = 0;

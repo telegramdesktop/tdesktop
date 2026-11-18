@@ -861,6 +861,10 @@ ClickHandlerPtr GiftServiceBox::createButtonLink() {
 			}
 		});
 	} else if (!_review) {
+		const auto offer = item->Get<HistoryServiceGiftOnchainOffer>();
+		if (offer && offer->originalOfferLink) {
+			return offer->originalOfferLink;
+		}
 		return createViewLink();
 	}
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
