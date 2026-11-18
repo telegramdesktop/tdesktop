@@ -82,13 +82,37 @@ using Data::ResaleGiftsDescriptor;
 	return result;
 }
 
+void PrepareResaleAttributes(ResaleGiftsDescriptor &data, bool forCraft) {
+	if (forCraft) {
+		using namespace Data;
+		const auto isRare = [](const UniqueGiftModelCount &entry) {
+			return entry.model.rarityType() != UniqueGiftRarity::Default;
+		};
+		data.models.erase(
+			ranges::remove_if(data.models, isRare),
+			end(data.models));
+	}
+	ranges::stable_sort(
+		data.models,
+		ranges::greater(),
+		&Data::UniqueGiftModelCount::count);
+	ranges::stable_sort(
+		data.backdrops,
+		ranges::greater(),
+		&Data::UniqueGiftBackdropCount::count);
+	ranges::stable_sort(
+		data.patterns,
+		ranges::greater(),
+		&Data::UniqueGiftPatternCount::count);
+}
+
 struct ResaleTabs {
 	rpl::producer<ResaleGiftsFilter> filter;
 	object_ptr<RpWidget> widget;
 };
 [[nodiscard]] ResaleTabs MakeResaleTabs(
 		std::shared_ptr<ChatHelpers::Show> show,
-		const ResaleGiftsDescriptor &info,
+		not_null<const ResaleGiftsDescriptor*> data,
 		rpl::producer<ResaleGiftsFilter> filter,
 		const ResaleGiftsOptions &options) {
 	auto widget = object_ptr<RpWidget>((QWidget*)nullptr);
@@ -103,7 +127,6 @@ struct ResaleTabs {
 		rpl::variable<int> fullWidth;
 		std::vector<Button> buttons;
 		base::unique_qptr<Ui::PopupMenu> menu;
-		ResaleGiftsDescriptor lists;
 		int dragx = 0;
 		int pressx = 0;
 		float64 dragscroll = 0.;
@@ -127,31 +150,6 @@ struct ResaleTabs {
 		}
 		return result;
 	};
-
-	state->lists.backdrops = info.backdrops;
-	state->lists.models = info.models;
-	state->lists.patterns = info.patterns;
-	if (forCraft) {
-		using namespace Data;
-		const auto isRare = [](const UniqueGiftModelCount &entry) {
-			return entry.model.rarityType() != UniqueGiftRarity::Default;
-		};
-		state->lists.models.erase(
-			ranges::remove_if(state->lists.models, isRare),
-			end(state->lists.models));
-	}
-	ranges::stable_sort(
-		state->lists.models,
-		ranges::greater(),
-		&Data::UniqueGiftModelCount::count);
-	ranges::stable_sort(
-		state->lists.backdrops,
-		ranges::greater(),
-		&Data::UniqueGiftBackdropCount::count);
-	ranges::stable_sort(
-		state->lists.patterns,
-		ranges::greater(),
-		&Data::UniqueGiftPatternCount::count);
 
 	const auto scroll = [=] {
 		return QPoint(int(base::SafeRound(state->scroll)), 0);
@@ -329,7 +327,7 @@ struct ResaleTabs {
 				return !has || ranges::contains(now, id);
 			};
 			if (type == GiftAttributeIdType::Model) {
-				for (auto &entry : state->lists.models) {
+				for (const auto &entry : data->models) {
 					const auto id = IdFor(entry.model);
 					const auto text = wrapName(
 						entry.model.name,
@@ -339,7 +337,7 @@ struct ResaleTabs {
 					}, id.value, checked(id));
 				}
 			} else if (type == GiftAttributeIdType::Backdrop) {
-				for (auto &entry : state->lists.backdrops) {
+				for (const auto &entry : data->backdrops) {
 					const auto id = IdFor(entry.backdrop);
 					const auto text = wrapName(
 						entry.backdrop.name,
@@ -349,7 +347,7 @@ struct ResaleTabs {
 					}, entry.backdrop.centerColor, checked(id));
 				}
 			} else if (type == GiftAttributeIdType::Pattern) {
-				for (auto &entry : state->lists.patterns) {
+				for (const auto &entry : data->patterns) {
 					const auto id = IdFor(entry.pattern);
 					const auto text = wrapName(
 						entry.pattern.name,
@@ -658,10 +656,11 @@ void AddResaleGiftsList(
 	const auto state = container->lifetime().make_state<State>();
 	state->filter = options.filter;
 	state->data = std::move(descriptor);
+	PrepareResaleAttributes(state->data, forCraft);
 
 	auto tabs = MakeResaleTabs(
 		window->uiShow(),
-		state->data,
+		&state->data,
 		state->filter.value(),
 		options);
 	state->filter = std::move(tabs.filter);
@@ -689,11 +688,16 @@ void AddResaleGiftsList(
 			QString()
 		) | rpl::on_next([=](ResaleGiftsDescriptor &&slice) {
 			state->loading.destroy();
-			state->data.offset = slice.list.empty()
-				? QString()
-				: slice.offset;
-			state->data.count = slice.count;
-			state->data.list = std::move(slice.list);
+			if (slice.giftId) {
+				PrepareResaleAttributes(slice, forCraft);
+				state->data = std::move(slice);
+			} else {
+				state->data.list.clear();
+				state->data.count = 0;
+			}
+			if (state->data.list.empty()) {
+				state->data.offset.clear();
+			}
 			if (countChanged) {
 				countChanged(state->data.count);
 			}
