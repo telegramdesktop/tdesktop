@@ -4577,13 +4577,18 @@ public:
 	explicit SeekBar(QWidget *parent) : RpWidget(parent) {
 		resize(width(), 28);
 		setCursor(style::cur_pointer);
+		Mokagram::Settings::Changed() | rpl::on_next([=](const QString &key) {
+			if (_expressive && key == u"player.expressive_seek"_q) {
+				updateWaveAnimation();
+				update();
+			}
+		}, lifetime());
 		paintRequest(
 		) | rpl::on_next([=](QRect) {
 			auto p = QPainter(this);
 			auto hq = PainterHighQualityEnabler(p);
 			if (_thin) {
-				if (_expressive && !_over && !_dragging
-					&& Mokagram::Settings::Bool(u"player.expressive_seek"_q)) {
+				if (showsWave()) {
 					paintWave(p);
 					return;
 				}
@@ -4629,13 +4634,18 @@ public:
 		update();
 	}
 	void setExpressive(bool expressive, bool playing) {
+		if (_expressive == expressive && _wavePlaying == playing) {
+			return;
+		}
 		_expressive = expressive;
 		_wavePlaying = playing;
+		updateWaveAnimation();
 		update();
 	}
 	void setThin(bool thin) {
 		_thin = thin;
 		setMouseTracking(true);
+		updateWaveAnimation();
 		update();
 	}
 	void setProgress(float64 value) {
@@ -4648,6 +4658,22 @@ public:
 			update();
 		}
 	}
+	[[nodiscard]] bool waveAnimating() const {
+		return _waveAnimating.current();
+	}
+	[[nodiscard]] rpl::producer<bool> waveAnimationChanges() const {
+		return _waveAnimating.changes();
+	}
+	void advanceWave(float64 elapsed) {
+		const auto wanted = _wavePlaying ? 1. : 0.;
+		_wavePhase += elapsed * 2. * wanted;
+		_waveAmp += (wanted - _waveAmp) * (1. - std::exp(-elapsed * 8.));
+		if (!_wavePlaying && _waveAmp <= 0.01) {
+			_waveAmp = 0.;
+			_waveAnimating = false;
+		}
+		update();
+	}
 	[[nodiscard]] rpl::producer<float64> sought() const {
 		return _sought.events();
 	}
@@ -4657,6 +4683,14 @@ public:
 	}
 
 protected:
+	void showEvent(QShowEvent *e) override {
+		RpWidget::showEvent(e);
+		updateWaveAnimation();
+	}
+	void hideEvent(QHideEvent *e) override {
+		_waveAnimating = false;
+		RpWidget::hideEvent(e);
+	}
 	void enterEventHook(QEnterEvent *e) override {
 		setOver(true);
 	}
@@ -4684,27 +4718,17 @@ protected:
 	}
 
 private:
+	[[nodiscard]] bool showsWave() const {
+		return _thin && _expressive && !_over && !_dragging
+			&& Mokagram::Settings::Bool(u"player.expressive_seek"_q);
+	}
+	void updateWaveAnimation() {
+		_waveAnimating = isVisible() && showsWave()
+			&& (_wavePlaying || _waveAmp > 0.01);
+	}
 	void paintWave(QPainter &p) {
-		const auto progress = _dragging ? _drag : _progress;
 		const auto y = height() / 2.;
-		const auto end = width() * progress;
-		// Фаза копится с шагом по времени, а амплитуда плавно растёт и гаснет:
-		// при возврате в окно волна продолжает ход, а не прыгает.
-		const auto now = crl::now();
-		const auto dt = _waveAt ? std::min((now - _waveAt) / 1000., 0.1) : 0.;
-		_waveAt = now;
-		const auto looking = Mokagram::Perf::UserIsLooking()
-			&& !PowerSaving::On(PowerSaving::kAnimations);
-		const auto wanted = (_wavePlaying && !_dragging) ? 1. : 0.;
-		if (looking) {
-			_wavePhase += dt * 2. * (wanted > 0. ? 1. : 0.);
-			_waveAmp += (wanted - _waveAmp) * (1. - std::exp(-dt * 8.));
-		} else {
-			_waveAt = 0;
-		}
-		if (looking && std::abs(wanted - _waveAmp) > 0.01) {
-			update();
-		}
+		const auto end = width() * _progress;
 		const auto phase = _wavePhase;
 		const auto amplitude = st::motionWaveAmplitude * _waveAmp;
 		p.setPen(QPen(QColor(255, 255, 255, 65), st::motionWaveStroke,
@@ -4735,6 +4759,7 @@ private:
 		}
 	}
 	void startGrow() {
+		updateWaveAnimation();
 		const auto to = (_over || _dragging) ? 1. : 0.;
 		_grow.start([=] { update(); }, 1. - to, to, 180, anim::easeOutCubic);
 	}
@@ -4746,11 +4771,11 @@ private:
 	}
 
 	Ui::Animations::Simple _grow;
+	rpl::variable<bool> _waveAnimating = false;
 	bool _expressive = false;
 	bool _wavePlaying = false;
 	float64 _wavePhase = 0.;
 	float64 _waveAmp = 0.;
-	crl::time _waveAt = 0;
 	bool _thin = false;
 	bool _over = false;
 	QColor _fill = Qt::white;
@@ -7095,20 +7120,25 @@ public:
 					_spotifyCanvas = nullptr;
 				}
 				refresh();
+				updateAmbientTimer();
 				update();
 			}
 		}, lifetime());
 		_ambientTimer.setInterval(33);
 		connect(&_ambientTimer, &QTimer::timeout, this, [=] {
-			if (!isVisible() || !_isPlaying || !Mokagram::Perf::UserIsLooking()
-				|| PowerSaving::On(PowerSaving::kAnimations)) return;
-			if (_tab == Tab::Now
-				&& Mokagram::Settings::Bool(u"player.dynamic_background"_q)) {
+			const auto now = crl::now();
+			const auto elapsed = std::min((now - _ambientAt) / 1000., 0.1);
+			_ambientAt = now;
+			if (animatesBackdrop()) {
 				_view->update();
 				update();
 			}
-			_seek->update();
+			if (_seek->waveAnimating()) {
+				_seek->advanceWave(elapsed);
+			}
 		});
+		_seek->waveAnimationChanges(
+		) | rpl::on_next([=] { updateAmbientTimer(); }, lifetime());
 		connect(qApp, &QGuiApplication::applicationStateChanged, this, [=] {
 			updateAmbientTimer();
 		});
@@ -7856,6 +7886,7 @@ protected:
 		const auto navFrom = _navSlide.value(float64(int(_tab)));
 		_navSlideFrom = navFrom;
 		_tab = tab;
+		updateAmbientTimer();
 		if (anim::Disabled() || PowerSaving::On(PowerSaving::kAnimations)) {
 			_navSlide.stop();
 		} else {
@@ -9402,6 +9433,7 @@ private:
 		}
 		if (track.id.isEmpty()) {
 			_isPlaying = false;
+			_seek->setExpressive(true, false);
 			updateAmbientTimer();
 			if (_cancelMotion) _cancelMotion();
 			_cancelMotion = nullptr;
@@ -9706,17 +9738,24 @@ private:
 	QImage _spotifyPaletteFrame;
 	QString _canvasPaletteFor;
 	crl::time _canvasPaletteNext = 0;
+	[[nodiscard]] bool animatesBackdrop() const {
+		return _isPlaying && _tab == Tab::Now
+			&& Mokagram::Settings::Bool(u"player.dynamic_background"_q);
+	}
 	void updateAmbientTimer() {
-		const auto needed = !_closing && isVisible() && _isPlaying
+		const auto needed = !_closing && isVisible()
+			&& (animatesBackdrop() || _seek->waveAnimating())
 			&& QGuiApplication::applicationState() == Qt::ApplicationActive
 			&& !PowerSaving::On(PowerSaving::kAnimations);
 		if (needed && !_ambientTimer.isActive()) {
+			_ambientAt = crl::now();
 			_ambientTimer.start();
 		} else if (!needed) {
 			_ambientTimer.stop();
 		}
 	}
 	QTimer _ambientTimer;
+	crl::time _ambientAt = 0;
 	Media::Clip::ReaderPointer _motionCover;
 	Media::Clip::ReaderPointer _playlistsSticker;
 	Media::Clip::ReaderPointer _searchEmptySticker;
