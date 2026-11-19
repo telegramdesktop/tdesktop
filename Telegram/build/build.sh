@@ -457,12 +457,21 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     if [ "$NotarizeRequestId" == "" ] || [ "$NotarizeRequestId" == "go" ]; then
       if [ "$AlphaVersion" == "0" ]; then
         cp -f tsetup_template.dmg tsetup.temp.dmg
-        TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
+        until TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'` && [ "$TempDiskPath" != "" ]; do
+          echo "Attaching tsetup.temp.dmg failed, retrying in 3 seconds.."
+          sleep 3
+        done
         cp -R "./$BundleName" "$TempDiskPath/"
         rm -f "$TempDiskPath/$BundleName/Contents/Resources/AppIcon.icns"
         bless --folder "$TempDiskPath/"
-        hdiutil detach "$TempDiskPath"
-        hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "$SetupFile"
+        until hdiutil detach "$TempDiskPath"; do
+          echo "Detaching $TempDiskPath failed, retrying in 3 seconds.."
+          sleep 3
+        done
+        until hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "$SetupFile"; do
+          echo "Converting tsetup.temp.dmg failed, retrying in 3 seconds.."
+          sleep 3
+        done
         rm tsetup.temp.dmg
       fi
     fi
