@@ -99,6 +99,7 @@
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/scroll_area.h"
 #include "media/player/media_player_volume_controller.h"
@@ -6706,19 +6707,20 @@ public:
 	: RpWidget(parent.get())
 	, _controller(controller)
 	, _view(Ui::CreateChild<LyricsView>(this))
-	, _seek(Ui::CreateChild<SeekBar>(this))
-	, _heart(Ui::CreateChild<RoundGlyph>(this, Glyph::Add, 44))
+	, _tabScroll(Ui::CreateChild<Ui::ScrollArea>(this, st::defaultScrollArea))
+	, _playbackBar(Ui::CreateChild<Ui::RpWidget>(this))
+	, _seek(Ui::CreateChild<SeekBar>(_playbackBar))
+	, _heart(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Add, 44))
 	, _collapse(Ui::CreateChild<RoundGlyph>(this, Glyph::Collapse, 44))
 	, _filter(Ui::CreateChild<RoundGlyph>(this, Glyph::Filter, 44))
-	, _queueToggle(Ui::CreateChild<RoundGlyph>(this, Glyph::Queue, 44))
-	, _volume(Ui::CreateChild<SeekBar>(this))
-	, _tabScroll(Ui::CreateChild<Ui::ScrollArea>(this, st::defaultScrollArea))
+	, _queueToggle(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Queue, 44))
+	, _volume(Ui::CreateChild<SeekBar>(_playbackBar))
 	, _tabTransition(Ui::CreateChild<Ui::RpWidget>(this))
-	, _shuffle(Ui::CreateChild<RoundGlyph>(this, Glyph::Shuffle, 44))
-	, _previous(Ui::CreateChild<RoundGlyph>(this, Glyph::Previous, 52))
-	, _play(Ui::CreateChild<RoundGlyph>(this, Glyph::Play, 52))
-	, _next(Ui::CreateChild<RoundGlyph>(this, Glyph::Next, 52))
-	, _repeat(Ui::CreateChild<RoundGlyph>(this, Glyph::Repeat, 44))
+	, _shuffle(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Shuffle, 44))
+	, _previous(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Previous, 52))
+	, _play(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Play, 52))
+	, _next(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Next, 52))
+	, _repeat(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Repeat, 44))
 	, _canvas(this, [=] {
 		update(computeLayout().cover);
 	}) {
@@ -6758,7 +6760,7 @@ public:
 			_tabScroll->scrollToY(_homeAlbumReturnScroll);
 		}));
 		_homeBack->hide();
-		AttachCommentsToPlayer(controller, this, _seek, false);
+		AttachCommentsToPlayer(controller, _playbackBar, _seek, false);
 		_filter->setToolTip(QString::fromUtf8(Mokagram::Lang::Tr("Звуковой фильтр")));
 		_filter->setClickedCallback([=] {
 			_filterMenu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
@@ -6796,7 +6798,22 @@ public:
 		_next->resize(s(40), s(40));
 		_repeat->resize(s(36), s(36));
 		_seek->resize(_seek->width(), s(20));
-		_tabList = _tabScroll->setOwnedWidget(object_ptr<Ui::VerticalLayout>(_tabScroll));
+		_tabContent = _tabScroll->setOwnedWidget(
+			object_ptr<Ui::PaddingWrap<Ui::VerticalLayout>>(
+				_tabScroll,
+				object_ptr<Ui::VerticalLayout>(_tabScroll),
+				QMargins()));
+		_tabList = _tabContent->entity();
+		_playbackBar->setMouseTracking(true);
+		_playbackBar->paintOn([=](QPainter &p) {
+			if (_tab == Tab::Home) {
+				const auto hq = PainterHighQualityEnabler(p);
+				p.translate(-_playbackBar->pos());
+				const auto layout = computeLayout();
+				paintPlaybackBarBackground(p, layout);
+				paintPlaybackBarDetails(p, layout);
+			}
+		});
 		_tabTransition->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_tabTransition->hide();
 		_tabTransition->paintRequest(
@@ -7540,12 +7557,15 @@ protected:
 	void resizeEvent(QResizeEvent *e) override {
 		const auto s = [](int v) { return style::ConvertScale(v); };
 		const auto layout = computeLayout();
+		const auto barOrigin = layout.bar.topLeft();
+		_playbackBar->setGeometry(layout.bar);
+		_playbackBar->setVisible(layout.barShown);
 		_collapse->move(layout.collapse);
 		_filter->move(style::ConvertScale(16), layout.collapse.y());
 		_homeBack->setGeometry(_filter->x() + _filter->width() + s(8), layout.nav.y(), s(96), layout.nav.height());
 		_homeBack->setVisible(_tab == Tab::Home && _homeAlbumOpen);
-		_queueToggle->move(layout.queue);
-		_heart->move(layout.heart);
+		_queueToggle->move(layout.queue - barOrigin);
+		_heart->move(layout.heart - barOrigin);
 		for (const auto button : { _shuffle.get(), _previous.get(), _play.get(), _next.get(), _repeat.get(), _queueToggle.get() }) {
 			button->setVisible(layout.barShown);
 		}
@@ -7555,18 +7575,23 @@ protected:
 		_heart->setVisible(layout.barShown && _heartOwn);
 		_volume->setVisible(layout.barShown && !layout.compact);
 		if (!layout.compact) {
-			_volume->setGeometry(layout.volume);
+			_volume->setGeometry(layout.volume.translated(-barOrigin));
 		}
-		_seek->setGeometry(layout.seek);
+		_seek->setGeometry(layout.seek.translated(-barOrigin));
 		_view->setVisible(_tab == Tab::Now && !showsQueue());
 		_view->setGeometry(layout.lyrics);
 		_tabScroll->setVisible(_tab != Tab::Now || showsQueue());
+		const auto home = (_tab == Tab::Home);
+		const auto scrollBottom = home ? height() : layout.center.bottom() + 1 - s(12);
+		// Последнюю карточку можно прокрутить целиком выше плеера.
+		_tabContent->setPadding(QMargins(
+			0, 0, 0, home ? height() - layout.bar.y() + s(12) : 0));
 		_tabScroll->setGeometry(
 			layout.center.x(),
 			layout.scrollTop,
 			layout.center.width(),
-			std::max(layout.center.y() + layout.center.height() - layout.scrollTop - s(12), 0));
-		_tabList->resizeToWidth(_tabScroll->width());
+			std::max(scrollBottom - layout.scrollTop, 0));
+		_tabContent->resizeToWidth(_tabScroll->width());
 		if (_homeAlbumHeader) _homeAlbumHeader->setBannerTopInset(_tabScroll->y());
 
 		// Навигация: ряд пилюль сверху по центру.
@@ -7630,10 +7655,12 @@ protected:
 			++count;
 		}
 		const auto gap = std::clamp((layout.controlsWidth - widths) / (count - 1), s(2), s(18));
-		auto x = layout.controlsLeft + (layout.controlsWidth - widths - gap * (count - 1)) / 2;
+		const auto top = layout.controlsTop - barOrigin.y();
+		auto x = layout.controlsLeft - barOrigin.x()
+			+ (layout.controlsWidth - widths - gap * (count - 1)) / 2;
 		for (const auto button : row) {
 			if (layout.ultra && (button == _shuffle || button == _repeat)) continue;
-			button->move(x, layout.controlsTop + (_play->height() - button->height()) / 2);
+			button->move(x, top + (_play->height() - button->height()) / 2);
 			x += button->width() + gap;
 		}
 		for (const auto button : { _collapse.get(), _filter.get(), _queueToggle.get(), _heart.get() }) {
@@ -8764,7 +8791,7 @@ protected:
 				}
 			}
 		}
-		_tabList->resizeToWidth(_tabScroll->width());
+		_tabContent->resizeToWidth(_tabScroll->width());
 		if (!showsQueue()) {
 			_tabScroll->scrollToY(keep);
 		}
@@ -8808,7 +8835,7 @@ protected:
 		if (tracks.empty()) {
 			_tabNote = QString::fromUtf8(Mokagram::Lang::Tr("Очередь пуста."));
 		}
-		_tabList->resizeToWidth(_tabScroll->width());
+		_tabContent->resizeToWidth(_tabScroll->width());
 		auto at = inQueue ? queue.index : -1;
 		for (auto i = 0; !inQueue && i != int(tracks.size()); ++i) {
 			if (tracks[i].id == playingId) {
@@ -8901,12 +8928,6 @@ protected:
 		const auto plain = _plainAnim.value(_tab == Tab::Now ? 0. : 1.);
 		p.setBrush(homeColor.isValid() ? homeColor : anim::color(coverColor, st::windowActiveTextFg->c, plain));
 		p.drawRoundedRect(active, active.height() / 2., active.height() / 2.);
-		const auto labelFont = [&](int size, bool bold) {
-			auto font = (bold ? st::semiboldFont : st::normalFont)->f;
-			font.setPixelSize(s(size));
-			return font;
-		};
-
 		// Открытая вкладка лежит на карточке; на «Сейчас играет» обложка и текст прямо на фоне.
 		if ((_tab != Tab::Now || showsQueue()) && !(_tab == Tab::Home && _homeAlbumOpen)) {
 			if (_tab != Tab::Home && _tab != Tab::Library
@@ -9083,20 +9104,11 @@ protected:
 		drawInfo(_wasTitle, _wasArtist, 1. - fade, false);
 		drawInfo(_title, _artist, fade * (1. - closing), true);
 		p.restore();
-		if (!layout.barShown) {
+		if (!layout.barShown || _tab == Tab::Home) {
 			return;
 		}
 
-		// Полоса управления внизу: чёрная капсула как у островка,
-		// углы iOS-сквиркл.
-		p.setPen(Qt::NoPen);
-		// Цвет обложки только на «Сейчас играет», на остальных серо-синий.
-		p.fillPath(
-			Ui::SquirclePath(QRectF(layout.bar), s(kBarRadius)),
-			anim::color(
-				anim::color(_barFrom, _barTo, _barAnim.value(1.)),
-				QColor(0x2C, 0x34, 0x40),
-				_plainAnim.value(_tab == Tab::Now ? 0. : 1.)));
+		paintPlaybackBarBackground(p, layout);
 		if (closing > 0. && !layout.cover.isEmpty()) {
 			const auto source = QRectF(layout.cover);
 			const auto target = QRectF(layout.barCover);
@@ -9114,11 +9126,32 @@ protected:
 			drawCover(_cover, fade, true);
 			p.restore();
 		}
+		paintPlaybackBarDetails(p, layout);
+	}
+
+	[[nodiscard]] static QFont labelFont(int size, bool bold) {
+		auto font = (bold ? st::semiboldFont : st::normalFont)->f;
+		font.setPixelSize(style::ConvertScale(size));
+		return font;
+	}
+
+	void paintPlaybackBarBackground(QPainter &p, const Layout &layout) const {
+		p.setPen(Qt::NoPen);
+		p.fillPath(
+			Ui::SquirclePath(QRectF(layout.bar), style::ConvertScale(kBarRadius)),
+			anim::color(
+				anim::color(_barFrom, _barTo, _barAnim.value(1.)),
+				QColor(0x2C, 0x34, 0x40),
+				_plainAnim.value(_tab == Tab::Now ? 0. : 1.)));
+	}
+
+	void paintPlaybackBarDetails(QPainter &p, const Layout &layout) const {
+		const auto s = [](int v) { return style::ConvertScale(v); };
 		// На «Сейчас играет» обложки в капсуле нет: там большая.
-		const auto barCoverShown = _plainAnim.value(_tab == Tab::Now ? 0. : 1.);
-		if (!layout.ultra && barCoverShown > 0.) {
+		const auto plain = _plainAnim.value(_tab == Tab::Now ? 0. : 1.);
+		if (!layout.ultra && plain > 0.) {
 			p.save();
-			p.setOpacity(barCoverShown);
+			p.setOpacity(plain);
 			auto path = QPainterPath();
 			path = Ui::SquirclePath(
 				QRectF(layout.barCover),
@@ -9516,6 +9549,8 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<LyricsView*> _view;
+	const not_null<Ui::ScrollArea*> _tabScroll;
+	const not_null<Ui::RpWidget*> _playbackBar;
 	const not_null<SeekBar*> _seek;
 	const not_null<RoundGlyph*> _heart;
 	const not_null<RoundGlyph*> _collapse;
@@ -9524,7 +9559,6 @@ private:
 	base::unique_qptr<Ui::PopupMenu> _filterMenu;
 	const not_null<RoundGlyph*> _queueToggle;
 	const not_null<SeekBar*> _volume;
-	const not_null<Ui::ScrollArea*> _tabScroll;
 	const not_null<Ui::RpWidget*> _tabTransition;
 	// Цвет фона страницы на высоте y: плоский или градиент тонировки альбома.
 	[[nodiscard]] QColor pageBackgroundAt(int y) const {
@@ -9552,6 +9586,7 @@ private:
 			tint.blueF() + (base.blueF() - tint.blueF()) * t);
 	}
 
+	Ui::PaddingWrap<Ui::VerticalLayout> *_tabContent = nullptr;
 	Ui::VerticalLayout *_tabList = nullptr;
 	QPointer<HomeAlbumHeader> _homeAlbumHeader;
 	std::array<NavItem*, 6> _nav = {};
