@@ -6764,6 +6764,7 @@ public:
 	, _queueToggle(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Queue, 44))
 	, _volume(Ui::CreateChild<SeekBar>(_playbackBar))
 	, _tabTransition(Ui::CreateChild<Ui::RpWidget>(this))
+	, _tab(openHome ? Tab::Home : Tab::Now)
 	, _shuffle(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Shuffle, 44))
 	, _previous(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Previous, 52))
 	, _play(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Play, 52))
@@ -6771,8 +6772,7 @@ public:
 	, _repeat(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Repeat, 44))
 	, _canvas(this, [=] {
 		update(computeLayout().cover);
-	})
-	, _tab(openHome ? Tab::Home : Tab::Now) {
+	}) {
 		setFocusPolicy(Qt::TabFocus);
 		setMouseTracking(true);
 		_view->setBig(true);
