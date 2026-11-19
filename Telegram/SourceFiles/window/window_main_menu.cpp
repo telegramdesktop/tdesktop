@@ -475,6 +475,8 @@ private:
 
 };
 
+constexpr auto kDockPillDuration = crl::time(220);
+
 // Mokagram: общая пилюля для кнопок закрепления меню.
 class DockPill final : public Ui::RpWidget {
 public:
@@ -492,6 +494,12 @@ public:
 
 	[[nodiscard]] static int FullHeight() {
 		return ButtonSize() + 2 * Padding();
+	}
+
+	void setInlineGeometry(int right, int top, double progress) {
+		const auto shown = int(base::SafeRound(FullWidth() * progress));
+		setGeometry(right - shown, top, shown, FullHeight());
+		setVisible(shown > 0);
 	}
 
 private:
@@ -837,7 +845,7 @@ private:
 			[=] { docksStep(); },
 			open ? 0. : 1.,
 			open ? 1. : 0.,
-			220,
+			kDockPillDuration,
 			anim::easeOutCubic);
 		if (open) {
 			_collapse.callOnce(5000);
@@ -915,15 +923,13 @@ private:
 				? y() - shown - skip
 				: y() + height() + skip;
 			_pill->setGeometry(right - fullWidth, top, fullWidth, shown);
+			_pill->setVisible(shown > 0);
 		} else {
-			const auto shown = int(base::SafeRound(fullWidth * value));
-			_pill->setGeometry(
-				_burger->x() - skip - shown,
+			_pill->setInlineGeometry(
+				_burger->x() - skip,
 				(height() - fullHeight) / 2,
-				shown,
-				fullHeight);
+				value);
 		}
-		_pill->show();
 		_pill->raise();
 	}
 	void layoutChildren(double docksOpen) {
@@ -1323,18 +1329,35 @@ MainMenu::MainMenu(
 		Mokagram::Lang::Tr("Куда закрепить панель"));
 	dockToggle->setToolTip(dockLabel);
 	dockToggle->setAccessibleName(dockLabel);
+	struct DockState {
+		Ui::Animations::Simple slide;
+		bool open = false;
+	};
+	const auto dockState = dockPill->lifetime().make_state<DockState>();
+	const auto dockGap = style::ConvertScale(8);
+	const auto layoutDockPill = [=](double progress) {
+		dockPill->setInlineGeometry(
+			dockToggle->x() - dockGap,
+			MainMenuDockPillTop(),
+			progress);
+	};
 	dockToggle->setClickedCallback([=] {
-		dockPill->setVisible(dockPill->isHidden());
+		const auto from = dockState->slide.value(dockState->open ? 1. : 0.);
+		dockState->open = !dockState->open;
+		dockState->slide.start(
+			layoutDockPill,
+			from,
+			dockState->open ? 1. : 0.,
+			kDockPillDuration,
+			anim::easeOutCubic);
 	});
 	widthValue() | rpl::on_next([=](int width) {
-		const auto left = (width - dockPill->width()) / 2;
-		const auto top = MainMenuDockPillTop();
-		dockPill->move(left, top);
 		dockToggle->move(
-			left + dockPill->width() + style::ConvertScale(8),
-			top + (dockPill->height() - dockToggle->height()) / 2);
+			(width + DockPill::FullWidth()) / 2 + dockGap,
+			MainMenuDockPillTop()
+				+ (DockPill::FullHeight() - dockToggle->height()) / 2);
+		layoutDockPill(dockState->slide.value(dockState->open ? 1. : 0.));
 	}, dockPill->lifetime());
-	dockPill->show();
 	dockToggle->show();
 	rpl::merge(
 		_userpicButton->sizeValue() | rpl::to_empty,
