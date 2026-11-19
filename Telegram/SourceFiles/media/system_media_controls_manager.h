@@ -51,6 +51,7 @@ private:
 	[[nodiscard]] float64 lookupPlaybackRate() const;
 	void applyPlayerTrack(AudioMsgId::Type audioType);
 	void syncPlayerStateToControls();
+	void syncLoopAndShuffleToControls();
 
 	const std::unique_ptr<base::Platform::SystemMediaControls> _controls;
 

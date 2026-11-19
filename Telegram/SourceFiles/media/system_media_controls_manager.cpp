@@ -201,6 +201,10 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 	_controls->setIsStopEnabled(true);
 	_controls->setIsNextEnabled(mediaPlayer->nextAvailable(*type));
 	_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(*type));
+	syncLoopAndShuffleToControls();
+	if (_controls->volumeSupported()) {
+		_controls->setVolume(Core::App().settings().songVolume());
+	}
 	const auto state = mediaPlayer->getState(*type);
 	_controls->setPlaybackStatus(IsStoppedOrStopping(state.state)
 		? PlaybackStatus::Stopped
@@ -210,6 +214,13 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 	_lastAudioMsgId = AudioMsgId();
 	applyPlayerTrack(*type);
 	_controls->updateDisplay();
+}
+
+void SystemMediaControlsManager::syncLoopAndShuffleToControls() {
+	const auto &settings = Core::App().settings();
+	_controls->setLoopStatus(
+		RepeatModeToLoopStatus(settings.playerRepeatMode()));
+	_controls->setShuffle(settings.playerOrderMode() == OrderMode::Shuffle);
 }
 
 SystemMediaControlsManager::SystemMediaControlsManager()
@@ -458,6 +469,12 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		}
 	}, _lifetime);
 
+	// revert what a client wrote if it wasn't applied
+	_controls->commandRequests(
+	) | rpl::on_next([=](Command) {
+		syncLoopAndShuffleToControls();
+	}, _lifetime);
+
 	if (_controls->seekingSupported()) {
 		rpl::merge(
 			mediaPlayer->seekingChanges(AudioMsgId::Type::Song),
@@ -517,12 +534,20 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		}, _lifetime);
 
 		_controls->volumeChangeRequests(
-		) | rpl::on_next([](float64 volume) {
-			Player::mixer()->setSongVolume(volume);
-			if (volume > 0) {
-				Core::App().settings().setRememberedSongVolume(volume);
+		) | rpl::on_next([=](float64 volume) {
+			const auto clamped = std::isnan(volume)
+				? Core::App().settings().songVolume()
+				: std::clamp(volume, 0., 1.);
+			if (clamped != Core::App().settings().songVolume()) {
+				Player::mixer()->setSongVolume(clamped);
+				if (clamped > 0) {
+					Core::App().settings().setRememberedSongVolume(clamped);
+				}
+				Core::App().settings().setSongVolume(clamped);
+				Core::App().saveSettingsDelayed();
 			}
-			Core::App().settings().setSongVolume(volume);
+			// songVolumeChanges() is silent if the value is the same
+			_controls->setVolume(Core::App().settings().songVolume());
 		}, _lifetime);
 	}
 
