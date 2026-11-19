@@ -1,3 +1,9 @@
+7.4.5 beta (19.11.26)
+
+- Post stories.
+- Bug fixes and other minor improvements.
+- Update Qt to 6.12 and other dependencies.
+
 7.4.4 (13.11.26)
 
 - Bug fixes and other minor improvements.
