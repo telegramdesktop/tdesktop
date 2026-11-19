@@ -35,6 +35,7 @@ public:
 		bool playing = false;
 		bool nextAvailable = false;
 		bool previousAvailable = false;
+		bool seekable = false;
 	};
 
 	virtual void videoStart(

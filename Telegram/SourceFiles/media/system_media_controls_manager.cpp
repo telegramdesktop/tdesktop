@@ -188,6 +188,7 @@ void SystemMediaControlsManager::syncPlayerStateToControls() {
 	_controls->setEnabled(true);
 	_controls->setIsPlayPauseEnabled(true);
 	_controls->setIsStopEnabled(true);
+	_controls->setIsSeekEnabled(true);
 	_controls->setIsNextEnabled(mediaPlayer->nextAvailable(*type));
 	_controls->setIsPreviousEnabled(mediaPlayer->previousAvailable(*type));
 	syncLoopAndShuffleToControls();
@@ -285,6 +286,7 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 				mediaPlayer->previousAvailable(type));
 			_controls->setIsPlayPauseEnabled(true);
 			_controls->setIsStopEnabled(true);
+			_controls->setIsSeekEnabled(true);
 			_controls->setPlaybackStatus(PlaybackStatus::Playing);
 			_controls->updateDisplay();
 		} else {
@@ -387,7 +389,7 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 			case Command::Quit: _videoDelegate->smtcStop(); break;
 			case Command::SkipForward:
 			case Command::SkipBackward: {
-				if (_videoState.duration > 0) {
+				if (_videoState.seekable && _videoState.duration > 0) {
 					const auto delta = (command == Command::SkipForward)
 						? kSkipMs
 						: -kSkipMs;
@@ -485,8 +487,10 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		_controls->seekRequests(
 		) | rpl::on_next([=](float64 progress) {
 			if (_videoDelegate) {
-				_videoDelegate->smtcSeek(
-					crl::time(progress * _videoState.duration));
+				if (_videoState.seekable) {
+					_videoDelegate->smtcSeek(
+						crl::time(progress * _videoState.duration));
+				}
 				return;
 			}
 			const auto type = mediaPlayer->getActiveType();
@@ -573,6 +577,7 @@ void SystemMediaControlsManager::videoStart(
 	_controls->setEnabled(true);
 	_controls->setIsPlayPauseEnabled(true);
 	_controls->setIsStopEnabled(true);
+	_controls->setIsSeekEnabled(state.seekable);
 	_controls->setIsNextEnabled(state.nextAvailable);
 	_controls->setIsPreviousEnabled(state.previousAvailable);
 	_controls->setTitle(state.title);
@@ -614,6 +619,9 @@ void SystemMediaControlsManager::videoUpdate(VideoState state) {
 	}
 	if (state.previousAvailable != was.previousAvailable) {
 		_controls->setIsPreviousEnabled(state.previousAvailable);
+	}
+	if (state.seekable != was.seekable) {
+		_controls->setIsSeekEnabled(state.seekable);
 	}
 	const auto statusChanged = (state.playing != was.playing);
 	if (_controls->seekingSupported()) {

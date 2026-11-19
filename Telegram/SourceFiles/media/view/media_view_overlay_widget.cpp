@@ -6240,6 +6240,7 @@ void OverlayWidget::refreshSystemMediaControls() {
 		.playing = (!player.paused() && !player.finished()),
 		.nextAvailable = _rightNavVisible,
 		.previousAvailable = _leftNavVisible,
+		.seekable = !_stories,
 	};
 	if (_smtcDocument != _document) {
 		_smtcDocument = _document;
