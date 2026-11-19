@@ -522,7 +522,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 020feec5c040fdae2cf752c2c2be62ddde7c236d
+    source-commit: 642ddb107b42da7c8d152401b71cd429475e5266
     plugin: cmake
     build-environment:
       - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
