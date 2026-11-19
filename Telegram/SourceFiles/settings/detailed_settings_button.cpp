@@ -83,7 +83,9 @@ bool DetailedSettingsButton::toggled() const {
 }
 
 rpl::producer<bool> DetailedSettingsButton::toggledChanges() const {
-	return _toggle ? _toggle->checkedChanges() : rpl::never<bool>();
+	return _toggle
+		? _toggle->checkedChanges()
+		: rpl::never<bool>() | rpl::type_erased;
 }
 
 void DetailedSettingsButton::setToggleLocked(bool locked) {
