@@ -207,8 +207,11 @@ or when the loop cycles or a fix outgrows the plan, the pipeline's independent
 convergence assessment diagnoses it instead of another ordinary fix. It
 continues the loop with rulings that settle reopened questions, replans the
 failing mechanism, or chooses `RESCOPE_REQUIRED`; unresolved findings are never
-approved to end the loop. A task whose
-desired outcome was already present may finish without a source commit only
+approved to end the loop. Every fifth verdict that needs changes, a
+requirement check first asks whether the task contradicts itself. It resolves
+a contradiction that a later interpretation introduced; only one between the
+owner's own initial requirements becomes a `Block` with the question. A task
+whose desired outcome was already present may finish without a source commit only
 after the same general review and evidence loop prove
 `Outcome: already-satisfied`.
 
@@ -227,7 +230,9 @@ so the performer and its leaves never ask the owner a question. Decide from
 the task, the project description and repository precedent, prefer existing
 behavior, record the question, the choice and the alternatives in
 `work/decisions.md`, and continue. The owner reviews decisions afterwards;
-overturning one becomes a new task. The one question asked before a task
+overturning one becomes a new task. A requirement check's `OWNER_QUESTION`
+does not wait either: the task publishes a `Block` with the question and the
+run moves on. The one question asked before a task
 starts is what to do with uncommitted source of unknown origin.
 
 A repeated evidence setup failure is not exhausted recovery by itself. Follow

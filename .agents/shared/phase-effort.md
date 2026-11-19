@@ -10,7 +10,7 @@ evidence loop; it does not create extra delegation or change phase ownership.
 | Work | Effort |
 | --- | --- |
 | Routine scheduler bookkeeping, helper-driven setup/publication, running already specified build or test commands, collecting artifacts, and mechanical text normalization | `medium`, only while no design, diagnosis, source repair, or verdict is needed |
-| Context and planning, visual design, independent assessment, implementation, all review lenses and synthesis, fixes, evidence design/authoring/assessment, failure diagnosis, and convergence or rescoping | Default to `xhigh` |
+| Context and planning, visual design, independent assessment, implementation, all review lenses and synthesis, fixes, evidence design/authoring/assessment, failure diagnosis, requirement checks, and convergence or rescoping | Default to `xhigh` |
 | Inbox planning, split/discovery routing, pending-task consolidation, and a stateful performer that owns the whole implementation/evidence campaign | Default to `xhigh` |
 
 Use `high` instead of `xhigh` only when the parent is sure there is nothing
@@ -42,19 +42,19 @@ every round, at its selected effort. The **reuse**, **structure** and
 **performance** lens reviewers run on `gpt-6.2-sol`. Every other review and
 assessment leaf runs on `gpt-6.2-astra`: the plan assessment, the general
 reviewer and synthesis, the lifetime and security lenses, named specialists,
-focused re-reviews, and the convergence, campaign-cap and evidence
-assessments. All other phases keep the configured model. Over 727 reviewed
-tasks those three lenses rarely found an accepted issue no other reviewer
-raised, and none of those was a crash, lifetime or security defect; lifetime
-and security did catch such defects alone. When a pinned model is
-unavailable, run the leaf on the configured model and record that in the
-phase result `NOTES:`.
+focused re-reviews, the requirement checks, and the convergence,
+campaign-cap and evidence assessments. All other phases keep the configured
+model. Over 727 reviewed tasks those three lenses rarely found an accepted
+issue no other reviewer raised, and none of those was a crash, lifetime or
+security defect; lifetime and security did catch such defects alone. When a
+pinned model is unavailable, run the leaf on the configured model and record
+that in the phase result `NOTES:`.
 
 A harness task (perform-task pipeline, "Harness tasks") changes code no user
 runs, so on a Codex model all of its review and assessment leaves run on
 `gpt-6.2-sol`: the plan assessment, the general review and synthesis, every
-lens, the convergence assessments and the evidence assessments. Its other
-phases keep the configured model.
+lens, the requirement checks, the convergence assessments and the evidence
+assessments. Its other phases keep the configured model.
 
 ## Apply on the current host
 

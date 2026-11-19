@@ -187,6 +187,7 @@ work/review1.md                # canonical first-review verdict
 work/review<R>-focused.md      # mandatory focused general re-review, R > 1
 work/review<R>-<specialist>.md # only specialists invalidated by the fix
 work/review-convergence<C>.md  # loop diagnosis at a checkpoint or cycle
+work/requirement-check<K>.md   # self-contradiction check per 5 failed rounds
 work/test-design.md            # assessed evidence contract, reconciled after diff
 work/test.md
 work/test-cap-assessment-*.md  # independent focused-recovery decision at a campaign cap
@@ -266,9 +267,9 @@ prompts, plus the host-specific orchestration rules.
   with the parent's concrete justification that the phase has no complexity.
   Apply the host mapping, including Claude's `opus` pin for `medium` or
   justified `high` work.
-- On Claude Code, assessment, every review and the convergence and
-  campaign-cap assessments run as Codex CLI leaves unless the invocation opted
-  out; see the Claude adapter's review and assessment provider. Prompts,
+- On Claude Code, assessment, every review, the requirement checks and the
+  convergence and campaign-cap assessments run as Codex CLI leaves unless the
+  invocation opted out; see the Claude adapter's review and assessment provider. Prompts,
   artifacts, completion checks and verdict handling are unchanged.
 - Keep implementation units sequential unless the assessed plan proves
   disjoint write sets and capacity makes parallel edits safe.
@@ -362,7 +363,9 @@ Run sequentially:
    a broad surface is not enough to replay it. Reconcile only invalidated
    evidence checks and rerun only affected validation. The loop runs until
    the reviewers agree; at the convergence checkpoints below an independent
-   assessor diagnoses it and continues, replans or rescopes it.
+   assessor diagnoses it and continues, replans or rescopes it, and every
+   fifth verdict that needs changes a requirement check first asks whether
+   the task contradicts itself.
 6. **Normalize.** On native non-WSL Windows, normalize only task-owned source,
    header, style, localization, and build/config text to CRLF without BOM,
    preserving content and trailing-newline state, then rerun the selected
@@ -460,8 +463,9 @@ scaled to what the code is for:
   non-blocking notes. Every review, synthesis, focused review and convergence
   prompt of a harness task carries this bar (phase prompts, "Harness tasks").
 - **Models.** On Codex, the plan assessment, every review and synthesis, the
-  convergence assessments and the evidence assessments of a harness task run
-  on `gpt-6.2-sol` ([phase effort](../../../shared/phase-effort.md#review-models)).
+  requirement checks, the convergence assessments and the evidence
+  assessments of a harness task run on `gpt-6.2-sol`
+  ([phase effort](../../../shared/phase-effort.md#review-models)).
 - **Evidence.** The harness self-test, or one consumer run, shows that the
   helper gives its consumers what they need.
 
@@ -620,6 +624,52 @@ stayed resolved and the open set narrowed or moved to new, narrower cases.
 Otherwise it chooses `REPLAN_CURRENT` or `RESCOPE_REQUIRED`. An older
 assessment that allowed only one final focused round reads as `CONTINUE` with
 the default checkpoint; its final round no longer stops the loop.
+
+### Requirement check
+
+A convergence ruling can only choose between readings of the task. When the
+task's requirements cannot all hold at once, every reading leaves a reviewer
+a valid finding and the loop cannot converge. So at every fifth canonical
+verdict that requires changes, counted over the whole loop and not restarted
+by a replan (the fifth, the tenth and so on), a fresh independent checker
+first asks whether the task contradicts itself.
+
+The checker reads the loop the convergence assessor reads and looks for two
+requirements that no implementation can meet together in a reachable case:
+fixes that satisfy one producing findings under the other, or rulings that
+switch between readings. A hard design, many special cases or a regrowing
+mechanism is not a contradiction. Finding one, it traces each side to its
+origin, as close to the start as the records reach:
+
+- the task's history in the queue checkout, back to the commit that created
+  `task.md`, and the routing, follow-up and consolidation commits that
+  changed it;
+- the receipt named by `inbox_receipt` in `state.yaml` and the owner's words
+  it quotes, and the inbox text in `inbox/backup/` of the checkout that routed
+  it, where it still exists;
+- the investigation, `project.md` and source-task records that the receipt
+  and the task cite, and owner decisions recorded since.
+
+Each side is either the owner's own words in the initial requirements, or an
+interpretation added later: by the routing or planner that drafted the task,
+a follow-up or consolidation, plan.md or decisions.md, a convergence ruling,
+or a reviewer's demand. It writes `requirement-check<K>.md` with one verdict:
+
+- `CONSISTENT` — no contradiction. The loop continues, and a convergence
+  assessment due at the same verdict runs as usual.
+- `RESOLVED` — at least one side is an interpretation. The checker decides
+  how the contradiction resolves, from the earliest statement of intent, then
+  the project and the closest repository precedent, preferring the simpler
+  mechanism when both serve that intent: which requirement gives way, what
+  the code does instead, and which task text, decisions and rulings this
+  supersedes. The performer records it in `decisions.md`, notes the override
+  in `result.md`, and runs a convergence assessment next even when none is
+  due; that assessment copies the resolution into its rulings unchanged.
+- `OWNER_QUESTION` — both sides are the owner's own words in the initial
+  requirements. The task publishes the same task-local `Block` as
+  `HARD_STOP`, giving the two quotes with their locations, why no reading
+  meets both, and the resolutions the owner would choose between. It is set
+  aside for the owner; the run continues with other work.
 
 ### Evidence selection
 

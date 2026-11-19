@@ -112,8 +112,8 @@ that contract completely before its first Codex leaf. These phases use Codex:
   domain specialist, every focused general re-review and every rerun
   specialist; the general reviewer's synthesis pass resumes its own pass-1
   Codex leaf;
-- the review convergence assessment and the evidence-campaign-cap
-  assessment.
+- the requirement check, the review convergence assessment and the
+  evidence-campaign-cap assessment.
 
 Everything else stays on Claude `Agent` leaves: context and plan, visual
 design, implementation units, builds, review fixes, evidence authoring, test
