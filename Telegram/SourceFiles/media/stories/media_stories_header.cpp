@@ -884,6 +884,13 @@ void Header::rebuildVolumeControls(
 		updateVolumeIcon();
 	});
 	slider->setValue(_controller->currentVolume());
+	_controller->volumeChanges(
+	) | rpl::on_next([=](float64 volume) {
+		if (!slider->isChanging()) {
+			slider->setValue(volume);
+		}
+		updateVolumeIcon();
+	}, slider->lifetime());
 
 	const auto size = button->width()
 		+ st::storiesVolumeSize
