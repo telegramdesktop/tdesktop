@@ -1344,6 +1344,7 @@
 	{ "Нет новых подходящих треков для радио.", "No new suitable tracks for this radio." },
 	{ "Радио закончилось. Запустите радио от другого трека.", "Radio has ended. Start radio from another track." },
 	{ "Главная", "Home" },
+	{ "Открыть главную полноэкранного плеера", "Open fullscreen player home" },
 	{ "Библиотека", "Library" },
 	{ "Плейлисты", "Playlists" },
 	{ "Добавить в плейлист", "Add to playlist" },

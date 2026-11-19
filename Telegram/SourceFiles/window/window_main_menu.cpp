@@ -77,6 +77,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/layers/generic_box.h"
 #include "base/algorithm.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_action.h"
@@ -1879,11 +1880,50 @@ void MainMenu::setupMenu() {
 		)->setClickedCallback([=] {
 			controller->show(Box(Mokagram::Plugins::PluginsBox, controller));
 		});
-		addAction(
+		const auto music = addAction(
 			rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Музыка"))),
-			{ &st::menuIconSoundOn }
-		)->setClickedCallback([=] {
+			{ &st::menuIconSoundOn });
+		music->setClickedCallback([=] {
 			Mokagram::Music::ShowMusicBox(controller);
+		});
+		// Mokagram: отдельный переход на главную полноэкранного плеера.
+		static const auto homeStyle = [] {
+			auto result = Mokagram::BoxParts::PillLight();
+			result.width = -style::ConvertScale(24);
+			result.height = style::ConvertScale(32);
+			result.textTop = (result.height - result.style.font->height) / 2;
+			return result;
+		}();
+		const auto home = Ui::CreateChild<Ui::RoundButton>(
+			music,
+			rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Главная"))),
+			homeStyle);
+		home->setTextTransform(Ui::RoundButtonTextTransform::NoTransform);
+		home->setPointerCursor(true);
+		home->setFocusPolicy(Qt::TabFocus);
+		home->setToolTip(QString::fromUtf8(Mokagram::Lang::Tr(
+			"Открыть главную полноэкранного плеера")));
+		home->events() | rpl::on_next([=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::FocusIn) {
+				home->setPenOverride(QPen(
+					st::windowActiveTextFg->c,
+					style::ConvertScale(2)));
+			} else if (event->type() == QEvent::FocusOut) {
+				home->setPenOverride(std::nullopt);
+			}
+		}, home->lifetime());
+		const auto inset = style::ConvertScale(12);
+		auto musicPadding = music->st().padding;
+		musicPadding.setRight(home->width() + 2 * inset);
+		music->setPaddingOverride(musicPadding);
+		music->sizeValue() | rpl::on_next([=](QSize size) {
+			home->moveToRight(inset, (size.height() - home->height()) / 2);
+		}, home->lifetime());
+		home->setClickedCallback([=] {
+			crl::on_main(controller, [=] {
+				controller->window().hideSettingsAndLayer(anim::type::instant);
+				Mokagram::Music::ShowFullscreenPlayerHome(controller);
+			});
 		});
 		addAction(
 			rpl::single(QString::fromUtf8(Mokagram::Lang::Tr("Лента"))),
