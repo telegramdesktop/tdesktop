@@ -65,18 +65,7 @@ bool SystemMediaControlsManager::Supported() {
 }
 
 float64 SystemMediaControlsManager::lookupPlaybackRate() const {
-	const auto mediaPlayer = Media::Player::instance();
-	const auto type = mediaPlayer->getActiveType();
-	const auto current = mediaPlayer->current(type);
-	if (!current || !current.changeablePlaybackSpeed()) {
-		return 1.;
-	}
-	const auto document = current.audio();
-	return (document
-		&& !document->isVoiceMessage()
-		&& !document->isVideoMessage())
-		? Core::App().settings().audioPlaybackSpeed()
-		: Core::App().settings().voicePlaybackSpeed();
+	return (_streamed && _streamed->valid()) ? _streamed->speed() : 1.;
 }
 
 void SystemMediaControlsManager::applyPlayerTrack(AudioMsgId::Type audioType) {
@@ -113,12 +102,12 @@ void SystemMediaControlsManager::applyPlayerTrack(AudioMsgId::Type audioType) {
 		// the track is changed
 		// or when the position is changed by the user.
 		_controls->setPosition(state.position);
-		_controls->setPlaybackRate(lookupPlaybackRate());
 
 		_streamed = std::make_unique<Media::Streaming::Instance>(
 			document,
 			current.contextId(),
 			nullptr);
+		_controls->setPlaybackRate(lookupPlaybackRate());
 	}
 
 	// Setting a thumbnail can take a long time,
@@ -268,6 +257,17 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		_controls->setPlaybackStatus(status);
 	}, _lifetime);
 
+	mediaPlayer->updatedNotifier(
+	) | trackFilter | rpl::map([=] {
+		return lookupPlaybackRate();
+	}) | rpl::distinct_until_changed(
+	) | rpl::on_next([=](float64 rate) {
+		if (_videoDelegate) {
+			return;
+		}
+		_controls->setPlaybackRate(rate);
+	}, _lifetime);
+
 	rpl::merge(
 		mediaPlayer->stops(AudioMsgId::Type::Song) | rpl::map_to(false),
 		mediaPlayer->startsPlay(AudioMsgId::Type::Song) | rpl::map_to(true),
@@ -371,16 +371,6 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 			return;
 		}
 		_controls->setShuffle(mode == OrderMode::Shuffle);
-	}, _lifetime);
-
-	rpl::merge(
-		Core::App().settings().voicePlaybackSpeedChanges() | rpl::to_empty,
-		Core::App().settings().audioPlaybackSpeedChanges() | rpl::to_empty
-	) | rpl::on_next([=] {
-		if (_videoDelegate) {
-			return;
-		}
-		_controls->setPlaybackRate(lookupPlaybackRate());
 	}, _lifetime);
 
 	_controls->commandRequests(
@@ -591,8 +581,7 @@ void SystemMediaControlsManager::videoStart(
 	if (_controls->seekingSupported()) {
 		_controls->setDuration(state.duration);
 		_controls->setPosition(state.position);
-		_controls->setPlaybackRate(
-			Core::App().settings().videoPlaybackSpeed());
+		_controls->setPlaybackRate(state.speed);
 	}
 	if (_controls->volumeSupported()) {
 		_controls->setVolume(Core::App().settings().videoVolume());
@@ -631,9 +620,8 @@ void SystemMediaControlsManager::videoUpdate(VideoState state) {
 		if (state.duration != was.duration) {
 			_controls->setDuration(state.duration);
 		}
-		if (statusChanged || !state.playing) {
-			_controls->setPlaybackRate(
-				Core::App().settings().videoPlaybackSpeed());
+		if (state.speed != was.speed) {
+			_controls->setPlaybackRate(state.speed);
 		}
 	}
 	if (statusChanged) {

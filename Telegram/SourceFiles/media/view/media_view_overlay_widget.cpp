@@ -6236,6 +6236,7 @@ void OverlayWidget::refreshSystemMediaControls() {
 		.artist = channel ? filename : _fromName,
 		.position = std::max(state.position, int64(0)),
 		.duration = std::max(state.length, int64(0)),
+		.speed = _streamed->instance.speed(),
 		.playing = (!player.paused() && !player.finished()),
 		.nextAvailable = _rightNavVisible,
 		.previousAvailable = _leftNavVisible,

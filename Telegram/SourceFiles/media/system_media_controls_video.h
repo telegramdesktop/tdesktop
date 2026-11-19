@@ -31,6 +31,7 @@ public:
 		QString artist;
 		crl::time position = 0;
 		crl::time duration = 0;
+		float64 speed = 1.;
 		bool playing = false;
 		bool nextAvailable = false;
 		bool previousAvailable = false;
