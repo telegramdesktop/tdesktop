@@ -148,6 +148,14 @@ public:
 		});
 	}
 
+	void setReveal(double value) {
+		if (_reveal != value) {
+			_reveal = value;
+			setVisible(value > 0.);
+			update();
+		}
+	}
+
 private:
 	[[nodiscard]] bool active() const {
 		namespace S = Mokagram::Settings;
@@ -168,6 +176,7 @@ private:
 	void paintEvent(QPaintEvent *e) override {
 		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
+		p.setOpacity(_reveal);
 		const auto over = _hover.value(isOver() ? 1. : 0.);
 		const auto on = active();
 		if (over > 0. || on) {
@@ -196,6 +205,7 @@ private:
 	}
 
 	const int _side = 0;
+	double _reveal = 1.;
 	Ui::Animations::Simple _hover;
 
 };
@@ -528,14 +538,6 @@ private:
 
 	std::array<DockButton*, kSides.size()> _buttons = {};
 };
-
-[[nodiscard]] int MainMenuDockPillTop() {
-	return st::mainMenuCoverHeight - style::ConvertScale(6);
-}
-
-[[nodiscard]] int MainMenuCoverHeight() {
-	return MainMenuDockPillTop() + DockPill::FullHeight() + style::ConvertScale(8);
-}
 
 // Mokagram: ручка перетаскивания строки в окне панели.
 class BarGrip final : public Ui::RpWidget {
@@ -1320,44 +1322,56 @@ MainMenu::MainMenu(
 	setupUserpicButton();
 	setupAccountsToggle();
 	setupSetEmojiStatus();
-	// Mokagram: положения панели собраны в одну строку под статусом.
-	const auto dockPill = Ui::CreateChild<DockPill>(this);
-	const auto dockToggle = Ui::CreateChild<Ui::IconButton>(
-		this,
-		st::dialogsMenuToggle);
+	// Mokagram: бургер раскрывает кнопки по бокам аватарки.
+	const auto dockMargin = style::ConvertScale(10);
+	const auto dockSize = style::ConvertScale(36);
+	const auto dockStep = dockSize + style::ConvertScale(4);
+	auto dockButtons = std::array<DockButton*, 4>();
+	for (auto side = 0; side != int(dockButtons.size()); ++side) {
+		const auto button = Ui::CreateChild<DockButton>(this, side, dockSize);
+		button->setReveal(0.);
+		dockButtons[side] = button;
+	}
 	const auto dockLabel = QString::fromUtf8(
 		Mokagram::Lang::Tr("Куда закрепить панель"));
-	dockToggle->setToolTip(dockLabel);
+	const auto dockToggle = Ui::CreateChild<BarButton>(
+		this,
+		&st::dialogsMenuToggle.icon,
+		dockLabel,
+		Fn<bool()>());
+	const auto dockToggleSize = style::ConvertScale(32);
+	dockToggle->resize(dockToggleSize, dockToggleSize);
+	dockToggle->setReveal(1.);
 	dockToggle->setAccessibleName(dockLabel);
 	struct DockState {
 		Ui::Animations::Simple slide;
 		bool open = false;
 	};
-	const auto dockState = dockPill->lifetime().make_state<DockState>();
-	const auto dockGap = style::ConvertScale(8);
-	const auto layoutDockPill = [=](double progress) {
-		dockPill->setInlineGeometry(
-			dockToggle->x() - dockGap,
-			MainMenuDockPillTop(),
-			progress);
-	};
+	const auto dockState = dockToggle->lifetime().make_state<DockState>();
 	dockToggle->setClickedCallback([=] {
 		const auto from = dockState->slide.value(dockState->open ? 1. : 0.);
 		dockState->open = !dockState->open;
 		dockState->slide.start(
-			layoutDockPill,
+			[=](double progress) {
+				for (const auto button : dockButtons) {
+					button->setReveal(progress);
+				}
+			},
 			from,
 			dockState->open ? 1. : 0.,
 			kDockPillDuration,
 			anim::easeOutCubic);
 	});
 	widthValue() | rpl::on_next([=](int width) {
+		const auto right = width - dockMargin - dockSize;
+		dockButtons[0]->move(dockMargin, dockMargin);
+		dockButtons[2]->move(dockMargin + dockStep, dockMargin);
+		dockButtons[3]->move(right - dockStep, dockMargin);
+		dockButtons[1]->move(right, dockMargin);
 		dockToggle->move(
-			(width + DockPill::FullWidth()) / 2 + dockGap,
-			MainMenuDockPillTop()
-				+ (DockPill::FullHeight() - dockToggle->height()) / 2);
-		layoutDockPill(dockState->slide.value(dockState->open ? 1. : 0.));
-	}, dockPill->lifetime());
+			right + (dockSize - dockToggleSize) / 2,
+			dockMargin + dockStep);
+	}, dockToggle->lifetime());
 	dockToggle->show();
 	rpl::merge(
 		_userpicButton->sizeValue() | rpl::to_empty,
@@ -2111,9 +2125,9 @@ void MainMenu::updateControlsGeometry() {
 		0,
 		st::mainMenuCoverNameTop,
 		width(),
-		MainMenuDockPillTop() - st::mainMenuCoverNameTop);
+		st::mainMenuCoverHeight - st::mainMenuCoverNameTop);
 	// Allow cover shadow over the scrolled content.
-	const auto top = MainMenuCoverHeight() - st::lineWidth;
+	const auto top = st::mainMenuCoverHeight - st::lineWidth;
 	_scroll->setGeometry(0, top, width(), height() - top);
 	updateInnerControlsGeometry();
 }
@@ -2123,7 +2137,7 @@ void MainMenu::updateInnerControlsGeometry() {
 		+ _shadow->height()
 		+ st::mainMenuSkip
 		+ _menu->height();
-	const auto available = height() - MainMenuCoverHeight() - contentHeight;
+	const auto available = height() - st::mainMenuCoverHeight - contentHeight;
 	const auto footerHeight = std::max(
 		available,
 		st::mainMenuFooterHeightMin);
