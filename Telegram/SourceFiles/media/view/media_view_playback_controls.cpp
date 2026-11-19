@@ -247,6 +247,12 @@ void PlaybackControls::updatePlaybackSpeed(float64 speed) {
 	resizeEvent(nullptr);
 }
 
+void PlaybackControls::updatePlaybackVolume(float64 volume) {
+	_delegate->playbackControlsVolumeChanged(volume);
+	_volumeController->setValue(volume);
+	updateVolumeToggleIcon();
+}
+
 void PlaybackControls::updatePlayback(const Player::TrackState &state) {
 	updatePlayPauseResumeState(state);
 	_playbackProgress->updateState(state, countDownloadedTillPercent(state));

@@ -6334,6 +6334,15 @@ void OverlayWidget::smtcSeek(crl::time position) {
 	activateControls();
 }
 
+void OverlayWidget::smtcSetVolume(float64 volume) {
+	if (_streamed && _streamed->controls) {
+		_streamed->controls->updatePlaybackVolume(volume);
+	} else {
+		playbackControlsVolumeChanged(volume);
+	}
+	playbackControlsVolumeChangeFinished();
+}
+
 void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {
 	if (!image) {
 		return;

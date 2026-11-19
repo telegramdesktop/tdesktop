@@ -18,6 +18,7 @@ public:
 	virtual void smtcNext() = 0;
 	virtual void smtcPrevious() = 0;
 	virtual void smtcSeek(crl::time position) = 0;
+	virtual void smtcSetVolume(float64 volume) = 0;
 
 protected:
 	~SystemMediaControlsVideoDelegate() = default;

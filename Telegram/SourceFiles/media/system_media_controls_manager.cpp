@@ -533,12 +533,27 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 			_controls->setVolume(volume);
 		}, _lifetime);
 
+		Core::App().settings().videoVolumeChanges(
+		) | rpl::on_next([=](float64 volume) {
+			if (_videoDelegate) {
+				_controls->setVolume(volume);
+			}
+		}, _lifetime);
+
 		_controls->volumeChangeRequests(
 		) | rpl::on_next([=](float64 volume) {
+			const auto current = [=] {
+				return _videoDelegate
+					? Core::App().settings().videoVolume()
+					: Core::App().settings().songVolume();
+			};
 			const auto clamped = std::isnan(volume)
-				? Core::App().settings().songVolume()
+				? current()
 				: std::clamp(volume, 0., 1.);
-			if (clamped != Core::App().settings().songVolume()) {
+			if (clamped == current()) {
+			} else if (_videoDelegate) {
+				_videoDelegate->smtcSetVolume(clamped);
+			} else {
 				Player::mixer()->setSongVolume(clamped);
 				if (clamped > 0) {
 					Core::App().settings().setRememberedSongVolume(clamped);
@@ -546,8 +561,8 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 				Core::App().settings().setSongVolume(clamped);
 				Core::App().saveSettingsDelayed();
 			}
-			// songVolumeChanges() is silent if the value is the same
-			_controls->setVolume(Core::App().settings().songVolume());
+			// volume changes are silent if the value is the same
+			_controls->setVolume(current());
 		}, _lifetime);
 	}
 
@@ -578,6 +593,9 @@ void SystemMediaControlsManager::videoStart(
 		_controls->setPosition(state.position);
 		_controls->setPlaybackRate(
 			Core::App().settings().videoPlaybackSpeed());
+	}
+	if (_controls->volumeSupported()) {
+		_controls->setVolume(Core::App().settings().videoVolume());
 	}
 	_controls->setPlaybackStatus(state.playing
 		? PlaybackStatus::Playing

@@ -268,6 +268,7 @@ private:
 	void smtcNext() override;
 	void smtcPrevious() override;
 	void smtcSeek(crl::time position) override;
+	void smtcSetVolume(float64 volume) override;
 
 	void playbackPauseResume();
 	void playbackToggleFullScreen();
