@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "media/streaming/media_streaming_utility.h"
 
 namespace Media {
 namespace Streaming {
 
-class AudioTrack final {
+class AudioTrack final : public base::has_weak_ptr {
 public:
 	// Called from some unspecified thread.
 	// Callbacks are assumed to be thread-safe.

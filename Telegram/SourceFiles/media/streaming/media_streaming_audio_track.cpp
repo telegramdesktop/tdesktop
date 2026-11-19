@@ -229,7 +229,11 @@ rpl::producer<crl::time> AudioTrack::playPosition() {
 			case State::Pausing:
 			case State::Resuming:
 				if (state.waitingForData) {
+					const auto guard = base::make_weak(this);
 					_waitingForData.fire({});
+					if (!guard) {
+						return;
+					}
 				}
 				_playPosition = std::clamp(
 					crl::time((state.position * 1000 + (state.frequency / 2))
