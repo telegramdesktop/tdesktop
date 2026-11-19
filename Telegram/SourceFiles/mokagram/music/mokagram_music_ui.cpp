@@ -1241,11 +1241,11 @@ void EnsureFile(
 }
 
 void UploadTrack(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		const Track &track,
 		const QString &path,
 		const QImage &cover) {
-	const auto session = &history->session();
+	const auto session = &thread->owningHistory()->session();
 	auto list = Storage::PrepareMediaList(
 		QStringList{ NamedCopy(track, path) },
 		st::sendMediaPreviewSize,
@@ -1275,7 +1275,7 @@ void UploadTrack(
 		song->cover = cover;
 	}
 	file.type = Ui::PreparedFile::Type::Music;
-	auto action = Api::SendAction(history);
+	auto action = Api::SendAction(thread);
 	action.clearDraft = false;
 	session->api().sendFiles(
 		std::move(list),
@@ -1285,18 +1285,18 @@ void UploadTrack(
 }
 
 void SendTrack(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		const Track &track,
 		const QString &path) {
 	const auto cover = CoverForDocument(DocumentIdForTrack(track.id));
 	if (!cover.isNull() || track.artworkUrl.isEmpty()) {
-		UploadTrack(history, track, path, cover);
+		UploadTrack(thread, track, path, cover);
 		return;
 	}
-	const auto weak = base::make_weak(history.get());
+	const auto weak = base::make_weak(thread);
 	LoadImage(ArtUrl(track.artworkUrl, u"t500x500"_q), [=](QImage image) {
-		if (const auto history = weak.get()) {
-			UploadTrack(history, track, path, image);
+		if (const auto thread = weak.get()) {
+			UploadTrack(thread, track, path, image);
 		}
 	});
 }
@@ -1336,10 +1336,10 @@ void ForwardTrack(
 	Window::ShowChooseRecipientBox(
 		controller,
 		[=](not_null<Data::Thread*> thread) {
-			const auto weak = base::make_weak(thread->owningHistory().get());
+			const auto weak = base::make_weak(thread);
 			EnsureFile(track, [=](const QString &path, const Track &track) {
-				if (const auto history = weak.get()) {
-					SendTrack(history, track, path);
+				if (const auto thread = weak.get()) {
+					SendTrack(thread, track, path);
 				}
 			});
 			return true;
