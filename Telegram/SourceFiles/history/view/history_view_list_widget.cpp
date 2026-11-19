@@ -1758,6 +1758,12 @@ void ListWidget::applyUpdatedScrollState() {
 		&& Ui::ReleaseItemRevealLift(_itemRevealLift)) {
 		revealItemsCallback();
 	}
+	if (_context == Context::History
+		&& _itemsKnownTillEnd
+		&& atNewestEdge()
+		&& isVisible()) {
+		checkActivation();
+	}
 	checkMoveToOtherViewer();
 }
 
