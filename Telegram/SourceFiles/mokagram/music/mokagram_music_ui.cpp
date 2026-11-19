@@ -6710,6 +6710,8 @@ constexpr auto kBarMaxWidth = 1040;
 constexpr auto kBarCover = 72;
 constexpr auto kBarRadius = 40;
 constexpr auto kHomeTrendingSection = 3;
+constexpr auto kSeekFrameInterval = 33;
+constexpr auto kBackdropFrameInterval = 100;
 
 // Акцент обложки, поднятый до читаемой светлоты; белый без него.
 [[nodiscard]] QColor LiftedAccent(QColor accent) {
@@ -7125,13 +7127,12 @@ public:
 				repaintBackdrop();
 			}
 		}, lifetime());
-		_ambientTimer.setInterval(33);
 		connect(&_ambientTimer, &QTimer::timeout, this, [=] {
 			const auto now = crl::now();
 			const auto elapsed = std::min((now - _ambientAt) / 1000., 0.1);
 			_ambientAt = now;
 			if (animatesBackdrop()) {
-				repaintBackdrop();
+				repaintAnimatedBackdrop(now);
 			}
 			if (_seek->waveAnimating()) {
 				_seek->advanceWave(elapsed);
@@ -9296,14 +9297,17 @@ private:
 		_canvasFade.stop();
 		// Ambient colour follows the video slowly, without flashing at scene cuts.
 		if (animate) {
-			_canvasFade.start([=] { repaintBackdrop(); },
+			_canvasFade.start([=] {
+				repaintAnimatedBackdrop(crl::now(), !_canvasFade.animating());
+			},
 				0., 1., 2400, anim::easeOutCubic);
 		}
 		_barFrom = anim::color(_barFrom, _barTo, _barAnim.value(1.));
 		_barTo = accent.isValid() ? accent.darker(180) : QColor(0x28, 0x28, 0x28);
 		_barAnim.stop();
 		if (animate) {
-			_barAnim.start([=] { update(); }, 0., 1., 2400, anim::easeOutCubic);
+			_barAnim.start([=] { update(computeLayout().bar); },
+				0., 1., 2400, anim::easeOutCubic);
 		}
 	}
 
@@ -9311,6 +9315,14 @@ private:
 		_backdropDirty = true;
 		update();
 		_view->update();
+	}
+
+	void repaintAnimatedBackdrop(crl::time now, bool finished = false) {
+		const auto frame = now / kBackdropFrameInterval;
+		if (frame != _animatedBackdropFrame || finished) {
+			_animatedBackdropFrame = frame;
+			repaintBackdrop();
+		}
 	}
 
 	void updateBackdropPalette() {
@@ -9329,15 +9341,6 @@ private:
 				setCanvasPalette(std::move(background), ComputeAccent(frame));
 			} else if (!_canvasBackground.isNull()) {
 				setCanvasPalette(CoverBackgroundForPlayback(), CurrentCoverAccent());
-			}
-		}
-		if (!_canvasBackground.isNull()) {
-			const auto accent = anim::color(_canvasAccentFrom, _canvasAccentTo, _canvasFade.value(1.));
-			if (_accent != accent) {
-				_accent = accent;
-				_backdropDirty = true;
-				_shuffle->setAccent(_accent);
-				_repeat->setAccent(_accent);
 			}
 		}
 	}
@@ -9370,6 +9373,15 @@ private:
 	}
 
 	void prepareBackdrop() {
+		if (!_canvasBackground.isNull()) {
+			const auto accent = anim::color(
+				_canvasAccentFrom, _canvasAccentTo, _canvasFade.value(1.));
+			if (_accent != accent) {
+				_accent = accent;
+				_shuffle->setAccent(_accent);
+				_repeat->setAccent(_accent);
+			}
+		}
 		// Keep the blurred backdrop small, but retain colour precision while
 		// compositing the gradients so dark transitions do not become steps.
 		const auto extent = style::ConvertScale(256);
@@ -9778,18 +9790,21 @@ private:
 	crl::time _canvasPaletteNext = 0;
 	QImage _preparedBackdrop;
 	bool _backdropDirty = true;
+	crl::time _animatedBackdropFrame = -1;
 	[[nodiscard]] bool animatesBackdrop() const {
 		return _isPlaying && _tab == Tab::Now
 			&& Mokagram::Settings::Bool(u"player.dynamic_background"_q);
 	}
 	void updateAmbientTimer() {
+		const auto wave = _seek->waveAnimating();
 		const auto needed = !_closing && isVisible()
-			&& (animatesBackdrop() || _seek->waveAnimating())
+			&& (animatesBackdrop() || wave)
 			&& QGuiApplication::applicationState() == Qt::ApplicationActive
 			&& !PowerSaving::On(PowerSaving::kAnimations);
-		if (needed && !_ambientTimer.isActive()) {
+		const auto interval = wave ? kSeekFrameInterval : kBackdropFrameInterval;
+		if (needed && (!_ambientTimer.isActive() || _ambientTimer.interval() != interval)) {
 			_ambientAt = crl::now();
-			_ambientTimer.start();
+			_ambientTimer.start(interval);
 		} else if (!needed) {
 			_ambientTimer.stop();
 		}
