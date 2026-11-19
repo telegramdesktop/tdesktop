@@ -2560,16 +2560,28 @@ void Gif::createStreamedPlayer() {
 		if (quality.manual) {
 			return;
 		}
-		auto now = Core::App().settings().videoQuality();
-		if (now.manual || now.height == requested) {
+		const auto now = Core::App().settings().videoQuality();
+		if (now.manual) {
+			return;
+		} else if (now.height != requested) {
+			Core::App().settings().setVideoQuality({
+				.manual = 0,
+				.height = uint32(requested),
+			});
+			Core::App().saveSettingsDelayed();
+		} else if (_streamed->chosen == ChooseInlineQuality(
+				_data,
+				_realParent,
+				kMaxInlineArea,
+				now)) {
 			return;
 		}
-		Core::App().settings().setVideoQuality({
-			.manual = 0,
-			.height = uint32(requested),
+		const auto streamed = _streamed.get();
+		crl::on_main(this, [=] {
+			if (_streamed.get() == streamed) {
+				createStreamedPlayer();
+			}
 		});
-		Core::App().saveSettingsDelayed();
-		createStreamedPlayer();
 	}, _streamed->instance.lifetime());
 
 	if (_streamed->instance.ready()) {
