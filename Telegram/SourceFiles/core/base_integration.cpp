@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/base_integration.h"
 
+#include "core/launcher.h"
 #include "core/sandbox.h"
 #include "core/crash_reports.h"
 
@@ -42,6 +43,10 @@ void BaseIntegration::setCrashAnnotation(
 void BaseIntegration::logAssertionViolation(const QString &info) {
 	Logs::writeMain("Assertion Failed! " + info);
 	CrashReports::SetAnnotation("Assertion", info);
+}
+
+std::string BaseIntegration::instanceHash() const {
+	return Core::Launcher::Instance().instanceHash().toStdString();
 }
 
 } // namespace Core

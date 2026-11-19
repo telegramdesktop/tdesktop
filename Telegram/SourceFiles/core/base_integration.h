@@ -24,6 +24,8 @@ public:
 		const std::string &key,
 		const QString &value) override;
 
+	std::string instanceHash() const override;
+
 };
 
 } // namespace Core
