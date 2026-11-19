@@ -4574,7 +4574,9 @@ private:
 
 class SeekBar final : public Ui::RpWidget {
 public:
-	explicit SeekBar(QWidget *parent) : RpWidget(parent) {
+	explicit SeekBar(QWidget *parent, Fn<QColor()> background = nullptr)
+	: RpWidget(parent)
+	, _background(std::move(background)) {
 		resize(width(), 28);
 		setCursor(style::cur_pointer);
 		Mokagram::Settings::Changed() | rpl::on_next([=](const QString &key) {
@@ -4584,8 +4586,11 @@ public:
 			}
 		}, lifetime());
 		paintRequest(
-		) | rpl::on_next([=](QRect) {
+		) | rpl::on_next([=](QRect area) {
 			auto p = QPainter(this);
+			if (testAttribute(Qt::WA_OpaquePaintEvent)) {
+				p.fillRect(area, _background());
+			}
 			auto hq = PainterHighQualityEnabler(p);
 			if (_thin) {
 				if (showsWave()) {
@@ -4627,6 +4632,13 @@ public:
 			p.setBrush(Qt::white);
 			p.drawEllipse(knob, _dragging ? 8. : 6., _dragging ? 8. : 6.);
 		}, lifetime());
+	}
+
+	void setOpaqueBackground(bool opaque) {
+		if (testAttribute(Qt::WA_OpaquePaintEvent) != opaque) {
+			setAttribute(Qt::WA_OpaquePaintEvent, opaque);
+			update();
+		}
 	}
 
 	void setFillColor(QColor color) {
@@ -4770,6 +4782,7 @@ private:
 		update();
 	}
 
+	Fn<QColor()> _background;
 	Ui::Animations::Simple _grow;
 	rpl::variable<bool> _waveAnimating = false;
 	bool _expressive = false;
@@ -6736,7 +6749,7 @@ public:
 	, _view(Ui::CreateChild<LyricsView>(this))
 	, _tabScroll(Ui::CreateChild<Ui::ScrollArea>(this, st::defaultScrollArea))
 	, _playbackBar(Ui::CreateChild<Ui::RpWidget>(this))
-	, _seek(Ui::CreateChild<SeekBar>(_playbackBar))
+	, _seek(Ui::CreateChild<SeekBar>(_playbackBar, [=] { return playbackBarColor(); }))
 	, _heart(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Add, 44))
 	, _collapse(Ui::CreateChild<RoundGlyph>(this, Glyph::Collapse, 44))
 	, _filter(Ui::CreateChild<RoundGlyph>(this, Glyph::Filter, 44))
@@ -7609,6 +7622,12 @@ protected:
 			_volume->setGeometry(layout.volume.translated(-barOrigin));
 		}
 		_seek->setGeometry(layout.seek.translated(-barOrigin));
+		// The seek bar can restore its own background inside the solid capsule.
+		// This keeps its animation from invalidating the scrolling feed below.
+		const auto inset = s(1);
+		_seek->setOpaqueBackground(_tab == Tab::Home && !layout.seek.isEmpty()
+			&& Ui::SquirclePath(QRectF(layout.bar), s(kBarRadius)).contains(
+				QRectF(layout.seek).adjusted(-inset, -inset, inset, inset)));
 		_view->setVisible(_tab == Tab::Now && !showsQueue());
 		_view->setGeometry(layout.lyrics);
 		_tabScroll->setVisible(_tab != Tab::Now || showsQueue());
@@ -9174,10 +9193,14 @@ protected:
 		p.setPen(Qt::NoPen);
 		p.fillPath(
 			Ui::SquirclePath(QRectF(layout.bar), style::ConvertScale(kBarRadius)),
-			anim::color(
-				anim::color(_barFrom, _barTo, _barAnim.value(1.)),
-				QColor(0x2C, 0x34, 0x40),
-				_plainAnim.value(_tab == Tab::Now ? 0. : 1.)));
+			playbackBarColor());
+	}
+
+	[[nodiscard]] QColor playbackBarColor() const {
+		return anim::color(
+			anim::color(_barFrom, _barTo, _barAnim.value(1.)),
+			QColor(0x2C, 0x34, 0x40),
+			_plainAnim.value(_tab == Tab::Now ? 0. : 1.));
 	}
 
 	void paintPlaybackBarDetails(QPainter &p, const Layout &layout) const {
