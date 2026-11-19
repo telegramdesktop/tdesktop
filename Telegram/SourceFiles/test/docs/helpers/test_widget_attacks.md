@@ -78,8 +78,8 @@ Use something else when:
   no renderer quiescence. A card taller than 75 % of the list's scroll is
   shown by a band at its top that holds the press point; the row says whether
   the whole card was shown (`wholeCard`).
-- **Hosted widgets.** Where the widget helper renders (macOS and Linux by
-  default, unless the build disables the private Qt API,
+- **Hosted widgets.** Where the widget helper renders (macOS, Linux and
+  Windows by default, unless the build disables the private Qt API,
   [Remote engines](test_widget_fixture.md#remote-engines)) the tap sits on
   each file's hosted host ([test_widget_ops](test_widget_ops.md#hosted-widgets)):
   its batches are scanned at the host's `onRenderOps`, its load is the
@@ -115,9 +115,8 @@ Use something else when:
   decision that comes after a newer generation was selected all stay
   `click-not-observed`.
 - **Local widgets.** Where the renderer runs in Telegram (`in-process`,
-  `helper-engines`, Windows and builds without the private Qt API, none
-  of them in a `TDESKTOP_WIDGETS_HELPER_ONLY` build) the tap
-  wraps each file's renderer
+  `helper-engines` and builds without the private Qt API, none of them in a
+  `TDESKTOP_WIDGETS_HELPER_ONLY` build) the tap wraps each file's renderer
   factory, and the runtime registers the work of the core it builds the
   host for with the generation that selection made
   ([test_widget_ops](test_widget_ops.md#local-presses)). Its click is bound

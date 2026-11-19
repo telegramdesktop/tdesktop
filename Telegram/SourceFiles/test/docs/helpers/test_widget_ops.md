@@ -32,8 +32,8 @@ post-load ack, the renderer's answer to it, a fatal `frozen`, renderer
 `violation` messages, renderer `limit` reports and trusted renderer events,
 and it says when no factory call or wrapper of the message is still pending.
 
-On macOS and Linux, unless the build disables the private Qt API, a
-widget's engine, validator and renderer run in the widget helper by
+On macOS, Linux and Windows, unless the build disables the private Qt API,
+a widget's engine, validator and renderer run in the widget helper by
 default ([Hosted widgets](#hosted-widgets)), and there is no renderer in
 Telegram to wrap: the tap is then installed on the hosted `WidgetHost`
 itself, takes the validated batches from its `onRenderOps` and the rest
@@ -104,12 +104,12 @@ Use something else when:
 - **Which seam taps.** The runtime takes one of the two per construction,
   as its placement says: `TapWidgetRenderer()` for a local host (the
   `in-process` and `helper-engines` values of `TDESKTOP_WIDGET_ENGINES`, and
-  Windows and builds without the private Qt API always, none of them in
-  a `TDESKTOP_WIDGETS_HELPER_ONLY` build),
-  `TapHostedWidget()` for a hosted one (macOS and Linux by default). Both
-  select a generation of the same tap at the same point, so
-  every reading and its finality read the same way in either arrangement;
-  what differs is where each reading comes from
+  builds without the private Qt API always, none of them in a
+  `TDESKTOP_WIDGETS_HELPER_ONLY` build), `TapHostedWidget()` for a hosted
+  one (macOS, Linux and Windows by default). Both select a
+  generation of the same tap at the same point, so every reading and its
+  finality read the same way in either arrangement; what differs is
+  where each reading comes from
   ([Hosted widgets](#hosted-widgets)).
 - **What the scan is.** A leak or a note is exactly what the copied
   `mentionsNetwork()`, `scanCssForLeaks()` and `scanForLeaks()` report for
@@ -376,10 +376,9 @@ outside the reading.
 
 ### Local presses
 
-Where the renderer runs in Telegram (`in-process`, `helper-engines`,
-Windows and builds without the private Qt API, none of them in a
-`TDESKTOP_WIDGETS_HELPER_ONLY` build),
-`Tgw::Runtime::construct()` calls
+Where the renderer runs in Telegram (`in-process`, `helper-engines` and
+builds without the private Qt API, none of them in a
+`TDESKTOP_WIDGETS_HELPER_ONLY` build), `Tgw::Runtime::construct()` calls
 `TapWidgetRenderer(_item->globalId(), _live->workId(), _live->hostFactory())`
 on main: for an armed id the selection also registers the work of the core
 it builds the host for with the generation it made, from that selection on
@@ -466,9 +465,10 @@ runtime log to cover every host.
 
 ## Hosted widgets
 
-Where the widget helper renders (macOS, the Mac App Store build included,
-and Linux, unless the build disables the private Qt API, with no switch,
-`helper` or a probe value; [Remote engines](test_widget_fixture.md#remote-engines)),
+Where the widget helper renders (macOS, Linux and Windows, the Mac App
+Store and Windows Store builds included, unless the build disables the
+private Qt API, with no switch, `helper` or a probe value;
+[Remote engines](test_widget_fixture.md#remote-engines)),
 `Tgw::Runtime::construct()` builds a hosted `WidgetHost`: its engine,
 validator, served host and TwidgetCore renderer run in the helper, and
 Telegram keeps only the hosted client and its checked Qt work. The runtime
@@ -658,7 +658,8 @@ helper's Debug tap times it when asked, and this tap keeps it:
   ([test_widget_helper_tap](test_widget_helper_tap.md), way `w`): its
   `kind`, `started` and `finished` mapped to `crl::profile()` at the
   record's receipt (the helper's steady clock is the system-wide uptime
-  clock on macOS, so the mapping is the two processes' offset taken then),
+  clock on macOS and `QueryPerformanceCounter` on Windows, both read by
+  Telegram too, so the mapping is the two processes' offset taken then),
   `waited` and `waits`, the part spent waiting for Telegram's answers to
   backend requests, `seq` of a tick or paint, `frameBytes` and the tap
   `generation`; `waits` and `frameBytes` stay unsigned 32-bit values as

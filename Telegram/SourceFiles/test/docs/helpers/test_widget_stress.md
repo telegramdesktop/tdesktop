@@ -460,16 +460,16 @@ and `helperWork` ([Hosted levels](#hosted-levels)).
 
 #### Hosted levels
 
-Where the widget helper renders (macOS and Linux by default, unless the
-build disables the private Qt API,
+Where the widget helper renders (macOS, Linux and Windows by default,
+unless the build disables the private Qt API,
 [Remote engines](test_widget_fixture.md#remote-engines)) the level's widget
 runs in the helper and the ops tap sits on its hosted host
 ([test_widget_ops](test_widget_ops.md#hosted-widgets)):
 
 - **Renderer scope.** `desktop.rendererScope` is `renderer` (the whole
   renderer in Telegram: `in-process` or an engine-only placement, as
-  `helper-engines`, Windows and builds without the private Qt API give,
-  none of them in a `TDESKTOP_WIDGETS_HELPER_ONLY` build),
+  `helper-engines` and builds without the private Qt API give, none of
+  them in a `TDESKTOP_WIDGETS_HELPER_ONLY` build),
   `telegram-replay` (hosted with no helper records, as in a
   Release harness, whose helper has no Debug tap) or
   `telegram-replay+helper` (hosted with them). A hosted level's `renderer`

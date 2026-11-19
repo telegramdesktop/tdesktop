@@ -13,7 +13,8 @@ in the widget helper, where the served host and its renderer run in
 `TelegramWidgetHelper` and Telegram has no renderer to wrap. Its only caller
 is the hosted renderer factory of `WidgetHelper::Serve()` in
 `_other/widget_helper_renderer.cpp`, the thin entry both macOS packages
-and the Linux helper serve with; the factory builds the renderer through
+and the Linux and Windows helpers serve with; the factory builds the
+renderer through
 `Tgw::MakeHostedRenderer()` (`tgw/tgw_hosted_glue.cpp`, the portable glue)
 inside the tap's `build` callback, so the glue gets the tap's platform and
 the tap wraps the renderer the glue returns. Its Telegram counterpart,
@@ -26,8 +27,8 @@ work with `TimeWidgetHelperWork()`; nothing here is called by name.
 
 - **Debug helper only.** `TelegramWidgetHelper`'s Debug build compiles it
   where the helper renders (`widget_helper_renders` in
-  `telegram_widget_helper.cmake`: macOS and Linux, unless the build
-  disables the private Qt API); its Release build takes the
+  `telegram_widget_helper.cmake`: macOS, Linux and Windows, unless the
+  build disables the private Qt API); its Release build takes the
   inline identity of the header (`build(platform)`), so a Release helper
   mirrors and times nothing and ends a route at a `Mirror` or `MirrorWork`
   control, as a control the helper does not take. A Telegram Release build
@@ -70,8 +71,9 @@ work with `TimeWidgetHelperWork()`; nothing here is called by name.
   request (a font, a text width, an image, canvas pixels). Each outermost
   operation of the glue thread is one record: `kind`, `started` and
   `finished` on the helper's steady clock (microseconds; on macOS the
-  system-wide uptime clock Telegram's process reads too), `waited` and
-  `waits` (the requests inside it), `seq` of a `FrameRequest`, and
+  system-wide uptime clock and on Windows `QueryPerformanceCounter`, which
+  Telegram's process reads too), `waited` and `waits` (the requests
+  inside it), `seq` of a `FrameRequest`, and
   `frameBytes`, the encoded `Frame` messages it sent. A call made inside
   another (the glue defers nested steps to the outer loop) belongs to the
   outer one, and so does the work of the steps it ran. The kinds:
@@ -148,6 +150,11 @@ On Linux x86_64 it compiled in the Debug helpers of
 `2026/11/14/run-widget-validators-and-renderers-in-the-linux-helper` (the
 Docker image's tree and a package-managed tree), whose NEEDED stayed those
 of the engine-only helper; that task's records hold its runs.
+
+On Windows it compiled in the x86, x64 and x64 Store Debug helpers of
+`2026/11/14/run-widget-validators-and-renderers-in-the-windows-helper`,
+built with the QuickJS engine before the Nova change, whose import tables
+stayed those of the engine-only helper; that task's records hold its runs.
 
 ## Related guidance
 

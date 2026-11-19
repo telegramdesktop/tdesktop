@@ -398,8 +398,8 @@ their stamps, not nesting.
 
 ### In the hosted arrangement
 
-Where the widget helper renders (macOS and Linux by default, unless the
-build disables the private Qt API,
+Where the widget helper renders (macOS, Linux and Windows by default,
+unless the build disables the private Qt API,
 [Remote engines](test_widget_fixture.md#remote-engines)), the host messages,
 TwidgetCore's `receive()`, `tick()`, style, layout and display-list build,
 the settle before a paint and every layout query run in the helper, and
@@ -592,7 +592,7 @@ nothing is registered.
 - The attachment runs one synchronous `WidgetHost::onHostThread()` call from
   main: it merges the host's `diagnostics()` and sets `onChange` there, so no
   change falls between the snapshot and the callback, and a diag the host
-  posted from its constructor (a stale validator bytecode does) cannot race
+  posted from its constructor (a mismatched validator bundle does) cannot race
   the callback's assignment. Before `start()` the host thread runs at most
   such a diag and no task of it waits on main, so the hop is short and cannot
   deadlock. The product makes its own synchronous host calls off main

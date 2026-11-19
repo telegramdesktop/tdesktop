@@ -43,7 +43,8 @@ header, so neither includes a header of the other's.
 
 One way `w` `Mirrored` record times one outermost renderer operation of a
 hosted widget's glue thread on the helper's steady clock, in microseconds
-(on macOS the system-wide uptime clock both processes read):
+(on macOS the system-wide uptime clock and on Windows
+`QueryPerformanceCounter`, each read by both processes):
 `EncodeHelperWork()` writes exactly `kHelperWorkRecordBytes` (41): the kind,
 `started`, `finished`, `waited` and `seq` as 8 little-endian bytes each,
 then `waits` and `frameBytes` as 4 each. `DecodeHelperWork()` keeps a record

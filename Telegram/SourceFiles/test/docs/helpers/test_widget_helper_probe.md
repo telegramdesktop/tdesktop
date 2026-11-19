@@ -188,10 +188,10 @@ attempts in a helper that serves widgets, for the direct-download helper and
 the Mac App Store service alike, on either stream opening (the hosted one
 of the default arrangement, and the engine-only one of `helper-engines`
 that a disposable overlay combines with probe arguments as the control).
-Linux, whose helper renders as well, needs no serving variant: its probe
-refuses no stream its lockdown accepted, and right after its lines the
-same helper serves, hosting each widget where the build's helper renders
-([Linux](#linux)).
+Linux and Windows, whose helpers render as well, need no serving variant:
+their probes refuse no stream their lockdown accepted, and right after
+their lines the same helper serves, hosting each widget where the build's
+helper renders ([Linux](#linux), [Windows](#windows)).
 
 - **Asking for it.** A fixture's `renderingDelayMs` appends
   `rendering:<ms>` after every other argument, the service names included,
@@ -199,7 +199,9 @@ same helper serves, hosting each widget where the build's helper renders
   `kWidgetHelperRenderingMinMs` (1) to `kWidgetHelperRenderingMaxMs`
   (60000) in decimal; any other value, a second one, or any other
   malformed argument is a defect row and keeps the ordinary probe, which
-  refuses. Windows and Linux never get it.
+  refuses. Windows and Linux never get it: their probe helpers go on
+  serving widgets after the report anyway ([Windows](#windows),
+  [Linux](#linux)).
 - **Before Ready.** The helper runs every row of the ordinary probe up to
   and including `lockdown:` and `state:` on its serve thread, the real
   lockdown included, and only then decides: a lockdown that succeeded with
@@ -563,7 +565,10 @@ order, once per helper:
    own `WSAStartup`, and the hook returns "".
 
 The helper then serves widgets as in `helper` mode, so a probe launch is no
-helper failure. After the lockdown the hook calls only what was bound
+helper failure. On the hosted opening it serves each whole widget, whose
+served host, validator and renderer are built only after Ready and so after
+the report ([Remote engines](test_widget_fixture.md#remote-engines)). After
+the lockdown the hook calls only what was bound
 before it: the helper's static imports, the delay-loaded `bcrypt.dll`
 imports, which the lockdown's warm-up binds, the `WS2_32.dll` imports,
 which the native probe and then the harness's own Winsock start each bind
