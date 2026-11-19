@@ -278,7 +278,7 @@ Gif::Gif(
 Gif::~Gif() {
 	if (_streamed || _dataMedia) {
 		if (_streamed) {
-			_data->owner().streaming().keepAlive(_data);
+			_data->owner().streaming().keepAlive(_streamed->chosen);
 			setStreamed(nullptr);
 		}
 		if (_dataMedia) {
