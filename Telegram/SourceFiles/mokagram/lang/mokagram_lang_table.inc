@@ -1572,6 +1572,7 @@
 	{ "SoundCloud · треков: %1", "SoundCloud · tracks: %1" },
 	{ "Weekly Wave", "Weekly Wave" },
 	{ "Trending", "Trending" },
+	{ "Скрыть Trending на главной", "Hide Trending on Home" },
 	{ "Daily Drops", "Daily Drops" },
 	{ "SoundCloud не вернул подборки для этого аккаунта.", "SoundCloud returned no playlists for this account." },
 	{ "Нет доступной музыки в этой подборке.", "No playable music in this collection." },

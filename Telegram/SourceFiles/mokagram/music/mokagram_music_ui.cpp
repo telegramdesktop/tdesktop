@@ -6683,6 +6683,7 @@ constexpr auto kBarHeight = 108;
 constexpr auto kBarMaxWidth = 1040;
 constexpr auto kBarCover = 72;
 constexpr auto kBarRadius = 40;
+constexpr auto kHomeTrendingSection = 3;
 
 // Акцент обложки, поднятый до читаемой светлоты; белый без него.
 [[nodiscard]] QColor LiftedAccent(QColor accent) {
@@ -7055,6 +7056,21 @@ public:
 		LyricsAvailabilityChanges() | rpl::on_next([=] { relayout(); }, lifetime());
 		Mokagram::Settings::Changed() | rpl::on_next([=](const QString &key) {
 			if (key == u"lyrics.comments"_q) relayout();
+			if (key == u"player.hide_trending"_q) {
+				const auto closeTrending = (_homeSection == kHomeTrendingSection)
+					&& Mokagram::Settings::Bool(key);
+				if (closeTrending) {
+					_homeSection = 0;
+					_homeAlbumReturnScroll = _homeFeedScroll;
+				}
+				if (_tab == Tab::Home && !_homeSection && !_homeAlbumOpen) {
+					rebuildTab();
+					if (closeTrending) {
+						_tabScroll->scrollToY(_homeFeedScroll);
+					}
+				}
+				return;
+			}
 			if (key.startsWith(u"player."_q)) {
 				if (key == u"player.motion_covers"_q || key == u"player.spotify_canvas"_q) {
 					_motionFor.clear();
@@ -8465,7 +8481,7 @@ protected:
 					&& !((_homeSection - 100) % 2)
 					&& page < int(_homePages.size());
 				const auto title = (_homeSection == 2) ? tr("Избранное")
-					: (_homeSection == 3) ? tr("Trending")
+					: (_homeSection == kHomeTrendingSection) ? tr("Trending")
 					: (_homeSection == 4) ? tr("Weekly Wave")
 					: (_homeSection == 5) ? tr("Daily Drops")
 					: tr("Для вас");
@@ -8478,7 +8494,7 @@ protected:
 				const auto emptyTracks = std::vector<Track>();
 				const auto &tracks = pageTracks ? _homePages[page].tracks
 					: (_homeSection == 2) ? liked
-					: (_homeSection == 3) ? _homeTrending
+					: (_homeSection == kHomeTrendingSection) ? _homeTrending
 					: (_homeSection == 4 || _homeSection == 5) ? emptyTracks
 					: queue.forYou;
 				auto albums = pageTracks ? _homePages[page].albums : std::vector<Album>();
@@ -8496,7 +8512,7 @@ protected:
 				} else {
 					const auto offset = pageTracks ? _homePages[page].shelfOffset
 						: (_homeSection == 2) ? _homeLikedOffset
-						: (_homeSection == 3) ? _homeTrendingOffset
+						: (_homeSection == kHomeTrendingSection) ? _homeTrendingOffset
 						: (_homeSection == 4) ? _homeWeeklyWaveOffset
 						: (_homeSection == 5) ? _homeDailyDropsOffset
 						: std::shared_ptr<int>();
@@ -8569,7 +8585,9 @@ protected:
 				4,
 				_homeWeeklyWave,
 				_homeWeeklyWaveOffset);
-			section(tr("Trending"), 3, _homeTrending);
+			if (!Mokagram::Settings::Bool(u"player.hide_trending"_q)) {
+				section(tr("Trending"), kHomeTrendingSection, _homeTrending);
+			}
 			playlistSection(
 				tr("Daily Drops"),
 				5,
