@@ -6755,6 +6755,7 @@ public:
 		_view->setBackground([=](QPainter &p, QRect area) {
 			paintBackgroundPart(p, area, _view->pos());
 		});
+		_view->setAttribute(Qt::WA_OpaquePaintEvent);
 		_seek->setThin(true);
 		_seek->setExpressive(true, false);
 		_volume->setThin(true);
@@ -7121,7 +7122,7 @@ public:
 				}
 				refresh();
 				updateAmbientTimer();
-				update();
+				repaintBackdrop();
 			}
 		}, lifetime());
 		_ambientTimer.setInterval(33);
@@ -7130,8 +7131,7 @@ public:
 			const auto elapsed = std::min((now - _ambientAt) / 1000., 0.1);
 			_ambientAt = now;
 			if (animatesBackdrop()) {
-				_view->update();
-				update();
+				repaintBackdrop();
 			}
 			if (_seek->waveAnimating()) {
 				_seek->advanceWave(elapsed);
@@ -7146,8 +7146,7 @@ public:
 		PowerSaving::Changes(
 		) | rpl::on_next([=] {
 			updateAmbientTimer();
-			update();
-			_view->update();
+			repaintBackdrop();
 		}, lifetime());
 
 		setGeometry(parent->rect());
@@ -7206,6 +7205,7 @@ protected:
 	}
 	void hideEvent(QHideEvent *event) override {
 		_ambientTimer.stop();
+		_preparedBackdrop = QImage();
 		RpWidget::hideEvent(event);
 	}
 	bool eventFilter(QObject *watched, QEvent *event) override {
@@ -7886,6 +7886,7 @@ protected:
 		const auto navFrom = _navSlide.value(float64(int(_tab)));
 		_navSlideFrom = navFrom;
 		_tab = tab;
+		_backdropDirty = true;
 		updateAmbientTimer();
 		if (anim::Disabled() || PowerSaving::On(PowerSaving::kAnimations)) {
 			_navSlide.stop();
@@ -8886,6 +8887,8 @@ protected:
 		const auto plainBackground = _plainAnim.value(_tab == Tab::Now ? 0. : 1.);
 		if (plainBackground < 1.) {
 			paintBackgroundPart(p, e->rect());
+		} else {
+			_preparedBackdrop = QImage();
 		}
 		// Вне «Сейчас играет» экран в цветах клиента, как остальные окна.
 		if (plainBackground > 0.) {
@@ -9278,6 +9281,7 @@ private:
 	}
 
 	void setCanvasPalette(QImage background, QColor accent) {
+		repaintBackdrop();
 		_canvasBackgroundFrom = _canvasBackground.isNull()
 			? CoverBackgroundForPlayback() : canvasBackgroundFrame();
 		if (_canvasBackgroundFrom.isNull()) {
@@ -9292,7 +9296,7 @@ private:
 		_canvasFade.stop();
 		// Ambient colour follows the video slowly, without flashing at scene cuts.
 		if (animate) {
-			_canvasFade.start([=] { update(); _view->update(); },
+			_canvasFade.start([=] { repaintBackdrop(); },
 				0., 1., 2400, anim::easeOutCubic);
 		}
 		_barFrom = anim::color(_barFrom, _barTo, _barAnim.value(1.));
@@ -9303,7 +9307,13 @@ private:
 		}
 	}
 
-	void paintBackgroundPart(QPainter &p, QRect area, QPoint origin = {}) {
+	void repaintBackdrop() {
+		_backdropDirty = true;
+		update();
+		_view->update();
+	}
+
+	void updateBackdropPalette() {
 		if (_tab == Tab::Now && crl::now() >= _canvasPaletteNext) {
 			_canvasPaletteNext = crl::now() + 3000;
 			auto frame = _spotifyPaletteFrame;
@@ -9322,11 +9332,44 @@ private:
 			}
 		}
 		if (!_canvasBackground.isNull()) {
-			_accent = anim::color(_canvasAccentFrom, _canvasAccentTo, _canvasFade.value(1.));
-			_shuffle->setAccent(_accent);
-			_repeat->setAccent(_accent);
+			const auto accent = anim::color(_canvasAccentFrom, _canvasAccentTo, _canvasFade.value(1.));
+			if (_accent != accent) {
+				_accent = accent;
+				_backdropDirty = true;
+				_shuffle->setAccent(_accent);
+				_repeat->setAccent(_accent);
+			}
 		}
+	}
+
+	void paintBackgroundPart(QPainter &p, QRect area, QPoint origin = {}) {
 		if (size().isEmpty() || area.isEmpty()) return;
+		updateBackdropPalette();
+		const auto ratio = devicePixelRatioF();
+		const auto pixels = QSize(
+			int(std::ceil(width() * ratio)),
+			int(std::ceil(height() * ratio)));
+		if (_preparedBackdrop.size() != pixels
+			|| _preparedBackdrop.devicePixelRatio() != ratio) {
+			_preparedBackdrop = QImage(pixels, QImage::Format_RGB32);
+			_preparedBackdrop.setDevicePixelRatio(ratio);
+			_backdropDirty = true;
+		}
+		if (_preparedBackdrop.isNull()) {
+			p.fillRect(area, QColor(0x14, 0x14, 0x15));
+			return;
+		}
+		if (_backdropDirty) {
+			prepareBackdrop();
+			_backdropDirty = false;
+		}
+		p.save();
+		p.setClipRect(area, Qt::IntersectClip);
+		p.drawImage(-origin, _preparedBackdrop);
+		p.restore();
+	}
+
+	void prepareBackdrop() {
 		// Keep the blurred backdrop small, but retain colour precision while
 		// compositing the gradients so dark transitions do not become steps.
 		const auto extent = style::ConvertScale(256);
@@ -9342,12 +9385,8 @@ private:
 				rasterSize.height() / double(height()));
 			paintBackdrop(raster);
 		}
-		p.save();
-		p.setClipRect(area, Qt::IntersectClip);
-		p.setRenderHint(QPainter::SmoothPixmapTransform);
-		p.drawImage(QRect(-origin, size()), background);
-		// A fixed, subtle grain hides the remaining display quantisation.
-		// Tile it after enlargement so it stays fine and never flickers.
+		// Keep the grain at display size. Translucent black and white approximate
+		// SoftLight on the dark backdrop and use the cheaper SourceOver blend.
 		static const auto grain = [] {
 			const auto extent = style::ConvertScale(128);
 			auto image = QImage(extent, extent, QImage::Format_ARGB32_Premultiplied);
@@ -9358,16 +9397,16 @@ private:
 					random ^= random << 13;
 					random ^= random >> 17;
 					random ^= random << 5;
-					const auto value = (random & 1) ? 16 : 0;
-					line[x] = qRgba(value, value, value, 16);
+					line[x] = (random & 1) ? qRgba(3, 3, 3, 3) : qRgba(0, 0, 0, 14);
 				}
 			}
 			return QBrush(image);
 		}();
-		p.setCompositionMode(QPainter::CompositionMode_SoftLight);
-		p.setBrushOrigin(-origin);
+		auto p = QPainter(&_preparedBackdrop);
+		p.setRenderHint(QPainter::SmoothPixmapTransform);
+		const auto area = QRectF(QPointF(), _preparedBackdrop.deviceIndependentSize());
+		p.drawImage(area, background);
 		p.fillRect(area, grain);
-		p.restore();
 	}
 
 	void paintBackdrop(QPainter &p) {
@@ -9415,10 +9454,7 @@ private:
 	}
 
 	void refresh() {
-		_backdrop.refresh([=] {
-			update();
-			_view->update();
-		}, isVisible());
+		_backdrop.refresh([=] { repaintBackdrop(); }, isVisible());
 		const auto track = PlayingTrack();
 		if (_canvasPaletteFor != track.id) {
 			_canvasPaletteFor = track.id;
@@ -9427,11 +9463,13 @@ private:
 			_canvasBackgroundFrom = QImage();
 			_spotifyPaletteFrame = QImage();
 			_canvasPaletteNext = 0;
+			repaintBackdrop();
 		}
 		if (_closing) {
 			return;
 		}
 		if (track.id.isEmpty()) {
+			if (_isPlaying) repaintBackdrop();
 			_isPlaying = false;
 			_seek->setExpressive(true, false);
 			updateAmbientTimer();
@@ -9490,8 +9528,7 @@ private:
 			_volume->setFillColor(LiftedAccent(_accent));
 			_shuffle->setAccent(_accent);
 			_repeat->setAccent(_accent);
-			_view->update();
-			update();
+			repaintBackdrop();
 		}
 		const auto playing = state.state == Media::Player::State::Playing
 			|| state.state == Media::Player::State::Starting
@@ -9502,6 +9539,7 @@ private:
 			track.title, track.artist, playing && _tab == Tab::Now);
 		if (_isPlaying != playing) {
 			_isPlaying = playing;
+			repaintBackdrop();
 			updateAmbientTimer();
 			_playAnim.start([=] { update(); }, playing ? 0. : 1., playing ? 1. : 0., 180, anim::easeOutCubic);
 		}
@@ -9738,6 +9776,8 @@ private:
 	QImage _spotifyPaletteFrame;
 	QString _canvasPaletteFor;
 	crl::time _canvasPaletteNext = 0;
+	QImage _preparedBackdrop;
+	bool _backdropDirty = true;
 	[[nodiscard]] bool animatesBackdrop() const {
 		return _isPlaying && _tab == Tab::Now
 			&& Mokagram::Settings::Bool(u"player.dynamic_background"_q);
