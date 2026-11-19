@@ -166,6 +166,7 @@ struct Gif::Streamed {
 	::Media::Streaming::FrameRequest frozenRequest;
 	QImage frozenFrame;
 	QString frozenStatusText;
+	std::optional<crl::time> startPosition;
 };
 
 Gif::Streamed::Streamed(
@@ -2527,6 +2528,9 @@ void Gif::createStreamedPlayer() {
 	if (!chosen || (_streamed && _streamed->chosen == chosen)) {
 		return;
 	}
+	const auto position = (_streamed && _streamed->instance.active())
+		? _streamed->instance.info().video.state.position
+		: ::Media::kTimeUnknown;
 	auto shared = _data->owner().streaming().sharedDocument(
 		chosen,
 		_data,
@@ -2539,6 +2543,10 @@ void Gif::createStreamedPlayer() {
 		chosen,
 		std::move(shared),
 		[=] { repaintStreamedContent(); }));
+	if (position != ::Media::kTimeUnknown
+		&& !_streamed->instance.active()) {
+		_streamed->startPosition = position;
+	}
 
 	_streamed->instance.player().updates(
 	) | rpl::on_next_error([=](::Media::Streaming::Update &&update) {
@@ -2573,13 +2581,16 @@ void Gif::createStreamedPlayer() {
 void Gif::startStreamedPlayer() const {
 	Expects(_streamed != nullptr);
 
+	const auto position = base::take(_streamed->startPosition);
 	auto options = ::Media::Streaming::PlaybackOptions();
 	options.audioId = AudioMsgId(_data, _realParent->fullId());
 	options.waitForMarkAsShown = true;
 	//if (!_streamed->withSound) {
 	options.mode = ::Media::Streaming::Mode::Video;
 	options.loop = true;
-	options.position = _videoTimestamp
+	options.position = position
+		? *position
+		: _videoTimestamp
 		? (_videoTimestamp * crl::time(1000))
 		: _parent->history()->session().local().mediaLastPlaybackPosition(
 			_data->id);
