@@ -1280,9 +1280,6 @@ void Application::checkStartUrls() {
 		return;
 	}
 	if (!Core::App().passcodeLocked()) {
-		// WHY: tg://resolve?acc= switches the account, which shows the
-		// new main widget and re-enters here while we still iterate,
-		// so take the list out and merge whatever was added meanwhile.
 		const auto urls = base::take(cRefStartUrls());
 		auto left = ranges::views::all(
 			urls
