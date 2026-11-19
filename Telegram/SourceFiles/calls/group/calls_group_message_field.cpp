@@ -417,6 +417,7 @@ void MessageField::createControls(PeerData *peer) {
 			Ui::InputField::kTagStrikeOut,
 			Ui::InputField::kTagSpoiler,
 		},
+		.openLinks = { .dark = true },
 	});
 	Ui::Emoji::SuggestionsController::Init(
 		_parent,

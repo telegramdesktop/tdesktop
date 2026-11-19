@@ -68,6 +68,7 @@ struct ShareBoxStyleOverrides {
 	const style::InputField *label = nullptr;
 	const style::Checkbox *checkbox = nullptr;
 	std::shared_ptr<HistoryView::ScheduleBoxStyleArgs> scheduleBox;
+	bool dark = false;
 };
 [[nodiscard]] ShareBoxStyleOverrides DarkShareBoxStyle();
 
