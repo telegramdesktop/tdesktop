@@ -6241,6 +6241,9 @@ void OverlayWidget::refreshSystemMediaControls() {
 		.nextAvailable = _rightNavVisible,
 		.previousAvailable = _leftNavVisible,
 		.seekable = !_stories,
+		.speedControllable = (_streamed->controls != nullptr)
+			&& !_stories
+			&& Media::Audio::SupportsSpeedControl(),
 	};
 	if (_smtcDocument != _document) {
 		_smtcDocument = _document;
@@ -6343,6 +6346,13 @@ void OverlayWidget::smtcSetVolume(float64 volume) {
 		playbackControlsVolumeChanged(volume);
 	}
 	playbackControlsVolumeChangeFinished();
+}
+
+void OverlayWidget::smtcSetSpeed(float64 speed) {
+	if (_streamed && _streamed->controls && !_stories && !_speedBoostActive) {
+		_streamed->controls->updatePlaybackSpeed(speed);
+		updatePlaybackState();
+	}
 }
 
 void OverlayWidget::validatePhotoImage(Image *image, bool blurred) {

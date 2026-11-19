@@ -19,6 +19,7 @@ public:
 	virtual void smtcPrevious() = 0;
 	virtual void smtcSeek(crl::time position) = 0;
 	virtual void smtcSetVolume(float64 volume) = 0;
+	virtual void smtcSetSpeed(float64 speed) = 0;
 
 protected:
 	~SystemMediaControlsVideoDelegate() = default;
@@ -36,6 +37,7 @@ public:
 		bool nextAvailable = false;
 		bool previousAvailable = false;
 		bool seekable = false;
+		bool speedControllable = false;
 	};
 
 	virtual void videoStart(

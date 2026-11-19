@@ -49,6 +49,7 @@ public:
 
 private:
 	[[nodiscard]] float64 lookupPlaybackRate() const;
+	void applyAudioPlaybackSpeed(float64 speed);
 	void applyPlayerTrack(AudioMsgId::Type audioType);
 	void syncPlayerStateToControls();
 	void syncLoopAndShuffleToControls();

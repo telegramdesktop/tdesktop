@@ -45,6 +45,14 @@ constexpr auto kSkipMs = crl::time(15 * 1000);
 	Unexpected("RepeatModeToLoopStatus in SystemMediaControlsManager");
 }
 
+void SetPlaybackRateRange(
+		not_null<base::Platform::SystemMediaControls*> controls,
+		bool controllable) {
+	controls->setPlaybackRateRange(
+		controllable ? kSpeedMin : 1.,
+		controllable ? kSpeedMax : 1.);
+}
+
 [[nodiscard]] std::optional<AudioMsgId::Type> ActivePlayerType() {
 	using namespace Media::Player;
 	const auto player = instance();
@@ -66,6 +74,33 @@ bool SystemMediaControlsManager::Supported() {
 
 float64 SystemMediaControlsManager::lookupPlaybackRate() const {
 	return (_streamed && _streamed->valid()) ? _streamed->speed() : 1.;
+}
+
+void SystemMediaControlsManager::applyAudioPlaybackSpeed(float64 speed) {
+	const auto mediaPlayer = Media::Player::instance();
+	const auto current = mediaPlayer->current(mediaPlayer->getActiveType());
+	if (!current.changeablePlaybackSpeed()
+		|| !Media::Audio::SupportsSpeedControl()) {
+		return;
+	}
+	const auto document = current.audio();
+	const auto music = document
+		&& !document->isVoiceMessage()
+		&& !document->isVideoMessage();
+	auto &settings = Core::App().settings();
+	const auto saved = music
+		? settings.audioPlaybackSpeed()
+		: settings.voicePlaybackSpeed();
+	// a speed boost overrides the saved speed while held
+	if (lookupPlaybackRate() != saved) {
+		return;
+	} else if (music) {
+		settings.setAudioPlaybackSpeed(speed);
+	} else {
+		settings.setVoicePlaybackSpeed(speed);
+	}
+	Core::App().saveSettingsDelayed();
+	mediaPlayer->updatePlaybackSpeed();
 }
 
 void SystemMediaControlsManager::applyPlayerTrack(AudioMsgId::Type audioType) {
@@ -107,6 +142,10 @@ void SystemMediaControlsManager::applyPlayerTrack(AudioMsgId::Type audioType) {
 			document,
 			current.contextId(),
 			nullptr);
+		SetPlaybackRateRange(
+			_controls.get(),
+			current.changeablePlaybackSpeed()
+				&& Media::Audio::SupportsSpeedControl());
 		_controls->setPlaybackRate(lookupPlaybackRate());
 	}
 
@@ -506,6 +545,27 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 			const auto type = mediaPlayer->getActiveType();
 			_controls->setPosition(mediaPlayer->getState(type).position);
 		}, _lifetime);
+
+		_controls->playbackRateChangeRequests(
+		) | rpl::on_next([=](float64 rate) {
+			const auto actual = [=] {
+				return _videoDelegate
+					? _videoState.speed
+					: lookupPlaybackRate();
+			};
+			if (rate == actual()) {
+				return;
+			} else if (!std::isfinite(rate) || rate <= 0.) {
+			} else if (!_videoDelegate) {
+				applyAudioPlaybackSpeed(
+					std::clamp(rate, kSpeedMin, kSpeedMax));
+			} else if (_videoState.speedControllable) {
+				_videoDelegate->smtcSetSpeed(
+					std::clamp(rate, kSpeedMin, kSpeedMax));
+			}
+			// the value written by a client stays otherwise
+			_controls->setPlaybackRate(actual());
+		}, _lifetime);
 	}
 
 	Core::App().passcodeLockValue(
@@ -586,6 +646,7 @@ void SystemMediaControlsManager::videoStart(
 	if (_controls->seekingSupported()) {
 		_controls->setDuration(state.duration);
 		_controls->setPosition(state.position);
+		SetPlaybackRateRange(_controls.get(), state.speedControllable);
 		_controls->setPlaybackRate(state.speed);
 	}
 	if (_controls->volumeSupported()) {
@@ -627,6 +688,9 @@ void SystemMediaControlsManager::videoUpdate(VideoState state) {
 	if (_controls->seekingSupported()) {
 		if (state.duration != was.duration) {
 			_controls->setDuration(state.duration);
+		}
+		if (state.speedControllable != was.speedControllable) {
+			SetPlaybackRateRange(_controls.get(), state.speedControllable);
 		}
 		if (state.speed != was.speed) {
 			_controls->setPlaybackRate(state.speed);
