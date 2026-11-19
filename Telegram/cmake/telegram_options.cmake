@@ -122,3 +122,20 @@ endif()
 if (NOT TDESKTOP_CANARY_PUBLIC_CHANNEL STREQUAL "")
     target_compile_definitions(Telegram PRIVATE TDESKTOP_CANARY_PUBLIC_CHANNEL=${TDESKTOP_CANARY_PUBLIC_CHANNEL})
 endif()
+
+if (APPLE)
+    # lib_base still calls deprecated launch-services and IOKit APIs.
+    target_compile_options(lib_base PRIVATE -Wno-error=deprecated-declarations)
+    # lib_webrtc still lists capture devices with deprecated AVFoundation calls.
+    target_compile_options(lib_webrtc PRIVATE -Wno-error=deprecated-declarations)
+    # rpl::variable's [this] capture goes unused in some instantiations.
+    target_compile_options(lib_rpl INTERFACE -Wno-error=unused-lambda-capture)
+    # These macOS integration sources still call deprecated system APIs.
+    set_source_files_properties(
+        ${CMAKE_CURRENT_SOURCE_DIR}/SourceFiles/platform/mac/current_geo_location_mac.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/SourceFiles/platform/mac/file_utilities_mac.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/SourceFiles/platform/mac/notifications_manager_mac.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/SourceFiles/platform/mac/notifications_manager_mac_un.mm
+        ${CMAKE_CURRENT_SOURCE_DIR}/SourceFiles/platform/mac/specific_mac.mm
+        PROPERTIES COMPILE_OPTIONS -Wno-error=deprecated-declarations)
+endif()
