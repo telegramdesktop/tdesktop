@@ -6750,7 +6750,8 @@ class FullscreenPlayer final : public Ui::RpWidget {
 public:
 	FullscreenPlayer(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller)
+		not_null<Window::SessionController*> controller,
+		bool openHome)
 	: RpWidget(parent.get())
 	, _controller(controller)
 	, _view(Ui::CreateChild<LyricsView>(this))
@@ -6770,7 +6771,8 @@ public:
 	, _repeat(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Repeat, 44))
 	, _canvas(this, [=] {
 		update(computeLayout().cover);
-	}) {
+	})
+	, _tab(openHome ? Tab::Home : Tab::Now) {
 		setFocusPolicy(Qt::TabFocus);
 		setMouseTracking(true);
 		_view->setBig(true);
@@ -6906,7 +6908,7 @@ public:
 			item->setClickedCallback([=] { setTab(Tab(i)); });
 			_nav[i] = item;
 		}
-		_nav[0]->setActive(true);
+		_nav[int(_tab)]->setActive(true);
 		Account::Changes() | rpl::on_next([=] {
 			if (_tab == Tab::Library) {
 				syncLibrary();
@@ -7194,6 +7196,22 @@ public:
 				}
 			}
 		}, 0., 1., 180, anim::easeOutCubic);
+	}
+
+	[[nodiscard]] bool canReuse(
+			not_null<Window::SessionController*> controller) const {
+		return !_closing && _controller == controller;
+	}
+
+	void showHome() {
+		if (_tab != Tab::Home) {
+			setTab(Tab::Home);
+		} else if (_homeSection || _homeAlbumOpen) {
+			resetHomeNavigation();
+			relayout();
+			rebuildTab();
+			_tabScroll->scrollToY(0);
+		}
 	}
 
 	void close() {
@@ -7873,6 +7891,14 @@ protected:
 		setHover(InfoHover::None);
 		_coverMorph.start([=] { update(); }, 0., 1., 360, anim::easeOutCubic);
 	}
+	void resetHomeNavigation() {
+		_homeSection = 0;
+		_homeAlbumOpen = false;
+		_homeArtistOpen = false;
+		_homeReturnToArtist = false;
+		_nav[1]->setActiveColor(Qt::white);
+		++_homeAlbumGeneration;
+	}
 	void setTab(Tab tab) {
 		if (_tab == tab) {
 			if (tab == Tab::Library) {
@@ -7926,12 +7952,7 @@ protected:
 				anim::easeOutCubic);
 		}
 		update(computeLayout().nav);
-		_homeSection = 0;
-		_homeAlbumOpen = false;
-		_homeArtistOpen = false;
-		_homeReturnToArtist = false;
-		_nav[1]->setActiveColor(Qt::white);
-		++_homeAlbumGeneration;
+		resetHomeNavigation();
 		for (auto i = 0; i != 6; ++i) {
 			_nav[i]->setActive(i == int(tab));
 		}
@@ -9742,7 +9763,7 @@ private:
 	int _searchGen = 0;
 	bool _searchChats = false;
 	bool _lyricsMissing = false;
-	Tab _tab = Tab::Now;
+	Tab _tab;
 	Tab _rebuiltTab = Tab::Queue;
 	bool _librarySyncLoading = false;
 	crl::time _librarySyncSucceeded = 0;
@@ -9940,6 +9961,38 @@ void CoverBackground::paint(QPainter &p, QRect area, QRect canvas) const {
 	return result;
 }
 
+void ShowFullscreenPlayerAt(
+		not_null<Window::SessionController*> controller,
+		bool openHome) {
+	BindController(controller);
+	auto &instance = FullscreenInstance();
+	if (instance && !instance->canReuse(controller)) {
+		instance->hide();
+		instance->close();
+		instance.clear();
+	}
+	if (!openHome && !instance && PlayingTrack().id.isEmpty()) {
+		return;
+	}
+	// A desktop island can open this screen while the app is inactive or hidden.
+	const auto window = controller->widget();
+	window->activate();
+	if (instance) {
+		if (openHome) {
+			instance->showHome();
+		}
+		instance->show();
+		instance->raise();
+		instance->setFocus();
+	} else {
+		instance = Ui::CreateChild<FullscreenPlayer>(
+			window->bodyWidget(),
+			controller,
+			openHome);
+	}
+	window->fixOrder();
+}
+
 // Есть ли текст у играющего трека (для состояния кнопки в панели плеера).
 struct LyricsAvailability {
 	QString id;
@@ -10127,24 +10180,11 @@ void ToggleLyricsPanel(
 }
 
 void ShowFullscreenPlayer(not_null<Window::SessionController*> controller) {
-	BindController(controller);
-	auto &instance = FullscreenInstance();
-	if (!instance && PlayingTrack().id.isEmpty()) {
-		return;
-	}
-	// A desktop island can open this screen while the app is inactive or hidden.
-	controller->widget()->activate();
-	if (instance) {
-		instance->show();
-		instance->raise();
-		instance->setFocus();
-		controller->widget()->fixOrder();
-		return;
-	}
-	instance = Ui::CreateChild<FullscreenPlayer>(
-		controller->widget()->bodyWidget(),
-		controller);
-	controller->widget()->fixOrder();
+	ShowFullscreenPlayerAt(controller, false);
+}
+
+void ShowFullscreenPlayerHome(not_null<Window::SessionController*> controller) {
+	ShowFullscreenPlayerAt(controller, true);
 }
 
 void DebugGrabFullscreen(const QString &path) {

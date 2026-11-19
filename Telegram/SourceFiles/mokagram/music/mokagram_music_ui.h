@@ -70,6 +70,7 @@ void ShowPlayerBox(not_null<Window::SessionController*> controller);
 
 // Полноэкранный плеер поверх окна: открывается по клику на обложку в мини-плеере.
 void ShowFullscreenPlayer(not_null<Window::SessionController*> controller);
+void ShowFullscreenPlayerHome(not_null<Window::SessionController*> controller);
 
 // Панель с текстом песни справа от чата. Кнопка в панели плеера переключает её,
 // anchor - сама панель плеера: под ней и начинается текст.
