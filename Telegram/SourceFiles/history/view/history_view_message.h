@@ -133,6 +133,11 @@ struct HistoryMessageRichPage
 	mutable ClickHandlerPtr pressedInlineButtonHandler;
 };
 
+struct HistoryMessageRichPageCollapsed
+: RuntimeComponent<HistoryMessageRichPageCollapsed, Element> {
+	Iv::Markdown::MarkdownArticleCollapsed collapsed;
+};
+
 enum class BadgeRole : uchar {
 	User,
 	Admin,
