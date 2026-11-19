@@ -1316,10 +1316,26 @@ MainMenu::MainMenu(
 	setupSetEmojiStatus();
 	// Mokagram: положения панели собраны в одну строку под статусом.
 	const auto dockPill = Ui::CreateChild<DockPill>(this);
+	const auto dockToggle = Ui::CreateChild<Ui::IconButton>(
+		this,
+		st::dialogsMenuToggle);
+	const auto dockLabel = QString::fromUtf8(
+		Mokagram::Lang::Tr("Куда закрепить панель"));
+	dockToggle->setToolTip(dockLabel);
+	dockToggle->setAccessibleName(dockLabel);
+	dockToggle->setClickedCallback([=] {
+		dockPill->setVisible(dockPill->isHidden());
+	});
 	widthValue() | rpl::on_next([=](int width) {
-		dockPill->move((width - dockPill->width()) / 2, MainMenuDockPillTop());
+		const auto left = (width - dockPill->width()) / 2;
+		const auto top = MainMenuDockPillTop();
+		dockPill->move(left, top);
+		dockToggle->move(
+			left + dockPill->width() + style::ConvertScale(8),
+			top + (dockPill->height() - dockToggle->height()) / 2);
 	}, dockPill->lifetime());
 	dockPill->show();
+	dockToggle->show();
 	rpl::merge(
 		_userpicButton->sizeValue() | rpl::to_empty,
 		_setEmojiStatus->sizeValue() | rpl::to_empty
