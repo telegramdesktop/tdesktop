@@ -2287,18 +2287,20 @@ public:
 		} else if (!IsTelegramTrack(_track)) {
 			_likeButton = Ui::CreateChild<TrackLikeButton>(this, _track);
 		}
-		_equalizerTimer.setInterval(33);
-		connect(&_equalizerTimer, &QTimer::timeout, this, [=] {
-			_equalizerPhase += _equalizerClock.restart() / 1000.;
-			update();
-		});
-		Media::Player::instance()->updatedNotifier(
-		) | rpl::on_next([=] { updateAnimation(); }, lifetime());
-		PowerSaving::Changes(
-		) | rpl::on_next([=] { updateAnimation(); }, lifetime());
-		connect(qApp, &QGuiApplication::applicationStateChanged, this, [=] {
-			updateAnimation();
-		});
+		if (_mode != RowMode::Home) {
+			_equalizerTimer.setInterval(33);
+			connect(&_equalizerTimer, &QTimer::timeout, this, [=] {
+				_equalizerPhase += _equalizerClock.restart() / 1000.;
+				update();
+			});
+			Media::Player::instance()->updatedNotifier(
+			) | rpl::on_next([=] { updateAnimation(); }, lifetime());
+			PowerSaving::Changes(
+			) | rpl::on_next([=] { updateAnimation(); }, lifetime());
+			connect(qApp, &QGuiApplication::applicationStateChanged, this, [=] {
+				updateAnimation();
+			});
+		}
 		{
 			if (const auto item = TrackMessage(track)) {
 				const auto document = item->media()->document();
@@ -2959,17 +2961,22 @@ private:
 };
 
 void Row::updateAnimation() {
-	const auto instance = Media::Player::instance();
-	const auto state = instance->getState(AudioMsgId::Type::Song);
-	const auto animate = (_mode != RowMode::Home)
-		&& isVisible()
+	if (_mode == RowMode::Home) {
+		return;
+	}
+	const auto eligible = isVisible()
 		&& QGuiApplication::applicationState() == Qt::ApplicationActive
 		&& QueueState().currentId == _track.id
-		&& UsesQueue(state.id)
+		&& !PowerSaving::On(PowerSaving::kAnimations);
+	if (!eligible) {
+		_equalizerTimer.stop();
+		return;
+	}
+	const auto state = Media::Player::instance()->getState(AudioMsgId::Type::Song);
+	const auto animate = UsesQueue(state.id)
 		&& (state.state == Media::Player::State::Playing
 			|| state.state == Media::Player::State::Starting
-			|| state.state == Media::Player::State::Resuming)
-		&& !PowerSaving::On(PowerSaving::kAnimations);
+			|| state.state == Media::Player::State::Resuming);
 	if (animate && !_equalizerTimer.isActive()) {
 		_equalizerClock.start();
 		_equalizerTimer.start();
