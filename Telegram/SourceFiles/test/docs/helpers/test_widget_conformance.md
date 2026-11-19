@@ -190,7 +190,18 @@ Use something else when:
   must be 390 within 0.01 CSS px, or the run carries `width-mismatch` (the
   anchor was not honoured, or the chat column is too narrow); the light runs
   go in the app's day palette and the dark ones in its night palette, and a
-  renderer scheme other than the run's theme is `scheme-mismatch`. Both are
+  renderer scheme other than the run's theme is `scheme-mismatch`. A hosted
+  run is judged by the widget's own effective reading at its newest applied
+  theme instead, with the predicate the stress runner shares
+  (`CheckWidgetTheme()`, [test_widget_ops](test_widget_ops.md#the-effective-theme)):
+  another applied scheme or a reading that differs from the applied theme,
+  a wrong palette key with the right scheme included, is `scheme-mismatch`;
+  no reading of the newest applied theme (missing, closed, superseded or
+  revoked by the host's retirement) and a theme application still underway
+  (`theme-pending`: the runtime selected a newer theme whose job has not
+  recorded it, held back by a running job or already started, so the old
+  reading certifies nothing even with the same scheme and the running
+  job's fresh serial) are `scheme-unmeasured`, with the reason. Both are
   measured after the result wait, never waited for. The bubble's palette,
   button and text tokens are the product's own; each run records the raw
   `theme` message its renderer got. The default themes must tell day from
@@ -395,7 +406,7 @@ again: one that moved more than 0.5 CSS px is `target-moved`.
 | `hover` | the action show's own enter and move at the target; no leave, the pointer stays until the next action | `point`, `show` |
 | `wheel` | `Test::Wheel` at the target with angle delta `(0, -round(dy * 1.2))` (Chromium's 100 CSS px per 120 units), then a leave | `wheel`: the `WheelDelivery` |
 | `key` | `Enter` as `Test::PressKey(Qt::Key_Return)`, no text; `Space` and one printable character as `Test::TypeText`; sent to the window's focus child | `receiver`, `focusMoved`, `typed`, `cleared`, `composeBefore`, `composeAfter` |
-| `theme` | restore of the palette chain's last switch, then `AppendPaletteSwitch` to the day (`light`) or night (`dark`) palette, then up to 4 s for the newest host's scheme to reach the target | `palette`, `widgetTheme` |
+| `theme` | restore of the palette chain's last switch, then `AppendPaletteSwitch` to the day (`light`) or night (`dark`) palette, then up to 4 s for the widget's theme to match the target: of a hosted host its effective reading at a theme applied after the action began (`CheckWidgetTheme()` with the action's first reading), of a local one its renderer's scheme given after that | `palette`, `widgetTheme` (its scheme, generation and applied serial before and after, `effectiveSerial`, `effectiveScheme`, `verdict` `matches`, `unobserved` or `wrong`, `detail`, `reached` (live and matching), `liveRefusal`, `pending` (the token of an application still underway, 0 for none), `hostRetired`) |
 | `visible: false` | one `Ui::ElasticScroll::scrollToY` of the list's own scroll putting the view's top 8 px below the viewport, then up to 4 s for the runtime to count it hidden | `before`, `scrollTo`, `after`, `runtimeVisible`, hosts |
 | `visible: true` | `AppendShowInChatList` of the card's top band, then up to 4 s for the runtime to count it visible | `show`, `after`, `runtimeVisible`, hosts |
 | `wait` | a stage of `wait` ms | `waitedMs`, `afterLastInputMs` |
@@ -444,16 +455,29 @@ and fails the totals: `not-performed` (never reached), `not-awaiting`,
 `not-live`, `target-unresolved`, `show-refused`, `revalidation-failed`,
 `target-moved`, `input-not-delivered`, `receiver-gone`,
 `compose-not-ordinary`, `no-focus-child`, `palette-refused`,
-`palette-transitions`, `no-list`, `no-room`, `still-in-view`. Input that was
-delivered and that the product then rejected is performed and recorded,
-never skipped or refused: a right click for which no menu was built, a
-widget whose scheme did not follow the palette (`widgetTheme.reached`
-false), a runtime still counting itself visible off screen. The widget's own
-checks then carry it into the report as a discrepancy. The action stages add
-three run refusals: `too-few-moves`, when `auto/23-gestures-b`'s `mid` drag
-reached the widget as fewer than the 3 trusted `pointermove` events with the
-button down its check needs (the runner's timing, never the widget's
-verdict), `host-replaced` and `fillers-refused`.
+`palette-transitions`, `theme-unobserved` (the palette switched but no
+reading of the widget's theme at a newer application came within the
+bound: none applied, a newer generation, an application still pending, or
+no effective reading of it, a reading revoked by the host's retirement
+included; an app switch alone never performs the action), `no-list`,
+`no-room`, `still-in-view`. A theme switch whose wait ended with the
+runtime no longer live is `not-live` with its reason
+(`widgetTheme.liveRefusal`), whatever the tap read afterwards. Input that
+was delivered and that the product then rejected is performed and
+recorded, never skipped or refused: a right click for which no menu was
+built, a widget whose theme did not follow the palette
+(`widgetTheme.reached` false, `verdict` `wrong`, the difference in
+`detail`), a runtime still counting itself visible off screen. The
+widget's own checks then carry it into the report as a discrepancy; the
+page's checks of a theme switch read only the background and its CSS
+variable, so a wrong theme also adds a run refusal. The action stages add
+four run refusals: `too-few-moves`, when `auto/23-gestures-b`'s `mid` drag
+reached the widget as fewer than the 3 trusted `pointermove` events with
+the button down its check needs (the runner's timing, never the widget's
+verdict), `theme-mismatch`, when a performed theme switch read `wrong` (the
+action, the target and the first difference, one wrong palette key with the
+right scheme and background included, in its detail), `host-replaced` and
+`fillers-refused`.
 
 ## Stage snapshot and crops
 
@@ -691,7 +715,7 @@ Run refusals (`runnerRefusals`), each failing the totals:
 `compose-unavailable`, `compose-not-ordinary`, `focus-not-compose`,
 `load-show-refused`, `width-mismatch`, `width-unmeasured`, `scheme-mismatch`,
 `scheme-unmeasured`, `height-unmeasured`, `card-write-failed`,
-`too-few-moves`, `host-replaced`, `fillers-refused`,
+`too-few-moves`, `theme-mismatch`, `host-replaced`, `fillers-refused`,
 `safe-area-not-zero` (a run of an entry without `safeArea`, so with a
 caption, whose host got a nonzero field in any construction: the runner did
 not make `CLIENTS.md`'s all-0 state), `safe-area-unmeasured` (a loaded run

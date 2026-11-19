@@ -17,7 +17,9 @@ the lockdown hook of `TelegramWidgetHelper`'s Debug build, the Qt-free
 executable at `Telegram.app/Contents/Helpers/`: it takes the listing after
 the real `WidgetHelper::Lockdown()` (`_other/widget_helper_mac.cpp`), tries
 what the sandbox must deny and refuses the stream with a summary, so no
-widget is ever served. In the Mac App Store build the same executable is
+widget is ever served, unless a fixture asks for its serving variant, which
+takes the same listing and attempts while the helper renders widgets
+([Serving while rendering](#serving-while-rendering)). In the Mac App Store build the same executable is
 the App-Sandboxed XPC service `Contents/XPCServices/TelegramWidgetHelper.xpc`,
 and the probe runs there with the differences of
 [Mac App Store](#mac-app-store). On Linux the helper is `TelegramWidgetHelper` too,
@@ -113,7 +115,8 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   and AppKit had made those first lookups before `main`.
 - The argv after the helper's path is the token, then the tail `mode cwd
   application-support [keychain-account loopback-port [connect-control]
-  [target...] [service:<name>...]]`. The token is `3` on macOS and Linux
+  [target...] [service:<name>...] [rendering:<ms>]]`, the last on macOS
+  only ([Serving while rendering](#serving-while-rendering)). The token is `3` on macOS and Linux
   and the decimal value of the inherited pipe handle on Windows; the Mac
   App Store service gets the same vector from its channel message
   ([Mac App Store](#mac-app-store)). The targets come only from a
@@ -130,7 +133,8 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   target included, and an empty `service:` name are defects in the
   report, while a `service:<name>` at the seventh place or later is not:
   the Mac App Store probe lists it and the direct-download probe ignores
-  it; on
+  it; neither is one `rendering:<ms>` there with `<ms>` from 1 to 60000,
+  while a second one, another value or anything but decimal digits is; on
   Windows a malformed argument is an `argument: malformed` line, except
   that a target that does not parse, has no port or is past the limit gets
   one only with Winsock; without it such a target is only counted
@@ -171,6 +175,76 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
 - Never AVFoundation discovery: it crashes a locked process. Devices are
   counted with CoreMediaIO and CoreAudio property sizes only, with no capture,
   no consent prompt and no keychain UI.
+
+## Serving while rendering
+
+On macOS, where the helper runs each widget's engine, validator and
+renderer ([Remote engines](test_widget_fixture.md#remote-engines)), the
+ordinary probe never shows the helper while it renders: it refuses the
+stream after its listing. Its serving variant takes the same listing and
+attempts in a helper that serves widgets, for the direct-download helper and
+the Mac App Store service alike, on either stream opening (the hosted one
+of the default arrangement, and the engine-only one of `helper-engines`
+that a disposable overlay combines with probe arguments as the control).
+
+- **Asking for it.** A fixture's `renderingDelayMs` appends
+  `rendering:<ms>` after every other argument, the service names included,
+  on macOS only. The helper accepts one, with `<ms>` from
+  `kWidgetHelperRenderingMinMs` (1) to `kWidgetHelperRenderingMaxMs`
+  (60000) in decimal; any other value, a second one, or any other
+  malformed argument is a defect row and keeps the ordinary probe, which
+  refuses. Windows and Linux never get it.
+- **Before Ready.** The helper runs every row of the ordinary probe up to
+  and including `lockdown:` and `state:` on its serve thread, the real
+  lockdown included, and only then decides: a lockdown that succeeded with
+  `probe`, or `probe-unsandboxed`, which never locks down (the explicit
+  Debug control, unconfined), writes `rendering: lockdown ok|skipped (...);
+  the probe thread starts and takes the post-lockdown listing <ms> ms after
+  this row while the helper serves widgets, uptime-us=<us>` and returns
+  `""`, so the helper answers `Ready`. A lockdown that failed refuses the
+  stream before `Ready` with the ordinary summary (`lockdown=FAILED`),
+  exactly as without the argument; the lockdown result is in every branch's
+  rows and summary.
+- **The window.** A detached thread with an 8 MiB stack, named
+  `widget.probe`, owns the probe from then on. It is started by
+  `WidgetHelper::StartDetachedThread()`
+  (`_other/widget_helper_thread_mac.cpp`), the starter and stack size the
+  Mac App Store service's serving thread uses, so the probe runs under the
+  same thread conditions as the service it measures. It sleeps `<ms>`, writes
+  `rendering: listing begins <n> ms after the first rendering row,
+  uptime-us=<us>`, takes the post-lockdown Mach snapshot, the firehose
+  reading, the descriptor and Mach listing (and the Store's launchd
+  reading), writes `rendering: listing ends, uptime-us=<us>; the attempts
+  follow`, and only then makes the attempts, whose framework loads come
+  after the listing as in the ordinary probe. It writes the summary as one
+  uncut `summary: <summary>` row, its head with ` rendering=<ms>ms`, then
+  the `end:` row, and releases the probe. Nothing calls the lockdown again,
+  and the thread holds only the probe's own copies of its arguments. The
+  `uptime-us` values are `CLOCK_UPTIME_RAW` in microseconds, the clock
+  `mach_absolute_time()` counts, which an overlay in Telegram reads the same
+  way to place the window among its frames of the same helper pid.
+- **What it shows.** The listing is of a serving helper: it holds a port
+  per serving thread (`thread (task_threads)`) and whatever rights the
+  served host and its engine took, while the widget work loads no
+  framework (the helper links none, and its litehtml is built without
+  CoreFoundation). Compare it by entry class and object against an
+  engine-only control taken the same way, not with the ordinary probe's
+  pre-`Ready` counts. A widget that starts or
+  ends threads during the listing can change the space between the
+  firehose reading's two snapshots, which fails that reading (two
+  `UNACCOUNTED` push ports), never silently; keep the widget count steady
+  through the window. The attempts run while widgets render: the unsandboxed
+  control's file, process and network attempts then succeed in a helper
+  that is serving.
+- **When the thread cannot start.** The helper writes `rendering: FAILED
+  the probe thread did not start: <errno>; the listing follows here and the
+  stream is refused`, counts it as a failure, runs the rest of the probe on
+  its serve thread and refuses with that summary.
+- **When the helper ends first.** The helper exits when its stream ends,
+  Telegram's stop or its 30 s idle exit included, whatever the probe thread
+  is doing: a listing without its `end:` row is incomplete. Choose `<ms>`
+  so that the window falls while a widget is on screen, and keep it there
+  until the `end:` row.
 
 ## Mac App Store
 
@@ -1060,6 +1134,12 @@ line it receives. Launch the same legs with `probe-unsandboxed` as the
 control. With `.connectControl = true`, the helper preopens one TCP socket
 before the lockdown and connects it to the listener afterwards. That run
 lists the injected descriptor, so it never counts as a clean inventory.
+With `.renderingDelayMs = <ms>` the same launch is the serving variant: a
+probe helper whose lockdown succeeded answers `Ready`, so the overlay drives
+the product's own widget path rather than a bare host end, keeps the widget
+rendering through the window and reads the `summary:` and `end:` rows from
+stderr, since no refusal carries the summary then
+([Serving while rendering](#serving-while-rendering)).
 
 ### Minimal use on Windows
 
@@ -1114,6 +1194,10 @@ terminal otherwise (the paragraph on terminal runs below). Each row is one
   references equals the warmed one (names, rights, urefs, objects).
 - `lockdown: ok|FAILED|skipped` and `state: sandboxed=<sandbox_check>
   nofile=<soft>/<hard>`.
+- In the serving variant only: the first `rendering:` row, then, from the
+  probe thread after the delay, `rendering: listing begins ...` before the
+  listing below and `rendering: listing ends ...` after it
+  ([Serving while rendering](#serving-while-rendering)).
 - One `fd` row per entry of `PROC_PIDLISTFDS`. Then the `mach:` count, one
   `changed between the reference snapshot and the listing: <entry>` row per
   difference, the `mach identities:` row, the `firehose:` row of the
@@ -1121,6 +1205,8 @@ terminal otherwise (the paragraph on terminal runs below). Each row is one
   `mach_port_space_info` entry, tree entries included, each with its
   `class=`.
 - One `attempt <name>: <code> <detail>` row per attempt.
+- In the serving variant only: `summary: <summary>`, the whole summary in
+  one row that is never cut.
 - `end: rows=<n> fds=<n> mach=<n> attempts=<n> cut-rows=<n> stderr=ok|FAILED`.
 
 The warm-up is a failure, which leaves the listing incomplete, only when
@@ -1310,8 +1396,11 @@ object-name right `mach_vm_region()` returns. It reaps a successful `fork`
 or `posix_spawn` child within 2 s (`SIGKILL` and another second otherwise).
 Near its end it closes stdin and tries a socket again. The frameworks it
 loaded stay loaded until the helper exits.
-The helper exits after the refusal. The overlay owns the keychain item, the
-listener and the restoration of `SecKeychainSetUserInteractionAllowed`.
+The helper exits after the refusal. In the serving variant the probe thread
+owns the probe and releases it after its `end:` row, while the helper goes
+on serving; a connect-control run keeps its preopened socket until then. The
+overlay owns the keychain item, the listener and the restoration of
+`SecKeychainSetUserInteractionAllowed`.
 
 On Windows the hook closes each fresh socket and AFD handle right after its
 attempt and each preopened socket right after its `after lowering:` use
@@ -1346,6 +1435,16 @@ two Linux campaigns are the last ones below: the first probed the
 same-binary Linux helper, the client's own
 `/proc/self/exe -widgethelper 3`, the second `TelegramWidgetHelper`, which
 replaced it.
+
+The serving variant ([Serving while rendering](#serving-while-rendering))
+and the client's `renderingDelayMs` were added by
+`2026/11/14/run-widget-validators-and-renderers-in-the-macos-helper` and
+compiled in the macOS Debug build of both halves (arm64 and x86_64; the
+Debug helper still loads only libSystem and libc++). They have not run
+yet: that task's evidence campaign takes the direct and the Mac App Store
+listings while a widget renders, against the engine-only control, and its
+records are the first. The ordinary probe's rows are unchanged but for the
+`begin:` row's `rendering=no`.
 
 Executed on macOS 27.0.1 arm64 in a Debug build, in the evidence campaign
 of `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-macos`;

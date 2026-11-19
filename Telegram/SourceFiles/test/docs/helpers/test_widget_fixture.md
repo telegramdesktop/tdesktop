@@ -310,7 +310,11 @@ and with no switch. That helper is the separate Qt-free executable
 `TelegramWidgetHelper.exe`, which the Windows Store build carries in its
 package (**The Windows Store build** below); the Mac App Store build
 packages it as an App-Sandboxed XPC service (**The Mac App Store
-service** below).
+service** below). On macOS, both packages alike, that helper runs the
+whole widget: its engine, its trusted validator and its TwidgetCore
+renderer, while the client keeps the checked Qt work and the pictures
+(**Hosted widgets on macOS** below); on Windows and Linux it runs the
+engines alone, as before.
 Everywhere else no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>` (**Store, packaged
 and other platforms** below), and only the Debug switch `in-process` runs
@@ -354,7 +358,10 @@ packs, the fixture and the seams they use need no change for it.
   `Runtime::construct()`), keeps that choice for the whole process and
   names it in the main log: `Tgw: Widget engines run in the widget
   helper.` or `Tgw: Widget engines do not run, no sandboxed widget helper
-  is available here: <reason>.`. Once it chose the
+  is available here: <reason>.`, on macOS `Tgw: Widget engines, validators
+  and renderers run in the widget helper.` or `Tgw: Widget engines,
+  validators and renderers do not run, no sandboxed widget helper is
+  available here: <reason>.`. Once it chose the
   helper no engine of that process falls back to in process: a helper that
   cannot start or refuses its lockdown ends its widgets with a diagnostic,
   and the failure limit stops further starts (**Runtime log and deaths**
@@ -388,16 +395,29 @@ packs, the fixture and the seams they use need no change for it.
     every widget elsewhere;
   - `helper`: the sandboxed helper explicitly, the same as the default on
     macOS (the Mac App Store build from macOS 12), on Linux and on Windows
-    10 1809 or later, so command lines that name it keep working; on
-    Windows it is the restricted helper (**The Windows helper** below);
-  - `in-process`: the engines run in the client, also where the default
-    stops them; it is the only way to run widget engines in the client's
-    own process, for tests and the harness, and the control of a run that
-    compares the two modes;
+    10 1809 or later, so command lines that name it keep working; on macOS
+    it hosts the whole widget as the default does (**Hosted widgets on
+    macOS** below), and on Windows it is the restricted helper (**The
+    Windows helper** below);
+  - `helper-engines`: the sandboxed helper running the engines alone, on
+    every platform, macOS included: the arrangement before the helper
+    rendered, with each widget's validator and renderer in the client, a
+    Debug comparison value for runs that set the hosted arrangement
+    against it;
+  - `in-process`: the whole widget runs in the client, its engine, its
+    validator and its renderer (on the `widget.render` thread), also where
+    the default stops them; it is the only way to run widget engines in the
+    client's own process, for tests and the harness, and the control of a
+    run that compares the arrangements;
   - `probe` and `probe-unsandboxed`: on macOS every helper, whose Debug
-    build carries the probe, probes its lockdown, or runs the same probe
-    without it as the control, and refuses the stream instead of serving a
-    widget; its listing goes to
+    build carries the probe, hosts its widgets as `helper` does, probes its
+    lockdown, or runs the same probe without it as the control, and
+    refuses the stream instead of serving a widget, unless the client's
+    probe fixture asks for the serving variant, which a disposable overlay
+    gives (`rendering:<ms>`,
+    [Serving while rendering](test_widget_helper_probe.md#serving-while-rendering));
+    an engine-only probe for comparison is the overlay's too, with these
+    arguments on a `helper-engines` launch; its listing goes to
     `app_stderr.txt` and its summary to the main log's `stream ended` line
     ([test_widget_helper_probe](test_widget_helper_probe.md); the Mac App
     Store service gets the mode in its channel message,
@@ -443,9 +463,423 @@ packs, the fixture and the seams they use need no change for it.
   an installed test package through its alias instead (**Windows Store
   test runs** below). The main log names a
   recognized value: `Tgw: Widget engines run in the widget helper
-  (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`
-  or `probe-unsandboxed`, or `Tgw: Widget engines run in process
+  (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`,
+  `probe-unsandboxed` or `helper-engines`, on macOS `Tgw: Widget engines,
+  validators and renderers run in the widget helper
+  (TDESKTOP_WIDGET_ENGINES=helper).` for `helper` and the probe values, or
+  `Tgw: Widget engines run in process
   (TDESKTOP_WIDGET_ENGINES=in-process).`.
+- **Hosted widgets on macOS.** `Platform::WidgetHelper::Renders()` says
+  where a build renders its widgets: true in every macOS build, the Mac
+  App Store build included, false on Windows, Linux and the header's
+  fallback, fixed at build time by `widget_helper_renders` in
+  `telegram_widget_helper.cmake` (which also picks the helper's thin
+  `_other/widget_helper_renderer.cpp` entry, with the portable glue
+  `tgw/tgw_hosted_glue.cpp` and the renderer message rules it shares with
+  `RendererWork`, `tgw/tgw_renderer_rules.h`, over `widget_helper_serve.cpp`) and
+  read even where `Enabled()` is false. With it, the default, `helper` and
+  the probe values host each widget in the helper, in Release with no
+  switch at all:
+  - *Where the work runs.* The helper serves the hosted opening
+    (`serveHosting`): at each widget's hosted start, after its lockdown, it
+    builds a served `WidgetHost` with the engine, the `TrustedValidator`
+    and a TwidgetCore `RendererEnd` over the litehtml fork, built on the
+    glue thread from the client's `Open` control with the device pixel
+    ratio. Layout, style, display lists, layout queries and held context
+    menus are the helper's, and so is the check of each canvas font
+    spelling, under Telegram's rule (*Canvas fonts* below). Before it
+    serves, the helper fills TwidgetCore's lazily built `ImageData`
+    decoding table on its main thread, so the widgets' glue threads only
+    read it. The client builds a hosted `WidgetHost` (no
+    QuickJS runtime, no validator, no litehtml document, cursor styles
+    included), whose client decides every privileged call again on the
+    presses its stream writer admitted (*Presses and grants* below), and
+    one `RendererWork` per widget on
+    `widget.render` driving the shipped platform end (`RendererPlatform`):
+    its `QtBackend` answers the renderer's font, text-width, image and
+    canvas requests and paints each display list with the same checks as
+    in process (the paint bounds, the raster deadline, the image formats),
+    and the work keeps the clock, the input serials, the sizes and the
+    pictures. The embedding's own controls cross as opaque platform
+    messages (`tgw/tgw_hosted_wire.h`: `Open`, the deliveries of held
+    context menus, `CanvasRefill` to the helper, `Content`, `Loaded`,
+    `Stopped`, `Cursor`, `CanvasRefused`, `Clicked` from it, the Debug
+    mirror). The
+    main thread runs no widget layout, validation, text measuring or
+    raster. A widget's start note says its engine, validator and renderer
+    run in the widget helper.
+  - *Hold and timeouts.* The helper's requests and messages for one widget
+    wait in one queue on `widget.render`, in arrival order, each consumed
+    inside one charged pass of that widget's meter, and the whole queue
+    waits while the widget's hold lasts (input exempts 250 ms, and a
+    queued request with the entries before it goes ahead of the widget's
+    own new raster and tick work). A
+    request's answer is due 3 s after its arrival, however long input
+    keeps renewing the exemption. Only a hold the request actually meets
+    before its admission, while it or a request ahead of it waits, moves
+    that deadline: a release the meter published still ahead with no
+    exemption in force, at its arrival, when the meter publishes a later
+    release while it waits, or from the end of an exemption that the
+    release outlasts and no renewal reached in time (the waiter wakes at
+    that end to read the record again, each renewal moving the wake).
+    Then it is due 3 s after that release, a later release moving it
+    again. Its admission makes it due at most 3 s from then, never later
+    than it was, and nothing moves it after that (widget-sandbox's
+    `SandboxHostedWait`). An
+    answer that never comes still ends the widget at that deadline with
+    `platform-timeout`, without another event. The served host's own 3 s
+    for a layout query counts only time its glue did not spend waiting for
+    the client's answers. The chat's 150 ms menu and claim deadlines are
+    unchanged.
+  - *Frames.* One frame request is outstanding at a time, a tick apart
+    from a paint. A frame that answers no outstanding request, or a tick
+    with a paint or the reverse, a malformed state or a list the checks
+    refuse closes that widget's route and stops it as a stop the desktop
+    decided itself (`paint-bounds`). A frame is checked against its
+    request before its state counts: one for an older size or pixel-drop
+    generation commits nothing, its state included, and the work asks
+    again on a later turn while demand remains; a current paint of
+    another device size than the client computes, or one whose layout the
+    card cannot take (its card area under the cut off the device size, or
+    an auto-height cut at another logical height than the document's,
+    `FitsLayout()` in `tgw_renderer_work.cpp`), commits its state but is
+    not painted and publishes nothing. It asks again only after a new
+    size, a cut change or a draw demand, or after a document height or
+    state change that makes the client's size, the helper's viewport and
+    the document height agree; the same reports again, or a change that
+    leaves them apart, ask nothing. Such a refusal also forgets the
+    geometry the work last painted, as a refresh of the pixels does
+    (`RendererWork::refreshFrame()`): the refused paint may carry newer
+    content than the chat's picture, so a return to that picture's
+    geometry no longer counts as painted. The chat keeps its picture,
+    height and anchor until a new one comes, and the work keeps its record
+    of what the chat was given (below). A
+    build with `DESKTOP_APP_DISABLE_PRIVATE_QT_API` refuses a hosted list
+    with an explicit clip push. Every accepted list is painted whole,
+    inside the painter's 1 s raster deadline; the helper's damage is
+    ignored. The painted picture goes to the chat at once (*Kept
+    pictures* below), and a draw demand or a cut change that came while
+    it was painted is still served: the work asks for a new frame
+    whenever its last picture does not match the card's size, cut and
+    pixel-drop generation. Whether the document still owes the chat a
+    picture of its latest geometry, whatever the clock, is one record of
+    the work (`RendererReflow`): the geometry of the picture last offered
+    to the chat (size serial, pixel-drop generation, cut, device size,
+    card area and the document's CSS height), the owed picture and one
+    correction. A draw demand, a cut change, a new size that withdraws an
+    untaken picture (also one the chat's wake left in the mailbox because
+    its serial or generation is obsolete), a new size that a live card on
+    screen gets while a request for an older size is out (owed when the
+    size arrives, so a stop that runs before the work turn keeps it), a
+    paint for a new size waiting behind an older request, and a current
+    answer the stop consumed for a geometry the chat was not given each
+    owe a picture; it lasts while a paint request is out, while a paint
+    refused for its device size or layout (above) waits for the change that
+    lets it ask once more, and through the stop until the retirement, and
+    ends when its picture goes into the mailbox, or on a turn with nothing
+    to paint. Until the chat draws that
+    picture or a new demand, a size, cut or visibility change comes, a
+    widget whose state turns dirty again asks for no further paint; a
+    demand waiting behind a tick request survives the tick's answer. A
+    kept card's new size with nothing to withdraw and no live request out
+    asks nothing until the chat draws the card. A picture that served a
+    demand or a new size or cut (one the clock asked for included) allows
+    one correction: a kept document whose geometry, its CSS height
+    included, moves after it, at the same size, asks once more for its
+    settled layout, since a detached work has no clock to ask later; the
+    correction is used when it is asked for and its own picture allows no
+    other, and its current reply settles it whatever it brings: a null
+    destination, another device size or a layout the card cannot take
+    leaves the chat its picture and spends the correction: no report makes
+    the correction ask again, but a demand that came meanwhile stays owed,
+    and after a refused paint it asks once when a report makes that paint
+    publishable. A move after that, or after a correction that published
+    nothing, only marks the chat's picture as out of date: one mark per
+    work in its mailbox (`PicturePost::setOutdated()`), posting nothing,
+    which the turn that ends with nothing owed raises and the chat's next
+    draw takes (`RendererCore::frame()`) to ask for the latest state. A
+    geometry back at the chat's picture lowers it and a newer picture
+    replaces it; it is raised again only for a geometry it was not raised
+    for, whether the draw that took it got a new picture, the one the chat
+    holds or none. A refresh of the pixels (an emoji-set change)
+    keeps that record; a pixel drop and the route's end clear it. A paint
+    that could not allocate its picture (a null destination, no paint
+    limit) publishes nothing and is not asked for again until the size,
+    the cut, the pixel-drop generation or the document's state changes, as
+    in process, or until a later paint is refused (above). A frame painted
+    while an emoji tile was still loading asks
+    for a fresh frame once a tile lands or a quota retry comes, while the
+    route lives. A large glyph a picture shows as its large-tile fallback,
+    or not at all (its own image loading, refused while the 16 MiB pool is
+    full, or failed), is recorded in that picture's waits by the glyph
+    (`EmojiWaits`, one bit for each glyph of the emoji catalogue, made
+    with the account and the work before any paint), and only that glyph's
+    arrival asks for a fresh frame: of every card whose picture shows it
+    so, whichever card's request loaded it, and of no other card, however
+    many glyphs the picture waits for. A paint that published no picture
+    keeps the waits of the picture the chat still shows. A change of the
+    emoji set refreshes every card.
+  - *Presses and grants.* An accepted primary press goes to the live
+    route through `WidgetHost::sendPlatformPress()`, stamped at that call;
+    `RendererPlatform::Down::Live` says only that Telegram sent it on a
+    live route. One job of the client's dispatch thread hands the down to
+    the stream's writer and, only when the writer admitted it for a route
+    still live, starts the haptic window and, while visible, the one-use
+    grant, both timed from that stamp. A down the writer refused (a route
+    not live, a stream ending, a queue past its bound) grants and plays
+    nothing, and its release opens no haptic window either. Its release,
+    cancel, the widget leaving the screen or a detach
+    `releaseDelivered()`: one privileged call within 2 s while visible, as
+    widget-sandbox decides; losing the route revokes the grants and the
+    press. A down buffered for a keep, sent to a kept route or lost grants
+    nothing, and neither does a helper's report or a secondary press. The
+    helper's renderer answers every pointer input with a Pointer reply,
+    whether or not it decided a click: the replies to a primary mouse down
+    and to the up that ends it, taken while the route is still active,
+    only prove their delivery. When the renderer decides a click for that
+    up (the press and the release on one element, or one inside the other,
+    the decision its `click` event follows whether or not the widget
+    listens), the glue sends a `Clicked` control with the press's number
+    (the count of downs both ends keep) right after the up's reply, and
+    `HostedInput::clicked()` takes it only for the press whose up was just
+    answered: an observation, which grants nothing and changes no gesture
+    decision. The harness counts the steps of the marked press alone
+    ([Hosted widgets](test_widget_ops.md#hosted-widgets)); an up whose
+    target the down's handler replaced gets its reply and no `Clicked`. A
+    right press first asks the helper for
+    the claim at its point (ordered after every earlier input) and sends
+    its down only when that claim takes it; a right press's and a finger
+    hold's `contextmenu` wait in the helper until the client's timely
+    positive verdict for that press, and a negative one sends only the
+    cancel. At most 256 input replies may be outstanding per widget; the
+    next stops it as a checked stop on its last picture.
+  - *Cursor.* The glue evaluates the cursor at the pointer's last position
+    as the in-process renderer does, at two points: right after each
+    pointer input it delivers (a touch or a hover), whose own Pointer reply
+    reads the element's cursor before the new hover and active elements
+    are restyled and so lags a move behind a `:hover`- or `:active`-only
+    rule; and, while a pointer rests over the widget, after each step that
+    rebuilt the document (new ops, a width change, a theme). It runs
+    `CursorStyles::pointer()` (`tgw/tgw_cursor.cpp`, compiled into the
+    helper too) on the helper's renderer, with the hit from the no-event
+    `elementFromPoint` local query and the hover and active elements
+    chosen from the hit, a held primary press and the element it pressed
+    by the one rule `RendererWork::handAt()` uses too,
+    `RendererRules::PointerTargets()`. The glue follows the primary press
+    from the touches it delivers (where it went down, the element hit
+    there, the documents parsed by then) and, as
+    `RendererWork::trackHover()` does, ends its `:active` for the rest of
+    the press once a move past the slop finds another element or a
+    reparsed document. It builds its cursor document lazily, at the first
+    hit on an element (a hit on none is `auto`, with no document), drops
+    it at hover leave, a freeze and a stop, and sends no DOM event. It
+    keeps only whether the cursor is the hand, the one value Telegram
+    reads, starting from what the renderer's own Pointer reply said: when
+    the evaluation differs from the last value reported, it sends a
+    `Cursor` control (`pointer` or `auto`) with the count of pointer
+    replies sent before it. The client takes it only after exactly that
+    many replies (any other count closes the route) and applies it as the
+    answer to the last one, so a pointing hand over a replaced or
+    reflowed `:hover` target turns back without another move, and a
+    `:hover`- or `:active`-only hand shows at the input that reaches it. Telegram hands a hosted
+    widget's cursor and selection to the chat through one report post
+    (`ReportPost`): the latest value of each kind and at most one wake of
+    the main thread, taken by `RendererCore::takeReports()`, which applies
+    the selection, then the cursor (a hand only for the current input
+    serial); menu and claim answers stay in the ordered answers. A
+    stalled main thread therefore finds at most one cursor per widget,
+    the newest, and the post is closed, dropping both, when the route
+    deactivates, closes, detaches, freezes or stops.
+  - *Canvas fonts.* A canvas `font` spelling gets the same rule in the
+    helper as in process, `RendererRules::CanvasSpellings`, which
+    `QtBackend::canvasFont()` and the glue share: a spelling over 512
+    bytes is refused before it is parsed, one seen since the cache was
+    last cleared answers from that cache (64 spellings, cleared when
+    full), and at most 64 new spellings are parsed per refill. The glue
+    applies it in TwidgetCore's canvas font hook
+    (`Renderer::set_canvas_font_hook`), installed right after it builds
+    the `RendererEnd` on `Open`, so TwidgetCore parses and caches no
+    canvas spelling itself and the raw spelling never crosses the stream;
+    an admitted one becomes the same font request as before, whose
+    resolved families and font handle Telegram still checks, and a new
+    font gets its em box as `Renderer::canvas_font()` gives it. A cached
+    spelling keeps the font Telegram answered and asks nothing again. One
+    Telegram refused (a zero handle, whatever the reason) is refused for
+    the rest of the interval, with zero metrics and no request, also when
+    the spelling cache was cleared and parsed it again; its first use
+    after the next `CanvasRefill` asks once more, so 1,500 uses of a
+    refused spelling make one request per interval, and a pool still full
+    refuses again. At most 64 canvas font requests go out per interval,
+    retries included; past them a spelling is refused in the helper like
+    one past the parse limit. The refill is Telegram's: when
+    `QtBackend::beginFrame()` refills (at most once per frame interval,
+    never while the widget is held), `RendererWork` sends a `CanvasRefill`
+    control ahead of the frame request it precedes, a tick's as well as a
+    paint's. A spelling the rule or the request limit
+    refuses is answered in the helper with no font (nothing drawn, a width
+    of 0); the widget's first such refusal sends one `CanvasRefused`
+    control, which Telegram notes
+    as the widget's one `canvas-font-limit` diagnostic
+    (`QtBackend::noteCanvasFontRefused()`), the diagnostic a refusal in
+    process gives. Telegram's own refusals of a font request (its check
+    of the families, 16 new canvas fonts per frame, 32 per widget) are
+    handled on its side as in process, and the helper sends no
+    `CanvasRefused` for them.
+  - *Deaths.* The hosted host's `onDeath` freezes the widget on its last
+    picture as an in-process death does, a kill of the client's own (the
+    helper ended, a flood, an unanswered request) included, with the same
+    localized pill and the diagnostic in the runtime log. From a stop
+    until the chat retires its core, the live work asks the helper for no
+    paint and paints no late answer, so the picture it published before
+    the stop is the one the chat takes with it or before it, and the
+    retirement sees that picture's height. A current answer still meets
+    the public-Qt clip check first, so a list it refuses closes the route
+    with the same diagnostic whether it arrives before or after the
+    retirement's detach. A reflow still owed (an explicit demand, a
+    current answer the stop consumed for a size, cut or height the
+    published picture does not have, a clock-driven resize included, or
+    a newer size whose paint waited behind an older request, that
+    request's obsolete answer consumed in order) is asked for once, on
+    the kept route, once the core is retired with a kept document; a
+    pixel drop or the route's end before that cancels it.
+  - *Kept renderers.* A loaded widget retired by an ordinary release or a
+    natural stop keeps its document in the helper
+    (`WidgetHost::keepRenderer`), so its still can reflow: at most 8 kept
+    routes in the process, a keep in progress and a release not yet
+    complete counted; with all 8 taken the newly retiring widget's route is
+    closed instead. A checked refusal or a drain never keeps. Kept routes
+    do not hold the helper's 30 s idle exit; that exit, a crash or a
+    release ends them, and their stills lose their documents. A route
+    that ended for good also ends its work's wait for emoji, and the
+    work's next turn frees its images, fonts and canvases and closes its
+    account in the emoji cache (`QtBackend::releaseLive()`), whose large
+    glyphs then make room for other cards; a kept route keeps them all.
+    A large glyph's request still loading keeps its pending entry, by its
+    own admission number, through that close until its completion: then
+    its bytes return, the entry goes and the cards showing that glyph's
+    fallback are asked to paint again, so a live one requests it itself.
+    Each completion settles only its own request's reservation and entry,
+    so one admitted before an emoji-set change cannot end a newer
+    request's wait.
+  - *Kept pictures.* Telegram keeps no drawing commands of a hosted
+    widget, only pixels:
+    - *Pictures on their way to the chat.* Each hosted work hands its
+      pictures to the chat through one mailbox of its own
+      (`PicturePost`, shared by the core and its render work): a helper
+      frame once it passed its checks and was painted, a live widget's and
+      a kept document's reflow alike. The painted picture goes into the
+      mailbox at once, with its size serial, pixel-drop epoch, card area,
+      CSS height and bottom anchor, replacing one the chat has not taken
+      yet (the replaced one drops its pixels, and a client notice it
+      carried passes to the newer one), and the next work turn publishes
+      it. The chat takes that exact picture only at its own current size
+      serial and pixel-drop epoch, checked under the mailbox's lock
+      (`PicturePost::take()`), and accepts it
+      (`RendererCore::applyLayout()`); an obsolete one stays for the size
+      or drop the chat already posted to withdraw. The work's other
+      answers (content and load, a stop, the route's close, menu and claim
+      decisions) keep their own posts in order; a picture published with
+      one of them is taken at that answer, and one published alone only at
+      a post after the last answer before it, so it never lands before a
+      stop, a close or a menu or claim decision that preceded it, and a
+      turn that has only a picture posts one wake when no such post is
+      still queued, never one per picture. The wake carries the core's
+      weak pointer and no picture. A new size serial or pixel-drop epoch
+      withdraws an untaken picture on the render thread, published or not
+      (a new size owing the picture for the new size, a drop cancelling
+      it); the core's destruction and the work's empty the mailbox at
+      once, a wake still queued included. Retirement and route loss keep
+      it. So each work has at most one undelivered picture, of its checked
+      destination size; there is no process-wide allowance, and no request
+      waits for another card's pictures. Each work has at most one request
+      out, and each matching current reply is decoded once by the platform
+      end, inside that route's metered work, and painted at once at its
+      trusted final size, so eight static cards each needing a new picture
+      take eight requests, eight decodes and eight accepted pictures
+      however late the chat takes them.
+    - *Counters.* `queued` and `queuedPeak` (`KeptBudget::Read()`) read the
+      distinct backings of pictures on their way to the chat, from their
+      holder's creation until the chat takes them or their last holder
+      drops them (a release deferred past a backing being made included).
+      `physical` and `physicalPeak` read the distinct hosted backings held
+      (queued pictures and displayed copies), each counted once when the
+      painter has made it, until its last holder drops it
+      (`KeptBudget::Backing`, carried by the picture's holder,
+      `KeptBudget::Pixels`); a picture's own image goes before its holder
+      (`RendererLayout::pixels` is declared first), so a stale, replaced,
+      withdrawn or closed picture stays counted until its bitmap is freed.
+      An allocation that fails counts nothing, and a
+      paint of an in-process or engine-only widget counts nothing at all.
+      The making and its count are one step against releases on other
+      threads (`KeptBudget::Acquisition`): a holder the chat drops while a
+      backing is being made is freed right after it, so both counts see
+      that overlap and none other.
+    - *Memory.* A picture's holder is made right after its paint, and each
+      distinct backing is counted when it is made. Fixed-size internal
+      pieces (a post, its callable, a holder, a wake, the post that hands a
+      committed emoji tile request over, a stop's fixed diagnostic) are not
+      recovered when they cannot be allocated: that ends Telegram, as
+      everywhere else in the client. What the helper's input sizes ends
+      just the route when memory runs out: reading its message, whose size
+      the caps bound before anything is allocated
+      (`RendererPlatform::consume()`), the owned text made from a stop
+      report or a selection before any callback gets it, and the checked
+      painter's own workspace (`Executor::run()`: its group inks, dash
+      patterns, text and stacks, and an emoji tile request's preparation,
+      made before the cache changes: the eviction candidates it gathers,
+      its batch slot and its request entry, for a large glyph's own
+      request and its large-tile fallback together), a paint limit like any
+      other: the frame ends its route with its temporary bytes returned and
+      the picture the chat shows kept. A stop the helper reports is
+      published to the chat with its reason before anything else is
+      allocated for it, and the host's diagnostics get a fixed detail for
+      it (`paint-bounds`: `The widget renderer stopped`), never another
+      copy of the reason.
+    - *One budget for kept cards.* A card that is not running keeps at
+      most one image, its last accepted pixels (its still's displayed
+      copy, `RendererCore::frameBytes()`). The runtime registry trims them
+      on main (`Runtime::TrimKept()`, `KeptBudget::PlanTrim()`) at once
+      after an unload and after any unloaded still's new picture, one of a
+      message edited since included (its other notices stay off), in every
+      placement: the pictures of unloaded cards
+      stay within 48 MiB (`KeptBudget::kPictureLimit`), and while they do
+      not, the card seen longest ago (oldest unload first, ties by work
+      id) loses its picture completely (`RendererCore::dropFrame()`).
+      Pictures of cards on screen (painted since their unload) are counted
+      apart (`on screen`) and never dropped; they stay bounded by the
+      per-picture limits. A card keeps the order of its first unload until
+      it is painted again, through further unloads with no paint between
+      (a draw clipped to its footer registers the card without painting
+      it). A trim that drops writes the Debug line `Tgw: kept
+      trim, unloaded pictures … of 50331648, dropped …, on screen …;
+      queued … (peak …), pictures … (peak …).`
+    - *Cards with no picture.* A card whose picture was dropped, or that
+      changed width while not running, draws nothing on its card: the
+      bubble at its last height, as before its first picture, under the
+      stop pill when it stopped or failed. A kept document in the helper
+      reflows at a new width and paints a dropped picture again when the
+      chat draws the card; without one (beyond the 8 routes, after the
+      helper's exit or a crash) the card waits. Drawn on screen again, a
+      card that can start starts again (`Runtime::ScheduleStarts()`) and
+      its new live core draws it; one that cannot (stopped, failed, past
+      its crash limit or with newer content) keeps the empty card. An
+      in-process or engine-only still keeps its document, which repaints a
+      dropped picture and reflows as before.
+  - *Failure.* A helper that cannot start or refuses its lockdown ends its
+    widgets with the diagnostic and counts towards the failure limit, as
+    below. Where no helper is available a build that renders in the helper
+    builds only a refusing hosted client, so no QuickJS runtime, validator
+    or litehtml document exists in the client either.
+  - *Seams and probes.* The ops tap installs itself on the hosted host
+    ([Hosted widgets](test_widget_ops.md#hosted-widgets)) and, in a
+    Release harness, whose helper has no Debug tap, reads the theme the
+    widget itself took after each application and the clicks the helper's
+    renderer completed instead of the mirror
+    ([Which reading each build uses](test_widget_ops.md#which-reading-each-build-uses)), the host watch
+    reads the hosted host's diagnostics and its work scopes time only the
+    client's share ([In the hosted arrangement](test_widget_host.md#in-the-hosted-arrangement)),
+    and the macOS probe's serving variant takes its listing while widgets
+    render ([Serving while rendering](test_widget_helper_probe.md#serving-while-rendering)).
 - **Store, packaged and other platforms.** macOS, Windows and Linux have a
   helper. The non-Linux all-other platforms, FreeBSD among them, build
   none (no `TelegramWidgetHelper` target) and start none: their default
@@ -579,11 +1013,18 @@ packs, the fixture and the seams they use need no change for it.
   libSystem and libc++, its Debug build too: no Qt, lib_base, crl or
   framework, built from widget-sandbox's engine end, QuickJS, the POSIX
   stream and its own `_other/widget_helper*` sources, without Telegram's
-  precompiled header and before Telegram.
+  precompiled header and before Telegram. On macOS it also links the
+  served host's half of widget-sandbox, TwidgetCore's renderer end and the
+  litehtml fork, the last two built standalone for both binaries and
+  litehtml without CoreFoundation (`TW_LITEHTML_NO_CORE_FOUNDATION`, so an
+  empty date input's hint is the same fixed pattern in the helper and in
+  an `in-process` client), and its Debug build the helper's half of the ops
+  tap ([test_widget_helper_tap](test_widget_helper_tap.md)).
   Only a Debug probe value adds arguments after the `3`: the mode, the
   client's working directory and Application Support path, as
   [test_widget_helper_probe](test_widget_helper_probe.md) describes; the
-  probe `dlopen`s its frameworks only after its listing. A Release
+  probe `dlopen`s its frameworks only after its listing, and its serving
+  variant takes that listing while the helper renders. A Release
   `TelegramWidgetHelper` accepts only the token: with any other argument
   it prints `Widget helper: unexpected arguments` and exits 1, and with
   another token, a descriptor 3 that is no socket or a failed `chdir` it
@@ -895,7 +1336,10 @@ packs, the fixture and the seams they use need no change for it.
   cancels any other, answers the hello, puts `stderr` on descriptor 2 and
   `channel` on 3, refuses a second `channel`, and starts one serve thread
   (8 MiB stack) that runs the direct helper's argument check,
-  `WidgetHelper::Adopt()` (`chdir("/")`) and `serve` with the lockdown; it
+  `WidgetHelper::Adopt()` (`chdir("/")`) and the direct helper's
+  `WidgetHelper::Serve()` with the lockdown, so it hosts whole widgets on
+  either opening as the direct helper does (**Hosted widgets on macOS**
+  above); it
   `_Exit`s on any error event of its peer connection. It is a child of
   launchd with its own container as `HOME`, launchd's `/dev/null` on 0
   and 1, on 2 Telegram's stderr when that is no terminal and the relay's
@@ -1215,7 +1659,10 @@ packs, the fixture and the seams they use need no change for it.
   Widget helper <pid> stream ended: the engine process refused the stream:
   <reason>.`, its widgets die with `the widget engine process ended`, and
   the refusal counts towards the failure limit below. No engine ever runs
-  in process instead.
+  in process instead. A hosted widget's served host, validator and
+  renderer are built only at its hosted start, after `Ready`, so the
+  lockdown, its profile, its forbidden services and its descriptor ceiling
+  are those of the engine-only helper.
   The Mac App Store service runs the same lockdown with four
   differences, each `#ifdef OS_MAC_STORE` in `_other/widget_helper_mac.cpp`.
   Its service check takes `BOOTSTRAP_NOT_PRIVILEGED` (1100) as not held:
@@ -1685,7 +2132,12 @@ packs, the fixture and the seams they use need no change for it.
   runtime that asked a synchronous question. On macOS and Linux a client
   whose stderr is a terminal also runs one relay thread per helper, with
   no name of its own (**The shared helper** above). The `widget.sandbox`
-  engines run in the helper.
+  engines run in the helper. A hosted widget (**Hosted widgets on macOS**
+  above) has no `widget.validator` in the client either: its validator and
+  renderer threads are the helper's, and the client's share of its
+  renderer runs on the one `widget.render` thread, which answers the
+  helper's requests (`widget.answer` waits for each); the helper's Debug
+  probe adds a `widget.probe` thread in its serving variant.
   Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`; each host
   keeps its `widget.client`, `widget.validator` and `twidget-host` until
@@ -1696,19 +2148,36 @@ packs, the fixture and the seams they use need no change for it.
   show where the engines run.
 - **Seams.** [test_widget_ops](test_widget_ops.md),
   [test_widget_host](test_widget_host.md) and
-  [test_widget_bot](test_widget_bot.md) act in the client and work
-  unchanged: the tap wraps the renderer factory in `Runtime::construct()`,
-  the options override edits the options before the `Job` (they reach the
-  helper inside the engine's configuration), the host watch merges
-  `WidgetHost::diagnostics()` on the client's `twidget-host` thread, and
-  the played bot answers at `Runtime::botRequested()` through the responder
-  the client engine handed the host. The client's Qt provider of
-  `tgw_intl.cpp` answers the engines' `Intl` questions over the channel.
+  [test_widget_bot](test_widget_bot.md) act in the client in every
+  arrangement: the options override edits the options before the `Job`
+  (they reach the helper inside the engine's configuration or the hosted
+  start), the host watch merges `WidgetHost::diagnostics()` on the client's
+  `twidget-host` thread, and the played bot answers at
+  `Runtime::botRequested()` through the responder the client engine handed
+  the host. The tap wraps the renderer factory in `Runtime::construct()`
+  for a local host (`in-process`, `helper-engines`, Windows and Linux),
+  registering the core's work for the local press seams, whose click counts
+  as the work's forwarding hands it to the host and whose mark
+  `RendererCore::detach()` revokes once it closed the host link
+  ([Local presses](test_widget_ops.md#local-presses)); for
+  a hosted one it is installed on the hosted host by `Build()` and takes
+  the validated batches from its `onRenderOps` and, in Debug, the rest
+  from the records the helper's tap mirrors
+  ([Hosted widgets](test_widget_ops.md#hosted-widgets)). The disposable
+  overlay's work scopes in `RendererWork` time the whole renderer in
+  process and only the client's share of a hosted one
+  ([In the hosted arrangement](test_widget_host.md#in-the-hosted-arrangement)).
+  The client's Qt provider of `tgw_intl.cpp` answers the engines' `Intl`
+  questions over the channel.
 - **Runtime log and deaths.** The note of a host's start reads `Started,
   its engine is remote.` with the helper and `Started, its engine does
   not run.` where no helper is available, instead of the in-process
-  `Started.`, chosen by the client's mode; the summary and its first
-  `Died:` line, which the packs parse, are unchanged. Where no helper is
+  `Started.`, chosen by the client's mode; a hosted widget's note says
+  instead that its engine, validator and renderer run in the widget
+  helper. The summary and its first `Died:` line, which the packs parse,
+  are unchanged. A hosted route that the client's own checks closed (a
+  refused list or a malformed report) is a stop the desktop decided
+  itself, read with `WidgetDesktopStop()`, never a death of the host. Where no helper is
   available every widget dies at its start with `no sandboxed widget
   helper is available here: <reason>`, in the summary's `Died:` line and
   the host watch's `dead`: a fatal stop that counts towards the widget's
@@ -1828,7 +2297,10 @@ packs, the fixture and the seams they use need no change for it.
   back to an in-process engine. The stop of every widget where no helper
   is available is no helper failure: no start is attempted, so nothing
   counts towards this limit or stops launches.
-- **Timing.** Queries and probes cross the channel.
+- **Timing.** Queries and probes cross the channel; a hosted widget's
+  layout queries do not, they are answered by the renderer in the helper,
+  while its renderer's backend requests cross the other way and wait for
+  the client's `widget.render` thread (**Hosted widgets on macOS** above).
   `SandboxStats::queries` and `queryMs` are counted by the engine in the
   helper and reach the client with its stats, so each uncached query's
   time includes both channel hops and the client's answer: compare query
@@ -3124,6 +3596,46 @@ reading (no row and no height for the removed message, a kept neighbour as
 the control, and a removal without the settle as the negative) is planned
 as that task's campaign check H2, which records its result in that task's
 `work/test.md`.
+
+**Hosted widgets on macOS** above, the `helper-engines` value and the
+hosted readings of the seams describe the arrangement of
+`2026/11/14/run-widget-validators-and-renderers-in-the-macos-helper`,
+compiled in the macOS Debug build; their first runs, with every pack in
+the default arrangement against `in-process` and `helper-engines`, are
+that task's evidence campaign, which records them. So far only these have
+run, all outside the app: of its kept pictures the trim order and, since
+the eleventh review round, when Telegram keeps only pixels, the render
+work's request, paint and publication, the chat core's frame, drop and
+apply and the runtime's unload, trim and restart, copied verbatim into a
+scratch harness with the real `KeptBudget` (the card seen longest ago
+dropped, pictures on screen kept, the placeholder at the last height, the
+restart on screen, the placeholder at a new width or a kept document's
+reflow, an in-process still repainting, one undelivered picture per work,
+a picture painted after a menu answer shown after it, a later cut request
+served, a null paint not asked again); the glue's cursor and canvas
+font rules, in a scratch harness that links the helper's own glue
+objects, also under ThreadSanitizer and AddressSanitizer, and since the
+third review round its refused-font limits (one request per interval for
+1,500 uses of a refused spelling, 64 requests per interval, recovery after
+a refill with the metrics of a spelling never refused) and its `Clicked`
+reports, against the glue before them; and the hold timing (its waiter
+woken by an admission or renewal while it sleeps until its check too) and
+the writer-admitted grants, in widget-sandbox's own tests. Since the ninth
+review round, also outside the app: a paint whose emoji tile request
+cannot prepare its eviction, batch slot or request entry, through the
+Debug build's real painter and tile cache objects (refused, the cache as
+if that paint never happened, another owner served); the work's real stop
+path after the reason's conversion; and the acquisition order in the
+`KeptBudget` harness. Since the tenth: the picture mailbox
+(`PicturePost`, copied whole from the source) replacing, emptied at
+teardown, with many cards and a stalled chat, resuming idle and ordered
+behind earlier answers, also on two threads under ThreadSanitizer; and
+each preparation of an emoji request (the owner's and the global eviction,
+both, an isolated glyph, since the eleventh also an isolated glyph with its
+large-tile fallback) failed with an older neighbouring glyph that still
+paints and the cache unchanged. The kept readings above, the helper's
+cursor and canvas font rules, the click reports and the report post have
+no app reading yet.
 
 ## Related guidance
 
