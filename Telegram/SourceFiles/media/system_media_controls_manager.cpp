@@ -254,10 +254,6 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		if (_videoDelegate) {
 			return;
 		}
-		if (_controls->seekingSupported()) {
-			const auto type = mediaPlayer->getActiveType();
-			_controls->setPosition(mediaPlayer->getState(type).position);
-		}
 		_controls->setPlaybackStatus(status);
 	}, _lifetime);
 
@@ -471,8 +467,7 @@ SystemMediaControlsManager::SystemMediaControlsManager()
 		}) | rpl::map([=] {
 			const auto type = mediaPlayer->getActiveType();
 			return mediaPlayer->getState(type).position;
-		}) | rpl::distinct_until_changed(
-		) | rpl::on_next([=](int position) {
+		}) | rpl::on_next([=](int position) {
 			if (_videoDelegate) {
 				return;
 			}
@@ -571,28 +566,29 @@ void SystemMediaControlsManager::videoUpdate(VideoState state) {
 	}
 	using PlaybackStatus
 		= base::Platform::SystemMediaControls::PlaybackStatus;
+	// position requests from inside the calls below read _videoState
+	const auto was = std::exchange(_videoState, state);
 	auto display = false;
-	if (state.title != _videoState.title) {
+	if (state.title != was.title) {
 		_controls->setTitle(state.title);
 		display = true;
 	}
-	if (state.artist != _videoState.artist) {
+	if (state.artist != was.artist) {
 		_controls->setArtist(state.artist);
 		display = true;
 	}
-	if (state.nextAvailable != _videoState.nextAvailable) {
+	if (state.nextAvailable != was.nextAvailable) {
 		_controls->setIsNextEnabled(state.nextAvailable);
 	}
-	if (state.previousAvailable != _videoState.previousAvailable) {
+	if (state.previousAvailable != was.previousAvailable) {
 		_controls->setIsPreviousEnabled(state.previousAvailable);
 	}
-	const auto statusChanged = (state.playing != _videoState.playing);
+	const auto statusChanged = (state.playing != was.playing);
 	if (_controls->seekingSupported()) {
-		if (state.duration != _videoState.duration) {
+		if (state.duration != was.duration) {
 			_controls->setDuration(state.duration);
 		}
 		if (statusChanged || !state.playing) {
-			_controls->setPosition(state.position);
 			_controls->setPlaybackRate(
 				Core::App().settings().videoPlaybackSpeed());
 		}
@@ -605,7 +601,14 @@ void SystemMediaControlsManager::videoUpdate(VideoState state) {
 	if (display) {
 		_controls->updateDisplay();
 	}
-	_videoState = state;
+}
+
+void SystemMediaControlsManager::videoSeeked() {
+	if (!_inited || !_videoDelegate || !_controls->seekingSupported()) {
+		return;
+	}
+	_controls->setPosition(_videoState.position);
+	_controls->updateDisplay();
 }
 
 void SystemMediaControlsManager::videoSetThumbnail(const QImage &thumbnail) {

@@ -39,6 +39,7 @@ public:
 		not_null<SystemMediaControlsVideoDelegate*> delegate,
 		VideoState state) = 0;
 	virtual void videoUpdate(VideoState state) = 0;
+	virtual void videoSeeked() = 0;
 	virtual void videoSetThumbnail(const QImage &thumbnail) = 0;
 	virtual void videoFinish(
 		not_null<SystemMediaControlsVideoDelegate*> delegate) = 0;

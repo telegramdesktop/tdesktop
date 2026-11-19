@@ -42,6 +42,7 @@ public:
 		not_null<SystemMediaControlsVideoDelegate*> delegate,
 		VideoState state) override;
 	void videoUpdate(VideoState state) override;
+	void videoSeeked() override;
 	void videoSetThumbnail(const QImage &thumbnail) override;
 	void videoFinish(
 		not_null<SystemMediaControlsVideoDelegate*> delegate) override;
