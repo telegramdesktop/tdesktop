@@ -27,9 +27,31 @@ public:
 	~EmojiAccount();
 
 	[[nodiscard]] uint64 id() const;
+	void close();
 
 private:
 	const uint64 _id = 0;
+
+};
+
+class EmojiWaits final {
+public:
+	EmojiWaits();
+	EmojiWaits(const EmojiWaits &) = delete;
+	EmojiWaits &operator=(const EmojiWaits &) = delete;
+	EmojiWaits(EmojiWaits &&) = default;
+	EmojiWaits &operator=(EmojiWaits &&) = default;
+
+	void tile();
+	void glyph(int index);
+	void add(const EmojiWaits &other);
+	void clear();
+
+	[[nodiscard]] bool wants(std::optional<int> glyph) const;
+
+private:
+	std::vector<uint64> _glyphs;
+	bool _tiles = false;
 
 };
 
@@ -37,14 +59,16 @@ private:
 [[nodiscard]] rpl::producer<> EmojiRefreshes();
 void FinishEmojiImages();
 
-void ConfigureEmojiTiles(EmojiSides sides, Fn<void()> landed);
+void ConfigureEmojiTiles(
+	EmojiSides sides,
+	Fn<void(std::optional<int> glyph)> landed);
 void PaintEmoji(
 	QPainter &p,
 	EmojiPtr emoji,
 	const QRectF &box,
 	float64 deviceSide,
 	const EmojiAccount &account);
-[[nodiscard]] uint64 EmojiTileWaits();
+void TakeEmojiWaits(const EmojiAccount &account, EmojiWaits &into);
 void ClearEmojiTiles();
 
 } // namespace Tgw

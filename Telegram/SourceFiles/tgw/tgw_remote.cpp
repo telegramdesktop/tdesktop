@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <condition_variable>
 #include <mutex>
+#include <variant>
 
 namespace Tgw {
 namespace {
@@ -27,7 +28,15 @@ constexpr auto kKillWait = crl::time(1000);
 constexpr auto kMaxReasonBytes = size_t(4096);
 
 using Channel = std::shared_ptr<twidget::SandboxRemoteChannel>;
+using HostedRoute = std::shared_ptr<twidget::SandboxHostedChannel>;
+using HostedFactory = Fn<HostedRoute(
+	std::shared_ptr<twidget::SandboxResources>)>;
 using Completion = Platform::WidgetHelper::Completion;
+
+struct Choice {
+	EnginePlace place = EnginePlace::Nowhere;
+	bool hosted = false;
+};
 
 struct Reading {
 	std::string reason;
@@ -57,9 +66,11 @@ struct Helper {
 
 class Manager final {
 public:
-	Manager();
+	explicit Manager(bool hosting);
 
 	[[nodiscard]] Channel channel(
+		std::shared_ptr<twidget::SandboxResources> resources);
+	[[nodiscard]] HostedRoute hostedChannel(
 		std::shared_ptr<twidget::SandboxResources> resources);
 	[[nodiscard]] bool stop(Fn<void()> stopped);
 
@@ -68,11 +79,16 @@ public:
 
 private:
 	using Lock = std::unique_lock<std::mutex>;
+	using End = twidget::SandboxRemoteHostEnd;
+	using Selected = std::variant<QString, not_null<End*>>;
 
-	[[nodiscard]] Channel launch(
+	[[nodiscard]] Selected endFor(
 		Lock &lock,
 		const twidget::SandboxResources &resources);
-	[[nodiscard]] Channel handOut(Lock &lock);
+	[[nodiscard]] Selected launch(
+		Lock &lock,
+		const twidget::SandboxResources &resources);
+	void handOut(Lock &lock);
 	[[nodiscard]] uint64 retireLocked(bool intentional);
 	[[nodiscard]] crl::time idleDeadlineLocked() const;
 	void failedLocked(crl::time uptime);
@@ -88,6 +104,7 @@ private:
 	QString _disabled;
 	uint64 _serial = 0;
 	int _failures = 0;
+	const bool _hosting = false;
 	bool _stopped = false;
 	base::Timer _idle;
 	Fn<void()> _whenStopped;
@@ -96,6 +113,8 @@ private:
 
 auto Instance = (Manager*)nullptr;
 auto Place = std::optional<EnginePlace>();
+auto Hosted = false;
+auto HostedRoutes = HostedFactory();
 
 [[nodiscard]] std::string BuildString() {
 	return std::to_string(AppVersion);
@@ -146,13 +165,21 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return twidget::SandboxRemoteHostEnd::refusing(reason.toStdString());
 }
 
+[[nodiscard]] HostedRoute RefusingHosted(const QString &reason) {
+	return twidget::SandboxRemoteHostEnd::refusingHosted(
+		reason.toStdString());
+}
+
+void RefuseEngines(const QString &reason) {
+	twidget::SandboxEngine::setRemoteChannelFactory([=](
+			std::shared_ptr<twidget::SandboxResources>) {
+		return Refusing(reason);
+	});
+}
+
 [[nodiscard]] QString CouldNotStart(const QString &error) {
 	LOG(("Tgw Error: The widget helper could not start: %1.").arg(error));
 	return u"the widget helper could not start: "_q + error;
-}
-
-[[nodiscard]] QString Placement(bool remote) {
-	return remote ? u"in the widget helper"_q : u"in process"_q;
 }
 
 [[nodiscard]] QString Unavailable() {
@@ -161,13 +188,36 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return reason.isEmpty() ? text : (text + u": "_q + reason);
 }
 
-[[nodiscard]] EnginePlace DefaultPlace() {
-	if (Platform::WidgetHelper::Enabled()) {
-		LOG(("Tgw: Widget engines run %1.").arg(Placement(true)));
-		return EnginePlace::Helper;
+[[nodiscard]] bool HostsWidgets() {
+	return Platform::WidgetHelper::Renders();
+}
+
+[[nodiscard]] Choice Logged(Choice choice, const QString &value) {
+	const auto what = choice.hosted
+		? u"Widget engines, validators and renderers"_q
+		: u"Widget engines"_q;
+	const auto from = value.isEmpty()
+		? QString()
+		: u" (TDESKTOP_WIDGET_ENGINES=%1)"_q.arg(value);
+	switch (choice.place) {
+	case EnginePlace::InProcess:
+		LOG(("Tgw: %1 run in process%2.").arg(what, from));
+		break;
+	case EnginePlace::Helper:
+		LOG(("Tgw: %1 run in the widget helper%2.").arg(what, from));
+		break;
+	case EnginePlace::Nowhere:
+		LOG(("Tgw: %1 do not run, %2.").arg(what, Unavailable()));
+		break;
 	}
-	LOG(("Tgw: Widget engines do not run, %1.").arg(Unavailable()));
-	return EnginePlace::Nowhere;
+	return choice;
+}
+
+[[nodiscard]] Choice DefaultPlace() {
+	const auto place = Platform::WidgetHelper::Enabled()
+		? EnginePlace::Helper
+		: EnginePlace::Nowhere;
+	return Logged({ .place = place, .hosted = HostsWidgets() }, QString());
 }
 
 // Engine switches and probes bypass or inspect the sandbox: never shipped.
@@ -176,24 +226,27 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 	return qEnvironmentVariable("TDESKTOP_WIDGET_ENGINES");
 }
 
-[[nodiscard]] EnginePlace ChoosePlace() {
+[[nodiscard]] Choice ChoosePlace() {
 	const auto value = EnginesSwitch();
-	if (value != u"helper"_q
-		&& value != u"in-process"_q
-		&& !Test::IsWidgetHelperProbeMode(value)) {
-		return DefaultPlace();
+	if (value == u"in-process"_q) {
+		return Logged({ .place = EnginePlace::InProcess }, value);
+	} else if (value == u"helper-engines"_q) {
+		return Logged({ .place = EnginePlace::Helper }, value);
+	} else if (value == u"helper"_q
+		|| Test::IsWidgetHelperProbeMode(value)) {
+		return Logged({
+			.place = EnginePlace::Helper,
+			.hosted = HostsWidgets(),
+		}, value);
 	}
-	const auto remote = (value != u"in-process"_q);
-	LOG(("Tgw: Widget engines run %1 (TDESKTOP_WIDGET_ENGINES=%2)."
-		).arg(Placement(remote), value));
-	return remote ? EnginePlace::Helper : EnginePlace::InProcess;
+	return DefaultPlace();
 }
 
 [[nodiscard]] QStringList HelperArguments() {
 	return Test::WidgetHelperProbeArguments(EnginesSwitch());
 }
 #else // _DEBUG
-[[nodiscard]] EnginePlace ChoosePlace() {
+[[nodiscard]] Choice ChoosePlace() {
 	return DefaultPlace();
 }
 
@@ -202,8 +255,9 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 }
 #endif // _DEBUG
 
-Manager::Manager()
-: _idle([=] { checkIdle(); }) {
+Manager::Manager(bool hosting)
+: _hosting(hosting)
+, _idle([=] { checkIdle(); }) {
 }
 
 Channel Manager::channel(
@@ -211,24 +265,27 @@ Channel Manager::channel(
 	Expects(resources != nullptr);
 
 	auto lock = Lock(_mutex);
-	while (true) {
-		if (_stopped) {
-			return Refusing(u"the widget helper was stopped"_q);
-		} else if (!_disabled.isEmpty()) {
-			return Refusing(_disabled);
-		} else if (!_helper) {
-			return launch(lock, *resources);
-		} else if (_helper->retiring || _helper->launching) {
-			_reaped.wait(lock);
-		} else if (!Read(*_helper->reports).ended) {
-			return handOut(lock);
-		} else {
-			const auto retired = retireLocked(false);
-			lock.unlock();
-			scheduleReap(retired);
-			lock.lock();
-		}
-	}
+	return v::match(endFor(lock, *resources), [&](const QString &reason) {
+		return Refusing(reason);
+	}, [&](not_null<End*> end) {
+		auto result = end->channel();
+		handOut(lock);
+		return result;
+	});
+}
+
+HostedRoute Manager::hostedChannel(
+		std::shared_ptr<twidget::SandboxResources> resources) {
+	Expects(resources != nullptr);
+
+	auto lock = Lock(_mutex);
+	return v::match(endFor(lock, *resources), [&](const QString &reason) {
+		return RefusingHosted(reason);
+	}, [&](not_null<End*> end) {
+		auto result = end->hostedChannel();
+		handOut(lock);
+		return result;
+	});
 }
 
 bool Manager::stop(Fn<void()> stopped) {
@@ -272,7 +329,30 @@ void Manager::ended(uint64 id) {
 	scheduleReap(retired);
 }
 
-Channel Manager::launch(
+Manager::Selected Manager::endFor(
+		Lock &lock,
+		const twidget::SandboxResources &resources) {
+	while (true) {
+		if (_stopped) {
+			return u"the widget helper was stopped"_q;
+		} else if (!_disabled.isEmpty()) {
+			return _disabled;
+		} else if (!_helper) {
+			return launch(lock, resources);
+		} else if (_helper->retiring || _helper->launching) {
+			_reaped.wait(lock);
+		} else if (!Read(*_helper->reports).ended) {
+			return not_null(_helper->end.get());
+		} else {
+			const auto retired = retireLocked(false);
+			lock.unlock();
+			scheduleReap(retired);
+			lock.lock();
+		}
+	}
+}
+
+Manager::Selected Manager::launch(
 		Lock &lock,
 		const twidget::SandboxResources &resources) {
 	const auto id = ++_serial;
@@ -302,7 +382,7 @@ Channel Manager::launch(
 				finished();
 			});
 		}
-		return Refusing(reason);
+		return reason;
 	}
 	_helper->stream = std::move(launched.stream);
 	_helper->complete = std::move(launched.complete);
@@ -314,10 +394,11 @@ Channel Manager::launch(
 		const auto retired = retireLocked(true);
 		lock.unlock();
 		scheduleReap(retired);
-		return Refusing(u"the widget helper was stopped"_q);
+		return u"the widget helper was stopped"_q;
 	}
+	const auto start = _hosting ? &End::startHosting : &End::start;
 	try {
-		_helper->end = twidget::SandboxRemoteHostEnd::start(
+		_helper->end = start(
 			_helper->stream,
 			resources,
 			BuildString(),
@@ -328,22 +409,20 @@ Channel Manager::launch(
 		const auto retired = retireLocked(false);
 		lock.unlock();
 		scheduleReap(retired);
-		return Refusing(reason);
+		return reason;
 	}
 	_helper->stream = nullptr;
 	LOG(("Tgw: Widget helper %1 started.").arg(_helper->pid));
-	return handOut(lock);
+	return not_null(_helper->end.get());
 }
 
-Channel Manager::handOut(Lock &lock) {
-	auto result = _helper->end->channel();
+void Manager::handOut(Lock &lock) {
 	_helper->handed = crl::now();
 	const auto id = _helper->id;
 	lock.unlock();
 	crl::on_main([=] {
 		reconcile(id);
 	});
-	return result;
 }
 
 uint64 Manager::retireLocked(bool intentional) {
@@ -465,26 +544,54 @@ void PrepareRemoteEngines() {
 	if (Place) {
 		return;
 	}
-	Place = ChoosePlace();
-	if (*Place == EnginePlace::Nowhere) {
+	const auto choice = ChoosePlace();
+	Place = choice.place;
+	Hosted = choice.hosted;
+	if (choice.place == EnginePlace::InProcess) {
+		return;
+	} else if (choice.place == EnginePlace::Nowhere) {
 		const auto reason = Unavailable();
-		twidget::SandboxEngine::setRemoteChannelFactory([=](
-				std::shared_ptr<twidget::SandboxResources>) {
-			return Refusing(reason);
-		});
-	} else if (*Place == EnginePlace::Helper) {
-		Instance = new Manager();
+		RefuseEngines(reason);
+		if (choice.hosted) {
+			HostedRoutes = [=](std::shared_ptr<twidget::SandboxResources>) {
+				return RefusingHosted(reason);
+			};
+		}
+		return;
+	}
+	Instance = new Manager(choice.hosted);
+	if (!choice.hosted) {
 		twidget::SandboxEngine::setRemoteChannelFactory([manager = Instance](
 				std::shared_ptr<twidget::SandboxResources> resources) {
 			return manager->channel(std::move(resources));
 		});
+		return;
 	}
+	RefuseEngines(u"widget engines run only beside their renderers "
+		"in the widget helper"_q);
+	HostedRoutes = [manager = Instance](
+			std::shared_ptr<twidget::SandboxResources> resources) {
+		return manager->hostedChannel(std::move(resources));
+	};
 }
 
 EnginePlace ChosenEnginePlace() {
 	Expects(Place.has_value());
 
 	return *Place;
+}
+
+bool WidgetsHosted() {
+	Expects(Place.has_value());
+
+	return Hosted;
+}
+
+HostedRoute HostedChannel(
+		std::shared_ptr<twidget::SandboxResources> resources) {
+	Expects(HostedRoutes != nullptr);
+
+	return HostedRoutes(std::move(resources));
 }
 
 bool StopRemoteEngines(Fn<void()> stopped) {

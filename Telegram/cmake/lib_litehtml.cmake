@@ -12,7 +12,12 @@
 # There is no packaged branch: no distribution ships this fork.
 
 add_library(lib_litehtml STATIC)
-init_target(lib_litehtml cxx_std_17 "(external)")
+if (APPLE)
+    init_standalone_target(lib_litehtml cxx_std_17 "(external)")
+    target_compile_definitions(lib_litehtml PRIVATE TW_LITEHTML_NO_CORE_FOUNDATION)
+else()
+    init_target(lib_litehtml cxx_std_17 "(external)")
+endif()
 
 add_library(tdesktop::lib_litehtml ALIAS lib_litehtml)
 

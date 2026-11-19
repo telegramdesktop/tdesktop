@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "_other/widget_helper.h"
 
+#include "_other/widget_helper_thread_mac.h"
 #include "platform/posix/widget_channel_posix.h"
 
 #include <gsl/gsl>
@@ -16,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <cerrno>
 #include <cstdlib>
 #include <fcntl.h>
-#include <pthread.h>
 #include <string>
 #include <system_error>
 #include <unistd.h>
@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace WidgetHelper {
 namespace {
 
-constexpr auto kStackSize = size_t(8 * 1024 * 1024);
 constexpr auto kChannel = Platform::WidgetHelper::kChannelDescriptor;
 
 auto Runner = std::function<void(std::vector<std::string>)>();
@@ -112,29 +111,6 @@ void *Serve(void *) {
 	return nullptr;
 }
 
-[[nodiscard]] int StartServing() {
-	auto attributes = pthread_attr_t();
-	auto result = pthread_attr_init(&attributes);
-	if (result != 0) {
-		return result;
-	}
-	const auto destroy = gsl::finally([&] {
-		pthread_attr_destroy(&attributes);
-	});
-	result = pthread_attr_setstacksize(&attributes, kStackSize);
-	if (result != 0) {
-		return result;
-	}
-	result = pthread_attr_setdetachstate(
-		&attributes,
-		PTHREAD_CREATE_DETACHED);
-	if (result != 0) {
-		return result;
-	}
-	auto thread = pthread_t();
-	return pthread_create(&thread, &attributes, Serve, nullptr);
-}
-
 [[nodiscard]] std::string TakeChannel(xpc_object_t message) {
 	auto arguments = std::vector<std::string>{ std::to_string(kChannel) };
 	auto refused = ReadArguments(message, arguments);
@@ -146,7 +122,7 @@ void *Serve(void *) {
 		return refused;
 	}
 	Arguments = std::move(arguments);
-	const auto result = StartServing();
+	const auto result = StartDetachedThread(Serve, nullptr);
 	if (result != 0) {
 		close(kChannel);
 		return SystemError("pthread_create", result);

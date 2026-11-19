@@ -32,6 +32,20 @@ namespace {
 	return QString::fromLatin1(kWidgetHelperServicePrefix) + name;
 }
 
+[[nodiscard]] QString RenderingArgument(int ms) {
+	return QString::fromLatin1(kWidgetHelperRenderingPrefix)
+		+ QString::number(ms);
+}
+
+// Only the macOS probe has the serving variant.
+[[nodiscard]] bool PassesRendering(const WidgetHelperProbeFixture &fixture) {
+#ifdef Q_OS_MAC
+	return (fixture.renderingDelayMs != 0);
+#else // Q_OS_MAC
+	return false;
+#endif // Q_OS_MAC
+}
+
 } // namespace
 
 bool IsWidgetHelperProbeMode(const QString &mode) {
@@ -54,11 +68,13 @@ QStringList WidgetHelperProbeArguments(
 		QStandardPaths::writableLocation(
 			QStandardPaths::GenericDataLocation),
 	};
+	const auto rendering = PassesRendering(fixture);
 	if (!fixture.keychainAccount.isEmpty()
 		|| fixture.loopbackPort > 0
 		|| fixture.connectControl
 		|| !fixture.networkTargets.isEmpty()
-		|| !fixture.serviceNames.isEmpty()) {
+		|| !fixture.serviceNames.isEmpty()
+		|| rendering) {
 		result.push_back(fixture.keychainAccount);
 		result.push_back(QString::number(std::max(fixture.loopbackPort, 0)));
 		if (fixture.connectControl) {
@@ -67,6 +83,9 @@ QStringList WidgetHelperProbeArguments(
 		result += fixture.networkTargets;
 		for (const auto &name : fixture.serviceNames) {
 			result.push_back(ServiceArgument(name));
+		}
+		if (rendering) {
+			result.push_back(RenderingArgument(fixture.renderingDelayMs));
 		}
 	}
 	return result;

@@ -13,10 +13,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <litehtml.h>
 
+#include <algorithm>
+#include <array>
+#include <cstdlib>
+#include <string_view>
+#include <vector>
+
 namespace Tgw {
 namespace {
 
-using Elements = std::unordered_map<int64, std::shared_ptr<litehtml::element>>;
+using Elements = std::unordered_map<
+	std::int64_t,
+	std::shared_ptr<litehtml::element>>;
 using Chain = std::vector<std::shared_ptr<litehtml::element>>;
 
 constexpr auto kFontHandle = litehtml::uint_ptr(1);
@@ -51,7 +59,7 @@ constexpr auto kVoidTags = std::array<std::string_view, 14>{
 
 [[nodiscard]] std::shared_ptr<litehtml::element> Lookup(
 		const Elements &elements,
-		int64 id) {
+		std::int64_t id) {
 	const auto i = elements.find(id);
 	return (i != end(elements)) ? i->second : nullptr;
 }
@@ -70,8 +78,8 @@ constexpr auto kVoidTags = std::array<std::string_view, 14>{
 
 [[nodiscard]] bool Retarget(
 		const Elements &elements,
-		int64 &applied,
-		int64 wanted,
+		std::int64_t &applied,
+		std::int64_t wanted,
 		litehtml::string_id pseudo) {
 	if (applied == wanted) {
 		return false;
@@ -92,10 +100,10 @@ constexpr auto kVoidTags = std::array<std::string_view, 14>{
 }
 
 // The core's own parents, as it nests them: a parse may move elements.
-[[nodiscard]] std::vector<int64> ShadowChain(
+[[nodiscard]] std::vector<std::int64_t> ShadowChain(
 		const std::string &html,
-		int64 id) {
-	auto open = std::vector<int64>();
+		std::int64_t id) {
+	auto open = std::vector<std::int64_t>();
 	for (auto at = html.find('<'); at != std::string::npos;) {
 		const auto tag = std::string_view(html).substr(at + 1);
 		if (tag.starts_with('/')) {
@@ -106,16 +114,19 @@ constexpr auto kVoidTags = std::array<std::string_view, 14>{
 			const auto name = tag.substr(0, tag.find_first_of(" >"));
 			const auto attributes = tag.substr(name.size());
 			const auto own = attributes.starts_with(kSerializedId)
-				? int64(std::strtoll(
+				? std::int64_t(std::strtoll(
 					attributes.data() + kSerializedId.size(),
 					nullptr,
 					10))
-				: int64(0);
+				: std::int64_t(0);
 			if (!id || own == id) {
-				auto result = std::vector<int64>{ own };
+				auto result = std::vector<std::int64_t>{ own };
 				result.insert(end(result), rbegin(open), rend(open));
 				return result;
-			} else if (!ranges::contains(kVoidTags, name)) {
+			} else if (std::find(
+					kVoidTags.begin(),
+					kVoidTags.end(),
+					name) == kVoidTags.end()) {
 				open.push_back(own);
 			}
 			if (name == kRawTextTag) {
@@ -131,7 +142,7 @@ constexpr auto kVoidTags = std::array<std::string_view, 14>{
 [[nodiscard]] bool Reconcile(
 		const Elements &elements,
 		const Chain &marked,
-		int64 &applied,
+		std::int64_t &applied,
 		litehtml::string_id pseudo) {
 	if (ChainOf(Lookup(elements, applied)) == marked) {
 		return false;
@@ -440,9 +451,9 @@ CursorStyles::~CursorStyles() {
 
 bool CursorStyles::pointer(
 		twlite::Renderer &renderer,
-		int64 hit,
-		int64 hover,
-		int64 active) {
+		std::int64_t hit,
+		std::int64_t hover,
+		std::int64_t active) {
 	sync(renderer, hover, active);
 	const auto element = Lookup(_elements, hit);
 	return element && (element->css().get_cursor() == kPointerCursor);
@@ -450,8 +461,8 @@ bool CursorStyles::pointer(
 
 std::optional<bool> CursorStyles::hold(
 		twlite::Renderer &renderer,
-		int64 hit,
-		int64 hover) {
+		std::int64_t hit,
+		std::int64_t hover) {
 	sync(renderer, hover, 0);
 	const auto chain = ShadowChain(_html, hit);
 	if (chain.empty() || (hit && !_elements.contains(hit))) {
@@ -468,8 +479,8 @@ std::optional<bool> CursorStyles::hold(
 
 void CursorStyles::sync(
 		twlite::Renderer &renderer,
-		int64 hover,
-		int64 active) {
+		std::int64_t hover,
+		std::int64_t active) {
 	const auto reconciled = refresh(renderer);
 	const auto hoverChanged = Retarget(
 		_elements,
@@ -553,7 +564,7 @@ void CursorStyles::index() {
 	}
 	for (const auto &element : root->select_all(kIdSelector)) {
 		if (const auto value = element->get_attr(kIdAttribute)) {
-			_elements[int64(std::strtoll(value, nullptr, 10))] = element;
+			_elements[std::int64_t(std::strtoll(value, nullptr, 10))] = element;
 		}
 	}
 }

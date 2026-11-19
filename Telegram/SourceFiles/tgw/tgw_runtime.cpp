@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_bridge.h"
 #include "tgw/tgw_emoji_images.h"
 #include "tgw/tgw_intl.h"
+#include "tgw/tgw_kept_budget.h"
 #include "tgw/tgw_media.h"
 #include "tgw/tgw_remote.h"
 #include "tgw/tgw_render_thread.h"
@@ -63,9 +64,6 @@ struct MessageMemory {
 namespace {
 
 constexpr auto kMaxAlive = 8;
-// WHY: a card scrolled back into view shows its kept picture instead of
-// painting it again in the middle of the scroll, within this many bytes.
-constexpr auto kKeptPictureBytes = int64(48) * 1024 * 1024;
 constexpr auto kMaxCrashes = 2;
 constexpr auto kMaxNotes = 100;
 constexpr auto kMaxLogLine = 240;
@@ -120,6 +118,9 @@ struct Job {
 	std::shared_ptr<twidget::SandboxResources> resources;
 	std::shared_ptr<twidget::IntlProvider> intl;
 	twidget::RendererFactory factory;
+	RendererCore::HostedHandlers platform;
+	std::shared_ptr<twidget::SandboxHostedWait> wait;
+	Fn<void(const HostPointer &host)> tap;
 	Fn<void(const twidget::WidgetAction &)> action;
 	RendererCore::RequestHandler request;
 	RendererCore::WalletHandler wallet;
@@ -133,6 +134,7 @@ struct Job {
 	std::string stoppedLabel;
 	Slot slot;
 	double width = 0.;
+	bool hosted = false;
 };
 
 struct Built {
@@ -261,6 +263,19 @@ void JobDone() {
 	return Busy();
 }
 
+void ReleaseRoute(RendererCore *core) {
+	if (core && core->hostedWait()) {
+		++Runtimes().jobs;
+		core->releaseRoute([] {
+			JobDone();
+		});
+	}
+}
+
+void DropCore(std::unique_ptr<RendererCore> core) {
+	ReleaseRoute(core.get());
+}
+
 Reservation::Reservation(Fn<void()> released)
 : _released(std::move(released)) {
 	++Runtimes().reserved;
@@ -303,7 +318,8 @@ void HostDeleter::operator()(twidget::WidgetHost *host) const {
 
 void ApplyTheme(
 		twidget::WidgetHost &host,
-		const twidget::WidgetTheme &theme) {
+		const twidget::WidgetTheme &theme,
+		uint64 token) {
 	const auto apply = [&] {
 		host.onHostThread([&] {
 			host.setTheme(theme);
@@ -315,6 +331,7 @@ void ApplyTheme(
 	// wraps its code in String(), shadowed here to call no widget global.
 	host.probe("0); function String() { return ''; } return (0");
 	apply();
+	Test::WidgetThemeApplied(host, theme, token);
 }
 
 [[nodiscard]] twidget::WidgetHostOptions DefaultHostOptions(
@@ -466,10 +483,13 @@ void ApplyTheme(
 	Unexpected("State in Tgw::StateName.");
 }
 
-[[nodiscard]] QString StartedNote(EnginePlace place) {
+[[nodiscard]] QString StartedNote(EnginePlace place, bool hosted) {
 	switch (place) {
 	case EnginePlace::InProcess: return u"Started."_q;
-	case EnginePlace::Helper: return u"Started, its engine is remote."_q;
+	case EnginePlace::Helper: return hosted
+		? u"Started, its engine, validator and renderer run in the widget "
+			"helper."_q
+		: u"Started, its engine is remote."_q;
 	case EnginePlace::Nowhere: return u"Started, its engine does not run."_q;
 	}
 	Unexpected("Place in Tgw::StartedNote.");
@@ -611,18 +631,37 @@ void AppendTail(
 	return lines.join(QChar('\n'));
 }
 
-[[nodiscard]] Built Build(Job job) {
-	try {
-		auto host = HostPointer(
+[[nodiscard]] HostPointer CreateHost(Job &job) {
+	auto deleter = HostDeleter{ std::move(job.slot) };
+	auto html = std::string(job.html.constData(), size_t(job.html.size()));
+	if (!job.hosted) {
+		return HostPointer(
 			new twidget::WidgetHost(
-				std::string(job.html.constData(), size_t(job.html.size())),
+				std::move(html),
 				std::move(job.theme),
 				job.width,
 				job.options,
 				std::move(job.resources),
 				std::move(job.factory),
 				std::move(job.intl)),
-			HostDeleter{ std::move(job.slot) });
+			std::move(deleter));
+	}
+	auto channel = HostedChannel(std::move(job.resources));
+	return HostPointer(
+		new twidget::WidgetHost(
+			std::move(html),
+			std::move(job.theme),
+			job.width,
+			job.options,
+			std::move(channel),
+			std::move(job.intl),
+			std::move(job.wait)),
+		std::move(deleter));
+}
+
+[[nodiscard]] Built Build(Job job) {
+	try {
+		auto host = CreateHost(job);
 		host->onAction = std::move(job.action);
 		host->onRequest = std::move(job.request);
 		host->onWallet = std::move(job.wallet);
@@ -630,6 +669,15 @@ void AppendTail(
 		host->onWatchPublicData = std::move(job.watch);
 		host->onStorageCommit = std::move(job.storage);
 		host->stoppedLabel = std::move(job.stoppedLabel);
+		if (job.hosted) {
+			host->onPlatformMessage = std::move(job.platform.message);
+			host->onPlatformRequest = std::move(job.platform.request);
+			host->onDeath = std::move(job.platform.death);
+			host->keepsRenderer = true;
+			if (job.tap) {
+				job.tap(host);
+			}
+		}
 		return {
 			.host = std::move(host),
 			.data = std::move(job.options.data),
@@ -647,6 +695,8 @@ void AppendTail(
 struct Runtime::Host {
 	HostPointer pointer;
 	base::weak_ptr<Runtime> owner;
+	Fn<void(twidget::WidgetHost &host)> keep;
+	Fn<void(twidget::WidgetHost &host)> observe;
 	uint64 id = 0;
 	uint64 storage = 0;
 	bool sampling = false;
@@ -703,11 +753,15 @@ Runtime::~Runtime() {
 	if (_live) {
 		_live->detach();
 	}
+	ReleaseRoute(_live.get());
+	ReleaseRoute(_still.get());
 	if (heavy()) {
 		PostCheck();
 	}
 	if (const auto host = base::take(_host)) {
 		StorageHostRetired(host->storage);
+		Test::WidgetHostRetired(*host->pointer);
+		host->observe = nullptr;
 		host->retired = true;
 		Sample(host);
 		if (host->watching) {
@@ -974,34 +1028,50 @@ void Runtime::unload() {
 		addNote(u"Released with the unloaded messages."_q);
 	}
 	if (_still) {
-		_keptSerial = ++Runtimes().keptSerial;
-		TrimKeptPictures();
+		if (!_keptSerial) {
+			_keptSerial = ++Runtimes().keptSerial;
+		}
+		TrimKept();
 	}
 }
 
-void Runtime::TrimKeptPictures() {
-	auto kept = std::vector<not_null<Runtime*>>();
-	auto bytes = int64();
-	for (const auto &runtime : Runtimes().list) {
-		if (runtime->_keptSerial && runtime->_still) {
-			kept.push_back(runtime);
-			bytes += runtime->_still->frameBytes();
-		}
-	}
-	if (bytes <= kKeptPictureBytes) {
+void Runtime::TrimKept() {
+	auto &registry = Runtimes();
+	if (registry.draining) {
 		return;
 	}
-	ranges::sort(kept, ranges::less(), [](not_null<Runtime*> runtime) {
-		return runtime->_keptSerial;
-	});
-	for (const auto &runtime : kept) {
-		bytes -= runtime->_still->frameBytes();
-		runtime->_still->dropFrame();
-		runtime->_keptSerial = 0;
-		if (bytes <= kKeptPictureBytes) {
-			break;
+	auto owners = std::vector<not_null<Runtime*>>();
+	auto stills = std::vector<KeptBudget::Entry>();
+	for (const auto &runtime : registry.list) {
+		if (const auto still = runtime->_still.get()) {
+			owners.push_back(runtime);
+			stills.push_back({
+				.pixels = still->frameBytes(),
+				.unloaded = runtime->_keptSerial,
+				.work = still->workId(),
+			});
 		}
 	}
+	const auto trim = KeptBudget::PlanTrim(stills);
+	if (trim.drop.empty()) {
+		return;
+	}
+	auto dropped = int64();
+	for (const auto index : trim.drop) {
+		owners[index]->_still->dropFrame();
+		dropped += stills[index].pixels;
+	}
+	const auto totals = KeptBudget::Read();
+	DEBUG_LOG(("Tgw: kept trim, unloaded pictures %1 of %2, dropped %3, "
+		"on screen %4; queued %5 (peak %6), pictures %7 (peak %8)."
+		).arg(trim.unloadedBytes
+		).arg(KeptBudget::kPictureLimit
+		).arg(dropped
+		).arg(trim.visibleBytes
+		).arg(totals.queued
+		).arg(totals.queuedPeak
+		).arg(totals.physical
+		).arg(totals.physicalPeak));
 }
 
 QString Runtime::logText() const {
@@ -1179,6 +1249,8 @@ void Runtime::Drain() {
 		if (const auto strong = weak.get()) {
 			strong->_logDone = nullptr;
 			strong->release();
+			strong->_stillKept = false;
+			ReleaseRoute(strong->_still.get());
 		}
 	}
 	if (RenderThreadBarrier([] { JobDone(); })) {
@@ -1191,21 +1263,30 @@ void Runtime::Sample(const std::shared_ptr<Host> &host) {
 	if (host->sampling) {
 		return;
 	} else if (host->retired && (registry.draining || !host->owner)) {
+		host->keep = nullptr;
 		host->pointer = nullptr;
+		return;
+	} else if (host->retired && host->keep && host->theming) {
 		return;
 	}
 	const auto last = host->retired;
 	const auto request = ++registry.requestSerial;
 	auto pointer = last ? base::take(host->pointer) : host->pointer;
+	auto keep = last ? base::take(host->keep) : nullptr;
 	host->sampling = true;
 	++registry.jobs;
 	crl::async([
 		host = host,
 		pointer = std::move(pointer),
+		keep = std::move(keep),
 		request,
 		last
 	]() mutable {
 		auto text = Summarize(*pointer);
+		if (keep) {
+			keep(*pointer);
+			keep = nullptr;
+		}
 		pointer = nullptr;
 		crl::on_main([
 			host = std::move(host),
@@ -1447,9 +1528,10 @@ void Runtime::resourcesReady(
 void Runtime::construct(
 		std::shared_ptr<twidget::SandboxResources> resources) {
 	PrepareRemoteEngines();
+	const auto hosted = WidgetsHosted();
 	const auto width = CssFromLogical(_width);
 	const auto ratio = CoreRatio();
-	_live = std::make_unique<RendererCore>(width, ratio);
+	_live = std::make_unique<RendererCore>(width, ratio, hosted);
 	if (_cut) {
 		_live->setCut(*_cut);
 	}
@@ -1469,14 +1551,28 @@ void Runtime::construct(
 	auto storage = OpenStorageHost(_item);
 	const auto id = storage.id;
 	StorageHostVisibility(id, _hostVisible);
+	const auto label = tr::lng_tgw_stopped(tr::now);
 	auto job = Job{
 		.html = _html,
 		.resources = std::move(resources),
 		.intl = CreateHostIntl(),
 		// leak and conformance checks need the validated ops only renderers get
-		.factory = Test::TapWidgetRenderer(
-			_item->globalId(),
-			_live->hostFactory()),
+		.factory = (hosted
+			? twidget::RendererFactory()
+			: Test::TapWidgetRenderer(
+				_item->globalId(),
+				_live->workId(),
+				_live->hostFactory())),
+		.platform = (hosted
+			? _live->hostedHandlers(label)
+			: RendererCore::HostedHandlers()),
+		.wait = _live->hostedWait(),
+		.tap = (hosted
+			? Test::TapHostedWidget(
+				_item->globalId(),
+				_live->workId(),
+				*_theme)
+			: nullptr),
 		.action = _live->hostActionHandler(),
 		.request = _live->hostRequestHandler(),
 		.wallet = _live->hostWalletHandler(),
@@ -1487,7 +1583,7 @@ void Runtime::construct(
 			_item->globalId(),
 			std::move(options)),
 		.theme = *_theme,
-		.stoppedLabel = tr::lng_tgw_stopped(tr::now).toStdString(),
+		.stoppedLabel = label.toStdString(),
 		// WHY: the slot is freed after ~WidgetHost delivered its last commits,
 		// which were posted to main before, so the host leaves the store only
 		// after they were applied and before the next Check() starts anyone.
@@ -1496,6 +1592,7 @@ void Runtime::construct(
 			Check();
 		}),
 		.width = width,
+		.hosted = hosted,
 	};
 	const auto weak = base::make_weak(this);
 	const auto generation = _generation;
@@ -1559,15 +1656,21 @@ void Runtime::constructed(
 		.id = ++Runtimes().hostSerial,
 		.storage = storage,
 	});
+	_host->observe = Test::WidgetThemeObservation(*_host->pointer);
 	_lastHost = _host->id;
 	_logDone = nullptr;
 	_state = State::Live;
-	addNote(StartedNote(ChosenEnginePlace()));
 	_live->setSize(SizeRequest(_width, _maxHeight));
 	syncHostVisibility();
 	syncHostSafeArea();
 	Test::WatchWidgetHost(_item->globalId(), *_host->pointer, _live.get());
-	_live->bindHost(_host->pointer);
+	if (!_live->bindHost(_host->pointer)) {
+		fail(u"Could not start, the messages for its renderer overflowed "
+			"before the widget helper took them."_q);
+		return;
+	}
+	const auto hosted = (_live->hostedWait() != nullptr);
+	addNote(StartedNote(ChosenEnginePlace(), hosted));
 	_host->pointer->start();
 }
 
@@ -1578,25 +1681,30 @@ void Runtime::retire(State state, int brokenCrashes) {
 	_painted = false;
 	_queueSerial = 0;
 	_liveLifetime.destroy();
+	auto keep = Fn<void(twidget::WidgetHost &host)>();
 	if (_live) {
 		_live->detach();
 		if (!_live->loaded()) {
 			addNote(u"Its start did not finish."_q);
-			_live = nullptr;
+			DropCore(base::take(_live));
 		} else if (_still && !_live->height()) {
-			_live = nullptr;
+			DropCore(base::take(_live));
 		} else {
 			_stillLifetime.destroy();
-			_still = std::move(_live);
+			DropCore(std::exchange(_still, std::move(_live)));
 			_brokenCrashes = brokenCrashes;
 			subscribeStill();
+			keep = keepStill();
 			_displayDeferred = _displayDeferred
 				|| (height() != _shownHeight);
 		}
 	}
 	if (const auto host = base::take(_host)) {
 		StorageHostRetired(host->storage);
+		Test::WidgetHostRetired(*host->pointer);
+		host->observe = nullptr;
 		host->retired = true;
+		host->keep = std::move(keep);
 		Sample(host);
 		if (host->watching) {
 			WatchersChanged();
@@ -1606,6 +1714,27 @@ void Runtime::retire(State state, int brokenCrashes) {
 	if (wasHeavy) {
 		PostCheck();
 	}
+}
+
+Fn<void(twidget::WidgetHost &host)> Runtime::keepStill() {
+	_stillKept = false;
+	if (!_still->hostedWait()) {
+		return nullptr;
+	}
+	const auto draining = Runtimes().draining || Core::Quitting();
+	auto result = draining ? nullptr : _still->keepRoute();
+	if (result) {
+		_stillKept = true;
+		addNote(u"Kept its document in the widget helper."_q);
+		return result;
+	} else if (!draining
+		&& !_still->routeChecked()
+		&& !_still->documentGone()) {
+		addNote(u"Closed its document in the widget helper, "
+			"it could not be kept."_q);
+	}
+	ReleaseRoute(_still.get());
+	return nullptr;
 }
 
 void Runtime::stopForCrashes() {
@@ -1632,6 +1761,9 @@ void Runtime::subscribeLive() {
 	renderer->updates(
 	) | rpl::on_next([=](RendererCore::Changes changes) {
 		const auto client = bool(changes & (Change::Loaded | Change::Client));
+		if (changes & Change::Loaded) {
+			syncHostTheme();
+		}
 		if (changes & Change::Cursor) {
 			cursorChanged(renderer);
 		}
@@ -1683,6 +1815,11 @@ void Runtime::subscribeStill() {
 			bool(changes & Change::Repaint),
 			bool(changes & Change::Client));
 	}, _stillLifetime);
+
+	renderer->keptUpdates(
+	) | rpl::on_next([=] {
+		stillKeptChanged(renderer);
+	}, _stillLifetime);
 }
 
 void Runtime::coreUpdated(
@@ -1697,7 +1834,8 @@ void Runtime::coreUpdated(
 	const auto handoff = (_still != nullptr);
 	if (handoff) {
 		_stillLifetime.destroy();
-		_still = nullptr;
+		_stillKept = false;
+		DropCore(base::take(_still));
 		_keptSerial = 0;
 		_brokenCrashes = 0;
 	}
@@ -1742,7 +1880,12 @@ void Runtime::stillUpdated(
 		bool stopped,
 		bool repaint,
 		bool client) {
-	if (renderer.get() != _still.get() || !currentContent()) {
+	if (renderer.get() != _still.get()) {
+		return;
+	} else if (repaint && _keptSerial) {
+		TrimKept();
+	}
+	if (!currentContent()) {
 		return;
 	}
 	auto limitReached = false;
@@ -1757,15 +1900,18 @@ void Runtime::stillUpdated(
 			base::take(_brokenCrashes));
 		limitReached = countCrash(fatal);
 	}
-	if (repaint && _keptSerial) {
-		TrimKeptPictures();
-	}
 	if (client) {
 		markHeight(true);
 	}
 	displayChanged(repaint);
 	if (limitReached) {
 		_item->history()->owner().requestItemRepaint(_item);
+	}
+}
+
+void Runtime::stillKeptChanged(not_null<RendererCore*> renderer) {
+	if (renderer.get() == _still.get() && base::take(_stillKept)) {
+		addNote(u"Its document kept in the widget helper is gone."_q);
 	}
 }
 
@@ -1881,20 +2027,42 @@ void Runtime::syncHostVisibility() {
 }
 
 void Runtime::syncHostTheme() {
-	if (!_host || _host->theming || SameTheme(*_hostTheme, *_theme)) {
+	if (!_host) {
+		return;
+	} else if (_host->theming) {
+		Test::WidgetThemeSelected(*_host->pointer, *_theme);
 		return;
 	}
-	_hostTheme = _theme;
+	auto observe = Fn<void(twidget::WidgetHost &host)>();
+	if (!SameTheme(*_hostTheme, *_theme)) {
+		_host->observe = nullptr;
+		_hostTheme = _theme;
+		addNote(u"Switched to a new %1 theme."_q.arg(
+			QString::fromStdString(_hostTheme->colorScheme)));
+	} else if (_host->observe && _live && _live->loaded()) {
+		observe = base::take(_host->observe);
+	} else {
+		return;
+	}
+	// One probing job per host at a time, and Sample() keeps only after it.
 	_host->theming = true;
-	addNote(u"Switched to a new %1 theme."_q.arg(
-		QString::fromStdString(_hostTheme->colorScheme)));
 	++Runtimes().jobs;
+	const auto token = observe
+		? uint64()
+		: Test::WidgetThemeScheduled(*_host->pointer, *_hostTheme);
 	crl::async([
 		host = _host,
 		pointer = _host->pointer,
-		theme = _hostTheme
+		theme = _hostTheme,
+		observe = std::move(observe),
+		token
 	]() mutable {
-		ApplyTheme(*pointer, *theme);
+		if (observe) {
+			observe(*pointer);
+			observe = nullptr;
+		} else {
+			ApplyTheme(*pointer, *theme, token);
+		}
 		pointer = nullptr;
 		crl::on_main([host = std::move(host)] {
 			ThemeDone(host);
@@ -1907,6 +2075,8 @@ void Runtime::ThemeDone(const std::shared_ptr<Host> &host) {
 	const auto owner = host->owner.get();
 	if (owner && owner->_host == host) {
 		owner->syncHostTheme();
+	} else if (host->retired && host->pointer) {
+		Sample(host);
 	}
 	JobDone();
 }

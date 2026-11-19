@@ -98,7 +98,8 @@ struct PaintedFrame {
 	QtBackend &backend,
 	QSize deviceSize,
 	float64 cssToDevice,
-	crl::time started = crl::now());
+	crl::time started = crl::now(),
+	Fn<QImage(const Fn<QImage()> &make)> acquire = nullptr);
 
 // The limit, empty when painted, nullopt when |frame| took no painter.
 [[nodiscard]] std::optional<QString> RepaintFrame(

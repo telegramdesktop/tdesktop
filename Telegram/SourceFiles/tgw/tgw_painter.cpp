@@ -328,6 +328,7 @@ private:
 		int clips = 0;
 	};
 
+	[[nodiscard]] bool paint(const twlite::DisplayList &list);
 	[[nodiscard]] bool admitCommand(
 		const twlite::Command &command,
 		int &groups);
@@ -419,6 +420,10 @@ private:
 
 [[nodiscard]] bool ValidFrame(QSize size, float64 scale) {
 	return !size.isEmpty() && std::isfinite(scale) && (scale > 0.);
+}
+
+[[nodiscard]] QString OutOfMemoryLimit() {
+	return u"Out of memory painting a widget frame"_q;
 }
 
 [[nodiscard]] QString RasterTimeLimit(crl::time started) {
@@ -1819,8 +1824,9 @@ QImage ShadowCache::find(const ShadowKey &key) {
 }
 
 void ShadowCache::insert(const ShadowKey &key, QImage image) {
-	_bytes += LayerBytes(image.size());
+	const auto bytes = LayerBytes(image.size());
 	_entries.push_back({ .key = key, .image = std::move(image) });
+	_bytes += bytes;
 	auto evicted = begin(_entries);
 	while (_bytes > kMaxShadowBytes
 		|| end(_entries) - evicted > kMaxShadows) {
@@ -2407,6 +2413,14 @@ Executor::Executor(
 }
 
 bool Executor::run(const twlite::DisplayList &list) {
+	try {
+		return paint(list);
+	} catch (const std::bad_alloc &) {
+		return exceed(OutOfMemoryLimit());
+	}
+}
+
+bool Executor::paint(const twlite::DisplayList &list) {
 	using Cmd = twlite::Cmd;
 	auto passes = int64();
 	auto layers = int64();
@@ -3832,7 +3846,8 @@ PaintedFrame PaintFrame(
 		QtBackend &backend,
 		QSize deviceSize,
 		float64 cssToDevice,
-		crl::time started) {
+		crl::time started,
+		Fn<QImage(const Fn<QImage()> &make)> acquire) {
 	const auto work = backend.work();
 	if (!work.admitted() || backend.refused()) {
 		return { .limit = backend.refusal() };
@@ -3843,7 +3858,10 @@ PaintedFrame PaintFrame(
 	if (!limit.isEmpty()) {
 		return { .limit = std::move(limit) };
 	}
-	auto result = QImage(deviceSize, QImage::Format_ARGB32_Premultiplied);
+	const auto make = [&] {
+		return QImage(deviceSize, QImage::Format_ARGB32_Premultiplied);
+	};
+	auto result = acquire ? acquire(make) : make();
 	if (result.isNull()) {
 		return {};
 	}

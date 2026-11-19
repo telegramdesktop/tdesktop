@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifdef _DEBUG
 
+#include "_other/widget_helper_thread_mac.h"
 #include "platform/posix/widget_channel_posix.h"
 
 #include <CoreAudio/AudioHardware.h>
@@ -37,8 +38,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <fcntl.h>
 #include <libproc.h>
 #include <poll.h>
+#include <pthread.h>
 #include <signal.h>
 #include <spawn.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <gsl/gsl>
@@ -86,6 +89,10 @@ constexpr auto kRowBytes = size_t(2048);
 
 // The Refused reason: SandboxEngine::kRemoteTextLimit is 4000.
 constexpr auto kSummaryBytes = size_t(3900);
+
+// The serving variant's "summary:" row is never cut: its prefix, its label
+// and a whole summary fit in it.
+constexpr auto kSummaryRowBytes = kSummaryBytes + size_t(256);
 
 constexpr auto kChildWait = std::chrono::milliseconds(2000);
 constexpr auto kKillWait = std::chrono::milliseconds(1000);
@@ -165,6 +172,8 @@ struct Arguments {
 	std::vector<std::string> malformed;
 	std::vector<std::string> serviceNames;
 	int loopbackPort = 0;
+	// The serving variant's delay; 0 without a well-formed argument.
+	int renderingMs = 0;
 	bool connectControl = false;
 };
 
@@ -396,6 +405,12 @@ std::string Format(const char *format, ...) {
 	return (status == 0) ? "ok" : Format("status%d", int(status));
 }
 
+// The clock mach_absolute_time() counts, in microseconds, which another
+// process reads the same way.
+[[nodiscard]] uint64_t UptimeMicroseconds() {
+	return clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / 1000;
+}
+
 [[nodiscard]] const char *KernelTypeName(ipc_info_object_type_t type) {
 	switch (type) {
 	case IPC_OTYPE_NONE: return "NONE";
@@ -506,6 +521,19 @@ std::string Format(const char *format, ...) {
 		: -1;
 }
 
+// The whole of |text| as a decimal serving delay in its range, otherwise -1.
+[[nodiscard]] int ParseDelay(std::string_view text) {
+	const auto end = text.data() + text.size();
+	auto value = -1;
+	const auto [parsed, error] = std::from_chars(text.data(), end, value);
+	return (error == std::errc()
+		&& parsed == end
+		&& value >= kWidgetHelperRenderingMinMs
+		&& value <= kWidgetHelperRenderingMaxMs)
+		? value
+		: -1;
+}
+
 [[nodiscard]] Arguments ParseArguments(
 		const std::vector<std::string> &arguments) {
 	auto result = Arguments();
@@ -524,10 +552,25 @@ std::string Format(const char *format, ...) {
 		}
 	}
 	const auto prefix = std::string_view(kWidgetHelperServicePrefix);
+	const auto rendering = std::string_view(kWidgetHelperRenderingPrefix);
 	auto past = 0;
+	auto renderings = 0;
 	for (auto i = size_t(6); i < arguments.size(); ++i) {
 		const auto &argument = arguments[i];
-		if (argument.starts_with(prefix)) {
+		if (argument.starts_with(rendering)) {
+			const auto text = std::string_view(argument).substr(
+				rendering.size());
+			const auto delay = ParseDelay(text);
+			if (++renderings > 1) {
+				result.malformed.push_back("a second rendering argument");
+			} else if (delay > 0) {
+				result.renderingMs = delay;
+			} else {
+				result.malformed.push_back("rendering delay \""
+					+ std::string(text.substr(0, 16))
+					+ "\"");
+			}
+		} else if (argument.starts_with(prefix)) {
 			if (argument.size() > prefix.size()) {
 				result.serviceNames.push_back(argument.substr(prefix.size()));
 			} else {
@@ -635,6 +678,7 @@ public:
 	Report(pid_t pid, const std::string &mode);
 
 	void row(const std::string &text);
+	void summaryRow(const std::string &summary);
 
 	[[nodiscard]] int rows() const;
 	[[nodiscard]] int cut() const;
@@ -642,6 +686,8 @@ public:
 	[[nodiscard]] const std::string &prefix() const;
 
 private:
+	void put(const std::string &text, size_t limit);
+
 	std::string _prefix;
 	int _rows = 0;
 	int _cut = 0;
@@ -654,10 +700,18 @@ Report::Report(pid_t pid, const std::string &mode)
 }
 
 void Report::row(const std::string &text) {
+	put(text, kRowBytes);
+}
+
+void Report::summaryRow(const std::string &summary) {
+	put("summary: " + summary, kSummaryRowBytes);
+}
+
+void Report::put(const std::string &text, size_t limit) {
 	auto line = _prefix + text;
-	if (line.size() > kRowBytes) {
-		const auto dropped = line.size() - kRowBytes;
-		line.resize(kRowBytes);
+	if (line.size() > limit) {
+		const auto dropped = line.size() - limit;
+		line.resize(limit);
 		line += Format(" [row cut, %d bytes dropped]", int(dropped));
 		++_cut;
 	}
@@ -1561,7 +1615,24 @@ class Probe final {
 public:
 	Probe(Arguments arguments, std::function<std::string()> lockdown);
 
-	[[nodiscard]] std::string run();
+	// Everything before the post-lockdown snapshot, the lockdown included,
+	// once.
+	void prepare();
+	// After prepare(): whether the serving variant may answer Ready, a
+	// lockdown that succeeded or the unsandboxed control.
+	[[nodiscard]] bool serves() const;
+	// After prepare(), before the serving variant's thread starts: its row.
+	void announce();
+	// The serving variant's thread: sleeps its delay, then finish(true).
+	void serve();
+	// After prepare(): the post-lockdown snapshot, listing and attempts,
+	// then the end row, once. Returns the summary, the refusal of the
+	// ordinary probe, which |served| writes as a "summary:" row before the
+	// end row instead.
+	std::string finish(bool served);
+	// The serving variant's thread could not start: its failure row, then
+	// finish(false), refusing as the ordinary probe does.
+	[[nodiscard]] std::string unserved(const std::string &error);
 
 private:
 	void begin();
@@ -1626,10 +1697,12 @@ private:
 	void attemptThread();
 	void attemptAfterClose();
 
-	[[nodiscard]] std::string summary() const;
+	// |served|: the serving variant's, its own row before the end row.
+	[[nodiscard]] std::string summary(bool served) const;
 
 	const Arguments _arguments;
-	const std::function<std::string()> _lockdown;
+	// Called once, by lockDown(), and dropped then.
+	std::function<std::string()> _lockdown;
 	const pid_t _pid = 0;
 	const Parent _parent;
 	const pid_t _ppid = 0;
@@ -1666,9 +1739,12 @@ private:
 	std::vector<Attempt> _attempts;
 	Counts _counts;
 	OwnedFd _preopened;
+	uint64_t _announcedAt = 0;
 	int _preopenError = 0;
 	int _incomplete = 0;
 	bool _ownStderrTerminal = false;
+	bool _prepared = false;
+	bool _finished = false;
 
 };
 
@@ -1682,7 +1758,10 @@ Probe::Probe(Arguments arguments, std::function<std::string()> lockdown)
 , _report(_pid, _arguments.mode) {
 }
 
-std::string Probe::run() {
+void Probe::prepare() {
+	if (std::exchange(_prepared, true)) {
+		return;
+	}
 	begin();
 	preopen();
 	_pre = SnapshotMach();
@@ -1720,6 +1799,54 @@ std::string Probe::run() {
 	_ownStderrTerminal = (isatty(STDERR_FILENO) == 1);
 	reportPreLockdown();
 	lockDown();
+}
+
+bool Probe::serves() const {
+	return _prepared
+		&& !_finished
+		&& (_arguments.renderingMs > 0)
+		&& _arguments.malformed.empty()
+		&& (!_locking || _lockdownResult.empty());
+}
+
+void Probe::announce() {
+	_announcedAt = UptimeMicroseconds();
+	_report.row(Format(
+		"rendering: lockdown %s; the probe thread starts and takes the"
+		" post-lockdown listing %d ms after this row while the helper serves"
+		" widgets, uptime-us=%llu",
+		_locking ? "ok" : "skipped (unsandboxed control)",
+		_arguments.renderingMs,
+		(unsigned long long)_announcedAt));
+}
+
+void Probe::serve() {
+	std::this_thread::sleep_for(
+		std::chrono::milliseconds(_arguments.renderingMs));
+	finish(true);
+}
+
+std::string Probe::unserved(const std::string &error) {
+	_report.row("rendering: FAILED the probe thread did not start: "
+		+ error
+		+ "; the listing follows here and the stream is refused");
+	_failures.push_back("rendering: the probe thread did not start: "
+		+ error);
+	return finish(false);
+}
+
+std::string Probe::finish(bool served) {
+	if (!_prepared || std::exchange(_finished, true)) {
+		return std::string("the widget helper probe ran out of order");
+	}
+	if (served) {
+		const auto now = UptimeMicroseconds();
+		_report.row(Format(
+			"rendering: listing begins %llu ms after the first rendering row,"
+			" uptime-us=%llu",
+			(unsigned long long)((now - _announcedAt) / 1000),
+			(unsigned long long)now));
+	}
 	_post = SnapshotMach();
 	readFirehose();
 	if (_referenced.error.empty() && _post.error.empty()) {
@@ -1732,6 +1859,11 @@ std::string Probe::run() {
 #ifdef OS_MAC_STORE
 	attemptLaunchd();
 #endif // OS_MAC_STORE
+	if (served) {
+		_report.row(Format(
+			"rendering: listing ends, uptime-us=%llu; the attempts follow",
+			(unsigned long long)UptimeMicroseconds()));
+	}
 
 	attemptProcesses();
 	attemptNetwork();
@@ -1756,7 +1888,10 @@ std::string Probe::run() {
 	attemptThread();
 	attemptAfterClose();
 
-	auto result = summary();
+	auto result = summary(served);
+	if (served) {
+		_report.summaryRow(result);
+	}
 	_report.row(Format(
 		"end: rows=%d fds=%d mach=%d attempts=%d cut-rows=%d stderr=%s",
 		_report.rows(),
@@ -1771,13 +1906,16 @@ std::string Probe::run() {
 void Probe::begin() {
 	_report.row(Format(
 		"begin: pid=%d ppid=%d mode=%s keychain-account=%s loopback-port=%d"
-		" connect-control=%s malformed=%d",
+		" connect-control=%s rendering=%s malformed=%d",
 		int(_pid),
 		int(_ppid),
 		_arguments.mode.c_str(),
 		_arguments.keychainAccount.empty() ? "absent" : "given",
 		_arguments.loopbackPort,
 		_arguments.connectControl ? "yes" : "no",
+		(_arguments.renderingMs > 0)
+			? Format("%d", _arguments.renderingMs).c_str()
+			: "no",
 		int(_arguments.malformed.size())));
 	for (const auto &malformed : _arguments.malformed) {
 		_report.row("malformed argument: " + malformed);
@@ -1960,9 +2098,10 @@ void Probe::reportPreLockdown() {
 }
 
 void Probe::lockDown() {
+	const auto lockdown = std::exchange(_lockdown, nullptr);
 	if (_locking) {
-		_lockdownResult = _lockdown
-			? _lockdown()
+		_lockdownResult = lockdown
+			? lockdown()
 			: std::string("no lockdown callable");
 		_report.row(_lockdownResult.empty()
 			? std::string("lockdown: ok")
@@ -3600,7 +3739,7 @@ void Probe::attemptAfterClose() {
 		"setrlimit(RLIMIT_NOFILE) above " + current);
 }
 
-std::string Probe::summary() const {
+std::string Probe::summary(bool served) const {
 	const auto clean = _locking
 		&& _lockdownResult.empty()
 		&& _defects.empty()
@@ -3658,6 +3797,9 @@ std::string Probe::summary() const {
 		_state.c_str(),
 		int(_references.size()),
 		stable ? "yes" : "NO");
+	if (served) {
+		head += Format(" rendering=%dms", _arguments.renderingMs);
+	}
 	head += " | inventory: "
 		+ (clean ? std::string("clean") : ("NOT clean (" + verdict + ")"));
 	auto fds = Format("fds %d:", int(_descriptors.list.size()));
@@ -3708,7 +3850,7 @@ std::string Probe::summary() const {
 	}
 	const auto tail = Format(
 		" | full listing on stderr: %d rows, last \"%send\"%s",
-		_report.rows() + 1,
+		_report.rows() + (served ? 2 : 1),
 		_report.prefix().c_str(),
 		complete ? "" : "; this listing is INCOMPLETE");
 
@@ -3763,6 +3905,15 @@ std::string Probe::summary() const {
 	return result + tail;
 }
 
+// The serving variant's thread, which owns its probe and releases it once
+// the probe finished.
+void *ServeProbe(void *raw) {
+	const auto probe = std::unique_ptr<Probe>(static_cast<Probe*>(raw));
+	pthread_setname_np("widget.probe");
+	probe->serve();
+	return nullptr;
+}
+
 } // namespace
 
 std::string RefuseWidgetHelperMode(const std::string &mode) {
@@ -3773,7 +3924,19 @@ std::string RunWidgetHelperProbe(
 		bool,
 		const std::vector<std::string> &arguments,
 		const std::function<std::string()> &lockdown) {
-	return Probe(ParseArguments(arguments), lockdown).run();
+	auto probe = std::make_unique<Probe>(ParseArguments(arguments), lockdown);
+	probe->prepare();
+	if (!probe->serves()) {
+		return probe->finish(false);
+	}
+	probe->announce();
+	const auto raw = probe.release();
+	const auto error = WidgetHelper::StartDetachedThread(ServeProbe, raw);
+	if (error) {
+		probe.reset(raw);
+		return probe->unserved(ErrnoText(error));
+	}
+	return std::string();
 }
 
 } // namespace Test

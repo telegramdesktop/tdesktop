@@ -64,7 +64,7 @@ constexpr auto kMaxReasonBytes = size_t(4096);
 	if (!stream) {
 		Exit("the channel could not be adopted");
 	}
-	Exit(twidget::SandboxRemoteEngineEnd::serve(
+	Exit(WidgetHelper::Serve(
 		*stream,
 		BuildString(),
 		[&] { return Lockdown(arguments); }));

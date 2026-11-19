@@ -31,6 +31,7 @@ public:
 		int height,
 		std::vector<uint8_t> &rgba);
 	void release(int id);
+	void clear();
 	void refill();
 	[[nodiscard]] const QImage *bitmap(int id) const;
 

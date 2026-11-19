@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_media.h"
+#include "tgw/tgw_remote.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/style/style_core_scale.h"
@@ -1290,6 +1291,7 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"violations"_q, r.violations },
 		{ u"ackQueries"_q, r.ackQueries },
 		{ u"ackResults"_q, r.ackResults },
+		{ u"renderedHosts"_q, r.renderedHosts },
 		{ u"fatalFrozen"_q, r.fatalFrozen },
 	};
 }
@@ -2335,8 +2337,11 @@ void ReadChatFocus(ConformanceRun &run) {
 // ---------------------------------------------------------------------
 // One run.
 
+// The host's post-load query and the renderer's answer, or for a hosted
+// host its own rendered acknowledgment, which a Release harness sees.
 [[nodiscard]] bool HostLoaded(const WidgetOpsReading &reading) {
-	return (reading.ackQueries > 0) && (reading.ackResults > 0);
+	return ((reading.ackQueries > 0) && (reading.ackResults > 0))
+		|| (reading.renderedHosts > 0);
 }
 
 // A group run is refused, never injected, when the loaded chat turns out
@@ -2445,9 +2450,10 @@ void StartResultWait(ConformanceRun &run) {
 			NumberText(result.generation),
 			NumberText(result.updates),
 			runtime ? RuntimeStateName(current) : u"no-runtime"_q)
-		+ u" ackQueries=%1 ackResults=%2 frozen=%3"_q.arg(
+		+ u" ackQueries=%1 ackResults=%2 rendered=%3 frozen=%4"_q.arg(
 			NumberText(reading.ackQueries),
 			NumberText(reading.ackResults),
+			NumberText(reading.renderedHosts),
 			NumberText(reading.fatalFrozen));
 	return WantedStatus(state, run, wait)
 		|| (reading.fatalFrozen > 0)
@@ -2529,19 +2535,17 @@ void ReadView(const ConformanceState &state, ConformanceRun &run) {
 			u"the widget loaded, but its runtime showed no core to read "
 				u"the width of"_q);
 	}
-	if (!view.scheme.isEmpty() && (view.scheme != run.theme)) {
-		AddRefusal(
-			run,
-			u"scheme-mismatch"_q,
-			u"the renderer was given the [%1] scheme in a %2 run"_q.arg(
-				view.scheme,
-				run.theme));
-	} else if (view.scheme.isEmpty() && run.loaded && !run.died) {
-		AddRefusal(
-			run,
-			u"scheme-unmeasured"_q,
-			u"the widget loaded, but its newest host's renderer has no "
-				u"scheme reading"_q);
+	const auto target = run.theme.toStdString();
+	const auto theme = Tgw::WidgetsHosted()
+		? CheckWidgetTheme(latest, target)
+		: CheckGivenTheme(latest, target);
+	const auto detail = QString::fromStdString(theme.detail);
+	if (theme.verdict == WidgetThemeVerdict::Wrong) {
+		AddRefusal(run, u"scheme-mismatch"_q, detail);
+	} else if ((theme.verdict == WidgetThemeVerdict::Unobserved)
+		&& run.loaded
+		&& !run.died) {
+		AddRefusal(run, u"scheme-unmeasured"_q, detail);
 	}
 }
 

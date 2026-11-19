@@ -17,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // (test_widget_helper_probe_lockdown.h): on macOS a probe helper lists every
 // descriptor and Mach right it holds after the real lockdown, attempts what
 // the sandbox must deny and refuses the stream with a summary instead of
-// serving any widget; on Linux a probe helper attempts what the lockdown
+// serving any widget, or, in its serving variant, serves widgets and takes
+// that listing and those attempts after a delay while it renders them; on
+// Linux a probe helper attempts what the lockdown
 // must deny in forked copies of itself, then locks itself down for real,
 // writes its readings to stderr and goes on serving widgets; on Windows a
 // probe helper runs its native probe and the harness's own network attempts
@@ -63,6 +65,15 @@ struct WidgetHelperProbeFixture {
 	// libxpc's own named lookup; the direct-download and Linux probes ignore
 	// them, and the Windows one reports them as malformed arguments.
 	QStringList serviceNames;
+	// macOS only: nonzero asks for the serving variant, passed last as
+	// "rendering:<ms>". A helper whose real lockdown succeeded, or the
+	// unsandboxed control, answers Ready and serves widgets, and takes its
+	// post-lockdown listing and attempts that many milliseconds later on a
+	// thread of its own; the helper accepts kWidgetHelperRenderingMinMs to
+	// kWidgetHelperRenderingMaxMs and refuses any other value, passed as
+	// given, as a malformed argument before Ready. Zero passes nothing: the
+	// probe refuses the stream after its listing, as it always did.
+	int renderingDelayMs = 0;
 };
 
 // True for "probe" (lock down, then probe) and "probe-unsandboxed" (the same
@@ -73,8 +84,9 @@ struct WidgetHelperProbeFixture {
 // application-support", the client's working directory and
 // QStandardPaths::GenericDataLocation, then with a |fixture| the keychain
 // account and the loopback port, then "connect-control" when asked, then
-// the network targets, then "service:<name>" for each service name. Empty
-// for any other |mode|: a normal helper gets no arguments. Main thread.
+// the network targets, then "service:<name>" for each service name, then,
+// on macOS, "rendering:<ms>" for a nonzero renderingDelayMs. Empty for any
+// other |mode|: a normal helper gets no arguments. Main thread.
 [[nodiscard]] QStringList WidgetHelperProbeArguments(const QString &mode);
 [[nodiscard]] QStringList WidgetHelperProbeArguments(
 	const QString &mode,

@@ -2298,8 +2298,12 @@ PRIVATE
     test/test_widget_host.h
     test/test_widget_ops.cpp
     test/test_widget_ops.h
+    test/test_widget_ops_check.cpp
+    test/test_widget_ops_hosted.cpp
+    test/test_widget_ops_internal.h
     test/test_widget_paint_policy.cpp
     test/test_widget_paint_policy.h
+    test/test_widget_renderer_forward.h
     test/test_widget_stress.cpp
     test/test_widget_stress.h
     test/test_widget_stress_internal.h
@@ -2320,8 +2324,11 @@ PRIVATE
     tgw/tgw_emoji.h
     tgw/tgw_emoji_images.cpp
     tgw/tgw_emoji_images.h
+    tgw/tgw_hosted_wire.h
     tgw/tgw_intl.cpp
     tgw/tgw_intl.h
+    tgw/tgw_kept_budget.cpp
+    tgw/tgw_kept_budget.h
     tgw/tgw_log_box.cpp
     tgw/tgw_log_box.h
     tgw/tgw_media.cpp
@@ -2338,6 +2345,11 @@ PRIVATE
     tgw/tgw_render_thread.h
     tgw/tgw_renderer.cpp
     tgw/tgw_renderer.h
+    tgw/tgw_renderer_input.cpp
+    tgw/tgw_renderer_input.h
+    tgw/tgw_renderer_platform.cpp
+    tgw/tgw_renderer_platform.h
+    tgw/tgw_renderer_rules.h
     tgw/tgw_renderer_work.cpp
     tgw/tgw_renderer_work.h
     tgw/tgw_resources.cpp

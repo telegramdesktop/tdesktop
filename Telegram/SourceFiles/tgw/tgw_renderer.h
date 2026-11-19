@@ -10,11 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "tgw/tgw_kept_budget.h"
 #include "twidget/gesture_policy.h"
 #include "twidget/renderer.h"
 #include "ui/image/image_prepare.h"
 
 namespace twidget {
+class SandboxHostedWait;
 class WidgetHost;
 struct WalletCall;
 struct WidgetAction;
@@ -25,11 +27,15 @@ struct WidgetRequestOutcome;
 namespace Tgw {
 
 class HostLink;
+class PicturePost;
 class RendererWork;
+class ReportPost;
 struct RendererAnswer;
 struct RendererClaim;
+struct RendererCursor;
 struct RendererLayout;
 struct RendererMenu;
+struct RendererSelection;
 
 inline constexpr auto kMinWidth = 200.;
 inline constexpr auto kMinHeight = 50.;
@@ -97,9 +103,25 @@ public:
 		std::shared_ptr<const twidget::WalletCall> call;
 		bool wallet = false;
 	};
+	struct HostedHandlers {
+		Fn<void(const std::string &message)> message;
+		Fn<void(
+			const std::string &message,
+			Fn<void(std::string answer)> respond)> request;
+		Fn<void(const std::string &reason)> death;
+	};
 
-	RendererCore(double width, double dpr);
+	RendererCore(double width, double dpr, bool hosted = false);
 	~RendererCore();
+
+	[[nodiscard]] uint64 workId() const;
+	[[nodiscard]] std::shared_ptr<twidget::SandboxHostedWait> hostedWait() const;
+	[[nodiscard]] HostedHandlers hostedHandlers(QString stoppedLabel) const;
+	[[nodiscard]] Fn<void(twidget::WidgetHost &host)> keepRoute();
+	void releaseRoute(Fn<void()> done = nullptr);
+	[[nodiscard]] bool routeChecked() const;
+	[[nodiscard]] bool documentGone() const;
+	[[nodiscard]] rpl::producer<> keptUpdates() const;
 
 	[[nodiscard]] twidget::RendererFactory hostFactory() const;
 	[[nodiscard]] auto hostActionHandler() const
@@ -108,7 +130,7 @@ public:
 	[[nodiscard]] WalletHandler hostWalletHandler() const;
 	[[nodiscard]] CopyHandler hostCopyHandler() const;
 	[[nodiscard]] WatchHandler hostWatchHandler() const;
-	void bindHost(std::weak_ptr<twidget::WidgetHost> host);
+	[[nodiscard]] bool bindHost(std::weak_ptr<twidget::WidgetHost> host);
 
 	void detach();
 	[[nodiscard]] bool attached() const;
@@ -182,6 +204,7 @@ private:
 	};
 
 	void hostFrozen();
+	void routeLost();
 	void hostLinkRequest(const LinkRequest &request);
 	void hostBotRequest(const BotRequest &request);
 	void hostCopyText(const std::string &text);
@@ -191,7 +214,11 @@ private:
 
 	void apply(RendererAnswer &&answer);
 	[[nodiscard]] Changes applyLayout(RendererLayout &&layout);
-	[[nodiscard]] Changes applyInput(RendererAnswer &answer);
+	[[nodiscard]] Changes applyInput(
+		std::optional<RendererSelection> &selection,
+		const std::optional<RendererCursor> &cursor);
+	[[nodiscard]] bool applySelection(RendererSelection &selection);
+	void takeReports();
 	[[nodiscard]] Fn<void()> takeMenu(const RendererMenu &menu);
 	[[nodiscard]] Fn<void()> takeClaim(const RendererClaim &claim);
 	void endInput();
@@ -202,7 +229,11 @@ private:
 	void claimDeadline();
 
 	const std::shared_ptr<HostLink> _link;
+	const std::shared_ptr<twidget::SandboxHostedWait> _wait;
+	const std::shared_ptr<ReportPost> _reports;
+	const std::shared_ptr<PicturePost> _pictures;
 	RendererSize _size;
+	std::shared_ptr<const KeptBudget::Pixels> _pixels;
 	QImage _frame;
 	QSize _frameArea;
 	std::optional<double> _height;
@@ -213,6 +244,7 @@ private:
 	rpl::event_stream<BotRequest> _botRequests;
 	rpl::event_stream<std::string> _copyRequests;
 	rpl::event_stream<bool> _watchChanges;
+	rpl::event_stream<> _keptUpdates;
 	std::optional<PendingMenu> _menu;
 	std::optional<PendingClaim> _claim;
 	base::Timer _menuDeadline;
@@ -236,6 +268,8 @@ private:
 	bool _refresh = false;
 	bool _undrawn = false;
 	bool _hasSelection = false;
+	bool _routeChecked = false;
+	bool _documentGone = false;
 
 };
 

@@ -41,6 +41,14 @@ inline constexpr auto kWidgetHelperConnectControl = "connect-control";
 // service for the Mac App Store probe's service listing: "service:<name>".
 inline constexpr auto kWidgetHelperServicePrefix = "service:";
 
+// The prefix of the macOS probe argument after the loopback port that asks
+// for the serving variant: "rendering:<ms>", <ms> a decimal count of
+// milliseconds from kWidgetHelperRenderingMinMs to
+// kWidgetHelperRenderingMaxMs, given at most once, after the service names.
+inline constexpr auto kWidgetHelperRenderingPrefix = "rendering:";
+inline constexpr auto kWidgetHelperRenderingMinMs = 1;
+inline constexpr auto kWidgetHelperRenderingMaxMs = 60000;
+
 // The helper's lockdown hook on macOS, Linux and Windows, called once on
 // serve's thread after the opening was accepted. |arguments| is everything
 // after the helper's path, the token first. With no argument after the
@@ -48,9 +56,9 @@ inline constexpr auto kWidgetHelperServicePrefix = "service:";
 // refuses with it. Any mode but "probe" and "probe-unsandboxed" refuses
 // with its name.
 // On macOS, with "probe" it calls |lockdown| itself between its snapshots
-// and always returns a non-empty report, so the stream is refused and no
-// widget is served; with "probe-unsandboxed" it never calls |lockdown| and
-// refuses the same way. The full listing goes to stderr, one bounded row
+// and, outside the serving variant below, always returns a non-empty
+// report, so the stream is refused and no widget is served; with
+// "probe-unsandboxed" it never calls |lockdown| and refuses the same way. The full listing goes to stderr, one bounded row
 // each, ending with a completion marker; the returned summary stays under
 // the transport's 4000 bytes and says when it is incomplete. The frameworks
 // its attempts call are loaded only after the listing, so the listing
@@ -90,6 +98,23 @@ inline constexpr auto kWidgetHelperServicePrefix = "service:";
 // After the window server attempts one row reads
 // CGPreflightScreenCaptureAccess(), never requesting access or capturing.
 // The direct-download helper ignores "service:<name>" arguments.
+// With one well-formed "rendering:<ms>" and no malformed argument it is the
+// serving variant, for both packages and both stream openings: the same
+// rows up to and including the lockdown's, then, only when that lockdown
+// succeeded with "probe", or with "probe-unsandboxed", which never calls
+// |lockdown|, one "rendering:" row and "", so the helper answers Ready and
+// serves. A detached thread of its own (8 MiB stack, "widget.probe") owns
+// the probe from then on: it sleeps <ms>, then takes the same post-lockdown
+// listing, marked by "rendering:" rows with CLOCK_UPTIME_RAW microseconds
+// at its start and end, before the attempts load any framework, makes the
+// same attempts, writes the summary as one uncut "summary:" row before the
+// end row, and releases the probe; nothing calls |lockdown| again. A failed
+// lockdown, a malformed, out-of-range or repeated "rendering:" argument or
+// any other malformed argument refuses before Ready with the ordinary
+// probe's summary. A thread that cannot start refuses the same way, after
+// its failure row and the rest of the probe run in place. A helper that
+// ends before the delayed probe wrote its end row leaves the listing
+// incomplete.
 // On Linux, with "probe" it first runs three forked copies of the helper,
 // one at a time, each reaped within 2 s or killed: the first makes the
 // seccomp install of |lockdown| fail through an outer filter, so every step

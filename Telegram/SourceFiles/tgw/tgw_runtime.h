@@ -148,7 +148,7 @@ private:
 	static void ThemeDone(const std::shared_ptr<Host> &host);
 	static void WalletAvailabilityChanged(not_null<Main::Session*> session);
 	[[nodiscard]] static Runtime *FindVictim();
-	static void TrimKeptPictures();
+	static void TrimKept();
 
 	[[nodiscard]] bool currentContent() const;
 	[[nodiscard]] bool crashedOut() const;
@@ -172,6 +172,7 @@ private:
 		const QString &error,
 		uint64 storage);
 	void retire(State state, int brokenCrashes = 0);
+	[[nodiscard]] Fn<void(twidget::WidgetHost &host)> keepStill();
 	void stopForCrashes();
 	void fail(const QString &error);
 	void failResources();
@@ -189,6 +190,7 @@ private:
 		bool stopped,
 		bool repaint,
 		bool client);
+	void stillKeptChanged(not_null<RendererCore*> renderer);
 	void linkRequested(
 		not_null<RendererCore*> renderer,
 		const std::string &url,
@@ -271,6 +273,7 @@ private:
 	bool _displayDeferred = false;
 	bool _displayPosted = false;
 	bool _clientPending = false;
+	bool _stillKept = false;
 
 };
 

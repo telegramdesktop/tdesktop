@@ -8,10 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer.h"
 
 #include "base/platform/base_platform_info.h"
+#include "test/test_widget_ops.h"
+#include "tgw/tgw_hosted_wire.h"
 #include "tgw/tgw_render_thread.h"
+#include "tgw/tgw_renderer_input.h"
+#include "tgw/tgw_renderer_platform.h"
 #include "tgw/tgw_renderer_work.h"
 #include "tgw/tgw_touch.h"
 #include "twidget/json.h"
+#include "twidget/sandbox_engine.h"
 #include "twidget/sdk_policy.h"
 #include "twidget/widget_host.h"
 #include "ui/style/style_core_scale.h"
@@ -21,10 +26,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_basic.h"
 
 namespace Tgw {
+namespace {
+
+class KeptSlot final {
+public:
+	KeptSlot(const KeptSlot &other) = delete;
+	KeptSlot &operator=(const KeptSlot &other) = delete;
+	~KeptSlot();
+
+	[[nodiscard]] static std::unique_ptr<KeptSlot> Reserve();
+
+private:
+	KeptSlot() = default;
+
+};
+
+} // namespace
 
 class HostLink final : public std::enable_shared_from_this<HostLink> {
 public:
-	HostLink(not_null<RendererCore*> core, uint64 work);
+	HostLink(
+		not_null<RendererCore*> core,
+		uint64 work,
+		std::optional<double> hosted);
+	HostLink(const HostLink &other) = delete;
+	HostLink &operator=(const HostLink &other) = delete;
+	~HostLink();
 
 	[[nodiscard]] bool attach(not_null<twidget::Renderer*> proxy);
 	void detach(not_null<twidget::Renderer*> proxy);
@@ -32,30 +59,76 @@ public:
 	void forget();
 	[[nodiscard]] bool gone() const;
 	[[nodiscard]] uint64 workId() const;
-	void bindHost(std::weak_ptr<twidget::WidgetHost> host);
+	[[nodiscard]] bool bindHost(std::weak_ptr<twidget::WidgetHost> host);
 	void toHost(const std::string &json);
 	void diag(const std::string &kind, const std::string &detail);
 	[[nodiscard]] std::optional<bool> hostBottom() const;
 	void work(Fn<void(RendererWork&)> task, bool host);
 
+	void toPlatform(std::string message);
+	[[nodiscard]] bool pressPlatform(std::string message);
+	void released();
+	[[nodiscard]] bool reserveKeep();
+	void keep(twidget::WidgetHost &host);
+	void keepDropped();
+	void releaseRoute(Fn<void()> done);
+
 	void postLoaded();
 	void postMessage(twidget::Json message);
 	void postTheme(bool dark);
+	void postFrozen(QString reason, bool fatal);
+	void postDeath(const std::string &reason, QString label);
+	void postTraffic(HostedTraffic traffic);
 	void postLinkRequest(RendererCore::LinkRequest request);
 	void postBotRequest(RendererCore::BotRequest request);
 	void postCopyText(std::string text);
 	void postWatch(bool on);
 
+	static void PostTraffic(
+		const std::weak_ptr<HostLink> &weak,
+		const std::string &message,
+		Fn<void(std::string)> respond);
+
 private:
+	enum class Route : uchar {
+		Local,
+		Pending,
+		Live,
+		Keeping,
+		Kept,
+		Closed,
+	};
+
 	[[nodiscard]] RendererCore *current() const;
+	bool platformSend(std::string &&message, bool press);
+	[[nodiscard]] twidget::HostedKeptRenderer::Observers keptObservers();
+	[[nodiscard]] bool bufferLocked(std::string &&message);
+	void closeLocked();
+	[[nodiscard]] std::vector<Fn<void()>> takeReleasedLocked();
+	void completeRelease(
+		std::unique_ptr<twidget::HostedKeptRenderer> kept,
+		std::unique_ptr<KeptSlot> slot);
+	void markGone();
 
 	const base::weak_ptr<RendererCore> _core;
 	const uint64 _work;
+	const bool _hosted = false;
 	mutable std::mutex _mutex;
 	twidget::Renderer *_proxy = nullptr;
 	std::weak_ptr<twidget::WidgetHost> _host;
+	std::weak_ptr<twidget::WidgetHost> _live;
+	std::unique_ptr<twidget::HostedKeptRenderer> _kept;
+	std::unique_ptr<KeptSlot> _slot;
+	std::vector<std::string> _buffered;
+	std::vector<Fn<void()>> _released;
+	std::size_t _bufferedBytes = 0;
+	int _releases = 0;
+	Route _route = Route::Local;
+	bool _releaseWanted = false;
 	std::atomic<bool> _closed = false;
 	std::atomic<bool> _gone = false;
+	std::atomic<bool> _routeClosed = false;
+	std::atomic<bool> _documentGone = false;
 
 };
 
@@ -66,8 +139,12 @@ constexpr auto kDomAlt = 1;
 constexpr auto kDomCtrl = 2;
 constexpr auto kDomMeta = 4;
 constexpr auto kDomShift = 8;
+constexpr auto kMaxKeptRoutes = 8;
+constexpr auto kMaxBufferedSends = std::size_t(256);
+constexpr auto kMaxBufferedBytes = std::size_t(1) << 20;
 
 auto WorkSerial = uint64(0);
+std::atomic<int> KeptRoutes = 0;
 
 class HostRenderer final : public twidget::Renderer {
 public:
@@ -85,16 +162,58 @@ private:
 
 };
 
+class KeepTicket final {
+public:
+	explicit KeepTicket(std::shared_ptr<HostLink> link);
+	KeepTicket(const KeepTicket &other) = delete;
+	KeepTicket &operator=(const KeepTicket &other) = delete;
+	~KeepTicket();
+
+	void run(twidget::WidgetHost &host);
+
+private:
+	const std::shared_ptr<HostLink> _link;
+	std::atomic<bool> _used = false;
+
+};
+
 [[nodiscard]] bool ValidWidth(double width) {
 	return std::isfinite(width) && (width > 0.);
+}
+
+[[nodiscard]] std::optional<twlite::remote::Kind> SettingKind(
+		std::string_view message) {
+	using Kind = twlite::remote::Kind;
+	constexpr auto kSettings = std::array{
+		Kind::SetWidth,
+		Kind::SetMaxHeight,
+		Kind::ClearSelection,
+	};
+	const auto kind = twlite::remote::kind_of(message);
+	return (kind && ranges::contains(kSettings, *kind))
+		? kind
+		: std::nullopt;
 }
 
 void RespondFailed(const RendererCore::Respond &respond) {
 	respond({ .failure = twidget::WidgetRequestFailure::Failed });
 }
 
-[[nodiscard]] RendererWork::Host HostOf(std::shared_ptr<HostLink> link) {
-	return {
+void PostReleased(std::vector<Fn<void()>> released) {
+	if (released.empty()) {
+		return;
+	}
+	crl::on_main([released = std::move(released)] {
+		for (const auto &done : released) {
+			done();
+		}
+	});
+}
+
+[[nodiscard]] RendererWork::Host HostOf(
+		std::shared_ptr<HostLink> link,
+		bool hosted) {
+	auto result = RendererWork::Host{
 		.send = [=](const std::string &json) {
 			link->toHost(json);
 		},
@@ -108,6 +227,48 @@ void RespondFailed(const RendererCore::Respond &respond) {
 			return link->gone();
 		},
 	};
+	if (hosted) {
+		result.platform = [=](std::string message) {
+			link->toPlatform(std::move(message));
+		};
+		result.press = [=](std::string message) {
+			return link->pressPlatform(std::move(message));
+		};
+		result.released = [=] {
+			link->released();
+		};
+	}
+	return result;
+}
+
+KeptSlot::~KeptSlot() {
+	--KeptRoutes;
+}
+
+std::unique_ptr<KeptSlot> KeptSlot::Reserve() {
+	auto held = KeptRoutes.load();
+	do {
+		if (held >= kMaxKeptRoutes) {
+			return nullptr;
+		}
+	} while (!KeptRoutes.compare_exchange_weak(held, held + 1));
+	return std::unique_ptr<KeptSlot>(new KeptSlot());
+}
+
+KeepTicket::KeepTicket(std::shared_ptr<HostLink> link)
+: _link(std::move(link)) {
+}
+
+KeepTicket::~KeepTicket() {
+	if (!_used) {
+		_link->keepDropped();
+	}
+}
+
+void KeepTicket::run(twidget::WidgetHost &host) {
+	if (!_used.exchange(true)) {
+		_link->keep(host);
+	}
 }
 
 HostRenderer::HostRenderer(std::shared_ptr<HostLink> link)
@@ -166,9 +327,31 @@ int LogicalHeight(double css, int scale) {
 	return int(std::ceil(css * scale / 100.));
 }
 
-HostLink::HostLink(not_null<RendererCore*> core, uint64 work)
+HostLink::HostLink(
+	not_null<RendererCore*> core,
+	uint64 work,
+	std::optional<double> hosted)
 : _core(core)
-, _work(work) {
+, _work(work)
+, _hosted(hosted.has_value()) {
+	if (hosted) {
+		_route = Route::Pending;
+		_buffered.push_back(HostedWire::EncodeOpen(*hosted));
+		_bufferedBytes = _buffered.back().size();
+	}
+}
+
+HostLink::~HostLink() {
+	if (_kept || _slot) {
+		crl::async([
+			kept = std::move(_kept),
+			slot = std::move(_slot)
+		]() mutable {
+			kept = nullptr;
+			slot = nullptr;
+		});
+	}
+	PostReleased(base::take(_released));
 }
 
 bool HostLink::attach(not_null<twidget::Renderer*> proxy) {
@@ -207,11 +390,29 @@ uint64 HostLink::workId() const {
 	return _work;
 }
 
-void HostLink::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
+bool HostLink::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
 	auto lock = std::lock_guard(_mutex);
-	if (!_closed) {
-		_host = std::move(host);
+	if (_route == Route::Local) {
+		if (!_closed) {
+			_host = std::move(host);
+		}
+		return true;
+	} else if (_route != Route::Pending) {
+		return false;
 	}
+	const auto strong = host.lock();
+	if (!strong) {
+		return false;
+	} else if (!_closed) {
+		_host = host;
+	}
+	_live = std::move(host);
+	_route = Route::Live;
+	for (auto &message : base::take(_buffered)) {
+		strong->sendPlatform(std::move(message));
+	}
+	_bufferedBytes = 0;
+	return true;
 }
 
 void HostLink::toHost(const std::string &json) {
@@ -225,6 +426,8 @@ void HostLink::diag(const std::string &kind, const std::string &detail) {
 	auto lock = std::lock_guard(_mutex);
 	if (_proxy && _proxy->onDiag) {
 		_proxy->onDiag(kind, detail);
+	} else if (const auto host = _live.lock()) {
+		host->platformDiag(kind, detail);
 	}
 }
 
@@ -267,6 +470,257 @@ void HostLink::work(Fn<void(RendererWork&)> task, bool host) {
 	});
 }
 
+void HostLink::toPlatform(std::string message) {
+	platformSend(std::move(message), false);
+}
+
+bool HostLink::pressPlatform(std::string message) {
+	return platformSend(std::move(message), true);
+}
+
+bool HostLink::platformSend(std::string &&message, bool press) {
+	auto lost = false;
+	auto live = false;
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (_routeClosed) {
+			return false;
+		}
+		switch (_route) {
+		case Route::Pending:
+		case Route::Keeping:
+			lost = !bufferLocked(std::move(message));
+			break;
+		case Route::Live:
+			if (const auto host = _live.lock()) {
+				if (press) {
+					host->sendPlatformPress(std::move(message));
+					live = true;
+				} else {
+					host->sendPlatform(std::move(message));
+				}
+			} else {
+				lost = true;
+			}
+			break;
+		case Route::Kept:
+			_kept->sendPlatform(std::move(message));
+			break;
+		case Route::Local:
+		case Route::Closed:
+			break;
+		}
+	}
+	if (lost) {
+		releaseRoute(nullptr);
+	}
+	return live;
+}
+
+void HostLink::released() {
+	auto lock = std::lock_guard(_mutex);
+	if (_route != Route::Live) {
+		return;
+	} else if (const auto host = _live.lock()) {
+		host->releaseDelivered();
+	}
+}
+
+bool HostLink::reserveKeep() {
+	auto lock = std::lock_guard(_mutex);
+	if (_route != Route::Live || _slot || _live.expired()) {
+		return false;
+	}
+	_slot = KeptSlot::Reserve();
+	return (_slot != nullptr);
+}
+
+void HostLink::keep(twidget::WidgetHost &host) {
+	auto slot = std::unique_ptr<KeptSlot>();
+	auto released = std::vector<Fn<void()>>();
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (!_slot) {
+			return;
+		} else if (_route == Route::Live && _live.lock().get() == &host) {
+			_route = Route::Keeping;
+		} else {
+			slot = base::take(_slot);
+			closeLocked();
+			released = takeReleasedLocked();
+		}
+	}
+	if (slot) {
+		slot = nullptr;
+		PostReleased(std::move(released));
+		markGone();
+		return;
+	}
+	auto kept = host.keepRenderer(keptObservers());
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (kept && !_releaseWanted) {
+			_kept = std::move(kept);
+			_route = Route::Kept;
+			_live.reset();
+			for (auto &message : base::take(_buffered)) {
+				_kept->sendPlatform(std::move(message));
+			}
+			_bufferedBytes = 0;
+			return;
+		}
+		_releaseWanted = false;
+		slot = base::take(_slot);
+		closeLocked();
+		++_releases;
+	}
+	markGone();
+	completeRelease(std::move(kept), std::move(slot));
+}
+
+void HostLink::keepDropped() {
+	auto slot = std::unique_ptr<KeptSlot>();
+	auto released = std::vector<Fn<void()>>();
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (!_slot || _route == Route::Keeping || _route == Route::Kept) {
+			return;
+		}
+		slot = base::take(_slot);
+		closeLocked();
+		released = takeReleasedLocked();
+	}
+	slot = nullptr;
+	PostReleased(std::move(released));
+	markGone();
+}
+
+void HostLink::releaseRoute(Fn<void()> done) {
+	auto kept = std::unique_ptr<twidget::HostedKeptRenderer>();
+	auto slot = std::unique_ptr<KeptSlot>();
+	auto released = std::vector<Fn<void()>>();
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (done) {
+			_released.push_back(std::move(done));
+		}
+		if (_route == Route::Keeping) {
+			_releaseWanted = true;
+			_routeClosed = true;
+			_buffered.clear();
+			_bufferedBytes = 0;
+		} else {
+			if (_route == Route::Kept) {
+				kept = base::take(_kept);
+				slot = base::take(_slot);
+				++_releases;
+			}
+			closeLocked();
+		}
+		released = takeReleasedLocked();
+	}
+	if (kept) {
+		crl::async([
+			link = shared_from_this(),
+			kept = std::move(kept),
+			slot = std::move(slot)
+		]() mutable {
+			link->completeRelease(std::move(kept), std::move(slot));
+		});
+	}
+	PostReleased(std::move(released));
+	if (_hosted) {
+		markGone();
+	}
+}
+
+twidget::HostedKeptRenderer::Observers HostLink::keptObservers() {
+	const auto weak = weak_from_this();
+	return {
+		.onPlatformMessage = [=](const std::string &message) {
+			PostTraffic(weak, message, nullptr);
+		},
+		.onPlatformRequest = [=](
+				const std::string &message,
+				Fn<void(std::string answer)> respond) {
+			PostTraffic(weak, message, std::move(respond));
+		},
+		.onEnded = [=](const std::string &) {
+			crl::async([=] {
+				if (const auto link = weak.lock()) {
+					link->releaseRoute(nullptr);
+				}
+			});
+		},
+	};
+}
+
+bool HostLink::bufferLocked(std::string &&message) {
+	if (const auto kind = SettingKind(message)) {
+		for (auto i = _buffered.rbegin(); i != _buffered.rend(); ++i) {
+			const auto was = SettingKind(*i);
+			if (!was) {
+				break;
+			} else if (*was == *kind) {
+				_bufferedBytes -= i->size();
+				_buffered.erase(std::next(i).base());
+				break;
+			}
+		}
+	}
+	if ((_buffered.size() >= kMaxBufferedSends)
+		|| (message.size() > kMaxBufferedBytes - _bufferedBytes)) {
+		return false;
+	}
+	_bufferedBytes += message.size();
+	_buffered.push_back(std::move(message));
+	return true;
+}
+
+void HostLink::closeLocked() {
+	if (_route != Route::Local) {
+		_route = Route::Closed;
+	}
+	_routeClosed = true;
+	_buffered.clear();
+	_bufferedBytes = 0;
+	_live.reset();
+}
+
+std::vector<Fn<void()>> HostLink::takeReleasedLocked() {
+	return (_slot || _releases > 0)
+		? std::vector<Fn<void()>>()
+		: base::take(_released);
+}
+
+void HostLink::completeRelease(
+		std::unique_ptr<twidget::HostedKeptRenderer> kept,
+		std::unique_ptr<KeptSlot> slot) {
+	kept = nullptr;
+	slot = nullptr;
+	auto released = std::vector<Fn<void()>>();
+	{
+		auto lock = std::lock_guard(_mutex);
+		--_releases;
+		released = takeReleasedLocked();
+	}
+	PostReleased(std::move(released));
+}
+
+void HostLink::markGone() {
+	if (_documentGone.exchange(true)) {
+		return;
+	}
+	work([](RendererWork &work) {
+		work.routeEnded();
+	}, false);
+	crl::on_main([link = shared_from_this()] {
+		if (const auto core = link->_core.get()) {
+			core->routeLost();
+		}
+	});
+}
+
 void HostLink::postLoaded() {
 	work([](RendererWork &work) {
 		work.hostLoaded();
@@ -278,17 +732,9 @@ void HostLink::postMessage(twidget::Json message) {
 		// WHY: HtmlWidget::drawStopped() paints the themed stop pill; the
 		// core's own freeze would rebuild its badge and fatal dimming into
 		// the last frame, so the core never sees this message.
-		const auto reason = QString::fromStdString(
-			message["reason"].asString());
-		const auto fatal = message["fatal"].asBool();
-		crl::on_main([link = shared_from_this()] {
-			if (const auto core = link->current()) {
-				core->hostFrozen();
-			}
-		});
-		work([=](RendererWork &work) {
-			work.freeze(reason, fatal);
-		}, true);
+		postFrozen(
+			QString::fromStdString(message["reason"].asString()),
+			message["fatal"].asBool());
 		return;
 	}
 	work([message = std::move(message)](RendererWork &work) {
@@ -300,6 +746,52 @@ void HostLink::postTheme(bool dark) {
 	work([=](RendererWork &work) {
 		work.hostTheme(dark);
 	}, true);
+}
+
+void HostLink::postFrozen(QString reason, bool fatal) {
+	crl::on_main([link = shared_from_this()] {
+		if (const auto core = link->current()) {
+			core->hostFrozen();
+		}
+	});
+	work([=](RendererWork &work) {
+		work.freeze(reason, fatal);
+	}, true);
+}
+
+void HostLink::postDeath(const std::string &, QString label) {
+	postFrozen(std::move(label), true);
+}
+
+void HostLink::postTraffic(HostedTraffic traffic) {
+	if (_gone || _routeClosed) {
+		return;
+	}
+	PostToRenderThread([
+		link = shared_from_this(),
+		shared = std::make_shared<HostedTraffic>(std::move(traffic))
+	] {
+		if (link->_gone || link->_routeClosed) {
+			return;
+		} else if (const auto work = RendererWork::Find(link->_work)) {
+			work->platformTraffic(std::move(*shared));
+		}
+	});
+}
+
+void HostLink::PostTraffic(
+		const std::weak_ptr<HostLink> &weak,
+		const std::string &message,
+		Fn<void(std::string)> respond) {
+	const auto delivery = twidget::WidgetHost::platformDelivery();
+	auto traffic = HostedTraffic(
+		message,
+		delivery.hold,
+		delivery.request,
+		std::move(respond));
+	if (const auto link = weak.lock()) {
+		link->postTraffic(std::move(traffic));
+	}
 }
 
 void HostLink::postLinkRequest(RendererCore::LinkRequest request) {
@@ -336,8 +828,16 @@ void HostLink::postWatch(bool on) {
 	});
 }
 
-RendererCore::RendererCore(double width, double dpr)
-: _link(std::make_shared<HostLink>(this, ++WorkSerial))
+RendererCore::RendererCore(double width, double dpr, bool hosted)
+: _link(std::make_shared<HostLink>(
+	this,
+	++WorkSerial,
+	(hosted
+		? std::make_optional(RendererWork::DeviceRatio(dpr))
+		: std::nullopt)))
+, _wait(hosted ? std::make_shared<twidget::SandboxHostedWait>() : nullptr)
+, _reports(hosted ? std::make_shared<ReportPost>() : nullptr)
+, _pictures(hosted ? std::make_shared<PicturePost>() : nullptr)
 , _size{ .width = ValidWidth(width) ? width : kFallbackWidth }
 , _menuDeadline([=] { menuDeadline(); })
 , _claimDeadline([=] { claimDeadline(); }) {
@@ -352,7 +852,10 @@ RendererCore::RendererCore(double width, double dpr)
 		chat = base::make_weak(this),
 		width = _size.width,
 		dpr,
-		values = std::move(values)
+		values = std::move(values),
+		wait = _wait,
+		reports = _reports,
+		pictures = _pictures
 	] {
 		if (!link->gone()) {
 			RendererWork::Create(
@@ -361,17 +864,82 @@ RendererCore::RendererCore(double width, double dpr)
 				width,
 				dpr,
 				values,
-				HostOf(link));
+				HostOf(link, (wait != nullptr)),
+				(wait
+					? std::make_optional(RendererHosted{
+						.wait = wait,
+						.reports = reports,
+						.pictures = pictures,
+					})
+					: std::nullopt));
 		}
 	});
 }
 
 RendererCore::~RendererCore() {
+	if (_pictures) {
+		_pictures->close();
+	}
 	_link->close();
 	_link->forget();
+	_link->releaseRoute(nullptr);
 	PostToRenderThread([id = _link->workId()] {
 		RendererWork::Destroy(id);
 	});
+}
+
+uint64 RendererCore::workId() const {
+	return _link->workId();
+}
+
+std::shared_ptr<twidget::SandboxHostedWait> RendererCore::hostedWait() const {
+	return _wait;
+}
+
+RendererCore::HostedHandlers RendererCore::hostedHandlers(
+		QString stoppedLabel) const {
+	const auto weak = std::weak_ptr<HostLink>(_link);
+	return {
+		.message = [=](const std::string &message) {
+			HostLink::PostTraffic(weak, message, nullptr);
+		},
+		.request = [=](
+				const std::string &message,
+				Fn<void(std::string answer)> respond) {
+			HostLink::PostTraffic(weak, message, std::move(respond));
+		},
+		.death = [=](const std::string &reason) {
+			if (const auto link = weak.lock()) {
+				link->postDeath(reason, stoppedLabel);
+			}
+		},
+	};
+}
+
+Fn<void(twidget::WidgetHost &host)> RendererCore::keepRoute() {
+	if (!_wait || _routeChecked || _documentGone || !_link->reserveKeep()) {
+		return nullptr;
+	}
+	const auto ticket = std::make_shared<KeepTicket>(_link);
+	return [=](twidget::WidgetHost &host) {
+		ticket->run(host);
+	};
+}
+
+void RendererCore::releaseRoute(Fn<void()> done) {
+	_link->releaseRoute(std::move(done));
+}
+
+bool RendererCore::routeChecked() const {
+	return _routeChecked;
+}
+
+bool RendererCore::documentGone() const {
+	return _documentGone;
+}
+
+rpl::producer<> RendererCore::keptUpdates() const {
+	return _keptUpdates.events();
 }
 
 twidget::RendererFactory RendererCore::hostFactory() const {
@@ -432,14 +1000,18 @@ RendererCore::WatchHandler RendererCore::hostWatchHandler() const {
 	};
 }
 
-void RendererCore::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
-	_link->bindHost(std::move(host));
+bool RendererCore::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
+	return _link->bindHost(std::move(host));
 }
 
 void RendererCore::detach() {
 	_detached = true;
+	Test::WidgetCoreDetached(workId());
 	endInput();
 	forgetSelection();
+	if (_reports) {
+		_reports->close();
+	}
 	_link->close();
 	work([](RendererWork &work) {
 		work.detach();
@@ -503,6 +1075,7 @@ void RendererCore::pointerPress(QPointF point, int modifiers) {
 	forgetSelection();
 	const auto serial = ++_pointerSerial;
 	const auto selection = _selectionSerial;
+	Test::WidgetPressDispatched(workId(), serial);
 	work([=](RendererWork &work) {
 		work.pointerPress(point, modifiers, serial, selection);
 	});
@@ -685,7 +1258,8 @@ QImage RendererCore::frame(QSize cardArea) {
 		&& (_frameSerial == _sizeSerial)
 		&& (_frameArea == cardArea)
 		&& (_frame.devicePixelRatio() == style::DevicePixelRatio());
-	if (base::take(_refresh) || !held) {
+	const auto outdated = _pictures && _pictures->takeOutdated();
+	if (base::take(_refresh) || outdated || !held) {
 		work([](RendererWork &work) {
 			work.demand();
 		});
@@ -706,6 +1280,7 @@ int64 RendererCore::frameBytes() const {
 
 void RendererCore::dropFrame() {
 	_frame = QImage();
+	_pixels = nullptr;
 	_frameArea = QSize();
 	_refresh = false;
 	work([epoch = ++_epoch](RendererWork &work) {
@@ -747,6 +1322,15 @@ void RendererCore::hostFrozen() {
 	_frozen = true;
 	endInput();
 	forgetSelection();
+	if (_reports) {
+		_reports->close();
+	}
+}
+
+void RendererCore::routeLost() {
+	if (!std::exchange(_documentGone, true)) {
+		_keptUpdates.fire({});
+	}
 }
 
 void RendererCore::hostLinkRequest(const LinkRequest &request) {
@@ -784,6 +1368,9 @@ void RendererCore::work(Fn<void(RendererWork&)> task) const {
 }
 
 void RendererCore::apply(RendererAnswer &&answer) {
+	if (answer.closed && !std::exchange(_routeChecked, true)) {
+		_link->releaseRoute(nullptr);
+	}
 	auto changes = Changes();
 	if (answer.state.hasContent && !_hasContent) {
 		_hasContent = true;
@@ -795,6 +1382,11 @@ void RendererCore::apply(RendererAnswer &&answer) {
 	}
 	if (answer.layout) {
 		changes |= applyLayout(std::move(*answer.layout));
+	} else if (_pictures) {
+		const auto post = answer.post;
+		if (auto layout = _pictures->take(post, _sizeSerial, _epoch)) {
+			changes |= applyLayout(std::move(*layout));
+		}
 	}
 	if (answer.stop && !_stopped) {
 		_stopped = true;
@@ -806,9 +1398,12 @@ void RendererCore::apply(RendererAnswer &&answer) {
 		}
 		endInput();
 		forgetSelection();
+		if (_reports) {
+			_reports->close();
+		}
 	}
 	if (!_detached && !refusesHost()) {
-		changes |= applyInput(answer);
+		changes |= applyInput(answer.selection, answer.cursor);
 	}
 	const auto decided = answer.menu
 		? takeMenu(*answer.menu)
@@ -842,32 +1437,56 @@ RendererCore::Changes RendererCore::applyLayout(RendererLayout &&layout) {
 	}
 	_heightBottom = layout.bottom;
 	_frame = std::move(layout.picture);
+	_pixels = std::move(layout.pixels);
+	if (_pixels) {
+		_pixels->dequeue();
+	}
 	_frameArea = layout.area;
 	_frameSerial = layout.serial;
 	_undrawn = true;
 	return result;
 }
 
-RendererCore::Changes RendererCore::applyInput(RendererAnswer &answer) {
+RendererCore::Changes RendererCore::applyInput(
+		std::optional<RendererSelection> &selection,
+		const std::optional<RendererCursor> &cursor) {
 	auto result = Changes();
-	if (const auto &cursor = answer.cursor) {
+	if (selection && applySelection(*selection)) {
+		result |= Change::Selection;
+	}
+	if (cursor) {
 		const auto current = (cursor->serial == _pointerSerial);
 		if ((current || !cursor->hand) && (_input.hand != cursor->hand)) {
 			_input.hand = cursor->hand;
 			result |= Change::Cursor;
 		}
 	}
-	if (auto &selection = answer.selection) {
-		const auto current = (selection->serial == _selectionSerial);
-		if (current
-			&& ((_hasSelection != selection->has)
-				|| (_selectedText != selection->text))) {
-			_hasSelection = selection->has;
-			_selectedText = std::move(selection->text);
-			result |= Change::Selection;
-		}
-	}
 	return result;
+}
+
+bool RendererCore::applySelection(RendererSelection &selection) {
+	if ((selection.serial != _selectionSerial)
+		|| ((_hasSelection == selection.has)
+			&& (_selectedText == selection.text))) {
+		return false;
+	}
+	_hasSelection = selection.has;
+	_selectedText = std::move(selection.text);
+	return true;
+}
+
+void RendererCore::takeReports() {
+	if (!_reports) {
+		return;
+	}
+	auto latest = _reports->take();
+	if (_detached || refusesHost()) {
+		return;
+	}
+	const auto changes = applyInput(latest.selection, latest.cursor);
+	if (changes) {
+		_updates.fire_copy(changes);
+	}
 }
 
 Fn<void()> RendererCore::takeMenu(const RendererMenu &menu) {

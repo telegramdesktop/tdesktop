@@ -25,7 +25,7 @@ public:
 
 	class Work final {
 	public:
-		explicit Work(not_null<WidgetMeter*> meter);
+		Work(not_null<WidgetMeter*> meter, bool refuseHeld);
 		Work(const Work &) = delete;
 		Work &operator=(const Work &) = delete;
 		~Work();
@@ -40,12 +40,16 @@ public:
 
 	};
 
+	using Publish = Fn<void(float64 seconds)>;
+
 	explicit WidgetMeter(Fn<void(QString)> refuse);
 
 	[[nodiscard]] Operation operation();
 	[[nodiscard]] Work work();
+	[[nodiscard]] Work workUnlessHeld();
 	void input();
 	[[nodiscard]] crl::time heldFor() const;
+	void publish(Publish release, Publish exemption);
 
 private:
 	struct Charge {
@@ -54,12 +58,14 @@ private:
 		int heavy = 0;
 	};
 
-	[[nodiscard]] bool admit();
+	[[nodiscard]] bool admit(bool refuseHeld);
 	void spend(crl::profile_time spent);
 	void close();
 	void charge(float64 seconds);
 
 	const Fn<void(QString)> _refuse;
+	Publish _release;
+	Publish _exemption;
 	std::deque<Charge> _charges;
 	float64 _first = -1.;
 	float64 _until = 0.;

@@ -1698,6 +1698,12 @@ void Canvases::release(int id) {
 	_sizes.remove(id);
 }
 
+void Canvases::clear() {
+	TotalBytes() -= base::take(_bytes);
+	base::take(_bitmaps);
+	base::take(_sizes);
+}
+
 void Canvases::refill() {
 	_allowance = PaintAllowance();
 	_pixels = kMaxPixelWork;

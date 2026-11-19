@@ -36,10 +36,10 @@ WidgetMeter::Operation::~Operation() {
 	_meter->close();
 }
 
-WidgetMeter::Work::Work(not_null<WidgetMeter*> meter)
+WidgetMeter::Work::Work(not_null<WidgetMeter*> meter, bool refuseHeld)
 : _meter(meter)
 , _outermost(!meter->_works++)
-, _admitted(!_outermost || meter->admit())
+, _admitted(!_outermost || meter->admit(refuseHeld))
 , _started((_outermost && _admitted) ? crl::profile() : 0) {
 }
 
@@ -63,11 +63,18 @@ WidgetMeter::Operation WidgetMeter::operation() {
 }
 
 WidgetMeter::Work WidgetMeter::work() {
-	return Work(this);
+	return Work(this, true);
+}
+
+WidgetMeter::Work WidgetMeter::workUnlessHeld() {
+	return Work(this, false);
 }
 
 void WidgetMeter::input() {
 	_input = Now();
+	if (_exemption) {
+		_exemption(kInputImmediate);
+	}
 }
 
 crl::time WidgetMeter::heldFor() const {
@@ -79,15 +86,29 @@ crl::time WidgetMeter::heldFor() const {
 	return crl::time(std::ceil((_until - now) * 1000.));
 }
 
-bool WidgetMeter::admit() {
+void WidgetMeter::publish(Publish release, Publish exemption) {
+	_release = std::move(release);
+	_exemption = std::move(exemption);
+	const auto now = Now();
+	if (_release && (_until > now)) {
+		_release(_until - now);
+	}
+	const auto since = now - _input;
+	if (_exemption && (_input >= 0.) && (since < kInputImmediate)) {
+		_exemption(kInputImmediate - since);
+	}
+}
+
+bool WidgetMeter::admit(bool refuseHeld) {
 	if (_operations > 0) {
 		return true;
 	}
 	const auto held = heldFor();
 	if (!held) {
 		return true;
+	} else if (refuseHeld) {
+		_refuse(PaintLimit(u"a request while held for %1 ms"_q.arg(held), 0));
 	}
-	_refuse(PaintLimit(u"a request while held for %1 ms"_q.arg(held), 0));
 	return false;
 }
 
@@ -140,6 +161,9 @@ void WidgetMeter::charge(float64 seconds) {
 		? kSustainedFactor
 		: kThrottleFactor;
 	_until = std::max(_until, now) + seconds * factor;
+	if (_release) {
+		_release(_until - now);
+	}
 }
 
 } // namespace Tgw

@@ -18,7 +18,11 @@
 # There is no packaged branch: no distribution ships this library.
 
 add_library(lib_widget_renderer STATIC)
-init_target(lib_widget_renderer "(external)")
+if (APPLE)
+    init_standalone_target(lib_widget_renderer "(external)")
+else()
+    init_target(lib_widget_renderer "(external)")
+endif()
 
 add_library(tdesktop::lib_widget_renderer ALIAS lib_widget_renderer)
 
@@ -78,10 +82,18 @@ PRIVATE
     filters.h
     paint_policy.cpp
     paint_policy.h
+    platform_end.cpp
+    platform_end.h
     png.cpp
     png.h
+    remote.cpp
+    remote.h
     renderer.cpp
     renderer.h
+    renderer_end.cpp
+    renderer_end.h
+    wire.cpp
+    wire.h
 )
 
 target_include_directories(lib_widget_renderer

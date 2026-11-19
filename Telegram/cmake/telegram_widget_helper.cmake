@@ -22,6 +22,8 @@ PRIVATE
     _other/widget_helper_linux.cpp
     _other/widget_helper_mac.cpp
     _other/widget_helper_service_mac.cpp
+    _other/widget_helper_thread_mac.cpp
+    _other/widget_helper_thread_mac.h
     _other/widget_helper_win.cpp
     platform/linux/widget_descriptors_linux.cpp
     platform/linux/widget_descriptors_linux.h
@@ -60,6 +62,34 @@ PRIVATE
     tdesktop::lib_widget_sandbox
     desktop-app::external_gsl
 )
+
+set(widget_helper_renders OFF)
+if (APPLE)
+    set(widget_helper_renders ON)
+endif()
+
+if (widget_helper_renders)
+    nice_target_sources(TelegramWidgetHelper ${src_loc}
+    PRIVATE
+        _other/widget_helper_renderer.cpp
+        test/test_widget_helper_tap.cpp
+        test/test_widget_helper_tap.h
+        test/test_widget_renderer_forward.h
+        tgw/tgw_cursor.cpp
+        tgw/tgw_cursor.h
+        tgw/tgw_hosted_glue.cpp
+        tgw/tgw_hosted_glue.h
+        tgw/tgw_hosted_wire.h
+        tgw/tgw_renderer_rules.h
+    )
+    target_link_libraries(TelegramWidgetHelper PRIVATE tdesktop::lib_widget_renderer)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_WIDGET_HELPER_RENDERS)
+else()
+    nice_target_sources(TelegramWidgetHelper ${src_loc}
+    PRIVATE
+        _other/widget_helper_serve.cpp
+    )
+endif()
 
 if (WIN32)
     if (build_winarm)

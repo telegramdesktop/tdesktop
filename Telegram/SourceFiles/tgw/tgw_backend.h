@@ -8,9 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/src/backend.h"
+#include "tgw/tgw_renderer_rules.h"
 #include "tgw/tgw_widget_meter.h"
 
 #include <QtGui/QFontMetricsF>
+
+namespace twidget {
+class SandboxHostedWait;
+} // namespace twidget
 
 namespace Tgw {
 
@@ -78,16 +83,20 @@ public:
 	[[nodiscard]] QSizeF imageSize(int id) const;
 	[[nodiscard]] const QImage *canvas(int id) const;
 	[[nodiscard]] const EmojiAccount &emoji() const;
-	void beginFrame();
+	bool beginFrame();
 	[[nodiscard]] int canvasFont(
 		const std::string &css,
 		twlite::FontMetrics &metrics);
+	void noteCanvasFontRefused();
 	void releaseCanvasFonts();
+	void releaseLive();
 
 	[[nodiscard]] WidgetMeter::Operation operation();
 	[[nodiscard]] WidgetMeter::Work work();
+	[[nodiscard]] WidgetMeter::Work workUnlessHeld();
 	[[nodiscard]] crl::time heldFor() const;
 	void input();
+	void publishWaits(std::shared_ptr<twidget::SandboxHostedWait> wait);
 	[[nodiscard]] bool refused() const;
 	[[nodiscard]] const QString &refusal() const;
 
@@ -104,6 +113,7 @@ private:
 		twlite::FontMetrics metrics;
 	};
 
+	[[nodiscard]] bool serves(const WidgetMeter::Work &work) const;
 	[[nodiscard]] int makeFont(
 		FontKey key,
 		twlite::FontMetrics &out,
@@ -121,7 +131,7 @@ private:
 	base::flat_map<int, QtFont> _fonts;
 	base::flat_map<int, Image> _images;
 	base::flat_map<FontKey, CachedFont> _canvasFonts;
-	base::flat_map<std::string, FontKey> _canvasSpellings;
+	RendererRules::CanvasSpellings<FontKey> _canvasSpellings;
 	const std::unique_ptr<Canvases> _canvases;
 	const std::unique_ptr<EmojiAccount> _emoji;
 	WidgetMeter _meter;
@@ -130,8 +140,8 @@ private:
 	int64 _imageBytes = 0;
 	int _lastFontId = 0;
 	int _canvasFontsLeft = 0;
-	int _canvasParsesLeft = 0;
 	bool _canvasFontLimitNoted = false;
+	bool _released = false;
 
 };
 
