@@ -184,7 +184,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin b1c24a16a6b98b52fb79f2608570c347cf1ceca1
+git fetch --depth=1 origin 69f23a834024d6064da209076151393582b3c966
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -629,8 +629,11 @@ COPY --link --from=xv /usr/src/xv-cache /
 COPY --link --from=nv-codec-headers /usr/src/nv-codec-headers-cache /
 
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
-git clone -b n8.1.3 --depth=1 https://github.com/FFmpeg/FFmpeg.git
+git init FFmpeg
 cd FFmpeg
+git remote add origin https://github.com/FFmpeg/FFmpeg.git
+git fetch --depth=1 origin e22a4510c982b048945052bd6a503475014b7ba0
+git reset --hard FETCH_HEAD
 find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply
 ./configure \
 	--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \

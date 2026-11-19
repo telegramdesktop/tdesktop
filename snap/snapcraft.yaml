@@ -124,7 +124,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: b1c24a16a6b98b52fb79f2608570c347cf1ceca1
+    source-commit: 69f23a834024d6064da209076151393582b3c966
     plugin: nil
     override-pull: |
       craftctl default
@@ -151,7 +151,7 @@ parts:
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
-    source-branch: n8.1.3
+    source-commit: e22a4510c982b048945052bd6a503475014b7ba0
     plugin: autotools
     build-packages:
       - nasm
