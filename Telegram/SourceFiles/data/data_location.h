@@ -57,6 +57,7 @@ private:
 
 };
 
+[[nodiscard]] int ComputeLocationScale();
 [[nodiscard]] GeoPointLocation ComputeLocation(const LocationPoint &point);
 
 } // namespace Data
