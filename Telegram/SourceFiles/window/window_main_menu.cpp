@@ -107,6 +107,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
 
+#include <array>
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -125,11 +127,11 @@ namespace {
 // side: 0 слева, 1 справа, 2 сверху, 3 снизу.
 class DockButton final : public Ui::AbstractButton {
 public:
-	DockButton(QWidget *parent, int side, int size = 36)
+	DockButton(QWidget *parent, int side, int size)
 	: AbstractButton(parent)
 	, _side(side) {
 		setPointerCursor(true);
-		resize(style::ConvertScale(size), style::ConvertScale(size));
+		resize(size, size);
 		Mokagram::Settings::Changed() | rpl::on_next([=](const QString &key) {
 			if (key == u"look.menu_pinned"_q || key == u"look.menu_side"_q) {
 				update();
@@ -473,24 +475,59 @@ private:
 
 };
 
-// Горизонтальная панель меню у верхнего или нижнего края области чата.
-// Её высота в раскладке задаётся свойством "moka-progress" (0..1), оно анимируется.
-// Выпадашка бургера в узкой панели: пилюля под панелью с кнопками закрепления.
+// Mokagram: общая пилюля для кнопок закрепления меню.
 class DockPill final : public Ui::RpWidget {
 public:
 	explicit DockPill(QWidget *parent) : RpWidget(parent) {
-		setAttribute(Qt::WA_TransparentForMouseEvents, false);
+		for (auto i = 0; i != int(kSides.size()); ++i) {
+			_buttons[i] = Ui::CreateChild<DockButton>(this, kSides[i], ButtonSize());
+			_buttons[i]->show();
+		}
+		resize(FullWidth(), FullHeight());
+	}
+
+	[[nodiscard]] static int FullWidth() {
+		return int(kSides.size()) * (ButtonSize() + Padding()) + Padding();
+	}
+
+	[[nodiscard]] static int FullHeight() {
+		return ButtonSize() + 2 * Padding();
 	}
 
 private:
+	static constexpr auto kSides = std::array{ 3, 2, 1, 0 };
+	[[nodiscard]] static int ButtonSize() {
+		return style::ConvertScale(32);
+	}
+	[[nodiscard]] static int Padding() {
+		return style::ConvertScale(4);
+	}
+	void resizeEvent(QResizeEvent *e) override {
+		auto x = width() - FullWidth() + Padding();
+		for (const auto button : _buttons) {
+			button->move(x, Padding());
+			x += button->width() + Padding();
+		}
+	}
 	void paintEvent(QPaintEvent *e) override {
 		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::windowBg);
-		p.drawRoundedRect(rect(), height() / 2., height() / 2.);
+		p.setBrush(st::windowBgOver);
+		const auto radius = std::min(width(), height()) / 2.;
+		p.drawRoundedRect(rect(), radius, radius);
 	}
+
+	std::array<DockButton*, kSides.size()> _buttons = {};
 };
+
+[[nodiscard]] int MainMenuDockPillTop() {
+	return st::mainMenuCoverHeight - style::ConvertScale(6);
+}
+
+[[nodiscard]] int MainMenuCoverHeight() {
+	return MainMenuDockPillTop() + DockPill::FullHeight() + style::ConvertScale(8);
+}
 
 // Mokagram: ручка перетаскивания строки в окне панели.
 class BarGrip final : public Ui::RpWidget {
@@ -707,6 +744,8 @@ void ShowBarBox(
 	}));
 }
 
+// Горизонтальная панель меню у верхнего или нижнего края области чата.
+// Её высота в раскладке задаётся свойством "moka-progress" (0..1), оно анимируется.
 class DockBar final : public Ui::RpWidget {
 public:
 	DockBar(QWidget *parent, int side)
@@ -741,7 +780,8 @@ public:
 	}
 
 	~DockBar() {
-		if (_pill) {
+		if (_pill && _pill->parentWidget() != this) {
+			_pill->hide();
 			_pill->deleteLater();
 		}
 	}
@@ -754,10 +794,6 @@ public:
 	}
 	void setAccount(not_null<AccountBarButton*> button) {
 		_account = button.get();
-	}
-	void addDock(not_null<DockButton*> button) {
-		_docks.push_back(QPointer<DockButton>(button.get()));
-		button->hide();
 	}
 	void toggleDocks() {
 		setDocksOpen(!_docksOpen);
@@ -794,14 +830,8 @@ private:
 			return;
 		}
 		_docksOpen = open;
-		if (open) {
-			_dropdown = needsDropdown();
-			attachDocks();
-		}
-		for (const auto &dock : _docks) {
-			if (dock && open) {
-				dock->show();
-			}
+		if (open && !_pill) {
+			_pill = Ui::CreateChild<DockPill>(this);
 		}
 		_docksAnim.start(
 			[=] { docksStep(); },
@@ -816,18 +846,7 @@ private:
 		}
 	}
 	void docksStep() {
-		const auto value = _docksAnim.value(_docksOpen ? 1. : 0.);
-		if (!_docksOpen && !_docksAnim.animating()) {
-			for (const auto &dock : _docks) {
-				if (dock) {
-					dock->hide();
-				}
-			}
-			if (_pill) {
-				_pill->hide();
-			}
-		}
-		layoutChildren(value);
+		layoutChildren(_docksAnim.value(_docksOpen ? 1. : 0.));
 		update();
 	}
 	// Закрепление выключено или панель переехала: съезжает и удаляется.
@@ -836,6 +855,9 @@ private:
 			return;
 		}
 		_closing = true;
+		if (_pill) {
+			_pill->hide();
+		}
 		setObjectName(u"moka-bar-closing"_q);
 		_slide.start(
 			[=] { slideStep(); },
@@ -870,69 +892,38 @@ private:
 			deleteLater();
 		}
 	}
-	// Свободного места справа от ряда не хватает на кнопки закрепления: они
-	// открываются вниз отдельной пилюлей, а не наезжают на значки.
-	[[nodiscard]] bool needsDropdown() const {
-		const auto skip = style::ConvertScale(4);
-		const auto margin = skip * 3;
-		const auto full = style::ConvertScale(44);
-		const auto total = int(ordered().size());
-		const auto from = (_account ? _account->x() + _account->width() : margin) + skip;
-		const auto to = width() - margin - (_burger ? _burger->width() : 0) - skip;
-		const auto row = total * full + std::max(total - 1, 0) * skip;
-		const auto dockWidth = _docks.empty() || !_docks.front()
-			? style::ConvertScale(32)
-			: _docks.front()->width();
-		const auto docks = int(_docks.size()) * (dockWidth + skip);
-		return (to - from) - row < docks;
-	}
-	// Кнопки закрепления живут в пилюле (узкая панель) или прямо в панели.
-	void attachDocks() {
-		if (_dropdown && !_pill) {
-			_pill = Ui::CreateChild<DockPill>(parentWidget());
-			_pill->hide();
-		}
-		const auto target = _dropdown
-			? static_cast<QWidget*>(_pill.data())
-			: static_cast<QWidget*>(this);
-		for (const auto &dock : _docks) {
-			if (dock && dock->parentWidget() != target) {
-				dock->setParent(target);
-				dock->hide();
-			}
-		}
-	}
 	void layoutPill(double value) {
 		if (!_pill || !_burger) {
 			return;
+		} else if (value <= 0. || _closing) {
+			_pill->hide();
+			return;
+		}
+		const auto parent = _dropdown
+			? parentWidget()
+			: static_cast<QWidget*>(this);
+		if (_pill->parentWidget() != parent) {
+			_pill->setParent(parent);
 		}
 		const auto skip = style::ConvertScale(4);
-		const auto pad = skip * 2;
-		auto widthSum = pad;
-		auto heightMax = 0;
-		for (const auto &dock : _docks) {
-			if (dock) {
-				widthSum += dock->width() + skip;
-				heightMax = std::max(heightMax, dock->height());
-			}
+		const auto fullWidth = DockPill::FullWidth();
+		const auto fullHeight = DockPill::FullHeight();
+		if (_dropdown) {
+			const auto shown = int(base::SafeRound(fullHeight * value));
+			const auto right = x() + _burger->x() + _burger->width();
+			const auto top = (_side == 3)
+				? y() - shown - skip
+				: y() + height() + skip;
+			_pill->setGeometry(right - fullWidth, top, fullWidth, shown);
+		} else {
+			const auto shown = int(base::SafeRound(fullWidth * value));
+			_pill->setGeometry(
+				_burger->x() - skip - shown,
+				(height() - fullHeight) / 2,
+				shown,
+				fullHeight);
 		}
-		widthSum += pad - skip;
-		const auto fullHeight = heightMax + pad * 2;
-		auto x = pad;
-		for (const auto &dock : _docks) {
-			if (dock) {
-				dock->move(x, pad);
-				x += dock->width() + skip;
-			}
-		}
-		const auto shown = int(base::SafeRound(fullHeight * value));
-		const auto right = this->x() + _burger->x() + _burger->width();
-		_pill->setGeometry(
-			right - widthSum,
-			this->y() + height() + skip,
-			widthSum,
-			std::max(shown, 0));
-		_pill->setVisible(shown > 0);
+		_pill->show();
 		_pill->raise();
 	}
 	void layoutChildren(double docksOpen) {
@@ -961,6 +952,12 @@ private:
 			}
 		}
 		const auto total = int(list.size());
+		const auto fullItemsWidth = total * full + std::max(total - 1, 0) * skip;
+		const auto pillSpace = DockPill::FullWidth() + skip;
+		_dropdown = span - fullItemsWidth < pillSpace;
+		const auto itemsSpan = (_pill && !_dropdown)
+			? span - int(base::SafeRound(pillSpace * docksOpen))
+			: span;
 		auto size = full;
 		auto gap = skip;
 		auto capacity = total;
@@ -977,7 +974,7 @@ private:
 		auto x = std::clamp(
 			(width() - itemsWidth) / 2,
 			from,
-			std::max(to - itemsWidth, from));
+			std::max(from + itemsSpan - itemsWidth, from));
 		auto index = 0;
 		for (const auto &button : list) {
 			if (!button) {
@@ -992,22 +989,7 @@ private:
 			button->move(x, (height() - size) / 2);
 			x += size + gap;
 		}
-		if (_dropdown) {
-			layoutPill(docksOpen);
-			return;
-		}
-		// Четыре кнопки закрепления выезжают влево из бургера.
-		auto offset = 0;
-		for (const auto &dock : _docks) {
-			if (!dock) {
-				continue;
-			}
-			offset += dock->width() + skip;
-			const auto target = burgerLeft - offset;
-			dock->move(
-				int(base::SafeRound(burgerLeft + (target - burgerLeft) * docksOpen)),
-				(height() - dock->height()) / 2);
-		}
+		layoutPill(docksOpen);
 	}
 	void moveEvent(QMoveEvent *e) override {
 		if (_dropdown) {
@@ -1042,14 +1024,13 @@ private:
 	bool _dropdown = false;
 	bool _rightPressed = false;
 	Fn<void()> _context;
-	QPointer<Ui::RpWidget> _pill;
+	QPointer<DockPill> _pill;
 	Ui::Animations::Simple _slide;
 	Ui::Animations::Simple _docksAnim;
 	base::Timer _collapse;
 	QPointer<BarButton> _burger;
 	QPointer<AccountBarButton> _account;
 	std::vector<QPointer<BarButton>> _buttons;
-	std::vector<QPointer<DockButton>> _docks;
 
 };
 
@@ -1333,6 +1314,12 @@ MainMenu::MainMenu(
 	setupUserpicButton();
 	setupAccountsToggle();
 	setupSetEmojiStatus();
+	// Mokagram: положения панели собраны в одну строку под статусом.
+	const auto dockPill = Ui::CreateChild<DockPill>(this);
+	widthValue() | rpl::on_next([=](int width) {
+		dockPill->move((width - dockPill->width()) / 2, MainMenuDockPillTop());
+	}, dockPill->lifetime());
+	dockPill->show();
 	rpl::merge(
 		_userpicButton->sizeValue() | rpl::to_empty,
 		_setEmojiStatus->sizeValue() | rpl::to_empty
@@ -1763,10 +1750,6 @@ not_null<Ui::RpWidget*> MainMenu::createDockBar(QWidget *parent, int side) {
 			QPoint(0, account->height())));
 	});
 	bar->setAccount(account);
-	for (const auto dockSide : { 0, 1, 2, 3 }) {
-		const auto dock = Ui::CreateChild<DockButton>(bar, dockSide, 32);
-		bar->addDock(dock);
-	}
 	bar->show();
 	return bar;
 }
@@ -2076,29 +2059,6 @@ void MainMenu::updateControlsGeometry() {
 	_userpicButton->moveToLeft(
 		(width() - 64) / 2,
 		st::mainMenuUserpicTop - 6);
-	for (const auto side : { 0, 1, 2, 3 }) {
-		const auto name = QString::fromLatin1("moka-dock-%1").arg(side);
-		auto button = static_cast<DockButton*>(findChild<QWidget*>(
-			name,
-			Qt::FindDirectChildrenOnly));
-		if (!button) {
-			button = Ui::CreateChild<DockButton>(this, side);
-			button->setObjectName(name);
-			button->show();
-		}
-		const auto margin = style::ConvertScale(10);
-		const auto step = button->width() + style::ConvertScale(4);
-		// Слева: «слева», «сверху»; справа: «снизу», «справа».
-		const auto x = (side == 0)
-			? margin
-			: (side == 2)
-			? margin + step
-			: (side == 3)
-			? width() - margin - button->width() - step
-			: width() - margin - button->width();
-		button->move(x, margin);
-		button->raise();
-	}
 	if (_resetScaleButton) {
 		_resetScaleButton->moveToRight(0, 0);
 	}
@@ -2112,9 +2072,9 @@ void MainMenu::updateControlsGeometry() {
 		0,
 		st::mainMenuCoverNameTop,
 		width(),
-		st::mainMenuCoverHeight - st::mainMenuCoverNameTop);
+		MainMenuDockPillTop() - st::mainMenuCoverNameTop);
 	// Allow cover shadow over the scrolled content.
-	const auto top = st::mainMenuCoverHeight - st::lineWidth;
+	const auto top = MainMenuCoverHeight() - st::lineWidth;
 	_scroll->setGeometry(0, top, width(), height() - top);
 	updateInnerControlsGeometry();
 }
@@ -2124,7 +2084,7 @@ void MainMenu::updateInnerControlsGeometry() {
 		+ _shadow->height()
 		+ st::mainMenuSkip
 		+ _menu->height();
-	const auto available = height() - st::mainMenuCoverHeight - contentHeight;
+	const auto available = height() - MainMenuCoverHeight() - contentHeight;
 	const auto footerHeight = std::max(
 		available,
 		st::mainMenuFooterHeightMin);
