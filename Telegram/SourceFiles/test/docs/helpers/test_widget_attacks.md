@@ -115,7 +115,8 @@ Use something else when:
   decision that comes after a newer generation was selected all stay
   `click-not-observed`.
 - **Local widgets.** Where the renderer runs in Telegram (`in-process`,
-  `helper-engines`, Windows and builds without the private Qt API) the tap
+  `helper-engines`, Windows and builds without the private Qt API, none
+  of them in a `TDESKTOP_WIDGETS_HELPER_ONLY` build) the tap
   wraps each file's renderer
   factory, and the runtime registers the work of the core it builds the
   host for with the generation that selection made

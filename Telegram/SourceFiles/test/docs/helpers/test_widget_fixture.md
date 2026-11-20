@@ -314,13 +314,17 @@ service** below). On macOS, both packages alike, and on Linux, in the
 `TelegramHelpers` and the libexec layouts alike, that helper runs the
 whole widget: its engine, its trusted validator and its TwidgetCore
 renderer, while the client keeps the checked Qt work and the pictures
-(**Hosted widgets on macOS and Linux** below); on Windows, and in a build
-with `DESKTOP_APP_DISABLE_PRIVATE_QT_API` on any platform, it runs the
-engines alone, the arrangement before the helper rendered.
+(**Hosted widgets on macOS and Linux** below); on Windows, and in a macOS
+build with `DESKTOP_APP_DISABLE_PRIVATE_QT_API`, it runs the engines
+alone, the arrangement before the helper rendered, while such a Linux
+build stops every widget (**Debug switch** below).
 Everywhere else no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>` (**Store, packaged
 and other platforms** below), and only the Debug switch `in-process` runs
-the engines in the client there. The
+the engines in the client there, except in a `TDESKTOP_WIDGETS_HELPER_ONLY`
+build, the only kind CMake configures outside macOS and Windows, whose
+Telegram links no widget engine: Nova is linked into its helper alone
+(**The shared helper** below). The
 packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
@@ -374,7 +378,10 @@ packs, the fixture and the seams they use need no change for it.
   on any platform: the default never chooses in process and always
   installs a channel factory, the helper's or one that refuses every
   engine, with which `twidget::SandboxEngine::make()` builds no in-process
-  engine. Telegram has no `-widgethelper` entry on any platform; its
+  engine. In a `TDESKTOP_WIDGETS_HELPER_ONLY` build no client links an
+  engine or installs that factory (`Tgw::EnginesInTelegram()` is false):
+  each widget takes a hosted route, the helper's or one that refuses it
+  (**Debug switch** below). Telegram has no `-widgethelper` entry on any platform; its
   helper, where it has one, is the separate `TelegramWidgetHelper` (**The
   shared helper** and **The Windows helper** below), whose Release build
   contains no probe and accepts only its channel token. On Linux
@@ -403,15 +410,17 @@ packs, the fixture and the seams they use need no change for it.
     default does (**Hosted widgets on macOS and Linux** below), and on
     Windows it is the restricted helper (**The Windows helper** below);
   - `helper-engines`: the sandboxed helper running the engines alone, on
-    every platform, macOS and Linux included: the arrangement before the
+    macOS and Windows: the arrangement before the
     helper rendered, with each widget's validator and renderer in the client, a
     Debug comparison value for runs that set the hosted arrangement
-    against it;
+    against it; in a `TDESKTOP_WIDGETS_HELPER_ONLY` build, Linux's, it stops
+    every widget (below);
   - `in-process`: the whole widget runs in the client, its engine, its
     validator and its renderer (on the `widget.render` thread), also where
     the default stops them; it is the only way to run widget engines in the
     client's own process, for tests and the harness, and the control of a
-    run that compares the arrangements;
+    run that compares the arrangements; in a `TDESKTOP_WIDGETS_HELPER_ONLY`
+    build it stops every widget (below);
   - `probe` and `probe-unsandboxed`: on macOS every helper, whose Debug
     build carries the probe, hosts its widgets as `helper` does, probes its
     lockdown, or runs the same probe without it as the control, and
@@ -436,9 +445,24 @@ packs, the fixture and the seams they use need no change for it.
     where the helper renders (**Linux probe** below):
     `probe` under the real lockdown, which still refuses the stream when
     it fails, and `probe-unsandboxed` with no lockdown at all, so that
-    helper runs its widgets unconfined; an engine-only probe for comparison
-    is a disposable overlay's there too, with the probe arguments on a
-    `helper-engines` launch.
+    helper runs its widgets unconfined.
+
+  In a `TDESKTOP_WIDGETS_HELPER_ONLY` build, which CMake turns on by
+  default outside macOS and Windows and requires there, whose Telegram
+  links no widget engine, `in-process` and `helper-engines` choose no
+  place: no helper starts, and every widget stops through the refusing
+  hosted route with `TDESKTOP_WIDGET_ENGINES=<value> needs a widget engine
+  in Telegram, which this build does not have`, the main log saying once
+  `Tgw: Widget engines, validators and renderers do not run, <reason>.`.
+  Such a build whose helper does not render (one configured with
+  `DESKTOP_APP_DISABLE_PRIVATE_QT_API`, whose helper serves engines alone)
+  stops every widget the same way with `the widget helper of this build
+  does not render widgets`, by default where the helper is available and
+  with `helper`, `helper-engines` or a probe value. Such a stop refuses
+  the placement: no helper starts and nothing counts towards the failure
+  limit, unlike a helper that a supported client chose and that cannot
+  start (`the widget helper could not start: <error>`, **Runtime log and
+  deaths** and **Failure limit** below).
 
   The helper never reads the variable: the client passes a probe value to
   it as the mode argument after its channel (**The shared helper**, **The
@@ -460,7 +484,8 @@ packs, the fixture and the seams they use need no change for it.
     --env TDESKTOP_WIDGET_ENGINES=helper
   ```
 
-  On Linux the first command takes `--exe out/Debug/Telegram`, whose
+  On Linux the first command takes `--exe out/Debug/Telegram` and
+  `helper` in place of `in-process`, whose
   helper the same build puts at
   `out/Debug/TelegramHelpers/TelegramWidgetHelper`. The Windows command's
   Win32 build puts its helper at
@@ -1200,9 +1225,15 @@ packs, the fixture and the seams they use need no change for it.
   the litehtml fork (the same library targets Telegram links) with the
   glue sources of **Hosted widgets on macOS and Linux** above, and its
   Debug build the helper's half of the ops tap
-  ([test_widget_helper_tap](test_widget_helper_tap.md)). It links
+  ([test_widget_helper_tap](test_widget_helper_tap.md)). Nova reaches it
+  as one static library: cargo builds `nova_embed_ffi` for the host,
+  always `--release`, into the build tree's
+  `nova_engine/libnova_embed_ffi.a` (`Telegram/cmake/lib_nova_engine.cmake`,
+  `build_nova_engine.cmake`), fetching its crates into
+  `nova_engine/cargo` unless the toolchain is `prepare.py`'s, and Telegram
+  links no copy (`TDESKTOP_WIDGETS_HELPER_ONLY`). It links
   only glibc's objects, libm and the C++ runtime, its Debug build and a
-  helper that renders too:
+  helper that renders too, with Nova as before it:
   the Docker build links the C++ runtime statically, so its NEEDED are
   `libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2` and the
   loader, and a build that links the C++ runtime dynamically adds
@@ -3834,10 +3865,9 @@ no app reading yet.
 On Linux the same arrangement was turned on by
 `2026/11/14/run-widget-validators-and-renderers-in-the-linux-helper`,
 compiled in the Linux Debug builds of both layouts; that task's records
-hold its runs. Those builds predate the Nova engine, whose integrated
-recipe configures on macOS only at this revision
-(`cmake/lib_nova_engine.cmake` refuses a non-Apple configure); the Linux
-source still selects the same hosting, manager and answer classifier
+hold its runs. Those builds predate the Nova engine, which was then
+linked into the Linux helper alone (`TDESKTOP_WIDGETS_HELPER_ONLY`); the
+Linux source selects the same hosting, manager and answer classifier
 (*A renderer that stops answering* above).
 
 The end of a helper whose renderer stops answering (*A renderer that

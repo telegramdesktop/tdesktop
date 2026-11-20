@@ -894,9 +894,9 @@ helper failure. Where the helper renders (every Linux build that keeps the
 private Qt API) both probe values choose the hosted arrangement as
 `helper` does, so the probed helper renders each widget it serves, and
 its `lockdown:`, `after lockdown:` and `layers:` lines are those of a
-helper that then renders. Their engine-only control is a disposable
-overlay's, as on macOS: the client half passes no argument under
-`helper-engines`, so the overlay passes this argv tail on such a launch.
+helper that then renders. There is no engine-only control on Linux:
+`helper-engines` stops every widget in its `TDESKTOP_WIDGETS_HELPER_ONLY`
+build ([Remote engines](test_widget_fixture.md#remote-engines)).
 
 With `probe` it goes through these steps:
 
