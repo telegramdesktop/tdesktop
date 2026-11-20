@@ -87,6 +87,97 @@ handler ran and before a `Ui::PostponeCall` marker the handler queued drained,
 with the marker run by the time the reader returns, and is not called for a
 receiver destroyed before the call (`receiver-gone`).
 
+### The opening-turn grab row
+
+`popup menu self-test: open` pops its menu and, in that same call, takes one
+`PreparedWidgetCapture::prepare()` of it. Its row `a one-shot prepared grab in
+the opening turn refuses the frame instead of saving it` shows why a same-turn
+grab is no capture: the show animation's first frame has nothing painted on
+it, and the prepared capture's `LooksBlank` refusal turns it away instead of
+saving it.
+
+The row decides on `Ui::PopupMenu::showStateValue()`, the menu's own account
+of what it painted. The stream has no current value and fires synchronously:
+from `PopupMenu::startShowAnimation()` (a computed state, no paint), from every
+`PopupMenu::paintEvent()` while the show animation runs (the state that paint
+drew, `appearing=1`), and once with a non-appearing state from the paint that
+finishes the animation. The open stage subscribes before `popup()` with a
+local `rpl::lifetime` that ends with its `run`, keeps the last state emitted
+before `prepare()` (`preGrab`) and the last one emitted during it (`grab`) -
+the grab is a synchronous `QWidget::render`, so a grab of an animating menu
+emits the state it painted - and decides in its `then` on `grab` alone.
+`preGrab` is context: an earlier zero-opacity state says nothing about the
+frame the grab painted. The details after the readings are `prepare()`'s
+refusal reason, or the stage's `PopupMenuDetails` line when it accepted.
+
+- `grab` reads `appearing=1 opacity=0`, the blank first frame: `PASS` when
+  `prepare()` refused it, `FAIL` when it accepted it.
+
+  ```text
+  TEST_RESULT: PASS: a one-shot prepared grab in the opening turn refuses the frame instead of saving it - grab={appearing=1 opacity=0 widthProgress=0 heightProgress=0 appearingSize=<w>x<h> toggling=0} preGrab={...} accepted=0 - target grab still looks blank: ...
+  TEST_RESULT: FAIL: a one-shot prepared grab in the opening turn refuses the frame instead of saving it - grab={appearing=1 opacity=0 ...} preGrab={...} accepted=1 - menu ... visible=1 ...
+  ```
+
+- Anything else: a named `N/A` whose reason begins `not reached:` and says
+  which, whatever `prepare()` answered.
+
+  ```text
+  TEST_RESULT: N/A: <row> - not reached: advanced frame painted - the show animation had already stepped past its first frame when the grab painted, so the opening-turn grab did not paint the blank first frame this row exists to refuse - grab={appearing=1 opacity=<above 0> ...} preGrab={...} accepted=<0 or 1> - <refusal or readiness>
+  TEST_RESULT: N/A: <row> - not reached: show animation already finished - the grab painted the menu's final frame, so ... - grab={appearing=0 opacity=1 ...} preGrab={...} accepted=<0 or 1> - <refusal or readiness>
+  TEST_RESULT: N/A: <row> - not reached: no state emitted by the grab - it painted no show-animation frame: prepare() refused before grabbing, or no show animation was running when it painted, so ... - grab={none} preGrab={...} accepted=<0 or 1> - <refusal or readiness>
+  ```
+
+Why an `N/A` and not a premise `Check`. The stage's `fixture gate:` rows are
+hard Checks because a host without translucent popups or with animations
+disabled can never certify the shape. A painted opening frame is one launch's
+timing on a host that also paints the blank one, so the row neither fails the
+capture for the host's clock nor passes a refusal that never happened. No
+launch is promised the blank frame: painted launches can come in a row - Runs
+D6 and D7 of the diagnosis below were consecutive - and their rate varied
+between that diagnostic set's runs (2 of 7, 0 of 8, then 1 of 6 and 0 of 10
+under CPU load, Runs D to G), so a later launch can read the same `N/A`. Each
+launch decides from its own grab. The row keeps one name across `PASS`,
+`FAIL` and `N/A`, and a campaign's run report lists it under `skipped` with
+the reading that put it outside the premise, the shape `DecideControl` in
+`test_window_exposure.cpp` uses
+([window exposure reference](test_window_exposure.md)).
+
+Why a broken blank refusal still FAILs. The gate reads the menu's state and
+never `LooksBlank` or the image, so a `PreparedWidgetCapture` that stopped
+refusing blank frames accepts the zero-opacity grab and the row FAILs. Only a
+refusal broken for a barely advanced, faint frame would read `N/A`; 28 of the
+31 diagnosis launches below landed on progress 0, the frame the regression
+check decides on.
+
+The observed Windows cause, from
+`2026/11/12/keep-the-popup-self-tests-opening-turn-grab-row-from-failing-falsely`
+(`work/diagnosis.md`, where the runs live; 3 of 31 launches with the
+self-test as the process's first popup). `PopupMenu::popup()` reaches
+`PopupMenu::showPrepared()`, which starts the show animation
+(`startShowAnimation()`, `_a_show` from progress 0) and then, on Windows only,
+calls `Ui::ForceFullRepaintSync`. That sends a synchronous
+`QEvent::UpdateRequest`; `Core::Sandbox::notify` fires
+`crl::on_main_update_requests()` for it before Qt delivers the event, and
+`Ui::Animations::Manager::Manager()` subscribes to that stream
+(`ui/effects/animations.cpp` in lib_ui). So this `UpdateRequest` can run
+`Manager::update()` and advance an active animation, though it need not: the
+subscriber calls `update()` only when more than `kIgnoreUpdatesTimeout` has
+passed since the manager's last update, and `update()` returns early when no
+animation is active, while it is already updating, or while the manager is
+`_scheduled`. A clear `_scheduled` removes one of those guards; it does not by
+itself force the step. When `update()` runs there, it steps `_a_show` by the
+real time elapsed since `startShowAnimation()`, and the synchronous repaint,
+and every grab after it in the same turn, then paints a partly or fully shown
+menu. Run F4 stepped about 48 ms, painted
+`opacity=0.979796 widthProgress=0.8 heightProgress=0.679869`, and `prepare()`
+accepted it. In every passing launch that recorded the manager it was still
+`_scheduled`, `update()` was skipped and every state in the turn read
+progress 0; Run G1's 71 ms delay alone did not paint. Why `_scheduled` was
+clear in a failing launch is not established. Nothing in it is lock-specific -
+a slow or loaded host only widens the step - and it is time-based animation
+doing its job, not a product defect. `OpenContextMenu`'s Windows delivery
+caveat above is the same synchronous repaint.
+
 ## Accessible custom rows
 
 ### When to use it

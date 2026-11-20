@@ -35,8 +35,11 @@ namespace Test {
 // 2026/08/28/complete-server-history-details-hash-and-paging ended.
 //
 // The opposite mistake costs a run just as surely: a one-shot grab taken in
-// the turn that called popup() lands on a show-animation frame with almost
-// nothing painted on it, which is run 2's blank p1e_menu_peer_nohash.
+// the turn that called popup() usually lands on a show-animation frame with
+// almost nothing painted on it, which is run 2's blank p1e_menu_peer_nohash.
+// Usually, not always: on Windows that turn can already paint a partly
+// shown frame (docs/helpers/test_menu.md#the-opening-turn-grab-row says
+// why), so a same-turn grab is no frame to rely on either way.
 //
 // So the readiness here carries content identity only - the widget is a
 // Ui::PopupMenu, it is visible, its geometry is non-empty and it carries
@@ -120,12 +123,30 @@ void CapturePopupMenu(
 // This helper measuring itself, in six stages. It opens a real
 // Ui::PopupMenu of its own over the primary window and, in the turn that
 // opened it, shows the two predicates disagreeing: the content-identity
-// readiness accepts while the inner menu is still hidden and a one-shot
-// prepared grab still refuses. It then captures through both branches of
+// readiness accepts while the inner menu is still hidden. In that same turn
+// it takes one PreparedWidgetCapture::prepare() of the menu, the
+// opening-turn grab row. It then captures through both branches of
 // CapturePopupMenu - the already-open one and, after closing the menu, the
 // one that opens it - and asserts the refusal texts of a null, a widget
 // that is no menu, an empty menu and a popup handed to the painting-layer
 // root resolver.
+//
+// The opening-turn grab row, "a one-shot prepared grab in the opening turn
+// refuses the frame instead of saving it". Its premise is the show
+// animation's blank first frame, and it reads that premise from the menu
+// itself: the open stage subscribes to Ui::PopupMenu::showStateValue() for
+// its own call and keeps the last state emitted before prepare() and the
+// last one emitted during it. Only the grab's own state decides; the
+// earlier one is context. A grab that emitted appearing=1 at opacity 0
+// reached the premise: PASS when prepare() refused it, FAIL when prepare()
+// accepted it. Any other grab is a named "TEST_RESULT: N/A" whose reason
+// begins "not reached:" and names an advanced frame painted, a show
+// animation already finished or no state emitted by the grab, beside both
+// states and the accepted flag - one launch's timing, never a pass and
+// never a fixture-gate failure. The decision never reads LooksBlank, so a
+// prepared capture that accepts the blank first frame still FAILs. The N/A
+// is real on Windows, where the opening turn can paint a partly shown menu;
+// docs/helpers/test_menu.md#the-opening-turn-grab-row says why.
 //
 // It needs no session, no chats list, no network and no account fixture.
 // The only thing it asks of the process is a primary window to parent the
@@ -134,9 +155,11 @@ void CapturePopupMenu(
 // failure: every refusal it demonstrates is observed through a value that
 // logs nothing - PopupMenuReady returning false, PopupMenuDetails's text,
 // PreparedWidgetCapture::prepare()'s pendingReason() - and is asserted as a
-// passing Check whose details carry the refused reading verbatim. Its
-// before-leg, the wedged stage this helper removes, is produced by gating
-// on menu()->isVisible() and re-running the identical scenario, never by a
+// passing Check whose details carry the refused reading verbatim. The one
+// exception is the opening-turn grab row's named N/A above, written when
+// that launch's grab did not paint the blank first frame. Its before-leg,
+// the wedged stage this helper removes, is produced by gating on
+// menu()->isVisible() and re-running the identical scenario, never by a
 // stage that fails on purpose.
 //
 // A locked Windows console. The application is deactivated there and Qt
@@ -246,8 +269,9 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner);
 // behaves exactly as before. test_chat_menu.cpp reads the list's resolved
 // message through it.
 //
-// No pixels. A grab in the building turn lands on a blank show-animation
-// frame (the comment at the top of this file), so the reader takes none.
+// No pixels. A grab in the building turn usually lands on a blank
+// show-animation frame, and on Windows sometimes on a partly shown one (the
+// comment at the top of this file), so the reader takes none.
 // A frame stays with CapturePopupMenu, as a supplementary leg taken while
 // the menu is still open.
 //

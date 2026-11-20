@@ -87,6 +87,69 @@ struct Fixture {
 	return true;
 }
 
+// One Ui::PopupMenu::showStateValue() emission, or "none" when nothing was
+// emitted in the window it was read over.
+[[nodiscard]] QString ShowStateText(
+		const std::optional<Ui::PopupMenu::ShowState> &state) {
+	if (!state) {
+		return u"none"_q;
+	}
+	return u"appearing=%1 opacity=%2 widthProgress=%3 heightProgress=%4 "
+		"appearingSize=%5x%6 toggling=%7"_q
+		.arg(state->appearing ? 1 : 0)
+		.arg(state->opacity)
+		.arg(state->widthProgress)
+		.arg(state->heightProgress)
+		.arg(state->appearingWidth)
+		.arg(state->appearingHeight)
+		.arg(state->toggling ? 1 : 0);
+}
+
+// The opening-turn grab row, decided on the state the grab's own paint
+// emitted and never on LooksBlank, the refusal the row guards: only the
+// show animation's blank first frame - appearing at opacity 0 - is what
+// the row exists to see refused, so a grab that painted anything else is a
+// named N/A, whatever prepare() answered. |preGrab| is context for a grab
+// that emitted nothing and never decides; |prepareDetails| is the refusal
+// reason, or the readiness details when prepare() accepted
+// (docs/helpers/test_menu.md#the-opening-turn-grab-row).
+void CheckOpeningTurnGrab(
+		const std::optional<Ui::PopupMenu::ShowState> &grab,
+		const std::optional<Ui::PopupMenu::ShowState> &preGrab,
+		bool accepted,
+		const QString &prepareDetails) {
+	const auto row = u"a one-shot prepared grab in the opening turn refuses "
+		"the frame instead of saving it"_q;
+	const auto readings = u"grab={"_q
+		+ ShowStateText(grab)
+		+ u"} preGrab={"_q
+		+ ShowStateText(preGrab)
+		+ u"} accepted="_q
+		+ QString::number(accepted ? 1 : 0)
+		+ u" - "_q
+		+ prepareDetails;
+	if (grab && grab->appearing && (grab->opacity <= 0.)) {
+		Check(!accepted, row, readings);
+		return;
+	}
+	const auto why = !grab
+		? u"no state emitted by the grab - it painted no show-animation "
+			"frame: prepare() refused before grabbing, or no show animation "
+			"was running when it painted"_q
+		: !grab->appearing
+		? u"show animation already finished - the grab painted the menu's "
+			"final frame"_q
+		: u"advanced frame painted - the show animation had already "
+			"stepped past its first frame when the grab painted"_q;
+	Skipped(
+		row,
+		u"not reached: "_q
+			+ why
+			+ u", so the opening-turn grab did not paint the blank first "
+			"frame this row exists to refuse - "_q
+			+ readings);
+}
+
 // Every Ui::PopupMenu in the application, wherever it is parented. Every
 // popup is its own window, but the walk does not lean on window flags:
 // QApplication::allWidgets() holds every widget, and the dynamic_cast is
@@ -581,6 +644,8 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 		PopupMenuReading openTurn;
 		QString openTurnDetails;
 		QString oneShotReason;
+		std::optional<Ui::PopupMenu::ShowState> preGrabShowState;
+		std::optional<Ui::PopupMenu::ShowState> grabShowState;
 		bool openTurnReady = false;
 		bool oneShotAccepted = false;
 		bool built = false;
@@ -641,6 +706,18 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 			ArmPopupHold(runner, u"popup-menu-self-test"_q);
 			Note(ConsoleLockText(ReadConsoleLock()));
 			const auto menu = state->fixture.menu.get();
+			// The menu's own account of what it painted, which decides the
+			// one-shot grab row below. showStateValue() fires synchronously -
+			// from startShowAnimation() and from every paintEvent while the
+			// show animation runs - so the subscription lives only in this
+			// call, and the optional is declared before the lifetime, so the
+			// subscription that writes it dies first.
+			auto lastShowState = std::optional<Ui::PopupMenu::ShowState>();
+			auto showStateLifetime = rpl::lifetime();
+			menu->showStateValue(
+			) | rpl::on_next([&](const Ui::PopupMenu::ShowState &shown) {
+				lastShowState = shown;
+			}, showStateLifetime);
 			menu->popup(state->fixture.at);
 			// Everything below is snapshotted here, in the turn that called
 			// popup(), because that is the turn both failing shapes live in
@@ -650,8 +727,13 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 			state->openTurn = ReadPopupMenu(menu);
 			state->openTurnReady = PopupMenuReady(menu);
 			state->openTurnDetails = PopupMenuDetails(menu);
+			// Only what the grab itself emits decides the row; the last state
+			// before it is context, because an earlier blank frame says
+			// nothing about the frame prepare() painted.
+			state->preGrabShowState = base::take(lastShowState);
 			auto probe = PreparedWidgetCapture();
 			state->oneShotAccepted = probe.prepare(menu);
+			state->grabShowState = lastShowState;
 			state->oneShotReason = probe.pendingReason();
 		},
 		.then = [=] {
@@ -681,10 +763,10 @@ void AppendPopupMenuCaptureSelfTest(not_null<Runner*> runner) {
 				"disagree and the failing shape is reached, not merely "
 				"described"_q,
 				state->openTurnDetails);
-			Check(
-				!state->oneShotAccepted,
-				u"a one-shot prepared grab in the opening turn refuses the "
-				"frame instead of saving it"_q,
+			CheckOpeningTurnGrab(
+				state->grabShowState,
+				state->preGrabShowState,
+				state->oneShotAccepted,
 				state->oneShotReason.isEmpty()
 					? state->openTurnDetails
 					: state->oneShotReason);
