@@ -10,10 +10,11 @@ Internal to it:
 | File | Holds |
 | --- | --- |
 | `test_widget_ops.h` | The contract: the renderer factory and hosted seams, arming, the readings, the helper work and the self-checks. |
-| `test_widget_ops_internal.h` | What the three translation units share: the scan and kept-value bounds, `kHelperMirrors`, the tap's record (`WidgetOpsTap`), the armed taps, the scan budget, the reader of effective theme answers and the mapping of helper stamps. |
+| `test_widget_ops_internal.h` | What the four translation units share: the scan and kept-value bounds, `kHelperMirrors`, the tap's record (`WidgetOpsTap`), the armed taps, the scan budget, the reader of effective theme answers, the mapping of helper stamps and the exchange leg's entry (`CheckHostedExchanges()`). |
 | `test_widget_ops.cpp` | The tap's record, the scan (the `Upstream` block and its `ScanSink`), the result reader, the wrapping factory (both `TapWidgetRenderer()` forms), the local works' registry and press seams (`WidgetLocalPressDown()`, `WidgetLocalPressReleased()`, `WidgetLocalPressForwarded()`, and the local half of the detach seam), arming and the readings; without the harness, the first five functions alone. |
 | `test_widget_ops_hosted.cpp` | The hosted tap: `TapHostedWidget()`, its observations and registry, `WidgetThemeObservation()`, `WidgetThemeApplied()`, `WidgetPressDispatched()` and `WidgetCoreDetached()` (hosted, else the local registry), `WidgetPressObserved()`, the effective theme probe, `WidgetThemeUnobserved()`, `CheckWidgetTheme()`, the helper work records and `CheckedTimeSum()`; without the harness, the hosted seams alone. |
-| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` and `RunWidgetConformanceProbeCheck()`: the stub renderer and every leg. |
+| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` and `RunWidgetConformanceProbeCheck()`: the stub renderer and every leg but the exchange leg. |
+| `test_widget_ops_exchanges.cpp` | The self-check's exchange leg (`CheckHostedExchanges()`): `Tgw::HostedAnswers()` against TwidgetCore's own encodings and `decode()`, and a widget helper's stream end on two routes played over widget-sandbox's in-memory pair with its `ScriptedEngineEnd`; without the harness, nothing. |
 
 ## Use when
 
@@ -799,10 +800,10 @@ of `TapWidgetRenderer()`, returning their `factory` argument, and
 `WidgetThemeScheduled()`, returning 0, and `WidgetThemeSelected()`,
 `WidgetThemeApplied()`, `WidgetHostRetired()`, `WidgetPressDispatched()`,
 `WidgetCoreDetached()` and `WidgetPressObserved()`, doing nothing. `test_widget_ops_check.cpp`
-compiles to nothing there, and every other declaration of the header is
-left undefined. With the harness, an inactive harness and an unarmed id
-return the same before any observation state is allocated, and the later
-seams find no registered host or work.
+and `test_widget_ops_exchanges.cpp` compile to nothing there, and every
+other declaration of the header is left undefined. With the harness, an
+inactive harness and an unarmed id return the same before any observation
+state is allocated, and the later seams find no registered host or work.
 
 ## Verification
 
@@ -1016,6 +1017,97 @@ session has, and disarms them before it returns:
   wrapper during its forwarding (the link closed or the work not ready)
   reads 1, 1, 0 even with a trusted click handed the wrapper afterwards,
   and the reading is final once the wrappers are gone;
+- the exchange leg (rows named `hosted exchanges: ...`, in
+  `test_widget_ops_exchanges.cpp`) reads TwidgetCore's own encodings
+  through `Tgw::HostedAnswers()`, the classifier the widget helper's
+  stream times hosted renderers with
+  ([Remote engines](test_widget_fixture.md#remote-engines), *A renderer
+  that stops answering*). Its first row reads single messages. A frame
+  request, painting or ticking, reads `whenVisible`, timed only when sent
+  visible, and expects the frame of its sequence, painted or unchanged.
+  `Touch` and `Hover` expect a `Pointer`, with or without a claim, and a
+  claim query the claim answer of its sequence, which the classifier
+  reads with TwidgetCore's own `decode()`; none of the three reads
+  `whenVisible`, so each is timed whatever the visibility. Each pair has
+  a family of its own, three in all, and a frame or a claim answer of
+  another sequence keys apart. The renderer's `Stopped` is its last word.
+  A width, a state, a frame request cut inside its sequence and another
+  control read as nothing. These malformed answers earn no credit: a
+  claim answer cut short, with a flag that is no flag or with a byte past
+  its end, which TwidgetCore's `decode()` refuses, and a painted frame or
+  a pointer with a claim, each cut short.
+
+  The second row checks painted frames. A painted frame earns its
+  request's credit only when it passes the stream thread's checks of a
+  constant cost (`FrameComplete()`, `ListAdmitted()`, `DamageComplete()`
+  in `tgw_remote.cpp`): its list and its damage need their form and
+  version, the list a command count within the cap and no larger than
+  its bytes can hold at 5 bytes a command (an empty one nothing after its
+  count), the damage a valid flag and exactly the rectangles it counts,
+  within the cap, nothing may follow the two values, and the frame must
+  be within Telegram's 8 MiB frame cap (`HostedWire::kMaxFrameBytes`,
+  past which the render thread refuses a frame before decoding it). The
+  row writes that cap out itself rather than taking the constant, so its
+  cases at the cap and one byte past it fail when the cap moves. The
+  stream never reads the list's commands, so these checks are not
+  TwidgetCore's whole acceptance: its `wire::decode()` also reads every
+  command and requires the list consumed whole, and a frame that passes
+  the checks earns its credit even when that decoder would refuse its
+  commands. The row's cases:
+  - No credit, each failing those checks and also refused by
+    TwidgetCore's own `decode()`, which the row runs on it: empty values,
+    an empty damage, a list of another form, commands that do not fit or
+    are past the cap, a byte after an empty list, a damage flag that is
+    no flag, a damage of another version, a rectangle cut short, a byte
+    after the rectangles, rectangles past the cap and a byte after an
+    unchanged frame. A frame one byte past the frame cap earns none
+    either.
+  - Credit: a drawn frame and an empty list with no damage or with no
+    rectangle, each also decoded by TwidgetCore's `decode()`, and a frame
+    exactly at the cap, its list one command of filler bytes, which the
+    row deliberately does not decode: only the render thread does.
+
+  The third row plays a widget helper's stream end on two routes over
+  widget-sandbox's in-memory pair (`harness/memory_stream.h`), the host's
+  end opened with `Tgw::HostedAnswers()`. The engine process's end is the
+  framework's shared `ScriptedEngineEnd` (`tests/test_stream_frames.h`),
+  the end the native suite's scripted peers wrap. Two real hosted clients
+  (`SandboxEngine::hostedClient()`) attach as routes 1 and 2, start and
+  send the same request, each visible from its start unless the case
+  hides it. Once the engine process's end has read the opening and each
+  route's `open`, hosted start and exact request, it gives each route the
+  case's answer, if any, and closes. The stream ends of that close: the
+  host's end reports `the engine process closed the stream` and each
+  client dies of `the widget engine process ended`, both required in
+  every case. A route's death is the stream's decision as its channel's
+  `death()` gives it, which Telegram's runtime reads only for a stalled
+  death.
+  - A route keeps its `Ordinary` death while the legally answered route
+    is `Spared` when its request stayed unanswered. Its answer can be an
+    impossible painted frame, one past the frame cap, a claim answer cut
+    short or a valid frame of another sequence. It can also get no answer
+    to a frame it requested while hidden, which no deadline times.
+  - When both answers earned their credit, neither route had a request
+    unanswered and both keep `Ordinary`. That is the fallback for an end
+    with nothing unanswered. Both also keep it when neither answer earned
+    credit.
+
+  The third row bounds its observations at 5 s each (`kEndBound`):
+  `PlayEnd()`'s waits for the opening (`ScriptedEngineEnd::ready()`), for
+  each route's `open`, hosted start and request (`sawWithin()`), for each
+  client's death (`DeathWait::died()`) and for the end's reason (`ended()`),
+  past which that case's reading names the step and the row fails instead of
+  hanging the self-check. Then `EndOfStream()` drops the clients and calls
+  `finish()`, which first stops the host's end, whose `stop()` joins that
+  end's threads with no deadline, and only then waits 5 s for the engine
+  process's end to stop reading, past which the row fails too and the
+  framework's destructor waits up to its own 5 s (`kFinish`) and then leaves
+  a reader still reading to return on its own. Nothing else in the row has a
+  deadline of its own: building the stream and the clients, writing the answers
+  (`ScriptedEngineEnd::send()`, whose `MemoryStream::write()` waits for room
+  on the 1 MiB pair), the clients' teardown and the host's end's `stop()`
+  can each hold the self-check as long as they take, so a 5 s failure names
+  a step that did not come in time and says nothing of those;
 - the budget leg (`a host and a renderer message past the scan budget ...`):
   a host message and a renderer `violation` one value past
   `kMaxScanValues` are two gaps, never parsed (no violation counted), and
@@ -1086,10 +1178,11 @@ Executed so far, on Windows Win32 with MSVC 14.44: a Debug single-file
 compile of `test_widget_ops.cpp` through MSBuild and of `tgw_runtime.cpp`,
 which includes the header, and standalone compiles of
 `test_widget_ops.cpp` with the Release command line both with
-`TDESKTOP_RELEASE_TEST_HARNESS` and without it. No row of the stress leg,
-and no row since this change, has run in the app yet: they run where a
-scenario calls `RunWidgetOpsSelfCheck()`. The earlier rows' expectations
-are unchanged, as the conformance reading and the cumulative counts are.
+`TDESKTOP_RELEASE_TEST_HARNESS` and without it. When that task recorded
+this, no row of the stress leg, and no row since its change, had run in
+the app: they run where a scenario calls `RunWidgetOpsSelfCheck()`. The
+earlier rows' expectations are unchanged, as the conformance reading and
+the cumulative counts are.
 
 `limitReports`, `limitExamples` and their self-check row were added by
 `2026/11/02/stop-widgets-past-the-heavy-box-limit-with-a-v0-6-0-twidgetcore`
@@ -1100,10 +1193,11 @@ apart from the two reports' places in the forwarding sequence.
 `TapHostedWidget()`, the hosted readings and the hosted leg were added by
 `2026/11/14/run-widget-validators-and-renderers-in-the-macos-helper` and
 compiled in the macOS Debug build (arm64 and x86_64), together with the
-helper's half; no hosted row has run in the app yet, and its evidence
-campaign (the attack, conformance and stress parity legs) is where the
-hosted readings are compared with the `in-process` ones. The earlier rows'
-expectations are unchanged. The applied and effective themes,
+helper's half; no hosted row had run in the app when that was recorded,
+and its evidence campaign (the attack, conformance and stress parity
+legs) is where the hosted readings are compared with the `in-process`
+ones. The earlier rows' expectations are unchanged. The applied and
+effective themes,
 `downsConfirmed` and `clicksCompleted`, their two seams, the registry by
 work id, the bounded scan sink, the checked helper stamps and their rows
 came with that task's Release readings and its second review round:
@@ -1123,8 +1217,8 @@ the new files apart from namespace and include scaffolding and the shared
 declarations (`health.py moves`), the module defines the same functions in
 Debug and in both Release variants (with and without
 `TDESKTOP_RELEASE_TEST_HARNESS`), plus the shared internals, and the macOS
-Debug build and the Release syntax checks of the three files pass. No row
-has run in the app since.
+Debug build and the Release syntax checks of the three files pass. When
+the split was recorded, no row had run in the app since.
 
 The task's third review round moved the built theme's probe from a
 `crl::async()` worker onto the runtime's per-host job
@@ -1140,8 +1234,8 @@ two-generation sequences, which the pre-change reading (an answered up
 counted as a click) got wrong in all eight; a model of the runtime's
 per-host jobs over a fake host found no probe beside another or a keep in
 2000 random interleavings, against 1390 overlapping probes and 216 keeps
-under a probe with the earlier independent probe. No row has run in the
-app since.
+under a probe with the earlier independent probe. When that round was
+recorded, no row had run in the app since.
 
 The task's fourth review round bound the marked interaction to the press
 the chat dispatched after the mark (`WidgetPressDispatched()`, the pointer
@@ -1158,7 +1252,8 @@ between the marked down and its decision, the trusted-event filter, a
 same-scheme palette change across the barrier, an older job's
 application, probes held across a retirement and 2000 retirements racing
 a commit; the same harness over the methods before the change failed 9 of
-its 10 sequences, all but the control. No row has run in the app since.
+its 10 sequences, all but the control. When that round was recorded, no
+row had run in the app since.
 
 The task's fifth review round opened the press binding only around the
 synchronous delivery of the fixture's own mouse-down (`DeliverMarkedPress()`,
@@ -1176,7 +1271,7 @@ followed by a genuine click, a press bound inside its delivery and decided
 after it, a palette selected while another's job runs and read after that
 job ended, and selections returning to the running job's palette; the
 methods before the change certified the missed press and the busy-guard
-palette. No row has run in the app since.
+palette. When that round was recorded, no row had run in the app since.
 
 The task's sixth review round bound a local widget's click to the press the
 fixture played as well ([Local presses](#local-presses)): the runtime
@@ -1191,8 +1286,8 @@ and the attack audit's `ClickOutcome()`, taken unchanged from the sources
 into a scratch harness, gave the expected readings and outcomes for the
 missed, replaced, queued, withheld, overtaken, superseded and stable
 sequences of both placements; the reading before the change certified the
-missed press followed by a genuine click locally. No row has run in the app
-since.
+missed press followed by a genuine click locally. When that round was
+recorded, no row had run in the app since.
 
 The seventh round tied that click to its forwarding and to the core's
 retirement ([Local presses](#local-presses)): `clicksCompleted` counts the
@@ -1210,7 +1305,8 @@ seams, taken unchanged from the sources into a scratch harness with a
 model of the host link, gave the expected readings for each forwarding and
 retirement case, the attack audit's verdict sequence and a race of
 retirements against a real render thread; the methods before the change
-certified the retired press. No row has run in the app since.
+certified the retired press. When that round was recorded, no row had
+run in the app since.
 
 The eighth round applied the same cutoff to a hosted host:
 `WidgetHostRetired()` revokes, under the tap's lock, a mark bound to the
@@ -1224,7 +1320,8 @@ outside the app the tap's methods and the attack audit's verdict sequence,
 taken unchanged from the sources into a scratch harness, gave
 `click-not-observed` for the queued hosted steps through both hosted
 readers and kept the completed click; the methods before the change
-certified it. No row has run in the app since.
+certified it. When that round was recorded, no row had run in the app
+since.
 
 The ninth round moved the cutoff to the core's detach for both placements:
 `RendererCore::detach()` calls `WidgetCoreDetached()` (formerly
@@ -1239,8 +1336,24 @@ played down bound before the detach whose up and click, and in Debug the
 mirror, came between the detach and the host's retirement, kept a click
 completed before the detach, and found no wrong outcome in races of the
 detach against the render thread's steps; the tap before the change read
-that interval `observed` in Debug and `decided` in Release. No row has run
-in the app since.
+that interval `observed` in Debug and `decided` in Release. When that
+round was recorded, no row had run in the app since.
+
+The exchange leg was added by
+`2026/11/20/kill-the-widget-helper-when-a-renderer-leaves-a-request-unanswered`,
+whose evidence campaign (its `work/test.md`, Attempt 1, Test 1) ran
+`RunWidgetOpsSelfCheck()` as registered in the macOS arm64 Debug client,
+built with that campaign's disposable evidence overlay, in Run 1 and
+again in Run 2: all 78 rows passed both times, the three `hosted
+exchanges:` rows among them. In Run 1 the painted-frame row credited the
+frame of 8388608 bytes and not the one of 8388609, and the end row read
+`ordinary/spared` for each of the five unanswered cases and
+`ordinary/ordinary` for both answered and for neither, every end `the
+engine process closed the stream`. Each note above saying that no row had
+run in the app holds as of its own round; these two runs ran every row of
+the self-check, on this task's commit with that overlay. The earlier
+rows' expectations are unchanged. The campaign did not run the leg in a
+Release build with the harness or on another platform.
 
 ## Related guidance
 

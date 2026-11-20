@@ -539,6 +539,94 @@ packs, the fixture and the seams they use need no change for it.
     for a layout query counts only time its glue did not spend waiting for
     the client's answers. The chat's 150 ms menu and claim deadlines are
     unchanged.
+  - *A renderer that stops answering.* The widget helper's stream times its
+    renderers' answers by Telegram's reading of the hosted messages,
+    `Tgw::HostedAnswers()` (`tgw_remote.cpp`), which `Manager::launch()`
+    gives every hosting start (widget-sandbox's `SandboxHostedAnswers`).
+    The Linux source selects the same manager and classifier, but at this
+    revision Telegram's integrated Nova recipe configures on macOS only:
+    `Telegram/CMakeLists.txt` includes `cmake/lib_nova_engine.cmake`,
+    which refuses a non-Apple configure, so a Linux build of this
+    deadline cannot be configured yet ([Verification](#verification)).
+    Telegram expects exactly one answer, per widget in the order it sent
+    them, to each frame request (the frame of its sequence, painted or
+    unchanged), each touch or hover (a Pointer) and each claim query (the
+    claim answer of its sequence); every other message it sends, a width,
+    height, theme or selection change among them, expects none. A frame
+    request is timed only when sent while the widget is on screen; a touch,
+    a hover and a claim query are timed whatever the widget's visibility.
+    The runtime gives the host a visibility change before the frame request
+    it causes (`Runtime::syncHostVisibility()`), so a frame request sent off
+    screen is never timed, and one sent on screen stays timed when the card
+    leaves the screen. A timed message's answer is due after 3 s of the
+    renderer's own time from the stream writer's admission of that message
+    (`SandboxEngine::kPlatformAnswerSeconds`): the time from the arrival of
+    one of the renderer's own requests (*Hold and timeouts* above) until
+    Telegram's answer to it is written is not that renderer's, and an answer
+    counts at its arrival from the helper, however long it then waits on
+    `widget.render` behind Telegram's own work. An answer settles nothing
+    when it does not answer its widget's oldest owed message (another family
+    or another sequence), when it is past its size cap (for a frame the
+    8 MiB `HostedWire::kMaxFrameBytes`) or when the stream's own reading
+    refuses it (`ReadExchange()`): a claim answer TwidgetCore's `decode()`
+    refuses, a pointer cut short, malformed or with bytes after its fields,
+    and a frame whose fixed part (sequence, state, flags) is cut short or
+    malformed, whose list or damage has another form or version, a flag that
+    is no flag or a count past its cap or past what the bytes after it can
+    hold (for an empty list, any byte after it), whose damage is not whole
+    or that has bytes after its values (`FrameComplete()`, `ListAdmitted()`,
+    `DamageComplete()`). Those frame checks read a list's header and command
+    count, never its commands: a painted frame that passes them earns its
+    request's credit even when TwidgetCore's `wire::decode()` would refuse
+    its commands, and TwidgetCore's platform end on `widget.render`, which
+    decodes the frame whole, refuses it only afterwards, a stop of the
+    widget's own (below). The cases the self-check reads are listed under
+    [test_widget_ops](test_widget_ops.md#verification). A deadline runs only
+    while a timed message is unanswered: a card with none outstanding sets
+    none, whether idle, off screen or static, and one that answers within
+    3 s never reaches it. In the campaign an idle chat whose running card
+    answered its timed frame requests in time, cards placed off screen with
+    nothing timed admitted there and a static card with no frame request
+    admitted each kept the helper for 10.5 s
+    ([Verification](#verification)). A card that leaves the screen still
+    owes, on its deadline, the frame of a request it sent on screen. A frame
+    request sent off screen is never timed but still owed in order: an
+    answer to a later message that comes before its frame settles nothing,
+    and at an end that is neither the unanswered one nor the owner's stop
+    its route counts among those with a message unanswered (`Ordinary`, not
+    `Spared`), a decision Telegram's runtime does not read. A look of the
+    stream's monitor more than 1 s after the wake it planned (a Mac that
+    slept, or a thread that did not run) concludes nothing and looks once
+    more 1 s later, so a run that measures the 3 s must keep the Mac awake.
+    When a timed message's answer is overdue the stream ends with `a hosted
+    renderer left a platform message unanswered for more than 3000 ms`, and
+    the manager retires and reaps that helper as after any end it did not
+    ask for (`Manager::ended()`, `retireLocked(false)`, `reap()`):
+    `complete(kExitWait, kKillWait)` waits up to 1 s for its exit and only
+    then kills it and waits up to 1 s more (in the Mac App Store build it
+    cancels the service's connection instead, **The Mac App Store service**
+    below; read, not run there). That end counts as one helper failure
+    (**Failure limit** below). At that end the stream decides each live
+    route that takes part (`Connection::blameLocked()` in widget-sandbox's
+    `remote_stream.cpp`): `Stalled` for each one whose oldest timed message
+    was overdue at that instant, one or several, `Spared` for the others.
+    Each live widget whose own route it decided `Stalled` stops fatally with
+    the reason `The widget stopped responding` (`StalledReason()` in
+    `tgw_renderer_work.cpp`, which `HostLink::postDeath()` gives when its
+    own channel's `death()` is `Stalled`, and `RendererWork::refuseRoute()`
+    when Telegram refuses that route after the stream decided), and the stop
+    counts as its crash. Every other live widget that end stops is stopped
+    fatally and counted as at any helper end (**Runtime log and deaths**
+    below): Telegram's runtime reads `Stalled` alone and does not apply
+    `Spared`. A widget whose route Telegram refused for good first (a frame
+    of another sequence, a bound: `RendererPlatform::refused()` and
+    `fail()`, `RendererWork::refuseRoute()` and `backendRefused()`, through
+    `HostLink::localStop()`), or whose hosted client a counted stop
+    (`SandboxEngine::stop()`) ended first, stops with its own reason, and
+    the same step (`SandboxHostedChannel::localStop()` and the client's
+    claim of its own death) takes everything its renderer owed out of the
+    stream's account, so none of it times out the helper its siblings still
+    use.
   - *Frames.* One frame request is outstanding at a time, a tick apart
     from a paint. A frame that answers no outstanding request, or a tick
     with a paint or the reverse, a malformed state or a list the checks
@@ -740,7 +828,10 @@ packs, the fixture and the seams they use need no change for it.
   - *Deaths.* The hosted host's `onDeath` freezes the widget on its last
     picture as an in-process death does, a kill of the client's own (the
     helper ended, a flood, an unanswered request) included, with the same
-    localized pill and the diagnostic in the runtime log. An attached
+    localized pill and the diagnostic in the runtime log (`The widget
+    stopped responding` for each live widget whose own route the stream's
+    end decided `Stalled`, *A renderer that stops answering* above). An
+    attached
     work publishes the stop only after it has consumed the traffic the
     helper sent before the death (its platform queue drained), and, when
     that traffic reported a paint-limit stop and the card is on screen,
@@ -2227,7 +2318,35 @@ packs, the fixture and the seams they use need no change for it.
   stream` for a kill. That death is a fatal stop like any other: it counts
   towards the widget's crashes in a row (two stop it), the card keeps its
   last picture when it had loaded, is released when it leaves the view and
-  starts again, in a fresh helper, when it is painted visible. A widget
+  starts again, in a fresh helper, when it is painted visible. A helper
+  ended because a renderer stopped answering (*A renderer that stops
+  answering* above) reads `Tgw: Widget helper <pid> stream ended: a hosted
+  renderer left a platform message unanswered for more than 3000 ms.` in
+  the main log, then its `ended` line. For the direct-download helper
+  (`CompleteChild()` and `CompleteWith()` in `widget_reaping_posix.cpp`)
+  that line is `<status>, sent SIGKILL after N ms` when the helper missed
+  the 1 s exit wait and the kill ended it (`signal 9, sent SIGKILL after
+  1002 ms` in the campaign, for a helper stopped with `SIGSTOP`) and its
+  status alone when it exited within that wait (`exit 0` in the
+  campaign). The Mac App Store build's `Complete()`
+  (`widget_helper_store_mac.mm`) cancels the service's connection instead
+  of signaling it, and its `ended` line reads as **The Mac App Store
+  service** above lists; that path was read, not run.
+  The stream decides each live route at that end
+  (`Connection::blameLocked()`) and each widget's host reads its own
+  route's decision (`HostLink::postDeath()`): every live widget whose
+  route it decided `Stalled` (its timed message overdue; one or several)
+  reads `Stopped (fatal): The widget stopped responding` in its runtime
+  log, under the same localized pill, while its host watch's `dead` is
+  still `the widget engine process ended`; every other live widget that
+  end stopped reads the localized stop label, as at any helper end. Each
+  of those stops counts once towards that widget's crashes in a row. A
+  widget that had already stopped keeps its own reason and count, since a
+  later stop changes neither (`RendererWork::freeze()`,
+  `Runtime::coreStopped()`). The app measured one overdue widget alone
+  and one beside a live sibling; two overdue routes of one stream both
+  read `Stalled` in the scripted timed cases
+  ([Verification](#verification)). A widget
   whose helper cannot start dies with `the widget helper could not start:
   <error>`, the seam's error such as `posix_spawn failed: <reason>` on
   macOS (`posix_spawn failed: No such file or directory` when the bundle
@@ -2325,7 +2444,10 @@ packs, the fixture and the seams they use need no change for it.
   failures; an end after at least 60 s of helper uptime starts a new run at
   one, and a finished idle stop resets the run. The third failure in a row
   stops launches for the rest of the process: later widgets die with `the
-  widget helper failed 3 times in a row`. A `Launch()` that throws counts
+  widget helper failed 3 times in a row`. The end of a helper whose
+  renderer stopped answering (**Hosted widgets on macOS and Linux**
+  above) is such an unexpected end, one failure like a crash, under the
+  same run, limit and latch. A `Launch()` that throws counts
   as one start failure, `the widget helper could not start: <what()>`. A
   helper that did not exit even
   when killed stops them the same way, with `the widget helper was not
@@ -2371,7 +2493,21 @@ packs, the fixture and the seams they use need no change for it.
   by terminating its job, inside Flatpak through the portal, in the Mac
   App Store build by canceling its XPC connection) and waits up to 1 s
   more; an outstanding theme probe can hold the quit for its 10 s
-  before that. Since the stop waits for build jobs, a build that is
+  before that. The stop reaches the stream only on the manager's reap
+  worker (`Manager::stop()`, `Manager::reap()`), after
+  `Runtime::IsQuitPrevent()`'s drain and once `BusyStoppingEngines()`
+  finds no job left, and the stream keeps its first end
+  (`Connection::endLocked()` in widget-sandbox's `remote_stream.cpp`).
+  So the stream's end reads `the host stopped the stream`, the owner's
+  stop, when that stop is the stream's first end; when the stream ended
+  first for an answer that ran out, the end is the unanswered one of *A
+  renderer that stops answering* above. The time of the quit request
+  alone does not decide which. In the campaign a quit 0.044 s after the
+  admission of a frame request whose helper was stopped (`SIGSTOP`) ended
+  the stream with the owner's stop 0.063 s after that admission, then
+  killed the helper after the 1 s exit wait (`signal 9, sent SIGKILL after
+  1011 ms`), and no helper started after it.
+  Since the stop waits for build jobs, a build that is
   starting a Mac App Store service holds the quit for that start: at most
   16 s (`kStartWait` plus the 1 s cleanup) per start, with waiting builds
   starting one after another up to the failure limit, so about 48 s only
@@ -3698,7 +3834,53 @@ no app reading yet.
 On Linux the same arrangement was turned on by
 `2026/11/14/run-widget-validators-and-renderers-in-the-linux-helper`,
 compiled in the Linux Debug builds of both layouts; that task's records
-hold its runs.
+hold its runs. Those builds predate the Nova engine, whose integrated
+recipe configures on macOS only at this revision
+(`cmake/lib_nova_engine.cmake` refuses a non-Apple configure); the Linux
+source still selects the same hosting, manager and answer classifier
+(*A renderer that stops answering* above).
+
+The end of a helper whose renderer stops answering (*A renderer that
+stops answering* under **Hosted widgets on macOS and Linux**, with its
+runtime log,
+failure and quit readings) ran in the macOS arm64 direct-download Debug
+client and its embedded Debug helper in the evidence campaign of
+`2026/11/20/kill-the-widget-helper-when-a-renderer-leaves-a-request-unanswered`
+(its `work/test.md`, Attempt 1, which holds the timelines), over three
+runs, each a client rebuilt with that run's disposable evidence overlay.
+Attempt 1 exercised that task's pre-rebase macOS build, from before the
+Nova engine; no Linux build ran it.
+The overlay's Debug helper tap made each stall real: a `SIGSTOP` of the
+helper at the ingress of a card's frame request, a withheld frame or a
+frame of another sequence. In Run 1, for a visible card whose helper
+stopped at its frame request, the stream's end was decided 3.0 s after
+the request's admission while the window scrolled and painted, the exact
+child was killed after the 1 s exit wait and gone within 5 s of that
+admission, and the card kept its last picture under the stop pill with
+`Stopped (fatal): The widget stopped responding` and `Crashes in a row:
+1 of 2.`; and a quit 0.044 s after such a request's admission ended the
+stream with the owner's stop 0.063 s after that admission, then that
+child, with no later start. In Run 3, with the frame of one of two live
+cards withheld, that card read the same, the other the localized stop
+label and `1 of 2` from 0, and the helper exited on its own. In Runs 1
+and 3, a frame of another sequence that Telegram refused before its
+deadline, and a counted stop of a fixture-owned hosted client, each ended
+that widget alone, with its own reason, while the other card went on
+answering on the same helper past that deadline. In Run 2, with the
+refusal held on `widget.render` until the stream's end came first, the
+refused card read the stopped-responding reason, and with that branch of
+`RendererWork::refuseRoute()` reverted its own refusal instead. In each
+of the three runs an idle chat with a running card, the cards placed off
+screen with nothing timed admitted there and a static card with no frame
+request admitted each kept the same helper for 10.5 s, and a matching
+frame held 3.6 s behind render work on `widget.render` ended nothing; no
+run's log had `failed 3 times` or `was not reaped`. In the Run 2 client
+the production classifier's timed cases over the framework's scripted
+engine end passed, among them a 3.6 s wait on the host's side for a
+renderer request's answer that ended nothing and two overdue routes of
+one stream both decided `Stalled`. Not run: the Mac App Store service's
+path (read in `widget_helper_store_mac.mm`) and a stall by a widget's own
+content.
 
 ## Related guidance
 
