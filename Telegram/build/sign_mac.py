@@ -8,11 +8,20 @@ import argparse
 import os
 import pathlib
 import plistlib
+import stat
 import subprocess
 import sys
 
+PROJECT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.append(str(PROJECT / 'cmake'))
+import widget_helper_identity
+
 HELPER = pathlib.Path('Contents/Helpers/TelegramWidgetHelper')
 SERVICE = pathlib.Path('Contents/XPCServices/TelegramWidgetHelper.xpc')
+HELPER_ENTITLEMENTS = {
+    HELPER: PROJECT / 'Telegram/TelegramWidgetHelperDirect.entitlements',
+    SERVICE: PROJECT / 'Telegram/TelegramWidgetHelper.entitlements',
+}
 
 
 def macho(path):
@@ -55,18 +64,78 @@ def codesign(identity, path, entitlements=None, timestamp=None, runtime=False, k
 
 
 def sign(bundle, identity, entitlements=None, timestamp=None, runtime=False, keychain=None, nested_only=False):
+    present = widget_helpers(bundle)
+    for helper in present:
+        check_layout(bundle, helper)
+    certified = present if identity != '-' else []
+    for helper in certified:
+        check_helper(bundle, helper, widget_helper_identity.check_staged)
     for path in nested_code(bundle):
         codesign(identity, path, entitlements, timestamp, runtime, keychain)
-    if (bundle / HELPER).exists() and identity != '-':
-        codesign(identity, bundle / HELPER, timestamp=timestamp, runtime=True, keychain=keychain,
+    for helper in certified:
+        codesign(identity, bundle / helper, HELPER_ENTITLEMENTS[helper], timestamp, True, keychain,
             extra=['--preserve-metadata=identifier'])
-    if (bundle / SERVICE).exists() and identity != '-':
-        codesign(identity, bundle / SERVICE, timestamp=timestamp, runtime=True, keychain=keychain,
-            extra=['--preserve-metadata=identifier,entitlements'])
+    check_helpers(bundle)
     if nested_only:
         return
     codesign(identity, bundle, entitlements, timestamp, runtime, keychain)
     subprocess.run(['codesign', '--verify', '--deep', '--strict', str(bundle)], check=True)
+
+
+def widget_helpers(bundle):
+    present = [helper for helper in HELPER_ENTITLEMENTS if (bundle / helper).exists()]
+    if not present:
+        raise RuntimeError(str(bundle) + ' has no widget helper')
+    return present
+
+
+def check_entry(path, directory):
+    mode = path.lstat().st_mode
+    if stat.S_ISLNK(mode):
+        raise RuntimeError(str(path) + ' is a link')
+    if not (stat.S_ISDIR(mode) if directory else stat.S_ISREG(mode)):
+        raise RuntimeError(str(path) + ' is not a ' + ('directory' if directory else 'regular file'))
+
+
+def check_layout(bundle, helper):
+    for parent in reversed(helper.parents):
+        if parent.parts:
+            check_entry(bundle / parent, True)
+    if helper == HELPER:
+        check_entry(bundle / helper, False)
+        return
+    contents = bundle / helper / 'Contents'
+    info = contents / 'Info.plist'
+    for path, directory in ((bundle / helper, True), (contents, True), (info, False)):
+        check_entry(path, directory)
+    executable = plistlib.loads(info.read_bytes()).get('CFBundleExecutable')
+    if not isinstance(executable, str) or executable in ('', '.', '..') or '/' in executable:
+        raise RuntimeError(str(info) + ' has no valid CFBundleExecutable')
+    for path, directory in (
+            (contents / 'MacOS', True),
+            (contents / 'MacOS' / executable, False),
+            (contents / '_CodeSignature', True),
+            (contents / '_CodeSignature/CodeResources', False)):
+        check_entry(path, directory)
+
+
+def check_helper(bundle, helper, check):
+    check_layout(bundle, helper)
+    path = bundle / helper
+    root = bundle.resolve()
+    for item in [path, *path.rglob('*')]:
+        if root not in item.resolve().parents:
+            raise RuntimeError(str(item) + ' resolves outside ' + str(bundle))
+    try:
+        return check(path, HELPER_ENTITLEMENTS[helper])
+    except RuntimeError as error:
+        raise RuntimeError(str(path) + ': ' + str(error)) from None
+
+
+def check_helpers(bundle):
+    for helper in widget_helpers(bundle):
+        found = check_helper(bundle, helper, widget_helper_identity.check)
+        print('Widget helper checked: ' + str(helper) + ' (' + ', '.join(found) + ')', flush=True)
 
 
 def main():
@@ -75,11 +144,20 @@ def main():
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--identity')
     source.add_argument('--xcode', action='store_true')
+    source.add_argument('--check', action='store_true')
+    source.add_argument('--check-layout', action='store_true')
     parser.add_argument('--entitlements', type=pathlib.Path)
     parser.add_argument('--timestamp', action='store_true')
     parser.add_argument('--runtime', action='store_true')
     parser.add_argument('--keychain', type=pathlib.Path)
     args = parser.parse_args()
+    if args.check_layout:
+        for helper in widget_helpers(args.bundle):
+            check_layout(args.bundle, helper)
+        return
+    if args.check:
+        check_helpers(args.bundle)
+        return
     if not args.xcode:
         sign(args.bundle, args.identity, args.entitlements, True if args.timestamp else None,
             args.runtime, args.keychain)

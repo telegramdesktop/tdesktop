@@ -43,6 +43,22 @@ struct CFReleaser {
 template <typename Ref>
 using CFHolder = std::unique_ptr<std::remove_pointer_t<Ref>, CFReleaser>;
 
+struct Requirement {
+	CFHolder<SecRequirementRef> value;
+	QString check;
+	QString error;
+};
+
+struct Slice {
+	cpu_type_t type = 0;
+	const char *name = nullptr;
+};
+
+constexpr auto kSlices = std::array{
+	Slice{ CPU_TYPE_ARM64, "arm64" },
+	Slice{ CPU_TYPE_X86_64, "x86_64" },
+};
+
 void CFReleaser::operator()(CFTypeRef value) const {
 	CFRelease(value);
 }
@@ -59,9 +75,153 @@ void CFReleaser::operator()(CFTypeRef value) const {
 		: u"%1 failed: %2"_q.arg(name, QString::number(status));
 }
 
+[[nodiscard]] Requirement MakeRequirement(
+		const QString &text,
+		QString check) {
+	const auto string = CFHolder<CFStringRef>(text.toCFString());
+	auto created = SecRequirementRef();
+	const auto status = SecRequirementCreateWithString(
+		string.get(),
+		kSecCSDefaultFlags,
+		&created);
+	auto value = CFHolder<SecRequirementRef>(created);
+	if (status != errSecSuccess) {
+		return {
+			.error = SecurityError("SecRequirementCreateWithString", status),
+		};
+	}
+	return { .value = std::move(value), .check = std::move(check) };
+}
+
+[[nodiscard]] CFHolder<CFDictionaryRef> NumberAttributes(
+		CFStringRef key,
+		int value) {
+	const auto number = CFHolder<CFNumberRef>(
+		CFNumberCreate(nullptr, kCFNumberIntType, &value));
+	auto keys = (const void*)key;
+	auto values = (const void*)number.get();
+	return CFHolder<CFDictionaryRef>(values
+		? CFDictionaryCreate(
+			nullptr,
+			&keys,
+			&values,
+			1,
+			&kCFTypeDictionaryKeyCallBacks,
+			&kCFTypeDictionaryValueCallBacks)
+		: nullptr);
+}
+
+// CFEqual treats a CFBoolean and a CFNumber as equal, the XML keeps the type.
+[[nodiscard]] CFHolder<CFDataRef> Serialized(CFPropertyListRef list) {
+	return CFHolder<CFDataRef>(CFPropertyListCreateData(
+		nullptr,
+		list,
+		kCFPropertyListXMLFormat_v1_0,
+		0,
+		nullptr));
+}
+
+[[nodiscard]] CFHolder<CFDataRef> ExpectedEntitlements() {
+	const auto expected = std::string_view(details::kEntitlements);
+	const auto data = CFHolder<CFDataRef>(CFDataCreateWithBytesNoCopy(
+		nullptr,
+		reinterpret_cast<const UInt8*>(expected.data()),
+		CFIndex(expected.size()),
+		kCFAllocatorNull));
+	const auto list = CFHolder<CFPropertyListRef>(data
+		? CFPropertyListCreateWithData(
+			nullptr,
+			data.get(),
+			kCFPropertyListImmutable,
+			nullptr,
+			nullptr)
+		: nullptr);
+	return list ? Serialized(list.get()) : nullptr;
+}
+
+[[nodiscard]] QString CheckSlice(
+		CFURLRef url,
+		const Slice &slice,
+		SecRequirementRef signer,
+		CFDataRef expected,
+		not_null<QStringList*> digests) {
+	const auto name = QString::fromLatin1(slice.name);
+	const auto failed = [&](const QString &error) {
+		return u"the %1 slice: %2"_q.arg(name, error);
+	};
+	const auto attributes = NumberAttributes(
+		kSecCodeAttributeArchitecture,
+		slice.type);
+	if (!attributes) {
+		return failed(u"the code attributes are unavailable"_q);
+	}
+	auto created = SecStaticCodeRef();
+	const auto opened = SecStaticCodeCreateWithPathAndAttributes(
+		url,
+		kSecCSDefaultFlags,
+		attributes.get(),
+		&created);
+	const auto code = CFHolder<SecStaticCodeRef>(created);
+	if (opened == errSecCSBadObjectFormat) {
+		return QString();
+	} else if (opened != errSecSuccess) {
+		return failed(SecurityError(
+			"SecStaticCodeCreateWithPathAndAttributes",
+			opened));
+	}
+	const auto checked = SecStaticCodeCheckValidity(
+		code.get(),
+		kSecCSDefaultFlags,
+		signer);
+	if (checked != errSecSuccess) {
+		return failed(SecurityError("SecStaticCodeCheckValidity", checked));
+	}
+	auto signing = CFDictionaryRef();
+	const auto read = SecCodeCopySigningInformation(
+		code.get(),
+		kSecCSDefaultFlags,
+		&signing);
+	const auto information = CFHolder<CFDictionaryRef>(signing);
+	if (read != errSecSuccess) {
+		return failed(SecurityError("SecCodeCopySigningInformation", read));
+	}
+	const auto unique = CFDictionaryGetValue(
+		information.get(),
+		kSecCodeInfoUnique);
+	if (!unique
+		|| CFGetTypeID(unique) != CFDataGetTypeID()
+		|| !CFDataGetLength((CFDataRef)unique)) {
+		return failed(u"the CDHash is unreadable"_q);
+	}
+	const auto entitlements = CFDictionaryGetValue(
+		information.get(),
+		kSecCodeInfoEntitlementsDict);
+	const auto empty = CFHolder<CFDictionaryRef>(entitlements
+		? nullptr
+		: CFDictionaryCreate(
+			nullptr,
+			nullptr,
+			nullptr,
+			0,
+			&kCFTypeDictionaryKeyCallBacks,
+			&kCFTypeDictionaryValueCallBacks));
+	const auto list = entitlements ? entitlements : empty.get();
+	const auto actual = list ? Serialized(list) : nullptr;
+	if (!actual) {
+		return failed(u"the entitlements are unreadable"_q);
+	} else if (!CFEqual(actual.get(), expected)) {
+		return u"the %1 slice's entitlements differ from this build's"_q.arg(
+			name);
+	}
+	const auto digest = QByteArray::fromRawCFData((CFDataRef)unique).toHex();
+	digests->push_back(u"cdhash H\"%1\""_q.arg(QString::fromLatin1(digest)));
+	return QString();
+}
+
 [[nodiscard]] details::RequirementText SignerRequirement(
 		const QString &identifier,
-		CFTypeRef certificates) {
+		CFTypeRef certificates,
+		const QByteArray &path) {
 	const auto list = (certificates
 		&& CFGetTypeID(certificates) == CFArrayGetTypeID())
 		? (CFArrayRef)certificates
@@ -80,11 +240,54 @@ void CFReleaser::operator()(CFTypeRef value) const {
 	const auto hash = QCryptographicHash::hash(
 		QByteArray::fromRawCFData(der.get()),
 		QCryptographicHash::Sha1).toHex();
+	const auto signer = u"identifier \"%1\" and certificate leaf = H\"%2\""_q
+		.arg(identifier, QString::fromLatin1(hash));
+	const auto requirement = MakeRequirement(signer, u"signer"_q);
+	if (!requirement.error.isEmpty()) {
+		return { .error = requirement.error };
+	}
+	const auto expected = ExpectedEntitlements();
+	if (!expected) {
+		return {
+			.error = u"the widget helper entitlements of this build "
+				"are unreadable"_q,
+		};
+	}
+	const auto url = CFHolder<CFURLRef>(
+		CFURLCreateFromFileSystemRepresentation(
+			nullptr,
+			reinterpret_cast<const UInt8*>(path.constData()),
+			CFIndex(path.size()),
+			false));
+	if (!url) {
+		return { .error = u"the widget helper path is unknown"_q };
+	}
+	const auto refused = [&](const QString &error) {
+		return details::RequirementText{
+			.error = u"the widget helper failed the %1 check: %2"_q.arg(
+				requirement.check,
+				error),
+		};
+	};
+	auto digests = QStringList();
+	// launchd starts a service's native slice even for a translated client.
+	for (const auto &slice : kSlices) {
+		const auto error = CheckSlice(
+			url.get(),
+			slice,
+			requirement.value.get(),
+			expected.get(),
+			&digests);
+		if (!error.isEmpty()) {
+			return refused(error);
+		}
+	}
+	if (digests.isEmpty()) {
+		return refused(u"there is no arm64 or x86_64 slice"_q);
+	}
 	return {
-		.text = u"identifier \"%1\" and certificate leaf = H\"%2\""_q.arg(
-			identifier,
-			QString::fromLatin1(hash)),
-		.check = u"signer"_q,
+		.text = u"%1 and (%2)"_q.arg(signer, digests.join(u" or "_q)),
+		.check = requirement.check,
 	};
 }
 
@@ -130,7 +333,19 @@ QString SystemError(const char *call, int error) {
 		qt_error_string(error));
 }
 
-RequirementText HelperRequirementText(const QString &identifier) {
+QByteArray BundledPath(const char *relative) {
+	@autoreleasepool {
+		const auto bundle = [[NSBundle mainBundle] bundlePath];
+		const auto path = [bundle stringByAppendingPathComponent:@(relative)];
+		return path
+			? QByteArray([path fileSystemRepresentation])
+			: QByteArray();
+	}
+}
+
+RequirementText HelperRequirementText(
+		const QString &identifier,
+		const QByteArray &path) {
 	auto self = SecCodeRef();
 	const auto copied = SecCodeCopySelf(kSecCSDefaultFlags, &self);
 	const auto code = CFHolder<SecCodeRef>(self);
@@ -187,7 +402,8 @@ RequirementText HelperRequirementText(const QString &identifier) {
 	}
 	return SignerRequirement(
 		identifier,
-		CFDictionaryGetValue(information.get(), kSecCodeInfoCertificates));
+		CFDictionaryGetValue(information.get(), kSecCodeInfoCertificates),
+		path);
 }
 
 } // namespace details
@@ -229,23 +445,6 @@ constexpr auto kCpuType = cpu_type_t(CPU_TYPE_ARM64);
 #elif defined __x86_64__
 constexpr auto kCpuType = cpu_type_t(CPU_TYPE_X86_64);
 #endif // __arm64__ || __x86_64__
-
-struct Requirement {
-	CFHolder<SecRequirementRef> value;
-	QString check;
-	QString error;
-};
-
-[[nodiscard]] QByteArray HelperPath() {
-	@autoreleasepool {
-		const auto bundle = [[NSBundle mainBundle] bundlePath];
-		const auto path = [bundle stringByAppendingPathComponent:
-			@"Contents/Helpers/TelegramWidgetHelper"];
-		return path
-			? QByteArray([path fileSystemRepresentation])
-			: QByteArray();
-	}
-}
 
 [[nodiscard]] QString PrepareActions(
 		not_null<posix_spawn_file_actions_t*> actions,
@@ -336,24 +535,6 @@ struct Requirement {
 	return QString();
 }
 
-[[nodiscard]] Requirement MakeRequirement(
-		const QString &text,
-		QString check) {
-	const auto string = CFHolder<CFStringRef>(text.toCFString());
-	auto created = SecRequirementRef();
-	const auto status = SecRequirementCreateWithString(
-		string.get(),
-		kSecCSDefaultFlags,
-		&created);
-	auto value = CFHolder<SecRequirementRef>(created);
-	if (status != errSecSuccess) {
-		return {
-			.error = SecurityError("SecRequirementCreateWithString", status),
-		};
-	}
-	return { .value = std::move(value), .check = std::move(check) };
-}
-
 [[nodiscard]] QString CheckStarted(
 		pid_t pid,
 		const Requirement &requirement) {
@@ -364,19 +545,7 @@ struct Requirement {
 			requirement.check,
 			error);
 	};
-	const auto number = CFHolder<CFNumberRef>(
-		CFNumberCreate(nullptr, kCFNumberIntType, &pid));
-	auto key = (const void*)kSecGuestAttributePid;
-	auto value = (const void*)number.get();
-	const auto attributes = CFHolder<CFDictionaryRef>(value
-		? CFDictionaryCreate(
-			nullptr,
-			&key,
-			&value,
-			1,
-			&kCFTypeDictionaryKeyCallBacks,
-			&kCFTypeDictionaryValueCallBacks)
-		: nullptr);
+	const auto attributes = NumberAttributes(kSecGuestAttributePid, pid);
 	if (!attributes) {
 		return refused(u"the guest attributes are unavailable"_q);
 	}
@@ -408,7 +577,7 @@ struct Requirement {
 } // namespace
 
 Launched Launch(const QStringList &arguments) {
-	auto path = HelperPath();
+	auto path = details::BundledPath("Contents/Helpers/TelegramWidgetHelper");
 	if (path.isEmpty()) {
 		return { .error = u"the widget helper path is unknown"_q };
 	} else if (fcntl(STDERR_FILENO, F_GETFD) < 0) {
@@ -458,7 +627,8 @@ Launched Launch(const QStringList &arguments) {
 		return { .error = std::move(prepared) };
 	}
 	auto text = details::HelperRequirementText(
-		QString::fromLatin1(details::kIdentifier));
+		QString::fromLatin1(details::kIdentifier),
+		path);
 	if (!text.error.isEmpty()) {
 		return { .error = std::move(text.error) };
 	}

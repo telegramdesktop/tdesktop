@@ -125,6 +125,28 @@ PackUpdate() {
   rm signing-input.bin release-cloud.sig "$UpdateFile.unsigned"
 }
 
+CheckWidgetHelper() {
+  if [ ! -f "$1/Contents/Helpers/TelegramWidgetHelper" ]; then
+    echo "TelegramWidgetHelper not found in $1!"
+    return 1
+  fi
+  python3 "$FullScriptPath/sign_mac.py" --check "$1"
+}
+
+Sha256() {
+  local Digest
+  [ -f "$1" ] && Digest=`shasum -a 256 < "$1"` || return 1
+  Digest="${Digest%% *}"
+  case "$Digest" in
+    *[!0-9a-f]*) return 1 ;;
+  esac
+  [ ${#Digest} -eq 64 ] && echo "$Digest"
+}
+
+PolicyDigest() {
+  Sha256 "$HomePath/Telegram/TelegramWidgetHelperDirect.entitlements"
+}
+
 echo ""
 HomePath="$FullScriptPath/.."
 if [ "$BuildTarget" == "linux" ]; then
@@ -220,6 +242,20 @@ if [ "$MacArch" == "" ]; then
     Error "Another build.sh seems to be running (found $LockDir, remove it if stale)."
   fi
   trap 'rmdir "$LockDir"' EXIT
+fi
+
+if [ "$BuildTarget" == "mac" ] && [ "$MacArch" == "" ]; then
+  ExistingUpdates=""
+  if [ -e "$ReleasePath/$UpdateFileARM64" ] || [ -L "$ReleasePath/$UpdateFileARM64" ]; then
+    ExistingUpdates="arm64 $UpdateFileARM64"
+  fi
+  if [ -e "$ReleasePath/$UpdateFileAMD64" ] || [ -L "$ReleasePath/$UpdateFileAMD64" ]; then
+    ExistingUpdates="${ExistingUpdates:+$ExistingUpdates, }x86_64 $UpdateFileAMD64"
+  fi
+  if [ "$ExistingUpdates" != "" ]; then
+    Error "Update files already exist in $ReleasePath ($ExistingUpdates), set them aside before rerunning!"
+  fi
+  ParentPolicy=`PolicyDigest` || Error "TelegramWidgetHelperDirect.entitlements could not be read!"
 fi
 
 DeployPath="$ReleasePath/deploy/$AppVersionStrMajor/$AppVersionStrFull"
@@ -331,13 +367,14 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     echo "Preparing single $MacArch .app.."
     rm -rf $BundleName
     cp -R $BinaryName.app $BundleName
+    python3 "$FullScriptPath/sign_mac.py" --check-layout "$ReleasePath/$BundleName" || Error "Checking the widget helper in $BundleName failed!"
     lipo -thin $MacArch $BinaryName.app/Contents/MacOS/$BinaryName -output $BundleName/Contents/MacOS/$BinaryName
     lipo -thin $MacArch $BinaryName.app/Contents/Frameworks/Updater -output $BundleName/Contents/Frameworks/Updater
     lipo -thin $MacArch $BinaryName.app/Contents/Helpers/crashpad_handler -output $BundleName/Contents/Helpers/crashpad_handler
     lipo -thin $MacArch $BinaryName.app/Contents/Helpers/TelegramWidgetHelper -output $BundleName/Contents/Helpers/TelegramWidgetHelper
     echo "Done!"
-  elif [ "$NotarizeRequestId" == "" ]; then
-    if [ "$NotarizeRequestIdAMD64" == "" ] && [ "$NotarizeRequestIdARM64" == "" ]; then
+  else
+    if [ "$NotarizeRequestId" == "" ] && [ "$NotarizeRequestIdAMD64" == "" ] && [ "$NotarizeRequestIdARM64" == "" ]; then
       if [ -f "$ReleasePath/$BinaryName.app/Contents/Info.plist" ]; then
         rm "$ReleasePath/$BinaryName.app/Contents/Info.plist"
       fi
@@ -357,14 +394,14 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
     cd $FullExecPath
 
     if [ "$BuildTarget" == "mac" ]; then
-      if [ "$NotarizeRequestIdAMD64" == "" ]; then
-        echo "Preparing single arm64 update.."
-        ./$0 arm64 request_uuid $NotarizeRequestIdARM64
-      fi
+      trap 'Error "Interrupted while preparing the single updates!"' HUP INT TERM
+      echo "Preparing single arm64 update.."
+      "$FullScriptPath/build.sh" arm64 request_uuid "$NotarizeRequestIdARM64"
 
       echo "Preparing single x86_64 update.."
-      ./$0 x86_64 request_uuid $NotarizeRequestIdAMD64
+      "$FullScriptPath/build.sh" x86_64 request_uuid "$NotarizeRequestIdAMD64"
 
+      trap - HUP INT TERM
       echo "Done."
     fi
     cd $ReleasePath
@@ -508,14 +545,44 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         cd "$ReleasePath"
       fi
     fi
+    if [ "$NotarizeRequestId" != "" ] && [ "$NotarizeRequestId" != "go" ]; then
+      CheckWidgetHelper "$ReleasePath/$BundleName" || Error "Checking the widget helper in $BundleName failed!"
+      if [ ! -f "$ReleasePath/$SetupFile" ] || [ ! -r "$ReleasePath/$SetupFile" ]; then
+        Error "$SetupFile not found or not readable!"
+      fi
+      trap 'Error "Interrupted while checking $SetupFile!"' HUP INT TERM
+      if ! (
+        Result=0
+        trap 'Result=1' HUP INT TERM
+        InOwnGroup() {
+          python3 -c 'import os, sys; os.setpgrp(); os.execvp(sys.argv[1], sys.argv[1:])' "$@" < /dev/null > /dev/null
+        }
+        CheckPath=`mktemp -d -t tdesktop-check` || exit 1
+        if [ $Result == 0 ] && InOwnGroup hdiutil attach -readonly -nobrowse -noautoopen -mountpoint "$CheckPath" "$ReleasePath/$SetupFile"; then
+          if [ $Result == 0 ] && [ -L "$CheckPath/$BundleName" ]; then
+            echo "$BundleName in $SetupFile is a link!"
+            Result=1
+          elif [ $Result == 0 ] && ! CheckWidgetHelper "$CheckPath/$BundleName"; then
+            Result=1
+          fi
+        else
+          Result=1
+        fi
+        if [ "$(stat -f %d "$CheckPath")" != "$(stat -f %d "$CheckPath/..")" ]; then
+          InOwnGroup hdiutil detach "$CheckPath" || InOwnGroup hdiutil detach -force "$CheckPath" || Result=1
+        fi
+        rmdir "$CheckPath" || Result=1
+        exit $Result
+      ); then
+        Error "Checking the widget helper in $SetupFile failed!"
+      fi
+      trap - HUP INT TERM
+    fi
     echo "Beginning notarization process."
     xcrun notarytool submit "$SetupFile" --keychain-profile "preston" --wait
     xcrun stapler staple "$ReleasePath/$BundleName"
 
-    if [ "$MacArch" != "" ]; then
-      rm "$ReleasePath/$SetupFile"
-      echo "Setup file $SetupFile removed."
-    elif [ "$AlphaVersion" != "0" ]; then
+    if [ "$MacArch" == "" ] && [ "$AlphaVersion" != "0" ]; then
       rm -rf "$ReleasePath/AlphaTemp"
       mkdir "$ReleasePath/AlphaTemp"
       mkdir "$ReleasePath/AlphaTemp/$BinaryName"
@@ -525,7 +592,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       mv "$SetupFile" "$ReleasePath/"
       cd "$ReleasePath"
       echo "Alpha archive re-created."
-    else
+    elif [ "$MacArch" == "" ]; then
       xcrun stapler staple "$ReleasePath/$SetupFile"
     fi
 
@@ -541,7 +608,14 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
       mv "$UpdateFile" "$ReleasePath/"
       cd "$ReleasePath"
       rm -rf "$UpdatePackPath"
+      rm "$ReleasePath/$SetupFile"
+      echo "Setup file $SetupFile removed."
       exit
+    fi
+
+    FinalPolicy=`PolicyDigest` || Error "TelegramWidgetHelperDirect.entitlements could not be read!"
+    if [ "$FinalPolicy" != "$ParentPolicy" ]; then
+      Error "TelegramWidgetHelperDirect.entitlements changed during the build!"
     fi
   fi
 

@@ -122,10 +122,12 @@ elseif (APPLE)
             XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER ${widget_helper_identifier}
             LINK_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/TelegramWidgetHelper.plist;${widget_helper_entitlements}"
         )
-        set(widget_helper_sign_options --entitlements ${widget_helper_entitlements})
         set(widget_helper_signed $<TARGET_BUNDLE_DIR:TelegramWidgetHelper>)
     else()
-        set(widget_helper_sign_options)
+        set(widget_helper_entitlements ${CMAKE_CURRENT_SOURCE_DIR}/Telegram/TelegramWidgetHelperDirect.entitlements)
+        set_target_properties(TelegramWidgetHelper PROPERTIES
+            LINK_DEPENDS ${widget_helper_entitlements}
+        )
         set(widget_helper_signed $<TARGET_FILE:TelegramWidgetHelper>)
     endif()
 
@@ -140,7 +142,7 @@ elseif (APPLE)
         COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:TelegramWidgetHelper>>"
         COMMAND codesign --force --sign - --options runtime
             --identifier ${widget_helper_identifier}
-            ${widget_helper_sign_options}
+            --entitlements ${widget_helper_entitlements}
             ${widget_helper_signed}
         COMMAND_EXPAND_LISTS
         VERBATIM
@@ -161,9 +163,6 @@ elseif (APPLE)
                 "${widget_helper_built}/_CodeSignature/CodeResources" "${widget_helper_service}/_CodeSignature/"
             VERBATIM
         )
-        generate_widget_helper_identity(Telegram TelegramWidgetHelper cdhash
-            IDENTIFIER ${widget_helper_identifier}
-            ENTITLEMENTS ${widget_helper_entitlements})
     else()
         add_custom_target(TelegramWidgetHelper_bundle
             COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:Telegram>/../Helpers"
@@ -171,8 +170,10 @@ elseif (APPLE)
                 "$<TARGET_FILE:TelegramWidgetHelper>" "$<TARGET_FILE_DIR:Telegram>/../Helpers/"
             VERBATIM
         )
-        generate_widget_helper_identity(Telegram TelegramWidgetHelper cdhash IDENTIFIER ${widget_helper_identifier})
     endif()
+    generate_widget_helper_identity(Telegram TelegramWidgetHelper cdhash
+        IDENTIFIER ${widget_helper_identifier}
+        ENTITLEMENTS ${widget_helper_entitlements})
     add_dependencies(TelegramWidgetHelper_bundle TelegramWidgetHelper)
     add_dependencies(Telegram TelegramWidgetHelper_bundle)
 else()

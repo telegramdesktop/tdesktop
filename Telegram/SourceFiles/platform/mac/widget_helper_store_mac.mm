@@ -286,7 +286,12 @@ Launched LaunchService(const QStringList &arguments) {
 		return { .error = u"the bundle identifier of this build is unknown"_q };
 	}
 	const auto name = bundle + QString::fromLatin1(kServiceSuffix);
-	auto requirement = details::HelperRequirementText(name);
+	const auto path = details::BundledPath(
+		"Contents/XPCServices/TelegramWidgetHelper.xpc");
+	if (path.isEmpty()) {
+		return { .error = u"the widget helper path is unknown"_q };
+	}
+	auto requirement = details::HelperRequirementText(name, path);
 	if (!requirement.error.isEmpty()) {
 		return { .error = std::move(requirement.error) };
 	}

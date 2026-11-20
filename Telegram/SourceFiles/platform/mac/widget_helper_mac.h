@@ -20,6 +20,9 @@ struct RequirementText {
 };
 
 [[nodiscard]] QString SystemError(const char *call, int error);
-[[nodiscard]] RequirementText HelperRequirementText(const QString &identifier);
+[[nodiscard]] QByteArray BundledPath(const char *relative);
+[[nodiscard]] RequirementText HelperRequirementText(
+	const QString &identifier,
+	const QByteArray &path);
 
 } // namespace Platform::WidgetHelper::details

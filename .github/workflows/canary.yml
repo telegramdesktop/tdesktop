@@ -1070,6 +1070,9 @@ jobs:
               echo "::error::Publishing requires the signing certificate, unsigned apps never ship."
               exit 1
             fi
+            for BUNDLE in Telegram.x86_64.app Telegram.arm64.app Telegram.app; do
+              python3 ../../Telegram/build/sign_mac.py --check "$BUNDLE"
+            done
             echo "::warning::No signing certificate, leaving the apps unsigned."
             echo "signed=false" >> $GITHUB_OUTPUT
             exit 0
