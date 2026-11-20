@@ -88,6 +88,40 @@ its fixture, expected verdict and teardown. It is not a general-purpose helper
 and need not be used by product overlays. An internal dependency page names
 its actual callers; an absence of direct overlay includes is not non-use.
 
+## Code the Linux GCC build rejects
+
+Harness code is mostly built on Windows, but the Linux Debug and
+release-harness builds compile it too, and there GCC 15 treats warnings as
+errors. Two patterns that the Windows build never reports fail there; write
+the accepted form from the start.
+
+- A range-for loop variable that copies a `not_null` element, or another
+  element that is not trivially copyable, fails as `-Wrange-loop-construct`.
+  Take it by reference: `PlaceColumn()` in `test_qpa_mouse_self_test.cpp`
+  copied the `not_null<QWidget*>` elements of `windows` with
+  `for (const auto window : windows)` and now reads them with
+  `for (const auto &window : windows)`. Copying raw pointers, integers and
+  enums stays accepted.
+- Code in a non-Windows branch, such as `#else // Q_OS_WIN`, is compiled only
+  off Windows, so the Windows build never checks it. A function with internal
+  linkage (`static`, in the file's anonymous namespace, or a member of a class
+  declared there) that no code compiled on Linux calls fails the Linux build
+  as `-Wunused-function`. The off-Windows stub constructor `CursorCover` once
+  had in `test_qpa_mouse_self_test.cpp` failed this way: its only
+  construction, in `CoverCursor()`, sits in an `if constexpr` that is
+  discarded off Windows. Write no stub for a call that a platform discards or
+  never compiles, and define a platform-only function in the same platform
+  branch as its only caller. For a member function of a class declared in
+  the file's anonymous namespace, when its only call sits in a discarded
+  `if constexpr`, keep the declaration, which the discarded statement still
+  needs, and give the other platforms no definition: `CursorCover`'s
+  constructor now has none off Windows. A free function with internal
+  linkage (`static` or in the file's anonymous namespace) differs: declared
+  with no definition, it fails as "declared `static` but never defined", so
+  put its call in the same `#if` platform branch as the function, not in an
+  `if constexpr`. A stub is right only when code compiled on its platform
+  calls it.
+
 ## Before finishing the change
 
 - Update the module page and its one-line index entry in the same change as the
