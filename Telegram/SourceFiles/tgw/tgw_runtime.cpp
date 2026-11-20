@@ -637,17 +637,19 @@ void AppendTail(
 		std::shared_ptr<twidget::SandboxHostedChannel> channel) {
 	auto deleter = HostDeleter{ std::move(job.slot) };
 	auto html = std::string(job.html.constData(), size_t(job.html.size()));
-	if (!job.hosted) {
-		return HostPointer(
-			new twidget::WidgetHost(
-				std::move(html),
-				std::move(job.theme),
-				job.width,
-				job.options,
-				std::move(job.resources),
-				std::move(job.factory),
-				std::move(job.intl)),
-			std::move(deleter));
+	if constexpr (EnginesInTelegram()) {
+		if (!job.hosted) {
+			return HostPointer(
+				new twidget::WidgetHost(
+					std::move(html),
+					std::move(job.theme),
+					job.width,
+					job.options,
+					std::move(job.resources),
+					std::move(job.factory),
+					std::move(job.intl)),
+				std::move(deleter));
+		}
 	}
 	return HostPointer(
 		new twidget::WidgetHost(

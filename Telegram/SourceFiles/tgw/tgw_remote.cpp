@@ -50,6 +50,7 @@ using Answers = twidget::SandboxHostedAnswers;
 struct Choice {
 	EnginePlace place = EnginePlace::Nowhere;
 	bool hosted = false;
+	QString reason;
 };
 
 struct Key {
@@ -443,13 +444,6 @@ void PublishEnd(Reports &reports, const std::string &reason) {
 		reason.toStdString());
 }
 
-void RefuseEngines(const QString &reason) {
-	twidget::SandboxEngine::setRemoteChannelFactory([=](
-			std::shared_ptr<twidget::SandboxResources>) {
-		return Refusing(reason);
-	});
-}
-
 [[nodiscard]] QString CouldNotStart(const QString &error) {
 	LOG(("Tgw Error: The widget helper could not start: %1.").arg(error));
 	return u"the widget helper could not start: "_q + error;
@@ -465,7 +459,24 @@ void RefuseEngines(const QString &reason) {
 	return Platform::WidgetHelper::Renders();
 }
 
-[[nodiscard]] Choice Logged(Choice choice, const QString &value) {
+[[nodiscard]] Choice Resolved(Choice choice, const QString &value) {
+	if constexpr (!EnginesInTelegram()) {
+		if (choice.place != EnginePlace::Nowhere && !choice.hosted) {
+			const auto unrendered = (choice.place == EnginePlace::Helper)
+				&& !HostsWidgets();
+			choice.place = EnginePlace::Nowhere;
+			choice.reason = unrendered
+				? u"the widget helper of this build does not render widgets"_q
+				: u"TDESKTOP_WIDGET_ENGINES=%1 needs a widget engine in "
+					"Telegram, which this build does not have"_q.arg(value);
+		}
+		choice.hosted = true;
+	}
+	return choice;
+}
+
+[[nodiscard]] Choice Logged(Choice requested, const QString &value) {
+	auto choice = Resolved(std::move(requested), value);
 	const auto what = choice.hosted
 		? u"Widget engines, validators and renderers"_q
 		: u"Widget engines"_q;
@@ -480,7 +491,7 @@ void RefuseEngines(const QString &reason) {
 		LOG(("Tgw: %1 run in the widget helper%2.").arg(what, from));
 		break;
 	case EnginePlace::Nowhere:
-		LOG(("Tgw: %1 do not run, %2.").arg(what, Unavailable()));
+		LOG(("Tgw: %1 do not run, %2.").arg(what, choice.reason));
 		break;
 	}
 	return choice;
@@ -490,7 +501,13 @@ void RefuseEngines(const QString &reason) {
 	const auto place = Platform::WidgetHelper::Enabled()
 		? EnginePlace::Helper
 		: EnginePlace::Nowhere;
-	return Logged({ .place = place, .hosted = HostsWidgets() }, QString());
+	return Logged({
+		.place = place,
+		.hosted = HostsWidgets(),
+		.reason = ((place == EnginePlace::Nowhere)
+			? Unavailable()
+			: QString()),
+	}, QString());
 }
 
 // Engine switches and probes bypass or inspect the sandbox: never shipped.
@@ -829,30 +846,40 @@ void PrepareRemoteEngines() {
 	Hosted = choice.hosted;
 	if (choice.place == EnginePlace::InProcess) {
 		return;
-	} else if (choice.place == EnginePlace::Nowhere) {
-		const auto reason = Unavailable();
-		RefuseEngines(reason);
-		if (choice.hosted) {
-			HostedRoutes = [=](std::shared_ptr<twidget::SandboxResources>) {
-				return RefusingHosted(reason);
-			};
+	} else if (choice.place == EnginePlace::Helper) {
+		Instance = new Manager(choice.hosted);
+	}
+	if constexpr (EnginesInTelegram()) {
+		if (Instance && !choice.hosted) {
+			const auto manager = Instance;
+			twidget::SandboxEngine::setRemoteChannelFactory([=](
+					std::shared_ptr<twidget::SandboxResources> resources) {
+				return manager->channel(std::move(resources));
+			});
+		} else {
+			const auto reason = Instance
+				? u"widget engines run only beside their renderers "
+					"in the widget helper"_q
+				: choice.reason;
+			twidget::SandboxEngine::setRemoteChannelFactory([=](
+					std::shared_ptr<twidget::SandboxResources>) {
+				return Refusing(reason);
+			});
 		}
-		return;
 	}
-	Instance = new Manager(choice.hosted);
 	if (!choice.hosted) {
-		twidget::SandboxEngine::setRemoteChannelFactory([manager = Instance](
-				std::shared_ptr<twidget::SandboxResources> resources) {
-			return manager->channel(std::move(resources));
-		});
 		return;
+	} else if (Instance) {
+		HostedRoutes = [manager = Instance](
+				std::shared_ptr<twidget::SandboxResources> resources) {
+			return manager->hostedChannel(std::move(resources));
+		};
+	} else {
+		HostedRoutes = [reason = choice.reason](
+				std::shared_ptr<twidget::SandboxResources>) {
+			return RefusingHosted(reason);
+		};
 	}
-	RefuseEngines(u"widget engines run only beside their renderers "
-		"in the widget helper"_q);
-	HostedRoutes = [manager = Instance](
-			std::shared_ptr<twidget::SandboxResources> resources) {
-		return manager->hostedChannel(std::move(resources));
-	};
 }
 
 EnginePlace ChosenEnginePlace() {

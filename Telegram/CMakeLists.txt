@@ -83,13 +83,21 @@ include(cmake/test_wallet_phrase_shares.cmake)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 
+if (TDESKTOP_WIDGETS_HELPER_ONLY)
+    target_link_libraries(Telegram PRIVATE tdesktop::lib_widget_sandbox_host)
+else()
+    target_link_libraries(Telegram
+    PRIVATE
+        tdesktop::lib_widget_sandbox
+        tdesktop::lib_nova_engine_private
+    )
+endif()
+
 target_link_libraries(Telegram
 PRIVATE
     tdesktop::lib_fido2
     tdesktop::lib_litehtml
     tdesktop::lib_widget_renderer
-    tdesktop::lib_widget_sandbox
-    tdesktop::lib_nova_engine_private
     tdesktop::lib_tgcalls
     tdesktop::td_export
     tdesktop::td_gram

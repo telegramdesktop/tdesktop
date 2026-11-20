@@ -37,6 +37,11 @@ if (TDESKTOP_API_ID STREQUAL "0" OR TDESKTOP_API_HASH STREQUAL "")
     " ")
 endif()
 
+option(TDESKTOP_WIDGETS_HELPER_ONLY "Run widgets only in the sandboxed widget helper, Telegram links no widget engine or validator." ${LINUX})
+if (TDESKTOP_WIDGETS_HELPER_ONLY)
+    target_compile_definitions(Telegram PRIVATE TDESKTOP_WIDGETS_HELPER_ONLY)
+endif()
+
 if (DESKTOP_APP_DISABLE_AUTOUPDATE)
     target_compile_definitions(Telegram PRIVATE TDESKTOP_DISABLE_AUTOUPDATE)
 endif()

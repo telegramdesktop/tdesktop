@@ -12,8 +12,10 @@ if (NOT EXISTS ${nova_loc}/nova_embed_ffi/Cargo.toml)
     message(FATAL_ERROR "nova-safe sources are missing, run 'git submodule update --init --recursive'.")
 endif()
 
-if (NOT APPLE)
-    message(FATAL_ERROR "The Nova engine is built for macOS only so far: Windows and Linux get their recipes with their helpers.")
+if (WIN32)
+    message(FATAL_ERROR "The Nova engine is built for macOS and Linux only so far: Windows gets its recipe with its helper.")
+elseif (NOT APPLE AND NOT TDESKTOP_WIDGETS_HELPER_ONLY)
+    message(FATAL_ERROR "Telegram links no Nova engine on Linux, widgets run only in its helper: set TDESKTOP_WIDGETS_HELPER_ONLY.")
 endif()
 
 # The toolchain prepare.py installs next to Libraries, else whatever cargo the system has.
@@ -24,12 +26,25 @@ if (NOT TDESKTOP_CARGO)
     message(FATAL_ERROR "cargo was not found: the Nova engine needs the Rust toolchain of Telegram/build/prepare/prepare.py, or set TDESKTOP_CARGO.")
 endif()
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
-
 set(nova_out ${CMAKE_BINARY_DIR}/nova_engine)
 set(nova_library ${nova_out}/libnova_embed_ffi.a)
-set(nova_private_library ${nova_out}/libnova_embed_ffi_private.a)
-string(REPLACE ";" "," nova_archs "${CMAKE_OSX_ARCHITECTURES}")
+set(nova_libraries ${nova_library})
+set(nova_platform_arguments)
+if (APPLE)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
+    string(REPLACE ";" "," nova_archs "${CMAKE_OSX_ARCHITECTURES}")
+    list(APPEND nova_platform_arguments
+        -DNOVA_ARCHS=${nova_archs}
+        -DNOVA_DEPLOYMENT=${CMAKE_OSX_DEPLOYMENT_TARGET}
+        -DNOVA_PYTHON=${Python3_EXECUTABLE}
+    )
+endif()
+if (NOT TDESKTOP_WIDGETS_HELPER_ONLY)
+    set(nova_private_library ${nova_out}/libnova_embed_ffi_private.a)
+    list(APPEND nova_libraries ${nova_private_library})
+    list(APPEND nova_platform_arguments -DNOVA_PRIVATE=ON)
+endif()
 
 set(nova_toolchain_arguments)
 get_filename_component(nova_cargo_bin ${TDESKTOP_CARGO} REALPATH)
@@ -39,6 +54,9 @@ if (nova_cargo_bin STREQUAL nova_prepared_bin)
     get_filename_component(nova_rustup_home ${nova_rust_loc}/rustup REALPATH)
     get_filename_component(nova_cargo_home ${nova_rust_loc}/cargo REALPATH)
     set(nova_toolchain_arguments -DNOVA_RUSTUP_HOME=${nova_rustup_home} -DNOVA_CARGO_HOME=${nova_cargo_home})
+elseif (NOT APPLE)
+    # The Docker image's toolchain is read-only for the user who builds, so crates are fetched into the build tree.
+    set(nova_toolchain_arguments -DNOVA_CARGO_HOME=${nova_out}/cargo)
 endif()
 
 # Always runs: cargo decides what is stale, and the libraries are replaced only when their bytes change.
@@ -47,16 +65,12 @@ add_custom_target(nova_engine_build
         ${CMAKE_COMMAND}
         -DNOVA_ROOT=${nova_loc}
         -DNOVA_OUT=${nova_out}
-        -DNOVA_ARCHS=${nova_archs}
         -DNOVA_CARGO=${TDESKTOP_CARGO}
-        -DNOVA_DEPLOYMENT=${CMAKE_OSX_DEPLOYMENT_TARGET}
-        -DNOVA_PYTHON=${Python3_EXECUTABLE}
-        -DNOVA_PRIVATE=ON
+        ${nova_platform_arguments}
         ${nova_toolchain_arguments}
         -P ${CMAKE_CURRENT_LIST_DIR}/build_nova_engine.cmake
     BYPRODUCTS
-        ${nova_library}
-        ${nova_private_library}
+        ${nova_libraries}
     COMMENT "Building the Nova engine"
     VERBATIM
 )
@@ -69,11 +83,17 @@ add_library(tdesktop::lib_nova_engine ALIAS lib_nova_engine)
 target_link_libraries(lib_nova_engine INTERFACE lib_nova_engine_static)
 add_dependencies(lib_nova_engine nova_engine_build)
 
-# Telegram still compiles the in-process engines and the validator (its Debug switch, and the engine-only arrangement),
-# so it links the engine itself, in a form whose Rust runtime stays apart from tdesktop_rust's.
-add_library(lib_nova_engine_private_static STATIC IMPORTED GLOBAL)
-set_target_properties(lib_nova_engine_private_static PROPERTIES IMPORTED_LOCATION ${nova_private_library})
-add_library(lib_nova_engine_private INTERFACE)
-add_library(tdesktop::lib_nova_engine_private ALIAS lib_nova_engine_private)
-target_link_libraries(lib_nova_engine_private INTERFACE lib_nova_engine_private_static)
-add_dependencies(lib_nova_engine_private nova_engine_build)
+if (NOT APPLE)
+    target_link_libraries(lib_nova_engine INTERFACE ${CMAKE_DL_LIBS} m)
+endif()
+
+if (DEFINED nova_private_library)
+    # Telegram still compiles the in-process engines and the validator (its Debug switch, and the engine-only arrangement),
+    # so it links the engine itself, in a form whose Rust runtime stays apart from tdesktop_rust's.
+    add_library(lib_nova_engine_private_static STATIC IMPORTED GLOBAL)
+    set_target_properties(lib_nova_engine_private_static PROPERTIES IMPORTED_LOCATION ${nova_private_library})
+    add_library(lib_nova_engine_private INTERFACE)
+    add_library(tdesktop::lib_nova_engine_private ALIAS lib_nova_engine_private)
+    target_link_libraries(lib_nova_engine_private INTERFACE lib_nova_engine_private_static)
+    add_dependencies(lib_nova_engine_private nova_engine_build)
+endif()

@@ -21,6 +21,14 @@ enum class EnginePlace : uchar {
 	Nowhere,
 };
 
+[[nodiscard]] constexpr bool EnginesInTelegram() {
+#ifdef TDESKTOP_WIDGETS_HELPER_ONLY
+	return false;
+#else // TDESKTOP_WIDGETS_HELPER_ONLY
+	return true;
+#endif // TDESKTOP_WIDGETS_HELPER_ONLY
+}
+
 void PrepareRemoteEngines();
 [[nodiscard]] EnginePlace ChosenEnginePlace();
 [[nodiscard]] bool WidgetsHosted();

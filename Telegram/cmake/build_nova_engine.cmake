@@ -4,16 +4,19 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# Run by lib_nova_engine.cmake at build time: cargo builds nova_embed_ffi for every architecture, lipo joins them.
+# Run by lib_nova_engine.cmake at build time: cargo builds nova_embed_ffi for the Linux host, or for every macOS architecture, which lipo joins.
 # Cargo runs outside the checkout, so the toolchain is the one the caller chose and not nova-safe's own pin.
 
-foreach (name NOVA_ROOT NOVA_OUT NOVA_ARCHS NOVA_CARGO NOVA_DEPLOYMENT)
+set(required NOVA_ROOT NOVA_OUT NOVA_CARGO)
+if (DEFINED NOVA_ARCHS)
+    list(APPEND required NOVA_DEPLOYMENT)
+endif()
+foreach (name IN LISTS required)
     if (NOT DEFINED ${name})
         message(FATAL_ERROR "build_nova_engine.cmake needs -D${name}.")
     endif()
 endforeach()
 
-string(REPLACE "," ";" archs "${NOVA_ARCHS}")
 file(MAKE_DIRECTORY "${NOVA_OUT}")
 
 function(run)
@@ -48,11 +51,37 @@ else()
     endif()
 endif()
 
-set(environment "NOVA_EMBED_COMMIT=${commit}" "MACOSX_DEPLOYMENT_TARGET=${NOVA_DEPLOYMENT}")
+set(environment "NOVA_EMBED_COMMIT=${commit}")
+if (DEFINED NOVA_ARCHS)
+    list(APPEND environment "MACOSX_DEPLOYMENT_TARGET=${NOVA_DEPLOYMENT}")
+endif()
 if (DEFINED NOVA_RUSTUP_HOME AND DEFINED NOVA_CARGO_HOME)
     list(APPEND environment "RUSTUP_HOME=${NOVA_RUSTUP_HOME}" "CARGO_HOME=${NOVA_CARGO_HOME}")
+elseif (DEFINED NOVA_CARGO_HOME)
+    # rustup's proxies find rustc in CARGO_HOME, here one only for crates.
+    get_filename_component(cargo_bin "${NOVA_CARGO}" DIRECTORY)
+    list(APPEND environment "CARGO_HOME=${NOVA_CARGO_HOME}" "PATH=${cargo_bin}:$ENV{PATH}")
 endif()
 
+function(build)
+    run("${CMAKE_COMMAND}" -E env ${environment}
+        # As a static library alone: with the crate's rlib type beside it cargo leaves out the link-time optimisation its profile asks for.
+        "${NOVA_CARGO}" rustc --release --locked
+        --package nova_embed_ffi --lib --crate-type staticlib
+        ${ARGN}
+        # Stripped as nova-safe's profile asks, a proc-macro linked for macOS 12 or later is one rustc cannot load.
+        --config profile.release.build-override.strip=false
+        --manifest-path "${NOVA_ROOT}/Cargo.toml"
+        --target-dir "${NOVA_OUT}/target")
+endfunction()
+
+if (NOT DEFINED NOVA_ARCHS)
+    build()
+    publish("${NOVA_OUT}/target/release/libnova_embed_ffi.a" "${NOVA_OUT}/libnova_embed_ffi.a")
+    return()
+endif()
+
+string(REPLACE "," ";" archs "${NOVA_ARCHS}")
 set(built)
 set(prelinked)
 foreach (arch IN LISTS archs)
@@ -63,15 +92,7 @@ foreach (arch IN LISTS archs)
     else()
         message(FATAL_ERROR "The Nova engine build does not know the architecture '${arch}'.")
     endif()
-    run("${CMAKE_COMMAND}" -E env ${environment}
-        # As a static library alone: with the crate's rlib type beside it cargo leaves out the link-time optimisation its profile asks for.
-        "${NOVA_CARGO}" rustc --release --locked
-        --package nova_embed_ffi --lib --crate-type staticlib
-        --target ${target}
-        # Stripped as nova-safe's profile asks, a proc-macro linked for macOS 12 or later is one rustc cannot load.
-        --config profile.release.build-override.strip=false
-        --manifest-path "${NOVA_ROOT}/Cargo.toml"
-        --target-dir "${NOVA_OUT}/target")
+    build(--target ${target})
     set(library "${NOVA_OUT}/target/${target}/release/libnova_embed_ffi.a")
     list(APPEND built "${library}")
 

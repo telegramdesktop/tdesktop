@@ -1002,17 +1002,22 @@ cd ..
 rm -rf tde2e
 EOF
 
-FROM patches AS tdesktop_rust
+FROM builder AS rust
 RUN <<EOF
-RUST_TOOLCHAIN=1.96.1
-export RUSTUP_HOME=/usr/src/rustup
+export RUSTUP_HOME=/opt/rust/rustup
+export CARGO_HOME=/opt/rust/cargo
+wget -O rustup-init.sh https://sh.rustup.rs
+sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain 1.96.1
+rm rustup-init.sh
+EOF
+
+FROM patches AS tdesktop_rust
+COPY --link --from=rust /opt/rust /opt/rust
+RUN <<EOF
+export RUSTUP_HOME=/opt/rust/rustup
 export CARGO_HOME=/usr/src/cargo
 export CARGO_BUILD_JOBS={{ JOBS or "default" }}
-wget -O rustup-init.sh https://sh.rustup.rs
-sh rustup-init.sh -y --no-modify-path --profile minimal --default-toolchain $RUST_TOOLCHAIN
-rm rustup-init.sh
-export RUSTUP_TOOLCHAIN=$RUST_TOOLCHAIN
-export PATH=$CARGO_HOME/bin:$PATH
+export PATH=/opt/rust/cargo/bin:$PATH
 export DESTDIR=/usr/src/tdesktop_rust-cache
 git init tlottie
 cd tlottie
@@ -1049,7 +1054,7 @@ cargo run --manifest-path ../wallet-engine/bindgen/cpp/bindgen/Cargo.toml --lock
 	--library --out-dir $DESTDIR/usr/local/include/wallet_engine \
 	target/release/libtdesktop_rust.so
 cd ..
-rm -rf tlottie wallet-engine tdesktop_rust rustup cargo
+rm -rf tlottie wallet-engine tdesktop_rust cargo
 EOF
 
 FROM builder
@@ -1093,6 +1098,7 @@ COPY --link --from=breakpad /usr/src/breakpad-cache /
 COPY --link --from=webrtc /usr/src/webrtc-cache /
 COPY --link --from=tde2e /usr/src/tde2e-cache /
 COPY --link --from=tdesktop_rust /usr/src/tdesktop_rust-cache /
+COPY --link --from=rust /opt/rust /opt/rust
 
 COPY --link --from=patches /usr/src/patches patches
 RUN <<EOF
@@ -1100,6 +1106,8 @@ patch -p1 -d /usr/lib64/gobject-introspection -i $PWD/patches/gobject-introspect
 rm -rf patches
 EOF
 
+ENV RUSTUP_HOME=/opt/rust/rustup
+ENV PATH=/opt/rust/cargo/bin:$PATH
 ENV CCACHE_DISABLE=true
 WORKDIR /usr/src/tdesktop
 USER user

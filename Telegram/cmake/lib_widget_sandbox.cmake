@@ -15,13 +15,17 @@
 # On Windows IcuIntl (src/icu_intl.cpp) is built too, linking icu; Telegram delay-loads icu.dll.
 # There is no packaged branch: no distribution ships this library.
 
+add_library(lib_widget_sandbox_host STATIC)
 add_library(lib_widget_sandbox STATIC)
 if (APPLE)
+    init_standalone_target(lib_widget_sandbox_host "(external)")
     init_standalone_target(lib_widget_sandbox "(external)")
 else()
+    init_target(lib_widget_sandbox_host "(external)")
     init_target(lib_widget_sandbox "(external)")
 endif()
 
+add_library(tdesktop::lib_widget_sandbox_host ALIAS lib_widget_sandbox_host)
 add_library(tdesktop::lib_widget_sandbox ALIAS lib_widget_sandbox)
 
 set(widget_sandbox_loc ${third_party_loc}/widget-sandbox/packages/desktop/sandbox)
@@ -41,53 +45,62 @@ if (MSVC)
     )
 endif()
 
-nice_target_sources(lib_widget_sandbox ${widget_sandbox_loc}
+nice_target_sources(lib_widget_sandbox_host ${widget_sandbox_loc}
 PRIVATE
-    include/twidget/bundle_stamp.h
-    include/twidget/cpu_budget.h
     include/twidget/gesture_policy.h
     include/twidget/intl.h
     include/twidget/js_thread.h
     include/twidget/json.h
-    include/twidget/nova_context.h
-    include/twidget/remote_engine.h
-    include/twidget/remote_hosted.h
     include/twidget/remote_stream.h
     include/twidget/renderer.h
     include/twidget/resources.h
     include/twidget/sandbox_engine.h
     include/twidget/sdk_policy.h
-    include/twidget/trusted_validator.h
     include/twidget/version.h
     include/twidget/widget_host.h
-    src/bundle_stamp.cpp
-    src/cpu_budget.cpp
     src/gesture_policy.cpp
     src/intl.cpp
     src/js_thread.cpp
-    src/nova_context.cpp
     src/remote_coding.cpp
-    src/remote_engine.cpp
-    src/remote_hosted.cpp
     src/remote_internal.h
     src/remote_stream.cpp
-    src/remote_stream_engine.cpp
     src/remote_wire.h
     src/resources.cpp
-    src/sandbox_engine.cpp
     src/sandbox_engine_client.cpp
     src/sandbox_engine_shared.cpp
     src/sdk_policy.cpp
     src/steady_clock.h
-    src/trusted_validator.cpp
     src/widget_host.cpp
     src/widget_host_internal.h
+)
+
+nice_target_sources(lib_widget_sandbox ${widget_sandbox_loc}
+PRIVATE
+    include/twidget/bundle_stamp.h
+    include/twidget/cpu_budget.h
+    include/twidget/nova_context.h
+    include/twidget/remote_engine.h
+    include/twidget/remote_hosted.h
+    include/twidget/trusted_validator.h
+    src/bundle_stamp.cpp
+    src/cpu_budget.cpp
+    src/nova_context.cpp
+    src/remote_engine.cpp
+    src/remote_hosted.cpp
+    src/remote_stream_engine.cpp
+    src/sandbox_engine.cpp
+    src/trusted_validator.cpp
     src/widget_host_local.cpp
 )
 
-target_include_directories(lib_widget_sandbox
+target_include_directories(lib_widget_sandbox_host
 PUBLIC
     ${widget_sandbox_loc}/include
+)
+
+target_link_libraries(lib_widget_sandbox
+PUBLIC
+    lib_widget_sandbox_host
 )
 
 # Not SYSTEM, so that an engine update rebuilds the object compiled against nova_engine.h.
@@ -97,16 +110,18 @@ PRIVATE
 )
 
 if (WIN32)
-    nice_target_sources(lib_widget_sandbox ${widget_sandbox_loc}
+    nice_target_sources(lib_widget_sandbox_host ${widget_sandbox_loc}
     PRIVATE
         include/twidget/icu_intl.h
         src/icu_intl.cpp
     )
-    target_link_libraries(lib_widget_sandbox PUBLIC bcrypt icu)
+    target_link_libraries(lib_widget_sandbox_host PUBLIC bcrypt icu)
 endif()
 
-if (MSVC)
-    target_link_libraries(lib_widget_sandbox PRIVATE lib_widget_sandbox_warnings_off)
-else()
-    target_compile_options(lib_widget_sandbox PRIVATE -w)
-endif()
+foreach (target lib_widget_sandbox_host lib_widget_sandbox)
+    if (MSVC)
+        target_link_libraries(${target} PRIVATE lib_widget_sandbox_warnings_off)
+    else()
+        target_compile_options(${target} PRIVATE -w)
+    endif()
+endforeach()
