@@ -3845,6 +3845,9 @@ WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
 	CheckSessions(result);
 	CheckStress(result);
 	CheckHosted(result);
+	for (const auto &row : CheckHostedExchanges()) {
+		AddRow(result, row.passed, row.name, row.details);
+	}
 	CheckLocalPresses(result);
 	CheckLocalRetirement(result);
 	CheckBudget(result);

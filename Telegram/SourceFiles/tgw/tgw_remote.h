@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace twidget {
 class SandboxHostedChannel;
 class SandboxResources;
+struct SandboxHostedAnswers;
 } // namespace twidget
 
 namespace Tgw {
@@ -25,6 +26,7 @@ void PrepareRemoteEngines();
 [[nodiscard]] bool WidgetsHosted();
 [[nodiscard]] std::shared_ptr<twidget::SandboxHostedChannel> HostedChannel(
 	std::shared_ptr<twidget::SandboxResources> resources);
+[[nodiscard]] twidget::SandboxHostedAnswers HostedAnswers();
 [[nodiscard]] bool StopRemoteEngines(Fn<void()> stopped);
 
 } // namespace Tgw

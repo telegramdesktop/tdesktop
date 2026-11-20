@@ -55,6 +55,7 @@ struct FontPosition {
 void AdoptFontPositions(
 	const QFont &font,
 	const std::vector<FontPosition> &positions);
+[[nodiscard]] QString StalledReason();
 
 struct RendererValues {
 	QString regularFamily;
@@ -211,6 +212,7 @@ public:
 		Fn<void(std::string message)> platform;
 		Fn<bool(std::string message)> press;
 		Fn<void()> released;
+		Fn<bool()> localStop;
 	};
 
 	RendererWork(

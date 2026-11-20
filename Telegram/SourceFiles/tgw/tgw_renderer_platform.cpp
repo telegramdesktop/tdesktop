@@ -24,7 +24,6 @@ namespace Remote = twlite::remote;
 
 constexpr auto kPumpEntries = 32;
 constexpr auto kPumpTime = crl::time(8);
-constexpr auto kMaxFrameBytes = std::size_t(8) << 20;
 constexpr auto kMaxReportsBytes = std::size_t(256) << 10;
 constexpr auto kMaxDecodeBytes = int64(128) << 20;
 constexpr auto kHeapBlock = int64(16);
@@ -77,7 +76,8 @@ struct ReportsEnvelope {
 		/ kJsonValueWireBytes;
 }
 
-static_assert(FrameDecodeBytes(int64(kMaxFrameBytes)) <= kMaxDecodeBytes);
+static_assert(
+	FrameDecodeBytes(int64(HostedWire::kMaxFrameBytes)) <= kMaxDecodeBytes);
 static_assert(ReportsDecodeBytes(int64(kMaxReportsBytes)) <= kMaxDecodeBytes);
 
 [[nodiscard]] const ReportsEnvelope &Envelope() {
@@ -140,10 +140,10 @@ static_assert(ReportsDecodeBytes(int64(kMaxReportsBytes)) <= kMaxDecodeBytes);
 	const auto size = int64(message.size());
 	switch (*kind) {
 	case Remote::Kind::Frame:
-		if (message.size() > kMaxFrameBytes) {
+		if (message.size() > HostedWire::kMaxFrameBytes) {
 			return PaintLimit(
 				u"%1 bytes of a frame"_q.arg(size),
-				int64(kMaxFrameBytes));
+				int64(HostedWire::kMaxFrameBytes));
 		}
 		break;
 	case Remote::Kind::CanvasRun:
@@ -424,6 +424,7 @@ void RendererPlatform::refused(const std::string &reason) {
 	if (_endRefusal.isEmpty()) {
 		_endRefusal = QString::fromStdString(reason);
 	}
+	stopLocally();
 	if (!_consuming) {
 		schedule();
 	}
@@ -634,10 +635,17 @@ void RendererPlatform::sendControl(std::string message) {
 	}
 }
 
+void RendererPlatform::stopLocally() {
+	if (_route.localStop) {
+		_route.localStop();
+	}
+}
+
 void RendererPlatform::fail(QString reason) {
 	if (_ended) {
 		return;
 	}
+	stopLocally();
 	end();
 	if (_reports.failed) {
 		_reports.failed(std::move(reason));

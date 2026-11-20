@@ -61,6 +61,7 @@ public:
 		Fn<void(std::string message)> send;
 		Fn<bool(std::string message)> press;
 		Fn<void()> released;
+		Fn<void()> localStop;
 	};
 
 	struct Reports {
@@ -141,6 +142,7 @@ private:
 	void control(std::string_view message);
 	void deliver(Received received);
 	void sendControl(std::string message);
+	void stopLocally();
 	void fail(QString reason);
 	void failEnd();
 	void stop(QString reason);

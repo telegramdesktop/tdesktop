@@ -139,6 +139,7 @@ struct Job {
 
 struct Built {
 	HostPointer host;
+	std::weak_ptr<twidget::SandboxHostedChannel> channel;
 	twidget::WidgetData data;
 	QString error;
 };
@@ -631,7 +632,9 @@ void AppendTail(
 	return lines.join(QChar('\n'));
 }
 
-[[nodiscard]] HostPointer CreateHost(Job &job) {
+[[nodiscard]] HostPointer CreateHost(
+		Job &job,
+		std::shared_ptr<twidget::SandboxHostedChannel> channel) {
 	auto deleter = HostDeleter{ std::move(job.slot) };
 	auto html = std::string(job.html.constData(), size_t(job.html.size()));
 	if (!job.hosted) {
@@ -646,7 +649,6 @@ void AppendTail(
 				std::move(job.intl)),
 			std::move(deleter));
 	}
-	auto channel = HostedChannel(std::move(job.resources));
 	return HostPointer(
 		new twidget::WidgetHost(
 			std::move(html),
@@ -661,7 +663,11 @@ void AppendTail(
 
 [[nodiscard]] Built Build(Job job) {
 	try {
-		auto host = CreateHost(job);
+		auto channel = job.hosted
+			? HostedChannel(std::move(job.resources))
+			: nullptr;
+		const auto weak = std::weak_ptr(channel);
+		auto host = CreateHost(job, std::move(channel));
 		host->onAction = std::move(job.action);
 		host->onRequest = std::move(job.request);
 		host->onWallet = std::move(job.wallet);
@@ -680,6 +686,7 @@ void AppendTail(
 		}
 		return {
 			.host = std::move(host),
+			.channel = weak,
 			.data = std::move(job.options.data),
 		};
 	} catch (const std::exception &e) {
@@ -1606,7 +1613,8 @@ void Runtime::construct(
 					base::take(built.host),
 					built.data,
 					built.error,
-					id);
+					id,
+					built.channel);
 			}
 			built.host = nullptr;
 			JobDone();
@@ -1619,7 +1627,8 @@ void Runtime::constructed(
 		std::shared_ptr<twidget::WidgetHost> host,
 		const twidget::WidgetData &data,
 		const QString &error,
-		uint64 storage) {
+		uint64 storage,
+		std::weak_ptr<twidget::SandboxHostedChannel> channel) {
 	if (generation != _generation || _state != State::Constructing) {
 		return;
 	} else if (!host) {
@@ -1664,7 +1673,7 @@ void Runtime::constructed(
 	syncHostVisibility();
 	syncHostSafeArea();
 	Test::WatchWidgetHost(_item->globalId(), *_host->pointer, _live.get());
-	if (!_live->bindHost(_host->pointer)) {
+	if (!_live->bindHost(_host->pointer, channel)) {
 		fail(u"Could not start, the messages for its renderer overflowed "
 			"before the widget helper took them."_q);
 		return;
@@ -2013,16 +2022,17 @@ void Runtime::watchChanged(not_null<RendererCore*> renderer, bool on) {
 }
 
 void Runtime::syncHostVisibility() {
+	// The stream times a frame request by the visibility admitted before it.
+	if (_host && _hostVisible != _visible) {
+		_hostVisible = _visible;
+		_host->pointer->setVisible(_visible);
+		StorageHostVisibility(_host->storage, _visible);
+	}
 	if (_live) {
 		_live->setOnScreen(_visible);
 	}
 	if (_visible) {
 		postShownDisplay();
-	}
-	if (_host && _hostVisible != _visible) {
-		_hostVisible = _visible;
-		_host->pointer->setVisible(_visible);
-		StorageHostVisibility(_host->storage, _visible);
 	}
 }
 

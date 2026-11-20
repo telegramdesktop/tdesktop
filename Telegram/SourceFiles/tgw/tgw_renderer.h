@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 
 namespace twidget {
+class SandboxHostedChannel;
 class SandboxHostedWait;
 class WidgetHost;
 struct WalletCall;
@@ -130,7 +131,9 @@ public:
 	[[nodiscard]] WalletHandler hostWalletHandler() const;
 	[[nodiscard]] CopyHandler hostCopyHandler() const;
 	[[nodiscard]] WatchHandler hostWatchHandler() const;
-	[[nodiscard]] bool bindHost(std::weak_ptr<twidget::WidgetHost> host);
+	[[nodiscard]] bool bindHost(
+		std::weak_ptr<twidget::WidgetHost> host,
+		std::weak_ptr<twidget::SandboxHostedChannel> channel);
 
 	void detach();
 	[[nodiscard]] bool attached() const;

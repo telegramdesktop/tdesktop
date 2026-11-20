@@ -647,6 +647,10 @@ void AdoptFontPositions(const QFont &, const std::vector<FontPosition> &) {
 }
 #endif // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
+QString StalledReason() {
+	return u"The widget stopped responding"_q;
+}
+
 RendererWork::RendererWork(
 	uint64 id,
 	base::weak_ptr<RendererCore> chat,
@@ -729,6 +733,7 @@ std::unique_ptr<RendererWork::Hosted> RendererWork::makeHosted(
 			.send = _host.platform,
 			.press = _host.press,
 			.released = _host.released,
+			.localStop = _host.localStop,
 		},
 		RendererPlatform::Reports{
 			.frame = [=](Frame &&frame) {
@@ -2017,10 +2022,11 @@ void RendererWork::refuseRoute(QString limit, const char *detail) {
 	if (_hosted->closed) {
 		return;
 	}
+	const auto stalled = _host.localStop && _host.localStop();
 	closeRoute(true);
 	const auto reason = limit;
 	if (!_stopped) {
-		stop(std::move(limit), true);
+		stop(stalled ? StalledReason() : std::move(limit), true);
 		refreshClock();
 		post(Change::Stopped | Change::Repaint);
 	}
@@ -2265,6 +2271,9 @@ void RendererWork::refuse(QString limit) {
 }
 
 void RendererWork::backendRefused() {
+	if (_host.localStop) {
+		_host.localStop();
+	}
 	PostToRenderThread(crl::guard(this, [=] {
 		refuse(_backend->refusal());
 	}));

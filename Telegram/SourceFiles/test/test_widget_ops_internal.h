@@ -16,13 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
-// The widget ops tap's shared internals, used by its three translation
+// The widget ops tap's shared internals, used by its four translation
 // units: test_widget_ops.cpp (the record, the scan, the wrapping factory and
 // the arming), test_widget_ops_hosted.cpp (the hosted tap, its registry and
-// seams, the effective theme and the helper's work) and
-// test_widget_ops_check.cpp (the self-checks). Internal to them; reference:
-// docs/helpers/test_widget_ops.md.
+// seams, the effective theme and the helper's work),
+// test_widget_ops_check.cpp (the self-checks) and
+// test_widget_ops_exchanges.cpp (the self-check's leg of the classifier the
+// widget helper's stream times hosted renderers with). Internal to them;
+// reference: docs/helpers/test_widget_ops.md.
 
 namespace Test {
 
@@ -124,6 +127,16 @@ void LocalPressDispatched(uint64 work, uint64 serial);
 // tap that TapWidgetRenderer() registered |work| for, if any, revokes the
 // mark bound to it. Main thread.
 void LocalDetached(uint64 work);
+
+// The exchange leg (test_widget_ops_exchanges.cpp): TwidgetCore's own
+// encodings read through Tgw::HostedAnswers(), the kinds and keys, the
+// painted frames' admission against TwidgetCore's decode(), then the end
+// of a widget helper's stream on two routes that the leg plays through
+// the framework's shared scripted engine end on its in-memory pair
+// (threads of that stream and of two hosted clients, each wait bounded;
+// past a bound the row fails). The rows' names lack the self-check's
+// prefix.
+[[nodiscard]] std::vector<WidgetOpsSelfCheckRow> CheckHostedExchanges();
 
 // |record| of the host's |generation| on Telegram's profile clock: its
 // stamps moved by |profile| - |steady|, the two clocks read together at

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer_work.h"
 #include "tgw/tgw_touch.h"
 #include "twidget/json.h"
+#include "twidget/remote_hosted.h"
 #include "twidget/sandbox_engine.h"
 #include "twidget/sdk_policy.h"
 #include "twidget/widget_host.h"
@@ -59,7 +60,9 @@ public:
 	void forget();
 	[[nodiscard]] bool gone() const;
 	[[nodiscard]] uint64 workId() const;
-	[[nodiscard]] bool bindHost(std::weak_ptr<twidget::WidgetHost> host);
+	[[nodiscard]] bool bindHost(
+		std::weak_ptr<twidget::WidgetHost> host,
+		std::weak_ptr<twidget::SandboxHostedChannel> channel);
 	void toHost(const std::string &json);
 	void diag(const std::string &kind, const std::string &detail);
 	[[nodiscard]] std::optional<bool> hostBottom() const;
@@ -68,6 +71,7 @@ public:
 	void toPlatform(std::string message);
 	[[nodiscard]] bool pressPlatform(std::string message);
 	void released();
+	[[nodiscard]] bool localStop();
 	[[nodiscard]] bool reserveKeep();
 	void keep(twidget::WidgetHost &host);
 	void keepDropped();
@@ -100,6 +104,8 @@ private:
 	};
 
 	[[nodiscard]] RendererCore *current() const;
+	[[nodiscard]] auto channel() const
+	-> std::shared_ptr<twidget::SandboxHostedChannel>;
 	bool platformSend(std::string &&message, bool press);
 	[[nodiscard]] twidget::HostedKeptRenderer::Observers keptObservers();
 	[[nodiscard]] bool bufferLocked(std::string &&message);
@@ -117,6 +123,7 @@ private:
 	twidget::Renderer *_proxy = nullptr;
 	std::weak_ptr<twidget::WidgetHost> _host;
 	std::weak_ptr<twidget::WidgetHost> _live;
+	std::weak_ptr<twidget::SandboxHostedChannel> _channel;
 	std::unique_ptr<twidget::HostedKeptRenderer> _kept;
 	std::unique_ptr<KeptSlot> _slot;
 	std::vector<std::string> _buffered;
@@ -236,6 +243,9 @@ void PostReleased(std::vector<Fn<void()>> released) {
 		};
 		result.released = [=] {
 			link->released();
+		};
+		result.localStop = [=] {
+			return link->localStop();
 		};
 	}
 	return result;
@@ -390,8 +400,11 @@ uint64 HostLink::workId() const {
 	return _work;
 }
 
-bool HostLink::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
+bool HostLink::bindHost(
+		std::weak_ptr<twidget::WidgetHost> host,
+		std::weak_ptr<twidget::SandboxHostedChannel> channel) {
 	auto lock = std::lock_guard(_mutex);
+	_channel = std::move(channel);
 	if (_route == Route::Local) {
 		if (!_closed) {
 			_host = std::move(host);
@@ -434,6 +447,11 @@ void HostLink::diag(const std::string &kind, const std::string &detail) {
 RendererCore *HostLink::current() const {
 	auto lock = std::lock_guard(_mutex);
 	return _closed ? nullptr : _core.get();
+}
+
+std::shared_ptr<twidget::SandboxHostedChannel> HostLink::channel() const {
+	auto lock = std::lock_guard(_mutex);
+	return _channel.lock();
 }
 
 std::optional<bool> HostLink::hostBottom() const {
@@ -524,6 +542,12 @@ void HostLink::released() {
 	} else if (const auto host = _live.lock()) {
 		host->releaseDelivered();
 	}
+}
+
+bool HostLink::localStop() {
+	using Death = twidget::SandboxHostedChannel::Death;
+	const auto strong = channel();
+	return strong && (strong->localStop() == Death::Stalled);
 }
 
 bool HostLink::reserveKeep() {
@@ -760,7 +784,10 @@ void HostLink::postFrozen(QString reason, bool fatal) {
 }
 
 void HostLink::postDeath(const std::string &, QString label) {
-	postFrozen(std::move(label), true);
+	using Death = twidget::SandboxHostedChannel::Death;
+	const auto strong = channel();
+	const auto stalled = strong && (strong->death() == Death::Stalled);
+	postFrozen(stalled ? StalledReason() : std::move(label), true);
 }
 
 void HostLink::postTraffic(HostedTraffic traffic) {
@@ -1000,8 +1027,10 @@ RendererCore::WatchHandler RendererCore::hostWatchHandler() const {
 	};
 }
 
-bool RendererCore::bindHost(std::weak_ptr<twidget::WidgetHost> host) {
-	return _link->bindHost(std::move(host));
+bool RendererCore::bindHost(
+		std::weak_ptr<twidget::WidgetHost> host,
+		std::weak_ptr<twidget::SandboxHostedChannel> channel) {
+	return _link->bindHost(std::move(host), std::move(channel));
 }
 
 void RendererCore::detach() {

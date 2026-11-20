@@ -849,7 +849,14 @@ struct WidgetOpsSelfCheck {
 // the detach whose click reached no host and a click handed the wrapper
 // after it count no click and revoke the mark, while a click that reached
 // the host before the detach stays and another work's detach changes
-// nothing. Its budget leg gives
+// nothing. Its exchange leg (the `hosted exchanges: ...` rows) reads
+// TwidgetCore's own encodings through Tgw::HostedAnswers(), the classifier
+// the widget helper's stream times hosted renderers with: which messages
+// expect one answer and which answer them, keyed by their pair and
+// sequence; that an answer earns credit only past checks of a constant
+// cost, never a decode of a frame's list, and within Telegram's frame cap;
+// and, at a stream's end on two routes, that an answered route is spared
+// while one left unanswered keeps its ordinary death. Its budget leg gives
 // a wrapper a host message and a renderer message one value past the scan
 // budget (each a gap, never parsed) and ones at it (scanned), then a batch
 // with a 100 KiB attribute name and 100 more matches than examples kept:

@@ -43,6 +43,7 @@ inline constexpr auto kNumberBytes = std::size_t(8);
 inline constexpr auto kLengthBytes = std::size_t(4);
 inline constexpr auto kMaxMessageBytes = std::size_t(32) << 20;
 inline constexpr auto kMaxListCommands = std::size_t(1) << 16;
+inline constexpr auto kMaxFrameBytes = std::size_t(8) << 20;
 inline constexpr auto kMaxCanvasRunOps = std::size_t(1) << 13;
 inline constexpr auto kMaxStopReasonBytes = std::size_t(4096);
 inline constexpr auto kMaxCursorBytes = std::size_t(256);

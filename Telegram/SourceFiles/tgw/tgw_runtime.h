@@ -25,6 +25,7 @@ class Session;
 } // namespace Main
 
 namespace twidget {
+class SandboxHostedChannel;
 class SandboxResources;
 struct WalletCall;
 struct WidgetData;
@@ -170,7 +171,8 @@ private:
 		std::shared_ptr<twidget::WidgetHost> host,
 		const twidget::WidgetData &data,
 		const QString &error,
-		uint64 storage);
+		uint64 storage,
+		std::weak_ptr<twidget::SandboxHostedChannel> channel);
 	void retire(State state, int brokenCrashes = 0);
 	[[nodiscard]] Fn<void(twidget::WidgetHost &host)> keepStill();
 	void stopForCrashes();

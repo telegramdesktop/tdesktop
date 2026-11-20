@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/version.h"
 #include "platform/platform_widget_helper.h"
 #include "test/test_widget_helper_probe.h"
+#include "tgw/tgw_hosted_wire.h"
 #include "twidget/remote_stream.h"
 
 #include <condition_variable>
@@ -20,22 +21,242 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Tgw {
 namespace {
 
+namespace Remote = twlite::remote;
+
 constexpr auto kMaxFailures = 3;
 constexpr auto kFailureRunAge = crl::time(60000);
 constexpr auto kIdleTimeout = crl::time(30000);
 constexpr auto kExitWait = crl::time(1000);
 constexpr auto kKillWait = crl::time(1000);
 constexpr auto kMaxReasonBytes = size_t(4096);
+constexpr auto kRemoteHeaderBytes = std::size_t(2);
+constexpr auto kSequenceBytes = std::size_t(8);
+constexpr auto kWidthBytes = std::size_t(8);
+constexpr auto kHeightBytes = std::size_t(4);
+constexpr auto kTickBytes = std::size_t(8);
+constexpr auto kLengthBytes = std::size_t(4);
+constexpr auto kFormHeaderBytes = std::size_t(2);
+constexpr auto kCountBytes = std::size_t(4);
+constexpr auto kCommandBytes = std::size_t(5);
+constexpr auto kRectBytes = std::size_t(16);
 
 using Channel = std::shared_ptr<twidget::SandboxRemoteChannel>;
 using HostedRoute = std::shared_ptr<twidget::SandboxHostedChannel>;
 using HostedFactory = Fn<HostedRoute(
 	std::shared_ptr<twidget::SandboxResources>)>;
 using Completion = Platform::WidgetHelper::Completion;
+using Answers = twidget::SandboxHostedAnswers;
 
 struct Choice {
 	EnginePlace place = EnginePlace::Nowhere;
 	bool hosted = false;
+};
+
+struct Key {
+	std::optional<std::uint64_t> sequence;
+};
+
+struct Exchange {
+	using Reader = std::optional<Key>(*)(
+		std::string_view message,
+		const Remote::Caps &caps);
+
+	Remote::Kind request = Remote::Kind();
+	Remote::Kind answer = Remote::Kind();
+	Reader answered = nullptr;
+	std::size_t limit = HostedWire::kMaxMessageBytes;
+	bool sequenced = false;
+	bool whenVisible = false;
+};
+
+[[nodiscard]] std::optional<std::uint64_t> SequenceOf(
+		std::string_view message) {
+	if (message.size() < kRemoteHeaderBytes + kSequenceBytes) {
+		return std::nullopt;
+	}
+	message.remove_prefix(kRemoteHeaderBytes);
+	return HostedWire::details::TakeNumber(message, kSequenceBytes);
+}
+
+[[nodiscard]] bool Skip(std::string_view &body, std::size_t bytes) {
+	if (body.size() < bytes) {
+		return false;
+	}
+	body.remove_prefix(bytes);
+	return true;
+}
+
+[[nodiscard]] std::optional<bool> TakeFlag(std::string_view &body) {
+	if (body.empty() || (std::uint8_t(body.front()) > 1)) {
+		return std::nullopt;
+	}
+	const auto result = (body.front() != 0);
+	body.remove_prefix(1);
+	return result;
+}
+
+[[nodiscard]] bool SkipFlag(std::string_view &body) {
+	return TakeFlag(body).has_value();
+}
+
+[[nodiscard]] std::optional<std::uint64_t> TakeCount(
+		std::string_view &body) {
+	if (body.size() < kCountBytes) {
+		return std::nullopt;
+	}
+	return HostedWire::details::TakeNumber(body, kCountBytes);
+}
+
+[[nodiscard]] std::optional<std::string_view> TakeValue(
+		std::string_view &body,
+		std::size_t limit) {
+	if (body.size() < kLengthBytes) {
+		return std::nullopt;
+	}
+	const auto length = HostedWire::details::TakeNumber(body, kLengthBytes);
+	if ((length > limit) || (length > body.size())) {
+		return std::nullopt;
+	}
+	const auto result = body.substr(0, std::size_t(length));
+	body.remove_prefix(std::size_t(length));
+	return result;
+}
+
+[[nodiscard]] bool SkipForm(
+		std::string_view &value,
+		twlite::wire::Form form) {
+	return (value.size() >= kFormHeaderBytes)
+		&& (std::uint8_t(value[0]) == std::uint8_t(form))
+		&& (std::uint8_t(value[1]) == twlite::wire::VERSION)
+		&& Skip(value, kFormHeaderBytes);
+}
+
+[[nodiscard]] bool ListAdmitted(
+		std::string_view value,
+		const twlite::wire::Caps &caps) {
+	const auto count = SkipForm(value, twlite::wire::Form::List)
+		? TakeCount(value)
+		: std::nullopt;
+	return count
+		&& (*count <= caps.commands)
+		&& (*count <= value.size() / kCommandBytes)
+		&& (*count || value.empty());
+}
+
+[[nodiscard]] bool DamageComplete(
+		std::string_view value,
+		const twlite::wire::Caps &caps) {
+	const auto rects = SkipForm(value, twlite::wire::Form::Damage)
+		? TakeFlag(value)
+		: std::nullopt;
+	if (!rects) {
+		return false;
+	} else if (!*rects) {
+		return value.empty();
+	}
+	const auto count = TakeCount(value);
+	return count
+		&& (*count <= caps.rects)
+		&& (value.size() == *count * kRectBytes);
+}
+
+[[nodiscard]] bool SkipState(std::string_view &body) {
+	return Skip(body, kWidthBytes + kHeightBytes)
+		&& SkipFlag(body)
+		&& SkipFlag(body)
+		&& Skip(body, kTickBytes)
+		&& SkipFlag(body);
+}
+
+[[nodiscard]] bool SkipClaim(std::string_view &body) {
+	return SkipFlag(body) && SkipFlag(body) && SkipFlag(body);
+}
+
+[[nodiscard]] bool FrameComplete(
+		std::string_view body,
+		const Remote::Caps &caps) {
+	const auto painted = (Skip(body, kSequenceBytes) && SkipState(body))
+		? TakeFlag(body)
+		: std::nullopt;
+	if (!painted) {
+		return false;
+	} else if (!*painted) {
+		return body.empty();
+	}
+	const auto list = TakeValue(body, caps.message);
+	const auto damage = list ? TakeValue(body, caps.message) : std::nullopt;
+	return damage
+		&& body.empty()
+		&& ListAdmitted(*list, caps.values)
+		&& DamageComplete(*damage, caps.values);
+}
+
+[[nodiscard]] bool PointerComplete(
+		std::string_view body,
+		const Remote::Caps &caps) {
+	const auto claimed = TakeValue(body, caps.text)
+		? TakeFlag(body)
+		: std::nullopt;
+	return claimed.has_value()
+		&& (!*claimed || SkipClaim(body))
+		&& body.empty();
+}
+
+[[nodiscard]] std::optional<Key> FrameKey(
+		std::string_view message,
+		const Remote::Caps &caps) {
+	const auto sequence = SequenceOf(message);
+	if (!sequence
+		|| !FrameComplete(message.substr(kRemoteHeaderBytes), caps)) {
+		return std::nullopt;
+	}
+	return Key{ .sequence = sequence };
+}
+
+[[nodiscard]] std::optional<Key> PointerKey(
+		std::string_view message,
+		const Remote::Caps &caps) {
+	if (!PointerComplete(message.substr(kRemoteHeaderBytes), caps)) {
+		return std::nullopt;
+	}
+	return Key();
+}
+
+[[nodiscard]] std::optional<Key> ClaimKey(
+		std::string_view message,
+		const Remote::Caps &caps) {
+	auto claim = Remote::ClaimAnswer();
+	if (!Remote::decode(message, caps, claim)) {
+		return std::nullopt;
+	}
+	return Key{ .sequence = claim.seq };
+}
+
+constexpr auto kExchanges = std::array{
+	Exchange{
+		.request = Remote::Kind::FrameRequest,
+		.answer = Remote::Kind::Frame,
+		.answered = FrameKey,
+		.limit = HostedWire::kMaxFrameBytes,
+		.sequenced = true,
+		.whenVisible = true,
+	},
+	Exchange{
+		.request = Remote::Kind::Touch,
+		.answer = Remote::Kind::Pointer,
+		.answered = PointerKey,
+	},
+	Exchange{
+		.request = Remote::Kind::Hover,
+		.answer = Remote::Kind::Pointer,
+		.answered = PointerKey,
+	},
+	Exchange{
+		.request = Remote::Kind::ClaimQuery,
+		.answer = Remote::Kind::ClaimAnswer,
+		.answered = ClaimKey,
+		.sequenced = true,
+	},
 };
 
 struct Reading {
@@ -123,6 +344,58 @@ auto HostedRoutes = HostedFactory();
 [[nodiscard]] QString ReasonText(const std::string &reason) {
 	const auto size = std::min(reason.size(), kMaxReasonBytes);
 	return QString::fromUtf8(reason.data(), int(size));
+}
+
+[[nodiscard]] std::optional<Key> RequestKey(
+		const Exchange &exchange,
+		std::string_view message) {
+	if (!exchange.sequenced) {
+		return Key();
+	}
+	const auto sequence = SequenceOf(message);
+	if (!sequence) {
+		return std::nullopt;
+	}
+	return Key{ .sequence = sequence };
+}
+
+[[nodiscard]] std::optional<Key> AnswerKey(
+		const Exchange &exchange,
+		std::string_view message) {
+	const auto caps = HostedWire::EmbeddingCaps();
+	if (message.size() > std::min(caps.message, exchange.limit)) {
+		return std::nullopt;
+	}
+	return exchange.answered(message, caps);
+}
+
+[[nodiscard]] Answers::Reading ReadExchange(std::string_view message) {
+	using Role = Answers::Role;
+	if (HostedWire::IsControl(message)) {
+		return HostedWire::DecodeStopped(message)
+			? Answers::Reading{ .role = Role::Last }
+			: Answers::Reading();
+	}
+	const auto kind = Remote::kind_of(message);
+	for (const auto &exchange : kExchanges) {
+		const auto expects = (kind == exchange.request);
+		if (!expects && (kind != exchange.answer)) {
+			continue;
+		}
+		const auto key = expects
+			? RequestKey(exchange, message)
+			: AnswerKey(exchange, message);
+		if (!key) {
+			break;
+		}
+		return {
+			.role = expects ? Role::Expects : Role::Answers,
+			.family = std::uint32_t(exchange.answer),
+			.sequence = key->sequence,
+			.whenVisible = expects && exchange.whenVisible,
+		};
+	}
+	return {};
 }
 
 [[nodiscard]] Reading Read(Reports &reports) {
@@ -396,14 +669,21 @@ Manager::Selected Manager::launch(
 		scheduleReap(retired);
 		return u"the widget helper was stopped"_q;
 	}
-	const auto start = _hosting ? &End::startHosting : &End::start;
 	try {
-		_helper->end = start(
-			_helper->stream,
-			resources,
-			BuildString(),
-			std::move(events),
-			{});
+		_helper->end = _hosting
+			? End::startHosting(
+				_helper->stream,
+				resources,
+				BuildString(),
+				std::move(events),
+				{},
+				HostedAnswers())
+			: End::start(
+				_helper->stream,
+				resources,
+				BuildString(),
+				std::move(events),
+				{});
 	} catch (const std::exception &e) {
 		const auto reason = CouldNotStart(QString::fromUtf8(e.what()));
 		const auto retired = retireLocked(false);
@@ -592,6 +872,10 @@ HostedRoute HostedChannel(
 	Expects(HostedRoutes != nullptr);
 
 	return HostedRoutes(std::move(resources));
+}
+
+Answers HostedAnswers() {
+	return { .read = ReadExchange };
 }
 
 bool StopRemoteEngines(Fn<void()> stopped) {
