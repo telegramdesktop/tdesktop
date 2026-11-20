@@ -1096,6 +1096,22 @@ class ArchiveTest(TempCase):
             self.assertEqual(read_bytes(self.files[key] + suffix), data)
 
 
+class EnvironmentTest(unittest.TestCase):
+    def test_windows_leaves_run_without_app_aliases(self):
+        local = os.path.join(os.sep, 'local')
+        aliases = os.path.join(local, 'Microsoft', 'WindowsApps')
+        kept = [os.path.join(os.sep, 'bin'), os.path.join(os.sep, 'tools')]
+        path = os.pathsep.join([kept[0], aliases + os.sep, kept[1], aliases])
+        with mock.patch.dict(os.environ,
+                {'PATH': path, 'LOCALAPPDATA': local}):
+            with mock.patch.object(codex_leaf, 'WINDOWS', True):
+                windows = codex_leaf.codex_environment(None)
+            with mock.patch.object(codex_leaf, 'WINDOWS', False):
+                other = codex_leaf.codex_environment(None)
+        self.assertEqual(windows['PATH'], os.pathsep.join(kept))
+        self.assertEqual(other['PATH'], path)
+
+
 class ActivityDecisionTest(unittest.TestCase):
     FILES = {'jsonl': os.path.join('runs', 'a.jsonl')}
     TRACKED = {'status': 'running', 'run_id': 'r1', 'runner_pid': 50,

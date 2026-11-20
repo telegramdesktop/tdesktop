@@ -159,7 +159,20 @@ def codex_environment(home):
     environment = dict(os.environ)
     if home:
         environment['CODEX_HOME'] = home
+    if WINDOWS:
+        environment['PATH'] = without_app_aliases(
+            environment.get('PATH', ''), environment.get('LOCALAPPDATA'))
     return environment
+
+
+def without_app_aliases(path, local_app_data):
+    # The unelevated sandbox cannot start app aliases such as the Store pwsh.exe.
+    if not local_app_data:
+        return path
+    aliases = os.path.normcase(
+        os.path.join(local_app_data, 'Microsoft', 'WindowsApps'))
+    return os.pathsep.join(entry for entry in path.split(os.pathsep)
+        if os.path.normcase(os.path.normpath(entry or '.')) != aliases)
 
 
 def paths(run_dir, name):

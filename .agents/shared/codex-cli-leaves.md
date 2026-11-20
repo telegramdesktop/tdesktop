@@ -72,7 +72,11 @@ with `danger-full-access` or a sandbox bypass.
 On Windows the sandbox runs commands as a separate local user. The helper
 marks repositories safe for git through the child's environment only, so the
 leaf can run read-only git commands on `SOURCE_ROOT`; never change the user's
-global git configuration for it.
+global git configuration for it. It also drops
+`%LOCALAPPDATA%\Microsoft\WindowsApps` from the leaf's `PATH`: under
+`[windows] sandbox = "unelevated"` Codex would pick the Store `pwsh.exe` alias
+there as its shell, which the restricted token cannot start, so every writing
+command failed with `CreateProcessAsUserW failed: 5`.
 
 ## Prompt
 
