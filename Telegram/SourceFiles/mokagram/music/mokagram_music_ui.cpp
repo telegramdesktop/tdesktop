@@ -1158,7 +1158,6 @@ void PlayIndex(int index) {
 			std::nullopt);
 		return;
 	}
-	controller->showToast(QString::fromUtf8(Mokagram::Lang::Tr("Загружаю: ")) + track.title);
 	ResolveThen(track, [=](Track resolved, QString error) {
 		auto &queue = QueueState();
 		const auto controller = queue.controller.get();
