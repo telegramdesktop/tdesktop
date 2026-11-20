@@ -56,6 +56,7 @@
 #include "mokagram/plugins/mokagram_plugin_install.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_peer_menu.h"
 #include "boxes/peer_list_controllers.h"
@@ -4709,11 +4710,6 @@ public:
 	[[nodiscard]] rpl::producer<float64> sought() const {
 		return _sought.events();
 	}
-	// Пока тянут: значение меняется на лету (для громкости).
-	[[nodiscard]] rpl::producer<float64> moved() const {
-		return _moved.events();
-	}
-
 protected:
 	void showEvent(QShowEvent *e) override {
 		RpWidget::showEvent(e);
@@ -4798,7 +4794,6 @@ private:
 	void moveTo(int x) {
 		const auto pad = _thin ? 0 : 8;
 		_drag = std::clamp((x - pad) / float64(std::max(width() - 2 * pad, 1)), 0., 1.);
-		_moved.fire_copy(_drag);
 		update();
 	}
 
@@ -4816,7 +4811,6 @@ private:
 	float64 _drag = 0.;
 	bool _dragging = false;
 	rpl::event_stream<float64> _sought;
-	rpl::event_stream<float64> _moved;
 
 };
 
@@ -4848,6 +4842,199 @@ void PaintIslandGlyph(
 	}
 	p.drawImage(QPointF(c.x() - size / 2., c.y() - size / 2.), i->second);
 }
+
+class VolumeSlider final : public Ui::ContinuousSlider {
+public:
+	explicit VolumeSlider(QWidget *parent) : ContinuousSlider(parent) {
+		setFocusPolicy(Qt::TabFocus);
+		setAccessibleName(QString::fromUtf8(Mokagram::Lang::Tr("Громкость")));
+	}
+
+	void setHovered(bool hovered) {
+		_hovered = hovered;
+		refreshHighlight();
+	}
+
+	void setAccent(QColor accent) {
+		_accent = accent;
+		update();
+	}
+
+protected:
+	void paintEvent(QPaintEvent *) override {
+		auto p = QPainter(this);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto seek = QRectF(myrtlrect(getSeekRect()));
+		const auto thickness = style::ConvertScale(4);
+		const auto y = seek.center().y();
+		const auto from = st::rtl() ? seek.right() : seek.left();
+		const auto to = st::rtl() ? seek.left() : seek.right();
+		const auto value = getCurrentValue();
+		const auto x = from + (to - from) * value;
+		const auto highlight = _highlight.value();
+		p.setPen(QPen(QColor(255, 255, 255, 65), thickness,
+			Qt::SolidLine, Qt::RoundCap));
+		p.drawLine(QPointF(from, y), QPointF(to, y));
+		if (value > 0.) {
+			const auto color = anim::color(QColor(Qt::white),
+				_accent.isValid() ? _accent : st::windowActiveTextFg->c,
+				highlight);
+			p.setPen(QPen(color, thickness, Qt::SolidLine, Qt::RoundCap));
+			p.drawLine(QPointF(from, y), QPointF(x, y));
+		}
+		if (highlight > 0.) {
+			p.setOpacity(highlight);
+			p.setPen(Qt::NoPen);
+			p.setBrush(Qt::white);
+			const auto radius = style::ConvertScale(6);
+			p.drawEllipse(QPointF(x, y), radius, radius);
+		}
+	}
+
+	void mousePressEvent(QMouseEvent *e) override {
+		if (e->button() != Qt::LeftButton) {
+			e->ignore();
+			return;
+		}
+		ContinuousSlider::mousePressEvent(e);
+		refreshHighlight();
+	}
+
+	void mouseReleaseEvent(QMouseEvent *e) override {
+		if (e->button() != Qt::LeftButton) {
+			e->ignore();
+			return;
+		}
+		ContinuousSlider::mouseMoveEvent(e);
+		ContinuousSlider::mouseReleaseEvent(e);
+		refreshHighlight();
+	}
+
+	void focusInEvent(QFocusEvent *e) override {
+		ContinuousSlider::focusInEvent(e);
+		refreshHighlight();
+	}
+
+	void focusOutEvent(QFocusEvent *e) override {
+		ContinuousSlider::focusOutEvent(e);
+		refreshHighlight();
+	}
+
+private:
+	// The parent tracks hover across the speaker and the slider together.
+	void enterEventHook(QEnterEvent *) override {
+	}
+	void leaveEventHook(QEvent *) override {
+	}
+	float64 getOverDuration() const override {
+		return 160.;
+	}
+	QSize getSeekDecreaseSize() const override {
+		return QSize(2 * style::ConvertScale(6), 0);
+	}
+	void refreshHighlight() {
+		_highlight.set(_hovered || isChanging() || hasFocus(), [=] { update(); });
+	}
+
+	QColor _accent;
+	HoverFade _highlight;
+	bool _hovered = false;
+};
+
+class VolumeControl final : public Ui::RpWidget {
+public:
+	explicit VolumeControl(QWidget *parent)
+	: RpWidget(parent)
+	, _mute(Ui::CreateChild<Ui::AbstractButton>(this))
+	, _slider(Ui::CreateChild<VolumeSlider>(this)) {
+		resize(width(), style::ConvertScale(28));
+		_mute->setPointerCursor(true);
+		_mute->setFocusPolicy(Qt::TabFocus);
+		_mute->paintRequest() | rpl::on_next([=](QRect) {
+			auto p = QPainter(_mute);
+			auto hq = PainterHighQualityEnabler(p);
+			const auto bounds = QRectF(_mute->rect());
+			if (_mute->hasFocus()) {
+				const auto inset = style::ConvertScale(2);
+				p.setBrush(Qt::NoBrush);
+				p.setPen(QPen(st::windowActiveTextFg->c, inset));
+				p.drawEllipse(bounds.adjusted(inset, inset, -inset, -inset));
+			}
+			p.setOpacity(_mute->isOver() || _mute->hasFocus() ? 1. : 0.6);
+			using namespace Mokagram::Music::IslandGlyphs;
+			PaintIslandGlyph(p, _muted ? kGlyphSpeaker : kGlyphOutput,
+				bounds.center(), style::ConvertScale(20));
+		}, _mute->lifetime());
+
+		const auto setVolume = [](float64 value) {
+			auto &app = Core::App();
+			if (app.settings().songVolume() != value) {
+				Media::Player::mixer()->setSongVolume(value);
+				app.settings().setSongVolume(value);
+				app.saveSettingsDelayed();
+			}
+		};
+		_slider->setChangeProgressCallback(setVolume);
+		_slider->setChangeFinishedCallback([](float64 value) {
+			if (value > 0.) {
+				Core::App().settings().setRememberedSongVolume(value);
+			}
+		});
+		_mute->setClickedCallback([=] {
+			auto &settings = Core::App().settings();
+			const auto volume = settings.songVolume();
+			if (volume > 0.) {
+				settings.setRememberedSongVolume(volume);
+				setVolume(0.);
+			} else {
+				setVolume(settings.rememberedSongVolume());
+			}
+		});
+		const auto refresh = [=](float64 value) {
+			_slider->setValue(value);
+			const auto muted = (value == 0.);
+			if (_muted != muted || _mute->accessibleName().isEmpty()) {
+				_muted = muted;
+				const auto text = QString::fromUtf8(Mokagram::Lang::Tr(
+					muted ? "Включить звук" : "Выключить звук"));
+				_mute->setAccessibleName(text);
+				_mute->setToolTip(text);
+				_mute->update();
+			}
+		};
+		const auto &settings = Core::App().settings();
+		refresh(settings.songVolume());
+		settings.songVolumeChanges() | rpl::on_next(refresh, lifetime());
+	}
+
+	void setAccent(QColor accent) {
+		_slider->setAccent(accent);
+	}
+
+protected:
+	void enterEventHook(QEnterEvent *e) override {
+		RpWidget::enterEventHook(e);
+		_slider->setHovered(true);
+	}
+	void leaveEventHook(QEvent *e) override {
+		RpWidget::leaveEventHook(e);
+		_slider->setHovered(false);
+	}
+	void hideEvent(QHideEvent *e) override {
+		_slider->setHovered(false);
+		RpWidget::hideEvent(e);
+	}
+	void resizeEvent(QResizeEvent *) override {
+		const auto iconWidth = style::ConvertScale(28);
+		_mute->setGeometry(0, 0, iconWidth, height());
+		_slider->setGeometry(iconWidth, 0, std::max(width() - iconWidth, 0), height());
+	}
+
+private:
+	const not_null<Ui::AbstractButton*> _mute;
+	const not_null<VolumeSlider*> _slider;
+	bool _muted = false;
+};
 
 enum class Glyph { Previous, Next, Play, Add, Shuffle, Repeat, More, Block, Collapse, Queue, Filter };
 
@@ -6775,7 +6962,7 @@ public:
 	, _collapse(Ui::CreateChild<RoundGlyph>(this, Glyph::Collapse, 44))
 	, _filter(Ui::CreateChild<RoundGlyph>(this, Glyph::Filter, 44))
 	, _queueToggle(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Queue, 44))
-	, _volume(Ui::CreateChild<SeekBar>(_playbackBar))
+	, _volume(Ui::CreateChild<VolumeControl>(_playbackBar))
 	, _tabTransition(Ui::CreateChild<Ui::RpWidget>(this))
 	, _tab(openHome ? Tab::Home : Tab::Now)
 	, _shuffle(Ui::CreateChild<RoundGlyph>(_playbackBar, Glyph::Shuffle, 44))
@@ -6795,19 +6982,6 @@ public:
 		_view->setAttribute(Qt::WA_OpaquePaintEvent);
 		_seek->setThin(true);
 		_seek->setExpressive(true, false);
-		_volume->setThin(true);
-		_volume->setProgress(Core::App().settings().songVolume());
-		_volume->moved(
-		) | rpl::on_next([=](float64 value) {
-			Core::App().settings().setSongVolume(value);
-			Core::App().saveSettingsDelayed();
-			Media::Player::mixer()->setSongVolume(value);
-		}, lifetime());
-		Core::App().settings().songVolumeChanges(
-		) | rpl::on_next([=](float64 value) {
-			_volume->setProgress(value);
-			update();
-		}, lifetime());
 		_homeBack = Ui::CreateChild<NavItem>(this, u"‹  "_q + QString::fromUtf8(Mokagram::Lang::Tr("Назад")), false);
 		_homeBack->setClickedCallback(crl::guard(this, [=] {
 			if (_homeReturnToArtist) {
@@ -7436,7 +7610,6 @@ protected:
 		QRect seek;
 		QRect timeNow;
 		QRect timeTotal;
-		QRect volumeIcon;
 		QRect volume;
 		QPoint heart;
 		QPoint queue;
@@ -7528,15 +7701,14 @@ protected:
 		const auto barInset = (bar.height() - s(kBarCover)) / 2;
 		result.ultra = bar.width() < s(560);
 		result.compact = bar.width() < s(900);
-		const auto iconWidth = s(28);
-		const auto volumeWidth = s(100);
+		const auto volumeWidth = s(28) + s(100);
 		const auto leftWidth = result.ultra
 			? 0
 			: result.compact
 			? barInset + s(kBarCover) + pad / 2
 			: std::clamp(int(bar.width() * 0.3), s(280), s(380));
 		const auto rightWidth = pad + _queueToggle->width() + s(2) + _heart->width() + pad
-			+ (result.compact ? 0 : iconWidth + volumeWidth + s(12));
+			+ (result.compact ? 0 : volumeWidth + s(12));
 		const auto sideWidth = std::max(leftWidth, rightWidth);
 		const auto centerWidth = std::max(bar.width() - (result.ultra ? rightWidth + pad : 2 * sideWidth), 0);
 		const auto centerLeft = result.ultra
@@ -7577,11 +7749,6 @@ protected:
 				result.heart.x() - s(12) - volumeWidth,
 				bar.y() + (bar.height() - _volume->height()) / 2,
 				volumeWidth,
-				_volume->height());
-			result.volumeIcon = QRect(
-				result.volume.x() - iconWidth,
-				result.volume.y(),
-				iconWidth,
 				_volume->height());
 		}
 		if (!result.ultra) {
@@ -9341,17 +9508,6 @@ protected:
 		p.setPen(QColor(255, 255, 255, 140));
 		p.drawText(layout.timeNow, Qt::AlignRight | Qt::AlignVCenter, _timeNow);
 		p.drawText(layout.timeTotal, Qt::AlignLeft | Qt::AlignVCenter, _timeTotal);
-
-		// Громкость: значок слева от полосы.
-		if (!layout.compact) {
-			p.setOpacity(0.6);
-			PaintIslandGlyph(
-				p,
-				Mokagram::Music::IslandGlyphs::kGlyphSpeaker,
-				QRectF(layout.volumeIcon).center(),
-				s(20));
-			p.setOpacity(1.);
-		}
 	}
 
 private:
@@ -9650,7 +9806,7 @@ private:
 			}
 			// Перемотка и громкость в оттенке обложки, как у островка.
 			_seek->setFillColor(LiftedAccent(_accent));
-			_volume->setFillColor(LiftedAccent(_accent));
+			_volume->setAccent(_accent.isValid() ? LiftedAccent(_accent) : QColor());
 			_shuffle->setAccent(_accent);
 			_repeat->setAccent(_accent);
 			repaintBackdrop();
@@ -9765,7 +9921,7 @@ private:
 	const not_null<RoundGlyph*> _filter;
 	base::unique_qptr<Ui::PopupMenu> _filterMenu;
 	const not_null<RoundGlyph*> _queueToggle;
-	const not_null<SeekBar*> _volume;
+	const not_null<VolumeControl*> _volume;
 	const not_null<Ui::RpWidget*> _tabTransition;
 	// Цвет фона страницы на высоте y: плоский или градиент тонировки альбома.
 	[[nodiscard]] QColor pageBackgroundAt(int y) const {
