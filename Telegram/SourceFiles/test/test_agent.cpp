@@ -9,13 +9,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS
 
+#include "base/options.h"
+#include "core/application.h"
+#include "core/core_settings.h"
+#include "core/version.h"
+#include "storage/localstorage.h"
 #include "test/test_log.h"
 #include "ui/style/style_core_scale.h"
 #include "wallet/wallet_address.h"
 #include "settings.h"
 
+#include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QSaveFile>
+#include <QtCore/QTemporaryDir>
+
+#include <cstdio>
 
 #ifdef Q_OS_MACOS
 // Keep last: <objc/objc.h> defines id, Class, BOOL, YES, NO, nil and Nil.
@@ -117,6 +126,174 @@ const auto kGramAccountFile = u"test_gram_account.txt"_q;
 	return result;
 }
 
+// The run's default download folder: reserved by ApplyDownloadFolder()
+// unless TDESKTOP_TEST_DOWNLOADS=product, returned by DefaultDownloadFolder()
+// and never saved.
+auto RunDownloadFolder = QString();
+
+// Returned by AllowAutomaticUrlRegistration(). Permissive until an active
+// ApplyUrlSchemeRegistration() selects it, so a call before that selection
+// never blocks the product's registration.
+auto UrlRegistrationAllowed = true;
+
+// The process's update-check decision, empty until SelectUpdateChecks()
+// selects it once; true suppresses every Core::Updater::start().
+auto UpdateChecksSuppressed = std::optional<bool>();
+
+struct StartupSwitch {
+	QString value;
+	QString source;
+	bool escape = false;
+};
+
+// Reads one TDESKTOP_TEST_* startup switch: only |token| selects its escape
+// (source=environment); any other non-empty value is logged as rejected and
+// the default is kept (source=default), as is an empty one.
+[[nodiscard]] StartupSwitch ReadStartupSwitch(
+		const char name[],
+		const QString &token) {
+	const auto value = qEnvironmentVariable(name);
+	const auto escape = (value == token);
+	if (!escape && !value.isEmpty()) {
+		Note(u"%1 rejected: %2"_q.arg(QString::fromLatin1(name), value));
+	}
+	return StartupSwitch{
+		.value = value,
+		.source = escape ? u"environment"_q : u"default"_q,
+		.escape = escape,
+	};
+}
+
+// Reserves a fresh run-local download folder by creating it under
+// EvidenceDir(): the "downloads" child when nothing exists under that name
+// yet, otherwise a new "downloads-XXXXXX" sibling, kept after exit. An entry
+// already there (a folder, a file or a junction a prepared run directory
+// left) is never reused. Returns the absolute folder with a trailing slash,
+// or an empty string when neither can be created.
+[[nodiscard]] QString ReserveRunDownloadFolder() {
+	const auto root = EvidenceDir();
+	if (QDir().mkdir(root + u"downloads"_q)) {
+		return root + u"downloads/"_q;
+	}
+	auto sibling = QTemporaryDir(root + u"downloads-XXXXXX"_q);
+	if (!sibling.isValid()) {
+		return QString();
+	}
+	sibling.setAutoRemove(false);
+	return sibling.path() + u"/"_q;
+}
+
+// TDESKTOP_TEST_DOWNLOADS=product keeps the product's default download
+// folder and reserves nothing, for a campaign whose subject is that folder;
+// otherwise the folder ReserveRunDownloadFolder() creates is the default
+// folder. It applies only where the copy's stored path is empty and
+// ask-for-path is off. The setting itself is never touched. Writes exactly
+// one row: the applied one, or a setup refusal, also on stderr, when no
+// fresh run folder can be created; then it returns false, so startup stops
+// instead of saving into the product's folder.
+[[nodiscard]] bool ApplyDownloadFolder() {
+	const auto selected = ReadStartupSwitch(
+		"TDESKTOP_TEST_DOWNLOADS",
+		u"product"_q);
+	if (!selected.escape) {
+		RunDownloadFolder = ReserveRunDownloadFolder();
+		if (RunDownloadFolder.isEmpty()) {
+			const auto refusal = u"TDESKTOP_TEST_DOWNLOADS=[%1] setup refused:"
+				" no fresh run download folder could be created under %2"
+				" - startup stops"_q.arg(selected.value, EvidenceDir());
+			Note(refusal);
+			std::fprintf(stderr, "%s\n", refusal.toUtf8().constData());
+			std::fflush(stderr);
+			return false;
+		}
+	}
+	const auto &settings = Core::App().settings();
+	const auto stored = settings.downloadPath();
+	const auto ask = settings.askDownloadPath();
+	const auto first = ask
+		? u"the ask-for-path prompt"_q
+		: !stored.isEmpty()
+		? u"the copy's stored path"_q
+		: QString();
+	const auto child = EvidenceDir() + u"downloads/"_q;
+	const auto folder = (RunDownloadFolder == child)
+		? u"the run folder %1"_q.arg(RunDownloadFolder)
+		: u"the run folder %1 (%2 could not be created fresh)"_q.arg(
+			RunDownloadFolder,
+			child);
+	const auto reason = selected.escape
+		? u"the product's default folder"_q
+		: first.isEmpty()
+		? folder
+		: u"%1, but %2 decides first"_q.arg(folder, first);
+	const auto report = u"TDESKTOP_TEST_DOWNLOADS=[%1] applied: "
+		"default-folder=%2 source=%3 - %4; stored path [%5] ask=%6"_q.arg(
+			selected.value,
+			selected.escape ? u"product"_q : u"run"_q,
+			selected.source,
+			reason,
+			stored,
+			ask ? u"1"_q : u"0"_q);
+	Note(report);
+	return true;
+}
+
+// TDESKTOP_TEST_UPDATER=allow leaves update checks to the product, for a
+// campaign whose subject is the updater; otherwise every
+// Core::Updater::start() of this process returns before it computes a
+// delay, probes for an update file, starts a checker or arms its timer.
+// Selected once per process, on the first SuppressUpdateChecks() or
+// ApplyStartupOverrides() call (the crash window can start the checker
+// before Application::run()), which logs the rejection row, if any, and the
+// one applied row. Kept in memory only; nothing is saved.
+void SelectUpdateChecks() {
+	if (UpdateChecksSuppressed.has_value()) {
+		return;
+	}
+	const auto selected = ReadStartupSwitch(
+		"TDESKTOP_TEST_UPDATER",
+		u"allow"_q);
+	UpdateChecksSuppressed = !selected.escape;
+	const auto reason = selected.escape
+		? u"the product decides whether to check"_q
+		: u"update checks suppressed for this process"_q;
+	const auto report = u"TDESKTOP_TEST_UPDATER=[%1] applied: "
+		"checker=%2 source=%3 - %4"_q.arg(
+			selected.value,
+			selected.escape ? u"product"_q : u"off"_q,
+			selected.source,
+			reason);
+	Note(report);
+}
+
+// TDESKTOP_TEST_URL_SCHEME=register lets Application::autoRegisterUrlScheme()
+// register the tg, tonsite and ton handlers whenever the product would, for
+// a campaign whose subject is the registration; otherwise the launch's
+// automatic registration is skipped. The copy's skip-url-scheme-register
+// option is only read, never set. Writes exactly one reading row.
+void ApplyUrlSchemeRegistration() {
+	const auto selected = ReadStartupSwitch(
+		"TDESKTOP_TEST_URL_SCHEME",
+		u"register"_q);
+	UrlRegistrationAllowed = selected.escape;
+	const auto skip = base::options::lookup<bool>(
+		Core::kOptionSkipUrlSchemeRegister).value();
+	const auto due = (Local::oldSettingsVersion() < AppVersion);
+	const auto reason = selected.escape
+		? u"the product registers tg, tonsite and ton when due"_q
+		: u"the launch's automatic registration is skipped"_q;
+	const auto report = u"TDESKTOP_TEST_URL_SCHEME=[%1] applied: "
+		"registration=%2 source=%3 - %4; due=%5"
+		" skip-url-scheme-register=%6"_q.arg(
+			selected.value,
+			selected.escape ? u"product"_q : u"off"_q,
+			selected.source,
+			reason,
+			due ? u"yes"_q : u"no"_q,
+			skip ? u"on"_q : u"off"_q);
+	Note(report);
+}
+
 #ifdef Q_OS_MACOS
 
 // NSActivityOptions values from Foundation's NSProcessInfo.h, which a C++
@@ -179,17 +356,10 @@ auto AppNapActivity = (void*)nullptr;
 // subject is background scheduling itself; any other non-empty value is
 // rejected and the hold is kept. Writes exactly one reading row.
 void ApplyAppNapHold() {
-	const auto value = qEnvironmentVariable("TDESKTOP_TEST_APP_NAP");
-	auto source = u"default"_q;
-	auto optOut = false;
-	if (!value.isEmpty()) {
-		if (value == u"allow"_q) {
-			optOut = true;
-			source = u"environment"_q;
-		} else {
-			Note(u"TDESKTOP_TEST_APP_NAP rejected: %1"_q.arg(value));
-		}
-	}
+	const auto selected = ReadStartupSwitch(
+		"TDESKTOP_TEST_APP_NAP",
+		u"allow"_q);
+	const auto optOut = selected.escape;
 	const auto failure = optOut ? QString() : BeginAppNapActivity();
 	const auto held = !optOut && failure.isEmpty();
 	const auto reason = optOut
@@ -204,9 +374,9 @@ void ApplyAppNapHold() {
 		: failure;
 	const auto report = u"TDESKTOP_TEST_APP_NAP=[%1] applied: "
 		"hold=%2 source=%3 - %4"_q.arg(
-			value,
+			selected.value,
 			held ? u"active"_q : u"off"_q,
-			source,
+			selected.source,
 			reason);
 	Note(report);
 }
@@ -219,9 +389,9 @@ bool Active() {
 	return cTestAgent();
 }
 
-void ApplyStartupOverrides() {
+bool ApplyStartupOverrides() {
 	if (!Active()) {
-		return;
+		return true;
 	}
 	const auto value = qEnvironmentVariable("TDESKTOP_TEST_SCALE");
 	auto selectedScale = style::kScaleDefault;
@@ -243,9 +413,31 @@ void ApplyStartupOverrides() {
 			QString::number(selectedScale),
 			source);
 	Note(report);
+	if (!ApplyDownloadFolder()) {
+		return false;
+	}
+	SelectUpdateChecks();
+	ApplyUrlSchemeRegistration();
 #ifdef Q_OS_MACOS
 	ApplyAppNapHold();
 #endif // Q_OS_MACOS
+	return true;
+}
+
+QString DefaultDownloadFolder() {
+	return RunDownloadFolder;
+}
+
+bool SuppressUpdateChecks() {
+	if (!Active()) {
+		return false;
+	}
+	SelectUpdateChecks();
+	return *UpdateChecksSuppressed;
+}
+
+bool AllowAutomaticUrlRegistration() {
+	return UrlRegistrationAllowed;
 }
 
 void Fire(const QString &event) {
@@ -371,7 +563,20 @@ bool Active() {
 	return false;
 }
 
-void ApplyStartupOverrides() {
+bool ApplyStartupOverrides() {
+	return true;
+}
+
+QString DefaultDownloadFolder() {
+	return QString();
+}
+
+bool SuppressUpdateChecks() {
+	return false;
+}
+
+bool AllowAutomaticUrlRegistration() {
+	return true;
 }
 
 void Fire(const QString &) {

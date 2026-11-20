@@ -14,12 +14,47 @@ namespace Test {
 [[nodiscard]] bool Active();
 
 // Applies TDESKTOP_TEST_* environment overrides (interface scale).
-// Runs before ValidateScale() in Application::run(). No-op unless Active().
+// Runs in Application::run() after the settings read, before
+// ValidateScale(), the launch URL-scheme check, startDomain() and Start().
+// Returns true at once unless Active(), and in a build without the harness.
+// Three more selections, each with its own escape, none of them saved:
+// - reserves the run's default download folder (see DefaultDownloadFolder()),
+//   unless TDESKTOP_TEST_DOWNLOADS=product; when no fresh run folder can be
+//   created it logs a setup refusal, also on stderr, and returns false, and
+//   the caller quits before the rest of startup;
+// - selects SuppressUpdateChecks() unless an earlier call already did;
+// - selects AllowAutomaticUrlRegistration().
+// Each logs one "NOTE: <NAME>=[<value>] applied: ..." row; any other
+// non-empty value is logged as rejected and the default is kept. See
+// docs/launch.md, "Downloads, the update checker and URL handlers".
 // On macOS it also begins one NSActivityUserInitiatedAllowingIdleSystemSleep
 // | NSActivityLatencyCritical activity, held until the process exits (idle
 // sleep stays allowed) unless TDESKTOP_TEST_APP_NAP=allow, and logs one
 // "TDESKTOP_TEST_APP_NAP=[...] applied: hold=..." row; nothing off macOS.
-void ApplyStartupOverrides();
+[[nodiscard]] bool ApplyStartupOverrides();
+
+// The run's default download folder, created fresh by
+// ApplyStartupOverrides() under EvidenceDir(): downloads/, or a new
+// downloads-XXXXXX/ sibling when that name is taken. Absolute, with a
+// trailing slash. Empty before that call, without -testagent, under
+// TDESKTOP_TEST_DOWNLOADS=product and in a build without the harness.
+// File::DefaultDownloadPath() returns it when it is not empty.
+[[nodiscard]] QString DefaultDownloadFolder();
+
+// Whether Core::Updater::start() returns before any update check. False
+// without -testagent and in a build without the harness, reading and
+// logging nothing. Under -testagent a process decision, selected and logged
+// once on the first call here or in ApplyStartupOverrides() (the crash
+// window can start the checker first): true unless
+// TDESKTOP_TEST_UPDATER=allow.
+[[nodiscard]] bool SuppressUpdateChecks();
+
+// Whether Application::autoRegisterUrlScheme() may queue the product's
+// automatic registration, on top of the copy's own skip-url-scheme-register
+// option. True without -testagent, in a build without the harness and
+// before ApplyStartupOverrides() selects it; then true only with
+// TDESKTOP_TEST_URL_SCHEME=register. The registertg code is not gated.
+[[nodiscard]] bool AllowAutomaticUrlRegistration();
 
 // Marks a named waitpoint as reached. Fire-once, sticky. No-op unless
 // Active(), so call sites in application code need no condition around them.

@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_file_utilities.h"
 #include "storage/localstorage.h"
 #include "storage/storage_account.h"
+#include "test/test_agent.h"
 #include "ui/chat/attach/attach_extensions.h"
 #include "ui/toast/toast.h"
 #include "ui/delayed_activation.h"
@@ -229,6 +230,10 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
+	const auto test = Test::DefaultDownloadFolder();
+	if (!test.isEmpty()) {
+		return test;
+	}
 	if (!Core::App().canReadDefaultDownloadPath()) {
 		return session->local().tempDirectory();
 	}

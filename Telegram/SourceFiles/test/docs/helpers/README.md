@@ -9,7 +9,7 @@ should call.
 
 | Module | Kind | Use |
 | --- | --- | --- |
-| [test_agent](test_agent.md) | API | Runtime gate, startup overrides and fixture access |
+| [test_agent](test_agent.md) | API | Runtime gate, startup overrides with `TDESKTOP_TEST_*` escapes (scale, a fresh run download folder or a startup refusal, update checks suppressed per process, no automatic URL-handler registration, macOS App Nap hold), their product queries and fixture access |
 | [test_runner](test_runner.md) | API | Stages, gated groups, bounded readiness and exact-object actions |
 | [test_gated_stage](test_gated_stage.md) | Self-test | Self-tests for explicit and inherited gated skips |
 | [test_session_gate](test_session_gate.md) | API | Test-account gate, switching, restoration and explicit production legs |
