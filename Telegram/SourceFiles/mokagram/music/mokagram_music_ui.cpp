@@ -1090,7 +1090,7 @@ void Subscribe() {
 					Media::Player::kOptionDisableAutoplayNext)
 				|| !Mokagram::Settings::Bool(u"player.autoplay_next"_q)) {
 				return;
-			} else if (queue.radio || (queue.stream && StreamEnabled())) {
+			} else if (queue.radio || queue.stream) {
 				if (queue.index + 1 < count) {
 					PlayIndex(queue.index + 1);
 				} else {
@@ -1109,6 +1109,12 @@ void Subscribe() {
 			} else if (settings.playerRepeatMode() == Media::RepeatMode::All
 				&& count > 0) {
 				PlayIndex(0);
+			} else if (StreamEnabled()) {
+				// Вечная очередь: даже один трек из EP или локальный трек
+				// продолжается подборкой SoundCloud.
+				queue.stream = true;
+				queue.waiting = true;
+				RefillStream();
 			}
 		}
 	}, queue.lifetime);
@@ -1433,9 +1439,16 @@ void PlayFromResults(int resultIndex) {
 		queue.radio.reset();
 		queue.pendingRadio.reset();
 		queue.tracks = queue.results;
-		queue.stream = false;
+		queue.stream = StreamEnabled();
 		++queue.streamEpoch;
 		queue.refilling = false;
+		queue.waiting = false;
+		queue.autoIds.clear();
+		if (queue.stream) {
+			for (const auto &t : queue.tracks) {
+				queue.autoIds.insert(t.id);
+			}
+		}
 		PlayIndex(resultIndex);
 		return;
 	}
