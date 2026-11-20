@@ -315,17 +315,18 @@ service** below). On macOS, both packages alike, on Linux, in the
 Windows Store build too, that helper runs the whole widget: its engine,
 its trusted validator and its TwidgetCore renderer, while the client
 keeps the checked Qt work and the pictures (**Hosted widgets on macOS,
-Linux and Windows** below); in a macOS or Windows build with
-`DESKTOP_APP_DISABLE_PRIVATE_QT_API` it runs the engines alone, the
-arrangement before the helper rendered, while such a Linux build stops
-every widget (**Debug switch** below).
+Linux and Windows** below); in a build with
+`DESKTOP_APP_DISABLE_PRIVATE_QT_API` it runs the engines alone on macOS,
+the arrangement before the helper rendered, while such a Windows or
+Linux build stops every widget (**Debug switch** below).
 Everywhere else no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>` (**Store, packaged
 and other platforms** below), and only the Debug switch `in-process` runs
-the engines in the client there, except in a `TDESKTOP_WIDGETS_HELPER_ONLY`
-build, the only kind CMake configures outside macOS and Windows, whose
-Telegram links no widget engine: Nova is linked into its helper alone
-(**The shared helper** below). The
+the engines in the client there, except on Windows and in a
+`TDESKTOP_WIDGETS_HELPER_ONLY` build, the only kind CMake configures
+outside macOS and Windows, whose Telegram links no widget engine: Nova is
+linked into its helper alone (**The Windows helper** and **The shared
+helper** below). The
 packs, the fixture and the seams they use need no change for it.
 
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
@@ -379,10 +380,11 @@ packs, the fixture and the seams they use need no change for it.
   on any platform: the default never chooses in process and always
   installs a channel factory, the helper's or one that refuses every
   engine, with which `twidget::SandboxEngine::make()` builds no in-process
-  engine. In a `TDESKTOP_WIDGETS_HELPER_ONLY` build no client links an
-  engine or installs that factory (`Tgw::EnginesInTelegram()` is false):
-  each widget takes a hosted route, the helper's or one that refuses it
-  (**Debug switch** below). Telegram has no `-widgethelper` entry on any platform; its
+  engine. On Windows and in a `TDESKTOP_WIDGETS_HELPER_ONLY` build no
+  client links an engine or installs that factory
+  (`Tgw::EnginesInTelegram()` is false): each widget takes a hosted
+  route, the helper's or one that refuses it (**Debug switch** below).
+  Telegram has no `-widgethelper` entry on any platform; its
   helper, where it has one, is the separate `TelegramWidgetHelper` (**The
   shared helper** and **The Windows helper** below), whose Release build
   contains no probe and accepts only its channel token. On Linux
@@ -397,8 +399,9 @@ packs, the fixture and the seams they use need no change for it.
   Debug builds, and from Release packages (test harness on, LTO off), x86
   installed, portable and updated and x64 installed, and in an x64 Store
   Debug build installed as a test package
-  ([Verification](#verification)); ARM64, an x86 or Release Store build
-  and Windows before that build have not.
+  ([Verification](#verification)), all with the QuickJS engine, before
+  the Nova change; ARM64, an x86 or Release Store build and Windows
+  before that build have not.
 - **Debug switch.** Debug builds also read `TDESKTOP_WIDGET_ENGINES` at
   that point:
   - unset or any other value: the platform default, so a Debug build runs
@@ -412,17 +415,18 @@ packs, the fixture and the seams they use need no change for it.
     Windows** below), and on Windows it is the restricted helper (**The
     Windows helper** below);
   - `helper-engines`: the sandboxed helper running the engines alone, on
-    macOS and Windows: the arrangement before the helper rendered, with
-    each widget's validator and renderer in the client, a Debug comparison
-    value for runs that set the hosted arrangement against it; in a
+    macOS: the arrangement before the helper rendered, with each widget's
+    validator and renderer in the client, a Debug comparison value for
+    runs that set the hosted arrangement against it; on Windows and in a
     `TDESKTOP_WIDGETS_HELPER_ONLY` build, Linux's, it stops every widget
     (below);
-  - `in-process`: the whole widget runs in the client, its engine, its
-    validator and its renderer (on the `widget.render` thread), also where
-    the default stops them; it is the only way to run widget engines in the
-    client's own process, for tests and the harness, and the control of a
-    run that compares the arrangements; in a `TDESKTOP_WIDGETS_HELPER_ONLY`
-    build it stops every widget (below);
+  - `in-process`: on macOS the whole widget runs in the client,
+    its engine, its validator and its renderer (on the `widget.render`
+    thread), also where the default stops them; it is the only way to run
+    widget engines in the client's own process, for tests and the harness,
+    and the control of a run that compares the arrangements; on Windows and
+    in a `TDESKTOP_WIDGETS_HELPER_ONLY` build it stops every widget
+    (below);
   - `probe` and `probe-unsandboxed`: on macOS every helper, whose Debug
     build carries the probe, hosts its widgets as `helper` does, probes its
     lockdown, or runs the same probe without it as the control, and
@@ -449,14 +453,15 @@ packs, the fixture and the seams they use need no change for it.
     it fails, and `probe-unsandboxed` with no lockdown at all, so that
     helper runs its widgets unconfined.
 
-  In a `TDESKTOP_WIDGETS_HELPER_ONLY` build, which CMake turns on by
-  default outside macOS and Windows and requires there, whose Telegram
-  links no widget engine, `in-process` and `helper-engines` choose no
-  place: no helper starts, and every widget stops through the refusing
-  hosted route with `TDESKTOP_WIDGET_ENGINES=<value> needs a widget engine
-  in Telegram, which this build does not have`, the main log saying once
-  `Tgw: Widget engines, validators and renderers do not run, <reason>.`.
-  Such a build whose helper does not render (one configured with
+  On Windows and in a `TDESKTOP_WIDGETS_HELPER_ONLY` build, which CMake
+  turns on by default outside macOS and Windows and requires there, whose
+  Telegram links no widget engine, `in-process` and
+  `helper-engines` choose no place: no helper starts, and every widget
+  stops through the refusing hosted route with
+  `TDESKTOP_WIDGET_ENGINES=<value> needs a widget engine in Telegram,
+  which this build does not have`, the main log saying once `Tgw:
+  Widget engines, validators and renderers do not run, <reason>.`. Such a
+  build whose helper does not render (one configured with
   `DESKTOP_APP_DISABLE_PRIVATE_QT_API`, whose helper serves engines alone)
   stops every widget the same way with `the widget helper of this build
   does not render widgets`, by default where the helper is available and
@@ -501,7 +506,9 @@ packs, the fixture and the seams they use need no change for it.
   Widget engines, validators and renderers run in the widget helper
   (TDESKTOP_WIDGET_ENGINES=helper).` for `helper` and the probe values, or
   `Tgw: Widget engines run in process
-  (TDESKTOP_WIDGET_ENGINES=in-process).`.
+  (TDESKTOP_WIDGET_ENGINES=in-process).`; on Windows the engine-only and
+  in-process lines never appear, and each refusal above logs its reason
+  instead.
 - **Hosted widgets on macOS, Linux and Windows.**
   `Platform::WidgetHelper::Renders()` says where a build renders its
   widgets: true in every macOS, Linux and Windows build, the Mac App
@@ -1012,7 +1019,9 @@ packs, the fixture and the seams they use need no change for it.
     widgets with the diagnostic and counts towards the failure limit, as
     below. Where no helper is available a build that renders in the helper
     builds only a refusing hosted client, so no Nova runtime, validator
-    or litehtml document exists in the client either.
+    or litehtml document exists in the client either. On Windows every
+    placement that runs no widget takes that route, whatever the build and
+    the switch (**Debug switch** above).
   - *Seams and probes.* The ops tap installs itself on the hosted host
     ([Hosted widgets](test_widget_ops.md#hosted-widgets)) and, in a
     Release harness, whose helper has no Debug tap, reads the theme the
@@ -1090,8 +1099,9 @@ packs, the fixture and the seams they use need no change for it.
   `-Wl,--push-state,--no-as-needed,-ldav1d,--pop-state`, into the `Libs:`
   line of the `libavif.pc` it builds, so the link reaches only the
   executables that link the avif decoder, Telegram and the
-  `codegen_emoji` build tool, and the Snap's helper links only glibc,
-  libm and the C++ runtime, like the other builds' helpers. A Snap built
+  `codegen_emoji` build tool, and the Snap's helper, read before the Nova
+  change, linked only glibc, libm and the C++ runtime, like the other
+  builds' helpers. A Snap built
   with snapcraft staged the helper, and a Release Telegram with the test
   harness, linked as that Snap's, started it from the Snap's unpacked
   tree, unconfined. A Snap that snapcraft built from the recipe, with the
@@ -1241,7 +1251,7 @@ packs, the fixture and the seams they use need no change for it.
   helper that renders too, with Nova as before it:
   the Docker build links the C++ runtime statically, so its NEEDED are
   `libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2` and the
-  loader, and a build that links the C++ runtime dynamically adds
+  loader, and a build that linked the C++ runtime dynamically added
   `libstdc++.so.6` and `libgcc_s.so.1`. Its file is
   `TelegramHelpers/TelegramWidgetHelper` next to the client's binary
   (`out/Debug/TelegramHelpers/TelegramWidgetHelper` in the Docker
@@ -1714,15 +1724,30 @@ packs, the fixture and the seams they use need no change for it.
   tap ([test_widget_helper_tap](test_widget_helper_tap.md)), without
   Telegram's precompiled header, as a Windows GUI image with
   `/ENTRY:mainCRTStartup` (so that no console is started) and the static
-  CRT. Its imports were read only on helpers built with the QuickJS
-  engine, before the Nova change (the Nova engine is built for macOS only
-  so far: `Telegram/cmake/lib_nova_engine.cmake` stops a Windows
-  configure), the hosted helper's the same as the engine-only one's: its
-  static imports were ADVAPI32 and KERNEL32, both KnownDLLs, loaded from
-  the system directory (`/DEPENDENTLOADFLAG:0x800`); `bcrypt.dll` was
-  delay-loaded in every configuration and bound in its lowering (**The
-  Windows lowering** below), and the Debug build's `WS2_32.dll`,
-  delay-loaded too, had no caller but the probe. Its build string,
+  CRT. Nova reaches it as one static library: cargo builds
+  `nova_embed_ffi` for the helper's target, `i686-pc-windows-msvc` in a
+  Win32 tree (`x86_64-pc-windows-msvc` for x64 and
+  `aarch64-pc-windows-msvc` for ARM64, whose helpers have not been built
+  with Nova), with `-Z build-std` and `+crt-static` and always `--release`,
+  into the build tree's `nova_engine\nova_embed_ffi.lib`
+  (`Telegram/cmake/lib_nova_engine.cmake`, `build_nova_engine.cmake`), and
+  only the helper links it: `Telegram.exe` on Windows links without any
+  widget engine. Read in the x86 tree on Windows 10.0.26300, the Debug
+  helper's static imports are ADVAPI32, KERNEL32, ntdll and the API set
+  `api-ms-win-core-synch-l1-2-0.dll` (`WaitOnAddress`,
+  `WakeByAddressAll` and `WakeByAddressSingle`), and it delay-loads
+  `bcrypt.dll`, `bcryptprimitives.dll` and, for the probe alone,
+  `WS2_32.dll`; the Release helper has the same static imports and
+  delay-loads `bcrypt.dll` and `bcryptprimitives.dll`, with no
+  `WS2_32.dll`. Neither imports user32, gdi32 or Qt, and each binds
+  `bcrypt.dll` and `bcryptprimitives.dll` in its lowering (**The Windows
+  lowering** below). The earlier imports were read on helpers built with
+  the QuickJS engine, before the Nova change, the hosted helper's the
+  same as the engine-only one's: their static imports were ADVAPI32 and
+  KERNEL32, both KnownDLLs, loaded from the system directory
+  (`/DEPENDENTLOADFLAG:0x800`); `bcrypt.dll` was delay-loaded in every
+  configuration, and the Debug build's `WS2_32.dll`, delay-loaded too,
+  had no caller but the probe. Its build string,
   argument gate and Release refusals are the shared `main()`'s, as on
   macOS and Linux (**The shared helper** above). At its entry, in
   `WidgetHelper::Adopt()` (`_other/widget_helper_win.cpp`), it first
@@ -1779,10 +1804,15 @@ packs, the fixture and the seams they use need no change for it.
   `the token's WIN://NOALLAPPPKG has <n> values`, `the token's
   WIN://NOALLAPPPKG value is <n>` and `GetTokenInformation failed: error
   <n>`. The design makes no grant: the client opens the image, the
-  helper's static imports are KnownDLLs and every later DLL comes from the
-  system directory. The evidence campaign of
+  helper imports statically only system DLLs and an API set (**The
+  Windows helper** above; the static imports of the QuickJS-era helpers
+  were ADVAPI32 and KERNEL32, both KnownDLLs), it binds the delay-loaded
+  DLLs it uses while it still impersonates (**The Windows lowering**
+  below), and every later DLL comes from the system directory. The
+  evidence campaign of
   `2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
-  (its `work/test.md`, Attempt 1 Run 3, Win32 Debug only) started
+  (its `work/test.md`, Attempt 1 Run 3, Win32 Debug only, with the
+  QuickJS engine) started
   `TelegramWidgetHelper.exe` to Ready that way through the product
   `Launch()` of account-free clients with fresh ordinary permissions:
   from the checkout's `out\Debug\modules\x86\`, from `setup.iss`'s files
@@ -1877,7 +1907,8 @@ packs, the fixture and the seams they use need no change for it.
   `WidgetHelper::Lockdown()` calls). While still impersonating it checks
   that the mitigation readback is available (`the mitigation policy
   functions are not available` otherwise), binds the delay-loaded
-  `bcrypt.dll` imports with `__HrLoadAllImportsForDll`, derives its
+  `bcrypt.dll` imports and then the `bcryptprimitives.dll` ones with
+  `__HrLoadAllImportsForDll`, derives its
   package SID once (which loads `USERENV.dll`; the checkpoint of
   `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
   saw it map `profext.dll` as well, the host of the API set USERENV
@@ -1891,10 +1922,14 @@ packs, the fixture and the seams they use need no change for it.
   trace pointed to Windows' parallel loader opening it on a worker thread
   that runs as the primary
   (`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`,
-  its `work/decisions.md`, P6). Telegram, which compiles the same unit and
+  its `work/decisions.md`, P6). The Nova engine's Rust runtime adds
+  `bcryptprimitives.dll`, its random source, which is not a KnownDLL on
+  every Windows either, so the helper delay-loads it too and binds it
+  right after `bcrypt.dll`. Telegram, which compiles the same unit and
   delay-loads `bcrypt.dll` too, never runs this lowering. A failed bind
   stays closed before Ready either way: a missing delay descriptor refuses
-  with `__HrLoadAllImportsForDll(bcrypt.dll) failed: 0x<hresult>`, and a
+  with `__HrLoadAllImportsForDll(<dll>) failed: 0x<hresult>`, `<dll>`
+  being `bcrypt.dll` or `bcryptprimitives.dll`, and a
   module that cannot be loaded raises the delay-load exception, which
   nothing catches, so the helper dies before any frame with `exit
   0xC06D007E` or `exit 0xC06D007F`; no run has seen either. Then it
@@ -2007,14 +2042,15 @@ packs, the fixture and the seams they use need no change for it.
   127.0.0.1, `::1` and the host's own LAN and link-local addresses, of a
   sibling process on 127.0.0.1 and `::1`, and one in the running WSL
   distribution received every ordinary control before, during and after
-  the helper and nothing from it. `TelegramWidgetHelper.exe` read the same
-  socket and AFD denials on x86 and on x64, while listeners of the client
+  the helper and nothing from it. `TelegramWidgetHelper.exe`, built with
+  the QuickJS engine, read the same socket and AFD denials on x86 and on
+  x64, while listeners of the client
   on 127.0.0.1 and `::1` received every control of the client and of new
   sibling processes and nothing from it; the other targets and
   `connect-control` were not run with it ([Verification](#verification)).
   Native code in the lowered helper could therefore create no TCP or UDP
   socket over IPv4 or IPv6 and open no AFD endpoint for those kinds, and
-  the ordinary helper holds no socket from before the lowering (its
+  the ordinary helper held no socket from before the lowering (its
   handles are below). Sockets that the probe's
   `connect-control` opens before the lowering delivered nothing after it:
   TCP connects to the host's own addresses timed out and one to WSL was
@@ -2037,8 +2073,8 @@ packs, the fixture and the seams they use need no change for it.
   replaced could not take it: `Telegram.exe` loads user32 during its
   static initialisation, so its runtime disable failed with error 19
   (`ERROR_WRITE_PROTECT`) without the lowbox and with error 5 under it.
-  Measured while the helper served engines alone, after Ready, on x86,
-  it held as File handles only the WOW64 pair
+  Measured with the QuickJS engine while the helper served engines alone,
+  after Ready, on x86, it held as File handles only the WOW64 pair
   of its working directory (`\Windows` and `\Windows\SysWOW64`, traverse
   access only), the crypto devices `\Device\KsecDD` and `\Device\CNG` of
   the random warm-up, the pipe and the stderr copy, the only inheritable
@@ -2062,9 +2098,10 @@ packs, the fixture and the seams they use need no change for it.
   helper had not mapped before the lowering can end it: before the random
   warm-up existed, a widget's `crypto.getRandomValues` ended the helper
   with `exit 0xC06D007E`. `TelegramWidgetHelper.exe` imports ADVAPI32
-  statically and binds `bcrypt.dll` before the lowering (**The Windows
-  lowering** above). At ordinary Ready and after widget work, measured
-  while it served engines alone, its modules were its own image and
+  statically and binds `bcrypt.dll` and `bcryptprimitives.dll` before the
+  lowering (**The Windows lowering** above). At ordinary Ready and after
+  widget work, measured with the QuickJS engine while it served engines
+  alone, its modules were its own image and
   system DLLs only: on x86 ntdll, KERNEL32,
   KERNELBASE, ADVAPI32, msvcrt, sechost, RPCRT4, bcrypt, userenv,
   ucrtbase, profext and bcryptprimitives beside it, with WOW64's six x64
@@ -2319,20 +2356,21 @@ packs, the fixture and the seams they use need no change for it.
   Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`; a local
   host (the engine-only arrangement, as in a build without the private
-  Qt API) keeps its `widget.client`, `widget.validator` and
-  `twidget-host` until its death retires it. Where the helper renders
+  Qt API, outside Windows) keeps its `widget.client`, `widget.validator`
+  and `twidget-host` until its death retires it. Where the helper renders
   (macOS, Linux and Windows, both Stores included) and none is available
   (Windows before 10 1809, the Mac App Store build before macOS 12, a
   Linux architecture other than x86_64 and aarch64), each widget takes
   the refusing hosted route, whose `WidgetHost` has no validator
-  (*Failure* under **Hosted widgets on macOS, Linux and Windows** above).
+  (*Failure* under **Hosted widgets on macOS, Linux and Windows** above),
+  and so does each widget of a placement that Windows refuses
+  (**Debug switch** above).
   Windows threads carry none of these names (the
   framework names its threads only on Apple platforms and Linux): there
   the `TelegramWidgetHelper.exe` child, the runtime log's start note
   (`Started, its engine, validator and renderer run in the widget
-  helper.` for a hosted widget, `Started, its engine is remote.` with
-  `helper-engines`) and the main log's `Widget helper <pid>` lines show
-  where the engines run.
+  helper.`, every Windows widget that runs being hosted) and the main
+  log's `Widget helper <pid>` lines show where the engines run.
 - **Seams.** [test_widget_ops](test_widget_ops.md),
   [test_widget_host](test_widget_host.md) and
   [test_widget_bot](test_widget_bot.md) act in the client in every
@@ -2343,7 +2381,7 @@ packs, the fixture and the seams they use need no change for it.
   `Runtime::botRequested()` through the responder the client engine handed
   the host. The tap wraps the renderer factory in `Runtime::construct()`
   for a local host (`in-process`, `helper-engines` and builds without
-  the private Qt API),
+  the private Qt API, outside Windows),
   registering the core's work for the local press seams, whose click counts
   as the work's forwarding hands it to the host and whose mark
   `RendererCore::detach()` revokes once it closed the host link
@@ -2359,7 +2397,8 @@ packs, the fixture and the seams they use need no change for it.
   questions over the channel.
 - **Runtime log and deaths.** The note of a host's start reads `Started,
   its engine is remote.` with the helper and `Started, its engine does
-  not run.` where no helper is available, instead of the in-process
+  not run.` where no helper is available and wherever Windows refuses the
+  placement (**Debug switch** above), instead of the in-process
   `Started.`, chosen by the client's mode; a hosted widget's note says
   instead that its engine, validator and renderer run in the widget
   helper. The summary and its first `Died:` line, which the packs parse,
@@ -2370,7 +2409,9 @@ packs, the fixture and the seams they use need no change for it.
   helper is available here: <reason>`, in the summary's `Died:` line and
   the host watch's `dead`: a fatal stop that counts towards the widget's
   crashes in a row like any other, with no `Tgw Error` line and no helper
-  start. A helper that ends under live widgets (killed, crashed or cut
+  start; a placement that Windows refuses (**Debug switch** above) stops
+  its widgets the same way, with its own reason. A helper that ends
+  under live widgets (killed, crashed or cut
   off by a stream violation) kills each of them with `the widget engine
   process ended`, the host watch's `dead`; the helper's own reason is only
   in the main log's `stream ended` line, `the engine process closed the
@@ -2514,8 +2555,9 @@ packs, the fixture and the seams they use need no change for it.
   this limit needs fresh widgets. Once a quit has stopped the helper,
   widgets die with `the widget helper was stopped`. None of these falls
   back to an in-process engine. The stop of every widget where no helper
-  is available is no helper failure: no start is attempted, so nothing
-  counts towards this limit or stops launches.
+  is available, or where Windows refuses the placement (**Debug switch**
+  above), is no helper failure: no start is attempted, so nothing counts
+  towards this limit or stops launches.
 - **Timing.** Queries and probes cross the channel; a hosted widget's
   layout queries do not, they are answered by the renderer in the helper,
   while its renderer's backend requests cross the other way and wait for
@@ -2599,11 +2641,12 @@ packs, the fixture and the seams they use need no change for it.
   client leaves the session bus (`WATCH_BUS`).
 - **Loopback.** The framework's own Debug switch `TW_ENGINE_LOOPBACK=1`
   gives in-process loopback clients only when no factory is installed, so
-  engines in the helper ignore it, the macOS, Linux and Windows defaults
-  included, and so does a client without a helper, whose default installs
-  a factory that refuses every engine; with `in-process` its engines keep
-  the `Started.` note while running in the client. Leave it unset in both
-  modes.
+  engines in the helper ignore it, the macOS and Linux defaults included,
+  and so does a client without a helper, whose default installs a factory
+  that refuses every engine; with `in-process` its engines keep the
+  `Started.` note while running in the client. Windows Telegram makes no
+  engine, so the switch has nothing to act on there. Leave it unset in
+  both modes.
 
 ## Readings and refusals
 
@@ -3256,9 +3299,10 @@ read 1 in an x64 process and 0 in a WOW64 one and no system or
 image-name mitigation override existed, in the evidence campaign of
 `2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`;
 its `work/test.md` (Attempt 1, Runs 1-4) is the record, and its
-`work/test-overlay.patch` keeps the disposable scenario. It ran in the
-Win32 Debug build (x86 on WOW64) and in an x64 Debug build of the same
-commit, and no reading is carried from one architecture to the other.
+`work/test-overlay.patch` keeps the disposable scenario. It ran, with the
+QuickJS engine, in the Win32 Debug build (x86 on WOW64) and in an x64
+Debug build of the same commit, and no reading is carried from one
+architecture to the other.
 The probe's lines are on
 [test_widget_helper_probe](test_widget_helper_probe.md#verification).
 
@@ -3268,8 +3312,9 @@ committed images (Run 1). Both were built before Telegram, each into its
 build's `modules\x86` or `modules\x64` folder, without a precompiled
 header or a Qt input, as Windows GUI images entered through
 `mainCRTStartup` with `/DEPENDENTLOADFLAG:0x800`, Dynamic base and NX,
-and on x64 High Entropy VA but no CET-compatible flag; each imported
-only ADVAPI32 and KERNEL32 and delay-loaded `bcrypt.dll` and the Debug
+and on x64 High Entropy VA but no CET-compatible flag; each of these
+QuickJS-era images imported only ADVAPI32 and KERNEL32 and delay-loaded
+`bcrypt.dll` and the Debug
 `WS2_32.dll`, whose 19 functions only the probe's object referenced. A
 product launch read every
 creation policy back from the suspended child before its resume (x86 DEP
@@ -3740,8 +3785,9 @@ ZIP and the update package carried byte-identical signed copies and no
 `.pdb`; `widget_helper_identity.py` over the signed helper reproduced the
 build's pin, so signing kept it, and a Telegram of another build refused
 that helper with `the widget helper digest does not match this build`.
-The Release helper imported only ADVAPI32 and KERNEL32 and delay-loaded
-only `bcrypt.dll`. The x86 and x64 setups installed it and their
+The Release helper, built with the QuickJS engine, imported only ADVAPI32
+and KERNEL32 and delay-loaded only `bcrypt.dll`. The x86 and x64 setups
+installed it and their
 uninstallers removed it, and `-cleanup` deleted every helper copy from
 the `x86`, `x64` and `arm64` folders, idle and while its client served
 live widgets. x86 copies were updated through a loopback update server,
@@ -3942,8 +3988,9 @@ content.
 
 On Windows it was turned on by
 `2026/11/14/run-widget-validators-and-renderers-in-the-windows-helper`,
-whose Windows builds and runs used the QuickJS engine, before the Nova
-change; that task's records hold its runs.
+whose first Windows builds and runs used the QuickJS engine, before the
+Nova change, and which then linked Nova into the Windows helper alone;
+that task's records hold its runs.
 
 ## Related guidance
 

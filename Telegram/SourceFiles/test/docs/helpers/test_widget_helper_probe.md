@@ -569,15 +569,21 @@ helper failure. On the hosted opening it serves each whole widget, whose
 served host, validator and renderer are built only after Ready and so after
 the report ([Remote engines](test_widget_fixture.md#remote-engines)). After
 the lockdown the hook calls only what was bound
-before it: the helper's static imports, the delay-loaded `bcrypt.dll`
-imports, which the lockdown's warm-up binds, the `WS2_32.dll` imports,
+before it: the helper's static imports, the delay-loaded `bcrypt.dll` and
+`bcryptprimitives.dll` imports, which the lockdown's warm-up binds in that
+order, the `WS2_32.dll` imports,
 which the native probe and then the harness's own Winsock start each bind
 (the harness uses Winsock only when its own bind and `WSAStartup`
 succeeded), and `NtCreateFile` and `RtlInitUnicodeString`, resolved from
-the already mapped ntdll. A probe helper therefore maps `WS2_32.dll` and
-`mswsock.dll`, which the ordinary helper does not load: every `WS2_32.dll`
-import of the image is the probe's. Neither probe is an inventory of what
-the helper holds. The native probe's lines, their controls and the
+the already mapped ntdll. `WS2_32.dll` is a delay import of the Debug
+helper alone, for the probe: every `WS2_32.dll` import of the image is the
+probe's, and the Release helper has none, with the Nova engine as with
+QuickJS before it (**The Windows helper** in
+[Remote engines](test_widget_fixture.md#remote-engines)). A probe helper
+therefore maps `WS2_32.dll` and `mswsock.dll`, which the ordinary helpers
+did not load in the module readings taken with the QuickJS engine. Neither
+probe is an inventory of what the helper holds. The native probe's lines,
+their controls and the
 measured results are in
 [Remote engines](test_widget_fixture.md#remote-engines) (**Windows probe**
 and **What the Windows lowering leaves**), and its runs under
@@ -1444,7 +1450,8 @@ any other helper.
 The first two macOS campaigns probed the same-binary macOS helper, the
 client's own `Contents/MacOS/Telegram -widgethelper 3` that
 `TelegramWidgetHelper` later replaced, whose Qt and AppKit had started
-before `main`. Of the three Windows campaigns the first probed the
+before `main`. Of the three Windows campaigns, all run with the QuickJS
+engine before the Nova change, the first probed the
 same-binary Windows helper, the client's own `Telegram.exe -widgethelper
 <handle>`, the second `TelegramWidgetHelper.exe`, which replaced it, and
 the third that helper in the Windows Store build's package. The
@@ -1893,7 +1900,8 @@ ran `probe` without a fixture through `TDESKTOP_WIDGET_ENGINES`.
   listener received all of them and no `widget-helper-probe` marker.
   After Ready the probe helpers of Run 2 held no `\Device\Afd` handle.
 
-`TelegramWidgetHelper.exe` was then probed on the same host, Windows 11
+`TelegramWidgetHelper.exe`, built with the QuickJS engine, was then
+probed on the same host, Windows 11
 build 26300 (10.0.26300.9711, 26H2) on x64 with user-mode CET available
 to x64 processes, in the Win32 (x86 on WOW64) Debug build and in an x64
 Debug build of the same commit, in the evidence campaign of

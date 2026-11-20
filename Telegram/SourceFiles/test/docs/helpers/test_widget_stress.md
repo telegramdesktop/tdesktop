@@ -468,8 +468,8 @@ runs in the helper and the ops tap sits on its hosted host
 
 - **Renderer scope.** `desktop.rendererScope` is `renderer` (the whole
   renderer in Telegram: `in-process` or an engine-only placement, as
-  `helper-engines` and builds without the private Qt API give, none of
-  them in a `TDESKTOP_WIDGETS_HELPER_ONLY` build),
+  `helper-engines` and builds without the private Qt API give, on
+  macOS),
   `telegram-replay` (hosted with no helper records, as in a
   Release harness, whose helper has no Debug tap) or
   `telegram-replay+helper` (hosted with them). A hosted level's `renderer`

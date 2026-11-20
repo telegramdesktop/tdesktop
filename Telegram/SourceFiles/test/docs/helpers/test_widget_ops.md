@@ -104,9 +104,9 @@ Use something else when:
 - **Which seam taps.** The runtime takes one of the two per construction,
   as its placement says: `TapWidgetRenderer()` for a local host (the
   `in-process` and `helper-engines` values of `TDESKTOP_WIDGET_ENGINES`, and
-  builds without the private Qt API always, none of them in a
-  `TDESKTOP_WIDGETS_HELPER_ONLY` build), `TapHostedWidget()` for a hosted
-  one (macOS, Linux and Windows by default). Both select a
+  builds without the private Qt API always, on macOS: Windows and Linux
+  Telegram build no local host), `TapHostedWidget()` for a hosted one
+  (macOS, Linux and Windows by default). Both select a
   generation of the same tap at the same point, so every reading and its
   finality read the same way in either arrangement; what differs is
   where each reading comes from
@@ -377,8 +377,8 @@ outside the reading.
 ### Local presses
 
 Where the renderer runs in Telegram (`in-process`, `helper-engines` and
-builds without the private Qt API, none of them in a
-`TDESKTOP_WIDGETS_HELPER_ONLY` build), `Tgw::Runtime::construct()` calls
+builds without the private Qt API, on macOS),
+`Tgw::Runtime::construct()` calls
 `TapWidgetRenderer(_item->globalId(), _live->workId(), _live->hostFactory())`
 on main: for an armed id the selection also registers the work of the core
 it builds the host for with the generation it made, from that selection on
