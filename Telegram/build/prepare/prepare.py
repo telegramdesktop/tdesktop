@@ -841,8 +841,10 @@ win:
 
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
-    git clone -b 1.5.4 https://code.videolan.org/videolan/dav1d.git
+    git clone https://code.videolan.org/videolan/dav1d.git
     cd dav1d
+    # a34e0685 is 1.5.4 plus the newer MSVC __has_include_next fix.
+    git checkout a34e0685b9111b9eb1d7835ea7bea5b425dced73
 win32:
     SET "TARGET=x86"
     SET "DAV1D_ASM_DISABLE=-Denable_asm=false"
