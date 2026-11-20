@@ -7162,7 +7162,7 @@ public:
 			_tabScroll->scrollToY(_homeAlbumReturnScroll);
 		}));
 		_homeBack->hide();
-		_homeArtistBar = Ui::CreateChild<Ui::RpWidget>(this);
+		_homeArtistBar = Ui::CreateChild<Ui::RpWidget>(_tabScroll->viewport());
 		_homeArtistBarPlay = Ui::CreateChild<Ui::RoundButton>(
 			_homeArtistBar,
 			rpl::single(PlaylistText("Воспроизвести")),
@@ -8615,9 +8615,8 @@ protected:
 		if (!shown) return;
 
 		const auto s = [](int value) { return style::ConvertScale(value); };
-		const auto barWidth = std::max(_tabScroll->width() - s(28), 0);
-		_homeArtistBar->setGeometry(
-			_tabScroll->x() + s(14), _tabScroll->y(), barWidth, s(56));
+		const auto barWidth = std::max(_tabScroll->viewport()->width() - s(28), 0);
+		_homeArtistBar->setGeometry(s(14), 0, barWidth, s(56));
 		_homeArtistBarPlay->setFullWidth(std::min(s(144), barWidth / 2));
 		_homeArtistBarPlay->moveToRight(
 			s(8), (_homeArtistBar->height() - _homeArtistBarPlay->height()) / 2);
