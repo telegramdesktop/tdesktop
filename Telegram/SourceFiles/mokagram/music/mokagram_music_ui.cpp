@@ -4095,6 +4095,86 @@ private:
 
 };
 
+class HomeArtistLikesCard final : public Ui::AbstractButton {
+public:
+	HomeArtistLikesCard(
+		QWidget *parent,
+		QString artworkUrl,
+		QString counts,
+		bool expanded,
+		Fn<void()> toggle)
+	: AbstractButton(parent)
+	, _counts(std::move(counts))
+	, _action(PlaylistText(expanded ? "Свернуть" : "Показать все")) {
+		resize(width(), style::ConvertScale(84));
+		setPointerCursor(true);
+		setFocusPolicy(Qt::TabFocus);
+		setAccessibleName(PlaylistText("Вам нравится") + u" · "_q + _counts
+			+ u" · "_q + _action);
+		setClickedCallback(std::move(toggle));
+		LoadImage(ArtUrl(artworkUrl, u"t200x200"_q), crl::guard(this, [=](QImage image) {
+			_art = std::move(image);
+			update();
+		}));
+	}
+
+protected:
+	void onStateChanged(State was, StateChangeSource source) override {
+		AbstractButton::onStateChanged(was, source);
+		update();
+	}
+
+	void paintEvent(QPaintEvent *) override {
+		auto p = QPainter(this);
+		auto hq = PainterHighQualityEnabler(p);
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		BoxParts::PaintCard(p, rect());
+		if (isOver() || isDown()) {
+			p.setBrush(isDown() ? st::windowBgRipple : st::windowBgOver);
+			p.drawRoundedRect(rect(), s(22), s(22));
+		}
+		if (hasFocus()) {
+			p.setPen(QPen(st::windowActiveTextFg->c, s(2)));
+			p.setBrush(Qt::NoBrush);
+			p.drawRoundedRect(rect().adjusted(s(1), s(1), -s(1), -s(1)), s(22), s(22));
+		}
+		const auto artwork = QRect(s(14), s(14), s(56), s(56));
+		auto clip = QPainterPath();
+		clip.addRoundedRect(artwork, s(14), s(14));
+		p.save();
+		p.setClipPath(clip);
+		p.fillRect(artwork, st::windowBgOver);
+		if (!_art.isNull()) p.drawImage(artwork, _art);
+		p.restore();
+
+		const auto left = artwork.right() + s(15);
+		const auto actionWidth = st::semiboldFont->width(_action);
+		const auto showAction = width() >= left + actionWidth + s(152);
+		const auto right = width() - s(16) - (showAction ? actionWidth + s(16) : 0);
+		const auto available = std::max(right - left, 0);
+		const auto title = PlaylistText("Вам нравится");
+		p.setFont(st::semiboldFont);
+		p.setPen(st::windowFg);
+		p.drawText(QRect(left, s(16), available, s(24)),
+			Qt::AlignVCenter | Qt::AlignLeft, st::semiboldFont->elided(title, available));
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(QRect(left, s(43), available, s(22)),
+			Qt::AlignVCenter | Qt::AlignLeft, st::normalFont->elided(_counts, available));
+		if (showAction) {
+			p.setFont(st::semiboldFont);
+			p.setPen(st::windowActiveTextFg);
+			p.drawText(QRect(right + s(16), 0, actionWidth, height()),
+				Qt::AlignVCenter | Qt::AlignLeft, _action);
+		}
+	}
+
+private:
+	QString _counts;
+	QString _action;
+	QImage _art;
+};
+
 class HomeCoverPreview final : public Ui::RpWidget {
 public:
 	HomeCoverPreview(QWidget *parent, QImage image, QRect source)
@@ -7315,8 +7395,12 @@ public:
 			}
 		}, lifetime());
 		PlaylistsChanged() | rpl::on_next([=] {
-			if (_tab == Tab::Playlists) {
-				QTimer::singleShot(0, this, [=] { if (_tab == Tab::Playlists) rebuildTab(); });
+			if (_tab == Tab::Playlists || (_tab == Tab::Home && _homeArtistOpen)) {
+				QTimer::singleShot(0, this, [=] {
+					if (_tab == Tab::Playlists || (_tab == Tab::Home && _homeArtistOpen)) {
+						rebuildTab();
+					}
+				});
 			}
 		}, lifetime());
 		LikesChanged() | rpl::on_next([=] {
@@ -8454,7 +8538,10 @@ protected:
 	}
 
 	void openHomeArtist(Track track) {
-		if (!_homeReturnToArtist) _homeArtistFeedScroll = _tabScroll->scrollTop();
+		if (!_homeReturnToArtist) {
+			_homeArtistFeedScroll = _tabScroll->scrollTop();
+			_homeArtistLikesOpen = false;
+		}
 		_homeReturnToArtist = false;
 		_homeAlbumReturnScroll = _homeArtistFeedScroll;
 		_homeArtistOpen = true;
@@ -8486,6 +8573,8 @@ protected:
 		}
 		loadHomeArtist(track.artist, track.artistId, {}, {}, generation);
 		loadHomeSimilar(track, generation);
+		syncLibrary();
+		syncPlaylists();
 		relayout();
 		rebuildTab();
 		_tabScroll->scrollToY(0);
@@ -8721,6 +8810,59 @@ protected:
 						_tabList->add(object_ptr<Ui::FlatLabel>(_tabList, tr("Популярное"), st::boxLabel), QMargins(20, 8, 20, 4));
 						addRows(_homeArtistTracks, RowMode::Album);
 					}
+					auto artistLikes = std::vector<Track>();
+					const auto &artistId = _homeArtistSeed.artistId;
+					const auto artistName = _homeArtistSeed.artist.trimmed();
+					for (const auto &track : liked) {
+						const auto matches = !artistId.isEmpty() && artistId != u"0"_q
+							&& !track.artistId.isEmpty() && track.artistId != u"0"_q
+							? artistId == track.artistId
+							: !artistName.isEmpty()
+								&& track.artist.trimmed().compare(artistName, Qt::CaseInsensitive) == 0;
+						if (matches) artistLikes.push_back(track);
+					}
+					auto likedReleases = std::vector<Album>();
+					const auto playlists = Playlists();
+					for (const auto &album : _homeArtistAlbums) {
+						if (std::ranges::any_of(playlists, [&](const Playlist &playlist) {
+							return playlist.remote && playlist.sourceId == album.id;
+						})) {
+							likedReleases.push_back(album);
+						}
+					}
+					if (!artistLikes.empty() || !likedReleases.empty()) {
+						auto counts = QStringList();
+						if (!artistLikes.empty()) {
+							counts.push_back(tr("Треков: %1").arg(artistLikes.size()));
+						}
+						if (!likedReleases.empty()) {
+							counts.push_back(tr("Релизов: %1").arg(likedReleases.size()));
+						}
+						const auto s = [](int value) { return style::ConvertScale(value); };
+						const auto generation = _homeAlbumGeneration;
+						_tabList->add(object_ptr<HomeArtistLikesCard>(
+							_tabList,
+							_homeAlbum.artworkUrl,
+							counts.join(u" · "_q),
+							_homeArtistLikesOpen,
+							crl::guard(this, [=] {
+								crl::on_main(this, [=] {
+									if (_tab == Tab::Home && generation == _homeAlbumGeneration) {
+										_homeArtistLikesOpen = !_homeArtistLikesOpen;
+										rebuildTab();
+									}
+								});
+							})), QMargins(s(14), s(20), s(14), s(8)));
+						if (_homeArtistLikesOpen) {
+							if (!artistLikes.empty()) addRows(artistLikes, RowMode::Album);
+							if (!likedReleases.empty()) {
+								_tabList->add(object_ptr<HomeMixedGrid>(
+									_tabList, _controller, std::vector<Track>(), likedReleases,
+									crl::guard(this, [=](Album album) { openHomeAlbum(std::move(album)); }),
+									nullptr, true, nullptr));
+							}
+						}
+					}
 					const auto similarArtists = HomeSimilarArtists(
 						_homeArtistSeed,
 						_homeSimilarTracks);
@@ -8756,14 +8898,6 @@ protected:
 								_tabList,
 								tr("Ищу похожих исполнителей…")));
 						}
-					}
-					auto artistLikes = std::vector<Track>();
-					for (const auto &track : liked) {
-						if (track.artist.trimmed().compare(_homeArtistSeed.artist.trimmed(), Qt::CaseInsensitive) == 0) artistLikes.push_back(track);
-					}
-					if (!artistLikes.empty()) {
-						_tabList->add(object_ptr<Ui::FlatLabel>(_tabList, tr("Вам нравится"), st::boxLabel), QMargins(20, 28, 20, 8));
-						addRows(artistLikes, RowMode::Album);
 					}
 					if (!_homeArtistAlbums.empty()) {
 						_tabList->add(object_ptr<Ui::FlatLabel>(_tabList, tr("Дискография"), st::boxLabel), QMargins(20, 28, 20, 8));
@@ -10031,6 +10165,7 @@ private:
 	int _homeMoreFailures = 0;
 	bool _homeAlbumOpen = false;
 	bool _homeArtistOpen = false;
+	bool _homeArtistLikesOpen = false;
 	bool _homeReturnToArtist = false;
 	bool _homeAlbumIsTrack = false;
 	bool _homeAlbumLoading = false;
