@@ -9280,6 +9280,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_save_draft" = "Save Draft";
 "lng_story_keep_draft" = "Keep Draft";
 "lng_story_delete_draft" = "Delete Draft";
+"lng_story_delete_draft_sure" = "Are you sure you want to delete this story draft?";
 "lng_story_draft_saved" = "Draft saved";
 "lng_story_draft_failed" = "Could not save the draft.";
 "lng_story_draft_lost" = "The draft media could not be loaded.";

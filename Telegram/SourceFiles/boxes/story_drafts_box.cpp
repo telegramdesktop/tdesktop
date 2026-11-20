@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_post.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/labels.h"
@@ -196,7 +197,12 @@ void StoryDraftsBox(
 				Media::Stories::PostStoryDraft(controller, id);
 			});
 			row->removeRequests() | rpl::on_next([=] {
-				drafts->remove(id);
+				box->uiShow()->show(Ui::MakeConfirmBox({
+					.text = tr::lng_story_delete_draft_sure(),
+					.confirmed = crl::guard(box, [=] { drafts->remove(id); }),
+					.confirmText = tr::lng_story_delete_draft(),
+					.confirmStyle = &st::attentionBoxButton,
+				}));
 			}, row->lifetime());
 			++count;
 		}
