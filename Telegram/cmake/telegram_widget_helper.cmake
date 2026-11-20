@@ -64,7 +64,7 @@ PRIVATE
 )
 
 set(widget_helper_renders OFF)
-if (APPLE)
+if (NOT WIN32 AND NOT DESKTOP_APP_DISABLE_PRIVATE_QT_API)
     set(widget_helper_renders ON)
 endif()
 

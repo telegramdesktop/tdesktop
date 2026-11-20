@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_cursor.h"
 #include "tgw/tgw_kept_budget.h"
 #include "tgw/tgw_painter.h"
-#include "tgw/tgw_painter_clips.h"
 #include "tgw/tgw_render_thread.h"
 #include "tgw/tgw_renderer_input.h"
 #include "tgw/tgw_renderer_platform.h"
@@ -349,23 +348,6 @@ private:
 		return std::nullopt;
 	}
 	return QSize(int(width), int(height));
-}
-
-[[nodiscard]] std::optional<QString> UnfoldedClips(
-		const twlite::DisplayList &list) {
-	if (ShortensClipHistory()) {
-		return std::nullopt;
-	}
-	const auto clips = ranges::count(
-		list,
-		twlite::Cmd::ClipPush,
-		&twlite::Command::kind);
-	if (!clips) {
-		return std::nullopt;
-	}
-	return PaintLimit(
-		u"%1 clips in a list from the widget helper"_q.arg(clips),
-		0);
 }
 
 void BeginFrame(QtBackend &backend, RendererPlatform &platform) {
@@ -1859,9 +1841,6 @@ void RendererWork::paintFrame(
 		const twlite::DisplayList &list,
 		QSize device) {
 	if (_hosted->closed) {
-		return;
-	} else if (auto clips = UnfoldedClips(list)) {
-		refuse(std::move(*clips));
 		return;
 	} else if (sealedAtStop()) {
 		if (!_reflow.shows(geometry())) {

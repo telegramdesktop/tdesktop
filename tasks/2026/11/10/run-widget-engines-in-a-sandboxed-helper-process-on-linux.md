@@ -1,8 +1,9 @@
 # The Linux widget helper's system call allowlist
 
-On Linux the widget engines run in a helper process, the Qt-free
-`TelegramWidgetHelper` executable started as `<path> 3` with the channel on
-descriptor 3. It lies in `TelegramHelpers/` next to the client's binary, or
+On Linux a helper process, the Qt-free `TelegramWidgetHelper` executable
+started as `<path> 3` with the channel on descriptor 3, serves each
+widget's engine and, in builds with the private Qt API, its validator and
+renderer too. It lies in `TelegramHelpers/` next to the client's binary, or
 in the package's libexec directory (its `TelegramDesktop/` folder) in a
 package-managed build, and the lockdown is compiled only into it. Before it
 serves its first widget, while it still has one thread,
@@ -16,17 +17,25 @@ for a call of any other architecture and, on x86_64, for an x32 call, and it
 answers every call it does not name with `ENOSYS`.
 
 The allowlist follows, by kind, in the order `BuildFilter()` checks it.
-"Seen" means that strace recorded the call after the filter was installed
+"Seen" means that strace recorded the call after the filter was installed:
 while the Qt-free helper served the framework's attack corpus and
-conformance set on glibc 2.39, 2.28 and 2.41, with the versions named where
-only some of them make it; the other calls are fallbacks or paths no current
+conformance set on glibc 2.39, 2.28 and 2.41, and again while the helper
+that renders, started by a Debug Telegram without an account through a
+strace wrapper at its package-managed install's helper path, rendered the
+attack corpus, the conformance automatic set and a widget reading its time
+zone on the same three versions and, on 2.39, also widget-sandbox's widget
+corpus in its day and night partitions. The versions are named where only
+some of them make it; the other calls are fallbacks or paths no current
 widget takes. Measured again on the Qt-free helper, the list lost
 `clock_getres`, `time`, `nanosleep`, `clock_nanosleep`, `sched_yield`,
 `rt_sigreturn`, `prctl` with `PR_GET_NAME`, the futex operations
 `FUTEX_REQUEUE`, `FUTEX_CMP_REQUEUE`, `FUTEX_WAKE_OP` and
 `FUTEX_WAKE_BITSET`, and the `madvise` advice `MADV_NORMAL`, `MADV_RANDOM`,
 `MADV_SEQUENTIAL`, `MADV_WILLNEED` and `MADV_FREE`, because nothing recorded
-them and no code linked into the helper makes them after the lockdown.
+them and no code linked into the helper makes them after the lockdown. The
+helper that renders added nothing to the list: on glibc 2.39, 2.28 and 2.41
+it made no call and no argument value that the filter did not already
+allow, and the only call refused was `clone3`, on 2.39 and 2.41.
 
 - The channel (`kChannelCalls`, then the rules for `recvfrom` and `sendto`):
   reading and writing the channel and stderr.
@@ -99,8 +108,10 @@ them and no code linked into the helper makes them after the lockdown.
     `new Date()` and the seed of `Math.random()`, answered by the vDSO. Not
     seen.
 - Threads (`kThreadCalls`, then the rules for `prctl`, `clone` and `clone3`):
-  starting, naming and ending the engine's `JSThread`s (`widget.sandbox` for
-  each runtime, `widget.probe`, `widget.reaper`), and their signal masks.
+  starting, naming and ending the helper's `JSThread`s (`widget.sandbox` for
+  each runtime, `widget.probe`, `widget.reaper` and, where the helper
+  renders, each widget's `widget.validator` and its served host's
+  `twidget-host`), and their signal masks.
   - `clone`, only when the low word of `flags` is exactly glibc's thread set
     `CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND | CLONE_THREAD |
     CLONE_SYSVSEM | CLONE_SETTLS | CLONE_PARENT_SETTID |
