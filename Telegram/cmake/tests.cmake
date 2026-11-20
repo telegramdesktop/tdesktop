@@ -4,6 +4,23 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
+add_executable(test_stories_content)
+init_target(test_stories_content "(tests)")
+
+target_include_directories(test_stories_content PRIVATE ${src_loc})
+nice_target_sources(test_stories_content ${src_loc}
+PRIVATE
+    tests/test_stories_content.cpp
+)
+
+target_link_libraries(test_stories_content
+PRIVATE
+    desktop-app::lib_base
+    desktop-app::external_qt
+)
+
+add_dependencies(Telegram test_stories_content)
+
 add_executable(test_text WIN32)
 init_target(test_text "(tests)")
 

@@ -101,19 +101,17 @@ Content State::next() {
 	if (_list == Data::StorySourcesList::NotHidden) {
 		applyUploads(result, userpics);
 		const auto self = _data->session().user();
-		const auto id = uint64(self->id.value);
-		if (!result.elements.empty()
-			&& Media::Stories::CanPostStory(self)
-			&& !ranges::contains(result.elements, id, &Element::id)) {
-			result.elements.insert(begin(result.elements), {
-				.id = id,
-				.name = tr::lng_stories_my_name(tr::now),
-				.thumbnail = userpic(self, userpics),
-				.skipSmall = 1U,
-				.mine = 1U,
-			});
-			++result.total;
-		}
+		result.placeMyStoryFirst(Media::Stories::CanPostStory(self)
+			? Fn<Element()>([&] {
+				return Element{
+					.id = uint64(self->id.value),
+					.name = tr::lng_stories_my_name(tr::now),
+					.thumbnail = userpic(self, userpics),
+					.skipSmall = 1U,
+					.mine = 1U,
+				};
+			})
+			: nullptr);
 	}
 	_userpics = std::move(userpics);
 	return result;
