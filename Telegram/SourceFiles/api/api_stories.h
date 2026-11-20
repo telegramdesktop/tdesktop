@@ -168,7 +168,6 @@ public:
 
 	[[nodiscard]] auto blocklistValue()
 		-> rpl::producer<std::vector<not_null<PeerData*>>>;
-	[[nodiscard]] bool blocklistLoaded() const;
 	void reloadBlocklist();
 	void saveBlocklist(
 		std::vector<not_null<PeerData*>> peers,
@@ -177,8 +176,6 @@ public:
 	[[nodiscard]] const std::vector<StoryUpload> &uploads() const;
 	[[nodiscard]] rpl::producer<> uploadsChanges() const;
 	[[nodiscard]] rpl::producer<StorySent> sent() const;
-
-	[[nodiscard]] bool uploadingFor(not_null<PeerData*> peer) const;
 
 	[[nodiscard]] bool posting() const;
 	void cancelPosting();

@@ -68,10 +68,6 @@ QString SendStoryRow::subtitle() const {
 	return _content.subtitle;
 }
 
-bool SendStoryRow::hasRadio() const {
-	return (_radio != nullptr);
-}
-
 int SendStoryRow::rowHeight() const {
 	return (_content.chevron && !_content.radio)
 		? st::storyRowSendAsHeight

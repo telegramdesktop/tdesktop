@@ -69,7 +69,6 @@ struct BotInfoLanguage {
 	[[nodiscard]] BotInfoProblem problem(BotInfoField field) const;
 	[[nodiscard]] bool hasProblem() const;
 	[[nodiscard]] bool hasTranslated() const;
-	[[nodiscard]] int filledCount() const;
 };
 
 [[nodiscard]] int BotInfoFieldLimit(BotInfoField field);
@@ -97,8 +96,6 @@ public:
 	void discard();
 
 	[[nodiscard]] int changesCount() const;
-	[[nodiscard]] int changedLanguagesCount() const;
-	[[nodiscard]] int problemsCount() const;
 
 	[[nodiscard]] rpl::producer<> updates() const;
 

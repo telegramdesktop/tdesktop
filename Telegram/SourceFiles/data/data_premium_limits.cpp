@@ -225,12 +225,6 @@ int PremiumLimits::storiesExpiringPremium() const {
 	return appConfigLimit("story_expiring_limit_premium", 100);
 }
 
-int PremiumLimits::storiesExpiringCurrent() const {
-	return isPremium()
-		? storiesExpiringPremium()
-		: storiesExpiringDefault();
-}
-
 int PremiumLimits::storiesSentWeeklyDefault() const {
 	return appConfigLimit("stories_sent_weekly_limit_default", 7);
 }
@@ -239,24 +233,12 @@ int PremiumLimits::storiesSentWeeklyPremium() const {
 	return appConfigLimit("stories_sent_weekly_limit_premium", 70);
 }
 
-int PremiumLimits::storiesSentWeeklyCurrent() const {
-	return isPremium()
-		? storiesSentWeeklyPremium()
-		: storiesSentWeeklyDefault();
-}
-
 int PremiumLimits::storiesSentMonthlyDefault() const {
 	return appConfigLimit("stories_sent_monthly_limit_default", 30);
 }
 
 int PremiumLimits::storiesSentMonthlyPremium() const {
 	return appConfigLimit("stories_sent_monthly_limit_premium", 300);
-}
-
-int PremiumLimits::storiesSentMonthlyCurrent() const {
-	return isPremium()
-		? storiesSentMonthlyPremium()
-		: storiesSentMonthlyDefault();
 }
 
 int PremiumLimits::appConfigLimit(

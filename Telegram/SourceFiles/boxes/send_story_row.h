@@ -49,7 +49,6 @@ public:
 	void setDivider(bool divider);
 
 	[[nodiscard]] QString subtitle() const;
-	[[nodiscard]] bool hasRadio() const;
 
 protected:
 	int resizeGetHeight(int newWidth) override;

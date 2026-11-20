@@ -123,7 +123,6 @@ public:
 	void addRoundVideo(QByteArray content, crl::time duration);
 	[[nodiscard]] ItemVideo *backgroundVideo() const;
 	void setBackgroundVideoLocked(bool locked);
-	[[nodiscard]] bool isBackgroundVideoLocked() const;
 
 	bool zoomSceneItems(float64 wheelDelta, bool fine = false);
 	bool zoomSceneItemsByFactor(float64 factor);

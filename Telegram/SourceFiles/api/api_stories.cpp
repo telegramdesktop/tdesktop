@@ -538,10 +538,6 @@ auto Stories::blocklistValue()
 	});
 }
 
-bool Stories::blocklistLoaded() const {
-	return _blocklistLoaded && _blocklistFull;
-}
-
 void Stories::reloadBlocklist() {
 	if (_blocklistRequestId) {
 		_api.request(base::take(_blocklistRequestId)).cancel();
@@ -635,10 +631,6 @@ rpl::producer<> Stories::uploadsChanges() const {
 
 rpl::producer<StorySent> Stories::sent() const {
 	return _sent.events();
-}
-
-bool Stories::uploadingFor(not_null<PeerData*> peer) const {
-	return ranges::contains(_uploadsInfo, peer, &StoryUpload::peer);
 }
 
 bool Stories::posting() const {

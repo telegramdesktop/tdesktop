@@ -87,12 +87,6 @@ bool BotInfoLanguage::hasTranslated() const {
 	return ranges::contains(translated, true);
 }
 
-int BotInfoLanguage::filledCount() const {
-	return int(ranges::count_if(kBotInfoFields, [&](BotInfoField field) {
-		return !value(field).isEmpty();
-	}));
-}
-
 int BotInfoFieldLimit(BotInfoField field) {
 	switch (field) {
 	case BotInfoField::Name: return kNameLimit;
@@ -252,22 +246,6 @@ int BotInfoDraft::changesCount() const {
 		[](const BotInfoLanguage &language) {
 			return language.staged.count();
 		});
-}
-
-int BotInfoDraft::changedLanguagesCount() const {
-	return int(ranges::count_if(
-		_languages,
-		[](const BotInfoLanguage &language) {
-			return !language.staged.empty();
-		}));
-}
-
-int BotInfoDraft::problemsCount() const {
-	return int(ranges::count_if(
-		_languages,
-		[](const BotInfoLanguage &language) {
-			return language.hasProblem() || !language.error.isEmpty();
-		}));
 }
 
 rpl::producer<> BotInfoDraft::updates() const {

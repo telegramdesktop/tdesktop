@@ -1337,12 +1337,6 @@ void Paint::setBackgroundVideoLocked(bool locked) {
 	}
 }
 
-bool Paint::isBackgroundVideoLocked() const {
-	if (const auto video = backgroundVideo()) {
-		return video->isBackgroundLocked();
-	}
-	return false;
-}
 void Paint::addStoryVideoObject(StoryVideoObject &&object) {
 	const auto thumbnail = object.thumbnail;
 	auto source = std::make_shared<VideoClipSource>(VideoClipSource{
