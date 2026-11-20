@@ -858,29 +858,24 @@ void List::paint(
 			}
 		}
 
-		const auto firstStoryButton = small
-			&& small->element.canAddFirstStory();
-		const auto badgeItem = firstStoryButton ? small : itemFull;
-		if (itemFull && itemFull->element.hasVideoStream && expandRatio > 0.) {
-			p.setOpacity(expandRatio);
-			const auto skip = std::ceil(line + lineRead);
-			Ui::PaintLiveBadge(
-				p,
-				std::ceil(userpic.x() - skip),
-				std::ceil(userpic.y() - skip),
-				std::ceil(userpic.width() + 2 * skip),
-				st::windowBg->c);
-		} else if (badgeItem
-			&& badgeItem->element.mine
-			&& !badgeItem->element.uploading) {
-			const auto fade = badgeFadeProgress(badgeItem->element.id, now);
-			if (fade > 0.) {
-				p.setOpacity(fade * (firstStoryButton ? 1. : expandRatio));
-				paintAddBadge(
+		if (const auto full = single.itemFull) {
+			if (full->element.hasVideoStream && expandRatio > 0.) {
+				p.setOpacity(expandRatio);
+				const auto skip = std::ceil(line + lineRead);
+				Ui::PaintLiveBadge(
 					p,
-					badgeItem->element.id,
-					userpic,
-					firstStoryButton ? (photo / full.photo) : 1.);
+					std::ceil(userpic.x() - skip),
+					std::ceil(userpic.y() - skip),
+					std::ceil(userpic.width() + 2 * skip),
+					st::windowBg->c);
+			} else if (full->element.mine
+				&& !full->element.uploading
+				&& expandRatio > 0.) {
+				const auto fade = badgeFadeProgress(full->element.id, now);
+				if (fade > 0.) {
+					p.setOpacity(expandRatio * fade);
+					paintAddBadge(p, full->element.id, userpic);
+				}
 			}
 		}
 		p.setOpacity(1.);
@@ -1055,10 +1050,9 @@ float64 List::badgeFadeProgress(uint64 id, crl::time now) const {
 void List::paintAddBadge(
 		QPainter &p,
 		uint64 id,
-		const QRectF &userpic,
-		float64 scale) const {
-	const auto size = st::dialogsStoriesAddSize * scale;
-	const auto line = st::dialogsStoriesAddLine * scale;
+		const QRectF &userpic) const {
+	const auto size = float64(st::dialogsStoriesAddSize);
+	const auto line = float64(st::dialogsStoriesAddLine);
 	const auto offset = userpic.width() / 3.;
 	const auto center = userpic.center() + QPointF(offset, offset);
 	const auto rect = QRectF(
@@ -1082,9 +1076,9 @@ void List::paintAddBadge(
 	_addBadge = std::pair{
 		id,
 		rect.marginsAdded({ line, line, line, line }) };
-	const auto half = st::dialogsStoriesAddHalf * scale
+	const auto half = float64(st::dialogsStoriesAddHalf)
 		* (_dragOverBadge ? kDragOverBadgeScale : 1.);
-	auto pen = QPen(st::windowFgActive->c, st::dialogsStoriesAddStroke * scale);
+	auto pen = QPen(st::windowFgActive->c, st::dialogsStoriesAddStroke);
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 	p.drawLine(
@@ -1222,12 +1216,7 @@ void List::mousePressEvent(QMouseEvent *e) {
 		if (std::exchange(_dragOverBadge, false)) {
 			update();
 		}
-		if (_data.items.size() == 1
-			&& _data.items.front().element.canAddFirstStory()) {
-			_pressed = 0;
-		} else {
-			requestExpanded(true);
-		}
+		requestExpanded(true);
 		if (const auto onstack = _tooltipHide) {
 			onstack();
 		}
@@ -1291,14 +1280,6 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 	});
 
 	const auto pressed = std::exchange(_pressed, -1);
-	if (_state == State::Small
-		&& pressed == 0
-		&& _data.items.size() == 1
-		&& _data.items.front().element.canAddFirstStory()
-		&& rect().contains(mapFromGlobal(e->globalPos()))) {
-		_addStoryClicks.fire_copy(_data.items.front().element.id);
-		return;
-	}
 	if (finishDragging()) {
 		return;
 	}
@@ -1380,9 +1361,7 @@ TextWithEntities List::computeTooltipText() const {
 	if (list.empty()) {
 		return {};
 	} else if (list.size() == 1 && list.front().element.skipSmall) {
-		return list.front().element.canAddFirstStory()
-			? TextWithEntities()
-			: TextWithEntities{ tr::lng_stories_click_to_view_mine(tr::now) };
+		return { tr::lng_stories_click_to_view_mine(tr::now) };
 	}
 	auto names = QStringList();
 	for (const auto &item : list) {

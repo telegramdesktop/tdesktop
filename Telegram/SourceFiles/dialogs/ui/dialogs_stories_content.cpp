@@ -102,7 +102,8 @@ Content State::next() {
 		applyUploads(result, userpics);
 		const auto self = _data->session().user();
 		const auto id = uint64(self->id.value);
-		if (Media::Stories::CanPostStory(self)
+		if (!result.elements.empty()
+			&& Media::Stories::CanPostStory(self)
 			&& !ranges::contains(result.elements, id, &Element::id)) {
 			result.elements.insert(begin(result.elements), {
 				.id = id,
