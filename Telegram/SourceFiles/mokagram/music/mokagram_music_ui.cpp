@@ -5070,8 +5070,12 @@ public:
 				setVolume(settings.rememberedSongVolume());
 			}
 		});
-		const auto refresh = [=](float64 value) {
+		const auto refresh = [=](float64 volume) {
+			const auto value = std::clamp(volume, 0., 1.);
 			_slider->setValue(value);
+			if (value > 0. && !_slider->isChanging()) {
+				Core::App().settings().setRememberedSongVolume(value);
+			}
 			const auto muted = (value == 0.);
 			if (_muted != muted || _mute->accessibleName().isEmpty()) {
 				_muted = muted;
