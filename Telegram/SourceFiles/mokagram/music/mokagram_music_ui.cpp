@@ -4773,6 +4773,11 @@ private:
 
 };
 
+[[nodiscard]] QString FormatSeekTime(qint64 seconds) {
+	const auto time = std::max<qint64>(seconds, 0);
+	return u"%1:%2"_q.arg(time / 60).arg(time % 60, 2, 10, QChar('0'));
+}
+
 class SeekBar final : public Ui::RpWidget {
 public:
 	explicit SeekBar(QWidget *parent, Fn<QColor()> background = nullptr)
@@ -4833,6 +4838,28 @@ public:
 			p.setBrush(Qt::white);
 			p.drawEllipse(knob, _dragging ? 8. : 6., _dragging ? 8. : 6.);
 		}, lifetime());
+	}
+
+	void enableTimePreview() {
+		_timePreview = Ui::CreateChild<Ui::RpWidget>(parentWidget());
+		_timePreview->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_timePreview->paintOn([=](QPainter &p) {
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::windowBgOver);
+			const auto radius = _timePreview->height() / 2.;
+			p.drawRoundedRect(_timePreview->rect(), radius, radius);
+			p.setFont(st::semiboldFont);
+			p.setPen(st::windowFg);
+			p.drawText(_timePreview->rect(), Qt::AlignCenter, _previewTime);
+		});
+		_timePreview->hide();
+	}
+
+	void setDuration(qint64 duration) {
+		if (_duration == duration) return;
+		_duration = duration;
+		refreshTimePreview(mapFromGlobal(QCursor::pos()).x());
 	}
 
 	void setOpaqueBackground(bool opaque) {
@@ -4897,30 +4924,41 @@ protected:
 	}
 	void hideEvent(QHideEvent *e) override {
 		_waveAnimating = false;
+		if (_timePreview) _timePreview->hide();
 		RpWidget::hideEvent(e);
 	}
 	void enterEventHook(QEnterEvent *e) override {
 		setOver(true);
+		refreshTimePreview(e->position().toPoint().x());
 	}
 	void leaveEventHook(QEvent *e) override {
 		setOver(false);
+		refreshTimePreview(mapFromGlobal(QCursor::pos()).x());
 	}
 	void mousePressEvent(QMouseEvent *e) override {
+		if (e->button() != Qt::LeftButton) {
+			e->ignore();
+			return;
+		}
 		_dragging = true;
 		startGrow();
 		moveTo(e->pos().x());
+		refreshTimePreview(e->pos().x());
 	}
 	void mouseMoveEvent(QMouseEvent *e) override {
 		if (_dragging) {
 			moveTo(e->pos().x());
 		}
+		refreshTimePreview(e->pos().x());
 	}
 	void mouseReleaseEvent(QMouseEvent *e) override {
-		if (_dragging) {
+		if (_dragging && e->button() == Qt::LeftButton) {
 			_dragging = false;
+			_over = rect().contains(e->pos());
 			startGrow();
 			moveTo(e->pos().x());
 			_progress = _drag;
+			refreshTimePreview(e->pos().x());
 			_sought.fire_copy(_drag);
 		}
 	}
@@ -4971,13 +5009,41 @@ private:
 		const auto to = (_over || _dragging) ? 1. : 0.;
 		_grow.start([=] { update(); }, 1. - to, to, 180, anim::easeOutCubic);
 	}
-	void moveTo(int x) {
+	[[nodiscard]] float64 progressAt(int x) const {
 		const auto pad = _thin ? 0 : 8;
-		_drag = std::clamp((x - pad) / float64(std::max(width() - 2 * pad, 1)), 0., 1.);
+		return std::clamp((x - pad) / float64(std::max(width() - 2 * pad, 1)), 0., 1.);
+	}
+	void moveTo(int x) {
+		_drag = progressAt(x);
 		update();
+	}
+	void refreshTimePreview(int x) {
+		if (!_timePreview) return;
+		if (!isVisible() || (!_over && !_dragging) || _duration <= 0) {
+			_timePreview->hide();
+			return;
+		}
+
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		const auto progress = progressAt(x);
+		const auto time = FormatSeekTime(qint64(_duration * progress / 1000.));
+		const auto width = st::semiboldFont->width(time) + s(16);
+		const auto left = this->x() + std::clamp(x, 0, this->width()) - width / 2;
+		_timePreview->setGeometry(
+			std::clamp(left, 0, std::max(parentWidget()->width() - width, 0)),
+			y() - s(21), width, s(22));
+		if (time != _previewTime) {
+			_previewTime = time;
+			_timePreview->update();
+		}
+		_timePreview->raise();
+		_timePreview->show();
 	}
 
 	Fn<QColor()> _background;
+	Ui::RpWidget *_timePreview = nullptr;
+	QString _previewTime;
+	qint64 _duration = 0;
 	Ui::Animations::Simple _grow;
 	rpl::variable<bool> _waveAnimating = false;
 	bool _expressive = false;
@@ -6171,14 +6237,22 @@ public:
 		_comments->setTrack(id);
 		layoutComments();
 	}
+	void followPlayback() {
+		_manualUntil = 0;
+	}
 	void setPosition(qint64 ms, bool playing) {
+		const auto jumped = _readingMode && std::abs(ms - livePosition()) > 1000;
+		if (jumped) {
+			followPlayback();
+			_scrollReady = false;
+		}
 		_comments->setPosition(ms);
 		updateCover();
 		_position = ms;
 		_positionAt = _clock.elapsed();
 		_playing = playing;
 		updateTimer();
-		if (!_timer.isActive()) {
+		if (jumped || !_timer.isActive()) {
 			tick();
 		}
 	}
@@ -6295,7 +6369,8 @@ private:
 			auto target = centerOf(std::max(index, 0));
 			const auto topMargin = double(style::ConvertScale(_big ? 32 : 16));
 			target = std::max(target, anchorY() - topMargin);
-			if (!_scrollReady) {
+			const auto snap = !_scrollReady;
+			if (snap) {
 				_scroll = target;
 				_scrollReady = true;
 			}
@@ -6306,7 +6381,7 @@ private:
 				_scroll += (target - _scroll)
 					* (_timer.isActive() ? (1. - std::exp(-dt * 6.5)) : 1.);
 			}
-			const auto fade = _timer.isActive()
+			const auto fade = _timer.isActive() && !snap
 				? float(1. - std::exp(-dt * 9.))
 				: 1.f;
 			for (auto i = 0; i != int(_weights.size()); ++i) {
@@ -7214,6 +7289,7 @@ public:
 		_lyricsToggle->setClickedCallback([=] { toggleReadingMode(); });
 		_view->setAttribute(Qt::WA_OpaquePaintEvent);
 		_seek->setThin(true);
+		_seek->enableTimePreview();
 		_seek->setExpressive(true, false);
 		_homeBack = Ui::CreateChild<NavItem>(this, u"‹  "_q + QString::fromUtf8(Mokagram::Lang::Tr("Назад")), false);
 		_homeBack->setClickedCallback(crl::guard(this, [=] {
@@ -7508,23 +7584,19 @@ public:
 		) | rpl::on_next([=] { _shuffle->update(); }, lifetime());
 		Core::App().settings().playerRepeatModeValue(
 		) | rpl::on_next([=] { _repeat->update(); }, lifetime());
-		_seek->sought(
-		) | rpl::on_next([=](float64 progress) {
+		const auto seek = [=](float64 progress) {
+			_view->followPlayback();
 			instance->startSeeking(AudioMsgId::Type::Song);
-			instance->finishSeeking(AudioMsgId::Type::Song, progress);
-		}, lifetime());
-		_view->lineClicked(
-		) | rpl::on_next([=](qint64 ms) {
+			instance->finishSeeking(AudioMsgId::Type::Song, std::clamp(progress, 0., 1.));
+		};
+		_seek->sought() | rpl::on_next(seek, lifetime());
+		_view->lineClicked() | rpl::on_next([=](qint64 ms) {
 			const auto state = instance->getState(AudioMsgId::Type::Song);
 			const auto lengthMs = state.length * 1000
 				/ std::max<int64>(state.frequency, 1);
-			if (lengthMs <= 0) {
-				return;
+			if (lengthMs > 0) {
+				seek(float64(ms) / float64(lengthMs));
 			}
-			instance->startSeeking(AudioMsgId::Type::Song);
-			instance->finishSeeking(
-				AudioMsgId::Type::Song,
-				std::clamp(float64(ms) / float64(lengthMs), 0., 1.));
 		}, lifetime());
 
 		parent->events(
@@ -10160,6 +10232,7 @@ private:
 			if (_isPlaying) repaintBackdrop();
 			_isPlaying = false;
 			_seek->setExpressive(true, false);
+			_seek->setDuration(0);
 			updateAmbientTimer();
 			if (_cancelMotion) _cancelMotion();
 			_cancelMotion = nullptr;
@@ -10258,11 +10331,9 @@ private:
 		_seek->setProgress(state.length > 0
 			? state.position / float64(state.length)
 			: 0.);
-		const auto fmt = [](int64 seconds) {
-			return u"%1:%2"_q.arg(seconds / 60).arg(seconds % 60, 2, 10, QChar('0'));
-		};
-		const auto now = fmt(state.position / frequency);
-		const auto total = fmt(state.length / frequency);
+		_seek->setDuration(state.length * 1000 / frequency);
+		const auto now = FormatSeekTime(state.position / frequency);
+		const auto total = FormatSeekTime(state.length / frequency);
 		const auto nowChanged = (_timeNow != now);
 		const auto totalChanged = (_timeTotal != total);
 		if (nowChanged || totalChanged) {
