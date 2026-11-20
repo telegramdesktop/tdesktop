@@ -43,6 +43,12 @@ constexpr auto kPageSize = 20;
 constexpr auto kMaxAudioBytes = 200 * 1024 * 1024; // предел на размер трека
 constexpr auto kMaxImageBytes = 32 * 1024 * 1024;  // предел на размер обложки
 constexpr auto kMaxHlsSegments = 512;              // предел числа сегментов HLS
+// Кэш обложек в памяти: LRU по числу и по размеру QImage, без полного clear().
+constexpr auto kImageCacheCount = 200;
+constexpr auto kImageCacheBytes = qint64(48) * 1024 * 1024; // ~200 обложек t500x500
+constexpr auto kCoverCacheCount = 200;
+constexpr auto kCoverCacheBytes = qint64(48) * 1024 * 1024;
+
 // Дисковый кэш треков: держим не больше kAudioCacheBytes и не больше kAudioCacheFiles
 // файлов, удаляя самые давно использованные. mtime файла обновляется при каждом
 // обращении, поэтому он же служит ключом LRU.
@@ -652,6 +658,54 @@ int &ActiveImageRequests() {
 	return result;
 }
 
+// Порядок обращений к кэшу обложек: конец deque = недавно использованный.
+[[nodiscard]] std::deque<QString> &ImageOrder() {
+	static auto result = std::deque<QString>();
+	return result;
+}
+
+qint64 &ImageCacheBytes() {
+	static auto result = qint64(0);
+	return result;
+}
+
+void TouchImage(const QString &url) {
+	auto &order = ImageOrder();
+	const auto i = std::find(order.begin(), order.end(), url);
+	if (i != order.end()) {
+		order.erase(i);
+	}
+	order.push_back(url);
+}
+
+void TrimImageCache() {
+	auto &cache = ImageCache();
+	auto &order = ImageOrder();
+	while (!order.empty()
+		&& (order.size() > kImageCacheCount
+			|| ImageCacheBytes() > kImageCacheBytes)) {
+		const auto url = std::move(order.front());
+		order.pop_front();
+		if (const auto i = cache.find(url); i != cache.end()) {
+			ImageCacheBytes() -= i->second.sizeInBytes();
+			cache.erase(i);
+		}
+	}
+}
+
+void InsertImage(const QString &url, QImage image) {
+	auto &cache = ImageCache();
+	if (const auto i = cache.find(url); i != cache.end()) {
+		ImageCacheBytes() -= i->second.sizeInBytes();
+		i->second = std::move(image);
+	} else {
+		cache.emplace(url, std::move(image));
+	}
+	ImageCacheBytes() += cache[url].sizeInBytes();
+	TouchImage(url);
+	TrimImageCache();
+}
+
 [[nodiscard]] ImageCallbacks &PendingImages() {
 	static auto result = ImageCallbacks();
 	return result;
@@ -661,11 +715,7 @@ void StartQueuedImageLoads();
 
 void FinishImageRequest(const QString &url, QImage image) {
 	if (!image.isNull()) {
-		auto &cache = ImageCache();
-		if (cache.size() > 300) {
-			cache.clear();
-		}
-		cache[url] = image;
+		InsertImage(url, std::move(image));
 	}
 	ActiveImageRequests() = std::max(ActiveImageRequests() - 1, 0);
 	auto callbacks = std::vector<Fn<void(QImage)>>();
@@ -713,6 +763,7 @@ void StartQueuedImageLoads() {
 void LoadImage(const QString &url, Fn<void(QImage)> done) {
 	const auto &cache = ImageCache();
 	if (const auto i = cache.find(url); i != cache.end()) {
+		TouchImage(url);
 		done(i->second);
 		return;
 	}
@@ -735,12 +786,60 @@ std::map<uint64, QImage> &Covers() {
 	static auto result = std::map<uint64, QImage>();
 	return result;
 }
+std::deque<uint64> &CoverOrder() {
+	static auto result = std::deque<uint64>();
+	return result;
+}
+qint64 &CoversBytes() {
+	static auto result = qint64(0);
+	return result;
+}
+void TrimCovers() {
+	auto &covers = Covers();
+	auto &order = CoverOrder();
+	while (!order.empty()
+		&& (order.size() > kCoverCacheCount
+			|| CoversBytes() > kCoverCacheBytes)) {
+		const auto id = order.front();
+		order.pop_front();
+		if (const auto i = covers.find(id); i != covers.end()) {
+			CoversBytes() -= i->second.sizeInBytes();
+			covers.erase(i);
+		}
+	}
+}
+void InsertCover(uint64 documentId, QImage image) {
+	auto &covers = Covers();
+	if (const auto i = covers.find(documentId); i != covers.end()) {
+		CoversBytes() -= i->second.sizeInBytes();
+		i->second = std::move(image);
+	} else {
+		covers.emplace(documentId, std::move(image));
+	}
+	CoversBytes() += covers[documentId].sizeInBytes();
+	auto &order = CoverOrder();
+	const auto j = std::find(order.begin(), order.end(), documentId);
+	if (j != order.end()) {
+		order.erase(j);
+	}
+	order.push_back(documentId);
+	TrimCovers();
+}
 } // namespace
 
 QImage CoverForDocument(uint64 documentId) {
 	const auto &covers = Covers();
 	const auto i = covers.find(documentId);
-	return (i != covers.end()) ? i->second : QImage();
+	if (i == covers.end()) {
+		return QImage();
+	}
+	auto &order = CoverOrder();
+	const auto j = std::find(order.begin(), order.end(), documentId);
+	if (j != order.end()) {
+		order.erase(j);
+		order.push_back(documentId);
+	}
+	return i->second;
 }
 
 namespace {
@@ -751,7 +850,7 @@ rpl::event_stream<> &CoversStream() {
 } // namespace
 
 void SetCover(uint64 documentId, QImage image) {
-	Covers()[documentId] = std::move(image);
+	InsertCover(documentId, std::move(image));
 	CoversStream().fire({});
 }
 
