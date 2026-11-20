@@ -39,10 +39,13 @@ the private setter that campaign used afterwards.
 - **Synchronous.** `QGuiApplicationPrivate::setApplicationState()`
   (`qguiapplication.cpp`) sends `QEvent::ApplicationActivate` or
   `QEvent::ApplicationDeactivate` and a `QApplicationStateChangeEvent`, and
-  emits `applicationStateChanged()`, inside the call. Every product
+  emits `applicationStateChanged()`, inside the call. Every direct product
   subscriber - `Core::Application::handleAppDeactivated()` and
-  `handleAppActivated()` among them - has run when the helper returns. It is
-  the function every application-state change lands in: the focus-derived
+  `handleAppActivated()` among them - has run when the helper returns. A
+  reaction one of them queues runs on a later turn: the main window's
+  `handleActiveChanged()`, which `MainWindow::eventFilter()`
+  (`mainwindow.cpp`) queues on `ApplicationActivate`, is one. It is the
+  function every application-state change lands in: the focus-derived
   changes of `QGuiApplicationPrivate::processFocusWindowEvent()` and a
   platform's own report alike.
 - **Side effects inside the call.** An injected inactive closes every open
@@ -148,7 +151,7 @@ an application state: `QWindowsIntegration::hasCapability()` has no
 `qtwindowsglobal.h` but handled nowhere. So, by the injected state and the
 reading's `focusWindow=`:
 
-- **Injected inactive, `focusWindow=0`** (usual on a locked console): the
+- **Injected inactive, `focusWindow=0`**: the
   next focus change to a window returns active - `Test::ForceWindowActive()`
   and the helpers built on it (the `KeepMainWindowNotMarkingRead` restore,
   the console shield's focus restore), `Window::Controller::activate()`,
@@ -221,19 +224,33 @@ order, each printing what it was decided on in its details:
 Checks 1, 3 and 5 compare the reading's own fields, not only its refusal.
 The verdict does not depend on the console state: the turn processes no
 queued platform event, so neither OS focus nor the owner's input can
-interleave. On a locked console the found reading is usually
-`state=inactive focusWindow=0` and the baseline is a real change; on an
-unlocked one it is usually `state=active` and the baseline emits nothing.
-Both lead to the same eight Checks, and the `CONSOLE_LOCK` row names which
-console the run had.
+interleave. The found reading depends on the launch, not on the console
+alone: a found active state makes the baseline a success that emits nothing,
+a found inactive one makes it a real change, and both lead to the same eight
+Checks. The `CONSOLE_LOCK` row names which console the run had.
 
-Planned deliberate mutation, not yet run: the task's evidence campaign
-removes the single `QGuiApplicationPrivate::setApplicationState(requested);`
-line. Every injection that requests a change must then refuse
-`not-read-back` and fail its Check, and both subscriber checks must fail
-with nothing received - on an unlocked console Checks 3, 4 and 6, on a
-locked one Checks 1, 2, 4, 5 and 6 - with no crash. Its executed result is
-recorded here once it has run.
+Executed on a Windows Debug build of this module's first commit, in the task
+`2026/11/11/inject-application-inactive-and-active-states-from-a-testagent-scenario`
+(`work/test.md`, Attempt 1). Both runs were on a locked console
+(`CONSOLE_LOCK: state=locked`) whose launch found
+`state=active appDeactivated=0 focusWindow=1`:
+
+- the self-test as committed: all eight Checks PASS, the subscriber strings
+  read `[0]`, `[1]` and `[0]`, the run ends
+  `SCENARIO_RESULT: PASS (failures: 0)` with exit code 0, and no Qt assert
+  appears in the test log, stderr or crash report (Run 1);
+- the deliberate mutation that removes the
+  `QGuiApplicationPrivate::setApplicationState(requested);` line: the
+  inactive injection refuses `not-read-back: requested inactive,
+  QGuiApplication::applicationState() reads active and
+  Core::App().appDeactivatedValue() reads 0`, Checks 3, 4 and 6 FAIL with
+  the subscriber receiving nothing, every PASS left is for the active state
+  its details show, and the run ends cleanly with
+  `SCENARIO_RESULT: FAIL (failures: 3)` (Run 2).
+
+On a launch that finds the state inactive the same mutation fails
+Checks 1, 2, 4, 5 and 6 instead; that case and an unlocked console were
+not run, and the verdict does not depend on either, for the reason above.
 
 Built with `DESKTOP_APP_DISABLE_PRIVATE_QT_API` every injection refuses
 `unsupported` and its Checks fail with that refusal; that branch is checked

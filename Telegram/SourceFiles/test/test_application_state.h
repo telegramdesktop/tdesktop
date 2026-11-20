@@ -23,8 +23,9 @@ class Runner;
 // QGuiApplicationPrivate::setApplicationState(), and reads it back. Qt
 // sends QEvent::ApplicationActivate or QEvent::ApplicationDeactivate and a
 // QApplicationStateChangeEvent and emits applicationStateChanged() inside
-// that call, so every subscriber has run when InjectApplicationActive
-// returns. The focus window and window activation are not touched.
+// that call, so every direct subscriber has run when
+// InjectApplicationActive returns; a reaction one of them queues runs on a
+// later turn. The focus window and window activation are not touched.
 //
 // The reading. InjectApplicationActive fills it after its call;
 // ReadApplicationState injects nothing, is legal in a stage's until, and
