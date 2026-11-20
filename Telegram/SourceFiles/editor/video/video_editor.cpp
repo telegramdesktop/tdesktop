@@ -285,6 +285,7 @@ void VideoEditor::setupTimeline() {
 		VideoTimelineDescriptor{
 			.path = _path,
 			.content = _content,
+			.preview = _preview,
 			.dimensions = _dimensions,
 			.duration = _duration,
 			.maxDuration = _data.maxDuration,

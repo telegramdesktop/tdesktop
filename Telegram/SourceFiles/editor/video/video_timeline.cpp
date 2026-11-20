@@ -77,6 +77,7 @@ VideoTimeline::VideoTimeline(
 : TrimTimeline(parent, TrimDescriptor(descriptor))
 , _path(descriptor.path)
 , _content(descriptor.content)
+, _preview(std::move(descriptor.preview))
 , _dimensions(descriptor.dimensions)
 , _cache(descriptor.cache)
 , _reloadTimer([=] { reloadFrames(); }) {
@@ -217,6 +218,20 @@ void VideoTimeline::reloadFrames() {
 
 void VideoTimeline::paintStrip(QPainter &p, const QRect &strip) {
 	p.fillRect(strip, st::videoTimelinePlaceholderBg);
+	if (_frames.frames.empty() && !_preview.isNull()) {
+		const auto width = std::max(
+			_preview.size().scaled(
+				strip.width(),
+				strip.height(),
+				Qt::KeepAspectRatio).width(),
+			(strip.width() + kMaxFrames - 1) / kMaxFrames);
+		p.save();
+		p.setOpacity(p.opacity() * 0.35);
+		for (auto x = strip.x(); x < rect::right(strip); x += width) {
+			p.drawImage(QRect(x, strip.y(), width, strip.height()), _preview);
+		}
+		p.restore();
+	}
 	paintFrames(p, strip, _frames);
 	if (_loading) {
 		paintFrames(p, strip, _loading->set);
