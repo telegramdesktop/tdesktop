@@ -112,7 +112,9 @@ arm with `armed=false` and its count, until the next arm resets it.
 means none arrived while a widget popup was open, not that the hold failed.
 A `stopped` row says that a deactivation arrived while a widget popup was
 active and was swallowed. It does not name the popup or the cause: a lock
-screen, another application's window or an injected focus change read alike.
+screen, another application's window, an injected focus change and
+`Test::InjectApplicationActive(false)`
+([test_application_state](test_application_state.md)) read alike.
 
 The rows, each a `NOTE:`:
 

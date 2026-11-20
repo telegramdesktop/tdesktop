@@ -50,7 +50,12 @@ the private setter that campaign used afterwards.
   platform's own report alike.
 - **Side effects inside the call.** An injected inactive closes every open
   popup menu: `QGuiApplication::event()` and `QApplication::notify()` call
-  `closeAllPopups()` on `ApplicationDeactivate`. The Windows key mapper
+  `closeAllPopups()` on `ApplicationDeactivate`. The exception is an armed
+  [popup hold](test_popup_hold.md) in a Windows build: while a widget popup
+  is active, `Core::Sandbox::notify` swallows that event, so the popup stays
+  open and the hold counts it. The state change event, the
+  `applicationStateChanged()` signal and `appDeactivatedValue()` still
+  follow. The Windows key mapper
   clears its key recorder on `Qt::ApplicationInactive`
   (`qwindowskeymapper.cpp`). `QWidgetPrivate::setFocus_sys()`
   (`qwidget.cpp`) asks the OS to activate a widget's window on `setFocus()`
