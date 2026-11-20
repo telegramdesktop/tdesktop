@@ -110,6 +110,8 @@ struct SpawnPlan {
 	std::string token;
 	std::vector<std::string> tail;
 	std::vector<char*> argv;
+	std::string timezone;
+	std::vector<char*> environment;
 	std::string uidMap;
 	std::string gidMap;
 	int devnullRead = -1;
@@ -296,6 +298,12 @@ SpawnPlan::~SpawnPlan() {
 		plan.argv.push_back(argument.data());
 	}
 	plan.argv.push_back(nullptr);
+	// Only the time zone: Telegram's own environment may hold credentials.
+	if (qEnvironmentVariableIsSet("TZ")) {
+		plan.timezone = "TZ=" + qgetenv("TZ").toStdString();
+		plan.environment.push_back(plan.timezone.data());
+	}
+	plan.environment.push_back(nullptr);
 	plan.uidMap = IdentityMap(geteuid());
 	plan.gidMap = IdentityMap(getegid());
 	auto error = OpenAbove("/dev/null", O_RDONLY, plan.devnullRead);
@@ -401,10 +409,13 @@ int SpawnChild(void *raw) {
 		FailChild(slot, ChildStep::SignalMask);
 	}
 	if (executed) {
-		fexecve(kExecutedDescriptor, plan.argv.data(), environ);
+		fexecve(
+			kExecutedDescriptor,
+			plan.argv.data(),
+			plan.environment.data());
 		FailChild(slot, ChildStep::ExecuteDescriptor);
 	}
-	execve(plan.exe.c_str(), plan.argv.data(), environ);
+	execve(plan.exe.c_str(), plan.argv.data(), plan.environment.data());
 	FailChild(slot, ChildStep::Execute);
 }
 
