@@ -87,6 +87,7 @@ private:
 	std::unique_ptr<Loading> _loading;
 	base::Timer _reloadTimer;
 
+	Ui::Animations::Simple _framesShown;
 	Ui::Animations::Simple _dotActive;
 
 };
