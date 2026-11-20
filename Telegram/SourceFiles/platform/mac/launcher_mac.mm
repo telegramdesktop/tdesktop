@@ -44,8 +44,11 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	// In AppStore version we don't have Updater.
 	// We just relaunch our app.
 	if (action == UpdaterLaunch::JustRelaunch) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
 		NSDictionary *conf = [NSDictionary dictionaryWithObject:[NSArray array] forKey:NSWorkspaceLaunchConfigurationArguments];
 		[[NSWorkspace sharedWorkspace] launchApplicationAtURL:[NSURL fileURLWithPath:Q2NSString(cExeDir() + cExeName())] options:NSWorkspaceLaunchAsync | NSWorkspaceLaunchNewInstance configuration:conf error:0];
+#pragma clang diagnostic pop
 		return true;
 	}
 #endif // OS_MAC_STORE
