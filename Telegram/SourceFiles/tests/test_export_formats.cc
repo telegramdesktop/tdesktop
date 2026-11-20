@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tests/test_export_formats.hpp"
 
-#include "core/credits_amount.h"
 #include "data/data_peer_id.h"
 #include "export/output/export_output_abstract.h"
 #include "export/output/export_output_result.h"
@@ -54,14 +53,6 @@ rpl::producer<> on_main_update_requests() {
 }
 
 } // namespace crl
-
-CreditsAmount CreditsAmountFromTL(const MTPStarsAmount &amount) {
-	Unexpected("CreditsAmountFromTL in test_export_formats.");
-}
-
-CreditsAmount CreditsAmountFromTL(const MTPStarsAmount *amount) {
-	Unexpected("CreditsAmountFromTL pointer in test_export_formats.");
-}
 
 namespace Export::Tests {
 
@@ -1965,23 +1956,7 @@ int main() {
 			++failed;
 		}
 	}
-	using Export::Tests::ActionExecution;
-	auto notRun = 0;
-	for (const auto &row : rows) {
-		if (Export::Tests::Execution(row) == ActionExecution::ParserNotRun) {
-			std::printf(
-				"NOT RUN action.%s: %s\n",
-				row.name,
-				Export::Tests::kCreditsPrerequisite);
-			++notRun;
-		}
-	}
 	const auto total = int(results.size());
-	std::printf(
-		"%d of %d checks passed; "
-		"%d parser rows not run (headless prerequisite).\n",
-		total - failed,
-		total,
-		notRun);
+	std::printf("%d of %d checks passed.\n", total - failed, total);
 	return failed ? 1 : 0;
 }

@@ -644,6 +644,7 @@ PRIVATE
     core/crash_report_window.h
     core/crash_reports.cpp
     core/crash_reports.h
+    core/credits_amount.cpp
     core/credits_amount.h
     core/deadlock_detector.h
     core/deep_links/deep_links_chats.cpp

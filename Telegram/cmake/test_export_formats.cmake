@@ -10,6 +10,7 @@ init_non_host_target(test_export_formats "(tests)")
 target_precompile_headers(test_export_formats PRIVATE ${src_loc}/stdafx.h)
 nice_target_sources(test_export_formats ${src_loc}
 PRIVATE
+    core/credits_amount.cpp
     core/credits_amount.h
     core/mime_type.cpp
     core/mime_type.h

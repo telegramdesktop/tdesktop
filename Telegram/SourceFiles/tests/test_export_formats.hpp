@@ -29,8 +29,6 @@ constexpr auto kGroupPage = "chats/chat_1/messages.html";
 constexpr auto kAliceFromName = "<div class=\"from_name\">\nAlice Example\n";
 constexpr auto kUnsupportedNotice = "This message is not supported by this "
 	"version of Telegram Desktop. Please update the application.";
-constexpr auto kCreditsPrerequisite = "parser branch needs CreditsAmountFromTL "
-	"(data/components/credits.cpp)";
 
 struct SliceFixture {
 	std::vector<MTPMessage> wire;
@@ -85,7 +83,6 @@ enum class ActionOutput {
 
 enum class ActionExecution {
 	Parsed,
-	ParserNotRun,
 	WriterOnly,
 };
 

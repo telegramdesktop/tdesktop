@@ -123,50 +123,6 @@ constexpr auto kActionDate = TimeId(1703980800);
 		MTPint());
 }
 
-[[nodiscard]] Message SuggestedPostApprovalMessage() {
-	auto result = AliceGroupMessage(53, 1703983980);
-	result.action.content = ActionSuggestedPostApproval{
-		.scheduleDate = 1704153600,
-		.price = CreditsAmount(25, 125000000, CreditsType::Stars),
-	};
-	return result;
-}
-
-[[nodiscard]] Message SuggestedPostSuccessMessage() {
-	auto result = AliceGroupMessage(54, 1703984040);
-	result.action.content = ActionSuggestedPostSuccess{
-		.price = CreditsAmount(1, 750000000, CreditsType::Ton),
-	};
-	return result;
-}
-
-[[nodiscard]] Message StarGiftOfferMessage() {
-	auto result = AliceGroupMessage(58, 1703984280);
-	result.action.content = ActionStarGift{
-		.giftId = 5058,
-		.stars = 300,
-		.limited = true,
-		.offerPrice = CreditsAmount(40, CreditsType::Stars),
-		.offerExpireAt = 1704153600,
-		.offer = true,
-		.offerAccepted = true,
-	};
-	return result;
-}
-
-[[nodiscard]] Message StarGiftOfferDeclinedMessage() {
-	auto result = AliceGroupMessage(59, 1703984340);
-	result.action.content = ActionStarGift{
-		.giftId = 5059,
-		.stars = 350,
-		.offerPrice = CreditsAmount(2, 500000000, CreditsType::Ton),
-		.offer = true,
-		.offerDeclined = true,
-		.offerExpired = true,
-	};
-	return result;
-}
-
 [[nodiscard]] Message PhoneNumberRequestMessage() {
 	auto result = AliceGroupMessage(73, 1703985180);
 	result.action.content = ActionPhoneNumberRequest();
@@ -257,22 +213,45 @@ template <typename Type>
 	});
 }
 
-template <typename Type, typename Value>
+template <typename Type, typename Value, typename Expected>
 [[nodiscard]] QString ExpectParsed(
 		const Message &parsed,
 		const char *label,
 		Value Type::*field,
-		qint64 expected) {
+		const Expected &expected) {
 	const auto data = ParsedAction<Type>(parsed);
 	if (!data) {
 		return u"parsed %1 has another action"_q.arg(parsed.id);
 	}
 	const auto &value = data->*field;
-	if constexpr (std::is_arithmetic_v<Value>) {
-		return ExpectNumber(u"parsed "_q + label, qint64(value), expected);
+	const auto name = u"parsed "_q + label;
+	if constexpr (std::is_same_v<Value, CreditsAmount>) {
+		return FirstFailure({
+			ExpectNumber(name + u" whole"_q, value.whole(), expected.whole()),
+			ExpectNumber(name + u" nano"_q, value.nano(), expected.nano()),
+			ExpectNumber(name + u" ton"_q, value.ton(), expected.ton()),
+		});
+	} else if constexpr (std::is_arithmetic_v<Value>) {
+		return ExpectNumber(name, qint64(value), expected);
 	} else {
-		return ExpectNumber(u"parsed "_q + label, qint64(value.bare), expected);
+		return ExpectNumber(name, qint64(value.bare), expected);
 	}
+}
+
+[[nodiscard]] QString ExpectOffer(
+		const Message &parsed,
+		const ActionStarGift &expected) {
+	const auto field = [&](const char *label, auto member) {
+		return ExpectParsed(parsed, label, member, expected.*member);
+	};
+	return FirstFailure({
+		field("offer", &ActionStarGift::offer),
+		field("offerPrice", &ActionStarGift::offerPrice),
+		field("offerExpireAt", &ActionStarGift::offerExpireAt),
+		field("offerAccepted", &ActionStarGift::offerAccepted),
+		field("offerDeclined", &ActionStarGift::offerDeclined),
+		field("offerExpired", &ActionStarGift::offerExpired),
+	});
 }
 
 [[nodiscard]] QString CheckActionHtml(
@@ -1352,7 +1331,6 @@ template <typename Type, typename Value>
 					MTP_int(1704153600),
 					MTP_starsAmount(MTP_long(25), MTP_int(125000000)));
 			},
-			.direct = SuggestedPostApprovalMessage,
 			.alternative = Alternative<ActionSuggestedPostApproval>(),
 			.json = R"("id": 53, "date": "2023-12-31T03:53:00",
 				"date_unixtime": "1703983980",
@@ -1361,6 +1339,13 @@ template <typename Type, typename Value>
 				"price_currency": "Stars", "scheduled_date": 1704153600)",
 			.html = "Alice Example approved your suggested post, for 25.125 "
 				"stars, 2 January 2024 at 03:00.",
+			.extra = [](const Outputs &, const Message &parsed) {
+				return ExpectParsed(
+					parsed,
+					"price",
+					&ActionSuggestedPostApproval::price,
+					CreditsAmount(25, 125000000, CreditsType::Stars));
+			},
 		},
 		{
 			.id = 54,
@@ -1370,7 +1355,6 @@ template <typename Type, typename Value>
 				return MTP_messageActionSuggestedPostSuccess(
 					MTP_starsTonAmount(MTP_long(1750000000)));
 			},
-			.direct = SuggestedPostSuccessMessage,
 			.alternative = Alternative<ActionSuggestedPostSuccess>(),
 			.json = R"("id": 54, "date": "2023-12-31T03:54:00",
 				"date_unixtime": "1703984040",
@@ -1379,6 +1363,13 @@ template <typename Type, typename Value>
 				"price_currency": "TON")",
 			.html = "The paid post was shown for 24 hours and 1.75 TON "
 				"were transferred to the channel.",
+			.extra = [](const Outputs &, const Message &parsed) {
+				return ExpectParsed(
+					parsed,
+					"price",
+					&ActionSuggestedPostSuccess::price,
+					CreditsAmount(1, 750000000, CreditsType::Ton));
+			},
 		},
 		{
 			.id = 55,
@@ -1450,13 +1441,20 @@ template <typename Type, typename Value>
 					MTP_starsAmount(MTP_long(40), MTP_int(0)),
 					MTP_int(1704153600));
 			},
-			.direct = StarGiftOfferMessage,
 			.alternative = Alternative<ActionStarGift>(),
 			.json = R"("id": 58, "date": "2023-12-31T03:58:00",
 				"date_unixtime": "1703984280", "action": "send_star_gift",
 				"gift_id": 5058, "stars": 300, "is_limited": true,
 				"is_anonymous": false, "gift_text": "")",
 			.html = "Alice Example sent you a gift of 300 Telegram Stars.",
+			.extra = [](const Outputs &, const Message &parsed) {
+				return ExpectOffer(parsed, {
+					.offerPrice = CreditsAmount(40, 0, CreditsType::Stars),
+					.offerExpireAt = 1704153600,
+					.offer = true, .offerAccepted = true,
+					.offerDeclined = false, .offerExpired = false,
+				});
+			},
 		},
 		{
 			.id = 59,
@@ -1470,13 +1468,20 @@ template <typename Type, typename Value>
 					StarGiftFixture(5059, 350, false),
 					MTP_starsTonAmount(MTP_long(2500000000)));
 			},
-			.direct = StarGiftOfferDeclinedMessage,
 			.alternative = Alternative<ActionStarGift>(),
 			.json = R"("id": 59, "date": "2023-12-31T03:59:00",
 				"date_unixtime": "1703984340", "action": "send_star_gift",
 				"gift_id": 5059, "stars": 350, "is_limited": false,
 				"is_anonymous": false, "gift_text": "")",
 			.html = "Alice Example sent you a gift of 350 Telegram Stars.",
+			.extra = [](const Outputs &, const Message &parsed) {
+				return ExpectOffer(parsed, {
+					.offerPrice = CreditsAmount(2, 500000000, CreditsType::Ton),
+					.offerExpireAt = 0,
+					.offer = true, .offerAccepted = false,
+					.offerDeclined = true, .offerExpired = true,
+				});
+			},
 		},
 		{
 			.id = 60,
@@ -1755,8 +1760,6 @@ std::vector<ActionRow> ActionRows() {
 ActionExecution Execution(const ActionRow &row) {
 	return !row.direct
 		? ActionExecution::Parsed
-		: row.action
-		? ActionExecution::ParserNotRun
 		: ActionExecution::WriterOnly;
 }
 
@@ -1803,7 +1806,6 @@ QString CheckActionInventory(const Outputs &) {
 	auto ids = std::set<int32>();
 	auto constructors = std::set<ConstructorId>();
 	auto alternatives = std::set<std::size_t>();
-	auto notRun = QStringList();
 	auto writerOnly = QStringList();
 	auto fixtures = 0;
 	auto nulls = 0;
@@ -1811,10 +1813,7 @@ QString CheckActionInventory(const Outputs &) {
 	for (const auto &row : rows) {
 		ids.emplace(row.id);
 		alternatives.emplace(row.alternative);
-		const auto execution = Execution(row);
-		if (execution == ActionExecution::ParserNotRun) {
-			notRun.push_back(QString::fromLatin1(row.name));
-		} else if (execution == ActionExecution::WriterOnly) {
+		if (Execution(row) == ActionExecution::WriterOnly) {
 			writerOnly.push_back(QString::fromLatin1(row.name));
 		}
 		if (!row.action) {
@@ -1833,19 +1832,13 @@ QString CheckActionInventory(const Outputs &) {
 	return FirstFailure({
 		mismatch,
 		ExpectNumber(u"fixture ids"_q, int(ids.size()), int(rows.size())),
-		ExpectNames(u"parser rows not run"_q, notRun, {
-			u"suggestedPostApproval"_q,
-			u"suggestedPostSuccess"_q,
-			u"starGiftPurchaseOffer"_q,
-			u"starGiftPurchaseOfferDeclined"_q,
-		}),
 		ExpectNames(u"writer-only rows"_q, writerOnly, {
 			u"phoneNumberRequest"_q,
 		}),
 		ExpectNumber(u"TL fixtures"_q, fixtures, 72),
 		ExpectNumber(u"TL constructors"_q, int(constructors.size()), 72),
-		ExpectNumber(u"parsed TL fixtures"_q, int(slice.wire.size()), 68),
-		ExpectNumber(u"direct fixtures"_q, int(slice.direct.size()), 5),
+		ExpectNumber(u"parsed TL fixtures"_q, int(slice.wire.size()), 72),
+		ExpectNumber(u"direct fixtures"_q, int(slice.direct.size()), 1),
 		ExpectNumber(u"null fallbacks"_q, nulls, 6),
 		ExpectNumber(
 			u"ServiceAction alternatives"_q,
