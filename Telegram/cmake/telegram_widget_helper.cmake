@@ -236,5 +236,32 @@ else()
             TDESKTOP_WIDGET_HELPER_PINNED)
         generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256)
     endif()
+    foreach (target
+        TelegramWidgetHelper
+        lib_widget_sandbox
+        lib_widget_renderer
+        lib_litehtml
+        lib_widget_sandbox_host_hardened
+        lib_widget_renderer_platform_hardened)
+        target_compile_definitions(${target} PRIVATE _GLIBCXX_ASSERTIONS)
+        target_compile_options_if_exists(${target}
+        PRIVATE
+            -fstack-protector-strong
+            -fstack-clash-protection
+            -fcf-protection
+            -ftrivial-auto-var-init=zero
+        )
+        # Fortify needs optimization, glibc warns without it; through -Wp, our level wins over a distribution's.
+        target_compile_options(${target}
+        PRIVATE
+            $<$<NOT:$<CONFIG:Debug>>:-Wp,-U_FORTIFY_SOURCE>
+            $<$<NOT:$<CONFIG:Debug>>:-Wp,-D_FORTIFY_SOURCE=3>
+        )
+    endforeach()
+    target_link_options(TelegramWidgetHelper
+    PRIVATE
+        LINKER:-z,relro
+        LINKER:-z,now
+    )
     add_dependencies(Telegram TelegramWidgetHelper)
 endif()

@@ -88,7 +88,7 @@ endfunction()
 
 add_widget_sandbox_host(lib_widget_sandbox_host)
 set(widget_sandbox_targets lib_widget_sandbox_host lib_widget_sandbox)
-if (MSVC)
+if (MSVC OR LINUX)
     add_widget_sandbox_host(lib_widget_sandbox_host_hardened)
     list(APPEND widget_sandbox_targets lib_widget_sandbox_host_hardened)
     set(widget_helper_sandbox_host lib_widget_sandbox_host_hardened)
