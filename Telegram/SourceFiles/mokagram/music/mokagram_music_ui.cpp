@@ -3876,8 +3876,10 @@ public:
 		}));
 		if (_isArtist && !_bannerUrl.isEmpty()) {
 			LoadImage(_bannerUrl, crl::guard(this, [=](QImage image) {
+				if (image.isNull()) return;
 				_banner = std::move(image);
 				_scaledBanner = QImage();
+				resizeToWidth(width());
 				update();
 				if (bannerReady) bannerReady();
 			}));
@@ -3897,6 +3899,10 @@ public:
 		_playArtist->setAttribute(Qt::WA_TransparentForMouseEvents, opacity < 0.5);
 		_playArtist->setFocusPolicy(opacity < 0.5 ? Qt::NoFocus : Qt::TabFocus);
 		update();
+	}
+
+	[[nodiscard]] bool hasArtistBanner() const {
+		return !_banner.isNull();
 	}
 
 	[[nodiscard]] int artistBannerHeight() const {
@@ -3947,9 +3953,9 @@ protected:
 		const auto s = [](int v) { return style::ConvertScale(v); };
 		if (_isArtist) {
 			const auto identity = s(newWidth < s(520) ? 152 : 128);
-			const auto banner = _bannerUrl.isEmpty()
-				? 0
-				: std::clamp(newWidth / 4, s(120), s(244));
+			const auto banner = hasArtistBanner()
+				? std::clamp(newWidth / 4, s(120), s(244))
+				: 0;
 			return banner + identity + s(8);
 		}
 		if (newWidth < s(480)) {
@@ -4032,9 +4038,9 @@ private:
 		const auto card = rect().adjusted(s(14), 0, -s(14), -s(8));
 		if (card.isEmpty()) return;
 
-		auto clip = QPainterPath();
-		clip.addRoundedRect(card, s(22), s(22));
-		p.fillPath(clip, st::windowBg);
+		if (hasArtistBanner()) {
+			BoxParts::PaintCard(p, card);
+		}
 		const auto narrow = width() < s(520);
 		const auto identityTop = artistBannerHeight();
 		const auto banner = QRect(0, 0, width(), identityTop);
@@ -9081,8 +9087,10 @@ protected:
 						} else if (!_homeAlbumTracks.empty()) {
 							openHomeArtist(_homeAlbumTracks.front());
 						}
-					}), crl::guard(this, [=] { update(); })),
-					QMargins(0, 0, 0, style::ConvertScale(8)));
+					}), crl::guard(this, [=] {
+						updateHomeArtistBar();
+						update();
+					})), QMargins(0, 0, 0, style::ConvertScale(8)));
 				_homeAlbumHeader = albumHeader;
 				albumHeader->setBannerTopInset(_tabScroll->y());
 				albumHeader->setArtistPlayable(!std::ranges::all_of(
@@ -9598,10 +9606,25 @@ protected:
 				: QColor(0x1c, 0x1c, 0x1c));
 			p.setOpacity(1.);
 		}
-		if (_tab == Tab::Home && _homeArtistOpen && _homeAlbumHeader) {
+		const auto artistHeader = (_tab == Tab::Home && _homeArtistOpen)
+			? _homeAlbumHeader.data()
+			: nullptr;
+		if (artistHeader && !artistHeader->hasArtistBanner()) {
+			const auto offset = _tabScroll->scrollTop();
+			const auto end = _tabScroll->y() + artistHeader->height() - offset;
+			if (end > 0) {
+				const auto tone = _homeAccent.isValid()
+					? anim::color(st::windowBg->c, _homeAccent, 0.12)
+					: st::windowBg->c;
+				auto background = QLinearGradient(0, -offset, 0, end);
+				background.setColorAt(0., tone);
+				background.setColorAt(1., st::boxBg->c);
+				p.fillRect(e->rect().intersected(QRect(0, 0, width(), end)), background);
+			}
+		} else if (artistHeader) {
 			const auto top = _tabScroll->y();
 			const auto offset = _tabScroll->scrollTop();
-			const auto bannerHeight = _homeAlbumHeader->artistBannerHeight();
+			const auto bannerHeight = artistHeader->artistBannerHeight();
 			const auto bannerBottom = top + bannerHeight - offset;
 			const auto visible = std::clamp(bannerBottom / double(std::max(top, 1)), 0., 1.);
 			const auto panel = QRect(0, 0, width(), top);
@@ -9611,8 +9634,8 @@ protected:
 			if (_homeAccent.isValid()) {
 				p.fillRect(panel, anim::color(st::boxBg->c, _homeAccent, 0.26));
 			}
-			_homeAlbumHeader->paintArtistBanner(p, QPoint(_tabScroll->x(), top - offset));
-			if (!_homeArtistBannerUrl.isEmpty() && bannerBottom > 0) {
+			artistHeader->paintArtistBanner(p, QPoint(_tabScroll->x(), top - offset));
+			if (bannerBottom > 0) {
 				p.setOpacity(1.);
 				const auto edge = std::min(top, bannerBottom);
 				auto shade = QLinearGradient(0, 0, 0, std::max(edge, 1));
