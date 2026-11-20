@@ -90,12 +90,23 @@ void LoadArtistInfo(
 	const QString &userId,
 	Fn<void(ArtistInfo)> done);
 
+enum class ReleaseKind {
+	Unknown,
+	Album,
+	Single,
+	Ep,
+	Compilation,
+};
+
 struct Album {
 	QString id;
 	QString title;
 	QString artist;
 	QString artworkUrl;
 	int trackCount = 0;
+	QString artistId;
+	ReleaseKind releaseKind = ReleaseKind::Unknown;
+	int releaseYear = 0;
 };
 
 // Альбомы по запросу.

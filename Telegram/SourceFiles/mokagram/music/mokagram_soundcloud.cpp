@@ -897,6 +897,7 @@ namespace {
 	result.title = object.value("title").toString();
 	const auto user = object.value("user").toObject();
 	result.artist = user.value("username").toString();
+	result.artistId = QString::number(user.value("id").toVariant().toLongLong());
 	result.artworkUrl = object.value("artwork_url").toString();
 	if (result.artworkUrl.isEmpty()) {
 		const auto tracks = object.value("tracks").toArray();
@@ -909,6 +910,22 @@ namespace {
 		result.artworkUrl = user.value("avatar_url").toString();
 	}
 	result.trackCount = object.value("track_count").toInt();
+	const auto type = object.value("set_type").toString(
+		object.value("playlist_type").toString()).trimmed().toLower();
+	if (type == u"single"_q) {
+		result.releaseKind = ReleaseKind::Single;
+	} else if (type == u"ep"_q) {
+		result.releaseKind = ReleaseKind::Ep;
+	} else if (type == u"compilation"_q) {
+		result.releaseKind = ReleaseKind::Compilation;
+	} else if (type == u"album"_q || (type.isEmpty() && object.value("is_album").toBool())) {
+		result.releaseKind = ReleaseKind::Album;
+	}
+	result.releaseYear = object.value("release_year").toInt();
+	if (result.releaseYear <= 0) {
+		const auto releaseDate = object.value("release_date").toString();
+		result.releaseYear = releaseDate.left(4).toInt();
+	}
 	return result;
 }
 

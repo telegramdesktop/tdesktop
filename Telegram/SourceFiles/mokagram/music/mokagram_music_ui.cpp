@@ -3120,8 +3120,8 @@ public:
 	, _album(std::move(album)) {
 		setPointerCursor(true);
 		setFocusPolicy(Qt::TabFocus);
-		setAccessibleName(QString::fromUtf8(Mokagram::Lang::Tr("Альбом"))
-			+ u": "_q + _album.title + u" - "_q + _album.artist);
+		setAccessibleName(releaseKindText() + u" · "_q + _album.title
+			+ u" · "_q + _album.artist);
 		setClickedCallback(std::move(open));
 		InstallAlbumContextMenu(this, controller, _album);
 		LoadImage(ArtUrl(_album.artworkUrl, u"t200x200"_q), crl::guard(this, [=](QImage image) {
@@ -3163,12 +3163,25 @@ protected:
 			Qt::AlignVCenter | Qt::AlignLeft, st::semiboldFont->elided(_album.title, side));
 		p.setFont(st::normalFont);
 		p.setPen(st::windowSubTextFg);
+		const auto details = _album.releaseYear > 0
+			? QString::number(_album.releaseYear) + u" · "_q + releaseKindText()
+			: releaseKindText() + u" · "_q + _album.artist;
 		p.drawText(QRect(inset, art.bottom() + s(30), side, s(22)),
-			Qt::AlignVCenter | Qt::AlignLeft, st::normalFont->elided(
-				QString::fromUtf8(Mokagram::Lang::Tr("Альбом")) + u" · "_q + _album.artist, side));
+			Qt::AlignVCenter | Qt::AlignLeft, st::normalFont->elided(details, side));
 	}
 
 private:
+	[[nodiscard]] QString releaseKindText() const {
+		switch (_album.releaseKind) {
+		case ReleaseKind::Single: return PlaylistText("Сингл");
+		case ReleaseKind::Ep: return PlaylistText("EP");
+		case ReleaseKind::Compilation: return PlaylistText("Сборник");
+		case ReleaseKind::Unknown:
+		case ReleaseKind::Album: return PlaylistText("Альбом");
+		}
+		Unexpected("Release kind.");
+	}
+
 	Album _album;
 	QImage _art;
 
@@ -4173,6 +4186,74 @@ private:
 	QString _counts;
 	QString _action;
 	QImage _art;
+};
+
+enum class DiscographyFilter {
+	All,
+	Albums,
+	SinglesAndEps,
+};
+
+class HomeDiscographyBar final : public Ui::RpWidget {
+public:
+	HomeDiscographyBar(
+		QWidget *parent,
+		DiscographyFilter selected,
+		bool expanded,
+		Fn<void(DiscographyFilter)> filter,
+		Fn<void()> toggle)
+	: RpWidget(parent) {
+		_title = Ui::CreateChild<Ui::FlatLabel>(
+			this, PlaylistText("Дискография"), st::boxTitle);
+		if (toggle) {
+			_toggle = Ui::CreateChild<Ui::RoundButton>(
+				this,
+				rpl::single(PlaylistText(expanded ? "Свернуть" : "Показать все")),
+				BoxParts::PillLight());
+			_toggle->setFocusPolicy(Qt::TabFocus);
+			_toggle->setClickedCallback(std::move(toggle));
+		}
+		const auto labels = std::array{
+			"Все релизы",
+			"Альбомы",
+			"Синглы и EP",
+		};
+		for (auto i = 0; i != int(labels.size()); ++i) {
+			const auto category = DiscographyFilter(i);
+			const auto button = _filters[i] = Ui::CreateChild<Ui::RoundButton>(
+				this,
+				rpl::single(PlaylistText(labels[i])),
+				selected == category ? BoxParts::PillActive() : BoxParts::PillLight());
+			button->setFocusPolicy(Qt::TabFocus);
+			button->setClickedCallback([=] { filter(category); });
+		}
+	}
+
+protected:
+	int resizeGetHeight(int newWidth) override {
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		const auto rowHeight = s(44);
+		const auto toggleWidth = _toggle ? std::min(s(130), newWidth / 2) : 0;
+		_title->resizeToWidth(std::max(newWidth - toggleWidth - s(8), 0));
+		_title->moveToLeft(0, (rowHeight - _title->height()) / 2, newWidth);
+		if (_toggle) {
+			_toggle->setFullWidth(toggleWidth);
+			_toggle->moveToRight(0, (rowHeight - _toggle->height()) / 2, newWidth);
+		}
+		const auto gap = s(6);
+		const auto count = int(_filters.size());
+		const auto cell = std::max(std::min(s(144), (newWidth - (count - 1) * gap) / count), 0);
+		for (auto i = 0; i != count; ++i) {
+			_filters[i]->setFullWidth(cell);
+			_filters[i]->moveToLeft(i * (cell + gap), rowHeight + s(6), newWidth);
+		}
+		return 2 * rowHeight + s(6);
+	}
+
+private:
+	Ui::FlatLabel *_title = nullptr;
+	Ui::RoundButton *_toggle = nullptr;
+	std::array<Ui::RoundButton*, 3> _filters = {};
 };
 
 class HomeCoverPreview final : public Ui::RpWidget {
@@ -8454,8 +8535,13 @@ protected:
 					return;
 				}
 				const auto artist = name.trimmed().toCaseFolded();
+				auto found = std::set<QString>();
 				for (auto &album : albums) {
-					if (album.id != albumId && album.artist.trimmed().toCaseFolded() == artist) {
+					const auto matches = !artistId.isEmpty() && artistId != u"0"_q
+						&& !album.artistId.isEmpty() && album.artistId != u"0"_q
+						? artistId == album.artistId
+						: album.artist.trimmed().toCaseFolded() == artist;
+					if (matches && album.id != albumId && found.insert(album.id).second) {
 						_homeArtistAlbums.push_back(std::move(album));
 					}
 				}
@@ -8545,6 +8631,9 @@ protected:
 		if (!_homeReturnToArtist) {
 			_homeArtistFeedScroll = _tabScroll->scrollTop();
 			_homeArtistLikesOpen = false;
+			_discographyFilter = DiscographyFilter::All;
+			_discographyExpanded = false;
+			*_discographyOffset = 0;
 		}
 		_homeReturnToArtist = false;
 		_homeAlbumReturnScroll = _homeArtistFeedScroll;
@@ -8701,6 +8790,68 @@ protected:
 				rebuildTab();
 			}
 		}));
+	}
+
+	void addHomeDiscography() {
+		if (_homeArtistAlbums.empty()) return;
+
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		auto releases = _homeArtistAlbums;
+		std::erase_if(releases, [&](const Album &release) {
+			switch (_discographyFilter) {
+			case DiscographyFilter::All: return false;
+			case DiscographyFilter::Albums:
+				return release.releaseKind != ReleaseKind::Album
+					&& release.releaseKind != ReleaseKind::Compilation;
+			case DiscographyFilter::SinglesAndEps:
+				return release.releaseKind != ReleaseKind::Single
+					&& release.releaseKind != ReleaseKind::Ep;
+			}
+			Unexpected("Discography filter.");
+		});
+		constexpr auto kPreviewCount = size_t(6);
+		const auto generation = _homeAlbumGeneration;
+		auto toggle = Fn<void()>();
+		if (releases.size() > kPreviewCount) {
+			toggle = [=] {
+				crl::on_main(this, [=] {
+					if (_tab == Tab::Home && generation == _homeAlbumGeneration) {
+						_discographyExpanded = !_discographyExpanded;
+						rebuildTab();
+					}
+				});
+			};
+		}
+		_tabList->add(object_ptr<HomeDiscographyBar>(
+			_tabList,
+			_discographyFilter,
+			_discographyExpanded,
+			[=](DiscographyFilter filter) {
+				if (_discographyFilter == filter) return;
+				crl::on_main(this, [=] {
+					if (_tab == Tab::Home && generation == _homeAlbumGeneration) {
+						_discographyFilter = filter;
+						_discographyExpanded = false;
+						*_discographyOffset = 0;
+						rebuildTab();
+					}
+				});
+			},
+			std::move(toggle)), QMargins(s(14), s(20), s(14), s(8)));
+		if (releases.empty()) {
+			_tabList->add(object_ptr<Ui::FlatLabel>(
+				_tabList, PlaylistText("В этой категории нет релизов"), st::boxLabel),
+				QMargins(s(14), s(8), s(14), s(8)));
+			return;
+		}
+
+		if (!_discographyExpanded && releases.size() > kPreviewCount) {
+			releases.resize(kPreviewCount);
+		}
+		_tabList->add(object_ptr<HomeMixedGrid>(
+			_tabList, _controller, std::vector<Track>(), releases,
+			crl::guard(this, [=](Album album) { openHomeAlbum(std::move(album)); }),
+			nullptr, _discographyExpanded, _discographyOffset));
 	}
 
 	void rebuildTab() {
@@ -8867,6 +9018,7 @@ protected:
 							}
 						}
 					}
+					addHomeDiscography();
 					const auto similarArtists = HomeSimilarArtists(
 						_homeArtistSeed,
 						_homeSimilarTracks);
@@ -8902,12 +9054,6 @@ protected:
 								_tabList,
 								tr("Ищу похожих исполнителей…")));
 						}
-					}
-					if (!_homeArtistAlbums.empty()) {
-						_tabList->add(object_ptr<Ui::FlatLabel>(_tabList, tr("Дискография"), st::boxLabel), QMargins(20, 28, 20, 8));
-						_tabList->add(object_ptr<HomeMixedGrid>(_tabList, _controller, std::vector<Track>(), _homeArtistAlbums,
-							crl::guard(this, [=](Album album) { openHomeAlbum(std::move(album)); }),
-							crl::guard(this, [=](Track track) { openHomeTrack(std::move(track)); }), false, std::make_shared<int>(0)));
 					}
 					break;
 				}
@@ -10153,6 +10299,9 @@ private:
 	std::vector<Track> _homeArtistTracks;
 	std::vector<Album> _homeArtistAlbums;
 	QString _homeArtistBannerUrl;
+	DiscographyFilter _discographyFilter = DiscographyFilter::All;
+	std::shared_ptr<int> _discographyOffset = std::make_shared<int>(0);
+	bool _discographyExpanded = false;
 	// Похожее по звучанию: отдельный ряд от автора играющего трека.
 	std::vector<Track> _homeSimilarTracks;
 	bool _homeSimilarLoading = false;
