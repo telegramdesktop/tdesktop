@@ -3263,7 +3263,23 @@ bool HistoryWidget::insideJumpToEndInsteadOfToUnread() const {
 		).arg(unread ? unread->data()->id.bare : 0
 		).arg(unread ? _list->itemTop(unread) : -1
 		).arg(visibleBottom));
-	return unread && _list->itemTop(unread) <= visibleBottom;
+	if (unread && _list->itemTop(unread) <= visibleBottom) {
+		return true;
+	}
+
+	// Marking a partially visible bottom edge message read moves the first
+	// unread below the fold; mirror ListWidget::jumpToBottomInsteadOfUnread.
+	for (const auto &block : ranges::views::reverse(_history->blocks)) {
+		for (const auto &view : ranges::views::reverse(block->messages)) {
+			const auto item = view->data();
+			if (!item->isRegular()) {
+				continue;
+			} else if (item->out() || !item->unread(_history)) {
+				return _list->itemTop(view.get()) < visibleBottom;
+			}
+		}
+	}
+	return false;
 }
 
 void HistoryWidget::showHistory(
