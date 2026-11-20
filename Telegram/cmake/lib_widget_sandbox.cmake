@@ -11,7 +11,7 @@
 # packages/desktop/WidgetJS. Only the library sources are compiled here; the
 # package's own CMakeLists always builds its harness and tests as well.
 # Nova (ThirdParty/nova-safe, engine crates without unsafe code) is linked by
-# whoever links this library (cmake/lib_nova_engine.cmake); nova_engine.h is its C interface.
+# whoever runs engines or validators from this library (cmake/lib_nova_engine.cmake); nova_engine.h is its C interface.
 # On Windows IcuIntl (src/icu_intl.cpp) is built too, linking icu; Telegram delay-loads icu.dll.
 # There is no packaged branch: no distribution ships this library.
 

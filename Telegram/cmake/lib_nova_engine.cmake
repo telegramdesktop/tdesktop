@@ -12,14 +12,16 @@ if (NOT EXISTS ${nova_loc}/nova_embed_ffi/Cargo.toml)
     message(FATAL_ERROR "nova-safe sources are missing, run 'git submodule update --init --recursive'.")
 endif()
 
-if (WIN32)
-    message(FATAL_ERROR "The Nova engine is built for macOS and Linux only so far: Windows gets its recipe with its helper.")
-elseif (NOT APPLE AND NOT TDESKTOP_WIDGETS_HELPER_ONLY)
+if (NOT APPLE AND NOT WIN32 AND NOT TDESKTOP_WIDGETS_HELPER_ONLY)
     message(FATAL_ERROR "Telegram links no Nova engine on Linux, widgets run only in its helper: set TDESKTOP_WIDGETS_HELPER_ONLY.")
 endif()
 
 # The toolchain prepare.py installs next to Libraries, else whatever cargo the system has.
-set(nova_rust_loc ${libs_loc}/../ThirdParty/rust)
+if (WIN32)
+    set(nova_rust_loc ${CMAKE_SOURCE_DIR}/../ThirdParty/rust)
+else()
+    set(nova_rust_loc ${libs_loc}/../ThirdParty/rust)
+endif()
 find_program(TDESKTOP_CARGO cargo PATHS ${nova_rust_loc}/cargo/bin NO_DEFAULT_PATH)
 find_program(TDESKTOP_CARGO cargo)
 if (NOT TDESKTOP_CARGO)
@@ -27,23 +29,36 @@ if (NOT TDESKTOP_CARGO)
 endif()
 
 set(nova_out ${CMAKE_BINARY_DIR}/nova_engine)
-set(nova_library ${nova_out}/libnova_embed_ffi.a)
-set(nova_libraries ${nova_library})
-set(nova_platform_arguments)
-if (APPLE)
-    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+if (WIN32)
+    if (build_winarm)
+        set(nova_target aarch64-pc-windows-msvc)
+    elseif (build_win64)
+        set(nova_target x86_64-pc-windows-msvc)
+    else()
+        set(nova_target i686-pc-windows-msvc)
+    endif()
+    set(nova_library ${nova_out}/nova_embed_ffi.lib)
+    set(nova_libraries ${nova_library})
+    set(nova_platform_arguments -DNOVA_TARGET=${nova_target})
+else()
+    set(nova_library ${nova_out}/libnova_embed_ffi.a)
+    set(nova_libraries ${nova_library})
+    set(nova_platform_arguments)
+    if (APPLE)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-    string(REPLACE ";" "," nova_archs "${CMAKE_OSX_ARCHITECTURES}")
-    list(APPEND nova_platform_arguments
-        -DNOVA_ARCHS=${nova_archs}
-        -DNOVA_DEPLOYMENT=${CMAKE_OSX_DEPLOYMENT_TARGET}
-        -DNOVA_PYTHON=${Python3_EXECUTABLE}
-    )
-endif()
-if (NOT TDESKTOP_WIDGETS_HELPER_ONLY)
-    set(nova_private_library ${nova_out}/libnova_embed_ffi_private.a)
-    list(APPEND nova_libraries ${nova_private_library})
-    list(APPEND nova_platform_arguments -DNOVA_PRIVATE=ON)
+        string(REPLACE ";" "," nova_archs "${CMAKE_OSX_ARCHITECTURES}")
+        list(APPEND nova_platform_arguments
+            -DNOVA_ARCHS=${nova_archs}
+            -DNOVA_DEPLOYMENT=${CMAKE_OSX_DEPLOYMENT_TARGET}
+            -DNOVA_PYTHON=${Python3_EXECUTABLE}
+        )
+    endif()
+    if (NOT TDESKTOP_WIDGETS_HELPER_ONLY)
+        set(nova_private_library ${nova_out}/libnova_embed_ffi_private.a)
+        list(APPEND nova_libraries ${nova_private_library})
+        list(APPEND nova_platform_arguments -DNOVA_PRIVATE=ON)
+    endif()
 endif()
 
 set(nova_toolchain_arguments)
@@ -54,7 +69,7 @@ if (nova_cargo_bin STREQUAL nova_prepared_bin)
     get_filename_component(nova_rustup_home ${nova_rust_loc}/rustup REALPATH)
     get_filename_component(nova_cargo_home ${nova_rust_loc}/cargo REALPATH)
     set(nova_toolchain_arguments -DNOVA_RUSTUP_HOME=${nova_rustup_home} -DNOVA_CARGO_HOME=${nova_cargo_home})
-elseif (NOT APPLE)
+elseif (NOT APPLE AND NOT WIN32)
     # The Docker image's toolchain is read-only for the user who builds, so crates are fetched into the build tree.
     set(nova_toolchain_arguments -DNOVA_CARGO_HOME=${nova_out}/cargo)
 endif()
@@ -83,7 +98,17 @@ add_library(tdesktop::lib_nova_engine ALIAS lib_nova_engine)
 target_link_libraries(lib_nova_engine INTERFACE lib_nova_engine_static)
 add_dependencies(lib_nova_engine nova_engine_build)
 
-if (NOT APPLE)
+if (WIN32)
+    # What cargo rustc -- --print native-static-libs lists, its advisory /defaultlib:libcmt aside: the helper's CRT serves the archive.
+    target_link_libraries(lib_nova_engine
+    INTERFACE
+        kernel32
+        ntdll
+        userenv
+        ws2_32
+        dbghelp
+    )
+elseif (NOT APPLE)
     target_link_libraries(lib_nova_engine INTERFACE ${CMAKE_DL_LIBS} m)
 endif()
 

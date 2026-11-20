@@ -116,8 +116,9 @@ if (WIN32)
     PRIVATE
         # GUI image with main(): a console one would start a conhost.exe the job forbids.
         /ENTRY:mainCRTStartup
-        # Not a KnownDLL, which the LPAC primary cannot open: WarmUp() binds it while impersonating.
+        # Not KnownDLLs on every Windows, which the LPAC primary cannot open: WarmUp() binds them while impersonating.
         /DELAYLOAD:bcrypt.dll
+        /DELAYLOAD:bcryptprimitives.dll
         $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
     )
     add_dependencies(Telegram TelegramWidgetHelper)

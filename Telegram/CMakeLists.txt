@@ -89,7 +89,7 @@ else()
     target_link_libraries(Telegram
     PRIVATE
         tdesktop::lib_widget_sandbox
-        tdesktop::lib_nova_engine_private
+        $<TARGET_NAME_IF_EXISTS:tdesktop::lib_nova_engine_private>
     )
 endif()
 

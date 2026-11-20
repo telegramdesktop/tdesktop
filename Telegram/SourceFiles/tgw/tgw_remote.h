@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/platform/base_platform_info.h"
+
 namespace twidget {
 class SandboxHostedChannel;
 class SandboxResources;
@@ -25,7 +27,7 @@ enum class EnginePlace : uchar {
 #ifdef TDESKTOP_WIDGETS_HELPER_ONLY
 	return false;
 #else // TDESKTOP_WIDGETS_HELPER_ONLY
-	return true;
+	return !Platform::IsWindows();
 #endif // TDESKTOP_WIDGETS_HELPER_ONLY
 }
 

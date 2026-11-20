@@ -4,7 +4,7 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# Run by lib_nova_engine.cmake at build time: cargo builds nova_embed_ffi for the Linux host, or for every macOS architecture, which lipo joins.
+# Run by lib_nova_engine.cmake at build time: cargo builds nova_embed_ffi for the Windows target, for the Linux host, or for every macOS architecture, which lipo joins.
 # Cargo runs outside the checkout, so the toolchain is the one the caller chose and not nova-safe's own pin.
 
 set(required NOVA_ROOT NOVA_OUT NOVA_CARGO)
@@ -52,7 +52,9 @@ else()
 endif()
 
 set(environment "NOVA_EMBED_COMMIT=${commit}")
-if (DEFINED NOVA_ARCHS)
+if (DEFINED NOVA_TARGET)
+    list(APPEND environment "RUSTC_BOOTSTRAP=1")
+elseif (DEFINED NOVA_ARCHS)
     list(APPEND environment "MACOSX_DEPLOYMENT_TARGET=${NOVA_DEPLOYMENT}")
 endif()
 if (DEFINED NOVA_RUSTUP_HOME AND DEFINED NOVA_CARGO_HOME)
@@ -75,7 +77,14 @@ function(build)
         --target-dir "${NOVA_OUT}/target")
 endfunction()
 
-if (NOT DEFINED NOVA_ARCHS)
+if (DEFINED NOVA_TARGET)
+    # The prepared toolchain has the host's prebuilt std alone, so std is built from its rust-src, as tdesktop_rust's is.
+    build(--target ${NOVA_TARGET}
+        -Z build-std=std,panic_abort
+        --config "target.${NOVA_TARGET}.rustflags=['-C','target-feature=+crt-static']")
+    publish("${NOVA_OUT}/target/${NOVA_TARGET}/release/nova_embed_ffi.lib" "${NOVA_OUT}/nova_embed_ffi.lib")
+    return()
+elseif (NOT DEFINED NOVA_ARCHS)
     build()
     publish("${NOVA_OUT}/target/release/libnova_embed_ffi.a" "${NOVA_OUT}/libnova_embed_ffi.a")
     return()

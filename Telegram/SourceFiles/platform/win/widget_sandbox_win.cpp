@@ -665,10 +665,14 @@ template <typename Policy>
 		return "the mitigation policy functions are not available";
 	}
 	// No thread can load a DLL after the lowering, so bind and warm them now.
-	const auto bound = __HrLoadAllImportsForDll("bcrypt.dll");
-	if (FAILED(bound)) {
-		return "__HrLoadAllImportsForDll(bcrypt.dll) failed: 0x"
-			+ Hex(DWORD(bound));
+	for (const auto dll : { "bcrypt.dll", "bcryptprimitives.dll" }) {
+		const auto bound = __HrLoadAllImportsForDll(dll);
+		if (FAILED(bound)) {
+			return "__HrLoadAllImportsForDll("
+				+ std::string(dll)
+				+ ") failed: 0x"
+				+ Hex(DWORD(bound));
+		}
 	}
 	const auto &package = ExpectedPackage();
 	if (!package.error.empty()) {
