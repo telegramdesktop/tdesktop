@@ -34,6 +34,7 @@ class VideoQualitySlider;
 struct VideoEditorDescriptor {
 	QString path;
 	QByteArray content;
+	QImage preview;
 	QSize dimensions;
 	crl::time duration = 0;
 	VideoEditorData data;
@@ -105,6 +106,7 @@ private:
 
 	const QString _path;
 	const QByteArray _content;
+	const QImage _preview;
 	const QSize _dimensions;
 	const crl::time _duration = 0;
 	const VideoEditorData _data;

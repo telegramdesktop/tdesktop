@@ -298,6 +298,7 @@ void OpenWithPreparedVideoFile(
 		VideoEditorDescriptor{
 			.path = path,
 			.content = content,
+			.preview = video->thumbnail,
 			.dimensions = dimensions,
 			.duration = video->duration,
 			.data = VideoEditorData{
