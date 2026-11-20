@@ -8,11 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_file_utilities.h"
 #include "iv/editor/iv_editor_page_table_grid.h"
 #include "iv/editor/iv_editor_state.h"
+#include "iv/editor/iv_editor_text_entities.h"
 #include "lang/lang_keys.h"
 #include "ui/style/style_core.h"
 #include "ui/style/style_core_font.h"
 
 #include <QtCore/QFile>
+#include <QtCore/QRegularExpression>
 #include <QtGui/QGuiApplication>
 
 #include <array>
@@ -34,6 +36,9 @@ using namespace Iv::Editor;
 using Iv::RichMessageLimitError;
 using Iv::RichMessageLimits;
 using Iv::RichPage;
+using Iv::Markdown::InlineTextObjectButtonData;
+using Iv::Markdown::InlineTextObjectFormulaData;
+using Iv::Markdown::InlineTextObjectKind;
 using Iv::Markdown::PreparedBlock;
 using Iv::Markdown::PreparedBlockKind;
 using Iv::Markdown::PreparedEditBlockContainerKind;
@@ -46,12 +51,16 @@ using Iv::Markdown::PreparedEditSelectionKind;
 using Iv::Markdown::PreparedEditTableCellRange;
 using Iv::Markdown::PreparedEditTextDropTarget;
 using Iv::Markdown::PrepareTableRenderLimitsForRichMessage;
+using Iv::Markdown::SerializeInlineTextObjectEntity;
 
 using Action = State::BoundaryTarget::Action;
 using Block = RichPage::Block;
 using BlockKind = RichPage::BlockKind;
+using FieldMode = State::FieldMode;
+using Formatting = State::TextFormattingAction;
 using ListKind = RichPage::ListKind;
 using Result = State::ApplyResult;
+using TextSpan = State::TextNodeSpan;
 
 constexpr auto kFlat4AtC = R"(2=text:2"C" ; live P0 P1 P2 P3 nodes=4)";
 constexpr auto kListedAtI1 = R"(2=item:1#1"i1" ; live P0 L1 P2 nodes=5)";
@@ -1238,20 +1247,36 @@ void ExpectRestored(
 }
 
 template <typename Case>
+[[nodiscard]] const char *RowId(const Case &test) {
+	if constexpr (requires(const Case &row) { row.start.id; }) {
+		return test.start.id;
+	} else {
+		return test.id;
+	}
+}
+
+template <typename Case, typename Check>
+[[nodiscard]] Report RunRows(const std::vector<Case> &cases, Check check) {
+	auto report = Report();
+	for (const auto &test : cases) {
+		auto expect = Expect(report.failures, RowId(test));
+		++report.cases;
+		check(expect, test);
+	}
+	return report;
+}
+
+template <typename Case>
 [[nodiscard]] Report RunCases(
 		const std::vector<Case> &cases,
 		void (*check)(Expect &, State &, const Case &)) {
-	auto report = Report();
-	for (const auto &test : cases) {
+	return RunRows(cases, [&](Expect &expect, const Case &test) {
 		const auto &start = test.start;
-		auto expect = Expect(report.failures, start.id);
 		auto state = MakeState(start.fixture);
-		++report.cases;
 		if (Activate(expect, state, start.fixture, start.active)) {
 			check(expect, state, test);
 		}
-	}
-	return report;
+	});
 }
 
 [[nodiscard]] Report RunRemovals(const std::vector<RemovalCase> &cases) {
@@ -2584,6 +2609,793 @@ template <typename Case>
 	return report;
 }
 
+struct ConversionCase {
+	const char *id = nullptr;
+	TextWithEntities input;
+	TextWithTags tags;
+	TextWithEntities back;
+	std::vector<RichTextEditorOffsetReplacement> replacements;
+};
+
+struct FormattingCase {
+	const char *id = nullptr;
+	TextWithEntities text;
+	Formatting action = Formatting::Bold;
+	int from = 0;
+	int till = 0;
+	Result result = Result::Failed;
+	TextWithEntities after;
+};
+
+struct ConflictCase {
+	const char *id = nullptr;
+	ConversionCase conversion;
+	FormattingCase formatting;
+};
+
+[[nodiscard]] QString RangeText(int offset, int length) {
+	return u"@%1+%2"_q.arg(offset).arg(length);
+}
+
+[[nodiscard]] QString TagsText(const TextWithTags &text) {
+	auto result = QuotedText(text.text);
+	for (const auto &tag : text.tags) {
+		result += ' ' + tag.id + RangeText(tag.offset, tag.length);
+	}
+	return result;
+}
+
+[[nodiscard]] QString EntitiesText(const TextWithEntities &text) {
+	auto result = QuotedText(text.text);
+	for (const auto &entity : text.entities) {
+		result += u" T"_q
+			+ QString::number(int(entity.type()))
+			+ RangeText(entity.offset(), entity.length());
+		if (!entity.data().isEmpty()) {
+			result += '=' + entity.data();
+		}
+	}
+	return result;
+}
+
+void ExpectRich(
+		Expect &expect,
+		const char *label,
+		const TextWithEntities &got,
+		const TextWithEntities &expected) {
+	expect.same(
+		label,
+		got == expected,
+		EntitiesText(got),
+		EntitiesText(expected));
+}
+
+[[nodiscard]] QString ReplacementsText(
+		const std::vector<RichTextEditorOffsetReplacement> &replacements) {
+	auto result = QStringList();
+	for (const auto &replacement : replacements) {
+		result.push_back(u"%1+%2>%3"_q
+			.arg(replacement.richOffset)
+			.arg(replacement.richLength)
+			.arg(replacement.editorLength));
+	}
+	return result.join(' ');
+}
+
+[[nodiscard]] std::optional<TextWithTags> WithCounterMarks(
+		TextWithTags text) {
+	static const auto counter = QRegularExpression(
+		QRegularExpression::anchoredPattern(
+			u"custom-emoji://.*\\?([0-9]+)"_q));
+	for (auto &tag : text.tags) {
+		auto parts = tag.id.split(QChar('\\'));
+		for (auto &part : parts) {
+			if (!part.startsWith(u"custom-emoji://"_q)) {
+				continue;
+			}
+			const auto match = counter.match(part);
+			if (!match.hasMatch()) {
+				return std::nullopt;
+			}
+			part.replace(
+				match.capturedStart(1),
+				match.capturedLength(1),
+				QChar('N'));
+		}
+		tag.id = parts.join(QChar('\\'));
+	}
+	return text;
+}
+
+[[nodiscard]] TextWithEntities Rich(
+		QString text,
+		EntitiesInText entities = {}) {
+	auto result = tr::marked(std::move(text));
+	result.entities = std::move(entities);
+	return result;
+}
+
+[[nodiscard]] TextWithTags Tagged(
+		QString text,
+		TextWithTags::Tags tags = {}) {
+	return { std::move(text), std::move(tags) };
+}
+
+[[nodiscard]] RichPage Single(TextWithEntities text) {
+	auto block = Bare(BlockKind::Paragraph);
+	block.text.text = std::move(text);
+	return Page({ std::move(block) });
+}
+
+[[nodiscard]] QString ButtonPayload() {
+	return SerializeInlineTextObjectEntity({
+		.kind = InlineTextObjectKind::Button,
+		.data = InlineTextObjectButtonData{ .label = tr::marked(u"go"_q) },
+	});
+}
+
+[[nodiscard]] QString FormulaPayload() {
+	return SerializeInlineTextObjectEntity({
+		.kind = InlineTextObjectKind::Formula,
+		.data = InlineTextObjectFormulaData{
+			.copySource = u"$x^2$"_q,
+			.trimmedTex = u"x^2"_q,
+		},
+	});
+}
+
+void CheckConversion(Expect &expect, const ConversionCase &test) {
+	const auto converted = ConvertRichTextToEditorTags(test.input);
+	const auto tags = WithCounterMarks(converted.text);
+	expect.same(
+		"tags",
+		tags && (*tags == test.tags),
+		tags
+			? TagsText(*tags)
+			: (TagsText(converted.text) + u" (no decimal counter)"_q),
+		TagsText(test.tags));
+	expect.text(
+		"replacements",
+		ReplacementsText(converted.replacements),
+		ReplacementsText(test.replacements));
+	ExpectRich(
+		expect,
+		"back",
+		ConvertEditorTagsToRichText(converted.text),
+		test.back);
+}
+
+void CheckFormatting(Expect &expect, const FormattingCase &test) {
+	auto state = State(
+		std::make_shared<RichPage>(Single(test.text)),
+		nullptr);
+	const auto span = State::TextNodeSpan{
+		.leaf = { .kind = LeafKind::BlockText, .block = { .index = 0 } },
+		.from = test.from,
+		.till = test.till,
+	};
+	const auto result = state.applyFormattingToTextSpans(
+		{ span },
+		test.action,
+		true);
+	expect.text("result", ResultText(result), ResultText(test.result));
+	const auto &blocks = state.richPage().blocks;
+	const auto text = blocks.empty()
+		? TextWithEntities()
+		: blocks.front().text.text;
+	ExpectRich(expect, "text", text, test.after);
+	expect.page("page", state.richPage(), Single(test.after));
+}
+
+void CheckConflict(Expect &expect, const ConflictCase &test) {
+	CheckConversion(expect, test.conversion);
+	CheckFormatting(expect, test.formatting);
+}
+
+[[nodiscard]] Report TagsConvert() {
+	using Type = EntityType;
+	const auto bold = u"**"_q;
+	const auto sup = u"iv-superscript"_q;
+	const auto boldSup = u"**\\iv-superscript"_q;
+	const auto url = u"https://example.com"_q;
+	const auto urlSup = u"https://example.com\\iv-superscript"_q;
+	const auto button = ButtonPayload();
+	const auto boldButton = u"**\\custom-emoji://"_q + button + u"?N"_q;
+	const auto emoji = u"a\U0001F600b"_q;
+	const auto trailing = u"a\uFFFC"_q;
+	const auto inside = u"a\uFFFCb"_q;
+	const auto rows = std::vector<ConversionCase>{
+		{
+			.id = "C01",
+			.input = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 2 },
+				{ Type::Superscript, 3, 2 },
+			}),
+			.tags = Tagged(u"abcdef"_q, { { 0, 2, bold }, { 3, 2, sup } }),
+			.back = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 2 },
+				{ Type::Superscript, 3, 2 },
+			}),
+		},
+		{
+			.id = "C02",
+			.input = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 4 },
+				{ Type::Superscript, 2, 4 },
+			}),
+			.tags = Tagged(u"abcdef"_q, {
+				{ 0, 2, bold },
+				{ 2, 2, boldSup },
+				{ 4, 2, sup },
+			}),
+			.back = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 4 },
+				{ Type::Superscript, 2, 2 },
+				{ Type::Superscript, 4, 2 },
+			}),
+		},
+		{
+			.id = "C03",
+			.input = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 6 },
+				{ Type::Superscript, 2, 2 },
+			}),
+			.tags = Tagged(u"abcdef"_q, {
+				{ 0, 2, bold },
+				{ 2, 2, boldSup },
+				{ 4, 2, bold },
+			}),
+			.back = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 6 },
+				{ Type::Superscript, 2, 2 },
+			}),
+		},
+		{
+			.id = "C04",
+			.input = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 3 },
+				{ Type::Superscript, 3, 3 },
+			}),
+			.tags = Tagged(u"abcdef"_q, { { 0, 3, bold }, { 3, 3, sup } }),
+			.back = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 3 },
+				{ Type::Superscript, 3, 3 },
+			}),
+		},
+		{
+			.id = "C05",
+			.input = Rich(u"abc"_q, {
+				{ Type::Bold, 0, 1 },
+				{ Type::Superscript, 2, 3 },
+			}),
+			.tags = Tagged(u"abc"_q, { { 0, 1, bold }, { 2, 3, sup } }),
+			.back = Rich(u"abc"_q, { { Type::Bold, 0, 1 } }),
+		},
+		{
+			.id = "C06",
+			.input = Rich(u"abc"_q, {
+				{ Type::Bold, 1, 0 },
+				{ Type::Superscript, 2, 0 },
+			}),
+			.tags = Tagged(u"abc"_q),
+			.back = Rich(u"abc"_q),
+		},
+		{
+			.id = "C07",
+			.input = Rich(QString()),
+			.tags = Tagged(QString()),
+			.back = Rich(QString()),
+		},
+		{
+			.id = "C08",
+			.input = Rich(emoji, {
+				{ Type::Bold, 1, 2 },
+				{ Type::Superscript, 1, 3 },
+			}),
+			.tags = Tagged(emoji, { { 1, 2, boldSup }, { 3, 1, sup } }),
+			.back = Rich(emoji, {
+				{ Type::Bold, 1, 2 },
+				{ Type::Superscript, 1, 2 },
+				{ Type::Superscript, 3, 1 },
+			}),
+		},
+		{
+			.id = "C09",
+			.input = Rich(emoji, { { Type::Superscript, 2, 2 } }),
+			.tags = Tagged(emoji, { { 2, 2, sup } }),
+			.back = Rich(emoji, { { Type::Superscript, 2, 2 } }),
+		},
+		{
+			.id = "C10",
+			.input = Rich(u"abcdef"_q, {
+				{ Type::CustomUrl, 0, 4, url },
+				{ Type::Superscript, 2, 4 },
+			}),
+			.tags = Tagged(u"abcdef"_q, {
+				{ 0, 2, url },
+				{ 2, 2, urlSup },
+				{ 4, 2, sup },
+			}),
+			.back = Rich(u"abcdef"_q, {
+				{ Type::CustomUrl, 0, 4, url },
+				{ Type::Superscript, 2, 2 },
+				{ Type::Superscript, 4, 2 },
+			}),
+		},
+		{
+			.id = "C11",
+			.input = Rich(trailing, {
+				{ Type::Bold, 0, 2 },
+				{ Type::CustomEmoji, 1, 1, button },
+			}),
+			.tags = Tagged(trailing, { { 0, 1, bold }, { 1, 1, boldButton } }),
+			.back = Rich(trailing, {
+				{ Type::Bold, 0, 2 },
+				{ Type::CustomEmoji, 1, 1, button },
+			}),
+		},
+		{
+			.id = "C12",
+			.input = Rich(inside, {
+				{ Type::Bold, 0, 3 },
+				{ Type::CustomEmoji, 1, 1, button },
+			}),
+			.tags = Tagged(inside, {
+				{ 0, 1, bold },
+				{ 1, 1, boldButton },
+				{ 2, 1, bold },
+			}),
+			.back = Rich(inside, {
+				{ Type::Bold, 0, 3 },
+				{ Type::CustomEmoji, 1, 1, button },
+			}),
+		},
+		{
+			.id = "C13",
+			.input = Rich(u"abc"_q, { { Type::Superscript, -1, 2 } }),
+			.tags = Tagged(u"abc"_q, { { 0, 2, sup } }),
+			.back = Rich(u"abc"_q, { { Type::Superscript, 0, 2 } }),
+		},
+	};
+	return RunRows(rows, CheckConversion);
+}
+
+[[nodiscard]] Report TagsState() {
+	using Type = EntityType;
+	const auto url = u"https://example.com"_q;
+	const auto emoji = u"a\U0001F600b"_q;
+	const auto rows = std::vector<FormattingCase>{
+		{
+			.id = "S01",
+			.text = Rich(u"abcdef"_q, { { Type::Bold, 0, 2 } }),
+			.from = 2,
+			.till = 4,
+			.result = Result::Changed,
+			.after = Rich(u"abcdef"_q, {
+				{ Type::Bold, 0, 2 },
+				{ Type::Bold, 2, 2 },
+			}),
+		},
+		{
+			.id = "S02",
+			.text = Rich(u"abcdef"_q, { { Type::Italic, 0, 1 } }),
+			.from = 3,
+			.till = 5,
+			.result = Result::Changed,
+			.after = Rich(u"abcdef"_q, {
+				{ Type::Italic, 0, 1 },
+				{ Type::Bold, 3, 2 },
+			}),
+		},
+		{
+			.id = "S03",
+			.text = Rich(u"abcdef"_q, { { Type::CustomUrl, 0, 4, url } }),
+			.from = 2,
+			.till = 6,
+			.result = Result::Changed,
+			.after = Rich(u"abcdef"_q, {
+				{ Type::CustomUrl, 0, 2, url },
+				{ Type::CustomUrl, 2, 2, url },
+				{ Type::Bold, 2, 2 },
+				{ Type::Bold, 4, 2 },
+			}),
+		},
+		{
+			.id = "S04",
+			.text = Rich(u"abcdef"_q, { { Type::Superscript, 0, 6 } }),
+			.action = Formatting::Subscript,
+			.from = 2,
+			.till = 4,
+			.result = Result::Changed,
+			.after = Rich(u"abcdef"_q, {
+				{ Type::Superscript, 0, 2 },
+				{ Type::Subscript, 2, 2 },
+				{ Type::Superscript, 4, 2 },
+			}),
+		},
+		{
+			.id = "S05",
+			.text = Rich(u"abc"_q),
+			.from = 2,
+			.till = 10,
+			.result = Result::Changed,
+			.after = Rich(u"abc"_q, { { Type::Bold, 2, 1 } }),
+		},
+		{
+			.id = "S06",
+			.text = Rich(u"abc"_q),
+			.from = 1,
+			.till = 1,
+			.result = Result::Unchanged,
+			.after = Rich(u"abc"_q),
+		},
+		{
+			.id = "S07",
+			.text = Rich(QString()),
+			.till = 1,
+			.result = Result::Unchanged,
+			.after = Rich(QString()),
+		},
+		{
+			.id = "S08",
+			.text = Rich(emoji),
+			.from = 1,
+			.till = 3,
+			.result = Result::Changed,
+			.after = Rich(emoji, { { Type::Bold, 1, 2 } }),
+		},
+		{
+			.id = "S09",
+			.text = Rich(emoji),
+			.till = 2,
+			.result = Result::Changed,
+			.after = Rich(emoji, { { Type::Bold, 0, 2 } }),
+		},
+	};
+	return RunRows(rows, CheckFormatting);
+}
+
+[[nodiscard]] Report TagsConflicts() {
+	using Type = EntityType;
+	const auto bold = u"**"_q;
+	const auto formula = FormulaPayload();
+	const auto object = u"a\uFFFCb"_q;
+	const auto source = u"a$x^2$b"_q;
+	const auto rows = std::vector<ConflictCase>{
+		{
+			.id = "P01",
+			.conversion = {
+				.input = Rich(u"abcdef"_q, {
+					{ Type::Subscript, 0, 4 },
+					{ Type::Superscript, 2, 4 },
+				}),
+				.tags = Tagged(u"abcdef"_q, {
+					{ 0, 2, u"iv-subscript"_q },
+					{ 2, 2, u"iv-subscript\\iv-superscript"_q },
+					{ 4, 2, u"iv-superscript"_q },
+				}),
+				.back = Rich(u"abcdef"_q, {
+					{ Type::Subscript, 0, 2 },
+					{ Type::Subscript, 2, 2 },
+					{ Type::Superscript, 2, 2 },
+					{ Type::Superscript, 4, 2 },
+				}),
+			},
+			.formatting = {
+				.text = Rich(u"abcdef"_q, { { Type::Subscript, 0, 4 } }),
+				.action = Formatting::Superscript,
+				.from = 2,
+				.till = 6,
+				.result = Result::Changed,
+				.after = Rich(u"abcdef"_q, {
+					{ Type::Subscript, 0, 2 },
+					{ Type::Superscript, 2, 4 },
+				}),
+			},
+		},
+		{
+			.id = "P02",
+			.conversion = {
+				.input = Rich(object, {
+					{ Type::Bold, 0, 3 },
+					{ Type::CustomEmoji, 1, 1, formula },
+				}),
+				.tags = Tagged(source, {
+					{ 0, 1, bold },
+					{ 1, 5, u"iv-math"_q },
+					{ 6, 1, bold },
+				}),
+				.back = Rich(object, {
+					{ Type::Bold, 0, 1 },
+					{ Type::CustomEmoji, 1, 1, formula },
+					{ Type::Bold, 2, 1 },
+				}),
+				.replacements = {
+					{ .richOffset = 1, .richLength = 1, .editorLength = 5 },
+				},
+			},
+			.formatting = {
+				.text = Rich(object, { { Type::CustomEmoji, 1, 1, formula } }),
+				.till = 3,
+				.result = Result::Changed,
+				.after = Rich(source, { { Type::Bold, 0, 7 } }),
+			},
+		},
+	};
+	return RunRows(rows, CheckConflict);
+}
+
+constexpr auto kMath = Fixture{
+	.name = "math",
+	.page = [] {
+		auto math = Bare(BlockKind::Math);
+		math.formula = u"x^2"_q;
+		return Framed(std::move(math));
+	},
+};
+
+struct LeafStart {
+	Fixture fixture;
+	int active = 0;
+	const char *leaf = nullptr;
+	const char *text = nullptr;
+};
+
+struct LookupCase {
+	const char *id = nullptr;
+	LeafStart start;
+	FieldMode mode = FieldMode::Rich;
+	TextWithEntities edit;
+	RichPage page;
+};
+
+struct StaleCase {
+	const char *id = nullptr;
+	LeafStart start;
+	void (*shorten)(RichPage &) = nullptr;
+	std::vector<TextSpan> spans;
+	Result result = Result::Unchanged;
+	RichPage page;
+};
+
+[[nodiscard]] QString ModeText(FieldMode mode) {
+	return (mode == FieldMode::Raw) ? u"raw"_q : u"rich"_q;
+}
+
+[[nodiscard]] QString SpansText(const std::vector<TextSpan> &spans) {
+	auto result = QStringList();
+	for (const auto &span : spans) {
+		result.push_back(LeafText(span.leaf)
+			+ u"[%1,%2)"_q.arg(span.from).arg(span.till));
+	}
+	return result.join(' ');
+}
+
+[[nodiscard]] TextSpan FirstUnit(LeafPath leaf) {
+	return { .leaf = std::move(leaf), .till = 1 };
+}
+
+[[nodiscard]] std::optional<LeafPath> ReadActiveLeaf(
+		Expect &expect,
+		State &state,
+		const LeafStart &start) {
+	if (!Activate(expect, state, start.fixture, start.active)) {
+		return std::nullopt;
+	}
+	const auto path = state.activeLeafPath();
+	const auto text = Latin(start.text);
+	expect.text("leaf", OptionalLeafText(path), Latin(start.leaf));
+	ExpectRich(expect, "read", state.activeText(), Rich(text));
+	expect.text("raw read", state.activeRawText(), text);
+	return path;
+}
+
+void CheckLookup(Expect &expect, const LookupCase &test) {
+	const auto &start = test.start;
+	auto state = MakeState(start.fixture);
+	const auto leaf = ReadActiveLeaf(expect, state, start);
+	if (!leaf) {
+		return;
+	}
+	expect.text(
+		"mode",
+		ModeText(state.activeFieldMode()),
+		ModeText(test.mode));
+	if (test.mode == FieldMode::Raw) {
+		const auto whole = int(Latin(start.text).size());
+		const auto formatted = state.applyFormattingToTextSpans(
+			{ TextSpan{ .leaf = *leaf, .till = whole } },
+			Formatting::Bold,
+			true);
+		expect.text(
+			"format result",
+			ResultText(formatted),
+			ResultText(Result::Unchanged));
+		expect.page("format page", state.richPage(), start.fixture.page());
+	}
+	const auto result = state.applyActiveText(test.edit);
+	expect.text("result", ResultText(result), ResultText(Result::Changed));
+	ExpectRich(expect, "fresh read", state.activeText(), test.edit);
+	expect.text("fresh raw read", state.activeRawText(), test.edit.text);
+	expect.page("page", state.richPage(), test.page);
+}
+
+void CheckSpans(Expect &expect, const StaleCase &test) {
+	const auto &fixture = test.start.fixture;
+	const auto page = std::make_shared<RichPage>(fixture.page());
+	auto state = State(page, nullptr, fixture.limits);
+	auto spans = test.spans;
+	if (test.shorten) {
+		const auto leaf = ReadActiveLeaf(expect, state, test.start);
+		if (!leaf) {
+			return;
+		}
+		test.shorten(*page);
+		ExpectRich(expect, "stale read", state.activeText(), {});
+		expect.text("stale raw read", state.activeRawText(), QString());
+		state.resyncAfterExternalRichPageMutation();
+		spans.insert(spans.begin(), FirstUnit(*leaf));
+	}
+	const auto result = state.applyFormattingToTextSpans(
+		spans,
+		Formatting::Bold,
+		true);
+	expect.text("result", ResultText(result), ResultText(test.result));
+	expect.page("page", state.richPage(), test.page);
+}
+
+[[nodiscard]] Report LeafLookup() {
+	using Type = EntityType;
+	const auto edit = Rich(u"edit"_q, { { Type::Bold, 0, 4 } });
+	auto text = kFlat4.page();
+	text.blocks[1].text.text = edit;
+	auto caption = kQuoted.page();
+	caption.blocks[1].caption.text = edit;
+	auto item = kListed.page();
+	item.blocks[1].listItems[1].text.text = edit;
+	auto cell = kTabled.page();
+	cell.blocks[1].tableRows[0].cells[1].text.text = edit;
+	auto formula = kMath.page();
+	formula.blocks[1].formula = u"y^2"_q;
+	const auto rows = std::vector<LookupCase>{
+		{
+			.id = "R01",
+			.start = { kFlat4, 1, "text:1", "B" },
+			.edit = edit,
+			.page = text,
+		},
+		{
+			.id = "R02",
+			.start = { kQuoted, 4, "caption:1", "cap" },
+			.edit = edit,
+			.page = caption,
+		},
+		{
+			.id = "R03",
+			.start = { kListed, 2, "item:1#1", "i1" },
+			.edit = edit,
+			.page = item,
+		},
+		{
+			.id = "R04",
+			.start = { kTabled, 3, "cell:1#0,1", "r0c1" },
+			.edit = edit,
+			.page = cell,
+		},
+		{
+			.id = "R05",
+			.start = { kMath, 1, "math:1", "x^2" },
+			.mode = FieldMode::Raw,
+			.edit = Rich(u"y^2"_q),
+			.page = formula,
+		},
+	};
+	auto report = RunRows(rows, CheckLookup);
+	auto expect = Expect(report.failures, "R06");
+	++report.cases;
+	const auto state = MakeState(kQuoted);
+	const auto source = state.preparedLeafSourceForOrdinal(3);
+	expect.same("source", source.has_value(), u"none"_q, u"ordinal 3"_q);
+	if (source) {
+		const auto spans = state.resolveTextSpansForPreparedLeafRange(
+			*source,
+			1,
+			4);
+		expect.text(
+			"spans",
+			SpansText(spans),
+			u"text:1/2[1,2) caption:1[0,2)"_q);
+	}
+	return report;
+}
+
+[[nodiscard]] Report LeafInvalid() {
+	using Type = EntityType;
+	const auto dropLastBlock = [](RichPage &page) {
+		page.blocks.pop_back();
+	};
+	auto bolded = Flat({ u"A"_q, u"B"_q, u"C"_q });
+	bolded.blocks[0].text.text = Rich(u"A"_q, { { Type::Bold, 0, 1 } });
+	const auto rows = std::vector<StaleCase>{
+		{
+			.id = "V01",
+			.start = { kFlat4, 3, "text:3", "D" },
+			.shorten = dropLastBlock,
+			.page = Flat({ u"A"_q, u"B"_q, u"C"_q }),
+		},
+		{
+			.id = "V02",
+			.start = { kListed, 3, "item:1#2", "i2" },
+			.shorten = [](RichPage &page) {
+				page.blocks[1].listItems.pop_back();
+			},
+			.page = Framed(List({ u"i0"_q, u"i1"_q })),
+		},
+		{
+			.id = "V03",
+			.start = { kTabled, 6, "cell:1#2,0", "r2c0" },
+			.shorten = [](RichPage &page) {
+				page.blocks[1].tableRows.pop_back();
+			},
+			.page = Framed(u"T"_q, Grid({ 0, 1 }, { 0, 1 })),
+		},
+		{
+			.id = "V04",
+			.start = { kTabled, 3, "cell:1#0,1", "r0c1" },
+			.shorten = [](RichPage &page) {
+				for (auto &row : page.blocks[1].tableRows) {
+					row.cells.pop_back();
+				}
+			},
+			.page = Framed(u"T"_q, Grid({ 0, 1, 2 }, { 0 })),
+		},
+		{
+			.id = "V05",
+			.start = { kFlat4, 3, "text:3", "D" },
+			.shorten = dropLastBlock,
+			.spans = { FirstUnit({
+				.kind = LeafKind::BlockText,
+				.block = { .index = 0 },
+			}) },
+			.result = Result::Changed,
+			.page = bolded,
+		},
+		{
+			.id = "V06",
+			.start = { kListed },
+			.spans = { FirstUnit({
+				.kind = LeafKind::ListItemText,
+				.block = { .index = 1 },
+				.listItemIndex = -1,
+			}) },
+			.page = kListed.page(),
+		},
+		{
+			.id = "V07",
+			.start = { kTabled },
+			.spans = { FirstUnit({
+				.kind = LeafKind::TableCellText,
+				.block = { .index = 1 },
+				.tableRowIndex = -1,
+				.tableCellIndex = 0,
+			}) },
+			.page = kTabled.page(),
+		},
+		{
+			.id = "V08",
+			.start = { kTabled },
+			.spans = { FirstUnit({
+				.kind = LeafKind::TableCellText,
+				.block = { .index = 1 },
+				.tableRowIndex = 0,
+				.tableCellIndex = -1,
+			}) },
+			.page = kTabled.page(),
+		},
+	};
+	return RunRows(rows, CheckSpans);
+}
+
 [[nodiscard]] int RunChecks() {
 	const auto checks = std::vector<Check>{
 		{ "setup.fixtures", SetupFixtures },
@@ -2633,6 +3445,11 @@ template <typename Case>
 			DropRejectedKeepsTemporaryParagraph,
 		},
 		{ "snapshot.restore-after-drop", SnapshotRestoreAfterDrop },
+		{ "tags.convert", TagsConvert },
+		{ "tags.state", TagsState },
+		{ "tags.conflicts", TagsConflicts },
+		{ "leaf.lookup", LeafLookup },
+		{ "leaf.invalid", LeafInvalid },
 	};
 	const auto total = int(checks.size());
 	auto passed = 0;
@@ -2657,15 +3474,23 @@ template <typename Case>
 }
 
 [[nodiscard]] bool HasUiResources() {
-	const auto path = base::Platform::BundledResourcesPath()
-		+ u"/lib_ui.rcc"_q;
-	if (QFile::exists(path)) {
-		return true;
+#ifdef Q_OS_MACOS
+	const auto folder = base::Platform::BundledResourcesPath();
+	const auto names = std::array{
+		u"/lib_ui.rcc"_q,
+		u"/external_microtex_bundled.rcc"_q,
+	};
+	for (const auto &name : names) {
+		const auto path = folder + name;
+		if (!QFile::exists(path)) {
+			std::printf(
+				"FAIL setup.resources: missing %s\n",
+				path.toUtf8().constData());
+			return false;
+		}
 	}
-	std::printf(
-		"FAIL setup.resources: missing %s\n",
-		path.toUtf8().constData());
-	return false;
+#endif // Q_OS_MACOS
+	return true;
 }
 
 } // namespace
