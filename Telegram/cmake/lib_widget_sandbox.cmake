@@ -15,19 +15,6 @@
 # On Windows IcuIntl (src/icu_intl.cpp) is built too, linking icu; Telegram delay-loads icu.dll.
 # There is no packaged branch: no distribution ships this library.
 
-add_library(lib_widget_sandbox_host STATIC)
-add_library(lib_widget_sandbox STATIC)
-if (APPLE)
-    init_standalone_target(lib_widget_sandbox_host "(external)")
-    init_standalone_target(lib_widget_sandbox "(external)")
-else()
-    init_target(lib_widget_sandbox_host "(external)")
-    init_target(lib_widget_sandbox "(external)")
-endif()
-
-add_library(tdesktop::lib_widget_sandbox_host ALIAS lib_widget_sandbox_host)
-add_library(tdesktop::lib_widget_sandbox ALIAS lib_widget_sandbox)
-
 set(widget_sandbox_loc ${third_party_loc}/widget-sandbox/packages/desktop/sandbox)
 
 if (NOT EXISTS ${widget_sandbox_loc}/src/sandbox_engine.cpp)
@@ -45,34 +32,78 @@ if (MSVC)
     )
 endif()
 
-nice_target_sources(lib_widget_sandbox_host ${widget_sandbox_loc}
-PRIVATE
-    include/twidget/gesture_policy.h
-    include/twidget/intl.h
-    include/twidget/js_thread.h
-    include/twidget/json.h
-    include/twidget/remote_stream.h
-    include/twidget/renderer.h
-    include/twidget/resources.h
-    include/twidget/sandbox_engine.h
-    include/twidget/sdk_policy.h
-    include/twidget/version.h
-    include/twidget/widget_host.h
-    src/gesture_policy.cpp
-    src/intl.cpp
-    src/js_thread.cpp
-    src/remote_coding.cpp
-    src/remote_internal.h
-    src/remote_stream.cpp
-    src/remote_wire.h
-    src/resources.cpp
-    src/sandbox_engine_client.cpp
-    src/sandbox_engine_shared.cpp
-    src/sdk_policy.cpp
-    src/steady_clock.h
-    src/widget_host.cpp
-    src/widget_host_internal.h
-)
+function(add_widget_sandbox_host target_name)
+    add_library(${target_name} STATIC)
+    if (APPLE)
+        init_standalone_target(${target_name} "(external)")
+    else()
+        init_target(${target_name} "(external)")
+    endif()
+
+    add_library(tdesktop::${target_name} ALIAS ${target_name})
+
+    nice_target_sources(${target_name} ${widget_sandbox_loc}
+    PRIVATE
+        include/twidget/gesture_policy.h
+        include/twidget/intl.h
+        include/twidget/js_thread.h
+        include/twidget/json.h
+        include/twidget/remote_stream.h
+        include/twidget/renderer.h
+        include/twidget/resources.h
+        include/twidget/sandbox_engine.h
+        include/twidget/sdk_policy.h
+        include/twidget/version.h
+        include/twidget/widget_host.h
+        src/gesture_policy.cpp
+        src/intl.cpp
+        src/js_thread.cpp
+        src/remote_coding.cpp
+        src/remote_internal.h
+        src/remote_stream.cpp
+        src/remote_wire.h
+        src/resources.cpp
+        src/sandbox_engine_client.cpp
+        src/sandbox_engine_shared.cpp
+        src/sdk_policy.cpp
+        src/steady_clock.h
+        src/widget_host.cpp
+        src/widget_host_internal.h
+    )
+
+    target_include_directories(${target_name}
+    PUBLIC
+        ${widget_sandbox_loc}/include
+    )
+
+    if (WIN32)
+        nice_target_sources(${target_name} ${widget_sandbox_loc}
+        PRIVATE
+            include/twidget/icu_intl.h
+            src/icu_intl.cpp
+        )
+        target_link_libraries(${target_name} PUBLIC bcrypt icu)
+    endif()
+endfunction()
+
+add_widget_sandbox_host(lib_widget_sandbox_host)
+set(widget_sandbox_targets lib_widget_sandbox_host lib_widget_sandbox)
+if (MSVC)
+    add_widget_sandbox_host(lib_widget_sandbox_host_hardened)
+    list(APPEND widget_sandbox_targets lib_widget_sandbox_host_hardened)
+    set(widget_helper_sandbox_host lib_widget_sandbox_host_hardened)
+else()
+    set(widget_helper_sandbox_host lib_widget_sandbox_host)
+endif()
+
+add_library(lib_widget_sandbox STATIC)
+if (APPLE)
+    init_standalone_target(lib_widget_sandbox "(external)")
+else()
+    init_target(lib_widget_sandbox "(external)")
+endif()
+
+add_library(tdesktop::lib_widget_sandbox ALIAS lib_widget_sandbox)
 
 nice_target_sources(lib_widget_sandbox ${widget_sandbox_loc}
 PRIVATE
@@ -93,14 +124,9 @@ PRIVATE
     src/widget_host_local.cpp
 )
 
-target_include_directories(lib_widget_sandbox_host
-PUBLIC
-    ${widget_sandbox_loc}/include
-)
-
 target_link_libraries(lib_widget_sandbox
 PUBLIC
-    lib_widget_sandbox_host
+    ${widget_helper_sandbox_host}
 )
 
 # Not SYSTEM, so that an engine update rebuilds the object compiled against nova_engine.h.
@@ -109,16 +135,7 @@ PRIVATE
     ${nova_loc}/nova_embed_ffi/include
 )
 
-if (WIN32)
-    nice_target_sources(lib_widget_sandbox_host ${widget_sandbox_loc}
-    PRIVATE
-        include/twidget/icu_intl.h
-        src/icu_intl.cpp
-    )
-    target_link_libraries(lib_widget_sandbox_host PUBLIC bcrypt icu)
-endif()
-
-foreach (target lib_widget_sandbox_host lib_widget_sandbox)
+foreach (target ${widget_sandbox_targets})
     if (MSVC)
         target_link_libraries(${target} PRIVATE lib_widget_sandbox_warnings_off)
     else()

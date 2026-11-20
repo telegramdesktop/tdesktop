@@ -23,19 +23,6 @@
 # Consumers include its headers as "core/src/<name>.h".
 # There is no packaged branch: no distribution ships these libraries.
 
-add_library(lib_widget_renderer_platform STATIC)
-add_library(lib_widget_renderer STATIC)
-if (APPLE)
-    init_standalone_target(lib_widget_renderer_platform "(external)")
-    init_standalone_target(lib_widget_renderer "(external)")
-else()
-    init_target(lib_widget_renderer_platform "(external)")
-    init_target(lib_widget_renderer "(external)")
-endif()
-
-add_library(tdesktop::lib_widget_renderer_platform ALIAS lib_widget_renderer_platform)
-add_library(tdesktop::lib_widget_renderer ALIAS lib_widget_renderer)
-
 set(widget_sandbox_root ${third_party_loc}/widget-sandbox)
 set(widget_renderer_root ${third_party_loc}/twidget)
 set(widget_renderer_loc ${widget_renderer_root}/core/src)
@@ -72,22 +59,65 @@ if (MSVC)
     )
 endif()
 
-nice_target_sources(lib_widget_renderer_platform ${widget_renderer_loc}
-PRIVATE
-    backend.h
-    canvas_ops.h
-    display_list.h
-    filters.cpp
-    filters.h
-    platform_end.cpp
-    platform_end.h
-    png.cpp
-    png.h
-    remote.cpp
-    remote.h
-    wire.cpp
-    wire.h
-)
+function(add_widget_renderer_platform target_name host_target)
+    add_library(${target_name} STATIC)
+    if (APPLE)
+        init_standalone_target(${target_name} "(external)")
+    else()
+        init_target(${target_name} "(external)")
+    endif()
+
+    add_library(tdesktop::${target_name} ALIAS ${target_name})
+
+    nice_target_sources(${target_name} ${widget_renderer_loc}
+    PRIVATE
+        backend.h
+        canvas_ops.h
+        display_list.h
+        filters.cpp
+        filters.h
+        platform_end.cpp
+        platform_end.h
+        png.cpp
+        png.h
+        remote.cpp
+        remote.h
+        wire.cpp
+        wire.h
+    )
+
+    target_include_directories(${target_name}
+    PUBLIC
+        ${widget_renderer_root}
+        ${widget_sandbox_root}/packages/desktop/sandbox/include
+    PRIVATE
+        ${widget_renderer_loc}
+    )
+
+    target_link_libraries(${target_name}
+    PUBLIC
+        ${host_target}
+    )
+endfunction()
+
+add_widget_renderer_platform(lib_widget_renderer_platform tdesktop::lib_widget_sandbox_host)
+set(widget_renderer_targets lib_widget_renderer_platform lib_widget_renderer)
+if (MSVC)
+    add_widget_renderer_platform(lib_widget_renderer_platform_hardened tdesktop::lib_widget_sandbox_host_hardened)
+    list(APPEND widget_renderer_targets lib_widget_renderer_platform_hardened)
+    set(widget_helper_renderer_platform lib_widget_renderer_platform_hardened)
+else()
+    set(widget_helper_renderer_platform lib_widget_renderer_platform)
+endif()
+
+add_library(lib_widget_renderer STATIC)
+if (APPLE)
+    init_standalone_target(lib_widget_renderer "(external)")
+else()
+    init_target(lib_widget_renderer "(external)")
+endif()
+
+add_library(tdesktop::lib_widget_renderer ALIAS lib_widget_renderer)
 
 nice_target_sources(lib_widget_renderer ${widget_renderer_loc}
 PRIVATE
@@ -112,19 +142,6 @@ PRIVATE
     text_widths.h
 )
 
-target_include_directories(lib_widget_renderer_platform
-PUBLIC
-    ${widget_renderer_root}
-    ${widget_sandbox_root}/packages/desktop/sandbox/include
-PRIVATE
-    ${widget_renderer_loc}
-)
-
-target_link_libraries(lib_widget_renderer_platform
-PUBLIC
-    tdesktop::lib_widget_sandbox_host
-)
-
 target_include_directories(lib_widget_renderer
 PRIVATE
     ${widget_renderer_gen}
@@ -138,11 +155,11 @@ PUBLIC
 
 target_link_libraries(lib_widget_renderer
 PUBLIC
-    lib_widget_renderer_platform
+    ${widget_helper_renderer_platform}
     tdesktop::lib_litehtml
 )
 
-foreach (target lib_widget_renderer_platform lib_widget_renderer)
+foreach (target ${widget_renderer_targets})
     if (MSVC)
         target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
         target_link_libraries(${target} PRIVATE lib_widget_renderer_warnings_off)

@@ -104,6 +104,27 @@ if (WIN32)
         /DELAYLOAD:bcryptprimitives.dll
         $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
     )
+    if (MSVC)
+        foreach (target
+            TelegramWidgetHelper
+            lib_widget_sandbox
+            lib_widget_renderer
+            lib_litehtml
+            lib_widget_sandbox_host_hardened
+            lib_widget_renderer_platform_hardened)
+            target_compile_definitions(${target}
+            PRIVATE
+                _MSVC_STL_HARDENING=1
+                _MSVC_STL_DESTRUCTOR_TOMBSTONES=1
+            )
+            target_compile_options(${target} PRIVATE /guard:cf)
+        endforeach()
+        target_link_options(TelegramWidgetHelper PRIVATE /GUARD:CF)
+        # The ARM64 linker refuses /CETCOMPAT with LNK1246.
+        if (CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "^(X86|x64)$")
+            target_link_options(TelegramWidgetHelper PRIVATE /CETCOMPAT)
+        endif()
+    endif()
     add_dependencies(Telegram TelegramWidgetHelper)
 
     generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode)
