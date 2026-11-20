@@ -63,6 +63,8 @@ struct GifsListDescriptor {
 	std::shared_ptr<Show> show;
 	Fn<bool()> paused;
 	const style::EmojiPan *st = nullptr;
+	PeerData *inlineQueryPeer = nullptr;
+	bool chooseBeforeLoad = false;
 };
 
 class GifsListWidget final
@@ -177,6 +179,7 @@ private:
 		bool needsCaption = false);
 
 	const std::shared_ptr<Show> _show;
+	const bool _chooseBeforeLoad;
 	std::unique_ptr<Ui::TabbedSearch> _search;
 
 	MTP::Sender _api;

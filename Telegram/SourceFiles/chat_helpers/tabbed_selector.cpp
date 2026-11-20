@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h" // AllowEmojiWithoutPremium.
@@ -395,6 +396,11 @@ TabbedSelector::TabbedSelector(
 		tabs.push_back(createTab(SelectorTab::Emoji, 0));
 		tabs.push_back(createTab(SelectorTab::Stickers, 1));
 		tabs.push_back(createTab(SelectorTab::Gifs, 2));
+	} else if (_mode == Mode::StoriesEditor) {
+		tabs.reserve(3);
+		tabs.push_back(createTab(SelectorTab::Stickers, 0));
+		tabs.push_back(createTab(SelectorTab::Emoji, 1));
+		tabs.push_back(createTab(SelectorTab::Gifs, 2));
 	} else if (mediaEditor()) {
 		tabs.reserve(2);
 		tabs.push_back(createTab(SelectorTab::Stickers, 0));
@@ -419,6 +425,7 @@ TabbedSelector::TabbedSelector(
 , _currentTabType(full()
 	? session().settings().selectorTab()
 	: (mediaEditor()
+		|| _mode == Mode::StoriesEditor
 		|| _mode == Mode::StickersOnly
 		|| _mode == Mode::StickersAndGifs
 		|| _mode == Mode::ChatIntro)
@@ -680,10 +687,13 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 		}
 		case SelectorTab::Gifs: {
 			using Descriptor = GifsListDescriptor;
+			const auto story = (_mode == Mode::StoriesEditor);
 			return object_ptr<GifsListWidget>(this, Descriptor{
 				.show = _show,
 				.paused = paused,
 				.st = &_st,
+				.inlineQueryPeer = story ? session().user().get() : nullptr,
+				.chooseBeforeLoad = story,
 			});
 		}
 		case SelectorTab::Masks: {

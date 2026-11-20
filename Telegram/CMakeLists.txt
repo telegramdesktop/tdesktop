@@ -956,6 +956,8 @@ PRIVATE
     editor/editor_audio_timeline.h
     editor/editor_caption_bar.cpp
     editor/editor_caption_bar.h
+    editor/editor_gif.cpp
+    editor/editor_gif.h
     editor/editor_link_box.cpp
     editor/editor_link_box.h
     editor/editor_message_render.cpp

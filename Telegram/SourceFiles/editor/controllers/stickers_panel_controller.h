@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "data/data_message_reaction_id.h"
 #include "ui/effects/animations.h"
+#include "ui/emoji_config.h"
 
 namespace ChatHelpers {
 class TabbedPanel;
@@ -49,6 +50,9 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] auto stickerChosen() const
 	-> rpl::producer<not_null<DocumentData*>>;
+	[[nodiscard]] auto gifChosen() const
+	-> rpl::producer<not_null<DocumentData*>>;
+	[[nodiscard]] rpl::producer<EmojiPtr> emojiChosen() const;
 	[[nodiscard]] rpl::producer<> photoRequests() const;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
