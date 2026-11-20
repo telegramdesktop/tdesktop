@@ -1827,6 +1827,12 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 
 void Widget::updateControlsVisibility(bool fast) {
 	updateLoadMoreChatsVisibility();
+	if (_suggestions) {
+		_suggestions->setVisible(!_showAnimation);
+	}
+	for (const auto &suggestions : _hidingSuggestions) {
+		suggestions->setVisible(!_showAnimation);
+	}
 	_scroll->setVisible(!suggestionsCoverList() && _hidingSuggestions.empty());
 	updateStoriesVisibility(fast ? anim::type::instant : anim::type::normal);
 	if ((_openedFolder || _openedForum || _openedCommunity)
@@ -2006,7 +2012,9 @@ bool Widget::searchActive() const {
 void Widget::updateSuggestions(anim::type animated) {
 	const auto suggest = (searchActive() || _searchSuggestionsLocked)
 		&& !_searchState.inChat;
-	if (anim::Disabled() || !session().data().chatsListLoaded()) {
+	if (_showAnimation
+		|| anim::Disabled()
+		|| !session().data().chatsListLoaded()) {
 		animated = anim::type::instant;
 	}
 	if (!suggest && _suggestions) {
@@ -2133,6 +2141,9 @@ void Widget::updateSuggestions(anim::type animated) {
 		_suggestions->show(
 			tabsOnly ? anim::type::instant : animated,
 			[=] { stopWidthAnimation(); });
+		if (_showAnimation) {
+			_suggestions->setVisible(false);
+		}
 		if (!tabsOnly) {
 			_scroll->hide();
 		}
@@ -2877,6 +2888,12 @@ void Widget::startSlideAnimation(
 		QPixmap oldContentCache,
 		QPixmap newContentCache,
 		Window::SlideDirection direction) {
+	if (_suggestions) {
+		_suggestions->setVisible(false);
+	}
+	for (const auto &suggestions : _hidingSuggestions) {
+		suggestions->setVisible(false);
+	}
 	_scroll->hide();
 	if (_stories) {
 		_stories->setToggledHidden(true, false);
