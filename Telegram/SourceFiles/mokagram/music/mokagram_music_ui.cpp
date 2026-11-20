@@ -4035,14 +4035,15 @@ protected:
 private:
 	void paintArtist(QPainter &p, const QRect &avatar) {
 		const auto s = [](int value) { return style::ConvertScale(value); };
-		const auto card = rect().adjusted(s(14), 0, -s(14), -s(8));
-		if (card.isEmpty()) return;
+		if (rect().isEmpty()) return;
 
+		const auto identityTop = artistBannerHeight();
 		if (hasArtistBanner()) {
-			BoxParts::PaintCard(p, card);
+			p.fillRect(
+				QRect(0, identityTop, width(), height() - identityTop - s(8)),
+				st::windowBg);
 		}
 		const auto narrow = width() < s(520);
-		const auto identityTop = artistBannerHeight();
 		const auto banner = QRect(0, 0, width(), identityTop);
 		if (!banner.isEmpty()) {
 			p.save();
@@ -4077,7 +4078,7 @@ private:
 		p.restore();
 
 		const auto left = avatar.right() + s(17);
-		const auto right = narrow ? card.right() - s(16) : _playArtist->x() - s(16);
+		const auto right = narrow ? rect().right() - s(30) : _playArtist->x() - s(16);
 		const auto available = std::max(right - left + 1, 0);
 		p.setFont(st::normalFont);
 		p.setPen(st::windowSubTextFg);
