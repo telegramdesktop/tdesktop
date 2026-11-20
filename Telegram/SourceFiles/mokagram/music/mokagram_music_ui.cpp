@@ -6106,6 +6106,17 @@ public:
 		_background = std::move(paint);
 		setAttribute(Qt::WA_OpaquePaintEvent, _background != nullptr);
 	}
+	void setReadingMode(bool enabled) {
+		if (_readingMode == enabled) return;
+
+		_readingMode = enabled;
+		_heights.clear();
+		_layouts.clear();
+		_scrollReady = false;
+		_manualUntil = 0;
+		tick();
+		update();
+	}
 	void setCoverTint(bool on) {
 		_coverTint = on;
 		updateTimer();
@@ -6310,16 +6321,24 @@ private:
 	}
 
 	[[nodiscard]] double anchorY() const {
-		return lyricsHeight() * (_big ? 0.4 : 0.5);
+		return lyricsHeight() * (_big && !_readingMode ? 0.4 : 0.5);
+	}
+	[[nodiscard]] int readingWidth() const {
+		return std::min(width(), style::ConvertScale(900));
 	}
 	[[nodiscard]] int textWidth() const {
 		const auto gutter = Settings::Bool(u"lyrics.comments"_q) && _comments->validTrack()
 			? style::ConvertScale(108) : 0;
-		return std::max(1, width() - (_big ? 0 : style::ConvertScale(48)) - gutter);
+		const auto available = _readingMode ? readingWidth() : width();
+		const auto inset = (_readingMode || !_big) ? style::ConvertScale(48) : 0;
+		return std::max(1, available - inset - gutter);
 	}
 	[[nodiscard]] QFont lineFont() const {
 		auto font = st::semiboldFont->f;
-		font.setPixelSize(style::ConvertScale(_big ? 36 : 24));
+		const auto size = _readingMode
+			? std::clamp(width() / 21, style::ConvertScale(28), style::ConvertScale(46))
+			: style::ConvertScale(_big ? 36 : 24);
+		font.setPixelSize(size);
 		if (_big) {
 			font.setWeight(QFont::DemiBold);
 		}
@@ -6427,7 +6446,9 @@ private:
 		}
 		p.setClipRect(QRect(0, 0, width(), lyricsHeight()));
 		if (!_lyrics.found) {
-			p.setPen(_big ? QColor(255, 255, 255, 140) : st::windowSubTextFg->c);
+			p.setPen(_big && !_readingMode
+				? QColor(255, 255, 255, 140)
+				: st::windowSubTextFg->c);
 			p.setFont(st::normalFont);
 			p.drawText(QRect(0, 0, width(), lyricsHeight()), Qt::AlignCenter, _status);
 			return;
@@ -6464,13 +6485,23 @@ private:
 				const auto origin = _big
 					? QPointF(0., top + style::ConvertScale(13))
 					: QPointF(style::ConvertScale(24), top + style::ConvertScale(12));
-				drawLayout(
-					p,
-					layoutOf(i),
-					origin,
-					(_lyrics.synced && i == _current) ? _fill : -1.,
-					(rest + (1. - rest) * w) * edge,
-					(rest + (0.45 - rest) * w) * edge);
+				if (_readingMode) {
+					const auto idle = !_lyrics.synced ? 0.9 : past ? 0.36 : 0.68;
+					auto foreground = st::windowFg->c;
+					foreground.setAlphaF((idle + (1. - idle) * w) * edge);
+					p.setPen(foreground);
+					layoutOf(i).draw(&p, QPointF(
+						(width() - readingWidth()) / 2. + style::ConvertScale(24),
+						origin.y()));
+				} else {
+					drawLayout(
+						p,
+						layoutOf(i),
+						origin,
+						(_lyrics.synced && i == _current) ? _fill : -1.,
+						(rest + (1. - rest) * w) * edge,
+						(rest + (0.45 - rest) * w) * edge);
+				}
 			}
 			top += lineHeight;
 			if (top > height() + 400) {
@@ -6533,6 +6564,7 @@ private:
 	bool _coverTint = true;
 	bool _playing = false;
 	bool _big = false;
+	bool _readingMode = false;
 
 };
 
@@ -6563,9 +6595,13 @@ void LyricsView::hideEvent(QHideEvent *e) {
 }
 
 void LyricsView::resizeEvent(QResizeEvent *e) {
-	layoutComments();
 	_heights.clear();
 	_layouts.clear();
+	if (_readingMode) {
+		_scrollReady = false;
+		tick();
+	}
+	layoutComments();
 	RpWidget::resizeEvent(e);
 }
 
@@ -7120,6 +7156,8 @@ public:
 	: RpWidget(parent.get())
 	, _controller(controller)
 	, _view(Ui::CreateChild<LyricsView>(this))
+	, _lyricsToggle(Ui::CreateChild<Ui::RoundButton>(
+		this, rpl::single(PlaylistText("Только текст")), BoxParts::PillLight()))
 	, _tabScroll(Ui::CreateChild<Ui::ScrollArea>(this, st::defaultScrollArea))
 	, _playbackBar(Ui::CreateChild<Ui::RpWidget>(this))
 	, _seek(Ui::CreateChild<SeekBar>(_playbackBar, [=] { return playbackBarColor(); }))
@@ -7143,7 +7181,18 @@ public:
 		_view->setBig(true);
 		_view->setBackground([=](QPainter &p, QRect area) {
 			paintBackgroundPart(p, area, _view->pos());
+			if (readingLyrics()) {
+				const auto surface = _accent.isValid()
+					? anim::color(st::windowBg->c, _accent, 0.16)
+					: st::windowBg->c;
+				const auto radius = style::ConvertScale(22);
+				p.setPen(Qt::NoPen);
+				p.setBrush(surface);
+				p.drawRoundedRect(_view->rect(), radius, radius);
+			}
 		});
+		_lyricsToggle->setFocusPolicy(Qt::TabFocus);
+		_lyricsToggle->setClickedCallback([=] { toggleReadingMode(); });
 		_view->setAttribute(Qt::WA_OpaquePaintEvent);
 		_seek->setThin(true);
 		_seek->setExpressive(true, false);
@@ -7677,7 +7726,11 @@ protected:
 			return;
 		}
 		if (hover == InfoHover::BarCover) {
-			openNowPlayingFromBar();
+			if (readingLyrics()) {
+				toggleReadingMode();
+			} else {
+				openNowPlayingFromBar();
+			}
 			return;
 		}
 		if (hover == InfoHover::Cover) {
@@ -7774,6 +7827,7 @@ protected:
 		QRect cover;
 		QRect info;
 		QRect lyrics;
+		QRect lyricsToggle;
 		QRect barCover;
 		QRect barInfo;
 		QRect seek;
@@ -7789,6 +7843,19 @@ protected:
 	};
 	[[nodiscard]] bool showsQueue() const {
 		return _tab == Tab::Queue || (_tab == Tab::Now && _lyricsMissing);
+	}
+	[[nodiscard]] bool readingLyrics() const {
+		return _tab == Tab::Now && _readingLyrics && !_lyricsMissing;
+	}
+	void toggleReadingMode() {
+		_readingLyrics = !_readingLyrics;
+		_view->setReadingMode(_readingLyrics);
+		_lyricsToggle->setText(rpl::single(PlaylistText(
+			_readingLyrics ? "С обложкой" : "Только текст")));
+		setHover(InfoHover::None);
+		relayout();
+		updateAmbientTimer();
+		refresh();
 	}
 	[[nodiscard]] Layout computeLayout() const {
 		const auto s = [](int v) { return style::ConvertScale(v); };
@@ -7825,7 +7892,7 @@ protected:
 
 		if (now) {
 			// Обложка слева, текст песни по центру остального экрана.
-			result.showRight = width() >= s(800);
+			result.showRight = !readingLyrics() && width() >= s(800);
 			auto lyricsLeft = margin;
 			if (result.showRight) {
 				const auto colWidth = std::clamp(int(width() * 0.29), s(190), s(460));
@@ -7853,6 +7920,14 @@ protected:
 			if (showsQueue()) {
 				result.center = result.lyrics;
 				result.scrollTop = result.center.y();
+			} else {
+				const auto buttonWidth = std::min(result.lyrics.width(), s(144));
+				result.lyricsToggle = QRect(
+					result.lyrics.right() + 1 - buttonWidth, top, buttonWidth,
+					_lyricsToggle->height());
+				result.lyrics.setTop(std::min(
+					result.lyrics.bottom() + 1,
+					result.lyricsToggle.bottom() + 1 + s(8)));
 			}
 		} else {
 			const auto contentWidth = std::max(width() - ((_tab == Tab::Home && _homeArtistOpen) ? 0 : 2 * margin), 0);
@@ -7939,7 +8014,7 @@ protected:
 	}
 	[[nodiscard]] QRect barInfoRect(const Layout &layout) const {
 		const auto s = [](int v) { return style::ConvertScale(v); };
-		const auto shown = _coverClosing.animating()
+		const auto shown = (_coverClosing.animating() || readingLyrics())
 			? 1.
 			: _plainAnim.value(_tab == Tab::Now ? 0. : 1.);
 		const auto shift = int((s(kBarCover) + s(14)) * (1. - shown));
@@ -7963,7 +8038,7 @@ protected:
 			layout.info.y() + s(32),
 			textWidth(artistFont(), _artist),
 			s(22));
-		if (_tab != Tab::Now
+		if ((_tab != Tab::Now || readingLyrics())
 			&& !layout.ultra
 			&& width() >= s(760)
 			&& layout.barCover.contains(point)) {
@@ -8028,6 +8103,9 @@ protected:
 				QRectF(layout.seek).adjusted(-inset, -inset, inset, inset)));
 		_view->setVisible(_tab == Tab::Now && !showsQueue());
 		_view->setGeometry(layout.lyrics);
+		_lyricsToggle->setVisible(!layout.lyricsToggle.isEmpty());
+		_lyricsToggle->setFullWidth(layout.lyricsToggle.width());
+		_lyricsToggle->move(layout.lyricsToggle.topLeft());
 		_tabScroll->setVisible(_tab != Tab::Now || showsQueue());
 		const auto home = (_tab == Tab::Home);
 		const auto scrollBottom = home ? height() : layout.center.bottom() + 1 - s(12);
@@ -9745,8 +9823,9 @@ protected:
 
 	void paintPlaybackBarDetails(QPainter &p, const Layout &layout) const {
 		const auto s = [](int v) { return style::ConvertScale(v); };
-		// На «Сейчас играет» обложки в капсуле нет: там большая.
-		const auto plain = _plainAnim.value(_tab == Tab::Now ? 0. : 1.);
+		const auto plain = readingLyrics()
+			? 1.
+			: _plainAnim.value(_tab == Tab::Now ? 0. : 1.);
 		if (!layout.ultra && plain > 0.) {
 			p.save();
 			p.setOpacity(plain);
@@ -10100,7 +10179,7 @@ private:
 		_canvas.refresh(
 			Mokagram::Settings::Bool(u"player.public_canvas"_q) && !_spotifyCanvas
 				? track.id : QString(),
-			track.title, track.artist, playing && _tab == Tab::Now);
+			track.title, track.artist, playing && _tab == Tab::Now && !readingLyrics());
 		if (_isPlaying != playing) {
 			_isPlaying = playing;
 			repaintBackdrop();
@@ -10193,6 +10272,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<LyricsView*> _view;
+	const not_null<Ui::RoundButton*> _lyricsToggle;
 	const not_null<Ui::ScrollArea*> _tabScroll;
 	const not_null<Ui::RpWidget*> _playbackBar;
 	const not_null<SeekBar*> _seek;
@@ -10268,6 +10348,7 @@ private:
 	int _searchGen = 0;
 	bool _searchChats = false;
 	bool _lyricsMissing = false;
+	bool _readingLyrics = false;
 	Tab _tab;
 	Tab _rebuiltTab = Tab::Queue;
 	bool _librarySyncLoading = false;

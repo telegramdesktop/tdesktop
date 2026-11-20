@@ -934,6 +934,8 @@
 	{ "Тег у собеседника: виден в списке чатов и под именем (.tag клиент, пусто = убрать)", "A tag for a contact: shown in the chat list and under the name (.tag client, empty = remove)" },
 	{ "Тег убран", "Tag removed" },
 	{ "Текст песни", "Song lyrics" },
+	{ "Только текст", "Lyrics only" },
+	{ "С обложкой", "Show cover" },
 	{ "Текст ссылки показывает ", "The link text shows " },
 	{ "Текст уведомлений", "Notification text" },
 	{ "Текст этой песни не найден", "No lyrics for this track" },
