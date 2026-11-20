@@ -78,6 +78,7 @@ include(cmake/test_core_settings.cmake)
 include(cmake/test_export_formats.cmake)
 include(cmake/test_iv_editor_state.cmake)
 include(cmake/test_iv_editor_table_grid.cmake)
+include(cmake/test_text_contracts.cmake)
 include(cmake/test_wallet_card_tint.cmake)
 include(cmake/test_wallet_phrase_shares.cmake)
 
