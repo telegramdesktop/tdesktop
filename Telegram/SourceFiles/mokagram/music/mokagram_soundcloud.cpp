@@ -753,11 +753,16 @@ void FinishImageRequest(const QString &url, QImage image) {
 }
 
 void LoadImageAttempt(const QString &url, int attempt) {
+	++ActiveImageRequests();
 	const auto reply = Get(QUrl(url), kMaxImageBytes, QString(), 5000);
 	QObject::connect(reply, &QNetworkReply::finished, [=] {
 		auto image = QImage::fromData(reply->readAll());
 		reply->deleteLater();
 		if (image.isNull() && attempt == 0) {
+			// Освобождаем слот перед повтором: retry сам его займёт заново.
+			// Иначе после нескольких неудач StartQueuedImageLoads встанет и
+			// остальные обложки никогда не начнут грузиться.
+			ActiveImageRequests() = std::max(ActiveImageRequests() - 1, 0);
 			QTimer::singleShot(400, QCoreApplication::instance(), [=] {
 				LoadImageAttempt(url, 1);
 			});
@@ -775,7 +780,6 @@ void StartQueuedImageLoads() {
 		if (PendingImages().find(url) == PendingImages().end()) {
 			continue;
 		}
-		++ActiveImageRequests();
 		LoadImageAttempt(url, 0);
 	}
 }
