@@ -2011,7 +2011,7 @@ private:
 
 };
 
-// Плавное наведение: 0..1 за 160 мс, дёшево, без отдельных таймеров.
+// Плавное наведение с разворотом от текущего кадра.
 struct HoverFade {
 	Ui::Animations::Simple animation;
 	bool on = false;
@@ -2020,11 +2020,28 @@ struct HoverFade {
 		if (on == now) {
 			return;
 		}
+		const auto from = value();
 		on = now;
-		animation.start(std::move(repaint), now ? 0. : 1., now ? 1. : 0., 160, anim::easeOutCubic);
+		if (!enabled()) {
+			animation.stop();
+			repaint();
+			return;
+		}
+		animation.start(
+			std::move(repaint),
+			from,
+			now ? 1. : 0.,
+			now ? 160 : 120,
+			anim::easeOutCubic);
 	}
 	[[nodiscard]] double value() const {
-		return animation.value(on ? 1. : 0.);
+		const auto target = on ? 1. : 0.;
+		return enabled() ? animation.value(target) : target;
+	}
+
+private:
+	[[nodiscard]] static bool enabled() {
+		return !anim::Disabled() && !PowerSaving::On(PowerSaving::kAnimations);
 	}
 };
 
@@ -2060,20 +2077,17 @@ void PaintHomeCardAction(
 		double shown = 1.,
 		bool playing = false) {
 	const auto s = [](int v) { return style::ConvertScale(v); };
-	const auto size = std::min(s(38), std::max(art.width() - s(16), 0));
-	if (size < s(24)) {
+	const auto button = HomeActionRect(art);
+	if (button.width() < s(24)) {
 		return;
 	}
 	shown = std::max(shown, playing ? 1. : 0.);
 	if (shown <= 0.) {
 		return;
 	}
-	const auto button = HomeActionRect(art);
 	p.save();
 	p.setOpacity(p.opacity() * shown);
-	p.translate(button.center());
-	p.scale(0.8 + 0.2 * shown, 0.8 + 0.2 * shown);
-	p.translate(-button.center());
+	p.translate(0., s(6) * (1. - shown));
 	p.setPen(Qt::NoPen);
 	p.setBrush(QColor(0, 0, 0, 120));
 	p.drawEllipse(button);
@@ -2244,8 +2258,10 @@ enum class RowMode { Results, Queue, Context, Home, Album };
 
 class Row final : public Ui::AbstractButton {
 public:
-	void onStateChanged(State was, StateChangeSource source) override {
-		_hoverFade.set(isOver() || isDown(), [=] { update(); });
+	void onStateChanged(State, StateChangeSource) override {
+		if (_mode == RowMode::Home) {
+			_hoverFade.set(isOver() || isDown(), [=] { update(); });
+		}
 	}
 
 	Row(
