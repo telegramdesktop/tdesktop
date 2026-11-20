@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 #include "data/data_msg_id.h"
-#include "twidget/renderer.h"
 
 #include <QtCore/QByteArray>
 #include <QtCore/QString>
@@ -23,18 +22,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <string_view>
 #include <vector>
 
-// The validated-ops tap of a widget message's sandbox host: what
-// twidget::WidgetHost sends the product renderer, or, for a widget hosted in
-// the widget helper, what the helper's validator passed and its served host
+// The validated-ops tap of a widget message's sandbox host, hosted in the
+// widget helper: what the helper's validator passed and its served host
 // and renderer exchanged, scanned with widget-sandbox's --attacks leak
 // definition and read for the conformance and stress results, and the
 // helper's own renderer work when asked. The helper's half is
-// test_widget_helper_tap.h; the forwarding both halves wrap a renderer with
-// is test_widget_renderer_forward.h.
+// test_widget_helper_tap.h; the helper work record both halves share is
+// test_widget_renderer_forward.h.
 // Reference: docs/helpers/test_widget_ops.md.
 
 namespace twidget {
-class Json;
 class WidgetHost;
 struct WidgetTheme;
 } // namespace twidget
@@ -45,55 +42,21 @@ struct PressStep;
 
 namespace Test {
 
-// The renderer factory Tgw::Runtime::construct() builds its widget host
-// with, for the message |id|: its HistoryItem::globalId(), the FullMsgId
-// and its session's uniqueId(), because each session allocates local
-// message ids on its own and two sessions can hold different messages with
-// the same FullMsgId. Returns |factory| itself, untouched, unless Active()
-// and |id| is armed by ArmWidgetOpsTap(). For an armed id it returns a
-// factory that calls |factory| exactly once, with the same arguments, on
-// its caller's thread, and wraps the renderer that call returns in a tap
-// that forwards every call and callback directly. Main thread. Without the
-// harness this module defines only this function, as that identity, its
-// overload below, and the seams below it: TapHostedWidget(),
-// WidgetThemeObservation(), WidgetThemeSelected(), WidgetThemeScheduled(),
-// WidgetThemeApplied(), WidgetHostRetired(), WidgetPressDispatched(),
-// WidgetCoreDetached(), WidgetPressObserved(), WidgetLocalPressDown(),
-// WidgetLocalPressReleased() and WidgetLocalPressForwarded().
-[[nodiscard]] twidget::RendererFactory TapWidgetRenderer(
-	GlobalMsgId id,
-	twidget::RendererFactory factory);
-
-// What Tgw::Runtime::construct() calls for a widget whose renderer runs in
-// Telegram, with |work|, the RendererCore::workId() of the core it builds
-// the host for (counted up from 1 and never reused, as TapHostedWidget()
-// gets it): the same selection and wrapping as the overload above, and for
-// an armed id it registers |work| (unless 0) with the generation that
-// selection made, for WidgetPressDispatched(), WidgetLocalPressDown(),
-// WidgetLocalPressReleased(), WidgetLocalPressForwarded() and
-// WidgetCoreDetached(), while the returned factory or the wrapper it built
-// lives (the overload above registers none); the wrapper also reports to
-// the tap, with |work|, each renderer message it forwards to the host.
-// Main thread. Without the harness this module defines this function too,
-// returning |factory| itself.
-[[nodiscard]] twidget::RendererFactory TapWidgetRenderer(
-	GlobalMsgId id,
-	uint64 work,
-	twidget::RendererFactory factory);
-
-// The hosted counterpart of TapWidgetRenderer(), for a host whose engine,
-// validator and renderer run in the widget helper, which has no renderer
-// factory to wrap: Tgw::Runtime::construct() calls it for the message |id|
-// on the main thread, once per hosted construction, with |work|, the
+// The tap of a host whose engine, validator and renderer run in the widget
+// helper: Tgw::Runtime::construct() calls it for the message |id|, its
+// HistoryItem::globalId(), the FullMsgId and its session's uniqueId(),
+// because each session allocates local message ids on its own and two
+// sessions can hold different messages with the same FullMsgId, on the
+// main thread, once per construction, with |work|, the
 // RendererCore::workId() of the core it builds the host for (counted up
 // from 1 and never reused, so a later core never shares it; 0 for none),
 // and |theme|, the theme the host's Job carries into its constructor.
 // Returns an empty function unless Active() and |id| is armed by
 // ArmWidgetOpsTap(). For an armed id it selects the tap's next generation
-// at once, as a wrapping factory's selection does, and returns a function
-// for Build()'s worker to call once with the hosted WidgetHost, right after
-// its constructor returned and the runtime set its observers, before the
-// host is bound or started. That call records |theme| as the theme the
+// at once and returns a function for Build()'s worker to call once with
+// the hosted WidgetHost, right after its constructor returned and the
+// runtime set its observers, before the host is bound or started. That
+// call records |theme| as the theme the
 // runtime applied to the generation (WidgetOpsLatest's `applied...`
 // fields, its first theme serial), registers the host for
 // WidgetThemeObservation(), WidgetThemeSelected(), WidgetThemeScheduled(),
@@ -120,8 +83,11 @@ namespace Test {
 // when they are destroyed with the host, also when the helper kept its
 // renderer. A registration is erased only by the observations that made it,
 // so whichever of two constructions installs first, each keeps its own.
-// Without the harness this module defines this function too, returning an
-// empty function.
+// Without the harness this module defines only this function, returning an
+// empty function, and the seams below it: WidgetThemeObservation(),
+// WidgetThemeSelected(), WidgetThemeScheduled(), WidgetThemeApplied(),
+// WidgetHostRetired(), WidgetPressDispatched(), WidgetPressObserved() and
+// WidgetCoreDetached().
 [[nodiscard]] auto TapHostedWidget(
 	GlobalMsgId id,
 	uint64 work,
@@ -219,15 +185,14 @@ void WidgetHostRetired(twidget::WidgetHost &host);
 // every primary mouse press it dispatches to its work, right before it
 // posts it, with |work|, its RendererCore::workId(), and |serial|, the
 // pointer serial it gave the press (the one the press carries to
-// Tgw::HostedInput::press() and WidgetPressObserved()'s Sent, or locally
-// WidgetLocalPressDown()). When |work| is the work of the marked
-// generation's host with an installed hosted tap, or the local work
-// TapWidgetRenderer() registered for it, and that tap delivers its mark's
-// press (DeliverMarkedPress()), the first such press inside that delivery
-// binds the mark to that work and serial: the press the fixture played. A
-// press dispatched before or after the delivery binds nothing, one the work
-// still had queued or a later one of the same work included. Without the
-// harness this module defines this function too, doing nothing.
+// Tgw::HostedInput::press() and WidgetPressObserved()'s Sent). When |work|
+// is the work of the marked generation's host with an installed hosted
+// tap, and that tap delivers its mark's press (DeliverMarkedPress()), the
+// first such press inside that delivery binds the mark to that work and
+// serial: the press the fixture played. A press dispatched before or after
+// the delivery binds nothing, one the work still had queued or a later one
+// of the same work included. Without the harness this module defines this
+// function too, doing nothing.
 void WidgetPressDispatched(uint64 work, uint64 serial);
 
 // Tgw::HostedInput calls this on the widget render thread, through the
@@ -256,75 +221,22 @@ void WidgetPressObserved(
 	uint64 press,
 	const Tgw::PressStep &step);
 
-// Tgw::RendererWork::pointerPress() calls this on the widget render thread
-// for a widget whose renderer runs in Telegram, with |work|, its id (the
-// RendererCore::workId() TapWidgetRenderer() registered), and |serial|, the
-// pointer serial RendererCore::pointerPress() dispatched the press with
-// (the one WidgetPressDispatched() got), when the work accepted that
-// primary mouse down and gave it to its renderer. A press the work did not
-// accept, and a secondary or finger press, call nothing. When |work| is
-// registered, the down is the marked interaction's
-// (`downsConfirmed`) when |serial| is the played press's while its
-// generation is the newest, and either way the press the work's next
-// WidgetLocalPressReleased() ends; any other down counts in
-// `pressStepsElsewhere`. Without the harness this module defines this
-// function too, doing nothing.
-void WidgetLocalPressDown(uint64 work, uint64 serial);
-
-// Tgw::RendererWork::releasePointer() calls this on the widget render
-// thread for a widget whose renderer runs in Telegram, with |work|, its id,
-// when the primary mouse press its renderer took (WidgetLocalPressDown())
-// ends with an up, or with a cancel when the chat took the press, and
-// |out|, what the renderer answered that release with, before the work
-// forwards it: a trusted `click` event among them is the click that press
-// made, and none means it made none. A press dropped without a release (the
-// work detached, stopped or went off screen) calls nothing; the next press
-// of the work starts over. When |work| is registered and the press this
-// release ends is the played one, its down taken since the mark and its
-// generation still the newest, the release counts in `upsConfirmed`, and
-// its click counts in `clicksCompleted` only when it reaches the host: the
-// first trusted click that the work's forwarding of |out| hands the wrapper
-// TapWidgetRenderer() built, on this thread, before the release's
-// WidgetLocalPressForwarded(), is the click of the fixture's own press, as
-// the host got it. Every other release and its click count in
-// `pressStepsElsewhere`. Without the harness this module defines this
-// function too, doing nothing.
-void WidgetLocalPressReleased(
-	uint64 work,
-	const std::vector<twidget::Json> &out);
-
-// Tgw::RendererWork::releasePointer() calls this on the widget render
-// thread for a widget whose renderer runs in Telegram, with |work|, its id,
-// right after it forwarded what its renderer answered a release: what that
-// release's WidgetLocalPressReleased() got went out between the two calls,
-// on this thread, through the host link to the live host's renderer
-// callbacks (the tap's wrapper sees it there), or nowhere once
-// RendererCore::detach() closed that link. Every mouse release the work's
-// renderer took calls it, a secondary one (which reports no
-// WidgetLocalPressReleased()) included. It ends that release's forwarding:
-// a click of the played press that did not reach the wrapper by then (the
-// link closed, the work not ready) never completes the mark. Without the
-// harness this module defines this function too, doing nothing.
-void WidgetLocalPressForwarded(uint64 work);
-
 // Tgw::RendererCore::detach() calls this on the main thread, with |work|,
 // its RendererCore::workId(), first, before it closes the core's host link
 // and posts the work's detach (Runtime::retire() and ~Runtime() detach a
 // live core before dropping, keeping or releasing it and before they
 // retire its host): from the close on nothing the work's renderer answers
 // reaches the host, while a step the work already took can still run on
-// the widget render thread and report to WidgetLocalPressReleased() or
-// WidgetPressObserved(), and a wrapper or host observer can still hold the
-// registration. Called for every core. When |work| is the work of a host
-// with an installed hosted tap, or the local work TapWidgetRenderer()
-// registered, and the mark is bound to it, the tap revokes the mark at
-// once, under its lock, unless the played press's click already completed
-// (`markDetached`): a step of that work reported later counts in
-// `pressStepsElsewhere` alone and no click of it completes the mark, also
-// when it comes through a lookup that held the registration before this
-// call. A click completed before it stays; another work's detach changes
-// nothing. Without the harness this module defines this function too,
-// doing nothing.
+// the widget render thread and report to WidgetPressObserved(), and a host
+// observer can still hold the registration. Called for every core. When
+// |work| is the work of a host with an installed hosted tap and the mark
+// is bound to it, the tap revokes the mark at once, under its lock, unless
+// the played press's click already completed (`markDetached`): a step of
+// that work reported later counts in `pressStepsElsewhere` alone and no
+// click of it completes the mark, also when it comes through a lookup that
+// held the registration before this call. A click completed before it
+// stays; another work's detach changes nothing. Without the harness this
+// module defines this function too, doing nothing.
 void WidgetCoreDetached(uint64 work);
 
 // Everything below is harness-only: declared here and deliberately left
@@ -358,25 +270,21 @@ struct WidgetOpsReading {
 	// The `ev.type` of each trusted renderer `event` since the mark.
 	std::vector<std::string> trustedEventTypes;
 
-	// Wrapping factories handed out by TapWidgetRenderer() and hosted taps
-	// handed out by TapHostedWidget(), on main.
+	// Hosted taps handed out by TapHostedWidget(), on main.
 	int factoriesSelected = 0;
-	// Product factory calls that returned or threw; the exception of one
-	// that threw is rethrown to WidgetHost after it is counted. A hosted tap
-	// completes when it is installed on its host or released uninstalled,
-	// and never throws.
+	// Hosted taps installed on their host or released uninstalled; a
+	// hosted tap never throws, so `factoriesThrew` stays 0.
 	int factoriesCompleted = 0;
 	int factoriesThrew = 0;
-	// Wrapping factories and hosted taps whose last copy is gone, called or
-	// not: none of them can build a renderer or reach a host any more.
+	// Hosted taps whose last copy is gone, installed or not: none of them
+	// can reach a host any more.
 	int factoriesReleased = 0;
-	// Wrappers built, and destroyed only after their product renderer. A
-	// hosted host's observers count as built when the tap installs them and
-	// as destroyed with the host, whether or not its renderer was kept.
+	// A hosted host's observers count as built when the tap installs them
+	// and as destroyed with the host, whether or not its renderer was kept.
 	int wrappersBuilt = 0;
 	int wrappersDestroyed = 0;
 
-	// Host -> renderer messages, every type; of a hosted host its validated
+	// Host -> renderer messages, every type: a hosted host's validated
 	// batches and the served host's messages its renderer got, as the
 	// helper's tap mirrored them.
 	int hostMessages = 0;
@@ -405,37 +313,29 @@ struct WidgetOpsReading {
 	// every generation before a mark).
 	int trustedEvents = 0;
 	int trustedClicks = 0;
-	// The marked interaction, of a hosted host or a local one: the
-	// generation the last MarkWidgetOpsEvents() found newest; the work and
-	// pointer serial of the first primary press the chat dispatched to a
-	// tapped or registered work of that generation while
+	// The marked interaction: the generation the last MarkWidgetOpsEvents()
+	// found newest; the work and pointer serial of the first primary press
+	// the chat dispatched to a tapped work of that generation while
 	// DeliverMarkedPress() delivered the fixture's own mouse-down
 	// (WidgetPressDispatched(); 0 when none did, for good: the binding is
-	// sealed when that delivery returns), the press the fixture played; and,
-	// hosted only, the number that press got when its work sent it
-	// (WidgetPressObserved()'s Sent with that serial; 0 before it, and
-	// always 0 locally). Hosted, its down and up answered on a route still
-	// active (delivery only) and the renderer's click decision for that up
-	// reported after it; locally, its down and its release taken by the
-	// work's renderer (WidgetLocalPressDown(), WidgetLocalPressReleased())
-	// and the trusted click that release answered, counted when the work's
-	// forwarding of that answer hands it to the wrapper, before the
-	// release's WidgetLocalPressForwarded(): the click the host got. Each
-	// counted for that one press alone while the marked generation is the
-	// newest and its core not detached (hosted: its host not retired) before
-	// the click (`markDetached`), and `clicksCompleted` only after its up. A
-	// step of any other press, an earlier one of the same work still queued
-	// at the mark, a later one of the same work after an undelivered mark,
-	// the release of a later down of the same work or one of an older
-	// generation that completes late included, and every step after a
-	// newer generation was selected, the marked work's core was detached or
-	// its hosted host retired, counts in `pressStepsElsewhere` alone. A
-	// down or up, even both answered, never counts as a click.
-	// `clicksCompleted` is the click reading of a hosted host whose helper
-	// has no tap (WidgetHelperMirrors() false), where `trustedClicks` stays
-	// 0; with the Debug tap, and locally, `trustedClicks` counts the
-	// generation's trusted clicks whatever press made them, and only
-	// `clicksCompleted` is the played press's own.
+	// sealed when that delivery returns), the press the fixture played; and
+	// the number that press got when its work sent it (WidgetPressObserved()'s
+	// Sent with that serial; 0 before it). Its down and up answered on a
+	// route still active (delivery only) and the renderer's click decision
+	// for that up reported after it, each counted for that one press alone
+	// while the marked generation is the newest and neither its core was
+	// detached nor its host retired before the click (`markDetached`), and
+	// `clicksCompleted` only after its up. A step of any other press, an
+	// earlier one of the same work still queued at the mark, a later one of
+	// the same work after an undelivered mark or one of an older generation
+	// that completes late included, and every step after a newer generation
+	// was selected, the marked work's core was detached or its host retired,
+	// counts in `pressStepsElsewhere` alone. A down or up, even both
+	// answered, never counts as a click. `clicksCompleted` is the click
+	// reading of a hosted host whose helper has no tap (WidgetHelperMirrors()
+	// false), where `trustedClicks` stays 0; with the Debug tap
+	// `trustedClicks` counts the generation's trusted clicks whatever press
+	// made them, and only `clicksCompleted` is the played press's own.
 	int markedGeneration = 0;
 	uint64 markedWork = 0;
 	uint64 markedSerial = 0;
@@ -448,19 +348,18 @@ struct WidgetOpsReading {
 	// marked one is the newest: the mark's later steps and trusted events
 	// no longer count, while what it counted before stays.
 	int markSuperseded = 0;
-	// Whether the core of the work the mark is bound to, hosted or local,
-	// was detached (WidgetCoreDetached(), before its host link closed), or
-	// the hosted host of that work was retired (WidgetHostRetired()), before
-	// the played press's click completed: the mark's later steps and its
-	// click no longer count, while what it counted before stays.
+	// Whether the core of the work the mark is bound to was detached
+	// (WidgetCoreDetached(), before its host link closed), or the host of
+	// that work was retired (WidgetHostRetired()), before the played
+	// press's click completed: the mark's later steps and its click no
+	// longer count, while what it counted before stays.
 	bool markDetached = false;
 
-	// The host's post-load ack (`query` with numeric `qid` -1), the
-	// renderer's answer to it (`result` with numeric `qid` -1) and the
-	// host's death notice (`frozen` with `fatal` true; of a hosted host
-	// every onDeath, whatever its reason's text, never the served host's
-	// mirrored `frozen`: WidgetHost never reports the end its owner asked
-	// for).
+	// The served host's post-load ack (`query` with numeric `qid` -1) and
+	// the renderer's answer to it (`result` with numeric `qid` -1), as the
+	// helper's tap mirrored them, and the host's deaths (every onDeath,
+	// whatever its reason's text, never the served host's mirrored
+	// `frozen`: WidgetHost never reports the end its owner asked for).
 	int ackQueries = 0;
 	int ackResults = 0;
 	int fatalFrozen = 0;
@@ -502,31 +401,30 @@ struct WidgetOpsLatest {
 	// kWidgetStressValuesLimit, within 4 MiB of values together; a later
 	// adoption clears it, `stressBytes` and `stressDropped`.
 	std::vector<WidgetStressValue> stress;
-	// The raw `{"type":"theme",...}` host message last sent to its renderer.
-	// Of a hosted host the served host's, as the Debug helper's tap mirrored
-	// it; without that tap (a Release harness) the widget's own reading
-	// alone: `{"type":"theme","theme":{"colorScheme":...,"params":...}}` of
-	// the newest effective reading, empty before the first.
+	// The raw `{"type":"theme",...}` message the served host last sent to
+	// its renderer, as the Debug helper's tap mirrored it; without that tap
+	// (a Release harness) the widget's own reading alone:
+	// `{"type":"theme","theme":{"colorScheme":...,"params":...}}` of the
+	// newest effective reading, empty before the first.
 	std::string themeMessage;
-	// The scheme its renderer was given: the factory's theme argument, then
-	// each setTheme(). Empty until its wrapper is built; of a hosted host
-	// until the Debug helper's tap reported the scheme its renderer was built
-	// with, and without that tap (a Release harness) `effectiveScheme` of
-	// the newest effective reading, never the theme the runtime asked for:
-	// the first reading sets it, each later reading that changes it counts
-	// in `schemeChanges`.
+	// The scheme its renderer was given: empty until the Debug helper's tap
+	// reported the scheme its renderer was built with, then each scheme the
+	// tap's theme mirror reported; without that tap (a Release harness)
+	// `effectiveScheme` of the newest effective reading, never the theme the
+	// runtime asked for: the first reading sets it, each later reading that
+	// changes it counts in `schemeChanges`.
 	std::string scheme;
-	// Of a hosted host, the theme the runtime applied to it: the one its
-	// constructor got (TapHostedWidget()), then each WidgetThemeApplied(),
-	// recorded once the application returned. The scheme as the host keeps
-	// it ("dark", else "light"), and the `{"type":"theme",...}` message that
-	// theme gives the helper's renderer, built with the SDK's normalization
-	// as WidgetHost::themeMessage() builds it (the checked palette under its
-	// 15 keys, the button and text tokens): the expectation, never a
-	// reading of the widget. Empty for a local host.
+	// The theme the runtime applied to the host: the one its constructor
+	// got (TapHostedWidget()), then each WidgetThemeApplied(), recorded once
+	// the application returned. The scheme as the host keeps it ("dark",
+	// else "light"), and the `{"type":"theme",...}` message that theme gives
+	// the helper's renderer, built with the SDK's normalization as
+	// WidgetHost::themeMessage() builds it (the checked palette under its 15
+	// keys, the button and text tokens): the expectation, never a reading of
+	// the widget.
 	std::string appliedScheme;
 	std::string appliedThemeMessage;
-	// Of a hosted host, what the widget itself read after the runtime
+	// What the widget itself read after the runtime
 	// applied a theme, probed in it (TelegramWidget.colorScheme, and the JSON
 	// of TelegramWidget.themeParams): for the constructor's theme at the
 	// host's first rendered acknowledgment, for a later one right after
@@ -559,8 +457,8 @@ struct WidgetOpsLatest {
 	// `data-stress` values that found `stress` full: nonzero means `stress`
 	// stopped early and is incomplete.
 	int stressDropped = 0;
-	// The 1-based count of wrapping factories selected for the message when
-	// this host's was: above 1, more than one host was constructed for it,
+	// The 1-based count of hosted taps selected for the message when this
+	// host's was: above 1, more than one host was constructed for it,
 	// and these fields, like a runtime's log, cover only the last.
 	int generation = 0;
 	// `data-conformance` values this host published, the probe fixture's
@@ -569,7 +467,8 @@ struct WidgetOpsLatest {
 	// Advances whenever `conformance` changes, a clear included; never reset.
 	// A `data-stress` value never moves it.
 	int serial = 0;
-	// setTheme() calls of this host that changed `scheme`.
+	// Later scheme readings of this host that changed `scheme`: the Debug
+	// helper's theme mirror, else the widget's effective readings.
 	int schemeChanges = 0;
 	// Themes the runtime applied to this hosted host, its construction's
 	// included: the serial of the newest.
@@ -591,8 +490,8 @@ struct WidgetOpsLatest {
 	// (WidgetHostRetired()): nothing it publishes later is kept.
 	bool hostRetired = false;
 	// Host messages with an adoption, a `data-conformance` or `data-stress`
-	// attribute or a theme, setTheme() calls and builds of an older host's
-	// wrapper after a newer host was selected: ignored above, counted here;
+	// attribute or a theme, and an older host's scheme reports and theme
+	// records after a newer host was selected: ignored above, counted here;
 	// never reset. An older host's batches count in WidgetOpsReading alone,
 	// never in `batches`, `ops` or `maxBatchOps`, and never here unless they
 	// carry such an op.
@@ -607,15 +506,16 @@ struct WidgetOpsLatest {
 // unarmed, and gets a tap of its own only when its own id is armed.
 [[nodiscard]] std::shared_ptr<WidgetOpsTap> ArmWidgetOpsTap(GlobalMsgId id);
 
-// Main thread. Later constructions for |id| get the product factory itself;
-// factories already handed out and the wrappers they built keep the tap.
+// Main thread. Later constructions for |id| get no tap; hosted taps already
+// handed out and the observations they installed keep the tap.
 // Pass the id that was armed, as kept by the caller, not one rebuilt later
 // from whichever session is active then; no other id is touched.
 void DisarmWidgetOpsTap(GlobalMsgId id);
 
-// Any thread. No factory call and no wrapper of the tap is still pending
-// once factoriesReleased == factoriesSelected and wrappersDestroyed ==
-// wrappersBuilt; only a reading taken after that is final.
+// Any thread. No hosted tap and no host observation of the tap is still
+// pending once factoriesReleased == factoriesSelected and
+// wrappersDestroyed == wrappersBuilt; only a reading taken after that is
+// final.
 [[nodiscard]] WidgetOpsReading ReadWidgetOps(const WidgetOpsTap &tap);
 
 // Any thread. A snapshot taken under the tap's lock, `stress` copied whole;
@@ -663,15 +563,6 @@ struct WidgetThemeCheck {
 	std::string_view scheme,
 	const WidgetOpsLatest *before = nullptr);
 
-// Its local twin, of a host whose renderer Telegram builds: the scheme that
-// renderer was given (`scheme`), Unobserved while it has none, Wrong when
-// it is not |scheme|; with |before|, only a scheme given since (the same
-// generation, more `schemeChanges`).
-[[nodiscard]] WidgetThemeCheck CheckGivenTheme(
-	const WidgetOpsLatest &latest,
-	std::string_view scheme,
-	const WidgetOpsLatest *before = nullptr);
-
 // Main thread, right before a click. Restarts the trusted event fields and
 // the press readings, and marks the newest generation as the interaction
 // they read; its press is bound only inside DeliverMarkedPress(). A newer
@@ -684,7 +575,7 @@ void MarkWidgetOpsEvents(WidgetOpsTap &tap);
 // returns before any posted event or postponed call runs), with the mark's
 // press binding open, and seals it when |deliver| returns or throws. The
 // first primary press the chat dispatches inside that call to a tapped
-// work of the marked generation, hosted or local
+// work of the marked generation
 // (WidgetPressDispatched()), binds the mark to its work and pointer
 // serial, whose later steps go on counting as the marked
 // interaction's. A mark still unbound at the seal stays unbound
@@ -784,98 +675,57 @@ struct WidgetOpsSelfCheckRow {
 
 struct WidgetOpsSelfCheck {
 	std::vector<WidgetOpsSelfCheckRow> rows;
-	// The control tap's final reading, after its factory and wrapper are gone.
+	// The hosted leg's tap's final reading, after its host is gone.
 	WidgetOpsReading control;
 };
 
-// Main thread, synchronous, needs Active(). Drives TapWidgetRenderer()
-// with a stub product renderer under message ids of peer 0, which no real
-// message has in any session: unarmed identity, armed wrapping and
-// forwarding with exact bytes, order and threads, the scanner's 2-leak,
-// 1-note control followed by a removal batch, scan gaps, the ack, frozen,
-// violation and trusted-event readings, two `limit` reports counted twice
-// with their examples and delivered in order, a throwing product factory,
-// normal destruction, and one FullMsgId in two sessions (only the armed one
-// wrapped, separate readings when both are armed, disarming one leaves the
-// other). Its stress leg replaces an older host whose wrapper adopted <html>
-// with a value, then gives the newer one a one-op adopting batch with a
-// `data-stress` value and batches of 3 and 5 ops with an `attr` value
-// each: 3 batches, 9 ops, a largest of 5 and the three values in order,
-// receipts non-decreasing, conformance untouched; the older wrapper's late
-// 6-op batch with a value is scanned but counts in none of them; a batch
-// without a value counts; values past kWidgetStressValuesLimit only count
-// as dropped; a later adoption clears values and drops, not counts. Its
-// hosted leg drives TapHostedWidget() on a hosted WidgetHost built without
-// a channel and never started, calling the observers the tap installed
-// directly: no tap unarmed, selection at once, one install, release by the
-// last copy, a validated batch scanned and passed on, each mirrored way
-// recorded (in Debug; without a Debug helper every message passes on), a
-// malformed mirror passed on, a served frozen no death, every onDeath one
-// (one reading terminated too), the host's rendered acknowledgment counted
-// once and its one theme probe (a widget with no runtime: no reading, the
-// theme unobserved), helper work records kept within their room, dropped
-// past it, malformed ones (unordered, over an hour, negative, an
-// overwaited interval) counted, full 32-bit counts kept and a stamp that
-// maps past the clock's range refused, the construction's and a later
-// applied theme recorded as the expectation (never as the renderer's
-// scheme) while another host's theme is not, the effective readings (a
-// superseded, an oversized and a malformed one not kept, a mismatching one
-// kept with its difference, a matching one, and without a Debug helper the
-// scheme, its changes and the theme message they give), a theme selected
-// while another theme's job runs pending from its selection until its own
-// job applied and read it, downs and completed clicks of its work counted
-// apart, restarted by the mark and bound only inside its press's delivery
-// (a delivered mouse-down that reached no core lets no later press bind)
+// Main thread, synchronous, needs Active(). Drives TapHostedWidget() under
+// message ids of peer 0, which no real message has in any session, on
+// hosted WidgetHosts built without a channel and never started, calling
+// the observers the tap installed directly: no tap unarmed, selection at
+// once, one install, release by the last copy, the scanner's 2-leak,
+// 1-note control batch scanned and passed on, each mirrored way recorded
+// (in Debug; without a Debug helper every message passes on), a malformed
+// mirror passed on, a served frozen no death, every onDeath one (one
+// reading terminated too), the host's rendered acknowledgment counted once
+// and its one theme probe (a widget with no runtime: no reading, the theme
+// unobserved), helper work records kept within their room, dropped past
+// it, malformed ones (unordered, over an hour, negative, an overwaited
+// interval) counted, full 32-bit counts kept and a stamp that maps past
+// the clock's range refused, the construction's and a later applied theme
+// recorded as the expectation (never as the renderer's scheme) while
+// another host's theme is not, the effective readings (a superseded, an
+// oversized and a malformed one not kept, a mismatching one kept with its
+// difference, a matching one, and without a Debug helper the scheme, its
+// changes and the theme message they give), a theme selected while another
+// theme's job runs pending from its selection until its own job applied
+// and read it, downs and completed clicks of its work counted apart,
+// restarted by the mark and bound only inside its press's delivery (a
+// delivered mouse-down that reached no core lets no later press bind)
 // while another work's and work 0's are not, finality and no press counted
 // at the host's destruction, a tap dropped uninstalled completed and
 // released, and two messages' taps installed in both completion orders (an
 // older construction's late install after a newer one's, then the
 // reverse), each work's clicks counting in its own tap alone and either
-// host's destruction leaving the other's registration. Its local press leg
-// registers two local generations' works through TapWidgetRenderer() and
-// plays the same marks through WidgetPressDispatched(),
-// WidgetLocalPressDown(), WidgetLocalPressReleased() and
-// WidgetLocalPressForwarded(): an older generation's release after the
-// mark, a press queued before it, a mouse-down that reached no core
-// followed by a genuine click, a down with no release, a later down before
-// the release and a selection between the down and the release count no
-// click, the played stable click counts one, its trusted click reaching the
-// tap through the wrapper inside its release's forwarding, and the
-// registration lives with the wrapper after the factory is gone and ends
-// with both. Its local retirement leg detaches a registered work
-// (WidgetCoreDetached()) while its wrapper stays: the played press's up
-// queued across the detach, through the seam or a lookup made before it,
-// beside an earlier trusted click of another press, a release taken before
-// the detach whose click reached no host and a click handed the wrapper
-// after it count no click and revoke the mark, while a click that reached
-// the host before the detach stays and another work's detach changes
-// nothing. Its exchange leg (the `hosted exchanges: ...` rows) reads
-// TwidgetCore's own encodings through Tgw::HostedAnswers(), the classifier
-// the widget helper's stream times hosted renderers with: which messages
-// expect one answer and which answer them, keyed by their pair and
-// sequence; that an answer earns credit only past checks of a constant
-// cost, never a decode of a frame's list, and within Telegram's frame cap;
-// and, at a stream's end on two routes, that an answered route is spared
-// while one left unanswered keeps its ordinary death. Its budget leg gives
-// a wrapper a host message and a renderer message one value past the scan
-// budget (each a gap, never parsed) and ones at it (scanned), then a batch
-// with a 100 KiB attribute name and 100 more matches than examples kept:
-// every match counted, at most 64 examples within 64 KiB.
-// Disarms its ids before it returns. The caller turns each row into a
-// Check().
+// host's destruction leaving the other's registration. That tap's final
+// reading, after its host's destruction, is `control`: 1 batch of 4 ops
+// with the control's 2 leaks and 1 note. Its exchange leg (the `hosted
+// exchanges: ...` rows) reads TwidgetCore's own encodings through
+// Tgw::HostedAnswers(), the classifier the widget helper's stream times
+// hosted renderers with: which messages expect one answer and which answer
+// them, keyed by their pair and sequence; that an answer earns credit only
+// past checks of a constant cost, never a decode of a frame's list, and
+// within Telegram's frame cap; and, at a stream's end on two routes, that
+// an answered route is spared while one left unanswered keeps its ordinary
+// death. Disarms its ids before it returns. The caller turns each row into
+// a Check().
 [[nodiscard]] WidgetOpsSelfCheck RunWidgetOpsSelfCheck();
 
 // Main thread, synchronous, needs Active(). |fixture| is the bytes of
-// widget-sandbox's packages/conformance/probe-fixture.json, which gives each
-// case's expected values. Feeds each case's messages through a wrapper that
-// TapWidgetRenderer() builds around a stub product renderer under message
-// ids of peer 0 and compares ReadWidgetOpsLatest() with the case's `expect`:
-// htmlId, updates, final and awaitingTargets. Two legs with literal
-// expectations follow: a replacement host (a newer selection clears the
-// result; a retiring wrapper's late result, theme and setTheme() are
-// ignored but its batches scanned; a later adoption without a value clears
-// it) and the factory theme, setTheme() and theme message. Disarms its ids
-// before it returns. The caller turns each row into a Check().
+// widget-sandbox's packages/conformance/probe-fixture.json: whether the
+// harness is active and whether the fixture parses into its cases, each
+// with string messages, a numeric htmlId and updates and an object final.
+// The caller turns each row into a Check().
 [[nodiscard]] auto RunWidgetConformanceProbeCheck(const QByteArray &fixture)
 -> std::vector<WidgetOpsSelfCheckRow>;
 

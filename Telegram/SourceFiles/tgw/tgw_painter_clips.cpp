@@ -83,9 +83,6 @@ int64 ClipDataBytes(QPainter &painter) {
 		+ regions;
 }
 #else // !DESKTOP_APP_DISABLE_PRIVATE_QT_API
-#ifdef TDESKTOP_WIDGET_HELPER_RENDERS
-#error "Without the private Qt API clip copies are unbounded: render widgets in process."
-#endif // TDESKTOP_WIDGET_HELPER_RENDERS
 bool ShortensClipHistory() {
 	return false;
 }

@@ -117,7 +117,6 @@ struct Job {
 	QByteArray html;
 	std::shared_ptr<twidget::SandboxResources> resources;
 	std::shared_ptr<twidget::IntlProvider> intl;
-	twidget::RendererFactory factory;
 	RendererCore::HostedHandlers platform;
 	std::shared_ptr<twidget::SandboxHostedWait> wait;
 	Fn<void(const HostPointer &host)> tap;
@@ -134,7 +133,6 @@ struct Job {
 	std::string stoppedLabel;
 	Slot slot;
 	double width = 0.;
-	bool hosted = false;
 };
 
 struct Built {
@@ -265,7 +263,7 @@ void JobDone() {
 }
 
 void ReleaseRoute(RendererCore *core) {
-	if (core && core->hostedWait()) {
+	if (core) {
 		++Runtimes().jobs;
 		core->releaseRoute([] {
 			JobDone();
@@ -484,13 +482,10 @@ void ApplyTheme(
 	Unexpected("State in Tgw::StateName.");
 }
 
-[[nodiscard]] QString StartedNote(EnginePlace place, bool hosted) {
+[[nodiscard]] QString StartedNote(EnginePlace place) {
 	switch (place) {
-	case EnginePlace::InProcess: return u"Started."_q;
-	case EnginePlace::Helper: return hosted
-		? u"Started, its engine, validator and renderer run in the widget "
-			"helper."_q
-		: u"Started, its engine is remote."_q;
+	case EnginePlace::Helper: return u"Started, its engine, validator and "
+		"renderer run in the widget helper."_q;
 	case EnginePlace::Nowhere: return u"Started, its engine does not run."_q;
 	}
 	Unexpected("Place in Tgw::StartedNote.");
@@ -637,20 +632,6 @@ void AppendTail(
 		std::shared_ptr<twidget::SandboxHostedChannel> channel) {
 	auto deleter = HostDeleter{ std::move(job.slot) };
 	auto html = std::string(job.html.constData(), size_t(job.html.size()));
-	if constexpr (EnginesInTelegram()) {
-		if (!job.hosted) {
-			return HostPointer(
-				new twidget::WidgetHost(
-					std::move(html),
-					std::move(job.theme),
-					job.width,
-					job.options,
-					std::move(job.resources),
-					std::move(job.factory),
-					std::move(job.intl)),
-				std::move(deleter));
-		}
-	}
 	return HostPointer(
 		new twidget::WidgetHost(
 			std::move(html),
@@ -665,9 +646,7 @@ void AppendTail(
 
 [[nodiscard]] Built Build(Job job) {
 	try {
-		auto channel = job.hosted
-			? HostedChannel(std::move(job.resources))
-			: nullptr;
+		auto channel = HostedChannel(std::move(job.resources));
 		const auto weak = std::weak_ptr(channel);
 		auto host = CreateHost(job, std::move(channel));
 		host->onAction = std::move(job.action);
@@ -677,14 +656,12 @@ void AppendTail(
 		host->onWatchPublicData = std::move(job.watch);
 		host->onStorageCommit = std::move(job.storage);
 		host->stoppedLabel = std::move(job.stoppedLabel);
-		if (job.hosted) {
-			host->onPlatformMessage = std::move(job.platform.message);
-			host->onPlatformRequest = std::move(job.platform.request);
-			host->onDeath = std::move(job.platform.death);
-			host->keepsRenderer = true;
-			if (job.tap) {
-				job.tap(host);
-			}
+		host->onPlatformMessage = std::move(job.platform.message);
+		host->onPlatformRequest = std::move(job.platform.request);
+		host->onDeath = std::move(job.platform.death);
+		host->keepsRenderer = true;
+		if (job.tap) {
+			job.tap(host);
 		}
 		return {
 			.host = std::move(host),
@@ -1537,10 +1514,9 @@ void Runtime::resourcesReady(
 void Runtime::construct(
 		std::shared_ptr<twidget::SandboxResources> resources) {
 	PrepareRemoteEngines();
-	const auto hosted = WidgetsHosted();
 	const auto width = CssFromLogical(_width);
 	const auto ratio = CoreRatio();
-	_live = std::make_unique<RendererCore>(width, ratio, hosted);
+	_live = std::make_unique<RendererCore>(width, ratio);
 	if (_cut) {
 		_live->setCut(*_cut);
 	}
@@ -1565,23 +1541,12 @@ void Runtime::construct(
 		.html = _html,
 		.resources = std::move(resources),
 		.intl = CreateHostIntl(),
-		// leak and conformance checks need the validated ops only renderers get
-		.factory = (hosted
-			? twidget::RendererFactory()
-			: Test::TapWidgetRenderer(
-				_item->globalId(),
-				_live->workId(),
-				_live->hostFactory())),
-		.platform = (hosted
-			? _live->hostedHandlers(label)
-			: RendererCore::HostedHandlers()),
+		.platform = _live->hostedHandlers(label),
 		.wait = _live->hostedWait(),
-		.tap = (hosted
-			? Test::TapHostedWidget(
-				_item->globalId(),
-				_live->workId(),
-				*_theme)
-			: nullptr),
+		.tap = Test::TapHostedWidget(
+			_item->globalId(),
+			_live->workId(),
+			*_theme),
 		.action = _live->hostActionHandler(),
 		.request = _live->hostRequestHandler(),
 		.wallet = _live->hostWalletHandler(),
@@ -1601,7 +1566,6 @@ void Runtime::construct(
 			Check();
 		}),
 		.width = width,
-		.hosted = hosted,
 	};
 	const auto weak = base::make_weak(this);
 	const auto generation = _generation;
@@ -1680,8 +1644,7 @@ void Runtime::constructed(
 			"before the widget helper took them."_q);
 		return;
 	}
-	const auto hosted = (_live->hostedWait() != nullptr);
-	addNote(StartedNote(ChosenEnginePlace(), hosted));
+	addNote(StartedNote(ChosenEnginePlace()));
 	_host->pointer->start();
 }
 
@@ -1729,9 +1692,6 @@ void Runtime::retire(State state, int brokenCrashes) {
 
 Fn<void(twidget::WidgetHost &host)> Runtime::keepStill() {
 	_stillKept = false;
-	if (!_still->hostedWait()) {
-		return nullptr;
-	}
 	const auto draining = Runtimes().draining || Core::Quitting();
 	auto result = draining ? nullptr : _still->keepRoute();
 	if (result) {

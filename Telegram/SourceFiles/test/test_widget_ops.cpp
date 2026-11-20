@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "test/test_agent.h"
 #include "test/test_widget_ops_internal.h"
-#include "test/test_widget_renderer_forward.h"
 #include "tgw/tgw_renderer_input.h"
 #include "twidget/json.h"
 
@@ -198,7 +197,6 @@ struct HostScan {
 	int ops = 0;
 	bool batch = false;
 	bool ack = false;
-	bool frozen = false;
 };
 
 struct RendererSeen {
@@ -210,93 +208,6 @@ struct RendererSeen {
 	bool trustedEvent = false;
 	bool ack = false;
 	bool limit = false;
-};
-
-// A local generation's work, registered for the product's press seams from
-// the generation's selection on: shared by the wrapping factory and the
-// wrapper it built, and unregistered with the last of them, so it outlives
-// the factory a host releases once it built its renderer. Its calls run on
-// main (the dispatch and the detach) and on the widget render thread (the
-// down, the release and its forwarding) and touch only the tap.
-class LocalWork final {
-public:
-	LocalWork(std::shared_ptr<WidgetOpsTap> tap, int selection, uint64 work);
-	LocalWork(const LocalWork &other) = delete;
-	LocalWork &operator=(const LocalWork &other) = delete;
-	~LocalWork();
-
-	[[nodiscard]] uint64 id() const;
-	void dispatched(uint64 serial) const;
-	void down(uint64 serial) const;
-	void released(bool clicked) const;
-	void forwarded() const;
-	void detached() const;
-
-private:
-	const std::shared_ptr<WidgetOpsTap> _tap;
-	const uint64 _work = 0;
-	const int _selection = 0;
-
-};
-
-// The local works with a tapped renderer, by work id. Never destroyed: the
-// widget render thread may still reach it while the process exits. A work
-// id is never reused, so a late registration of a core that is gone cannot
-// take a newer core's entry.
-struct LocalRegistry {
-	struct Entry {
-		std::weak_ptr<LocalWork> work;
-		const LocalWork *raw = nullptr;
-	};
-
-	std::mutex mutex;
-	std::map<uint64, Entry> works;
-};
-
-// What a wrapping factory's ForwardingRenderer records: built with it,
-// destroyed after its product renderer (the forwarding's own order), so a
-// destroyed wrapper has no renderer left.
-class OpsObserver final : public RendererObserver {
-public:
-	OpsObserver(
-		std::shared_ptr<WidgetOpsTap> tap,
-		int selection,
-		const std::string &theme,
-		std::shared_ptr<LocalWork> work);
-	OpsObserver(const OpsObserver &other) = delete;
-	OpsObserver &operator=(const OpsObserver &other) = delete;
-	~OpsObserver();
-
-	void calling(RendererCall call, const std::string &text) override;
-	void received(const std::string &json) override;
-
-private:
-	const std::shared_ptr<WidgetOpsTap> _tap;
-	const std::shared_ptr<LocalWork> _work;
-	const int _selection = 0;
-
-};
-
-// Shared by every copy of one wrapping factory: released with the last.
-class FactorySelection final {
-public:
-	FactorySelection(
-		std::shared_ptr<WidgetOpsTap> tap,
-		int index,
-		std::shared_ptr<LocalWork> work);
-	FactorySelection(const FactorySelection &other) = delete;
-	FactorySelection &operator=(const FactorySelection &other) = delete;
-	~FactorySelection();
-
-	[[nodiscard]] const std::shared_ptr<WidgetOpsTap> &tap() const;
-	[[nodiscard]] const std::shared_ptr<LocalWork> &work() const;
-	[[nodiscard]] int index() const;
-
-private:
-	const std::shared_ptr<WidgetOpsTap> _tap;
-	const std::shared_ptr<LocalWork> _work;
-	const int _index = 0;
-
 };
 
 [[nodiscard]] bool IsAck(const twidget::Json &qid) {
@@ -483,8 +394,6 @@ void DropUnkept(HostScan &scan) {
 		DropUnkept(result);
 	} else if (type == "query") {
 		result.ack = IsAck(message["qid"]);
-	} else if (type == "frozen") {
-		result.frozen = message["fatal"].asBool();
 	}
 	return result;
 }
@@ -504,14 +413,6 @@ void DropUnkept(HostScan &scan) {
 			&& message["trusted"].asBool())
 		? message.find("ev")
 		: nullptr;
-}
-
-// Whether a local renderer answered a release with a trusted `click`.
-[[nodiscard]] bool Clicked(const std::vector<twidget::Json> &out) {
-	return std::any_of(begin(out), end(out), [](const twidget::Json &message) {
-		const auto ev = TrustedEvent(message);
-		return ev && ((*ev)["type"].asString() == "click");
-	});
 }
 
 // The fields WidgetHost::handleRendererMessage() itself reads. A `limit`
@@ -555,180 +456,6 @@ void AppendExamples(
 	for (auto &example : examples) {
 		AppendExample(to, std::move(example));
 	}
-}
-
-// Never destroyed: see LocalRegistry.
-[[nodiscard]] LocalRegistry &LocalTaps() {
-	static auto &result = *new LocalRegistry();
-	return result;
-}
-
-[[nodiscard]] std::shared_ptr<LocalWork> RegisterLocal(
-		const std::shared_ptr<WidgetOpsTap> &tap,
-		int selection,
-		uint64 work) {
-	auto result = std::make_shared<LocalWork>(tap, selection, work);
-	auto &registry = LocalTaps();
-	auto lock = std::lock_guard(registry.mutex);
-	registry.works[work] = {
-		.work = result,
-		.raw = result.get(),
-	};
-	return result;
-}
-
-// The work registered for |work|, held by the caller: it is released, if
-// last, after the registry lock.
-[[nodiscard]] std::shared_ptr<LocalWork> FindLocal(uint64 work) {
-	auto &registry = LocalTaps();
-	auto lock = std::lock_guard(registry.mutex);
-	const auto i = registry.works.find(work);
-	return (i != end(registry.works)) ? i->second.work.lock() : nullptr;
-}
-
-std::unique_ptr<twidget::Renderer> BuildTapped(
-		const FactorySelection &selection,
-		const twidget::RendererFactory &factory,
-		std::shared_ptr<twidget::SandboxResources> resources,
-		const std::string &theme,
-		double width) {
-	const auto &tap = selection.tap();
-	auto inner = std::unique_ptr<twidget::Renderer>();
-	try {
-		inner = factory(std::move(resources), theme, width);
-	} catch (...) {
-		tap->factoryCompleted(true);
-		throw;
-	}
-	tap->factoryCompleted(false);
-	if (!inner) {
-		// WidgetHost throws on a null renderer, as it would without the tap.
-		return inner;
-	}
-	return std::make_unique<ForwardingRenderer>(
-		std::move(inner),
-		std::make_unique<OpsObserver>(
-			tap,
-			selection.index(),
-			theme,
-			selection.work()));
-}
-
-[[nodiscard]] twidget::RendererFactory WrapFactory(
-		std::shared_ptr<WidgetOpsTap> tap,
-		int index,
-		uint64 work,
-		twidget::RendererFactory factory) {
-	auto local = work ? RegisterLocal(tap, index, work) : nullptr;
-	const auto selection = std::make_shared<FactorySelection>(
-		std::move(tap),
-		index,
-		std::move(local));
-	return [selection, factory = std::move(factory)](
-			std::shared_ptr<twidget::SandboxResources> resources,
-			const std::string &theme,
-			double width) {
-		return BuildTapped(
-			*selection,
-			factory,
-			std::move(resources),
-			theme,
-			width);
-	};
-}
-
-LocalWork::LocalWork(
-	std::shared_ptr<WidgetOpsTap> tap,
-	int selection,
-	uint64 work)
-: _tap(std::move(tap))
-, _work(work)
-, _selection(selection) {
-}
-
-LocalWork::~LocalWork() {
-	auto &registry = LocalTaps();
-	auto lock = std::lock_guard(registry.mutex);
-	const auto i = registry.works.find(_work);
-	if (i != end(registry.works) && (i->second.raw == this)) {
-		registry.works.erase(i);
-	}
-}
-
-uint64 LocalWork::id() const {
-	return _work;
-}
-
-void LocalWork::dispatched(uint64 serial) const {
-	_tap->pressDispatched(_selection, _work, serial);
-}
-
-void LocalWork::down(uint64 serial) const {
-	_tap->localPressDown(_selection, _work, serial);
-}
-
-void LocalWork::released(bool clicked) const {
-	_tap->localPressReleased(_selection, _work, clicked);
-}
-
-void LocalWork::forwarded() const {
-	_tap->localPressForwarded(_work);
-}
-
-void LocalWork::detached() const {
-	_tap->detached(_selection, _work);
-}
-
-OpsObserver::OpsObserver(
-	std::shared_ptr<WidgetOpsTap> tap,
-	int selection,
-	const std::string &theme,
-	std::shared_ptr<LocalWork> work)
-: _tap(std::move(tap))
-, _work(std::move(work))
-, _selection(selection) {
-	_tap->wrapperBuilt(_selection, theme);
-}
-
-OpsObserver::~OpsObserver() {
-	_tap->wrapperDestroyed();
-}
-
-void OpsObserver::calling(RendererCall call, const std::string &text) {
-	if (call == RendererCall::Send) {
-		_tap->hostMessage(_selection, text);
-	} else if (call == RendererCall::SetTheme) {
-		_tap->themeSet(_selection, text);
-	}
-}
-
-void OpsObserver::received(const std::string &json) {
-	_tap->rendererMessage(_selection, json, _work ? _work->id() : 0);
-}
-
-FactorySelection::FactorySelection(
-	std::shared_ptr<WidgetOpsTap> tap,
-	int index,
-	std::shared_ptr<LocalWork> work)
-: _tap(std::move(tap))
-, _work(std::move(work))
-, _index(index) {
-}
-
-FactorySelection::~FactorySelection() {
-	_tap->factoryReleased();
-}
-
-const std::shared_ptr<WidgetOpsTap> &FactorySelection::tap() const {
-	return _tap;
-}
-
-const std::shared_ptr<LocalWork> &FactorySelection::work() const {
-	return _work;
-}
-
-int FactorySelection::index() const {
-	return _index;
 }
 
 } // namespace
@@ -775,18 +502,6 @@ ArmedMap &ArmedTaps() {
 	return result;
 }
 
-void LocalPressDispatched(uint64 work, uint64 serial) {
-	if (const auto local = FindLocal(work)) {
-		local->dispatched(serial);
-	}
-}
-
-void LocalDetached(uint64 work) {
-	if (const auto local = FindLocal(work)) {
-		local->detached();
-	}
-}
-
 } // namespace Test::WidgetOps
 
 namespace Test {
@@ -812,25 +527,14 @@ int WidgetOpsTap::factorySelected() {
 	return index;
 }
 
-void WidgetOpsTap::factoryCompleted(bool threw) {
+void WidgetOpsTap::factoryCompleted() {
 	auto lock = std::lock_guard(_mutex);
 	++_reading.factoriesCompleted;
-	if (threw) {
-		++_reading.factoriesThrew;
-	}
 }
 
 void WidgetOpsTap::factoryReleased() {
 	auto lock = std::lock_guard(_mutex);
 	++_reading.factoriesReleased;
-}
-
-void WidgetOpsTap::wrapperBuilt(int selection, const std::string &theme) {
-	auto lock = std::lock_guard(_mutex);
-	++_reading.wrappersBuilt;
-	if (current(selection)) {
-		_latest.scheme = theme;
-	}
 }
 
 void WidgetOpsTap::wrapperDestroyed() {
@@ -851,11 +555,11 @@ void WidgetOpsTap::schemeReported(int selection, const std::string &scheme) {
 }
 
 void WidgetOpsTap::hostMessage(int selection, std::string_view json) {
-	merge(selection, json, true);
+	merge(selection, json);
 }
 
 void WidgetOpsTap::servedMessage(int selection, std::string_view json) {
-	merge(selection, json, false);
+	merge(selection, json);
 }
 
 void WidgetOpsTap::hostDied() {
@@ -1047,46 +751,6 @@ void WidgetOpsTap::pressObserved(
 	}
 }
 
-void WidgetOpsTap::localPressDown(int selection, uint64 work, uint64 serial) {
-	auto lock = std::lock_guard(_mutex);
-	auto &reading = _reading;
-	if (!marks(selection, work)) {
-		++reading.pressStepsElsewhere;
-		return;
-	}
-	_localDown = serial;
-	if (serial == reading.markedSerial) {
-		++reading.downsConfirmed;
-	} else {
-		++reading.pressStepsElsewhere;
-	}
-}
-
-void WidgetOpsTap::localPressReleased(
-		int selection,
-		uint64 work,
-		bool clicked) {
-	auto lock = std::lock_guard(_mutex);
-	auto &reading = _reading;
-	auto own = false;
-	if (marks(selection, work)) {
-		own = (base::take(_localDown) == reading.markedSerial);
-	}
-	_localRelease = (own && clicked) ? work : 0;
-	if (!own) {
-		reading.pressStepsElsewhere += clicked ? 2 : 1;
-		return;
-	}
-	++reading.upsConfirmed;
-}
-
-void WidgetOpsTap::localPressForwarded(uint64 work) {
-	auto lock = std::lock_guard(_mutex);
-	if (_localRelease == work) {
-		_localRelease = 0;
-	}
-}
-
 void WidgetOpsTap::detached(int selection, uint64 work) {
 	auto lock = std::lock_guard(_mutex);
 	auto &reading = _reading;
@@ -1094,8 +758,6 @@ void WidgetOpsTap::detached(int selection, uint64 work) {
 		return;
 	}
 	reading.markDetached = true;
-	_localDown = 0;
-	_localRelease = 0;
 }
 
 void WidgetOpsTap::gap(std::string example) {
@@ -1104,10 +766,7 @@ void WidgetOpsTap::gap(std::string example) {
 	AppendExample(_reading.gapExamples, std::move(example));
 }
 
-void WidgetOpsTap::merge(
-		int selection,
-		std::string_view json,
-		bool frozen) {
+void WidgetOpsTap::merge(int selection, std::string_view json) {
 	const auto receivedAt = crl::profile();
 	auto scan = ScanHostMessage(json);
 	auto lock = std::lock_guard(_mutex);
@@ -1128,9 +787,6 @@ void WidgetOpsTap::merge(
 	}
 	if (scan.ack) {
 		++reading.ackQueries;
-	}
-	if (scan.frozen && frozen) {
-		++reading.fatalFrozen;
 	}
 	if ((scan.results.empty() && !scan.theme) || !current(selection)) {
 		return;
@@ -1162,10 +818,7 @@ bool WidgetOpsTap::current(int selection) {
 	return false;
 }
 
-void WidgetOpsTap::rendererMessage(
-		int selection,
-		std::string_view json,
-		uint64 work) {
+void WidgetOpsTap::rendererMessage(int selection, std::string_view json) {
 	auto seen = ReadRendererMessage(json);
 	if (!seen.violation
 		&& !seen.trustedEvent
@@ -1195,10 +848,6 @@ void WidgetOpsTap::rendererMessage(
 		++reading.trustedEvents;
 		if (seen.eventType == "click") {
 			++reading.trustedClicks;
-			if (_localRelease && (work == _localRelease)) {
-				_localRelease = 0;
-				++reading.clicksCompleted;
-			}
 		}
 		AppendExample(reading.trustedEventTypes, std::move(seen.eventType));
 	}
@@ -1224,8 +873,6 @@ void WidgetOpsTap::markEvents() {
 	reading.markSuperseded = 0;
 	reading.markDetached = false;
 	_markPress = MarkPress::Awaiting;
-	_localDown = 0;
-	_localRelease = 0;
 }
 
 WidgetOpsReading WidgetOpsTap::read() const {
@@ -1294,48 +941,6 @@ WidgetHelperWorkReading WidgetOpsTap::work(crl::profile_time since) const {
 	return result;
 }
 
-twidget::RendererFactory TapWidgetRenderer(
-		GlobalMsgId id,
-		twidget::RendererFactory factory) {
-	return TapWidgetRenderer(id, 0, std::move(factory));
-}
-
-twidget::RendererFactory TapWidgetRenderer(
-		GlobalMsgId id,
-		uint64 work,
-		twidget::RendererFactory factory) {
-	if (!Active()) {
-		return factory;
-	}
-	const auto &armed = ArmedTaps();
-	const auto i = armed.find(id);
-	if (i == end(armed)) {
-		return factory;
-	}
-	const auto index = i->second->factorySelected();
-	return WrapFactory(i->second, index, work, std::move(factory));
-}
-
-void WidgetLocalPressDown(uint64 work, uint64 serial) {
-	if (const auto local = FindLocal(work)) {
-		local->down(serial);
-	}
-}
-
-void WidgetLocalPressReleased(
-		uint64 work,
-		const std::vector<twidget::Json> &out) {
-	if (const auto local = FindLocal(work)) {
-		local->released(Clicked(out));
-	}
-}
-
-void WidgetLocalPressForwarded(uint64 work) {
-	if (const auto local = FindLocal(work)) {
-		local->forwarded();
-	}
-}
-
 std::shared_ptr<WidgetOpsTap> ArmWidgetOpsTap(GlobalMsgId id) {
 	auto &tap = ArmedTaps()[id];
 	if (!tap) {
@@ -1370,40 +975,6 @@ void DeliverMarkedPress(WidgetOpsTap &tap, Fn<void()> deliver) {
 	}
 }
 
-WidgetThemeCheck CheckGivenTheme(
-		const WidgetOpsLatest &latest,
-		std::string_view scheme,
-		const WidgetOpsLatest *before) {
-	const auto result = [](WidgetThemeVerdict verdict, std::string detail) {
-		return WidgetThemeCheck{
-			.verdict = verdict,
-			.detail = std::move(detail),
-		};
-	};
-	if (before && (latest.generation != before->generation)) {
-		return result(
-			WidgetThemeVerdict::Unobserved,
-			"theme-superseded: generation "
-				+ std::to_string(latest.generation)
-				+ " replaced generation "
-				+ std::to_string(before->generation));
-	} else if (before && (latest.schemeChanges <= before->schemeChanges)) {
-		return result(
-			WidgetThemeVerdict::Unobserved,
-			"theme-unapplied: the renderer was given no other scheme");
-	} else if (latest.scheme.empty()) {
-		return result(
-			WidgetThemeVerdict::Unobserved,
-			"the newest host's renderer has no scheme reading");
-	} else if (latest.scheme != scheme) {
-		return result(
-			WidgetThemeVerdict::Wrong,
-			"the renderer was given the [" + latest.scheme + "] scheme, not "
-				+ std::string(scheme));
-	}
-	return result(WidgetThemeVerdict::Matches, std::string());
-}
-
 bool WidgetHelperMirrors() {
 	return kHelperMirrors;
 }
@@ -1420,34 +991,6 @@ WidgetHelperWorkReading ReadWidgetHelperWork(
 		const WidgetOpsTap &tap,
 		crl::profile_time since) {
 	return tap.work(since);
-}
-
-} // namespace Test
-
-#else // _DEBUG || TDESKTOP_RELEASE_TEST_HARNESS
-
-namespace Test {
-
-twidget::RendererFactory TapWidgetRenderer(
-		GlobalMsgId,
-		twidget::RendererFactory factory) {
-	return factory;
-}
-
-twidget::RendererFactory TapWidgetRenderer(
-		GlobalMsgId,
-		uint64,
-		twidget::RendererFactory factory) {
-	return factory;
-}
-
-void WidgetLocalPressDown(uint64, uint64) {
-}
-
-void WidgetLocalPressReleased(uint64, const std::vector<twidget::Json> &) {
-}
-
-void WidgetLocalPressForwarded(uint64) {
 }
 
 } // namespace Test

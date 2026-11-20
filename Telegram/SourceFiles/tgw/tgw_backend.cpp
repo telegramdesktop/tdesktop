@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_backend.h"
 
-#include "core/src/css.h"
 #include "core/src/png.h"
 #include "tgw/tgw_canvas.h"
 #include "tgw/tgw_emoji.h"
@@ -803,28 +802,7 @@ bool QtBackend::beginFrame() {
 	_framed = now;
 	_canvases->refill();
 	_canvasFontsLeft = kMaxNewCanvasFonts;
-	_canvasSpellings.refill();
 	return true;
-}
-
-int QtBackend::canvasFont(
-		const std::string &css,
-		twlite::FontMetrics &metrics) {
-	const auto work = _meter.work();
-	if (!serves(work)) {
-		return refuseCanvasFont(metrics);
-	}
-	const auto key = _canvasSpellings.find(css, [](const std::string &text) {
-		const auto parsed = twlite::css::parse_font(text);
-		return ResolveFont(
-			parsed.family,
-			parsed.size,
-			parsed.weight,
-			parsed.italic);
-	});
-	return key
-		? admitCanvasFont(*key, metrics)
-		: refuseCanvasFont(metrics);
 }
 
 void QtBackend::noteCanvasFontRefused() {
@@ -833,15 +811,6 @@ void QtBackend::noteCanvasFontRefused() {
 			std::string(RendererRules::kCanvasFontLimitKind),
 			RendererRules::CanvasFontLimitText());
 	}
-}
-
-void QtBackend::releaseCanvasFonts() {
-	for (const auto &entry : _canvasFonts) {
-		_fonts.remove(entry.second.id);
-	}
-	_canvasFonts.clear();
-	_canvasSpellings.clear();
-	_canvasFontsLeft = 0;
 }
 
 void QtBackend::releaseLive() {
@@ -854,7 +823,6 @@ void QtBackend::releaseLive() {
 	base::take(_images);
 	base::take(_fonts);
 	base::take(_canvasFonts);
-	_canvasSpellings.clear();
 	_canvases->clear();
 	_canvasFontsLeft = 0;
 	_emoji->close();

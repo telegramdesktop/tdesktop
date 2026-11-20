@@ -92,7 +92,6 @@ endif()
 
 string(REPLACE "," ";" archs "${NOVA_ARCHS}")
 set(built)
-set(prelinked)
 foreach (arch IN LISTS archs)
     if (arch STREQUAL "arm64")
         set(target aarch64-apple-darwin)
@@ -104,29 +103,6 @@ foreach (arch IN LISTS archs)
     build(--target ${target})
     set(library "${NOVA_OUT}/target/${target}/release/libnova_embed_ffi.a")
     list(APPEND built "${library}")
-
-    if (NOVA_PRIVATE)
-        # nova-safe's own recipe (safe/embed/build-xcframework.sh): one object that exports only nova_*, its Rust runtime private.
-        set(object "${NOVA_OUT}/nova_embed_ffi-${arch}.o")
-        set(archive "${NOVA_OUT}/libnova_embed_ffi_private-${arch}.a")
-        if ("${library}" IS_NEWER_THAN "${archive}")
-            set(minimum "${NOVA_DEPLOYMENT}")
-            if (arch STREQUAL "arm64" AND minimum VERSION_LESS 11.0)
-                set(minimum 11.0)
-            endif()
-            file(WRITE "${NOVA_OUT}/exported-symbols.txt" "_nova_*\n_rust_eh_personality\n")
-            run(ld -r -arch ${arch} -platform_version macos ${minimum} ${minimum}
-                -exported_symbols_list "${NOVA_OUT}/exported-symbols.txt"
-                -all_load "${library}"
-                -o "${object}")
-            run(strip -S "${object}")
-            # Weak, so that it merges with the one tdesktop_rust brings instead of being a fourth personality routine.
-            run("${NOVA_PYTHON}" -I "${NOVA_ROOT}/safe/embed/weak_personality.py" "${object}")
-            file(REMOVE "${archive}")
-            run(libtool -static -o "${archive}" "${object}")
-        endif()
-        list(APPEND prelinked "${archive}")
-    endif()
 endforeach()
 
 function(join output)
@@ -144,6 +120,3 @@ function(join output)
 endfunction()
 
 join("${NOVA_OUT}/libnova_embed_ffi.a" ${built})
-if (NOVA_PRIVATE)
-    join("${NOVA_OUT}/libnova_embed_ffi_private.a" ${prelinked})
-endif()

@@ -12,10 +12,6 @@ if (NOT EXISTS ${nova_loc}/nova_embed_ffi/Cargo.toml)
     message(FATAL_ERROR "nova-safe sources are missing, run 'git submodule update --init --recursive'.")
 endif()
 
-if (NOT APPLE AND NOT WIN32 AND NOT TDESKTOP_WIDGETS_HELPER_ONLY)
-    message(FATAL_ERROR "Telegram links no Nova engine on Linux, widgets run only in its helper: set TDESKTOP_WIDGETS_HELPER_ONLY.")
-endif()
-
 # The toolchain prepare.py installs next to Libraries, else whatever cargo the system has.
 if (WIN32)
     set(nova_rust_loc ${CMAKE_SOURCE_DIR}/../ThirdParty/rust)
@@ -45,19 +41,11 @@ else()
     set(nova_libraries ${nova_library})
     set(nova_platform_arguments)
     if (APPLE)
-        find_package(Python3 REQUIRED COMPONENTS Interpreter)
-
         string(REPLACE ";" "," nova_archs "${CMAKE_OSX_ARCHITECTURES}")
         list(APPEND nova_platform_arguments
             -DNOVA_ARCHS=${nova_archs}
             -DNOVA_DEPLOYMENT=${CMAKE_OSX_DEPLOYMENT_TARGET}
-            -DNOVA_PYTHON=${Python3_EXECUTABLE}
         )
-    endif()
-    if (NOT TDESKTOP_WIDGETS_HELPER_ONLY)
-        set(nova_private_library ${nova_out}/libnova_embed_ffi_private.a)
-        list(APPEND nova_libraries ${nova_private_library})
-        list(APPEND nova_platform_arguments -DNOVA_PRIVATE=ON)
     endif()
 endif()
 
@@ -110,15 +98,4 @@ if (WIN32)
     )
 elseif (NOT APPLE)
     target_link_libraries(lib_nova_engine INTERFACE ${CMAKE_DL_LIBS} m)
-endif()
-
-if (DEFINED nova_private_library)
-    # Telegram still compiles the in-process engines and the validator (its Debug switch, and the engine-only arrangement),
-    # so it links the engine itself, in a form whose Rust runtime stays apart from tdesktop_rust's.
-    add_library(lib_nova_engine_private_static STATIC IMPORTED GLOBAL)
-    set_target_properties(lib_nova_engine_private_static PROPERTIES IMPORTED_LOCATION ${nova_private_library})
-    add_library(lib_nova_engine_private INTERFACE)
-    add_library(tdesktop::lib_nova_engine_private ALIAS lib_nova_engine_private)
-    target_link_libraries(lib_nova_engine_private INTERFACE lib_nova_engine_private_static)
-    add_dependencies(lib_nova_engine_private nova_engine_build)
 endif()

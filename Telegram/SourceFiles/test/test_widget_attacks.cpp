@@ -20,10 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_ops.h"
 #include "test/test_widgets.h"
 #include "tgw/tgw_hosted_wire.h"
-#include "tgw/tgw_remote.h"
 #include "tgw/tgw_renderer_input.h"
 #include "tgw/tgw_runtime.h"
-#include "twidget/json.h"
 #include "twidget/widget_host.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/widgets/elastic_scroll.h"
@@ -635,31 +633,25 @@ void ClickAndWatch(AuditState &state, AttackFile &file) {
 // alone, while it stays the newest, and each for the press the click
 // played: the primary press the chat dispatched to the core it clicked
 // while the click's own mouse-down was being delivered
-// (PlayMarkedClick()). A local renderer's trusted click and the trusted
-// click of the release of that press's own down, as its work's forwarding
-// handed it to the host before the core was detached; with the Debug
-// helper's tap a hosted host's mirrored trusted click and the click
-// decision the helper's renderer reported for the up of that press, sent
-// with the pointer serial of that dispatch; without it (a Release harness)
-// that decision alone. An answered down or up is delivery, never a click,
-// and a trusted click the played press did not make never completes it.
+// (PlayMarkedClick()). With the Debug helper's tap the hosted host's
+// mirrored trusted click and the click decision the helper's renderer
+// reported for the up of that press, sent with the pointer serial of that
+// dispatch; without it (a Release harness) that decision alone. An
+// answered down or up is delivery, never a click, and a trusted click the
+// played press did not make never completes it.
 enum class ClickReading {
-	Renderer,
 	HelperMirror,
 	Decision,
 };
 
 [[nodiscard]] ClickReading ClickReadingHere() {
-	return !Tgw::WidgetsHosted()
-		? ClickReading::Renderer
-		: WidgetHelperMirrors()
+	return WidgetHelperMirrors()
 		? ClickReading::HelperMirror
 		: ClickReading::Decision;
 }
 
 [[nodiscard]] QString ClickSource(ClickReading reading) {
 	switch (reading) {
-	case ClickReading::Renderer: return u"renderer"_q;
 	case ClickReading::HelperMirror: return u"helper-mirror"_q;
 	case ClickReading::Decision: return u"click-decision"_q;
 	}
@@ -672,29 +664,25 @@ enum class ClickReading {
 
 // The click's outcome from the watch's reading as |reading| reads it:
 // "observed" from a trusted click of the marked generation together with
-// the played press's own click (locally the trusted click its release
-// answered as it reached the host, hosted with the Debug tap its
-// decision), "decided" from that decision alone; the press's own click
-// counts only for the press the click played to |played|, the work of the
-// core it clicked, never for 0. Anything else, an answered down or up, a
-// late step of an earlier press or another generation, a press dispatched
-// before the mark, after a mouse-down no core took, or to another core, a
-// trusted click another press made, a click after a newer generation was
-// selected and a local click that reached no host (its up queued across
-// the core's retirement) included, is "not-observed".
+// the played press's own click (with the Debug tap its decision),
+// "decided" from that decision alone; the press's own click counts only
+// for the press the click played to |played|, the work of the core it
+// clicked, never for 0. Anything else, an answered down or up, a late step
+// of an earlier press or another generation, a press dispatched before the
+// mark, after a mouse-down no core took, or to another core, a trusted
+// click another press made and a click after a newer generation was
+// selected included, is "not-observed".
 [[nodiscard]] QString ClickOutcome(
 		const WidgetOpsReading &watched,
 		ClickReading reading,
 		uint64 played) {
 	const auto trusted = (watched.trustedClicks > 0);
-	const auto local = (reading == ClickReading::Renderer);
 	const auto identified = played
 		&& (watched.markedWork == played)
 		&& watched.markedSerial
-		&& (local || watched.markedPress);
+		&& watched.markedPress;
 	const auto own = identified && (watched.clicksCompleted > 0);
 	switch (reading) {
-	case ClickReading::Renderer:
 	case ClickReading::HelperMirror:
 		return (trusted && own) ? u"observed"_q : u"not-observed"_q;
 	case ClickReading::Decision:
@@ -883,10 +871,7 @@ void RecordLog(AuditState &state, AttackFile &file) {
 // the click hit (another core's work, or no bound press, is none); with
 // the tap a decision needs the mirror's trusted click and that click the
 // decision (an earlier press's mirrored click is no decision of the marked
-// one). A local renderer's trusted click alone is none either, a reading
-// with no played work none whatever it counted: only the trusted click the
-// played press's own release answered, beside the generation's count,
-// completes it, and only for the core the click hit.
+// one).
 void CheckClickOutcomes(const QString &prefix) {
 	constexpr auto kPlayed = uint64(7);
 	auto down = WidgetOpsReading();
@@ -906,14 +891,6 @@ void CheckClickOutcomes(const QString &prefix) {
 	mirrored.trustedClicks = 1;
 	auto both = decided;
 	both.trustedClicks = 1;
-	auto localTrusted = mirrored;
-	localTrusted.markedPress = 0;
-	auto localOwn = both;
-	localOwn.markedPress = 0;
-	auto localUncounted = localOwn;
-	localUncounted.trustedClicks = 0;
-	auto localUnbound = unbound;
-	localUnbound.trustedClicks = 1;
 	using Reading = ClickReading;
 	const auto release = [&](const WidgetOpsReading &reading) {
 		return ClickOutcome(reading, Reading::Decision, kPlayed);
@@ -936,16 +913,6 @@ void CheckClickOutcomes(const QString &prefix) {
 		Reading::HelperMirror,
 		kPlayed);
 	const auto debugBoth = ClickOutcome(both, Reading::HelperMirror, kPlayed);
-	const auto local = [&](const WidgetOpsReading &reading, uint64 played) {
-		return ClickOutcome(reading, Reading::Renderer, played);
-	};
-	const auto localUnplayed = local(localTrusted, 0);
-	const auto localTrustedOnly = local(localTrusted, kPlayed);
-	const auto localOwnUnplayed = local(localOwn, 0);
-	const auto localOwnOther = local(localOwn, kPlayed + 1);
-	const auto localOwnUncounted = local(localUncounted, kPlayed);
-	const auto localUnboundClick = local(localUnbound, kPlayed);
-	const auto localClick = local(localOwn, kPlayed);
 	Check(
 		(releaseDown == u"not-observed"_q)
 			&& (releaseReplaced == u"not-observed"_q)
@@ -955,21 +922,11 @@ void CheckClickOutcomes(const QString &prefix) {
 			&& (releaseOther == u"not-observed"_q)
 			&& (debugDecided == u"not-observed"_q)
 			&& (debugMirrored == u"not-observed"_q)
-			&& (debugBoth == u"observed"_q)
-			&& (localUnplayed == u"not-observed"_q)
-			&& (localTrustedOnly == u"not-observed"_q)
-			&& (localOwnUnplayed == u"not-observed"_q)
-			&& (localOwnOther == u"not-observed"_q)
-			&& (localOwnUncounted == u"not-observed"_q)
-			&& (localUnboundClick == u"not-observed"_q)
-			&& (localClick == u"observed"_q),
+			&& (debugBoth == u"observed"_q),
 		prefix + u"a hosted click is the click decision of the press played "
 			u"to the clicked core (with the Debug helper's tap and the "
 			u"mirror's trusted click), never an answered down or up or an "
-			u"unbound or other core's press; a local one the trusted click "
-			u"its work matched to the played press's own release, with the "
-			u"generation's trusted click, never a trusted click alone, an "
-			u"unbound press, another core's or one with no played work"_q,
+			u"unbound or other core's press"_q,
 		u"releaseDown=%1 releaseReplaced=%2 releaseNone=%3 releaseClick=%4 "
 			u"releaseUnbound=%5 releaseOther=%6 debugDecided=%7 "
 			u"debugMirrored=%8 debugBoth=%9"_q.arg(
@@ -981,35 +938,20 @@ void CheckClickOutcomes(const QString &prefix) {
 				releaseOther,
 				debugDecided,
 				debugMirrored,
-				debugBoth)
-			+ u" localUnplayed=%1 localTrustedOnly=%2 localOwnUnplayed=%3 "
-			u"localOwnOther=%4 localOwnUncounted=%5 localUnbound=%6 "
-			u"localClick=%7"_q.arg(
-				localUnplayed,
-				localTrustedOnly,
-				localOwnUnplayed,
-				localOwnOther,
-				localOwnUncounted,
-				localUnboundClick,
-				localClick));
+				debugBoth));
 }
 
 // Work ids no RendererCore is given and the ops self-check does not use,
-// the older and newer generations' of the hosted and of the local taps,
-// then each tap's three later generations' (a click completed before its
-// core retired, a press whose up was queued across that retirement, a
-// press whose up came between its core's detach and its host's
-// retirement), and the session of the messages the verdict check drives.
+// the older and newer generations' of the hosted tap, then its three later
+// generations' (a click completed before its core retired, a press whose
+// up was queued across that retirement, a press whose up came between its
+// core's detach and its host's retirement), and the session of the
+// message the verdict check drives.
 constexpr auto kVerdictOlderWork = std::numeric_limits<uint64>::max() - 5;
 constexpr auto kVerdictNewerWork = kVerdictOlderWork + 1;
-constexpr auto kVerdictLocalOlderWork = kVerdictOlderWork - 2;
-constexpr auto kVerdictLocalNewerWork = kVerdictOlderWork - 1;
 constexpr auto kVerdictKeptWork = kVerdictOlderWork - 12;
 constexpr auto kVerdictRetiredWork = kVerdictOlderWork - 13;
-constexpr auto kVerdictLocalKeptWork = kVerdictOlderWork - 14;
-constexpr auto kVerdictLocalRetiredWork = kVerdictOlderWork - 15;
 constexpr auto kVerdictGapWork = kVerdictOlderWork - 16;
-constexpr auto kVerdictLocalGapWork = kVerdictOlderWork - 17;
 constexpr auto kVerdictTapSession = uint64(3);
 
 // The trusted click a renderer sends its host.
@@ -1017,34 +959,18 @@ constexpr auto kVerdictClick = R"json({"type":"event",)json"
 	R"json("ev":{"type":"click","targetId":2,"detail":1},)json"
 	R"json("trusted":true})json";
 
-// A local product renderer standing in for the verdict check's: it sends
-// its host only what the check gives it.
-class VerdictRenderer final : public twidget::Renderer {
-public:
-	void load() override;
-	void send(const std::string &json) override;
-	void setTheme(const std::string &theme) override;
-	void setWidth(double width) override;
-	void destroy() override;
-
-};
-
-// How the verdict check plays a press of a work through one placement's
-// product seams: its down taken (hosted its Sent and Down, locally
-// WidgetLocalPressDown()), then its up, with or without the click its
-// renderer decided (hosted its Up and Click, then its host's mirrored
-// trusted click, which only a Debug tap reads; locally
-// WidgetLocalPressReleased() answered with the trusted click, which the
-// work's forwarding hands its host through the wrapper, then
-// WidgetLocalPressForwarded()), a third generation selected for the
-// message, a later generation selected and built for a work, the detach
-// of a work's core (RendererCore::detach(): WidgetCoreDetached(), then
-// its link closed), after which a reply its route had already taken still
-// reports the up and the click its renderer decided, its host, still
-// live, mirroring that click (hosted) and its forwarding reaching no
-// wrapper (locally), and the retirement of that work's host
-// (WidgetHostRetired(), hosted alone), after which such a reply reports
-// with no mirrored trusted click, while the host keeps the wrapper.
+// How the verdict check plays a press of a work through the product's
+// seams: its down taken (its Sent and Down), then its up, with or without
+// the click its renderer decided (its Up and Click, then its host's
+// mirrored trusted click, which only a Debug tap reads), a third
+// generation selected for the message, a later generation selected and
+// built for a work, the detach of a work's core (RendererCore::detach():
+// WidgetCoreDetached(), then its link closed), after which a reply its
+// route had already taken still reports the up and the click its renderer
+// decided, its host, still live, mirroring that click, and the retirement
+// of that work's host (WidgetHostRetired()), after which such a reply
+// reports with no mirrored trusted click, while the host keeps the
+// wrapper.
 struct VerdictPlayer {
 	Fn<void(uint64 work, uint64 press, uint64 serial)> down;
 	Fn<void(uint64 work, uint64 press, bool clicked)> up;
@@ -1059,8 +985,8 @@ struct VerdictPlayer {
 	uint64 gap = 0;
 };
 
-// The readings the verdict check's interactions leave on one placement's
-// tap, and whether its hosts or wrappers were built.
+// The readings the verdict check's interactions leave on its tap, and
+// whether its hosts were built.
 struct VerdictRun {
 	WidgetOpsReading late;
 	WidgetOpsReading replaced;
@@ -1079,28 +1005,6 @@ struct VerdictRun {
 	bool built = false;
 };
 
-// A local generation's wrapper, built by the wrapping factory, which is
-// released then as a host releases it, and the renderer it wraps.
-struct VerdictLocal {
-	std::unique_ptr<twidget::Renderer> wrapper;
-	VerdictRenderer *product = nullptr;
-};
-
-void VerdictRenderer::load() {
-}
-
-void VerdictRenderer::send(const std::string &) {
-}
-
-void VerdictRenderer::setTheme(const std::string &) {
-}
-
-void VerdictRenderer::setWidth(double) {
-}
-
-void VerdictRenderer::destroy() {
-}
-
 // A hosted host with no channel, never started: the tap's observers are
 // installed on it and nothing else calls them.
 [[nodiscard]] std::shared_ptr<twidget::WidgetHost> VerdictHost() {
@@ -1110,27 +1014,6 @@ void VerdictRenderer::destroy() {
 		320.,
 		twidget::WidgetHostOptions(),
 		std::shared_ptr<twidget::SandboxHostedChannel>());
-}
-
-// The next generation of |id| for the local |work|; no product when the
-// tap did not wrap it.
-[[nodiscard]] VerdictLocal VerdictLocalGeneration(
-		GlobalMsgId id,
-		uint64 work) {
-	auto result = VerdictLocal();
-	auto factory = TapWidgetRenderer(id, work, [&](
-			std::shared_ptr<twidget::SandboxResources>,
-			const std::string &,
-			double) {
-		auto renderer = std::make_unique<VerdictRenderer>();
-		result.product = renderer.get();
-		return std::unique_ptr<twidget::Renderer>(std::move(renderer));
-	});
-	result.wrapper = factory(nullptr, "light", 320.);
-	if (result.wrapper.get() == result.product) {
-		result.product = nullptr;
-	}
-	return result;
 }
 
 // |work|'s primary press |press| through the product's press seam, |steps|
@@ -1353,77 +1236,6 @@ struct VerdictHosted {
 	return result;
 }
 
-// The cases on local generations through TapWidgetRenderer(), each wrapper
-// built and its factory released first and kept to the end, as a host
-// sample keeps a retired host, and the product's WidgetPressDispatched(),
-// WidgetLocalPressDown(), WidgetLocalPressReleased(),
-// WidgetLocalPressForwarded() and WidgetCoreDetached().
-[[nodiscard]] VerdictRun PlayLocalVerdicts() {
-	const auto id = GlobalMsgId{
-		FullMsgId(PeerId(), MsgId(-2)),
-		kVerdictTapSession,
-	};
-	const auto tap = ArmWidgetOpsTap(id);
-	auto generations = std::map<uint64, VerdictLocal>();
-	const auto add = [&](uint64 work) {
-		const auto &added = generations.emplace(
-			work,
-			VerdictLocalGeneration(id, work)).first->second;
-		return (added.product != nullptr);
-	};
-	const auto productOf = [&](uint64 work) {
-		const auto i = generations.find(work);
-		return (i != end(generations)) ? i->second.product : nullptr;
-	};
-	auto click = std::vector<twidget::Json>();
-	if (auto parsed = twidget::Json::parse(kVerdictClick)) {
-		click.push_back(std::move(*parsed));
-	}
-	auto result = VerdictRun();
-	result.built = add(kVerdictLocalOlderWork)
-		&& add(kVerdictLocalNewerWork)
-		&& !click.empty();
-	auto closed = QSet<uint64>();
-	auto third = twidget::RendererFactory();
-	PlayVerdicts(result, *tap, {
-		.down = [](uint64 work, uint64, uint64 serial) {
-			WidgetLocalPressDown(work, serial);
-		},
-		.up = [&](uint64 work, uint64, bool clicked) {
-			WidgetLocalPressReleased(
-				work,
-				clicked ? click : std::vector<twidget::Json>());
-			const auto product = productOf(work);
-			if (clicked
-				&& !closed.contains(work)
-				&& product
-				&& product->onMessage) {
-				product->onMessage(kVerdictClick);
-			}
-			WidgetLocalPressForwarded(work);
-		},
-		.supersede = [&] {
-			third = TapWidgetRenderer(id, twidget::RendererFactory());
-		},
-		.next = add,
-		.detach = [&](uint64 work) {
-			closed.insert(work);
-			WidgetCoreDetached(work);
-		},
-		.retire = [](uint64) {
-		},
-		.older = kVerdictLocalOlderWork,
-		.newer = kVerdictLocalNewerWork,
-		.kept = kVerdictLocalKeptWork,
-		.retired = kVerdictLocalRetiredWork,
-		.gap = kVerdictLocalGapWork,
-	});
-	third = nullptr;
-	generations.clear();
-	DisarmWidgetOpsTap(id);
-	return result;
-}
-
 // |reading|'s click outcome as |reader| reads it for a press played to
 // |played|, and the row verdict of a clean final row with that outcome.
 [[nodiscard]] std::pair<QString, Verdict> JudgedClick(
@@ -1466,18 +1278,16 @@ void CheckVerdictReader(
 		{ u"retired"_q, run.retired, run.retiredWork },
 		{ u"gap"_q, run.gap, run.gapWork },
 	};
-	const auto hosted = (reader != ClickReading::Renderer);
-	const auto gapTrusted = hosted ? trusted : 0;
 	const auto bound = [&](const WidgetOpsReading &reading) {
 		return (reading.markedWork == run.gapWork)
 			&& (reading.markedSerial == 11)
-			&& (!hosted || (reading.markedPress == 11))
+			&& (reading.markedPress == 11)
 			&& (reading.downsConfirmed == 1)
 			&& !reading.upsConfirmed
 			&& !reading.clicksCompleted
 			&& reading.markDetached
 			&& (reading.pressStepsElsewhere == 2)
-			&& (reading.trustedClicks == gapTrusted);
+			&& (reading.trustedClicks == trusted);
 	};
 	const auto gapText = [](const WidgetOpsReading &reading) {
 		return u"%1/%2/%3 down=%4 up=%5 click=%6 detached=%7 "
@@ -1556,9 +1366,7 @@ void CheckVerdictReader(
 // consumer (the click decision) and the Debug one (the mirror and the
 // decision) on hosted generations, whose mirrored trusted clicks only a
 // Debug tap reads, so the Debug reader certifies nothing in a Release
-// build; and the local consumer (the trusted click of the played press's
-// own release as it reached the host, with the generation's) on local
-// ones.
+// build.
 void CheckMarkedClicks(const AuditState &state, const QString &prefix) {
 	const auto mirrors = WidgetHelperMirrors();
 	const auto hosted = PlayHostedVerdicts();
@@ -1578,14 +1386,6 @@ void CheckMarkedClicks(const AuditState &state, const QString &prefix) {
 		kVerdictNewerWork,
 		mirrors ? u"observed"_q : u"not-observed"_q,
 		mirrors ? 1 : 0);
-	CheckVerdictReader(
-		state,
-		prefix,
-		PlayLocalVerdicts(),
-		ClickReading::Renderer,
-		kVerdictLocalNewerWork,
-		u"observed"_q,
-		1);
 }
 
 // Pure Judge() controls, each failing on a predicate that ignores what it
@@ -1594,7 +1394,7 @@ void CheckMarkedClicks(const AuditState &state, const QString &prefix) {
 // skipped), the clean row with one renderer violation and no leak, and the
 // clean row whose click decision a Release harness's helper reported; then
 // the click outcomes those rows stand for, and each reader's consumer on
-// real taps' marked interactions, hosted and local.
+// real taps' marked interactions.
 void CheckVerdicts(const AuditState &state) {
 	const auto prefix = Prefixed(u"verdict self-check: "_q);
 

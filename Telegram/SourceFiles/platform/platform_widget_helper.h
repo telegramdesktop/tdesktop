@@ -29,14 +29,6 @@ struct Launched {
 [[nodiscard]] QString UnsupportedReason();
 [[nodiscard]] Launched Launch(const QStringList &arguments);
 
-[[nodiscard]] constexpr bool Renders() {
-#ifdef TDESKTOP_WIDGET_HELPER_RENDERS
-	return true;
-#else // TDESKTOP_WIDGET_HELPER_RENDERS
-	return false;
-#endif // TDESKTOP_WIDGET_HELPER_RENDERS
-}
-
 } // namespace Platform::WidgetHelper
 
 #if !defined Q_OS_MAC && !defined Q_OS_WIN && !defined Q_OS_LINUX

@@ -3879,45 +3879,4 @@ PaintedFrame PaintFrame(
 	return { .image = std::move(result) };
 }
 
-std::optional<QString> RepaintFrame(
-		const twlite::DisplayList &list,
-		QtBackend &backend,
-		QImage &frame,
-		QRect area,
-		float64 cssToDevice,
-		crl::time started) {
-	const auto work = backend.work();
-	if (!work.admitted() || backend.refused()) {
-		return backend.refusal();
-	}
-	area &= QRect(QPoint(), frame.size());
-	if (!ValidFrame(frame.size(), cssToDevice)
-		|| (frame.format() != QImage::Format_ARGB32_Premultiplied)) {
-		return std::nullopt;
-	} else if (area.isEmpty()) {
-		return QString();
-	}
-	auto limit = FrameLimit(frame.size(), started);
-	if (!limit.isEmpty()) {
-		return limit;
-	}
-	auto painter = QPainter();
-	if (!painter.begin(&frame)) {
-		return std::nullopt;
-	}
-	painter.setClipRect(area);
-	painter.setCompositionMode(QPainter::CompositionMode_Source);
-	painter.fillRect(area, Qt::transparent);
-	painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
-	auto executor = Executor(painter, backend, cssToDevice, started);
-	const auto painted = executor.run(list);
-	painter.end();
-	if (painted) {
-		return QString();
-	} else if (executor.exceeded().isEmpty()) {
-		return std::nullopt;
-	}
-	return executor.exceeded();
-}
-
 } // namespace Tgw

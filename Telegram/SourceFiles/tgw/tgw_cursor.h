@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <string>
 #include <unordered_map>
 
@@ -35,10 +34,6 @@ public:
 		std::int64_t hit,
 		std::int64_t hover,
 		std::int64_t active);
-	[[nodiscard]] std::optional<bool> hold(
-		twlite::Renderer &renderer,
-		std::int64_t hit,
-		std::int64_t hover);
 
 private:
 	class Container;

@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_fixture.h"
 #include "test/test_widget_ops.h"
 #include "test/test_widgets.h"
-#include "tgw/tgw_remote.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/style/style_core_scale.h"
@@ -878,18 +877,15 @@ void PerformKey(ConformanceState &state, ConformanceRun &run, int i) {
 	return (restored ? 1 : 0) + (switched ? 1 : 0);
 }
 
-// The widget's theme since the action's first reading: of a hosted host
-// its own effective reading at a theme applied after that reading
-// (CheckWidgetTheme(), as the load and stress readers judge it), of a local
-// one the scheme its renderer was given after it. Missing or superseded is
-// Unobserved, a reading of another theme Wrong.
+// The widget's theme since the action's first reading: its own effective
+// reading at a theme applied after that reading (CheckWidgetTheme(), as the
+// load and stress readers judge it). Missing or superseded is Unobserved, a
+// reading of another theme Wrong.
 [[nodiscard]] WidgetThemeCheck SwitchedTheme(
 		const Action &live,
 		const WidgetOpsLatest &latest) {
 	const auto target = ThemeTarget(live).toStdString();
-	return Tgw::WidgetsHosted()
-		? CheckWidgetTheme(latest, target, &live.before)
-		: CheckGivenTheme(latest, target, &live.before);
+	return CheckWidgetTheme(latest, target, &live.before);
 }
 
 [[nodiscard]] QString VerdictName(WidgetThemeVerdict verdict) {

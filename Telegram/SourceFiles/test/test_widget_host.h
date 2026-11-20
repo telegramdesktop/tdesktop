@@ -24,8 +24,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // onChange (stats, nodes, load, death, diags, error logs), merged on its
 // host thread into a record that holds no host; and the renderer work of
 // its RendererCore, timed by scopes a disposable overlay places in the
-// core's Tgw::RendererWork on the widget render thread, recorded into a
-// work log that the main thread reserves and reads under one lock.
+// core's Tgw::RendererWork and its platform end on the widget render
+// thread, recorded into a work log that the main thread reserves and reads
+// under one lock.
 // Reference: docs/helpers/test_widget_host.md.
 
 namespace Test {
@@ -178,18 +179,17 @@ void DisarmWidgetHostWatch(GlobalMsgId id);
 // RendererCore::apply(), which RendererWork::deliver() posts to the main
 // thread.
 enum class WidgetWorkKind : uint8 {
-	// RendererWork::hostMessage() past its stopped and requestFrame
-	// returns: one host message applied, up to posting its changes. A
-	// frozen never gets there: HostLink::postMessage() splits it into
-	// RendererCore::hostFrozen() on the main thread and
-	// RendererWork::freeze() on the render thread, which no scope times and
-	// after which every message returns at the stopped check.
+	// One route entry the work applies that is no painted Frame, as its
+	// platform end consumes what RendererWork::platformTraffic() queued
+	// (RendererPlatform::pump()): a backend request answered or a message
+	// received. The stress reader counts it in `messages`.
 	Message,
 	// RendererWork::tick(), whole.
 	Tick,
 	// RendererWork::raster() past its unchanged-picture return, on a work
-	// turn: one raster attempt, which a size the list has not laid out yet
-	// ends before the QPainter replay (WidgetWorkEvent::replayed tells).
+	// turn: the request for a paint; or one Frame the helper painted, as
+	// the platform end consumes it: its checks and the QPainter replay of
+	// its list (WidgetWorkEvent::replayed tells).
 	Frame,
 };
 
@@ -206,11 +206,10 @@ struct WidgetWorkEvent {
 	// registered the core.
 	int host = 0;
 	WidgetWorkKind kind = WidgetWorkKind::Message;
-	// A Frame scope whose raster() attempt replayed the display list:
-	// PaintFrame() returned an image or, where the overlay instruments it,
-	// the partial repaint painted its damage. Never the retained picture.
-	// False for an attempt that returned before the replay or was refused,
-	// and for every other kind.
+	// A Frame scope that replayed the display list of a Frame the helper
+	// painted, as paintList() reports it. Never the retained picture. False
+	// for a paint request, a Frame that returned before the replay or was
+	// refused, and for every other kind.
 	bool replayed = false;
 };
 
@@ -246,10 +245,12 @@ void ReserveWidgetWork(WidgetHostWatch &watch, int capacity);
 	const WidgetHostWatch &watch,
 	crl::profile_time since = 0);
 
-// The disposable overlay's timing of one Tgw::RendererWork call, a local at
-// the start of the timed part, guarded by the harness condition:
+// The disposable overlay's timing of one Tgw::RendererWork call or route
+// entry, a local at the start of the timed part, guarded by the harness
+// condition:
 //     const auto workScope = Test::WidgetWorkScope(_chat.get(), kind);
-// (non-const in raster(), which also gives displayList() and replayed()).
+// (non-const for a painted Frame, which also gives displayList() and
+// replayed()).
 // |core| is the worker's RendererCore as its base::weak_ptr _chat gives it:
 // the address WatchWidgetHost() registered while that core lives, null once
 // it is gone, and a null |core| records nothing and takes no lock. The
@@ -271,13 +272,11 @@ public:
 	WidgetWorkScope &operator=(const WidgetWorkScope &other) = delete;
 	~WidgetWorkScope();
 
-	// A Frame scope's display list, given right after paint() returned it.
+	// A painted Frame scope's display list, given once its Frame decoded.
 	void displayList(size_t size);
-	// A Frame scope's replay, given right after PaintFrame() returned
-	// (whether its image is not null) and, where instrumented, right after
-	// the partial repaintFrame() returned a limit (whether it painted a
-	// nonempty damage area); the last call counts. Not given: the attempt
-	// was not replayed.
+	// A painted Frame scope's replay, given right after paintList()
+	// returned (whether it gave a layout); the last call counts. Not given:
+	// the Frame was not replayed.
 	void replayed(bool image);
 
 private:

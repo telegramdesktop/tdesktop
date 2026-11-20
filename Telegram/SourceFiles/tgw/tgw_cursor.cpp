@@ -7,16 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tgw/tgw_cursor.h"
 
-#include "core/src/computed_style.h"
 #include "core/src/renderer.h"
-#include "twidget/gesture_policy.h"
 
 #include <litehtml.h>
 
-#include <algorithm>
-#include <array>
 #include <cstdlib>
-#include <string_view>
 #include <vector>
 
 namespace Tgw {
@@ -38,24 +33,6 @@ constexpr auto kColorIndex = 256;
 constexpr auto kPointerCursor = "pointer";
 constexpr auto kIdAttribute = "data-twid";
 constexpr auto kIdSelector = "[data-twid]";
-constexpr auto kSerializedId = std::string_view(" data-twid=\"");
-constexpr auto kRawTextTag = std::string_view("style");
-constexpr auto kVoidTags = std::array<std::string_view, 14>{
-	"area",
-	"base",
-	"br",
-	"col",
-	"embed",
-	"hr",
-	"img",
-	"input",
-	"link",
-	"meta",
-	"param",
-	"source",
-	"track",
-	"wbr",
-};
 
 [[nodiscard]] std::shared_ptr<litehtml::element> Lookup(
 		const Elements &elements,
@@ -97,46 +74,6 @@ constexpr auto kVoidTags = std::array<std::string_view, 14>{
 		element = element->parent();
 	}
 	return result;
-}
-
-// The core's own parents, as it nests them: a parse may move elements.
-[[nodiscard]] std::vector<std::int64_t> ShadowChain(
-		const std::string &html,
-		std::int64_t id) {
-	auto open = std::vector<std::int64_t>();
-	for (auto at = html.find('<'); at != std::string::npos;) {
-		const auto tag = std::string_view(html).substr(at + 1);
-		if (tag.starts_with('/')) {
-			if (!open.empty()) {
-				open.pop_back();
-			}
-		} else if (!tag.starts_with('!')) {
-			const auto name = tag.substr(0, tag.find_first_of(" >"));
-			const auto attributes = tag.substr(name.size());
-			const auto own = attributes.starts_with(kSerializedId)
-				? std::int64_t(std::strtoll(
-					attributes.data() + kSerializedId.size(),
-					nullptr,
-					10))
-				: std::int64_t(0);
-			if (!id || own == id) {
-				auto result = std::vector<std::int64_t>{ own };
-				result.insert(end(result), rbegin(open), rend(open));
-				return result;
-			} else if (std::find(
-					kVoidTags.begin(),
-					kVoidTags.end(),
-					name) == kVoidTags.end()) {
-				open.push_back(own);
-			}
-			if (name == kRawTextTag) {
-				at = html.find("</", at);
-				continue;
-			}
-		}
-		at = html.find('<', at + 1);
-	}
-	return {};
 }
 
 [[nodiscard]] bool Reconcile(
@@ -457,24 +394,6 @@ bool CursorStyles::pointer(
 	sync(renderer, hover, active);
 	const auto element = Lookup(_elements, hit);
 	return element && (element->css().get_cursor() == kPointerCursor);
-}
-
-std::optional<bool> CursorStyles::hold(
-		twlite::Renderer &renderer,
-		std::int64_t hit,
-		std::int64_t hover) {
-	sync(renderer, hover, 0);
-	const auto chain = ShadowChain(_html, hit);
-	if (chain.empty() || (hit && !_elements.contains(hit))) {
-		return std::nullopt;
-	}
-	auto values = std::vector<std::string>();
-	for (const auto id : chain) {
-		if (const auto element = Lookup(_elements, id)) {
-			values.push_back(twlite::computed_touch_action(element));
-		}
-	}
-	return twidget::gesture::claimOf(values).hold;
 }
 
 void CursorStyles::sync(

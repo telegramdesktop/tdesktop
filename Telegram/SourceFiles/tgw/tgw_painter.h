@@ -101,13 +101,4 @@ struct PaintedFrame {
 	crl::time started = crl::now(),
 	Fn<QImage(const Fn<QImage()> &make)> acquire = nullptr);
 
-// The limit, empty when painted, nullopt when |frame| took no painter.
-[[nodiscard]] std::optional<QString> RepaintFrame(
-	const twlite::DisplayList &list,
-	QtBackend &backend,
-	QImage &frame,
-	QRect area,
-	float64 cssToDevice,
-	crl::time started = crl::now());
-
 } // namespace Tgw

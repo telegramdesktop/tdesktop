@@ -481,7 +481,7 @@ HostedSelection::HostedSelection(
 
 HostedSelection::~HostedSelection() {
 	if (!_installed) {
-		_tap->factoryCompleted(false);
+		_tap->factoryCompleted();
 	}
 	_tap->factoryReleased();
 }
@@ -491,7 +491,7 @@ void HostedSelection::install(
 	if (!pointer || _installed.exchange(true)) {
 		return;
 	}
-	_tap->factoryCompleted(false);
+	_tap->factoryCompleted();
 	auto &host = *pointer;
 	const auto observations = std::make_shared<HostedObservations>(
 		_tap,
@@ -699,16 +699,12 @@ void WidgetHostRetired(twidget::WidgetHost &host) {
 void WidgetPressDispatched(uint64 work, uint64 serial) {
 	if (const auto observations = FindHosted(&HostedRegistry::works, work)) {
 		observations->pressDispatched(serial);
-	} else {
-		LocalPressDispatched(work, serial);
 	}
 }
 
 void WidgetCoreDetached(uint64 work) {
 	if (const auto observations = FindHosted(&HostedRegistry::works, work)) {
 		observations->detached();
-	} else {
-		LocalDetached(work);
 	}
 }
 

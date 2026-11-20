@@ -66,7 +66,6 @@ public:
 	template <typename Parse>
 	[[nodiscard]] Entry *find(const std::string &css, Parse &&parse);
 	void refill();
-	void clear();
 
 private:
 	std::unordered_map<std::string, Entry> _entries;
@@ -98,12 +97,6 @@ Entry *CanvasSpellings<Entry>::find(const std::string &css, Parse &&parse) {
 template <typename Entry>
 void CanvasSpellings<Entry>::refill() {
 	_parsesLeft = kMaxCanvasFontParses;
-}
-
-template <typename Entry>
-void CanvasSpellings<Entry>::clear() {
-	_entries.clear();
-	_parsesLeft = 0;
 }
 
 [[nodiscard]] inline double DeviceRatio(double ratio) {

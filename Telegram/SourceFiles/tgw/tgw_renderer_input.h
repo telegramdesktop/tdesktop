@@ -12,14 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <deque>
 #include <mutex>
 
-namespace twidget {
-class Json;
-} // namespace twidget
-
-namespace twlite {
-class Renderer;
-} // namespace twlite
-
 namespace twlite::remote {
 class PlatformEnd;
 struct ClaimAnswer;
@@ -50,9 +42,6 @@ struct TouchInput {
 	int button = 0;
 };
 
-[[nodiscard]] std::vector<twidget::Json> DeliverTouch(
-	twlite::Renderer &renderer,
-	const TouchInput &input);
 void DeliverTouch(
 	twlite::remote::PlatformEnd &end,
 	const TouchInput &input);

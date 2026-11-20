@@ -83,21 +83,11 @@ include(cmake/test_wallet_phrase_shares.cmake)
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
 
-if (TDESKTOP_WIDGETS_HELPER_ONLY)
-    target_link_libraries(Telegram PRIVATE tdesktop::lib_widget_sandbox_host)
-else()
-    target_link_libraries(Telegram
-    PRIVATE
-        tdesktop::lib_widget_sandbox
-        $<TARGET_NAME_IF_EXISTS:tdesktop::lib_nova_engine_private>
-    )
-endif()
-
 target_link_libraries(Telegram
 PRIVATE
     tdesktop::lib_fido2
-    tdesktop::lib_litehtml
-    tdesktop::lib_widget_renderer
+    tdesktop::lib_widget_renderer_platform
+    tdesktop::lib_widget_sandbox_host
     tdesktop::lib_tgcalls
     tdesktop::td_export
     tdesktop::td_gram
@@ -2298,8 +2288,6 @@ PRIVATE
     test/test_widget_conformance_hosts.h
     test/test_widget_conformance_input.cpp
     test/test_widget_conformance_input.h
-    test/test_widget_conformance_paint_policy.cpp
-    test/test_widget_conformance_paint_policy.h
     test/test_widget_conformance_pictures.cpp
     test/test_widget_conformance_pictures.h
     test/test_widget_conformance_state.h
@@ -2318,8 +2306,6 @@ PRIVATE
     test/test_widget_ops_exchanges.cpp
     test/test_widget_ops_hosted.cpp
     test/test_widget_ops_internal.h
-    test/test_widget_paint_policy.cpp
-    test/test_widget_paint_policy.h
     test/test_widget_renderer_forward.h
     test/test_widget_stress.cpp
     test/test_widget_stress.h
@@ -2335,8 +2321,6 @@ PRIVATE
     tgw/tgw_bridge.h
     tgw/tgw_canvas.cpp
     tgw/tgw_canvas.h
-    tgw/tgw_cursor.cpp
-    tgw/tgw_cursor.h
     tgw/tgw_emoji.cpp
     tgw/tgw_emoji.h
     tgw/tgw_emoji_images.cpp

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer_input.h"
 
 #include "core/src/platform_end.h"
-#include "core/src/renderer.h"
 #include "tgw/tgw_painter.h"
 #include "tgw/tgw_renderer_platform.h"
 #include "tgw/tgw_renderer_rules.h"
@@ -77,12 +76,6 @@ decltype(auto) Touched(Target &target, const TouchInput &input) {
 }
 
 } // namespace
-
-std::vector<twidget::Json> DeliverTouch(
-		twlite::Renderer &renderer,
-		const TouchInput &input) {
-	return Touched(renderer, input);
-}
 
 void DeliverTouch(
 		twlite::remote::PlatformEnd &end,

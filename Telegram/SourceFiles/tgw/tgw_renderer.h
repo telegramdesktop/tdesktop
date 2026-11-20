@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "tgw/tgw_kept_budget.h"
 #include "twidget/gesture_policy.h"
-#include "twidget/renderer.h"
 #include "ui/image/image_prepare.h"
 
 namespace twidget {
@@ -112,7 +111,7 @@ public:
 		Fn<void(const std::string &reason)> death;
 	};
 
-	RendererCore(double width, double dpr, bool hosted = false);
+	RendererCore(double width, double dpr);
 	~RendererCore();
 
 	[[nodiscard]] uint64 workId() const;
@@ -124,7 +123,6 @@ public:
 	[[nodiscard]] bool documentGone() const;
 	[[nodiscard]] rpl::producer<> keptUpdates() const;
 
-	[[nodiscard]] twidget::RendererFactory hostFactory() const;
 	[[nodiscard]] auto hostActionHandler() const
 	-> Fn<void(const twidget::WidgetAction &action)>;
 	[[nodiscard]] RequestHandler hostRequestHandler() const;

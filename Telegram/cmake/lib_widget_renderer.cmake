@@ -4,26 +4,36 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# TwidgetCore from ThirdParty/twidget (core/src), the renderer
-# core twidget's platforms share: it applies validated widget operations to a
-# document laid out by twidget's litehtml fork, answers layout queries, runs
-# animations, canvas, input and text selection, and records a display list the
-# platform paints. Built as twidget's own twidget_core target is, in fork mode
-# (TW_LITEHTML_TWIDGET) against lib_litehtml, the only litehtml we build; the
-# per-platform backends are not compiled, our Qt backend replaces them.
+# TwidgetCore from ThirdParty/twidget (core/src), in two libraries.
+# lib_widget_renderer_platform is its platform end with the wire and remote
+# messages, PNG and filter code, what Telegram's painter and hosted client
+# link: neither litehtml nor the renderer, as twidget's own twidget_wire and
+# twidget_remote targets. lib_widget_renderer, for TelegramWidgetHelper, adds
+# over lib_litehtml the renderer core twidget's platforms share, its end, CSS,
+# computed style, compositor, canvas, animations and paint policy: it applies
+# validated widget operations to a document laid out by twidget's litehtml
+# fork, answers layout queries, runs animations, canvas, input and text
+# selection, and records a display list the platform paints. Built as twidget's
+# own twidget_core target is, in fork mode (TW_LITEHTML_TWIDGET) against
+# lib_litehtml, the only litehtml we build; the per-platform backends are not
+# compiled, our Qt backend replaces them.
 # The profile's UA layer (tables.uaStylesheet of widget-sandbox's
 # packages/core/profile.json) is generated at configure time into
 # tw_ua_stylesheet.h, as twidget's own CMakeLists does.
 # Consumers include its headers as "core/src/<name>.h".
-# There is no packaged branch: no distribution ships this library.
+# There is no packaged branch: no distribution ships these libraries.
 
+add_library(lib_widget_renderer_platform STATIC)
 add_library(lib_widget_renderer STATIC)
 if (APPLE)
+    init_standalone_target(lib_widget_renderer_platform "(external)")
     init_standalone_target(lib_widget_renderer "(external)")
 else()
+    init_target(lib_widget_renderer_platform "(external)")
     init_target(lib_widget_renderer "(external)")
 endif()
 
+add_library(tdesktop::lib_widget_renderer_platform ALIAS lib_widget_renderer_platform)
 add_library(tdesktop::lib_widget_renderer ALIAS lib_widget_renderer)
 
 set(widget_sandbox_root ${third_party_loc}/widget-sandbox)
@@ -62,44 +72,58 @@ if (MSVC)
     )
 endif()
 
-nice_target_sources(lib_widget_renderer ${widget_renderer_loc}
+nice_target_sources(lib_widget_renderer_platform ${widget_renderer_loc}
 PRIVATE
-    animations.cpp
-    animations.h
     backend.h
-    canvas.cpp
-    canvas.h
     canvas_ops.h
-    compositor.cpp
-    compositor.h
-    computed_style.cpp
-    computed_style.h
-    css.cpp
-    css.h
     display_list.h
-    encode.cpp
     filters.cpp
     filters.h
-    paint_policy.cpp
-    paint_policy.h
     platform_end.cpp
     platform_end.h
     png.cpp
     png.h
     remote.cpp
     remote.h
-    renderer.cpp
-    renderer.h
-    renderer_end.cpp
-    renderer_end.h
     wire.cpp
     wire.h
 )
 
-target_include_directories(lib_widget_renderer
+nice_target_sources(lib_widget_renderer ${widget_renderer_loc}
+PRIVATE
+    animations.cpp
+    animations.h
+    canvas.cpp
+    canvas.h
+    compositor.cpp
+    compositor.h
+    computed_style.cpp
+    computed_style.h
+    css.cpp
+    css.h
+    encode.cpp
+    paint_policy.cpp
+    paint_policy.h
+    renderer.cpp
+    renderer.h
+    renderer_end.cpp
+    renderer_end.h
+)
+
+target_include_directories(lib_widget_renderer_platform
 PUBLIC
     ${widget_renderer_root}
     ${widget_sandbox_root}/packages/desktop/sandbox/include
+PRIVATE
+    ${widget_renderer_loc}
+)
+
+target_link_libraries(lib_widget_renderer_platform
+PUBLIC
+    tdesktop::lib_widget_sandbox_host
+)
+
+target_include_directories(lib_widget_renderer
 PRIVATE
     ${widget_renderer_gen}
     ${widget_renderer_loc}
@@ -112,13 +136,15 @@ PUBLIC
 
 target_link_libraries(lib_widget_renderer
 PUBLIC
+    lib_widget_renderer_platform
     tdesktop::lib_litehtml
-    tdesktop::lib_widget_sandbox_host
 )
 
-if (MSVC)
-    target_compile_definitions(lib_widget_renderer PRIVATE _CRT_SECURE_NO_WARNINGS)
-    target_link_libraries(lib_widget_renderer PRIVATE lib_widget_renderer_warnings_off)
-else()
-    target_compile_options(lib_widget_renderer PRIVATE -w)
-endif()
+foreach (target lib_widget_renderer_platform lib_widget_renderer)
+    if (MSVC)
+        target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
+        target_link_libraries(${target} PRIVATE lib_widget_renderer_warnings_off)
+    else()
+        target_compile_options(${target} PRIVATE -w)
+    endif()
+endforeach()

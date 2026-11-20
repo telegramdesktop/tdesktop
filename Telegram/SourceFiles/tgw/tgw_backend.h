@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "core/src/backend.h"
-#include "tgw/tgw_renderer_rules.h"
 #include "tgw/tgw_widget_meter.h"
 
 #include <QtGui/QFontMetricsF>
@@ -84,11 +83,7 @@ public:
 	[[nodiscard]] const QImage *canvas(int id) const;
 	[[nodiscard]] const EmojiAccount &emoji() const;
 	bool beginFrame();
-	[[nodiscard]] int canvasFont(
-		const std::string &css,
-		twlite::FontMetrics &metrics);
 	void noteCanvasFontRefused();
-	void releaseCanvasFonts();
 	void releaseLive();
 
 	[[nodiscard]] WidgetMeter::Operation operation();
@@ -131,7 +126,6 @@ private:
 	base::flat_map<int, QtFont> _fonts;
 	base::flat_map<int, Image> _images;
 	base::flat_map<FontKey, CachedFont> _canvasFonts;
-	RendererRules::CanvasSpellings<FontKey> _canvasSpellings;
 	const std::unique_ptr<Canvases> _canvases;
 	const std::unique_ptr<EmojiAccount> _emoji;
 	WidgetMeter _meter;

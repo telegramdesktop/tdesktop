@@ -18,10 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <string_view>
 #include <utility>
 
-// What both renderer taps share: the forwarding half of the validated-ops
-// tap's wrapper in Telegram (test_widget_ops.cpp) and of the widget helper's
-// Debug tap (test_widget_helper_tap.cpp), and the helper work record that
-// the helper's tap writes and Telegram's tap reads. Qt-free and header-only,
+// What the widget helper's Debug renderer tap (test_widget_helper_tap.cpp)
+// forwards, and the helper work record that the helper's tap writes and
+// Telegram's hosted tap reads. Qt-free and header-only,
 // and listed by both targets, so the standalone helper compiles it as
 // Telegram does and neither includes a header of the other's target.
 // Reference: docs/helpers/test_widget_renderer_forward.md.

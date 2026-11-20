@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_ops.h"
 #include "test/test_widget_stress_internal.h"
 #include "test/test_window_exposure.h"
-#include "tgw/tgw_remote.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/style/style_core_scale.h"
@@ -776,45 +775,33 @@ void JudgePalette(const LiveState &state) {
 }
 
 // The scheme and theme the level's widget has: kTheme, the same for every
-// level of the launch. Of a local host what its renderer got. Of a hosted
-// host what the widget itself read after the runtime applied its newest
-// theme (the effective reading, the one a Release harness has), which must
-// exist for that theme (else "theme-unobserved"), must have the theme's
-// scheme and palette, and the applied theme must be kTheme, as
-// CheckWidgetTheme() reads it for conformance too; with the Debug
-// helper's tap the scheme and palette its renderer got in the helper must
-// be what the widget read too, and its theme message the applied one.
+// level of the launch. What the widget itself read after the runtime
+// applied its newest theme (the effective reading, the one a Release
+// harness has), which must exist for that theme (else "theme-unobserved"),
+// must have the theme's scheme and palette, and the applied theme must be
+// kTheme, as CheckWidgetTheme() reads it for conformance too; with the
+// Debug helper's tap the scheme and palette its renderer got in the helper
+// must be what the widget read too, and its theme message the applied one.
 void CheckRendererTheme(
 		LiveState &state,
 		LiveLevel &level,
 		const WidgetOpsLatest &latest) {
-	const auto hosted = Tgw::WidgetsHosted();
-	const auto mirrored = hosted && WidgetHelperMirrors();
+	const auto mirrored = WidgetHelperMirrors();
 	const auto expected = QString::fromLatin1(kTheme);
-	if (hosted) {
-		const auto check = CheckWidgetTheme(latest, kTheme);
-		if (check.verdict != WidgetThemeVerdict::Matches) {
-			const auto detail = QString::fromStdString(check.detail);
-			AddError(level, u"theme: "_q + detail);
-		}
-		if (check.verdict == WidgetThemeVerdict::Unobserved) {
-			return;
-		}
+	const auto check = CheckWidgetTheme(latest, kTheme);
+	if (check.verdict != WidgetThemeVerdict::Matches) {
+		const auto detail = QString::fromStdString(check.detail);
+		AddError(level, u"theme: "_q + detail);
 	}
-	const auto theme = hosted
-		? EffectiveThemeOf(latest)
-		: ThemeOf(latest.themeMessage);
-	const auto scheme = QString::fromStdString(hosted
-		? latest.effectiveScheme
-		: latest.scheme);
+	if (check.verdict == WidgetThemeVerdict::Unobserved) {
+		return;
+	}
+	const auto theme = EffectiveThemeOf(latest);
+	const auto scheme = QString::fromStdString(latest.effectiveScheme);
 	const auto colorScheme = theme.value(u"colorScheme"_q).toString();
-	const auto who = hosted
-		? u"the widget reads"_q
-		: u"the renderer got"_q;
 	if ((scheme != expected) || (colorScheme != expected)) {
-		AddError(level, u"theme: %1 the scheme [%2] and a theme of "
-			u"colorScheme [%3], not %4"_q.arg(
-				who,
+		AddError(level, u"theme: the widget reads the scheme [%1] and a "
+			u"theme of colorScheme [%2], not %3"_q.arg(
 				scheme,
 				colorScheme,
 				expected));
@@ -845,15 +832,13 @@ void CheckRendererTheme(
 		state.launch.record.insert(u"rendererTheme"_q, QJsonObject{
 			{ u"colorScheme"_q, colorScheme },
 			{ u"params"_q, theme.value(u"params"_q) },
-			{ u"source"_q, !hosted
-				? u"renderer"_q
-				: mirrored
+			{ u"source"_q, mirrored
 				? u"effective+helper-mirror"_q
 				: u"effective"_q },
 		});
 	} else if (observed != state.themeMessage) {
-		AddError(level, u"theme: %1 another theme than for the launch's "
-			u"first measured level"_q.arg(who));
+		AddError(level, u"theme: the widget reads another theme than for "
+			u"the launch's first measured level"_q);
 	}
 }
 
@@ -2117,14 +2102,10 @@ void CheckObservations(LiveLevel &level) {
 	return u"unknown"_q;
 }
 
-// What the level's renderer timing observes: the whole renderer in
-// Telegram, Telegram's replay share alone (the hosted arrangement without
-// the Debug helper's timing, a Release harness), or that share with the
-// helper's own renderer work beside it.
+// What the level's renderer timing observes: Telegram's replay share
+// alone (without the Debug helper's timing, a Release harness), or that
+// share with the helper's own renderer work beside it.
 [[nodiscard]] QString RendererScope(const WidgetHelperWorkReading &work) {
-	if (!Tgw::WidgetsHosted()) {
-		return u"renderer"_q;
-	}
 	return work.events.empty()
 		? u"telegram-replay"_q
 		: u"telegram-replay+helper"_q;

@@ -31,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_conformance_bridge.h"
 #include "test/test_widget_conformance_context.h"
 #include "test/test_widget_conformance_hosts.h"
-#include "test/test_widget_conformance_paint_policy.h"
 #include "test/test_widget_conformance_pictures.h"
 #include "test/test_widget_conformance_state.h"
 #include "test/test_widget_conformance_stop.h"
@@ -40,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_ops.h"
 #include "tgw/tgw_intl.h"
 #include "tgw/tgw_media.h"
-#include "tgw/tgw_remote.h"
 #include "tgw/tgw_renderer.h"
 #include "tgw/tgw_runtime.h"
 #include "ui/style/style_core_scale.h"
@@ -2211,10 +2209,9 @@ void PrepareOutput(ConformanceState &state) {
 [[nodiscard]] WidgetOpsSelfCheckRow CheckTotalsCoverage();
 
 // The tap's own scanner checks, the played bot's, the tap's probe-fixture
-// checks, the pin's paint-policy fixture rows, then the pure result
-// reader, summary reader, observation, run file, message context and bot
-// table, selection, host reading, desktop stop, picture and totals
-// controls; every row is one Check.
+// checks, then the pure result reader, summary reader, observation, run
+// file, message context and bot table, selection, host reading, desktop
+// stop, picture and totals controls; every row is one Check.
 void RunSelfChecks(ConformanceState &state) {
 	auto failed = QStringList();
 	auto count = 0;
@@ -2244,9 +2241,6 @@ void RunSelfChecks(ConformanceState &state) {
 			: RunWidgetConformanceProbeCheck(state.probeFixture)) {
 			take(row);
 		}
-	}
-	for (const auto &row : RunPaintPolicyFixture(state.args.package)) {
-		take(row);
 	}
 	for (const auto &row : CheckResultReader()) {
 		take(row);
@@ -2536,9 +2530,7 @@ void ReadView(const ConformanceState &state, ConformanceRun &run) {
 				u"the width of"_q);
 	}
 	const auto target = run.theme.toStdString();
-	const auto theme = Tgw::WidgetsHosted()
-		? CheckWidgetTheme(latest, target)
-		: CheckGivenTheme(latest, target);
+	const auto theme = CheckWidgetTheme(latest, target);
 	const auto detail = QString::fromStdString(theme.detail);
 	if (theme.verdict == WidgetThemeVerdict::Wrong) {
 		AddRefusal(run, u"scheme-mismatch"_q, detail);
