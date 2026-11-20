@@ -47,6 +47,7 @@ inline constexpr auto kMaxFrameBytes = std::size_t(8) << 20;
 inline constexpr auto kMaxCanvasRunOps = std::size_t(1) << 13;
 inline constexpr auto kMaxWidthsTexts = std::size_t(1024);
 inline constexpr auto kMaxWidthsTextBytes = std::size_t(64) << 10;
+inline constexpr auto kMaxDeltaBaseBytes = std::size_t(256) << 10;
 inline constexpr auto kMaxStopReasonBytes = std::size_t(4096);
 inline constexpr auto kMaxCursorBytes = std::size_t(256);
 
@@ -79,6 +80,8 @@ struct CursorReport {
 	result.values.canvas_ops = kMaxCanvasRunOps;
 	result.widths = kMaxWidthsTexts;
 	result.widths_text = kMaxWidthsTextBytes;
+	result.frame = kMaxFrameBytes;
+	result.delta_base = kMaxDeltaBaseBytes;
 	return result;
 }
 

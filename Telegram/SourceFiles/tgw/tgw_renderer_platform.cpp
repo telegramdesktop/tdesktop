@@ -76,8 +76,9 @@ struct ReportsEnvelope {
 		/ kJsonValueWireBytes;
 }
 
-static_assert(
-	FrameDecodeBytes(int64(HostedWire::kMaxFrameBytes)) <= kMaxDecodeBytes);
+static_assert(FrameDecodeBytes(int64(HostedWire::kMaxFrameBytes))
+	+ 2 * int64(HostedWire::kMaxDeltaBaseBytes)
+	<= kMaxDecodeBytes);
 static_assert(ReportsDecodeBytes(int64(kMaxReportsBytes)) <= kMaxDecodeBytes);
 
 [[nodiscard]] const ReportsEnvelope &Envelope() {
@@ -140,6 +141,7 @@ static_assert(ReportsDecodeBytes(int64(kMaxReportsBytes)) <= kMaxDecodeBytes);
 	const auto size = int64(message.size());
 	switch (*kind) {
 	case Remote::Kind::Frame:
+	case Remote::Kind::FrameDelta:
 		if (message.size() > HostedWire::kMaxFrameBytes) {
 			return PaintLimit(
 				u"%1 bytes of a frame"_q.arg(size),
@@ -672,6 +674,7 @@ void RendererPlatform::end() {
 	_ended = true;
 	_requests = 0;
 	_queue.clear();
+	_end.close();
 }
 
 } // namespace Tgw

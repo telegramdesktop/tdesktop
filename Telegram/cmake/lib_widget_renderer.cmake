@@ -108,6 +108,8 @@ PRIVATE
     renderer.h
     renderer_end.cpp
     renderer_end.h
+    text_widths.cpp
+    text_widths.h
 )
 
 target_include_directories(lib_widget_renderer_platform
