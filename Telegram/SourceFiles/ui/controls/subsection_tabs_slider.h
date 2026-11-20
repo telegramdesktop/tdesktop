@@ -64,10 +64,12 @@ public:
 	void setPinnedPosition(bool isFirst, bool isLast);
 	[[nodiscard]] bool isFirstPinned() const;
 	[[nodiscard]] bool isLastPinned() const;
+	void setPinnedIconSpace(bool reserve);
 	virtual void setBackgroundMargin(int margin);
 
 protected:
 	virtual void dataUpdatedHook() = 0;
+	virtual void updateSize() = 0;
 	virtual void invalidateCache() = 0;
 
 	void contextMenuEvent(QContextMenuEvent *e) override;
@@ -77,6 +79,7 @@ protected:
 	bool _isPinned = false;
 	bool _isFirstPinned = false;
 	bool _isLastPinned = false;
+	bool _reservePinnedIcon = false;
 	int _backgroundMargin = 0;
 
 };
