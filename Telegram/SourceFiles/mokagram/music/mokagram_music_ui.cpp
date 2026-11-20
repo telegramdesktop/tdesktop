@@ -3832,7 +3832,8 @@ public:
 		bool isArtist = false,
 		QString bannerUrl = QString(),
 		Fn<void()> playArtist = nullptr,
-		Fn<void()> openArtist = nullptr)
+		Fn<void()> openArtist = nullptr,
+		Fn<void()> bannerReady = nullptr)
 	: RpWidget(parent)
 	, _album(std::move(album))
 	, _count(count)
@@ -3875,12 +3876,37 @@ public:
 				_banner = std::move(image);
 				_scaledBanner = QImage();
 				update();
+				if (bannerReady) bannerReady();
 			}));
 		}
 	}
 
 	void setArtistPlayable(bool playable) {
 		if (_playArtist) _playArtist->setDisabled(!playable);
+	}
+
+	void setBannerTopInset(int inset) {
+		if (!_isArtist || _bannerTopInset == inset) return;
+		_bannerTopInset = inset;
+		update();
+	}
+
+	void paintArtistBanner(QPainter &p, QPoint origin) {
+		if (_banner.isNull()) return;
+
+		const auto bounds = QRect(
+			origin.x(), origin.y() - _bannerTopInset,
+			width(), artistBannerHeight() + _bannerTopInset);
+		if (bounds.isEmpty()) return;
+		if (_scaledBanner.isNull() || _scaledBannerSize != bounds.size()) {
+			_scaledBanner = _banner.scaled(
+				bounds.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
+			_scaledBannerSize = bounds.size();
+		}
+		p.drawImage(bounds, _scaledBanner, QRect(
+			(_scaledBanner.width() - bounds.width()) / 2,
+			(_scaledBanner.height() - bounds.height()) / 2,
+			bounds.width(), bounds.height()));
 	}
 
 protected:
@@ -3980,6 +4006,11 @@ protected:
 	}
 
 private:
+	[[nodiscard]] int artistBannerHeight() const {
+		const auto narrow = width() < style::ConvertScale(520);
+		return std::max(height() - style::ConvertScale(narrow ? 160 : 136), 0);
+	}
+
 	void paintArtist(QPainter &p, const QRect &avatar) {
 		const auto s = [](int value) { return style::ConvertScale(value); };
 		const auto card = rect().adjusted(s(14), 0, -s(14), -s(8));
@@ -3989,26 +4020,13 @@ private:
 		clip.addRoundedRect(card, s(22), s(22));
 		p.fillPath(clip, st::windowBg);
 		const auto narrow = width() < s(520);
-		const auto identityTop = height() - s(narrow ? 160 : 136);
-		const auto banner = QRect(card.x(), card.y(), card.width(), identityTop);
+		const auto identityTop = artistBannerHeight();
+		const auto banner = QRect(0, 0, width(), identityTop);
 		if (!banner.isEmpty()) {
 			p.save();
-			p.setClipPath(clip);
+			p.setClipRect(banner, Qt::IntersectClip);
 			p.fillRect(banner, st::windowBgOver);
-			if (!_banner.isNull()) {
-				if (_scaledBanner.isNull() || _scaledBannerSize != banner.size()) {
-					_scaledBanner = _banner.scaled(
-						banner.size(),
-						Qt::KeepAspectRatioByExpanding,
-						Qt::SmoothTransformation);
-					_scaledBannerSize = banner.size();
-				}
-				p.drawImage(banner, _scaledBanner, QRect(
-					(_scaledBanner.width() - banner.width()) / 2,
-					(_scaledBanner.height() - banner.height()) / 2,
-					banner.width(),
-					banner.height()));
-			}
+			paintArtistBanner(p, QPoint());
 			p.restore();
 		}
 
@@ -4095,6 +4113,7 @@ private:
 	bool _isTrack = false;
 	bool _isArtist = false;
 	QString _bannerUrl;
+	int _bannerTopInset = 0;
 	QImage _art;
 	QImage _scaledArt;
 	QSize _scaledArtSize;
@@ -8118,6 +8137,7 @@ protected:
 			layout.center.width(),
 			std::max(scrollBottom - layout.scrollTop, 0));
 		_tabContent->resizeToWidth(_tabScroll->width());
+		if (_homeAlbumHeader) _homeAlbumHeader->setBannerTopInset(_tabScroll->y());
 		updateHomeArtistBar();
 
 		// Навигация: ряд пилюль сверху по центру.
@@ -8725,8 +8745,7 @@ protected:
 		_homeAlbumTracks.clear();
 		_homeAlbumNote.clear();
 		_homeAlbumLoading = false;
-		_homeAccent = QColor();
-		_nav[1]->setActiveColor(Qt::white);
+		loadHomeAccent(art, generation);
 		if (!track.artistId.isEmpty()) {
 			LoadArtistInfo(track.artistId, crl::guard(this, [=](ArtistInfo info) {
 				if (generation != _homeAlbumGeneration || !_homeArtistOpen) {
@@ -9031,8 +9050,10 @@ protected:
 						} else if (!_homeAlbumTracks.empty()) {
 							openHomeArtist(_homeAlbumTracks.front());
 						}
-					})), QMargins(0, 0, 0, style::ConvertScale(8)));
+					}), crl::guard(this, [=] { update(); })),
+					QMargins(0, 0, 0, style::ConvertScale(8)));
 				_homeAlbumHeader = albumHeader;
+				albumHeader->setBannerTopInset(_tabScroll->y());
 				albumHeader->setArtistPlayable(!std::ranges::all_of(
 					_homeArtistTracks, &Track::unavailable));
 				if (!_homeAlbumIsTrack && !_homeArtistOpen) InstallAlbumContextMenu(albumHeader, _controller, _homeAlbum);
@@ -9545,6 +9566,30 @@ protected:
 				? st::boxBg->c
 				: QColor(0x1c, 0x1c, 0x1c));
 			p.setOpacity(1.);
+		}
+		if (_tab == Tab::Home && _homeArtistOpen && _homeAlbumHeader) {
+			const auto top = _tabScroll->y();
+			const auto offset = _tabScroll->scrollTop();
+			const auto visible = 1. - std::clamp(offset / double(s(136)), 0., 1.);
+			const auto panel = QRect(0, 0, width(), top);
+			p.save();
+			p.setClipRect(panel, Qt::IntersectClip);
+			p.setOpacity(visible);
+			if (_homeAccent.isValid()) {
+				p.fillRect(panel, anim::color(st::boxBg->c, _homeAccent, 0.26));
+			}
+			_homeAlbumHeader->paintArtistBanner(p, QPoint(_tabScroll->x(), top - offset));
+			if (!_homeArtistBannerUrl.isEmpty()) {
+				auto shade = QLinearGradient(0, 0, 0, top);
+				auto topColor = st::boxBg->c;
+				topColor.setAlphaF(0.72);
+				auto bottomColor = topColor;
+				bottomColor.setAlphaF(0.14);
+				shade.setColorAt(0., topColor);
+				shade.setColorAt(1., bottomColor);
+				p.fillRect(panel, shade);
+			}
+			p.restore();
 		}
 		if (_tab == Tab::Home && _homeAlbumOpen && !_homeArtistOpen) {
 			const auto headerWidth = std::max(_tabScroll->width() - s(24), 0);
