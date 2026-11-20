@@ -1795,6 +1795,7 @@ PRIVATE
     overview/overview_layout.cpp
     overview/overview_layout.h
     overview/overview_layout_delegate.h
+    overview/overview_voice_search.cpp
     poll/poll_link_box.cpp
     poll/poll_link_box.h
     poll/poll_link_thumbnail.cpp

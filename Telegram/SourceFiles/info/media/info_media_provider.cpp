@@ -501,7 +501,8 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 std::unique_ptr<BaseLayout> CreateLayout(
 		not_null<Overview::Layout::Delegate*> delegate,
 		not_null<HistoryItem*> item,
-		Type type) {
+		Type type,
+		bool globalSearch) {
 	const auto getPhoto = [&]() -> PhotoData* {
 		if (const auto media = item->media()) {
 			return media->photo();
@@ -568,7 +569,12 @@ std::unique_ptr<BaseLayout> CreateLayout(
 		return nullptr;
 	case Type::RoundVoiceFile:
 		if (const auto file = getFile()) {
-			return std::make_unique<Voice>(delegate, item, file, songSt);
+			return std::make_unique<Voice>(
+				delegate,
+				item,
+				file,
+				songSt,
+				globalSearch);
 		}
 		return nullptr;
 	case Type::Link:

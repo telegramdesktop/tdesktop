@@ -390,7 +390,8 @@ public:
 		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> voice,
-		const style::OverviewFileLayout &st);
+		const style::OverviewFileLayout &st,
+		bool globalSearch);
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
@@ -421,13 +422,17 @@ private:
 	ClickHandlerPtr _namel;
 
 	const style::OverviewFileLayout &_st;
+	const bool _globalSearch;
 
 	Ui::Text::String _name;
 	Ui::Text::String _details;
 	Ui::Text::String _caption;
 	int _nameVersion = 0;
+	rpl::lifetime _searchNameLifetime;
 
 	void updateName();
+	void watchSearchName();
+	void updateSearchName();
 	bool updateStatusText();
 
 };
