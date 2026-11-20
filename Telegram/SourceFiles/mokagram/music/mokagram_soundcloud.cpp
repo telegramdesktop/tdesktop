@@ -737,7 +737,7 @@ void StartQueuedImageLoads();
 
 void FinishImageRequest(const QString &url, QImage image) {
 	if (!image.isNull()) {
-		InsertImage(url, std::move(image));
+		InsertImage(url, image);
 	}
 	ActiveImageRequests() = std::max(ActiveImageRequests() - 1, 0);
 	auto callbacks = std::vector<Fn<void(QImage)>>();
@@ -756,7 +756,8 @@ void LoadImageAttempt(const QString &url, int attempt) {
 	++ActiveImageRequests();
 	const auto reply = Get(QUrl(url), kMaxImageBytes, QString(), 5000);
 	QObject::connect(reply, &QNetworkReply::finished, [=] {
-		auto image = QImage::fromData(reply->readAll());
+		const auto bytes = reply->readAll();
+		auto image = QImage::fromData(bytes);
 		reply->deleteLater();
 		if (image.isNull() && attempt == 0) {
 			// Освобождаем слот перед повтором: retry сам его займёт заново.
