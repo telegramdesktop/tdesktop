@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "core/file_utilities.h"
 #include "core/shortcuts.h"
+#include "mokagram/settings/mokagram_settings.h" // Mokagram: Mini App DevTools.
 #include "webview/webview_embed.h"
 #include "webview/webview_dialog.h"
 #include "webview/webview_interface.h"
@@ -2243,6 +2244,8 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			.shellMessageToken = _externalShell
 				? _externalShellToken
 				: QString(),
+			// Mokagram: use the Mini App setting for this view.
+			.debug = Mokagram::Settings::Bool(u"developer.miniapp_devtools"_q),
 		});
 	const auto raw = &_webview->window;
 

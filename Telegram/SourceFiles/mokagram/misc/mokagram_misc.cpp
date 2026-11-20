@@ -606,6 +606,16 @@ void RegisterSettings() {
 		.sectionIcon = u"bot"_q,
 	});
 	Settings::Register({
+		.key = u"developer.miniapp_devtools"_q,
+		.section = QString::fromUtf8(Mokagram::Lang::Tr("Для разработчиков")),
+		.title = QString::fromUtf8(Mokagram::Lang::Tr("DevTools для мини-аппов")),
+		.description = QString::fromUtf8(Mokagram::Lang::Tr(
+			"Переоткройте мини-апп, чтобы применить настройку.")),
+		.kind = Settings::Kind::Bool,
+		.defaultValue = false,
+		.category = u"other"_q,
+	});
+	Settings::Register({
 		.key = u"regdate.show"_q,
 		.section = QString::fromUtf8(Mokagram::Lang::Tr("Дата регистрации")),
 		.title = QString::fromUtf8(Mokagram::Lang::Tr("Показывать дату регистрации")),

@@ -1661,7 +1661,7 @@ void AskForRestart() {
 		return u"look"_q;
 	} else if (starts({ "chats.", "fx.", "inline.", "translation.", "documents.", "time.", "bots.", "adblock." })) {
 		return u"chats"_q;
-	} else if (starts({ "misc.stars", "quote." })) {
+	} else if (starts({ "misc.stars", "quote.", "developer." })) {
 		return u"tools"_q;
 	}
 	return u"look"_q;
