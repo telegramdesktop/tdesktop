@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_passkey_deserialize.h"
 #include "lang/lang_keys.h"
 #include "platform/platform_webauthn.h"
+#include "ui/boxes/single_choice_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
 #include "ui/widgets/fields/password_input.h"
@@ -56,6 +57,7 @@ constexpr auto kDefaultTimeout = 60000;
 
 enum class Outcome {
 	Success,
+	ChooseCredential,
 	NeedPin,
 	PinInvalid,
 	PinBlocked,
@@ -104,6 +106,12 @@ struct LoginState {
 	base::weak_qptr<Ui::GenericBox> box;
 	bool finished = false;
 	bool replacingBox = false;
+};
+
+struct LoginAssertion {
+	LoginResult result;
+	QString userName;
+	QString userDisplayName;
 };
 
 struct RegisterState {
@@ -194,6 +202,73 @@ void ShowMessage(const QString &text) {
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		box->boxClosing() | rpl::on_next([=] {
 			cancel();
+		}, box->lifetime());
+	}));
+}
+
+[[nodiscard]] QString AssertionOptionText(
+		const LoginAssertion &assertion,
+		int index) {
+	const auto displayName = assertion.userDisplayName.trimmed();
+	const auto userName = assertion.userName.trimmed();
+	if (!displayName.isEmpty() && !userName.isEmpty()
+		&& displayName != userName) {
+		return displayName + u" ("_q + userName + u')';
+	} else if (!displayName.isEmpty()) {
+		return displayName;
+	} else if (!userName.isEmpty()) {
+		return userName;
+	}
+	return tr::lng_settings_passkey_unknown(tr::now)
+		+ u" "_q
+		+ QString::number(index + 1);
+}
+
+[[nodiscard]] bool AssertionsUnlabeled(
+		const std::vector<LoginAssertion> &assertions) {
+	for (const auto &assertion : assertions) {
+		if (!assertion.userDisplayName.trimmed().isEmpty()
+			|| !assertion.userName.trimmed().isEmpty()) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] base::weak_qptr<Ui::GenericBox> ShowAssertionChoiceBox(
+		std::vector<LoginAssertion> assertions,
+		Fn<void(LoginResult)> submit,
+		Fn<void()> cancel) {
+	const auto show = ActiveShow();
+	if (!show) {
+		cancel();
+		return {};
+	}
+	return show->show(Box([=,
+			assertions = std::move(assertions)](
+				not_null<Ui::GenericBox*> box) {
+		auto options = std::vector<QString>();
+		options.reserve(assertions.size());
+		for (auto i = 0; i != int(assertions.size()); ++i) {
+			options.push_back(AssertionOptionText(assertions[i], i));
+		}
+		const auto selected = std::make_shared<bool>(false);
+		Ui::SingleChoiceBox(box, {
+			.title = tr::lng_passkey_cable_login_title(),
+			.options = options,
+			.initialSelection = -1,
+			.callback = [=](int index) {
+				if (index < 0 || index >= int(assertions.size())) {
+					return;
+				}
+				*selected = true;
+				submit(assertions[index].result);
+			},
+		});
+		box->boxClosing() | rpl::on_next([=] {
+			if (!*selected) {
+				cancel();
+			}
 		}, box->lifetime());
 	}));
 }
@@ -297,7 +372,8 @@ void CloseBox(const std::shared_ptr<State> &state) {
 [[nodiscard]] Outcome RunLoginCeremony(
 		const LoginState &state,
 		const QString &pin,
-		LoginResult &out) {
+		LoginResult &out,
+		std::vector<LoginAssertion> &assertionsOut) {
 	const auto paths = DevicePaths();
 	if (paths.empty()) {
 		return Outcome::NoDevice;
@@ -326,46 +402,124 @@ void CloseBox(const std::shared_ptr<State> &state) {
 		}
 		state.ceremony->setDevice(dev);
 
-		auto assert = fido_assert_new();
-		fido_assert_set_clientdata(
-			assert,
-			reinterpret_cast<const unsigned char*>(clientData.data()),
-			clientData.size());
-		fido_assert_set_rp(assert, rpId.constData());
-		for (const auto &cred : state.data.allowCredentials) {
-			fido_assert_allow_cred(
+		const auto collectAssertions = [&](fido_assert_t *assert) {
+			const auto count = fido_assert_count(assert);
+			const auto limitedCount = (count > Cable::kMaxLoginAssertions)
+				? Cable::kMaxLoginAssertions
+				: count;
+			auto assertions = std::vector<LoginAssertion>();
+			assertions.reserve(limitedCount);
+			for (auto i = size_t(0); i != limitedCount; ++i) {
+				auto assertion = LoginAssertion();
+				assertion.result.clientDataJSON = QByteArray::fromStdString(
+					clientData);
+				assertion.result.credentialId = QByteArray(
+					reinterpret_cast<const char*>(fido_assert_id_ptr(assert, i)),
+					fido_assert_id_len(assert, i));
+				assertion.result.authenticatorData = QByteArray(
+					reinterpret_cast<const char*>(
+						fido_assert_authdata_raw_ptr(assert, i)),
+					fido_assert_authdata_raw_len(assert, i));
+				assertion.result.signature = QByteArray(
+					reinterpret_cast<const char*>(fido_assert_sig_ptr(assert, i)),
+					fido_assert_sig_len(assert, i));
+				assertion.result.userHandle = QByteArray(
+					reinterpret_cast<const char*>(
+						fido_assert_user_id_ptr(assert, i)),
+					fido_assert_user_id_len(assert, i));
+				if (const auto userName = fido_assert_user_name(assert, i)) {
+					assertion.userName = QString::fromUtf8(userName);
+				}
+				if (const auto displayName = fido_assert_user_display_name(
+						assert,
+						i)) {
+					assertion.userDisplayName = QString::fromUtf8(displayName);
+				}
+				assertions.push_back(std::move(assertion));
+			}
+			return assertions;
+		};
+		const auto runAttempt = [&](fido_opt_t uv,
+				std::vector<LoginAssertion> &assertions) {
+			auto assert = fido_assert_new();
+			fido_assert_set_clientdata(
 				assert,
-				reinterpret_cast<const unsigned char*>(cred.id.constData()),
-				cred.id.size());
-		}
-		fido_assert_set_uv(assert, UserVerification(state.data.userVerification));
+				reinterpret_cast<const unsigned char*>(clientData.data()),
+				clientData.size());
+			fido_assert_set_rp(assert, rpId.constData());
+			for (const auto &cred : state.data.allowCredentials) {
+				fido_assert_allow_cred(
+					assert,
+					reinterpret_cast<const unsigned char*>(cred.id.constData()),
+					cred.id.size());
+			}
+			fido_assert_set_uv(assert, uv);
+			const auto code = fido_dev_get_assert(dev, assert, pinPtr);
+			if (code == FIDO_OK && fido_assert_count(assert) > 0) {
+				assertions = collectAssertions(assert);
+			}
+			fido_assert_free(&assert);
+			return code;
+		};
 
-		const auto code = fido_dev_get_assert(dev, assert, pinPtr);
+		auto assertions = std::vector<LoginAssertion>();
+		const auto requestedUv = UserVerification(state.data.userVerification);
+		const auto discoverable = state.data.allowCredentials.empty();
+		const auto initialUv = (discoverable && requestedUv != FIDO_OPT_FALSE)
+			? FIDO_OPT_TRUE
+			: requestedUv;
+		auto code = runAttempt(initialUv, assertions);
+		if (code != FIDO_OK
+			&& discoverable
+			&& requestedUv == FIDO_OPT_OMIT
+			&& initialUv == FIDO_OPT_TRUE
+			&& !state.ceremony->cancelled()) {
+			auto withoutUv = std::vector<LoginAssertion>();
+			const auto codeWithoutUv = runAttempt(FIDO_OPT_OMIT, withoutUv);
+			if (codeWithoutUv == FIDO_OK) {
+				code = codeWithoutUv;
+				assertions = std::move(withoutUv);
+			}
+		}
+		if (code == FIDO_OK
+			&& assertions.size() > 1
+			&& initialUv == FIDO_OPT_OMIT
+			&& state.data.userVerification != u"discouraged"_q
+			&& AssertionsUnlabeled(assertions)
+			&& !state.ceremony->cancelled()) {
+			const auto ceremony = state.ceremony;
+			crl::on_main([ceremony] {
+				if (!ceremony->cancelled()) {
+					ShowMessage(tr::lng_passkey_touch(tr::now));
+				}
+			});
+			if (!state.ceremony->cancelled()) {
+				auto withUv = std::vector<LoginAssertion>();
+				const auto codeWithUv = runAttempt(FIDO_OPT_TRUE, withUv);
+				if (codeWithUv == FIDO_OK
+					&& withUv.size() == assertions.size()
+					&& !AssertionsUnlabeled(withUv)) {
+					assertions = std::move(withUv);
+				}
+			}
+		}
 
 		state.ceremony->clearDevice();
 		fido_dev_close(dev);
 		fido_dev_free(&dev);
 
-		if (code == FIDO_OK && fido_assert_count(assert) > 0) {
-			out.clientDataJSON = QByteArray::fromStdString(clientData);
-			out.credentialId = QByteArray(
-				reinterpret_cast<const char*>(fido_assert_id_ptr(assert, 0)),
-				fido_assert_id_len(assert, 0));
-			out.authenticatorData = QByteArray(
-				reinterpret_cast<const char*>(
-					fido_assert_authdata_raw_ptr(assert, 0)),
-				fido_assert_authdata_raw_len(assert, 0));
-			out.signature = QByteArray(
-				reinterpret_cast<const char*>(fido_assert_sig_ptr(assert, 0)),
-				fido_assert_sig_len(assert, 0));
-			out.userHandle = QByteArray(
-				reinterpret_cast<const char*>(
-					fido_assert_user_id_ptr(assert, 0)),
-				fido_assert_user_id_len(assert, 0));
-			fido_assert_free(&assert);
-			return Outcome::Success;
+		if (code == FIDO_OK && !assertions.empty()) {
+			if (assertions.size() == 1) {
+				out = std::move(assertions.front().result);
+				return Outcome::Success;
+			}
+			assertionsOut = std::move(assertions);
+			return Outcome::ChooseCredential;
 		}
-		fido_assert_free(&assert);
+		if (code == FIDO_OK) {
+			last = Outcome::NoCredentials;
+			continue;
+		}
 
 		LOG(("Passkey Error: Assertion failed: %1."
 			).arg(QString::fromUtf8(fido_strerr(code))));
@@ -488,8 +642,16 @@ void AttemptLogin(std::shared_ptr<LoginState> state, QString pin) {
 	});
 	crl::async([state, pin] {
 		auto result = LoginResult();
-		const auto outcome = RunLoginCeremony(*state, pin, result);
-		crl::on_main([state, outcome, result] {
+		auto assertions = std::vector<LoginAssertion>();
+		const auto outcome = RunLoginCeremony(
+			*state,
+			pin,
+			result,
+			assertions);
+		crl::on_main([state,
+				outcome,
+				result,
+				assertions = std::move(assertions)]() mutable {
 			if (state->finished) {
 				return;
 			} else if (state->ceremony->cancelled()) {
@@ -501,6 +663,24 @@ void AttemptLogin(std::shared_ptr<LoginState> state, QString pin) {
 			switch (outcome) {
 			case Outcome::Success:
 				FinishLogin(state, result);
+				return;
+			case Outcome::ChooseCredential:
+				CloseBox(state);
+				state->box = ShowAssertionChoiceBox(
+					std::move(assertions),
+					[state](LoginResult selected) {
+						FinishLogin(state, selected);
+					},
+					[state] {
+						if (state->replacingBox) {
+							return;
+						}
+						crl::on_main([state] {
+							auto cancelled = LoginResult();
+							cancelled.error = Error::Cancelled;
+							FinishLogin(state, cancelled);
+						});
+					});
 				return;
 			case Outcome::NeedPin:
 			case Outcome::PinInvalid:
@@ -594,6 +774,7 @@ void AttemptRegister(std::shared_ptr<RegisterState> state, QString pin) {
 			case Outcome::PinBlocked:
 				ShowMessage(tr::lng_passkey_pin_blocked(tr::now));
 				break;
+			case Outcome::ChooseCredential:
 			case Outcome::NoCredentials:
 			case Outcome::Other:
 				ShowMessage(tr::lng_passkey_error_register(tr::now));
@@ -625,6 +806,20 @@ void AttemptRegister(std::shared_ptr<RegisterState> state, QString pin) {
 	return QByteArray(
 		reinterpret_cast<const char*>(bytes.data()),
 		int(bytes.size()));
+}
+
+[[nodiscard]] LoginAssertion ToLoginAssertion(
+		const Cable::LoginAssertion &assertion,
+		const std::string &clientDataJson) {
+	auto result = LoginAssertion();
+	result.result.credentialId = FromCableBytes(assertion.credentialId);
+	result.result.clientDataJSON = QByteArray::fromStdString(clientDataJson);
+	result.result.authenticatorData = FromCableBytes(assertion.authData);
+	result.result.signature = FromCableBytes(assertion.signature);
+	result.result.userHandle = FromCableBytes(assertion.userHandle);
+	result.userName = QString::fromUtf8(assertion.userName);
+	result.userDisplayName = QString::fromUtf8(assertion.userDisplayName);
+	return result;
 }
 
 [[nodiscard]] Cable::Bytes ClientDataHash(const std::string &clientDataJson) {
@@ -719,17 +914,45 @@ void LoginViaCable(
 			LoginViaSecurityKey(data, callback);
 			return;
 		}
-		auto result = LoginResult();
 		if (cable.outcome == Cable::Outcome::Success) {
+			if (!cable.assertions.empty()) {
+				auto assertions = std::vector<LoginAssertion>();
+				assertions.reserve(cable.assertions.size());
+				for (const auto &assertion : cable.assertions) {
+					assertions.push_back(ToLoginAssertion(
+						assertion,
+						*clientDataJson));
+				}
+				if (assertions.size() == 1) {
+					callback(assertions.front().result);
+					return;
+				}
+				ShowAssertionChoiceBox(
+					std::move(assertions),
+					[=](LoginResult selected) {
+						callback(selected);
+					},
+					[=] {
+						crl::on_main([=] {
+							auto cancelled = LoginResult();
+							cancelled.error = Error::Cancelled;
+							callback(cancelled);
+						});
+					});
+				return;
+			}
+			auto result = LoginResult();
 			result.credentialId = FromCableBytes(cable.credentialId);
 			result.clientDataJSON = QByteArray::fromStdString(*clientDataJson);
 			result.authenticatorData = FromCableBytes(cable.authData);
 			result.signature = FromCableBytes(cable.signature);
 			result.userHandle = FromCableBytes(cable.userHandle);
+			callback(result);
 		} else {
+			auto result = LoginResult();
 			result.error = MapCableError(cable.outcome);
+			callback(result);
 		}
-		callback(result);
 	});
 }
 
