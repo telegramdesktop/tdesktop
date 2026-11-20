@@ -587,11 +587,13 @@ public:
 
 class TextToolButton final : public Ui::AbstractButton {
 public:
-	TextToolButton(not_null<QWidget*> parent)
-	: AbstractButton(parent) {
+	TextToolButton(not_null<QWidget*> parent, bool supportsEmoji)
+	: AbstractButton(parent)
+	, _supportsEmoji(supportsEmoji) {
 		resize(
 			st::photoEditorTextButtonSize.width(),
 			st::photoEditorTextButtonSize.height());
+		updateAccessibleName();
 		events(
 		) | rpl::on_next([=](not_null<QEvent*> event) {
 			if (event->type() == QEvent::Enter
@@ -601,19 +603,51 @@ public:
 		}, lifetime());
 	}
 
+	void setEditing(bool editing) {
+		const auto emoji = _supportsEmoji && editing;
+		if (_emoji == emoji) {
+			return;
+		}
+		_emoji = emoji;
+		updateAccessibleName();
+		update();
+	}
+
+	[[nodiscard]] bool emojiMode() const {
+		return _emoji;
+	}
+
 private:
+	void updateAccessibleName() {
+		setAccessibleName(_emoji
+			? tr::lng_photo_editor_insert_emoji(tr::now)
+			: tr::lng_photo_editor_text_placeholder(tr::now));
+	}
+
 	void paintEvent(QPaintEvent *) override {
 		auto p = QPainter(this);
 		auto hq = PainterHighQualityEnabler(p);
+		const auto content = rect().translated(
+			0,
+			st::photoEditorTextButtonGlyphSkip);
+		if (_emoji) {
+			const auto &button = st::photoEditorTextEmojiButton;
+			const auto &icon = isOver() ? button.iconOver : button.icon;
+			icon.paintInCenter(p, content);
+			return;
+		}
 		auto font = st::semiboldFont->f;
 		font.setPixelSize(QWidget::rect().height() / 2);
 		p.setFont(font);
 		p.setPen(isOver()
 			? st::photoEditorButtonIconFgOver
 			: st::photoEditorButtonIconFg);
-		p.translate(0, st::photoEditorTextButtonGlyphSkip);
-		p.drawText(QWidget::rect(), style::al_center, u"A"_q);
+		p.drawText(content, style::al_center, u"A"_q);
 	}
+
+	const bool _supportsEmoji;
+	bool _emoji = false;
+
 };
 
 PhotoEditorControls::PhotoEditorControls(
@@ -700,7 +734,9 @@ PhotoEditorControls::PhotoEditorControls(
 			_paintBottomButtons,
 			st::photoEditorStickersButton)
 		: nullptr)
-, _textButton(base::make_unique_q<TextToolButton>(_paintBottomButtons))
+, _textButton(base::make_unique_q<TextToolButton>(
+	_paintBottomButtons,
+	data.story && controllers->stickersPanelController))
 , _shapesButton(base::make_unique_q<Ui::IconButton>(
 	_paintBottomButtons,
 	st::photoEditorShapesButton))
@@ -731,6 +767,15 @@ PhotoEditorControls::PhotoEditorControls(
 })) {
 
 	_shapesFilled = shapesFilled;
+	const auto panel = controllers->stickersPanelController.get();
+	_textButton->setClickedCallback([=] {
+		if (_textButton->emojiMode()) {
+			panel->toggleTextEmojiPanel(_textButton->mapToGlobal(
+				QPoint(_textButton->width() / 2, 0)));
+		} else {
+			_textRequests.fire({});
+		}
+	});
 	_videoTimeline->hide(anim::type::instant);
 	_videoTimeline->setDuration(st::photoEditorBarAnimationDuration);
 	_audioTimeline->hide(anim::type::instant);
@@ -1059,11 +1104,15 @@ rpl::producer<> PhotoEditorControls::paintModeRequests() const {
 }
 
 rpl::producer<> PhotoEditorControls::textRequests() const {
-	return _textButton->clicks() | rpl::to_empty;
+	return _textRequests.events();
 }
 
 rpl::producer<ShapeRequest> PhotoEditorControls::shapeRequests() const {
 	return _shapeRequests.events();
+}
+
+void PhotoEditorControls::setTextEditing(bool editing) {
+	_textButton->setEditing(editing);
 }
 
 void PhotoEditorControls::setShapeToolActive(bool active) {

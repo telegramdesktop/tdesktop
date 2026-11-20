@@ -668,6 +668,7 @@ PhotoEditor::PhotoEditor(
 	_content->textEditStates(
 	) | rpl::on_next([=](bool editing) {
 		_textEditing = editing;
+		_controls->setTextEditing(editing);
 		if (_textEditing) {
 			_colorPicker->setToolSelectionVisible(false);
 		} else if (!_textItemSelected && !_shapeItemSelected) {

@@ -53,6 +53,10 @@ public:
 	[[nodiscard]] auto gifChosen() const
 	-> rpl::producer<not_null<DocumentData*>>;
 	[[nodiscard]] rpl::producer<EmojiPtr> emojiChosen() const;
+	[[nodiscard]] rpl::producer<EmojiPtr> textEmojiChosen() const;
+	[[nodiscard]] Ui::RpWidget *textEmojiPanel() const;
+	void toggleTextEmojiPanel(QPoint globalAnchor);
+	void hideTextEmojiPanel();
 	[[nodiscard]] rpl::producer<> photoRequests() const;
 	[[nodiscard]] rpl::producer<> audioRequests() const;
 	[[nodiscard]] rpl::producer<> linkRequests() const;
@@ -80,6 +84,7 @@ private:
 	const not_null<Ui::RpWidget*> _panelContainer;
 	const std::shared_ptr<ChatHelpers::Show> _show;
 	const base::unique_qptr<ChatHelpers::TabbedPanel> _stickersPanel;
+	const base::unique_qptr<ChatHelpers::TabbedPanel> _textEmojiPanel;
 	std::unique_ptr<HistoryView::Reactions::Selector> _reactionsSelector;
 	int _reactionsWidth = 0;
 	int _reactionsCategoriesTop = 0;

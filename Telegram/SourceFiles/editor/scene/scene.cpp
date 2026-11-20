@@ -1390,6 +1390,14 @@ void Scene::createTextAtCenter(int rotation, bool flipped) {
 	_textEdit->createAtCenter(rotation, flipped);
 }
 
+void Scene::setTextEmojiPanel(QWidget *panel) {
+	_textEdit->setEmojiPanel(panel);
+}
+
+void Scene::insertText(const QString &text) {
+	_textEdit->insertText(text);
+}
+
 void Scene::startTextEditing(ItemText *item) {
 	_textEdit->startEditing(item);
 }

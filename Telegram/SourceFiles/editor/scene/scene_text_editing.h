@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unique_qptr.h"
 #include "editor/photo_editor_inner_common.h"
 
+#include <QPointer>
+
 class QGraphicsScene;
 class QGraphicsTextItem;
 class QTextDocument;
@@ -34,6 +36,8 @@ public:
 	void applyPrefs(const TextPrefs &prefs);
 	void noteItemPrefs(not_null<ItemText*> item);
 	void setColor(const QColor &color);
+	void setEmojiPanel(QWidget *panel);
+	void insertText(const QString &text);
 
 	void createAtCenter(int rotation, bool flipped);
 	void startEditing(ItemText *item);
@@ -65,6 +69,7 @@ private:
 	[[nodiscard]] not_null<QGraphicsScene*> graphicsScene() const;
 
 	const not_null<Scene*> _scene;
+	QPointer<QWidget> _emojiPanel;
 
 	QColor _defaultColor;
 	float64 _defaultFontSize = 0.;

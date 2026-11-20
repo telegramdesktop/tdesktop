@@ -120,6 +120,8 @@ public:
 
 	void startTextEditing(ItemText *item);
 	void createTextAtCenter(int rotation, bool flipped);
+	void setTextEmojiPanel(QWidget *panel);
+	void insertText(const QString &text);
 	void setTextColor(const QColor &color);
 	void setSelectedTextColor(const QColor &color);
 	void setSelectedShapeBrush(const QColor &color, float64 strokeWidth);

@@ -84,6 +84,7 @@ using InlineChosen = InlineBots::ResultSelected;
 enum class TabbedSelectorMode {
 	Full,
 	EmojiOnly,
+	UnicodeEmojiOnly,
 	CustomEmojiOnly,
 	CustomEmojiAndGifs,
 	StickersOnly,

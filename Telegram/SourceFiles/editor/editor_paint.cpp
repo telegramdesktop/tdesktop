@@ -244,6 +244,16 @@ Paint::Paint(
 	if (controllers->stickersPanelController) {
 		using ShowRequest = StickersPanelController::ShowRequest;
 		const auto panel = controllers->stickersPanelController.get();
+		_scene->setTextEmojiPanel(panel->textEmojiPanel());
+		panel->textEmojiChosen() | rpl::on_next([=](EmojiPtr emoji) {
+			panel->hideTextEmojiPanel();
+			_scene->insertText(emoji->text());
+		}, lifetime());
+		_textEditing.changes() | rpl::filter([](bool editing) {
+			return !editing;
+		}) | rpl::on_next([=] {
+			panel->hideTextEmojiPanel();
+		}, lifetime());
 
 		controllers->stickersPanelController->setShowRequestChanges(
 			rpl::merge(

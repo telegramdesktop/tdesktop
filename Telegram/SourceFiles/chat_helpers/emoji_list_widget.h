@@ -84,6 +84,7 @@ enum class EmojiListMode {
 	UserpicBuilder,
 	BackgroundEmoji,
 	PeerTitle,
+	UnicodeOnly,
 	MessageEffects,
 	CustomOnly,
 };
@@ -501,6 +502,7 @@ private:
 	const std::shared_ptr<Show> _show;
 	const ComposeFeatures _features;
 	const bool _onlyUnicodeEmoji;
+	const bool _focusUnicodeSearch;
 	Mode _mode = Mode::Full;
 	QWidget *_mediaPreviewParent = nullptr;
 	QMargins _mediaPreviewMargins;

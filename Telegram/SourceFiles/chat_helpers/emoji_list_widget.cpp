@@ -492,7 +492,9 @@ EmojiListWidget::EmojiListWidget(
 	std::move(descriptor.paused))
 , _show(std::move(descriptor.show))
 , _features(descriptor.features)
-, _onlyUnicodeEmoji(descriptor.mode == Mode::PeerTitle)
+, _onlyUnicodeEmoji(descriptor.mode == Mode::PeerTitle
+	|| descriptor.mode == Mode::UnicodeOnly)
+, _focusUnicodeSearch(descriptor.mode == Mode::UnicodeOnly)
 , _mode(_onlyUnicodeEmoji ? Mode::Full : descriptor.mode)
 , _mediaPreviewParent(descriptor.mediaPreviewParent)
 , _mediaPreviewMargins(descriptor.mediaPreviewMargins)
@@ -1724,7 +1726,7 @@ void EmojiListWidget::afterShown() {
 	const auto steal = (_mode == Mode::EmojiStatus)
 		|| (_mode == Mode::FullReactions)
 		|| (_mode == Mode::UserpicBuilder);
-	if (_search && steal) {
+	if (_search && (steal || _focusUnicodeSearch)) {
 		_search->stealFocus();
 	}
 }

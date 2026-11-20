@@ -121,7 +121,18 @@ StickersPanelController::StickersPanelController(
 	PrepareFeatures(
 		withAudio,
 		storyWidgets,
-		Ui::LocationPicker::Available(Ui::ResolveMapsConfig(&session()))))) {
+		Ui::LocationPicker::Available(Ui::ResolveMapsConfig(&session())))))
+, _textEmojiPanel(storyWidgets
+	? MakePanel(
+		panelContainer,
+		show,
+		ChatHelpers::TabbedSelector::Mode::UnicodeEmojiOnly,
+		{
+			.megagroupSet = false,
+			.stickersSettings = false,
+			.openStickerSets = false,
+		})
+	: nullptr) {
 }
 
 StickersPanelController::~StickersPanelController() {
@@ -171,6 +182,34 @@ rpl::producer<EmojiPtr> StickersPanelController::emojiChosen() const {
 		return rpl::never<EmojiPtr>();
 	}
 	return selector->emojiChosen() | rpl::map(&ChatHelpers::EmojiChosen::emoji);
+}
+
+rpl::producer<EmojiPtr> StickersPanelController::textEmojiChosen() const {
+	if (!_textEmojiPanel) {
+		return rpl::never<EmojiPtr>();
+	}
+	return _textEmojiPanel->selector()->emojiChosen(
+	) | rpl::map(&ChatHelpers::EmojiChosen::emoji);
+}
+
+Ui::RpWidget *StickersPanelController::textEmojiPanel() const {
+	return _textEmojiPanel.get();
+}
+
+void StickersPanelController::toggleTextEmojiPanel(QPoint globalAnchor) {
+	const auto point = _panelContainer->mapFromGlobal(globalAnchor);
+	_stickersPanel->hideFast();
+	hideReactionsSelector();
+	_textEmojiPanel->moveBottomRight(
+		point.y(),
+		point.x() + _textEmojiPanel->width() / 2);
+	_textEmojiPanel->toggleAnimated();
+}
+
+void StickersPanelController::hideTextEmojiPanel() {
+	if (_textEmojiPanel) {
+		_textEmojiPanel->hideFast();
+	}
 }
 
 rpl::producer<> StickersPanelController::photoRequests() const {
@@ -381,6 +420,7 @@ void StickersPanelController::setShowRequestChanges(
 		showRequest
 	) | rpl::on_next([=](ShowRequest show) {
 		if (show == ShowRequest::ToggleAnimated) {
+			hideTextEmojiPanel();
 			hideReactionsSelector();
 			_stickersPanel->toggleAnimated();
 			_stickersPanel->raise();
@@ -392,6 +432,7 @@ void StickersPanelController::setShowRequestChanges(
 			_stickersPanel->hideAnimated();
 		} else if (show == ShowRequest::HideFast) {
 			_stickersPanel->hideFast();
+			hideTextEmojiPanel();
 		}
 	}, _stickersPanel->lifetime());
 }

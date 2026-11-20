@@ -664,6 +664,8 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 					? EmojiMode::CustomOnly
 					: _mode == Mode::PeerTitle
 					? EmojiMode::PeerTitle
+					: _mode == Mode::UnicodeEmojiOnly
+					? EmojiMode::UnicodeOnly
 					: EmojiMode::Full),
 				.customTextColor = _customTextColor,
 				.paused = paused,
@@ -802,7 +804,11 @@ auto TabbedSelector::choosingStickerUpdated() const
 }
 
 rpl::producer<> TabbedSelector::cancelled() const {
-	return hasGifsTab() ? gifs()->cancelRequests() : nullptr;
+	return (_mode == Mode::UnicodeEmojiOnly)
+		? emoji()->escapes()
+		: hasGifsTab()
+		? gifs()->cancelRequests()
+		: nullptr;
 }
 
 rpl::producer<> TabbedSelector::checkForHide() const {
