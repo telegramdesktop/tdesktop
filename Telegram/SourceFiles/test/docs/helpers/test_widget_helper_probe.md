@@ -254,7 +254,9 @@ widget ([Linux](#linux), [Windows](#windows)).
 
 In the Mac App Store build (`OS_MAC_STORE`) `TelegramWidgetHelper` is the
 XPC service `Telegram Lite.app/Contents/XPCServices/TelegramWidgetHelper.xpc`,
-signed with the App Sandbox as its only entitlement and started by
+signed with the App Sandbox and the Enhanced Security keys of
+`Telegram/Telegram/TelegramWidgetHelper.entitlements` as its only
+entitlements, in Debug as in Release, and started by
 launchd, not by Telegram: its parent process is launchd, its `HOME` its
 own container `~/Library/Containers/<main bundle id>.WidgetHelper/Data`
 ([Remote engines](test_widget_fixture.md#remote-engines), **The Mac App
@@ -1660,8 +1662,11 @@ campaign, and in the third in `TelegramWidgetHelper` with its plain ad hoc
 signature, without the hardened runtime or an entitlement (Run 4), and
 with the hardened runtime and Telegram's Debug entitlements that Xcode's
 `--deep` signing then gave the staged copy (Runs 5-6). The helper now has
-the hardened runtime and no entitlement, and no probe has run on it since,
-so what its unsandboxed control counts is unmeasured.
+the hardened runtime and the Enhanced Security entitlements of
+`Telegram/Telegram/TelegramWidgetHelperDirect.entitlements`, in Debug as
+in Release, and no probe campaign recorded here has run on it since it
+gained the hardened runtime, so what its unsandboxed control counts is
+unmeasured.
 
 The [Mac App Store](#mac-app-store) service was probed on macOS 27.0.1
 (26A434) arm64 in a Debug Store build, in the evidence campaign of

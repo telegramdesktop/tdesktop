@@ -1098,20 +1098,42 @@ packs, the fixture and the seams they use need no change for it.
   slice it actually runs (`SecCodeCopyGuestWithAttributes` by its pid,
   then `SecCodeCheckValidity` with one requirement), so a file put at the
   helper's path runs no code of its own unless it passes. A
-  certificate-signed client requires `identifier
-  "com.tdesktop.Telegram.WidgetHelper" and certificate leaf = H"<SHA-1 of
-  the client's own leaf certificate>"`, read at each start from the
-  running client after it validated itself dynamically against its own
+  certificate-signed client builds that requirement at each start from
+  `identifier "com.tdesktop.Telegram.WidgetHelper" and certificate leaf =
+  H"<SHA-1 of the client's own leaf certificate>"`, read from the running
+  client after it validated itself dynamically against its own
   designated requirement (`SecCodeCopyDesignatedRequirement`, then
   `SecCodeCheckValidity`), which binds the reading to the running image,
-  so no build records a signer. An ad hoc client, and a genuinely unsigned
-  one (no signature, and no valid status from the kernel), requires
-  `cdhash H"<digest>"` instead: the CDHash its build recorded for that
-  slice in the generated `widget_helper_identity.h`, which
+  so no build records a signer. Before the spawn it then checks the
+  helper file statically, slice by slice (`SignerRequirement()` and
+  `CheckSlice()` in `platform/mac/widget_helper_mac.mm`): for arm64 and
+  for x86_64 it opens that slice
+  (`SecStaticCodeCreateWithPathAndAttributes` with
+  `kSecCodeAttributeArchitecture`; only a slice the file lacks,
+  `errSecCSBadObjectFormat` from that call, is skipped), validates it
+  against the identifier-and-leaf text (`SecStaticCodeCheckValidity`)
+  and reads, from the same static code, its signed entitlement
+  dictionary and its CDHash (`kSecCodeInfoEntitlementsDict`,
+  `kSecCodeInfoUnique`). That dictionary, an empty one when the slice
+  has none, must equal the build's `kEntitlements` (below) with every
+  value's type: the client compares the two as CF's XML serializations,
+  which keep the types and sort the keys, since `CFEqual` takes a boolean
+  and the number 1 for equal. Every present slice is checked, the one
+  the client does not run too, for the reason of **The Mac App Store
+  service** below. The requirement of the suspended child is then
+  `<identifier-and-leaf> and (cdhash H"<arm64>" or cdhash H"<x86_64>")`
+  with the CDHash of each checked slice, one clause for a thin helper,
+  so a file replaced after that reading fails the dynamic check. An ad
+  hoc client, and a genuinely unsigned one (no signature, and no valid
+  status from the kernel), requires `cdhash H"<digest>"` instead: the
+  CDHash its build recorded for that slice in the generated
+  `widget_helper_identity.h`, which
   `Telegram/cmake/widget_helper_identity.py` writes from the helper
-  target's final file. A mismatch, or a check that cannot complete, fails
-  the start: the client kills the suspended child, or spawns none when its
-  own identity is what failed (**Runtime log and deaths** below).
+  target's final file once it has checked that file's entitlements, so
+  such a client reads none at the start. A mismatch, or a
+  check that cannot complete, fails the start: the client kills the
+  suspended child, or spawns none when its own identity or the static
+  slice check is what failed (**Runtime log and deaths** below).
   The helper moves to the working directory `/` itself, in
   `WidgetHelper::Adopt()` before it adopts the channel. It links only
   libSystem and libc++, its Debug build too: no Qt, lib_base, crl or
@@ -1136,11 +1158,28 @@ packs, the fixture and the seams they use need no change for it.
   `Telegram/build/version`, which equals the client's `AppVersion`; a
   helper of another version refuses the opening with `build "<client's>",
   this end's is "<helper's>"`. The helper target strips its file outside
-  Debug and then signs it ad hoc with the hardened runtime and the
-  identifier `com.tdesktop.Telegram.WidgetHelper`, before its CDHash is
-  recorded; Xcode never signs that target (`CODE_SIGNING_ALLOWED NO`),
-  and no build gives the helper an entitlement. Ad hoc Xcode and Ninja
-  builds, `build_mac.py`'s included, stage that file unchanged
+  Debug and then signs it ad hoc with the hardened runtime, the
+  identifier `com.tdesktop.Telegram.WidgetHelper` and
+  `Telegram/Telegram/TelegramWidgetHelperDirect.entitlements`, in Debug
+  and Release alike, before its CDHash is recorded; Xcode never signs
+  that target (`CODE_SIGNING_ALLOWED NO`). That file is the helper's
+  whole entitlement set, the Enhanced Security policy and nothing else:
+  `com.apple.security.hardened-process` and its `.checked-allocations`,
+  `.dyld-ro` and `.hardened-heap` as boolean true, and its
+  `.enhanced-security-version-string` and
+  `.platform-restrictions-string` as the string `2`, so the helper has
+  no file, network, device or keychain entitlement. An edit of that
+  file relinks, re-signs and re-pins the helper (`LINK_DEPENDS` under
+  Ninja and Makefiles, the POST_BUILD that runs on every Xcode build).
+  `widget_helper_identity.py` refuses a slice without the `runtime` flag
+  or whose entitlements differ from the file's, types included
+  (`check_slice()`: each value compared as `plistlib.dumps` output, the
+  error naming each missing, unexpected or differently typed key, such
+  as `com.apple.security.hardened-process is 1 (int) instead of true`),
+  and writes the file's dictionary into the header as `kEntitlements`,
+  its `plistlib.dumps(..., sort_keys=True)` XML as adjacent C string
+  literals, one per line, for the start's check above. Ad hoc Xcode and
+  Ninja builds, `build_mac.py`'s included, stage that file unchanged
   (`build_mac.py`'s universal app merges the two slices with `lipo`,
   which keeps each slice byte for byte), so each staged slice has the
   recorded CDHash, and `codesign --verify --deep --strict` of the Xcode
@@ -1148,23 +1187,155 @@ packs, the fixture and the seams they use need no change for it.
   certificate signing go through `Telegram/build/sign_mac.py`, which
   `build.sh`, the canary workflow, `build_mac.py`'s Debug app and a
   POST_BUILD step of Telegram's Xcode target call, the Mac App Store
-  build's included: it signs the other nested code with the caller's
-  identity, options and entitlements, except the Mac App Store service and
-  any Mach-O inside a `Resources` folder, re-signs the helper only for a
-  certificate identity, with that identity, the hardened runtime, its
-  preserved identifier and no entitlement, and then signs the app without
-  `--deep` (in an Xcode build Xcode signs the app itself). The release strip of
+  build's included. Each helper form has its file: the helper
+  `TelegramWidgetHelperDirect.entitlements`, the Mac App Store service
+  `TelegramWidgetHelper.entitlements`. For a certificate identity it
+  first checks each staged form, before it signs anything with that
+  identity (`widget_helper_identity.check_staged()`): each slice's
+  entitlements must equal the form's file, so a staged extra grant
+  fails with `macOS signing failed: <path>: the <arch> slice's
+  entitlements differ from <file>: <differences>` and never receives
+  the certificate. It then signs the other nested code with the
+  caller's identity, options and entitlements, except the Mac App Store
+  service and any Mach-O inside a `Resources` folder, and re-signs each
+  helper form with that identity, the hardened runtime, its preserved
+  identifier (`--preserve-metadata=identifier`) and its form's file as
+  `--entitlements`; an ad hoc identity leaves the helper as built.
+  After that last helper write every signing, nested-only and full, ad
+  hoc included, checks each staged form (`check_helpers()`, through
+  `widget_helper_identity.check()`): each slice needs the `runtime` flag
+  and exactly its form's entitlements, under a certificate or an ad hoc
+  signature, and then the form's own `codesign --verify
+  --all-architectures --strict` must pass. It prints `Widget helper
+  checked: Contents/Helpers/TelegramWidgetHelper (<slices>)` per form
+  and otherwise fails, exit 1, with `macOS signing failed: <path>: the
+  <arch> slice's entitlements differ from
+  TelegramWidgetHelperDirect.entitlements: <differences>`, `macOS signing
+  failed: <path>: the <arch> slice has no hardened runtime flag`,
+  `macOS signing failed: <path>: codesign --verify --all-architectures
+  --strict <path> failed: <codesign's error>` for a helper changed after
+  its signature (a `strip` of a signed, unstripped helper) or `macOS
+  signing failed: <bundle> has no widget helper`. Every signing, before
+  it signs any nested code, and both checks first read each present
+  form's path as CMake stages it without following links: `Contents`
+  and `Contents/Helpers` must be directories and the helper a regular
+  file; for the service `Contents`, `Contents/XPCServices`, the `.xpc`
+  folder, its `Contents`, `Contents/MacOS` and `Contents/_CodeSignature`
+  directories, and its `Contents/Info.plist`, the
+  `Contents/MacOS/<CFBundleExecutable>` that plist names and
+  `Contents/_CodeSignature/CodeResources` regular files
+  (`check_layout()`). A link on that path, even to another folder of
+  the app, which the generic signing would reach under its other name
+  and Packer would skip, fails with `macOS signing failed: <path> is a
+  link`, another kind of file with `<path> is not a directory` or
+  `<path> is not a regular file`, a service plist without a plain
+  executable name with `<plist> has no valid CFBundleExecutable` and a
+  missing entry with Python's `No such file or directory` error, before
+  any signature is read or written; links elsewhere in the app stay
+  allowed. Each other file of the service bundle must then resolve
+  inside the checked bundle: a link out of it fails with `macOS signing
+  failed: <path> resolves outside <bundle>`. A full signing
+  (`build.sh`'s, the canary's signed loop, `build_mac.py`'s Debug app)
+  then signs the app without `--deep` and
+  ends with its `codesign --verify --deep --strict`, which alone would
+  pass another entitlement set: the app's seal records nested code by
+  its designated requirement, not its CDHash, so a same-team re-sign
+  with other entitlements keeps the app valid. The Xcode POST_BUILD
+  (`--xcode`) signs and checks only the nested code when Xcode allows
+  code signing, and Xcode signs the app after it; otherwise it leaves
+  the nested code as built and checks nothing. `sign_mac.py --check
+  <bundle>` runs only the final check and signs nothing, and
+  `sign_mac.py --check-layout <bundle>` only the reading of each present
+  form's path above, with its errors, and reads no signature. `build.sh`
+  runs `--check` on a request-UUID resume (`request_uuid <id>` with an id
+  other than `go`, which does not sign that bundle again) on
+  `$ReleasePath/$BundleName` and on the bundle inside the reused setup
+  dmg, attached read-only at a temporary mount point, before
+  `Beginning notarization process.`. A
+  failure stops the script with `Checking the widget helper in <name>
+  failed!`, after `TelegramWidgetHelper not found in <bundle>!` for a
+  bundle without the helper or `<bundle> in <setup file> is a link!`
+  for an archived bundle that is a link, and a missing or unreadable
+  dmg stops it with `<setup file> not found or not readable!`. The dmg
+  check runs `hdiutil attach` and `hdiutil detach` in a process group of
+  their own (a `python3` that calls `os.setpgrp()` and then executes
+  `hdiutil`), so a `HUP`, `INT` or `TERM` sent to the build's process
+  group or to the checking subshell lets them finish: the subshell only
+  records the signal (a group signal also ends a running `sign_mac.py
+  --check`), skips any inspection not yet started, then detaches
+  whatever is mounted at its mount point and removes that folder once,
+  and fails, for a signal that arrives during that detach too. The run
+  doing the check takes such a signal, or one sent to it alone, only
+  once the subshell has ended, and then stops with `Interrupted while
+  checking <setup file>!`, so a universal run releases its build lock
+  only after that detach, whether the check was its own or a thin
+  run's. A
+  universal run (`build.sh` without an architecture) packs both thin
+  updates itself on every route. Right after taking its build lock it
+  stops with `Update files already exist in <release folder> (arm64
+  <file>, x86_64 <file>), set them aside before rerunning!`, naming
+  each architecture whose final update name
+  (`td-update-mac-arm-<version>` or `td-update-mac-x64-<version>`, with
+  `-beta` on the beta channel) is taken by a file, folder or link,
+  before any thin run, signing, submission or deploy output. It then
+  hashes `TelegramWidgetHelperDirect.entitlements` into memory and
+  stops with `TelegramWidgetHelperDirect.entitlements could not be
+  read!` when it cannot. A fresh run and `request_uuid go` run both thin
+  runs fresh, `request_uuid <id>` runs both fresh from the staged
+  universal app before its own resume checks, `request_uuid_arm64 <id>`
+  resumes the arm64 run with that id and runs the x86_64 one fresh, and
+  `request_uuid_x86_64 <id>` runs the arm64 one fresh and then resumes
+  the x86_64 one; a failed thin run stops the universal run, so the
+  deploy folder receives only the two updates this run's thin runs
+  packed. It starts each thin run as `<script folder>/build.sh <arch>
+  request_uuid <id>`, the id empty for a fresh one, so a relative or an
+  absolute path to the script reaches them, and keeps its build lock
+  until that thin run has ended: a `HUP`, `INT` or `TERM` sent to the
+  universal run during a thin run takes effect once the thin run has
+  finished, or has ended on that signal too, and then stops it with
+  `Interrupted while preparing the single updates!` before the next
+  thin run, signing, submission or deploy output, its exit releasing
+  the lock, so a rerun cannot share the release folder with a thin run
+  still at work. Before it creates the deploy folder the universal run
+  hashes the policy file again and stops with that read error, or with
+  `TelegramWidgetHelperDirect.entitlements changed during the build!`
+  when the two hashes differ, so a persistent edit during a thin run,
+  the universal signing or check or a notarization wait ships nothing.
+  A thin run refuses an existing update of its own with `Update file
+  for version <version> already exists!`, every run refuses an existing
+  deploy folder of its version, and a thin run started on its own
+  (`build.sh arm64`, `build.sh x86_64 request_uuid <id>`) packs only its
+  update. A thin run copies the staged universal app to
+  `Telegram.<arch>.app` with `cp -R`, which copies links as links, and
+  runs `--check-layout` on the copy before `lipo -thin` writes any slice
+  into it, so a link on the helper's path, such as a linked
+  `Contents/Helpers`, stops it with `Checking the widget helper in
+  Telegram.<arch>.app failed!` before a thin slice replaces a file that
+  link reaches. A thin run keeps its setup dmg through its checks,
+  notarization, stapling and packing and removes it (`Setup file
+  <file> removed.`) only after moving its finished update into the
+  release folder: a thin `request_uuid <id>` run stopped before that
+  move finds its dmg again when the same command runs again, and one
+  stopped after it leaves a complete update for the existing-update
+  guard. The canary
+  workflow's macOS job runs `--check` on `Telegram.x86_64.app`,
+  `Telegram.arm64.app` and `Telegram.app` when no signing certificate
+  leaves them unsigned. The release strip of
   `build.sh` and the canary leaves the already stripped and signed helper
   byte for byte unchanged (measured with CLT 26.6's `strip`, which still
   warns that its changes will invalidate the code signature). The pin
   refuses a helper whose CDHash differs from the recorded one, such as
   another build's (an identical ad hoc re-sign can keep the CDHash),
-  while the signer rule accepts any helper with the helper identifier
-  that the client's own certificate signed, a re-signed release's
-  included, and refuses an ad hoc one, the build's own too. A copy signed
-  with a certificate for a test needs `sign_mac.py` too: `codesign
-  --force --deep` of the app gives the helper Telegram's entitlements and
-  another identifier. No helper build carries `get-task-allow`, so a
+  while the signer rule accepts a helper with the helper identifier that
+  the client's own certificate signed, a re-signed release's included,
+  only when each of its slices carries exactly this build's
+  entitlements, and refuses before the spawn an ad hoc one, the build's
+  own too, and a same-leaf one with another entitlement set (an added
+  key, the integer 1 for a boolean or a missing key, on either slice). A
+  copy signed with a certificate for a test needs `sign_mac.py` too:
+  `codesign --force --deep` of the app gives the helper Telegram's
+  entitlements and another identifier, which the start refuses. No
+  helper build carries `get-task-allow`, so a
   debugger cannot attach to the helper; observe it from the client and
   through its stderr. A running client refuses every later start once its
   own executable or its signed `Info.plist` changed on disk, as a
@@ -1390,22 +1561,28 @@ packs, the fixture and the seams they use need no change for it.
   and `XPCService` `ServiceType` `Application`
   (`Telegram/TelegramWidgetHelper.plist`). Its identifier is the main
   bundle's plus `.WidgetHelper` (`org.telegram.desktop.WidgetHelper` as
-  built) and its only entitlement the App Sandbox
-  (`Telegram/Telegram/TelegramWidgetHelper.entitlements`), so it runs in
+  built) and its entitlements those of
+  `Telegram/Telegram/TelegramWidgetHelper.entitlements`: the App Sandbox,
+  the one key it shares with Telegram Lite, and the direct helper's
+  Enhanced Security set (**The shared helper** above), so it runs in
   its own empty container with no network, file, device or keychain
   entitlement. The target's POST_BUILD strips it outside Debug and signs
   the bundle ad hoc with the hardened runtime, that identifier and that
-  file; the generated pin is that signature's CDHash
-  (`widget_helper_identity.py --entitlements` requires the slice's
-  entitlements to equal the file's exactly), and
+  file, in Debug and Release alike; the generated pin is that
+  signature's CDHash (`widget_helper_identity.py --entitlements`
+  requires each slice's `runtime` flag and its entitlements equal to
+  the file's, types included, and writes them as `kEntitlements`), and
   `TelegramWidgetHelper_bundle` copies the bundle's `Info.plist`,
   executable and `CodeResources` into the app. An edit of the plist
   template or the entitlements relinks, re-signs and re-pins it. It links
   only libSystem and libc++. `sign_mac.py` leaves it as built for an ad
-  hoc identity, since its build signature is the pin, and re-signs it for
-  a certificate identity with the hardened runtime and
-  `--preserve-metadata=identifier,entitlements` (the identifier alone
-  would drop the App Sandbox). It also skips every Mach-O inside a
+  hoc identity, since its build signature is the pin, and for a
+  certificate identity first compares the staged service's entitlements
+  with `TelegramWidgetHelper.entitlements`, then re-signs it with the
+  hardened runtime, `--preserve-metadata=identifier` and that file as
+  `--entitlements` (the identifier alone would drop the App Sandbox and
+  the Enhanced Security keys), as it does the direct helper. It also
+  skips every Mach-O inside a
   `Resources` folder, so Breakpad's `Resources/breakpadUtilities.dylib`
   keeps what each caller's own line gives it. `build.sh`'s macstore branch signs that
   dylib, then the app through `sign_mac.py` with the Mac App Store
@@ -1413,23 +1590,45 @@ packs, the fixture and the seams they use need no change for it.
   runtime; `build_mac.py`'s Store Debug signs the dylib ad hoc and calls
   `sign_mac.sign(bundle, '-')`; the Xcode Store target runs the same
   `sign_mac.py --xcode` POST_BUILD as other Xcode builds, without
-  `--deep`. `build.sh`'s and `build_mac.py`'s lines end with
-  `sign_mac.sign()`'s `codesign --verify --deep --strict`. The Xcode
-  POST_BUILD signs only the nested code, and Xcode signs the app after it
-  without a strict verify, so verify an Xcode product with `codesign
-  --verify --deep --strict` yourself. `codesign --force --deep` keeps the
-  service's identifier and gives it that command's entitlements: with
+  `--deep`. Each of these, the Xcode one when Xcode allows code signing,
+  runs `sign_mac.sign()`'s check of the service against
+  `TelegramWidgetHelper.entitlements`, with its own strict verify,
+  after the service's last signature; `build.sh`'s and
+  `build_mac.py`'s lines then sign the app and end with its `codesign
+  --verify --deep --strict` (**The shared helper** above), so
+  `build.sh`'s `productbuild` packages only a service that passed both.
+  The Xcode POST_BUILD signs and checks only the nested code, and Xcode
+  signs the app after it without a deep strict verify, so verify an
+  Xcode product's app with `codesign --verify --deep --strict`
+  yourself. `codesign --force
+  --deep` keeps the service's identifier and gives it that command's
+  entitlements: with
   `Telegram Lite.entitlements` (`build.sh`'s old line) Telegram Lite's
   nine, the network, camera, microphone, location and user file grants
   among them; with none (`build_mac.py`'s old ad hoc line) none, so the
-  service loses the App Sandbox and its pinned CDHash.
+  service loses the App Sandbox and its pinned CDHash. Neither set is
+  the service's file, so `sign_mac.py --check` and a certificate-signed
+  client's start refuse such a service.
   Telegram's `Launch()` (`platform/mac/widget_helper_store_mac.mm`) names
   the service after its own `[[NSBundle mainBundle] bundleIdentifier]`
   plus `.WidgetHelper`, so a copy re-identified for a test reaches its
-  own service. It builds the requirement as on direct download,
+  own service. It builds the requirement as on direct download, before
+  it creates the channel or the connection: a certificate-signed client
+  checks each present arm64 and x86_64 slice of its
+  `Contents/XPCServices/TelegramWidgetHelper.xpc` statically against
   `identifier "<main bundle id>.WidgetHelper" and certificate leaf =
-  H"<SHA-1 of the client's own leaf>"` for a certificate-signed client and
-  `cdhash H"<pin>"` for an ad hoc one, and sets it with
+  H"<SHA-1 of the client's own leaf>"`, compares the slice's signed
+  entitlements with the build's `kEntitlements` (the service's file, the
+  App Sandbox included) and requires `<identifier-and-leaf> and (cdhash
+  H"<arm64>" or cdhash H"<x86_64>")`; an ad hoc one requires `cdhash
+  H"<pin>"`. The certificate form admits every checked slice because
+  launchd starts the service's native slice even for a client under
+  Rosetta, so binding the client's own slice would refuse its own
+  service. The comparison is exact after Apple's Mac App Store
+  re-signing too, so a distributed service whose entitlement dictionary
+  differed in any key or type would refuse every widget start of that
+  build; no Apple-signed build has been checked. The client sets
+  the requirement with
   `xpc_connection_set_peer_code_signing_requirement`. XPC checks it only
   on replies and delivers an outgoing message before it checks the peer,
   so the first message, the hello, carries no descriptor. Only after XPC
@@ -1467,17 +1666,27 @@ packs, the fixture and the seams they use need no change for it.
   created the service's container.
   A start failure reads `the widget helper could not start: <error>`, the
   errors among them `stderr is not open`, `the bundle identifier of this
-  build is unknown`,
-  the client's own identity errors of **Runtime log and deaths**,
+  build is unknown`, `the widget helper path is unknown`,
+  the client's own identity errors and the certificate-signed client's
+  static slice refusals of **Runtime log and deaths** (`the widget helper
+  failed the signer check: the <arch> slice's entitlements differ from
+  this build's` and the others there), which come before the channel and
+  the connection exist and have no cleanup,
   `xpc_connection_set_peer_code_signing_requirement failed: <error>`, `the
   widget helper failed the signer check: <XPC error>` or the same with
-  `the build identity check` (`Peer Forbidden` on macOS 27.0.1), `the
+  `the build identity check` (`Peer Forbidden` on macOS 27.0.1: XPC
+  refused the peer requirement on the hello's reply, as it does for a
+  service replaced after the static reading), `the
   widget helper service <name> is unavailable (<XPC error>)` (a bundle
-  without the service: `Connection invalid (Connection init failed at
-  lookup with error 3 - No such process)`), `the widget helper ended
-  before it took the channel`, `the widget helper did not answer within
+  without the service under an ad hoc client: `Connection invalid
+  (Connection init failed at lookup with error 3 - No such process)`;
+  a certificate-signed client's static check fails first, with its
+  `SecStaticCodeCreateWithPathAndAttributes` error), `the widget helper
+  ended before it took the channel`, `the widget helper did not answer within
   15000 ms` or `the widget helper refused the channel: <reason>`; once
-  the client watches a pid, the cleanup follows in parentheses. As for
+  the client watches a pid, after the hello's reply, the cleanup follows
+  in parentheses, read from the service's `NOTE_EXIT` as in the `ended`
+  line below, not from a wait status. As for
   the direct-download helper, when Telegram's stderr is a terminal and
   the relay of **The shared helper** cannot be made, the start fails
   before the client creates its connection, with `socketpair failed:
@@ -1516,7 +1725,9 @@ packs, the fixture and the seams they use need no change for it.
   `CFBundleURLTypes` and `CFBundleDocumentTypes` so that the copy never
   becomes the `tg://` handler, set the service's `CFBundleIdentifier` to
   `<test id>.WidgetHelper` and re-sign the service ad hoc with that
-  identifier, the hardened runtime and `TelegramWidgetHelper.entitlements`,
+  identifier, the hardened runtime and `TelegramWidgetHelper.entitlements`
+  (exactly that file: `sign_mac.py` checks it, and the stand-in-signed
+  copy compares it at each start),
   then sign the copy with `sign_mac.py --identity <stand-in>
   --entitlements <file> --runtime --keychain <throwaway keychain>`, never
   a real identity or the owner's keychains. The file is `Telegram
@@ -2375,8 +2586,10 @@ packs, the fixture and the seams they use need no change for it.
   whose helper cannot start dies with `the widget helper could not start:
   <error>`, the seam's error such as `posix_spawn failed: <reason>` on
   macOS (`posix_spawn failed: No such file or directory` when the bundle
-  has no `Contents/Helpers/TelegramWidgetHelper`; the client never checks
-  the file before the spawn) or a Windows gate error. On Windows the file
+  of an ad hoc or unsigned client has no
+  `Contents/Helpers/TelegramWidgetHelper`, which such a client never
+  checks before the spawn; a certificate-signed client's static check
+  opens the file first, below) or a Windows gate error. On Windows the file
   is checked through the handle it is started from (**The Windows helper**
   above), so a missing file reads `could not hold
   modules\<arch>\TelegramWidgetHelper.exe: CreateFileW failed: The system
@@ -2391,17 +2604,40 @@ packs, the fixture and the seams they use need no change for it.
   checked file` (the suspended child is not the held file); the main log
   adds `Tgw Error: The widget helper could not start: <error>.`. The Mac
   App Store build's errors are listed under **The Mac App Store service**.
-  On macOS outside the Mac App Store build a helper that fails the
-  identity check of **The shared helper**
-  is killed before it runs: the error is `the widget helper failed the
-  signer check: <call> failed: <message> (<status>)`, or the same with
-  `the build identity check`, followed by the cleanup of the suspended
-  child in parentheses, `(signal 9, sent SIGKILL after N ms)`; a failed
-  resume reads `kill failed: <reason>` with the same cleanup. A helper of
-  another signer, an ad hoc one under a certificate-signed client, one
-  with another identifier or another build's reads `SecCodeCheckValidity
-  failed: code failed to satisfy specified code requirement(s) (-67050)`
-  there, and a helper file without read permission
+  On macOS outside the Mac App Store build a certificate-signed client
+  refuses a helper that fails the static slice check of **The shared
+  helper** before any spawn, with no cleanup: `the widget helper failed
+  the signer check: the <arch> slice's entitlements differ from this
+  build's` names the first slice, arm64 before x86_64, whose signed
+  entitlements are not exactly the build's (an added, missing or
+  differently typed key, on the slice the client runs or the other one),
+  and `the widget helper failed the signer check: the <arch> slice:
+  <call> failed: <message> (<status>)` one it cannot open, validate or
+  read: `SecStaticCodeCheckValidity failed: code failed to satisfy
+  specified code requirement(s) (-67050)` for a helper of another
+  signer, an ad hoc one or one with another identifier,
+  `SecStaticCodeCreateWithPathAndAttributes failed: cannot find code
+  object on disk (-67068)` for a missing file, and that call's status
+  100013 (`UNIX[Permission denied]`) for a file without read permission.
+  The same prefix with `the <arch> slice: the CDHash is unreadable` or
+  `the <arch> slice: the entitlements are unreadable` is a slice whose
+  signing information lacks them, and with `there is no arm64 or x86_64
+  slice` a helper with neither; `the widget helper entitlements of this
+  build are unreadable`, without the prefix, is a build whose
+  `kEntitlements` does not parse. A helper that passed that check, and
+  any helper under an ad hoc or unsigned client, can still fail the
+  dynamic check of the suspended child, and is then killed before it
+  runs: the error is `the widget helper failed the signer check: <call>
+  failed: <message> (<status>)`, or the same with `the build identity
+  check`, followed by the cleanup of the suspended child in parentheses,
+  its wait status `(signal 9, sent SIGKILL after N ms)`; a failed resume
+  reads `kill failed: <reason>` with the same cleanup. Under a
+  certificate-signed client a helper replaced after the static reading,
+  such as a same-leaf copy with other entitlements, and under an ad hoc
+  or unsigned client any helper but the build's own, another build's
+  included, read `SecCodeCheckValidity failed: code failed to satisfy
+  specified code requirement(s) (-67050)` there; under such a client a
+  helper file without read permission reads
   `SecCodeCopyGuestWithAttributes failed: UNIX[Permission denied]
   (100013)`. A refusal of the client's own identity comes before any
   spawn, with neither that prefix nor a cleanup, and names the failing
@@ -2497,9 +2733,10 @@ packs, the fixture and the seams they use need no change for it.
   (`Tgw::HostedChannel()`), before the host's creation time
   that `loadedMs` counts from, so its `loadedMs` does not include the
   spawn itself; it can include the helper's own start-up and lockdown
-  before its engine answers. On macOS the spawn includes both identity
-  checks of **The shared helper**, Security calls without a time bound of
-  their own, and on Linux in the `TelegramHelpers` layout the read and
+  before its engine answers. On macOS the spawn includes the identity
+  checks of **The shared helper**, under a certificate-signed client the
+  static reading of each helper slice too, Security calls without a time
+  bound of their own, and on Linux in the `TelegramHelpers` layout the read and
   SHA-256 of the whole helper file; in the Mac App Store build the start
   waits for the service's two replies, at most 15 s together, and takes
   about 10 s when launchd defers it. Inside Flatpak it is a synchronous
