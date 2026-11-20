@@ -4947,8 +4947,8 @@ protected:
 		const auto seek = QRectF(myrtlrect(getSeekRect()));
 		const auto thickness = style::ConvertScale(4);
 		const auto y = seek.center().y();
-		const auto from = st::rtl() ? seek.right() : seek.left();
-		const auto to = st::rtl() ? seek.left() : seek.right();
+		const auto from = seek.left();
+		const auto to = seek.right();
 		const auto value = getCurrentValue();
 		const auto x = from + (to - from) * value;
 		const auto highlight = _highlight.value();
