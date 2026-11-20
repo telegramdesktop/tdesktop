@@ -166,6 +166,8 @@ struct Gif::Streamed {
 	::Media::Streaming::FrameRequest frozenRequest;
 	QImage frozenFrame;
 	QString frozenStatusText;
+	std::optional<crl::time> startPosition;
+	bool resuming = false;
 };
 
 Gif::Streamed::Streamed(
@@ -277,7 +279,7 @@ Gif::Gif(
 Gif::~Gif() {
 	if (_streamed || _dataMedia) {
 		if (_streamed) {
-			_data->owner().streaming().keepAlive(_data);
+			_data->owner().streaming().keepAlive(_streamed->chosen);
 			setStreamed(nullptr);
 		}
 		if (_dataMedia) {
@@ -2527,6 +2529,9 @@ void Gif::createStreamedPlayer() {
 	if (!chosen || (_streamed && _streamed->chosen == chosen)) {
 		return;
 	}
+	const auto position = (_streamed && _streamed->instance.active())
+		? _streamed->instance.info().video.state.position
+		: ::Media::kTimeUnknown;
 	auto shared = _data->owner().streaming().sharedDocument(
 		chosen,
 		_data,
@@ -2539,6 +2544,10 @@ void Gif::createStreamedPlayer() {
 		chosen,
 		std::move(shared),
 		[=] { repaintStreamedContent(); }));
+	if (position != ::Media::kTimeUnknown
+		&& !_streamed->instance.active()) {
+		_streamed->startPosition = position;
+	}
 
 	_streamed->instance.player().updates(
 	) | rpl::on_next_error([=](::Media::Streaming::Update &&update) {
@@ -2552,16 +2561,28 @@ void Gif::createStreamedPlayer() {
 		if (quality.manual) {
 			return;
 		}
-		auto now = Core::App().settings().videoQuality();
-		if (now.manual || now.height == requested) {
+		const auto now = Core::App().settings().videoQuality();
+		if (now.manual) {
+			return;
+		} else if (now.height != requested) {
+			Core::App().settings().setVideoQuality({
+				.manual = 0,
+				.height = uint32(requested),
+			});
+			Core::App().saveSettingsDelayed();
+		} else if (_streamed->chosen == ChooseInlineQuality(
+				_data,
+				_realParent,
+				kMaxInlineArea,
+				now)) {
 			return;
 		}
-		Core::App().settings().setVideoQuality({
-			.manual = 0,
-			.height = uint32(requested),
+		const auto streamed = _streamed.get();
+		crl::on_main(this, [=] {
+			if (_streamed.get() == streamed) {
+				createStreamedPlayer();
+			}
 		});
-		Core::App().saveSettingsDelayed();
-		createStreamedPlayer();
 	}, _streamed->instance.lifetime());
 
 	if (_streamed->instance.ready()) {
@@ -2573,13 +2594,17 @@ void Gif::createStreamedPlayer() {
 void Gif::startStreamedPlayer() const {
 	Expects(_streamed != nullptr);
 
+	const auto position = base::take(_streamed->startPosition);
+	_streamed->resuming = position.has_value();
 	auto options = ::Media::Streaming::PlaybackOptions();
 	options.audioId = AudioMsgId(_data, _realParent->fullId());
 	options.waitForMarkAsShown = true;
 	//if (!_streamed->withSound) {
 	options.mode = ::Media::Streaming::Mode::Video;
 	options.loop = true;
-	options.position = _videoTimestamp
+	options.position = position
+		? *position
+		: _videoTimestamp
 		? (_videoTimestamp * crl::time(1000))
 		: _parent->history()->session().local().mediaLastPlaybackPosition(
 			_data->id);
@@ -2631,6 +2656,9 @@ void Gif::handleStreamingUpdate(::Media::Streaming::Update &&update) {
 }
 
 void Gif::handleStreamingError(::Media::Streaming::Error &&error) {
+	if (_streamed && _streamed->resuming) {
+		stopAnimation();
+	}
 }
 
 void Gif::repaintStreamedContent() {
@@ -2647,6 +2675,7 @@ void Gif::repaintStreamedContent() {
 void Gif::streamingReady(::Media::Streaming::Information &&info) {
 	Expects(_streamed != nullptr);
 
+	_streamed->resuming = false;
 	const auto chosen = _streamed->chosen;
 	const auto measured = info.video.realSize;
 	const auto video = measured.isEmpty() ? nullptr : chosen->video();
