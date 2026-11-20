@@ -19,16 +19,15 @@ Nothing else gives these: `WidgetHost` keeps its options private,
 (`Runtime::logText()`, `_summary`) rounds and clips the readings, and the
 validated-ops tap sees only what reaches the renderer.
 
-The watch also times the renderer's own work on that host's widget: a
-disposable overlay puts a `WidgetWorkScope` into three calls of the core's
-worker, `Tgw::RendererWork`, which runs on the widget render thread
-(`widget.render`, one thread for every widget's worker), each given its
-`Tgw::RendererCore`'s address, and each scope of the core the watch's
-attachment registered records one event into the watch's work log, which
-the main thread reserves and reads under the lock the scopes take
-([Renderer work](#renderer-work)). Where the widget helper renders, the
-renderer runs there and the same scopes time only Telegram's share of its
-work ([In the hosted arrangement](#in-the-hosted-arrangement)).
+The watch also times Telegram's share of the renderer's work on that
+host's widget: a disposable overlay puts a `WidgetWorkScope` into the
+core's worker, `Tgw::RendererWork`, and its platform end, which run on the
+widget render thread (`widget.render`, one thread for every widget's
+worker), each given its `Tgw::RendererCore`'s address, and each scope of
+the core the watch's attachment registered records one event into the
+watch's work log, which the main thread reserves and reads under the lock
+the scopes take ([Renderer work](#renderer-work)). The renderer itself runs
+in the widget helper ([The helper's share](#the-helpers-share)).
 
 Callers: the widget fixture arms a watch for a record whose `watchHost` is
 set ([test_widget_fixture](test_widget_fixture.md)). Its consumers are the
@@ -101,10 +100,8 @@ Use something else when:
   `WidgetDiagnostics::dead`. A stop the desktop decides itself, such as a
   paint bound's refusal of the widget's frames (a paint that ran out of
   memory for its own workspace, an emoji tile request's preparation among
-  it, included; found in
-  `RendererWork::raster()` on a work turn, in the hosted arrangement also
-  in `RendererWork::hostedFrame()`, `hostedRaster()` or `paintFrame()` or
-  the platform end's
+  it, included; found on a work turn, in `RendererWork::hostedFrame()` or
+  `paintFrame()` or the platform end's
   checks of the helper's traffic, published to the chat by its posted
   answer), stops the
   `RendererCore` and retires the runtime without the host: the watch keeps `dead` null, or `terminated` with that
@@ -232,185 +229,34 @@ Every `...At` stamp is 0 until its event. A reading with more than one
 
 ## Renderer work
 
-The renderer's own work on one widget, as the stress kit's
-`packages/stress/CLIENTS.md` ("The renderer's own work") asks an own
+Telegram's share of the renderer's own work on one widget, as the stress
+kit's `packages/stress/CLIENTS.md` ("The renderer's own work") asks an own
 renderer to time it, recorded as raw events; turning them into per-frame
 samples is the consumer's (the stress runner groups each raster attempt
 with the work since the previous one, counts the attempts that replayed
-apart and documents that grouping next to its figures).
+apart and documents that grouping next to its figures). The host messages,
+TwidgetCore's `receive()`, `tick()`, style, layout and display-list build,
+the settle before a paint and every layout query run in the widget helper
+([Remote engines](test_widget_fixture.md#remote-engines)), and
+`RendererWork` drives the shipped platform end (`RendererPlatform`,
+`tgw/tgw_renderer_platform.cpp`): the scopes time its answers to the
+helper's requests and its replay of each list the helper painted
+([The helper's share](#the-helpers-share)).
 
 ### The overlay
 
-No retained code times anything: neither `tgw_renderer_work.cpp` nor
-`tgw_renderer.cpp` has a scope, counter or condition, and without the
-harness this module defines no `WidgetWorkScope` member. A task that
-measures applies a disposable hunk to `tgw/tgw_renderer_work.cpp`, never
-commits it and restores the file afterwards. Every added line sits inside
+No retained code times anything: none of `tgw_renderer_work.cpp`,
+`tgw_renderer_platform.cpp` and `tgw_renderer.cpp` has a scope, counter or
+condition, and without the harness this module defines no
+`WidgetWorkScope` member. A task that measures applies a disposable hunk
+to `tgw/tgw_renderer_work.cpp` and `tgw/tgw_renderer_platform.cpp`, never
+commits it and restores the files afterwards. Every added line sits inside
 `#if defined _DEBUG || defined TDESKTOP_RELEASE_TEST_HARNESS`, so the hunk
 compiles in both harness configurations and nowhere else:
 
 - `#include "test/test_widget_host.h"`;
-- `RendererWork::hostMessage()`: right after the stopped and `requestFrame`
-  returns, `const auto workScope = Test::WidgetWorkScope(_chat.get(),
-  Test::WidgetWorkKind::Message);`. A `frozen` never gets there: the host
-  thread's `HostLink::postMessage()` splits it into a main-thread post to
-  `RendererCore::hostFrozen()`, which latches it in the chat's half, and a
-  render-thread post to `RendererWork::freeze()`, which no scope times and
-  which stops the worker, so every later message returns at the stopped
-  check;
-- `RendererWork::tick()`: at entry, the same with `WidgetWorkKind::Tick`;
-- `RendererWork::raster()`: right after the unchanged-picture
-  `return std::nullopt;` under "A released core shows its last picture",
-  `auto workScope = Test::WidgetWorkScope(_chat.get(),
-  Test::WidgetWorkKind::Frame);`, right after
-  `const auto list = _renderer->paint();`,
-  `workScope.displayList(list.size());`, and right after
-  `auto painted = PaintFrame(list, *_backend, size, _renderer->dpr());`,
-  `workScope.replayed(!painted.image.isNull());`. To count a partial
-  repaint as a replay as well, right after
-  `auto limit = area ? repaintFrame(list, *area, corners, card) : std::nullopt;`,
-  `if (limit) { workScope.replayed(!area->isEmpty() && limit->isEmpty()); }`:
-  an empty limit is a painted damage area, a nonempty one a refusal that
-  restored the canvas, and no limit falls through to `PaintFrame()`.
-  Without that line a partial repaint reads `replayed` false. The flag
-  reads what this attempt's replay produced, before it is moved into the
-  worker's canvas `_frame`, never that canvas or the chat's held picture:
-  a frame the paint bounds refuse keeps the card's last picture that fits
-  it in `_frame`, so `!_frame.isNull()` would count that refusal as a
-  replay.
-
-Every scope gets `_chat.get()`, the `RendererCore` whose worker it is:
-`WatchWidgetHost()` registers that address, and the worker's own `this`, a
-different object, is never registered, so a scope given it records nothing.
-`_chat` is a `base::weak_ptr` the core made on the main thread, and `get()`
-reads it atomically on the render thread: while the core lives it is the
-registered address, and once the core is destroyed it is null, so a scope
-opened after that records nothing and takes no lock (the worker's `gone`
-checks leave few such calls before the render thread destroys it). A
-scope already open when its core is destroyed on the main thread keeps
-its log and lands its event; the address is only compared, never
-dereferenced.
-Without the overlay a registered core records nothing, so an empty log for
-a widget whose content changes is a missing overlay: an invalid
-measurement, never zero renderer work.
-
-### What the events include
-
-All three run on the widget render thread, from the scope's construction
-to its destruction: none runs on the main thread, so none inside the chat
-list's paint ([The delivery to the chat](#the-delivery-to-the-chat)). The
-thread runs every widget's worker in one queue, so an event of one widget
-never overlaps another widget's render-thread work, while the main
-thread's work, and every host and JS thread's, can overlap any event:
-
-- **`Message`**: one host message applied, with no canvas refill (that
-  runs at the widget's display frames: `QtBackend::beginFrame()` in
-  `RendererWork::tick()` and in a raster that paints). TwidgetCore's
-  `receive()` (the batch's ops, an `anim` or a query, and,
-  when no frame is due, the settle it starts at once: style, layout and the
-  display list), the settled viewport answer on the load, then `finish()`:
-  forwarding the answers to the host link (a post to the host thread), the
-  clock refresh and `post()`, which adds the message's changes, if any, to
-  the next work turn and posts that turn unless one is posted already. The
-  message's JSON parse on the host thread (`HostRenderer::send()`), its
-  post from there straight to the render thread (`HostLink::postMessage()`
-  through `PostToRenderThread()`, no main-thread hop) and, there, the host
-  link's `closed` and `gone` checks and the worker's lookup by id come
-  before it; the chat's handling of its changes comes later.
-- **`Tick`**: the whole `RendererWork::tick()`, run by `step()` on the
-  worker's own frame timer (a `base::Timer` on the render thread at lib_ui's
-  animation cadence, `kHeldTick`, 8 ms, not lib_ui's main-thread animation
-  manager), by `wake()` or by `releaseHeld()`: TwidgetCore's
-  `tick()` (its timers, animations and a build a due frame deferred),
-  forwarding its output and the `frame` message that answers the widget's
-  `requestAnimationFrame`, and posting its changes to the work turn.
-- **`Frame`**: one raster attempt past the unchanged-picture return, on a
-  work turn (`RendererWork::work()`, which `schedule()` posts to the
-  render thread with `PostToRenderThread()`, guarded by the worker's
-  lifetime). `paint()` (the settle: style, layout and the display
-  list, or its reuse), the replay (`PaintFrame()`, the QPainter replay
-  into an ARGB32 image on the CPU, then `RoundFrame()`; or the partial
-  `repaintFrame()` of the damaged area into the worker's canvas), after a
-  settle `flushQueued()`, and `completed()`, which pairs the canvas with
-  the settled height as the answer's layout (a shared `QImage`, no pixel
-  copy; while the chat holds that picture, the next partial repaint first
-  detaches the canvas from it, a whole-canvas copy inside that later
-  event). A size the list has not laid out yet (a `FitsCard()` refusal)
-  runs `paint()` and keeps the earlier canvas without a replay; that call
-  is a `Frame` event too, with `replayed` false, while an attempt whose
-  `PaintFrame()` returned an image has `replayed` true, as has one whose
-  partial repaint painted when the overlay instruments that path. One the
-  paint bounds refused returned none, so it is `replayed` false, whatever
-  picture the card keeps. `displayList` is the size of the list `paint()`
-  returned. A work turn rasters (`rasterWanted()`) a loaded core with a
-  card cut on a draw's demand (`RendererCore::frame()` held no picture for
-  the card, a refresh or a changed cut) or, live on screen, unless its
-  last delivered picture is still undrawn; a kept core only when its
-  work owes a picture (`RendererReflow`).
-
-Not included: the chat list's own painting around the card and its
-`drawImage()` of the held picture, `RendererCore::apply()` and the chat's
-handling of each answer, the window's backing-store flush (BitBlt) and DWM
-composition, `hostTheme()`, `hostLoaded()`, `freeze()` and
-`RendererCore::hostFrozen()`, input forwarding (the chat's posts and the
-worker's input calls), the rest of a work turn (the deferred detach cleanup
-`finishDetach()`, the size request's `set_width()` and `set_max_height()`
-with the rebuild a changed value starts, and the answer's post), every
-early return named above (an unchanged picture's `raster()` included), the
-time a posted call, message or turn waits in the render thread's queue
-behind its own widget's or other widgets' work, any host-thread or
-JS-thread work (`stats.jsMs`, the ops tap's parse and scan) and other
-widgets' cores.
-
-### The delivery to the chat
-
-The worker's results reach the chat at one posted delivery, outside every
-event. A work turn applies the pending size request, rasters when wanted
-and sends one `RendererAnswer` (a layout pairing the height with its
-picture, the content and load state, a stop) through
-`RendererWork::deliver()`, a `crl::on_main` hop from the render thread to
-the main thread, guarded by the core's `base::weak_ptr` so that a gone
-core gets nothing, to `RendererCore::apply()`. In the hosted arrangement
-the picture waits in the work's own mailbox (`PicturePost`) instead, put
-there as soon as it is painted and published by the next work turn: the
-answer, or for a turn with only a picture and no later post of its work
-still queued one wake, carries a serial, and `apply()` takes the newest
-picture at the answer it came with or at a post after the last answer
-before it, a newer one having replaced any the chat had not taken yet.
-That call publishes the chat's height, held
-picture and state and fires `updates()`, whose
-handlers, `Tgw::Runtime::coreUpdated()`, `stillUpdated()` or
-`coreStopped()`, make the repaint or resize request, the height memory and
-any retirement there. What a message or a tick changes thus reaches the
-chat at the earliest two posted hops after its event (its work turn, in the
-render thread's queue, then the delivery, in the main thread's), a `Frame`
-event's picture one hop after it, and only a later list paint draws it.
-
-The chat list's paint draws the picture `RendererCore::frame()` selects
-from what was delivered. Its calls into the core (`frame()`'s demand and
-drawn notices, `setCut()`, a size request, a retirement's detach) each post
-a call to the render thread, where the worker only stores the value and
-posts its work turn, and a detach leaves its renderer cleanup to that
-turn's `finishDetach()`, so no scope runs inside a list paint and a list
-paint's time holds no renderer work. The two run on different threads and
-can overlap in time: a reading that pairs events with list paints must use
-their stamps, not nesting.
-
-### In the hosted arrangement
-
-Where the widget helper renders (macOS, Linux and Windows by default,
-unless the build disables the private Qt API,
-[Remote engines](test_widget_fixture.md#remote-engines)), the host messages,
-TwidgetCore's `receive()`, `tick()`, style, layout and display-list build,
-the settle before a paint and every layout query run in the helper, and
-`RendererWork` drives the shipped platform end (`RendererPlatform`,
-`tgw/tgw_renderer_platform.cpp`) instead of a local renderer: so
-`hostMessage()` and `tick()` never run for such a work, and the places
-above time almost nothing there. The same scopes, kinds and log, still
-given `_chat.get()`, time Telegram's share instead; a measuring task's hunk
-for this arrangement adds, inside the same harness condition:
-
-- **`Frame` in `raster()`**, at the place above: there it covers only the
+- **`Frame` in `RendererWork::raster()`**, right after its unchanged-picture
+  return under "A released core shows its last picture": it covers only the
   request for a paint (`requestPaint()`) while the route lives and the
   work has not stopped before its detach, with no replay: a hosted work
   keeps no list of its own, so one whose route is gone paints nothing, and
@@ -448,47 +294,48 @@ The platform end has no core of its own: the hunk hands it the work's
 that `paintFrame()` can set the frame's two values, keeps a pointer to the
 scope it opened for that entry, cleared when the scope closes. `consume()`
 itself opens no Work: the place is `pump()`'s loop, where the Work is.
-A tick has no Telegram work to time there: `askTick()` sends a request,
-and the helper's answer is a `Frame` entry like any other. No such hunk
-has been compiled or run yet.
+A tick has no Telegram work to time: `askTick()` sends a request, and the
+helper's answer is a `Frame` entry like any other. No such hunk has been
+compiled or run yet.
 
-What these events leave out is the helper's work: the engine, the
-validator, the served host's glue, TwidgetCore's whole receive, tick and
-paint, the encoding of each Frame, both stream hops and the time an entry
-waits in the render thread's queue or for its widget's hold to end. The
-one suite field whose definition holds that work is the stress kit's
-`renderer` (`packages/stress/CLIENTS.md`, "The renderer's own work":
-applying the batch, style, layout, building the display list and replaying
-it): in the hosted arrangement the work log gives Telegram's replay share
-of it only, and a run that reports it there must say so.
+Every scope gets `_chat.get()`, the `RendererCore` whose worker it is:
+`WatchWidgetHost()` registers that address, and the worker's own `this`, a
+different object, is never registered, so a scope given it records nothing.
+`_chat` is a `base::weak_ptr` the core made on the main thread, and `get()`
+reads it atomically on the render thread: while the core lives it is the
+registered address, and once the core is destroyed it is null, so a scope
+opened after that records nothing and takes no lock (the worker's `gone`
+checks leave few such calls before the render thread destroys it). A
+scope already open when its core is destroyed on the main thread keeps
+its log and lands its event; the address is only compared, never
+dereferenced.
+Without the overlay a registered core records nothing, so an empty log for
+a widget whose content changes is a missing overlay: an invalid
+measurement, never zero renderer work.
 
-The helper's share comes from the ops tap, not from this log: in Debug,
-`Test::TimeWidgetHelperWork()` before the construction makes the helper's
-tap time each outermost renderer operation of the glue thread (a served-host
-message, a theme, a tick, a paint with its display-list build and Frame
-encoding, other platform messages, the glue's controls) and the parts of it
-spent waiting for Telegram's answers, and `ReadWidgetHelperWork()` returns
-them on this log's clock ([Helper renderer work](test_widget_ops.md#helper-renderer-work)).
-Those waits overlap Telegram's own events answering the requests, so a
-total of both processes counts each once. The stress runner asks for it on
-every level and writes, per level, `desktop.rendererScope`: `renderer` (the
-whole renderer in Telegram: `in-process` or an engine-only placement),
-`telegram-replay` (hosted with no helper records: a Release harness, whose
-helper is a Release build with no Debug code) or `telegram-replay+helper`
-(hosted with them), and `desktop.helperWork`, the window's helper events
-per kind with their wall, waited and own time, summed with checked
-additions; a dropped or malformed record, and an event whose time would
-overflow a sum, is a level error
-([test_widget_stress](test_widget_stress.md#hosted-levels)). The measured passes are Release builds, so their
-`renderer` is Telegram's replay share and is labelled so; a Debug run
-measures the whole renderer in the `in-process` arrangement
-(`TDESKTOP_WIDGET_ENGINES=in-process`), where the places above apply
-unchanged, or the two shares side by side in the hosted one. An
-attribution needs a known nontrivial workload with both readings nonempty
-and an unasked control level. Every other reading of this module (the
-options, stats, nodes, load, death, diags and logs) is the hosted host's
-own `WidgetHost::diagnostics()`, which the hosted client fills from the
-helper's reports, and is read the same way in both arrangements.
+### What the events include
+
+Every event runs on the widget render thread, from the scope's
+construction to its destruction: none runs on the main thread, so none
+inside the chat list's paint
+([The delivery to the chat](#the-delivery-to-the-chat)). The thread runs
+every widget's worker in one queue, so an event of one widget
+never overlaps another widget's render-thread work, while the main
+thread's work, and every host and JS thread's, can overlap any event.
+
+Not included: the chat list's own painting around the card and its
+`drawImage()` of the held picture, `RendererCore::apply()` and the chat's
+handling of each answer, the window's backing-store flush (BitBlt) and DWM
+composition, `freeze()` and `RendererCore::hostFrozen()`, input
+forwarding (the chat's posts and the worker's input calls), the rest of a
+work turn (the deferred detach cleanup `finishDetach()`, the size
+request's `setWidth()` and `setMaxHeight()` to the helper, and the
+answer's post), every early return named above (an unchanged picture's
+`raster()` included), the time a posted call, message or turn waits in the
+render thread's queue behind its own widget's or other widgets' work, any
+host-thread or JS-thread work (`stats.jsMs`, the ops tap's parse and
+scan), the helper's work ([The helper's share](#the-helpers-share)) and
+other widgets' cores.
 
 Overhead: an event runs from the constructor's last act, its clock read, to
 the destructor's first, so it holds about one `crl::profile()` read
@@ -503,6 +350,75 @@ the copy of a long log (read once a level, after its window). A scope
 given a null core returns at once; one of a core nobody registered costs
 the lock and a walk of the registered addresses, an empty walk while
 nothing is registered.
+
+### The delivery to the chat
+
+The worker's results reach the chat at one posted delivery, outside every
+event. A work turn applies the pending size request, asks for a paint when
+wanted and sends one `RendererAnswer` (the content and load state, a stop)
+through `RendererWork::deliver()`, a `crl::on_main` hop from the render
+thread to the main thread, guarded by the core's `base::weak_ptr` so that a
+gone core gets nothing, to `RendererCore::apply()`. The picture waits in
+the work's own mailbox (`PicturePost`), put there as soon as it is painted
+and published by the next work turn: the answer, or for a turn with only a
+picture and no later post of its work still queued one wake, carries a
+serial, and `apply()` takes the newest picture at the answer it came with
+or at a post after the last answer before it, a newer one having replaced
+any the chat had not taken yet. That call publishes the chat's height, held
+picture and state and fires `updates()`, whose
+handlers, `Tgw::Runtime::coreUpdated()`, `stillUpdated()` or
+`coreStopped()`, make the repaint or resize request, the height memory and
+any retirement there. What an event changes thus reaches the chat at the
+earliest two posted hops after it (its work turn, in the render thread's
+queue, then the delivery, in the main thread's), and only a later list
+paint draws it.
+
+The chat list's paint draws the picture `RendererCore::frame()` selects
+from what was delivered. Its calls into the core (`frame()`'s demand and
+drawn notices, `setCut()`, a size request, a retirement's detach) each post
+a call to the render thread, where the worker only stores the value and
+posts its work turn, and a detach leaves its cleanup to that
+turn's `finishDetach()`, so no scope runs inside a list paint and a list
+paint's time holds no renderer work. The two run on different threads and
+can overlap in time: a reading that pairs events with list paints must use
+their stamps, not nesting.
+
+### The helper's share
+
+What these events leave out is the helper's work: the engine, the
+validator, the served host's glue, TwidgetCore's whole receive, tick and
+paint, the encoding of each Frame, both stream hops and the time an entry
+waits in the render thread's queue or for its widget's hold to end. The
+one suite field whose definition holds that work is the stress kit's
+`renderer` (`packages/stress/CLIENTS.md`, "The renderer's own work":
+applying the batch, style, layout, building the display list and replaying
+it): the work log gives Telegram's replay share of it only, and a run that
+reports it there must say so.
+
+The helper's share comes from the ops tap, not from this log: in Debug,
+`Test::TimeWidgetHelperWork()` before the construction makes the helper's
+tap time each outermost renderer operation of the glue thread (a served-host
+message, a theme, a tick, a paint with its display-list build and Frame
+encoding, other platform messages, the glue's controls) and the parts of it
+spent waiting for Telegram's answers, and `ReadWidgetHelperWork()` returns
+them on this log's clock ([Helper renderer work](test_widget_ops.md#helper-renderer-work)).
+Those waits overlap Telegram's own events answering the requests, so a
+total of both processes counts each once. The stress runner asks for it on
+every level and writes, per level, `desktop.rendererScope`:
+`telegram-replay` (no helper records: a Release harness, whose helper is a
+Release build with no Debug code) or `telegram-replay+helper` (with them),
+and `desktop.helperWork`, the window's helper events
+per kind with their wall, waited and own time, summed with checked
+additions; a dropped or malformed record, and an event whose time would
+overflow a sum, is a level error
+([test_widget_stress](test_widget_stress.md#hosted-levels)). The measured passes are Release builds, so their
+`renderer` is Telegram's replay share and is labelled so; a Debug run
+measures the two shares side by side. An
+attribution needs a known nontrivial workload with both readings nonempty
+and an unasked control level. Every other reading of this module (the
+options, stats, nodes, load, death, diags and logs) is the hosted host's
+own `WidgetHost::diagnostics()`, which the hosted client fills from the
+helper's reports.
 
 ### Registration, nesting and storage
 
@@ -548,10 +464,10 @@ nothing is registered.
 
 | `WidgetWorkEvent` field | Meaning |
 | --- | --- |
-| `kind` | `Message`, `Tick` or `Frame`, by the scope's place. |
+| `kind` | `Message` or `Frame`, by the scope's place; [the overlay](#the-overlay) places no `Tick` scope. |
 | `started`, `finished` | `crl::profile()` microseconds at the scope's construction and destruction, read on the render thread with the process clock of the main thread's stamps. |
 | `displayList` | The display list size a `Frame` scope was given; -1 otherwise. |
-| `replayed` | A `Frame` scope whose `PaintFrame()` returned an image, or whose partial repaint painted where the overlay instruments it; never the retained canvas or held picture. False for an attempt that returned before the replay, for one the paint bounds refused, and for every other kind. |
+| `replayed` | A `Frame` scope whose replay of a helper's list gave a picture (`paintList()`'s `layout`); never the retained canvas or held picture. False for a paint request, for a frame with no replay, for one the paint bounds refused, and for every other kind. |
 | `host` | The index in `WidgetHostReading::hosts` of the attachment that registered the core. |
 
 | `WidgetWorkReading` field | Meaning |
@@ -617,8 +533,9 @@ nothing is registered.
 - The work registry and every work log share one mutex, the work lock.
   Registration in `WatchWidgetHost()`, unregistration in
   `DisarmWidgetHostWatch()`, `ReserveWidgetWork()` and `ReadWidgetWork()`
-  take it on the main thread. The scopes, in `RendererWork` calls on the
-  widget render thread, take it for their lookup and their append only,
+  take it on the main thread. The scopes, in `RendererWork` and
+  `RendererPlatform` calls on the widget render thread, take it for their
+  lookup and their append only,
   never across the timed work, and `displayList()` and `replayed()` touch
   only the scope. No other harness or product lock is taken while it is
   held, so it has no lock order to keep. The lock and the registry are
@@ -650,22 +567,18 @@ Executed in the app: the stress runner's Release dry runs and both measured
 passes (one options call and one host per level, unscaled production
 defaults, the measure override with the product's visibility, locale, DPR
 and safe area kept, `loaded` with `loadedMs`, verbatim `dead` with
-`diedAtMs`, and with the overlay nonempty work logs without drops); the
-`replayed` flag and its overlay line are compiled (Debug, Win32, MSVC), not
-yet run in the app, and the stress self-check counts it on synthetic events.
-The overlay line on `PaintFrame()`'s `PaintedFrame` result above is a
-description: the retained tree has no such line, so it compiles only in
-the overlay of a task that applies it. Those runs timed the scopes in
+`diedAtMs`, and with the overlay nonempty work logs without drops). Those
+runs timed a renderer that ran in Telegram, with the scopes in
 `RendererCore`'s own calls, while `frame()` still rastered inside the list
-paint and `updates()` fired inside a message's event. Since
-`2026/11/16/deliver-widget-heights-and-finished-pictures-as-messages` the
-work is `RendererWork`'s, on posted turns; the placement above, its
-`_chat.get()` identity and the partial-repaint line have not been compiled
-or run in an overlay yet. Since
-`2026/11/14/run-the-widget-renderer-on-a-thread-of-its-own` that work runs
-on the widget render thread, `_chat` is a `base::weak_ptr` and the scopes
-share the work lock with the main thread; no overlay has timed the work on
-that thread yet.
+paint and `updates()` fired inside a message's event; the `replayed` flag
+was compiled (Debug, Win32, MSVC) on that renderer's replay, not run in
+the app, and the stress self-check counts it on synthetic events. The work
+is `RendererWork`'s, on posted turns, since
+`2026/11/16/deliver-widget-heights-and-finished-pictures-as-messages`, and
+runs on the widget render thread, where `_chat` is a `base::weak_ptr` and
+the scopes share the work lock with the main thread, since
+`2026/11/14/run-the-widget-renderer-on-a-thread-of-its-own`; the hunk of
+[The overlay](#the-overlay) has not been compiled or run yet.
 
 Executed by the conformance task
 `2026/10/29/report-the-desktop-conformance-and-run-the-stress-kit-at-widget-sandbox-v0-3-0`,

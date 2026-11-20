@@ -30,7 +30,7 @@ again runs a probe, that of
 in forked copies of the helper and around the real
 `WidgetHelper::Lockdown()` (`_other/widget_helper_linux.cpp`), writes its
 lines to stderr, and the helper goes on serving widgets, rendering them
-where the build's helper renders ([Linux](#linux)).
+([Linux](#linux)).
 On Windows the helper is `TelegramWidgetHelper.exe`, in `modules\<arch>\`
 next to `Telegram.exe`, in the Windows Store build's installed package
 too ([Windows Store](#windows-store)), and its Debug build's lockdown
@@ -76,8 +76,7 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   loopback port, `connect-control` and network targets, and
   `probe-unsandboxed` refuses with `the widget helper probe is not
   available on this platform`. On Linux `probe` and `probe-unsandboxed`
-  run the probe of [Linux](#linux), and both serve widgets, hosted ones
-  where the helper renders. The non-Linux
+  run the probe of [Linux](#linux), and both serve widgets. The non-Linux
   all-other platforms build no helper and have no probe hook: an explicit
   probe value there fails every start closed
   ([Remote engines](test_widget_fixture.md#remote-engines)).
@@ -185,13 +184,10 @@ renderer ([Remote engines](test_widget_fixture.md#remote-engines)), the
 ordinary probe never shows the helper while it renders: it refuses the
 stream after its listing. Its serving variant takes the same listing and
 attempts in a helper that serves widgets, for the direct-download helper and
-the Mac App Store service alike, on either stream opening (the hosted one
-of the default arrangement, and the engine-only one of `helper-engines`
-that a disposable overlay combines with probe arguments as the control).
-Linux and Windows, whose helpers render as well, need no serving variant:
-their probes refuse no stream their lockdown accepted, and right after
-their lines the same helper serves, hosting each widget where the build's
-helper renders ([Linux](#linux), [Windows](#windows)).
+the Mac App Store service alike. Linux and Windows, whose helpers render as
+well, need no serving variant: their probes refuse no stream their lockdown
+accepted, and right after their lines the same helper serves, hosting each
+widget ([Linux](#linux), [Windows](#windows)).
 
 - **Asking for it.** A fixture's `renderingDelayMs` appends
   `rendering:<ms>` after every other argument, the service names included,
@@ -235,8 +231,8 @@ helper renders ([Linux](#linux), [Windows](#windows)).
   per serving thread (`thread (task_threads)`) and whatever rights the
   served host and its engine took, while the widget work loads no
   framework (the helper links none, and its litehtml is built without
-  CoreFoundation). Compare it by entry class and object against an
-  engine-only control taken the same way, not with the ordinary probe's
+  CoreFoundation). Compare it by entry class and object with another
+  serving listing taken the same way, not with the ordinary probe's
   pre-`Ready` counts. A widget that starts or
   ends threads during the listing can change the space between the
   firehose reading's two snapshots, which fails that reading (two
@@ -901,13 +897,10 @@ place. A printable ASCII line reaches the terminal unchanged
 ([Remote engines](test_widget_fixture.md#remote-engines) describes the
 relay). Unless the helper's own lockdown refuses, the hook returns "" and
 the helper serves widgets as in `helper` mode, so a probe launch is no
-helper failure. Where the helper renders (every Linux build that keeps the
-private Qt API) both probe values choose the hosted arrangement as
-`helper` does, so the probed helper renders each widget it serves, and
-its `lockdown:`, `after lockdown:` and `layers:` lines are those of a
-helper that then renders. There is no engine-only control on Linux:
-`helper-engines` stops every widget in its `TDESKTOP_WIDGETS_HELPER_ONLY`
-build ([Remote engines](test_widget_fixture.md#remote-engines)).
+helper failure. Both probe values choose the helper as `helper` does, so
+the probed helper renders each widget it serves, and its `lockdown:`,
+`after lockdown:` and `layers:` lines are those of a helper that then
+renders.
 
 With `probe` it goes through these steps:
 

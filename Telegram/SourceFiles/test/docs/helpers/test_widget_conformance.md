@@ -17,8 +17,6 @@ Internal to it, documented below:
 [test_widget_conformance_hosts.h](../../test_widget_conformance_hosts.h)
 ([the content safe area](#readings-and-refusals) and the host reading
 control of [verification](#verification)),
-[test_widget_conformance_paint_policy.h](../../test_widget_conformance_paint_policy.h)
-(the paint-policy fixture's read for [verification](#verification)),
 [test_widget_conformance_pictures.h](../../test_widget_conformance_pictures.h)
 ([pictures](#pictures)) and
 [test_widget_conformance_stop.h](../../test_widget_conformance_stop.h)
@@ -124,11 +122,7 @@ Use something else when:
   `manifest.json`, `probe-fixture.json` and each selected entry's HTML, and
   nothing else; `refs/`, `catalogue.json`, `run.schema.json` and `tools/`
   are the report's. A missing or invalid manifest or probe fixture refuses
-  every run by name before anything is injected. The first stage reads one
-  more file of the same pin, outside the package: its sibling
-  `../core/tests/fixtures/paint-policy.json`, for the paint-policy rows of
-  [verification](#verification); a missing or unreadable one fails one
-  Check of that stage and refuses no run. A selected entry that is
+  every run by name before anything is injected. A selected entry that is
   malformed (no id, set, file or light/dark themes, `widths` without 390,
   actions that are not objects, a host check that is not an object with an
   id, a stage without a name, themes or a rect in whole CSS px, a `message`
@@ -190,9 +184,8 @@ Use something else when:
   must be 390 within 0.01 CSS px, or the run carries `width-mismatch` (the
   anchor was not honoured, or the chat column is too narrow); the light runs
   go in the app's day palette and the dark ones in its night palette, and a
-  renderer scheme other than the run's theme is `scheme-mismatch`. A hosted
   run is judged by the widget's own effective reading at its newest applied
-  theme instead, with the predicate the stress runner shares
+  theme, with the predicate the stress runner shares
   (`CheckWidgetTheme()`, [test_widget_ops](test_widget_ops.md#the-effective-theme)):
   another applied scheme or a reading that differs from the applied theme,
   a wrong palette key with the right scheme included, is `scheme-mismatch`;
@@ -332,9 +325,9 @@ Every stage name, Check and Note of the pack starts `widget conformance: `,
 after `palette switch: ` or `palette restore: ` in the palette helpers'
 stages; the show helper's stages are `show in chat list: widget conformance
 <key> <what>`; the first stage takes the rows of the tap's, the played
-bot's, the probe fixture's and the paint-policy fixture's checks under their
-own names, such as `widget ops self-check: ` and `paint policy fixture: `
-([verification](#verification)). A run's key is `<id>|<theme>|390`. In
+bot's and the probe fixture's checks under their own names, such as
+`widget ops self-check: ` ([verification](#verification)). A run's key is
+`<id>|<theme>|390`. In
 order:
 
 - `tap, result reader, summary reader and run file self-check`, `report the
@@ -406,7 +399,7 @@ again: one that moved more than 0.5 CSS px is `target-moved`.
 | `hover` | the action show's own enter and move at the target; no leave, the pointer stays until the next action | `point`, `show` |
 | `wheel` | `Test::Wheel` at the target with angle delta `(0, -round(dy * 1.2))` (Chromium's 100 CSS px per 120 units), then a leave | `wheel`: the `WheelDelivery` |
 | `key` | `Enter` as `Test::PressKey(Qt::Key_Return)`, no text; `Space` and one printable character as `Test::TypeText`; sent to the window's focus child | `receiver`, `focusMoved`, `typed`, `cleared`, `composeBefore`, `composeAfter` |
-| `theme` | restore of the palette chain's last switch, then `AppendPaletteSwitch` to the day (`light`) or night (`dark`) palette, then up to 4 s for the widget's theme to match the target: of a hosted host its effective reading at a theme applied after the action began (`CheckWidgetTheme()` with the action's first reading), of a local one its renderer's scheme given after that | `palette`, `widgetTheme` (its scheme, generation and applied serial before and after, `effectiveSerial`, `effectiveScheme`, `verdict` `matches`, `unobserved` or `wrong`, `detail`, `reached` (live and matching), `liveRefusal`, `pending` (the token of an application still underway, 0 for none), `hostRetired`) |
+| `theme` | restore of the palette chain's last switch, then `AppendPaletteSwitch` to the day (`light`) or night (`dark`) palette, then up to 4 s for the widget's theme to match the target: its effective reading at a theme applied after the action began (`CheckWidgetTheme()` with the action's first reading) | `palette`, `widgetTheme` (its scheme, generation and applied serial before and after, `effectiveSerial`, `effectiveScheme`, `verdict` `matches`, `unobserved` or `wrong`, `detail`, `reached` (live and matching), `liveRefusal`, `pending` (the token of an application still underway, 0 for none), `hostRetired`) |
 | `visible: false` | one `Ui::ElasticScroll::scrollToY` of the list's own scroll putting the view's top 8 px below the viewport, then up to 4 s for the runtime to count it hidden | `before`, `scrollTo`, `after`, `runtimeVisible`, hosts |
 | `visible: true` | `AppendShowInChatList` of the card's top band, then up to 4 s for the runtime to count it visible | `show`, `after`, `runtimeVisible`, hosts |
 | `wait` | a stage of `wait` ms | `waitedMs`, `afterLastInputMs` |
@@ -1119,19 +1112,7 @@ The pack's first stage runs, as Checks: `RunWidgetOpsSelfCheck()` (its
 scanner control is the leak scan's control in the totals);
 `RunWidgetBotSelfCheck()` ([test_widget_bot](test_widget_bot.md#verification));
 `RunWidgetConformanceProbeCheck()` on the package's `probe-fixture.json`
-([test_widget_ops](test_widget_ops.md)); the paint-policy fixture's rows
-verbatim (`RunPaintPolicyFixture()` of
-`test_widget_conformance_paint_policy.cpp`: `RunWidgetPaintPolicyCheck()`
-([test_widget_paint_policy](test_widget_paint_policy.md)) on the bytes of
-`package`'s sibling `../core/tests/fixtures/paint-policy.json`, read by its
-cleaned path, the same pin's `packages/core/tests/fixtures/paint-policy.json`;
-at `v0.6.0` 93 rows, the 92 entry rows in fixture order - constants 2,
-shadows 13, boxes 31, hidesSubtree 4, animations 14, messages 2, reports 6,
-cases 20 - and the coverage row; a `package` that is not an absolute path,
-or a fixture that cannot be opened or read, gives one failed row instead,
-`paint policy fixture: the fixture file was read`, with the path and the
-error; empty or unparsable bytes give the checker's coverage row alone,
-failed); two result-reader controls on
+([test_widget_ops](test_widget_ops.md)); two result-reader controls on
 literal readings (this run's value taken with its checks verbatim once per
 generation and serial; another run's id, text that is no JSON object and
 checks that are no array refused, and a newer host's clear leaving no

@@ -10,9 +10,10 @@ Source contract: [test_widget_attacks.h](../../test_widget_attacks.h).
 A scenario runs widget-sandbox's `corpus/attacks` through the app's own widget
 view and needs, per file, whether it ran, loaded, died, what its validated ops
 held under the `--attacks` leak definition, and how one real click through the
-bubble went, plus in-process loopback controls for an external network
-listener. `Test::AppendWidgetAttackAudit` appends the whole linear audit: each
-HTML file becomes a local outgoing `messageMediaWidget` message in the legacy
+bubble went, plus loopback controls the app itself sends for an external
+network listener. `Test::AppendWidgetAttackAudit` appends the whole linear
+audit: each HTML file becomes a local outgoing `messageMediaWidget` message
+in the legacy
 `HistoryInner` of a Test chat, its hosts are tapped with
 [test_widget_ops](test_widget_ops.md), it is shown with
 [test_chat_show](test_chat_show.md), clicked once when live and watched for
@@ -78,12 +79,12 @@ Use something else when:
   no renderer quiescence. A card taller than 75 % of the list's scroll is
   shown by a band at its top that holds the press point; the row says whether
   the whole card was shown (`wholeCard`).
-- **Hosted widgets.** Where the widget helper renders (macOS, Linux and
-  Windows by default, unless the build disables the private Qt API,
-  [Remote engines](test_widget_fixture.md#remote-engines)) the tap sits on
-  each file's hosted host ([test_widget_ops](test_widget_ops.md#hosted-widgets)):
-  its batches are scanned at the host's `onRenderOps`, its load is the
-  mirrored ack pair or the host's own rendered acknowledgment
+- **Hosted widgets.** Each file's widget runs in the widget helper
+  ([Remote engines](test_widget_fixture.md#remote-engines)) and the tap
+  sits on its hosted host
+  ([test_widget_ops](test_widget_ops.md#hosted-widgets)): its batches are
+  scanned at the host's `onRenderOps`, its load is the mirrored ack pair or
+  the host's own rendered acknowledgment
   (`renderedHosts`), and its click the renderer's click decision for the
   marked interaction: the generation the mark before the press found newest
   and the press the click played, the primary press the chat dispatched to
@@ -114,34 +115,6 @@ Use something else when:
   click of the same work after a mouse-down that reached no core, and a
   decision that comes after a newer generation was selected all stay
   `click-not-observed`.
-- **Local widgets.** Where the renderer runs in Telegram (`in-process`,
-  `helper-engines` and builds without the private Qt API, on macOS) the
-  tap wraps each file's renderer
-  factory, and the runtime registers the work of the core it builds the
-  host for with the generation that selection made
-  ([test_widget_ops](test_widget_ops.md#local-presses)). Its click is bound
-  the same way: the press the chat dispatched to a work of the marked
-  generation inside `DeliverMarkedPress()` binds `markedWork` and
-  `markedSerial`, and the work reports, on its render thread, the down its
-  renderer took with that serial and the release that ends that press,
-  with the renderer's answer to it, then the end of that answer's
-  forwarding. Only a trusted `click` in the answer to the played press's
-  own release, taken while the marked generation is the newest, counts
-  (`clicksCompleted`), and only when the work's forwarding hands it to the
-  wrapper, that is to the host; together with the generation's trusted
-  click the renderer sent its host (`trustedClicks`) it makes the click
-  `observed`. The core's detach on main, right after it closed the host
-  link, revokes a mark whose click has not reached the host
-  (`markDetached`). A trusted click of another press, a genuine click of
-  the same work after a mouse-down that reached no core and the click of a
-  press the chat dispatched before the mark included, a later down of the
-  same work before the release, a release with no click (a target the
-  down's handler replaced), no release during the watch, a newer
-  generation selected before the release, and a played up queued across
-  the core's retirement, which the work still answers while a host sample
-  keeps the wrapper but whose click reaches no host, all stay
-  `click-not-observed`: `trustedClicks` alone is reported and certifies
-  nothing.
 - **Network controls.** Before the first file and after the last, per port, one
   `QTcpSocket` connection and one `QUdpSocket` datagram to 127.0.0.1, both
   `QNetworkProxy::NoProxy`, each carrying one line
@@ -235,12 +208,10 @@ since the mark taken right before the press), `watchMs`, `stateAfterWatch`, `log
 `itemGone`, `examplesTruncated`, and `tap`: the reading's counts, with
 `renderedHosts`, and its `leakExamples`, `noteExamples`, `gapExamples` and
 `violationDetails`. `click.source` names where a click is read from:
-`renderer` (local, the generation's trusted click with the one of the
-played press's own release as it reached the host), `helper-mirror` (hosted, the
-Debug helper's mirrored trusted click with the marked press's click
-decision) or `click-decision` (hosted in a Release build with the harness,
-the marked press's click decision alone). Every source is bound to the
-played press; `markedPress` is hosted only and stays 0 locally.
+`helper-mirror` (the Debug helper's mirrored trusted click with the marked
+press's click decision) or `click-decision` (a Release build with the
+harness, the marked press's click decision alone). Every source is bound
+to the played press.
 
 The statuses are independent, so a death with a leak is in both lists:
 
@@ -255,13 +226,11 @@ The statuses are independent, so a death with a leak is in both lists:
   has); `notLoaded` is ran and not loaded;
 - `died`: `fatalFrozen > 0`, or a `Died: ` line right after the log's first
   sandbox header that is not `terminated`;
-- `click.outcome`: `observed` (`trustedClicks >= 1` of the marked
-  generation and `clicksCompleted >= 1` of the played press: a nonzero
-  `markedWork == playedWork` with a bound `markedSerial`, hosted with the
-  Debug helper's tap also its `markedPress`; locally the trusted click of
-  that press's own release as the work's forwarding handed it to the host
-  before the core was detached, hosted its click decision),
-  `decided` (hosted without the Debug helper's tap, `clicksCompleted >= 1`
+- `click.outcome`: `observed` (with the Debug helper's tap,
+  `trustedClicks >= 1` of the marked generation and `clicksCompleted >= 1`
+  of the played press, its click decision: a nonzero `markedWork ==
+  playedWork` with a bound `markedSerial` and `markedPress`),
+  `decided` (without the Debug helper's tap, `clicksCompleted >= 1`
   with `markedWork == playedWork` and a bound `markedSerial` and
   `markedPress`; an answered down or up alone never), `not-observed`,
   `show-refused`,
@@ -289,7 +258,7 @@ must have matched known leaks in the same run), `no attack file leaks a URL
 into the validated ops`, `every host message of every file was scanned: no
 scan gaps`, `every loaded file's validated batches were observed`, `every
 requested file ran`, `every file that ran was observed completely: ...` (no
-fixture refusal, every watch run, every live card's click observed or, hosted
+fixture refusal, every watch run, every live card's click observed or,
 without the Debug helper's tap, completed by the helper's renderer, every
 barrier closed, no scan gap), `every file's factories and wrappers finished
 before its final reading`, `no
@@ -300,12 +269,11 @@ counted clean.
 
 A pass proves, for the files of that launch: each ran in the product's own
 `HtmlWidget` view of a local message of the fixture session, no fixture
-check refused it and its watch ran, every batch every wrapper sent was
-scanned at `Renderer::send` (of a hosted host at its `onRenderOps`) with
-zero leaks and no gap, every live card took one real press and release with
-a trusted `click` observed or, hosted without the Debug helper's tap, with
-the up that completed it answered by the helper's renderer on the live
-route, every host
+check refused it and its watch ran, every batch every host reported was
+scanned at its `onRenderOps` with zero leaks and no gap, every live card
+took one real press and release with a trusted `click` observed or,
+without the Debug helper's tap, with the up that completed it answered by
+the helper's renderer on the live route, every host
 finished before its final reading, no layer opened, no OS hand-off, and the
 controls were written. It does not prove that no request was made (that needs
 the listener and the source audit), that a control was received, which
@@ -344,11 +312,7 @@ helper's tap an answered down, an answered down and up with no decision
 and an empty reading give `not-observed` and a decision `decided`, but a
 decision with no bound press or for another core's work `not-observed`;
 with it a decision alone and a mirrored click alone give `not-observed`
-and both `observed`; locally a trusted click alone (for the played work or
-for none), the matched click with no played work, for another core's work
-or without the generation's trusted click, and an unbound press with a
-trusted click give `not-observed`, and the trusted click with the click
-of the played press's own release `observed`. Last, each
+and both `observed`. Last, each
 reader's consumer (`ClickOutcome()`, then `Judge()` on the clean final row)
 on real taps, one message with two generations marked on the newer, each
 played press dispatched inside `DeliverMarkedPress()`: hosted generations
@@ -356,44 +320,36 @@ played press dispatched inside `DeliverMarkedPress()`: hosted generations
 `WidgetPressDispatched()`, `WidgetCoreDetached()` and
 `WidgetPressObserved()`, each clicked up followed by its host's mirrored
 trusted click while the host is not retired, read by the
-`click-decision` and the `helper-mirror` readers; and local generations
-registered with their works through `TapWidgetRenderer()`, each wrapper
-built and its factory released first and kept to the end, as a host
-sample keeps a retired host, driven through `WidgetPressDispatched()`,
-`WidgetLocalPressDown()`, `WidgetLocalPressReleased()`,
-`WidgetLocalPressForwarded()` and `WidgetCoreDetached()`, each clicked
-release's trusted click handed the host through the wrapper inside its
-forwarding while the link is open, read by the `renderer` reader. A
-retirement detaches the core in both placements (`WidgetCoreDetached()`,
-as `RendererCore::detach()` calls it before it closes the link), then, for
-a hosted host, retires the host (`WidgetHostRetired()`): from the detach
-on its forwarding reaches no wrapper, and from the retirement on its host
-mirrors no click, while a hosted route still reports the queued up and the
-click its renderer decided, as the render thread reports a reply it took
-before the detach reached it. In
+`click-decision` and the `helper-mirror` readers. A retirement detaches
+the core (`WidgetCoreDetached()`, as `RendererCore::detach()` calls it
+before it closes the link), then retires the host (`WidgetHostRetired()`):
+from the retirement on its host mirrors no click, while the route still
+reports the queued up and the click its renderer decided, as the render
+thread reports a reply it took before the detach reached it. In
 each the older
 generation's press, down before the mark, clicking after it; the newer's
 played press down and up with no click; after another mark a press the
 chat dispatched before it that clicks after it, beside a played press that
 clicks none; after another a delivery that dispatched nothing, then a
 genuine click of the same work (beside the generation's trusted click
-where the build reads one: locally and with the Debug tap); after another
+where the build reads one: with the Debug tap); after another
 a played down whose up never comes; after another a played press whose
 generation a third selection superseded between its down and its click;
 and on a later generation a press taken before another mark that clicks
 after it (the same trusted click where the build reads one), then a played
 down whose core retires before its up, which comes after the retirement,
 and on a later generation still a played down whose core is detached
-before its up, which comes, clicked and (hosted) mirrored, between the
+before its up, which comes, clicked and mirrored, between the
 detach and the host's retirement, give `not-observed` and an incomplete row
 (`click-not-observed`); for that last press the check also requires, read
-both before and after the retirement, the down bound (`markedSerial`, and
-hosted `markedPress`), one `downsConfirmed`, `markDetached`, the up and the
+both before and after the retirement, the down bound (`markedSerial` and
+`markedPress`), one `downsConfirmed`, `markDetached`, the up and the
 click counted in `pressStepsElsewhere` and no completion. The
 played stable click, bound inside its delivery and clicked after it, gives
-`decided` and `observed` locally and, in Debug, through the
-`helper-mirror` reader, each with a complete, clean row, and so does the
-played click a later generation completed before its core retired; a
+`decided` through the `click-decision` reader and, in Debug, `observed`
+through the `helper-mirror` reader, each with a complete, clean row, and
+so does the played click a later generation completed before its core
+retired; a
 Release build's tap reads no mirror, so there that reader gives
 `not-observed`. The same reading with no played work gives `not-observed`
 in every reader.

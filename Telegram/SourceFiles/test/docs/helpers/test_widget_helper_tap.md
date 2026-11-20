@@ -20,15 +20,13 @@ inside the tap's `build` callback, so the glue gets the tap's platform and
 the tap wraps the renderer the glue returns. Its Telegram counterpart,
 `Test::TapHostedWidget()`, asks it to mirror and records what it sends. An
 overlay arms the message with `ArmWidgetOpsTap()` and reads
-`ReadWidgetOps()` as for a local host, and asks for the helper's renderer
-work with `TimeWidgetHelperWork()`; nothing here is called by name.
+`ReadWidgetOps()`, and asks for the helper's renderer work with
+`TimeWidgetHelperWork()`; nothing here is called by name.
 
 ## Preconditions and limits
 
-- **Debug helper only.** `TelegramWidgetHelper`'s Debug build compiles it
-  where the helper renders (`widget_helper_renders` in
-  `telegram_widget_helper.cmake`: macOS, Linux and Windows, unless the
-  build disables the private Qt API); its Release build takes the
+- **Debug helper only.** Every Debug build of `TelegramWidgetHelper`
+  compiles it (macOS, Linux and Windows); its Release build takes the
   inline identity of the header (`build(platform)`), so a Release helper
   mirrors and times nothing and ends a route at a `Mirror` or `MirrorWork`
   control, as a control the helper does not take. A Telegram Release build
@@ -38,12 +36,11 @@ work with `TimeWidgetHelperWork()`; nothing here is called by name.
   the macOS helper's libSystem-and-libc++ load commands, and the Linux
   helper's NEEDED: glibc's objects, libm and the loader, with the C++
   runtime linked statically in the Docker build.
-- **One forwarding.** The renderer wrapper is the shared
-  `Test::ForwardingRenderer` (`test_widget_renderer_forward.h`), the same
-  adapter Telegram's wrapping factory uses: one implementation of the five
-  forwarded calls, of the `onMessage` / `onDiag` chaining and of the order
-  that destroys the glue's renderer before the observer. What is helper-only
-  (the arming, the mirror records, the timing) is the observer's.
+- **One forwarding.** The renderer wrapper is
+  `Test::ForwardingRenderer` (`test_widget_renderer_forward.h`): the five
+  forwarded calls, the `onMessage` / `onDiag` chaining and the order that
+  destroys the glue's renderer before the observer. The arming, the mirror
+  records and the timing are the observer's.
 - **Armed per renderer.** Nothing is sent until the platform's first exact
   `Mirror` (`[0xFF][5]`) or `MirrorWork` (`[0xFF][6]`) control, which it
   swallows: the glue never sees one. Telegram sends one of them right after
@@ -159,5 +156,5 @@ stayed those of the engine-only helper; that task's records hold its runs.
 ## Related guidance
 
 [Validated-ops tap](test_widget_ops.md#hosted-widgets);
-[renderer work timing](test_widget_host.md#in-the-hosted-arrangement);
+[renderer work timing](test_widget_host.md#the-helpers-share);
 [remote engines](test_widget_fixture.md#remote-engines).

@@ -64,7 +64,7 @@ Use something else when:
   under the runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most 3600 s) and
   let the driver merge the launches.
 - **Renderer timing overlay.** The renderer figures need the disposable
-  `tgw_renderer_work.cpp` hunk of [test_widget_host](test_widget_host.md#the-overlay),
+  hunk of [test_widget_host](test_widget_host.md#the-overlay),
   kept in the campaign's overlay with the scenario and never committed.
   Without it every measured level is a runner error ("no renderer work was
   recorded"), never an all-null success.
@@ -355,7 +355,7 @@ observations are below.
 | `device.window` | An extra key (the schema allows them): `width` and `height`, the placed top-level `QWidget`'s logical size; `layout`, the session controller's column layout (`one-column` for an accepted launch); `filtersSidebar`, whether the chat filters sidebar takes its width. `null` when never read. Part of `device`, so the merge refuses a launch whose window differs from the file's. |
 | `pass` | `measure` or `production`. |
 | `config.requested` | Measure: `compat` and `CLIENTS.md`'s table (`cpuLimitMs` 500, `cpuQuotaMs` 10000, `cpuQuotaWindowMs` 1000, `mainThreadQuotaMs` 10000, `maxTimers` 256, `memoryLimitBytes` 67108864, `features` `["webAnimations"]`); production: `strict`. Both: `width`, `theme` `light`, `warmupMs`, `measureMs`. |
-| `config.applied` | The first level's host options exactly as they entered its `Job` (`policy`, the limits, `cpuKillAfterMs`, `features`, `devicePixelRatio`: the product's core ratio, not the window's), the first measured card's core CSS width and the scheme its renderer got (of a hosted widget the scheme it read itself). Every later level must match all three. |
+| `config.applied` | The first level's host options exactly as they entered its `Job` (`policy`, the limits, `cpuKillAfterMs`, `features`, `devicePixelRatio`: the product's core ratio, not the window's), the first measured card's core CSS width and the scheme its widget read itself. Every later level must match all three. |
 | `date`, `notes` | The first launch's start (UTC); the runner's definitions, the smoke marker, the live runner's observation note, then `notes`. |
 | `desktop` | `frameSource`; `screen` (name, geometry, refresh rate, surface) and `scales` (`windowDpr`, `coreRatio` = `style::DevicePixelRatio() * style::Scale() / 100`, `uiScale`); `launches`, one record per accepted launch. |
 
@@ -364,7 +364,7 @@ scales and `window` (as in `device`), and the live runner's readings:
 `themeBefore` and `theme` (embedded theme, cloud, theme file, night,
 wallpaper kind, accent colorizer, `windowBg`), `themeChanged`,
 `rendererTheme` (the first measured renderer's `colorScheme` and `params`,
-of a hosted widget what it read itself, with their `source`,
+as its widget read them itself, with their `source`,
 [Hosted levels](#hosted-levels)),
 `placement` (every screen with its name, geometry, available geometry,
 refresh rate, scale and whether it is the primary; the chosen one; the
@@ -393,7 +393,7 @@ delivered since install) and `stopped` when the ladder stopped.
 | `loaded`, `bootMs` | The host's `loaded` and its own `loadedMs`, from the host's creation. |
 | `dead`, `diedAtMs` | The level's death ([below](#deaths)): the host's first dead reason verbatim, and steady-clock ms from the host's creation to the change that carried it; for a stop the desktop decided itself, `RendererCore`'s stop reason and an estimate of the host clock at the runner's first reading of it. |
 | `frames` | `count` intervals, nearest-rank `p50`/`p95` and `max` of the window's update intervals (above); fewer than two updates give count 0 and nulls. |
-| `renderer` | Complete groups of the measured core's work inside the window: each timed raster attempt's own time (`RendererWork::raster()` past its unchanged-picture return, on a posted work turn outside the list's paint) plus the message and tick work since the attempt before it; the first group is partial and discarded, trailing work is kept apart. An attempt may end before the QPainter replay when the list has not laid out the card's size; it still closes its group, and `desktop.rendererWork` counts apart the attempts whose own replay painted. `msPerFrame` the mean, `p95Ms` the nearest rank, `displayListOps` the last sampled attempt's list size; no sample gives nulls. Of a hosted widget only Telegram's share, as `desktop.rendererScope` says ([Hosted levels](#hosted-levels)). |
+| `renderer` | Complete groups of the measured core's work inside the window: each timed `Frame` event's own time (a paint request of `RendererWork::raster()` on a posted work turn outside the list's paint, or the replay of a list the helper painted, [test_widget_host](test_widget_host.md#the-overlay)) plus the message and tick work since the attempt before it; the first group is partial and discarded, trailing work is kept apart. An attempt without a replay (a paint request, or a list the card cannot take) still closes its group, and `desktop.rendererWork` counts apart the attempts whose own replay painted. `msPerFrame` the mean, `p95Ms` the nearest rank, `displayListOps` the last sampled attempt's list size; no sample gives nulls. Only Telegram's share, as `desktop.rendererScope` says ([Hosted levels](#hosted-levels)). |
 | `host` | `SandboxStats` deltas of `jsMs`, `queries`, `queryMs` over the snapshots' actual seconds; `throttledTasks` the delta; `opsPerSec` the newest host's validated ops in the window; `maxBatchOps` its largest batch since creation; `nodes` and `memoryBytes` at the end. A counter going backwards is a named error and null. |
 | `widget` | The last `data-stress` value at or before the start (else the first after it) and the last at or before the end: `fps`, `frames` and `jank` differences, `maxGap` the largest published inside the window, `last` the end value. |
 | `errors`, `diags` | The host's first 20 error logs verbatim, then the runner's errors, each `runner: `; diag kind to count. |
@@ -441,8 +441,8 @@ is never replaced, and without a desktop stop a `terminated` stays.
 
 `desktop` of an entry: `measured`, `windowMs`, `updates`, `rendererWork`
 (samples, frames, `replayedFrames` and `unreplayedFrames` (the raster
-attempts inside the window whose own replay painted, a partial repaint
-only where the timing overlay instruments it, and those that did not),
+attempts inside the window whose own replay painted, and those that did
+not),
 ticks, messages, foreign,
 `partialGroupMs`, `trailingWorkMs`, `trailingWorkEvents`), `statsAgeMs`
 (`start`, `end`), `errorLogs`, `values` (`received`, `inWindow`, `late`,
@@ -460,21 +460,16 @@ and `helperWork` ([Hosted levels](#hosted-levels)).
 
 #### Hosted levels
 
-Where the widget helper renders (macOS, Linux and Windows by default,
-unless the build disables the private Qt API,
-[Remote engines](test_widget_fixture.md#remote-engines)) the level's widget
-runs in the helper and the ops tap sits on its hosted host
+The level's widget runs in the widget helper
+([Remote engines](test_widget_fixture.md#remote-engines)) and the ops tap
+sits on its hosted host
 ([test_widget_ops](test_widget_ops.md#hosted-widgets)):
 
-- **Renderer scope.** `desktop.rendererScope` is `renderer` (the whole
-  renderer in Telegram: `in-process` or an engine-only placement, as
-  `helper-engines` and builds without the private Qt API give, on
-  macOS),
-  `telegram-replay` (hosted with no helper records, as in a
-  Release harness, whose helper has no Debug tap) or
-  `telegram-replay+helper` (hosted with them). A hosted level's `renderer`
-  is Telegram's share alone, its answers and its replay of each accepted
-  list ([test_widget_host](test_widget_host.md#in-the-hosted-arrangement)).
+- **Renderer scope.** `desktop.rendererScope` is `telegram-replay` (no
+  helper records, as in a Release harness, whose helper has no Debug tap)
+  or `telegram-replay+helper` (with them). A level's `renderer` is
+  Telegram's share alone, its answers and its replay of each accepted
+  list ([test_widget_host](test_widget_host.md#the-helpers-share)).
 - **Helper work.** The runner asks for the helper's renderer work at each
   injection (`TimeWidgetHelperWork()`, a room of 65536 events) and writes
   `desktop.helperWork`: `asked`, `windowed`, `capacity`, `dropped`,
@@ -490,7 +485,7 @@ runs in the helper and the ops tap sits on its hosted host
   malformed) at C events`, `helper work: N events would overflow the
   level's time sums`), as a scan gap of the tap is (`ops tap: N
   observations were not taken: ...`).
-- **Theme.** A hosted level's theme is what its widget read itself after
+- **Theme.** A level's theme is what its widget read itself after
   the runtime applied the newest theme
   ([The effective theme](test_widget_ops.md#the-effective-theme)), judged
   by `CheckWidgetTheme()`, the predicate the conformance runner's load and
@@ -509,9 +504,8 @@ runs in the helper and the ops tap sits on its hosted host
   must also be what the widget read (every palette key the renderer got,
   the read palette completing the rest), and the theme message it got must
   be the one the runtime applied. The launch record's `rendererTheme` then
-  says where the theme came from in `source`: `renderer` (a local host),
-  `effective` (hosted, a Release harness) or `effective+helper-mirror`
-  (hosted, Debug).
+  says where the theme came from in `source`: `effective` (a Release
+  harness) or `effective+helper-mirror` (Debug).
 
 ### Rows and Checks
 
