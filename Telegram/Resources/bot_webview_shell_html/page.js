@@ -863,7 +863,11 @@
 		event.preventDefault();
 	});
 	document.addEventListener('contextmenu', function(event) {
-		event.preventDefault();
+		// Mokagram: the shell header can open the native inspector.
+		if (!MOKAGRAM_SHELL_DEVTOOLS_PLACEHOLDER
+			|| !header.contains(event.target)) {
+			event.preventDefault();
+		}
 	});
 
 	function setFrameLoaded(loaded) {

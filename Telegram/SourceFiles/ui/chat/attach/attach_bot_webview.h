@@ -226,7 +226,8 @@ private:
 	bool createWebview(const Webview::ThemeParams &params);
 	void resetExternalShellIdentity();
 	[[nodiscard]] QWidget *webviewWindowForPopup() const;
-	void installExternalShellDocument();
+	// Mokagram: DevTools on Wayland.
+	void installExternalShellDocument(bool devTools);
 	void sendExternalShellBootstrap();
 	void sendExternalShellMethod(
 		const QByteArray &method,

@@ -1811,14 +1811,17 @@ void Panel::invalidateExternalShellSession() {
 	}
 }
 
-void Panel::installExternalShellDocument() {
+void Panel::installExternalShellDocument(bool devTools) {
 	if (!_externalShell
 		|| !_externalShellBootstrapped
 		|| !_webview
 		|| _externalShellToken.isEmpty()) {
 		return;
 	}
-	_webview->window.eval(LinuxShell::InstallScript(_externalShellToken));
+	// Mokagram: keep an inspector entry point in the shell header.
+	_webview->window.eval(LinuxShell::InstallScript(
+		_externalShellToken,
+		devTools));
 }
 
 void Panel::sendExternalShellBootstrap() {
@@ -2223,6 +2226,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		container->show();
 	}
 	_externalWindowCloseRequested = false;
+	const auto devTools = Mokagram::Settings::Bool(u"developer.miniapp_devtools"_q);
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
@@ -2245,7 +2249,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				? _externalShellToken
 				: QString(),
 			// Mokagram: use the Mini App setting for this view.
-			.debug = Mokagram::Settings::Bool(u"developer.miniapp_devtools"_q),
+			.debug = devTools,
 		});
 	const auto raw = &_webview->window;
 
@@ -2563,7 +2567,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				return;
 			}
 			_externalShellBootstrapped = true;
-			installExternalShellDocument();
+			installExternalShellDocument(devTools);
 			sendExternalShellBootstrap();
 		}
 	});

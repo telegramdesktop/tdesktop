@@ -71,13 +71,17 @@ constexpr auto kShellOriginCheck =
 
 } // namespace
 
-QByteArray InstallScript(const QString &shellToken) {
+QByteArray InstallScript(const QString &shellToken, bool devTools) {
 	const auto css = QString::fromUtf8(PageCss());
 	const auto body = QString::fromUtf8(BodyHtml());
 	auto pageJs = PageJs();
 	pageJs.replace(
 		QByteArray("TDESKTOP_SHELL_TOKEN_PLACEHOLDER"),
 		JsonValue(shellToken));
+	// Mokagram: allow the native inspector menu in the shell header.
+	pageJs.replace(
+		"MOKAGRAM_SHELL_DEVTOOLS_PLACEHOLDER",
+		devTools ? "true" : "false");
 
 	auto script = QByteArray();
 	script += "if (window === window.top && ";

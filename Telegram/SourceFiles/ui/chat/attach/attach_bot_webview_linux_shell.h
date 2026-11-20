@@ -40,7 +40,10 @@ template <typename T>
 
 #if !defined Q_OS_WIN && !defined Q_OS_MAC
 
-[[nodiscard]] QByteArray InstallScript(const QString &shellToken);
+// Mokagram: pass the active webview's DevTools setting to the shell.
+[[nodiscard]] QByteArray InstallScript(
+	const QString &shellToken,
+	bool devTools);
 [[nodiscard]] QByteArray MethodCallScript(
 	const QByteArray &method,
 	const QJsonObject &data,
@@ -56,7 +59,7 @@ template <typename T>
 
 #else // !Q_OS_WIN && !Q_OS_MAC
 
-[[nodiscard]] inline QByteArray InstallScript(const QString &) {
+[[nodiscard]] inline QByteArray InstallScript(const QString &, bool) {
 	return {};
 }
 
