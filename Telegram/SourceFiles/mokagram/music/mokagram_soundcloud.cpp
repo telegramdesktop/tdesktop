@@ -43,6 +43,11 @@ constexpr auto kPageSize = 20;
 constexpr auto kMaxAudioBytes = 200 * 1024 * 1024; // предел на размер трека
 constexpr auto kMaxImageBytes = 32 * 1024 * 1024;  // предел на размер обложки
 constexpr auto kMaxHlsSegments = 512;              // предел числа сегментов HLS
+// Дисковый кэш треков: держим не больше kAudioCacheBytes и не больше kAudioCacheFiles
+// файлов, удаляя самые давно использованные. mtime файла обновляется при каждом
+// обращении, поэтому он же служит ключом LRU.
+constexpr auto kAudioCacheBytes = qint64(1024) * 1024 * 1024;
+constexpr auto kAudioCacheFiles = 400;
 constexpr auto kUserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0";
 constexpr auto kMaxLikesPages = 50;   // предел страниц лайков при синхронизации
 constexpr auto kMaxPlaylistPages = 50;
@@ -506,6 +511,37 @@ void ApiGet(
 		return QString();
 	}
 	return CacheDir() + '/' + track.id + '.' + track.extension;
+}
+
+// Отмечаем file как недавно использованный: mtime служит ключом LRU.
+void TouchCacheFile(const QString &path) {
+	QFile file(path);
+	if (file.open(QIODevice::ReadWrite)) {
+		file.setFileTime(QDateTime::currentDateTime(), QFileDevice::FileModificationTime);
+	}
+}
+
+// Держим кэш в пределах квоты, удаляя самые давно использованные треки.
+// QDir::Time ставит новые файлы первыми, поэтому сверх квоты удаляются старые.
+// protectPath (только что скачанный трек) всегда остаётся.
+void TrimAudioCache(const QString &protectPath) {
+	const auto dir = QDir(CacheDir());
+	const auto files = dir.entryInfoList(
+		{ u"*.m4a"_q, u"*.mp3"_q }, QDir::Files, QDir::Time);
+	auto total = qint64(0);
+	auto count = 0;
+	for (const auto &file : files) {
+		if (file.absoluteFilePath() == protectPath) {
+			continue;
+		}
+		if (count < kAudioCacheFiles
+			&& total + file.size() <= kAudioCacheBytes) {
+			++count;
+			total += file.size();
+			continue;
+		}
+		QFile::remove(file.absoluteFilePath());
+	}
 }
 
 void FinishFile(
@@ -1194,6 +1230,7 @@ void Download(
 		return;
 	}
 	if (QFile::exists(path)) {
+		TouchCacheFile(path);
 		done(path, QString());
 		return;
 	}
@@ -1207,6 +1244,9 @@ void Download(
 	}
 	loading[path].push_back(std::move(done));
 	const auto finish = [=](const QString &result, const QString &error) {
+		if (!result.isEmpty() && error.isEmpty()) {
+			TrimAudioCache(result);
+		}
 		const auto i = loading.find(path);
 		if (i != loading.end()) {
 			// Колбэки могут снова зайти в Download: забираем список заранее.
