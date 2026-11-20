@@ -88,6 +88,80 @@ class CommitHashArtifactTests(unittest.TestCase):
 					exempt=("input",),
 				)
 
+	def test_finish_scan_skips_ignored_local_storage(self):
+		line = "commit: abcdef1234567\n"
+		for tracked in (None, "work/logs/run.log", "evidence/scan.json", "task.md"):
+			with (
+				self.subTest(tracked=tracked),
+				tempfile.TemporaryDirectory() as temporary,
+			):
+				root = Path(temporary)
+				slot = root / "slot"
+				directory = write_task(slot, status="in-progress")
+				(directory / "work" / "result.md").write_text(
+					f"""# Task result: {TASK_ID}
+STATUS: DONE
+Outcome: changed
+Touched: tracked.txt
+Verdict: APPROVED
+Test-Report: work/test.md
+Checkout: clean-buildable
+""",
+					encoding="utf-8",
+				)
+				(directory / "work" / "test.md").write_text(
+					"# Adaptive evidence\n",
+					encoding="utf-8",
+				)
+				for exempt in (
+					directory / ".local" / "runs" / "run-1" / "scan.json",
+					directory / "input" / "REPORT.md",
+				):
+					exempt.parent.mkdir(parents=True)
+					exempt.write_text(line, encoding="utf-8")
+				if tracked is not None:
+					path = directory / tracked
+					path.parent.mkdir(parents=True, exist_ok=True)
+					with path.open("a", encoding="utf-8") as file:
+						file.write(line)
+				config = {
+					"ai_main": str(root / "main"),
+					"checkout_tag": "macbook-twork",
+					"slot_worktree": str(slot),
+					"source_root": str(root / "source"),
+				}
+				arguments = SimpleNamespace(
+					task=TASK_ID,
+					status="approved",
+					model="claude-opus-5",
+				)
+				with (
+					mock.patch.object(
+						workspace,
+						"task_action_config",
+						return_value=(config, slot),
+					),
+					mock.patch.object(workspace, "ensure_source_clean"),
+					mock.patch.object(workspace, "validate_source_state"),
+					mock.patch.object(workspace, "delete_source_refs"),
+					mock.patch.object(workspace, "commit_paths") as commit,
+					contextlib.redirect_stdout(io.StringIO()),
+				):
+					if tracked is None:
+						workspace.command_finish(arguments)
+					else:
+						with self.assertRaises(workspace.WorkspaceError) as caught:
+							workspace.command_finish(arguments)
+				if tracked is None:
+					commit.assert_called_once()
+					state = workspace.load_state(slot, directory / "state.yaml")
+					self.assertEqual(state["status"], "approved")
+				else:
+					self.assertEqual(
+						str(caught.exception),
+						f"Persisted commit hash found in {directory / tracked}",
+					)
+
 
 class FrozenDate(datetime.date):
 	@classmethod

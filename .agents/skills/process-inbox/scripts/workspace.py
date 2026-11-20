@@ -6637,8 +6637,11 @@ def command_finish(args):
 			"An approved task must retain work/test.md as adaptive evidence: "
 			f"{result_path.parent / 'test.md'}"
 		)
-	# Supplied inputs stay byte-exact, so a hash quoted there is not ours.
-	ensure_no_persisted_commit_hashes(result_path.parents[1], exempt=("input",))
+	# Supplied inputs stay byte-exact; the ignored .local/ never reaches the commit.
+	ensure_no_persisted_commit_hashes(
+		result_path.parents[1],
+		exempt=("input", ".local"),
+	)
 	source_note = Path(config["source_root"]) / "tasks" / f"{args.task}.md"
 	if source_note.is_file():
 		ensure_no_persisted_commit_hashes(source_note)
