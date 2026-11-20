@@ -66,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "chat_helpers/message_field.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "window/window_columns.h"
@@ -517,6 +518,16 @@ Widget::Widget(
 			&st::dialogsUnlockIconOver);
 		Core::App().maybeLockByPasscode();
 		lockUnlock->setIconOverride(nullptr);
+	});
+	Ui::SetupButtonContextMenu(lockUnlock, &st::popupMenuWithIcons, [=](
+			not_null<Ui::PopupMenu*> menu) {
+		menu->addAction(tr::lng_settings_passcode_title(tr::now), [=] {
+			Core::App().openLocalUrl(
+				u"tg://settings/privacy?highlight=security/passcode"_q,
+				QVariant::fromValue(ClickHandlerContext{
+					.sessionWindow = base::make_weak(controller),
+				}));
+		}, &st::menuIconLock);
 	});
 
 	setupMainMenuToggle();
