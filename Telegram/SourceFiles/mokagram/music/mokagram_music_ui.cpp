@@ -6367,11 +6367,11 @@ private:
 			_last = _clock.elapsed();
 			return;
 		}
-		layoutComments();
 		const auto now = _clock.elapsed();
 		const auto dt = std::clamp((now - _last) / 1000., 0., 0.1);
 		_last = now;
 		auto changed = false;
+		auto needLayout = false;
 		if (_lyrics.found && _lyrics.synced && !_lyrics.lines.empty()) {
 			auto index = -1;
 			const auto at = livePosition() + 120;
@@ -6383,21 +6383,25 @@ private:
 				}
 			}
 			changed |= (_current != index);
+			needLayout |= (_current != index);
 			_current = index;
 			auto target = centerOf(std::max(index, 0));
 			const auto topMargin = double(style::ConvertScale(_big ? 32 : 16));
 			target = std::max(target, anchorY() - topMargin);
 			const auto snap = !_scrollReady;
 			if (snap) {
+				needLayout = true;
 				_scroll = target;
 				_scrollReady = true;
 			}
 			// Пружина без рывков: чем дальше строка, тем быстрее догоняем.
 			// Пока пользователь листает текст сам (и 3 с после), автопрокрутка к строке не работает.
 			if (now >= _manualUntil) {
+				const auto was = _scroll;
 				changed |= (std::abs(target - _scroll) > 0.1);
 				_scroll += (target - _scroll)
 					* (_timer.isActive() ? (1. - std::exp(-dt * 6.5)) : 1.);
+				needLayout |= (_scroll != was);
 			}
 			const auto fade = _timer.isActive() && !snap
 				? float(1. - std::exp(-dt * 9.))
@@ -6412,6 +6416,9 @@ private:
 				: 0.;
 			changed |= (std::abs(fill - _fill) > 0.0005);
 			_fill = fill;
+		}
+		if (needLayout) {
+			layoutComments();
 		}
 		if (changed) {
 			update();
