@@ -26,9 +26,11 @@ class LayerWidget final : public Ui::LayerWidget {
 public:
 	LayerWidget(
 		not_null<QWidget*> parent,
-		base::unique_qptr<Ui::RpWidget> content);
+		base::unique_qptr<Ui::RpWidget> content,
+		Fn<void()> shown = nullptr);
 
 	void parentResized() override;
+	void showFinished() override;
 	bool closeByOutsideClick() const override;
 
 private:
@@ -41,6 +43,7 @@ private:
 	void start();
 
 	const base::unique_qptr<Ui::RpWidget> _content;
+	Fn<void()> _shown;
 	Ui::LayerBackdrop _backdrop;
 	bool _forwardingKeyEvent = false;
 	bool _keyEventIgnored = false;

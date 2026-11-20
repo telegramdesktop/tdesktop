@@ -66,7 +66,10 @@ void ShowVideoEditorLayer(
 		parent,
 		std::move(descriptor));
 	const auto raw = editor.get();
-	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
+	auto layer = std::make_unique<LayerWidget>(
+		parent,
+		std::move(editor),
+		[=] { raw->startPlayback(); });
 	InitVideoEditorLayer(layer.get(), raw, std::move(done));
 	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
@@ -309,7 +312,10 @@ void OpenWithPreparedVideoFile(
 			.initial = video->modifications,
 		});
 	const auto raw = editor.get();
-	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
+	auto layer = std::make_unique<LayerWidget>(
+		parent,
+		std::move(editor),
+		[=] { raw->startPlayback(); });
 	InitVideoEditorLayer(layer.get(), raw, std::move(callback));
 	QObject::connect(layer.get(), &QObject::destroyed, [=] {
 		if (!*accepted) {

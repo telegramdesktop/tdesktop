@@ -51,6 +51,8 @@ public:
 		VideoEditorDescriptor descriptor);
 	~VideoEditor();
 
+	void startPlayback();
+
 	[[nodiscard]] rpl::producer<VideoModifications> doneRequests() const {
 		return _done.events();
 	}

@@ -664,7 +664,12 @@ void VideoEditor::setupStreaming() {
 		}
 	}, lifetime());
 
+	_player->setPaused(true);
 	_player->start();
+}
+
+void VideoEditor::startPlayback() {
+	_player->setPaused(_userPaused);
 }
 
 void VideoEditor::setupTapToPause() {

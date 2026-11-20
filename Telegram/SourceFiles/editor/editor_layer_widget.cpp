@@ -22,9 +22,11 @@ namespace {
 
 LayerWidget::LayerWidget(
 	not_null<QWidget*> parent,
-	base::unique_qptr<Ui::RpWidget> content)
+	base::unique_qptr<Ui::RpWidget> content,
+	Fn<void()> shown)
 : Ui::LayerWidget(parent)
 , _content(std::move(content))
+, _shown(std::move(shown))
 , _backdrop(
 	this,
 	[=] { return Ui::CaptureUnderLayer(this); },
@@ -56,6 +58,12 @@ void LayerWidget::parentResized() {
 	resizeToWidth(parentWidget()->width());
 	if (!_backdrop.started()) {
 		start();
+	}
+}
+
+void LayerWidget::showFinished() {
+	if (const auto shown = base::take(_shown)) {
+		shown();
 	}
 }
 
