@@ -257,12 +257,11 @@ private:
 	[[nodiscard]] bool communityOverlaysShown() const;
 	void updateFrozenAccountBar();
 	void updateControlsVisibility(bool fast = false);
-	void updateLockUnlockVisibility(
-		anim::type animated = anim::type::instant);
-	void updateAddStoryVisibility(
-		anim::type animated = anim::type::instant);
+	[[nodiscard]] bool showingSuggestionsDuringWidthAnimation() const;
+	[[nodiscard]] bool searchHidesTopBarContent() const;
+	void updateTopBarActionsVisibility(anim::type animated);
 	void updateLoadMoreChatsVisibility();
-	void updateStoriesVisibility();
+	void updateStoriesVisibility(anim::type animated = anim::type::normal);
 	void updateStoriesTitleShown();
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
@@ -315,8 +314,7 @@ private:
 	void updateScrollUpVisibility();
 	void startScrollUpButtonAnimation(bool shown);
 	void updateScrollUpPosition();
-	void updateLockUnlockPosition();
-	void updateAddStoryPosition();
+	void updateTopBarActionsPosition();
 	void updateSuggestions(anim::type animated);
 	void processSearchFocusChange();
 	void closeSuggestions();
