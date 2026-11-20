@@ -13,7 +13,7 @@ in the widget helper, where the served host and its renderer run in
 `TelegramWidgetHelper` and Telegram has no renderer to wrap. Its only caller
 is the hosted renderer factory of `WidgetHelper::Serve()` in
 `_other/widget_helper_renderer.cpp`, the thin entry both macOS packages
-serve with; the factory builds the renderer through
+and the Linux helper serve with; the factory builds the renderer through
 `Tgw::MakeHostedRenderer()` (`tgw/tgw_hosted_glue.cpp`, the portable glue)
 inside the tap's `build` callback, so the glue gets the tap's platform and
 the tap wraps the renderer the glue returns. Its Telegram counterpart,
@@ -26,14 +26,17 @@ work with `TimeWidgetHelperWork()`; nothing here is called by name.
 
 - **Debug helper only.** `TelegramWidgetHelper`'s Debug build compiles it
   where the helper renders (`widget_helper_renders` in
-  `telegram_widget_helper.cmake`, Apple only); its Release build takes the
+  `telegram_widget_helper.cmake`: macOS and Linux, unless the build
+  disables the private Qt API); its Release build takes the
   inline identity of the header (`build(platform)`), so a Release helper
   mirrors and times nothing and ends a route at a `Mirror` or `MirrorWork`
   control, as a control the helper does not take. A Telegram Release build
   with the harness starts that Release helper and therefore never asks.
 - **Qt-free.** It links only what the helper links: widget-sandbox's hosted
   platform, TwidgetCore's remote codec and `tgw/tgw_hosted_wire.h`. It keeps
-  the helper's libSystem-and-libc++ load commands.
+  the macOS helper's libSystem-and-libc++ load commands, and the Linux
+  helper's NEEDED: glibc's objects, libm and the loader, with the C++
+  runtime linked statically in the Docker build.
 - **One forwarding.** The renderer wrapper is the shared
   `Test::ForwardingRenderer` (`test_widget_renderer_forward.h`), the same
   adapter Telegram's wrapping factory uses: one implementation of the five
@@ -140,6 +143,11 @@ not run this wrapper: no row has crossed a real helper yet. That task's
 evidence campaign runs the attack, conformance and stress suites through it,
 and reads the work records of a known nontrivial stress level beside its
 Telegram replay, with an unasked control.
+
+On Linux x86_64 it compiled in the Debug helpers of
+`2026/11/14/run-widget-validators-and-renderers-in-the-linux-helper` (the
+Docker image's tree and a package-managed tree), whose NEEDED stayed those
+of the engine-only helper; that task's records hold its runs.
 
 ## Related guidance
 

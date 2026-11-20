@@ -29,7 +29,8 @@ again runs a probe, that of
 `test/test_widget_helper_probe_lockdown_linux.cpp`: it runs its own probe
 in forked copies of the helper and around the real
 `WidgetHelper::Lockdown()` (`_other/widget_helper_linux.cpp`), writes its
-lines to stderr, and the helper goes on serving widgets ([Linux](#linux)).
+lines to stderr, and the helper goes on serving widgets, rendering them
+where the build's helper renders ([Linux](#linux)).
 On Windows the helper is `TelegramWidgetHelper.exe`, in `modules\<arch>\`
 next to `Telegram.exe`, in the Windows Store build's installed package
 too ([Windows Store](#windows-store)), and its Debug build's lockdown
@@ -75,7 +76,8 @@ For the widget fixture's remote-engine switch, lifecycle and logs, read the
   loopback port, `connect-control` and network targets, and
   `probe-unsandboxed` refuses with `the widget helper probe is not
   available on this platform`. On Linux `probe` and `probe-unsandboxed`
-  run the probe of [Linux](#linux), and both serve widgets. The non-Linux
+  run the probe of [Linux](#linux), and both serve widgets, hosted ones
+  where the helper renders. The non-Linux
   all-other platforms build no helper and have no probe hook: an explicit
   probe value there fails every start closed
   ([Remote engines](test_widget_fixture.md#remote-engines)).
@@ -186,6 +188,10 @@ attempts in a helper that serves widgets, for the direct-download helper and
 the Mac App Store service alike, on either stream opening (the hosted one
 of the default arrangement, and the engine-only one of `helper-engines`
 that a disposable overlay combines with probe arguments as the control).
+Linux, whose helper renders as well, needs no serving variant: its probe
+refuses no stream its lockdown accepted, and right after its lines the
+same helper serves, hosting each widget where the build's helper renders
+([Linux](#linux)).
 
 - **Asking for it.** A fixture's `renderingDelayMs` appends
   `rendering:<ms>` after every other argument, the service names included,
@@ -884,7 +890,13 @@ place. A printable ASCII line reaches the terminal unchanged
 ([Remote engines](test_widget_fixture.md#remote-engines) describes the
 relay). Unless the helper's own lockdown refuses, the hook returns "" and
 the helper serves widgets as in `helper` mode, so a probe launch is no
-helper failure.
+helper failure. Where the helper renders (every Linux build that keeps the
+private Qt API) both probe values choose the hosted arrangement as
+`helper` does, so the probed helper renders each widget it serves, and
+its `lockdown:`, `after lockdown:` and `layers:` lines are those of a
+helper that then renders. Their engine-only control is a disposable
+overlay's, as on macOS: the client half passes no argument under
+`helper-engines`, so the overlay passes this argv tail on such a launch.
 
 With `probe` it goes through these steps:
 
@@ -2123,6 +2135,10 @@ one Ubuntu 24.04 VM with kernel 6.8. `TelegramWidgetHelper` was probed
 as a plain child only inside that Snap, as a Release helper whose probe
 gates an overlay opened; outside it only the same-binary helper's plain
 child was probed (`bwrap --disable-userns`). aarch64 compiled only.
+Every Linux helper probed above served engines alone; the Linux helper
+renders since
+`2026/11/14/run-widget-validators-and-renderers-in-the-linux-helper`,
+whose records hold the probe of a helper that renders.
 
 ## Related guidance
 

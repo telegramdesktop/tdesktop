@@ -398,7 +398,8 @@ their stamps, not nesting.
 
 ### In the hosted arrangement
 
-Where the widget helper renders (macOS by default,
+Where the widget helper renders (macOS and Linux by default, unless the
+build disables the private Qt API,
 [Remote engines](test_widget_fixture.md#remote-engines)), the host messages,
 TwidgetCore's `receive()`, `tick()`, style, layout and display-list build,
 the settle before a paint and every layout query run in the helper, and
@@ -430,8 +431,7 @@ for this arrangement adds, inside the same harness condition:
   sample) and closed when `consume()` returned, so an entry the hold
   keeps queued records nothing. It covers the decode, `hostedFrame()`'s
   checks (the request's sequence and kind, the state, the size serial and
-  epoch, the finite device size), `paintFrame()`'s public-Qt clip
-  refusal and `paintList()`'s
+  epoch, the finite device size) and `paintList()`'s
   replay of the whole list (the helper's damage is ignored), with
   `displayList(frame.list.size())` and `replayed()` from `paintList()`'s
   `layout`; a frame that is no longer current, of another device size,

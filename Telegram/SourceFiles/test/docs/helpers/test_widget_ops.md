@@ -31,8 +31,9 @@ post-load ack, the renderer's answer to it, a fatal `frozen`, renderer
 `violation` messages, renderer `limit` reports and trusted renderer events,
 and it says when no factory call or wrapper of the message is still pending.
 
-On macOS a widget's engine, validator and renderer run in the widget helper
-by default ([Hosted widgets](#hosted-widgets)), and there is no renderer in
+On macOS and Linux, unless the build disables the private Qt API, a
+widget's engine, validator and renderer run in the widget helper by
+default ([Hosted widgets](#hosted-widgets)), and there is no renderer in
 Telegram to wrap: the tap is then installed on the hosted `WidgetHost`
 itself, takes the validated batches from its `onRenderOps` and the rest
 from the records the helper's Debug half
@@ -102,8 +103,9 @@ Use something else when:
 - **Which seam taps.** The runtime takes one of the two per construction,
   as its placement says: `TapWidgetRenderer()` for a local host (the
   `in-process` and `helper-engines` values of `TDESKTOP_WIDGET_ENGINES`, and
-  Windows and Linux always), `TapHostedWidget()` for a hosted one (macOS by
-  default). Both select a generation of the same tap at the same point, so
+  Windows and builds without the private Qt API always),
+  `TapHostedWidget()` for a hosted one (macOS and Linux by default). Both
+  select a generation of the same tap at the same point, so
   every reading and its finality read the same way in either arrangement;
   what differs is where each reading comes from
   ([Hosted widgets](#hosted-widgets)).
@@ -373,7 +375,8 @@ outside the reading.
 ### Local presses
 
 Where the renderer runs in Telegram (`in-process`, `helper-engines`,
-Windows and Linux), `Tgw::Runtime::construct()` calls
+Windows and builds without the private Qt API),
+`Tgw::Runtime::construct()` calls
 `TapWidgetRenderer(_item->globalId(), _live->workId(), _live->hostFactory())`
 on main: for an armed id the selection also registers the work of the core
 it builds the host for with the generation it made, from that selection on
@@ -461,7 +464,8 @@ runtime log to cover every host.
 ## Hosted widgets
 
 Where the widget helper renders (macOS, the Mac App Store build included,
-with no switch, `helper` or a probe value; [Remote engines](test_widget_fixture.md#remote-engines)),
+and Linux, unless the build disables the private Qt API, with no switch,
+`helper` or a probe value; [Remote engines](test_widget_fixture.md#remote-engines)),
 `Tgw::Runtime::construct()` builds a hosted `WidgetHost`: its engine,
 validator, served host and TwidgetCore renderer run in the helper, and
 Telegram keeps only the hosted client and its checked Qt work. The runtime

@@ -310,11 +310,13 @@ and with no switch. That helper is the separate Qt-free executable
 `TelegramWidgetHelper.exe`, which the Windows Store build carries in its
 package (**The Windows Store build** below); the Mac App Store build
 packages it as an App-Sandboxed XPC service (**The Mac App Store
-service** below). On macOS, both packages alike, that helper runs the
+service** below). On macOS, both packages alike, and on Linux, in the
+`TelegramHelpers` and the libexec layouts alike, that helper runs the
 whole widget: its engine, its trusted validator and its TwidgetCore
 renderer, while the client keeps the checked Qt work and the pictures
-(**Hosted widgets on macOS** below); on Windows and Linux it runs the
-engines alone, as before.
+(**Hosted widgets on macOS and Linux** below); on Windows, and in a build
+with `DESKTOP_APP_DISABLE_PRIVATE_QT_API` on any platform, it runs the
+engines alone, the arrangement before the helper rendered.
 Everywhere else no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>` (**Store, packaged
 and other platforms** below), and only the Debug switch `in-process` runs
@@ -358,8 +360,9 @@ packs, the fixture and the seams they use need no change for it.
   `Runtime::construct()`), keeps that choice for the whole process and
   names it in the main log: `Tgw: Widget engines run in the widget
   helper.` or `Tgw: Widget engines do not run, no sandboxed widget helper
-  is available here: <reason>.`, on macOS `Tgw: Widget engines, validators
-  and renderers run in the widget helper.` or `Tgw: Widget engines,
+  is available here: <reason>.`, where the helper renders (macOS and
+  Linux, **Hosted widgets on macOS and Linux** below) `Tgw: Widget engines,
+  validators and renderers run in the widget helper.` or `Tgw: Widget engines,
   validators and renderers do not run, no sandboxed widget helper is
   available here: <reason>.`. Once it chose the
   helper no engine of that process falls back to in process: a helper that
@@ -395,13 +398,13 @@ packs, the fixture and the seams they use need no change for it.
     every widget elsewhere;
   - `helper`: the sandboxed helper explicitly, the same as the default on
     macOS (the Mac App Store build from macOS 12), on Linux and on Windows
-    10 1809 or later, so command lines that name it keep working; on macOS
-    it hosts the whole widget as the default does (**Hosted widgets on
-    macOS** below), and on Windows it is the restricted helper (**The
-    Windows helper** below);
+    10 1809 or later, so command lines that name it keep working; where
+    the helper renders (macOS and Linux) it hosts the whole widget as the
+    default does (**Hosted widgets on macOS and Linux** below), and on
+    Windows it is the restricted helper (**The Windows helper** below);
   - `helper-engines`: the sandboxed helper running the engines alone, on
-    every platform, macOS included: the arrangement before the helper
-    rendered, with each widget's validator and renderer in the client, a
+    every platform, macOS and Linux included: the arrangement before the
+    helper rendered, with each widget's validator and renderer in the client, a
     Debug comparison value for runs that set the hosted arrangement
     against it;
   - `in-process`: the whole widget runs in the client, its engine, its
@@ -429,10 +432,13 @@ packs, the fixture and the seams they use need no change for it.
     widget helper probe is not available on this platform`, each refusal
     a failure as well. On Linux both start the sandboxed helper, whose
     Debug build carries the probe too; it writes its probe lines to
-    `app_stderr.txt` and then serves widgets (**Linux probe** below):
+    `app_stderr.txt` and then serves widgets, hosting them as `helper` does
+    where the helper renders (**Linux probe** below):
     `probe` under the real lockdown, which still refuses the stream when
     it fails, and `probe-unsandboxed` with no lockdown at all, so that
-    helper runs its widgets unconfined.
+    helper runs its widgets unconfined; an engine-only probe for comparison
+    is a disposable overlay's there too, with the probe arguments on a
+    `helper-engines` launch.
 
   The helper never reads the variable: the client passes a probe value to
   it as the mode argument after its channel (**The shared helper**, **The
@@ -464,15 +470,17 @@ packs, the fixture and the seams they use need no change for it.
   test runs** below). The main log names a
   recognized value: `Tgw: Widget engines run in the widget helper
   (TDESKTOP_WIDGET_ENGINES=helper).`, the same with `probe`,
-  `probe-unsandboxed` or `helper-engines`, on macOS `Tgw: Widget engines,
-  validators and renderers run in the widget helper
+  `probe-unsandboxed` or `helper-engines`, where the helper renders `Tgw:
+  Widget engines, validators and renderers run in the widget helper
   (TDESKTOP_WIDGET_ENGINES=helper).` for `helper` and the probe values, or
   `Tgw: Widget engines run in process
   (TDESKTOP_WIDGET_ENGINES=in-process).`.
-- **Hosted widgets on macOS.** `Platform::WidgetHelper::Renders()` says
-  where a build renders its widgets: true in every macOS build, the Mac
-  App Store build included, false on Windows, Linux and the header's
-  fallback, fixed at build time by `widget_helper_renders` in
+- **Hosted widgets on macOS and Linux.** `Platform::WidgetHelper::Renders()`
+  says where a build renders its widgets: true in every macOS build, the
+  Mac App Store build included, and in every Linux build, in both layouts,
+  unless the build is configured with `DESKTOP_APP_DISABLE_PRIVATE_QT_API`;
+  false in such a build, on Windows and in the header's fallback; fixed at
+  build time by `widget_helper_renders` in
   `telegram_widget_helper.cmake` (which also picks the helper's thin
   `_other/widget_helper_renderer.cpp` entry, with the portable glue
   `tgw/tgw_hosted_glue.cpp` and the renderer message rules it shares with
@@ -554,8 +562,12 @@ packs, the fixture and the seams they use need no change for it.
     geometry no longer counts as painted. The chat keeps its picture,
     height and anchor until a new one comes, and the work keeps its record
     of what the chat was given (below). A
-    build with `DESKTOP_APP_DISABLE_PRIVATE_QT_API` refuses a hosted list
-    with an explicit clip push. Every accepted list is painted whole,
+    build with `DESKTOP_APP_DISABLE_PRIVATE_QT_API` never hosts: its helper
+    serves engines only, and each widget's validator and renderer run in
+    Telegram (without the private API the painter charges nothing for the
+    copies that nested clips make, and `tgw/tgw_painter_clips.cpp` stops the
+    compile of such a build that defines `TDESKTOP_WIDGET_HELPER_RENDERS`).
+    Every accepted list is painted whole,
     inside the painter's 1 s raster deadline; the helper's damage is
     ignored. The painted picture goes to the chat at once (*Kept
     pictures* below), and a draw demand or a cut change that came while
@@ -732,12 +744,10 @@ packs, the fixture and the seams they use need no change for it.
     until the chat retires its core, the live work asks the helper for no
     paint and paints no late answer, so the picture it published before
     the stop is the one the chat takes with it or before it, and the
-    retirement sees that picture's height. A current answer still meets
-    the public-Qt clip check first, so a list it refuses closes the route
-    with the same diagnostic whether it arrives before or after the
-    retirement's detach. A reflow still owed (an explicit demand, a
-    current answer the stop consumed for a size, cut or height the
-    published picture does not have, a clock-driven resize included, or
+    retirement sees that picture's height. A reflow still owed (an
+    explicit demand, a current answer the stop consumed for a size, cut
+    or height the published picture does not have, a clock-driven resize
+    included, or
     a newer size whose paint waited behind an older request, that
     request's obsolete answer consumed in order) is asked for once, on
     the kept route, once the core is retired with a kept document; a
@@ -878,8 +888,10 @@ packs, the fixture and the seams they use need no change for it.
     ([Which reading each build uses](test_widget_ops.md#which-reading-each-build-uses)), the host watch
     reads the hosted host's diagnostics and its work scopes time only the
     client's share ([In the hosted arrangement](test_widget_host.md#in-the-hosted-arrangement)),
-    and the macOS probe's serving variant takes its listing while widgets
-    render ([Serving while rendering](test_widget_helper_probe.md#serving-while-rendering)).
+    the macOS probe's serving variant takes its listing while widgets
+    render ([Serving while rendering](test_widget_helper_probe.md#serving-while-rendering)),
+    and the Linux probe's helper writes its lines before it serves and
+    then hosts its widgets (**Linux probe** below).
 - **Store, packaged and other platforms.** macOS, Windows and Linux have a
   helper. The non-Linux all-other platforms, FreeBSD among them, build
   none (no `TelegramWidgetHelper` target) and start none: their default
@@ -1077,8 +1089,15 @@ packs, the fixture and the seams they use need no change for it.
   `_other/widget_helper_linux.cpp`, the Linux lockdown and the descriptor
   closing (`platform/linux/widget_{lockdown,descriptors}_linux.cpp`;
   Telegram no longer links the lockdown) in place of the macOS sources,
-  without Telegram's precompiled header and before Telegram. It links
-  only glibc's objects, libm and the C++ runtime, its Debug build too:
+  without Telegram's precompiled header and before Telegram. Unless the
+  build disables the private Qt API it also links, as on macOS, the
+  served host's half of widget-sandbox, TwidgetCore's renderer end and
+  the litehtml fork (the same library targets Telegram links) with the
+  glue sources of **Hosted widgets on macOS and Linux** above, and its
+  Debug build the helper's half of the ops tap
+  ([test_widget_helper_tap](test_widget_helper_tap.md)). It links
+  only glibc's objects, libm and the C++ runtime, its Debug build and a
+  helper that renders too:
   the Docker build links the C++ runtime statically, so its NEEDED are
   `libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2` and the
   loader, and a build that links the C++ runtime dynamically adds
@@ -1338,8 +1357,8 @@ packs, the fixture and the seams they use need no change for it.
   (8 MiB stack) that runs the direct helper's argument check,
   `WidgetHelper::Adopt()` (`chdir("/")`) and the direct helper's
   `WidgetHelper::Serve()` with the lockdown, so it hosts whole widgets on
-  either opening as the direct helper does (**Hosted widgets on macOS**
-  above); it
+  either opening as the direct helper does (**Hosted widgets on macOS and
+  Linux** above); it
   `_Exit`s on any error event of its peer connection. It is a child of
   launchd with its own container as `HOME`, launchd's `/dev/null` on 0
   and 1, on 2 Telegram's stderr when that is no terminal and the relay's
@@ -2115,7 +2134,11 @@ packs, the fixture and the seams they use need no change for it.
   first shows Landlock and the empty root with the seccomp install made to
   fail, the other two lock down and try `execve` and `socket`, which must
   end them. Then the helper locks itself down for real, reads its own
-  state and descriptors and goes on serving widgets as with `helper`. Its
+  state and descriptors and goes on serving widgets as with `helper`,
+  hosting them where the helper renders, so its `lockdown:`, `after
+  lockdown:` and `layers:` lines are those of the helper that then renders
+  them; their engine-only control is a disposable overlay's
+  `helper-engines` launch with the probe arguments. Its
   lines, normally six, each one `Widget helper probe: <line>` on its
   stderr (`app_stderr.txt` under `test-run`), start `landlock alone:`,
   `execve:`, `socket:`, `lockdown:`, `after lockdown:` and `layers:`. A
@@ -2132,12 +2155,12 @@ packs, the fixture and the seams they use need no change for it.
   runtime that asked a synchronous question. On macOS and Linux a client
   whose stderr is a terminal also runs one relay thread per helper, with
   no name of its own (**The shared helper** above). The `widget.sandbox`
-  engines run in the helper. A hosted widget (**Hosted widgets on macOS**
-  above) has no `widget.validator` in the client either: its validator and
-  renderer threads are the helper's, and the client's share of its
-  renderer runs on the one `widget.render` thread, which answers the
-  helper's requests (`widget.answer` waits for each); the helper's Debug
-  probe adds a `widget.probe` thread in its serving variant.
+  engines run in the helper. A hosted widget (**Hosted widgets on macOS
+  and Linux** above) has no `widget.validator` in the client either: its
+  validator and renderer threads are the helper's, and the client's share
+  of its renderer runs on the one `widget.render` thread, which answers the
+  helper's requests (`widget.answer` waits for each); the macOS helper's
+  Debug probe adds a `widget.probe` thread in its serving variant.
   Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`; each host
   keeps its `widget.client`, `widget.validator` and `twidget-host` until
@@ -2155,7 +2178,8 @@ packs, the fixture and the seams they use need no change for it.
   `twidget-host` thread, and the played bot answers at
   `Runtime::botRequested()` through the responder the client engine handed
   the host. The tap wraps the renderer factory in `Runtime::construct()`
-  for a local host (`in-process`, `helper-engines`, Windows and Linux),
+  for a local host (`in-process`, `helper-engines`, Windows and builds
+  without the private Qt API),
   registering the core's work for the local press seams, whose click counts
   as the work's forwarding hands it to the host and whose mark
   `RendererCore::detach()` revokes once it closed the host link
@@ -2300,7 +2324,8 @@ packs, the fixture and the seams they use need no change for it.
 - **Timing.** Queries and probes cross the channel; a hosted widget's
   layout queries do not, they are answered by the renderer in the helper,
   while its renderer's backend requests cross the other way and wait for
-  the client's `widget.render` thread (**Hosted widgets on macOS** above).
+  the client's `widget.render` thread (**Hosted widgets on macOS and
+  Linux** above).
   `SandboxStats::queries` and `queryMs` are counted by the engine in the
   helper and reach the client with its stats, so each uncached query's
   time includes both channel hops and the client's answer: compare query
@@ -3616,8 +3641,8 @@ the control, and a removal without the settle as the negative) is planned
 as that task's campaign check H2, which records its result in that task's
 `work/test.md`.
 
-**Hosted widgets on macOS** above, the `helper-engines` value and the
-hosted readings of the seams describe the arrangement of
+**Hosted widgets on macOS and Linux** above, the `helper-engines` value
+and the hosted readings of the seams describe the arrangement of
 `2026/11/14/run-widget-validators-and-renderers-in-the-macos-helper`,
 compiled in the macOS Debug build; their first runs, with every pack in
 the default arrangement against `in-process` and `helper-engines`, are
@@ -3655,6 +3680,11 @@ large-tile fallback) failed with an older neighbouring glyph that still
 paints and the cache unchanged. The kept readings above, the helper's
 cursor and canvas font rules, the click reports and the report post have
 no app reading yet.
+
+On Linux the same arrangement was turned on by
+`2026/11/14/run-widget-validators-and-renderers-in-the-linux-helper`,
+compiled in the Linux Debug builds of both layouts; that task's records
+hold its runs.
 
 ## Related guidance
 
