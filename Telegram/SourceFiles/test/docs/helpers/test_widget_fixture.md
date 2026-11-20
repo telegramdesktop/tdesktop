@@ -740,18 +740,32 @@ packs, the fixture and the seams they use need no change for it.
   - *Deaths.* The hosted host's `onDeath` freezes the widget on its last
     picture as an in-process death does, a kill of the client's own (the
     helper ended, a flood, an unanswered request) included, with the same
-    localized pill and the diagnostic in the runtime log. From a stop
-    until the chat retires its core, the live work asks the helper for no
-    paint and paints no late answer, so the picture it published before
-    the stop is the one the chat takes with it or before it, and the
-    retirement sees that picture's height. A reflow still owed (an
-    explicit demand, a current answer the stop consumed for a size, cut
-    or height the published picture does not have, a clock-driven resize
-    included, or
-    a newer size whose paint waited behind an older request, that
-    request's obsolete answer consumed in order) is asked for once, on
-    the kept route, once the core is retired with a kept document; a
-    pixel drop or the route's end before that cancels it.
+    localized pill and the diagnostic in the runtime log. An attached
+    work publishes the stop only after it has consumed the traffic the
+    helper sent before the death (its platform queue drained), and, when
+    that traffic reported a paint-limit stop and the card is on screen,
+    after the answer to its ask for the stopped frame, so the card shows
+    what the in-process renderer draws. A stale answer (an older size, or
+    a picture the chat dropped since) asks again, and no frame is asked
+    for when none can be (not loaded, no size or cut, a blocked size, or
+    a clean picture already painted). Off screen it waits for the drain
+    alone. Once detached, or once the route's end reaches Telegram, it is
+    published at once, as before. Every hold ends at the latest
+    `SandboxEngine::kPlatformAnswerSeconds` (3 s) after the freeze, and
+    the stop then goes out without the stopped frame: a live route that
+    ends with no word to Telegram (the helper crashed or was killed, a
+    flood or backlog cut by the client) leaves that ask unanswered. From
+    the stop's publication until the chat retires its core, the live
+    work asks the helper for no paint and paints no late answer, so the
+    picture it published with or before the stop is the one the chat
+    takes with it or before it, and the retirement sees that picture's
+    height. A reflow still owed (an explicit demand, a current answer
+    the stop consumed for a size, cut or height the published picture
+    does not have, a clock-driven resize included, or a newer size whose
+    paint waited behind an older request, that request's obsolete answer
+    consumed in order) is asked for once, on the kept route, once the
+    core is retired with a kept document; a pixel drop or the route's
+    end before that cancels it.
   - *Kept renderers.* A loaded widget retired by an ordinary release or a
     natural stop keeps its document in the helper
     (`WidgetHost::keepRenderer`), so its still can reflow: at most 8 kept
