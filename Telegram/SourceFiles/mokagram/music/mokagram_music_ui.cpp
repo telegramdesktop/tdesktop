@@ -3817,7 +3817,7 @@ public:
 		Fn<void(QImage, QRect)> showCover,
 		bool isArtist = false,
 		QString bannerUrl = QString(),
-		Fn<void()> bannerReady = nullptr,
+		Fn<void()> playArtist = nullptr,
 		Fn<void()> openArtist = nullptr)
 	: RpWidget(parent)
 	, _album(std::move(album))
@@ -3827,6 +3827,14 @@ public:
 	, _bannerUrl(std::move(bannerUrl))
 	, _showCover(std::move(showCover))
 	, _openArtist(std::move(openArtist)) {
+		if (_isArtist) {
+			_playArtist = Ui::CreateChild<Ui::RoundButton>(
+				this,
+				rpl::single(PlaylistText("Воспроизвести")),
+				BoxParts::PillActive());
+			_playArtist->setFocusPolicy(Qt::TabFocus);
+			_playArtist->setClickedCallback(std::move(playArtist));
+		}
 		setMouseTracking(true);
 		setToolTip(_album.title + u" - "_q + _album.artist);
 		_artistButton = Ui::CreateChild<Ui::AbstractButton>(this);
@@ -3853,56 +3861,37 @@ public:
 				_banner = std::move(image);
 				_scaledBanner = QImage();
 				update();
-				if (bannerReady) bannerReady();
 			}));
 		}
 	}
 
-	void setBannerTopInset(int inset) {
-		if (_bannerTopInset == inset) return;
-		_bannerTopInset = inset;
-		update();
-	}
-
-	void paintArtistBanner(QPainter &p, const QRect &area) {
-		if (!_isArtist || _banner.isNull() || area.isEmpty()) return;
-		if (_scaledBanner.isNull() || _scaledBannerSize != area.size()) {
-			const auto scaled = _banner.scaled(area.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-			_scaledBanner = scaled.copy(
-				(scaled.width() - area.width()) / 2,
-				(scaled.height() - area.height()) / 2,
-				area.width(), area.height()).convertToFormat(QImage::Format_ARGB32_Premultiplied);
-			_scaledBannerSize = area.size();
-			auto mask = QPainter(&_scaledBanner);
-			// Keep navigation readable even when the artist banner is white.
-			auto shade = QLinearGradient(0, 0, 0, area.height());
-			shade.setColorAt(0., QColor(0, 0, 0, 215));
-			shade.setColorAt(0.3, QColor(0, 0, 0, 215));
-			shade.setColorAt(0.65, QColor(0, 0, 0, 40));
-			shade.setColorAt(1., Qt::transparent);
-			mask.fillRect(_scaledBanner.rect(), shade);
-			mask.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-			auto fade = QLinearGradient(0, 0, 0, area.height());
-			fade.setColorAt(0., Qt::white);
-			fade.setColorAt(0.65, Qt::white);
-			fade.setColorAt(1., Qt::transparent);
-			mask.fillRect(_scaledBanner.rect(), fade);
-		}
-		p.drawImage(area, _scaledBanner);
+	void setArtistPlayable(bool playable) {
+		if (_playArtist) _playArtist->setDisabled(!playable);
 	}
 
 protected:
 	void resizeEvent(QResizeEvent *e) override {
 		RpWidget::resizeEvent(e);
 		updateArtistButtonGeometry();
+		if (_playArtist) {
+			const auto inset = style::ConvertScale(30);
+			const auto available = std::max(width() - 2 * inset, 0);
+			_playArtist->setFullWidth(std::min(available, style::ConvertScale(144)));
+			const auto narrow = width() < style::ConvertScale(520);
+			_playArtist->moveToLeft(
+				narrow ? inset : width() - inset - _playArtist->width(),
+				height() - style::ConvertScale(narrow ? 22 : 44) - _playArtist->height());
+		}
 	}
 
 	int resizeGetHeight(int newWidth) override {
 		const auto s = [](int v) { return style::ConvertScale(v); };
 		if (_isArtist) {
-			return s(_bannerUrl.isEmpty()
-				? (newWidth < s(480) ? 232 : 168)
-				: (newWidth < s(480) ? 280 : 288));
+			const auto identity = s(newWidth < s(520) ? 152 : 128);
+			const auto banner = _bannerUrl.isEmpty()
+				? 0
+				: std::clamp(newWidth / 4, s(120), s(244));
+			return banner + identity + s(8);
 		}
 		if (newWidth < s(480)) {
 			return std::min(std::max(newWidth - s(48), 0), s(224)) + s(160);
@@ -3930,65 +3919,11 @@ protected:
 		const auto margin = s(24);
 		const auto art = coverRect();
 		if (_isArtist) {
-			paintArtistBanner(p, QRect(
-				0, -_bannerTopInset, width(),
-				_bannerUrl.isEmpty() ? 0 : _bannerTopInset + s(narrow ? 128 : 176)));
-			p.setPen(Qt::NoPen);
-			p.setBrush(st::boxBg);
-			const auto border = s(4);
-			p.drawEllipse(art.adjusted(-border, -border, border, border));
-			p.save();
-			auto avatarClip = QPainterPath();
-			avatarClip.addEllipse(art);
-			p.setClipPath(avatarClip);
-			p.fillRect(art, st::windowBg);
-			if (!_art.isNull()) {
-				if (_scaledArt.isNull() || _scaledArtSize != art.size()) {
-					_scaledArt = _art.scaled(art.size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-					_scaledArtSize = art.size();
-				}
-				p.drawImage(art, _scaledArt, QRect(
-					(_scaledArt.width() - art.width()) / 2,
-					(_scaledArt.height() - art.height()) / 2, art.width(), art.height()));
-			}
-			p.restore();
-			const auto left = narrow ? margin : art.right() + s(25);
-			const auto top = _bannerUrl.isEmpty()
-				? s(narrow ? 136 : 52)
-				: s(narrow ? 184 : 194);
-			const auto available = std::max(width() - left - margin, 0);
-			p.setFont(st::normalFont->f);
-			p.setPen(st::windowSubTextFg);
-			p.drawText(QRect(left, top, available, s(20)), Qt::AlignLeft | Qt::AlignVCenter,
-				QString::fromUtf8(Mokagram::Lang::Tr("Исполнитель")));
-			auto title = st::semiboldFont->f;
-			title.setPixelSize(s(narrow ? 24 : 32));
-			p.setFont(title);
-			p.setPen(st::windowFg);
-			p.drawText(QRect(left, top + s(24), available, s(44)), Qt::AlignLeft | Qt::AlignVCenter,
-				QFontMetrics(title).elidedText(_album.title, Qt::ElideRight, available));
+			paintArtist(p, art);
 			return;
 		}
-		if (_isArtist && !_banner.isNull()) {
-			if (_scaledBanner.isNull() || _scaledBannerSize != size()) {
-				_scaledBanner = _banner.scaled(size(), Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
-				_scaledBannerSize = size();
-			}
-			const auto source = QRect(
-				(_scaledBanner.width() - width()) / 2,
-				(_scaledBanner.height() - height()) / 2,
-				width(),
-				height());
-			p.drawImage(rect(), _scaledBanner, source);
-			auto shade = QLinearGradient(rect().topLeft(), rect().bottomLeft());
-			shade.setColorAt(0., QColor(0, 0, 0, 36));
-			shade.setColorAt(0.68, QColor(0, 0, 0, 48));
-			shade.setColorAt(1., QColor(0, 0, 0, 126));
-			p.fillRect(rect(), shade);
-		}
 		auto clip = QPainterPath();
-		if (_isArtist) clip.addEllipse(art);
-		else clip.addRoundedRect(art, s(6), s(6));
+		clip.addRoundedRect(art, s(6), s(6));
 		p.save();
 		p.setClipPath(clip);
 		if (_art.isNull()) {
@@ -4011,20 +3946,12 @@ protected:
 		p.setFont(label);
 		p.setPen(QColor(255, 255, 255, 190));
 		p.drawText(QRect(left, top, available, s(24)), Qt::AlignLeft | Qt::AlignVCenter,
-			QString::fromUtf8(Mokagram::Lang::Tr(_isArtist ? "Исполнитель" : _isTrack ? "Трек" : "Альбом")));
+			QString::fromUtf8(Mokagram::Lang::Tr(_isTrack ? "Трек" : "Альбом")));
 		auto title = st::semiboldFont->f;
 		title.setPixelSize(s(narrow ? 28 : 44));
 		p.setFont(title);
 		p.setPen(Qt::white);
 		const auto titleHeight = narrow ? s(56) : s(72);
-		if (_isArtist && !_banner.isNull()) {
-			const auto titleWidth = std::min(
-				available,
-				QFontMetrics(title).horizontalAdvance(_album.title) + s(16));
-			p.fillRect(
-				QRect(left - s(8), top + s(28), titleWidth, titleHeight),
-				QColor(0, 0, 0, 180));
-		}
 		p.drawText(QRect(left, top + s(28), available, titleHeight),
 			Qt::AlignLeft | Qt::AlignVCenter,
 			QFontMetrics(title).elidedText(_album.title, Qt::ElideRight, available));
@@ -4039,6 +3966,75 @@ protected:
 	}
 
 private:
+	void paintArtist(QPainter &p, const QRect &avatar) {
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		const auto card = rect().adjusted(s(14), 0, -s(14), -s(8));
+		if (card.isEmpty()) return;
+
+		auto clip = QPainterPath();
+		clip.addRoundedRect(card, s(22), s(22));
+		p.fillPath(clip, st::windowBg);
+		const auto narrow = width() < s(520);
+		const auto identityTop = height() - s(narrow ? 160 : 136);
+		const auto banner = QRect(card.x(), card.y(), card.width(), identityTop);
+		if (!banner.isEmpty()) {
+			p.save();
+			p.setClipPath(clip);
+			p.fillRect(banner, st::windowBgOver);
+			if (!_banner.isNull()) {
+				if (_scaledBanner.isNull() || _scaledBannerSize != banner.size()) {
+					_scaledBanner = _banner.scaled(
+						banner.size(),
+						Qt::KeepAspectRatioByExpanding,
+						Qt::SmoothTransformation);
+					_scaledBannerSize = banner.size();
+				}
+				p.drawImage(banner, _scaledBanner, QRect(
+					(_scaledBanner.width() - banner.width()) / 2,
+					(_scaledBanner.height() - banner.height()) / 2,
+					banner.width(),
+					banner.height()));
+			}
+			p.restore();
+		}
+
+		auto avatarClip = QPainterPath();
+		avatarClip.addEllipse(avatar);
+		p.save();
+		p.setClipPath(avatarClip);
+		p.fillRect(avatar, st::windowBgOver);
+		if (!_art.isNull()) {
+			if (_scaledArt.isNull() || _scaledArtSize != avatar.size()) {
+				_scaledArt = _art.scaled(
+					avatar.size(),
+					Qt::KeepAspectRatioByExpanding,
+					Qt::SmoothTransformation);
+				_scaledArtSize = avatar.size();
+			}
+			p.drawImage(avatar, _scaledArt, QRect(
+				(_scaledArt.width() - avatar.width()) / 2,
+				(_scaledArt.height() - avatar.height()) / 2,
+				avatar.width(),
+				avatar.height()));
+		}
+		p.restore();
+
+		const auto left = avatar.right() + s(17);
+		const auto right = narrow ? card.right() - s(16) : _playArtist->x() - s(16);
+		const auto available = std::max(right - left + 1, 0);
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(QRect(left, identityTop + s(24), available, s(20)),
+			Qt::AlignVCenter | Qt::AlignLeft, PlaylistText("Исполнитель"));
+		auto title = st::semiboldFont->f;
+		title.setPixelSize(s(narrow ? 26 : 40));
+		p.setFont(title);
+		p.setPen(st::windowFg);
+		p.drawText(QRect(left, identityTop + s(46), available, s(narrow ? 36 : 52)),
+			Qt::AlignVCenter | Qt::AlignLeft,
+			QFontMetrics(title).elidedText(_album.title, Qt::ElideRight, available));
+	}
+
 	void updateArtistButtonGeometry() {
 		const auto s = [](int v) { return style::ConvertScale(v); };
 		const auto narrow = width() < s(480);
@@ -4070,8 +4066,9 @@ private:
 	[[nodiscard]] QRect coverRect() const {
 		const auto s = [](int v) { return style::ConvertScale(v); };
 		if (_isArtist) {
-			const auto narrow = width() < s(480);
-			return QRect(s(24), _bannerUrl.isEmpty() ? s(24) : s(narrow ? 88 : 136), s(narrow ? 80 : 128), s(narrow ? 80 : 128));
+			const auto narrow = width() < s(520);
+			const auto side = s(narrow ? 64 : 88);
+			return QRect(s(30), height() - s(narrow ? 140 : 116), side, side);
 		}
 		const auto side = (width() < s(480))
 			? std::min(std::max(width() - s(48), 0), s(224))
@@ -4084,7 +4081,6 @@ private:
 	bool _isTrack = false;
 	bool _isArtist = false;
 	QString _bannerUrl;
-	int _bannerTopInset = 0;
 	QImage _art;
 	QImage _scaledArt;
 	QSize _scaledArtSize;
@@ -4093,6 +4089,7 @@ private:
 	QSize _scaledBannerSize;
 	Fn<void(QImage, QRect)> _showCover;
 	Fn<void()> _openArtist;
+	Ui::RoundButton *_playArtist = nullptr;
 	Ui::AbstractButton *_artistButton = nullptr;
 
 };
@@ -6826,6 +6823,29 @@ public:
 			_tabScroll->scrollToY(_homeAlbumReturnScroll);
 		}));
 		_homeBack->hide();
+		_homeArtistBar = Ui::CreateChild<Ui::RpWidget>(this);
+		_homeArtistBarPlay = Ui::CreateChild<Ui::RoundButton>(
+			_homeArtistBar,
+			rpl::single(PlaylistText("Воспроизвести")),
+			BoxParts::PillActive());
+		_homeArtistBarPlay->setFocusPolicy(Qt::TabFocus);
+		_homeArtistBarPlay->setClickedCallback([=] { playHomeArtist(); });
+		_homeArtistBar->paintOn([=](QPainter &p) {
+			const auto s = [](int value) { return style::ConvertScale(value); };
+			auto hq = PainterHighQualityEnabler(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::windowBg);
+			p.drawRoundedRect(_homeArtistBar->rect(), s(22), s(22));
+			const auto text = QRect(
+				s(16), 0,
+				std::max(_homeArtistBarPlay->x() - s(28), 0),
+				_homeArtistBar->height());
+			p.setFont(st::semiboldFont);
+			p.setPen(st::windowFg);
+			p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft,
+				st::semiboldFont->elided(_homeArtistSeed.artist, text.width()));
+		});
+		_homeArtistBar->hide();
 		AttachCommentsToPlayer(controller, _playbackBar, _seek, false);
 		_filter->setToolTip(QString::fromUtf8(Mokagram::Lang::Tr("Звуковой фильтр")));
 		_filter->setClickedCallback([=] {
@@ -6908,6 +6928,7 @@ public:
 		});
 		_tabScroll->scrollTopChanges() | rpl::on_next([=](int top) {
 			if (_tab == Tab::Home && _homeAlbumOpen) {
+				updateHomeArtistBar();
 				update();
 			}
 			if (!_rebuildingTab) {
@@ -7683,7 +7704,7 @@ protected:
 			layout.center.width(),
 			std::max(scrollBottom - layout.scrollTop, 0));
 		_tabContent->resizeToWidth(_tabScroll->width());
-		if (_homeAlbumHeader) _homeAlbumHeader->setBannerTopInset(_tabScroll->y());
+		updateHomeArtistBar();
 
 		// Навигация: ряд пилюль сверху по центру.
 		{
@@ -8169,6 +8190,9 @@ protected:
 			int generation) {
 		_homeArtistAlbums.clear();
 		_homeArtistTracks.clear();
+		if (_homeArtistOpen) {
+			_homeArtistTracks.push_back(_homeArtistSeed);
+		}
 		if (!name.isEmpty()) {
 			SearchAlbums(name, 20, crl::guard(this, [=](std::vector<Album> albums, QString error) {
 				if (generation != _homeAlbumGeneration) {
@@ -8230,6 +8254,38 @@ protected:
 		}));
 	}
 
+	void playHomeArtist() {
+		auto results = _homeArtistTracks;
+		std::erase_if(results, [](const Track &track) {
+			return track.unavailable;
+		});
+		if (results.empty()) return;
+
+		QueueState().results = std::move(results);
+		PlayFromResults(0);
+	}
+
+	void updateHomeArtistBar() {
+		const auto shown = _tab == Tab::Home
+			&& _homeArtistOpen
+			&& _homeAlbumHeader
+			&& _tabScroll->scrollTop() >= _homeAlbumHeader->height();
+		_homeArtistBar->setVisible(shown);
+		if (!shown) return;
+
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		const auto barWidth = std::max(_tabScroll->width() - s(28), 0);
+		_homeArtistBar->setGeometry(
+			_tabScroll->x() + s(14), _tabScroll->y(), barWidth, s(56));
+		_homeArtistBarPlay->setFullWidth(std::min(s(144), barWidth / 2));
+		_homeArtistBarPlay->moveToRight(
+			s(8), (_homeArtistBar->height() - _homeArtistBarPlay->height()) / 2);
+		_homeArtistBarPlay->setDisabled(std::ranges::all_of(
+			_homeArtistTracks, &Track::unavailable));
+		_homeArtistBar->raise();
+		_homeArtistBar->update();
+	}
+
 	void openHomeArtist(Track track) {
 		if (!_homeReturnToArtist) _homeArtistFeedScroll = _tabScroll->scrollTop();
 		_homeReturnToArtist = false;
@@ -8245,7 +8301,8 @@ protected:
 		_homeAlbumTracks.clear();
 		_homeAlbumNote.clear();
 		_homeAlbumLoading = false;
-		loadHomeAccent(art, generation);
+		_homeAccent = QColor();
+		_nav[1]->setActiveColor(Qt::white);
 		if (!track.artistId.isEmpty()) {
 			LoadArtistInfo(track.artistId, crl::guard(this, [=](ArtistInfo info) {
 				if (generation != _homeAlbumGeneration || !_homeArtistOpen) {
@@ -8255,9 +8312,6 @@ protected:
 					_homeAlbum.artworkUrl = info.avatarUrl;
 				}
 				_homeArtistBannerUrl = info.bannerUrl;
-				loadHomeAccent(
-					_homeArtistBannerUrl.isEmpty() ? art : _homeArtistBannerUrl,
-					generation);
 				if (_tab == Tab::Home) {
 					rebuildTab();
 				}
@@ -8475,7 +8529,7 @@ protected:
 						source.moveTopLeft(mapFromGlobal(source.topLeft()));
 						Ui::CreateChild<HomeCoverPreview>(this, std::move(image), source);
 					}), _homeArtistOpen, _homeArtistBannerUrl,
-					crl::guard(this, [=] { update(); }),
+					crl::guard(this, [=] { playHomeArtist(); }),
 					crl::guard(this, [=] {
 						const auto artistTrack = std::find_if(
 							_homeAlbumTracks.begin(),
@@ -8491,7 +8545,8 @@ protected:
 						}
 					})), QMargins(0, 0, 0, style::ConvertScale(8)));
 				_homeAlbumHeader = albumHeader;
-				albumHeader->setBannerTopInset(_tabScroll->y());
+				albumHeader->setArtistPlayable(!std::ranges::all_of(
+					_homeArtistTracks, &Track::unavailable));
 				if (!_homeAlbumIsTrack && !_homeArtistOpen) InstallAlbumContextMenu(albumHeader, _controller, _homeAlbum);
 
 				if (_homeArtistOpen) {
@@ -8891,6 +8946,7 @@ protected:
 		if (!showsQueue()) {
 			_tabScroll->scrollToY(keep);
 		}
+		updateHomeArtistBar();
 		update();
 		scheduleHomeMoreIfNeeded();
 	}
@@ -8957,10 +9013,12 @@ protected:
 		// Вне «Сейчас играет» экран в цветах клиента, как остальные окна.
 		if (plainBackground > 0.) {
 			p.setOpacity(plainBackground);
-			p.fillRect(e->rect(), QColor(0x1c, 0x1c, 0x1c));
+			p.fillRect(e->rect(), _tab == Tab::Home && _homeArtistOpen
+				? st::boxBg->c
+				: QColor(0x1c, 0x1c, 0x1c));
 			p.setOpacity(1.);
 		}
-		if (_tab == Tab::Home && _homeAlbumOpen) {
+		if (_tab == Tab::Home && _homeAlbumOpen && !_homeArtistOpen) {
 			const auto headerWidth = std::max(_tabScroll->width() - s(24), 0);
 			const auto headerHeight = (headerWidth < s(480))
 				? std::min(std::max(headerWidth - s(48), 0), s(224)) + s(160)
@@ -8973,18 +9031,6 @@ protected:
 				: QColor(0x32, 0x32, 0x32));
 			gradient.setColorAt(1., QColor(0x1c, 0x1c, 0x1c));
 			p.fillRect(e->rect(), gradient);
-		}
-		if (_tab == Tab::Home && _homeArtistOpen && !_homeArtistBannerUrl.isEmpty() && _homeAlbumHeader) {
-			const auto panel = QRect(0, 0, width(), _tabScroll->y());
-			const auto bannerHeight = s(_tabScroll->width() < s(480) ? 128 : 176);
-			p.save();
-			p.setClipRect(panel);
-			_homeAlbumHeader->paintArtistBanner(p, QRect(
-				_tabScroll->x(), -_tabScroll->scrollTop(),
-				_tabScroll->width(), panel.height() + bannerHeight));
-			p.setOpacity(std::clamp(_tabScroll->scrollTop() / double(s(128)), 0., 1.));
-			p.fillRect(panel, pageBackgroundAt(0));
-			p.restore();
 		}
 		const auto layout = computeLayout();
 		// Одна общая дорожка и движущаяся пилюля вместо отдельных фонов вкладок.
@@ -9714,6 +9760,8 @@ private:
 	const not_null<RoundGlyph*> _heart;
 	const not_null<RoundGlyph*> _collapse;
 	NavItem *_homeBack = nullptr;
+	Ui::RpWidget *_homeArtistBar = nullptr;
+	Ui::RoundButton *_homeArtistBarPlay = nullptr;
 	const not_null<RoundGlyph*> _filter;
 	base::unique_qptr<Ui::PopupMenu> _filterMenu;
 	const not_null<RoundGlyph*> _queueToggle;
@@ -9724,6 +9772,8 @@ private:
 		const auto base = QColor(0x1c, 0x1c, 0x1c);
 		if (_tab != Tab::Home || !_homeAlbumOpen) {
 			return base;
+		} else if (_homeArtistOpen) {
+			return st::boxBg->c;
 		}
 		const auto s = [](int v) { return style::ConvertScale(v); };
 		const auto headerWidth = std::max(_tabScroll->width() - s(24), 0);
