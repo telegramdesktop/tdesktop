@@ -11638,12 +11638,10 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 							Ui::DefaultImageSpoiler().frame(
 								_replySpoiler->index(now, pausedSpoiler)));
 					}
-					if (overEdit > 0.) {
-						p.setOpacity(overEdit);
-						p.fillRect(to, st::historyEditMediaBg);
-						st::historyEditMedia.paintInCenter(p, to);
-						p.setOpacity(1.);
-					}
+					HistoryView::MediaEditManager::PaintPreviewHover(
+						p,
+						to,
+						overEdit);
 					_mediaEditManager.paintCoverUpload(p, to);
 				}
 				replyLeft += st::historyReplyPreview + st::msgReplyBarSkip;

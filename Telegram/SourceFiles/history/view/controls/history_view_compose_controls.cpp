@@ -805,12 +805,7 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 				Ui::DefaultImageSpoiler().frame(
 					_shownPreviewSpoiler->index(crl::now(), p.inactive())));
 		}
-		if (overEdit > 0.) {
-			p.setOpacity(overEdit);
-			p.fillRect(to, st::historyEditMediaBg);
-			st::historyEditMedia.paintInCenter(p, to);
-			p.setOpacity(1.);
-		}
+		MediaEditManager::PaintPreviewHover(p, to, overEdit);
 		_mediaEditManager.paintCoverUpload(p, to);
 	}
 

@@ -16,7 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "main/main_session.h"
 #include "menu/menu_send.h"
+#include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
+#include "styles/style_basic.h"
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {
@@ -147,6 +149,23 @@ Image *MediaEditManager::mediaPreview() {
 		}
 	}
 	return nullptr;
+}
+
+void MediaEditManager::PaintPreviewHover(
+		Painter &p,
+		QRect rect,
+		float64 opacity) {
+	if (opacity <= 0.) {
+		return;
+	}
+	const auto radius = st::roundRadiusSmall;
+	auto shape = QPainterPath();
+	shape.addRoundedRect(rect, radius, radius);
+	auto hq = PainterHighQualityEnabler(p);
+	p.setOpacity(opacity);
+	p.fillPath(shape, st::historyEditMediaBg);
+	st::historyEditMedia.paintInCenter(p, rect);
+	p.setOpacity(1.);
 }
 
 void MediaEditManager::paintCoverUpload(Painter &p, QRect to) {
