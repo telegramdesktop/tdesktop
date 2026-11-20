@@ -475,9 +475,9 @@ sits on its hosted host
   `desktop.helperWork`: `asked`, `windowed`, `capacity`, `dropped`,
   `malformed`, `total` and `byKind` (each `count`, `ms`, `waitedMs`, the part
   spent waiting for Telegram's answers, and `ownMs`), `frames` (events that
-  sent a `Frame`, by `frameBytes > 0` on its unsigned value) and
-  `overflows`, over the level's window, or all of it for a level without
-  one. Every sum is a checked addition: an event that would overflow one is
+  sent a `Frame` or a `FrameDelta`, by `frameBytes > 0` on its unsigned
+  value) and `overflows`, over the level's window, or all of it for a
+  level without one. Every sum is a checked addition: an event that would overflow one is
   left out and counted in `overflows`. A record that ends after its own
   receipt is malformed at the tap, not filtered out of the window as a
   late operation would be. A dropped or malformed record, and

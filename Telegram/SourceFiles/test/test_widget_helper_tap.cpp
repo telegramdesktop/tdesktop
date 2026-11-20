@@ -200,7 +200,10 @@ TimedPlatform::TimedPlatform(std::shared_ptr<TapState> state)
 }
 
 void TimedPlatform::send(const std::string &message) {
-	if (_state->work && (Remote::kind_of(message) == Remote::Kind::Frame)) {
+	const auto kind = Remote::kind_of(message);
+	if (_state->work
+		&& ((kind == Remote::Kind::Frame)
+			|| (kind == Remote::Kind::FrameDelta))) {
 		_state->work->frameBytes += std::uint32_t(message.size());
 	}
 	_state->platform->send(message);

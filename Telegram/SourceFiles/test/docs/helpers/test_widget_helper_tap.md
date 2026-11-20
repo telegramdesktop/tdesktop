@@ -70,10 +70,10 @@ overlay arms the message with `ArmWidgetOpsTap()` and reads
   `finished` on the helper's steady clock (microseconds; on macOS the
   system-wide uptime clock and on Windows `QueryPerformanceCounter`, which
   Telegram's process reads too), `waited` and `waits` (the requests
-  inside it), `seq` of a `FrameRequest`, and
-  `frameBytes`, the encoded `Frame` messages it sent. A call made inside
-  another (the glue defers nested steps to the outer loop) belongs to the
-  outer one, and so does the work of the steps it ran. The kinds:
+  inside it), `seq` of a `FrameRequest`, and `frameBytes`, the encoded
+  `Frame` and `FrameDelta` messages it sent. A call made inside another
+  (the glue defers nested steps to the outer loop) belongs to the outer
+  one, and so does the work of the steps it ran. The kinds:
 
 | Kind | The operation |
 | --- | --- |

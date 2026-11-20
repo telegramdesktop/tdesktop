@@ -271,8 +271,8 @@ compiles in both harness configurations and nowhere else:
   picture asks once more only for that demand, later moves waiting for the
   chat's next draw;
 - **`Frame` for a list the helper painted**: in `RendererPlatform::pump()`,
-  for an entry whose bytes are a `Frame` (`twlite::remote::kind_of()`),
-  opened right after `QtBackend::workUnlessHeld()` returned an admitted
+  for an entry whose bytes are a `Frame` or a `FrameDelta`
+  (`twlite::remote::kind_of()`), opened right after `QtBackend::workUnlessHeld()` returned an admitted
   `Work` (the entry's outer Work, its admission and charge one meter
   sample) and closed when `consume()` returned, so an entry the hold
   keeps queued records nothing. It covers the decode, `hostedFrame()`'s

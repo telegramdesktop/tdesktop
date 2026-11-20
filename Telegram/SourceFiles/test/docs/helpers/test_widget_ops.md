@@ -598,7 +598,7 @@ helper's Debug tap times it when asked, and this tap keeps it:
   paints, when an overlay times them) overlap the helper's `waited`
   intervals: a total of both processes counts the helper's
   `finished - started - waited` and Telegram's events, or the helper's
-  wall time without Telegram's answers, never both. A `Paint` with `frameBytes` above 0 sent the `Frame` whose
+  wall time without Telegram's answers, never both. A `Paint` with `frameBytes` above 0 sent the `Frame` or `FrameDelta` whose
   replay is the next `Frame` event of that host's work log after its
   `finished`, its `seq` the one Telegram's request carried. A stress level
   attributes the renderer's work only from a known nontrivial workload with
