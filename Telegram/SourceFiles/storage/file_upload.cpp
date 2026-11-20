@@ -548,15 +548,28 @@ void Uploader::finishTranscode(
 	auto &entry = *i;
 	const auto file = entry.file;
 	const auto document = session().data().document(file->id);
-	auto size = int64();
+	const auto size = !path.isEmpty()
+		? int64(QFileInfo(path).size())
+		: int64(bytes.size());
+	if (file->videoSource && !path.isEmpty()) {
+		const auto limit = session().premium()
+			? kFileSizePremiumLimit
+			: kFileSizeLimit;
+		if (size > limit) {
+			QFile::remove(path);
+			Ui::show(
+				Box(FileSizeLimitBox, &session(), uint64(size), nullptr),
+				Ui::LayerOption::KeepOther);
+			failed(itemId);
+			return;
+		}
+	}
 	if (!path.isEmpty()) {
-		size = QFileInfo(path).size();
 		file->content = QByteArray();
 		file->filepath = path;
 		file->transcodedTempPath = path;
 		document->setLocation(Core::FileLocation(path));
 	} else if (!bytes.isEmpty()) {
-		size = int64(bytes.size());
 		file->content = bytes;
 		file->filepath = QString();
 		document->setDataAndCache(bytes);

@@ -2118,7 +2118,11 @@ struct TranscodeAttempt {
 	const auto sourceSize = !source.bytes.isEmpty()
 		? int64(source.bytes.size())
 		: QFileInfo(source.path).size();
-	if (sourceSize <= 0 || sourceSize >= kMaxSourceSize) {
+	const auto oversized = (sourceSize >= kMaxSourceSize);
+	const auto canTrimLargeFile = source.bytes.isEmpty()
+		&& (source.mode == VideoSource::Mode::Mp4)
+		&& (source.from > 0 || source.till > 0);
+	if (sourceSize <= 0 || (oversized && !canTrimLargeFile)) {
 		return {};
 	}
 
@@ -2218,6 +2222,9 @@ struct TranscodeAttempt {
 	const auto till = (source.till > from) ? source.till : crl::time(0);
 	const auto trimmed = (from > 0)
 		|| (till > 0 && (!shownDuration || till < shownDuration));
+	if (oversized && !trimmed) {
+		return {};
+	}
 	const auto span = till
 		? (till - from)
 		: ((totalDuration > from) ? (totalDuration - from) : crl::time(0));
