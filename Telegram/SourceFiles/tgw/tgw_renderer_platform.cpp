@@ -396,8 +396,11 @@ void RendererPlatform::state(const Remote::State &state) {
 
 void RendererPlatform::messages(std::vector<twidget::Json> &&messages) {
 	for (const auto &message : messages) {
+		const auto &type = message["type"].asString();
 		const auto &height = message["height"];
-		if ((message["type"].asString() == "size")
+		if (type == "limit") {
+			_received.limit = true;
+		} else if ((type == "size")
 			&& height.isNumber()
 			&& std::isfinite(height.asNumber())) {
 			_received.heights.push_back(height.asNumber());
@@ -445,6 +448,9 @@ void RendererPlatform::pump() {
 			failEnd();
 			return;
 		} else if (_queue.empty()) {
+			if (_reports.drained) {
+				_reports.drained();
+			}
 			return;
 		} else if ((turn == kPumpEntries)
 			|| (crl::now() - started >= kPumpTime)) {
@@ -616,6 +622,9 @@ void RendererPlatform::deliver(Received received) {
 			return;
 		}
 		_reports.size(height);
+	}
+	if (received.limit && weak && !_ended && _reports.limit) {
+		_reports.limit();
 	}
 }
 

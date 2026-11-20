@@ -67,6 +67,7 @@ public:
 		Fn<void(Frame &&frame)> frame;
 		Fn<void(const twlite::remote::State &state)> state;
 		Fn<void(double height)> size;
+		Fn<void()> limit;
 		Fn<void(const twlite::remote::Pointer &pointer)> pointer;
 		Fn<void(QString text)> selection;
 		Fn<void(const twlite::remote::ClaimAnswer &answer)> claim;
@@ -77,6 +78,7 @@ public:
 		Fn<void(QString reason)> stopped;
 		Fn<void(QString reason)> failed;
 		Fn<void(crl::time held)> held;
+		Fn<void()> drained;
 	};
 
 	RendererPlatform(
@@ -120,6 +122,7 @@ private:
 		std::optional<twlite::remote::Pointer> pointer;
 		std::optional<QString> selection;
 		std::optional<twlite::remote::ClaimAnswer> claim;
+		bool limit = false;
 	};
 
 	void frame(Frame &&frame) override;

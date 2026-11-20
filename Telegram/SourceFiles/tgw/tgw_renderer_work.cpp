@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_renderer_platform.h"
 #include "tgw/tgw_renderer_rules.h"
 #include "twidget/json.h"
+#include "twidget/sandbox_engine.h"
 
 #ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <private/qfont_p.h>
@@ -51,6 +52,8 @@ constexpr auto kPaintBoundsKind = "paint-bounds";
 constexpr auto kRendererStopDetail = "The widget renderer stopped";
 constexpr auto kMinWakeDelay = crl::time(1);
 constexpr auto kMaxWakeDelay = crl::time(std::numeric_limits<int>::max());
+constexpr auto kMaxStopHold = crl::time(
+	twidget::SandboxEngine::kPlatformAnswerSeconds * 1000);
 // Mirrors lib_ui's private kAnimationTick, the cadence every clock runs at.
 constexpr auto kHeldTick = crl::time(1000) / st::universalDuration;
 // A request this soon after a reply may continue a frame loop.
@@ -573,6 +576,7 @@ struct RendererWork::Hosted {
 	std::shared_ptr<PicturePost> pictures;
 	twlite::remote::State state;
 	std::optional<FrameAsk> asked;
+	base::Timer stopBound;
 	crl::time tickAt = 0;
 	bool paintFirst = false;
 	bool blocked = false;
@@ -580,6 +584,8 @@ struct RendererWork::Hosted {
 	bool closed = false;
 	bool reportClosed = false;
 	bool releaseLive = false;
+	bool limited = false;
+	bool stopHeld = false;
 };
 
 #ifndef DESKTOP_APP_DISABLE_PRIVATE_QT_API
@@ -734,6 +740,13 @@ std::unique_ptr<RendererWork::Hosted> RendererWork::makeHosted(
 			.size = [=](double height) {
 				hostedSize(height);
 			},
+			.limit = [=] {
+				_hosted->limited = true;
+				if (_hosted->stopHeld && _onScreen) {
+					_reflow.demand();
+					schedule();
+				}
+			},
 			.pointer = [=](const twlite::remote::Pointer &pointer) {
 				_hosted->input->pointer(pointer);
 			},
@@ -763,6 +776,11 @@ std::unique_ptr<RendererWork::Hosted> RendererWork::makeHosted(
 			},
 			.held = [=](crl::time) {
 				hostedHeld();
+			},
+			.drained = [=] {
+				if (_hosted->stopHeld) {
+					schedule();
+				}
 			},
 		},
 		std::move(hosted.wait));
@@ -795,6 +813,9 @@ std::unique_ptr<RendererWork::Hosted> RendererWork::makeHosted(
 				refuse(std::move(limit));
 			},
 		});
+	result->stopBound.setCallback([=] {
+		schedule();
+	});
 	return result;
 }
 
@@ -1408,6 +1429,20 @@ void RendererWork::work() {
 		_hosted->paintFirst = false;
 	}
 	auto layout = (wanted && !throttled) ? raster() : std::nullopt;
+	if (_hosted && _hosted->stopHeld) {
+		const auto waits = routeAlive()
+			&& !_detached
+			&& _hosted->stopBound.isActive()
+			&& (_hosted->platform->waiting()
+				|| (_hosted->limited
+					&& _onScreen
+					&& (_hosted->asked || throttled)));
+		if (!waits) {
+			_hosted->stopHeld = _hosted->limited = false;
+			_hosted->stopBound.cancel();
+			_postedChanges |= Change::Stopped | Change::Repaint;
+		}
+	}
 	if (throttled) {
 		_rasterThrottled = true;
 		if (!_clockOn) {
@@ -1732,14 +1767,17 @@ bool RendererWork::inboundFirst() const {
 }
 
 bool RendererWork::sealedAtStop() const {
-	return _hosted && _stopped && !_detached;
+	return _hosted
+		&& _stopped
+		&& !_detached
+		&& !(_hosted->stopHeld && _hosted->limited && _onScreen);
 }
 
 bool RendererWork::awaitingFrame() const {
 	return _hosted
 		&& (_hosted->paintFirst
 			|| (_hosted->asked && !_hosted->asked->tick)
-			|| sealedAtStop());
+			|| (_stopped && !_detached));
 }
 
 void RendererWork::requestPaint() {
@@ -1823,6 +1861,7 @@ void RendererWork::hostedFrame(twlite::remote::Frame &&frame) {
 		} else {
 			paintFrame(frame.list, *computed);
 		}
+		hosted.limited = false;
 		_reflow.replied();
 		if (_detached) {
 			schedule();
@@ -2081,7 +2120,18 @@ void RendererWork::freeze(QString reason, bool fatal) {
 		return;
 	}
 	stop(std::move(reason), fatal);
-	finish({}, Change::Stopped | Change::Repaint);
+	if (!routeAlive() || _detached) {
+		finish({}, Change::Stopped | Change::Repaint);
+		return;
+	}
+	// After what the helper sent before the death, and a paint stop's frame.
+	_hosted->stopHeld = true;
+	_hosted->stopBound.callOnce(kMaxStopHold, Qt::PreciseTimer);
+	if (_hosted->limited && _onScreen) {
+		_reflow.demand();
+	}
+	refreshClock();
+	schedule();
 }
 
 int64 RendererWork::elementAt(QPointF point) {
