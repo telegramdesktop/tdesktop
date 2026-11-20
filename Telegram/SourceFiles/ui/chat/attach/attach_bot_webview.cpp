@@ -2226,7 +2226,11 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 		container->show();
 	}
 	_externalWindowCloseRequested = false;
-	const auto devTools = Mokagram::Settings::Bool(u"developer.miniapp_devtools"_q);
+	// Mokagram: bot games use the regular webview inspection setting.
+	const auto devTools = (_menuButtons & MenuButton::ShareGame)
+		? std::nullopt
+		: std::make_optional(Mokagram::Settings::Bool(
+			u"developer.miniapp_devtools"_q));
 	_webview = std::make_unique<WebviewWithLifetime>(
 		container,
 		Webview::WindowConfig{
@@ -2567,7 +2571,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				return;
 			}
 			_externalShellBootstrapped = true;
-			installExternalShellDocument(devTools);
+			installExternalShellDocument(devTools.value_or(false));
 			sendExternalShellBootstrap();
 		}
 	});
