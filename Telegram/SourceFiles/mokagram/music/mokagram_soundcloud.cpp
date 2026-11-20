@@ -48,6 +48,7 @@ constexpr auto kImageCacheCount = 200;
 constexpr auto kImageCacheBytes = qint64(48) * 1024 * 1024; // ~200 обложек t500x500
 constexpr auto kCoverCacheCount = 200;
 constexpr auto kCoverCacheBytes = qint64(48) * 1024 * 1024;
+constexpr auto kArtistInfoCacheCount = 256;
 
 // Дисковый кэш треков: держим не больше kAudioCacheBytes и не больше kAudioCacheFiles
 // файлов, удаляя самые давно использованные. mtime файла обновляется при каждом
@@ -504,6 +505,27 @@ void ApiGet(
 [[nodiscard]] std::map<QString, ArtistInfo> &ArtistInfoCache() {
 	static auto result = std::map<QString, ArtistInfo>();
 	return result;
+}
+[[nodiscard]] std::deque<QString> &ArtistInfoOrder() {
+	static auto result = std::deque<QString>();
+	return result;
+}
+void TouchArtistInfo(const QString &id) {
+	auto &order = ArtistInfoOrder();
+	const auto i = std::find(order.begin(), order.end(), id);
+	if (i != order.end()) {
+		order.erase(i);
+	}
+	order.push_back(id);
+}
+void InsertArtistInfo(const QString &id, ArtistInfo info) {
+	auto &cache = ArtistInfoCache();
+	cache[id] = std::move(info);
+	TouchArtistInfo(id);
+	while (ArtistInfoOrder().size() > kArtistInfoCacheCount) {
+		cache.erase(ArtistInfoOrder().front());
+		ArtistInfoOrder().pop_front();
+	}
 }
 
 [[nodiscard]] std::map<QString, std::vector<Fn<void(ArtistInfo)>>> &PendingArtistInfo() {
@@ -987,6 +1009,7 @@ void LoadArtistInfo(
 	}
 	if (const auto i = ArtistInfoCache().find(userId);
 		i != ArtistInfoCache().end()) {
+		TouchArtistInfo(userId);
 		done(i->second);
 		return;
 	}
@@ -1004,7 +1027,7 @@ void LoadArtistInfo(
 				? ParseArtistInfo(QJsonDocument::fromJson(data).object(), userId)
 				: ArtistInfo();
 			if (!info.id.isEmpty()) {
-				ArtistInfoCache()[userId] = info;
+				InsertArtistInfo(userId, std::move(info));
 			}
 			auto callbacks = std::move(PendingArtistInfo()[userId]);
 			PendingArtistInfo().erase(userId);
