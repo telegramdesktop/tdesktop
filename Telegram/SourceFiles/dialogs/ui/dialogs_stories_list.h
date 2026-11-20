@@ -45,6 +45,10 @@ struct Element {
 	uint32 uploadFailed : 1 = 0;
 	uint32 uploadProgress : 7 = 0;
 
+	[[nodiscard]] bool canAddFirstStory() const {
+		return mine && !count && !uploading;
+	}
+
 	friend inline bool operator==(
 		const Element &a,
 		const Element &b) = default;
@@ -137,7 +141,11 @@ private:
 	};
 
 	void showContent(Content &&content);
-	void paintAddBadge(QPainter &p, uint64 id, const QRectF &userpic) const;
+	void paintAddBadge(
+		QPainter &p,
+		uint64 id,
+		const QRectF &userpic,
+		float64 scale) const;
 	void updateUploadAnimation();
 	void stepUploadAnimation(crl::time now);
 	[[nodiscard]] float64 uploadShownProgress(uint64 id, crl::time now) const;

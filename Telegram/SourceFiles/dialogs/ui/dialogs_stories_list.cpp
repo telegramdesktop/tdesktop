@@ -858,24 +858,29 @@ void List::paint(
 			}
 		}
 
-		if (const auto full = single.itemFull) {
-			if (full->element.hasVideoStream && expandRatio > 0.) {
-				p.setOpacity(expandRatio);
-				const auto skip = std::ceil(line + lineRead);
-				Ui::PaintLiveBadge(
+		const auto firstStoryButton = small
+			&& small->element.canAddFirstStory();
+		const auto badgeItem = firstStoryButton ? small : itemFull;
+		if (itemFull && itemFull->element.hasVideoStream && expandRatio > 0.) {
+			p.setOpacity(expandRatio);
+			const auto skip = std::ceil(line + lineRead);
+			Ui::PaintLiveBadge(
+				p,
+				std::ceil(userpic.x() - skip),
+				std::ceil(userpic.y() - skip),
+				std::ceil(userpic.width() + 2 * skip),
+				st::windowBg->c);
+		} else if (badgeItem
+			&& badgeItem->element.mine
+			&& !badgeItem->element.uploading) {
+			const auto fade = badgeFadeProgress(badgeItem->element.id, now);
+			if (fade > 0.) {
+				p.setOpacity(fade * (firstStoryButton ? 1. : expandRatio));
+				paintAddBadge(
 					p,
-					std::ceil(userpic.x() - skip),
-					std::ceil(userpic.y() - skip),
-					std::ceil(userpic.width() + 2 * skip),
-					st::windowBg->c);
-			} else if (full->element.mine
-				&& !full->element.uploading
-				&& expandRatio > 0.) {
-				const auto fade = badgeFadeProgress(full->element.id, now);
-				if (fade > 0.) {
-					p.setOpacity(expandRatio * fade);
-					paintAddBadge(p, full->element.id, userpic);
-				}
+					badgeItem->element.id,
+					userpic,
+					firstStoryButton ? (photo / full.photo) : 1.);
 			}
 		}
 		p.setOpacity(1.);
@@ -1050,9 +1055,10 @@ float64 List::badgeFadeProgress(uint64 id, crl::time now) const {
 void List::paintAddBadge(
 		QPainter &p,
 		uint64 id,
-		const QRectF &userpic) const {
-	const auto size = float64(st::dialogsStoriesAddSize);
-	const auto line = float64(st::dialogsStoriesAddLine);
+		const QRectF &userpic,
+		float64 scale) const {
+	const auto size = st::dialogsStoriesAddSize * scale;
+	const auto line = st::dialogsStoriesAddLine * scale;
 	const auto offset = userpic.width() / 3.;
 	const auto center = userpic.center() + QPointF(offset, offset);
 	const auto rect = QRectF(
@@ -1076,9 +1082,9 @@ void List::paintAddBadge(
 	_addBadge = std::pair{
 		id,
 		rect.marginsAdded({ line, line, line, line }) };
-	const auto half = float64(st::dialogsStoriesAddHalf)
+	const auto half = st::dialogsStoriesAddHalf * scale
 		* (_dragOverBadge ? kDragOverBadgeScale : 1.);
-	auto pen = QPen(st::windowFgActive->c, st::dialogsStoriesAddStroke);
+	auto pen = QPen(st::windowFgActive->c, st::dialogsStoriesAddStroke * scale);
 	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 	p.drawLine(
@@ -1216,7 +1222,12 @@ void List::mousePressEvent(QMouseEvent *e) {
 		if (std::exchange(_dragOverBadge, false)) {
 			update();
 		}
-		requestExpanded(true);
+		if (_data.items.size() == 1
+			&& _data.items.front().element.canAddFirstStory()) {
+			_pressed = 0;
+		} else {
+			requestExpanded(true);
+		}
 		if (const auto onstack = _tooltipHide) {
 			onstack();
 		}
@@ -1271,12 +1282,23 @@ void List::checkLoadMore() {
 }
 
 void List::mouseReleaseEvent(QMouseEvent *e) {
+	if (e->button() != Qt::LeftButton) {
+		return;
+	}
 	_lastMousePosition = e->globalPos();
 	const auto guard = gsl::finally([&] {
 		_mouseDownPosition = std::nullopt;
 	});
 
 	const auto pressed = std::exchange(_pressed, -1);
+	if (_state == State::Small
+		&& pressed == 0
+		&& _data.items.size() == 1
+		&& _data.items.front().element.canAddFirstStory()
+		&& rect().contains(mapFromGlobal(e->globalPos()))) {
+		_addStoryClicks.fire_copy(_data.items.front().element.id);
+		return;
+	}
 	if (finishDragging()) {
 		return;
 	}
@@ -1284,15 +1306,16 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 	if (_selected == pressed) {
 		if (!_expanded) {
 			requestExpanded(true);
-		} else if (_selected < _data.items.size()) {
-			const auto id = _data.items[_selected].element.id;
+		} else if (_selected >= 0 && _selected < _data.items.size()) {
+			const auto &element = _data.items[_selected].element;
 			const auto point = QPointF(mapFromGlobal(e->globalPos()));
-			if (_addBadge
-				&& (_addBadge->first == id)
-				&& _addBadge->second.contains(point)) {
-				_addStoryClicks.fire_copy(id);
+			if (element.canAddFirstStory()
+				|| (_addBadge
+					&& (_addBadge->first == element.id)
+					&& _addBadge->second.contains(point))) {
+				_addStoryClicks.fire_copy(element.id);
 			} else {
-				_clicks.fire_copy(id);
+				_clicks.fire_copy(element.id);
 			}
 		}
 	}
@@ -1357,7 +1380,9 @@ TextWithEntities List::computeTooltipText() const {
 	if (list.empty()) {
 		return {};
 	} else if (list.size() == 1 && list.front().element.skipSmall) {
-		return { tr::lng_stories_click_to_view_mine(tr::now) };
+		return list.front().element.canAddFirstStory()
+			? TextWithEntities()
+			: TextWithEntities{ tr::lng_stories_click_to_view_mine(tr::now) };
 	}
 	auto names = QStringList();
 	for (const auto &item : list) {
