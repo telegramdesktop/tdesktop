@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "boxes/share_box.h"
 #include "boxes/edit_caption_box.h"
+#include "boxes/message_video_edit.h"
 #include "boxes/moderate_messages_box.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
@@ -6660,8 +6661,9 @@ void HistoryWidget::updateOverStates(QPoint pos) {
 			|| isReadyToForward
 			|| hasWebPage
 			|| _suggestOptions);
-	const auto inPhotoEdit = inDetails
-		&& _photoEditMedia
+	const auto canEditPreview = canEditMediaPreview();
+	const auto inMediaEdit = inDetails
+		&& canEditPreview
 		&& QRect(
 			detailsRect.x() + st::historyReplySkip,
 			(detailsRect.y()
@@ -6669,19 +6671,19 @@ void HistoryWidget::updateOverStates(QPoint pos) {
 			st::historyReplyPreview,
 			st::historyReplyPreview).contains(pos);
 	const auto inClickable = inDetails;
-	if (_inPhotoEdit != inPhotoEdit) {
-		_inPhotoEdit = inPhotoEdit;
-		if (_photoEditMedia) {
-			_inPhotoEditOver.start(
+	if (_inMediaEdit != inMediaEdit) {
+		_inMediaEdit = inMediaEdit;
+		if (canEditPreview) {
+			_inMediaEditOver.start(
 				[=] { updateField(); },
-				_inPhotoEdit ? 0. : 1.,
-				_inPhotoEdit ? 1. : 0.,
+				_inMediaEdit ? 0. : 1.,
+				_inMediaEdit ? 1. : 0.,
 				st::defaultMessageBar.duration);
 		} else {
-			_inPhotoEditOver.stop();
+			_inMediaEditOver.stop();
 		}
 	}
-	_inDetails = inDetails && !inPhotoEdit;
+	_inDetails = inDetails && !inMediaEdit;
 	if (inClickable != _inClickable) {
 		_inClickable = inClickable;
 		setCursor(_inClickable ? style::cur_pointer : style::cur_default);
@@ -6689,16 +6691,16 @@ void HistoryWidget::updateOverStates(QPoint pos) {
 }
 
 void HistoryWidget::clearOverStates() {
-	if (_inPhotoEdit) {
-		_inPhotoEdit = false;
-		if (_photoEditMedia) {
-			_inPhotoEditOver.start(
+	if (_inMediaEdit) {
+		_inMediaEdit = false;
+		if (canEditMediaPreview()) {
+			_inMediaEditOver.start(
 				[=] { updateField(); },
 				1.,
 				0.,
 				st::defaultMessageBar.duration);
 		} else {
-			_inPhotoEditOver.stop();
+			_inMediaEditOver.stop();
 		}
 	}
 	_inDetails = false;
@@ -6706,6 +6708,11 @@ void HistoryWidget::clearOverStates() {
 		_inClickable = false;
 		setCursor(style::cur_default);
 	}
+}
+
+bool HistoryWidget::canEditMediaPreview() const {
+	return _editMsgId
+		&& (_photoEditMedia || FindEditableMessageVideo(_replyEditMsg));
 }
 
 void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
@@ -9366,15 +9373,15 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 	}
 	const auto isReadyToForward = readyToForward();
 	if (_editMsgId
-		&& (_inDetails || _inPhotoEdit)
+		&& (_inDetails || _inMediaEdit)
 		&& (e->button() == Qt::RightButton)) {
 		_mediaEditManager.showMenu(
 			_list,
 			[=] { mouseMoveEvent(nullptr); },
 			fieldHasSendText(),
 			controller()->uiShow());
-	} else if (_inPhotoEdit && _photoEditMedia) {
-		EditCaptionBox::StartPhotoEdit(
+	} else if (_inMediaEdit && canEditMediaPreview()) {
+		EditCaptionBox::StartMediaEdit(
 			controller(),
 			_photoEditMedia,
 			{ _history->peer->id, _editMsgId },
@@ -11606,8 +11613,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		if (drawMsgText) {
 			if (hasPreview) {
 				if (preview) {
-					const auto overEdit = _photoEditMedia
-						? _inPhotoEditOver.value(_inPhotoEdit ? 1. : 0.)
+					const auto overEdit = canEditMediaPreview()
+						? _inMediaEditOver.value(_inMediaEdit ? 1. : 0.)
 						: 0.;
 					auto to = QRect(
 						replyLeft,

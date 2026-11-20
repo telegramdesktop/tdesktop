@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
+#include "boxes/message_video_edit.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_files_box.h"
@@ -361,7 +362,7 @@ void EditCaptionBox::StartMediaReplace(
 	}
 }
 
-void EditCaptionBox::StartPhotoEdit(
+void EditCaptionBox::StartMediaEdit(
 		not_null<Window::SessionController*> controller,
 		std::shared_ptr<Data::PhotoMedia> media,
 		FullMsgId itemId,
@@ -375,26 +376,32 @@ void EditCaptionBox::StartPhotoEdit(
 	if (!item) {
 		return;
 	}
-	EditPhotoImage(
-		controller,
-		media,
-		spoilered,
-		PhotoSideLimit(true),
-		[=](Ui::PreparedList &&list) mutable {
-			const auto item = session->data().message(itemId);
-			if (!item) {
-				return;
-			}
-			controller->show(Box<EditCaptionBox>(
-				controller,
-				item,
-				std::move(text),
-				suggest,
-				spoilered,
-				invertCaption,
-				std::move(list),
-				std::move(saved)));
-		});
+	const auto done = crl::guard(controller, [=](
+			Ui::PreparedList &&list) mutable {
+		const auto item = session->data().message(itemId);
+		if (!item || !item->allowsEditMedia()) {
+			return;
+		}
+		controller->show(Box<EditCaptionBox>(
+			controller,
+			item,
+			std::move(text),
+			suggest,
+			spoilered,
+			invertCaption,
+			std::move(list),
+			std::move(saved)));
+	});
+	if (media) {
+		EditPhotoImage(
+			controller,
+			std::move(media),
+			spoilered,
+			PhotoSideLimit(true),
+			done);
+	} else {
+		EditMessageVideo(controller, itemId, done);
+	}
 }
 
 void EditCaptionBox::showFinished() {

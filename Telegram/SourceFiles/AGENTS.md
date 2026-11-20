@@ -259,7 +259,7 @@ This atlas divides Telegram Desktop's sources into named areas, ordered from fou
 - The peer and chat-entry menus with their handlers, send options and scheduling, mute, auto-delete, mark as read, sponsored and per-message menu items, and the delete, moderate, report and pin confirmations. It must not own generic menu widgets.
 
 ### sending — preparing outgoing content
-- Paths: `SourceFiles/boxes/send_files_box*`, `SourceFiles/boxes/send_gif_with_caption_box*`, `SourceFiles/boxes/edit_caption_box*`, `SourceFiles/boxes/music_attach_box*`, `SourceFiles/boxes/share_box*`, `SourceFiles/ui/chat/attach/`
+- Paths: `SourceFiles/boxes/send_files_box*`, `SourceFiles/boxes/send_gif_with_caption_box*`, `SourceFiles/boxes/edit_caption_box*`, `SourceFiles/boxes/message_video_edit*`, `SourceFiles/boxes/music_attach_box*`, `SourceFiles/boxes/share_box*`, `SourceFiles/ui/chat/attach/`
 - The send-files box with album, spoiler and caption options and the prepared-file model with its previews, GIF with caption, the music picker, editing a sent caption or media, and the share and forward box. It must not own the send pipeline.
 
 ### polls — composing polls and checklists

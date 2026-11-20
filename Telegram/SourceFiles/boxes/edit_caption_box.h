@@ -68,7 +68,7 @@ public:
 		bool spoilered,
 		bool invertCaption,
 		Fn<void()> saved);
-	static void StartPhotoEdit(
+	static void StartMediaEdit(
 		not_null<Window::SessionController*> controller,
 		std::shared_ptr<Data::PhotoMedia> media,
 		FullMsgId itemId,

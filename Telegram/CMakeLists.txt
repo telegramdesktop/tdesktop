@@ -380,6 +380,8 @@ PRIVATE
     boxes/language_box.h
     boxes/max_invite_box.cpp
     boxes/max_invite_box.h
+    boxes/message_video_edit.cpp
+    boxes/message_video_edit.h
     boxes/moderate_messages_box.cpp
     boxes/moderate_messages_box.h
     boxes/music_attach_box.cpp

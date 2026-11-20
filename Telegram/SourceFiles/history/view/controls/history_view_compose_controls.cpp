@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h"
 #include "boxes/compose_ai_box.h"
 #include "boxes/edit_caption_box.h"
+#include "boxes/message_video_edit.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/send_files_box.h"
 #include "boxes/send_gif_with_caption_box.h"
@@ -211,7 +212,7 @@ public:
 	void editMessage(
 		FullMsgId id,
 		SuggestOptions suggest,
-		bool photoEditAllowed = false);
+		bool previewEditAllowed = false);
 	void replyToMessage(FullReplyTo id);
 	void replyToMessageExternal(FullReplyTo id);
 	void updateForwarding(
@@ -241,7 +242,7 @@ public:
 	[[nodiscard]] FullMsgId editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgIdValue() const;
 	[[nodiscard]] rpl::producer<FullReplyTo> jumpToItemRequests() const;
-	[[nodiscard]] rpl::producer<> editPhotoRequests() const;
+	[[nodiscard]] rpl::producer<> editMediaRequests() const;
 	[[nodiscard]] rpl::producer<> editOptionsRequests() const;
 	[[nodiscard]] MessageToEdit queryToEdit();
 	[[nodiscard]] SendMenu::Details saveMenuDetails(bool hasSendText) const;
@@ -320,10 +321,10 @@ private:
 	Ui::Text::String _shownMessageName;
 	Ui::Text::String _shownMessageText;
 	std::unique_ptr<Ui::SpoilerAnimation> _shownPreviewSpoiler;
-	Ui::Animations::Simple _inPhotoEditOver;
+	Ui::Animations::Simple _inMediaEditOver;
 	bool _shownMessageHasPreview : 1 = false;
-	bool _inPhotoEdit : 1 = false;
-	bool _photoEditAllowed : 1 = false;
+	bool _inMediaEdit : 1 = false;
+	bool _previewEditAllowed : 1 = false;
 	bool _repaintScheduled : 1 = false;
 	bool _inClickable : 1 = false;
 
@@ -340,7 +341,7 @@ private:
 	rpl::event_stream<bool> _visibleChanged;
 	rpl::event_stream<FullReplyTo> _jumpToItemRequests;
 	rpl::event_stream<> _editOptionsRequests;
-	rpl::event_stream<> _editPhotoRequests;
+	rpl::event_stream<> _editMediaRequests;
 
 };
 
@@ -500,19 +501,19 @@ void FieldHeader::init() {
 				|| displayedReplyingToMessage()
 				|| _preview.parsed);
 	}) | rpl::on_next([=](not_null<QEvent*> event) {
-		const auto updateOver = [&](bool inClickable, bool inPhotoEdit) {
+		const auto updateOver = [&](bool inClickable, bool inMediaEdit) {
 			if (_inClickable != inClickable) {
 				_inClickable = inClickable;
 				setCursor(_inClickable
 					? style::cur_pointer
 					: style::cur_default);
 			}
-			if (_inPhotoEdit != inPhotoEdit) {
-				_inPhotoEdit = inPhotoEdit;
-				_inPhotoEditOver.start(
+			if (_inMediaEdit != inMediaEdit) {
+				_inMediaEdit = inMediaEdit;
+				_inMediaEditOver.start(
 					[=] { update(); },
-					_inPhotoEdit ? 0. : 1.,
-					_inPhotoEdit ? 1. : 0.,
+					_inMediaEdit ? 0. : 1.,
+					_inMediaEdit ? 1. : 0.,
 					st::defaultMessageBar.duration);
 			}
 		};
@@ -524,19 +525,19 @@ void FieldHeader::init() {
 		const auto e = static_cast<QMouseEvent*>(event.get());
 		const auto pos = e->pos();
 		const auto inPreviewRect = _clickableRect.contains(pos);
-		const auto inPhotoEdit = _shownMessageHasPreview
-			&& _photoEditAllowed
+		const auto inMediaEdit = _shownMessageHasPreview
+			&& _previewEditAllowed
 			&& _shownMessagePreviewRect.contains(pos);
 
 		if (type == QEvent::MouseMove) {
-			updateOver(inPreviewRect, inPhotoEdit);
+			updateOver(inPreviewRect, inMediaEdit);
 			return;
 		}
 		const auto isLeftButton = (e->button() == Qt::LeftButton);
 		if (type == QEvent::MouseButtonPress
 			|| type == QEvent::MouseButtonDblClick) {
-			if (isLeftButton && inPhotoEdit) {
-				_editPhotoRequests.fire({});
+			if (isLeftButton && inMediaEdit) {
+				_editMediaRequests.fire({});
 			} else if (isLeftButton && inPreviewRect) {
 				const auto reply = displayedReplyingToMessage();
 				if (_preview.parsed) {
@@ -780,8 +781,8 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 	const auto textLeft = replySkip + previewSkip;
 	const auto textAvailableWidth = availableWidth - previewSkip;
 	if (preview) {
-		const auto overEdit = _photoEditAllowed
-			? _inPhotoEditOver.value(_inPhotoEdit ? 1. : 0.)
+		const auto overEdit = _previewEditAllowed
+			? _inMediaEditOver.value(_inMediaEdit ? 1. : 0.)
 			: 0.;
 		const auto to = QRect(
 			replySkip,
@@ -1000,8 +1001,8 @@ void FieldHeader::updateControlsGeometry(QSize size) {
 void FieldHeader::editMessage(
 		FullMsgId id,
 		SuggestOptions suggest,
-		bool photoEditAllowed) {
-	_photoEditAllowed = photoEditAllowed;
+		bool previewEditAllowed) {
+	_previewEditAllowed = previewEditAllowed;
 	_editMsgId = id;
 	if (!id) {
 		_mediaEditManager.cancel();
@@ -1011,9 +1012,9 @@ void FieldHeader::editMessage(
 	} else {
 		_mediaEditManager.cancel();
 	}
-	if (!photoEditAllowed) {
-		_inPhotoEdit = false;
-		_inPhotoEditOver.stop();
+	if (!previewEditAllowed) {
+		_inMediaEdit = false;
+		_inMediaEditOver.stop();
 	}
 	if (id && suggest) {
 		applySuggestOptions(suggest, SuggestMode::Change);
@@ -1076,8 +1077,8 @@ rpl::producer<FullReplyTo> FieldHeader::jumpToItemRequests() const {
 	return _jumpToItemRequests.events();
 }
 
-rpl::producer<> FieldHeader::editPhotoRequests() const {
-	return _editPhotoRequests.events();
+rpl::producer<> FieldHeader::editMediaRequests() const {
+	return _editMediaRequests.events();
 }
 
 rpl::producer<> FieldHeader::editOptionsRequests() const {
@@ -2945,10 +2946,10 @@ void ComposeControls::init() {
 		updateFieldPlaceholder();
 	}, _wrap->lifetime());
 
-	_header->editPhotoRequests(
+	_header->editMediaRequests(
 	) | rpl::on_next([=] {
 		const auto queryToEdit = _header->queryToEdit();
-		EditCaptionBox::StartPhotoEdit(
+		EditCaptionBox::StartMediaEdit(
 			_regularWindow,
 			_photoEditMedia,
 			_editingId,
@@ -3962,10 +3963,12 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 						Data::PhotoSize::Large,
 						item->fullId());
 				}
+				const auto canEditVideo = _regularWindow
+					&& FindEditableMessageVideo(item);
 				_header->editMessage(
 					editingId,
 					editingSuggest,
-					_photoEditMedia != nullptr);
+					_photoEditMedia || canEditVideo);
 				if (_preview) {
 					_preview->setDisabled(media && !media->webpage());
 				}
