@@ -8,14 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_phrase_shares.h"
 
 #include "tde2e/tde2e_api.h"
-
-#include <cstdio>
-#include <initializer_list>
+#include "tests/test_named_checks.hpp"
 
 namespace {
 
 using namespace Wallet::PhraseShares;
 using TdE2E::TemporaryKeyPair;
+using Test::NamedChecks::Check;
+using Test::NamedChecks::FirstFailure;
 
 static_assert(
 	Q_BYTE_ORDER == Q_LITTLE_ENDIAN,
@@ -23,11 +23,6 @@ static_assert(
 
 constexpr auto kSeedBytes = 215;
 constexpr auto kKeyBytes = 32;
-
-struct Check {
-	const char *name = nullptr;
-	QString (*run)() = nullptr;
-};
 
 struct Parties {
 	TemporaryKeyPair recipient;
@@ -101,15 +96,6 @@ struct SealedShare {
 	const auto seed = SeedFromWords(words);
 	const auto size = ExpectSize(seed, kSeedBytes);
 	return !size.isEmpty() ? size : ExpectBytes(seed, expected);
-}
-
-[[nodiscard]] QString FirstFailure(std::initializer_list<QString> results) {
-	for (const auto &result : results) {
-		if (!result.isEmpty()) {
-			return result;
-		}
-	}
-	return QString();
 }
 
 [[nodiscard]] QString CheckByteBoundary(
@@ -606,21 +592,5 @@ struct SealedShare {
 } // namespace
 
 int main() {
-	const auto checks = Checks();
-	auto failed = 0;
-	for (const auto &check : checks) {
-		const auto failure = check.run();
-		if (failure.isEmpty()) {
-			std::printf("PASS %s\n", check.name);
-		} else {
-			std::printf(
-				"FAIL %s: %s\n",
-				check.name,
-				failure.toUtf8().constData());
-			++failed;
-		}
-	}
-	const auto total = int(checks.size());
-	std::printf("%d of %d checks passed.\n", total - failed, total);
-	return failed ? 1 : 0;
+	return Test::NamedChecks::Run(Checks());
 }

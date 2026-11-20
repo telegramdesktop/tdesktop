@@ -10,6 +10,7 @@ init_non_host_target(test_wallet_phrase_shares "(tests)")
 target_precompile_headers(test_wallet_phrase_shares PRIVATE ${src_loc}/tests/test_wallet_phrase_shares_pch.h)
 nice_target_sources(test_wallet_phrase_shares ${src_loc}
 PRIVATE
+    tests/test_named_checks.hpp
     tests/test_wallet_phrase_shares.cpp
     tests/test_wallet_phrase_shares_pch.h
     wallet/wallet_phrase_shares.cpp
