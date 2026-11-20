@@ -2175,6 +2175,8 @@ PRIVATE
     test/test_agent.h
     test/test_animation_clock.cpp
     test/test_animation_clock.h
+    test/test_application_state.cpp
+    test/test_application_state.h
     test/test_box_button.cpp
     test/test_box_button.h
     test/test_capture.cpp

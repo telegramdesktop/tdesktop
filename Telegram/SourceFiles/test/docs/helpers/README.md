@@ -43,6 +43,7 @@ should call.
 | [test_corner_patch](test_corner_patch.md) | API | Rounded-corner comparisons and controls |
 | [test_marking_read](test_marking_read.md) | API | Prevent primary-window read marking |
 | [test_window_exposure](test_window_exposure.md) | API | Keep covered windows painting without activation |
+| [test_application_state](test_application_state.md) | API | Inject the application's inactive and active state that `Core::App().appDeactivatedValue()` follows, read back, with named refusals and without touching the focus window; with its self-test |
 | [test_layer_root](test_layer_root.md) | Self-test | Self-test for the painting-layer resolver |
 | [test_via_window](test_via_window.md) | Self-test | Self-test for window-mapped captures |
 | [test_toast_capture](test_toast_capture.md) | API | Isolated toast-subtree captures, shown/hiding/gone toast state with a bounded gone wait, and painted-content captures |
