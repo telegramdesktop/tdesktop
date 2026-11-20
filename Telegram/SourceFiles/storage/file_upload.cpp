@@ -353,7 +353,7 @@ void Uploader::upload(
 		if (!preparing && !file->content.isEmpty()) {
 			document->setDataAndCache(file->content);
 		}
-		if (!preparing && !file->filepath.isEmpty()) {
+		if (!preparing && !file->filepath.isEmpty() && !file->temporaryPath) {
 			document->setLocation(Core::FileLocation(file->filepath));
 		} else if (!preparing
 			&& !file->content.isEmpty()
@@ -427,7 +427,6 @@ void Uploader::runTranscode(FullMsgId itemId) {
 	Assert(i != end(_queue));
 	auto &entry = *i;
 	const auto file = entry.file;
-	const auto source = file->videoSource;
 	const auto job = file->animationJob;
 	const auto archiveWork = (file->archive != nullptr);
 	const auto archiveLimit = session().premium()
@@ -474,7 +473,7 @@ void Uploader::runTranscode(FullMsgId itemId) {
 				result = Media::Encode::Run(std::move(fallback), nullptr);
 			}
 			bytes = std::move(result.bytes);
-		} else if (source) {
+		} else if (const auto &source = file->videoSource) {
 			path = Media::Encode::TranscodeVideo(*source, progress).path;
 		} else if (entries) {
 			const auto written = WriteArchive(

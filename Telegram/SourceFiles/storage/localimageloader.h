@@ -226,6 +226,7 @@ struct FilePrepareResult {
 	std::shared_ptr<Ui::PreparedFileArchive> archive;
 	std::shared_ptr<Storage::ArchiveEntries> archiveEntries;
 	QString transcodedTempPath;
+	std::shared_ptr<const QString> temporaryPath;
 
 	std::vector<MTPInputDocument> attachedStickers;
 
@@ -273,6 +274,7 @@ public:
 		std::shared_ptr<Ui::PreparedFileArchive> archive;
 		uint64 idOverride = 0;
 		QString displayName;
+		std::shared_ptr<const QString> temporaryPath;
 	};
 
 	struct VoiceArgs {
@@ -348,6 +350,7 @@ private:
 	std::shared_ptr<Media::Encode::Job> _animationJob;
 	bool _animationAsGif = true;
 	std::shared_ptr<Ui::PreparedFileArchive> _archive;
+	std::shared_ptr<const QString> _temporaryPath;
 
 	std::shared_ptr<FilePrepareResult> _result;
 

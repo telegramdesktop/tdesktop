@@ -26,6 +26,10 @@ public:
 	[[nodiscard]] static DocumentData *Find(not_null<HistoryItem*> item);
 
 	explicit MessageVideo(not_null<HistoryItem*> item);
+	MessageVideo(
+		not_null<DocumentData*> document,
+		FullMsgId itemId,
+		int64 sizeLimit);
 	~MessageVideo();
 
 	[[nodiscard]] not_null<DocumentData*> document() const;
@@ -33,6 +37,7 @@ public:
 	[[nodiscard]] bool loading() const;
 	[[nodiscard]] float64 progress() const;
 	[[nodiscard]] std::shared_ptr<VideoClipSource> source() const;
+	[[nodiscard]] std::shared_ptr<const QString> temporaryPath() const;
 	[[nodiscard]] rpl::producer<> changes() const;
 
 private:
@@ -42,10 +47,11 @@ private:
 
 	const not_null<DocumentData*> _document;
 	const FullMsgId _itemId;
+	const int64 _sizeLimit;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<FileLoader> _loader;
 	std::shared_ptr<VideoClipSource> _source;
-	QString _tempPath;
+	std::shared_ptr<const QString> _temporaryPath;
 	bool _waiting = false;
 	bool _reading = false;
 	bool _failed = false;

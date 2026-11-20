@@ -63,6 +63,7 @@ void OpenWithPreparedVideoFile(
 	int index,
 	int previewWidth,
 	Fn<void(bool ok)> &&doneCallback,
-	int sideLimit = 0);
+	int sideLimit = 0,
+	bool allowGif = true);
 
 } // namespace Editor

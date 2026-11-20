@@ -524,7 +524,8 @@ FileLoadTask::FileLoadTask(Args &&args)
 , _sendLargePhotos(args.sendLargePhotos)
 , _animationJob(std::move(args.animationJob))
 , _animationAsGif(args.animationAsGif)
-, _archive(std::move(args.archive)) {
+, _archive(std::move(args.archive))
+, _temporaryPath(std::move(args.temporaryPath)) {
 	Expects(_to.options.scheduled
 		|| _to.options.shortcutId
 		|| !_to.replaceMediaOf
@@ -726,6 +727,7 @@ void FileLoadTask::process(ProcessArgs &&args) {
 		.spoiler = _spoiler,
 		.album = _album,
 	});
+	_result->temporaryPath = _temporaryPath;
 	if (const auto cover = _videoCover.get()) {
 		cover->process();
 		if (const auto &result = cover->peekResult()) {

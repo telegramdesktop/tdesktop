@@ -188,8 +188,10 @@ bool ValidatePhotoEditorMediaDragData(
 
 PhotoEditorMedia ReadPhotoEditorMedia(
 		const QString &path,
-		const QByteArray &content) {
-	if (path.isEmpty() && content.size() > Images::kReadBytesLimit) {
+		const QByteArray &content,
+		std::optional<int64> maxSize) {
+	const auto limit = maxSize.value_or(Images::kReadBytesLimit);
+	if (path.isEmpty() && content.size() > limit) {
 		return {};
 	}
 	const auto mime = path.isEmpty()
@@ -208,7 +210,7 @@ PhotoEditorMedia ReadPhotoEditorMedia(
 	using Video = PreparedFileInformation::Video;
 	if (const auto video = std::get_if<Video>(&information->media)) {
 		if (!path.isEmpty()
-			&& QFileInfo(path).size() > Images::kReadBytesLimit) {
+			&& QFileInfo(path).size() > limit) {
 			return {};
 		}
 		return {

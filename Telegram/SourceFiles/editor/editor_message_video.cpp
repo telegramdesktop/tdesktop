@@ -41,18 +41,24 @@ constexpr auto kMaxExtensionLength = 5;
 	return valid ? extension : u"mp4"_q;
 }
 
-[[nodiscard]] QString TempVideoPath(not_null<DocumentData*> document) {
+[[nodiscard]] std::shared_ptr<const QString> MakeTempVideo(
+		not_null<DocumentData*> document) {
 	const auto fileTemplate = Media::Encode::TempFileTemplate(
 		VideoExtension(document));
 	if (fileTemplate.isEmpty()) {
-		return QString();
+		return nullptr;
 	}
 	auto temp = QTemporaryFile(fileTemplate);
 	if (!temp.open()) {
-		return QString();
+		return nullptr;
 	}
 	temp.setAutoRemove(false);
-	return temp.fileName();
+	return std::shared_ptr<const QString>(
+		new QString(temp.fileName()),
+		[](const QString *path) {
+			QFile::remove(*path);
+			delete path;
+		});
 }
 
 } // namespace
@@ -74,16 +80,21 @@ DocumentData *MessageVideo::Find(not_null<HistoryItem*> item) {
 }
 
 MessageVideo::MessageVideo(not_null<HistoryItem*> item)
-: _document(Find(item))
-, _itemId(item->fullId()) {
+: MessageVideo(Find(item), item->fullId(), Images::kReadBytesLimit) {
+}
+
+MessageVideo::MessageVideo(
+	not_null<DocumentData*> document,
+	FullMsgId itemId,
+	int64 sizeLimit)
+: _document(document)
+, _itemId(itemId)
+, _sizeLimit(sizeLimit) {
 }
 
 MessageVideo::~MessageVideo() {
 	_lifetime.destroy();
 	_loader = nullptr;
-	if (!_tempPath.isEmpty()) {
-		QFile::remove(_tempPath);
-	}
 }
 
 not_null<DocumentData*> MessageVideo::document() const {
@@ -108,17 +119,16 @@ void MessageVideo::load() {
 		_document,
 		origin,
 		true);
-	const auto path = reader ? TempVideoPath(_document) : QString();
-	if (path.isEmpty()) {
+	_temporaryPath = reader ? MakeTempVideo(_document) : nullptr;
+	if (!_temporaryPath) {
 		fail();
 		return;
 	}
-	_tempPath = path;
 	_loader = _document->createStreamedDownloader(
 		std::move(reader),
 		origin,
 		std::nullopt,
-		path,
+		*_temporaryPath,
 		LoadToFileOnly,
 		LoadFromCloudOrLocal,
 		false);
@@ -128,7 +138,7 @@ void MessageVideo::load() {
 	}, [=](FileLoader::Error) {
 		crl::on_main(base::make_weak(this), [=] { fail(); });
 	}, [=] {
-		readSource(_tempPath, QByteArray());
+		readSource(*_temporaryPath, QByteArray());
 	}, _lifetime);
 	_loader->start();
 	_changes.fire({});
@@ -152,28 +162,28 @@ std::shared_ptr<VideoClipSource> MessageVideo::source() const {
 	return _source;
 }
 
+std::shared_ptr<const QString> MessageVideo::temporaryPath() const {
+	return _temporaryPath;
+}
+
 rpl::producer<> MessageVideo::changes() const {
 	return _changes.events();
 }
 
 void MessageVideo::waitForLoader() {
 	_waiting = true;
-	const auto weak = base::make_weak(this);
-	const auto lifetime = std::make_shared<rpl::lifetime>();
-	_document->session().downloaderTaskFinished(
-	) | rpl::on_next_done([=] {
-		const auto strong = weak.get();
-		if (strong && strong->_document->loading()) {
+	_document->owner().documentLoadProgress(
+	) | rpl::filter([=](not_null<DocumentData*> document) {
+		return document == _document;
+	}) | rpl::on_next([=] {
+		if (_document->loading()) {
+			_changes.fire({});
 			return;
 		}
-		lifetime->destroy();
-		if (strong) {
-			strong->_waiting = false;
-			strong->load();
-		}
-	}, [=] {
-		lifetime->destroy();
-	}, *lifetime);
+		_lifetime.destroy();
+		_waiting = false;
+		load();
+	}, _lifetime);
 	_changes.fire({});
 }
 
@@ -198,7 +208,15 @@ void MessageVideo::readSource(
 		});
 		_changes.fire({});
 	});
-	Storage::ReadPhotoEditorMediaAsync(path, content, done);
+	crl::async([=, sizeLimit = _sizeLimit, temporary = _temporaryPath] {
+		auto media = Storage::ReadPhotoEditorMedia(
+			temporary ? *temporary : path,
+			content,
+			sizeLimit);
+		crl::on_main([=, media = std::move(media)]() mutable {
+			done(std::move(media));
+		});
+	});
 }
 
 void MessageVideo::fail() {

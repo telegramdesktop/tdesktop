@@ -4369,6 +4369,7 @@ void ApiWrap::editMedia(
 		.archive = file.archive,
 		.idOverride = 0,
 		.displayName = file.displayName,
+		.temporaryPath = std::move(file.temporaryPath),
 	}));
 }
 
