@@ -2661,8 +2661,8 @@ ServiceAction ParseServiceAction(
 			data.vamount().v,
 			qs(data.vcurrency())).toUtf8();
 		content.amount = CreditsAmount(
-			data.vamount().v / uint64(1'000'000'000),
-			data.vamount().v % uint64(1'000'000'000),
+			data.vcrypto_amount().v / uint64(1'000'000'000),
+			data.vcrypto_amount().v % uint64(1'000'000'000),
 			CreditsType::Ton);
 		result.content = content;
 	}, [&](const MTPDmessageActionPrizeStars &data) {
@@ -2710,8 +2710,6 @@ ServiceAction ParseServiceAction(
 				| ranges::views::transform(ParseTodoListItem)
 				| ranges::to_vector,
 		};
-	}, [&](const MTPDmessageActionPollAppendAnswer &data) {
-		result.content = ActionPollAppendAnswer{};
 	}, [&](const MTPDmessageActionSuggestedPostApproval &data) {
 		result.content = ActionSuggestedPostApproval{
 			.rejectComment = data.vreject_comment().value_or_empty(),
@@ -2950,20 +2948,6 @@ Message ParseMessage(
 		}
 		if (const auto postAuthor = data.vpost_author()) {
 			result.signature = ParseString(*postAuthor);
-		}
-		if (const auto replyTo = data.vreply_to()) {
-			replyTo->match([&](const MTPDmessageReplyHeader &data) {
-				if (const auto replyToMsg = data.vreply_to_msg_id()) {
-					result.replyToMsgId = replyToMsg->v;
-					result.replyToPeerId = data.vreply_to_peer_id()
-						? ParsePeerId(*data.vreply_to_peer_id())
-						: PeerId(0);
-				} else {
-					// #TODO export replies
-				}
-			}, [&](const MTPDmessageReplyStoryHeader &data) {
-				// #TODO export stories
-			});
 		}
 		if (const auto viaBotId = data.vvia_bot_id()) {
 			result.viaBotId = viaBotId->v;

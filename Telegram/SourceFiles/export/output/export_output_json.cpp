@@ -1871,7 +1871,7 @@ QByteArray SerializeMessage(
 		push("community_id", data.communityId.bare);
 	}, [&](const ActionWebViewDataSent &data) {
 		pushAction("send_webview_data");
-		push("text", data.text);
+		push("button_text", data.text);
 	}, [&](const ActionGiftPremium &data) {
 		pushActor();
 		pushAction("send_premium_gift");

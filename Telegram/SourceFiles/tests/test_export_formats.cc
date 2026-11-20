@@ -1261,13 +1261,13 @@ void EmulateDownloads(MessagesSlice &result, const SliceFixture &slice) {
 				"id": 4008,
 				"date": "2024-01-01T05:01:00",
 				"date_unixtime": "1704074460",
-				"reply_to_message_id": 4002,
-				"reply_to_peer_id": "chat2001"
+				"reply_to_message_id": 4002
 			})"))),
 		ExpectGroupHtml(outputs, 4008, {
 			RecordStart(4008, true),
-			"<div class=\"reply_to details\">\n"
-			"In reply to a message in another chat\n",
+			"<div class=\"reply_to details\">\nIn reply to "
+			"<a href=\"#go_to_message4002\" "
+			"onclick=\"return GoToMessage(4002)\">this message</a>\n",
 			TextHtml("Reply naming this chat."),
 		}),
 	});

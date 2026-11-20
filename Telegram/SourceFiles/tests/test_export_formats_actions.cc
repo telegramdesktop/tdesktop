@@ -123,6 +123,22 @@ constexpr auto kActionDate = TimeId(1703980800);
 		MTPint());
 }
 
+[[nodiscard]] MTPmessageAction BotAllowedAppAction() {
+	return MTP_messageActionBotAllowed(
+		MTP_flags(MTPDmessageActionBotAllowed::Flag::f_app),
+		MTPstring(),
+		MTP_botApp(
+			MTP_flags(0),
+			MTP_long(5074),
+			MTP_long(0),
+			MTP_string("fixture_app"),
+			MTP_string("Mini <App>"),
+			MTPstring(),
+			MTP_photoEmpty(MTP_long(0)),
+			MTPDocument(),
+			MTP_long(0)));
+}
+
 [[nodiscard]] Message PhoneNumberRequestMessage() {
 	auto result = AliceGroupMessage(73, 1703985180);
 	result.action.content = ActionPhoneNumberRequest();
@@ -641,7 +657,8 @@ template <typename Type, typename Value, typename Expected>
 				"date_unixtime": "1703981940",
 				"action": "allow_sending_messages",
 				"reason_domain": "example.org")",
-			.html = "You allowed this bot to message you when you opened ",
+			.html = "You allowed this bot to message you when you logged in "
+				"on example.org",
 		},
 		{
 			.id = 20,
@@ -833,14 +850,20 @@ template <typename Type, typename Value, typename Expected>
 			.output = ActionOutput::Service,
 			.json = R"("id": 31, "date": "2023-12-31T03:31:00",
 				"date_unixtime": "1703982660",
-				"action": "send_webview_data")",
+				"action": "send_webview_data", "button_text": "Open <Shop>")",
 			.html = "You have just successfully transferred data from the "
 				"&laquo;Open &lt;Shop&gt;&raquo; button to the bot",
 			.extra = [](const Outputs &outputs, const Message &) {
-				return ExpectRawValues(
-					u"raw JSON 31 text members"_q,
-					RawJsonMembers(outputs, 31, "text"),
-					{ "\"Open <Shop>\"", "\"\"" });
+				return FirstFailure({
+					ExpectRawValues(
+						u"raw JSON 31 text members"_q,
+						RawJsonMembers(outputs, 31, "text"),
+						{ "\"\"" }),
+					ExpectRawValues(
+						u"raw JSON 31 button_text members"_q,
+						RawJsonMembers(outputs, 31, "button_text"),
+						{ "\"Open <Shop>\"" }),
+				});
 			},
 		},
 		{
@@ -1402,9 +1425,9 @@ template <typename Type, typename Value, typename Expected>
 			.alternative = Alternative<ActionGiftCredits>(),
 			.json = R"("id": 56, "date": "2023-12-31T03:56:00",
 				"date_unixtime": "1703984160", "action": "send_ton_gift",
-				"cost": "$29.99", "amount_whole": 0, "amount_nano": 2999)",
+				"cost": "$29.99", "amount_whole": 1, "amount_nano": 500000000)",
 			.html = "Alice Example sent you a gift for $29.99: "
-				"2.999e-06 TON.",
+				"1.5 TON.",
 		},
 		{
 			.id = 57,
@@ -1554,8 +1577,9 @@ template <typename Type, typename Value, typename Expected>
 			.alternative = Alternative<ActionPollAppendAnswer>(),
 			.json = R"("id": 64, "date": "2023-12-31T04:04:00",
 				"date_unixtime": "1703984640",
-				"action": "poll_append_answer")",
-			.html = "Alice Example added &quot;&quot; to the poll.",
+				"action": "poll_append_answer", "option": "Option <A>")",
+			.html = "Alice Example added &quot;Option &lt;A&gt;&quot; "
+				"to the poll.",
 		},
 		{
 			.id = 65,
@@ -1699,6 +1723,20 @@ template <typename Type, typename Value, typename Expected>
 				"action": "requested_phone_number")",
 			.html = "Alice Example requested your phone number",
 		},
+		{
+			.id = 74,
+			.name = "botAllowedApp",
+			.type = mtpc_messageActionBotAllowed,
+			.action = BotAllowedAppAction,
+			.alternative = Alternative<ActionBotAllowed>(),
+			.output = ActionOutput::Service,
+			.json = R"("id": 74, "date": "2023-12-31T04:14:00",
+				"date_unixtime": "1703985240",
+				"action": "allow_sending_messages",
+				"reason_app_id": 5074, "reason_app_name": "Mini <App>")",
+			.html = "You allowed this bot to message you when you opened "
+				"Mini &lt;App&gt;",
+		},
 	};
 }
 
@@ -1835,9 +1873,9 @@ QString CheckActionInventory(const Outputs &) {
 		ExpectNames(u"writer-only rows"_q, writerOnly, {
 			u"phoneNumberRequest"_q,
 		}),
-		ExpectNumber(u"TL fixtures"_q, fixtures, 72),
+		ExpectNumber(u"TL fixtures"_q, fixtures, 73),
 		ExpectNumber(u"TL constructors"_q, int(constructors.size()), 72),
-		ExpectNumber(u"parsed TL fixtures"_q, int(slice.wire.size()), 72),
+		ExpectNumber(u"parsed TL fixtures"_q, int(slice.wire.size()), 73),
 		ExpectNumber(u"direct fixtures"_q, int(slice.direct.size()), 1),
 		ExpectNumber(u"null fallbacks"_q, nulls, 6),
 		ExpectNumber(
