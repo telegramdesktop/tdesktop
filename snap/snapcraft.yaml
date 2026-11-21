@@ -40,8 +40,6 @@ parts:
     source: .
     source-type: git
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
-    build-environment:
-      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     build-packages:
       - libboost-regex-dev
       - libheif-dev
@@ -307,9 +305,6 @@ parts:
       craftctl default
       find $CRAFT_STAGE/patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply -v
       sed -i 's/disable ffnvcodec cuvid nvdec nvenc/:/g' configure
-    override-build: |
-      craftctl default
-      sed -i 's,^\(libdir\|includedir\)=/usr/,\1=${prefix}/,' "$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig"/lib*.pc
     prime: [-./*]
     after:
       - nv-codec-headers
@@ -528,8 +523,6 @@ parts:
     source-depth: 1
     source-commit: 642ddb107b42da7c8d152401b71cd429475e5266
     plugin: cmake
-    build-environment:
-      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     build-packages:
       - libopenh264-dev
       - libopus-dev
