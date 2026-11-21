@@ -62,6 +62,7 @@ struct Exchange {
 
 	Remote::Kind request = Remote::Kind();
 	Remote::Kind answer = Remote::Kind();
+	Remote::Kind alsoAnswer = Remote::Kind();
 	Reader answered = nullptr;
 	std::size_t limit = HostedWire::kMaxMessageBytes;
 	bool sequenced = false;
@@ -142,6 +143,11 @@ struct Exchange {
 		&& (*count || value.empty());
 }
 
+[[nodiscard]] bool ListLengthAdmitted(std::uint32_t length) {
+	const auto empty = kFormHeaderBytes + kCountBytes;
+	return (length == empty) || (length >= empty + kCommandBytes);
+}
+
 [[nodiscard]] bool DamageComplete(
 		std::string_view value,
 		const twlite::wire::Caps &caps) {
@@ -201,9 +207,26 @@ struct Exchange {
 		&& body.empty();
 }
 
+[[nodiscard]] std::optional<Key> DeltaKey(
+		std::string_view message,
+		const Remote::Caps &caps) {
+	auto sequence = std::uint64_t();
+	auto length = std::uint32_t();
+	auto damage = std::string_view();
+	if (!Remote::delta_scan(message, caps, sequence, length, damage)
+		|| !ListLengthAdmitted(length)
+		|| !DamageComplete(damage, caps.values)) {
+		return std::nullopt;
+	}
+	return Key{ .sequence = sequence };
+}
+
 [[nodiscard]] std::optional<Key> FrameKey(
 		std::string_view message,
 		const Remote::Caps &caps) {
+	if (Remote::kind_of(message) == Remote::Kind::FrameDelta) {
+		return DeltaKey(message, caps);
+	}
 	const auto sequence = SequenceOf(message);
 	if (!sequence
 		|| !FrameComplete(message.substr(kRemoteHeaderBytes), caps)) {
@@ -235,6 +258,7 @@ constexpr auto kExchanges = std::array{
 	Exchange{
 		.request = Remote::Kind::FrameRequest,
 		.answer = Remote::Kind::Frame,
+		.alsoAnswer = Remote::Kind::FrameDelta,
 		.answered = FrameKey,
 		.limit = HostedWire::kMaxFrameBytes,
 		.sequenced = true,
@@ -374,7 +398,9 @@ auto HostedRoutes = HostedFactory();
 	const auto kind = Remote::kind_of(message);
 	for (const auto &exchange : kExchanges) {
 		const auto expects = (kind == exchange.request);
-		if (!expects && (kind != exchange.answer)) {
+		if (!expects
+			&& (kind != exchange.answer)
+			&& (kind != exchange.alsoAnswer)) {
 			continue;
 		}
 		const auto key = expects
