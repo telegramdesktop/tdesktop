@@ -785,7 +785,7 @@ WindowPosition MainWindow::initialPosition() const {
 }
 
 WindowPosition MainWindow::nextInitialChildPosition(SeparateId childId) {
-	const auto rect = geometry().marginsRemoved(frameMargins());
+	const auto rect = body()->mapToGlobal(body()->rect());
 	const auto position = rect.topLeft();
 	const auto adjust = [&](int value) {
 		return (value * 3 / 4);

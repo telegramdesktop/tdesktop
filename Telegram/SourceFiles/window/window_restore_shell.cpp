@@ -122,14 +122,10 @@ Core::WindowPosition RestoreShell::countPositionForSave() const {
 	}
 	if (state == Qt::WindowMaximized || state == Qt::WindowFullScreen) {
 		result.maximized = 1;
-		const auto normal = (state == Qt::WindowMaximized)
-			? _normalBody
-			: _window->normalGeometry().marginsRemoved(
-				_window->frameMargins());
-		result.x = normal.x() - screenGeometry.x();
-		result.y = normal.y() - screenGeometry.y();
-		result.w = normal.width();
-		result.h = normal.height();
+		result.x = _normalBody.x() - screenGeometry.x();
+		result.y = _normalBody.y() - screenGeometry.y();
+		result.w = _normalBody.width();
+		result.h = _normalBody.height();
 		return result;
 	}
 	const auto body = _window->body();
