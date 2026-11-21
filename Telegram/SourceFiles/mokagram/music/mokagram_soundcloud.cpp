@@ -398,6 +398,47 @@ void ApiGet(
 	return 96;
 }
 
+struct TrackStream {
+	QString url;
+	QString extension;
+	bool hls = false;
+	std::tuple<int, bool, bool> rank;
+};
+
+[[nodiscard]] std::vector<TrackStream> ParseStreams(const QJsonObject &object) {
+	auto result = std::vector<TrackStream>();
+	for (const auto &value : object.value("media").toObject()
+			.value("transcodings").toArray()) {
+		const auto item = value.toObject();
+		if (item.value("snipped").toBool()) {
+			continue; // Превью-обрезка.
+		}
+		const auto format = item.value("format").toObject();
+		const auto protocol = format.value("protocol").toString();
+		const auto mime = format.value("mime_type").toString().section(';', 0, 0);
+		const auto hls = (protocol == u"hls"_q);
+		const auto aac = hls && (mime == u"audio/mp4"_q);
+		const auto mp3 = (hls || protocol == u"progressive"_q)
+			&& (mime == u"audio/mpeg"_q);
+		if (!aac && !mp3) {
+			continue;
+		}
+		const auto url = item.value("url").toString();
+		if (SafeMediaUrl(QUrl(url))) {
+			result.push_back({
+				.url = url,
+				.extension = aac ? u"m4a"_q : u"mp3"_q,
+				.hls = hls,
+				.rank = std::tuple(aac ? AacBitrate(item) : 128, aac, !hls),
+			});
+		}
+	}
+	std::stable_sort(result.begin(), result.end(), [](const TrackStream &a, const TrackStream &b) {
+		return a.rank > b.rank;
+	});
+	return result;
+}
+
 [[nodiscard]] Track ParseTrack(const QJsonObject &object) {
 	auto result = Track();
 	result.id = ResourceId(object, u"id"_q);
@@ -435,32 +476,11 @@ void ApiGet(
 			}
 		}
 	}
-	auto best = std::tuple(0, false, false);
-	for (const auto &value : object.value("media").toObject()
-			.value("transcodings").toArray()) {
-		const auto item = value.toObject();
-		if (item.value("snipped").toBool()) {
-			continue; // Превью-обрезка.
-		}
-		const auto format = item.value("format").toObject();
-		const auto protocol = format.value("protocol").toString();
-		const auto mime = format.value("mime_type").toString().section(';', 0, 0);
-		const auto hls = (protocol == u"hls"_q);
-		const auto aac = hls && (mime == u"audio/mp4"_q);
-		const auto mp3 = (hls || protocol == u"progressive"_q)
-			&& (mime == u"audio/mpeg"_q);
-		if (!aac && !mp3) {
-			continue;
-		}
-		const auto rank = std::tuple(aac ? AacBitrate(item) : 128, aac, !hls);
-		const auto url = item.value("url").toString();
-		if (rank <= best || !SafeMediaUrl(QUrl(url))) {
-			continue;
-		}
-		best = rank;
-		result.transcodingUrl = url;
-		result.extension = aac ? u"m4a"_q : u"mp3"_q;
-		result.hls = hls;
+	const auto streams = ParseStreams(object);
+	if (!streams.empty()) {
+		result.transcodingUrl = streams.front().url;
+		result.extension = streams.front().extension;
+		result.hls = streams.front().hls;
 	}
 	return result;
 }
@@ -561,6 +581,17 @@ void InsertArtistInfo(const QString &id, ArtistInfo info) {
 		.left(16);
 	return CacheDir() + '/' + track.id + '.'
 		+ QString::fromLatin1(key) + '.' + track.extension;
+}
+
+[[nodiscard]] QString LegacyAudioPath(const QString &id) {
+	const auto prefix = CacheDir() + '/' + id + '.';
+	for (const auto &extension : { u"m4a"_q, u"mp3"_q }) {
+		const auto file = QFileInfo(prefix + extension);
+		if (file.isFile() && file.size() > 0) {
+			return file.filePath();
+		}
+	}
+	return {};
 }
 
 // Отмечаем file как недавно использованный: mtime служит ключом LRU.
@@ -980,11 +1011,11 @@ void Resolve(
 		QUrlQuery(),
 		[=](QByteArray data, QString error) {
 			if (!error.isEmpty()) {
-				done(track, error);
+				done(track, LegacyAudioPath(track.id).isEmpty() ? error : QString());
 				return;
 			}
 			auto fresh = ParseTrack(QJsonDocument::fromJson(data).object());
-			if (fresh.transcodingUrl.isEmpty()) {
+			if (fresh.transcodingUrl.isEmpty() && LegacyAudioPath(track.id).isEmpty()) {
 				done(track, QString::fromUtf8(Mokagram::Lang::Tr("трек недоступен (закрыт или удалён)")));
 				return;
 			}
@@ -1507,23 +1538,105 @@ void Search(
 		});
 }
 
-void Download(
-		const Track &track,
-		Fn<void(const QString &path, const QString &error)> done) {
+namespace {
+
+using DownloadDone = Fn<void(const QString &, const QString &)>;
+
+void DownloadStream(const Track &track, DownloadDone done) {
 	const auto path = CachePath(track);
-	if (path.isEmpty()) {
-		done({}, QString::fromUtf8(Mokagram::Lang::Tr("некорректный id трека")));
-		return;
-	}
 	if (QFile::exists(path)) {
 		TouchCacheFile(path);
 		done(path, QString());
 		return;
 	}
-	// Один и тот же трек могут просить предзагрузка следующего и предзагрузка
-	// хвоста очереди: качаем файл один раз, остальным отдаём тот же результат.
-	using Waiters = std::vector<Fn<void(const QString &, const QString &)>>;
-	static auto loading = std::map<QString, Waiters>();
+	auto q = QUrlQuery();
+	if (!track.authorization.isEmpty()) {
+		q.addQueryItem(u"track_authorization"_q, track.authorization);
+	}
+	// Ссылка на транскодинг пришла из ответа API: проверяем перед загрузкой.
+	if (!SafeMediaUrl(QUrl(track.transcodingUrl))) {
+		done({}, QString::fromUtf8(Mokagram::Lang::Tr("сервер вернул недопустимую ссылку")));
+		return;
+	}
+	ApiGet(track.transcodingUrl, q, [=](QByteArray data, QString error) {
+		if (!error.isEmpty()) {
+			done({}, error);
+			return;
+		}
+		const auto url = QJsonDocument::fromJson(data).object()
+			.value("url").toString();
+		if (url.isEmpty()) {
+			done({}, QString::fromUtf8(Mokagram::Lang::Tr("нет ссылки на поток")));
+			return;
+		}
+		if (!SafeMediaUrl(QUrl(url))) {
+			done({}, QString::fromUtf8(Mokagram::Lang::Tr("сервер вернул недопустимую ссылку")));
+			return;
+		}
+		if (track.hls) {
+			DownloadHls(url, path, done);
+			return;
+		}
+		const auto reply = Get(QUrl(url), kMaxAudioBytes);
+		QObject::connect(reply, &QNetworkReply::finished, [=] {
+			const auto bytes = reply->readAll();
+			const auto failed = (reply->error() != QNetworkReply::NoError);
+			reply->deleteLater();
+			if (failed || bytes.isEmpty()) {
+				done({}, QString::fromUtf8(Mokagram::Lang::Tr("сбой загрузки трека")));
+				return;
+			}
+			FinishFile(path, { bytes }, done);
+		});
+	});
+}
+
+void TryDownloadStreams(
+		const Track &track,
+		const std::shared_ptr<std::vector<TrackStream>> &streams,
+		size_t index,
+		const QString &firstError,
+		DownloadDone done) {
+	if (index == streams->size()) {
+		const auto path = LegacyAudioPath(track.id);
+		if (!path.isEmpty()) {
+			TouchCacheFile(path);
+			done(path, QString());
+			return;
+		}
+		done({}, firstError);
+		return;
+	}
+	const auto &stream = (*streams)[index];
+	auto candidate = track;
+	candidate.transcodingUrl = stream.url;
+	candidate.extension = stream.extension;
+	candidate.hls = stream.hls;
+	DownloadStream(candidate, [=](const QString &path, const QString &error) {
+		if (error.isEmpty()) {
+			done(path, error);
+		} else {
+			TryDownloadStreams(track, streams, index + 1, firstError, done);
+		}
+	});
+}
+
+} // namespace
+
+void Download(const Track &track, DownloadDone done) {
+	const auto path = CachePath(track);
+	if (path.isEmpty()) {
+		done({}, QString::fromUtf8(Mokagram::Lang::Tr("некорректный id трека")));
+		return;
+	}
+	const auto cached = track.transcodingUrl.isEmpty() ? LegacyAudioPath(track.id) : path;
+	if (!cached.isEmpty() && QFile::exists(cached)) {
+		TouchCacheFile(cached);
+		done(cached, QString());
+		return;
+	}
+	// Предзагрузка и воспроизведение делят одну загрузку, включая запасные потоки.
+	static auto loading = std::map<QString, std::vector<DownloadDone>>();
 	if (const auto i = loading.find(path); i != loading.end()) {
 		i->second.push_back(std::move(done));
 		return;
@@ -1533,55 +1646,37 @@ void Download(
 		if (!result.isEmpty() && error.isEmpty()) {
 			TrimAudioCache(result);
 		}
-		const auto i = loading.find(path);
-		if (i != loading.end()) {
-			// Колбэки могут снова зайти в Download: забираем список заранее.
-			auto waiters = std::move(i->second);
-			loading.erase(i);
-			for (const auto &waiter : waiters) {
-				waiter(result, error);
-			}
+		auto waiters = std::move(loading.at(path));
+		loading.erase(path);
+		for (const auto &waiter : waiters) {
+			waiter(result, error);
 		}
 	};
-	auto q = QUrlQuery();
-	if (!track.authorization.isEmpty()) {
-		q.addQueryItem(u"track_authorization"_q, track.authorization);
-	}
-	// Ссылка на транскодинг пришла из ответа API: проверяем перед загрузкой.
-	if (!SafeMediaUrl(QUrl(track.transcodingUrl))) {
-		finish({}, QString::fromUtf8(Mokagram::Lang::Tr("сервер вернул недопустимую ссылку")));
-		return;
-	}
-	ApiGet(track.transcodingUrl, q, [=](QByteArray data, QString error) {
-		if (!error.isEmpty()) {
-			finish({}, error);
+	DownloadStream(track, [=](const QString &result, const QString &firstError) {
+		if (firstError.isEmpty()) {
+			finish(result, firstError);
 			return;
 		}
-		const auto url = QJsonDocument::fromJson(data).object()
-			.value("url").toString();
-		if (url.isEmpty()) {
-			finish({}, QString::fromUtf8(Mokagram::Lang::Tr("нет ссылки на поток")));
-			return;
-		}
-		if (!SafeMediaUrl(QUrl(url))) {
-			finish({}, QString::fromUtf8(Mokagram::Lang::Tr("сервер вернул недопустимую ссылку")));
-			return;
-		}
-		if (track.hls) {
-			DownloadHls(url, path, finish);
-			return;
-		}
-		const auto reply = Get(QUrl(url), kMaxAudioBytes);
-		QObject::connect(reply, &QNetworkReply::finished, [=] {
-			const auto bytes = reply->readAll();
-			const auto failed = (reply->error() != QNetworkReply::NoError);
-			reply->deleteLater();
-			if (failed) {
-				finish({}, QString::fromUtf8(Mokagram::Lang::Tr("сбой загрузки трека")));
-				return;
-			}
-			FinishFile(path, { bytes }, finish);
-		});
+		ApiGet(QString::fromLatin1(kApi) + u"/tracks/"_q + track.id,
+			QUrlQuery(),
+			[=](QByteArray data, QString error) {
+				const auto fresh = QJsonDocument::fromJson(data).object();
+				auto streams = error.isEmpty()
+					? ParseStreams(fresh)
+					: std::vector<TrackStream>();
+				auto refreshed = track;
+				refreshed.authorization = fresh.value("track_authorization").toString();
+				if (refreshed.authorization == track.authorization) {
+					std::erase_if(streams, [&](const TrackStream &stream) {
+						return stream.url == track.transcodingUrl;
+					});
+				}
+				TryDownloadStreams(refreshed,
+					std::make_shared<std::vector<TrackStream>>(std::move(streams)),
+					0,
+					firstError,
+					finish);
+			});
 	});
 }
 

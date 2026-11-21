@@ -615,7 +615,8 @@ void ResolveCommentsTrack(const Track &track, Fn<void(QString)> done) {
 		not_null<Main::Session*> session,
 		const Track &track,
 		const QString &path) {
-	const auto size = QFileInfo(path).size();
+	const auto file = QFileInfo(path);
+	const auto extension = file.suffix();
 	auto attributes = QVector<MTPDocumentAttribute>();
 	attributes.push_back(MTP_documentAttributeAudio(
 		MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title
@@ -625,7 +626,7 @@ void ResolveCommentsTrack(const Track &track, Fn<void(QString)> done) {
 		MTP_string(track.artist),
 		MTPstring()));
 	attributes.push_back(MTP_documentAttributeFilename(
-		MTP_string(track.title + '.' + track.extension)));
+		MTP_string(track.title + '.' + extension)));
 	// Тот же маппинг, что и в DocumentIdForTrack: слишком длинный id не переполнит префикс.
 	const auto id = DocumentId(DocumentIdForTrack(track.id));
 	const auto document = session->data().document(
@@ -634,13 +635,13 @@ void ResolveCommentsTrack(const Track &track, Fn<void(QString)> done) {
 		QByteArray(),
 		base::unixtime::now(),
 		attributes,
-		track.extension == u"mp3"_q ? u"audio/mpeg"_q : u"audio/mp4"_q,
+		extension == u"mp3"_q ? u"audio/mpeg"_q : u"audio/mp4"_q,
 		InlineImageLocation(),
 		ImageWithLocation(),
 		ImageWithLocation(),
 		false,
 		0,
-		size);
+		file.size());
 	document->setLocation(Core::FileLocation(path));
 	return document;
 }
@@ -1239,7 +1240,9 @@ void EnsureFile(
 				}
 				return;
 			}
-			done(path, resolved);
+			auto saved = resolved;
+			saved.extension = QFileInfo(path).suffix();
+			done(path, saved);
 		});
 	});
 	if (controller) {
