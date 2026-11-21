@@ -11,8 +11,9 @@
 #include "core/application.h"
 #include "rpl/event_stream.h"
 
-#include <QtCore/QDateTime>
 #include <QtCore/QCoreApplication>
+#include <QtCore/QCryptographicHash>
+#include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
 #include <QtCore/QJsonArray>
@@ -33,6 +34,7 @@
 #include <deque>
 #include <set>
 #include <algorithm>
+#include <tuple>
 
 namespace Mokagram::Music {
 namespace {
@@ -377,6 +379,22 @@ void ApiGet(
 	}
 }
 
+[[nodiscard]] int AacBitrate(const QJsonObject &transcoding) {
+	static const auto pattern = QRegularExpression(u"^aac_([1-9][0-9]*)k(?:_|$)"_q);
+	const auto preset = transcoding.value("preset").toString();
+	const auto bitrate = pattern.match(preset).captured(1).toInt();
+	if (bitrate > 0) {
+		return bitrate;
+	}
+	const auto quality = transcoding.value("quality").toString();
+	if (quality == u"hq"_q) {
+		return 256;
+	} else if (quality == u"sq"_q) {
+		return 160;
+	}
+	return 96;
+}
+
 [[nodiscard]] Track ParseTrack(const QJsonObject &object) {
 	auto result = Track();
 	result.id = ResourceId(object, u"id"_q);
@@ -414,39 +432,32 @@ void ApiGet(
 			}
 		}
 	}
-	auto progressive = QString();
-	auto hlsMp3 = QString();
-	auto hlsAac = QString();
+	auto best = std::tuple(0, false, false);
 	for (const auto &value : object.value("media").toObject()
 			.value("transcodings").toArray()) {
 		const auto item = value.toObject();
-		const auto format = item.value("format").toObject();
-		const auto protocol = format.value("protocol").toString();
-		const auto mime = format.value("mime_type").toString();
-		const auto url = item.value("url").toString();
 		if (item.value("snipped").toBool()) {
 			continue; // Превью-обрезка.
 		}
-		if (protocol == u"progressive"_q && mime.contains(u"mpeg"_q)) {
-			progressive = url;
-		} else if (protocol == u"hls"_q && mime.contains(u"mpeg"_q)
-			&& !mime.contains(u"mpegurl"_q)) {
-			hlsMp3 = url;
-		} else if (protocol == u"hls"_q && mime.contains(u"mp4"_q)) {
-			hlsAac = url;
+		const auto format = item.value("format").toObject();
+		const auto protocol = format.value("protocol").toString();
+		const auto mime = format.value("mime_type").toString().section(';', 0, 0);
+		const auto hls = (protocol == u"hls"_q);
+		const auto aac = hls && (mime == u"audio/mp4"_q);
+		const auto mp3 = (hls || protocol == u"progressive"_q)
+			&& (mime == u"audio/mpeg"_q);
+		if (!aac && !mp3) {
+			continue;
 		}
-	}
-	if (!progressive.isEmpty()) {
-		result.transcodingUrl = progressive;
-		result.extension = u"mp3"_q;
-	} else if (!hlsAac.isEmpty()) {
-		result.transcodingUrl = hlsAac;
-		result.extension = u"m4a"_q;
-		result.hls = true;
-	} else if (!hlsMp3.isEmpty()) {
-		result.transcodingUrl = hlsMp3;
-		result.extension = u"mp3"_q;
-		result.hls = true;
+		const auto rank = std::tuple(aac ? AacBitrate(item) : 128, aac, !hls);
+		const auto url = item.value("url").toString();
+		if (rank <= best || !SafeMediaUrl(QUrl(url))) {
+			continue;
+		}
+		best = rank;
+		result.transcodingUrl = url;
+		result.extension = aac ? u"m4a"_q : u"mp3"_q;
+		result.hls = hls;
 	}
 	return result;
 }
@@ -539,7 +550,14 @@ void InsertArtistInfo(const QString &id, ArtistInfo info) {
 	if (!ValidTrackId(track.id)) {
 		return QString();
 	}
-	return CacheDir() + '/' + track.id + '.' + track.extension;
+	// Разные варианты потока могут иметь одинаковое расширение.
+	const auto stream = QUrl(track.transcodingUrl).toEncoded(
+		QUrl::RemoveQuery | QUrl::RemoveFragment);
+	const auto key = QCryptographicHash::hash(stream, QCryptographicHash::Sha256)
+		.toHex()
+		.left(16);
+	return CacheDir() + '/' + track.id + '.'
+		+ QString::fromLatin1(key) + '.' + track.extension;
 }
 
 // Отмечаем file как недавно использованный: mtime служит ключом LRU.
