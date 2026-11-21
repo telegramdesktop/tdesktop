@@ -280,9 +280,11 @@ else()
         install(TARGETS TelegramWidgetHelper RUNTIME DESTINATION "${widget_helper_destination}")
     endif()
 
-    set_target_properties(TelegramWidgetHelper PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/${widget_helper_folder}"
-    )
+    foreach (helper ${widget_helpers})
+        set_target_properties(${helper} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/${widget_helper_folder}"
+        )
+    endforeach()
     set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
         "TDESKTOP_WIDGET_HELPER_PATH=\"${widget_helper_folder}/TelegramWidgetHelper\"")
     if (widget_helper_pinned)
@@ -293,18 +295,27 @@ else()
         endif()
 
         # Strip here, nothing may change the helper after its identity is taken.
-        add_custom_command(TARGET TelegramWidgetHelper POST_BUILD
-            COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:TelegramWidgetHelper>>"
-            COMMAND_EXPAND_LISTS
-            VERBATIM
-        )
+        foreach (helper ${widget_helpers})
+            add_custom_command(TARGET ${helper} POST_BUILD
+                COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:${helper}>>"
+                COMMAND_EXPAND_LISTS
+                VERBATIM
+            )
+        endforeach()
 
         set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
             TDESKTOP_WIDGET_HELPER_PINNED)
-        generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256)
+        if (TARGET TelegramWidgetHelperCpp)
+            generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256
+                DEBUG_ALTERNATE TelegramWidgetHelperCpp)
+            set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+                $<$<CONFIG:Debug>:TDESKTOP_WIDGET_HELPER_AB>)
+        else()
+            generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256)
+        endif()
     endif()
     foreach (target
-        TelegramWidgetHelper
+        ${widget_helpers}
         lib_widget_sandbox
         lib_widget_sandbox_platform
         lib_widget_renderer
@@ -326,10 +337,12 @@ else()
             $<$<NOT:$<CONFIG:Debug>>:-Wp,-D_FORTIFY_SOURCE=3>
         )
     endforeach()
-    target_link_options(TelegramWidgetHelper
-    PRIVATE
-        LINKER:-z,relro
-        LINKER:-z,now
-    )
-    add_dependencies(Telegram TelegramWidgetHelper)
+    foreach (helper ${widget_helpers})
+        target_link_options(${helper}
+        PRIVATE
+            LINKER:-z,relro
+            LINKER:-z,now
+        )
+        add_dependencies(Telegram ${helper})
+    endforeach()
 endif()

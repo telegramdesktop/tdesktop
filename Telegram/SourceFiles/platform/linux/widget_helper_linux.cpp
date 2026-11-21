@@ -78,6 +78,14 @@ constexpr auto kPinnedDigest = std::string_view(
 constexpr auto kPinnedDigest = std::string_view();
 #endif // TDESKTOP_WIDGET_HELPER_PINNED
 
+#ifdef TDESKTOP_WIDGET_HELPER_AB
+static_assert(std::size(details::kAlternateDigests) == 1);
+constexpr auto kCppHelperPath = std::string_view(
+	TDESKTOP_WIDGET_HELPER_PATH "Cpp");
+constexpr auto kCppDigest = std::string_view(
+	details::kAlternateDigests[0].digest);
+#endif // TDESKTOP_WIDGET_HELPER_AB
+
 auto HeldExecutable = -1;
 
 using KernelSignalSet = uint64_t;
@@ -143,6 +151,11 @@ struct Cloned {
 
 struct SpawnerState {};
 
+struct Helper {
+	std::string_view path;
+	std::string_view digest;
+};
+
 struct Portal {
 	FlatpakPortal::FlatpakProxy proxy;
 	std::mutex mutex;
@@ -176,13 +189,24 @@ SpawnPlan::~SpawnPlan() {
 		qt_error_string(error));
 }
 
+[[nodiscard]] Helper ChosenHelper() {
+#ifdef TDESKTOP_WIDGET_HELPER_AB
+	// The Debug A/B switch: the C++ helper built beside the Rust one.
+	if (qEnvironmentVariable("TDESKTOP_WIDGET_HELPER") == u"cpp"_q) {
+		return { kCppHelperPath, kCppDigest };
+	}
+#endif // TDESKTOP_WIDGET_HELPER_AB
+	return { TDESKTOP_WIDGET_HELPER_PATH, kPinnedDigest };
+}
+
 [[nodiscard]] std::string HelperPath() {
 	const auto directory = cExeDir();
 	if (directory.isEmpty()) {
 		return std::string();
 	}
+	const auto helper = ChosenHelper().path;
 	const auto path = directory
-		+ QString::fromUtf8(TDESKTOP_WIDGET_HELPER_PATH);
+		+ QString::fromUtf8(helper.data(), helper.size());
 	return QFile::encodeName(QDir::cleanPath(path)).toStdString();
 }
 
@@ -247,7 +271,8 @@ SpawnPlan::~SpawnPlan() {
 }
 
 [[nodiscard]] QString CheckHelper(SpawnPlan &plan) {
-	if (kPinnedDigest.empty()) {
+	const auto expected = ChosenHelper().digest;
+	if (expected.empty()) {
 		LOG(("Tgw: The widget helper is not pinned "
 			"in a package-managed build."));
 		return QString();
@@ -265,8 +290,8 @@ SpawnPlan::~SpawnPlan() {
 	}
 	const auto digest = QString::fromLatin1(hash.result().toHex());
 	const auto pinned = QString::fromLatin1(
-		kPinnedDigest.data(),
-		kPinnedDigest.size());
+		expected.data(),
+		expected.size());
 	if (digest != pinned) {
 		return u"the widget helper failed the build identity check: "
 			"SHA-256 %1, expected %2"_q.arg(digest, pinned);
