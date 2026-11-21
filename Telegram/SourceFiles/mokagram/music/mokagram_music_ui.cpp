@@ -3822,6 +3822,8 @@ private:
 
 };
 
+enum class CatalogArtwork { Artist, Playlist, Release };
+
 class CatalogEntityRow final : public Ui::AbstractButton {
 public:
 	CatalogEntityRow(
@@ -3830,13 +3832,13 @@ public:
 		QString subtitle,
 		QString type,
 		QString artwork,
-		bool artist,
+		CatalogArtwork artworkStyle,
 		Fn<void()> open,
 		Fn<void(not_null<Ui::RoundButton*>)> play = nullptr)
 	: AbstractButton(parent)
 	, _title(std::move(title))
 	, _subtitle(std::move(subtitle))
-	, _artist(artist) {
+	, _artworkStyle(artworkStyle) {
 		resize(width(), style::ConvertScale(play ? 96 : 64));
 		setPointerCursor(true);
 		setFocusPolicy(Qt::TabFocus);
@@ -3885,11 +3887,29 @@ protected:
 		}
 		const auto side = s(_play ? 64 : 48);
 		const auto art = QRect(s(_play ? 24 : 20), (height() - side) / 2, side, side);
+		const auto release = (_artworkStyle == CatalogArtwork::Release);
+		if (release) {
+			const auto layer = [&](int offset, int inset, int angle, float64 tint) {
+				const auto card = QRectF(art)
+					.adjusted(s(inset), s(inset), -s(inset), -s(inset))
+					.translated(-s(offset), 0);
+				p.save();
+				p.translate(card.center());
+				p.rotate(angle);
+				p.setPen(Qt::NoPen);
+				p.setBrush(anim::color(st::windowBgOver, st::windowSubTextFg, tint));
+				p.drawRoundedRect(card.translated(-card.center()), s(11), s(11));
+				p.restore();
+			};
+			layer(8, 3, -14, 0.16);
+			layer(4, 1, -8, 0.28);
+		}
 		auto clip = QPainterPath();
-		if (_artist) {
+		if (_artworkStyle == CatalogArtwork::Artist) {
 			clip.addEllipse(art);
 		} else {
-			clip.addRoundedRect(art, s(8), s(8));
+			const auto radius = s(release ? 12 : 8);
+			clip.addRoundedRect(art, radius, radius);
 		}
 		p.save();
 		p.setClipPath(clip);
@@ -3924,7 +3944,7 @@ protected:
 private:
 	QString _title;
 	QString _subtitle;
-	bool _artist = false;
+	CatalogArtwork _artworkStyle;
 	QImage _art;
 	Ui::RoundButton *_play = nullptr;
 };
@@ -8624,7 +8644,7 @@ protected:
 			PlaylistText("Исполнитель"),
 			QString(),
 			artist.avatarUrl,
-			true,
+			CatalogArtwork::Artist,
 			crl::guard(this, [=] {
 				_searchArtistReturnScroll = _tabScroll->scrollTop();
 				auto seed = Track();
@@ -8684,10 +8704,16 @@ protected:
 					}
 					return QString();
 				}();
+				const auto playlist = (album->releaseKind == ReleaseKind::Unknown);
 				const auto row = _tabList->add(object_ptr<CatalogEntityRow>(
-					_tabList, album->title, album->artist, type, album->artworkUrl, false,
+					_tabList,
+					album->title,
+					album->artist,
+					type,
+					album->artworkUrl,
+					playlist ? CatalogArtwork::Playlist : CatalogArtwork::Release,
 					crl::guard(this, [=, album = *album] { openCatalogCollection(album); })));
-				if (album->releaseKind != ReleaseKind::Unknown) {
+				if (!playlist) {
 					InstallAlbumContextMenu(row, _controller, *album);
 				}
 			} else if (const auto artist = std::get_if<ArtistInfo>(&item); artist && artist != featured) {
