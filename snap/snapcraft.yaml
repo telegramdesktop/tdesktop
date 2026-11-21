@@ -147,7 +147,7 @@ parts:
       - -DAVIF_LIBYUV=OFF
     override-pull: |
       craftctl default
-      sed -i 's/ -lavif$/& -Wl,--push-state,--no-as-needed,-ldav1d,--pop-state/' libavif.pc.cmake
+      sed -i 's/ -lavif$/& -ldav1d/' libavif.pc.cmake
     prime: [-./*]
 
   ffmpeg:
