@@ -3102,6 +3102,16 @@ void ApiWrap::refreshFileReference(
 		request(MTPstories_GetStoriesByID(
 			_session->data().peer(data.peer)->input(),
 			MTP_vector<MTPint>(1, MTP_int(data.story))));
+	}, [&](const Data::FileOriginBotMediaPreview &data) {
+		const auto bot = _session->data().user(data.botId);
+		if (data.language) {
+			request(
+				MTPbots_GetPreviewInfo(
+					bot->inputUser(),
+					MTP_string(*data.language)));
+		} else {
+			request(MTPbots_GetPreviewMedias(bot->inputUser()));
+		}
 	}, [&](v::null_t) {
 		fail();
 	});

@@ -525,6 +525,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo.get(),
 			d.vmenu_button());
 		botInfo->inited = true;
+		botInfo->hasPreviewMedias = d.is_has_preview_medias();
 
 		const auto privacy = qs(d.vprivacy_policy_url().value_or_empty());
 		const auto privacyChanged = (botInfo->privacyPolicyUrl != privacy);
@@ -940,6 +941,9 @@ void ApplyUserUpdate(
 		user->setBotInfo(*info);
 	} else {
 		user->setBotInfoVersion(-1);
+		if (const auto info = user->botInfo.get()) {
+			info->hasPreviewMedias = false;
+		}
 	}
 	if (const auto info = user->botInfo.get()) {
 		info->canManageEmojiStatus = update.is_bot_can_manage_emoji_status();

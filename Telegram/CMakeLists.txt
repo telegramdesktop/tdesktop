@@ -142,6 +142,10 @@ PRIVATE
     api/api_bot.h
     api/api_bot_info.cpp
     api/api_bot_info.h
+    api/api_bot_media_preview_upload.cpp
+    api/api_bot_media_preview_upload.h
+    api/api_bot_media_previews.cpp
+    api/api_bot_media_previews.h
     api/api_chat_filters.cpp
     api/api_chat_filters.h
     api/api_chat_filters_remove_manager.cpp
@@ -1414,6 +1418,10 @@ PRIVATE
     info/profile/info_profile_actions.h
     info/profile/info_profile_badge.cpp
     info/profile/info_profile_badge.h
+    info/profile/info_profile_bot_media_previews.cpp
+    info/profile/info_profile_bot_media_previews.h
+    info/profile/info_profile_bot_preview_provider.cpp
+    info/profile/info_profile_bot_preview_provider.h
     info/profile/info_profile_balance_pill.cpp
     info/profile/info_profile_balance_pill.h
     info/profile/info_profile_birthday_effect.cpp

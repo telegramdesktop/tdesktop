@@ -143,6 +143,16 @@ struct FileOriginCloudDraft {
 	}
 };
 
+struct FileOriginBotMediaPreview {
+	UserId botId = 0;
+	std::optional<QString> language;
+
+	inline bool operator<(const FileOriginBotMediaPreview &other) const {
+		return std::tie(botId, language)
+			< std::tie(other.botId, other.language);
+	}
+};
+
 struct FileOrigin {
 	using Variant = std::variant<
 		v::null_t,
@@ -158,7 +168,8 @@ struct FileOrigin {
 		FileOriginPremiumPreviews,
 		FileOriginWebPage,
 		FileOriginCloudDraft,
-		FileOriginStory>;
+		FileOriginStory,
+		FileOriginBotMediaPreview>;
 
 	FileOrigin() = default;
 	FileOrigin(FileOriginMessage data) : data(data) {
@@ -186,6 +197,8 @@ struct FileOrigin {
 	FileOrigin(FileOriginCloudDraft data) : data(data) {
 	}
 	FileOrigin(FileOriginStory data) : data(data) {
+	}
+	FileOrigin(FileOriginBotMediaPreview data) : data(std::move(data)) {
 	}
 
 	explicit operator bool() const {
@@ -243,6 +256,9 @@ UpdatedFileReferences GetFileReferences(const MTPhelp_PremiumPromo &data);
 UpdatedFileReferences GetFileReferences(const MTPmessages_WebPage &data);
 UpdatedFileReferences GetFileReferences(const MTPstories_Stories &data);
 UpdatedFileReferences GetFileReferences(const MTPusers_SavedMusic &data);
+UpdatedFileReferences GetFileReferences(const MTPbots_PreviewInfo &data);
+UpdatedFileReferences GetFileReferences(
+	const MTPVector<MTPBotPreviewMedia> &data);
 
 // Admin Log Event.
 UpdatedFileReferences GetFileReferences(const MTPMessageMedia &data);

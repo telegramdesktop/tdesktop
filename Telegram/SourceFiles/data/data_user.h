@@ -110,6 +110,7 @@ struct BotInfo {
 	bool canManageEmojiStatus : 1 = false;
 	bool supportsBusiness : 1 = false;
 	bool hasMainApp : 1 = false;
+	bool hasPreviewMedias : 1 = false;
 	bool userCreatesTopics : 1 = false;
 	bool setBotPhotoHidden : 1 = false;
 	bool canManageBots : 1 = false;
