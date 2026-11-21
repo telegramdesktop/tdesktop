@@ -145,6 +145,12 @@ private:
 		int messageId,
 		QByteArray text);
 
+	[[nodiscard]] static QByteArray GiftOfferText(
+		const Data::ActionStarGift &data,
+		bool out,
+		const QByteArray &otherName,
+		const QByteArray &deadline);
+
 	Settings _settings;
 	Environment _environment;
 	Stats *_stats = nullptr;

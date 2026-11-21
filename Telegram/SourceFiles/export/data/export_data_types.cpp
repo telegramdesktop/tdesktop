@@ -1811,6 +1811,8 @@ UserpicsSlice ParseUserpicsSlice(
 	}, [&](const MTPDstarGiftUnique &gift) {
 		return ActionStarGift{
 			.giftId = uint64(gift.vid().v),
+			.title = ParseString(gift.vtitle()),
+			.num = gift.vnum().v,
 		};
 	});
 }
@@ -2761,6 +2763,7 @@ ServiceAction ParseServiceAction(
 		auto content = ParseStarGift(data.vgift());
 		content.offer = true;
 		content.offerDeclined = true;
+		content.offerOutcome = true;
 		content.offerExpired = data.is_expired();
 		content.offerPrice = CreditsAmountFromTL(data.vprice());
 		result.content = content;
@@ -3592,19 +3595,22 @@ Utf8String FormatMoneyAmount(int64 amount, const Utf8String &currency) {
 		QString::fromUtf8(currency)).toUtf8();
 }
 
-Utf8String FormatGramsAmount(int64 nanos) {
-	constexpr auto kNanos = uint64(kNanosInGram);
-
-	const auto negative = (nanos < 0);
-	const auto absolute = negative ? (0 - uint64(nanos)) : uint64(nanos);
-	const auto whole = absolute / kNanos;
-	auto fraction = NumberToString(absolute % kNanos, 9);
+Utf8String FormatDecimalAmount(bool negative, uint64 whole, uint64 nano) {
+	auto fraction = NumberToString(nano, 9);
 	while (fraction.endsWith('0')) {
 		fraction.chop(1);
 	}
 	return (negative ? Utf8String("-") : Utf8String())
 		+ NumberToString(whole)
-		+ (fraction.isEmpty() ? Utf8String() : ('.' + fraction))
+		+ (fraction.isEmpty() ? Utf8String() : ('.' + fraction));
+}
+
+Utf8String FormatGramsAmount(int64 nanos) {
+	constexpr auto kNanos = uint64(kNanosInGram);
+
+	const auto negative = (nanos < 0);
+	const auto absolute = negative ? (0 - uint64(nanos)) : uint64(nanos);
+	return FormatDecimalAmount(negative, absolute / kNanos, absolute % kNanos)
 		+ ((absolute == kNanos) ? " Gram" : " Grams");
 }
 

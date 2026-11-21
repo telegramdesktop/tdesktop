@@ -1645,6 +1645,11 @@ QByteArray SerializeMessage(
 	const auto pushAction = [&](const QByteArray &action) {
 		push("action", action);
 	};
+	const auto pushPrice = [&](CreditsAmount price) {
+		push("price_amount_whole", NumberToString(price.whole()));
+		push("price_amount_nano", NumberToString(price.nano()));
+		push("price_currency", price.ton() ? "TON" : "Stars");
+	};
 	const auto pushTTL = [&](
 			const QByteArray &label = "self_destruct_period_seconds") {
 		if (const auto ttl = message.media.ttl) {
@@ -1964,6 +1969,21 @@ QByteArray SerializeMessage(
 		push("transaction_id", data.transactionId);
 	}, [&](const ActionStarGift &data) {
 		pushActor();
+		if (data.offer) {
+			pushAction(data.offerOutcome
+				? "star_gift_purchase_offer_declined"
+				: "star_gift_purchase_offer");
+			push("gift_id", data.giftId);
+			pushPrice(data.offerPrice);
+			if (data.offerOutcome) {
+				push("expired", data.offerExpired);
+			} else {
+				push("expires", data.offerExpireAt);
+				push("accepted", data.offerAccepted);
+				push("declined", data.offerDeclined);
+			}
+			return;
+		}
 		pushAction("send_star_gift");
 		push("gift_id", data.giftId);
 		push("stars", data.stars);
@@ -2025,17 +2045,13 @@ QByteArray SerializeMessage(
 				push("comment", data.rejectComment);
 			}
 		} else {
-			push("price_amount_whole", NumberToString(data.price.whole()));
-			push("price_amount_nano", NumberToString(data.price.nano()));
-			push("price_currency", data.price.ton() ? "TON" : "Stars");
+			pushPrice(data.price);
 			push("scheduled_date", data.scheduleDate);
 		}
 	}, [&](const ActionSuggestedPostSuccess &data) {
 		pushActor();
 		pushAction("suggested_post_success");
-		push("price_amount_whole", NumberToString(data.price.whole()));
-		push("price_amount_nano", NumberToString(data.price.nano()));
-		push("price_currency", data.price.ton() ? "TON" : "Stars");
+		pushPrice(data.price);
 	}, [&](const ActionSuggestedPostRefund &data) {
 		pushActor();
 		pushAction("suggested_post_refund");

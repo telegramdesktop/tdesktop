@@ -443,6 +443,7 @@ public:
 	const Peer &peer(PeerId peerId) const;
 	const User &user(UserId userId) const;
 
+	QByteArray peerName(PeerId peerId) const;
 	QByteArray wrapPeerName(PeerId peerId) const;
 	QByteArray wrapUserName(UserId userId) const;
 	QByteArray wrapUserNames(const std::vector<UserId> &data) const;
@@ -480,11 +481,13 @@ auto PeersMap::user(UserId userId) const -> const User & {
 	return empty;
 }
 
-QByteArray PeersMap::wrapPeerName(PeerId peerId) const {
+QByteArray PeersMap::peerName(PeerId peerId) const {
 	const auto result = peer(peerId).name();
-	return result.isEmpty()
-		? QByteArray("Deleted")
-		: SerializeString(result);
+	return result.isEmpty() ? QByteArray("Deleted") : result;
+}
+
+QByteArray PeersMap::wrapPeerName(PeerId peerId) const {
+	return SerializeString(peerName(peerId));
 }
 
 QByteArray PeersMap::wrapUserName(UserId userId) const {
@@ -4241,6 +4244,15 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ QString::number(data.amount).toUtf8()
 			+ " Telegram Stars.";
 	}, [&](const ActionStarGift &data) {
+		if (data.offer) {
+			const auto other = message.out ? dialog.peerId : message.fromId;
+			const auto expires = data.offerExpireAt;
+			return SerializeString(GiftOfferText(
+				data,
+				message.out,
+				peers.peerName(other),
+				FormatDateText(expires) + " at " + FormatTimeText(expires)));
+		}
 		return serviceFrom
 			+ " sent you a gift of "
 			+ QByteArray::number(data.stars)

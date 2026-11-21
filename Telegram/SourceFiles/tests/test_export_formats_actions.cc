@@ -23,6 +23,9 @@ constexpr auto kActionDate = TimeId(1703980800);
 	return kActionDate + id * 60;
 }
 
+using PurchaseOfferFlag = MTPDmessageActionStarGiftPurchaseOffer::Flag;
+using OfferDeclinedFlag = MTPDmessageActionStarGiftPurchaseOfferDeclined::Flag;
+
 [[nodiscard]] MTPMessage ServiceMessage(const ActionRow &row) {
 	using Flag = MTPDmessageService::Flag;
 	const auto flags = Flag::f_from_id
@@ -1457,19 +1460,21 @@ template <typename Type, typename Value, typename Expected>
 			.name = "starGiftPurchaseOffer",
 			.type = mtpc_messageActionStarGiftPurchaseOffer,
 			.action = [] {
-				using Flag = MTPDmessageActionStarGiftPurchaseOffer::Flag;
 				return MTP_messageActionStarGiftPurchaseOffer(
-					MTP_flags(Flag::f_accepted),
-					StarGiftFixture(5058, 300, true),
+					MTP_flags(PurchaseOfferFlag::f_accepted),
+					UniqueGiftFixture(5058, 6058),
 					MTP_starsAmount(MTP_long(40), MTP_int(0)),
 					MTP_int(1704153600));
 			},
 			.alternative = Alternative<ActionStarGift>(),
 			.json = R"("id": 58, "date": "2023-12-31T03:58:00",
-				"date_unixtime": "1703984280", "action": "send_star_gift",
-				"gift_id": 5058, "stars": 300, "is_limited": true,
-				"is_anonymous": false, "gift_text": "")",
-			.html = "Alice Example sent you a gift of 300 Telegram Stars.",
+				"date_unixtime": "1703984280",
+				"action": "star_gift_purchase_offer", "gift_id": 5058,
+				"price_amount_whole": "40", "price_amount_nano": "0",
+				"price_currency": "Stars", "expires": 1704153600,
+				"accepted": true, "declined": false)",
+			.html = "An offer to buy Unique Cap #1 for 40 stars. "
+				"This offer was accepted.",
 			.extra = [](const Outputs &, const Message &parsed) {
 				return ExpectOffer(parsed, {
 					.offerPrice = CreditsAmount(40, 0, CreditsType::Stars),
@@ -1484,19 +1489,18 @@ template <typename Type, typename Value, typename Expected>
 			.name = "starGiftPurchaseOfferDeclined",
 			.type = mtpc_messageActionStarGiftPurchaseOfferDeclined,
 			.action = [] {
-				using Flag
-					= MTPDmessageActionStarGiftPurchaseOfferDeclined::Flag;
 				return MTP_messageActionStarGiftPurchaseOfferDeclined(
-					MTP_flags(Flag::f_expired),
-					StarGiftFixture(5059, 350, false),
+					MTP_flags(OfferDeclinedFlag::f_expired),
+					UniqueGiftFixture(5059, 6059),
 					MTP_starsTonAmount(MTP_long(2500000000)));
 			},
 			.alternative = Alternative<ActionStarGift>(),
 			.json = R"("id": 59, "date": "2023-12-31T03:59:00",
-				"date_unixtime": "1703984340", "action": "send_star_gift",
-				"gift_id": 5059, "stars": 350, "is_limited": false,
-				"is_anonymous": false, "gift_text": "")",
-			.html = "Alice Example sent you a gift of 350 Telegram Stars.",
+				"date_unixtime": "1703984340",
+				"action": "star_gift_purchase_offer_declined", "gift_id": 5059,
+				"price_amount_whole": "2", "price_amount_nano": "500000000",
+				"price_currency": "TON", "expired": true)",
+			.html = "Your offer to buy Unique Cap #1 for 2.5 TON has expired.",
 			.extra = [](const Outputs &, const Message &parsed) {
 				return ExpectOffer(parsed, {
 					.offerPrice = CreditsAmount(2, 500000000, CreditsType::Ton),
@@ -1740,6 +1744,121 @@ template <typename Type, typename Value, typename Expected>
 	};
 }
 
+[[nodiscard]] std::vector<ActionRow> GiftOfferActionRows() {
+	return {
+		{
+			.id = 75,
+			.name = "starGiftPurchaseOfferOwnPending",
+			.type = mtpc_messageActionStarGiftPurchaseOffer,
+			.action = [] {
+				return MTP_messageActionStarGiftPurchaseOffer(
+					MTP_flags(0),
+					StarGiftFixture(5075, 100, false),
+					MTP_starsAmount(MTP_long(20), MTP_int(125000000)),
+					MTP_int(1704240000));
+			},
+			.alternative = Alternative<ActionStarGift>(),
+			.output = ActionOutput::Service,
+			.json = R"("id": 75, "date": "2023-12-31T04:15:00",
+				"date_unixtime": "1703985300", "actor": "Self Example",
+				"actor_id": "user1000", "action": "star_gift_purchase_offer",
+				"gift_id": 5075, "price_amount_whole": "20",
+				"price_amount_nano": "125000000", "price_currency": "Stars",
+				"expires": 1704240000, "accepted": false, "declined": false)",
+			.html = "You offered 20.125 stars for a gift. "
+				"This offer expires on 3 January 2024 at 03:00.",
+			.fromId = kSelfId,
+			.out = true,
+		},
+		{
+			.id = 76,
+			.name = "starGiftPurchaseOfferRejected",
+			.type = mtpc_messageActionStarGiftPurchaseOffer,
+			.action = [] {
+				return MTP_messageActionStarGiftPurchaseOffer(
+					MTP_flags(PurchaseOfferFlag::f_declined),
+					UniqueGiftFixture(5076, 6076),
+					MTP_starsTonAmount(MTP_long(3000000001)),
+					MTP_int(0));
+			},
+			.alternative = Alternative<ActionStarGift>(),
+			.json = R"("id": 76, "date": "2023-12-31T04:16:00",
+				"date_unixtime": "1703985360",
+				"action": "star_gift_purchase_offer", "gift_id": 5076,
+				"price_amount_whole": "3", "price_amount_nano": "1",
+				"price_currency": "TON", "expires": 0,
+				"accepted": false, "declined": true)",
+			.html = "An offer to buy Unique Cap #1 for 3.000000001 TON. "
+				"This offer was rejected.",
+		},
+		{
+			.id = 77,
+			.name = "starGiftPurchaseOfferDeclinedOwnExpired",
+			.type = mtpc_messageActionStarGiftPurchaseOfferDeclined,
+			.action = [] {
+				return MTP_messageActionStarGiftPurchaseOfferDeclined(
+					MTP_flags(OfferDeclinedFlag::f_expired),
+					UniqueGiftFixture(5077, 6077),
+					MTP_starsAmount(MTP_long(75), MTP_int(0)));
+			},
+			.alternative = Alternative<ActionStarGift>(),
+			.output = ActionOutput::Service,
+			.json = R"("id": 77, "date": "2023-12-31T04:17:00",
+				"date_unixtime": "1703985420", "actor": "Self Example",
+				"actor_id": "user1000",
+				"action": "star_gift_purchase_offer_declined", "gift_id": 5077,
+				"price_amount_whole": "75", "price_amount_nano": "0",
+				"price_currency": "Stars", "expired": true)",
+			.html = "The offer from Fixture Group to buy your Unique Cap #1 "
+				"for 75 stars has expired.",
+			.fromId = kSelfId,
+			.out = true,
+		},
+		{
+			.id = 78,
+			.name = "starGiftPurchaseOfferDeclinedOwnRejected",
+			.type = mtpc_messageActionStarGiftPurchaseOfferDeclined,
+			.action = [] {
+				return MTP_messageActionStarGiftPurchaseOfferDeclined(
+					MTP_flags(0),
+					StarGiftFixture(5078, 120, true),
+					MTP_starsTonAmount(MTP_long(750000000)));
+			},
+			.alternative = Alternative<ActionStarGift>(),
+			.output = ActionOutput::Service,
+			.json = R"("id": 78, "date": "2023-12-31T04:18:00",
+				"date_unixtime": "1703985480", "actor": "Self Example",
+				"actor_id": "user1000",
+				"action": "star_gift_purchase_offer_declined", "gift_id": 5078,
+				"price_amount_whole": "0", "price_amount_nano": "750000000",
+				"price_currency": "TON", "expired": false)",
+			.html = "You rejected Fixture Group&apos;s offer to buy your gift "
+				"for 0.75 TON.",
+			.fromId = kSelfId,
+			.out = true,
+		},
+		{
+			.id = 79,
+			.name = "starGiftPurchaseOfferDeclinedRejected",
+			.type = mtpc_messageActionStarGiftPurchaseOfferDeclined,
+			.action = [] {
+				return MTP_messageActionStarGiftPurchaseOfferDeclined(
+					MTP_flags(0),
+					UniqueGiftFixture(5079, 6079),
+					MTP_starsAmount(MTP_long(50), MTP_int(0)));
+			},
+			.alternative = Alternative<ActionStarGift>(),
+			.json = R"("id": 79, "date": "2023-12-31T04:19:00",
+				"date_unixtime": "1703985540",
+				"action": "star_gift_purchase_offer_declined", "gift_id": 5079,
+				"price_amount_whole": "50", "price_amount_nano": "0",
+				"price_currency": "Stars", "expired": false)",
+			.html = "Alice Example rejected your offer to buy Unique Cap #1 "
+				"for 50 stars.",
+		},
+	};
+}
+
 } // namespace
 
 MTPPhoto PhotoFixture(
@@ -1786,6 +1905,7 @@ std::vector<ActionRow> ActionRows() {
 		&TodoActionRows,
 		&OwnershipActionRows,
 		&WalletActionRows,
+		&GiftOfferActionRows,
 	};
 	auto result = std::vector<ActionRow>();
 	for (const auto family : families) {
@@ -1873,9 +1993,9 @@ QString CheckActionInventory(const Outputs &) {
 		ExpectNames(u"writer-only rows"_q, writerOnly, {
 			u"phoneNumberRequest"_q,
 		}),
-		ExpectNumber(u"TL fixtures"_q, fixtures, 73),
+		ExpectNumber(u"TL fixtures"_q, fixtures, 78),
 		ExpectNumber(u"TL constructors"_q, int(constructors.size()), 72),
-		ExpectNumber(u"parsed TL fixtures"_q, int(slice.wire.size()), 73),
+		ExpectNumber(u"parsed TL fixtures"_q, int(slice.wire.size()), 78),
 		ExpectNumber(u"direct fixtures"_q, int(slice.direct.size()), 1),
 		ExpectNumber(u"null fallbacks"_q, nulls, 6),
 		ExpectNumber(

@@ -1032,7 +1032,9 @@ struct ActionPrizeStars {
 struct ActionStarGift {
 	uint64 giftId = 0;
 	int64 stars = 0;
+	Utf8String title;
 	std::vector<TextPart> text;
+	int32 num = 0;
 	bool anonymous = false;
 	bool limited = false;
 
@@ -1042,6 +1044,7 @@ struct ActionStarGift {
 	bool offerAccepted = false;
 	bool offerDeclined = false;
 	bool offerExpired = false;
+	bool offerOutcome = false;
 };
 
 struct ActionPaidMessagesRefunded {
@@ -1464,6 +1467,7 @@ Utf8String FormatDateTime(
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));
 Utf8String FormatMoneyAmount(int64 amount, const Utf8String &currency);
+Utf8String FormatDecimalAmount(bool negative, uint64 whole, uint64 nano);
 Utf8String FormatGramsAmount(int64 nanos);
 Utf8String FormatFileSize(int64 size);
 Utf8String FormatDuration(int64 seconds);
