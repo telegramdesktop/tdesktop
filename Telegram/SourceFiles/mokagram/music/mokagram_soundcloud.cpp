@@ -29,6 +29,7 @@
 
 #include <map>
 #include <memory>
+#include <array>
 #include <deque>
 #include <set>
 #include <algorithm>
@@ -1212,7 +1213,57 @@ void SearchCatalog(
 				}
 			}
 		}
-		done(std::move(items), std::move(error));
+		if (category != SearchCategory::All || !error.isEmpty()) {
+			done(std::move(items), std::move(error));
+			return;
+		}
+		struct SupplementalResults {
+			std::vector<CatalogItem> items;
+			std::array<std::vector<CatalogItem>, 2> sets;
+			int pending = 0;
+		};
+		const auto hasSet = [&](bool playlist) {
+			return std::ranges::any_of(items, [=](const CatalogItem &item) {
+				const auto album = std::get_if<Album>(&item);
+				return album && (album->releaseKind == ReleaseKind::Unknown) == playlist;
+			});
+		};
+		const auto missingPlaylist = !hasSet(true);
+		const auto missingAlbum = !hasSet(false);
+		if (!missingPlaylist && !missingAlbum) {
+			done(std::move(items), {});
+			return;
+		}
+		// Общая выдача может полностью состоять из треков и профилей.
+		// Добавляем верхние результаты из отсутствующих категорий.
+		const auto state = std::make_shared<SupplementalResults>();
+		state->items = std::move(items);
+		state->pending = int(missingPlaylist) + int(missingAlbum);
+		const auto request = [=](SearchCategory kind, int index) {
+			SearchCatalog(query, kind, [=](std::vector<CatalogItem> sets, QString) {
+				state->sets[index] = std::move(sets);
+				if (--state->pending != 0) {
+					return;
+				}
+				auto position = std::min(size_t(2), state->items.size());
+				for (auto i = 0; i != 2; ++i) {
+					for (auto &list : state->sets) {
+						if (i < int(list.size())) {
+							state->items.insert(
+								state->items.begin() + position++,
+								std::move(list[i]));
+						}
+					}
+				}
+				done(std::move(state->items), {});
+			});
+		};
+		if (missingPlaylist) {
+			request(SearchCategory::Playlists, 0);
+		}
+		if (missingAlbum) {
+			request(SearchCategory::Albums, 1);
+		}
 	});
 }
 
