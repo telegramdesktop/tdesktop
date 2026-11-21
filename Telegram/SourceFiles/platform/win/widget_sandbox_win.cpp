@@ -665,7 +665,10 @@ template <typename Policy>
 		return "the mitigation policy functions are not available";
 	}
 	// No thread can load a DLL after the lowering, so bind and warm them now.
-	for (const auto dll : { "bcrypt.dll", "bcryptprimitives.dll" }) {
+	const auto dlls = kX64
+		? std::array{ "ADVAPI32.dll", "bcrypt.dll" }
+		: std::array{ "bcrypt.dll", "bcryptprimitives.dll" };
+	for (const auto dll : dlls) {
 		const auto bound = __HrLoadAllImportsForDll(dll);
 		if (FAILED(bound)) {
 			return "__HrLoadAllImportsForDll("

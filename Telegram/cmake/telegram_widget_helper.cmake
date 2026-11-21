@@ -101,9 +101,17 @@ if (WIN32)
         /ENTRY:mainCRTStartup
         # Not KnownDLLs on every Windows, which the LPAC primary cannot open: WarmUp() binds them while impersonating.
         /DELAYLOAD:bcrypt.dll
-        /DELAYLOAD:bcryptprimitives.dll
         $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
     )
+    if (build_win64)
+        # advapi32 can forward SystemFunction036 to cryptbase.dll, no KnownDLL: a delay-load hook answers it instead.
+        target_link_options(TelegramWidgetHelper PRIVATE /DELAYLOAD:advapi32.dll)
+    else()
+        target_link_options(TelegramWidgetHelper PRIVATE /DELAYLOAD:bcryptprimitives.dll)
+    endif()
+    if (DESKTOP_APP_WIN7_BASELINE)
+        target_link_options(TelegramWidgetHelper PRIVATE /SUBSYSTEM:WINDOWS,6.01)
+    endif()
     if (MSVC)
         foreach (target
             TelegramWidgetHelper
