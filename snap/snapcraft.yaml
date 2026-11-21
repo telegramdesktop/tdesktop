@@ -2,7 +2,7 @@ name: telegram-desktop
 adopt-info: telegram
 icon: Telegram/Resources/art/icon512@2x.png
 
-base: core24
+base: core26
 grade: stable
 confinement: strict
 compression: lzo
@@ -101,9 +101,17 @@ parts:
     stage-packages:
       - gstreamer1.0-plugins-bad
       - libgeoclue-2-0
-      - libopenh264-7
+      - libopenh264-8
       - libxcb-cursor0
+      - libxcb-icccm4
+      - libxcb-image0
+      - libxcb-keysyms1
       - libxcb-record0
+      - libxcb-render-util0
+      - libxcb-shape0
+      - libxcb-util1
+      - libxcb-xkb1
+      - libxkbcommon-x11-0
     stage:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstaom.so
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstde265.so
@@ -111,13 +119,20 @@ parts:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstopenh264.so
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstopusparse.so
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstsubenc.so
-      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstva.so
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/gstreamer-1.0/libgstvideoparsersbad.so
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libfaad.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libgeoclue-2.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libopenh264.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-cursor.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-icccm.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-image.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-keysyms.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-record.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-render-util.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-shape.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-util.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-xkb.so*
+      - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxkbcommon-x11.so*
 
   patches:
     source: https://github.com/desktop-app/patches.git
@@ -135,8 +150,6 @@ parts:
     source-depth: 1
     source-tag: v1.3.0
     plugin: cmake
-    build-packages:
-      - libdav1d-dev
     cmake-generator: Ninja
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -148,6 +161,24 @@ parts:
       craftctl default
       sed -i 's/ -lavif$/& -ldav1d/' libavif.pc.cmake
     prime: [-./*]
+    after:
+      - dav1d
+
+  dav1d:
+    source: https://github.com/videolan/dav1d.git
+    source-depth: 1
+    source-tag: 1.5.4
+    plugin: meson
+    build-packages:
+      - meson
+      - nasm
+    meson-parameters:
+      - --buildtype=release
+      - --prefix=/usr
+      - --default-library=static
+      - -Denable_tools=false
+      - -Denable_tests=false
+    prime: [-./*]
 
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
@@ -156,7 +187,6 @@ parts:
     plugin: autotools
     build-packages:
       - nasm
-      - libdav1d-dev
       - libopenh264-dev
       - libopus-dev
       - libvdpau-dev
@@ -307,6 +337,7 @@ parts:
       sed -i 's/disable ffnvcodec cuvid nvdec nvenc/:/g' configure
     prime: [-./*]
     after:
+      - dav1d
       - nv-codec-headers
       - patches
 
@@ -503,6 +534,8 @@ parts:
     source-depth: 1
     source-commit: 642ddb107b42da7c8d152401b71cd429475e5266
     plugin: cmake
+    build-environment:
+      - CXXFLAGS: ${CXXFLAGS:+$CXXFLAGS }-include /usr/include/c++/$(c++ -dumpversion)/math.h
     build-packages:
       - libopenh264-dev
       - libopus-dev
