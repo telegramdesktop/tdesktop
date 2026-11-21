@@ -267,6 +267,50 @@ class StagedHook(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("répertoire/file name.cpp:2: 79 columns", why)
 
+    def test_multiline_call_requires_first_argument_on_next_line(self):
+        code, why = self.stage({"a.cpp":
+            "void draw() {\n\tAppendArc(path,\n\t\tcenter,\n\t\tradius);\n}\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:2: Put each argument of the multiline call", why)
+
+    def test_multiline_call_rejects_later_arguments_on_same_line(self):
+        code, why = self.stage({"a.cpp":
+            "void draw() {\n\tAppendArc(\n\t\tpath,\n\t\tcenter, radius);\n}\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:4: Put each argument of the multiline call", why)
+
+    def test_argument_cannot_share_the_end_of_a_multiline_argument(self):
+        code, why = self.stage({"a.cpp": "void draw() {\n\tAppendArc(\n"
+            "\t\t{\n\t\t\tx,\n\t\t\ty,\n\t\t}, radius);\n}\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:6: Put each argument of the multiline call", why)
+
+    def test_call_layout_understands_nested_cpp_syntax(self):
+        code, why = self.stage({"a.cpp": "void declare(int first,\n"
+            "\tint second);\n"
+            "void draw() {\n"
+            "\tAppendArc(\n"
+            "\t\tpath,\n"
+            "\t\t{ x, y },\n"
+            "\t\tRadius<int, short>(1, 2),\n"
+            "\t\tR\"(0, 90)\",\n"
+            "\t\t/* end */ 90.);\n"
+            "\tvisit([&] {\n"
+            "\t\tdraw();\n"
+            "\t});\n"
+            "}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_call_layout_checks_full_call_from_staged_hunk(self):
+        original = ("void draw() {\n\tAppendArc(path, { x, y }, radius,\n"
+            "\t\t180., 270.);\n}\n")
+        self.repo.commit({"a.cpp": original})
+        code, why = self.stage({"a.cpp": original + "int width;\n"})
+        self.assertEqual(code, 0, why)
+        code, why = self.stage({"a.cpp": original.replace("270.", "360.")})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:2: Put each argument of the multiline call", why)
+
     def test_commit_is_rejected_by_installed_hook(self):
         hook = os.path.join(self.repo.path, "hooks", "pre-commit")
         with open(hook, "w", encoding="utf-8") as stream:
@@ -277,8 +321,15 @@ class StagedHook(unittest.TestCase):
         with self.assertRaises(subprocess.CalledProcessError) as failure:
             self.repo.git("commit", "-m", "Overlong line")
         self.assertIn("a.cpp:1: 79 columns", failure.exception.stderr)
-        self.repo.put({"a.cpp": "int a;\n"})
-        self.repo.git("commit", "-m", "Short line")
+        self.repo.put({"a.cpp": "void draw() {\n"
+            "\tAppendArc(path, { x, y }, radius,\n\t\t180., 270.);\n}\n"})
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            self.repo.git("commit", "-m", "Packed call")
+        self.assertIn("a.cpp:2: Put each argument of the multiline call",
+            failure.exception.stderr)
+        self.repo.put({"a.cpp": "void draw() {\n\tAppendArc(\n"
+            "\t\tpath,\n\t\t{ x, y },\n\t\tradius,\n\t\t180.,\n\t\t270.);\n}\n"})
+        self.repo.git("commit", "-m", "Expanded call")
 
     def test_license_header_of_new_file_is_free(self):
         code, why = self.stage({"b.cpp": LICENSE + "int b() {\n"

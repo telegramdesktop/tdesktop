@@ -1,0 +1,2 @@
+tree-sitter==0.26.0
+tree-sitter-cpp==0.23.4

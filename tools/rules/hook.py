@@ -179,8 +179,25 @@ def staged():
             number += 1
             if path.endswith(SOURCES):
                 added.setdefault(path, []).append((number, line[1:]))
+    if added:
+        try:
+            from call_layout import packed_calls
+        except ImportError:
+            requirements = os.path.join(HERE, "requirements.txt")
+            print(f'Install the C++ parser with: python3 -m pip install -r'
+                f' "{requirements}"', file=sys.stderr)
+            return 1
     plain, bad = 0, 0
     for path, lines in added.items():
+        blob = subprocess.run(["git", "show", ":" + path], stdout=subprocess.PIPE)
+        if blob.returncode:
+            return blob.returncode
+        added_lines = [number for number, _ in lines]
+        for number in sorted(set(packed_calls(blob.stdout, added_lines))):
+            print(f"{path}:{number}: Put each argument of the multiline call"
+                " on its own line after the opening parenthesis.",
+                file=sys.stderr)
+            bad += 1
         for number, line in lines:
             width = len(line.expandtabs(TAB_WIDTH))
             if width > MAX_COLUMNS:
