@@ -13,6 +13,7 @@
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "history/history_item.h"
+#include "storage/cache/storage_cache_database.h"
 #include "data/data_file_origin.h"
 #include "ui/image/image_location.h"
 
@@ -232,12 +233,57 @@ QString ParseTranscript(const QByteArray &json) {
 struct Task {
 	FullMsgId id;
 	QByteArray bytes;
-	not_null<Main::Session*> session;
+	base::weak_ptr<Main::Session> session;
 
 	Task(FullMsgId id, QByteArray bytes, not_null<Main::Session*> session)
-	: id(id), bytes(std::move(bytes)), session(session) {
+	: id(id), bytes(std::move(bytes)), session(base::make_weak(session)) {
 	}
 };
+
+bool AutoEnabled() {
+	return Settings::Bool(kKeyEnabled) && Settings::Bool(kKeyAutoNew);
+}
+
+void TranscribeNewMessage(const Data::MessageUpdate &update) {
+	const auto item = update.item;
+	if (!AutoEnabled() || !item->isRegular() || !IsServerMsgId(item->id)) {
+		return;
+	}
+	const auto media = item->media();
+	const auto document = media ? media->document() : nullptr;
+	if (!document || !document->isVoiceMessage() || media->ttlSeconds()) {
+		return;
+	}
+	const auto session = &document->session();
+	const auto id = item->fullId();
+	auto &engine = Engine::Instance();
+	if (engine.result(id)) {
+		return;
+	}
+	if (const auto view = document->activeMediaView()) {
+		const auto bytes = view->bytes();
+		if (!bytes.isEmpty()) {
+			engine.transcribe(session, id, bytes);
+			return;
+		}
+	}
+
+	// Upload stores the recording here even if its message has no media view.
+	const auto weak = base::make_weak(session);
+	session->data().cache().get(document->cacheKey(), [=](QByteArray &&bytes) {
+		if (bytes.isEmpty() || bytes.startsWith("partial:")) {
+			return;
+		}
+		crl::on_main(weak, [=, bytes = std::move(bytes)] {
+			const auto current = session->data().message(id);
+			const auto media = current ? current->media() : nullptr;
+			if (AutoEnabled() && media && media->document() == document
+				&& !media->ttlSeconds()) {
+				Engine::Instance().transcribe(session, id, bytes);
+			}
+		});
+	});
+}
 
 } // namespace
 
@@ -308,6 +354,9 @@ public:
 	void enqueue(Task task) {
 		{
 			std::lock_guard lock(_mutex);
+			if (_results.contains(task.id) || !_pending.emplace(task.id).second) {
+				return;
+			}
 			_queue.push_back(std::move(task));
 		}
 		_queueCondition.notify_one();
@@ -372,11 +421,13 @@ private:
 
 			{
 				std::lock_guard lock(_mutex);
+				_pending.erase(task->id);
 				_results[task->id] = Result{ .text = transcript, .failed = failed };
 			}
 			crl::on_main(task->session, [id = task->id, session = task->session] {
-				if (const auto item = session->data().message(id)) {
-					session->data().requestItemResize(item);
+				const auto strong = session.get();
+				if (const auto item = strong->data().message(id)) {
+					strong->data().requestItemResize(item);
 				}
 			});
 		}
@@ -387,6 +438,7 @@ private:
 	bool _stop = false;
 	bool _initialized = false;
 	std::deque<Task> _queue;
+	std::set<FullMsgId> _pending;
 	std::map<FullMsgId, Result> _results;
 	tinyasr_models *_models = nullptr;
 	std::thread _thread;
@@ -457,37 +509,13 @@ void Start() {
 	}
 	static auto lifetime = rpl::lifetime();
 	Core::App().domain().activeSessionValue(
-	) | rpl::filter([](Main::Session *session) {
-		return session != nullptr;
-	}) | rpl::on_next([](Main::Session *session) {
-		session->changes().realtimeMessageUpdates(
+	) | rpl::map([](Main::Session *session) {
+		return session ? session->changes().messageUpdates(
 			Data::MessageUpdate::Flag::NewAdded
-		) | rpl::on_next([session](const Data::MessageUpdate &update) {
-			if (!Settings::Bool(kKeyEnabled) || !Settings::Bool(kKeyAutoNew)) {
-				return;
-			}
-			const auto item = update.item;
-			const auto media = item->media();
-			const auto document = media ? media->document() : nullptr;
-			if (!document || !document->isVoiceMessage()) {
-				return;
-			}
-			const auto id = item->fullId();
-			if (Engine::Instance().result(id)) {
-				return;
-			}
-			const auto view = document->createMediaView();
-			const auto start = [session, id, view] {
-				if (!view->bytes().isEmpty()) {
-					Engine::Instance().transcribe(session, id, view->bytes());
-				}
-			};
-			// Voice messages are cached in memory by tdesktop. Transcribe the
-			// bytes when the player has them; a not-yet-loaded message is
-			// skipped, since downloading would touch the network.
-			start();
-		}, session->lifetime());
-	}, lifetime);
+			| Data::MessageUpdate::Flag::NewMaybeAdded
+		) : rpl::never<Data::MessageUpdate>();
+	}) | rpl::flatten_latest(
+	) | rpl::on_next(TranscribeNewMessage, lifetime);
 }
 
 } // namespace Mokagram::Asr
