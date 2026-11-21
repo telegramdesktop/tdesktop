@@ -858,7 +858,14 @@ applied.
     evidence that the helper runs on its own desktop is the
     outside reading of the same thread's `GetThreadDesktop` from the
     client's window station, not this row. No lowbox tier writes it, and
-    no lowbox helper maps `user32.dll`.
+    no lowbox helper maps `user32.dll`. Telegram labels each helper's
+    desktop Low with no-write-up (`S:(ML;;NW;;;LW)`) before the helper
+    starts, so that its Low startup token can connect to it (unlabelled,
+    the desktop counts as Medium and `user32.dll` fails to initialize
+    there with error 1114); a label it cannot set fails the start with
+    `SetSecurityInfo failed: <reason>` (or `CreateWellKnownSid`,
+    `InitializeAcl` or `AddMandatoryAce` before it), before any helper
+    or row exists.
   - `package identity:` and `win32k system calls:` read `not read (... is
     documented from 6.2.0)`, and so does every `mitigation` row but x86's
     DEP: `mitigation DEP: 0x<flags>, permanent <0|1> (GetProcessDEPPolicy)`,

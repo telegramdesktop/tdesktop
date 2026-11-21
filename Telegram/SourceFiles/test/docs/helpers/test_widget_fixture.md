@@ -2235,13 +2235,25 @@ packs, the fixture and the seams they use need no change for it.
     `BCryptGenRandom` with `BCRYPT_USE_SYSTEM_PREFERRED_RNG`, whose
     failure fails the start with `BCryptGenRandom failed: status
     0x<status>` before any desktop or helper exists), asking
-    only `DESKTOP_CREATEWINDOW`, with no hook flag, no inheritable handle
+    `DESKTOP_CREATEWINDOW`, `DESKTOP_READOBJECTS`, `DESKTOP_WRITEOBJECTS`
+    and `WRITE_OWNER` (`CreateDesktopW` documents the two object rights as
+    required with `WRITE_OWNER`), with no hook flag, no inheritable handle
     and the window station's default security, and passes
     `<station>\<name>` as the creation's `lpDesktop`. `CreateDesktopW` is
     documented to assign the new desktop to its calling thread, so the
     client calls it on a short-lived thread of its own and joins that
     thread before the launch goes on: the launching thread's desktop never
     changes, and no thread of the client is left on the helper's desktop.
+    That thread only creates the desktop and keeps the handle and the
+    call's error for the join. After the join, back on the launching
+    thread and before any helper exists, the client owns the handle and
+    labels the new desktop Low with no-write-up (`S:(ML;;NW;;;LW)`, the
+    label `WinSta0\Default` carries) through `SetSecurityInfo` with
+    `LABEL_SECURITY_INFORMATION`, which is what `WRITE_OWNER` is for; the
+    owner and DACL stay as created. Unlabelled, the desktop counts as
+    Medium, and the helper's Low startup token cannot connect to it
+    (`user32.dll` fails to initialize there, `the widget helper is not
+    sandboxed: LoadLibraryExW failed: error 1114`).
     It holds that handle
     with the helper's process and job handles, and it neither switches the
     input desktop nor changes its own window station. Once the helper's
@@ -2254,9 +2266,14 @@ packs, the fixture and the seams they use need no change for it.
     when it drops the helper's completion. A desktop it cannot
     create fails the start with `CreateDesktopW failed: <reason>`, or the
     station name's `GetProcessWindowStation failed: <reason>` or
-    `GetUserObjectInformationW failed: <reason>`. Window messages are not
-    access-checked between the windows of one desktop, so a desktop of
-    its own keeps the helper from the user's windows. The window station
+    `GetUserObjectInformationW failed: <reason>`. A label it cannot set
+    fails the start with `SetSecurityInfo failed: <reason>` (or
+    `CreateWellKnownSid`, `InitializeAcl` or `AddMandatoryAce failed:
+    <reason>` while building it): the creating thread has already exited,
+    so the launching thread closes the desktop before the start fails,
+    and no helper is created. Window messages are not access-checked
+    between the windows of one desktop, so a desktop of its own keeps the
+    helper from the user's windows. The window station
     stays Telegram's, because another one would change a process-wide
     resource of Telegram.
   - **Tokens.** The restricted pair of **The Windows helper** above, both
@@ -3201,8 +3218,10 @@ packs, the fixture and the seams they use need no change for it.
   `SetFilePointerEx`, `ReadFile`, or `ReadFile read <n> of <m> bytes`) or
   of the hash (`BCrypt<function> failed: status 0x<status>`) in place of
   the catalog's, and its desktop `BCryptGenRandom failed: status
-  0x<status>` (the name's random part) or `CreateDesktopW failed:
-  <reason>`; the AppContainer and Windows 7 tiers add
+  0x<status>` (the name's random part), `CreateDesktopW failed:
+  <reason>` or, for its Low label, `SetSecurityInfo failed: <reason>`
+  (`CreateWellKnownSid`, `InitializeAcl` or `AddMandatoryAce` before
+  it); the AppContainer and Windows 7 tiers add
   `AssignProcessToJobObject failed: <reason> (<end>, terminated after <n>
   ms)` (**The Windows sandbox tiers** above), which, when `<end>` is not
   an exit, is followed by the end lines of the reaping like an ended
