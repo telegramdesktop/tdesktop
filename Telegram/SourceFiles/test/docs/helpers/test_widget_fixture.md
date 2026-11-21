@@ -2445,12 +2445,22 @@ the move, after its renames (the conformance task's evidence records the
 command and its output). The attack audit's own self-check
 stage, its three verdict controls and three accepted regression files
 (`activation-animation-events.html`, `api-fetch.html`,
-`fallback-at-boot.html`) are planned for the conformance task's packed
-campaign, which records its results in that task's `work/test.md`; until it
-runs, the fixture after the move has no executed app evidence. The summary
-reading and the text injection are the conformance runner's
-([test_widget_conformance](test_widget_conformance.md)), and they too run
-in the app first in that campaign. The media-field parameter
+`fallback-at-boot.html`) ran on the shared fixture in the first launch of
+the macOS arm64 Debug campaign of
+`2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`
+(its `work/test.md`, Attempt 1, Run 2, Tests 1, 2 and 7). The self-checks
+passed, all three files' rows matched the audit's accepted launch, and
+the 66 attack stage and Check names matched in order. The only N/A was
+the `not-live` click show for `fallback-at-boot.html`.
+The conformance runner ([test_widget_conformance](test_widget_conformance.md))
+also exercised the fixture's summary reading and text injection in
+that campaign. The merged run file had `observed.bridge` for all 120
+runs, with 16 calls total and no `host` judgement for a refused bridge
+reading (Run 3, Test 3). The runner injected four text fillers for
+`auto/20-client-behaviour` in the light launch (Run 2, Test 4), before
+the media-field campaign of
+`2026/10/26/move-widgets-to-widget-sandbox-v0-2-2-and-give-them-their-state-and-message-context`.
+The media-field parameter
 (`WidgetMessageFields`) ran in the macOS arm64 Debug client in the evidence
 campaign of the task named above (its `work/test.md`, Runs 1-3): the
 attack audit's 105 default calls each read back `flags=none chat=none
@@ -2479,21 +2489,30 @@ compiled in the Windows Win32 Debug build of
 `2026/10/31/let-widgets-pay-and-sign-data-through-gram-wallet-for-their-bot`,
 which adds it for local via-bot widget messages; no existing caller sets
 it, and it has not run in the app.
-`WidgetDesktopStop()` compiled, with its two consumers, in the Windows
-Win32 Debug build of
-`2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`;
-it has not run in the app yet: that task's evidence campaign runs it
-through both runners.
+`WidgetDesktopStop()` ran through both runners in the Windows Win32 Debug
+client at DPR 2 in the evidence campaign of
+`2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`
+(its `work/test.md`, Attempt 1). In the stress-kit runner (Runs 1 to 3,
+Tests 2, 5 and 8), the stopped entries recorded their own
+`Paint limit exceeded:` reasons in `dead`, naming filter or path work.
+In the conformance smoke (Run 8, Test 21), the paint-stop entry's `dead`
+carried the desktop's filter-work reason and the host counted-cap
+entry kept its own `Text limit exceeded:` reason.
 The [one-column window](#one-column-window) (its reading, target, move and
 settle, moved from the stress-kit runner, and
-`AppendWidgetFixtureOneColumn()`) has not run in the app yet. Before the
+`AppendWidgetFixtureOneColumn()`) ran in the Windows Win32 Debug client
+in the evidence campaign of
+`2026/10/31/put-the-conformance-runners-window-in-the-one-column-layout`
+(its `work/test.md`, Attempt 1, and `evidence/index.md`). In Runs 1 and
+5 the conformance runner put the window in one column before its first
+injection, from a normal window at the two-column threshold and an
+inactive maximized window, respectively. Both cores in each smoke measured
+390 CSS px without a runner refusal. The maximized window stayed inactive
+through teardown and ended normal. The stress-kit smoke confirmed
+placement on the screen with the highest refresh rate, in one column
+and on top (Run 3). Before the
 move the same reading, target and settle ran inside the stress-kit
 runner's Windows passes ([test_widget_stress](test_widget_stress.md#verification)).
-The evidence campaign of
-`2026/10/31/put-the-conformance-runners-window-in-the-one-column-layout`
-runs a conformance smoke from a normal window narrowed to the first
-two-column width, one from an inactive maximized window and a stress-kit
-smoke, and records what ran in that task's evidence.
 
 The [remote engines](#remote-engines) first ran in the same-binary macOS
 helper, the client's own `Contents/MacOS/Telegram -widgethelper 3` that
