@@ -1052,6 +1052,7 @@ void RefillStream() {
 // Telegram-треки стримит сам плеер, их не трогаем.
 void PrefetchUpcoming() {
 	const auto &queue = QueueState();
+	const auto token = queue.pendingToken;
 	for (auto i = queue.index + 1, left = 3
 		; left > 0 && i < int(queue.tracks.size())
 		; ++i) {
@@ -1060,8 +1061,8 @@ void PrefetchUpcoming() {
 			continue;
 		}
 		--left;
-		ResolveThen(track, [](Track next, QString error) {
-			if (error.isEmpty()) {
+		ResolveThen(track, [=](Track next, QString error) {
+			if (error.isEmpty() && token == QueueState().pendingToken) {
 				Download(next, [](const QString &, const QString &) {});
 			}
 		});
@@ -1140,7 +1141,6 @@ void PlayIndex(int index) {
 	queue.index = index;
 	queue.currentId = track.id;
 	queue.changes.fire({});
-	PrefetchUpcoming();
 	if (IsTelegramTrack(track)) {
 		const auto item = TrackMessage(track);
 		const auto document = item && item->media()
@@ -1156,6 +1156,7 @@ void PlayIndex(int index) {
 		Media::Player::instance()->play(
 			AudioMsgId(document, item->fullId()),
 			std::nullopt);
+		PrefetchUpcoming();
 		return;
 	}
 	ResolveThen(track, [=](Track resolved, QString error) {
