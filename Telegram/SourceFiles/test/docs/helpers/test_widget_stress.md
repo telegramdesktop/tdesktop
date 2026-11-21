@@ -576,10 +576,21 @@ ran the whole runner on Windows (the placement on the fastest screen, the
 one-column window on top, the idle check, the layout capture, the
 endpoint and 500 ms main-thread window checks, the self-check with
 `_SELF_CHECK`, 127 schema-valid entries per pass, each with one host).
-Not yet in the app: the worker's in-window samples, the card capture and
-the replay counts, compiled in Debug and Release (Win32, MSVC), their
-arithmetic passing the 15 rows `RunWidgetStressSelfCheck()` had then,
-outside it. The executed passes timed `RendererCore::frame()` attempts
+The worker's in-window samples, the card capture and the replay counts
+compiled in Debug and Release (Win32, MSVC), and their arithmetic
+passed the 15 rows `RunWidgetStressSelfCheck()` had then, outside the
+app. That task's Win32 Release smoke exercised all three after the
+measured passes (its `work/test.md`, Attempt 2, Run 4, Test 12). The five
+`backdrop-area` levels each recorded four worker samples in a 2000 ms
+window, with no sample failure or unreplayed frame. The capture showed
+a 390 CSS px card in the light theme. The negative control's in-window
+cover was caught by sample 5, and its launch was refused. The Win32
+Debug stress runs of
+`2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`
+also took the runner's card captures and counted replays for their
+measured levels (its `work/test.md`, Attempt 1, Runs 1 to 3, Tests 1, 4,
+5 and 7).
+The executed passes timed `RendererCore::frame()` attempts
 inside the list's paint; no pass has timed the raster attempts on posted
 work turns described above yet
 ([test_widget_host](test_widget_host.md#verification)). The Release runs
@@ -587,9 +598,15 @@ above ran the placement while its reading, target and settle were still
 the runner's own; since
 `2026/10/31/put-the-conformance-runners-window-in-the-one-column-layout`
 they are the [fixture's](test_widget_fixture.md#one-column-window), and
-the runner has not placed its window through them in the app yet: that
-task's evidence campaign runs a Debug stress-kit smoke for the placement
-gates and the `placement` record.
+the runner placed its window through them in that task's Windows Win32
+Debug stress-kit smoke (its `work/test.md`, Attempt 1, Run 3, Tests 10
+and 11, `evidence/index.md` and `evidence/run-3-stress-launch.json`).
+From a normal two-column window with its body at the one-column
+threshold, the gates passed for the fastest screen, one column and
+staying on top. The launch file's `placement` record kept its base
+shapes and the first move's pre-move values. With the timing overlay
+absent, the launch was refused at the first level for
+`no renderer work was recorded`.
 
 The self-check now has 16 rows. Its `desktop stop:` row merges literal
 desktop stops into the control level's window end: a null and a
@@ -602,19 +619,32 @@ stamp or without `loadedMs`. The
 [deaths](#deaths) reading, its merge and that row compiled in the Windows
 Win32 Debug build of
 `2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`;
-the self-check runs only from an overlay (`_SELF_CHECK` above), so that
-task's evidence loop runs it and the live reading, neither of which has
-run yet.
+the self-check runs only from an overlay (`_SELF_CHECK` above). That
+task ran it in the Windows Win32 Debug client at DPR 2 (its
+`work/test.md`, Attempt 1, Run 7, Test 10). The 16 rows passed, including
+`widget stress: desktop stop:`, and the count Check passed. In the
+stress runs (Runs 1 to 3, Tests 2, 5 and 8), the runner wrote each
+desktop-stopped level's `Paint limit exceeded:` reason as `dead` with an
+estimated `diedAtMs`. Each such stop came before its level's window
+(`evidence/run-json-excerpts.json`).
 
 The [hosted levels](#hosted-levels)' readings (`rendererScope`,
 `helperWork` with its checked sums, the effective theme check and
 `rendererTheme.source`) were added by
 `2026/11/14/run-widget-validators-and-renderers-in-the-macos-helper`,
 compiled in the macOS Debug build and syntax-checked with the Release
-command line with and without `TDESKTOP_RELEASE_TEST_HARNESS`; no hosted
-level has run in the app yet. That task's evidence campaign plans the 76
-strict levels hosted and `in-process`, with a dropped theme application
-and overflowing helper stamps as controls, and records them.
+command line with and without `TDESKTOP_RELEASE_TEST_HARNESS`. That
+task's macOS Debug campaign ran the 76 strict levels hosted and
+`in-process` through its overlay's `stress-pages` leg under a locked
+console. The same levels loaded and stopped in both arms (its
+`work/test.md`, Attempt 1, check A4d, runs 3 and 4,
+`evidence/stress/stress-arms.txt`). In its separate `theme` leg,
+`CheckWidgetTheme()` read a dropped theme application as `wrong` in
+hosted Debug run 5 and hosted arm64 Release run 10 with the harness
+(check A4c, `evidence/conformance/theme.md` and
+`evidence/conformance/theme-run-10.md`). The runner's four hosted
+readings and the control with overflowing helper stamps have yet to run
+in the app.
 
 ## Related guidance
 
