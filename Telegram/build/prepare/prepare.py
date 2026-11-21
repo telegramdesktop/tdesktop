@@ -530,7 +530,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout ec968c55bc61168091bc244e023a28624a2b48fb
+    git checkout eba559d45b4a42119326f3dcd4e8f0a7005a1358
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -1219,8 +1219,8 @@ mac:
         --enable-cross-compile \
         --target-os=darwin \
         --arch="$arch" \
-        --extra-cflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-        --extra-cxxflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+        --extra-cflags="$MIN_VER -arch $arch $UNGUARDED -I$USED_PREFIX/include" \
+        --extra-cxxflags="$MIN_VER -arch $arch $UNGUARDED -I$USED_PREFIX/include" \
         --extra-ldflags="$MIN_VER -arch $arch $USED_PREFIX/lib/libopus.a -lc++" \
         --disable-programs \
         --disable-doc \

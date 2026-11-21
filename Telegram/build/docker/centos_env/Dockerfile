@@ -185,7 +185,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin ec968c55bc61168091bc244e023a28624a2b48fb
+git fetch --depth=1 origin eba559d45b4a42119326f3dcd4e8f0a7005a1358
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -637,8 +637,8 @@ git fetch --depth=1 origin e22a4510c982b048945052bd6a503475014b7ba0
 git reset --hard FETCH_HEAD
 find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git apply
 ./configure \
-	--extra-cflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
-	--extra-cxxflags="-fno-lto -DCONFIG_SAFE_BITSTREAM_READER=1" \
+	--extra-cflags="-fno-lto" \
+	--extra-cxxflags="-fno-lto" \
 	--extra-ldflags="-Wl,--push-state,--no-as-needed,-lstdc++,--pop-state" \
 	--disable-debug \
 	--disable-programs \
