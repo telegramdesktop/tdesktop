@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flat_set.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 
@@ -76,6 +77,7 @@ public:
 
 private:
 	struct Viewer;
+	using AddedIds = base::flat_set<MsgId, std::greater<>>;
 
 	HistoryItem *lookupRoot();
 	[[nodiscard]] Histories &histories();
@@ -94,7 +96,9 @@ private:
 	void injectRootDivider(
 		not_null<HistoryItem*> root,
 		not_null<MessagesSlice*> slice);
-	bool processMessagesIsEmpty(const MTPmessages_Messages &result);
+	bool processMessagesIsEmpty(
+		const MTPmessages_Messages &result,
+		const AddedIds &added = {});
 	void loadAround(MsgId id);
 	void loadBefore();
 	void loadAfter();
@@ -118,6 +122,7 @@ private:
 	rpl::event_stream<> _listChanges;
 	rpl::event_stream<> _instantChanges;
 	std::optional<MsgId> _loadingAround;
+	AddedIds _addedWhileLoadingEnd;
 	rpl::variable<std::optional<int>> _unreadCount;
 	MsgId _inboxReadTillId = 0;
 	MsgId _outboxReadTillId = 0;
