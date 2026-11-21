@@ -6,74 +6,114 @@
 
 include(cmake/generate_widget_helper_identity.cmake)
 
+if (TDESKTOP_WIDGET_HELPER_RUST)
+    include(cmake/lib_widget_helper_rust.cmake)
+endif()
+
 if (build_macstore)
     set(widget_helper_identifier ${bundle_identifier}.WidgetHelper)
 else()
     set(widget_helper_identifier com.tdesktop.Telegram.WidgetHelper)
 endif()
 
-add_executable(TelegramWidgetHelper)
-init_standalone_target(TelegramWidgetHelper)
+function(add_widget_helper target_name)
+    add_executable(${target_name})
+    init_standalone_target(${target_name})
 
-nice_target_sources(TelegramWidgetHelper ${src_loc}
-PRIVATE
-    _other/widget_helper.cpp
-    _other/widget_helper.h
-    _other/widget_helper_linux.cpp
-    _other/widget_helper_mac.cpp
-    _other/widget_helper_renderer.cpp
-    _other/widget_helper_service_mac.cpp
-    _other/widget_helper_thread_mac.cpp
-    _other/widget_helper_thread_mac.h
-    _other/widget_helper_win.cpp
-    platform/linux/widget_descriptors_linux.cpp
-    platform/linux/widget_descriptors_linux.h
-    platform/linux/widget_lockdown_linux.cpp
-    platform/linux/widget_lockdown_linux.h
-    platform/posix/widget_channel_posix.cpp
-    platform/posix/widget_channel_posix.h
-    platform/win/widget_channel_win.cpp
-    platform/win/widget_channel_win.h
-    platform/win/widget_sandbox_win.cpp
-    platform/win/widget_sandbox_win.h
-    test/test_widget_helper_probe_lockdown.cpp
-    test/test_widget_helper_probe_lockdown.h
-    test/test_widget_helper_probe_lockdown_linux.cpp
-    test/test_widget_helper_probe_lockdown_mac.cpp
-    test/test_widget_helper_probe_lockdown_win.cpp
-    test/test_widget_helper_tap.cpp
-    test/test_widget_helper_tap.h
-    test/test_widget_renderer_forward.h
-    tgw/tgw_cursor.cpp
-    tgw/tgw_cursor.h
-    tgw/tgw_hosted_glue.cpp
-    tgw/tgw_hosted_glue.h
-    tgw/tgw_hosted_wire.h
-    tgw/tgw_renderer_rules.h
-)
-
-if (NOT build_macstore)
-    remove_target_sources(TelegramWidgetHelper ${src_loc}
+    nice_target_sources(${target_name} ${src_loc}
+    PRIVATE
+        _other/widget_helper.cpp
+        _other/widget_helper.h
+        _other/widget_helper_linux.cpp
+        _other/widget_helper_mac.cpp
         _other/widget_helper_service_mac.cpp
+        _other/widget_helper_thread_mac.cpp
+        _other/widget_helper_thread_mac.h
+        _other/widget_helper_win.cpp
+        platform/linux/widget_descriptors_linux.cpp
+        platform/linux/widget_descriptors_linux.h
+        platform/linux/widget_lockdown_linux.cpp
+        platform/linux/widget_lockdown_linux.h
+        platform/posix/widget_channel_posix.cpp
+        platform/posix/widget_channel_posix.h
+        platform/win/widget_channel_win.cpp
+        platform/win/widget_channel_win.h
+        platform/win/widget_sandbox_win.cpp
+        platform/win/widget_sandbox_win.h
+        test/test_widget_helper_probe_lockdown.cpp
+        test/test_widget_helper_probe_lockdown.h
+        test/test_widget_helper_probe_lockdown_linux.cpp
+        test/test_widget_helper_probe_lockdown_mac.cpp
+        test/test_widget_helper_probe_lockdown_win.cpp
     )
+
+    if (NOT build_macstore)
+        remove_target_sources(${target_name} ${src_loc}
+            _other/widget_helper_service_mac.cpp
+        )
+    endif()
+
+    target_include_directories(${target_name} PRIVATE ${src_loc})
+
+    target_compile_definitions(${target_name}
+    PRIVATE
+        TDESKTOP_APP_VERSION=${desktop_app_version_int}
+    )
+
+    target_link_libraries(${target_name}
+    PRIVATE
+        desktop-app::external_gsl
+    )
+endfunction()
+
+function(add_widget_helper_cpp target_name)
+    add_widget_helper(${target_name})
+
+    nice_target_sources(${target_name} ${src_loc}
+    PRIVATE
+        _other/widget_helper_renderer.cpp
+        test/test_widget_helper_tap.cpp
+        test/test_widget_helper_tap.h
+        test/test_widget_renderer_forward.h
+        tgw/tgw_cursor.cpp
+        tgw/tgw_cursor.h
+        tgw/tgw_hosted_glue.cpp
+        tgw/tgw_hosted_glue.h
+        tgw/tgw_hosted_wire.h
+        tgw/tgw_renderer_rules.h
+    )
+
+    target_link_libraries(${target_name}
+    PRIVATE
+        tdesktop::lib_widget_sandbox
+        tdesktop::lib_widget_renderer
+        tdesktop::lib_nova_engine
+    )
+endfunction()
+
+function(add_widget_helper_rust target_name)
+    add_widget_helper(${target_name})
+
+    nice_target_sources(${target_name} ${src_loc}
+    PRIVATE
+        _other/widget_helper_rust.cpp
+    )
+
+    target_link_libraries(${target_name}
+    PRIVATE
+        tdesktop::lib_widget_sandbox_platform
+        tdesktop::lib_widget_helper_rust
+    )
+endfunction()
+
+if (TDESKTOP_WIDGET_HELPER_RUST)
+    add_widget_helper_rust(TelegramWidgetHelper)
+else()
+    add_widget_helper_cpp(TelegramWidgetHelper)
 endif()
 
-target_include_directories(TelegramWidgetHelper PRIVATE ${src_loc})
-
-target_compile_definitions(TelegramWidgetHelper
-PRIVATE
-    TDESKTOP_APP_VERSION=${desktop_app_version_int}
-)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_LIST_DIR}/../build/version")
-
-target_link_libraries(TelegramWidgetHelper
-PRIVATE
-    tdesktop::lib_widget_sandbox
-    tdesktop::lib_widget_renderer
-    tdesktop::lib_nova_engine
-    desktop-app::external_gsl
-)
 
 if (WIN32)
     if (build_winarm)
