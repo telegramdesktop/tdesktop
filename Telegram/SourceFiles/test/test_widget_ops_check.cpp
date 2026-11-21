@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <algorithm>
 #include <chrono>
+#include <cstddef>
 #include <exception>
 #include <future>
 #include <limits>
@@ -62,6 +63,8 @@ constexpr auto kAckQuery = R"json({"type":"query","qid":-1,)json"
 	R"json("query":{"q":"viewport"}})json";
 constexpr auto kAckResult = R"json({"type":"result","qid":-1,)json"
 	R"json("result":{"innerWidth":512.25,"innerHeight":300,"dpr":2}})json";
+constexpr auto kRemovalBatch = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"rm","id":5}]})json";
 constexpr auto kFrozen = R"json({"type":"frozen",)json"
 	R"json("reason":"Widget stopped","fatal":true})json";
 constexpr auto kTrustedClick = R"json({"type":"event",)json"
@@ -76,14 +79,98 @@ constexpr auto kThemeMessage = R"json({"type":"theme","theme":{)json"
 	R"json("text_color":"#000000"},"button":{"radius":"8px"},)json"
 	R"json("text":{"fontSize":14}}})json";
 
+// The conformance probe check's replacement leg and its expected values.
+
+constexpr auto kOldAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[["data-conformance",)json"
+	R"json("{\"id\":\"probe/old\",\"status\":\"running\"}"]],)json"
+	R"json("adopt":"html"}]})json";
+constexpr auto kOldDone = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"attr","id":2,"name":"data-conformance",)json"
+	R"json("value":"{\"id\":\"probe/old\",\"status\":\"done\"}"}]})json";
+constexpr auto kNewAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[],"adopt":"html"}]})json";
+constexpr auto kNewRunning = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"attr","id":2,"name":"data-conformance",)json"
+	R"json("value":"{\"id\":\"probe/new\",\"status\":\"running\"}"}]})json";
+constexpr auto kReadopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":6,"tag":"html","attrs":[],"adopt":"html"},)json"
+	R"json({"op":"attr","id":2,"name":"data-conformance",)json"
+	R"json("value":"{\"id\":\"probe/new\",\"status\":\"done\"}"}]})json";
+
+constexpr auto kOldDoneValue = R"json({"id":"probe/old","status":"done"})json";
+constexpr auto kNewRunningValue
+	= R"json({"id":"probe/new","status":"running"})json";
+constexpr auto kHtmlId = 2;
+constexpr auto kReadoptHtmlId = 6;
+
+// The stress leg's batches: the older host's adoption with a value; the
+// newer host's 1, 3 and 5 ops with one value on <html> each (a value on
+// another element and a `rattr` ignored); the older host's late 6 ops with
+// a value on the same id; the newer host's 2 ops without a value and its
+// 2-op re-adoption followed by a value on the earlier id.
+
+constexpr auto kStressOldAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[["data-stress",)json"
+	R"json("{\"v\":1,\"id\":\"self/old\",\"status\":\"running\"}"]],)json"
+	R"json("adopt":"html"}]})json";
+constexpr auto kStressAdopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":2,"tag":"html","attrs":[["data-stress",)json"
+	R"json("{\"v\":1,\"id\":\"self/new\",\"status\":\"setup\"}"]],)json"
+	R"json("adopt":"html"}]})json";
+constexpr auto kStressThree = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":3,"tag":"div","attrs":[]},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.5"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"{\"v\":1,)json"
+	R"json(\"id\":\"self/new\",\"status\":\"running\",\"t\":0}"}]})json";
+constexpr auto kStressFive = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.25"},)json"
+	R"json({"op":"attr","id":3,"name":"data-stress","value":"elsewhere"},)json"
+	R"json({"op":"rattr","id":2,"name":"data-stress"},)json"
+	R"json({"op":"style","id":3,"name":"width","value":"10px"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"{\"v\":1,)json"
+	R"json(\"id\":\"self/new\",\"status\":\"running\",\"t\":500}"}]})json";
+constexpr auto kStressLate = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.1"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.2"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.3"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.4"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.6"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"late"}]})json";
+constexpr auto kStressPlain = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.7"},)json"
+	R"json({"op":"style","id":3,"name":"opacity","value":"0.8"}]})json";
+constexpr auto kStressReadopt = R"json({"type":"ops","ops":[)json"
+	R"json({"op":"el","id":7,"tag":"html","attrs":[],"adopt":"html"},)json"
+	R"json({"op":"attr","id":2,"name":"data-stress","value":"old id"}]})json";
+
+constexpr auto kStressSetupValue
+	= R"json({"v":1,"id":"self/new","status":"setup"})json";
+constexpr auto kStressStartValue
+	= R"json({"v":1,"id":"self/new","status":"running","t":0})json";
+constexpr auto kStressHalfValue
+	= R"json({"v":1,"id":"self/new","status":"running","t":500})json";
+constexpr auto kStressHtmlId = 2;
+constexpr auto kStressReadoptHtmlId = 7;
+constexpr auto kStressShownValues = 3;
+
+// The characters a row's details show of a result or stress value.
+constexpr auto kProbeTextChars = 400;
+
 // Peer 0 belongs to no history, so no real message of any session has such
 // an id. The session values only tell the self-check's own ids apart.
 constexpr auto kSelfCheckSession = uint64(1);
+constexpr auto kOtherSession = uint64(2);
 
-// The hosted leg's ids, then the hosted completion-order leg's two
-// messages.
+// The session leg's id, in both sessions, and the stress leg's.
+constexpr auto kSessionsIndex = 4;
+constexpr auto kStressIndex = 5;
+
+// The hosted leg's ids, then the budget leg's, then the hosted
+// completion-order leg's two messages.
 constexpr auto kHostedIndex = 6;
 constexpr auto kHostedDroppedIndex = 7;
+constexpr auto kBudgetIndex = 8;
 constexpr auto kHostedOlderIndex = 9;
 constexpr auto kHostedNewerIndex = 10;
 
@@ -95,6 +182,11 @@ constexpr auto kHostedThemeIndex = 14;
 constexpr auto kHostedRetireIndex = 15;
 constexpr auto kHostedSelectedIndex = 16;
 
+// The conformance probe check's replacement leg's id, and the first of its
+// fixture cases' ids, one per case.
+constexpr auto kProbeReplacementIndex = 11;
+constexpr auto kProbeCaseIndex = 21;
+
 [[nodiscard]] GlobalMsgId SelfCheckId(
 		int index,
 		uint64 session = kSelfCheckSession) {
@@ -103,6 +195,14 @@ constexpr auto kHostedSelectedIndex = 16;
 
 [[nodiscard]] QString Flag(bool value) {
 	return value ? u"1"_q : u"0"_q;
+}
+
+[[nodiscard]] QString ExamplesText(const std::vector<std::string> &list) {
+	auto result = QStringList();
+	for (const auto &entry : list) {
+		result.push_back(QString::fromStdString(entry));
+	}
+	return u"["_q + result.join(u" | "_q) + u"]"_q;
 }
 
 [[nodiscard]] QString ReadingText(const WidgetOpsReading &reading) {
@@ -153,10 +253,20 @@ void AddRow(
 	});
 }
 
-// The shape of probe-fixture.json: |cases| counts the cases validated in
+// One case of probe-fixture.json, its `expect` kept as the fixture has it.
+struct ProbeCase {
+	QString name;
+	std::vector<std::string> messages;
+	QJsonValue htmlId;
+	QJsonValue updates;
+	QJsonValue finalValue;
+	QJsonValue awaitingTargets;
+};
+
+// The shape of probe-fixture.json: |cases| holds the cases validated in
 // order, up to the first one that fails.
 struct ProbeFixture {
-	int cases = 0;
+	std::vector<ProbeCase> cases;
 	QString error;
 };
 
@@ -172,26 +282,67 @@ struct ProbeFixture {
 	for (auto i = 0; i != int(cases.size()); ++i) {
 		const auto object = cases[i].toObject();
 		const auto expect = object.value(u"expect"_q).toObject();
+		auto parsed = ProbeCase{
+			.name = object.value(u"name"_q).toString(),
+			.htmlId = expect.value(u"htmlId"_q),
+			.updates = expect.value(u"updates"_q),
+			.finalValue = expect.value(u"final"_q),
+			.awaitingTargets = expect.value(u"awaitingTargets"_q),
+		};
 		const auto messages = object.value(u"messages"_q).toArray();
-		const auto strings = std::all_of(
-			messages.begin(),
-			messages.end(),
-			[](const auto &message) { return message.isString(); });
-		if (messages.isEmpty()
-			|| !strings
-			|| !expect.value(u"htmlId"_q).isDouble()
-			|| !expect.value(u"updates"_q).isDouble()
-			|| !expect.value(u"final"_q).isObject()) {
+		for (const auto &message : messages) {
+			if (message.isString()) {
+				parsed.messages.push_back(message.toString().toStdString());
+			}
+		}
+		if (parsed.messages.empty()
+			|| (int(parsed.messages.size()) != int(messages.size()))
+			|| !parsed.htmlId.isDouble()
+			|| !parsed.updates.isDouble()
+			|| !parsed.finalValue.isObject()) {
 			result.error = u"case %1 lacks string messages, a numeric "
 				"htmlId and updates, or an object final"_q.arg(i + 1);
 			return result;
 		}
-		++result.cases;
+		result.cases.push_back(std::move(parsed));
 	}
-	if (!result.cases) {
+	if (result.cases.empty()) {
 		result.error = u"no cases"_q;
 	}
 	return result;
+}
+
+// Undefined unless |value| is a JSON object, as a published result is.
+[[nodiscard]] QJsonValue ParsedResult(
+		const std::optional<std::string> &value) {
+	if (!value) {
+		return QJsonValue(QJsonValue::Undefined);
+	}
+	auto error = QJsonParseError();
+	const auto document = QJsonDocument::fromJson(
+		QByteArray::fromStdString(*value),
+		&error);
+	return (error.error == QJsonParseError::NoError && document.isObject())
+		? QJsonValue(document.object())
+		: QJsonValue(QJsonValue::Undefined);
+}
+
+[[nodiscard]] QString JsonText(const QJsonValue &value) {
+	const auto compact = [](const QJsonDocument &document) {
+		return QString::fromUtf8(document.toJson(QJsonDocument::Compact));
+	};
+	const auto text = value.isObject()
+		? compact(QJsonDocument(value.toObject()))
+		: value.isArray()
+		? compact(QJsonDocument(value.toArray()))
+		: value.isDouble()
+		? QString::number(value.toDouble())
+		: value.isString()
+		? value.toString()
+		: value.isUndefined()
+		? u"none"_q
+		: u"null"_q;
+	return text.left(kProbeTextChars);
 }
 
 void AddProbeRow(
@@ -286,6 +437,14 @@ constexpr auto kReappliedThemeMessage = R"json({"type":"theme","theme":{)json"
 	return HostedWire::EncodeMirrored(way, text).value_or(std::string());
 }
 
+// The `ops` array of |batch|, a compact batch as WidgetHost wraps one: what
+// a hosted host hands its onRenderOps.
+[[nodiscard]] std::string CleanOps(std::string_view batch) {
+	return std::string(batch.substr(
+		kOpsPrefix.size(),
+		batch.size() - kOpsPrefix.size() - kOpsSuffix.size()));
+}
+
 [[nodiscard]] QString HostedLatestText(const WidgetOpsLatest &latest) {
 	return u"generation=%1 scheme=%2 schemeChanges=%3 themeMessage=%4 "
 		"batches=%5 ops=%6 staleUpdates=%7"_q.arg(
@@ -296,6 +455,30 @@ constexpr auto kReappliedThemeMessage = R"json({"type":"theme","theme":{)json"
 			QString::number(latest.batches),
 			QString::number(latest.ops),
 			QString::number(latest.staleUpdates));
+}
+
+[[nodiscard]] QString LatestText(const WidgetOpsLatest &latest) {
+	const auto conformance = latest.conformance
+		? QString::fromStdString(*latest.conformance).left(kProbeTextChars)
+		: u"none"_q;
+	return QStringList{
+		u"generation="_q + QString::number(latest.generation),
+		u"adopted="_q + Flag(latest.adopted),
+		u"htmlId="_q + QString::number(latest.htmlId),
+		u"updates="_q + QString::number(latest.updates),
+		u"serial="_q + QString::number(latest.serial),
+		u"scheme=["_q + QString::fromStdString(latest.scheme) + u"]"_q,
+		u"schemeChanges="_q + QString::number(latest.schemeChanges),
+		u"staleUpdates="_q + QString::number(latest.staleUpdates),
+		(u"themeMessageBytes="_q
+			+ QString::number(int(latest.themeMessage.size()))),
+		u"batches="_q + QString::number(latest.batches),
+		u"ops="_q + QString::number(latest.ops),
+		u"maxBatchOps="_q + QString::number(latest.maxBatchOps),
+		u"stressValues="_q + QString::number(int(latest.stress.size())),
+		u"stressDropped="_q + QString::number(latest.stressDropped),
+		u"conformance=["_q + conformance + u"]"_q,
+	}.join(QChar(' '));
 }
 
 [[nodiscard]] QString AppliedText(const WidgetOpsLatest &latest) {
@@ -525,10 +708,7 @@ void ExerciseHosted(
 		WidgetOpsTap &tap,
 		twidget::WidgetHost &host,
 		const HostedProduct &product) {
-	const auto control = std::string(kControlBatch);
-	const auto clean = control.substr(
-		kOpsPrefix.size(),
-		control.size() - kOpsPrefix.size() - kOpsSuffix.size());
+	const auto clean = CleanOps(kControlBatch);
 	host.onRenderOps(clean);
 	const auto batch = ReadWidgetOps(tap);
 	AddRow(
@@ -1643,25 +1823,43 @@ void CheckHostedSelected(WidgetOpsSelfCheck &result) {
 	EndThemeLeg(leg, kHostedSelectedIndex);
 }
 
-struct HostedOrderSide {
+// One tapped hosted host of a leg: its message's tap, the product's
+// observers, the host and its selection's install, each step explicit so a
+// leg can read the selection before the host is built or installed.
+struct HostedSide {
 	std::shared_ptr<WidgetOpsTap> tap;
 	std::shared_ptr<HostedProduct> product;
 	std::shared_ptr<twidget::WidgetHost> host;
 	Fn<void(const std::shared_ptr<twidget::WidgetHost> &host)> install;
 };
 
-[[nodiscard]] HostedOrderSide HostedOrderStart(int index, uint64 work) {
-	const auto id = SelfCheckId(index);
-	auto result = HostedOrderSide{
+// Arms |id|, which returns its tap when it is armed already, and selects
+// its next generation at once, as a construction for it would.
+[[nodiscard]] HostedSide SelectHostedSide(GlobalMsgId id, uint64 work) {
+	auto result = HostedSide{
 		.tap = ArmWidgetOpsTap(id),
 		.product = std::make_shared<HostedProduct>(),
 	};
 	result.install = TapHostedWidget(id, work, AppliedTheme());
+	return result;
+}
+
+// Builds the side's host, uninstalled: usable when it was built and the
+// selection gave a tap to install on it.
+[[nodiscard]] bool BuildHostedSide(HostedSide &side) {
 	try {
-		result.host = HostedStub(result.product);
+		side.host = HostedStub(side.product);
 	} catch (const std::exception &) {
 	}
-	return result;
+	return side.install && side.host;
+}
+
+// |batch|'s `ops` array, as the validated batch a usable side's host hands
+// its onRenderOps.
+void SendOps(const HostedSide &side, std::string_view batch) {
+	if (side.install && side.host) {
+		side.host->onRenderOps(CleanOps(batch));
+	}
 }
 
 // The press steps a tap saw since its mark: its marked press's, its Sent
@@ -1677,8 +1875,8 @@ struct HostedOrderSide {
 // Whole clicks of both works, then the steps each side's tap saw since its
 // mark.
 [[nodiscard]] std::pair<int, int> HostedOrderClicks(
-		HostedOrderSide &older,
-		HostedOrderSide &newer,
+		HostedSide &older,
+		HostedSide &newer,
 		int olderClicks,
 		int newerClicks) {
 	MarkWidgetOpsEvents(*older.tap);
@@ -1701,15 +1899,14 @@ struct HostedOrderSide {
 // otherwise; then each work's press steps reach its own message's tap
 // alone, and the newer's still do after the older host is destroyed.
 void CheckHostedOrder(WidgetOpsSelfCheck &result, bool olderFirst) {
-	auto older = HostedOrderStart(kHostedOlderIndex, kOlderWork);
-	auto newer = HostedOrderStart(kHostedNewerIndex, kNewerWork);
+	auto older = SelectHostedSide(SelfCheckId(kHostedOlderIndex), kOlderWork);
+	const auto olderBuilt = BuildHostedSide(older);
+	auto newer = SelectHostedSide(SelfCheckId(kHostedNewerIndex), kNewerWork);
+	const auto newerBuilt = BuildHostedSide(newer);
 	const auto order = olderFirst
 		? u"older first"_q
 		: u"newer first, the older late"_q;
-	const auto built = older.install
-		&& newer.install
-		&& older.host
-		&& newer.host;
+	const auto built = olderBuilt && newerBuilt;
 	if (built) {
 		auto &first = olderFirst ? older : newer;
 		auto &second = olderFirst ? newer : older;
@@ -1878,6 +2075,969 @@ void CheckHostedOrder(WidgetOpsSelfCheck &result, bool olderFirst) {
 	return control;
 }
 
+// One FullMsgId in two sessions is two messages: arming one taps it alone,
+// arming both gives two taps, and disarming one leaves the other armed.
+void CheckSessions(WidgetOpsSelfCheck &result) {
+	const auto first = SelfCheckId(kSessionsIndex, kSelfCheckSession);
+	const auto second = SelfCheckId(kSessionsIndex, kOtherSession);
+
+	const auto firstTap = ArmWidgetOpsTap(first);
+	auto other = TapHostedWidget(second, 0, AppliedTheme());
+	const auto otherTapped = bool(other);
+	other = nullptr;
+	const auto onlyFirst = ReadWidgetOps(*firstTap);
+	AddRow(
+		result,
+		!otherTapped
+			&& (onlyFirst.factoriesSelected == 0)
+			&& (onlyFirst.wrappersBuilt == 0),
+		u"hosted: another session's message with the same FullMsgId gets "
+		"the product factory itself while only this session's is armed"_q,
+		u"tap=%1 armed{%2}"_q.arg(
+			Flag(otherTapped),
+			ReadingText(onlyFirst)));
+
+	auto firstSide = SelectHostedSide(first, 0);
+	auto secondSide = SelectHostedSide(second, 0);
+	const auto firstBuilt = BuildHostedSide(firstSide);
+	const auto secondBuilt = BuildHostedSide(secondSide);
+	if (firstBuilt) {
+		firstSide.install(firstSide.host);
+	}
+	if (secondBuilt) {
+		secondSide.install(secondSide.host);
+	}
+	SendOps(firstSide, kControlBatch);
+	SendOps(secondSide, kRemovalBatch);
+	const auto secondTap = secondSide.tap;
+	const auto firstBoth = ReadWidgetOps(*firstTap);
+	const auto secondBoth = ReadWidgetOps(*secondTap);
+	const auto separate = secondTap && (secondTap != firstTap);
+	AddRow(
+		result,
+		separate
+			&& firstBuilt
+			&& secondBuilt
+			&& (firstBoth.factoriesSelected == 1)
+			&& (firstBoth.wrappersBuilt == 1)
+			&& (firstBoth.batches == 1)
+			&& (firstBoth.ops == 4)
+			&& (firstBoth.leaks == 2)
+			&& (secondBoth.factoriesSelected == 1)
+			&& (secondBoth.wrappersBuilt == 1)
+			&& (secondBoth.batches == 1)
+			&& (secondBoth.ops == 1)
+			&& (secondBoth.leaks == 0)
+			&& (secondBoth.notes == 0),
+		u"hosted: with both sessions' messages armed, each has its own tap "
+		"and its own reading"_q,
+		u"built=%1,%2 separateTaps=%3 first{%4} second{%5}"_q.arg(
+			Flag(firstBuilt),
+			Flag(secondBuilt),
+			Flag(separate),
+			ReadingText(firstBoth),
+			ReadingText(secondBoth)));
+
+	DisarmWidgetOpsTap(first);
+	auto firstLater = TapHostedWidget(first, 0, AppliedTheme());
+	auto secondLater = TapHostedWidget(second, 0, AppliedTheme());
+	const auto firstUntouched = !firstLater;
+	const auto secondWrapping = bool(secondLater);
+	SendOps(secondSide, kRemovalBatch);
+	const auto firstAfter = ReadWidgetOps(*firstTap);
+	const auto secondAfter = ReadWidgetOps(*secondTap);
+	AddRow(
+		result,
+		firstUntouched
+			&& secondWrapping
+			&& (firstAfter.factoriesSelected == 1)
+			&& (firstAfter.hostMessages == 1)
+			&& (secondAfter.factoriesSelected == 2)
+			&& (secondAfter.batches == 2),
+		u"hosted: disarming one session's message leaves the other's armed "
+		"and recording"_q,
+		u"firstUntouched=%1 secondWrapping=%2 first{%3} second{%4}"_q.arg(
+			Flag(firstUntouched),
+			Flag(secondWrapping),
+			ReadingText(firstAfter),
+			ReadingText(secondAfter)));
+
+	firstLater = nullptr;
+	secondLater = nullptr;
+	firstSide.host = nullptr;
+	secondSide.host = nullptr;
+	firstSide.install = nullptr;
+	secondSide.install = nullptr;
+	DisarmWidgetOpsTap(second);
+}
+
+[[nodiscard]] std::string StressBulkBatch(int index) {
+	return R"json({"type":"ops","ops":[{"op":"attr","id":2,)json"
+		R"json("name":"data-stress","value":"bulk/)json"
+		+ std::to_string(index)
+		+ R"json("}]})json";
+}
+
+[[nodiscard]] std::vector<std::string> StressValues(
+		const WidgetOpsLatest &latest) {
+	auto result = std::vector<std::string>();
+	result.reserve(latest.stress.size());
+	for (const auto &entry : latest.stress) {
+		result.push_back(entry.value);
+	}
+	return result;
+}
+
+// Every receipt within [from, till], none before the one ahead of it.
+[[nodiscard]] bool ReceiptsInOrder(
+		const std::vector<WidgetStressValue> &values,
+		crl::profile_time from,
+		crl::profile_time till) {
+	auto last = from;
+	for (const auto &value : values) {
+		if (value.receivedAt < last) {
+			return false;
+		}
+		last = value.receivedAt;
+	}
+	return (last <= till);
+}
+
+// The first values and the last, and the receipts of the first, in
+// microseconds after |from|.
+[[nodiscard]] QString StressText(
+		const WidgetOpsLatest &latest,
+		crl::profile_time from) {
+	const auto count = int(latest.stress.size());
+	const auto value = [&](int index) {
+		return QString::fromStdString(
+			latest.stress[index].value).left(kProbeTextChars);
+	};
+	auto values = QStringList();
+	auto receipts = QStringList();
+	for (auto i = 0; i != std::min(count, kStressShownValues); ++i) {
+		values.push_back(value(i));
+		receipts.push_back(
+			QString::number(latest.stress[i].receivedAt - from));
+	}
+	if (count > kStressShownValues) {
+		values.push_back(u"... "_q + value(count - 1));
+	}
+	return u"{%1} values=[%2] receipts=[%3]"_q.arg(
+		LatestText(latest),
+		values.join(u" | "_q),
+		receipts.join(QChar(',')));
+}
+
+// An older host adopts <html> with a value, then a newer host is selected:
+// its batches alone, from its own adoption on, give the newest counts and
+// values, as a stress runner reads them for one level. Every batch reaches
+// the tap as its host's validated batch.
+void CheckStress(WidgetOpsSelfCheck &result) {
+	const auto id = SelfCheckId(kStressIndex);
+	auto older = SelectHostedSide(id, 0);
+	const auto tap = older.tap;
+	const auto olderBuilt = BuildHostedSide(older);
+	if (olderBuilt) {
+		older.install(older.host);
+	}
+	SendOps(older, kStressOldAdopt);
+	const auto old = ReadWidgetOpsLatest(*tap);
+
+	auto newer = SelectHostedSide(id, 0);
+	const auto selected = ReadWidgetOpsLatest(*tap);
+	const auto newerBuilt = BuildHostedSide(newer);
+	if (newerBuilt) {
+		newer.install(newer.host);
+	}
+	const auto from = crl::profile();
+	SendOps(newer, kStressAdopt);
+	SendOps(newer, kStressThree);
+	SendOps(newer, kStressFive);
+	const auto till = crl::profile();
+	const auto own = ReadWidgetOpsLatest(*tap);
+	const auto ownReading = ReadWidgetOps(*tap);
+
+	SendOps(older, kStressLate);
+	const auto late = ReadWidgetOpsLatest(*tap);
+	const auto lateReading = ReadWidgetOps(*tap);
+	const auto &olderOps = older.product->ops;
+	const auto lateForwarded = int(std::count(
+		olderOps.begin(),
+		olderOps.end(),
+		CleanOps(kStressLate)));
+
+	SendOps(newer, kStressPlain);
+	const auto plain = ReadWidgetOpsLatest(*tap);
+
+	const auto bulk = kWidgetStressValuesLimit - 2;
+	for (auto i = 0; i != bulk; ++i) {
+		SendOps(newer, StressBulkBatch(i));
+	}
+	const auto filledTill = crl::profile();
+	const auto filled = ReadWidgetOpsLatest(*tap);
+	const auto lastKept = "bulk/" + std::to_string(bulk - 2);
+
+	SendOps(newer, kStressReadopt);
+	const auto readopted = ReadWidgetOpsLatest(*tap);
+
+	newer.host = nullptr;
+	older.host = nullptr;
+	newer.install = nullptr;
+	older.install = nullptr;
+	DisarmWidgetOpsTap(id);
+
+	const auto ownValues = std::vector<std::string>{
+		kStressSetupValue,
+		kStressStartValue,
+		kStressHalfValue,
+	};
+	AddRow(
+		result,
+		olderBuilt
+			&& newerBuilt
+			&& (old.generation == 1)
+			&& (old.batches == 1)
+			&& (old.stress.size() == 1)
+			&& (selected.generation == 2)
+			&& !selected.adopted
+			&& (selected.batches == 0)
+			&& (selected.ops == 0)
+			&& (selected.maxBatchOps == 0)
+			&& selected.stress.empty()
+			&& (own.generation == 2)
+			&& own.adopted
+			&& (own.htmlId == kStressHtmlId)
+			&& (own.batches == 3)
+			&& (own.ops == 9)
+			&& (own.maxBatchOps == 5)
+			&& (StressValues(own) == ownValues)
+			&& ReceiptsInOrder(own.stress, from, till)
+			&& (own.stressDropped == 0)
+			&& !own.conformance
+			&& (own.updates == 0)
+			&& (own.serial == selected.serial),
+		u"hosted: stress: a newer host counts its own 3 batches, 9 ops and "
+		"a largest of 5 and keeps its three data-stress values in order, "
+		"receipts non-decreasing, its conformance reading untouched"_q,
+		u"built=%1,%2 old{%3} selected{%4} own%5 till=%6"_q.arg(
+			Flag(olderBuilt),
+			Flag(newerBuilt),
+			LatestText(old),
+			LatestText(selected),
+			StressText(own, from),
+			QString::number(till - from)));
+	AddRow(
+		result,
+		(late.batches == own.batches)
+			&& (late.ops == own.ops)
+			&& (late.maxBatchOps == own.maxBatchOps)
+			&& (StressValues(late) == ownValues)
+			&& (late.stressDropped == 0)
+			&& (late.staleUpdates == own.staleUpdates + 1)
+			&& (lateReading.batches == ownReading.batches + 1)
+			&& (lateReading.ops == ownReading.ops + 6)
+			&& (lateForwarded == 1),
+		u"hosted: stress: an older wrapper's late 6-op batch with a value on "
+		"the same id is forwarded and scanned, but its value and counts "
+		"never reach the newer host's reading"_q,
+		u"late%1 forwarded=%2 %3"_q.arg(
+			StressText(late, from),
+			QString::number(lateForwarded),
+			ReadingText(lateReading)));
+	AddRow(
+		result,
+		(plain.batches == 4)
+			&& (plain.ops == 11)
+			&& (plain.maxBatchOps == 5)
+			&& (StressValues(plain) == ownValues)
+			&& (plain.staleUpdates == late.staleUpdates),
+		u"hosted: stress: a batch without a value counts with its ops"_q,
+		StressText(plain, from));
+	AddRow(
+		result,
+		(int(filled.stress.size()) == kWidgetStressValuesLimit)
+			&& (filled.stressDropped == 1)
+			&& (filled.stress[kStressShownValues].value == "bulk/0")
+			&& (filled.stress.back().value == lastKept)
+			&& ReceiptsInOrder(filled.stress, from, filledTill)
+			&& (filled.batches == 4 + bulk)
+			&& (filled.ops == 11 + bulk)
+			&& (filled.maxBatchOps == 5),
+		u"hosted: stress: a value past the limit counts as dropped and never "
+		"replaces a kept one"_q,
+		u"limit=%1 lastKept=%2 %3"_q.arg(
+			QString::number(kWidgetStressValuesLimit),
+			QString::fromStdString(lastKept),
+			StressText(filled, from)));
+	AddRow(
+		result,
+		readopted.adopted
+			&& (readopted.htmlId == kStressReadoptHtmlId)
+			&& readopted.stress.empty()
+			&& (readopted.stressDropped == 0)
+			&& (readopted.batches == filled.batches + 1)
+			&& (readopted.ops == filled.ops + 2)
+			&& (readopted.maxBatchOps == 5)
+			&& !readopted.conformance
+			&& (readopted.serial == own.serial),
+		u"hosted: stress: a later adoption clears the values and the drops, "
+		"a value on the earlier id is ignored, and the counts go on"_q,
+		StressText(readopted, from));
+}
+
+// The `ops` array of a validated batch of |values| JSON values in all, as
+// WidgetHost wraps it (kOpsPrefix and kOpsSuffix): one `anim` op whose
+// `pad` zeros follow the 10 values of the wrapping and of the op.
+[[nodiscard]] std::string PaddedOps(std::size_t values) {
+	auto result = std::string(R"json([{"op":"anim","pad":[)json");
+	const auto used = std::size_t(10);
+	for (auto i = used; i < values; ++i) {
+		result += (i == used) ? "0" : ",0";
+	}
+	return result + "]}]";
+}
+
+// |values| JSON values in all: an object of `type` |type| and a `pad` array
+// of zeros, with |detail| as a `detail` member when it is not empty.
+[[nodiscard]] std::string PaddedMessage(
+		std::string_view type,
+		std::string_view detail,
+		std::size_t values) {
+	auto result = "{\"type\":\"" + std::string(type) + '"';
+	auto used = std::size_t(5);
+	if (!detail.empty()) {
+		result += ",\"detail\":\"" + std::string(detail) + '"';
+		used += 2;
+	}
+	result += ",\"pad\":[";
+	for (auto i = used; i < values; ++i) {
+		result += (i == used) ? "0" : ",0";
+	}
+	return result + "]}";
+}
+
+// The leaks of LongNameBatch(): one in its attribute's value and
+// kMaxExamples + 99 in its style's.
+constexpr auto kLongNameLeaks = kMaxExamples + 100;
+
+// A batch whose `attr` and `style` op names are 100 KiB long.
+[[nodiscard]] std::string LongNameBatch() {
+	const auto name = std::string(std::size_t(100) << 10, 'n');
+	auto css = std::string();
+	for (auto i = 1; i != kLongNameLeaks; ++i) {
+		css += "url(https://127.0.0.1:9999/b) ";
+	}
+	return R"json({"type":"ops","ops":[{"op":"attr","id":5,"name":")json"
+		+ name
+		+ R"json(","value":"https://127.0.0.1:9999/a"},)json"
+		+ R"json({"op":"style","id":5,"name":")json"
+		+ name
+		+ R"json(","value":")json"
+		+ css
+		+ R"json("}]})json";
+}
+
+// Every leak of a batch with long names is counted, while its examples stay
+// within kMaxExamples and kMaxSampleBytes, each place cut to kDetailBytes.
+void CheckLongNames(
+		WidgetOpsSelfCheck &result,
+		const WidgetOpsReading &before,
+		const WidgetOpsReading &after) {
+	auto bytes = std::size_t();
+	auto longest = std::size_t();
+	for (const auto &example : after.leakExamples) {
+		bytes += example.size();
+		longest = std::max(longest, example.size());
+	}
+	const auto attribute = "attr " + std::string(kDetailBytes - 5, 'n')
+		+ ": https://127.0.0.1:9999/a";
+	const auto first = after.leakExamples.empty()
+		? std::string()
+		: after.leakExamples.front();
+	AddRow(
+		result,
+		before.leakExamples.empty()
+			&& (after.batches == before.batches + 1)
+			&& (after.leaks == before.leaks + kLongNameLeaks)
+			&& (after.leakExamples.size() == std::size_t(kMaxExamples))
+			&& (bytes <= kMaxSampleBytes)
+			&& (longest <= std::size_t(kDetailBytes) + 2 + 160)
+			&& (first == attribute)
+			&& (after.scanGaps == before.scanGaps),
+		u"hosted: a batch with 100 KiB attribute and style names counts all "
+		"its leaks, keeps its first 64 examples within 64 KiB and cuts each "
+		"place to 240 bytes"_q,
+		u"leaks=%1 examples=%2 bytes=%3 longest=%4 first=%5"_q.arg(
+			QString::number(after.leaks - before.leaks),
+			QString::number(int(after.leakExamples.size())),
+			QString::number(qint64(bytes)),
+			QString::number(qint64(longest)),
+			QString::number(qint64(first.size()))));
+}
+
+// How a scan gap begins for an input past the budget: the route that read
+// it and its bytes, as BudgetGap() in test_widget_ops.cpp names one.
+[[nodiscard]] std::string BudgetGapStart(
+		std::string_view route,
+		std::string_view input) {
+	return std::string(route)
+		+ " of "
+		+ std::to_string(input.size())
+		+ " bytes ";
+}
+
+// On each route the hosted tap has, an input one value past the scan
+// budget, then one exactly at it: a validated batch through onRenderOps,
+// the served host's `anim` message as a mirrored served-host record and a
+// renderer `violation` as a mirrored renderer record, the same in both
+// builds. Those past it are gaps that are never parsed, each named by its
+// route and bytes in the order sent; those at it are read. Without a Debug
+// helper the records pass on unread. Then a batch with long names
+// (CheckLongNames()).
+void CheckBudget(WidgetOpsSelfCheck &result) {
+	const auto id = SelfCheckId(kBudgetIndex);
+	auto side = SelectHostedSide(id, 0);
+	const auto built = BuildHostedSide(side);
+	if (built) {
+		side.install(side.host);
+	}
+	const auto overOps = PaddedOps(kMaxScanValues + 1);
+	const auto atOps = PaddedOps(kMaxScanValues);
+	const auto wrapped = [](const std::string &clean) {
+		return std::string(kOpsPrefix) + clean + std::string(kOpsSuffix);
+	};
+	const auto overHost = PaddedMessage("anim", {}, kMaxScanValues + 1);
+	const auto atHost = PaddedMessage("anim", {}, kMaxScanValues);
+	const auto overRenderer = PaddedMessage(
+		"violation",
+		"over",
+		kMaxScanValues + 1);
+	const auto atRenderer = PaddedMessage("violation", "at", kMaxScanValues);
+	const auto apart = [](const std::string &at, const std::string &over) {
+		return WithinScanBudget(at) && !WithinScanBudget(over);
+	};
+	const auto at = apart(wrapped(atOps), wrapped(overOps))
+		&& apart(atHost, overHost)
+		&& apart(atRenderer, overRenderer);
+	const auto records = std::vector<std::string>{
+		MirroredRecord(HostedWire::kMirroredHost, overHost),
+		MirroredRecord(HostedWire::kMirroredHost, atHost),
+		MirroredRecord(HostedWire::kMirroredRenderer, overRenderer),
+		MirroredRecord(HostedWire::kMirroredRenderer, atRenderer),
+	};
+	if (built) {
+		side.host->onRenderOps(overOps);
+		side.host->onRenderOps(atOps);
+		for (const auto &record : records) {
+			side.host->onPlatformMessage(record);
+		}
+	}
+	const auto reading = ReadWidgetOps(*side.tap);
+	const auto &platform = side.product->platform;
+	const auto forwarded = kHelperMirrors
+		? platform.empty()
+		: (platform == records);
+	const auto passed = int(platform.size());
+	SendOps(side, LongNameBatch());
+	const auto sunk = ReadWidgetOps(*side.tap);
+	side.host = nullptr;
+	side.install = nullptr;
+	DisarmWidgetOpsTap(id);
+	auto gaps = std::vector<std::string>{
+		BudgetGapStart("host message", wrapped(overOps)),
+	};
+	if (kHelperMirrors) {
+		gaps.push_back(BudgetGapStart("host message", overHost));
+		gaps.push_back(BudgetGapStart("renderer message", overRenderer));
+	}
+	const auto named = std::ranges::equal(
+		reading.gapExamples,
+		gaps,
+		[](const std::string &example, const std::string &start) {
+			return example.starts_with(start);
+		});
+	const auto read = kHelperMirrors
+		? ((reading.hostMessages == 4)
+			&& (reading.violations == 1)
+			&& (reading.violationDetails
+				== std::vector<std::string>{ "at" }))
+		: ((reading.hostMessages == 2)
+			&& (reading.violations == 0)
+			&& reading.violationDetails.empty());
+	AddRow(
+		result,
+		built
+			&& at
+			&& named
+			&& (reading.scanGaps == int(gaps.size()))
+			&& (reading.batches == 1)
+			&& (reading.ops == 1)
+			&& read
+			&& forwarded,
+		kHelperMirrors
+			? u"hosted: a host and a renderer message past the scan budget "
+				"are gaps, never parsed, and ones at it are read"_q
+			: u"hosted: without a Debug helper a validated batch past the "
+				"scan budget is a gap, never parsed, one at it is read, and "
+				"the mirrored host and renderer messages pass on unread"_q,
+		u"built=%1 counted=%2 named=%3 passed=%4 %5 gapExamples=%6 "
+			"details=%7"_q.arg(
+			Flag(built),
+			Flag(at),
+			Flag(named),
+			QString::number(passed),
+			ReadingText(reading),
+			ExamplesText(reading.gapExamples),
+			ExamplesText(reading.violationDetails)));
+	CheckLongNames(result, reading, sunk);
+}
+
+// How probe-fixture.json writes an `ops` message around its array.
+constexpr auto kFixtureOpsPrefix = std::string_view(
+	R"json({"type": "ops", "ops": )json");
+constexpr auto kFixtureOpsSuffix = std::string_view("}");
+
+// The bytes of |message| inside the fixture's `ops` envelope, as the
+// fixture wrote them; empty when it is not so enveloped.
+[[nodiscard]] std::string_view FixtureOpsArray(std::string_view message) {
+	const auto envelope = kFixtureOpsPrefix.size() + kFixtureOpsSuffix.size();
+	if ((message.size() <= envelope)
+		|| !message.starts_with(kFixtureOpsPrefix)
+		|| !message.ends_with(kFixtureOpsSuffix)) {
+		return {};
+	}
+	return message.substr(kFixtureOpsPrefix.size(), message.size() - envelope);
+}
+
+// A fixture message as the helper's tap splits a served host's messages,
+// by its type as Qt's own parser reads it: an `ops` message's array, the
+// fixture's own bytes inside its envelope, for a hosted host's onRenderOps,
+// once Qt reads those bytes as the very array the message holds; anything
+// else as the served-host record for its onPlatformMessage, once the
+// record decodes to the message's own bytes. Neither, with the reason,
+// when that check fails.
+struct ProbeRoute {
+	std::string ops;
+	std::string record;
+	QString error;
+};
+
+[[nodiscard]] ProbeRoute RouteProbeMessage(const std::string &message) {
+	const auto document = QJsonDocument::fromJson(
+		QByteArray::fromStdString(message));
+	const auto object = document.object();
+	const auto ops = object.value(u"ops"_q);
+	if (document.isObject()
+		&& (object.value(u"type"_q).toString() == u"ops"_q)
+		&& ops.isArray()) {
+		const auto array = FixtureOpsArray(message);
+		const auto sliced = array.empty()
+			? QJsonDocument()
+			: QJsonDocument::fromJson(
+				QByteArray(array.data(), qsizetype(array.size())));
+		if (!sliced.isArray() || (sliced.array() != ops.toArray())) {
+			return {
+				.error = u"an ops message whose bytes inside the fixture's "
+					"envelope are not its ops array"_q,
+			};
+		}
+		return { .ops = std::string(array) };
+	}
+	auto record = MirroredRecord(HostedWire::kMirroredHost, message);
+	const auto decoded = HostedWire::DecodeMirrored(record);
+	if (!decoded
+		|| (decoded->way != HostedWire::kMirroredHost)
+		|| (decoded->text != message)) {
+		return {
+			.error = u"a served-host record that does not decode to the "
+				"message"_q,
+		};
+	}
+	return { .record = std::move(record) };
+}
+
+// The tap's reading and the sizes of the stand-in's two lists, before or
+// after one fixture message.
+struct ProbeState {
+	WidgetOpsReading reading;
+	std::size_t ops = 0;
+	std::size_t platform = 0;
+};
+
+[[nodiscard]] ProbeState ReadProbeState(
+		const WidgetOpsTap &tap,
+		const HostedProduct &product) {
+	return {
+		.reading = ReadWidgetOps(tap),
+		.ops = product.ops.size(),
+		.platform = product.platform.size(),
+	};
+}
+
+// Empty when one routed fixture message changed just what its route
+// should: an `ops` array one host message and one batch, no gap, and
+// |array|, the fixture's own bytes, onto the stand-in's `ops`; a
+// served-host record, in Debug, one host message, no batch and no gap and
+// neither of the stand-in's lists (the record consumed), and without a
+// Debug helper the record onto the stand-in's `platform`, unread, the
+// reading unchanged. Else what it changed.
+[[nodiscard]] QString ProbeStepError(
+		const ProbeRoute &route,
+		std::string_view array,
+		const ProbeState &before,
+		const ProbeState &after,
+		const HostedProduct &product) {
+	const auto hostMessages = after.reading.hostMessages
+		- before.reading.hostMessages;
+	const auto batches = after.reading.batches - before.reading.batches;
+	const auto gaps = after.reading.scanGaps - before.reading.scanGaps;
+	const auto opsAdded = int(after.ops - before.ops);
+	const auto platformAdded = int(after.platform - before.platform);
+	const auto kept = (ReadingText(after.reading)
+		== ReadingText(before.reading));
+	const auto batch = !route.ops.empty();
+	const auto exact = batch
+		? ((opsAdded == 1) && (product.ops.back() == array))
+		: (kHelperMirrors
+			|| ((platformAdded == 1)
+				&& (product.platform.back() == route.record)));
+	const auto counted = batch
+		? ((hostMessages == 1)
+			&& (batches == 1)
+			&& (gaps == 0)
+			&& (opsAdded == 1)
+			&& (platformAdded == 0))
+		: kHelperMirrors
+		? ((hostMessages == 1)
+			&& (batches == 0)
+			&& (gaps == 0)
+			&& (opsAdded == 0)
+			&& (platformAdded == 0))
+		: (kept && (opsAdded == 0) && (platformAdded == 1));
+	if (exact && counted) {
+		return QString();
+	}
+	return u"%1 hostMessages+%2 batches+%3 scanGaps+%4 productOps+%5 "
+		"productPlatform+%6 exact=%7 readingKept=%8"_q.arg(
+			batch ? u"ops"_q : u"record"_q,
+			QString::number(hostMessages),
+			QString::number(batches),
+			QString::number(gaps),
+			QString::number(opsAdded),
+			QString::number(platformAdded),
+			Flag(exact),
+			Flag(kept));
+}
+
+// Empty when |seen| is |expected| entry for entry, else its first
+// difference, by place and byte counts alone, since a mirrored record is
+// not text.
+[[nodiscard]] QString SequenceDifference(
+		const std::vector<std::string> &seen,
+		const std::vector<std::string> &expected) {
+	const auto count = std::max(seen.size(), expected.size());
+	for (auto i = std::size_t(0); i != count; ++i) {
+		const auto index = QString::number(qint64(i));
+		if (i >= seen.size()) {
+			return u"#%1 missing, %2 bytes"_q.arg(
+				index,
+				QString::number(qint64(expected[i].size())));
+		} else if (i >= expected.size()) {
+			return u"#%1 extra, %2 bytes"_q.arg(
+				index,
+				QString::number(qint64(seen[i].size())));
+		} else if (seen[i] != expected[i]) {
+			return u"#%1 got %2 bytes, expected %3 other bytes"_q.arg(
+				index,
+				QString::number(qint64(seen[i].size())),
+				QString::number(qint64(expected[i].size())));
+		}
+	}
+	return QString();
+}
+
+// Reads ReadWidgetOpsLatest() after every message, as a runner polls it.
+// Every message reaches the hosted host's observers as RouteProbeMessage()
+// splits it, and each must change just what its route reads
+// (ProbeStepError()); the arrays the stand-in must get are the fixture's
+// own bytes.
+void CheckProbeCase(
+		std::vector<WidgetOpsSelfCheckRow> &rows,
+		const ProbeCase &probe,
+		int index) {
+	const auto id = SelfCheckId(kProbeCaseIndex + index);
+	auto side = SelectHostedSide(id, 0);
+	const auto tap = side.tap;
+	const auto built = BuildHostedSide(side);
+	if (built) {
+		side.install(side.host);
+	}
+	const auto &product = *side.product;
+	auto expectedOps = std::vector<std::string>();
+	auto sentRecords = std::vector<std::string>();
+	auto routed = 0;
+	auto step = QString();
+	const auto note = [&](int i, const QString &error) {
+		if (step.isEmpty() && !error.isEmpty()) {
+			step = u"#%1 %2"_q.arg(QString::number(i), error);
+		}
+	};
+	auto awaitingTargets = QJsonValue(QJsonValue::Undefined);
+	auto serial = ReadWidgetOpsLatest(*tap).serial;
+	for (auto i = 0; i != int(probe.messages.size()); ++i) {
+		const auto &message = probe.messages[i];
+		const auto route = RouteProbeMessage(message);
+		if (built && !route.error.isEmpty()) {
+			note(i, route.error);
+		} else if (built) {
+			const auto array = FixtureOpsArray(message);
+			const auto before = ReadProbeState(*tap, product);
+			if (!route.ops.empty()) {
+				expectedOps.emplace_back(array);
+				side.host->onRenderOps(route.ops);
+			} else {
+				sentRecords.push_back(route.record);
+				side.host->onPlatformMessage(route.record);
+			}
+			++routed;
+			const auto after = ReadProbeState(*tap, product);
+			note(i, ProbeStepError(route, array, before, after, product));
+		}
+		const auto latest = ReadWidgetOpsLatest(*tap);
+		if (latest.serial == serial) {
+			continue;
+		}
+		serial = latest.serial;
+		const auto value = ParsedResult(latest.conformance).toObject();
+		if (value.value(u"status"_q).toString() == u"awaiting"_q) {
+			awaitingTargets = value.value(u"targets"_q);
+		}
+	}
+	const auto latest = ReadWidgetOpsLatest(*tap);
+	const auto reading = ReadWidgetOps(*tap);
+	const auto messages = int(probe.messages.size());
+	const auto read = int(expectedOps.size())
+		+ (kHelperMirrors ? int(sentRecords.size()) : 0);
+	const auto opsDifference = SequenceDifference(product.ops, expectedOps);
+	const auto platformDifference = SequenceDifference(
+		product.platform,
+		kHelperMirrors ? std::vector<std::string>() : sentRecords);
+	side.host = nullptr;
+	side.install = nullptr;
+	DisarmWidgetOpsTap(id);
+
+	const auto label = u"hosted: case %1 (%2): "_q.arg(
+		QString::number(index + 1),
+		probe.name);
+	const auto finalValue = ParsedResult(latest.conformance);
+	AddProbeRow(
+		rows,
+		latest.adopted
+			&& (double(latest.htmlId) == probe.htmlId.toDouble())
+			&& (double(latest.updates) == probe.updates.toDouble()),
+		label + u"the html id and the count of values"_q,
+		u"htmlId=%1 expected=%2 updates=%3 expected=%4 {%5}"_q.arg(
+			QString::number(latest.htmlId),
+			JsonText(probe.htmlId),
+			QString::number(latest.updates),
+			JsonText(probe.updates),
+			LatestText(latest)));
+	AddProbeRow(
+		rows,
+		finalValue.isObject() && (finalValue == probe.finalValue),
+		label + u"the last value is the expected final one"_q,
+		u"final=%1 expected=%2"_q.arg(
+			JsonText(finalValue),
+			JsonText(probe.finalValue)));
+	if (!probe.awaitingTargets.isUndefined()) {
+		AddProbeRow(
+			rows,
+			(awaitingTargets == probe.awaitingTargets),
+			label + u"the targets published while awaiting"_q,
+			u"targets=%1 expected=%2"_q.arg(
+				JsonText(awaitingTargets),
+				JsonText(probe.awaitingTargets)));
+	}
+	AddProbeRow(
+		rows,
+		built
+			&& (routed == messages)
+			&& step.isEmpty()
+			&& opsDifference.isEmpty()
+			&& platformDifference.isEmpty()
+			&& (reading.hostMessages == read),
+		label + u"every message forwarded once with its exact bytes"_q,
+		u"built=%1 messages=%2 ops=%3 records=%4 hostMessages=%5 "
+			"expected=%6 opsDifference=[%7] platformDifference=[%8] "
+			"step=[%9]"_q.arg(
+			Flag(built),
+			QString::number(messages),
+			QString::number(int(expectedOps.size())),
+			QString::number(int(sentRecords.size())),
+			QString::number(reading.hostMessages),
+			QString::number(read),
+			opsDifference,
+			platformDifference,
+			step));
+}
+
+// Both hosts adopt <html> under one id, as fresh sandboxes of one widget do,
+// so a retiring host's late value would land on the newer one if merged.
+// Each host's build is mirrored right after its install, the older's in
+// the other scheme; the older host's late setTheme() and theme message come
+// as the Debug helper mirrors them, and pass on unread without one.
+void CheckProbeReplacement(std::vector<WidgetOpsSelfCheckRow> &rows) {
+	const auto id = SelfCheckId(kProbeReplacementIndex);
+	auto older = SelectHostedSide(id, 0);
+	const auto tap = older.tap;
+	const auto olderBuilt = BuildHostedSide(older);
+	const auto olderRecords = std::vector<std::string>{
+		MirroredRecord(HostedWire::kMirroredBuilt, kNextTheme),
+		MirroredRecord(HostedWire::kMirroredTheme, kNextTheme),
+		MirroredRecord(HostedWire::kMirroredHost, kThemeMessage),
+	};
+	if (olderBuilt) {
+		older.install(older.host);
+		older.host->onPlatformMessage(olderRecords[0]);
+	}
+	SendOps(older, kOldAdopt);
+	SendOps(older, kOldDone);
+	const auto before = ReadWidgetOpsLatest(*tap);
+
+	auto newer = SelectHostedSide(id, 0);
+	const auto selected = ReadWidgetOpsLatest(*tap);
+	SendOps(older, kOldAdopt);
+	const auto newerBuilt = BuildHostedSide(newer);
+	if (newerBuilt) {
+		newer.install(newer.host);
+		newer.host->onPlatformMessage(
+			MirroredRecord(HostedWire::kMirroredBuilt, kTheme));
+	}
+	SendOps(newer, kNewAdopt);
+	SendOps(newer, kNewRunning);
+	const auto own = ReadWidgetOpsLatest(*tap);
+
+	SendOps(older, kOldDone);
+	SendOps(older, kControlBatch);
+	if (olderBuilt) {
+		older.host->onPlatformMessage(olderRecords[1]);
+		older.host->onPlatformMessage(olderRecords[2]);
+	}
+	const auto late = ReadWidgetOpsLatest(*tap);
+	const auto lateReading = ReadWidgetOps(*tap);
+	const auto &olderProduct = *older.product;
+	const auto forwarded = [&](const char *batch) {
+		return int(std::count(
+			olderProduct.ops.begin(),
+			olderProduct.ops.end(),
+			CleanOps(batch)));
+	};
+	const auto passedOn = kHelperMirrors
+		? std::vector<std::string>()
+		: olderRecords;
+	const auto oldForwarded = (forwarded(kOldAdopt) == 2)
+		&& (forwarded(kOldDone) == 2)
+		&& (forwarded(kControlBatch) == 1)
+		&& (olderProduct.platform == passedOn);
+
+	SendOps(newer, kReadopt);
+	const auto readopted = ReadWidgetOpsLatest(*tap);
+
+	newer.host = nullptr;
+	older.host = nullptr;
+	newer.install = nullptr;
+	older.install = nullptr;
+	const auto finished = ReadWidgetOps(*tap);
+	DisarmWidgetOpsTap(id);
+
+	const auto scheme = kHelperMirrors ? std::string(kTheme) : std::string();
+	AddProbeRow(
+		rows,
+		olderBuilt
+			&& newerBuilt
+			&& (before.generation == 1)
+			&& (before.conformance == std::string(kOldDoneValue))
+			&& (before.htmlId == kHtmlId)
+			&& (before.updates == 2)
+			&& (selected.generation == 2)
+			&& !selected.conformance
+			&& !selected.adopted
+			&& (selected.updates == 0)
+			&& selected.scheme.empty()
+			&& (selected.serial == before.serial + 1),
+		u"hosted: selecting a newer host clears the older host's done result "
+		"before the newer one is built"_q,
+		u"built=%1,%2 before{%3} selected{%4}"_q.arg(
+			Flag(olderBuilt),
+			Flag(newerBuilt),
+			LatestText(before),
+			LatestText(selected)));
+	AddProbeRow(
+		rows,
+		(own.generation == 2)
+			&& own.adopted
+			&& (own.htmlId == kHtmlId)
+			&& (own.conformance == std::string(kNewRunningValue))
+			&& (own.updates == 1)
+			&& (own.serial == selected.serial + 1)
+			&& (own.scheme == scheme)
+			&& (own.staleUpdates == 1),
+		u"hosted: the newer host reads its own adoption and value from one, "
+		"whatever the older host adopted after the selection"_q,
+		LatestText(own));
+	AddProbeRow(
+		rows,
+		(late.generation == 2)
+			&& (late.conformance == std::string(kNewRunningValue))
+			&& (late.htmlId == kHtmlId)
+			&& (late.updates == 1)
+			&& (late.serial == own.serial)
+			&& (late.scheme == scheme)
+			&& (late.schemeChanges == 0)
+			&& late.themeMessage.empty()
+			&& (late.staleUpdates == (kHelperMirrors ? 4 : 2))
+			&& (lateReading.batches == 7)
+			&& (lateReading.leaks == 2)
+			&& oldForwarded,
+		kHelperMirrors
+			? u"hosted: the older host's late value, theme message and "
+				"setTheme() are forwarded and its batches scanned, but the "
+				"newer host's reading keeps its own"_q
+			: u"hosted: without a Debug helper the older host's late value "
+				"is forwarded and its batches scanned, its theme records pass "
+				"on unread, and the newer host's reading keeps its own"_q,
+		u"late{%1} oldForwarded=%2 productOps=%3 passed=%4 %5"_q.arg(
+			LatestText(late),
+			Flag(oldForwarded),
+			QString::number(int(olderProduct.ops.size())),
+			QString::number(int(olderProduct.platform.size())),
+			ReadingText(lateReading)));
+	AddProbeRow(
+		rows,
+		readopted.adopted
+			&& (readopted.htmlId == kReadoptHtmlId)
+			&& !readopted.conformance
+			&& (readopted.updates == 1)
+			&& (readopted.serial == late.serial + 1),
+		u"hosted: a later adoption without a value clears it, and the "
+		"earlier html id no longer matches"_q,
+		LatestText(readopted));
+	AddProbeRow(
+		rows,
+		(finished.factoriesSelected == 2)
+			&& (finished.factoriesReleased == 2)
+			&& (finished.wrappersBuilt == 2)
+			&& (finished.wrappersDestroyed == 2)
+			&& (finished.batches == 8)
+			&& (finished.leaks == 2)
+			&& (finished.notes == 1)
+			&& (finished.scanGaps == 0),
+		u"hosted: the final reading scanned both hosts' batches, and both "
+		"finished"_q,
+		ReadingText(finished));
+}
+
 } // namespace
 } // namespace Test::WidgetOps
 
@@ -1896,10 +3056,13 @@ WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
 	if (!active) {
 		return result;
 	}
+	CheckSessions(result);
+	CheckStress(result);
 	result.control = CheckHosted(result);
 	for (const auto &row : CheckHostedExchanges()) {
 		AddRow(result, row.passed, row.name, row.details);
 	}
+	CheckBudget(result);
 	return result;
 }
 
@@ -1922,8 +3085,14 @@ auto RunWidgetConformanceProbeCheck(const QByteArray &fixture)
 		u"the probe fixture parses into its cases"_q,
 		u"bytes=%1 cases=%2 error=[%3]"_q.arg(
 			QString::number(fixture.size()),
-			QString::number(parsed.cases),
+			QString::number(int(parsed.cases.size())),
 			parsed.error));
+	if (parsed.error.isEmpty()) {
+		for (auto i = 0; i != int(parsed.cases.size()); ++i) {
+			CheckProbeCase(rows, parsed.cases[i], i);
+		}
+	}
+	CheckProbeReplacement(rows);
 	return rows;
 }
 

@@ -13,7 +13,7 @@ Internal to it:
 | `test_widget_ops_internal.h` | What the four translation units share: the scan and kept-value bounds, `kHelperMirrors`, the tap's record (`WidgetOpsTap`), the armed taps, the scan budget, the reader of effective theme answers, the mapping of helper stamps and the exchange leg's entry (`CheckHostedExchanges()`). |
 | `test_widget_ops.cpp` | The tap's record, the scan (the `Upstream` block and its `ScanSink`), the result reader, arming and the readings; without the harness, nothing. |
 | `test_widget_ops_hosted.cpp` | The hosted tap: `TapHostedWidget()`, its observations and registry, `WidgetThemeObservation()`, `WidgetThemeApplied()`, `WidgetPressDispatched()`, `WidgetCoreDetached()`, `WidgetPressObserved()`, the effective theme probe, `WidgetThemeUnobserved()`, `CheckWidgetTheme()`, the helper work records and `CheckedTimeSum()`; without the harness, the hosted seams alone. |
-| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` with its hosted leg, and `RunWidgetConformanceProbeCheck()`. |
+| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` with its session, stress, hosted, budget and long-name legs, and `RunWidgetConformanceProbeCheck()` with its fixture replay and replacement legs, every leg on hosted taps. |
 | `test_widget_ops_exchanges.cpp` | The self-check's exchange leg (`CheckHostedExchanges()`): `Tgw::HostedAnswers()` against TwidgetCore's own encodings and `decode()`, and a widget helper's stream end on two routes played over widget-sandbox's in-memory pair with its `ScriptedEngineEnd`; without the harness, nothing. |
 
 ## Use when
@@ -53,8 +53,9 @@ the conformance runner of
 `2026/10/24/run-the-widget-conformance-sets-through-the-chat-list-and-report`
 ([test_widget_conformance](test_widget_conformance.md)), which reads its
 results, scheme and theme message with `ReadWidgetOpsLatest()` and checks
-with `RunWidgetConformanceProbeCheck()` that the package's
-`probe-fixture.json` parses into well-formed cases. The stress-kit runner of
+that reader against the package's `probe-fixture.json` with
+`RunWidgetConformanceProbeCheck()`, which replays each case on a hosted
+tap. The stress-kit runner of
 `2026/10/30/run-the-widget-stress-kit-at-v0-4-0-on-a-release-build-without-lto`
 is the planned reader of the `data-stress` values and the batch counts;
 until it lands nothing reads them. The heavy-box evidence of
@@ -707,10 +708,47 @@ state is allocated, and the later seams find no registered host or work.
 
 `Test::RunWidgetOpsSelfCheck()` reads the tap through hosted taps under
 message ids of peer 0, which no real message of any session has, and
-disarms them before it returns. Its first row says the harness is active;
-then:
+disarms them before it returns. Its first row says the harness is active.
+Every leg but the exchange leg drives hosted `WidgetHost`s built without a
+channel and never started, calling the observers the tap installed on them
+directly, on main, as a host thread would: a validated batch's `ops` array
+through `onRenderOps`, which every build reads, and the helper's mirrored
+records through `onPlatformMessage`, which a Debug build consumes and a
+Release build with the harness (`kHelperMirrors` false: its helper has no
+tap) passes on unread to the stand-in for the runtime's own observer. A
+row whose claim holds only with a Debug helper has a Release name of its
+own, starting `hosted: without a Debug helper`; only a Release build with
+the harness compiles those branches. The legs, in the order they run:
 
-- the hosted leg (rows named `hosted: ...`) builds a hosted `WidgetHost`
+- the session leg (`hosted: another session's message ...`, `hosted: with
+  both sessions' messages ...`, `hosted: disarming one session's message
+  ...`), one `FullMsgId` under two session values, each tap selected with
+  no work id: with only the first armed, the second gets no tap from
+  `TapHostedWidget()`, so the runtime installs nothing on its host (the
+  hosted form of the product factory itself), and the first tap counts
+  nothing; with both armed and installed, two taps read the control batch
+  (2 leaks) and a removal batch (one `rm`, no leak) apart; disarming the
+  first gives it no tap again while the second's selects a new generation
+  and its installed host's next batch still counts (2 batches);
+- the stress leg (rows named `hosted: stress: ...`), every batch through
+  `onRenderOps` in both builds: an older host adopts `<html>` (id 2) with a
+  `data-stress` value, then a newer selection, read before its host is
+  built, clears that host's values and counts. The newer host gets a
+  one-op adopting batch with a value and batches of 3 and 5 ops with an
+  `attr` value each (the 5 also hold a value on another element and a
+  `rattr`, both ignored): 3 batches, 9 ops, a largest of 5, the three
+  literal values in order with receipts non-decreasing and inside the
+  sends' own `crl::profile()` bounds, `conformance`, `updates` and `serial`
+  untouched. The older host's late 6-op batch with a value on id 2 reaches
+  its stand-in once and is scanned (the cumulative reading grows by 1 batch
+  and 6 ops) but changes none of the newer host's counts or values and adds
+  one `staleUpdates`. A 2-op batch without a value counts (4 batches, 11
+  ops). 4094 more single-op values fill `stress` to 4096
+  (`kWidgetStressValuesLimit`) with exactly 1 dropped, the kept values
+  unchanged and in order. A 2-op re-adoption as id 7 followed by a value on
+  id 2 clears the values and the drop, keeps counting the batch, and
+  ignores the value on the earlier id;
+- the hosted leg (the other `hosted: ...` rows) builds a hosted `WidgetHost`
   without a channel, never started, gives it stand-ins for the runtime's
   three observers and calls the observers the tap installed directly, on
   main, as its host thread would: an unarmed id gets no tap; an armed one is
@@ -915,16 +953,99 @@ then:
   (`ScriptedEngineEnd::send()`, whose `MemoryStream::write()` waits for room
   on the 1 MiB pair), the clients' teardown and the host's end's `stop()`
   can each hold the self-check as long as they take, so a 5 s failure names
-  a step that did not come in time and says nothing of those.
+  a step that did not come in time and says nothing of those;
+- the budget leg (`hosted: a host and a renderer message past the scan
+  budget ...`; without a Debug helper `hosted: without a Debug helper a
+  validated batch past the scan budget ...`) on a host of its own, with the
+  same inputs in both builds: on each route the hosted tap has, one input
+  one value past `kMaxScanValues`, then one exactly at it. They are a
+  validated batch of one `anim` op whose `pad` zeros make the wrapped batch
+  that many values, through `onRenderOps`; the served host's `anim`
+  message the in-process leg sent, as a mirrored served-host record; and a
+  renderer `violation` (`over`, then `at`), as a mirrored renderer record,
+  both records through `onPlatformMessage`. The row requires
+  `WithinScanBudget()` to put each pair, as the reader gets it, on either
+  side of the budget, so a miscounted padding fails it (`counted=0`) rather
+  than passing, and each gap example to name its input past the budget by
+  its route (`host message` or `renderer message`) and its byte count, in
+  the order sent (`named`). In Debug the three inputs past the budget are
+  the only gaps, never parsed, and the ones at it are read: the batch as
+  one batch of one op, the `anim` message as a host message with no gap
+  (4 host messages in all) and the violation as one violation `at`, every
+  record consumed; without a Debug helper only the batch past the budget
+  is a gap, the one at it is read the same, and the four records reach the
+  stand-in unread, in order. Then the long-name row (`hosted: a batch with
+  100 KiB attribute ...`) on the same host: a batch with 100 KiB attribute
+  and style names and 164 leaks counts all 164, keeps exactly 64 examples
+  within 64 KiB, each place cut to 240 bytes, the first one's text checked
+  exactly, and adds no gap. It reads few JSON values in many bytes, so of
+  the rows only the budget row reads a message near the budget.
 
 Every expected value is a literal of the self-check, not derived from the tap.
-No row reads the session-keyed arming, the `data-stress` values, the scan
-budget or the long-name bounds.
 
-`Test::RunWidgetConformanceProbeCheck(fixture)` gives two rows and taps
-nothing: the harness is active, and the `probe-fixture.json` bytes its
-caller read from the pinned package parse into their cases (the byte and
-case counts and the parse error). No row reads a case.
+`Test::RunWidgetConformanceProbeCheck(fixture)` checks the latest reading
+the same way, on hosted taps under other peer-0 ids, and disarms them
+before it returns. Its first two rows say that the harness is active and
+that the `probe-fixture.json` bytes its caller read from the pinned package
+parse into their cases (the byte and case counts and the first error);
+then:
+
+- when they parse, every case (rows named `hosted: case N (name): ...`, N
+  counted from 1) on a hosted tap and host of its own, its messages handed
+  over one by one and the reading taken after each, as a runner polls it.
+  Each message is routed as the helper's tap splits a served host's
+  messages, by its type as Qt's JSON parser reads it rather than the tap's
+  own parser: an `ops` message's array through `onRenderOps`, as the
+  fixture's own bytes inside its `{"type": "ops", "ops": [...]}` envelope,
+  with no re-serialization, once Qt reads those bytes as the very array
+  the message holds; and anything else (the first case's
+  `query`) as a mirrored served-host record through `onPlatformMessage`,
+  once the record decodes back to the message's bytes. The html id and the
+  count of values equal the case's `htmlId` and `updates`, the last value
+  parses to its `final`, and the targets of the last `awaiting` value
+  equal its `awaitingTargets` where the case has them. The forwarding row
+  requires every message routed, so one that fails those checks fails it
+  instead of vanishing from both sides of its comparison, and each
+  dispatch to change just what its route reads, against the reading and
+  the stand-in's lists taken before it: an array one host message and one
+  batch, no gap, and the fixture's bytes onto the stand-in's `ops`; a
+  record in Debug one host message, no batch and no gap and neither of the
+  stand-in's lists (consumed), and without a Debug helper the record onto
+  the stand-in's `platform`, unread, the reading unchanged (`step` names
+  the first message whose dispatch changed anything else). At the end the
+  stand-in's `ops` must be those fixture arrays in order, its `platform`
+  empty in Debug and the records in order without a Debug helper, and the
+  tap's host messages the arrays and, in Debug, the records. Every
+  expected value is read from the fixture, never from the tap; the cases
+  at the pinned package are a value on the adopting op replaced by two
+  `attr` ops around a query (html id 2, 3 values, final `done`, targets of
+  the `awaiting` one), the same attribute on another element ignored, and
+  an `attr` before the adoption ignored: 4, 3 and 3 rows;
+- whatever the parse gave, the replacement leg (`hosted: selecting a newer
+  host ...` to `hosted: the final reading ...`) with literal expectations,
+  both hosts adopting `<html>` as id 2 as fresh sandboxes of one widget do
+  and each host's build mirrored right after its install (the older's
+  light, the newer's dark): selecting a second generation clears the first
+  host's `done` before the second host is built; the second reads its own
+  adoption and value from 1, and in Debug its mirrored scheme, although the
+  first adopted again with a value after the selection; then the first
+  host's late `done` on id 2, the scanner's control batch, a mirrored
+  `setTheme()` to the other scheme and a mirrored `theme` message come: the
+  batches reach the first host's stand-in and are scanned (2 leaks), and
+  the newer reading keeps its value, scheme and empty theme message, with
+  `staleUpdates` 4 in Debug (two late results, two theme records) and 2
+  without a Debug helper, whose three records reach the first host's
+  stand-in unread (that row named `hosted: without a Debug helper the older
+  host's late value ...` there); a later value-less adoption clears the
+  value and the earlier html id stops matching; both hosts end final with
+  all 8 batches scanned.
+
+The re-driven rows keep the names their in-process legs had, after
+`hosted: `: "gets the product factory itself", "an older wrapper",
+"forwarded" and "setTheme()" are that wording. In a hosted row a message is
+forwarded when it reaches the observer the tap wrapped or, in Debug, when
+it is a mirror the tap consumed in its place, and `setTheme()` is the
+helper's mirrored theme record.
 
 **Evidence.** Executed on macOS arm64 Debug in the evidence campaign of
 `2026/10/24/audit-the-widget-attack-corpus-through-a-validated-ops-tap` (its
@@ -1133,10 +1254,23 @@ rows' expectations are unchanged. The campaign did not run the leg in a
 Release build with the harness or on another platform.
 
 Since `2026/11/14/build-release-telegram-without-the-in-process-widget-renderer`
-the self-check runs only the legs above, with the hosted leg's final
-reading as its control (1 batch of 4 ops), and the probe check only its
-two rows: the row counts and the 2-batch, 5-op control recorded above
-include the local legs that task removed.
+the self-check's control is the hosted leg's final reading (1 batch of 4
+ops): the row counts and the 2-batch, 5-op control recorded above include
+the local legs that task removed. It removed the session, stress, budget
+and long-name legs and the probe check's case replay and replacement with
+them, leaving the probe check its first two rows. Since
+`2026/11/20/re-drive-the-widget-ops-self-checks-shared-reader-legs-through-hosted-taps`
+those six legs run again, through hosted taps as described above, each row
+named as before with `hosted: ` in front. The local legs (the unarmed and
+throwing product factories, the local presses and the local retirement),
+the wrapping factory's leg (`CheckArmed()` with `ExerciseWrapper()`) and
+the probe check's factory theme leg (`CheckProbeTheme()`) stay removed:
+their subject was the in-process renderer. When this was recorded the
+re-driven legs had compiled in the Windows Win32 Debug build and none of
+their rows had run in the app; their Release branches had been read, not
+compiled. That task's evidence campaign is to run them in a Debug
+conformance launch, and again with the scan budget made one value short,
+where only the budget row should fail.
 
 ## Related guidance
 

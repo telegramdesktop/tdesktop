@@ -717,15 +717,45 @@ struct WidgetOpsSelfCheck {
 // past checks of a constant cost, never a decode of a frame's list, and
 // within Telegram's frame cap; and, at a stream's end on two routes, that
 // an answered route is spared while one left unanswered keeps its ordinary
-// death. Disarms its ids before it returns. The caller turns each row into
-// a Check().
+// death. On hosted taps of their own, with no work id, its session leg arms
+// one FullMsgId under two session values (only the armed one tapped,
+// separate readings, disarming one leaves the other), its stress leg
+// replaces an older host and reads the newer one's `data-stress` values,
+// batch counts and drops past kWidgetStressValuesLimit, and its budget leg
+// gives, on each route the hosted tap has, a validated batch, a mirrored
+// served-host `anim` message and a mirrored renderer `violation` one value
+// past the scan budget (gaps, never parsed, each named by its route and
+// bytes) and ones at it (read: one batch of one op, a host message with no
+// gap, a violation `at`), then a batch with 100 KiB names: every leak
+// counted, its examples and their places bounded. Without a Debug helper
+// the mirrored records pass on unread and only the batch's gap counts.
+// Each row and its carrier: docs/helpers/test_widget_ops.md,
+// "Verification". Disarms its ids before it returns. The caller turns each
+// row into a Check().
 [[nodiscard]] WidgetOpsSelfCheck RunWidgetOpsSelfCheck();
 
 // Main thread, synchronous, needs Active(). |fixture| is the bytes of
 // widget-sandbox's packages/conformance/probe-fixture.json: whether the
 // harness is active and whether the fixture parses into its cases, each
 // with string messages, a numeric htmlId and updates and an object final.
-// The caller turns each row into a Check().
+// When it parses, each case plays on a hosted tap of its own under a
+// message id of peer 0, an `ops` message's array (the fixture's own bytes
+// inside its envelope, which Qt must read as that array) through the
+// hosted host's onRenderOps and any other message as a mirrored
+// served-host record that must decode to its bytes, and
+// ReadWidgetOpsLatest() is compared with the case's `expect` (htmlId,
+// updates, final, awaitingTargets). Every message must be routed and
+// change just what its route reads: an array one host message and one
+// batch, no gap, and those fixture bytes reach the observer the tap
+// wrapped, in order; a record in Debug one host message, no batch and no
+// gap, consumed, and without a Debug helper it reaches that observer
+// unread, the reading unchanged. Then a replacement leg with literal
+// expectations: a newer selection clears the result, an older host's late
+// result and theme records are not merged but its batches are scanned,
+// and a later adoption without a value clears it. Without a Debug helper
+// the mirrored records pass on unread. Each row:
+// docs/helpers/test_widget_ops.md, "Verification". Disarms its ids before
+// it returns. The caller turns each row into a Check().
 [[nodiscard]] auto RunWidgetConformanceProbeCheck(const QByteArray &fixture)
 -> std::vector<WidgetOpsSelfCheckRow>;
 
