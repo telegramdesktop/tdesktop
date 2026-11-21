@@ -103,7 +103,7 @@ if (WIN32)
         /DELAYLOAD:bcrypt.dll
         $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
     )
-    if (build_win64)
+    if (NOT build_winarm)
         # advapi32 can forward SystemFunction036 to cryptbase.dll, no KnownDLL: a delay-load hook answers it instead.
         target_link_options(TelegramWidgetHelper PRIVATE /DELAYLOAD:advapi32.dll)
     else()

@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <string_view>
 #include <system_error>
 
-#ifdef _M_X64
+#if defined _M_IX86 || defined _M_X64
 namespace {
 
 BOOLEAN WINAPI GenerateRandom(PVOID buffer, ULONG size) {
@@ -47,7 +47,7 @@ FARPROC WINAPI AnswerDelayLoad(unsigned notification, PDelayLoadInfo info) {
 } // namespace
 
 extern "C" const PfnDliHook __pfnDliNotifyHook2 = AnswerDelayLoad;
-#endif // _M_X64
+#endif // _M_IX86 || _M_X64
 
 namespace WidgetHelper {
 namespace {
