@@ -2112,8 +2112,19 @@ Chat ParseChat(const MTPChat &data) {
 		result.monoforumLinkId
 			= data.vlinked_monoforum_id().value_or_empty();
 		result.title = ParseString(data.vtitle());
+		// A channel with multiple usernames (e.g. collectible ones) has an
+		// empty legacy username; the names come only in usernames, where the
+		// first active entry is the primary one. Fall back to it.
 		if (const auto username = data.vusername()) {
 			result.username = ParseString(*username);
+		}
+		if (result.username.isEmpty() && data.vusernames()) {
+			for (const auto &item : data.vusernames()->v) {
+				if (item.data().is_active()) {
+					result.username = ParseString(item.data().vusername());
+					break;
+				}
+			}
 		}
 		result.input = MTP_inputPeerChannel(
 			MTP_long(result.bareId),
