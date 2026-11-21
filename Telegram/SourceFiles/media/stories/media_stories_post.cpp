@@ -1189,6 +1189,12 @@ void OpenWebAppStoryDownload(
 	loader->start();
 }
 
+[[nodiscard]] bool CanPostRepost(Main::Session &session) {
+	return CanPostStory(session.user())
+		&& (!session.appConfig().storiesPostingPremiumOnly()
+			|| session.premium());
+}
+
 } // namespace
 
 void ChooseStoryMedia(
@@ -1236,12 +1242,11 @@ bool CanRepostStory(not_null<Data::Story*> story) {
 	return !story->mine()
 		&& story->canShare()
 		&& (story->photo() || story->document())
-		&& CanPostStory(story->session().user());
+		&& CanPostRepost(story->session());
 }
 
 bool CanRepostMessageToStory(not_null<HistoryItem*> item) {
-	const auto session = &item->history()->session();
-	if (!CanPostStory(session->user())) {
+	if (!CanPostRepost(item->history()->session())) {
 		return false;
 	} else if (item->isSponsored() || item->isService()) {
 		return false;
