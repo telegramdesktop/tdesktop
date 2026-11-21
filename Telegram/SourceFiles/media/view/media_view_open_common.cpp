@@ -13,6 +13,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Media::View {
 
+OpenRequest::OpenRequest(
+	Window::SessionController *controller,
+	StandaloneGallery gallery,
+	int index,
+	Data::FileOrigin origin)
+: _controller(controller)
+, _fileOrigin(std::move(origin))
+, _gallery(std::make_shared<StandaloneGallery>(std::move(gallery))) {
+	Expects(index >= 0 && index < _gallery->media.size());
+	const auto &item = _gallery->media[index];
+	if (const auto photo = std::get_if<not_null<PhotoData*>>(&item)) {
+		_photo = *photo;
+	} else {
+		_document = std::get<not_null<DocumentData*>>(item);
+	}
+}
+
 TimeId ExtractVideoTimestamp(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 	if (!media) {

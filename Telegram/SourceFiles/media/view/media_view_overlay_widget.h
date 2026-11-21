@@ -685,6 +685,8 @@ private:
 	bool _shareVisible = false;
 	bool _rotateVisible = false;
 	bool _drawButtonEnabled = true;
+	Data::FileOrigin _openFileOrigin;
+	std::shared_ptr<const StandaloneGallery> _gallery;
 	bool _drawVisible = false;
 	bool _recognizeVisible = false;
 	bool _headerHasLink = false;

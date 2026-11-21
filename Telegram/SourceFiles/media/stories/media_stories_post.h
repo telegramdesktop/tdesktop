@@ -21,6 +21,7 @@ class Show;
 } // namespace ChatHelpers
 
 namespace Data {
+struct FileOrigin;
 class Story;
 } // namespace Data
 
@@ -31,6 +32,9 @@ class SessionController;
 namespace Media::Stories {
 
 using StoryMedia = Api::SendStoryMedia;
+using CloudStoryMedia = std::variant<
+	not_null<PhotoData*>,
+	not_null<DocumentData*>>;
 
 struct StoryEditorSetup {
 	TextWithTags caption;
@@ -43,6 +47,7 @@ struct StoryEditorSetup {
 	Editor::AudioTrack storyAudio;
 	bool storyAudioSelected = true;
 	std::optional<Editor::LinkPreview> storyLink;
+	bool preview = false;
 };
 
 struct StoryEditorResult {
@@ -67,7 +72,16 @@ void ChooseStoryMedia(
 	not_null<PeerData*> peer,
 	StoryEditorSetup setup,
 	StoryEditorDone done,
-	Fn<void()> selected = nullptr);
+	Fn<void()> selected = nullptr,
+	Fn<bool()> valid = nullptr);
+
+void EditStoryMedia(
+	not_null<Window::SessionController*> controller,
+	CloudStoryMedia media,
+	Data::FileOrigin origin,
+	StoryEditorSetup setup,
+	StoryEditorDone done,
+	Fn<bool()> valid = nullptr);
 
 struct CanSendStoryErrorContext {
 	Fn<void(bool)> setLoading;

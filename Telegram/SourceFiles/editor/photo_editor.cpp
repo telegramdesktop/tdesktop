@@ -340,7 +340,7 @@ PhotoEditor::PhotoEditor(
 	data,
 	photo->size(),
 	Deserialize(Core::App().settings().photoEditorBrush()).fillShapes))
-, _captionBar(data.story
+, _captionBar((data.story && data.story->showCaption)
 	? base::make_unique_q<Ui::FadeWrap<CaptionBar>>(
 		this,
 		object_ptr<CaptionBar>(this, this, *data.story))

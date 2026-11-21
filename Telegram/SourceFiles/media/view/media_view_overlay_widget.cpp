@@ -1683,6 +1683,10 @@ void OverlayWidget::refreshNavVisibility() {
 	if (_stories) {
 		_leftNavVisible = _stories->subjumpAvailable(-1);
 		_rightNavVisible = _stories->subjumpAvailable(1);
+	} else if (_gallery) {
+		_leftNavVisible = _index && (*_index > 0);
+		_rightNavVisible = _index
+			&& (*_index + 1 < _gallery->media.size());
 	} else if (_instantViewMediaData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index
@@ -2253,6 +2257,44 @@ void OverlayWidget::refreshPollVotersWidgetGeometry() {
 
 void OverlayWidget::fillContextMenuActions(
 		const Ui::Menu::MenuCallback &addAction) {
+	if (_gallery && _index) {
+		const auto item = _gallery->media[*_index];
+		const auto invoke = [=](Fn<void(GalleryMedia)> action) {
+			return [=] {
+				close();
+				action(item);
+			};
+		};
+		if (_gallery->edit) {
+			addAction(
+				tr::lng_context_edit_msg(tr::now),
+				invoke(_gallery->edit),
+				&st::mediaMenuIconEdit);
+		}
+		if (_gallery->remove) {
+			addAction(
+				tr::lng_context_delete_msg(tr::now),
+				invoke(_gallery->remove),
+				&st::mediaMenuIconDelete);
+		}
+		if (_gallery->setCover && _document && _streamed) {
+			const auto &video = _streamed->instance.info().video;
+			const auto position = video.state.position;
+			if (position != kTimeUnknown) {
+				const auto set = _gallery->setCover;
+				const auto document = not_null(_document);
+				const auto use = [=] {
+					close();
+					set(document, position);
+				};
+				addAction(
+					tr::lng_bot_media_previews_use_cover(
+						tr::now),
+					use,
+					&st::mediaMenuIconEdit);
+			}
+		}
+	}
 	if (_message && _message->isSponsored()) {
 		if (const auto window = findWindow()) {
 			const auto show = window->uiShow();
@@ -3077,6 +3119,8 @@ void OverlayWidget::clearSession() {
 		_animationOpacities.clear();
 	}
 	clearStreaming();
+	_gallery = nullptr;
+	_openFileOrigin = {};
 	setContext(v::null);
 	_from = nullptr;
 	_fromName = QString();
@@ -3964,7 +4008,9 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 }
 
 Data::FileOrigin OverlayWidget::fileOrigin() const {
-	if (_stories) {
+	if (_openFileOrigin) {
+		return _openFileOrigin;
+	} else if (_stories) {
 		return _stories->fileOrigin();
 	} else if (_message) {
 		return _message->fullId();
@@ -3983,7 +4029,9 @@ Data::FileOrigin OverlayWidget::fileOrigin() const {
 }
 
 Data::FileOrigin OverlayWidget::fileOrigin(const Entity &entity) const {
-	if (const auto item = entity.item) {
+	if (_gallery) {
+		return _openFileOrigin;
+	} else if (const auto item = entity.item) {
 		return item->fullId();
 	} else if (!v::is<not_null<PhotoData*>>(entity.data)) {
 		return Data::FileOrigin();
@@ -4658,6 +4706,8 @@ void OverlayWidget::show(OpenRequest request) {
 			Ui::LayerOption::CloseOther,
 			anim::type::instant);
 	}
+	_gallery = nullptr;
+	_openFileOrigin = {};
 	if (photo) {
 		if (contextItem && contextPeer) {
 			return;
@@ -4684,6 +4734,8 @@ void OverlayWidget::show(OpenRequest request) {
 
 		clearControlsState();
 		_firstOpenedPeerPhoto = (contextPeer != nullptr);
+		_openFileOrigin = request.fileOrigin();
+		_gallery = request.gallery();
 		assignMediaPointer(photo);
 
 		displayPhoto(photo);
@@ -4713,6 +4765,8 @@ void OverlayWidget::show(OpenRequest request) {
 		}
 
 		clearControlsState();
+		_openFileOrigin = request.fileOrigin();
+		_gallery = request.gallery();
 
 		_streamingStartPaused = false;
 		if (call) {
@@ -7896,7 +7950,14 @@ OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) co
 }
 
 OverlayWidget::Entity OverlayWidget::entityByIndex(int index) const {
-	if (_instantViewMediaData) {
+	if (_gallery) {
+		if (index >= 0 && index < _gallery->media.size()) {
+			const auto entity = [](auto item) {
+				return Entity{ item };
+			};
+			return v::match(_gallery->media[index], entity);
+		}
+	} else if (_instantViewMediaData) {
 		return entityForInstantViewMedia(index);
 	} else if (_sharedMediaData) {
 		return entityForSharedMedia(index);
@@ -9047,6 +9108,8 @@ void OverlayWidget::clearBeforeHide() {
 	_screenshotProtectionLifetime.destroy();
 	checkSingleViewMediaBurn();
 	_message = nullptr;
+	_gallery = nullptr;
+	_openFileOrigin = {};
 	_sharedMedia = nullptr;
 	_sharedMediaData = std::nullopt;
 	_sharedMediaDataKey = std::nullopt;
@@ -9140,7 +9203,24 @@ void OverlayWidget::updateSaveMsg() {
 
 void OverlayWidget::findCurrent() {
 	using namespace rpl::mappers;
-	if (_instantViewMediaData) {
+	if (_gallery) {
+		const auto photo = [=](not_null<PhotoData*> data) {
+			return data == _photo;
+		};
+		const auto document = [=](not_null<DocumentData*> data) {
+			return data == _document;
+		};
+		const auto current = [&](const GalleryMedia &item) {
+			return v::match(item, photo, document);
+		};
+		const auto &items = _gallery->media;
+		const auto i = ranges::find_if(items, current);
+		_index = (i != end(items))
+			? std::make_optional(int(i - begin(items)))
+			: std::nullopt;
+		_fullIndex = _index;
+		_fullCount = items.size();
+	} else if (_instantViewMediaData) {
 		const auto key = instantViewMediaKey();
 		const auto &items = *_instantViewMediaData;
 		const auto i = key
