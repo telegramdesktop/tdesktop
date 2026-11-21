@@ -1526,11 +1526,29 @@ void ListWidget::showContextMenu(
 		} else {
 			const auto filepath = _provider->showInFolderPath(item, document);
 			if (!filepath.isEmpty()) {
+				auto paths = QStringList();
+				if (overSelected == SelectionState::OverSelectedItems
+					&& _selected.size() > 1) {
+					for (const auto &[selected, data] : _selected) {
+						const auto media = selected->media();
+						const auto file = media ? media->document() : nullptr;
+						if (file && !file->loading()) {
+							auto path = _provider->showInFolderPath(selected, file);
+							if (!path.isEmpty()) {
+								paths.push_back(std::move(path));
+							}
+						}
+					}
+				}
 				const auto handler = base::fn_delayed(
 					st::defaultDropdownMenu.menu.ripple.hideDuration,
 					this,
-					[filepath] {
-						File::ShowInFolder(filepath);
+					[filepath, paths = std::move(paths)] {
+						if (paths.isEmpty()) {
+							File::ShowInFolder(filepath);
+						} else {
+							File::ShowInFolder(paths);
+						}
 					});
 				_contextMenu->addAction(
 					(Platform::IsMac()

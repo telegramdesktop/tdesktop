@@ -214,9 +214,13 @@ void Launch(const QString &filepath) {
 }
 
 void ShowInFolder(const QString &filepath) {
+	ShowInFolder(QStringList{ filepath });
+}
+
+void ShowInFolder(const QStringList &filepaths) {
 	crl::on_main([=] {
 		Ui::PreventDelayedActivation();
-		base::Platform::ShowInFolder(filepath);
+		base::Platform::ShowInFolder(filepaths);
 	});
 }
 
