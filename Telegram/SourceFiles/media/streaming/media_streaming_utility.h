@@ -43,6 +43,7 @@ struct Stream {
 	AVRational aspect = FFmpeg::kNormalAspect;
 	float64 fps = 0.;
 	FFmpeg::SwscalePointer swscale;
+	std::optional<FFmpeg::CodecDescriptor> softwareFallback;
 };
 
 [[nodiscard]] crl::time FramePosition(const Stream &stream);
