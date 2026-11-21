@@ -1541,17 +1541,9 @@ bool Runtime::queryVisible() const {
 		_view.get());
 }
 
-bool Runtime::recordStop(not_null<RendererCore*> renderer) {
+void Runtime::recordStop(not_null<RendererCore*> renderer) {
 	_stopReason = ClipLogLine(renderer->stopReason());
 	_stopFatal = renderer->stopFatal();
-	return !renderer->hostedWait() && countCrash(_stopFatal);
-}
-
-bool Runtime::countCrash(bool fatal) {
-	if (fatal && currentContent() && (_memory->crashes < kMaxCrashes)) {
-		return (++_memory->crashes == kMaxCrashes);
-	}
-	return false;
 }
 
 int Runtime::breakCrashRun() {
@@ -1668,7 +1660,8 @@ void Runtime::start() {
 
 void Runtime::release() {
 	if (heavy()) {
-		retire(State::Released, breakCrashRun());
+		breakCrashRun();
+		retire(State::Released);
 	} else if (stopped() && currentContent() && !crashedOut()) {
 		retire(State::Released);
 	}
@@ -1994,7 +1987,7 @@ void Runtime::constructed(
 	_host->pointer->start();
 }
 
-void Runtime::retire(State state, int brokenCrashes, bool keepOwnDeath) {
+void Runtime::retire(State state, bool keepOwnDeath) {
 	const auto wasHeavy = heavy();
 	++_generation;
 	_state = state;
@@ -2015,7 +2008,6 @@ void Runtime::retire(State state, int brokenCrashes, bool keepOwnDeath) {
 		} else {
 			_stillLifetime.destroy();
 			DropCore(std::exchange(_still, std::move(_live)));
-			_brokenCrashes = brokenCrashes;
 			subscribeStill();
 			keep = keepStill(ended);
 			_displayDeferred = _displayDeferred
@@ -2066,7 +2058,7 @@ Fn<void(twidget::WidgetHost &host)> Runtime::keepStill(bool ended) {
 void Runtime::stopForCrashes() {
 	_stopReason = u"%1 crashes in a row."_q.arg(kMaxCrashes);
 	_stopFatal = false;
-	retire(State::Stopped, 0, true);
+	retire(State::Stopped, true);
 	addNote(u"Stopped: "_q + _stopReason);
 }
 
@@ -2163,7 +2155,6 @@ void Runtime::coreUpdated(
 		_stillKept = false;
 		DropCore(base::take(_still));
 		_keptSerial = 0;
-		_brokenCrashes = 0;
 	}
 	if (handoff || client) {
 		markHeight(true);
@@ -2181,7 +2172,7 @@ void Runtime::coreStopped(not_null<RendererCore*> renderer, bool client) {
 	if (renderer.get() != _live.get() || _state != State::Live) {
 		return;
 	}
-	const auto limitReached = recordStop(renderer);
+	recordStop(renderer);
 	// A scroll away may not have reached the posted Check() yet.
 	_visible = queryVisible();
 	retire(State::Stopped);
@@ -2194,10 +2185,6 @@ void Runtime::coreStopped(not_null<RendererCore*> renderer, bool client) {
 	displayChanged(true);
 	if (!_visible) {
 		release();
-	}
-	if (limitReached) {
-		// Other views of the message apply the limit only when painted.
-		_item->history()->owner().requestItemRepaint(_item);
 	}
 }
 
@@ -2214,27 +2201,16 @@ void Runtime::stillUpdated(
 	if (!currentContent()) {
 		return;
 	}
-	auto limitReached = false;
 	if (stopped) {
 		const auto fatal = renderer->stopFatal();
 		addNote(u"Stopped after it was released%1: %2"_q.arg(
 			fatal ? u" (fatal)"_q : QString(),
 			renderer->stopReason()));
-		if (!renderer->hostedWait()) {
-			// The release that kept this core may have overtaken its stop.
-			_memory->crashes = std::max(
-				_memory->crashes,
-				base::take(_brokenCrashes));
-			limitReached = countCrash(fatal);
-		}
 	}
 	if (client) {
 		markHeight(true);
 	}
 	displayChanged(repaint);
-	if (limitReached) {
-		_item->history()->owner().requestItemRepaint(_item);
-	}
 }
 
 void Runtime::stillKeptChanged(not_null<RendererCore*> renderer) {

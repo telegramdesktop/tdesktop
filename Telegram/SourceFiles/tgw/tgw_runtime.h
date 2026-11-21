@@ -194,8 +194,7 @@ private:
 	[[nodiscard]] bool runsDeciding(const HostedRun *self = nullptr) const;
 	[[nodiscard]] bool queryVisible() const;
 
-	[[nodiscard]] bool recordStop(not_null<RendererCore*> renderer);
-	[[nodiscard]] bool countCrash(bool fatal);
+	void recordStop(not_null<RendererCore*> renderer);
 	int breakCrashRun();
 	void start();
 	void release();
@@ -218,7 +217,7 @@ private:
 		const QString &error,
 		uint64 storage,
 		std::weak_ptr<twidget::SandboxHostedChannel> channel);
-	void retire(State state, int brokenCrashes = 0, bool keepOwnDeath = false);
+	void retire(State state, bool keepOwnDeath = false);
 	[[nodiscard]] Fn<void(twidget::WidgetHost &host)> keepStill(bool ended);
 	void stopForCrashes();
 	void fail(const QString &error);
@@ -307,7 +306,6 @@ private:
 	Request _request;
 	int _generation = 0;
 	int _width = 0;
-	int _brokenCrashes = 0;
 	HeightLayout _layout;
 	ContentSafeArea _safeArea;
 	ContentSafeArea _hostSafeArea;
