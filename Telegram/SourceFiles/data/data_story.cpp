@@ -389,6 +389,10 @@ DocumentData *Story::document() const {
 	return result ? result->get() : nullptr;
 }
 
+DocumentData *Story::music() const {
+	return _music;
+}
+
 const std::shared_ptr<GroupCall> &Story::call() const {
 	const auto result = std::get_if<std::shared_ptr<GroupCall>>(
 		&_media.data);
@@ -866,6 +870,13 @@ void Story::applyFields(
 	const auto inProfileChanged = (_inProfile != inProfile);
 	const auto editedChanged = (_edited != edited);
 	const auto mediaChanged = (_media != media);
+	const auto music = data.vmusic();
+	const auto track = music && music->type() == mtpc_document
+		? owner().processDocument(*music).get()
+		: data.is_min()
+		? _music
+		: nullptr;
+	const auto musicChanged = (_music != track);
 	const auto captionChanged = (_caption != caption);
 	const auto locationsChanged = (_locations != locations);
 	const auto suggestedReactionsChanged
@@ -888,6 +899,7 @@ void Story::applyFields(
 	if (mediaChanged) {
 		_media = std::move(media);
 	}
+	_music = track;
 	if (captionChanged) {
 		_caption = std::move(caption);
 	}
@@ -914,6 +926,7 @@ void Story::applyFields(
 	const auto changed = editedChanged
 		|| captionChanged
 		|| mediaChanged
+		|| musicChanged
 		|| locationsChanged
 		|| channelPostsChanged
 		|| urlAreasChanged

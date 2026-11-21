@@ -96,6 +96,7 @@ public:
 	[[nodiscard]] SiblingView sibling(SiblingType type) const;
 	[[nodiscard]] Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] TextWithEntities captionText() const;
+	[[nodiscard]] int musicCaptionSkip() const;
 	[[nodiscard]] bool skipCaption() const;
 	[[nodiscard]] bool repost() const;
 	void showFullCaption();
