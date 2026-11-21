@@ -66,6 +66,9 @@ settingsFaqKeysLegend: IconButton {
 settingsExperimentalTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 100px;
 }
+settingsExperimentalTitleDisabled: FlatLabel(settingsExperimentalTitle) {
+	textFg: windowSubTextFg;
+}
 settingsExperimentalAbout: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 	minWidth: 100px;
