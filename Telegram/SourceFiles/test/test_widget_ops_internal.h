@@ -124,8 +124,9 @@ bool ReplaceEffectiveProbe(
 // of a widget helper's stream on two routes that the leg plays through
 // the framework's shared scripted engine end on its in-memory pair
 // (threads of that stream and of two hosted clients, each wait bounded;
-// past a bound the row fails). The rows' names lack the self-check's
-// prefix.
+// past a bound the row fails), and last the frame deltas' answers and
+// admission against TwidgetCore's decode(). The rows' names lack the
+// self-check's prefix.
 [[nodiscard]] std::vector<WidgetOpsSelfCheckRow> CheckHostedExchanges();
 
 // |record| of the host's |generation| on Telegram's profile clock: its

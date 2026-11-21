@@ -953,7 +953,46 @@ the harness compiles those branches. The legs, in the order they run:
   (`ScriptedEngineEnd::send()`, whose `MemoryStream::write()` waits for room
   on the 1 MiB pair), the clients' teardown and the host's end's `stop()`
   can each hold the self-check as long as they take, so a 5 s failure names
-  a step that did not come in time and says nothing of those;
+  a step that did not come in time and says nothing of those.
+
+  The fourth row reads frame deltas, which a renderer sends for a painted
+  frame whenever that is shorter than the whole frame. A `FrameDelta`
+  answers the frame request of its sequence as a frame does: it reads
+  `Answers` in the frame's family (64), keyed by its own full 64-bit
+  sequence, without `whenVisible`. The stream credits it only within the
+  frame exchange's 8 MiB bound, past TwidgetCore's `delta_scan()` under
+  `HostedWire::EmbeddingCaps()`, which walks its header, state, base,
+  length, runs (copies within the 256 KiB delta base) and damage value to
+  the last byte, making nothing, and checks the frame it stands for against
+  the caps, then only when the list length that scan gives is one a list
+  `ListAdmitted()` takes can have (`ListLengthAdmitted()`: exactly 6 bytes
+  for an empty list, at least 11 for one with a command), and past
+  `DamageComplete()` on the damage it views (`DeltaKey()` in
+  `tgw_remote.cpp`). Neither rebuilds its list, which needs the kept base
+  only the platform end holds. The row runs each delta through TwidgetCore's
+  `decode()` under the same caps too, which takes every credited one with
+  its sequence, so each malformed case it refuses shows its change hit a
+  field the codec checks, and every fixture must encode before it is
+  changed. `decode()` also takes a delta of a list length no list can have,
+  which only the platform end's decode of the rebuilt list refuses; such a
+  delta earns no credit, as a whole frame of such a list earns none. The
+  row's cases:
+  - Credit: the frame request of sequence 7 (`Expects`, timed while
+    visible) and, answering it, a whole painted frame of 7, a delta of 7
+    with copies, a literal and a damage rectangle, the same delta without
+    damage, a delta of an empty list (6 bytes) and one of 11 bytes, ten in
+    a literal and a copy of the delta base's last byte. A delta of a
+    sequence whose low 32 bits are 7 and whose high bits are not keys
+    apart, with all 64 bits.
+  - No credit though `decode()` takes it: a delta of a one-byte list and
+    one of a ten-byte list; the whole painted frame of the same one-byte
+    list earns none either.
+  - No credit, each also refused by `decode()`: the delta cut right after
+    its sequence, state and base (which `delta_ids()` still reads), cut by
+    its last byte, with a byte after it, with a run of an unknown tag,
+    with the 11-byte delta's copy a byte past the delta base (encoded under
+    a base a byte longer), with a damage flag that is no flag, and padded
+    to one byte past Telegram's frame cap;
 - the budget leg (`hosted: a host and a renderer message past the scan
   budget ...`; without a Debug helper `hosted: without a Debug helper a
   validated batch past the scan budget ...`) on a host of its own, with the

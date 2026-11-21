@@ -714,8 +714,11 @@ struct WidgetOpsSelfCheck {
 // Tgw::HostedAnswers(), the classifier the widget helper's stream times
 // hosted renderers with: which messages expect one answer and which answer
 // them, keyed by their pair and sequence; that an answer earns credit only
-// past checks of a constant cost, never a decode of a frame's list, and
-// within Telegram's frame cap; and, at a stream's end on two routes, that
+// within Telegram's frame cap and past checks of a constant cost, never a
+// decode of a frame's list, while a frame delta, which answers the frame
+// request of its sequence, earns it past TwidgetCore's own scan of its
+// runs, bounded by its caps, and checks of its list length and damage,
+// never a rebuild of its list; and, at a stream's end on two routes, that
 // an answered route is spared while one left unanswered keeps its ordinary
 // death. On hosted taps of their own, with no work id, its session leg arms
 // one FullMsgId under two session values (only the armed one tapped,

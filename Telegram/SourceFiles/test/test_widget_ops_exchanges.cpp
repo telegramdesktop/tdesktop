@@ -753,10 +753,246 @@ struct EndScript {
 	};
 }
 
+// A frame delta answers the frame request of its sequence as a whole frame
+// does: the frame's family, its full 64-bit sequence as the key, only past
+// TwidgetCore's own scan of its runs (delta_scan()), with a list length a
+// whole frame's list can have, and the stream's check of its damage, and
+// within Telegram's frame cap. Each case is read through
+// Tgw::HostedAnswers() and each delta by TwidgetCore's own decode() under
+// the same caps, which takes every delta that earns credit, with its
+// sequence, so every malformed case it refuses shows its change hit a field
+// the codec checks. It also takes a delta of a list length no list can
+// have, which earns no credit, as a whole frame of such a list earns none.
+[[nodiscard]] WidgetOpsSelfCheckRow CheckFrameDeltas() {
+	struct Case {
+		const char *name = nullptr;
+		std::string bytes;
+		Role role = Role::None;
+		std::optional<uint64> sequence;
+		bool whenVisible = false;
+		// What TwidgetCore's decode() makes of it as a frame delta; none
+		// for a message of another kind.
+		std::optional<bool> decodes;
+	};
+	// A delta's header, sequence, state and base, then its length and its
+	// run count before its first run's tag.
+	constexpr auto kIdsBytes = std::size_t(2 + 8 + 23 + 8);
+	constexpr auto kFirstRunAt = kIdsBytes + 4 + 4;
+	const auto read = Tgw::HostedAnswers().read;
+	const auto caps = HostedWire::EmbeddingCaps();
+	const auto family = uint32(Remote::Kind::Frame);
+	// Another sequence, whose low 32 bits are the request's.
+	const auto other = (uint64(0x89abcdef) << 32) | 7;
+	const auto delta = [](
+			uint64 seq,
+			std::vector<Remote::DeltaRun> runs,
+			Wire::Damage damage) {
+		return Encoded(Remote::FrameDelta{
+			.seq = seq,
+			.base = seq - 1,
+			.runs = std::move(runs),
+			.damage = std::move(damage),
+		});
+	};
+	// |bytes| changed by |change|, or left empty when it did not encode.
+	const auto changed = [](std::string bytes, auto change) {
+		if (!bytes.empty()) {
+			change(bytes);
+		}
+		return bytes;
+	};
+	const auto mixed = std::vector<Remote::DeltaRun>{
+		{ .offset = 0, .length = 6 },
+		{ .literal = "abc" },
+		{ .offset = 10, .length = 4 },
+	};
+	const auto damage = Wire::Damage(std::vector<twlite::Rect>{
+		{ .x = 0, .y = 0, .w = 10, .h = 10 },
+	});
+	const auto painted = delta(7, mixed, damage);
+	const auto undamaged = delta(7, mixed, std::nullopt);
+	// A list of one byte, too short for an empty list, and one of ten, too
+	// long for an empty list and too short for one with a command.
+	const auto oneByte = std::string(1, char(0));
+	const auto tenBytes = std::string(10, char(0));
+	const auto listOf = [&](const std::string &bytes) {
+		return delta(7, { { .literal = bytes } }, std::nullopt);
+	};
+	// The ten bytes and a copy of one at |offset|, the shortest list with a
+	// command, encoded under a base a byte longer than Telegram's so that a
+	// copy a byte past Telegram's base encodes too.
+	const auto copyAt = [&](uint32 offset) {
+		auto loose = caps;
+		++loose.delta_base;
+		auto bytes = std::string();
+		const auto copy = Remote::FrameDelta{
+			.seq = 7,
+			.base = 6,
+			.runs = {
+				{ .literal = tenBytes },
+				{ .offset = offset, .length = 1 },
+			},
+		};
+		return Remote::encode(copy, loose, bytes) ? bytes : std::string();
+	};
+	const auto lastCopy = copyAt(uint32(caps.delta_base - 1));
+	const auto pastBase = copyAt(uint32(caps.delta_base));
+	const auto cases = std::vector<Case>{
+		{
+			"request",
+			Encoded(Remote::FrameRequest{ .seq = 7 }),
+			Role::Expects,
+			7,
+			true,
+		},
+		{
+			"frame",
+			Encoded(Remote::Frame{ .seq = 7, .painted = true }),
+			Role::Answers,
+			7,
+		},
+		{ "delta", painted, Role::Answers, 7, false, true },
+		{ "no damage", undamaged, Role::Answers, 7, false, true },
+		{
+			"an empty list",
+			listOf(EncodedValue(twlite::DisplayList())),
+			Role::Answers,
+			7,
+			false,
+			true,
+		},
+		{
+			"a copy of the base's last byte",
+			lastCopy,
+			Role::Answers,
+			7,
+			false,
+			true,
+		},
+		{
+			"another sequence",
+			delta(other, mixed, damage),
+			Role::Answers,
+			other,
+			false,
+			true,
+		},
+		{
+			"a whole one-byte list",
+			PaintedFrame(7, oneByte, EncodedValue(Wire::Damage())),
+			Role::None,
+		},
+		{ "a one-byte list", listOf(oneByte), Role::None, {}, false, true },
+		{ "a ten-byte list", listOf(tenBytes), Role::None, {}, false, true },
+		{
+			"cut after its ids",
+			changed(painted, [](std::string &bytes) {
+				bytes.resize(kIdsBytes);
+			}),
+			Role::None,
+			{},
+			false,
+			false,
+		},
+		{ "cut short", Cut(painted), Role::None, {}, false, false },
+		{
+			"a byte after it",
+			changed(painted, [](std::string &bytes) {
+				bytes.push_back(char(0));
+			}),
+			Role::None,
+			{},
+			false,
+			false,
+		},
+		{
+			"a run of an unknown tag",
+			changed(painted, [](std::string &bytes) {
+				bytes[kFirstRunAt] = char(2);
+			}),
+			Role::None,
+			{},
+			false,
+			false,
+		},
+		{
+			"a copy a byte past the base",
+			pastBase,
+			Role::None,
+			{},
+			false,
+			false,
+		},
+		{
+			"damage flag that is no flag",
+			changed(undamaged, [](std::string &bytes) {
+				bytes.back() = char(2);
+			}),
+			Role::None,
+			{},
+			false,
+			false,
+		},
+		{
+			"past the frame cap",
+			changed(painted, [](std::string &bytes) {
+				bytes.resize(kTelegramFrameBytes + 1, char(0));
+			}),
+			Role::None,
+			{},
+			false,
+			false,
+		},
+	};
+	auto passed = true;
+	auto details = QStringList();
+	for (const auto &entry : cases) {
+		const auto reading = read(entry.bytes);
+		auto decoded = Remote::FrameDelta();
+		const auto decodes = entry.decodes
+			? std::make_optional(Remote::decode(entry.bytes, caps, decoded))
+			: std::nullopt;
+		const auto credited = decodes.has_value()
+			&& (reading.role == Role::Answers);
+		passed = passed
+			&& !entry.bytes.empty()
+			&& (reading.role == entry.role)
+			&& ((reading.role == Role::None) || (reading.family == family))
+			&& (reading.sequence == entry.sequence)
+			&& (reading.whenVisible == entry.whenVisible)
+			&& (decodes == entry.decodes)
+			&& (!credited || (*decodes && (reading.sequence == decoded.seq)));
+		details.push_back(u"{%1: %2 bytes %3/%4/%5/%6 decode=%7}"_q.arg(
+			QString::fromLatin1(entry.name),
+			QString::number(qint64(entry.bytes.size())),
+			QString::number(int(reading.role)),
+			QString::number(reading.family),
+			(reading.sequence
+				? QString::number(*reading.sequence)
+				: u"-"_q),
+			Flag(reading.whenVisible),
+			decodes ? Flag(*decodes) : u"-"_q));
+	}
+	return {
+		.name = u"hosted exchanges: a frame delta answers the frame request "
+			"of its sequence as a frame does, one of another sequence keys "
+			"apart, and one TwidgetCore's decode() refuses (cut, a byte after "
+			"it, a bad run or damage flag), past Telegram's frame cap or of a "
+			"list length a whole frame's list cannot have earns no credit"_q,
+		.details = details.join(u" "_q),
+		.passed = passed,
+	};
+}
+
 } // namespace
 
 std::vector<WidgetOpsSelfCheckRow> CheckHostedExchanges() {
-	return { CheckKinds(), CheckPaintedFrames(), CheckEndOfStream() };
+	return {
+		CheckKinds(),
+		CheckPaintedFrames(),
+		CheckEndOfStream(),
+		CheckFrameDeltas(),
+	};
 }
 
 } // namespace Test::WidgetOps

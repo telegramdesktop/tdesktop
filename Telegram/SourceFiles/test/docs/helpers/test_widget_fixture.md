@@ -541,9 +541,10 @@ packs, the fixture and the seams they use need no change for it.
     deadline cannot be configured yet ([Verification](#verification)).
     Telegram expects exactly one answer, per widget in the order it sent
     them, to each frame request (the frame of its sequence, painted or
-    unchanged), each touch or hover (a Pointer) and each claim query (the
-    claim answer of its sequence); every other message it sends, a width,
-    height, theme or selection change among them, expects none. A frame
+    unchanged, a painted one whole or as a frame delta), each touch or
+    hover (a Pointer) and each claim query (the claim answer of its
+    sequence); every other message it sends, a width, height, theme or
+    selection change among them, expects none. A frame
     request is timed only when sent while the widget is on screen; a touch,
     a hover and a claim query are timed whatever the widget's visibility.
     The runtime gives the host a visibility change before the frame request
@@ -557,21 +558,34 @@ packs, the fixture and the seams they use need no change for it.
     counts at its arrival from the helper, however long it then waits on
     `widget.render` behind Telegram's own work. An answer settles nothing
     when it does not answer its widget's oldest owed message (another family
-    or another sequence), when it is past its size cap (for a frame the
-    8 MiB `HostedWire::kMaxFrameBytes`) or when the stream's own reading
-    refuses it (`ReadExchange()`): a claim answer TwidgetCore's `decode()`
-    refuses, a pointer cut short, malformed or with bytes after its fields,
-    and a frame whose fixed part (sequence, state, flags) is cut short or
-    malformed, whose list or damage has another form or version, a flag that
-    is no flag or a count past its cap or past what the bytes after it can
-    hold (for an empty list, any byte after it), whose damage is not whole
-    or that has bytes after its values (`FrameComplete()`, `ListAdmitted()`,
-    `DamageComplete()`). Those frame checks read a list's header and command
-    count, never its commands: a painted frame that passes them earns its
-    request's credit even when TwidgetCore's `wire::decode()` would refuse
-    its commands, and TwidgetCore's platform end on `widget.render`, which
-    decodes the frame whole, refuses it only afterwards, a stop of the
-    widget's own (below). The cases the self-check reads are listed under
+    or another sequence), when it is past its size cap (for a frame or a
+    frame delta the 8 MiB `HostedWire::kMaxFrameBytes`) or when the stream's
+    own reading refuses it (`ReadExchange()`): a claim answer TwidgetCore's
+    `decode()` refuses, a pointer cut short, malformed or with bytes after
+    its fields, a frame whose fixed part (sequence, state, flags) is cut
+    short or malformed, whose list or damage has another form or version, a
+    flag that is no flag or a count past its cap or past what the bytes
+    after it can hold (for an empty list, any byte after it), whose damage
+    is not whole or that has bytes after its values (`FrameComplete()`,
+    `ListAdmitted()`, `DamageComplete()`), and a frame delta TwidgetCore's
+    `delta_scan()` refuses (its fixed part, a run of an unknown tag, empty,
+    past the bytes or with a copy past the 256 KiB delta base, runs that do
+    not make its length exactly, a damage value not whole or bytes after
+    it, the frame it stands for past the caps), whose list length no list
+    `ListAdmitted()` takes can have (exactly 6 bytes empty, at least 11 with
+    a command) or whose damage `DamageComplete()` refuses (`DeltaKey()`).
+    Those frame checks read a list's header and command count, never its
+    commands: a painted frame that passes them earns its request's credit
+    even when TwidgetCore's `wire::decode()` would refuse its commands, and
+    TwidgetCore's platform end on `widget.render`, which decodes the frame
+    whole, refuses it only afterwards, a stop of the widget's own (below). A
+    frame delta's checks walk its runs, at most one more than the command
+    cap, without making them, and never rebuild its list, which needs the
+    kept base only that platform end holds: a delta that passes them earns
+    its credit even when its base is not the last painted frame or its
+    copies pass the kept list, and the platform end, which rebuilds and
+    decodes it, refuses it only afterwards, as it does a frame's commands.
+    The cases the self-check reads are listed under
     [test_widget_ops](test_widget_ops.md#verification). A deadline runs only
     while a timed message is unanswered: a card with none outstanding sets
     none, whether idle, off screen or static, and one that answers within
