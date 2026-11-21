@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/widget_helper_image_win.h"
 #include "platform/win/widget_sandbox_win.h"
 
+#include <aclapi.h>
 #include <bcrypt.h>
 
 #include <thread>
@@ -22,6 +23,10 @@ namespace {
 constexpr auto kPathCapacity = DWORD(32768);
 constexpr auto kAbandonWait = crl::time(1000);
 constexpr auto kFirstErrorStatus = DWORD(0xC0000000);
+constexpr auto kDesktopAccess = DWORD(DESKTOP_CREATEWINDOW
+	| DESKTOP_READOBJECTS
+	| DESKTOP_WRITEOBJECTS
+	| WRITE_OWNER);
 
 struct Path {
 	std::wstring value;
@@ -133,6 +138,37 @@ void DesktopCloser::operator()(HDESK desktop) const {
 	};
 }
 
+[[nodiscard]] QString SetLowLabel(HDESK desktop) {
+	auto sid = std::vector<std::byte>(SECURITY_MAX_SID_SIZE);
+	auto size = DWORD(sid.size());
+	if (!CreateWellKnownSid(WinLowLabelSid, nullptr, sid.data(), &size)) {
+		return QtSystemError("CreateWellKnownSid", GetLastError());
+	}
+	auto list = std::vector<std::byte>(sizeof(ACL)
+		+ sizeof(SYSTEM_MANDATORY_LABEL_ACE)
+		+ SECURITY_MAX_SID_SIZE);
+	const auto acl = reinterpret_cast<ACL*>(list.data());
+	if (!InitializeAcl(acl, DWORD(list.size()), ACL_REVISION)) {
+		return QtSystemError("InitializeAcl", GetLastError());
+	} else if (!AddMandatoryAce(
+			acl,
+			ACL_REVISION,
+			0,
+			SYSTEM_MANDATORY_LABEL_NO_WRITE_UP,
+			sid.data())) {
+		return QtSystemError("AddMandatoryAce", GetLastError());
+	}
+	const auto error = SetSecurityInfo(
+		desktop,
+		SE_WINDOW_OBJECT,
+		LABEL_SECURITY_INFORMATION,
+		nullptr,
+		nullptr,
+		nullptr,
+		acl);
+	return error ? QtSystemError("SetSecurityInfo", error) : QString();
+}
+
 [[nodiscard]] HelperDesktop CreateDesktopOnShortThread(
 		const std::wstring &name) {
 	auto desktop = HDESK();
@@ -143,7 +179,7 @@ void DesktopCloser::operator()(HDESK desktop) const {
 			nullptr,
 			nullptr,
 			0,
-			DESKTOP_CREATEWINDOW,
+			kDesktopAccess,
 			nullptr);
 		error = desktop ? DWORD() : GetLastError();
 	}).join();
@@ -163,9 +199,15 @@ void DesktopCloser::operator()(HDESK desktop) const {
 		return { .error = std::move(name.error) };
 	}
 	auto result = CreateDesktopOnShortThread(name.value);
-	if (result.handle) {
-		result.name = station.value + L'\\' + name.value;
+	if (!result.handle) {
+		return result;
 	}
+	auto error = SetLowLabel(result.handle.get());
+	if (!error.isEmpty()) {
+		result.handle = nullptr;
+		return { .error = std::move(error) };
+	}
+	result.name = station.value + L'\\' + name.value;
 	return result;
 }
 
