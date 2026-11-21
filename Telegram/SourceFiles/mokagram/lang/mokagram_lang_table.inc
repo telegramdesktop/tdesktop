@@ -1224,6 +1224,7 @@
 	{ "Альбомы не найдены", "No albums found" },
 	{ "Ищу альбомы…", "Searching albums…" },
 	{ "Поиск альбомов на SoundCloud", "Search albums on SoundCloud" },
+	{ "Не удалось загрузить результаты поиска SoundCloud.", "Could not load SoundCloud search results." },
 	{ "Client ID приложения Spotify с Redirect URI http://127.0.0.1:8899/mokagram. Секрет приложения не нужен.", "Your Spotify app Client ID with Redirect URI http://127.0.0.1:8899/mokagram. No client secret is needed." },
 	{ "Spotify не подтвердил вход. Проверьте Client ID и Redirect URI.", "Spotify sign-in failed. Check your Client ID and Redirect URI." },
 	{ "Spotify подключён.", "Spotify connected." },

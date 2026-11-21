@@ -12,6 +12,7 @@
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtGui/QImage>
+#include <variant>
 #include <vector>
 
 namespace Mokagram::Music {
@@ -108,6 +109,16 @@ struct Album {
 	ReleaseKind releaseKind = ReleaseKind::Unknown;
 	int releaseYear = 0;
 };
+
+enum class SearchCategory { All, Tracks, Playlists, Albums, Artists };
+
+using CatalogItem = std::variant<Track, Album, ArtistInfo>;
+
+// Разнородные результаты в порядке релевантности SoundCloud.
+void SearchCatalog(
+	const QString &query,
+	SearchCategory category,
+	Fn<void(std::vector<CatalogItem>, QString error)> done);
 
 // Альбомы по запросу.
 void SearchAlbums(

@@ -1154,6 +1154,68 @@ void HydrateTracks(
 
 } // namespace
 
+void SearchCatalog(
+		const QString &query,
+		SearchCategory category,
+		Fn<void(std::vector<CatalogItem>, QString)> done) {
+	auto path = u"/search"_q;
+	switch (category) {
+	case SearchCategory::All: break;
+	case SearchCategory::Tracks: path += u"/tracks"_q; break;
+	case SearchCategory::Playlists: path += u"/playlists_without_albums"_q; break;
+	case SearchCategory::Albums: path += u"/albums"_q; break;
+	case SearchCategory::Artists: path += u"/users"_q; break;
+	}
+	auto q = QUrlQuery();
+	q.addQueryItem(u"q"_q, query);
+	q.addQueryItem(u"limit"_q, QString::number(kPageSize));
+	q.addQueryItem(u"linked_partitioning"_q, u"1"_q);
+	ApiGet(QString::fromLatin1(kApi) + path, std::move(q), [=](
+			QByteArray data,
+			QString error) {
+		auto items = std::vector<CatalogItem>();
+		if (error.isEmpty()) {
+			const auto collection = QJsonDocument::fromJson(data).object().value("collection");
+			if (!collection.isArray()) {
+				error = QString::fromUtf8(Mokagram::Lang::Tr("Не удалось загрузить результаты поиска SoundCloud."));
+			} else {
+				auto seen = std::set<std::pair<QString, QString>>();
+				for (const auto &value : collection.toArray()) {
+					const auto object = value.toObject();
+					const auto kind = object.value("kind").toString();
+					const auto id = ResourceId(object, u"id"_q);
+					if (id.isEmpty() || !seen.emplace(kind, id).second) {
+						continue;
+					}
+					if (kind == u"track"_q) {
+						auto track = ParseTrack(object);
+						if (!track.title.isEmpty() && !track.transcodingUrl.isEmpty()) {
+							items.push_back(std::move(track));
+						}
+					} else if (kind == u"playlist"_q || kind == u"album"_q) {
+						auto album = ParseAlbum(object);
+						album.id = id;
+						if (kind == u"album"_q || category == SearchCategory::Albums) {
+							if (album.releaseKind == ReleaseKind::Unknown) {
+								album.releaseKind = ReleaseKind::Album;
+							}
+						}
+						if (!album.title.isEmpty() && album.trackCount > 0) {
+							items.push_back(std::move(album));
+						}
+					} else if (kind == u"user"_q) {
+						auto artist = ParseArtistInfo(object, id);
+						if (!artist.name.isEmpty()) {
+							items.push_back(std::move(artist));
+						}
+					}
+				}
+			}
+		}
+		done(std::move(items), std::move(error));
+	});
+}
+
 void SearchAlbums(
 		const QString &query,
 		int limit,
