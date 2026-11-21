@@ -25,7 +25,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #if defined _M_IX86 || defined _M_X64
 namespace {
 
+using ProcessPrngFunction = BOOL(WINAPI*)(PBYTE, SIZE_T);
+
+// The impersonated initial token lets only one preferred-RNG BCryptGenRandom succeed: WarmUp()'s.
+[[nodiscard]] ProcessPrngFunction ResolvedProcessPrng() {
+	static const auto result = [] {
+		const auto module = LoadLibraryExW(
+			L"bcryptprimitives.dll",
+			nullptr,
+			LOAD_LIBRARY_SEARCH_SYSTEM32);
+		return module
+			? reinterpret_cast<ProcessPrngFunction>(
+				GetProcAddress(module, "ProcessPrng"))
+			: nullptr;
+	}();
+	return result;
+}
+
 BOOLEAN WINAPI GenerateRandom(PVOID buffer, ULONG size) {
+	if (const auto generate = ResolvedProcessPrng()) {
+		return generate(static_cast<PBYTE>(buffer), size);
+	}
 	return BCRYPT_SUCCESS(BCryptGenRandom(
 		nullptr,
 		static_cast<PUCHAR>(buffer),
@@ -99,6 +119,9 @@ std::unique_ptr<twidget::SandboxRemoteStream> Adopt(std::string_view token) {
 }
 
 std::string Lockdown() {
+#if defined _M_IX86 || defined _M_X64
+	[[maybe_unused]] const auto resolved = ResolvedProcessPrng();
+#endif // _M_IX86 || _M_X64
 	return Platform::WidgetHelper::LockDownHelper();
 }
 
