@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/tabs/adapters/info_profile_tab_saved.h"
 #include "info/profile/tabs/adapters/info_profile_tab_stories.h"
 #include "info/profile/tabs/info_profile_tabs_host.h"
+#include "info/profile/info_profile_bot_media_previews.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_members.h"
 #include "info/profile/info_profile_shared_media_classic.h"
@@ -191,7 +192,8 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}
 
 	const auto thirdColumn = (_controller->wrap() == Wrap::Side);
-	const auto tabs = UseProfileMediaTabs() && !thirdColumn;
+	const auto bot = (_topic || _sublist) ? nullptr : _peer->asBot();
+	const auto tabs = bot || (UseProfileMediaTabs() && !thirdColumn);
 	auto sharedTracker = Ui::MultiSlideTracker();
 	if (!tabs) {
 		auto sharedMediaWidget = SetupSharedMediaClassic(
@@ -216,6 +218,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 			? _sublist->sublistPeer()->id
 			: PeerId();
 		auto tabs = std::vector<MediaTabDescriptor>();
+		if (bot) {
+			tabs.push_back(MakeBotMediaPreviewsTab(bot));
+		}
 		const auto countValue = [&](Storage::SharedMediaType type) {
 			return SharedMediaCountValue(
 				_peer,
@@ -258,9 +263,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		}
 		if (!_topic && !_savedMessages) {
 			tabs.push_back(MakeStoriesTabDescriptor(tabsPeer));
-			if (!_sublist) {
-				tabs.push_back(MakeGiftsTabDescriptor(_peer));
-			}
+		}
+		if (!_topic && !_savedMessages && !_sublist) {
+			tabs.push_back(MakeGiftsTabDescriptor(_peer));
 		}
 		if ((_peer->isChat() || _peer->isMegagroup())
 			&& !_peer->isMonoforum()

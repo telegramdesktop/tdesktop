@@ -1,0 +1,28 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "info/info.style";
+
+botPreviewTitle: FlatLabel(collectionEmptyTitle) {
+	align: align(center);
+}
+botPreviewText: FlatLabel(collectionEmptyText) {
+	align: align(center);
+	minWidth: 1px;
+}
+botPreviewButton: RoundButton(collectionEmptyButton) {
+	fullRadius: true;
+}
+botPreviewEmptyMargin: margins(24px, 56px, 24px, 8px);
+botPreviewTextMargin: margins(24px, 0px, 24px, 8px);
+botPreviewFooterMargin: margins(24px, 16px, 24px, 8px);
+botPreviewButtonMargin: margins(24px, 8px, 24px, 16px);
+botPreviewUploading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
+	size: size(26px, 26px);
+	thickness: 2px;
+	color: historyFileThumbIconFg;
+}

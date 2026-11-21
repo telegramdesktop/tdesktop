@@ -61,6 +61,7 @@ set(style_files
     export/view/export.style
     info/info.style
     info/profile/info_profile_actions.style
+    info/profile/info_profile_bot_media_previews.style
     info/profile/info_profile_top_bar.style
     info/channel_statistics/boosts/giveaway/giveaway.style
     info/channel_statistics/earn/channel_earn.style
