@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/filter_title_icon.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/widgets/chat_filters_tabs_mode.h"
 #include "ui/widgets/discrete_sliders.h"
@@ -39,7 +40,11 @@ public:
 	void fitWidthToSections() override;
 	void setUnreadCount(int index, int unreadCount, bool muted);
 	void setTabsMode(ChatsFiltersTabsMode mode);
-	void setSectionIcons(std::vector<const style::internal::Icon*> icons);
+	struct SectionIcon {
+		const style::internal::Icon *fallback = nullptr;
+		FilterEmojiIconPaint paintEmoji;
+	};
+	void setSectionIcons(std::vector<SectionIcon> icons);
 	void setLockedFrom(int index);
 	[[nodiscard]] int lockedFrom() const {
 		return _lockedFrom;
@@ -96,7 +101,7 @@ private:
 	const int _unreadSkip;
 	const int _iconSkip;
 	ChatsFiltersTabsMode _tabsMode = ChatsFiltersTabsMode::TextOnly;
-	std::vector<const style::internal::Icon*> _sectionIcons;
+	std::vector<SectionIcon> _sectionIcons;
 	std::vector<int> _cachedBadgeWidths;
 	int _cachedBadgeHeight = 0;
 	int _lockedFrom = 0;

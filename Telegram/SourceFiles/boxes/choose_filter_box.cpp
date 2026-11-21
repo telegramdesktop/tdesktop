@@ -23,7 +23,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/empty_userpic.h"
 #include "ui/filter_icons.h"
+#include "ui/filter_title_icon.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/text/text_utilities.h" // tr::bold
 #include "ui/toast/toast.h"
@@ -38,7 +40,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-[[nodiscard]] QImage Icon(const Data::ChatFilter &f) {
+[[nodiscard]] QImage Icon(
+		const Data::ChatFilter &f,
+		const Ui::FilterEmojiIconPaint &paintEmoji) {
 	constexpr auto kScale = 0.75;
 	const auto icon = Ui::LookupFilterIcon(Ui::ComputeFilterIcon(f)).normal;
 	const auto originalWidth = icon->width();
@@ -61,8 +65,12 @@ namespace {
 		const auto x = int((scaledWidth - originalWidth * kScale) / 2);
 		const auto y = int((scaledHeight - originalHeight * kScale) / 2);
 
-		p.scale(kScale, kScale);
-		icon->paint(p, x, y, scaledWidth, st::dialogsUnreadBgMuted->c);
+		const auto rect = QRect(x, y, scaledWidth, scaledHeight);
+		const auto color = st::dialogsUnreadBgMuted->c;
+		if (!paintEmoji || !paintEmoji(p, rect, color)) {
+			p.scale(kScale, kScale);
+			icon->paint(p, x, y, scaledWidth, color);
+		}
 		if (const auto color = f.colorIndex()) {
 			p.resetTransform();
 			const auto circleSize = scaledWidth / 3.;
@@ -88,8 +96,39 @@ class FilterAction : public Ui::Menu::Action {
 public:
 	using Ui::Menu::Action::Action;
 
-	void setIcon(QImage &&image) {
-		_icon = std::move(image);
+	void setFolder(
+			not_null<Main::Session*> session,
+			const Data::ChatFilter &filter) {
+		_titleIconLifetime.destroy();
+		const auto title = filter.title();
+		const auto isStatic = title.isStatic;
+		const auto titleIcon = Ui::ResolveFilterTitleIcon(
+			session,
+			filter,
+			title,
+			this,
+			_titleIconLifetime,
+			[=] { setFolder(session, filter); });
+		setMarkedText(
+			Ui::FilterTitleWithoutIcon(title.text, titleIcon),
+			QString(),
+			Core::TextContext({
+				.session = session,
+				.repaint = [=] { update(); },
+				.customEmojiLoopLimit = isStatic ? -1 : 0,
+			}));
+		const auto paintEmoji = Ui::MakeFilterEmojiIcon(
+			this,
+			titleIcon,
+			isStatic,
+			[] { return On(PowerSaving::kEmojiChat); });
+		_icon = Icon(filter, nullptr);
+		_renderIcon = nullptr;
+		if (paintEmoji) {
+			_renderIcon = [=] {
+				return Icon(filter, paintEmoji);
+			};
+		}
 	}
 
 protected:
@@ -97,18 +136,23 @@ protected:
 		Ui::Menu::Action::paintEvent(event);
 		if (!_icon.isNull()) {
 			const auto size = _icon.size() / style::DevicePixelRatio();
+			const auto image = _renderIcon
+				? _renderIcon()
+				: _icon;
 			auto p = QPainter(this);
 			p.drawImage(
 				width()
 					- size.width()
 					- st::menuWithIcons.itemPadding.right(),
 				(height() - size.height()) / 2,
-				_icon);
+				image);
 		}
 	}
 
 private:
 	QImage _icon;
+	Fn<QImage()> _renderIcon;
+	rpl::lifetime _titleIconLifetime;
 
 };
 
@@ -339,13 +383,9 @@ void FillChooseFilterMenu(
 			}
 		});
 		item->setPreventClose(true);
-		item->setMarkedText(title.text, QString(), Core::TextContext({
-			.session = &history->session(),
-			.repaint = [raw] { raw->update(); },
-			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
-		}));
-
-		item->setIcon(Icon(showColors ? filter : filter.withColorIndex({})));
+		item->setFolder(
+			&history->session(),
+			showColors ? filter : filter.withColorIndex({}));
 		const auto action = menu->addAction(std::move(item));
 		action->setEnabled(*contains
 			? validator.canRemove(id)
@@ -496,13 +536,9 @@ bool FillChooseFilterWithAdminedGroupsMenu(
 			triggered();
 		}
 		item->setPreventClose(true);
-		item->setMarkedText(title.text, QString(), Core::TextContext({
-			.session = session,
-			.repaint = [raw = item.get()] { raw->update(); },
-			.customEmojiLoopLimit = title.isStatic ? -1 : 0,
-		}));
-
-		item->setIcon(Icon(showColors ? filter : filter.withColorIndex({})));
+		item->setFolder(
+			session,
+			showColors ? filter : filter.withColorIndex({}));
 		menu->addAction(std::move(item));
 		added++;
 	}

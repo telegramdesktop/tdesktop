@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/filter_icon_panel.h"
 #include "ui/filter_icons.h"
+#include "ui/filter_title_icon.h"
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -231,7 +232,8 @@ struct ParabolicPath {
 
 [[nodiscard]] QImage PrepareFlyIcon(
 		not_null<const style::icon*> icon,
-		QColor color) {
+		QColor color,
+		const Ui::FilterEmojiIconPaint &paintEmoji = nullptr) {
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
 		icon->size() * ratio,
@@ -239,7 +241,9 @@ struct ParabolicPath {
 	result.setDevicePixelRatio(ratio);
 	result.fill(Qt::transparent);
 	auto p = QPainter(&result);
-	icon->paint(p, 0, 0, icon->width(), color);
+	if (!paintEmoji || !paintEmoji(p, Rect(icon->size()), color)) {
+		icon->paint(p, 0, 0, icon->width(), color);
+	}
 	return result;
 }
 
@@ -248,8 +252,10 @@ void CreateIconSelector(
 		not_null<QWidget*> box,
 		not_null<QWidget*> parent,
 		not_null<Ui::InputField*> input,
-		not_null<rpl::variable<Data::ChatFilter>*> data) {
-	const auto rules = data->current();
+		not_null<Window::SessionController*> window,
+		not_null<rpl::variable<Data::ChatFilter>*> data,
+		not_null<rpl::variable<TextWithEntities>*> title,
+		not_null<rpl::variable<bool>*> staticTitle) {
 	const auto size = st::windowFilterIconUserpicSize;
 	const auto badge = st::windowFilterIconUserpicBadge;
 	const auto badgePosition = st::windowFilterIconUserpicBadgePosition;
@@ -272,14 +278,47 @@ void CreateIconSelector(
 	};
 	const auto fly = toggle->lifetime().make_state<FlyState>();
 
-	const auto type = toggle->lifetime().make_state<Ui::FilterIcon>();
-	data->value(
-	) | rpl::map([=](const Data::ChatFilter &filter) {
-		return Ui::ComputeFilterIcon(filter);
-	}) | rpl::on_next([=](Ui::FilterIcon icon) {
-		*type = icon;
+	struct IconState {
+		Ui::FilterIcon fallback = {};
+		Ui::FilterEmojiIconPaint paintEmoji;
+		rpl::lifetime resolveLifetime;
+		rpl::event_stream<> resolved;
+	};
+	const auto icon = toggle->lifetime().make_state<IconState>();
+	const auto paused = [=] {
+		const auto reason = Window::GifPauseReason::Layer;
+		return On(PowerSaving::kEmojiChat)
+			|| window->isGifPausedAtLeastFor(reason);
+	};
+	const auto refresh = [=] {
+		const auto &filter = data->current();
+		const auto name = Data::ChatFilterTitle{
+			title->current(),
+			staticTitle->current(),
+		};
+		icon->resolveLifetime.destroy();
+		const auto titleIcon = Ui::ResolveFilterTitleIcon(
+			&window->session(),
+			filter,
+			name,
+			toggle,
+			icon->resolveLifetime,
+			[=] { icon->resolved.fire({}); });
+		icon->fallback = Ui::ComputeFilterIcon(filter);
+		icon->paintEmoji = Ui::MakeFilterEmojiIcon(
+			toggle,
+			titleIcon,
+			name.isStatic,
+			paused);
 		toggle->update();
-	}, toggle->lifetime());
+	};
+	rpl::merge(
+		data->changes() | rpl::to_empty,
+		title->changes() | rpl::to_empty,
+		staticTitle->changes() | rpl::to_empty,
+		icon->resolved.events()
+	) | rpl::on_next(refresh, toggle->lifetime());
+	refresh();
 
 	input->geometryValue(
 	) | rpl::on_next([=](QRect geometry) {
@@ -297,9 +336,16 @@ void CreateIconSelector(
 		p.setBrush(st::windowBgActive);
 		p.drawEllipse(userpic);
 
-		const auto icons = Ui::LookupFilterIcon(*type);
+		const auto icons = Ui::LookupFilterIcon(icon->fallback);
 		if (!fly->animation.animating()) {
-			icons.userpic->paintInCenter(p, userpic);
+			const auto rect = style::centerrect(
+				userpic,
+				*icons.userpic);
+			const auto color = st::windowFgActive->c;
+			if (!icon->paintEmoji
+				|| !icon->paintEmoji(p, rect, color)) {
+				icons.userpic->paintInCenter(p, userpic);
+			}
 		} else if (const auto scale = fly->scaleOut.value(0.); scale > 0.) {
 			const auto ratio = fly->previous.devicePixelRatio();
 			auto shrunk = QRectF(
@@ -330,8 +376,9 @@ void CreateIconSelector(
 	});
 	const auto startFly = [=](Ui::FilterIconChosen chosen) {
 		fly->previous = PrepareFlyIcon(
-			Ui::LookupFilterIcon(*type).userpic,
-			st::windowFgActive->c);
+			Ui::LookupFilterIcon(icon->fallback).userpic,
+			st::windowFgActive->c,
+			icon->paintEmoji);
 		const auto icons = Ui::LookupFilterIcon(chosen.icon);
 		const auto map = [&](not_null<QWidget*> from, QRect geometry) {
 			return QRect(
@@ -414,7 +461,7 @@ void CreateIconSelector(
 
 	panel->chosen(
 	) | rpl::filter([=](Ui::FilterIconChosen chosen) {
-		return chosen.icon != Ui::ComputeFilterIcon(data->current());
+		return icon->paintEmoji || (chosen.icon != icon->fallback);
 	}) | rpl::on_next([=](Ui::FilterIconChosen chosen) {
 		startFly(chosen);
 		panel->hideAnimated();
@@ -728,7 +775,10 @@ void EditFilterBox(
 		box,
 		content,
 		name,
-		data);
+		window,
+		data,
+		&state->title,
+		&state->staticTitle);
 
 	constexpr auto kTypes = Flag::Contacts
 		| Flag::NonContacts

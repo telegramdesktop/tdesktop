@@ -2486,6 +2486,8 @@ PRIVATE
     ui/filter_icons.h
     ui/filter_icon_panel.cpp
     ui/filter_icon_panel.h
+    ui/filter_title_icon.cpp
+    ui/filter_title_icon.h
     ui/item_text_options.cpp
     ui/item_text_options.h
     ui/resize_area.h

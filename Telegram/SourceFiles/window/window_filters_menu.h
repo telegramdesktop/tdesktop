@@ -22,6 +22,7 @@ namespace Ui {
 class VerticalLayout;
 class VerticalLayoutReorder;
 enum class FilterIcon : uchar;
+struct FilterTitleIcon;
 enum class ChatsFiltersTabsMode;
 class PopupMenu;
 template <typename Widget>
@@ -60,7 +61,8 @@ private:
 		Data::ChatFilterTitle title,
 		Ui::FilterIcon icon,
 		bool locked = false,
-		bool toBeginning = false);
+		bool toBeginning = false,
+		const Ui::FilterTitleIcon *titleIcon = nullptr);
 	void setupMainMenuIcon();
 	void showMenu(QPoint position, FilterId id);
 	void scrollToButton(not_null<Ui::RpWidget*> widget);
@@ -89,6 +91,7 @@ private:
 	int _reordering = 0;
 	bool _ignoreRefresh = false;
 	bool _waitingSuggested = false;
+	rpl::lifetime _titleIconsLifetime;
 
 	Api::RemoveComplexChatFilter _removeApi;
 
