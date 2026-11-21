@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "core/click_handler_types.h" // kDocumentFilenameTooltipProperty.
+// Mokagram: local speech recognition result, shown under the voice message.
+#include "mokagram/asr/mokagram_asr.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
@@ -497,9 +499,34 @@ QSize Document::countOptimalSize() {
 	if (voice) {
 		const auto history = _realParent->history();
 		const auto session = &history->session();
+		// Mokagram: локальная расшифровка на устройстве, текст под ГС, без сервера.
+		const auto localAsr = Mokagram::Asr::Engine::Instance().result(_realParent->fullId());
+		const auto localAsrText = localAsr && !localAsr->failed && !localAsr->text.isEmpty()
+			? localAsr->text
+			: QString();
 		const auto transcribes = &session->api().transcribes();
 		const auto media = _parent->data()->media();
-		if ((media && media->ttlSeconds())
+		if (!localAsrText.isEmpty()) {
+			voice->transcribe = nullptr;
+			const auto minResizeWidth = st::minPhotoSize
+				- st::msgPadding.left()
+				- st::msgPadding.right();
+			voice->transcribeText = Ui::Text::String(minResizeWidth);
+			voice->transcribeText.setMarkedText(
+				st::messageTextStyle,
+				TextWithEntities{ localAsrText },
+				kMarkupTextOptions,
+				Ui::Text::MarkedContext());
+			hasTranscribe = true;
+			if (const auto skipBlockWidth = _parent->hasVisibleText()
+				? 0
+				: _parent->skipBlockWidth()) {
+				voice->transcribeText.updateSkipBlock(
+					skipBlockWidth,
+					_parent->skipBlockHeight());
+			}
+			Mokagram::Asr::Engine::Instance().markShown(_realParent->fullId());
+		} else if ((media && media->ttlSeconds())
 			|| IsHostedInstantViewMedia(_parent)
 			|| _realParent->isScheduled()
 			|| _realParent->isAdminLogEntry()

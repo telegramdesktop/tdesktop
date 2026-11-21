@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/asr">
+    <file alias="en-ru-uk.tzf.gz">../../../ThirdParty/tinyasr/en-ru-uk.tzf.gz</file>
+    <file alias="silero_vad.onnx.gz">../../../ThirdParty/tinyasr/silero_vad.onnx.gz</file>
+  </qresource>
+</RCC>

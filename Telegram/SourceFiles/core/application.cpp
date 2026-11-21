@@ -146,6 +146,10 @@ void Start();
 namespace Mokagram::Guard {
 void Start();
 } // namespace Mokagram::Guard
+namespace Mokagram::Asr {
+void RegisterSettings();
+void Start();
+} // namespace Mokagram::Asr
 
 namespace Core {
 namespace {
@@ -361,6 +365,9 @@ void Application::run() {
 
 	Mokagram::Plugins::ApplyPendingRestore();
 	Mokagram::Settings::Load();
+	// Mokagram: local on-device speech recognition for voice messages.
+	Mokagram::Asr::RegisterSettings();
+	Mokagram::Asr::Start();
 	// Mokagram: apply the native WebSocket transport setting before accounts connect.
 	Mokagram::Network::RegisterSettings();
 	Mokagram::Badges::Start();

@@ -35,6 +35,7 @@ include(cmake/lib_litehtml.cmake)
 include(cmake/lib_quickjs.cmake)
 include(cmake/lib_widget_renderer.cmake)
 include(cmake/lib_widget_sandbox.cmake)
+include(cmake/mokagram_tinyasr.cmake)
 include(cmake/td_export.cmake)
 include(cmake/td_gram.cmake)
 include(cmake/td_iv.cmake)
@@ -105,6 +106,8 @@ PRIVATE
     mokagram/perf/mokagram_perf.h
     mokagram/lang/mokagram_lang.cpp
     mokagram/lang/mokagram_lang.h
+    mokagram/asr/mokagram_asr.cpp
+    mokagram/asr/mokagram_asr.h
     mokagram/msginfo/mokagram_message_info.cpp
     mokagram/passcode/mokagram_fake_passcode.cpp
     mokagram/passcode/mokagram_fake_passcode.h
@@ -315,6 +318,7 @@ PRIVATE
     desktop-app::external_openssl
     desktop-app::external_openal
     desktop-app::external_wallet_engine
+    mokagram::tinyasr
     desktop-app::external_xxhash
 )
 
@@ -2876,6 +2880,7 @@ PRIVATE
     qrc/telegram/picker.qrc
     qrc/telegram/telegram.qrc
     qrc/telegram/sounds.qrc
+    qrc/telegram/asr.qrc
     qrc/telegram/tgw.qrc
     winrc/Telegram.rc
     winrc/Telegram.manifest
