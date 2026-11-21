@@ -2269,6 +2269,26 @@ void InstallAlbumContextMenu(
 
 enum class RowMode { Results, Queue, Context, Home, Album };
 
+[[nodiscard]] int CatalogTypeLeft(int width) {
+	return (width >= style::ConvertScale(620)) ? width * 2 / 3 : width;
+}
+
+void PaintCatalogType(QPainter &p, const QString &type, int width, int height) {
+	const auto left = CatalogTypeLeft(width);
+	if (type.isEmpty() || left == width) {
+		return;
+	}
+	const auto s = [](int value) { return style::ConvertScale(value); };
+	const auto font = st::normalFont;
+	const auto pill = QRect(left, (height - s(22)) / 2, font->width(type) + s(16), s(22));
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::windowBg);
+	p.drawRoundedRect(pill, s(11), s(11));
+	p.setFont(font);
+	p.setPen(st::windowSubTextFg);
+	p.drawText(pill, Qt::AlignCenter, type);
+}
+
 class Row final : public Ui::AbstractButton {
 public:
 	void onStateChanged(State, StateChangeSource) override {
@@ -2435,6 +2455,11 @@ public:
 		update();
 	}
 
+	void setCatalogStyle(QString type) {
+		_catalogType = std::move(type);
+		resize(width(), style::ConvertScale(64));
+	}
+
 protected:
 	void showEvent(QShowEvent *e) override;
 	void hideEvent(QHideEvent *e) override;
@@ -2442,24 +2467,52 @@ protected:
 	void resizeEvent(QResizeEvent *e) override {
 		AbstractButton::resizeEvent(e);
 		layoutTextLinks();
-		if (_menuButton) _menuButton->setGeometry(width() - 48, (height() - 32) / 2, 32, 32);
+		if (_menuButton) {
+			const auto side = listMetric(32);
+			_menuButton->setGeometry(width() - listMetric(48), (height() - side) / 2, side, side);
+		}
 		if (_likeButton) {
 			_likeButton->setGeometry(heartRect());
 		}
 	}
 
 private:
+	[[nodiscard]] int listMetric(int value) const {
+		return _catalogType ? style::ConvertScale(value) : value;
+	}
+
+	[[nodiscard]] QRect listArtRect() const {
+		const auto side = _catalogType ? style::ConvertScale(48) : kArtSize;
+		return QRect(listMetric(20), (height() - side) / 2, side, side);
+	}
+
+	[[nodiscard]] int durationRight() const {
+		return width() - listMetric(_menuButton ? 72 : 24);
+	}
+
+	[[nodiscard]] QRect listTextRect(bool title) const {
+		const auto left = listArtRect().right() + listMetric(16);
+		const auto right = IsTelegramTrack(_track)
+			? durationRight() - st::normalFont->width(FormatDuration(_track.durationMs)) - listMetric(14)
+			: heartRect().left() - listMetric(12);
+		const auto typeLeft = (_catalogType && !_catalogType->isEmpty())
+			? CatalogTypeLeft(width()) - listMetric(12)
+			: width();
+		return QRect(
+			left,
+			height() / 2 + listMetric(title ? (_catalogType ? -20 : -24) : (_catalogType ? 0 : 2)),
+			std::max(std::min(right, typeLeft) - left, 0),
+			listMetric(title ? 22 : 20));
+	}
+
 	void layoutTextLinks() {
 		if (!_titleLink || !_artistLink) return;
-		const auto left = 20 + kArtSize - 1 + 16;
-		const auto right = width() - (_menuButton ? 72 : 24);
-		const auto available = std::max((IsTelegramTrack(_track)
-			? right - st::normalFont->width(FormatDuration(_track.durationMs)) - 14
-			: heartRect().left() - 12) - left, 0);
-		_titleLink->setGeometry(left, height() / 2 - 24,
-			std::min(st::semiboldFont->width(_track.title), available), 22);
-		_artistLink->setGeometry(left, height() / 2 + 2,
-			std::min(st::normalFont->width(_track.artist), available), 20);
+		auto title = listTextRect(true);
+		auto artist = listTextRect(false);
+		title.setWidth(std::min(st::semiboldFont->width(_track.title), title.width()));
+		artist.setWidth(std::min(st::normalFont->width(_track.artist), artist.width()));
+		_titleLink->setGeometry(title);
+		_artistLink->setGeometry(artist);
 		_titleLink->setVisible(!_track.title.isEmpty());
 		_artistLink->setVisible(!_track.artist.trimmed().isEmpty());
 	}
@@ -2473,11 +2526,12 @@ private:
 			return QRect(width() - 36, height() - 36, 28, 28);
 		}
 		const auto durationWidth = st::normalFont->width(FormatDuration(_track.durationMs));
+		const auto side = listMetric(28);
 		return QRect(
-			width() - (_menuButton ? 72 : 24) - durationWidth - 14 - 28,
-			(height() - 28) / 2,
-			28,
-			28);
+			durationRight() - durationWidth - listMetric(14) - side,
+			(height() - side) / 2,
+			side,
+			side);
 	}
 
 	void showMenu(
@@ -2562,19 +2616,21 @@ private:
 		}
 		const auto playing = selected;
 		const auto over = isOver() || isDown();
+		const auto bounds = rect().marginsRemoved({
+			listMetric(8), listMetric(4), listMetric(8), listMetric(4) });
 		if (playing || over) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(_glass
 				? QColor(255, 255, 255, playing ? 34 : 20)
 				: st::windowBgOver->c);
-			p.drawRoundedRect(rect().marginsRemoved({ 8, 4, 8, 4 }), 12, 12);
+			p.drawRoundedRect(bounds, listMetric(12), listMetric(12));
 		}
 		if (hasFocus()) {
-			p.setPen(QPen(st::windowActiveTextFg->c, 2));
+			p.setPen(QPen(st::windowActiveTextFg->c, listMetric(2)));
 			p.setBrush(Qt::NoBrush);
-			p.drawRoundedRect(rect().adjusted(8, 4, -8, -4), 8, 8);
+			p.drawRoundedRect(bounds, listMetric(8), listMetric(8));
 		}
-		const auto art = QRect(20, (height() - kArtSize) / 2, kArtSize, kArtSize);
+		const auto art = listArtRect();
 		if (_media) {
 			if (const auto image = _media->thumbnail()) {
 				_art = image->original();
@@ -2583,7 +2639,7 @@ private:
 			}
 		}
 		auto path = QPainterPath();
-		path.addRoundedRect(art, 8, 8);
+		path.addRoundedRect(art, listMetric(8), listMetric(8));
 		if (!_art.isNull()) {
 			p.save();
 			p.setClipPath(path);
@@ -2612,26 +2668,25 @@ private:
 					2);
 			}
 		}
-		const auto left = art.right() + 16;
-		const auto right = width() - (_menuButton ? 72 : 24);
+		if (_catalogType) {
+			PaintCatalogType(p, *_catalogType, width(), height());
+		}
 		const auto duration = FormatDuration(_track.durationMs);
 		const auto durationWidth = st::normalFont->width(duration);
 		p.setFont(st::normalFont);
 		p.setPen(st::windowSubTextFg);
 		p.drawText(
-			QRect(right - durationWidth, 0, durationWidth, height()),
+			QRect(durationRight() - durationWidth, 0, durationWidth, height()),
 			Qt::AlignVCenter | Qt::AlignRight,
 			duration);
-		const auto heart = heartRect();
-		const auto textWidth = (IsTelegramTrack(_track)
-			? right - durationWidth - 14
-			: heart.left() - 12) - left;
+		const auto titleRect = listTextRect(true);
+		const auto subtitleRect = listTextRect(false);
 		p.setFont(st::semiboldFont);
 		p.setPen(playing ? st::windowActiveTextFg : st::windowFg);
 		p.drawText(
-			QRect(left, height() / 2 - 24, textWidth, 22),
+			titleRect,
 			Qt::AlignVCenter | Qt::AlignLeft,
-			st::semiboldFont->elided(_track.title, textWidth));
+			st::semiboldFont->elided(_track.title, titleRect.width()));
 		p.setFont(st::normalFont);
 		p.setPen(st::windowSubTextFg);
 		const auto item = TrackMessage(_track);
@@ -2641,9 +2696,9 @@ private:
 			? _track.artist + u" · "_q + item->history()->peer->name()
 			: _track.artist;
 		p.drawText(
-			QRect(left, height() / 2 + 2, textWidth, 20),
+			subtitleRect,
 			Qt::AlignVCenter | Qt::AlignLeft,
-			st::normalFont->elided(subtitle, textWidth));
+			st::normalFont->elided(subtitle, subtitleRect.width()));
 	}
 
 	void paintHome(
@@ -2714,6 +2769,7 @@ private:
 	Track _track;
 	RowMode _mode;
 	std::shared_ptr<std::vector<Track>> _results;
+	std::optional<QString> _catalogType;
 	bool _homePlaybackControls = true;
 	TrackLikeButton *_likeButton = nullptr;
 	bool _glass = false;
@@ -3750,35 +3806,38 @@ private:
 };
 
 // Название открытого альбома и возврат к результатам.
-class SearchAlbumBar final : public Ui::AbstractButton {
+class SearchCollectionBar final : public Ui::AbstractButton {
 public:
-	SearchAlbumBar(QWidget *parent, const QString &title, Fn<void()> back)
+	SearchCollectionBar(QWidget *parent, const QString &title, Fn<void()> back)
 	: AbstractButton(parent)
 	, _title(title) {
-		resize(width(), 40);
+		resize(width(), style::ConvertScale(40));
 		setPointerCursor(true);
+		setFocusPolicy(Qt::TabFocus);
+		setAccessibleName(PlaylistText("Назад") + u": "_q + title);
 		setClickedCallback(std::move(back));
 		paintRequest(
 		) | rpl::on_next([=](QRect) {
 			auto p = QPainter(this);
 			auto hq = PainterHighQualityEnabler(p);
-			const auto onBack = isOver();
+			const auto s = [](int value) { return style::ConvertScale(value); };
+			const auto onBack = isOver() || hasFocus();
 			p.setPen(QPen(
 				onBack ? st::windowFg : st::windowSubTextFg,
-				2.,
+				s(2),
 				Qt::SolidLine,
 				Qt::RoundCap,
 				Qt::RoundJoin));
 			const auto cy = height() / 2.;
 			p.drawPolyline(QPolygonF({
-				QPointF(16, cy - 6),
-				QPointF(10, cy),
-				QPointF(16, cy + 6) }));
-			const auto available = std::max(width() - 38, 0);
+				QPointF(s(16), cy - s(6)),
+				QPointF(s(10), cy),
+				QPointF(s(16), cy + s(6)) }));
+			const auto available = std::max(width() - s(38), 0);
 			p.setFont(st::semiboldFont);
 			p.setPen(st::windowFg);
 			p.drawText(
-				QRect(26, 0, available, height()),
+				QRect(s(26), 0, available, height()),
 				Qt::AlignVCenter | Qt::AlignLeft,
 				st::semiboldFont->elided(_title, available));
 		}, lifetime());
@@ -3787,6 +3846,120 @@ public:
 private:
 	QString _title;
 
+};
+
+class CatalogEntityRow final : public Ui::AbstractButton {
+public:
+	CatalogEntityRow(
+		QWidget *parent,
+		QString title,
+		QString subtitle,
+		QString type,
+		QString artwork,
+		bool artist,
+		Fn<void()> open,
+		Fn<void(not_null<Ui::RoundButton*>)> play = nullptr)
+	: AbstractButton(parent)
+	, _title(std::move(title))
+	, _subtitle(std::move(subtitle))
+	, _type(std::move(type))
+	, _artist(artist) {
+		resize(width(), style::ConvertScale(play ? 96 : 64));
+		setPointerCursor(true);
+		setFocusPolicy(Qt::TabFocus);
+		setAccessibleName(QStringList{ _title, _subtitle, _type }.join(u" · "_q));
+		setClickedCallback(std::move(open));
+		if (play) {
+			_play = Ui::CreateChild<Ui::RoundButton>(
+				this,
+				rpl::single(PlaylistText("Слушать")),
+				BoxParts::PillActive());
+			_play->setFocusPolicy(Qt::TabFocus);
+			_play->setClickedCallback([=] { play(_play); });
+		}
+		LoadImage(ArtUrl(artwork, u"t200x200"_q), crl::guard(this, [=](QImage image) {
+			_art = std::move(image);
+			update();
+		}));
+	}
+
+protected:
+	void resizeEvent(QResizeEvent *event) override {
+		AbstractButton::resizeEvent(event);
+		if (_play) {
+			_play->setFullWidth(style::ConvertScale(112));
+			_play->moveToRight(style::ConvertScale(30), (height() - _play->height()) / 2);
+		}
+	}
+
+	void paintEvent(QPaintEvent *) override {
+		auto p = QPainter(this);
+		const auto hq = PainterHighQualityEnabler(p);
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		const auto bounds = rect().adjusted(s(8), s(4), -s(8), -s(4));
+		const auto radius = s(_play ? 22 : 12);
+		if (_play || isOver() || isDown()) {
+			p.setPen(Qt::NoPen);
+			p.setBrush((isOver() || isDown()) ? st::windowBgOver : st::windowBg);
+			p.drawRoundedRect(bounds, radius, radius);
+		}
+		if (hasFocus()) {
+			p.setPen(QPen(st::windowActiveTextFg->c, s(2)));
+			p.setBrush(Qt::NoBrush);
+			p.drawRoundedRect(bounds, radius, radius);
+		}
+		const auto side = s(_play ? 64 : 48);
+		const auto art = QRect(s(_play ? 24 : 20), (height() - side) / 2, side, side);
+		auto clip = QPainterPath();
+		if (_artist) {
+			clip.addEllipse(art);
+		} else {
+			clip.addRoundedRect(art, s(8), s(8));
+		}
+		p.save();
+		p.setClipPath(clip);
+		if (_art.isNull()) {
+			p.fillRect(art, _play ? st::windowBgOver : st::windowBg);
+		} else {
+			p.drawImage(art, _art);
+		}
+		p.restore();
+
+		const auto left = art.right() + s(16);
+		const auto typeLeft = CatalogTypeLeft(width());
+		const auto right = _play ? _play->x() : typeLeft;
+		const auto available = std::max(right - left - s(14), 0);
+		auto titleFont = st::semiboldFont->f;
+		if (_play) {
+			titleFont.setPixelSize(s(22));
+		}
+		p.setFont(titleFont);
+		p.setPen(st::windowFg);
+		p.drawText(
+			QRect(left, height() / 2 - s(_play ? 25 : 20), available, s(_play ? 26 : 22)),
+			Qt::AlignVCenter,
+			QFontMetrics(titleFont).elidedText(_title, Qt::ElideRight, available));
+		const auto subtitle = (!_play && typeLeft == width() && !_type.isEmpty())
+			? (_subtitle.isEmpty() ? _type : _subtitle + u" · "_q + _type)
+			: _subtitle;
+		p.setFont(st::normalFont);
+		p.setPen(st::windowSubTextFg);
+		p.drawText(
+			QRect(left, height() / 2, available, s(20)),
+			Qt::AlignVCenter,
+			st::normalFont->elided(subtitle, available));
+		if (!_play) {
+			PaintCatalogType(p, _type, width(), height());
+		}
+	}
+
+private:
+	QString _title;
+	QString _subtitle;
+	QString _type;
+	bool _artist = false;
+	QImage _art;
+	Ui::RoundButton *_play = nullptr;
 };
 
 class AlbumBar final : public Ui::AbstractButton {
@@ -7302,6 +7475,11 @@ public:
 		_seek->setExpressive(true, false);
 		_homeBack = Ui::CreateChild<NavItem>(this, u"‹  "_q + QString::fromUtf8(Mokagram::Lang::Tr("Назад")), false);
 		_homeBack->setClickedCallback(crl::guard(this, [=] {
+			if (_homeArtistBackToSearch && _homeArtistOpen) {
+				setTab(Tab::Search);
+				_tabScroll->scrollToY(_searchArtistReturnScroll);
+				return;
+			}
 			if (_homeReturnToArtist) {
 				openHomeArtist(_homeArtistSeed);
 				return;
@@ -7484,12 +7662,15 @@ public:
 			_searchIndicator->setLoading(false);
 			_searchPending = !_searchField->text().trimmed().isEmpty();
 			_searchFailed = false;
-			_openedAlbum = false;
+			_searchCollectionTitle.clear();
 			_searchTracks.clear();
-			_albums.clear();
+			_catalogItems.clear();
 			_searchStatus = _searchField->text().trimmed().isEmpty()
 				? QString() : QString::fromUtf8(Mokagram::Lang::Tr("Ищу…"));
-			if (_tab == Tab::Search) rebuildTab();
+			if (_tab == Tab::Search) {
+				rebuildTab();
+				_tabScroll->scrollToY(0);
+			}
 			_searchTimer.start();
 		});
 		_chooseSearchChat = Ui::CreateChild<Ui::RoundButton>(this,
@@ -7515,28 +7696,36 @@ public:
 				QString::fromUtf8(Mokagram::Lang::Tr("Из чатов")) },
 			[=](int index) {
 				_searchChats = (index == 1);
-				_openedAlbum = false;
 				_searchField->setPlaceholderText(QString::fromUtf8(Mokagram::Lang::Tr(
 					_searchChats ? "Поиск по чатам" : "Поиск на SoundCloud")));
-				if (_searchChats) {
-					_searchKind = 0;
-					_kindSwitch->setIndex(0);
-				}
 				relayout();
 				runSearch();
 			});
-		_kindSwitch = Ui::CreateChild<Segmented>(
-			this,
-			std::vector<QString>{
-				QString::fromUtf8(Mokagram::Lang::Tr("Треки")),
-				QString::fromUtf8(Mokagram::Lang::Tr("Альбомы")) },
-			[=](int index) {
-				_searchKind = index;
-				_openedAlbum = false;
+		const auto categories = std::array{
+			std::pair{ SearchCategory::All, "Всё" },
+			std::pair{ SearchCategory::Tracks, "Треки" },
+			std::pair{ SearchCategory::Playlists, "Плейлисты" },
+			std::pair{ SearchCategory::Albums, "Альбомы" },
+			std::pair{ SearchCategory::Artists, "Исполнители" },
+		};
+		for (const auto &[category, text] : categories) {
+			const auto chip = new QPushButton(PlaylistText(text), this);
+			chip->setCursor(Qt::PointingHandCursor);
+			chip->setCheckable(true);
+			chip->setAutoExclusive(true);
+			chip->setChecked(category == _searchCategory);
+			chip->hide();
+			const auto filter = category;
+			connect(chip, &QPushButton::clicked, this, [=] {
+				if (_searchCategory == filter) {
+					return;
+				}
+				_searchCategory = filter;
 				runSearch();
 			});
+			_searchFilters[int(category)] = chip;
+		}
 		_sourceSwitch->hide();
-		_kindSwitch->hide();
 		QueueState().changes.events(
 		) | rpl::on_next([=] {
 			if (showsQueue()) {
@@ -8034,7 +8223,7 @@ protected:
 			result.scrollTop = result.center.y() + ((_tab == Tab::Home || _tab == Tab::Library || _tab == Tab::Queue || _tab == Tab::Playlists)
 				? 0
 				: (_tab == Tab::Search)
-				? ((contentWidth < s(500)) ? s(172) : s(124))
+				? searchHeaderHeight(contentWidth)
 				: s(72));
 		}
 
@@ -8235,8 +8424,6 @@ protected:
 			const auto left = layout.center.x() + s(10);
 			const auto fieldHeight = s(52);
 			const auto fieldTop = layout.center.y() + s(8);
-			const auto fieldWidth = std::min(inner, s(760));
-			_searchField->setGeometry(left + (inner - fieldWidth) / 2, fieldTop, fieldWidth, fieldHeight);
 			_searchIndicator->setGeometry(s(18), (fieldHeight - s(20)) / 2, s(20), s(20));
 			_searchRetry->setGeometry(left, layout.scrollTop + s(52), s(110), s(32));
 			auto font = st::normalFont->f;
@@ -8249,24 +8436,25 @@ protected:
 				.arg(st::windowFg->c.name())
 				.arg(st::windowActiveTextFg->c.name())
 				.arg(s(50)));
-			const auto switchTop = fieldTop + fieldHeight + s(12);
-			const auto stacked = layout.center.width() < s(500);
-			const auto switchWidth = stacked
-				? std::min(inner, s(240))
-				: std::min(std::max((inner - s(8)) / 2, 0), s(240));
-			const auto groupWidth = stacked ? switchWidth : 2 * switchWidth + s(8);
-			const auto groupLeft = left + (inner - groupWidth) / 2;
-			_sourceSwitch->setGeometry(groupLeft, switchTop, switchWidth, s(40));
-			_chooseSearchChat->setGeometry(
-				stacked ? groupLeft : groupLeft + switchWidth + s(8),
-				stacked ? switchTop + s(48) : switchTop,
-				switchWidth,
-				s(40));
-			_kindSwitch->setGeometry(
-				stacked ? groupLeft : groupLeft + switchWidth + s(8),
-				stacked ? switchTop + s(48) : switchTop,
-				switchWidth,
-				s(40));
+			if (!_searchChats) {
+				layoutCatalogHeader(layout.center);
+			} else {
+				const auto fieldWidth = std::min(inner, s(760));
+				_searchField->setGeometry(left + (inner - fieldWidth) / 2, fieldTop, fieldWidth, fieldHeight);
+				const auto switchTop = fieldTop + fieldHeight + s(12);
+				const auto stacked = layout.center.width() < s(500);
+				const auto switchWidth = stacked
+					? std::min(inner, s(240))
+					: std::min(std::max((inner - s(8)) / 2, 0), s(240));
+				const auto groupWidth = stacked ? switchWidth : 2 * switchWidth + s(8);
+				const auto groupLeft = left + (inner - groupWidth) / 2;
+				_sourceSwitch->setGeometry(groupLeft, switchTop, switchWidth, s(40));
+				_chooseSearchChat->setGeometry(
+					stacked ? groupLeft : groupLeft + switchWidth + s(8),
+					stacked ? switchTop + s(48) : switchTop,
+					switchWidth,
+					s(40));
+			}
 		}
 
 		const auto row = { _shuffle, _previous, _play, _next, _repeat };
@@ -8298,65 +8486,198 @@ protected:
 		resizeEvent(&event);
 		update();
 	}
-	void fillAlbums() {
-		const auto tr = [](const char *text) {
-			return QString::fromUtf8(Mokagram::Lang::Tr(text));
-		};
-		if (_openedAlbum) {
-			_tabList->add(object_ptr<SearchAlbumBar>(
-				_tabList,
-				_albumTitle,
-				crl::guard(this, [=] {
-					_openedAlbum = false;
-					_albumLoading = false;
-					++_searchGen;
-					_searchStatus.clear();
-					rebuildTab();
-				})));
-			if (_albumLoading) {
-				_tabList->add(object_ptr<SearchSkeleton>(_tabList));
-			} else if (_albumTracks.empty()) {
-				_tabNote = _searchStatus.isEmpty()
-					? tr("В альбоме нет доступных треков") : _searchStatus;
-			}
-			QueueState().results = _albumTracks;
-			for (auto i = 0; i != int(_albumTracks.size()); ++i) {
-				_tabList->add(object_ptr<Row>(
-					_tabList,
-					_controller,
-					_albumTracks[i],
-					i,
-					RowMode::Results));
-			}
-			return;
+
+	[[nodiscard]] static bool catalogSourceInline(int width) {
+		return width >= style::ConvertScale(680);
+	}
+
+	[[nodiscard]] static bool catalogFiltersWrap(int width) {
+		return width < style::ConvertScale(480);
+	}
+
+	[[nodiscard]] static int catalogFiltersTop(int width) {
+		return style::ConvertScale(catalogSourceInline(width) ? 70 : 114);
+	}
+
+	[[nodiscard]] int searchHeaderHeight(int width) const {
+		if (_searchChats) {
+			return style::ConvertScale((width < style::ConvertScale(500)) ? 172 : 124);
 		}
-		if (_albums.empty()) {
-			_tabNote = _searchStatus.isEmpty()
-				? tr("Введи название альбома или исполнителя.")
-				: _searchStatus;
-			return;
+		return catalogFiltersTop(width)
+			+ style::ConvertScale(catalogFiltersWrap(width) ? 86 : 46);
+	}
+
+	void layoutCatalogHeader(const QRect &area) {
+		const auto s = [](int value) { return style::ConvertScale(value); };
+		const auto left = area.x() + s(20);
+		const auto inner = std::max(area.width() - s(40), 0);
+		const auto inlineSource = catalogSourceInline(area.width());
+		const auto sourceWidth = std::min(inner, s(240));
+		const auto fieldWidth = inlineSource
+			? std::min(inner - sourceWidth - s(12), s(760))
+			: inner;
+		_searchField->setGeometry(left, area.y() + s(8), fieldWidth, s(52));
+		_sourceSwitch->setGeometry(
+			inlineSource ? left + fieldWidth + s(12) : left,
+			area.y() + s(inlineSource ? 14 : 68),
+			sourceWidth,
+			s(40));
+
+		const auto sheet = u"QPushButton { background: %1; color: %2; border: %7px solid transparent; border-radius: %8px; } "
+			u"QPushButton:hover { background: %3; } QPushButton:pressed { background: %4; } "
+			u"QPushButton:checked { background: %4; color: %5; } "
+			u"QPushButton:checked:hover { background: %6; } "
+			u"QPushButton:focus { border-color: %4; } QPushButton:checked:focus { border-color: %5; }"_q
+			.arg(st::windowBg->c.name(), st::windowFg->c.name(), st::windowBgOver->c.name(),
+				st::activeButtonBg->c.name(), st::activeButtonFg->c.name(), st::activeButtonBgOver->c.name())
+			.arg(s(2))
+			.arg(s(16));
+		const auto wrap = catalogFiltersWrap(area.width());
+		auto x = left;
+		auto y = area.y() + catalogFiltersTop(area.width());
+		for (auto i = 0; i != int(_searchFilters.size()); ++i) {
+			if (wrap && i == 3) {
+				x = left;
+				y += s(40);
+			}
+			const auto chip = _searchFilters[i];
+			if (chip->styleSheet() != sheet) {
+				chip->setStyleSheet(sheet);
+				chip->setFont(st::semiboldFont->f);
+			}
+			const auto width = st::semiboldFont->width(chip->text()) + s(24);
+			chip->setGeometry(x, y, width, s(32));
+			x += width + s(6);
 		}
-		for (const auto &album : _albums) {
-			_tabList->add(object_ptr<AlbumRow>(_tabList, _controller, album, crl::guard(this, [=] {
-				_openedAlbum = true;
-				_albumTitle = album.title;
-				_albumTracks.clear();
-				_albumLoading = true;
-				_searchStatus.clear();
-				const auto generation = ++_searchGen;
-				AlbumTracks(album.id, crl::guard(this, [=](std::vector<Track> tracks, QString error) {
-					if (generation != _searchGen) {
+	}
+	void openCatalogCollection(const Album &album) {
+		_searchCollectionScroll = _tabScroll->scrollTop();
+		_searchCollectionTitle = album.title;
+		_searchCollectionTracks.clear();
+		_searchCollectionStatus.clear();
+		_searchCollectionLoading = true;
+		const auto generation = ++_searchGen;
+		rebuildTab();
+		_tabScroll->scrollToY(0);
+		AlbumTracks(album.id, crl::guard(this, [=](std::vector<Track> tracks, QString error) {
+			if (generation != _searchGen) {
+				return;
+			}
+			_searchCollectionLoading = false;
+			_searchCollectionTracks = std::move(tracks);
+			_searchCollectionStatus = std::move(error);
+			if (_tab == Tab::Search) {
+				rebuildTab();
+			}
+		}));
+	}
+
+	void setResultTrackLinks(not_null<Row*> row) {
+		row->setTextLinks(
+			crl::guard(this, [=](Track track) {
+				setTab(Tab::Home);
+				openHomeTrack(std::move(track));
+			}),
+			crl::guard(this, [=](Track track) {
+				setTab(Tab::Home);
+				openHomeArtist(std::move(track));
+			}));
+	}
+
+	void addCatalogArtist(const ArtistInfo &artist, bool featured, bool mixed) {
+		const auto type = PlaylistText("Исполнитель");
+		auto play = Fn<void(not_null<Ui::RoundButton*>)>();
+		if (featured) {
+			play = [=](not_null<Ui::RoundButton*> button) {
+				button->setDisabled(true);
+				button->setText(rpl::single(PlaylistText("Загрузка…")));
+				UserTracks(artist.id, 20, crl::guard(button, [=](std::vector<Track> tracks) {
+					if (tracks.empty()) {
+						button->setText(rpl::single(PlaylistText("Нет треков")));
 						return;
 					}
-					_albumLoading = false;
-					_albumTracks = std::move(tracks);
-					_searchStatus = error;
-					if (_tab == Tab::Search) {
-						rebuildTab();
-					}
+					button->setText(rpl::single(PlaylistText("Слушать")));
+					button->setDisabled(false);
+					QueueState().results = std::move(tracks);
+					PlayFromResults(0);
 				}));
-				rebuildTab();
-			})));
+			};
+		}
+		_tabList->add(object_ptr<CatalogEntityRow>(
+			_tabList,
+			artist.name,
+			(featured || !mixed) ? type : QString(),
+			(!featured && mixed) ? type : QString(),
+			artist.avatarUrl,
+			true,
+			crl::guard(this, [=] {
+				_searchArtistReturnScroll = _tabScroll->scrollTop();
+				auto seed = Track();
+				seed.artistId = artist.id;
+				seed.artist = artist.name;
+				seed.artistArtworkUrl = artist.avatarUrl;
+				setTab(Tab::Home);
+				_homeArtistBackToSearch = true;
+				openHomeArtist(std::move(seed));
+			}),
+			std::move(play)));
+	}
+
+	void fillCatalogResults() {
+		const auto mixed = _searchCategory == SearchCategory::All;
+		const auto query = _searchField->text().trimmed();
+		auto featured = static_cast<const ArtistInfo*>(nullptr);
+		if (mixed) {
+			featured = std::get_if<ArtistInfo>(&_catalogItems.front());
+			if (!featured) {
+				for (const auto &item : _catalogItems) {
+					const auto artist = std::get_if<ArtistInfo>(&item);
+					if (artist && artist->name.trimmed().compare(query, Qt::CaseInsensitive) == 0) {
+						featured = artist;
+						break;
+					}
+				}
+			}
+			if (featured) {
+				addCatalogArtist(*featured, true, true);
+			}
+		}
+
+		auto playable = std::make_shared<std::vector<Track>>();
+		for (const auto &item : _catalogItems) {
+			if (const auto track = std::get_if<Track>(&item)) {
+				playable->push_back(*track);
+			}
+		}
+		QueueState().results = *playable;
+		auto index = 0;
+		for (const auto &item : _catalogItems) {
+			if (const auto track = std::get_if<Track>(&item)) {
+				const auto row = _tabList->add(object_ptr<Row>(
+					_tabList, _controller, *track, index, RowMode::Results, playable, index));
+				row->setCatalogStyle(mixed ? PlaylistText("Трек") : QString());
+				setResultTrackLinks(row);
+				++index;
+			} else if (const auto album = std::get_if<Album>(&item)) {
+				const auto type = [&] {
+					switch (album->releaseKind) {
+					case ReleaseKind::Single: return PlaylistText("Сингл");
+					case ReleaseKind::Ep: return PlaylistText("EP");
+					case ReleaseKind::Compilation: return PlaylistText("Сборник");
+					case ReleaseKind::Album: return PlaylistText("Альбом");
+					case ReleaseKind::Unknown: return PlaylistText("Плейлист");
+					}
+					return QString();
+				}();
+				const auto row = _tabList->add(object_ptr<CatalogEntityRow>(
+					_tabList, album->title, album->artist, type, album->artworkUrl, false,
+					crl::guard(this, [=, album = *album] { openCatalogCollection(album); })));
+				if (album->releaseKind != ReleaseKind::Unknown) {
+					InstallAlbumContextMenu(row, _controller, *album);
+				}
+			} else if (const auto artist = std::get_if<ArtistInfo>(&item); artist && artist != featured) {
+				addCatalogArtist(*artist, false, mixed);
+			}
 		}
 	}
 
@@ -8367,68 +8688,55 @@ protected:
 		_searchPending = !query.isEmpty() || (_searchChats && _searchChat);
 		_searchIndicator->setLoading(_searchPending);
 		_searchFailed = false;
+		_searchCollectionTitle.clear();
 		_searchTracks.clear();
-		_albums.clear();
+		_catalogItems.clear();
 		_chatSearch = nullptr;
-		_searchStatus = !_searchPending
-			? QString()
-			: QString::fromUtf8(Mokagram::Lang::Tr("Ищу…"));
-		const auto finish = [=](std::vector<Track> tracks, QString error) {
-			if (generation != _searchGen) {
-				return;
-			}
+		_searchStatus.clear();
+		const auto finish = [=](bool empty, QString error) {
 			_searchPending = false;
 			_searchIndicator->setLoading(false);
-			_searchTracks = std::move(tracks);
 			_searchFailed = !error.isEmpty();
 			_searchStatus = !error.isEmpty()
 				? error
-				: _searchTracks.empty()
+				: empty
 				? (query.isEmpty()
-					? QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено"))
-					: QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено по запросу «%1»")).arg(query))
+					? PlaylistText("Ничего не найдено")
+					: PlaylistText("Ничего не найдено по запросу «%1»").arg(query))
 				: QString();
 			if (_tab == Tab::Search) {
 				rebuildTab();
 			}
 		};
-		if (_searchPending) {
-			if (_searchChats) {
-				if (const auto session = QueueState().session.get()) {
-					_chatSearch = std::make_unique<ChatMusicSearch>(
-						session,
-						crl::guard(this, finish),
-						_searchChat);
-					_chatSearch->search(query);
-				} else {
-					finish({}, QString::fromUtf8(Mokagram::Lang::Tr("Поиск по чатам недоступен")));
-				}
-			} else if (_searchKind == 1) {
-				SearchAlbums(query, 20, crl::guard(this, [=](std::vector<Album> albums, QString error) {
-					if (generation != _searchGen) {
-						return;
-					}
-					_searchPending = false;
-					_searchIndicator->setLoading(false);
-					_albums = std::move(albums);
-					_searchFailed = !error.isEmpty();
-					_searchStatus = !error.isEmpty()
-						? error
-						: _albums.empty()
-						? QString::fromUtf8(Mokagram::Lang::Tr("Ничего не найдено по запросу «%1»")).arg(query)
-						: QString();
-					if (_tab == Tab::Search) {
-						rebuildTab();
-					}
-				}));
-			} else {
-				Search(query, 0, crl::guard(this, [=](SearchResult result) {
-					finish(std::move(result.tracks), result.error);
-				}));
-			}
-		}
 		if (_tab == Tab::Search) {
 			rebuildTab();
+			_tabScroll->scrollToY(0);
+		}
+		if (!_searchPending) {
+			return;
+		}
+		if (!_searchChats) {
+			SearchCatalog(query, _searchCategory, crl::guard(this, [=](
+					std::vector<CatalogItem> items,
+					QString error) {
+				if (generation == _searchGen) {
+					_catalogItems = std::move(items);
+					finish(_catalogItems.empty(), std::move(error));
+				}
+			}));
+		} else if (const auto session = QueueState().session.get()) {
+			_chatSearch = std::make_unique<ChatMusicSearch>(
+				session,
+				crl::guard(this, [=](std::vector<Track> tracks, QString error) {
+					if (generation == _searchGen) {
+						_searchTracks = std::move(tracks);
+						finish(_searchTracks.empty(), std::move(error));
+					}
+				}),
+				_searchChat);
+			_chatSearch->search(query);
+		} else {
+			finish(true, PlaylistText("Поиск по чатам недоступен"));
 		}
 	}
 
@@ -8444,6 +8752,7 @@ protected:
 		_homeAlbumOpen = false;
 		_homeArtistOpen = false;
 		_homeReturnToArtist = false;
+		_homeArtistBackToSearch = false;
 		_nav[1]->setActiveColor(Qt::white);
 		++_homeAlbumGeneration;
 	}
@@ -8701,7 +9010,7 @@ protected:
 			int generation) {
 		_homeArtistAlbums.clear();
 		_homeArtistTracks.clear();
-		if (_homeArtistOpen) {
+		if (_homeArtistOpen && !_homeArtistSeed.id.isEmpty()) {
 			_homeArtistTracks.push_back(_homeArtistSeed);
 		}
 		if (!name.isEmpty()) {
@@ -8731,11 +9040,13 @@ protected:
 					return;
 				}
 				std::erase_if(tracks, [&](const Track &other) {
-					return other.id == trackId || (_homeArtistOpen
+					return other.id == trackId || (_homeArtistOpen && !_homeArtistSeed.id.isEmpty()
 						&& other.artist.trimmed().compare(name.trimmed(), Qt::CaseInsensitive) != 0);
 				});
 				if (_homeArtistOpen) {
-					if (tracks.empty()) tracks.push_back(_homeArtistSeed);
+					if (tracks.empty() && !_homeArtistSeed.id.isEmpty()) {
+						tracks.push_back(_homeArtistSeed);
+					}
 					std::stable_sort(tracks.begin(), tracks.end(), [](const Track &a, const Track &b) {
 						return a.playbackCount > b.playbackCount;
 					});
@@ -8848,7 +9159,12 @@ protected:
 			}));
 		}
 		loadHomeArtist(track.artist, track.artistId, {}, {}, generation);
-		loadHomeSimilar(track, generation);
+		if (track.id.isEmpty()) {
+			_homeSimilarTracks.clear();
+			_homeSimilarLoading = false;
+		} else {
+			loadHomeSimilar(track, generation);
+		}
 		syncLibrary();
 		syncPlaylists();
 		relayout();
@@ -9066,8 +9382,10 @@ protected:
 		_searchField->setVisible(searching);
 		_sourceSwitch->setVisible(searching);
 		_chooseSearchChat->setVisible(searching && _searchChats);
-		_kindSwitch->setVisible(searching && !_searchChats);
-		_searchRetry->setVisible(searching && _searchFailed && !_openedAlbum);
+		for (const auto chip : _searchFilters) {
+			chip->setVisible(searching && !_searchChats);
+		}
+		_searchRetry->setVisible(searching && _searchFailed);
 		if (fresh) {
 			_searchField->setFocus();
 		}
@@ -9095,15 +9413,7 @@ protected:
 					index,
 					nullptr,
 					playlistId));
-				row->setTextLinks(
-					crl::guard(this, [=](Track track) {
-						setTab(Tab::Home);
-						openHomeTrack(std::move(track));
-					}),
-					crl::guard(this, [=](Track track) {
-						setTab(Tab::Home);
-						openHomeArtist(std::move(track));
-					}));
+				setResultTrackLinks(row);
 			}
 		};
 		switch (_tab) {
@@ -9479,10 +9789,27 @@ protected:
 		case Tab::Search:
 			if (emptySearch) {
 				break;
-			} else if (_searchPending && !_openedAlbum) {
+			} else if (_searchPending) {
 				_tabList->add(object_ptr<SearchSkeleton>(_tabList));
-			} else if (_searchKind == 1 && !_searchChats) {
-				fillAlbums();
+			} else if (!_searchCollectionTitle.isEmpty()) {
+				_tabList->add(object_ptr<SearchCollectionBar>(
+					_tabList, _searchCollectionTitle, crl::guard(this, [=] {
+						_searchCollectionTitle.clear();
+						++_searchGen;
+						rebuildTab();
+						_tabScroll->scrollToY(_searchCollectionScroll);
+					})));
+				if (_searchCollectionLoading) {
+					_tabList->add(object_ptr<SearchSkeleton>(_tabList));
+				} else if (_searchCollectionTracks.empty()) {
+					_tabNote = _searchCollectionStatus.isEmpty()
+						? tr("В подборке нет доступных треков")
+						: _searchCollectionStatus;
+				} else {
+					addRows(_searchCollectionTracks, RowMode::Album);
+				}
+			} else if (!_searchChats && !_catalogItems.empty()) {
+				fillCatalogResults();
 			} else if (_searchTracks.empty()) {
 				_tabNote = _searchStatus.isEmpty()
 					? tr("Введи название или исполнителя.")
@@ -9573,8 +9900,10 @@ protected:
 		}
 		if (_tab == Tab::Search) {
 			for (const auto child : _tabList->children()) {
-				if (auto widget = qobject_cast<QWidget*>(child); widget
-					&& (dynamic_cast<Row*>(widget) || dynamic_cast<AlbumRow*>(widget)) && widget->isEnabled()) {
+				if (auto widget = qobject_cast<QWidget*>(child); widget && widget->isEnabled()
+					&& (dynamic_cast<Row*>(widget)
+						|| dynamic_cast<CatalogEntityRow*>(widget)
+						|| dynamic_cast<SearchCollectionBar*>(widget))) {
 					_searchResultWidgets.push_back(widget);
 					widget->installEventFilter(this);
 				}
@@ -9771,7 +10100,7 @@ protected:
 				p.setPen(st::windowSubTextFg);
 				const auto noteWidth = std::max(layout.center.width() - s(20), 0);
 				p.drawText(
-					QRect(layout.center.x() + s(10), layout.scrollTop + ((_tab == Tab::Playlists) ? s(64) : (_tab == Tab::Search && _openedAlbum) ? s(40) : 0), noteWidth, s(80)),
+					QRect(layout.center.x() + s(10), layout.scrollTop + ((_tab == Tab::Playlists) ? s(64) : (_tab == Tab::Search && !_searchCollectionTitle.isEmpty()) ? s(40) : 0), noteWidth, s(80)),
 					Qt::AlignLeft | Qt::AlignTop | Qt::TextWordWrap,
 					_tabNote);
 			}
@@ -10487,13 +10816,16 @@ private:
 	Ui::RoundButton *_chooseSearchChat = nullptr;
 	PeerId _searchChat;
 	Segmented *_sourceSwitch = nullptr;
-	Segmented *_kindSwitch = nullptr;
-	std::vector<Album> _albums;
-	std::vector<Track> _albumTracks;
-	QString _albumTitle;
-	bool _openedAlbum = false;
-	bool _albumLoading = false;
-	int _searchKind = 0;
+	std::array<QPushButton*, 5> _searchFilters = {};
+	SearchCategory _searchCategory = SearchCategory::All;
+	std::vector<CatalogItem> _catalogItems;
+	std::vector<Track> _searchCollectionTracks;
+	QString _searchCollectionTitle;
+	QString _searchCollectionStatus;
+	int _searchCollectionScroll = 0;
+	int _searchArtistReturnScroll = 0;
+	bool _searchCollectionLoading = false;
+	bool _homeArtistBackToSearch = false;
 	QTimer _searchTimer;
 	std::unique_ptr<ChatMusicSearch> _chatSearch;
 	std::vector<Track> _searchTracks;
