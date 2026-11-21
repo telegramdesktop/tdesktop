@@ -721,7 +721,7 @@ void InnerWidget::refreshEmpty() {
 		&& albumId
 		&& (albumId != Data::kStoriesAlbumIdArchive)
 		&& _peer->canEditStories();
-	_albumEmpty = albumCanAdd;
+	_albumEmpty = albumCanAdd || (albumId == Data::kStoriesAlbumIdSaved);
 	if (albumCanAdd) {
 		auto empty = object_ptr<Ui::VerticalLayout>(this);
 		empty->add(
