@@ -457,11 +457,21 @@ void Paste(
 	Insert(letter, 3, u"c"_q);
 	const auto supplementary = CreateField(&parent, initial);
 	Insert(supplementary, 3, u"\U0001D401"_q);
+	const auto digit = CreateField(&parent, initial);
+	Insert(digit, 3, u"\U0001D7CE"_q);
+	const auto symbol = CreateField(&parent, initial);
+	Insert(symbol, 3, u"\U0001D6C1"_q);
 	return FirstFailure({
 		ExpectExport(letter, { u"a\U0001D400cb"_q, { { 1, 3, bold } } }),
 		ExpectExport(
 			supplementary,
-			{ u"a\U0001D400\U0001D401b"_q, { { 1, 2, bold } } }),
+			{ u"a\U0001D400\U0001D401b"_q, { { 1, 4, bold } } }),
+		ExpectExport(
+			digit,
+			{ u"a\U0001D400\U0001D7CEb"_q, { { 1, 4, bold } } }),
+		ExpectExport(
+			symbol,
+			{ u"a\U0001D400\U0001D6C1b"_q, { { 1, 2, bold } } }),
 	});
 }
 
