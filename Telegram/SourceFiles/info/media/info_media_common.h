@@ -180,6 +180,15 @@ public:
 	[[nodiscard]] virtual bool anchorWhileAtTop() {
 		return false;
 	}
+	[[nodiscard]] virtual bool orderedByItemId() const {
+		return true;
+	}
+	[[nodiscard]] virtual bool showScrollDateBadge() const {
+		return true;
+	}
+	virtual bool open(FullMsgId id) {
+		return false;
+	}
 
 	[[nodiscard]] virtual int64 scrollTopStatePosition(
 		not_null<HistoryItem*> item) = 0;

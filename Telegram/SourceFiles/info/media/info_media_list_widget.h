@@ -76,7 +76,8 @@ class ListWidget final
 public:
 	ListWidget(
 		QWidget *parent,
-		not_null<AbstractController*> controller);
+		not_null<AbstractController*> controller,
+		std::unique_ptr<ListProvider> provider = nullptr);
 	~ListWidget();
 
 	Main::Session &session() const;
@@ -98,6 +99,12 @@ public:
 	[[nodiscard]] bool hasRows() const;
 	void selectionAction(SelectionAction action);
 	void setSelectOnClick(bool enabled);
+	void selectItem(not_null<HistoryItem*> item);
+	void selectAll();
+	using ContextMenuFactory = Fn<void(
+		not_null<Ui::PopupMenu*>,
+		not_null<HistoryItem*>)>;
+	void setContextMenuFactory(ContextMenuFactory factory);
 	void setSelectedLimit(int limit);
 
 	struct ReorderDescriptor {
@@ -452,6 +459,7 @@ private:
 	int _activeShiftAnimations = 0;
 	Ui::Animations::Simple _returnAnimation;
 	ReorderDescriptor _reorderDescriptor;
+	ContextMenuFactory _contextMenuFactory;
 	bool _inDragArea = false;
 
 };

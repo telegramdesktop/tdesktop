@@ -94,13 +94,17 @@ constexpr auto kMediaCountForSearch = 10;
 } // namespace
 
 struct ListWidget::DateBadge {
-	DateBadge(Type type, Fn<void()> checkCallback, Fn<void()> hideCallback);
+	DateBadge(
+		Type type,
+		bool show,
+		Fn<void()> checkCallback,
+		Fn<void()> hideCallback);
 
 	SingleQueuedInvokation check;
 	base::Timer hideTimer;
 	Ui::Animations::Simple opacity;
 	Ui::CornersPixmaps corners;
-	bool goodType = false;
+	const bool enabled;
 	bool shown = false;
 	QString text;
 	int textWidth = 0;
@@ -149,28 +153,33 @@ bool ListWidget::SkipSelectTillItem(const MouseState &state) {
 
 ListWidget::DateBadge::DateBadge(
 	Type type,
+	bool show,
 	Fn<void()> checkCallback,
 	Fn<void()> hideCallback)
 : check(std::move(checkCallback))
 , hideTimer(std::move(hideCallback))
-, goodType(type == Type::Photo
-	|| type == Type::Video
-	|| type == Type::PhotoVideo
-	|| type == Type::GIF) {
+, enabled(show
+	&& (type == Type::Photo
+		|| type == Type::Video
+		|| type == Type::PhotoVideo
+		|| type == Type::GIF)) {
 }
 
 ListWidget::ListWidget(
 	QWidget *parent,
-	not_null<AbstractController*> controller)
+	not_null<AbstractController*> controller,
+	std::unique_ptr<ListProvider> provider)
 : RpWidget(parent)
 , _controller(controller)
-, _provider(MakeProvider(_controller))
+, _provider(provider ? std::move(provider) : MakeProvider(_controller))
 , _sectionsSortedById(!controller->isDownloads()
-	&& !controller->isGlobalMedia())
+	&& !controller->isGlobalMedia()
+	&& _provider->orderedByItemId())
 , _checkMoveToOtherViewer([=] { checkMoveToOtherViewer(); })
 , _rowsScrollCache([=] { update(); })
 , _dateBadge(std::make_unique<DateBadge>(
 	_provider->type(),
+	_provider->showScrollDateBadge(),
 	[=] { scrollDateCheck(); },
 	[=] { scrollDateHide(); }))
 , _selectedLimit(MaxSelectedItems)
@@ -475,6 +484,38 @@ void ListWidget::selectionAction(SelectionAction action) {
 
 void ListWidget::setSelectOnClick(bool enabled) {
 	_selectOnClick = enabled;
+}
+
+void ListWidget::selectItem(not_null<HistoryItem*> item) {
+	if (!_provider->hasSelectRestriction()
+		&& _provider->isMyItem(item)) {
+		applyItemSelection(item, FullSelection);
+	}
+}
+
+void ListWidget::selectAll() {
+	if (_provider->hasSelectRestriction()) {
+		return;
+	}
+	for (const auto &section : _sections) {
+		for (const auto layout : section.items()) {
+			const auto item = layout->getItem();
+			const auto data = _provider->computeSelectionData(
+				item,
+				FullSelection);
+			ChangeItemSelection(
+				_selected,
+				item,
+				data,
+				_selectedLimit);
+		}
+	}
+	update();
+	pushSelectedItems();
+}
+
+void ListWidget::setContextMenuFactory(ContextMenuFactory factory) {
+	_contextMenuFactory = std::move(factory);
 }
 
 void ListWidget::setSelectedLimit(int limit) {
@@ -790,6 +831,9 @@ bool ListWidget::tooltipWindowActive() const {
 }
 
 void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
+	if (_provider->open(id)) {
+		return;
+	}
 	using namespace Data;
 
 	const auto albumId = _controller->storiesAlbumId();
@@ -806,6 +850,9 @@ void ListWidget::openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId id,
 		bool showInMediaView) {
+	if (_provider->open(id)) {
+		return;
+	}
 	const auto albumId = _controller->storiesAlbumId();
 	const auto context = Data::StoriesContext{
 		Data::StoriesContextAlbum{ albumId }
@@ -1073,7 +1120,7 @@ void ListWidget::visibleTopBottomUpdated(
 	checkMoveToOtherViewer();
 	clearHeavyItems();
 
-	if (_dateBadge->goodType) {
+	if (_dateBadge->enabled) {
 		const auto badgeTop = _visibleTop + _topOverlayHeight;
 		updateDateBadgeFor(badgeTop);
 		if (badgeTop <= 0) {
@@ -1349,7 +1396,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		p.translate(-_reorderState.currentPos);
 	}
 
-	if (_dateBadge->goodType && clip.intersects(_dateBadge->rect)) {
+	if (_dateBadge->enabled && clip.intersects(_dateBadge->rect)) {
 		const auto scrollDateOpacity
 			= _dateBadge->opacity.value(_dateBadge->shown ? 1. : 0.);
 		if (scrollDateOpacity > 0.) {
@@ -1420,6 +1467,18 @@ void ListWidget::showContextMenu(
 		return;
 	}
 	_contextItem = item;
+	if (_contextMenuFactory) {
+		_contextMenu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
+		_contextMenuFactory(_contextMenu.get(), item);
+		if (_contextMenu->empty()) {
+			_contextMenu = nullptr;
+		} else {
+			_contextMenu->popup(e->globalPos());
+		}
+		return;
+	}
 	const auto globalId = item->globalId();
 
 	enum class SelectionState {

@@ -22,6 +22,7 @@ struct OverviewFileLayout;
 } // namespace style
 
 namespace Data {
+struct FileOrigin;
 class Media;
 class PhotoMedia;
 class DocumentMedia;
@@ -208,6 +209,8 @@ struct MediaOptions {
 	bool storyShowPinned = false;
 	bool storyHidden = false;
 	bool storyShowHidden = false;
+	float aspectRatio = 0.;
+	std::shared_ptr<const Data::FileOrigin> origin;
 };
 
 class Photo final : public ItemBase {
@@ -241,6 +244,8 @@ private:
 	void clearSpoiler();
 
 	const not_null<PhotoData*> _data;
+	const float _aspectRatio;
+	const std::shared_ptr<const Data::FileOrigin> _origin;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
@@ -362,6 +367,8 @@ private:
 
 	const not_null<DocumentData*> _data;
 	PhotoData *_videoCover = nullptr;
+	const float _aspectRatio;
+	const std::shared_ptr<const Data::FileOrigin> _origin;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::shared_ptr<Data::PhotoMedia> _videoCoverMedia;
 	StatusText _status;
