@@ -1428,6 +1428,7 @@ PRIVATE
     info/profile/info_profile_status_label.h
     info/profile/info_profile_top_bar.cpp
     info/profile/info_profile_top_bar.h
+    info/profile/info_profile_top_bar_my_profile.cpp
     info/profile/info_profile_values.cpp
     info/profile/info_profile_values.h
     info/profile/info_profile_widget.cpp

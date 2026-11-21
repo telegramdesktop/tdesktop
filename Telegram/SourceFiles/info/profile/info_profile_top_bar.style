@@ -43,16 +43,6 @@ infoTopBarBlackGroup: IconButton(infoTopBarSearch) {
 	iconPosition: point(15px, -1px);
 	ripple: universalRippleAnimation;
 }
-infoTopBarBlackEdit: IconButton(infoTopBarEdit) {
-	icon: icon {{ "menu/edit", windowBoldFg }};
-	iconOver: icon {{ "menu/edit", windowBoldFg }};
-	ripple: universalRippleAnimation;
-}
-infoLayerTopBarBlackEdit: IconButton(infoLayerTopBarEdit) {
-	icon: icon {{ "menu/edit", windowBoldFg }};
-	iconOver: icon {{ "menu/edit", windowBoldFg }};
-	ripple: universalRippleAnimation;
-}
 infoProfileTopBarTitleTop: 113px;
 infoProfileTopBarStatusTop: 134px;
 infoProfileTopBarPhotoTop: 24px;
@@ -87,6 +77,8 @@ infoProfileTopBarActionManage: icon{{ "profile/profile_manage", windowBoldFg }};
 infoProfileTopBarActionSearch: icon{{ "menu/search", windowBoldFg }};
 infoProfileTopBarActionLiveStream: icon{{ "profile/live_stream-23x23", windowBoldFg }};
 infoProfileTopBarActionStory: icon{{ "profile/add_story-23x23", windowBoldFg }};
+infoProfileTopBarActionSetPhoto: icon{{ "photo_editor/camera-24x24", windowBoldFg }};
+infoProfileTopBarActionEditInfo: icon{{ "profile/edit_info-23x23", windowBoldFg }};
 infoProfileTopBarTopicStatusButton: RoundButton(defaultTableSmallButton) {
 	radius: 4px;
 }

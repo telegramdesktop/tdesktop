@@ -196,13 +196,6 @@ infoTopBarKeysLegend: IconButton(infoTopBarQr) {
 	icon: icon {{ "menu/faq", boxTitleCloseFg }};
 	iconOver: icon {{ "menu/faq", boxTitleCloseFgOver }};
 }
-infoTopBarEdit: IconButton(infoTopBarMenu) {
-	width: 48px;
-	icon: icon {{ "menu/edit", boxTitleCloseFg }};
-	iconOver: icon {{ "menu/edit", boxTitleCloseFgOver }};
-	iconPosition: point(8px, -1px);
-	rippleAreaPosition: point(0px, 6px);
-}
 infoTopBarForward: IconButton(infoTopBarBack) {
 	width: 46px;
 	icon: icon {{ "info/info_media_forward", boxTitleCloseFg }};
@@ -314,16 +307,6 @@ infoLayerTopBarSearch: IconButton(infoLayerTopBarClose) {
 	icon: icon {{ "top_bar_search", boxTitleCloseFg }};
 	iconOver: icon {{ "top_bar_search", boxTitleCloseFgOver }};
 	iconPosition: point(7px, -1px);
-}
-infoLayerTopBarEdit: IconButton(infoLayerTopBarClose) {
-	width: 44px;
-	height: infoLayerTopBarHeight - 2px;
-	icon: icon {{ "menu/edit", boxTitleCloseFg }};
-	iconOver: icon {{ "menu/edit", boxTitleCloseFgOver }};
-	iconPosition: point(10px, -1px);
-
-	rippleAreaSize: 42px;
-	rippleAreaPosition: point(1px, 6px);
 }
 infoLayerTopBarForward: IconButton(infoLayerTopBarBack) {
 	width: 45px;

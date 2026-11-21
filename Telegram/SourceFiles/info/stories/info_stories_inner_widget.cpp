@@ -322,9 +322,6 @@ void InnerWidget::createProfileTop() {
 	blocks.addSeparator();
 	// Layout insertion shows even wrappers whose initial toggle is off.
 	blocks.add(makeGiftsButton())->finishAnimating();
-	if (auto post = makePostButton()) {
-		blocks.add(std::move(post))->finishAnimating();
-	}
 	blocks.add(makeArchiveButton())->finishAnimating();
 	blocks.add(makeRecentButton())->finishAnimating();
 	Ui::AddSkip(_top, skip);

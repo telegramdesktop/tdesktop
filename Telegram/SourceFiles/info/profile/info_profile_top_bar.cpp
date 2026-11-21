@@ -71,7 +71,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_post.h"
 #include "menu/menu_mute.h"
 #include "settings/settings_credits_graphics.h"
-#include "settings/sections/settings_information.h"
 #include "settings/sections/settings_premium.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/boxes/show_or_premium_box.h"
@@ -418,7 +417,6 @@ TopBar::TopBar(
 	nullptr,
 	_gifPausedChecker))
 , _hasActions(!_savedMessages
-	&& descriptor.source != Source::Stories
 	&& descriptor.source != Source::Preview
 	&& (_wrap.current() != Wrap::Side || !_peer->isNotificationsUser()))
 , _minForProgress([&] {
@@ -564,8 +562,10 @@ TopBar::TopBar(
 	setupUniqueBadgeTooltip();
 	setupButtons(controller, descriptor.source);
 	setupSwipeBack(controller);
-	setupUserpicButton(controller);
-	if (_hasActions) {
+	auto chooseProfilePhoto = setupUserpicButton(controller);
+	if (_hasActions && _source == Source::Stories) {
+		setupMyProfileActions(controller, std::move(chooseProfilePhoto));
+	} else if (_hasActions) {
 		_peer->session().changes().peerFlagsValue(
 			_peer,
 			Data::PeerUpdate::Flag::FullInfo
@@ -1471,7 +1471,7 @@ void TopBar::setupActions(not_null<Window::SessionController*> controller) {
 	}
 }
 
-void TopBar::setupUserpicButton(
+Fn<void()> TopBar::setupUserpicButton(
 		not_null<Window::SessionController*> controller) {
 	_userpicButton = base::make_unique_q<Userpic>(
 		this,
@@ -1484,7 +1484,7 @@ void TopBar::setupUserpicButton(
 			_userpicUniqueKey = InMemoryKey();
 			update();
 		}, lifetime());
-		return;
+		return nullptr;
 	}
 
 	const auto openPhoto = [=, peer = _peer] {
@@ -1848,6 +1848,8 @@ void TopBar::setupUserpicButton(
 			}
 		}
 	}, _userpicButton->lifetime());
+
+	return [=] { chooseFile(ChosenType::Set); };
 }
 
 void TopBar::startUploadOverlay() {
@@ -2126,9 +2128,6 @@ int TopBar::calculateRightButtonsWidth() const {
 	auto width = 0;
 	if (_close) {
 		width += _close->width();
-	}
-	if (_topBarButton) {
-		width += _topBarButton->width();
 	}
 	if (_tabMenuToggle && _tabMenuToggle->toggled()) {
 		width += _tabMenuToggle->width();
@@ -2881,10 +2880,6 @@ void TopBar::updateRightButtonsPosition() {
 		_close->moveToRight(right, 0);
 		right += _close->width();
 	}
-	if (_topBarButton) {
-		_topBarButton->moveToRight(right, 0);
-		right += _topBarButton->width();
-	}
 	if (_tabMenuToggle && _tabMenuToggle->toggled()) {
 		_tabMenuToggle->moveToRight(right, 0);
 		right += _tabMenuToggle->width();
@@ -3250,38 +3245,10 @@ void TopBar::setupButtons(
 		updateTabSwapVisibility();
 		updateRightButtonsPosition();
 
-		if (wrap != Wrap::Side) {
-			if (source == Source::Stories) {
-				addTopBarEditButton(controller, wrap);
-			}
-		}
 		updateButtonsColorOverride();
 		raiseTabSearchOverlay();
 		raiseTabSelectionOverlay();
 	}, lifetime());
-}
-
-void TopBar::addTopBarEditButton(
-		not_null<Window::SessionController*> controller,
-		Wrap wrap) {
-	_topBarButton = base::make_unique_q<BackdropIconButton>(
-		this,
-		((wrap == Wrap::Layer)
-			? st::infoLayerTopBarBlackEdit
-			: st::infoTopBarBlackEdit));
-	_topBarButton->show();
-	_topBarButton->addClickHandler([=] {
-		controller->showSettings(::Settings::InformationId());
-	});
-	_topBarButton->setAccessibleName(tr::lng_settings_information(tr::now));
-
-	widthValue() | rpl::on_next([=] {
-		if (_close) {
-			_topBarButton->moveToRight(_close->width(), 0);
-		} else {
-			_topBarButton->moveToRight(0, 0);
-		}
-	}, _topBarButton->lifetime());
 }
 
 std::optional<QColor> TopBar::buttonsColorOverride() const {
@@ -3303,7 +3270,6 @@ void TopBar::updateButtonsColorOverride() {
 	apply(_tabMenuToggle ? _tabMenuToggle->entity() : nullptr);
 	apply(_tabSearchToggle ? _tabSearchToggle->entity() : nullptr);
 	apply(_tabGroupToggle ? _tabGroupToggle->entity() : nullptr);
-	apply(_topBarButton.get());
 }
 
 void TopBar::showTopBarMenu(

@@ -557,17 +557,6 @@ void WrapWidget::setupTopBarMenuToggle() {
 			});
 		}
 		setupShortcuts();
-	} else if (key.storiesPeer()
-		&& key.storiesPeer()->isSelf()
-		&& key.storiesAlbumId() != Stories::ArchiveId()) {
-		const auto &st = (wrap() == Wrap::Layer)
-			? st::infoLayerTopBarEdit
-			: st::infoTopBarEdit;
-		const auto button = _topBar->addButton(
-			base::make_unique_q<Ui::IconButton>(_topBar, st));
-		button->addClickHandler([=] {
-			_controller->showSettings(::Settings::InformationId());
-		});
 	} else if (section.type() == Section::Type::Media) {
 		addTopBarMenuButton();
 	} else if (section.type() == Section::Type::Downloads) {

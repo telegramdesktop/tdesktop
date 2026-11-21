@@ -156,9 +156,6 @@ public:
 	void setColorProfileIndex(std::optional<uint8> index);
 	void setPatternEmojiId(std::optional<DocumentId> patternEmojiId);
 	void setLocalEmojiStatusId(EmojiStatusId emojiStatusId);
-	void addTopBarEditButton(
-		not_null<Window::SessionController*> controller,
-		Wrap wrap);
 
 	rpl::producer<int> desiredHeightValue() const override;
 
@@ -189,10 +186,14 @@ private:
 	void fillTopBarMenu(
 		not_null<Window::SessionController*> controller,
 		const Ui::Menu::MenuCallback &addAction);
-	void setupUserpicButton(not_null<Window::SessionController*> controller);
+	Fn<void()> setupUserpicButton(
+		not_null<Window::SessionController*> controller);
 	void setupBirthdayEffect();
 	void startUploadOverlay();
 	void setupActions(not_null<Window::SessionController*> controller);
+	void setupMyProfileActions(
+		not_null<Window::SessionController*> controller,
+		Fn<void()> choosePhoto);
 	void setupPills(
 		not_null<Window::SessionController*> controller,
 		Fn<void()> showSavedMusic);
@@ -376,7 +377,6 @@ private:
 	rpl::event_stream<> _backClicks;
 	Ui::Controls::SwipeBackResult _swipeBackData;
 
-	base::unique_qptr<Ui::IconButton> _topBarButton;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabMenuToggle;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabSearchToggle;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _tabGroupToggle;
