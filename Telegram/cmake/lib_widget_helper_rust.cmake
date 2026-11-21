@@ -7,8 +7,8 @@
 # The widget helper's serving in Rust (ThirdParty/twidget, rust/crates/helper_ffi) with Nova inside, built by cargo:
 # TelegramWidgetHelper's one Rust library when TDESKTOP_WIDGET_HELPER_RUST is ON.
 
-if (NOT WIN32)
-    message(FATAL_ERROR "TDESKTOP_WIDGET_HELPER_RUST is supported on Windows only so far.")
+if (APPLE)
+    message(FATAL_ERROR "TDESKTOP_WIDGET_HELPER_RUST is supported on Windows and Linux only so far.")
 endif()
 
 set(widget_helper_rust_loc ${third_party_loc}/twidget/rust)
@@ -17,13 +17,22 @@ if (NOT EXISTS ${widget_helper_rust_loc}/crates/helper_ffi/Cargo.toml)
 endif()
 
 set(widget_helper_rust_out ${CMAKE_BINARY_DIR}/widget_helper_rust)
-set(widget_helper_rust_library ${widget_helper_rust_out}/twidget_helper_ffi.lib)
+if (WIN32)
+    set(widget_helper_rust_library ${widget_helper_rust_out}/twidget_helper_ffi.lib)
+    # Nova's target, whose std imports the helper's delay loads and lockdown already answer.
+    set(widget_helper_rust_platform -DHELPER_TARGET=${nova_target})
+else()
+    set(widget_helper_rust_library ${widget_helper_rust_out}/libtwidget_helper_ffi.a)
+    set(widget_helper_rust_platform)
+endif()
 
 set(widget_helper_rust_toolchain)
 if (DEFINED nova_rustup_home AND DEFINED nova_cargo_home)
     set(widget_helper_rust_toolchain
         -DHELPER_RUSTUP_HOME=${nova_rustup_home}
         -DHELPER_CARGO_HOME=${nova_cargo_home})
+elseif (DEFINED nova_cargo_home)
+    set(widget_helper_rust_toolchain -DHELPER_CARGO_HOME=${nova_cargo_home})
 endif()
 
 # Always runs: cargo decides what is stale, and the library is replaced only when its bytes change.
@@ -33,8 +42,7 @@ add_custom_target(widget_helper_rust_build
         -DHELPER_ROOT=${widget_helper_rust_loc}
         -DHELPER_OUT=${widget_helper_rust_out}
         -DHELPER_CARGO=${TDESKTOP_CARGO}
-        # Nova's target, whose std imports the helper's delay loads and lockdown already answer.
-        -DHELPER_TARGET=${nova_target}
+        ${widget_helper_rust_platform}
         ${widget_helper_rust_toolchain}
         -P ${CMAKE_CURRENT_LIST_DIR}/build_widget_helper_rust.cmake
     BYPRODUCTS
@@ -52,14 +60,18 @@ target_link_libraries(lib_widget_helper_rust INTERFACE lib_widget_helper_rust_st
 target_include_directories(lib_widget_helper_rust INTERFACE ${widget_helper_rust_loc}/crates/helper_ffi/include)
 add_dependencies(lib_widget_helper_rust widget_helper_rust_build)
 
-target_link_libraries(lib_widget_helper_rust
-INTERFACE
-    kernel32
-    ntdll
-    userenv
-    ws2_32
-    dbghelp
-)
-if (nova_target MATCHES "-win7-")
-    target_link_libraries(lib_widget_helper_rust INTERFACE advapi32)
+if (WIN32)
+    target_link_libraries(lib_widget_helper_rust
+    INTERFACE
+        kernel32
+        ntdll
+        userenv
+        ws2_32
+        dbghelp
+    )
+    if (nova_target MATCHES "-win7-")
+        target_link_libraries(lib_widget_helper_rust INTERFACE advapi32)
+    endif()
+else()
+    target_link_libraries(lib_widget_helper_rust INTERFACE ${CMAKE_DL_LIBS} m)
 endif()

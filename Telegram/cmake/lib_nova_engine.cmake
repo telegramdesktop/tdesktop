@@ -59,7 +59,8 @@ if (nova_cargo_bin STREQUAL nova_prepared_bin)
     set(nova_toolchain_arguments -DNOVA_RUSTUP_HOME=${nova_rustup_home} -DNOVA_CARGO_HOME=${nova_cargo_home})
 elseif (NOT APPLE AND NOT WIN32)
     # The Docker image's toolchain is read-only for the user who builds, so crates are fetched into the build tree.
-    set(nova_toolchain_arguments -DNOVA_CARGO_HOME=${nova_out}/cargo)
+    set(nova_cargo_home ${nova_out}/cargo)
+    set(nova_toolchain_arguments -DNOVA_CARGO_HOME=${nova_cargo_home})
 endif()
 
 # Always runs: cargo decides what is stale, and the libraries are replaced only when their bytes change.
