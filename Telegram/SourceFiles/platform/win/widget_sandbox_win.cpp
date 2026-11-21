@@ -19,10 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
+#include <cwchar>
 #include <initializer_list>
 #include <optional>
 #include <span>
 #include <string>
+#include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -47,6 +50,12 @@ constexpr auto kARM64 = true;
 constexpr auto kARM64 = false;
 #endif // _M_ARM64
 
+#ifdef OS_WIN_STORE
+constexpr auto kStoreBuild = true;
+#else // OS_WIN_STORE
+constexpr auto kStoreBuild = false;
+#endif // OS_WIN_STORE
+
 constexpr auto k64Bit = kX64 || kARM64;
 constexpr auto kAppContainerName = L"telegram.desktop.widget-helper";
 constexpr auto kLessPrivilegedName = L"WIN://NOALLAPPPKG";
@@ -56,6 +65,8 @@ constexpr auto kJobLimits = DWORD(JOB_OBJECT_LIMIT_ACTIVE_PROCESS
 	| JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
 	| JOB_OBJECT_LIMIT_DIE_ON_UNHANDLED_EXCEPTION);
 constexpr auto kJobActiveProcesses = DWORD(1);
+constexpr auto kJobBreakaway = DWORD(JOB_OBJECT_LIMIT_BREAKAWAY_OK
+	| JOB_OBJECT_LIMIT_SILENT_BREAKAWAY_OK);
 constexpr auto kJobUiRestrictions = DWORD(JOB_OBJECT_UILIMIT_HANDLES
 	| JOB_OBJECT_UILIMIT_READCLIPBOARD
 	| JOB_OBJECT_UILIMIT_WRITECLIPBOARD
@@ -64,6 +75,16 @@ constexpr auto kJobUiRestrictions = DWORD(JOB_OBJECT_UILIMIT_HANDLES
 	| JOB_OBJECT_UILIMIT_GLOBALATOMS
 	| JOB_OBJECT_UILIMIT_DESKTOP
 	| JOB_OBJECT_UILIMIT_EXITWINDOWS);
+constexpr auto kWindows7Sp1 = WindowsVersion{ 6, 1, 7601 };
+constexpr auto kWindows8 = WindowsVersion{ 6, 2, 0 };
+constexpr auto kWindows81 = WindowsVersion{ 6, 3, 0 };
+constexpr auto kWindows10 = WindowsVersion{ 10, 0, 10240 };
+constexpr auto kWindows1511 = WindowsVersion{ 10, 0, 10586 };
+constexpr auto kWindows1607 = WindowsVersion{ 10, 0, 14393 };
+constexpr auto kWindows1703 = WindowsVersion{ 10, 0, 15063 };
+constexpr auto kWindows1809 = WindowsVersion{ 10, 0, 17763 };
+constexpr auto kWindows7Dep = DWORD(PROCESS_DEP_ENABLE
+	| PROCESS_DEP_DISABLE_ATL_THUNK_EMULATION);
 
 using Check = std::string(*)(HANDLE token);
 using Step = std::string(*)();
@@ -113,6 +134,12 @@ struct SecurityAttributes {
 struct PolicyFunctions {
 	decltype(&::GetProcessMitigationPolicy) get = nullptr;
 	decltype(&::IsUserCetAvailableInEnvironment) cetAvailable = nullptr;
+};
+
+struct UserFunctions {
+	decltype(&::GetDesktopWindow) desktopWindow = nullptr;
+	DesktopQueries desktop;
+	std::string error;
 };
 
 template <typename Type>
@@ -284,8 +311,23 @@ template <typename Type>
 	return std::string();
 }
 
+[[nodiscard]] Token OpenOwnToken() {
+	auto token = HANDLE();
+	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+		return { .error = NumberedError("OpenProcessToken", GetLastError()) };
+	}
+	return { .handle = UniqueHandle(token) };
+}
+
 [[nodiscard]] std::string CheckClientRestricting(HANDLE token) {
-	const auto client = GetCurrentProcessToken();
+	const auto windows7 = (CurrentSandbox().tier == SandboxTier::Windows7);
+	const auto own = windows7 ? OpenOwnToken() : Token();
+	if (!own.error.empty()) {
+		return own.error;
+	}
+	const auto client = windows7
+		? own.handle.get()
+		: GetCurrentProcessToken();
 	const auto user = ReadToken(token, TokenUser);
 	const auto restricting = ReadToken(token, TokenRestrictedSids);
 	const auto clientUser = ReadToken(client, TokenUser);
@@ -541,6 +583,48 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 	return { .handle = UniqueHandle(token) };
 }
 
+[[nodiscard]] WindowsVersion ReadWindowsVersion() {
+	using GetVersion = NTSTATUS(NTAPI*)(PRTL_OSVERSIONINFOW information);
+	auto get = GetVersion();
+	if (const auto ntdll = GetModuleHandleW(L"ntdll.dll")) {
+		Resolve(ntdll, get, "RtlGetVersion");
+	}
+	auto information = RTL_OSVERSIONINFOW{
+		.dwOSVersionInfoSize = DWORD(sizeof(RTL_OSVERSIONINFOW)),
+	};
+	if (!get || !NT_SUCCESS(get(&information))) {
+		return WindowsVersion();
+	}
+	return {
+		.major = information.dwMajorVersion,
+		.minor = information.dwMinorVersion,
+		.build = information.dwBuildNumber,
+	};
+}
+
+[[nodiscard]] bool Since(
+		const WindowsVersion &version,
+		const WindowsVersion &minimum) {
+	return std::tie(version.major, version.minor, version.build)
+		>= std::tie(minimum.major, minimum.minor, minimum.build);
+}
+
+[[nodiscard]] std::optional<SandboxTier> ChooseTier(
+		const WindowsVersion &version) {
+	if (Since(version, kWindows1809)) {
+		return SandboxTier::Full;
+	} else if (kStoreBuild) {
+		return std::nullopt;
+	} else if (Since(version, kWindows1703)) {
+		return SandboxTier::Lpac1703;
+	} else if (Since(version, kWindows8)) {
+		return SandboxTier::AppContainer;
+	} else if (Since(version, kWindows7Sp1)) {
+		return SandboxTier::Windows7;
+	}
+	return std::nullopt;
+}
+
 template <typename Policy>
 [[nodiscard]] Mitigation Expectation(
 		PROCESS_MITIGATION_POLICY policy,
@@ -554,11 +638,23 @@ template <typename Policy>
 	};
 }
 
-[[nodiscard]] Policies ComputePolicies() {
+[[nodiscard]] Policies ComputePolicies(const Sandbox &sandbox) {
+	if (!sandbox.tier) {
+		return Policies();
+	}
+	const auto tier = *sandbox.tier;
+	const auto &version = sandbox.version;
+	const auto windows7 = (tier == SandboxTier::Windows7);
+	const auto lpac = (tier == SandboxTier::Lpac1703)
+		|| (tier == SandboxTier::Full);
+	const auto full = (tier == SandboxTier::Full);
 	auto result = Policies{
-		.childProcess = PROCESS_CREATION_CHILD_PROCESS_RESTRICTED,
-		.allApplicationPackages
-			= PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT,
+		.childProcess = (Since(version, kWindows1511)
+			? PROCESS_CREATION_CHILD_PROCESS_RESTRICTED
+			: DWORD()),
+		.allApplicationPackages = (lpac
+			? PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT
+			: DWORD()),
 	};
 	auto &words = result.creation;
 	auto &expected = result.mitigations;
@@ -568,7 +664,15 @@ template <typename Policy>
 		dep.Enable = 1;
 		dep.DisableAtlThunkEmulation = 1;
 		words[0] |= PROCESS_CREATION_MITIGATION_POLICY_DEP_ENABLE;
-		expected.push_back(Expectation(ProcessDEPPolicy, dep));
+		if (!windows7) {
+			expected.push_back(Expectation(ProcessDEPPolicy, dep));
+		}
+	}
+
+	if (windows7) {
+		// A 64-bit flags attribute is illegal on 32-bit Windows 7.
+		result.creationSize = words[0] ? sizeof(DWORD) : 0;
+		return result;
 	}
 
 	auto aslr = PROCESS_MITIGATION_ASLR_POLICY();
@@ -590,15 +694,17 @@ template <typename Policy>
 	expected.push_back(
 		Expectation(ProcessExtensionPointDisablePolicy, extensions));
 
-	auto dynamic = PROCESS_MITIGATION_DYNAMIC_CODE_POLICY();
-	dynamic.ProhibitDynamicCode = 1;
-	auto dynamicOptOut = PROCESS_MITIGATION_DYNAMIC_CODE_POLICY();
-	dynamicOptOut.AllowThreadOptOut = 1;
-	dynamicOptOut.AllowRemoteDowngrade = 1;
-	words[0]
-		|= PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON;
-	expected.push_back(
-		Expectation(ProcessDynamicCodePolicy, dynamic, dynamicOptOut));
+	if (Since(version, kWindows81)) {
+		auto dynamic = PROCESS_MITIGATION_DYNAMIC_CODE_POLICY();
+		dynamic.ProhibitDynamicCode = 1;
+		auto dynamicOptOut = PROCESS_MITIGATION_DYNAMIC_CODE_POLICY();
+		dynamicOptOut.AllowThreadOptOut = 1;
+		dynamicOptOut.AllowRemoteDowngrade = 1;
+		words[0]
+			|= PROCESS_CREATION_MITIGATION_POLICY_PROHIBIT_DYNAMIC_CODE_ALWAYS_ON;
+		expected.push_back(
+			Expectation(ProcessDynamicCodePolicy, dynamic, dynamicOptOut));
+	}
 
 	auto win32k = PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY();
 	win32k.DisallowWin32kSystemCalls = 1;
@@ -606,14 +712,16 @@ template <typename Policy>
 		|= PROCESS_CREATION_MITIGATION_POLICY_WIN32K_SYSTEM_CALL_DISABLE_ALWAYS_ON;
 	expected.push_back(Expectation(ProcessSystemCallDisablePolicy, win32k));
 
-	auto child = PROCESS_MITIGATION_CHILD_PROCESS_POLICY();
-	child.NoChildProcessCreation = 1;
-	auto childOptOut = PROCESS_MITIGATION_CHILD_PROCESS_POLICY();
-	childOptOut.AllowSecureProcessCreation = 1;
-	expected.push_back(
-		Expectation(ProcessChildProcessPolicy, child, childOptOut));
+	if (full) {
+		auto child = PROCESS_MITIGATION_CHILD_PROCESS_POLICY();
+		child.NoChildProcessCreation = 1;
+		auto childOptOut = PROCESS_MITIGATION_CHILD_PROCESS_POLICY();
+		childOptOut.AllowSecureProcessCreation = 1;
+		expected.push_back(
+			Expectation(ProcessChildProcessPolicy, child, childOptOut));
+	}
 
-	if (CetAvailable()) {
+	if (full && CetAvailable()) {
 		auto stack = PROCESS_MITIGATION_USER_SHADOW_STACK_POLICY();
 		stack.EnableUserShadowStack = 1;
 		words[1]
@@ -621,11 +729,13 @@ template <typename Policy>
 		expected.push_back(Expectation(ProcessUserShadowStackPolicy, stack));
 	}
 
-	auto signature = PROCESS_MITIGATION_BINARY_SIGNATURE_POLICY();
-	signature.MicrosoftSignedOnly = 1;
-	words[0]
-		|= PROCESS_CREATION_MITIGATION_POLICY_BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON;
-	expected.push_back(Expectation(ProcessSignaturePolicy, signature));
+	if (Since(version, kWindows1511)) {
+		auto signature = PROCESS_MITIGATION_BINARY_SIGNATURE_POLICY();
+		signature.MicrosoftSignedOnly = 1;
+		words[0]
+			|= PROCESS_CREATION_MITIGATION_POLICY_BLOCK_NON_MICROSOFT_BINARIES_ALWAYS_ON;
+		expected.push_back(Expectation(ProcessSignaturePolicy, signature));
+	}
 
 	auto handles = PROCESS_MITIGATION_STRICT_HANDLE_CHECK_POLICY();
 	handles.RaiseExceptionOnInvalidHandleReference = 1;
@@ -634,16 +744,20 @@ template <typename Policy>
 		|= PROCESS_CREATION_MITIGATION_POLICY_STRICT_HANDLE_CHECKS_ALWAYS_ON;
 	expected.push_back(Expectation(ProcessStrictHandleCheckPolicy, handles));
 
-	auto fonts = PROCESS_MITIGATION_FONT_DISABLE_POLICY();
-	fonts.DisableNonSystemFonts = 1;
-	words[0] |= PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_ON;
-	expected.push_back(Expectation(ProcessFontDisablePolicy, fonts));
+	if (Since(version, kWindows10)) {
+		auto fonts = PROCESS_MITIGATION_FONT_DISABLE_POLICY();
+		fonts.DisableNonSystemFonts = 1;
+		words[0] |= PROCESS_CREATION_MITIGATION_POLICY_FONT_DISABLE_ALWAYS_ON;
+		expected.push_back(Expectation(ProcessFontDisablePolicy, fonts));
+	}
 
-	auto images = PROCESS_MITIGATION_IMAGE_LOAD_POLICY();
-	images.PreferSystem32Images = 1;
-	words[0]
-		|= PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON;
-	expected.push_back(Expectation(ProcessImageLoadPolicy, images));
+	if (Since(version, kWindows1607)) {
+		auto images = PROCESS_MITIGATION_IMAGE_LOAD_POLICY();
+		images.PreferSystem32Images = 1;
+		words[0]
+			|= PROCESS_CREATION_MITIGATION_POLICY_IMAGE_LOAD_PREFER_SYSTEM32_ALWAYS_ON;
+		expected.push_back(Expectation(ProcessImageLoadPolicy, images));
+	}
 
 	result.creationSize = words[1] ? sizeof(words) : sizeof(words[0]);
 	return result;
@@ -660,8 +774,8 @@ template <typename Policy>
 }
 
 [[nodiscard]] std::string WarmUp() {
-	const auto &functions = ResolvedPolicyFunctions();
-	if (!functions.get) {
+	const auto windows7 = (CurrentSandbox().tier == SandboxTier::Windows7);
+	if (!windows7 && !ResolvedPolicyFunctions().get) {
 		return "the mitigation policy functions are not available";
 	}
 	// No thread can load a DLL after the lowering, so bind and warm them now.
@@ -677,9 +791,11 @@ template <typename Policy>
 				+ Hex(DWORD(bound));
 		}
 	}
-	const auto &package = ExpectedPackage();
-	if (!package.error.empty()) {
-		return package.error;
+	if (!windows7) {
+		const auto &package = ExpectedPackage();
+		if (!package.error.empty()) {
+			return package.error;
+		}
 	}
 	auto bytes = std::array<UCHAR, kWarmUpRandomBytes>();
 	const auto status = BCryptGenRandom(
@@ -718,6 +834,14 @@ template <typename Policy>
 	return std::string();
 }
 
+[[nodiscard]] std::string DropStartupToken() {
+	return FirstFailure({
+		RevertImpersonation,
+		ForgetRegistryRoots,
+		VerifyNoThreadToken,
+	});
+}
+
 [[nodiscard]] std::string VerifyMitigations() {
 	for (const auto &mitigation : SandboxPolicies().mitigations) {
 		const auto flags = ReadMitigation(mitigation.policy, mitigation.size);
@@ -737,9 +861,184 @@ template <typename Policy>
 	return std::string();
 }
 
+[[nodiscard]] std::string LockDownLowBox() {
+	return FirstFailure({
+		WarmUp,
+		DropStartupToken,
+		[] { return CheckLockdownToken(GetCurrentProcessToken()); },
+		[] {
+			return CheckAppContainerToken(
+				GetCurrentProcessToken(),
+				AppContainerLevel::LessPrivileged);
+		},
+		VerifyJob,
+		VerifyMitigations,
+	});
+}
+
+[[nodiscard]] std::string EnableHeapTermination() {
+	return HeapSetInformation(
+			nullptr,
+			HeapEnableTerminationOnCorruption,
+			nullptr,
+			0)
+		? std::string()
+		: NumberedError("HeapSetInformation", GetLastError());
+}
+
+[[nodiscard]] bool RequestsOwnDesktop(std::wstring_view request) {
+	const auto separator = request.find(L'\\');
+	if (separator == 0 || separator == std::wstring_view::npos) {
+		return false;
+	}
+	auto name = request.substr(separator + 1);
+	if (!name.starts_with(kHelperDesktopPrefix)) {
+		return false;
+	}
+	name.remove_prefix(kHelperDesktopPrefix.size());
+	const auto dash = name.find(L'-');
+	if (dash == 0 || dash == std::wstring_view::npos) {
+		return false;
+	}
+	const auto decimal = [](wchar_t ch) {
+		return (ch >= L'0' && ch <= L'9');
+	};
+	const auto hex = [&](wchar_t ch) {
+		return decimal(ch)
+			|| (ch >= L'a' && ch <= L'f')
+			|| (ch >= L'A' && ch <= L'F');
+	};
+	const auto random = name.substr(dash + 1);
+	return std::ranges::all_of(name.substr(0, dash), decimal)
+		&& (random.size() == kHelperDesktopRandomBytes * 2)
+		&& std::ranges::all_of(random, hex);
+}
+
+[[nodiscard]] UserFunctions LoadUserFunctions() {
+	const auto user32 = LoadLibraryExW(
+		L"user32.dll",
+		nullptr,
+		LOAD_LIBRARY_SEARCH_SYSTEM32);
+	if (!user32) {
+		return { .error = NumberedError("LoadLibraryExW", GetLastError()) };
+	}
+	auto result = UserFunctions();
+	const auto resolve = [&](auto &function, const char *name) {
+		Resolve(user32, function, name);
+		if (!function && result.error.empty()) {
+			result.error = std::string(name) + " is not available";
+		}
+	};
+	resolve(result.desktopWindow, "GetDesktopWindow");
+	resolve(result.desktop.station, "GetProcessWindowStation");
+	resolve(result.desktop.threadDesktop, "GetThreadDesktop");
+	resolve(result.desktop.information, "GetUserObjectInformationW");
+	return result;
+}
+
+[[nodiscard]] std::string VerifyOwnDesktop() {
+	auto startup = STARTUPINFOW{ .cb = DWORD(sizeof(STARTUPINFOW)) };
+	GetStartupInfoW(&startup);
+	const auto request = startup.lpDesktop
+		? std::wstring_view(startup.lpDesktop)
+		: std::wstring_view();
+	const auto refused = std::string(
+		"the widget helper is not on its own desktop");
+	if (!RequestsOwnDesktop(request)) {
+		return refused;
+	}
+	const auto user = LoadUserFunctions();
+	if (!user.error.empty()) {
+		return user.error;
+	} else if (!user.desktopWindow()) {
+		return NumberedError("GetDesktopWindow", GetLastError());
+	}
+	const auto desktop = ReadAssignedDesktop(
+		user.desktop,
+		GetCurrentThreadId());
+	if (desktop.failed) {
+		return NumberedError(desktop.failed, desktop.error);
+	}
+	const auto &actual = desktop.name;
+	const auto compared = CompareStringOrdinal(
+		actual.data(),
+		int(actual.size()),
+		request.data(),
+		int(request.size()),
+		TRUE);
+	return (compared == CSTR_EQUAL) ? std::string() : refused;
+}
+
+[[nodiscard]] std::string VerifyDep() {
+	if constexpr (kX86) {
+		auto flags = DWORD();
+		auto permanent = BOOL();
+		if (!GetProcessDEPPolicy(GetCurrentProcess(), &flags, &permanent)) {
+			return NumberedError("GetProcessDEPPolicy", GetLastError());
+		} else if (flags != kWindows7Dep || !permanent) {
+			return "the DEP policy reads 0x"
+				+ Hex(flags)
+				+ ", permanent "
+				+ (permanent ? "1" : "0");
+		}
+	}
+	return std::string();
+}
+
+[[nodiscard]] std::string LockDownWindows7() {
+	auto error = WarmUp();
+	if (!error.empty()) {
+		return error;
+	}
+	const auto primary = OpenOwnToken();
+	if (!primary.error.empty()) {
+		return primary.error;
+	}
+	error = FirstFailure({
+		EnableHeapTermination,
+		VerifyOwnDesktop,
+		DropStartupToken,
+	});
+	if (!error.empty()) {
+		return error;
+	}
+	error = CheckLockdownToken(primary.handle.get());
+	if (!error.empty()) {
+		return error;
+	}
+	return FirstFailure({ VerifyJob, VerifyDep });
+}
+
 } // namespace
 
+const Sandbox &CurrentSandbox() {
+	static const auto result = [] {
+		const auto version = ReadWindowsVersion();
+		return Sandbox{ .version = version, .tier = ChooseTier(version) };
+	}();
+	return result;
+}
+
+std::string SandboxUnsupportedReason() {
+	const auto tier = CurrentSandbox().tier;
+	if (!tier) {
+		return kStoreBuild
+			? "the widget helper needs Windows 10 1809 or later"
+			: "the widget helper needs Windows 7 SP1 or later";
+	} else if (*tier != SandboxTier::Windows7) {
+		return std::string();
+	}
+	const auto kernel = GetModuleHandleW(L"kernel32.dll");
+	return (kernel && GetProcAddress(kernel, "SetDefaultDllDirectories"))
+		? std::string()
+		: "the widget helper needs update KB2533623 on Windows 7";
+}
+
 Tokens CreateTokens() {
+	const auto tier = CurrentSandbox().tier;
+	if (!tier) {
+		return { .error = SandboxUnsupportedReason() };
+	}
 	auto source = HANDLE();
 	if (!OpenProcessToken(
 			GetCurrentProcess(),
@@ -791,17 +1090,22 @@ Tokens CreateTokens() {
 	if (!restricted.error.empty()) {
 		return { .error = std::move(restricted.error) };
 	}
-	auto boxedLockdown = CreateLowBox(lockdown.handle.get());
-	if (!boxedLockdown.error.empty()) {
-		return { .error = std::move(boxedLockdown.error) };
-	}
-	auto boxedRestricted = CreateLowBox(restricted.handle.get());
-	if (!boxedRestricted.error.empty()) {
-		return { .error = std::move(boxedRestricted.error) };
+	const auto boxed = (*tier != SandboxTier::Windows7);
+	if (boxed) {
+		auto boxedLockdown = CreateLowBox(lockdown.handle.get());
+		if (!boxedLockdown.error.empty()) {
+			return { .error = std::move(boxedLockdown.error) };
+		}
+		auto boxedRestricted = CreateLowBox(restricted.handle.get());
+		if (!boxedRestricted.error.empty()) {
+			return { .error = std::move(boxedRestricted.error) };
+		}
+		lockdown = std::move(boxedLockdown);
+		restricted = std::move(boxedRestricted);
 	}
 	auto initial = HANDLE();
 	if (!DuplicateTokenEx(
-			boxedRestricted.handle.get(),
+			restricted.handle.get(),
 			TOKEN_IMPERSONATE | TOKEN_QUERY,
 			nullptr,
 			SecurityImpersonation,
@@ -810,7 +1114,7 @@ Tokens CreateTokens() {
 		return { .error = SystemError("DuplicateTokenEx", GetLastError()) };
 	}
 	auto result = Tokens{
-		.lockdown = std::move(boxedLockdown.handle),
+		.lockdown = std::move(lockdown.handle),
 		.initial = UniqueHandle(initial),
 	};
 	auto error = CheckLockdownToken(result.lockdown.get());
@@ -857,25 +1161,31 @@ std::string CheckInitialToken(HANDLE token) {
 }
 
 std::string CheckAppContainerToken(HANDLE token, AppContainerLevel level) {
+	const auto tier = CurrentSandbox().tier;
+	if (tier == SandboxTier::Windows7) {
+		return std::string();
+	}
 	const auto &package = ExpectedPackage();
 	if (!package.error.empty()) {
 		return package.error;
 	}
+	const auto any = (tier == SandboxTier::AppContainer);
 	const auto container = ReadToken(token, TokenIsAppContainer);
 	const auto sid = ReadToken(token, TokenAppContainerSid);
 	const auto capabilities = ReadToken(token, TokenCapabilities);
 	// TokenIsLessPrivilegedAppContainer may be unsupported (error 87).
-	const auto attributes = ReadToken(token, TokenSecurityAttributes);
-	if (const auto failed = Failed({
-			&container,
-			&sid,
-			&capabilities,
-			&attributes })) {
+	const auto attributes = any
+		? Buffer()
+		: ReadToken(token, TokenSecurityAttributes);
+	const auto failed = any
+		? Failed({ &container, &sid, &capabilities })
+		: Failed({ &container, &sid, &capabilities, &attributes });
+	if (failed) {
 		return NumberedError("GetTokenInformation", failed->error);
 	} else if (container.bytes.size() < sizeof(DWORD)
 		|| sid.bytes.size() < sizeof(TOKEN_APPCONTAINER_INFORMATION)
 		|| capabilities.bytes.size() < sizeof(DWORD)
-		|| attributes.bytes.size() < sizeof(SecurityAttributes)) {
+		|| (!any && attributes.bytes.size() < sizeof(SecurityAttributes))) {
 		return "the token's AppContainer information is truncated";
 	} else if (!*As<DWORD>(container)) {
 		return "the token is not an AppContainer token";
@@ -889,7 +1199,7 @@ std::string CheckAppContainerToken(HANDLE token, AppContainerLevel level) {
 	} else if (count) {
 		return "the token has " + std::to_string(count) + " capabilities";
 	}
-	return CheckLessPrivileged(attributes, level);
+	return any ? std::string() : CheckLessPrivileged(attributes, level);
 }
 
 Job CreateJob() {
@@ -993,12 +1303,17 @@ std::string VerifyJob() {
 			+ " processes";
 	} else if ((ui & kJobUiRestrictions) != kJobUiRestrictions) {
 		return "the job's UI restrictions are 0x" + Hex(ui);
+	} else if ((basic.LimitFlags & kJobBreakaway)
+		&& (CurrentSandbox().tier != SandboxTier::Full)) {
+		return "the job's limits 0x"
+			+ Hex(basic.LimitFlags)
+			+ " allow breakaway";
 	}
 	return std::string();
 }
 
 const Policies &SandboxPolicies() {
-	static const auto result = ComputePolicies();
+	static const auto result = ComputePolicies(CurrentSandbox());
 	return result;
 }
 
@@ -1039,6 +1354,58 @@ std::string PolicyError(
 		+ std::to_string(error);
 }
 
+UserObjectName ReadUserObjectName(
+		UserObjectQuery information,
+		HANDLE object) {
+	auto size = DWORD();
+	information(object, UOI_NAME, nullptr, 0, &size);
+	if (!size) {
+		return { .error = GetLastError() };
+	}
+	auto result = std::wstring(size / sizeof(WCHAR), WCHAR());
+	if (!information(
+			object,
+			UOI_NAME,
+			result.data(),
+			DWORD(result.size() * sizeof(WCHAR)),
+			&size)) {
+		return { .error = GetLastError() };
+	}
+	result.resize(std::wcslen(result.c_str()));
+	return { .value = std::move(result) };
+}
+
+AssignedDesktop ReadAssignedDesktop(
+		const DesktopQueries &queries,
+		DWORD thread) {
+	const auto station = queries.station();
+	if (!station) {
+		return {
+			.failed = "GetProcessWindowStation",
+			.error = GetLastError(),
+		};
+	}
+	const auto desktop = queries.threadDesktop(thread);
+	if (!desktop) {
+		return { .failed = "GetThreadDesktop", .error = GetLastError() };
+	}
+	const auto stationName = ReadUserObjectName(queries.information, station);
+	if (!stationName.value) {
+		return {
+			.failed = "GetUserObjectInformationW",
+			.error = stationName.error,
+		};
+	}
+	const auto desktopName = ReadUserObjectName(queries.information, desktop);
+	if (!desktopName.value) {
+		return {
+			.failed = "GetUserObjectInformationW",
+			.error = desktopName.error,
+		};
+	}
+	return { .name = *stationName.value + L'\\' + *desktopName.value };
+}
+
 std::string VerifyNoThreadToken() {
 	auto token = HANDLE();
 	if (OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &token)) {
@@ -1052,20 +1419,12 @@ std::string VerifyNoThreadToken() {
 }
 
 std::string LockDownHelper() {
-	const auto error = FirstFailure({
-		WarmUp,
-		RevertImpersonation,
-		ForgetRegistryRoots,
-		VerifyNoThreadToken,
-		[] { return CheckLockdownToken(GetCurrentProcessToken()); },
-		[] {
-			return CheckAppContainerToken(
-				GetCurrentProcessToken(),
-				AppContainerLevel::LessPrivileged);
-		},
-		VerifyJob,
-		VerifyMitigations,
-	});
+	const auto tier = CurrentSandbox().tier;
+	const auto error = !tier
+		? SandboxUnsupportedReason()
+		: (*tier == SandboxTier::Windows7)
+		? LockDownWindows7()
+		: LockDownLowBox();
 	return error.empty()
 		? std::string()
 		: ("the widget helper is not sandboxed: " + error);

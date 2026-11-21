@@ -145,7 +145,8 @@ std::optional<DWORD> WinStream::transfer(HANDLE event, Issue &&issue) {
 	}
 	auto overlapped = OVERLAPPED();
 	overlapped.hEvent = event;
-	if (!issue(&overlapped)) {
+	auto issued = DWORD();
+	if (!issue(&overlapped, &issued)) {
 		if (GetLastError() != ERROR_IO_PENDING) {
 			return std::nullopt;
 		}
@@ -168,20 +169,21 @@ std::optional<DWORD> WinStream::transfer(HANDLE event, Issue &&issue) {
 
 size_t WinStream::read(char *out, size_t size) {
 	const auto chunk = DWORD(std::min(size, size_t(MAXDWORD)));
-	return transfer(_handles.reading.get(), [&](OVERLAPPED *overlapped) {
-		return ReadFile(_handles.pipe.get(), out, chunk, nullptr, overlapped);
-	}).value_or(0);
+	const auto issue = [&](OVERLAPPED *overlapped, DWORD *issued) {
+		return ReadFile(_handles.pipe.get(), out, chunk, issued, overlapped);
+	};
+	return transfer(_handles.reading.get(), issue).value_or(0);
 }
 
 bool WinStream::write(std::string_view bytes) {
 	while (!bytes.empty()) {
 		const auto chunk = DWORD(std::min(bytes.size(), size_t(MAXDWORD)));
-		const auto issue = [&](OVERLAPPED *overlapped) {
+		const auto issue = [&](OVERLAPPED *overlapped, DWORD *issued) {
 			return WriteFile(
 				_handles.pipe.get(),
 				bytes.data(),
 				chunk,
-				nullptr,
+				issued,
 				overlapped);
 		};
 		const auto done = transfer(_handles.writing.get(), issue);

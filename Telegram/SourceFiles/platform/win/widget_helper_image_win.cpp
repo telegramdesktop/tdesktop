@@ -7,10 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/win/widget_helper_image_win.h"
 
+#include "platform/win/widget_sandbox_win.h"
 #include "widget_helper_identity.h"
 
 #include <gsl/gsl>
 
+#include <bcrypt.h>
 #include <wincrypt.h>
 
 #include <mscat.h>
@@ -18,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <span>
 #include <string_view>
 #include <utility>
@@ -27,6 +31,9 @@ namespace {
 
 constexpr auto kPathCapacity = DWORD(32768);
 constexpr auto kDigestSize = std::size_t(32);
+constexpr auto kChunkSize = DWORD(64 * 1024);
+constexpr auto kChecksumSize = std::uint64_t(4);
+constexpr auto kCertificateEntrySize = std::uint64_t(8);
 constexpr auto kGlobalRoot = std::wstring_view(L"\\\\?\\GLOBALROOT");
 constexpr auto kNetworkPrefix = std::wstring_view(L"\\\\?\\UNC\\");
 constexpr auto kModulesName = std::wstring_view(L"modules");
@@ -38,6 +45,8 @@ constexpr auto kFolderSharing = DWORD(FILE_SHARE_READ | FILE_SHARE_WRITE);
 constexpr auto kAnySharing = DWORD(FILE_SHARE_READ
 	| FILE_SHARE_WRITE
 	| FILE_SHARE_DELETE);
+// FAT file ids can change and ReFS 64-bit ids are not unique.
+constexpr auto kIndexedFileSystem = std::wstring_view(L"NTFS");
 
 #if defined _M_ARM64
 constexpr auto kHelperArchitecture = std::wstring_view(L"arm64");
@@ -112,14 +121,14 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 	return result;
 }
 
-[[nodiscard]] std::string_view ExpectedDigest() {
+[[nodiscard]] const details::BuiltDigest *ExpectedDigest() {
 	const auto architecture = Utf8(kHelperArchitecture);
 	for (const auto &built : details::kBuiltDigests) {
 		if (built.architecture == architecture) {
-			return built.digest;
+			return &built;
 		}
 	}
-	return std::string_view();
+	return nullptr;
 }
 
 [[nodiscard]] std::string HexDigest(std::span<const BYTE> bytes) {
@@ -207,7 +216,54 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 	return { .handle = UniqueHandle(handle) };
 }
 
+[[nodiscard]] std::string CheckIndexedFileSystem(HANDLE handle) {
+	auto name = std::array<wchar_t, MAX_PATH + 1>();
+	if (!GetVolumeInformationByHandleW(
+			handle,
+			nullptr,
+			0,
+			nullptr,
+			nullptr,
+			nullptr,
+			name.data(),
+			DWORD(name.size()))) {
+		return SystemError("GetVolumeInformationByHandleW", GetLastError());
+	}
+	const auto system = std::wstring_view(name.data());
+	if (system != kIndexedFileSystem) {
+		return "the "
+			+ Utf8(system)
+			+ " file system has no reliable file index";
+	}
+	return std::string();
+}
+
+[[nodiscard]] Identity ReadLegacyIdentity(HANDLE handle) {
+	auto information = BY_HANDLE_FILE_INFORMATION();
+	if (!GetFileInformationByHandle(handle, &information)) {
+		return {
+			.error = SystemError("GetFileInformationByHandle", GetLastError()),
+		};
+	}
+	auto error = CheckIndexedFileSystem(handle);
+	if (!error.empty()) {
+		return { .error = std::move(error) };
+	}
+	const auto index = (std::uint64_t(information.nFileIndexHigh) << 32)
+		| information.nFileIndexLow;
+	if (!index) {
+		return { .error = "the file index is unavailable" };
+	}
+	auto result = Identity();
+	result.value.VolumeSerialNumber = information.dwVolumeSerialNumber;
+	std::memcpy(result.value.FileId.Identifier, &index, sizeof(index));
+	return result;
+}
+
 [[nodiscard]] Identity ReadIdentity(HANDLE handle) {
+	if (CurrentSandbox().tier == SandboxTier::Windows7) {
+		return ReadLegacyIdentity(handle);
+	}
 	auto result = Identity();
 	if (!GetFileInformationByHandleEx(
 			handle,
@@ -345,9 +401,155 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 	return result;
 }
 
+[[nodiscard]] std::string StatusError(const char *call, NTSTATUS status) {
+	return std::string(call) + " failed: status 0x" + Hex(DWORD(status));
+}
+
+[[nodiscard]] std::string Seek(HANDLE file, std::uint64_t offset) {
+	auto position = LARGE_INTEGER();
+	position.QuadPart = LONGLONG(offset);
+	if (!SetFilePointerEx(file, position, nullptr, FILE_BEGIN)) {
+		return SystemError("SetFilePointerEx", GetLastError());
+	}
+	return std::string();
+}
+
+[[nodiscard]] std::string ReadExactly(
+		HANDLE file,
+		std::span<std::byte> buffer) {
+	const auto size = DWORD(buffer.size());
+	auto read = DWORD();
+	if (!ReadFile(file, buffer.data(), size, &read, nullptr)) {
+		return SystemError("ReadFile", GetLastError());
+	} else if (read != size) {
+		return "ReadFile read "
+			+ std::to_string(read)
+			+ " of "
+			+ std::to_string(size)
+			+ " bytes";
+	}
+	return std::string();
+}
+
+[[nodiscard]] std::string CheckImageExtent(
+		HANDLE file,
+		const details::BuiltDigest &built) {
+	auto length = LARGE_INTEGER();
+	if (!GetFileSizeEx(file, &length)) {
+		return SystemError("GetFileSizeEx", GetLastError());
+	}
+	const auto size = std::uint64_t(length.QuadPart);
+	if (length.QuadPart < 0 || size < built.unsignedEnd) {
+		return "the widget helper image extent is invalid";
+	}
+	auto entry = std::array<DWORD, 2>();
+	auto error = Seek(file, built.certificateEntryOffset);
+	if (error.empty()) {
+		error = ReadExactly(file, std::as_writable_bytes(std::span(entry)));
+	}
+	if (!error.empty()) {
+		return error;
+	}
+	const auto [table, tableSize] = entry;
+	const auto valid = (!table && !tableSize)
+		? (size == built.unsignedEnd)
+		: ((table == built.unsignedEnd)
+			&& (tableSize != 0)
+			&& !(tableSize % 8)
+			&& (std::uint64_t(table) + tableSize == size));
+	return valid
+		? std::string()
+		: "the widget helper image extent is invalid";
+}
+
+[[nodiscard]] std::string HashImage(
+		HANDLE file,
+		const details::BuiltDigest &built,
+		std::array<BYTE, kDigestSize> &digest) {
+	auto algorithm = BCRYPT_ALG_HANDLE();
+	auto status = BCryptOpenAlgorithmProvider(
+		&algorithm,
+		BCRYPT_SHA256_ALGORITHM,
+		nullptr,
+		0);
+	if (!BCRYPT_SUCCESS(status)) {
+		return StatusError("BCryptOpenAlgorithmProvider", status);
+	}
+	const auto closeAlgorithm = gsl::finally([&] {
+		BCryptCloseAlgorithmProvider(algorithm, 0);
+	});
+	auto hash = BCRYPT_HASH_HANDLE();
+	status = BCryptCreateHash(algorithm, &hash, nullptr, 0, nullptr, 0, 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		return StatusError("BCryptCreateHash", status);
+	}
+	const auto destroyHash = gsl::finally([&] {
+		BCryptDestroyHash(hash);
+	});
+	const auto ranges = std::array{
+		std::pair(std::uint64_t(), built.checksumOffset),
+		std::pair(
+			built.checksumOffset + kChecksumSize,
+			built.certificateEntryOffset),
+		std::pair(
+			built.certificateEntryOffset + kCertificateEntrySize,
+			built.unsignedEnd),
+	};
+	auto chunk = std::vector<std::byte>(kChunkSize);
+	for (const auto &[from, till] : ranges) {
+		auto error = Seek(file, from);
+		if (!error.empty()) {
+			return error;
+		}
+		for (auto at = from; at < till;) {
+			const auto size = DWORD(
+				std::min(till - at, std::uint64_t(kChunkSize)));
+			error = ReadExactly(file, std::span(chunk).first(size));
+			if (!error.empty()) {
+				return error;
+			}
+			status = BCryptHashData(
+				hash,
+				reinterpret_cast<PUCHAR>(chunk.data()),
+				size,
+				0);
+			if (!BCRYPT_SUCCESS(status)) {
+				return StatusError("BCryptHashData", status);
+			}
+			at += size;
+		}
+	}
+	status = BCryptFinishHash(hash, digest.data(), ULONG(digest.size()), 0);
+	if (!BCRYPT_SUCCESS(status)) {
+		return StatusError("BCryptFinishHash", status);
+	}
+	return std::string();
+}
+
+[[nodiscard]] std::string CheckImageDigest(
+		HANDLE file,
+		const details::BuiltDigest &built) {
+	auto error = CheckImageExtent(file, built);
+	if (!error.empty()) {
+		return error;
+	}
+	auto digest = std::array<BYTE, kDigestSize>();
+	error = HashImage(file, built, digest);
+	if (!error.empty()) {
+		return error;
+	} else if (HexDigest(digest) != built.digest) {
+		return "the widget helper digest does not match this build";
+	}
+	return std::string();
+}
+
 [[nodiscard]] std::string CheckDigest(
 		HANDLE file,
-		std::string_view expected) {
+		const details::BuiltDigest &built) {
+	if (CurrentSandbox().tier == SandboxTier::Windows7) {
+		return CheckImageDigest(file, built);
+	}
+	const auto expected = std::string_view(built.digest);
 	const auto &functions = ResolvedCatalogFunctions();
 	if (!functions.acquire) {
 		return "CryptCATAdminAcquireContext2 is not available";
@@ -388,7 +590,7 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 
 HeldHelper HoldHelper() {
 	const auto expected = ExpectedDigest();
-	if (expected.empty()) {
+	if (!expected) {
 		return {
 			.error = "the widget helper identity of this build is unknown",
 		};
@@ -463,7 +665,7 @@ HeldHelper HoldHelper() {
 	if (!identity.error.empty()) {
 		return { .error = HoldError(file.name, identity.error) };
 	}
-	auto error = CheckDigest(file.handle.get(), expected);
+	auto error = CheckDigest(file.handle.get(), *expected);
 	if (!error.empty()) {
 		return { .error = std::move(error) };
 	}

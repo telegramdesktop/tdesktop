@@ -21,6 +21,7 @@ PE_ARCHITECTURES = {
     0x8664: ('x64', 0x20b),
     0xaa64: ('arm64', 0x20b),
 }
+PE_DIGEST_BOUNDS = ('checksumOffset', 'certificateEntryOffset', 'unsignedEnd')
 LOAD_LIBRARY_SEARCH_SYSTEM32 = 0x00000800
 SHA256_SIZE = 32
 ELF_MACHINES = {62: 'x86_64', 183: 'aarch64'}
@@ -230,18 +231,16 @@ def pe_architecture(image):
     if (directories + 8 * count > optional + optional_size
             or optional + optional_size > len(image)):
         raise RuntimeError('the helper has an incomplete optional header')
-    end, = unpack(image, optional + 60, '<I', 'optional header')
-    for index in range(sections):
-        size, pointer = unpack(
-            image,
-            optional + optional_size + 40 * index + 16,
-            '<II',
-            'section table')
-        if size:
-            end = max(end, pointer + size)
+    checksum = optional + 64
+    entry = directories + 32
+    headers, = unpack(image, optional + 60, '<I', 'optional header')
+    section_table = optional + optional_size
+    section_table_end = section_table + 40 * sections
+    if section_table_end > len(image):
+        raise RuntimeError('the helper is truncated in its section table')
     table, table_size = unpack(
         image,
-        directories + 32,
+        entry,
         '<II',
         'certificate table entry')
     length = len(image)
@@ -263,11 +262,42 @@ def pe_architecture(image):
             'the helper is ' + str(unsigned)
             + ' bytes long without its certificate table,'
             + ' not a multiple of eight')
-    if end > length:
-        raise RuntimeError('the helper sections are truncated')
-    if end > unsigned:
-        raise RuntimeError('the helper certificate table overlaps its image')
-    return arch
+    if section_table_end > headers:
+        raise RuntimeError('the helper section table is outside its headers')
+    if headers > length:
+        raise RuntimeError('the helper headers are truncated')
+    if headers > unsigned:
+        raise RuntimeError('the helper certificate table overlaps its headers')
+    for index in range(sections):
+        size, pointer = unpack(
+            image,
+            section_table + 40 * index + 16,
+            '<II',
+            'section table')
+        if not size:
+            continue
+        if pointer < headers:
+            raise RuntimeError('the helper has a section inside its headers')
+        if pointer + size > length:
+            raise RuntimeError('the helper sections are truncated')
+        if pointer + size > unsigned:
+            raise RuntimeError(
+                'the helper certificate table overlaps its image')
+    if checksum + 4 > entry or entry + 8 > unsigned:
+        raise RuntimeError('the helper has an invalid header layout')
+    return arch, (checksum, entry, unsigned)
+
+
+def image_digest(image, layout):
+    checksum, entry, unsigned = layout
+    view = memoryview(image)
+    digest = hashlib.sha256()
+    for begin, end in (
+            (0, checksum),
+            (checksum + 4, entry),
+            (entry + 8, unsigned)):
+        digest.update(view[begin:end])
+    return digest.hexdigest()
 
 
 def resolve(library, name, result, *arguments):
@@ -314,7 +344,8 @@ def authenticode(helper):
         wintypes.HANDLE,
         wintypes.DWORD)
     with open(helper, 'rb', buffering=0) as file:
-        arch = pe_architecture(file.read())
+        image = file.read()
+        arch, layout = pe_architecture(image)
         file.seek(0)
         admin = wintypes.HANDLE()
         if not acquire(ctypes.byref(admin), None, 'SHA256', None, 0):
@@ -340,7 +371,11 @@ def authenticode(helper):
             'CryptCATAdminCalcHashFromFileHandle2 gave '
             + str(size.value) + ' bytes instead of '
             + str(SHA256_SIZE))
-    return [(arch, bytes(digest).hex())]
+    result = bytes(digest).hex()
+    if image_digest(image, layout) != result:
+        raise RuntimeError(
+            'the helper image digest differs from its Authenticode digest')
+    return [(arch, result) + layout]
 
 
 def sha256_digests(helper):
@@ -373,6 +408,13 @@ def header(digests, identifier, entitlements):
         'struct BuiltDigest {',
         '\tconst char *architecture = nullptr;',
         '\tconst char *digest = nullptr;',
+    ]
+    if any(len(built) > 2 for built in digests):
+        lines += [
+            '\tunsigned long long ' + name + ' = 0;'
+            for name in PE_DIGEST_BOUNDS
+        ]
+    lines += [
         '};',
         '',
     ]
@@ -390,8 +432,10 @@ def header(digests, identifier, entitlements):
         lines[-1] += ';'
         lines.append('')
     lines.append('inline constexpr BuiltDigest kBuiltDigests[] = {')
-    for arch, digest in digests:
-        lines.append('\t{ "' + arch + '", "' + digest + '" },')
+    for arch, digest, *bounds in digests:
+        values = ['"' + arch + '"', '"' + digest + '"']
+        values += [hex(bound) for bound in bounds]
+        lines.append('\t{ ' + ', '.join(values) + ' },')
     lines += [
         '};',
         '',

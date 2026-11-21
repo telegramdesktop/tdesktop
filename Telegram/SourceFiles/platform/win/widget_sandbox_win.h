@@ -10,12 +10,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/widget_channel_win.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace Platform::WidgetHelper {
+
+inline constexpr auto kHelperDesktopPrefix = std::wstring_view(
+	L"TelegramWidgetHelper-");
+inline constexpr auto kHelperDesktopRandomBytes = std::size_t(16);
+
+using UserObjectQuery = decltype(&::GetUserObjectInformationW);
+
+struct DesktopQueries {
+	decltype(&::GetProcessWindowStation) station = nullptr;
+	decltype(&::GetThreadDesktop) threadDesktop = nullptr;
+	UserObjectQuery information = nullptr;
+};
+
+enum class SandboxTier : std::uint8_t {
+	Windows7,
+	AppContainer,
+	Lpac1703,
+	Full,
+};
+
+struct WindowsVersion {
+	DWORD major = 0;
+	DWORD minor = 0;
+	DWORD build = 0;
+};
+
+struct Sandbox {
+	WindowsVersion version;
+	std::optional<SandboxTier> tier;
+};
 
 struct Tokens {
 	UniqueHandle lockdown;
@@ -57,6 +89,20 @@ struct Policies {
 	std::vector<Mitigation> mitigations;
 };
 
+struct UserObjectName {
+	std::optional<std::wstring> value;
+	DWORD error = 0;
+};
+
+struct AssignedDesktop {
+	std::wstring name;
+	const char *failed = nullptr;
+	DWORD error = 0;
+};
+
+[[nodiscard]] const Sandbox &CurrentSandbox();
+[[nodiscard]] std::string SandboxUnsupportedReason();
+
 [[nodiscard]] Tokens CreateTokens();
 [[nodiscard]] std::string CheckLockdownToken(HANDLE token);
 [[nodiscard]] std::string CheckInitialToken(HANDLE token);
@@ -79,6 +125,13 @@ struct Policies {
 	const char *call,
 	PROCESS_MITIGATION_POLICY policy,
 	DWORD error);
+
+[[nodiscard]] UserObjectName ReadUserObjectName(
+	UserObjectQuery information,
+	HANDLE object);
+[[nodiscard]] AssignedDesktop ReadAssignedDesktop(
+	const DesktopQueries &queries,
+	DWORD thread);
 
 [[nodiscard]] std::string VerifyNoThreadToken();
 [[nodiscard]] std::string LockDownHelper();

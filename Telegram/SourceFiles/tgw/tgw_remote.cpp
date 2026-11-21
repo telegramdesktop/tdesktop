@@ -658,6 +658,15 @@ Manager::Selected Manager::launch(
 	lock.lock();
 	if (!launched.error.isEmpty()) {
 		const auto reason = CouldNotStart(launched.error);
+		if (launched.complete) {
+			_helper->complete = std::move(launched.complete);
+			_helper->pid = launched.pid;
+			_helper->launching = false;
+			const auto retired = retireLocked(false);
+			lock.unlock();
+			scheduleReap(retired);
+			return reason;
+		}
 		_helper = std::nullopt;
 		_reaped.notify_all();
 		failedLocked(0);
@@ -715,7 +724,9 @@ uint64 Manager::retireLocked(bool intentional) {
 	_helper->retiring = true;
 	_helper->intentional = intentional && !Read(*_helper->reports).ended;
 	if (!_helper->intentional) {
-		failedLocked(crl::now() - _helper->started);
+		failedLocked(_helper->started
+			? (crl::now() - _helper->started)
+			: crl::time(0));
 	}
 	return _helper->id;
 }

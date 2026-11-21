@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/win/widget_helper_image_win.h"
 #include "platform/win/widget_sandbox_win.h"
 
-#include <QtCore/QOperatingSystemVersion>
+#include <bcrypt.h>
+
+#include <thread>
 
 namespace Platform::WidgetHelper {
 namespace {
@@ -29,6 +31,7 @@ struct Path {
 struct Spawn {
 	std::wstring path;
 	std::wstring directory;
+	std::wstring desktop;
 	QStringList arguments;
 	HANDLE token = nullptr;
 	HANDLE pipe = nullptr;
@@ -54,10 +57,29 @@ struct Attribute {
 	SIZE_T size = 0;
 };
 
+struct DesktopCloser {
+	void operator()(HDESK desktop) const;
+};
+
+using UniqueDesktop = std::unique_ptr<
+	std::remove_pointer_t<HDESK>,
+	DesktopCloser>;
+
+struct HelperDesktop {
+	UniqueDesktop handle;
+	std::wstring name;
+	QString error;
+};
+
 struct Child {
 	UniqueHandle process;
+	UniqueDesktop desktop;
 	UniqueHandle job;
 };
+
+void DesktopCloser::operator()(HDESK desktop) const {
+	CloseDesktop(desktop);
+}
 
 [[nodiscard]] QString QtSystemError(const char *call, DWORD error) {
 	return QString::fromStdString(SystemError(call, error));
@@ -69,6 +91,82 @@ struct Child {
 		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
 		.arg(base::RandomValue<uint64>(), 16, 16, QChar('0'))
 		.toStdWString();
+}
+
+[[nodiscard]] Path WindowStationName() {
+	const auto station = GetProcessWindowStation();
+	if (!station) {
+		return {
+			.error = QtSystemError("GetProcessWindowStation", GetLastError()),
+		};
+	}
+	auto name = ReadUserObjectName(&GetUserObjectInformationW, station);
+	if (!name.value) {
+		return {
+			.error = QtSystemError("GetUserObjectInformationW", name.error),
+		};
+	}
+	return { .value = std::move(*name.value) };
+}
+
+[[nodiscard]] Path DesktopName() {
+	auto random = std::array<UCHAR, kHelperDesktopRandomBytes>();
+	const auto status = BCryptGenRandom(
+		nullptr,
+		random.data(),
+		ULONG(random.size()),
+		BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+	if (!BCRYPT_SUCCESS(status)) {
+		return {
+			.error = u"BCryptGenRandom failed: status 0x%1"_q.arg(
+				QString::fromStdString(Hex(DWORD(status)))),
+		};
+	}
+	const auto bytes = QByteArray(
+		reinterpret_cast<const char*>(random.data()),
+		int(random.size()));
+	const auto suffix = u"%1-%2"_q
+		.arg(GetCurrentProcessId())
+		.arg(QString::fromLatin1(bytes.toHex()));
+	return {
+		.value = std::wstring(kHelperDesktopPrefix) + suffix.toStdWString(),
+	};
+}
+
+[[nodiscard]] HelperDesktop CreateDesktopOnShortThread(
+		const std::wstring &name) {
+	auto desktop = HDESK();
+	auto error = DWORD();
+	std::thread([&] {
+		desktop = CreateDesktopW(
+			name.c_str(),
+			nullptr,
+			nullptr,
+			0,
+			DESKTOP_CREATEWINDOW,
+			nullptr);
+		error = desktop ? DWORD() : GetLastError();
+	}).join();
+	if (!desktop) {
+		return { .error = QtSystemError("CreateDesktopW", error) };
+	}
+	return { .handle = UniqueDesktop(desktop) };
+}
+
+[[nodiscard]] HelperDesktop CreateHelperDesktop() {
+	auto station = WindowStationName();
+	if (!station.error.isEmpty()) {
+		return { .error = std::move(station.error) };
+	}
+	auto name = DesktopName();
+	if (!name.error.isEmpty()) {
+		return { .error = std::move(name.error) };
+	}
+	auto result = CreateDesktopOnShortThread(name.value);
+	if (result.handle) {
+		result.name = station.value + L'\\' + name.value;
+	}
+	return result;
 }
 
 [[nodiscard]] Path SystemDirectory() {
@@ -166,20 +264,24 @@ struct Child {
 		Attribute{
 			.id = PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY,
 			.value = &childProcess,
-			.size = sizeof(childProcess),
+			.size = childProcess ? sizeof(childProcess) : 0,
 		},
 		Attribute{
 			.id = PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY,
 			.value = &allApplicationPackages,
-			.size = sizeof(allApplicationPackages),
+			.size = (allApplicationPackages
+				? sizeof(allApplicationPackages)
+				: 0),
 		},
 		Attribute{
 			.id = PROC_THREAD_ATTRIBUTE_JOB_LIST,
 			.value = jobs.data(),
-			.size = jobs.size() * sizeof(HANDLE),
+			.size = spawn.job ? (jobs.size() * sizeof(HANDLE)) : 0,
 		},
 	};
-	const auto count = DWORD(attributes.size());
+	const auto count = DWORD(std::ranges::count_if(
+		attributes,
+		[](const Attribute &attribute) { return attribute.size != 0; }));
 	auto size = SIZE_T();
 	InitializeProcThreadAttributeList(nullptr, count, 0, &size);
 	auto storage = std::vector<std::byte>(size);
@@ -196,7 +298,9 @@ struct Child {
 		DeleteProcThreadAttributeList(list);
 	});
 	for (const auto &attribute : attributes) {
-		if (!UpdateProcThreadAttribute(
+		if (!attribute.size) {
+			continue;
+		} else if (!UpdateProcThreadAttribute(
 				list,
 				0,
 				attribute.id,
@@ -216,6 +320,9 @@ struct Child {
 	startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES
 		| STARTF_FORCEOFFFEEDBACK;
 	startup.StartupInfo.hStdError = diagnostics.handle.get();
+	if (!spawn.desktop.empty()) {
+		startup.StartupInfo.lpDesktop = spawn.desktop.data();
+	}
 	startup.lpAttributeList = list;
 	auto commandLine = L"\"" + spawn.path + L"\" "
 		+ std::to_wstring(reinterpret_cast<uintptr_t>(pipe.handle.get()));
@@ -315,52 +422,90 @@ struct Child {
 	};
 }
 
-[[nodiscard]] Completion Complete(
+[[nodiscard]] Completion Terminate(
 		const Child &child,
-		crl::time exitWait,
+		crl::time started,
 		crl::time killWait) {
 	const auto process = child.process.get();
-	const auto started = crl::now();
-	auto exited = WaitFor(process, exitWait);
-	if (exited && exited->reaped) {
-		return std::move(*exited);
-	}
-	const auto terminated = crl::now() - started;
 	const auto job = child.job.get();
-	const auto killError = TerminateJobObject(job, ERROR_PROCESS_ABORTED)
-		? DWORD()
-		: GetLastError();
+	const auto terminated = crl::now() - started;
+	const auto killed = job
+		? TerminateJobObject(job, ERROR_PROCESS_ABORTED)
+		: TerminateProcess(process, ERROR_PROCESS_ABORTED);
+	const auto killError = killed ? DWORD() : GetLastError();
 	auto result = WaitFor(process, killWait);
 	if (!result) {
 		result = Completion{
 			.detail = u"not reaped after %1 ms"_q.arg(crl::now() - started),
 		};
 	}
-	if (exited) {
-		result->detail = exited->detail + u", "_q + result->detail;
-	}
 	result->detail += u", "_q + (killError
-		? QtSystemError("TerminateJobObject", killError)
+		? QtSystemError(
+			job ? "TerminateJobObject" : "TerminateProcess",
+			killError)
 		: u"terminated after %1 ms"_q.arg(terminated));
 	return std::move(*result);
 }
 
-[[nodiscard]] QString Abandon(const Child &child, const QString &error) {
+[[nodiscard]] Completion Released(Child &child, Completion result) {
+	if (!result.reaped || !child.desktop) {
+		return result;
+	} else if (!CloseDesktop(child.desktop.get())) {
+		result.detail += u", "_q
+			+ QtSystemError("CloseDesktop", GetLastError());
+		return result;
+	}
+	child.desktop.release();
+	return result;
+}
+
+[[nodiscard]] Completion Complete(
+		Child &child,
+		crl::time exitWait,
+		crl::time killWait) {
+	const auto started = crl::now();
+	auto exited = WaitFor(child.process.get(), exitWait);
+	if (exited && exited->reaped) {
+		return Released(child, std::move(*exited));
+	}
+	auto result = Terminate(child, started, killWait);
+	if (exited) {
+		result.detail = exited->detail + u", "_q + result.detail;
+	}
+	return Released(child, std::move(result));
+}
+
+[[nodiscard]] QString Abandon(Child &child, const QString &error) {
 	const auto cleanup = Complete(child, 0, kAbandonWait);
 	return u"%1 (%2)"_q.arg(error, cleanup.detail);
+}
+
+[[nodiscard]] Launched AbandonUnassigned(
+		Child child,
+		DWORD error,
+		DWORD pid) {
+	const auto cleanup = Complete(child, 0, kAbandonWait);
+	auto text = u"%1 (%2)"_q.arg(
+		QtSystemError("AssignProcessToJobObject", error),
+		cleanup.detail);
+	if (cleanup.reaped) {
+		return { .error = std::move(text) };
+	}
+	return {
+		.complete = [child = std::move(child)](
+				crl::time exitWait,
+				crl::time killWait) mutable {
+			return Complete(child, exitWait, killWait);
+		},
+		.error = std::move(text),
+		.pid = int64(pid),
+	};
 }
 
 } // namespace
 
 QString UnsupportedReason() {
-	const auto minimum = QOperatingSystemVersion(
-		QOperatingSystemVersion::Windows,
-		10,
-		0,
-		17763);
-	return (QOperatingSystemVersion::current() >= minimum)
-		? QString()
-		: u"the widget helper needs Windows 10 1809 or later"_q;
+	return QString::fromStdString(SandboxUnsupportedReason());
 }
 
 bool Enabled() {
@@ -372,6 +517,9 @@ Launched Launch(const QStringList &arguments) {
 	if (!unsupported.isEmpty()) {
 		return { .error = std::move(unsupported) };
 	}
+	const auto tier = *CurrentSandbox().tier;
+	const auto windows7 = (tier == SandboxTier::Windows7);
+	const auto assignLater = windows7 || (tier == SandboxTier::AppContainer);
 	const auto held = HoldHelper();
 	if (!held.error.empty()) {
 		return { .error = QString::fromStdString(held.error) };
@@ -392,13 +540,18 @@ Launched Launch(const QStringList &arguments) {
 	if (!job.error.empty()) {
 		return { .error = QString::fromStdString(job.error) };
 	}
+	auto desktop = windows7 ? CreateHelperDesktop() : HelperDesktop();
+	if (!desktop.error.isEmpty()) {
+		return { .error = std::move(desktop.error) };
+	}
 	auto created = CreateSuspended({
 		.path = held.path,
 		.directory = std::move(directory.value),
+		.desktop = std::move(desktop.name),
 		.arguments = arguments,
 		.token = tokens.lockdown.get(),
 		.pipe = channel.child.get(),
-		.job = job.handle.get(),
+		.job = assignLater ? nullptr : job.handle.get(),
 		.flags = job.creationFlags,
 	});
 	if (!created.error.isEmpty()) {
@@ -406,8 +559,14 @@ Launched Launch(const QStringList &arguments) {
 	}
 	auto child = Child{
 		.process = std::move(created.process),
-		.job = std::move(job.handle),
+		.desktop = std::move(desktop.handle),
 	};
+	if (assignLater
+		&& !AssignProcessToJobObject(job.handle.get(), child.process.get())) {
+		const auto error = GetLastError();
+		return AbandonUnassigned(std::move(child), error, created.pid);
+	}
+	child.job = std::move(job.handle);
 	auto error = QString::fromStdString(
 		CheckStartedImage(held, child.process.get()));
 	if (error.isEmpty()) {
@@ -423,7 +582,7 @@ Launched Launch(const QStringList &arguments) {
 		.stream = std::move(channel.parent),
 		.complete = [child = std::move(child)](
 				crl::time exitWait,
-				crl::time killWait) {
+				crl::time killWait) mutable {
 			return Complete(child, exitWait, killWait);
 		},
 		.pid = int64(created.pid),
