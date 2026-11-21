@@ -2226,22 +2226,29 @@ void PrepareOutput(ConformanceState &state) {
 // Defined with the totals, which it controls.
 [[nodiscard]] WidgetOpsSelfCheckRow CheckTotalsCoverage();
 
-// The tap's own scanner checks, the played bot's, the tap's probe-fixture
+// |row| as one Check, counted among the self-check's rows and, failing,
+// named among its failures.
+void TakeSelfCheckRow(
+		ConformanceState &state,
+		const WidgetOpsSelfCheckRow &row) {
+	Check(row.passed, row.name, row.details);
+	++state.selfCheckRows;
+	if (!row.passed) {
+		state.selfCheckFailed.push_back(row.name);
+	}
+}
+
+// The tap's own scanner checks but its exchange leg, which the stage plays
+// apart (TakeExchangeRows()), the played bot's, the tap's probe-fixture
 // checks, then the pure result reader, summary reader, observation, run
 // file, message context and bot table, selection, host reading, death
 // reading, desktop stop, picture and totals controls; every row is one
 // Check.
 void RunSelfChecks(ConformanceState &state) {
-	auto failed = QStringList();
-	auto count = 0;
 	const auto take = [&](const WidgetOpsSelfCheckRow &row) {
-		Check(row.passed, row.name, row.details);
-		++count;
-		if (!row.passed) {
-			failed.push_back(row.name);
-		}
+		TakeSelfCheckRow(state, row);
 	};
-	auto scanner = RunWidgetOpsSelfCheck();
+	auto scanner = RunWidgetOpsSelfCheck(WidgetOpsExchangeLeg::Apart);
 	for (const auto &row : scanner.rows) {
 		take(row);
 	}
@@ -2289,8 +2296,16 @@ void RunSelfChecks(ConformanceState &state) {
 	}
 	take(CheckRunFileHost());
 	take(CheckTotalsCoverage());
-	state.selfCheckRows = count;
-	state.selfCheckFailed = failed;
+}
+
+// The scanner's exchange leg's |rows|, once its thread has played them,
+// each as RunSelfChecks() takes its rows; the self-check is then done.
+void TakeExchangeRows(
+		ConformanceState &state,
+		const std::vector<WidgetOpsSelfCheckRow> &rows) {
+	for (const auto &row : rows) {
+		TakeSelfCheckRow(state, row);
+	}
 	state.selfChecked = true;
 }
 
@@ -3941,12 +3956,15 @@ void AppendWidgetConformance(
 	SelectPictures(*state);
 
 	// Registered before anything is changed: every path that reaches
-	// Runner::finish() stops the watcher, ends a pointer sequence still
-	// running, keeps the taps' last readings, disarms every played bot by
-	// its run's kept key (their records stay with the runs), runs the same
-	// idempotent release, then writes the run file when the totals stage
-	// did not, so no selected run goes unreported.
+	// Runner::finish() stops the self-check's exchange leg, without waiting
+	// for it, stops the watcher, ends a pointer sequence still running,
+	// keeps the taps' last readings, disarms every played bot by its run's
+	// kept key (their records stay with the runs), runs the same idempotent
+	// release, then writes the run file when the totals stage did not, so
+	// no selected run goes unreported.
+	const auto exchanges = std::make_shared<WidgetOpsExchanges>();
 	runner->onFinish([=] {
+		exchanges->stop();
 		StopWatcher(*state);
 		AbortRunActions(*state, u"onFinish"_q);
 		SaveReadings(*state);
@@ -3970,6 +3988,18 @@ void AppendWidgetConformance(
 			u"self-check"_q),
 		.run = [=] {
 			RunSelfChecks(*state);
+			exchanges->start();
+		},
+		.until = [=] {
+			return exchanges->ready();
+		},
+		.then = [=] {
+			TakeExchangeRows(*state, exchanges->take());
+		},
+		.timeout = kWidgetOpsExchangesTimeout,
+		.timeoutDetails = [] {
+			return u"the scanner's exchange leg is still playing on its "
+				u"thread"_q;
 		},
 	});
 	runner->add({

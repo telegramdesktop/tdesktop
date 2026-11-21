@@ -167,9 +167,19 @@ bool ReplaceEffectiveProbe(
 // the framework's shared scripted engine end on its in-memory pair
 // (threads of that stream and of two hosted clients, each wait bounded;
 // past a bound the row fails), and last the frame deltas' answers and
-// admission against TwidgetCore's decode(). The rows' names lack the
-// self-check's prefix.
+// admission against TwidgetCore's decode(), their rebuild on a platform
+// end and their answers at a stream's end on two routes. The leg stops at
+// a deadline its cases share, short of kWidgetOpsExchangesTimeout: past it
+// no stream starts, each open stream's waits give up and it closes, and
+// the row fails. The rows' names lack the self-check's prefix
+// (SelfCheckRowName()).
 [[nodiscard]] std::vector<WidgetOpsSelfCheckRow> CheckHostedExchanges();
+
+// A leg's row |name| as RunWidgetOpsSelfCheck() names it, wherever the leg
+// played (its exchange leg on a WidgetOpsExchanges too).
+[[nodiscard]] inline QString SelfCheckRowName(const QString &name) {
+	return u"widget ops self-check: "_q + name;
+}
 
 // |record| of the host's |generation| on Telegram's profile clock: its
 // stamps moved by |profile| - |steady|, the two clocks read together at

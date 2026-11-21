@@ -895,6 +895,14 @@ struct WidgetOpsSelfCheck {
 	WidgetOpsReading control;
 };
 
+// Where RunWidgetOpsSelfCheck() plays its exchange leg, whose streams stay
+// open past the hosted answer deadline, about 5 s in all: within the call,
+// or apart, on a WidgetOpsExchanges of the caller's.
+enum class WidgetOpsExchangeLeg {
+	Within,
+	Apart,
+};
+
 // Main thread, synchronous, needs Active(). Drives TapHostedWidget() under
 // message ids of peer 0, which no real message has in any session, on
 // hosted WidgetHosts built without a channel and never started, calling
@@ -929,7 +937,8 @@ struct WidgetOpsSelfCheck {
 // host's destruction leaving the other's registration. That tap's final
 // reading, after its host's destruction, is `control`: 1 batch of 4 ops
 // with the control's 2 leaks and 1 note. Its exchange leg (the `hosted
-// exchanges: ...` rows) reads TwidgetCore's own encodings through
+// exchanges: ...` rows), played within the call unless |exchanges| leaves
+// it apart (WidgetOpsExchanges), reads TwidgetCore's own encodings through
 // Tgw::HostedAnswers(), the classifier the widget helper's stream times
 // hosted renderers with: which messages expect one answer and which answer
 // them, keyed by their pair and sequence; that an answer earns credit only
@@ -961,7 +970,54 @@ struct WidgetOpsSelfCheck {
 // forwarded unchanged. Each row and its carrier:
 // docs/helpers/test_widget_ops.md, "Verification". Disarms its ids before
 // it returns. The caller turns each row into a Check().
-[[nodiscard]] WidgetOpsSelfCheck RunWidgetOpsSelfCheck();
+[[nodiscard]] WidgetOpsSelfCheck RunWidgetOpsSelfCheck(
+	WidgetOpsExchangeLeg exchanges = WidgetOpsExchangeLeg::Within);
+
+// RunWidgetOpsSelfCheck()'s exchange leg on a thread of its own, so that a
+// runner stage keeps the event loop going through the seconds its streams
+// stay open: start() in the stage's run, ready() as its until and take()
+// in its then, each on main, kWidgetOpsExchangesTimeout as its timeout,
+// and stop() in the scenario's onFinish. The leg reads no tap and asks
+// nothing of main. Its rows, named as RunWidgetOpsSelfCheck() names them,
+// stay here until taken; a thread that does not start, or a leg that
+// throws, gives one failed row instead. The leg stops at a deadline its
+// cases share, short of that timeout, or at stop(), whichever comes
+// first: from then on it starts no stream, the waits of the streams it
+// has open give up within a fraction of a second, so those streams close
+// and its threads return, and each case it did not finish fails its row.
+// Destroying it stops the leg and joins the thread.
+class WidgetOpsExchanges final {
+public:
+	WidgetOpsExchanges();
+	WidgetOpsExchanges(const WidgetOpsExchanges &other) = delete;
+	WidgetOpsExchanges &operator=(const WidgetOpsExchanges &other) = delete;
+	~WidgetOpsExchanges();
+
+	// Once, and not after stop(); a later call does nothing.
+	void start();
+
+	// Without waiting for the leg's thread: the leg stops, and none of its
+	// rows is given from now on. Any time, as often as called.
+	void stop();
+
+	// Whether start() came and the rows are in.
+	[[nodiscard]] bool ready() const;
+
+	// Once ready(), the rows, the thread joined; none before that, after
+	// stop() or again.
+	[[nodiscard]] std::vector<WidgetOpsSelfCheckRow> take();
+
+private:
+	struct State;
+
+	const std::unique_ptr<State> _state;
+
+};
+
+// A stage's bound on WidgetOpsExchanges::ready(): the leg takes about
+// 5 s, and stops at its own deadline 10 s short of this, which leaves
+// room for its failing rows' bounded waits and its streams' close.
+inline constexpr auto kWidgetOpsExchangesTimeout = crl::time(30000);
 
 // Main thread, synchronous, needs Active(). |fixture| is the bytes of
 // widget-sandbox's packages/conformance/probe-fixture.json: whether the

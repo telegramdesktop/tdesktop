@@ -169,6 +169,14 @@ struct NonWidget {
 	bool known = false;
 };
 
+// What the audit's emitters wrote of a state that captures them
+// (AuditState::capture), in order: each row's marker and fields, and each
+// check they decided.
+struct AuditCapture {
+	std::vector<std::pair<QString, QJsonObject>> rows;
+	std::vector<WidgetOpsSelfCheckRow> checks;
+};
+
 // The one State of the audit. The window, the chat, the list, the
 // controls and the release are its shared fixture's
 // (test_widget_fixture.h); every file's record is registered there.
@@ -187,6 +195,10 @@ struct AuditState {
 
 	QString abort;
 	bool totalsEmitted = false;
+
+	// Only the verdict self-check's controls of the emitters (Emitted())
+	// set it: what they write goes there, and nothing of it to the log.
+	AuditCapture *capture = nullptr;
 };
 
 [[nodiscard]] QString Prefixed(const QString &text) {
@@ -240,6 +252,35 @@ void Row(const QString &marker, const QJsonObject &fields) {
 		+ u": "_q
 		+ QString::fromUtf8(
 			QJsonDocument(fields).toJson(QJsonDocument::Compact)));
+}
+
+// An emitter's Row(), into |state|'s capture when it has one.
+void WriteRow(
+		const AuditState &state,
+		const QString &marker,
+		const QJsonObject &fields) {
+	if (state.capture) {
+		state.capture->rows.emplace_back(marker, fields);
+	} else {
+		Row(marker, fields);
+	}
+}
+
+// An emitter's Check(), into |state|'s capture when it has one.
+void Decide(
+		const AuditState &state,
+		bool passed,
+		const QString &name,
+		const QString &details) {
+	if (state.capture) {
+		state.capture->checks.push_back({
+			.name = name,
+			.details = details,
+			.passed = passed,
+		});
+	} else {
+		Check(passed, name, details);
+	}
 }
 
 // ---------------------------------------------------------------------
@@ -686,16 +727,6 @@ enum class ClickReading {
 
 [[nodiscard]] QString ClickSource() {
 	return ClickSource(ClickReadingHere());
-}
-
-// The click source a row or the totals report: ClickSource() once
-// |selected|, a renderer a file's tap selected, shows that a construction
-// chose the runtime's engine placement, and "none" before, so a row
-// written before any widget was built (a first file refused, an abort)
-// never asks for a placement no runtime chose yet. A played click needs a
-// live card, so its own reading (RecordWatch()) never waits for this.
-[[nodiscard]] QString ClickSourceOnce(bool selected) {
-	return selected ? ClickSource() : u"none"_q;
 }
 
 // The click's outcome from the watch's reading as |reading| reads it:
@@ -2122,32 +2153,222 @@ void SettleDeath(
 	return result;
 }
 
-// A file refused before any renderer of it was selected, as the first
-// file of a run can be before any runtime chose the engines' placement:
-// its row's reading and its click source ask nothing of that placement.
-[[nodiscard]] std::vector<AttackFile> PlayUnselected(
+// The emitters of the totals stage and the onFinish callback, defined with
+// the totals; the controls below capture what they write.
+void EmitPendingRows(AuditState &state, const QString &path);
+void EmitTotals(AuditState &state, const QString &path, bool checks);
+
+// The click source the field contract names for this build: the Debug
+// helper's mirror, or the click decision alone in a Release harness.
+[[nodiscard]] QString ConfiguredClickSource() {
+#ifdef _DEBUG
+	return u"helper-mirror"_q;
+#else // _DEBUG
+	return u"click-decision"_q;
+#endif // _DEBUG
+}
+
+// A file named |name| refused before any renderer of it was selected, as
+// the first file of a run can be, or every file of a run that finishes
+// before any selection: its reading asks nothing of a runtime.
+[[nodiscard]] AttackFile UnselectedFile(
 		const AuditState &state,
-		const QString &prefix) {
+		const QString &name) {
 	auto file = AttackFile();
-	file.name = u"refused before a selection"_q;
+	file.name = name;
 	file.message = std::make_shared<WidgetFixtureMessage>();
 	file.notRun = u"refused at its injection"_q;
 	file.rowPath = u"final"_q;
 	file.barrierClosed = true;
 	ParseLog(file);
 	file.verdict = Judge(state, file);
+	return file;
+}
+
+// What EmitPendingRows() of |files| at |path| writes, then EmitTotals()
+// with |checks| unless none, on |state|'s fixture, captured.
+[[nodiscard]] AuditCapture Emitted(
+		const AuditState &state,
+		std::vector<AttackFile> files,
+		const QString &path,
+		std::optional<bool> checks) {
+	auto result = AuditCapture();
+	auto control = AuditState();
+	control.fixture = state.fixture;
+	control.files = std::move(files);
+	control.capture = &result;
+	EmitPendingRows(control, path);
+	if (checks) {
+		EmitTotals(control, path, *checks);
+	}
+	return result;
+}
+
+// The fields of the first |marker| row |capture| holds, of the file named
+// |file| when given; none when it holds no such row.
+[[nodiscard]] QJsonObject CapturedRow(
+		const AuditCapture &capture,
+		const QString &marker,
+		const QString &file = QString()) {
+	for (const auto &[written, fields] : capture.rows) {
+		if ((written == marker)
+			&& (file.isEmpty()
+				|| (fields.value(u"file"_q).toString() == file))) {
+			return fields;
+		}
+	}
+	return QJsonObject();
+}
+
+[[nodiscard]] QJsonObject RowClick(const QJsonObject &row) {
+	return row.value(u"click"_q).toObject();
+}
+
+// The click source each of |capture|'s checks names in its details
+// ("source=<value>"), in order.
+[[nodiscard]] QStringList CheckedSources(const AuditCapture &capture) {
+	const auto key = u"source="_q;
+	auto result = QStringList();
+	for (const auto &check : capture.checks) {
+		for (const auto &field : check.details.split(QChar(' '))) {
+			if (field.startsWith(key)) {
+				result.push_back(field.mid(key.size()));
+			}
+		}
+	}
+	return result;
+}
+
+[[nodiscard]] QString CaptureText(const AuditCapture &capture) {
+	auto result = QStringList();
+	for (const auto &[marker, fields] : capture.rows) {
+		const auto path = fields.value(u"path"_q).toString();
+		if (marker == u"ATTACK"_q) {
+			const auto click = RowClick(fields);
+			result.push_back(u"%1 of %2 at %3: source=%4 attempted=%5"_q.arg(
+				marker,
+				fields.value(u"file"_q).toString(),
+				path,
+				click.value(u"source"_q).toString(),
+				FlagText(click.value(u"attempted"_q).toBool())));
+		} else {
+			result.push_back(u"%1 at %2: clickSource=%3 clicksAttempted=%4 "
+				u"ran=%5"_q.arg(
+					marker,
+					path,
+					fields.value(u"clickSource"_q).toString(),
+					NumberText(fields.value(u"clicksAttempted"_q).toInt()),
+					NumberText(fields.value(u"ran"_q).toInt())));
+		}
+	}
+	result.push_back(u"checks=%1 sources=[%2]"_q.arg(
+		NumberText(int(capture.checks.size())),
+		CheckedSources(capture).join(u","_q)));
+	return result.join(u"; "_q);
+}
+
+// The rows and totals of a run of only files no renderer was selected
+// for, as its last stages write them, captured: the onFinish callback's
+// pending rows and totals of such a run that finishes early, deciding no
+// check, then the totals stage's totals of such a run with its checks
+// decided, the one whose details name a click source the completeness
+// check. Each names the build's source, its clicks unattempted.
+void CheckUnselectedRuns(const AuditState &state, const QString &prefix) {
+	const auto configured = ConfiguredClickSource();
+	const auto finished = Emitted(
+		state,
+		{
+			UnselectedFile(state, u"refused before a selection"_q),
+			UnselectedFile(state, u"refused before a selection too"_q),
+		},
+		u"onFinish"_q,
+		false);
+	auto rows = 0;
+	auto unattempted = true;
+	for (const auto &[marker, fields] : finished.rows) {
+		if (marker == u"ATTACK"_q) {
+			const auto click = RowClick(fields);
+			++rows;
+			unattempted = unattempted
+				&& (click.value(u"source"_q).toString() == configured)
+				&& !click.value(u"attempted"_q).toBool();
+		}
+	}
+	const auto early = CapturedRow(finished, u"ATTACK_TOTALS"_q);
+	Check(
+		(rows == 2)
+			&& unattempted
+			&& (early.value(u"clickSource"_q).toString() == configured)
+			&& (early.value(u"clicksAttempted"_q).toInt() == 0)
+			&& (early.value(u"ran"_q).toInt() == 0)
+			&& finished.checks.empty(),
+		prefix + u"the onFinish callback's EmitPendingRows() and "
+			u"EmitTotals() of a run of only files refused before any of "
+			u"their renderers was selected, finishing early, write each "
+			u"file's row and the totals with the build's click source, "
+			u"\"%1\", no click attempted and nothing run, and decide no "
+			u"check"_q.arg(configured),
+		CaptureText(finished));
+	const auto decided = Emitted(
+		state,
+		{ UnselectedFile(state, u"refused before a selection"_q) },
+		u"totals"_q,
+		true);
+	const auto totals = CapturedRow(decided, u"ATTACK_TOTALS"_q);
+	Check(
+		!decided.checks.empty()
+			&& (CheckedSources(decided) == QStringList{ configured })
+			&& (totals.value(u"clickSource"_q).toString() == configured)
+			&& (totals.value(u"clicksAttempted"_q).toInt() == 0),
+		prefix + u"the totals stage's EmitTotals() of a run of only such "
+			u"files, its checks decided, names the build's click source, "
+			u"\"%1\", in the totals it writes and in the details of its "
+			u"completeness check, the one check that names a source, no "
+			u"click attempted"_q.arg(configured),
+		CaptureText(decided));
+}
+
+// A file refused before any renderer of it was selected: its reading
+// reads not run, alive and uncharged, its click unattempted, and the row
+// EmitRow() writes of it beside a selected, clicked file names the
+// build's click source as that file's row does; then such runs
+// (CheckUnselectedRuns()).
+[[nodiscard]] std::vector<AttackFile> PlayUnselected(
+		const AuditState &state,
+		const QString &prefix) {
+	const auto configured = ConfiguredClickSource();
+	auto file = UnselectedFile(state, u"refused before a selection"_q);
+	auto selected = VerdictControlFile();
+	selected.name = u"selected beside it"_q;
+	const auto mixed = Emitted(
+		state,
+		{ selected, file },
+		u"totals"_q,
+		std::nullopt);
+	const auto click = RowClick(CapturedRow(mixed, u"ATTACK"_q, file.name));
+	const auto sibling = RowClick(
+		CapturedRow(mixed, u"ATTACK"_q, selected.name));
 	Check(
 		!WidgetTapHosted(file.reading)
+			&& (file.reading.factoriesSelected == 0)
+			&& !WidgetTapCharged(file.reading)
 			&& !file.verdict.ran
 			&& !file.verdict.died
 			&& file.verdict.deathReason.isEmpty()
 			&& (file.verdict.notRun == file.notRun)
-			&& (ClickSourceOnce(file.reading.factoriesSelected > 0)
-				== u"none"_q),
+			&& !file.clickAttempted
+			&& (click.value(u"source"_q).toString() == configured)
+			&& !click.value(u"attempted"_q).toBool()
+			&& (sibling.value(u"source"_q).toString() == configured)
+			&& sibling.value(u"attempted"_q).toBool()
+			&& mixed.checks.empty(),
 		prefix + u"a file refused before any of its renderers was selected "
-			u"reads not run and alive, with the click source \"none\", "
-			u"without asking for the engines' placement"_q,
-		DeathFileText(file));
+			u"reads not run, alive and uncharged with its click unattempted, "
+			u"and the row EmitRow() writes of it beside a selected, clicked "
+			u"file names the build's click source, \"%1\", unattempted, as "
+			u"that file's row does"_q.arg(configured),
+		DeathFileText(file) + u" | "_q + CaptureText(mixed));
+	CheckUnselectedRuns(state, prefix);
 	auto result = std::vector<AttackFile>();
 	result.push_back(std::move(file));
 	return result;
@@ -2355,7 +2576,7 @@ void EmitRow(AuditState &state, int index, const QString &path) {
 	}
 	file.verdict = Judge(state, file);
 	const auto &verdict = file.verdict;
-	Row(u"ATTACK"_q, {
+	WriteRow(state, u"ATTACK"_q, {
 		{ u"file"_q, file.name },
 		{ u"index"_q, index },
 		{ u"bytes"_q, int(file.html.size()) },
@@ -2387,10 +2608,7 @@ void EmitRow(AuditState &state, int index, const QString &path) {
 			{ u"details"_q, file.clickDetails },
 			{ u"attempted"_q, file.clickAttempted },
 			{ u"pressMs"_q, file.pressMs },
-			{
-				u"source"_q,
-				ClickSourceOnce(file.reading.factoriesSelected > 0),
-			},
+			{ u"source"_q, ClickSource() },
 			{ u"playedWork"_q, QString::number(file.playedWork) },
 			{ u"markedGeneration"_q, file.watched.markedGeneration },
 			{
@@ -2495,7 +2713,6 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 	auto clicksDecided = 0;
 	auto liveAtClick = 0;
 	auto layers = 0;
-	auto selected = false;
 	const auto dead = DeadFiles(state);
 	auto notLoaded = QStringList();
 	auto incomplete = QStringList();
@@ -2518,7 +2735,6 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 	for (const auto &file : state.files) {
 		const auto &verdict = file.verdict;
 		const auto &reading = file.reading;
-		selected = selected || (reading.factoriesSelected > 0);
 		scan.examined(reading.batches);
 		for (auto i = 0; i != reading.leaks; ++i) {
 			scan.matchedSubject(file.name
@@ -2572,7 +2788,7 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 		}
 	}
 	const auto files = int(state.files.size());
-	Row(u"ATTACK_TOTALS"_q, {
+	WriteRow(state, u"ATTACK_TOTALS"_q, {
 		{ u"path"_q, path },
 		{ u"files"_q, files },
 		{ u"ran"_q, ran },
@@ -2594,7 +2810,7 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 		{ u"clicksAttempted"_q, clicksAttempted },
 		{ u"clicksObserved"_q, clicksObserved },
 		{ u"clicksDecided"_q, clicksDecided },
-		{ u"clickSource"_q, ClickSourceOnce(selected) },
+		{ u"clickSource"_q, ClickSource() },
 		{ u"layers"_q, layers },
 		{ u"unknownRequested"_q, Strings(state.unknown) },
 		{ u"selfChecked"_q, state.selfChecked },
@@ -2603,8 +2819,11 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 	if (!checks) {
 		return;
 	}
-	const auto discriminates = scan.report();
-	Check(
+	const auto discriminates = state.capture
+		? (scan.controlCount() > 0)
+		: scan.report();
+	Decide(
+		state,
 		discriminates && !leaks,
 		Prefixed(u"no attack file leaks a URL into the validated ops"_q),
 		u"leaks=%1 files=%2 batches=%3 control=%4"_q.arg(
@@ -2612,18 +2831,21 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 			leaking.join(u","_q),
 			NumberText(batches),
 			NumberText(state.control.leaks)));
-	Check(
+	Decide(
+		state,
 		!gaps,
 		Prefixed(u"every host message of every file was scanned: no scan "
 			u"gaps"_q),
 		u"gaps=%1"_q.arg(NumberText(gaps)));
-	Check(
+	Decide(
+		state,
 		unbatched.isEmpty(),
 		Prefixed(u"every loaded file's validated batches were observed"_q),
 		u"loaded=%1 without batches=[%2]"_q.arg(
 			NumberText(loaded),
 			unbatched.join(u","_q)));
-	Check(
+	Decide(
+		state,
 		(ran == files) && (files > 0) && state.unknown.isEmpty(),
 		Prefixed(u"every requested file ran"_q),
 		u"files=%1 ran=%2 notRun=[%3] unknown=[%4]"_q.arg(
@@ -2631,7 +2853,8 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 			NumberText(ran),
 			notRun.join(u"; "_q),
 			state.unknown.join(u","_q)));
-	Check(
+	Decide(
+		state,
 		incomplete.isEmpty(),
 		Prefixed(u"every file that ran was observed completely: no fixture "
 			u"refusal, every watch run, every live card clicked once with "
@@ -2644,21 +2867,26 @@ void EmitTotals(AuditState &state, const QString &path, bool checks) {
 			NumberText(clicksAttempted),
 			NumberText(clicksObserved),
 			NumberText(clicksDecided),
-			ClickSourceOnce(selected),
+			ClickSource(),
 			incomplete.join(u"; "_q)));
-	Check(
+	Decide(
+		state,
 		pending.isEmpty() && state.abort.isEmpty(),
 		Prefixed(u"every file's factories and wrappers finished before its "
 			u"final reading"_q),
 		u"pending=[%1] abort=[%2]"_q.arg(
 			pending.join(u","_q),
 			state.abort));
-	Check(
+	Decide(
+		state,
 		opened.isEmpty(),
 		Prefixed(u"no attack file opened a layer"_q),
 		u"layers=%1 files=[%2]"_q.arg(
 			NumberText(layers),
 			opened.join(u","_q)));
+	if (state.capture) {
+		return;
+	}
 	Note(Prefixed(u"recorded, not failed, and never counted clean: dead=[%1] "
 		u"notLoaded=[%2] violating=[%3]"_q.arg(
 			dead.join(u"; "_q),
@@ -2904,9 +3132,12 @@ void AppendWidgetAttackAudit(
 	ListCorpus(*state);
 
 	// Registered before anything is changed: every path that reaches
-	// Runner::finish() runs the same idempotent release, then writes the
-	// rows no stage wrote, so no selected file goes unreported.
+	// Runner::finish() stops the self-check's exchange leg, without waiting
+	// for it, runs the same idempotent release, then writes the rows no
+	// stage wrote, so no selected file goes unreported.
+	const auto exchanges = std::make_shared<WidgetOpsExchanges>();
 	runner->onFinish([=] {
+		exchanges->stop();
 		const auto release = ReleaseWidgetFixture(
 			*state->fixture,
 			u"onFinish"_q);
@@ -2920,13 +3151,27 @@ void AppendWidgetAttackAudit(
 	runner->add({
 		.name = Prefixed(u"tap, scanner and verdict self-check"_q),
 		.run = [=] {
-			auto check = RunWidgetOpsSelfCheck();
+			auto check = RunWidgetOpsSelfCheck(WidgetOpsExchangeLeg::Apart);
 			for (const auto &row : check.rows) {
 				Check(row.passed, row.name, row.details);
 			}
 			CheckVerdicts(*state);
 			state->control = std::move(check.control);
+			exchanges->start();
+		},
+		.until = [=] {
+			return exchanges->ready();
+		},
+		.then = [=] {
+			for (const auto &row : exchanges->take()) {
+				Check(row.passed, row.name, row.details);
+			}
 			state->selfChecked = true;
+		},
+		.timeout = kWidgetOpsExchangesTimeout,
+		.timeoutDetails = [] {
+			return u"the scanner's exchange leg is still playing on its "
+				u"thread"_q;
 		},
 	});
 	runner->add({

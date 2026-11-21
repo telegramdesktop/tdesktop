@@ -255,7 +255,7 @@ void AddRow(
 		const QString &name,
 		const QString &details) {
 	result.rows.push_back({
-		.name = u"widget ops self-check: "_q + name,
+		.name = SelfCheckRowName(name),
 		.details = details,
 		.passed = passed,
 	});
@@ -3084,7 +3084,7 @@ namespace Test {
 
 using namespace WidgetOps;
 
-WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
+WidgetOpsSelfCheck RunWidgetOpsSelfCheck(WidgetOpsExchangeLeg exchanges) {
 	auto result = WidgetOpsSelfCheck();
 	const auto active = Active();
 	AddRow(
@@ -3103,8 +3103,10 @@ WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
 			SelfCheckId(kHostedEvictedIndex))) {
 		AddRow(result, row.passed, row.name, row.details);
 	}
-	for (const auto &row : CheckHostedExchanges()) {
-		AddRow(result, row.passed, row.name, row.details);
+	if (exchanges == WidgetOpsExchangeLeg::Within) {
+		for (const auto &row : CheckHostedExchanges()) {
+			AddRow(result, row.passed, row.name, row.details);
+		}
 	}
 	CheckBudget(result);
 	CheckScanGaps(result);
