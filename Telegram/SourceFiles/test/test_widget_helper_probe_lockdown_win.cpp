@@ -684,12 +684,22 @@ void PrepareProbeTargets(
 }
 
 [[nodiscard]] std::string ProbePackage() {
+	using GetFullName = decltype(&GetCurrentPackageFullName);
+	auto get = GetFullName();
+	if (const auto kernel = GetModuleHandleW(L"kernel32.dll")) {
+		get = reinterpret_cast<GetFullName>(
+			GetProcAddress(kernel, "GetCurrentPackageFullName"));
+	}
+	if (!get) {
+		return "package identity: not available "
+			"(GetCurrentPackageFullName is missing)";
+	}
 	auto length = UINT32();
-	auto result = GetCurrentPackageFullName(&length, nullptr);
+	auto result = get(&length, nullptr);
 	auto name = std::wstring();
 	if (result == ERROR_INSUFFICIENT_BUFFER) {
 		name.resize(length);
-		result = GetCurrentPackageFullName(&length, name.data());
+		result = get(&length, name.data());
 	}
 	if (result == APPMODEL_ERROR_NO_PACKAGE) {
 		return "package identity: none (APPMODEL_ERROR_NO_PACKAGE)";

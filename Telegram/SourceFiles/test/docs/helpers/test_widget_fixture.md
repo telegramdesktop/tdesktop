@@ -1881,25 +1881,71 @@ packs, the fixture and the seams they use need no change for it.
   Telegram's precompiled header, as a Windows GUI image with
   `/ENTRY:mainCRTStartup` (so that no console is started) and the static
   CRT. Nova reaches it as one static library: cargo builds
-  `nova_embed_ffi` for the helper's target, `i686-pc-windows-msvc` in a
-  Win32 tree (`x86_64-pc-windows-msvc` for x64 and
+  `nova_embed_ffi` for the helper's target with `-Z build-std` and
+  `+crt-static` and always `--release`, into the build tree's
+  `nova_engine\nova_embed_ffi.lib` (`Telegram/cmake/lib_nova_engine.cmake`,
+  `build_nova_engine.cmake`), and only the helper links it: `Telegram.exe`
+  on Windows links without any widget engine. The target is
+  `x86_64-win7-windows-msvc` in an x64 tree, the one `prepare.py`'s
+  `tdesktop_rust` stage builds for x64, whose std supports Windows 7 and
+  links ADVAPI32; `i686-pc-windows-msvc` in a Win32 tree for now; and
   `aarch64-pc-windows-msvc` for ARM64, whose helpers have not been built
-  with Nova), with `-Z build-std` and `+crt-static` and always `--release`,
-  into the build tree's `nova_engine\nova_embed_ffi.lib`
-  (`Telegram/cmake/lib_nova_engine.cmake`, `build_nova_engine.cmake`), and
-  only the helper links it: `Telegram.exe` on Windows links without any
-  widget engine. Read in the x86 tree on Windows 10.0.26300, the Debug
-  helper's static imports are ADVAPI32, KERNEL32, ntdll and the API set
-  `api-ms-win-core-synch-l1-2-0.dll` (`WaitOnAddress`,
-  `WakeByAddressAll` and `WakeByAddressSingle`), and it delay-loads
-  `bcrypt.dll`, `bcryptprimitives.dll` and, for the probe alone,
-  `WS2_32.dll`; the Release helper has the same static imports and
-  delay-loads `bcrypt.dll` and `bcryptprimitives.dll`, with no
-  `WS2_32.dll`. Neither imports user32, gdi32 or Qt, and each binds
-  `bcrypt.dll` and `bcryptprimitives.dll` in its lowering (**The Windows
-  lowering** below). The earlier imports were read on helpers built with
-  the QuickJS engine, before the Nova change, the hosted helper's the
-  same as the engine-only one's: their static imports were ADVAPI32 and
+  with Nova. x86 stays on its pc target because an
+  `i686-win7-windows-msvc` archive built with the same recipe ended the
+  process with `0xC0000374` (heap corruption) whenever it compiled a
+  script that declares a class
+  (`2026/11/21/build-the-windows-widget-helper-image-for-windows-7`, its
+  `work/decisions.md`, W16); the x86 move to a win7 target belongs to
+  `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`.
+  Under `DESKTOP_APP_WIN7_BASELINE`, the Windows 7 baseline of the x86 and
+  x64 builds, the helper links `/SUBSYSTEM:WINDOWS,6.01` as `Telegram.exe`
+  and the Updater do, so its header names 6.01, Windows 7, as the lowest
+  Windows version; ARM64 has no such baseline and keeps the linker's
+  default version.
+  The x64 helper imports statically only KERNEL32 and ntdll, and
+  delay-loads ADVAPI32, `bcrypt.dll` and, in the Debug build for the probe
+  alone, `WS2_32.dll`. The x64 helper's win7 std draws its random bytes
+  through ADVAPI32's `SystemFunction036` (`RtlGenRandom`). The Windows 7 SP1
+  export database `win7sp1_exports.txt` of the import gate that
+  `.github/workflows/win7-gate.yml` runs on `Telegram.exe` records that
+  function as ADVAPI32's own export. On Windows 10.0.26300, where the
+  helper was measured, ADVAPI32 forwards it to
+  `CRYPTBASE.SystemFunction036`, `cryptbase.dll` is no KnownDLL, and a
+  lookup through the forwarder maps it: for a static import at process
+  start, where Windows' parallel loader can open it on a worker thread
+  that runs as the LPAC primary (P6 in **The Windows lowering** below),
+  and for a delay import in the `GetProcAddress` of the CRT's delay-load
+  helper. So the x64 helper's delay-load notification hook
+  (`__pfnDliNotifyHook2` in `_other/widget_helper_win.cpp`, compiled for
+  x64 only) answers that one import at `dliNotePreGetProcAddress`, before
+  that `GetProcAddress`, with the helper's own function, which returns
+  whether `BCryptGenRandom` with `BCRYPT_USE_SYSTEM_PREFERRED_RNG`
+  succeeded; the delay-load helper writes that address into the import
+  table, and every other import resolves as without the hook.
+  The x86 helper keeps the pc target's imports: it imports statically
+  ADVAPI32, KERNEL32, ntdll and the pc std's API set
+  `api-ms-win-core-synch-l1-2-0.dll`, and delay-loads `bcrypt.dll`,
+  `bcryptprimitives.dll`, whose `ProcessPrng` is its std's random
+  source, and, in the Debug build for the probe alone, `WS2_32.dll`.
+  These DLLs were read on the same target's Debug and Release helpers in
+  the x86 tree on Windows 10.0.26300, before the run-time lookups of
+  `SetDefaultDllDirectories` and `GetCurrentPackageFullName` (`Adopt()`
+  below, and **Windows probe**): both imported `WaitOnAddress`,
+  `WakeByAddressAll` and `WakeByAddressSingle` from the API set, and only
+  the Debug one delay-loaded `WS2_32.dll`. Windows 7 SP1, as the import
+  gate's database records it, lacks three of the pc std's imports in the
+  x86 image: the API set, KERNEL32's `GetSystemTimePreciseAsFileTime` and
+  `bcryptprimitives.dll`'s `ProcessPrng`, so the x86 image meets the
+  Windows 7 baseline by its header but not by its tables.
+  The ARM64 helper keeps the pc target's std as well, whose random source
+  is the same `ProcessPrng`, so by its build rules (no ARM64 helper's
+  tables have been read) it imports ADVAPI32 and the pc std's API set
+  statically and delay-loads `bcrypt.dll`, `bcryptprimitives.dll` and,
+  for the probe, `WS2_32.dll`. No helper imports user32, gdi32 or Qt, and
+  each binds its delay-loaded DLLs, `WS2_32.dll` aside, in its lowering
+  (**The Windows lowering** below). The imports before the Nova change
+  were read on helpers built with the QuickJS engine, the hosted helper's
+  the same as the engine-only one's: their static imports were ADVAPI32 and
   KERNEL32, both KnownDLLs, loaded from the system directory
   (`/DEPENDENTLOADFLAG:0x800`); `bcrypt.dll` was delay-loaded in every
   configuration, and the Debug build's `WS2_32.dll`, delay-loaded too,
@@ -1909,11 +1955,17 @@ packs, the fixture and the seams they use need no change for it.
   `WidgetHelper::Adopt()` (`_other/widget_helper_win.cpp`), it first
   limits its later DLL loads to the system directory
   (`SetDefaultDllDirectories` with
-  `LOAD_LIBRARY_SEARCH_SYSTEM32`), then takes the token only as a decimal
-  handle value without a sign, a leading zero or trailing text that is no
-  pseudo-handle, and adopts only the byte-mode client end of a pipe, whose
-  inheritance it clears; anything else is `Widget helper: the channel
-  could not be adopted`, exit 1, before it reads the channel.
+  `LOAD_LIBRARY_SEARCH_SYSTEM32`, looked up at run time in the already
+  mapped kernel32, because Windows 7 has it only with KB2533623, so no
+  helper image imports it; without kernel32 or the function, or when the
+  call fails, it refuses as below before it reads the token), then takes
+  the token only as a decimal handle value without a sign, a leading zero
+  or trailing text that is no pseudo-handle, and adopts only the
+  byte-mode client end of a pipe, whose inheritance it clears; anything
+  else is `Widget helper: the channel could not be adopted`, exit 1,
+  before it reads the channel. The CRT's delay-load helper loads its DLLs
+  with no search flags of its own, and every such load comes after
+  `Adopt()`, so it inherits that limit.
 - **The Windows lowbox.** `NtCreateLowBoxToken` boxes each of the two
   restricted tokens with one package SID, derived from the fixed name
   `telegram.desktop.widget-helper` by
@@ -1960,11 +2012,12 @@ packs, the fixture and the seams they use need no change for it.
   `the token's WIN://NOALLAPPPKG has <n> values`, `the token's
   WIN://NOALLAPPPKG value is <n>` and `GetTokenInformation failed: error
   <n>`. The design makes no grant: the client opens the image, the
-  helper imports statically only system DLLs and an API set (**The
-  Windows helper** above; the static imports of the QuickJS-era helpers
-  were ADVAPI32 and KERNEL32, both KnownDLLs), it binds the delay-loaded
-  DLLs it uses while it still impersonates (**The Windows lowering**
-  below), and every later DLL comes from the system directory. The
+  helper imports statically only system DLLs, on x86 and ARM64 with the pc
+  std's API set (**The Windows helper** above; the static imports of the
+  QuickJS-era helpers were ADVAPI32 and KERNEL32, both KnownDLLs), it
+  binds the delay-loaded DLLs it uses while it still impersonates (**The
+  Windows lowering** below), and every later DLL comes from the system
+  directory. The
   evidence campaign of
   `2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`
   (its `work/test.md`, Attempt 1 Run 3, Win32 Debug only, with the
@@ -2062,9 +2115,12 @@ packs, the fixture and the seams they use need no change for it.
   exists (`LockDownHelper()` in `widget_sandbox_win.cpp`, which
   `WidgetHelper::Lockdown()` calls). While still impersonating it checks
   that the mitigation readback is available (`the mitigation policy
-  functions are not available` otherwise), binds the delay-loaded
-  `bcrypt.dll` imports and then the `bcryptprimitives.dll` ones with
-  `__HrLoadAllImportsForDll`, derives its
+  functions are not available` otherwise), binds the delay-loaded imports
+  with `__HrLoadAllImportsForDll`, on x64 those of `ADVAPI32.dll` and then
+  those of `bcrypt.dll`, on x86 and ARM64 those of `bcrypt.dll` and then
+  those of `bcryptprimitives.dll`, each by the exact name the linker gave
+  its descriptor (the CRT's `PiddFromDllName()` in `delayhlp.cpp` compares
+  names case-sensitively), derives its
   package SID once (which loads `USERENV.dll`; the checkpoint of
   `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
   saw it map `profext.dll` as well, the host of the API set USERENV
@@ -2078,18 +2134,46 @@ packs, the fixture and the seams they use need no change for it.
   trace pointed to Windows' parallel loader opening it on a worker thread
   that runs as the primary
   (`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`,
-  its `work/decisions.md`, P6). The Nova engine's Rust runtime adds
-  `bcryptprimitives.dll`, its random source, which is not a KnownDLL on
-  every Windows either, so the helper delay-loads it too and binds it
-  right after `bcrypt.dll`. Telegram, which compiles the same unit and
-  delay-loads `bcrypt.dll` too, never runs this lowering. A failed bind
-  stays closed before Ready either way: a missing delay descriptor refuses
-  with `__HrLoadAllImportsForDll(<dll>) failed: 0x<hresult>`, `<dll>`
-  being `bcrypt.dll` or `bcryptprimitives.dll`, and a
-  module that cannot be loaded raises the delay-load exception, which
-  nothing catches, so the helper dies before any frame with `exit
-  0xC06D007E` or `exit 0xC06D007F`; no run has seen either. Then it
-  reverts to its lockdown token, disables the predefined registry key
+  its `work/decisions.md`, P6). On x86 and ARM64 the pc target's Rust
+  runtime adds `bcryptprimitives.dll`, its random source, which is not a
+  KnownDLL on every Windows either, so the x86 and ARM64 helpers
+  delay-load it too and bind it right after `bcrypt.dll`. On x64 the win7
+  runtime's random source is ADVAPI32's `SystemFunction036`, which the
+  delay-load hook answers with the helper's own `BCryptGenRandom`
+  function (**The Windows helper** above), so the ADVAPI32 bind follows
+  no forwarder into `cryptbase.dll`. The x64 helper binds the whole
+  ADVAPI32 descriptor because ADVAPI32 is still called after the
+  reversion: the steps and checks after it call
+  `RegDisablePredefinedCacheEx`, `RegCloseKey`, `OpenThreadToken`,
+  `GetTokenInformation` and more, the Debug probe calls
+  `IsTokenRestricted`, and the Rust runtime calls `SystemFunction036`
+  during widget work. Left lazy, any of these first called after the
+  reversion would resolve its delay import after the lowering.
+  `RevertToSelf` itself is no such case: its lazy thunk would resolve on
+  its first call, before that call drops the impersonation. Telegram,
+  which compiles the same unit and delay-loads `bcrypt.dll` too, never
+  runs this lowering. A failed bind stays closed before Ready either way
+  (`__HrLoadAllImportsForDll()` and `__delayLoadHelper2()` in MSVC
+  14.44's `delayhlp.cpp`). A name that is missing or in another case
+  matches no descriptor, so `__HrLoadAllImportsForDll` binds nothing and
+  returns `0x8007007E` (`HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND)`) to the
+  warm-up, which refuses with
+  `__HrLoadAllImportsForDll(<dll>) failed: 0x<hresult>`, here
+  `0x8007007e`, `<dll>` being `ADVAPI32.dll` or `bcrypt.dll` on x64 and
+  `bcrypt.dll` or `bcryptprimitives.dll` on x86 and ARM64. A matching
+  descriptor never makes it return a failure: it calls
+  `__delayLoadHelper2` for each of the descriptor's entries and returns
+  `S_OK` after the last, and `__delayLoadHelper2` raises `0xC06D007E`
+  (`ERROR_MOD_NOT_FOUND`) when `LoadLibraryEx` cannot load the DLL and
+  `0xC06D007F` (`ERROR_PROC_NOT_FOUND`) when neither the x64 delay-load
+  hook nor `GetProcAddress` resolves a function of the loaded DLL. No
+  failure hook is set and nothing catches either exception, so the
+  helper dies before Ready, and so before any frame, with
+  `exit 0xC06D007E` or `exit 0xC06D007F`. No run has seen either from the
+  warm-up; the `exit 0xC06D007E` that **What the Windows lowering
+  leaves** below records ended a helper later, during widget work before
+  the random warm-up existed. Then the helper reverts to its lockdown
+  token, disables the predefined registry key
   cache and closes the cached roots, and verifies itself: no thread token,
   the lockdown token above, an LPAC token of exactly its package with no
   capability (the AppContainer check's errors above), its job's limits and
@@ -2140,10 +2224,15 @@ packs, the fixture and the seams they use need no change for it.
   (two when the client's working directory was not given),
   `HKEY_CURRENT_USER\Software` and
   `HKEY_LOCAL_MACHINE\SOFTWARE`; read back the thread token, the process
-  token and the job; read the helper's package identity (`package
-  identity: none (APPMODEL_ERROR_NO_PACKAGE)` in a process without one,
-  the package full name in an installed Store package, **The Windows
-  Store build** below, or `GetCurrentPackageFullName failed: error N`);
+  token and the job; read the helper's package identity through
+  `GetCurrentPackageFullName`, which `ProbePackage()` looks up at this
+  point, after the lowering, in the already mapped kernel32, a lookup
+  that binds no import slot (`package identity: none
+  (APPMODEL_ERROR_NO_PACKAGE)` in a process without one, the package full
+  name in an installed Store package, **The Windows Store build** below,
+  `GetCurrentPackageFullName failed: error N`, or `not available
+  (GetCurrentPackageFullName is missing)` where kernel32 lacks the
+  function, as on Windows 7);
   read back the win32k disable of the helper's creation
   (`win32k system calls: DISABLED (ProcessSystemCallDisablePolicy
   0x<flags>)`, `ENABLED (...)` when `DisallowWin32kSystemCalls` is clear,
@@ -2253,9 +2342,11 @@ packs, the fixture and the seams they use need no change for it.
   KnownDll `ws2_32.dll`), so a path that needs a delay-loaded DLL the
   helper had not mapped before the lowering can end it: before the random
   warm-up existed, a widget's `crypto.getRandomValues` ended the helper
-  with `exit 0xC06D007E`. `TelegramWidgetHelper.exe` imports ADVAPI32
-  statically and binds `bcrypt.dll` and `bcryptprimitives.dll` before the
-  lowering (**The Windows lowering** above). At ordinary Ready and after
+  with `exit 0xC06D007E`. `TelegramWidgetHelper.exe` binds the delay
+  imports it needs outside the probe before the lowering: `ADVAPI32.dll`
+  and `bcrypt.dll` on x64, and on x86 and ARM64, which import ADVAPI32
+  statically, `bcrypt.dll` and `bcryptprimitives.dll` (**The Windows
+  lowering** above). At ordinary Ready and after
   widget work, measured with the QuickJS engine while it served engines
   alone, its modules were its own image and
   system DLLs only: on x86 ntdll, KERNEL32,

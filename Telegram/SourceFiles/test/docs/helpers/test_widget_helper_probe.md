@@ -566,18 +566,43 @@ The helper then serves widgets as in `helper` mode, so a probe launch is no
 helper failure. On the hosted opening it serves each whole widget, whose
 served host, validator and renderer are built only after Ready and so after
 the report ([Remote engines](test_widget_fixture.md#remote-engines)). After
-the lockdown the hook calls only what was bound
-before it: the helper's static imports, the delay-loaded `bcrypt.dll` and
-`bcryptprimitives.dll` imports, which the lockdown's warm-up binds in that
-order, the `WS2_32.dll` imports,
-which the native probe and then the harness's own Winsock start each bind
-(the harness uses Winsock only when its own bind and `WSAStartup`
-succeeded), and `NtCreateFile` and `RtlInitUnicodeString`, resolved from
-the already mapped ntdll. `WS2_32.dll` is a delay import of the Debug
-helper alone, for the probe: every `WS2_32.dll` import of the image is the
-probe's, and the Release helper has none, with the Nova engine as with
-QuickJS before it (**The Windows helper** in
-[Remote engines](test_widget_fixture.md#remote-engines)). A probe helper
+the lockdown the hook calls only import entries bound before it and
+functions looked up in modules mapped before it. The import entries are
+the helper's static imports; the delay-loaded imports that the lockdown's
+warm-up binds in this order, `ADVAPI32.dll` then `bcrypt.dll` on x64, and
+`bcrypt.dll` then `bcryptprimitives.dll` on x86 and ARM64, whose ADVAPI32
+is a static import (on x64 the probe's `PrepareProbeTargets()` resolves
+ADVAPI32's `RegOpenKeyExW` earlier, on the same impersonating thread);
+and the `WS2_32.dll` imports, which the native probe and then the
+harness's own Winsock start each bind (the harness uses Winsock only when
+its own bind and `WSAStartup` succeeded). The probe's own lookups are
+`NtCreateFile` and `RtlInitUnicodeString`, which the harness resolves
+from the already mapped ntdll before the lowering, and
+`GetCurrentPackageFullName`, which `FinishProbe()`'s `ProbePackage()`
+resolves from the already mapped kernel32 after it, when it writes the
+`package identity` row ([Windows Store](#windows-store)). After the
+lowering `FinishProbe()` also calls `ProbeWin32k()` and
+`ProbeMitigation()` for its `win32k system calls:` and
+`mitigation <name>:` rows, and both read through
+`Platform::WidgetHelper::ReadMitigation()`, which calls the
+`GetProcessMitigationPolicy` pointer that `ResolvedPolicyFunctions()` in
+`widget_sandbox_win.cpp` looked up in the mapped kernel32 and cached
+before the reversion, at the latest in the warm-up, which refuses
+without it. Neither those reads nor the package lookup bind an import
+slot or complete a delay-load entry. The warm-up's descriptors follow each
+architecture's Nova engine: on x64 it is built for
+`x86_64-win7-windows-msvc`, whose std draws its random bytes through
+ADVAPI32's `SystemFunction036`, and the helper's delay-load hook answers
+that import with the helper's own `BCryptGenRandom` adapter; x86 and
+ARM64 build it for the pc targets `i686-pc-windows-msvc` and
+`aarch64-pc-windows-msvc`, whose std calls `bcryptprimitives.dll`'s
+`ProcessPrng`. **The Windows helper** in
+[Remote engines](test_widget_fixture.md#remote-engines) has each
+architecture's targets and imports in full. `WS2_32.dll` is a delay
+import of the Debug helper alone, for the probe: every `WS2_32.dll`
+import of the image is the probe's, a Debug helper started without
+`probe` leaves it unbound, and the Release helper has none, with the Nova
+engine as with QuickJS before it. A probe helper
 therefore maps `WS2_32.dll` and `mswsock.dll`, which the ordinary helpers
 did not load in the module readings taken with the QuickJS engine. Neither
 probe is an inventory of what the helper holds. The native probe's lines,
@@ -784,10 +809,17 @@ rows. What differs was measured on Windows 10.0.26300.9711 x64 in a
   job only; the package job's members were not listed.
 - **`package identity`.** Right after `job:` the native probe writes
   `after lowering: package identity: <reading>` from
-  `GetCurrentPackageFullName()`: `none (APPMODEL_ERROR_NO_PACKAGE)` in a
+  `GetCurrentPackageFullName()`. Unlike the import entries the probe calls,
+  all bound before the lowering ([Windows](#windows)), that function is
+  looked up after it: `FinishProbe()`'s `ProbePackage()` resolves it from
+  the already mapped kernel32 when it writes the row. That lookup binds no
+  import slot, and the Debug helper does not import that Windows 8
+  function. The row reads `none (APPMODEL_ERROR_NO_PACKAGE)` in a
   process without package identity, as the x86 and x64 non-Store helpers
-  read it, the package full name in one with it, and
-  `GetCurrentPackageFullName failed: error <n>` for any other result.
+  read it, the package full name in one with it,
+  `GetCurrentPackageFullName failed: error <n>` for any other result, and
+  `not available (GetCurrentPackageFullName is missing)` where kernel32
+  lacks the function, as on Windows 7, where no probe has run.
   The Store helper read the package's full name: it inherits the identity
   of the package its client runs in. Nothing in the confinement relies on
   its absence; the hold, every token check and every denial held with it.
