@@ -6964,7 +6964,7 @@ private:
 constexpr auto kFullscreenSide = 56;
 
 // Полноэкранный плеер: размытый цветной фон, крупный текст песни, тонкая полоса времени.
-// Пункт навигации полноэкранного плеера: слева в столбце или пилюлей в ряду.
+// Пункт навигации полноэкранного плеера или кнопка возврата.
 class NavItem final : public Ui::AbstractButton {
 public:
 	NavItem(QWidget *parent, const QString &text, bool centered)
@@ -6972,6 +6972,9 @@ public:
 	, _text(text)
 	, _centered(centered) {
 		setPointerCursor(true);
+		setFocusPolicy(Qt::TabFocus);
+		setAccessibleName(text);
+		setToolTip(text);
 		paintRequest(
 		) | rpl::on_next([=](QRect) {
 			paint();
@@ -7032,11 +7035,18 @@ private:
 			inactive,
 			active,
 			_fade.value(_active ? 1. : 0.)));
-		const auto inner = rect().adjusted(s(16), 0, -s(16), 0);
+		const auto inset = std::min(s(_centered ? 6 : 16), width() / 2);
+		const auto inner = rect().adjusted(inset, 0, -inset, 0);
 		p.drawText(
 			inner,
 			(_centered ? Qt::AlignHCenter : Qt::AlignLeft) | Qt::AlignVCenter,
 			QFontMetrics(font).elidedText(_text, Qt::ElideRight, inner.width()));
+		if (hasFocus()) {
+			p.setPen(QPen(st::windowFg->c, s(1)));
+			p.setBrush(Qt::NoBrush);
+			p.drawRoundedRect(rect().adjusted(s(2), s(2), -s(2), -s(2)),
+				s(18), s(18));
+		}
 	}
 
 	QString _text;
@@ -7906,13 +7916,12 @@ protected:
 	enum class Tab { Now, Home, Search, Library, Playlists, Queue };
 	struct Layout {
 		bool verticalNav = false;
-		bool showRight = false;
 		bool compact = false;
 		bool ultra = false;
 		bool barShown = true;
 		QRect nav;
+		QRect homeBack;
 		QRect center;
-		QRect right;
 		QRect bar;
 		int scrollTop = 0;
 		QRect cover;
@@ -7954,26 +7963,36 @@ protected:
 			barHeight);
 
 		// Сверху ряд вкладок по центру экрана, справа кнопка «свернуть».
-		const auto reserve = (_tab == Tab::Home && _homeAlbumOpen)
+		result.verticalNav = width() < s(720);
+		const auto homeDetail = (_tab == Tab::Home && _homeAlbumOpen);
+		const auto inlineBack = homeDetail && width() >= s(960);
+		const auto reserve = inlineBack
 			? s(168)
 			: margin + _collapse->width() + s(8);
 		const auto navWidth = std::clamp(width() - 2 * reserve, 0, s(900));
-		result.verticalNav = width() < s(560);
 		result.nav = QRect((width() - navWidth) / 2, margin, navWidth, s(result.verticalNav ? 80 : 40));
 		result.collapse = QPoint(
 			width() - margin - _collapse->width(),
 			margin + (s(40) - _collapse->height()) / 2);
-		const auto top = result.nav.y() + result.nav.height() + gap;
+		auto top = result.nav.y() + result.nav.height() + gap;
+		if (homeDetail) {
+			if (inlineBack) {
+				result.homeBack = QRect(
+					s(24) + _filter->width(), result.nav.y(), s(96), result.nav.height());
+			} else {
+				result.homeBack = QRect(margin, top, s(128), s(36));
+				top += result.homeBack.height();
+			}
+		}
 		const auto areaBottom = result.bar.y() - gap;
 		const auto areaHeight = std::max(areaBottom - top, 0);
 
 		if (now) {
-			// Обложка слева, текст песни по центру остального экрана.
-			result.showRight = width() >= s(800);
 			auto lyricsLeft = margin;
-			if (result.showRight) {
+			auto lyricsTop = top;
+			if (width() >= s(800)) {
+				// Обложка слева, текст песни по центру остального экрана.
 				const auto colWidth = std::clamp(int(width() * 0.29), s(190), s(460));
-				result.right = QRect(margin, top, colWidth, areaHeight);
 				const auto side = std::max(std::min({
 					colWidth - 2 * pad,
 					std::max(areaHeight - s(16), 0) * 4 / 5,
@@ -7981,19 +8000,30 @@ protected:
 				const auto coverHeight = side * 5 / 4;
 				const auto y = top + std::max((areaHeight - coverHeight) / 2, 0);
 				result.cover = QRect(margin + (colWidth - side) / 2, y, side, coverHeight);
-				const auto infoInset = std::min(s(24), side / 4);
-				result.info = QRect(
-					result.cover.x() + infoInset,
-					result.cover.y() + std::max(coverHeight - s(76), 0),
-					std::max(side - 2 * infoInset, 0),
-					std::min(s(56), coverHeight));
 				lyricsLeft = margin + colWidth + s(32);
+			} else {
+				// В узком окне обложка над текстом, если по высоте хватает места для обоих.
+				const auto coverHeight = std::min(areaHeight * 2 / 5, s(360));
+				const auto side = std::min(width() - 2 * (margin + pad), coverHeight * 4 / 5);
+				if (side >= s(128)) {
+					result.cover = QRect((width() - side) / 2, top, side, side * 5 / 4);
+					lyricsTop += result.cover.height() + gap;
+				}
+			}
+			if (!result.cover.isEmpty()) {
+				const auto cover = result.cover;
+				const auto infoInset = std::min(s(24), cover.width() / 4);
+				result.info = QRect(
+					cover.x() + infoInset,
+					cover.y() + std::max(cover.height() - s(76), 0),
+					cover.width() - 2 * infoInset,
+					std::min(s(56), cover.height()));
 			}
 			result.lyrics = QRect(
 				lyricsLeft,
-				top,
+				lyricsTop,
 				std::max(width() - margin - lyricsLeft, 0),
-				areaHeight);
+				std::max(areaBottom - lyricsTop, 0));
 			if (showsQueue()) {
 				result.center = result.lyrics;
 				result.scrollTop = result.center.y();
@@ -8128,7 +8158,7 @@ protected:
 				return InfoHover::BarTitle;
 			}
 		}
-		if (!layout.showRight || _tab != Tab::Now) {
+		if (layout.cover.isEmpty()) {
 			return InfoHover::None;
 		}
 		return title.contains(point)
@@ -8148,8 +8178,8 @@ protected:
 		_playbackBar->setVisible(layout.barShown);
 		_collapse->move(layout.collapse);
 		_filter->move(style::ConvertScale(16), layout.collapse.y());
-		_homeBack->setGeometry(_filter->x() + _filter->width() + s(8), layout.nav.y(), s(96), layout.nav.height());
-		_homeBack->setVisible(_tab == Tab::Home && _homeAlbumOpen);
+		_homeBack->setGeometry(layout.homeBack);
+		_homeBack->setVisible(!layout.homeBack.isEmpty());
 		_queueToggle->move(layout.queue - barOrigin);
 		_heart->move(layout.heart - barOrigin);
 		for (const auto button : { _shuffle.get(), _previous.get(), _play.get(), _next.get(), _repeat.get(), _queueToggle.get() }) {
@@ -9796,7 +9826,7 @@ protected:
 		}();
 		const auto coverRadius = s(10) + (s(22) - s(10)) * morph;
 		const auto drawCover = [&](const QPixmap &pixmap, double opacity, bool current) {
-			if (opacity <= 0. || !layout.showRight || _tab != Tab::Now) {
+			if (opacity <= 0. || layout.cover.isEmpty()) {
 				return;
 			}
 			p.save();
@@ -9877,7 +9907,7 @@ protected:
 				const QString &artist,
 				double opacity,
 				bool current) {
-			if (opacity <= 0. || !layout.showRight || _tab != Tab::Now) {
+			if (opacity <= 0. || layout.cover.isEmpty()) {
 				return;
 			}
 			auto font = titleFont();
@@ -10201,7 +10231,7 @@ private:
 			p.fillRect(area, QColor(0x14, 0x14, 0x15));
 		}
 		const auto layout = computeLayout();
-		if (layout.showRight && _tab == Tab::Now && _accent.isValid()) {
+		if (!layout.cover.isEmpty() && _accent.isValid()) {
 			const auto pulse = (_isPlaying
 				&& Mokagram::Settings::Bool(u"player.dynamic_background"_q)
 				&& !PowerSaving::On(PowerSaving::kAnimations))
