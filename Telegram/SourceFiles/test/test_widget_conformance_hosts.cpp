@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "test/test_widget_conformance_hosts.h"
 
+#include "test/test_widget_conformance_death.h"
 #include "test/test_widget_conformance_state.h"
 #include "test/test_widget_conformance_stop.h"
 #include "test/test_widget_fixture.h"
@@ -205,13 +206,20 @@ WidgetOpsSelfCheckRow CheckHostReadings() {
 			entry.refusal);
 	}
 	for (const auto &entry : stopCases) {
+		auto run = ConformanceRun();
+		auto reading = WidgetOpsReading();
+		reading.fatalFrozen = entry.died ? 1 : 0;
+		ReadDeath(
+			run,
+			WidgetRuntimeLog{
+				.summary = QString::fromLatin1(entry.deathLine),
+				.summaryState = WidgetLogSummary::Fresh,
+			},
+			reading,
+			QString());
 		judge(
 			entry.name,
-			StopRefusal(
-				QString::fromLatin1(entry.stops),
-				entry.died,
-				QString::fromLatin1(entry.deathLine),
-				false),
+			StopRefusal(QString::fromLatin1(entry.stops), run),
 			entry.refusal);
 	}
 

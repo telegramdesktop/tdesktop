@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_conformance_actions.h"
 #include "test/test_widget_conformance_bridge.h"
 #include "test/test_widget_conformance_context.h"
+#include "test/test_widget_conformance_death.h"
 #include "test/test_widget_conformance_hosts.h"
 #include "test/test_widget_conformance_pictures.h"
 #include "test/test_widget_conformance_state.h"
@@ -1213,15 +1214,26 @@ void CaptureEnvironment(ConformanceState &state) {
 		u"each snapshot."_q.arg(NumberText(kCropScale)));
 	result.push_back(u"an entry with stops waits for its widget's death, "
 		u"never for done, as CLIENTS.md's step 4 asks: its result wait ends "
-		u"only at a fatal frozen notice, a stopped or failed runtime, the "
-		u"message gone or the %1 s bound. Its dead is the reason of the "
-		u"\"Died: \" line of its host's final or fresh runtime summary, "
-		u"WidgetDiagnostics::dead verbatim but cut at 240 characters, or, "
-		u"for a stop the desktop decided itself (a paint bound), which no "
-		u"host death carries, RendererCore's stop reason cut the same way, "
-		u"read in the log stage; a stop run that died with neither carries "
-		u"the runner refusal stop-reason-unmeasured. report.mjs alone judges "
-		u"whether dead starts with the entry's stops."_q.arg(
+		u"only at a charged death (a fatal frozen notice, or for a widget "
+		u"hosted in the widget helper a work's final charge), a stopped or "
+		u"failed runtime, the message gone or the %1 s bound. Its dead is "
+		u"the reason of the \"Died: \" line of its host's final or fresh "
+		u"runtime summary, WidgetDiagnostics::dead verbatim but cut at 240 "
+		u"characters, or, for a stop the desktop decided itself (a paint "
+		u"bound), which no host death carries, RendererCore's stop reason "
+		u"cut the same way, read in the log stage; a stop run that died "
+		u"with neither carries the runner refusal stop-reason-unmeasured. "
+		u"A widget hosted in the widget helper dies only of a charge the "
+		u"runtime made of one of its works, read again from the final "
+		u"reading after the removal (also when its log stage was skipped), "
+		u"and its summary's \"Died: \" line, which every host of an ended "
+		u"helper prints, gives its dead only through the record of the "
+		u"work a fresh or final summary was sampled from "
+		u"(log.summaryWork), never through the desktop's own stop: a "
+		u"stalled run's or a refusal's recorded reason, an ordinary "
+		u"death's own line; a charge with no such cause has the dead "
+		u"\"charged, reason unmeasured\". report.mjs alone judges whether "
+		u"dead starts with the entry's stops."_q.arg(
 			NumberText(kResultBound / 1000)));
 	auto uncaptioned = QStringList();
 	for (const auto &test : state.tests) {
@@ -1291,6 +1303,12 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"ackResults"_q, r.ackResults },
 		{ u"renderedHosts"_q, r.renderedHosts },
 		{ u"fatalFrozen"_q, r.fatalFrozen },
+		{ u"hostedSelected"_q, r.hostedSelected },
+		{ u"hostedFinal"_q, r.hostedFinal },
+		{ u"desktopCharges"_q, r.desktopCharges },
+		{ u"sparedRuns"_q, r.sparedRuns },
+		{ u"unaffectedRuns"_q, r.unaffectedRuns },
+		{ u"counts"_q, WidgetTapCounts(r) },
 	};
 }
 
@@ -1370,7 +1388,12 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"received"_q, log.received },
 		{ u"chars"_q, log.chars },
 		{ u"summaryChars"_q, int(log.summary.size()) },
+		{ u"summaryWork"_q, QString::number(run.summaryWork) },
+		{ u"summaryOwn"_q, run.summaryOwn },
 		{ u"deathLine"_q, run.deathLine },
+		{ u"deathMeasured"_q, run.deathMeasured },
+		{ u"desktopStop"_q, run.desktopStop },
+		{ u"sampledRun"_q, SampledRunValue(run) },
 		{ u"summary"_q, run.summaryRead
 			? QJsonValue(ConformanceSummaryObject(run.summary))
 			: QJsonValue(QJsonValue::Null) },
@@ -1455,11 +1478,6 @@ void CaptureEnvironment(ConformanceState &state) {
 			{ u"detail"_q, refusal.detail },
 		});
 	}
-	const auto dead = !run.died
-		? QJsonValue(QJsonValue::Null)
-		: run.dead.isEmpty()
-		? QJsonValue(u"died, reason not observed"_q)
-		: QJsonValue(run.dead);
 	const auto &reported = ReportedResult(run);
 	auto resultObject = ResultObject(reported);
 	resultObject.insert(u"retained"_q, (&reported != &run.result));
@@ -1468,7 +1486,7 @@ void CaptureEnvironment(ConformanceState &state) {
 		{ u"theme"_q, run.theme },
 		{ u"width"_q, (run.width > 0) ? run.width : kWidth },
 		{ u"loaded"_q, run.loaded },
-		{ u"dead"_q, dead },
+		{ u"dead"_q, DeadValue(run) },
 		{ u"checks"_q, reported.present ? reported.checks : QJsonArray() },
 		{ u"stages"_q, stages },
 		{ u"observed"_q, host.observed },
@@ -2210,8 +2228,9 @@ void PrepareOutput(ConformanceState &state) {
 
 // The tap's own scanner checks, the played bot's, the tap's probe-fixture
 // checks, then the pure result reader, summary reader, observation, run
-// file, message context and bot table, selection, host reading, desktop
-// stop, picture and totals controls; every row is one Check.
+// file, message context and bot table, selection, host reading, death
+// reading, desktop stop, picture and totals controls; every row is one
+// Check.
 void RunSelfChecks(ConformanceState &state) {
 	auto failed = QStringList();
 	auto count = 0;
@@ -2259,6 +2278,9 @@ void RunSelfChecks(ConformanceState &state) {
 	}
 	take(CheckSelection());
 	take(CheckHostReadings());
+	for (const auto &row : RunDeathReadingCheck()) {
+		take(SelfCheckRow(row.passed, row.name, row.details));
+	}
 	for (const auto &row : RunDesktopStopCheck()) {
 		take(SelfCheckRow(row.passed, row.name, row.details));
 	}
@@ -2402,12 +2424,6 @@ void CheckInjected(const ConformanceState &state, ConformanceRun &run) {
 	return (wait == ResultWait::Initial) ? kResultBound : kDoneBound;
 }
 
-[[nodiscard]] QString DeathText(bool frozen) {
-	return frozen
-		? u"the host sent a fatal frozen notice"_q
-		: u"the runtime stopped the widget"_q;
-}
-
 void StartResultWait(ConformanceRun &run) {
 	run.progress = u"waiting for the result"_q;
 	const auto shown = run.loadShow.get();
@@ -2444,13 +2460,15 @@ void StartResultWait(ConformanceRun &run) {
 			NumberText(result.generation),
 			NumberText(result.updates),
 			runtime ? RuntimeStateName(current) : u"no-runtime"_q)
-		+ u" ackQueries=%1 ackResults=%2 rendered=%3 frozen=%4"_q.arg(
-			NumberText(reading.ackQueries),
-			NumberText(reading.ackResults),
-			NumberText(reading.renderedHosts),
-			NumberText(reading.fatalFrozen));
+		+ u" ackQueries=%1 ackResults=%2 rendered=%3 frozen=%4 "
+			u"desktopCharges=%5"_q.arg(
+				NumberText(reading.ackQueries),
+				NumberText(reading.ackResults),
+				NumberText(reading.renderedHosts),
+				NumberText(reading.fatalFrozen),
+				NumberText(reading.desktopCharges));
 	return WantedStatus(state, run, wait)
-		|| (reading.fatalFrozen > 0)
+		|| WidgetTapCharged(reading)
 		|| !WidgetFixtureItem(*state.fixture, message.id)
 		|| (current == RuntimeState::Stopped)
 		|| (current == RuntimeState::Failed)
@@ -2462,12 +2480,12 @@ void StartResultWait(ConformanceRun &run) {
 		const ConformanceState &state,
 		const ConformanceRun &run,
 		ResultWait wait,
-		bool frozen,
+		bool charged,
 		const Tgw::Runtime *runtime) {
 	const auto current = runtime ? runtime->state() : RuntimeState::Idle;
 	return WantedStatus(state, run, wait)
 		? run.result.status
-		: frozen
+		: charged
 		? u"died"_q
 		: !WidgetFixtureItem(*state.fixture, run.message->id)
 		? u"gone"_q
@@ -2547,22 +2565,22 @@ void RecordResult(const ConformanceState &state, ConformanceRun &run) {
 	const auto reading = ReadWidgetOps(*message.tap);
 	const auto runtime = FixtureOwnRuntime(*state.fixture, message.id);
 	const auto current = runtime ? runtime->state() : RuntimeState::Idle;
-	const auto frozen = (reading.fatalFrozen > 0);
+	const auto charged = WidgetTapCharged(reading);
 	const auto stopped = runtime && (current == RuntimeState::Stopped);
 	run.resultMs = crl::now() - message.wait.started;
 	run.runtimeState = runtime
 		? RuntimeStateName(current)
 		: u"no-runtime"_q;
 	run.loaded = HostLoaded(reading);
-	run.died = frozen || stopped;
+	run.died = charged || stopped;
 	if (run.died) {
-		run.dead = DeathText(frozen);
+		run.dead = DeathPlaceholder(charged, WidgetTapHosted(reading));
 	}
 	run.resultOutcome = WaitOutcome(
 		state,
 		run,
 		ResultWait::Initial,
-		frozen,
+		charged,
 		runtime);
 	run.progress = u"result: "_q + run.resultOutcome;
 	ReadView(state, run);
@@ -2576,45 +2594,22 @@ void RecordDone(const ConformanceState &state, ConformanceRun &run) {
 	auto &message = *run.message;
 	const auto reading = ReadWidgetOps(*message.tap);
 	const auto runtime = FixtureOwnRuntime(*state.fixture, message.id);
-	const auto frozen = (reading.fatalFrozen > 0);
+	const auto charged = WidgetTapCharged(reading);
 	const auto stopped = runtime
 		&& (runtime->state() == RuntimeState::Stopped);
 	run.doneMs = crl::now() - message.wait.started;
 	run.loaded = run.loaded || HostLoaded(reading);
-	if (!run.died && (frozen || stopped)) {
+	if (!run.died && (charged || stopped)) {
 		run.died = true;
-		run.dead = DeathText(frozen);
+		run.dead = DeathPlaceholder(charged, WidgetTapHosted(reading));
 	}
 	run.doneOutcome = WaitOutcome(
 		state,
 		run,
 		ResultWait::AfterActions,
-		frozen,
+		charged,
 		runtime);
 	run.progress = u"after the actions: "_q + run.doneOutcome;
-}
-
-// The "Died: " line Summarize() puts first, read only from a summary of
-// the host the log was requested for. "terminated" is the runtime's own
-// retirement, not a death. True when it took the host's reason.
-[[nodiscard]] bool ReadDeath(ConformanceRun &run) {
-	const auto &log = run.message->log;
-	const auto own = (log.summaryState == WidgetLogSummary::Fresh)
-		|| (log.summaryState == WidgetLogSummary::Final);
-	const auto first = own
-		? log.summary.section(QChar('\n'), 0, 0)
-		: QString();
-	if (!first.startsWith(u"Died: "_q)) {
-		return false;
-	}
-	run.deathLine = first;
-	const auto reason = first.mid(6).trimmed();
-	if (reason == u"terminated"_q) {
-		return false;
-	}
-	run.died = true;
-	run.dead = reason;
-	return true;
 }
 
 // The card's height in CSS px, CLIENTS.md's end bubble height, while the
@@ -2655,31 +2650,22 @@ void RecordLog(const ConformanceState &state, ConformanceRun &run) {
 	RefreshResult(run);
 	const auto reading = ReadWidgetOps(*message.tap);
 	run.loaded = run.loaded || HostLoaded(reading);
-	if ((reading.fatalFrozen > 0) && !run.died) {
-		run.died = true;
-		run.dead = DeathText(true);
-	}
 	// A stop the desktop decided itself may come after RecordDone().
-	const auto desktopStop = ReadDeath(run)
-		? QString()
-		: ReadDesktopStop(*state.fixture, message, reading.fatalFrozen);
-	if (!desktopStop.isEmpty()) {
-		run.died = true;
-		run.dead = desktopStop;
-	}
+	ReadDeath(
+		run,
+		message.log,
+		reading,
+		ReadDesktopStop(*state.fixture, message, reading.fatalFrozen));
 	ReadSafeAreas(run);
 	const auto &test = state.tests[run.test];
-	for (const auto &refusal : {
-			SafeAreaRefusal(test.safeArea, run.safeAreas, run.loaded),
-			StopRefusal(
-				test.stops,
-				run.died,
-				run.deathLine,
-				!desktopStop.isEmpty()) }) {
-		if (!refusal.name.isEmpty()) {
-			AddRefusal(run, refusal.name, refusal.detail);
-		}
+	const auto refusal = SafeAreaRefusal(
+		test.safeArea,
+		run.safeAreas,
+		run.loaded);
+	if (!refusal.name.isEmpty()) {
+		AddRefusal(run, refusal.name, refusal.detail);
 	}
+	RefuseUnmeasuredStop(run, test.stops);
 	ReadHeight(state, run);
 	ReadBridgeAndErrors(run, reading.factoriesSelected);
 	run.measured = true;
@@ -2689,6 +2675,8 @@ void RecordLog(const ConformanceState &state, ConformanceRun &run) {
 		{ u"run"_q, run.key },
 		{ u"source"_q, log.source },
 		{ u"summaryState"_q, SummaryStateName(log.summaryState) },
+		{ u"summaryWork"_q, QString::number(run.summaryWork) },
+		{ u"deathLine"_q, run.deathLine },
 		{ u"summary"_q, ConformanceSummaryObject(run.summary) },
 		{ u"pending"_q, log.pending },
 		{ u"waitedMs"_q, qint64(crl::now() - message.wait.started) },
@@ -2699,8 +2687,10 @@ void RecordLog(const ConformanceState &state, ConformanceRun &run) {
 }
 
 // The final reading once the hosts finished, or the bound; a run is
-// complete only with that reading final. Hosts that did not finish stop
-// every later injection.
+// complete only with that reading final, and its death is read again from
+// it (ReconcileDeath()) before its row, also when a fixture refusal skipped
+// its log stage, so a hosted charge is never left out of its row. Hosts
+// that did not finish stop every later injection.
 void FinalizeRun(ConformanceState &state, ConformanceRun &run) {
 	const auto &message = *run.message;
 	run.barrierMs = crl::now() - message.removedAt;
@@ -2708,17 +2698,14 @@ void FinalizeRun(ConformanceState &state, ConformanceRun &run) {
 		? ReadWidgetOps(*message.tap)
 		: WidgetOpsReading();
 	run.readingFinal = message.tap && WidgetTapFinished(run.reading);
+	ReconcileDeath(run, state.tests[run.test].stops);
 	run.itemGone = !WidgetFixtureItem(*state.fixture, message.id);
 	if (!run.readingFinal && state.abort.isEmpty()) {
 		state.abort = u"not run: the hosts of %1 had not finished %2 ms "
-			u"after its removal (factories %3 of %4 released, wrappers %5 "
-			u"of %6 destroyed), so no later run was started"_q.arg(
+			u"after its removal (%3), so no later run was started"_q.arg(
 				run.key,
 				NumberText(run.barrierMs),
-				NumberText(run.reading.factoriesReleased),
-				NumberText(run.reading.factoriesSelected),
-				NumberText(run.reading.wrappersDestroyed),
-				NumberText(run.reading.wrappersBuilt));
+				WidgetTapCounts(run.reading));
 	}
 	run.completed = run.measured
 		&& run.readingFinal
@@ -3574,7 +3561,7 @@ void CountCompleted(Tallies &tallies, const ConformanceRun &run) {
 		tallies.notLoaded.push_back(run.key);
 	}
 	if (run.died) {
-		tallies.dead.push_back(run.key + u": "_q + run.dead);
+		tallies.dead.push_back(DeadEntry(run));
 	}
 	if (run.resultOutcome == u"bound"_q) {
 		tallies.bound.push_back(run.key);

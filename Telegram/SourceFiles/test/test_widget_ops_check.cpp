@@ -39,10 +39,6 @@ namespace {
 
 namespace HostedWire = Tgw::HostedWire;
 
-// The death WidgetHost's local glue sends no `frozen` for, and the text a
-// hosted host's onDeath may still carry for a death its owner never asked for.
-constexpr auto kTerminated = "terminated";
-
 // The self-check's inputs and its independently written expectations.
 
 constexpr auto kTheme = "dark";
@@ -185,6 +181,10 @@ constexpr auto kHostedThemeIndex = 14;
 constexpr auto kHostedRetireIndex = 15;
 constexpr auto kHostedSelectedIndex = 16;
 
+// The hosted finals leg's message, and its eviction leg's.
+constexpr auto kHostedFinalsIndex = 19;
+constexpr auto kHostedEvictedIndex = 20;
+
 // The conformance probe check's replacement leg's id, and the first of its
 // fixture cases' ids, one per case.
 constexpr auto kProbeReplacementIndex = 11;
@@ -236,6 +236,11 @@ constexpr auto kProbeCaseIndex = 21;
 		{ u"ackResults"_q, reading.ackResults },
 		{ u"fatalFrozen"_q, reading.fatalFrozen },
 		{ u"renderedHosts"_q, reading.renderedHosts },
+		{ u"hostedSelected"_q, reading.hostedSelected },
+		{ u"hostedFinal"_q, reading.hostedFinal },
+		{ u"desktopCharges"_q, reading.desktopCharges },
+		{ u"sparedRuns"_q, reading.sparedRuns },
+		{ u"unaffectedRuns"_q, reading.unaffectedRuns },
 	};
 	auto result = QStringList();
 	for (const auto &[name, value] : counts) {
@@ -375,7 +380,6 @@ constexpr auto kOlderWork = kHostedWork + 2;
 constexpr auto kNewerWork = kHostedWork + 3;
 
 constexpr auto kHostedHtml = "<p>widget ops self-check</p>";
-constexpr auto kHostedDeath = "the widget engine process ended";
 constexpr auto kPlainPlatform = "self-check: a platform message";
 
 // What the hosted leg's two themes give the helper's renderer, written out
@@ -511,11 +515,6 @@ constexpr auto kReappliedThemeMessage = R"json({"type":"theme","theme":{)json"
 			QString::fromStdString(latest.scheme),
 			QString::number(latest.schemeChanges),
 			QString::fromStdString(latest.themeMessage));
-}
-
-[[nodiscard]] bool TapFinal(const WidgetOpsReading &reading) {
-	return (reading.factoriesReleased == reading.factoriesSelected)
-		&& (reading.wrappersDestroyed == reading.wrappersBuilt);
 }
 
 // The mapping of helper stamps to Telegram's clock and the sums of their
@@ -705,7 +704,7 @@ void ExerciseHelperWork(
 
 // Drives a hosted host's observers the way its host thread would: the
 // validated batch, platform messages with every mirrored way, a malformed
-// mirror and a repeated build, then two deaths.
+// mirror and a repeated build, then its deaths (CheckHostedDeaths()).
 void ExerciseHosted(
 		WidgetOpsSelfCheck &result,
 		WidgetOpsTap &tap,
@@ -837,20 +836,9 @@ void ExerciseHosted(
 	ExerciseHelperWork(result, tap, host, product);
 	CheckHelperWorkArithmetic(result);
 
-	host.onDeath(kTerminated);
-	const auto terminated = ReadWidgetOps(tap).fatalFrozen;
-	host.onDeath(kHostedDeath);
-	const auto died = ReadWidgetOps(tap).fatalFrozen;
-	const auto deaths = std::vector<std::string>{ kTerminated, kHostedDeath };
-	AddRow(
-		result,
-		(terminated == 1) && (died == 2) && (product.deaths == deaths),
-		u"hosted: every death the host reports counts as a fatal frozen, "
-		"one reading terminated too, and reaches the observer it wrapped"_q,
-		u"afterTerminated=%1 afterDeath=%2 productDeaths=%3"_q.arg(
-			QString::number(terminated),
-			QString::number(died),
-			QString::number(int(product.deaths.size()))));
+	for (const auto &row : CheckHostedDeaths(tap, host, product.deaths)) {
+		AddRow(result, row.passed, row.name, row.details);
+	}
 }
 
 // What a widget answers the effective theme probe with, read against
@@ -1997,7 +1985,7 @@ void CheckHostedOrder(WidgetOpsSelfCheck &result, bool olderFirst) {
 				&& (installed.factoriesReleased == 0)
 				&& (released.factoriesReleased == 1)
 				&& (released.wrappersDestroyed == 0)
-				&& !TapFinal(released),
+				&& !WidgetTapFinished(released),
 			u"hosted: a second install does nothing, and the tap's last "
 			"copy releases it while the host's observations go on"_q,
 			u"installed: %1 | released: %2"_q.arg(
@@ -2030,7 +2018,7 @@ void CheckHostedOrder(WidgetOpsSelfCheck &result, bool olderFirst) {
 		AddRow(
 			result,
 			(destroyed.wrappersDestroyed == 1)
-				&& TapFinal(destroyed)
+				&& WidgetTapFinished(destroyed)
 				&& (PressSteps(unregistered) == 0),
 			u"hosted: destroying the host ends its observations, no step of "
 			"its work's presses counts after it, and the reading is "
@@ -2055,7 +2043,7 @@ void CheckHostedOrder(WidgetOpsSelfCheck &result, bool olderFirst) {
 			&& (after.factoriesThrew == 0)
 			&& (after.factoriesReleased == 1)
 			&& (after.wrappersBuilt == 0)
-			&& TapFinal(after),
+			&& WidgetTapFinished(after),
 		u"hosted: a tap dropped uninstalled, as by a failed or discarded "
 		"construction, completes and releases its generation"_q,
 		ReadingText(after));
@@ -3110,6 +3098,11 @@ WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
 	CheckSessions(result);
 	CheckStress(result);
 	result.control = CheckHosted(result);
+	for (const auto &row : CheckHostedFinals(
+			SelfCheckId(kHostedFinalsIndex),
+			SelfCheckId(kHostedEvictedIndex))) {
+		AddRow(result, row.passed, row.name, row.details);
+	}
 	for (const auto &row : CheckHostedExchanges()) {
 		AddRow(result, row.passed, row.name, row.details);
 	}

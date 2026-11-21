@@ -188,8 +188,8 @@ using FixtureRelease = WidgetFixture::FixtureRelease;
 // file-private here: the card rectangle of HtmlWidget, the interactive
 // core's cached frame and the card area it was cut for, whether
 // Runtime::requestLog() kept its callback, and the raw Summarize() text
-// Runtime::applySample() stored with whether it was its host's last. Every
-// use only reads.
+// Runtime::applySample() stored with the host it sampled and whether it
+// was that host's last. Every use only reads.
 template <typename Tag, typename Tag::type Member>
 struct PrivateMember {
 	friend typename Tag::type Get(Tag) {
@@ -242,6 +242,15 @@ struct RuntimeSummaryLastTag {
 template struct PrivateMember<
 	RuntimeSummaryLastTag,
 	&Tgw::Runtime::_summaryLast>;
+
+struct RuntimeSummaryHostTag {
+	using type = uint64 Tgw::Runtime::*;
+	friend type Get(RuntimeSummaryHostTag);
+};
+
+template struct PrivateMember<
+	RuntimeSummaryHostTag,
+	&Tgw::Runtime::_summaryHost>;
 
 // The fixture's own bounded waits. Each ends in a named reading inside its
 // stage's until, and the stage timeout is the bound plus
@@ -1150,12 +1159,16 @@ void CheckOneColumn(WidgetFixture &state) {
 }
 
 // The read-only part of the runtime log: the raw Summarize() text the
-// runtime holds now, as |reading| says it was read.
+// runtime holds now with the key of the host it was sampled from, as
+// |reading| says it was read.
 void ReadSummary(
 		WidgetRuntimeLog &log,
 		const Tgw::Runtime *runtime,
 		WidgetLogSummary reading) {
 	log.summary = runtime ? (runtime->*Get(RuntimeSummaryTag())) : QString();
+	log.summaryWork = log.summary.isEmpty()
+		? 0
+		: (runtime->*Get(RuntimeSummaryHostTag()));
 	log.summaryState = log.summary.isEmpty()
 		? WidgetLogSummary::Absent
 		: reading;
@@ -1944,9 +1957,15 @@ void RemoveFixtureMessage(
 	message.removedAt = crl::now();
 }
 
-bool WidgetTapFinished(const WidgetOpsReading &reading) {
-	return (reading.factoriesReleased == reading.factoriesSelected)
-		&& (reading.wrappersDestroyed == reading.wrappersBuilt);
+QString WidgetTapCounts(const WidgetOpsReading &reading) {
+	return u"factories %1 of %2 released, wrappers %3 of %4 destroyed, "
+		"hosted works %5 of %6 final"_q.arg(
+			QString::number(reading.factoriesReleased),
+			QString::number(reading.factoriesSelected),
+			QString::number(reading.wrappersDestroyed),
+			QString::number(reading.wrappersBuilt),
+			QString::number(reading.hostedFinal),
+			QString::number(reading.hostedSelected));
 }
 
 bool FixtureBarrierDecided(const WidgetFixtureMessage &message) {
@@ -2020,6 +2039,11 @@ void FinishRuntimeLog(
 		}
 	}
 	log.chars = int(log.text.size());
+}
+
+bool WidgetLogSummaryOwn(const WidgetRuntimeLog &log) {
+	return (log.summaryState == WidgetLogSummary::Fresh)
+		|| (log.summaryState == WidgetLogSummary::Final);
 }
 
 // The list's own view of the message: found through the history's blocks,

@@ -25,6 +25,7 @@ void PrepareRemoteEngines();
 [[nodiscard]] std::shared_ptr<twidget::SandboxHostedChannel> HostedChannel(
 	std::shared_ptr<twidget::SandboxResources> resources);
 [[nodiscard]] twidget::SandboxHostedAnswers HostedAnswers();
+void RefuseRemoteEngines();
 [[nodiscard]] bool StopRemoteEngines(Fn<void()> stopped);
 
 } // namespace Tgw

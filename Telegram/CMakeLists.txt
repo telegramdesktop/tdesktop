@@ -2284,6 +2284,8 @@ PRIVATE
     test/test_widget_conformance_bridge.h
     test/test_widget_conformance_context.cpp
     test/test_widget_conformance_context.h
+    test/test_widget_conformance_death.cpp
+    test/test_widget_conformance_death.h
     test/test_widget_conformance_hosts.cpp
     test/test_widget_conformance_hosts.h
     test/test_widget_conformance_input.cpp
@@ -2303,6 +2305,7 @@ PRIVATE
     test/test_widget_ops.cpp
     test/test_widget_ops.h
     test/test_widget_ops_check.cpp
+    test/test_widget_ops_deaths.cpp
     test/test_widget_ops_exchanges.cpp
     test/test_widget_ops_hosted.cpp
     test/test_widget_ops_internal.h

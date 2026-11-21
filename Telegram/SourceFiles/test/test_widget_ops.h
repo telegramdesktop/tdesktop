@@ -37,6 +37,8 @@ struct WidgetTheme;
 } // namespace twidget
 
 namespace Tgw {
+enum class HostedOutcome : uchar;
+struct HostedDecision;
 struct PressStep;
 } // namespace Tgw
 
@@ -63,11 +65,14 @@ namespace Test {
 // WidgetThemeApplied() and WidgetHostRetired() and |work| for
 // WidgetPressDispatched() and WidgetPressObserved(), and
 // wraps the host's onRenderOps (the validated batches, which only an
-// observer set before start() gets), onPlatformMessage and onDeath, and
-// onChange (to see the host's own rendered acknowledgment), each calling
-// the observer it wrapped, if any, after it recorded: onPlatformMessage
-// consumes a well-formed Mirrored record of the helper's tap once it asked
-// for them and passes every other message on unchanged. What the widget
+// observer set before start() gets), onPlatformMessage, and onChange (to
+// see the host's own rendered acknowledgment and the first death it
+// reports, WidgetDiagnostics::dead, kept raw in the selection's
+// WidgetHostedRun, never counted), each calling the observer it wrapped,
+// if any, after it recorded: onPlatformMessage consumes a well-formed
+// Mirrored record of the helper's tap once it asked for them and passes
+// every other message on unchanged. The host's onDeath stays the
+// runtime's own: a death the host reports is no charge. What the widget
 // itself took of |theme| (the `effective...` fields of WidgetOpsLatest, for
 // that first serial) is probed only by the function
 // WidgetThemeObservation() gives the runtime. In Debug it then asks with
@@ -83,15 +88,30 @@ namespace Test {
 // when they are destroyed with the host, also when the helper kept its
 // renderer. A registration is erased only by the observations that made it,
 // so whichever of two constructions installs first, each keeps its own.
-// Without the harness this module defines only this function, returning an
-// empty function, and the seams below it: WidgetThemeObservation(),
-// WidgetThemeSelected(), WidgetThemeScheduled(), WidgetThemeApplied(),
-// WidgetHostRetired(), WidgetPressDispatched(), WidgetPressObserved() and
-// WidgetCoreDetached().
+// Every selection starts its WidgetHostedRun. With |finish|, which
+// Tgw::Runtime::construct() passes for every hosted construction and a
+// check that only installs leaves out, an armed id also sets *|finish| to
+// the selection's final observation and counts one more hosted work the
+// tap awaits (`hostedSelected`): the runtime keeps it with the
+// construction's run, takes it once and calls it on the main thread from
+// the run's final accounting with the run's decision, installed or not,
+// after the charge was applied and when nothing can be charged to the run
+// any more. That call counts the decision once (`hostedFinal` and one of
+// `fatalFrozen`, `desktopCharges`, `sparedRuns`, `unaffectedRuns`) and
+// keeps it in the selection's record while the record is kept; a second
+// call, of any copy, does nothing. It holds the tap weakly, the selection's
+// number and |work|, and nothing of the returned function, the host or its
+// observers. An unarmed id leaves *|finish| untouched. Without the harness
+// this module defines only this function, returning an empty function and
+// leaving *|finish| untouched, and the seams below it:
+// WidgetThemeObservation(), WidgetThemeSelected(), WidgetThemeScheduled(),
+// WidgetThemeApplied(), WidgetHostRetired(), WidgetPressDispatched(),
+// WidgetPressObserved() and WidgetCoreDetached().
 [[nodiscard]] auto TapHostedWidget(
 	GlobalMsgId id,
 	uint64 work,
-	const twidget::WidgetTheme &theme)
+	const twidget::WidgetTheme &theme,
+	Fn<void(const Tgw::HostedDecision &decision)> *finish = nullptr)
 -> Fn<void(const std::shared_ptr<twidget::WidgetHost> &host)>;
 
 // Tgw::Runtime::constructed() calls this on the main thread for each host
@@ -248,12 +268,50 @@ void WidgetCoreDetached(uint64 work);
 // ReadWidgetOps().
 class WidgetOpsTap;
 
+// The hosted works a tap keeps a record of: the newest selections.
+inline constexpr auto kWidgetHostedRuns = 32;
+
+// One hosted selection of a tap (TapHostedWidget()), its detail for
+// attribution: what its host reported of its own death and what the
+// runtime's final accounting decided of its run. Each text is cut by
+// Tgw::ClipLogLine(), as the "Died: " line of a summary is.
+struct WidgetHostedRun {
+	// The first death the host reported to its onChange
+	// (WidgetDiagnostics::dead), raw, also one it reported after the
+	// final accounting or with its onDeath suppressed by its owner's
+	// keep or destroy; nullopt while it reported none.
+	std::optional<QString> died;
+	// The final decision's own reason (Tgw::HostedDecision::reason): the
+	// stopped-responding text, an ordinary death's label or Telegram's
+	// own refusal; empty for none.
+	QString reason;
+	// The RendererCore::workId() it was selected with (0 for none) and the
+	// selection's index, its generation.
+	uint64 work = 0;
+	int generation = 0;
+	// The final charge, and what the deciding event read of the stream's
+	// decision for the route (Tgw::HostedDecision::transport), apart: a
+	// refusal on a route the stream spared keeps both. At an engine's own
+	// death the channel reads Ordinary as an ordinary end does, so an
+	// Ordinary transport is no proof that the stream published an end.
+	// Both None (value 0) until `final`.
+	Tgw::HostedOutcome outcome = {};
+	Tgw::HostedOutcome transport = {};
+	// A charge that a claim of Telegram's or of the widget's own engine
+	// decided with no end of the stream to read: a refusal whose local
+	// claim found none, or a discarded construction's own death.
+	bool claimed = false;
+	// Whether the runtime's final accounting reached the tap: only a
+	// selection given |finish| has one.
+	bool final = false;
+};
+
 // A snapshot of one tap. Every count covers every renderer built for the
 // message while it was armed and is never reset, except the trusted event
 // fields and the press readings (`markedGeneration` to `markDetached`),
 // which count from the last MarkWidgetOpsEvents().
 // Counts are uncapped; every example list keeps
-// only its first 64 entries.
+// only its first 64 entries, `hostedRuns` its newest kWidgetHostedRuns.
 struct WidgetOpsReading {
 	// The --attacks scanner's own leak and note texts, each built only while
 	// its message held fewer than 64 within 64 KiB, the place it names cut
@@ -357,12 +415,30 @@ struct WidgetOpsReading {
 
 	// The served host's post-load ack (`query` with numeric `qid` -1) and
 	// the renderer's answer to it (`result` with numeric `qid` -1), as the
-	// helper's tap mirrored them, and the host's deaths (every onDeath,
-	// whatever its reason's text, never the served host's mirrored
-	// `frozen`: WidgetHost never reports the end its owner asked for).
+	// helper's tap mirrored them, and the host's deaths (the runtime's
+	// final accounting of a selected work charged with an ordinary or
+	// stalled death, never a death the host reported by itself, nor the
+	// served host's mirrored `frozen`).
 	int ackQueries = 0;
 	int ackResults = 0;
 	int fatalFrozen = 0;
+	// Hosted works selected for the runtime's accounting (TapHostedWidget()
+	// with |finish|), and those whose final accounting reached the tap, each
+	// once, after its charge was applied: the hosted reading is final only
+	// when every selected work is. Each final is in `fatalFrozen`, in
+	// `desktopCharges` (a refusal Telegram itself made of the widget's own
+	// traffic, also on a route the stream spared), in `sparedRuns` (the
+	// stream spared the run and nothing charged it) or in `unaffectedRuns`
+	// (nothing charged or spared it: withdrawn first, or never part of an
+	// end). No eviction of `hostedRuns` takes any of them back.
+	int hostedSelected = 0;
+	int hostedFinal = 0;
+	int desktopCharges = 0;
+	int sparedRuns = 0;
+	int unaffectedRuns = 0;
+	// The newest kWidgetHostedRuns hosted selections, in selection order, for
+	// attribution alone: a work's verdict is never read from its absence.
+	std::vector<WidgetHostedRun> hostedRuns;
 	// Hosted hosts whose own WidgetDiagnostics::rendered the tap saw, each
 	// once: the served host's post-load query answered by the helper's
 	// renderer, as the hosted client recorded it. The hosted twin of an
@@ -512,16 +588,156 @@ struct WidgetOpsLatest {
 // from whichever session is active then; no other id is touched.
 void DisarmWidgetOpsTap(GlobalMsgId id);
 
-// Any thread. No hosted tap and no host observation of the tap is still
-// pending once factoriesReleased == factoriesSelected and
-// wrappersDestroyed == wrappersBuilt; only a reading taken after that is
-// final.
+// Any thread. Only a reading for which WidgetTapFinished() holds is final.
 [[nodiscard]] WidgetOpsReading ReadWidgetOps(const WidgetOpsTap &tap);
+
+// Whether |reading| is final: no hosted tap and no host observation of its
+// tap is pending (`factoriesReleased == factoriesSelected` and
+// `wrappersDestroyed == wrappersBuilt`) and every hosted work selected for
+// the runtime's accounting had its final (`hostedFinal == hostedSelected`),
+// its charges included. Reads these counts alone: the live-chat fixture's
+// removal barrier (FixtureBarrierDecided() of test_widget_fixture.h, which
+// owns the removal, its bound and its WidgetTapCounts() diagnostic), both
+// evidence packs and the tap's own lifecycle checks share it.
+[[nodiscard]] bool WidgetTapFinished(const WidgetOpsReading &reading);
 
 // Any thread. A snapshot taken under the tap's lock, `stress` copied whole;
 // a caller that parses `conformance` can cache the result by `generation`
 // and `serial`.
 [[nodiscard]] WidgetOpsLatest ReadWidgetOpsLatest(const WidgetOpsTap &tap);
+
+// What a hosted message's reading says of its widget's death, as the
+// conformance runner and the attack audit both report it.
+struct WidgetHostedDeath {
+	// The sampled summary's "Died: " line, verbatim, empty for none: never
+	// a verdict by itself, since every host of an ended helper prints it.
+	QString deathLine;
+	// The measured cause, empty unless |measured|.
+	QString reason;
+	// The sampled work's record, when the reading kept it.
+	std::optional<WidgetHostedRun> sampled;
+	// The work the summary was sampled from (WidgetRuntimeLog::summaryWork),
+	// 0 for none.
+	uint64 work = 0;
+	// Whether any selected work of the reading was charged.
+	bool died = false;
+	// Whether |reason| was measured from the sampled work's own
+	// attribution.
+	bool measured = false;
+};
+
+// The one hosted reading of a death: |reading|, the summary sampled from
+// |work| and that summary's raw |deathLine|. The verdict is whether any
+// selected work was charged (`fatalFrozen` or `desktopCharges` positive,
+// or the sampled work's record final with a charge); read from the final
+// reading (WidgetTapFinished()) it is final, and no eviction of a record
+// reverses it. Only the sampled work's own record gives a cause, only once
+// it is final and charged: a Stalled run and a refusal Telegram made give
+// the reason recorded for them, also when the sample was healthy or shows
+// the end of a helper that spared it; an Ordinary run gives that host's
+// own raw diagnosis, the reason of |deathLine|, else the record's `died`,
+// unless it is empty or "terminated". A charge without a cause so
+// attributable stays dead with the reason unmeasured, and a spared or
+// unaffected sample never takes another work's reason. |earlier|, a
+// reading of the same nonzero |work| made while its record was kept, gives
+// its measured reason once the record is gone from |reading|: a final
+// charge never changes. Another generation's reason is never used.
+[[nodiscard]] WidgetHostedDeath ReadHostedDeath(
+	const WidgetOpsReading &reading,
+	uint64 work,
+	const QString &deathLine,
+	const WidgetHostedDeath *earlier = nullptr);
+
+// What both packs report of |death| as its reason: the measured cause, else
+// "charged, reason unmeasured" for a death whose cause the sampled work's
+// own record does not give, empty while nothing was charged.
+[[nodiscard]] QString WidgetHostedDeathText(const WidgetHostedDeath &death);
+
+// Whether the cumulative counts of |reading| hold a death of its widget: a
+// fatal frozen notice of a local renderer, or a hosted work's final charge
+// (`fatalFrozen` or `desktopCharges`). A raw death a host reported is never
+// one, so a wait that ends at a death ends at no other host's line.
+[[nodiscard]] bool WidgetTapCharged(const WidgetOpsReading &reading);
+
+// Whether |reading|'s tap selected a hosted work for the runtime's
+// accounting (`hostedSelected` positive): the widget runs in the widget
+// helper, and its death is read by ReadHostedDeath(). Read from the
+// message's own selections, never from the runtime's engine placement,
+// which no construction may have chosen yet: a reading with no selection
+// at all is not hosted, and holds no death of either kind.
+[[nodiscard]] bool WidgetTapHosted(const WidgetOpsReading &reading);
+
+// "none", "spared", "ordinary", "stalled" or "refused", for rows.
+[[nodiscard]] QString WidgetHostedOutcomeText(Tgw::HostedOutcome outcome);
+
+// |run| in one line for rows: "<generation>:<outcome>/<transport>", then
+// "/claimed" for a claimed charge and "/open" before its final, its
+// work, its reason and the raw death its host reported ("-" for none).
+[[nodiscard]] QString WidgetHostedRunText(const WidgetHostedRun &run);
+
+// A hosted construction a self-check plays as Tgw::Runtime::construct()
+// makes one, on the armed |tap| of |id| for |work|: selected with the
+// final observation the runtime keeps (TapHostedWidget() with |finish|),
+// installed or not on a stub host of its own (no channel, never started,
+// its onDeath standing for the runtime's own), whose onChange then reports
+// a raw death as a host of an ended helper does, finalized once and
+// dropped. selected(), install() and drop() read the tap around their
+// step, so a play whose selection, installation or release did not happen
+// says so instead of leaving a check to pass on literal readings alone.
+// Main thread; copies of a play would hold its installer, so it only
+// moves.
+class WidgetHostedPlay final {
+public:
+	WidgetHostedPlay(
+		std::shared_ptr<WidgetOpsTap> tap,
+		GlobalMsgId id,
+		uint64 work);
+	WidgetHostedPlay(WidgetHostedPlay &&other) = default;
+	WidgetHostedPlay &operator=(WidgetHostedPlay &&other) = default;
+
+	[[nodiscard]] uint64 work() const;
+	// The selection gave both the installer and the final observation, and
+	// the tap counted one more hosted work it awaits.
+	[[nodiscard]] bool selected() const;
+	// Builds the stub host and installs the tap on it: true only when the
+	// tap counted one more wrapper for it.
+	[[nodiscard]] bool install();
+	// The installed host's onChange with a death of |dead| (none for null)
+	// and, with |rendered|, its rendered acknowledgment: false with no
+	// installed host.
+	bool change(const char *dead, bool rendered = false);
+	// The installed host's onDeath with |reason|: false with no installed
+	// host.
+	bool death(const char *reason);
+	// What the host's own onDeath, the runtime's stand-in, got, in order.
+	[[nodiscard]] std::vector<std::string> deaths() const;
+	// The tap's record of the work now, if it keeps one.
+	[[nodiscard]] std::optional<WidgetHostedRun> record() const;
+	// A copy of the final observation, as a second holder would keep it,
+	// empty once finish() took it.
+	[[nodiscard]] auto observation() const
+	-> Fn<void(const Tgw::HostedDecision &decision)>;
+	// Takes the final observation and calls it with |decision|, as
+	// Tgw::Runtime's final accounting calls it: false when it was taken
+	// before or never given.
+	bool finish(const Tgw::HostedDecision &decision);
+	// Releases the installer and destroys the host, as the runtime drops
+	// them once the construction returned: true only when the tap then
+	// counted the selection released and, once installed, its wrapper
+	// destroyed.
+	[[nodiscard]] bool drop();
+
+private:
+	std::shared_ptr<WidgetOpsTap> _tap;
+	Fn<void(const std::shared_ptr<twidget::WidgetHost> &host)> _install;
+	Fn<void(const Tgw::HostedDecision &decision)> _finish;
+	std::shared_ptr<twidget::WidgetHost> _host;
+	std::shared_ptr<std::vector<std::string>> _deaths;
+	uint64 _work = 0;
+	bool _selected = false;
+	bool _installed = false;
+
+};
 
 // Of a hosted host's |latest|: empty when the widget's effective theme was
 // read for the newest theme the runtime applied to it (`effectiveSerial ==
@@ -686,11 +902,14 @@ struct WidgetOpsSelfCheck {
 // once, one install, release by the last copy, the scanner's 2-leak,
 // 1-note control batch scanned and passed on, each mirrored way recorded
 // (in Debug; without a Debug helper every message passes on), a malformed
-// mirror passed on, a served frozen no death, every onDeath one (one
-// reading terminated too), the host's rendered acknowledgment counted once
-// and its one theme probe (a widget with no runtime: no reading, the theme
-// unobserved), helper work records kept within their room, dropped past
-// it, malformed ones (unordered, over an hour, negative, an overwaited
+// mirror passed on, a served frozen no death, every onDeath reaching the
+// runtime's own observer and counting nothing (one reading terminated
+// too), the first death a change carries kept raw in the selection's
+// record and a later one changing nothing, the host's rendered
+// acknowledgment counted once and its one theme probe (a widget with no
+// runtime: no reading, the theme unobserved), helper work records kept
+// within their room, dropped past it, malformed ones (unordered, over an
+// hour, negative, an overwaited
 // interval) counted, full 32-bit counts kept and a stamp that maps past
 // the clock's range refused, the construction's and a later applied theme
 // recorded as the expectation (never as the renderer's scheme) while
@@ -720,8 +939,11 @@ struct WidgetOpsSelfCheck {
 // runs, bounded by its caps, and checks of its list length and damage,
 // never a rebuild of its list; and, at a stream's end on two routes, that
 // an answered route is spared while one left unanswered keeps its ordinary
-// death. On hosted taps of their own, with no work id, its session leg arms
-// one FullMsgId under two session values (only the armed one tapped,
+// death. Its hosted deaths, finals, eviction and reading legs are
+// test_widget_ops_internal.h's CheckHostedDeaths() and
+// CheckHostedFinals(). On hosted taps of their own, with no work id, its
+// session leg arms one FullMsgId under two session values (only the armed
+// one tapped,
 // separate readings, disarming one leaves the other), its stress leg
 // replaces an older host and reads the newer one's `data-stress` values,
 // batch counts and drops past kWidgetStressValuesLimit, and its budget leg

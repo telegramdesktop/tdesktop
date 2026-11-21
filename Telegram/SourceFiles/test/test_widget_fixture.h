@@ -111,13 +111,19 @@ enum class WidgetLogSummary {
 // The runtime log of one message. |text| is Runtime::logText() as the
 // callback or the fallback gave it, |source| how ("requestLog", "logText",
 // "logText-at-bound" or "unavailable"), |summary| the raw Summarize() text
-// Tgw::Runtime::_summary held, with |summaryState|. |pending| means the
-// runtime kept the callback, |received| that a full log was taken.
+// Tgw::Runtime::_summary held, with |summaryState|. |summaryWork| is the
+// key of the host that summary was sampled from, read with it
+// (Tgw::Runtime::_summaryHost, the RendererCore::workId() of that host's
+// core), whether or not the summary has a "Died: " line; 0 without a
+// summary. A hosted summary's death is read against that work's own
+// WidgetHostedRun alone (ReadHostedDeath()). |pending| means the runtime
+// kept the callback, |received| that a full log was taken.
 struct WidgetRuntimeLog {
 	QString text;
 	QString source;
 	QString summary;
 	WidgetLogSummary summaryState = WidgetLogSummary::Absent;
+	uint64 summaryWork = 0;
 	int chars = 0;
 	bool pending = false;
 	bool received = false;
@@ -317,13 +323,17 @@ void RemoveFixtureMessage(
 	WidgetFixture &fixture,
 	WidgetFixtureMessage &message);
 
-// No factory call and no wrapper of the reading's tap is pending.
-[[nodiscard]] bool WidgetTapFinished(const WidgetOpsReading &reading);
+// The counts WidgetTapFinished() of test_widget_ops.h compares, for a
+// diagnostic: "factories 1 of 2 released, wrappers 1 of 1 destroyed,
+// hosted works 0 of 1 final".
+[[nodiscard]] QString WidgetTapCounts(const WidgetOpsReading &reading);
 
-// An until after RemoveFixtureMessage(): no tap, the tap finished, or
-// kWidgetBarrierBound passed since the removal. True at the bound as well:
-// a caller that needs the message's hosts gone checks
-// WidgetTapFinished(ReadWidgetOps(*message.tap)) after it.
+// An until after RemoveFixtureMessage(): no tap, the tap finished
+// (WidgetTapFinished() of test_widget_ops.h), or kWidgetBarrierBound
+// passed since the removal. True at the bound as well, where the reading
+// is incomplete, never a finished barrier: a caller checks
+// WidgetTapFinished(ReadWidgetOps(*message.tap)) after it and reports
+// WidgetTapCounts() when that is false.
 [[nodiscard]] bool FixtureBarrierDecided(const WidgetFixtureMessage &message);
 
 // Starts the wait and asks the runtime of the list's own view for its log.
@@ -343,6 +353,14 @@ void RequestRuntimeLog(
 void FinishRuntimeLog(
 	const WidgetFixture &fixture,
 	WidgetFixtureMessage &message);
+
+// Whether |log|'s summary is the one of the host the request was made for
+// (`summaryState` Fresh or Final): the only summary whose "Died: " line and
+// `summaryWork` may describe that host, so the only one a reader takes a
+// cause from. A Stale or Absent one documents what the runtime held then,
+// possibly an older host's death, and both evidence packs keep it raw
+// without taking a cause, a saved one included, from it.
+[[nodiscard]] bool WidgetLogSummaryOwn(const WidgetRuntimeLog &log);
 
 // The list's own view of |id|, found through the history's blocks and
 // accepted only when the HistoryInner's itemTop() places it, and its

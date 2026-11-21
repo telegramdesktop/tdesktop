@@ -2304,12 +2304,7 @@ void CheckBarrier(LiveState &state, LiveLevel &level) {
 	const auto &tap = level.message->tap;
 	const auto ops = tap ? ReadWidgetOps(*tap) : WidgetOpsReading();
 	const auto finished = tap && WidgetTapFinished(ops);
-	const auto details = u"factories selected=%1 released=%2 wrappers "
-		u"built=%3 destroyed=%4"_q.arg(
-			QString::number(ops.factoriesSelected),
-			QString::number(ops.factoriesReleased),
-			QString::number(ops.wrappersBuilt),
-			QString::number(ops.wrappersDestroyed));
+	const auto details = WidgetTapCounts(ops);
 	Check(
 		finished,
 		LevelName(level, u"the widget's host is gone before another "

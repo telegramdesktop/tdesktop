@@ -204,7 +204,7 @@ public:
 		Fn<void(std::string message)> platform;
 		Fn<bool(std::string message)> press;
 		Fn<void()> released;
-		Fn<bool()> localStop;
+		Fn<bool(QString reason)> localStop;
 	};
 
 	RendererWork(
@@ -231,6 +231,7 @@ public:
 	[[nodiscard]] WidgetMeter::Operation operation();
 
 	void freeze(QString reason, bool fatal);
+	void hostDied(Fn<void()> reached);
 
 	void detach();
 	void setOnScreen(bool onScreen, uint64 visibility);

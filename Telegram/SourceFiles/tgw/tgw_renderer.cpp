@@ -57,6 +57,8 @@ public:
 	void forget();
 	[[nodiscard]] bool gone() const;
 	[[nodiscard]] uint64 workId() const;
+	[[nodiscard]] bool installChannel(
+		std::shared_ptr<twidget::SandboxHostedChannel> channel);
 	[[nodiscard]] bool bindHost(
 		std::weak_ptr<twidget::WidgetHost> host,
 		std::weak_ptr<twidget::SandboxHostedChannel> channel);
@@ -67,11 +69,16 @@ public:
 	void toPlatform(std::string message);
 	[[nodiscard]] bool pressPlatform(std::string message);
 	void released();
-	[[nodiscard]] bool localStop();
+	[[nodiscard]] bool localStop(QString reason);
 	[[nodiscard]] bool reserveKeep();
 	void keep(twidget::WidgetHost &host);
 	void keepDropped();
 	void releaseRoute(Fn<void()> done);
+	void setHooks(HostedRunHooks hooks);
+	[[nodiscard]] HostedWithdrawal withdrawRoute(bool keepOwnDeath);
+	[[nodiscard]] bool holdRoute(std::shared_ptr<twidget::WidgetHost> host);
+	[[nodiscard]] bool deciding() const;
+	[[nodiscard]] bool observedDeciding() const;
 
 	void postFrozen(QString reason, bool fatal);
 	void postDeath(const std::string &reason, QString label);
@@ -94,10 +101,14 @@ private:
 		Kept,
 		Closed,
 	};
+	enum class Observed : uchar {
+		Channel,
+		Deciding,
+		Withdrawn,
+	};
+	using DecidedView = twidget::SandboxHostedDecidedView;
 
 	[[nodiscard]] RendererCore *current() const;
-	[[nodiscard]] auto channel() const
-	-> std::shared_ptr<twidget::SandboxHostedChannel>;
 	bool platformSend(std::string &&message, bool press);
 	[[nodiscard]] twidget::HostedKeptRenderer::Observers keptObservers();
 	[[nodiscard]] bool bufferLocked(std::string &&message);
@@ -107,6 +118,18 @@ private:
 		std::unique_ptr<twidget::HostedKeptRenderer> kept,
 		std::unique_ptr<KeptSlot> slot);
 	void markGone();
+	[[nodiscard]] bool recordLocked(HostedDecision decision);
+	[[nodiscard]] Fn<void()> takeDecisionLocked();
+	[[nodiscard]] auto withdrawLocked(bool keepOwnDeath)
+	-> std::shared_ptr<twidget::SandboxHostedChannel>;
+	[[nodiscard]] bool keepSettled(HostedOutcome transport);
+	[[nodiscard]] HostedWithdrawal withdrawalLocked() const;
+	[[nodiscard]] Observed observedLocked() const;
+	void observeLocked();
+	void postDecision();
+	void applyDecision();
+	void postHostFrozen();
+	void reached(HostedDecision decision);
 
 	const base::weak_ptr<RendererCore> _core;
 	const uint64 _work;
@@ -114,14 +137,28 @@ private:
 	std::weak_ptr<twidget::WidgetHost> _host;
 	std::weak_ptr<twidget::WidgetHost> _live;
 	std::weak_ptr<twidget::SandboxHostedChannel> _channel;
+	std::shared_ptr<const DecidedView> _decidedView;
+	std::shared_ptr<twidget::WidgetHost> _held;
 	std::unique_ptr<twidget::HostedKeptRenderer> _kept;
 	std::unique_ptr<KeptSlot> _slot;
 	std::vector<std::string> _buffered;
 	std::vector<Fn<void()>> _released;
+	HostedRunHooks _hooks;
+	std::optional<HostedDecision> _decision;
 	std::size_t _bufferedBytes = 0;
 	int _releases = 0;
 	Route _route = Route::Pending;
+	HostedOutcome _settled = HostedOutcome::None;
 	bool _releaseWanted = false;
+	bool _decided = false;
+	bool _admitted = false;
+	bool _reached = false;
+	bool _withdrawCalled = false;
+	bool _withdrawn = false;
+	bool _ended = false;
+	bool _claimed = false;
+	std::atomic<const DecidedView*> _decidedRead = nullptr;
+	std::atomic<Observed> _observed = Observed::Channel;
 	std::atomic<bool> _closed = false;
 	std::atomic<bool> _gone = false;
 	std::atomic<bool> _routeClosed = false;
@@ -191,6 +228,17 @@ void PostReleased(std::vector<Fn<void()>> released) {
 	});
 }
 
+[[nodiscard]] HostedOutcome TransportOutcome(
+		twidget::SandboxHostedChannel::Death death) {
+	using Death = twidget::SandboxHostedChannel::Death;
+	switch (death) {
+	case Death::Ordinary: return HostedOutcome::Ordinary;
+	case Death::Stalled: return HostedOutcome::Stalled;
+	case Death::Spared: return HostedOutcome::Spared;
+	}
+	Unexpected("Death in Tgw::TransportOutcome.");
+}
+
 [[nodiscard]] RendererWork::Host HostOf(std::shared_ptr<HostLink> link) {
 	return {
 		.diag = [=](const std::string &kind, const std::string &detail) {
@@ -211,8 +259,8 @@ void PostReleased(std::vector<Fn<void()>> released) {
 		.released = [=] {
 			link->released();
 		},
-		.localStop = [=] {
-			return link->localStop();
+		.localStop = [=](QString reason) {
+			return link->localStop(std::move(reason));
 		},
 	};
 }
@@ -270,6 +318,25 @@ int LogicalHeight(double css, int scale) {
 	return int(std::ceil(css * scale / 100.));
 }
 
+void DropChannel(std::shared_ptr<twidget::SandboxHostedChannel> channel) {
+	if (channel) {
+		crl::async([channel = std::move(channel)]() mutable {
+			channel = nullptr;
+		});
+	}
+}
+
+bool ChargesCrash(HostedOutcome outcome) {
+	switch (outcome) {
+	case HostedOutcome::None:
+	case HostedOutcome::Spared: return false;
+	case HostedOutcome::Ordinary:
+	case HostedOutcome::Stalled:
+	case HostedOutcome::Refused: return true;
+	}
+	Unexpected("Outcome in Tgw::ChargesCrash.");
+}
+
 HostLink::HostLink(
 	not_null<RendererCore*> core,
 	uint64 work,
@@ -300,7 +367,31 @@ void HostLink::close() {
 }
 
 void HostLink::forget() {
-	_gone = true;
+	auto strong = std::shared_ptr<twidget::SandboxHostedChannel>();
+	auto held = std::shared_ptr<twidget::WidgetHost>();
+	auto hooks = HostedRunHooks();
+	auto decided = Fn<void()>();
+	auto withdrawal = HostedWithdrawal();
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (_gone) {
+			return;
+		}
+		_gone = true;
+		strong = withdrawLocked(false);
+		observeLocked();
+		withdrawal = withdrawalLocked();
+		decided = takeDecisionLocked();
+		hooks = base::take(_hooks);
+		held = base::take(_held);
+	}
+	DropChannel(std::move(strong));
+	if (decided) {
+		decided();
+	}
+	if (hooks.gone) {
+		hooks.gone(withdrawal);
+	}
 }
 
 bool HostLink::gone() const {
@@ -309,6 +400,18 @@ bool HostLink::gone() const {
 
 uint64 HostLink::workId() const {
 	return _work;
+}
+
+bool HostLink::installChannel(
+		std::shared_ptr<twidget::SandboxHostedChannel> channel) {
+	auto lock = std::lock_guard(_mutex);
+	if (_gone || _withdrawCalled || _decided) {
+		return false;
+	}
+	_channel = channel;
+	_decidedView = channel ? channel->decidedView() : nullptr;
+	_decidedRead = _decidedView.get();
+	return true;
 }
 
 bool HostLink::bindHost(
@@ -344,11 +447,6 @@ void HostLink::diag(const std::string &kind, const std::string &detail) {
 RendererCore *HostLink::current() const {
 	auto lock = std::lock_guard(_mutex);
 	return _closed ? nullptr : _core.get();
-}
-
-std::shared_ptr<twidget::SandboxHostedChannel> HostLink::channel() const {
-	auto lock = std::lock_guard(_mutex);
-	return _channel.lock();
 }
 
 std::optional<bool> HostLink::hostBottom() const {
@@ -440,10 +538,34 @@ void HostLink::released() {
 	}
 }
 
-bool HostLink::localStop() {
+bool HostLink::localStop(QString reason) {
 	using Death = twidget::SandboxHostedChannel::Death;
-	const auto strong = channel();
-	return strong && (strong->localStop() == Death::Stalled);
+	auto strong = std::shared_ptr<twidget::SandboxHostedChannel>();
+	auto stalled = false;
+	auto recorded = false;
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (_gone) {
+			return false;
+		}
+		strong = _channel.lock();
+		const auto death = strong ? strong->localStop() : std::nullopt;
+		stalled = (death == Death::Stalled);
+		recorded = recordLocked({
+			.reason = stalled ? StalledReason() : std::move(reason),
+			.outcome = (stalled
+				? HostedOutcome::Stalled
+				: HostedOutcome::Refused),
+			.transport = (death
+				? TransportOutcome(*death)
+				: HostedOutcome::None),
+		});
+	}
+	DropChannel(std::move(strong));
+	if (recorded) {
+		postDecision();
+	}
+	return stalled;
 }
 
 bool HostLink::reserveKeep() {
@@ -516,17 +638,20 @@ void HostLink::keepDropped() {
 }
 
 void HostLink::releaseRoute(Fn<void()> done) {
+	auto held = std::shared_ptr<twidget::WidgetHost>();
 	auto kept = std::unique_ptr<twidget::HostedKeptRenderer>();
 	auto slot = std::unique_ptr<KeptSlot>();
 	auto released = std::vector<Fn<void()>>();
 	{
 		auto lock = std::lock_guard(_mutex);
+		held = base::take(_held);
 		if (done) {
 			_released.push_back(std::move(done));
 		}
 		if (_route == Route::Keeping) {
 			_releaseWanted = true;
 			_routeClosed = true;
+			observeLocked();
 			_buffered.clear();
 			_bufferedBytes = 0;
 		} else {
@@ -550,6 +675,72 @@ void HostLink::releaseRoute(Fn<void()> done) {
 	}
 	PostReleased(std::move(released));
 	markGone();
+}
+
+void HostLink::setHooks(HostedRunHooks hooks) {
+	auto pending = false;
+	{
+		auto lock = std::lock_guard(_mutex);
+		_hooks = std::move(hooks);
+		pending = _decision.has_value();
+	}
+	if (pending) {
+		postDecision();
+	}
+}
+
+HostedWithdrawal HostLink::withdrawRoute(bool keepOwnDeath) {
+	auto strong = std::shared_ptr<twidget::SandboxHostedChannel>();
+	auto decided = Fn<void()>();
+	auto result = HostedWithdrawal();
+	{
+		auto lock = std::lock_guard(_mutex);
+		strong = withdrawLocked(keepOwnDeath);
+		observeLocked();
+		result = withdrawalLocked();
+		decided = takeDecisionLocked();
+	}
+	DropChannel(std::move(strong));
+	if (decided) {
+		decided();
+	}
+	return result;
+}
+
+bool HostLink::holdRoute(std::shared_ptr<twidget::WidgetHost> host) {
+	auto lock = std::lock_guard(_mutex);
+	if (!host || !withdrawalLocked().awaits) {
+		return false;
+	}
+	_held = std::move(host);
+	return true;
+}
+
+bool HostLink::deciding() const {
+	auto strong = std::shared_ptr<twidget::SandboxHostedChannel>();
+	auto result = false;
+	{
+		auto lock = std::lock_guard(_mutex);
+		switch (observedLocked()) {
+		case Observed::Deciding: return true;
+		case Observed::Withdrawn: return false;
+		case Observed::Channel: break;
+		}
+		strong = _channel.lock();
+		result = strong && strong->decided();
+	}
+	DropChannel(std::move(strong));
+	return result;
+}
+
+bool HostLink::observedDeciding() const {
+	switch (_observed.load()) {
+	case Observed::Deciding: return true;
+	case Observed::Withdrawn: return false;
+	case Observed::Channel: break;
+	}
+	const auto view = _decidedRead.load();
+	return view && view->decided();
 }
 
 twidget::HostedKeptRenderer::Observers HostLink::keptObservers() {
@@ -598,6 +789,7 @@ bool HostLink::bufferLocked(std::string &&message) {
 void HostLink::closeLocked() {
 	_route = Route::Closed;
 	_routeClosed = true;
+	observeLocked();
 	_buffered.clear();
 	_bufferedBytes = 0;
 	_live.reset();
@@ -637,12 +829,139 @@ void HostLink::markGone() {
 	});
 }
 
-void HostLink::postFrozen(QString reason, bool fatal) {
+bool HostLink::recordLocked(HostedDecision decision) {
+	if (_gone || _decided) {
+		return false;
+	}
+	_decided = true;
+	_decision = std::move(decision);
+	observeLocked();
+	return true;
+}
+
+Fn<void()> HostLink::takeDecisionLocked() {
+	if (!_decision || !_hooks.decided) {
+		return nullptr;
+	}
+	return [decided = _hooks.decided, decision = *base::take(_decision)] {
+		decided(decision);
+	};
+}
+
+auto HostLink::withdrawLocked(bool keepOwnDeath)
+-> std::shared_ptr<twidget::SandboxHostedChannel> {
+	using Death = twidget::SandboxHostedChannel::Death;
+	if (std::exchange(_withdrawCalled, true)) {
+		return nullptr;
+	}
+	auto strong = _channel.lock();
+	auto settled = Fn<void(Death death)>();
+	if (strong && _hooks.settled) {
+		settled = [weak = weak_from_this(), hook = _hooks.settled](
+				Death death) {
+			crl::on_main([=] {
+				const auto transport = TransportOutcome(death);
+				const auto link = weak.lock();
+				if (!link || !link->keepSettled(transport)) {
+					hook(transport);
+				}
+			});
+		};
+	}
+	const auto withdrawal = strong
+		? strong->withdraw(std::move(settled))
+		: twidget::SandboxHostedChannel::Withdrawal();
+	_ended = withdrawal.ended;
+	_withdrawn = !withdrawal.ended;
+	_claimed = keepOwnDeath
+		&& withdrawal.own
+		&& !_decided
+		&& (_route == Route::Pending);
+	if (withdrawal.death) {
+		_settled = TransportOutcome(*withdrawal.death);
+	}
+	return strong;
+}
+
+bool HostLink::keepSettled(HostedOutcome transport) {
+	auto lock = std::lock_guard(_mutex);
+	if (_gone) {
+		return false;
+	}
+	_settled = transport;
+	return true;
+}
+
+HostedWithdrawal HostLink::withdrawalLocked() const {
+	return {
+		.settled = _settled,
+		.ended = _ended,
+		.awaits = _ended && !_reached && !_gone && !_routeClosed,
+		.decided = _decided,
+		.claimed = _claimed,
+	};
+}
+
+HostLink::Observed HostLink::observedLocked() const {
+	return (_gone || _decided || _claimed || withdrawalLocked().awaits)
+		? Observed::Deciding
+		: _withdrawCalled
+		? Observed::Withdrawn
+		: Observed::Channel;
+}
+
+void HostLink::observeLocked() {
+	_observed = observedLocked();
+}
+
+void HostLink::postDecision() {
+	crl::on_main([link = shared_from_this()] {
+		link->applyDecision();
+	});
+}
+
+void HostLink::applyDecision() {
+	auto decided = Fn<void()>();
+	{
+		auto lock = std::lock_guard(_mutex);
+		decided = takeDecisionLocked();
+	}
+	if (decided) {
+		decided();
+	}
+}
+
+void HostLink::postHostFrozen() {
 	crl::on_main([link = shared_from_this()] {
 		if (const auto core = link->current()) {
 			core->hostFrozen();
 		}
 	});
+}
+
+void HostLink::reached(HostedDecision decision) {
+	auto held = std::shared_ptr<twidget::WidgetHost>();
+	auto recorded = false;
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (_gone || std::exchange(_reached, true)) {
+			return;
+		} else if (decision.outcome == HostedOutcome::Spared) {
+			recorded = recordLocked(std::move(decision));
+		}
+		observeLocked();
+		held = base::take(_held);
+	}
+	if (recorded) {
+		postDecision();
+	}
+	if (held) {
+		releaseRoute(nullptr);
+	}
+}
+
+void HostLink::postFrozen(QString reason, bool fatal) {
+	postHostFrozen();
 	work([=](RendererWork &work) {
 		work.freeze(reason, fatal);
 	}, true);
@@ -650,9 +969,40 @@ void HostLink::postFrozen(QString reason, bool fatal) {
 
 void HostLink::postDeath(const std::string &, QString label) {
 	using Death = twidget::SandboxHostedChannel::Death;
-	const auto strong = channel();
-	const auto stalled = strong && (strong->death() == Death::Stalled);
-	postFrozen(stalled ? StalledReason() : std::move(label), true);
+	auto strong = std::shared_ptr<twidget::SandboxHostedChannel>();
+	auto decision = HostedDecision();
+	auto recorded = false;
+	{
+		auto lock = std::lock_guard(_mutex);
+		if (_gone || _withdrawn || std::exchange(_admitted, true)) {
+			return;
+		}
+		strong = _channel.lock();
+		decision.transport = TransportOutcome(strong
+			? strong->death()
+			: Death::Ordinary);
+		decision.outcome = decision.transport;
+		decision.reason = (decision.outcome == HostedOutcome::Stalled)
+			? StalledReason()
+			: std::move(label);
+		if (decision.outcome != HostedOutcome::Spared) {
+			recorded = recordLocked(decision);
+		}
+	}
+	DropChannel(std::move(strong));
+	if (recorded) {
+		postDecision();
+	}
+	if (decision.outcome == HostedOutcome::Spared) {
+		postHostFrozen();
+	} else {
+		postFrozen(decision.reason, true);
+	}
+	work([=, link = shared_from_this()](RendererWork &work) {
+		work.hostDied([=] {
+			link->reached(decision);
+		});
+	}, false);
 }
 
 void HostLink::postTraffic(HostedTraffic traffic) {
@@ -797,6 +1147,11 @@ RendererCore::HostedHandlers RendererCore::hostedHandlers(
 				link->postDeath(reason, stoppedLabel);
 			}
 		},
+		.channel = [=](
+				std::shared_ptr<twidget::SandboxHostedChannel> channel) {
+			const auto link = weak.lock();
+			return link && link->installChannel(std::move(channel));
+		},
 	};
 }
 
@@ -812,6 +1167,30 @@ Fn<void(twidget::WidgetHost &host)> RendererCore::keepRoute() {
 
 void RendererCore::releaseRoute(Fn<void()> done) {
 	_link->releaseRoute(std::move(done));
+}
+
+void RendererCore::setHostedRun(HostedRunHooks hooks) {
+	_link->setHooks(std::move(hooks));
+}
+
+HostedWithdrawal RendererCore::withdrawRoute(bool keepOwnDeath) {
+	return _link->withdrawRoute(keepOwnDeath);
+}
+
+bool RendererCore::holdRoute(std::shared_ptr<twidget::WidgetHost> host) {
+	return _link->holdRoute(std::move(host));
+}
+
+bool RendererCore::deciding() const {
+	return _link->deciding();
+}
+
+bool RendererCore::observedDeciding() const {
+	return _link->observedDeciding();
+}
+
+void RendererCore::forget() {
+	_link->forget();
 }
 
 bool RendererCore::routeChecked() const {

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_log.h"
 #include "test/test_palette.h"
 #include "test/test_runner.h"
+#include "test/test_widget_conformance_death.h"
 #include "test/test_widget_conformance_input.h"
 #include "test/test_widget_conformance_state.h"
 #include "test/test_widget_fixture.h"
@@ -284,15 +285,16 @@ void EndInput(ConformanceRun &run, int i) {
 		const ConformanceState &state,
 		const ConformanceRun &run) {
 	const auto runtime = FixtureOwnRuntime(*state.fixture, run.message->id);
-	const auto frozen = ReadWidgetOps(*run.message->tap).fatalFrozen;
+	const auto reading = ReadWidgetOps(*run.message->tap);
+	const auto charged = WidgetTapCharged(reading);
 	return !WidgetFixtureItem(*state.fixture, run.message->id)
 		? u"the widget message is gone"_q
 		: !runtime
 		? u"the list shows no runtime for the card"_q
 		: (runtime->state() != RuntimeState::Live)
 		? (u"the runtime is "_q + RuntimeStateName(runtime->state()))
-		: (frozen > 0)
-		? u"the host sent a fatal frozen notice"_q
+		: charged
+		? DeathPlaceholder(true, WidgetTapHosted(reading))
 		: QString();
 }
 

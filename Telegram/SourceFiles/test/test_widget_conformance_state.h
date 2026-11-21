@@ -42,7 +42,8 @@ class InputField;
 // test_widget_conformance.cpp (selection, the per-run pipeline, snapshots
 // and the run file), test_widget_conformance_actions.cpp (the scripted
 // actions), test_widget_conformance_context.cpp (message contexts and the
-// played bot's records), test_widget_conformance_hosts.cpp (the content
+// played bot's records), test_widget_conformance_death.cpp (a run's death
+// and its controls), test_widget_conformance_hosts.cpp (the content
 // safe area readings and their controls) and
 // test_widget_conformance_pictures.cpp (the requested pictures' bands and
 // the floating-date wait before every capture). Internal to them;
@@ -313,7 +314,18 @@ struct ConformanceActions;
 // |safeAreas| is the content safe area each armed construction of the
 // run's host got (WidgetHostApplied::contentSafeArea), in order, copied
 // from the message's host watch before the removal; |safeAreaRead| once it
-// was, so a run with no watch reading has none.
+// was, so a run with no watch reading has none. Its death is read by
+// test_widget_conformance_death.cpp: |summaryWork| is the work the summary
+// its log stage took was sampled from, whatever its state, |summaryOwn|
+// whether it was the fresh or final summary of the host the log was
+// requested for (WidgetLogSummaryOwn()), the only one that can give a
+// cause, |deathLine| that summary's "Died: " line, verbatim, kept whatever
+// its state for a hosted reading and, as ever, only from an own summary
+// for a local one, |desktopStop| a stop the desktop decided itself, read
+// then, |deathMeasured| whether |dead| is a measured reason, never a
+// placeholder, |deathHosted| whether the death was read as hosted
+// (WidgetTapHosted()), and |hostedDeath| the hosted reading of its death,
+// taken at the log stage and again through the final barrier.
 struct ConformanceRun {
 	QString id;
 	QString set;
@@ -358,13 +370,19 @@ struct ConformanceRun {
 	QString doneOutcome;
 	QString runtimeState;
 	QString deathLine;
+	QString desktopStop;
+	WidgetHostedDeath hostedDeath;
 	std::optional<double> contentHeight;
 	std::vector<twidget::WidgetContentSafeArea> safeAreas;
+	uint64 summaryWork = 0;
 	crl::time resultMs = 0;
 	crl::time doneMs = 0;
 	crl::time barrierMs = 0;
 	int palette = -1;
 	bool measured = false;
+	bool deathMeasured = false;
+	bool deathHosted = false;
+	bool summaryOwn = false;
 	bool summaryRead = false;
 	bool itemGone = false;
 	bool safeAreaRead = false;

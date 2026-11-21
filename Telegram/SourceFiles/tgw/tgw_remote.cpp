@@ -314,6 +314,7 @@ public:
 
 	[[nodiscard]] HostedRoute hostedChannel(
 		std::shared_ptr<twidget::SandboxResources> resources);
+	void refuse();
 	[[nodiscard]] bool stop(Fn<void()> stopped);
 
 	void reconcile(uint64 id);
@@ -347,6 +348,7 @@ private:
 	uint64 _serial = 0;
 	int _failures = 0;
 	bool _stopped = false;
+	bool _refusing = false;
 	base::Timer _idle;
 	Fn<void()> _whenStopped;
 
@@ -564,6 +566,12 @@ HostedRoute Manager::hostedChannel(
 	});
 }
 
+void Manager::refuse() {
+	auto lock = Lock(_mutex);
+	_refusing = true;
+	_reaped.notify_all();
+}
+
 bool Manager::stop(Fn<void()> stopped) {
 	_idle.cancel();
 	auto lock = Lock(_mutex);
@@ -609,7 +617,7 @@ Manager::Selected Manager::endFor(
 		Lock &lock,
 		const twidget::SandboxResources &resources) {
 	while (true) {
-		if (_stopped) {
+		if (_stopped || _refusing) {
 			return u"the widget helper was stopped"_q;
 		} else if (!_disabled.isEmpty()) {
 			return _disabled;
@@ -713,7 +721,11 @@ uint64 Manager::retireLocked(bool intentional) {
 }
 
 crl::time Manager::idleDeadlineLocked() const {
-	if (_stopped || !_helper || _helper->retiring || _helper->launching) {
+	if (_stopped
+		|| _refusing
+		|| !_helper
+		|| _helper->retiring
+		|| _helper->launching) {
 		return 0;
 	}
 	const auto reading = Read(*_helper->reports);
@@ -851,6 +863,12 @@ HostedRoute HostedChannel(
 
 Answers HostedAnswers() {
 	return { .read = ReadExchange };
+}
+
+void RefuseRemoteEngines() {
+	if (Instance) {
+		Instance->refuse();
+	}
 }
 
 bool StopRemoteEngines(Fn<void()> stopped) {

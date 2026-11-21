@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "test/test_widget_ops_internal.h"
 #include "test/test_widget_renderer_forward.h"
 #include "tgw/tgw_hosted_wire.h"
+#include "tgw/tgw_renderer.h"
 #include "tgw/tgw_renderer_input.h"
 #include "twidget/json.h"
 #include "twidget/sdk_policy.h"
@@ -60,11 +61,10 @@ public:
 	// True for a well-formed Mirrored record of an armed tap, recorded and
 	// so not for the runtime.
 	[[nodiscard]] bool consumed(const std::string &message);
-	// Every death the host reports: it never reports the end its owner
-	// asked for (destroy(), keepRenderer()), whatever the reason's text.
-	void died() const;
 	// Any thread the host reports a change on: the first rendered
-	// acknowledgment counts.
+	// acknowledgment counts, and the first change that carries the host's
+	// death keeps it raw in the selection's record, also when the host's
+	// owner kept or destroyed it, so that its onDeath stays silent.
 	void changed(const twidget::WidgetDiagnostics &diagnostics);
 	// At the install, before any observer is set: the theme the host was
 	// built with, as the generation's first applied theme.
@@ -111,6 +111,7 @@ private:
 	// Set and reset by the self-check on main while no probe runs.
 	Fn<std::string()> _probe;
 	std::atomic<bool> _rendered = false;
+	std::atomic<bool> _dead = false;
 	bool _reported = false;
 
 };
@@ -238,6 +239,24 @@ static_assert(int(WidgetHelperWorkKind::Control)
 	return overflows ? std::nullopt : std::make_optional(a - b);
 }
 
+// The final observation of the run TapHostedWidget() selected |selection|
+// of |tap| for: the tap held weakly, nothing of the selection or its host,
+// and every copy's call after the first one ignored.
+[[nodiscard]] Fn<void(const Tgw::HostedDecision &decision)> HostedFinish(
+		const std::shared_ptr<WidgetOpsTap> &tap,
+		int selection,
+		uint64 work) {
+	const auto called = std::make_shared<std::atomic<bool>>(false);
+	return [weak = std::weak_ptr(tap), selection, work, called](
+			const Tgw::HostedDecision &decision) {
+		if (called->exchange(true)) {
+			return;
+		} else if (const auto strong = weak.lock()) {
+			strong->hostedFinal(selection, work, decision);
+		}
+	};
+}
+
 // Never destroyed: a host's deleter worker or the render thread may still
 // reach it while the process exits.
 [[nodiscard]] HostedRegistry &HostedTaps() {
@@ -350,12 +369,11 @@ bool HostedObservations::consumed(const std::string &message) {
 	return true;
 }
 
-void HostedObservations::died() const {
-	_tap->hostDied();
-}
-
 void HostedObservations::changed(
 		const twidget::WidgetDiagnostics &diagnostics) {
+	if (diagnostics.dead && !_dead.exchange(true)) {
+		_tap->hostedDied(_selection, *diagnostics.dead);
+	}
 	if (!diagnostics.rendered || _rendered.exchange(true)) {
 		return;
 	}
@@ -518,14 +536,6 @@ void HostedSelection::install(
 			platform(message);
 		}
 	};
-	auto death = std::move(host.onDeath);
-	host.onDeath = [observations, death = std::move(death)](
-			const std::string &reason) {
-		observations->died();
-		if (death) {
-			death(reason);
-		}
-	};
 	auto change = std::move(host.onChange);
 	host.onChange = [observations, change = std::move(change)](
 			const twidget::WidgetDiagnostics &diagnostics) {
@@ -632,7 +642,8 @@ using namespace WidgetOps;
 Fn<void(const std::shared_ptr<twidget::WidgetHost> &host)> TapHostedWidget(
 		GlobalMsgId id,
 		uint64 work,
-		const twidget::WidgetTheme &theme) {
+		const twidget::WidgetTheme &theme,
+		Fn<void(const Tgw::HostedDecision &decision)> *finish) {
 	if (!Active()) {
 		return nullptr;
 	}
@@ -642,6 +653,10 @@ Fn<void(const std::shared_ptr<twidget::WidgetHost> &host)> TapHostedWidget(
 		return nullptr;
 	}
 	const auto index = i->second->factorySelected();
+	i->second->hostedSelected(index, work, finish != nullptr);
+	if (finish) {
+		*finish = HostedFinish(i->second, index, work);
+	}
 	const auto selection = std::make_shared<HostedSelection>(
 		i->second,
 		index,
@@ -812,7 +827,8 @@ namespace Test {
 Fn<void(const std::shared_ptr<twidget::WidgetHost> &host)> TapHostedWidget(
 		GlobalMsgId,
 		uint64,
-		const twidget::WidgetTheme &) {
+		const twidget::WidgetTheme &,
+		Fn<void(const Tgw::HostedDecision &decision)> *) {
 	return nullptr;
 }
 

@@ -11,7 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "test/test_agent.h"
 #include "test/test_widget_ops_internal.h"
+#include "tgw/tgw_renderer.h"
 #include "tgw/tgw_renderer_input.h"
+#include "tgw/tgw_runtime.h"
 #include "twidget/json.h"
 
 #include <algorithm>
@@ -562,9 +564,62 @@ void WidgetOpsTap::servedMessage(int selection, std::string_view json) {
 	merge(selection, json);
 }
 
-void WidgetOpsTap::hostDied() {
+void WidgetOpsTap::hostedSelected(int selection, uint64 work, bool awaited) {
 	auto lock = std::lock_guard(_mutex);
-	++_reading.fatalFrozen;
+	auto &runs = _reading.hostedRuns;
+	if (int(runs.size()) >= kWidgetHostedRuns) {
+		runs.erase(begin(runs));
+	}
+	runs.push_back({ .work = work, .generation = selection });
+	if (awaited) {
+		++_reading.hostedSelected;
+	}
+}
+
+void WidgetOpsTap::hostedDied(int selection, const std::string &reason) {
+	auto died = Tgw::ClipLogLine(reason);
+	auto lock = std::lock_guard(_mutex);
+	const auto run = hostedRun(selection);
+	if (run && !run->died) {
+		run->died = std::move(died);
+	}
+}
+
+void WidgetOpsTap::hostedFinal(
+		int selection,
+		uint64 work,
+		const Tgw::HostedDecision &decision) {
+	using Outcome = Tgw::HostedOutcome;
+	const auto outcome = decision.outcome;
+	auto reason = Tgw::ClipLogLine(decision.reason);
+	auto lock = std::lock_guard(_mutex);
+	auto &reading = _reading;
+	++reading.hostedFinal;
+	switch (outcome) {
+	case Outcome::None:
+		++reading.unaffectedRuns;
+		break;
+	case Outcome::Spared:
+		++reading.sparedRuns;
+		break;
+	case Outcome::Ordinary:
+	case Outcome::Stalled:
+		++reading.fatalFrozen;
+		break;
+	case Outcome::Refused:
+		++reading.desktopCharges;
+		break;
+	}
+	const auto run = hostedRun(selection);
+	if (!run || (run->work != work)) {
+		return;
+	}
+	run->reason = std::move(reason);
+	run->outcome = outcome;
+	run->transport = decision.transport;
+	run->claimed = Tgw::ChargesCrash(outcome)
+		&& (decision.transport == Outcome::None);
+	run->final = true;
 }
 
 void WidgetOpsTap::hostRendered() {
@@ -818,6 +873,15 @@ bool WidgetOpsTap::current(int selection) {
 	return false;
 }
 
+WidgetHostedRun *WidgetOpsTap::hostedRun(int selection) {
+	auto &runs = _reading.hostedRuns;
+	const auto i = ranges::find(
+		runs,
+		selection,
+		&WidgetHostedRun::generation);
+	return (i != end(runs)) ? &*i : nullptr;
+}
+
 void WidgetOpsTap::rendererMessage(int selection, std::string_view json) {
 	auto seen = ReadRendererMessage(json);
 	if (!seen.violation
@@ -955,6 +1019,12 @@ void DisarmWidgetOpsTap(GlobalMsgId id) {
 
 WidgetOpsReading ReadWidgetOps(const WidgetOpsTap &tap) {
 	return tap.read();
+}
+
+bool WidgetTapFinished(const WidgetOpsReading &reading) {
+	return (reading.factoriesReleased == reading.factoriesSelected)
+		&& (reading.wrappersDestroyed == reading.wrappersBuilt)
+		&& (reading.hostedFinal == reading.hostedSelected);
 }
 
 WidgetOpsLatest ReadWidgetOpsLatest(const WidgetOpsTap &tap) {

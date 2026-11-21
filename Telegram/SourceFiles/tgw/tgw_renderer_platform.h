@@ -61,7 +61,7 @@ public:
 		Fn<void(std::string message)> send;
 		Fn<bool(std::string message)> press;
 		Fn<void()> released;
-		Fn<void()> localStop;
+		Fn<void(QString reason)> localStop;
 	};
 
 	struct Reports {
@@ -105,6 +105,7 @@ public:
 	void refillCanvasFonts();
 
 	void enqueue(HostedTraffic traffic);
+	void afterQueued(Fn<void()> done);
 	void schedule();
 	void close();
 
@@ -142,7 +143,7 @@ private:
 	void control(std::string_view message);
 	void deliver(Received received);
 	void sendControl(std::string message);
-	void stopLocally();
+	void stopLocally(const QString &reason);
 	void fail(QString reason);
 	void failEnd();
 	void stop(QString reason);
@@ -156,6 +157,8 @@ private:
 	std::deque<HostedTraffic> _queue;
 	Received _received;
 	QString _endRefusal;
+	Fn<void()> _afterQueued;
+	std::size_t _queuedAhead = 0;
 	uint64 _downs = 0;
 	uint64 _pointers = 0;
 	int _requests = 0;

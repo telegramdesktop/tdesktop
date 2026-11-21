@@ -1355,7 +1355,7 @@ void RendererWork::refuseRoute(QString limit, const char *detail) {
 	if (_hosted->closed) {
 		return;
 	}
-	const auto stalled = _host.localStop && _host.localStop();
+	const auto stalled = _host.localStop && _host.localStop(limit);
 	closeRoute(true);
 	const auto reason = limit;
 	if (!_stopped) {
@@ -1384,6 +1384,14 @@ void RendererWork::freeze(QString reason, bool fatal) {
 	}
 	refreshClock();
 	schedule();
+}
+
+void RendererWork::hostDied(Fn<void()> reached) {
+	if (routeAlive()) {
+		_hosted->platform->afterQueued(std::move(reached));
+	} else {
+		reached();
+	}
 }
 
 void RendererWork::resetInput() {
@@ -1416,7 +1424,7 @@ void RendererWork::refuse(QString limit) {
 
 void RendererWork::backendRefused() {
 	if (_host.localStop) {
-		_host.localStop();
+		_host.localStop(_backend->refusal());
 	}
 	PostToRenderThread(crl::guard(this, [=] {
 		refuse(_backend->refusal());

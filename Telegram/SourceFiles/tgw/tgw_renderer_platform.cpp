@@ -347,6 +347,17 @@ void RendererPlatform::enqueue(HostedTraffic traffic) {
 	schedule();
 }
 
+void RendererPlatform::afterQueued(Fn<void()> done) {
+	Expects(OnRenderThread());
+
+	if (_ended || _queue.empty()) {
+		done();
+		return;
+	}
+	_afterQueued = std::move(done);
+	_queuedAhead = _queue.size();
+}
+
 void RendererPlatform::schedule() {
 	if (_scheduled
 		|| _ended
@@ -426,7 +437,7 @@ void RendererPlatform::refused(const std::string &reason) {
 	if (_endRefusal.isEmpty()) {
 		_endRefusal = QString::fromStdString(reason);
 	}
-	stopLocally();
+	stopLocally(_endRefusal);
 	if (!_consuming) {
 		schedule();
 	}
@@ -446,10 +457,17 @@ void RendererPlatform::pump() {
 	_scheduled = false;
 	const auto weak = base::make_weak(this);
 	const auto started = crl::now();
-	for (auto turn = 0; !_ended; ++turn) {
+	auto turn = 0;
+	while (!_ended) {
 		if (!_endRefusal.isEmpty()) {
 			failEnd();
 			return;
+		} else if (_afterQueued && !_queuedAhead) {
+			base::take(_afterQueued)();
+			if (!weak) {
+				return;
+			}
+			continue;
 		} else if (_queue.empty()) {
 			if (_reports.drained) {
 				_reports.drained();
@@ -469,6 +487,10 @@ void RendererPlatform::pump() {
 		}
 		auto traffic = std::move(_queue.front());
 		_queue.pop_front();
+		++turn;
+		if (_afterQueued) {
+			--_queuedAhead;
+		}
 		if (traffic.request()) {
 			--_requests;
 		}
@@ -637,9 +659,9 @@ void RendererPlatform::sendControl(std::string message) {
 	}
 }
 
-void RendererPlatform::stopLocally() {
+void RendererPlatform::stopLocally(const QString &reason) {
 	if (_route.localStop) {
-		_route.localStop();
+		_route.localStop(reason);
 	}
 }
 
@@ -647,7 +669,7 @@ void RendererPlatform::fail(QString reason) {
 	if (_ended) {
 		return;
 	}
-	stopLocally();
+	stopLocally(reason);
 	end();
 	if (_reports.failed) {
 		_reports.failed(std::move(reason));
@@ -664,6 +686,7 @@ void RendererPlatform::stop(QString reason) {
 	if (_ended) {
 		return;
 	}
+	stopLocally(reason);
 	end();
 	if (_reports.stopped) {
 		_reports.stopped(std::move(reason));
@@ -673,6 +696,8 @@ void RendererPlatform::stop(QString reason) {
 void RendererPlatform::end() {
 	_ended = true;
 	_requests = 0;
+	_queuedAhead = 0;
+	_afterQueued = nullptr;
 	_queue.clear();
 	_end.close();
 }

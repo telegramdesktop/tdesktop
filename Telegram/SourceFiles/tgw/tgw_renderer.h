@@ -66,6 +66,37 @@ struct RendererCut {
 
 [[nodiscard]] int DomModifiers(Qt::KeyboardModifiers modifiers);
 [[nodiscard]] int LogicalHeight(double css, int scale);
+void DropChannel(std::shared_ptr<twidget::SandboxHostedChannel> channel);
+
+enum class HostedOutcome : uchar {
+	None,
+	Spared,
+	Ordinary,
+	Stalled,
+	Refused,
+};
+
+[[nodiscard]] bool ChargesCrash(HostedOutcome outcome);
+
+struct HostedDecision {
+	QString reason;
+	HostedOutcome outcome = HostedOutcome::None;
+	HostedOutcome transport = HostedOutcome::None;
+};
+
+struct HostedWithdrawal {
+	HostedOutcome settled = HostedOutcome::None;
+	bool ended = false;
+	bool awaits = false;
+	bool decided = false;
+	bool claimed = false;
+};
+
+struct HostedRunHooks {
+	Fn<void(HostedDecision decision)> decided;
+	Fn<void(HostedOutcome transport)> settled;
+	Fn<void(HostedWithdrawal withdrawal)> gone;
+};
 
 class RendererCore final : public base::has_weak_ptr {
 public:
@@ -109,6 +140,8 @@ public:
 			const std::string &message,
 			Fn<void(std::string answer)> respond)> request;
 		Fn<void(const std::string &reason)> death;
+		Fn<bool(
+			std::shared_ptr<twidget::SandboxHostedChannel> channel)> channel;
 	};
 
 	RendererCore(double width, double dpr);
@@ -119,6 +152,12 @@ public:
 	[[nodiscard]] HostedHandlers hostedHandlers(QString stoppedLabel) const;
 	[[nodiscard]] Fn<void(twidget::WidgetHost &host)> keepRoute();
 	void releaseRoute(Fn<void()> done = nullptr);
+	void setHostedRun(HostedRunHooks hooks);
+	[[nodiscard]] HostedWithdrawal withdrawRoute(bool keepOwnDeath = false);
+	[[nodiscard]] bool holdRoute(std::shared_ptr<twidget::WidgetHost> host);
+	[[nodiscard]] bool deciding() const;
+	[[nodiscard]] bool observedDeciding() const;
+	void forget();
 	[[nodiscard]] bool routeChecked() const;
 	[[nodiscard]] bool documentGone() const;
 	[[nodiscard]] rpl::producer<> keptUpdates() const;
