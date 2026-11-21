@@ -400,7 +400,9 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 		|| (!around && _skippedAfter != 0)
 		|| (around > _list.front() && _skippedAfter != 0)
 		|| (around > 0 && around < _list.back() && _skippedBefore != 0)) {
-		loadAround(around);
+		loadAround((around == MaxMessagePosition.fullId.msg)
+			? MsgId(0)
+			: around);
 		return false;
 	}
 	const auto i = around
@@ -480,6 +482,7 @@ bool RepliesList::applyUpdate(const MessageUpdate &update) {
 	const auto added = (update.flags & Flag::ReplyToTopAdded);
 	const auto i = ranges::lower_bound(_list, id, std::greater<>());
 	if (update.flags & Flag::Destroyed) {
+		_addedWhileLoadingEnd.remove(id);
 		if (!added && inThread) {
 			changeUnreadCountByPost(id, -1);
 		}
@@ -500,6 +503,9 @@ bool RepliesList::applyUpdate(const MessageUpdate &update) {
 	}
 	if (added) {
 		changeUnreadCountByPost(id, 1);
+	}
+	if (_loadingAround == MsgId(0)) {
+		_addedWhileLoadingEnd.emplace(id);
 	}
 	if (_skippedAfter != 0
 		|| (i != end(_list) && *i == id)) {
@@ -559,6 +565,7 @@ void RepliesList::loadAround(MsgId id) {
 	}
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
+	_addedWhileLoadingEnd.clear();
 
 	const auto send = [=](Fn<void()> finish) {
 		return _history->session().api().request(MTPmessages_GetReplies(
@@ -572,6 +579,7 @@ void RepliesList::loadAround(MsgId id) {
 			MTP_int(0), // min_id
 			MTP_long(0) // hash
 		)).done([=](const MTPmessages_Messages &result) {
+			const auto added = base::take(_addedWhileLoadingEnd);
 			_beforeId = 0;
 			_loadingAround = std::nullopt;
 			finish();
@@ -583,7 +591,7 @@ void RepliesList::loadAround(MsgId id) {
 			}
 			_skippedBefore = std::nullopt;
 			_list.clear();
-			if (processMessagesIsEmpty(result)) {
+			if (processMessagesIsEmpty(result, added)) {
 				_fullCount = _skippedBefore = _skippedAfter = 0;
 			} else if (id) {
 				Assert(!_list.empty());
@@ -595,6 +603,7 @@ void RepliesList::loadAround(MsgId id) {
 			}
 			checkReadTillEnd();
 		}).fail([=] {
+			_addedWhileLoadingEnd.clear();
 			_beforeId = 0;
 			_loadingAround = std::nullopt;
 			finish();
@@ -612,6 +621,8 @@ void RepliesList::loadBefore() {
 
 	if (_loadingAround) {
 		histories().cancelRequest(base::take(_beforeId));
+		_loadingAround = std::nullopt;
+		_addedWhileLoadingEnd.clear();
 	} else if (_beforeId) {
 		return;
 	}
@@ -698,7 +709,9 @@ void RepliesList::loadAfter() {
 		send);
 }
 
-bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
+bool RepliesList::processMessagesIsEmpty(
+		const MTPmessages_Messages &result,
+		const AddedIds &added) {
 	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
 
 	auto &owner = _history->owner();
@@ -735,11 +748,11 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		return data.vcount().v;
 	});
 
-	if (list.isEmpty()) {
+	if (list.isEmpty() && added.empty()) {
 		return true;
 	}
 
-	const auto maxId = IdFromMessage(list.front());
+	const auto maxId = list.isEmpty() ? MsgId(0) : IdFromMessage(list.front());
 	const auto wasSize = int(_list.size());
 	const auto toFront = (wasSize > 0) && (maxId > _list.front());
 	const auto localFlags = MessageFlags();
@@ -769,13 +782,18 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		_list = std::move(refreshed);
 	}
 
+	const auto till = _list.empty()
+		? end(added)
+		: added.lower_bound(_list.front());
+	const auto addedCount = int(till - begin(added));
+	_list.insert(begin(_list), begin(added), till);
 	_fullCount = ReconcileSkippedCounts(
 		_skippedBefore,
 		_skippedAfter,
 		toFront,
 		wasSize,
 		int(_list.size()),
-		fullCount - skipped);
+		fullCount - skipped + addedCount);
 
 	checkReadTillEnd();
 
@@ -790,7 +808,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	}
 
 	Ensures(list.size() >= skipped);
-	return (list.size() == skipped);
+	return (list.size() == skipped) && !addedCount;
 }
 
 void RepliesList::setInboxReadTill(
