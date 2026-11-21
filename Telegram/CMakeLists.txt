@@ -143,6 +143,8 @@ PRIVATE
     mokagram/music/mokagram_music_canvas.h
     mokagram/music/mokagram_lyrics.cpp
     mokagram/music/mokagram_lyrics.h
+    mokagram/music/mokagram_lyrics_ui.cpp
+    mokagram/music/mokagram_lyrics_ui.h
     mokagram/music/mokagram_motion.cpp
     mokagram/music/mokagram_motion.h
     mokagram/music/mokagram_motion_protocol.cpp
