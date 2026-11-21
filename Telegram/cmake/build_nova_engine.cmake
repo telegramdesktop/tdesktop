@@ -78,12 +78,6 @@ function(build)
 endfunction()
 
 if (DEFINED NOVA_TARGET)
-    if (NOVA_TARGET MATCHES "^i686-")
-        # Measured: i686 with the profile's fat LTO and overflow checks corrupts the heap while parsing a class.
-        set(overflow_checks)
-    else()
-        set(overflow_checks --config profile.release.overflow-checks=true)
-    endif()
     set(rustflags -C target-feature=+crt-static -C control-flow-guard)
     if (DEFINED ENV{CARGO_ENCODED_RUSTFLAGS})
         set(rustflags_variable CARGO_ENCODED_RUSTFLAGS)
@@ -108,7 +102,7 @@ if (DEFINED NOVA_TARGET)
     build(--target ${NOVA_TARGET}
         -Z build-std=std,panic_abort
         ${target_rustflags}
-        ${overflow_checks})
+        --config profile.release.overflow-checks=true)
     publish("${NOVA_OUT}/target/${NOVA_TARGET}/release/nova_embed_ffi.lib" "${NOVA_OUT}/nova_embed_ffi.lib")
     return()
 elseif (NOT DEFINED NOVA_ARCHS)
