@@ -7665,6 +7665,7 @@ public:
 			_searchCollectionTitle.clear();
 			_searchTracks.clear();
 			_catalogItems.clear();
+			resetCatalogFilters();
 			_searchStatus = _searchField->text().trimmed().isEmpty()
 				? QString() : QString::fromUtf8(Mokagram::Lang::Tr("Ищу…"));
 			if (_tab == Tab::Search) {
@@ -7696,6 +7697,7 @@ public:
 				QString::fromUtf8(Mokagram::Lang::Tr("Из чатов")) },
 			[=](int index) {
 				_searchChats = (index == 1);
+				resetCatalogFilters();
 				_searchField->setPlaceholderText(QString::fromUtf8(Mokagram::Lang::Tr(
 					_searchChats ? "Поиск по чатам" : "Поиск на SoundCloud")));
 				relayout();
@@ -8491,8 +8493,9 @@ protected:
 		return width >= style::ConvertScale(680);
 	}
 
-	[[nodiscard]] static bool catalogFiltersWrap(int width) {
-		return width < style::ConvertScale(480);
+	[[nodiscard]] bool catalogFiltersWrap(int width) const {
+		return width < style::ConvertScale(480)
+			&& std::ranges::count(_searchFilterAvailable, true) > 3;
 	}
 
 	[[nodiscard]] static int catalogFiltersTop(int width) {
@@ -8502,6 +8505,9 @@ protected:
 	[[nodiscard]] int searchHeaderHeight(int width) const {
 		if (_searchChats) {
 			return style::ConvertScale((width < style::ConvertScale(500)) ? 172 : 124);
+		}
+		if (!_searchFilterAvailable[int(SearchCategory::All)]) {
+			return style::ConvertScale(catalogSourceInline(width) ? 72 : 120);
 		}
 		return catalogFiltersTop(width)
 			+ style::ConvertScale(catalogFiltersWrap(width) ? 86 : 46);
@@ -8523,6 +8529,9 @@ protected:
 			sourceWidth,
 			s(40));
 
+		if (!_searchFilterAvailable[int(SearchCategory::All)]) {
+			return;
+		}
 		const auto sheet = u"QPushButton { background: %1; color: %2; border: %7px solid transparent; border-radius: %8px; } "
 			u"QPushButton:hover { background: %3; } QPushButton:pressed { background: %4; } "
 			u"QPushButton:checked { background: %4; color: %5; } "
@@ -8535,8 +8544,12 @@ protected:
 		const auto wrap = catalogFiltersWrap(area.width());
 		auto x = left;
 		auto y = area.y() + catalogFiltersTop(area.width());
+		auto placed = 0;
 		for (auto i = 0; i != int(_searchFilters.size()); ++i) {
-			if (wrap && i == 3) {
+			if (!_searchFilterAvailable[i]) {
+				continue;
+			}
+			if (wrap && placed == 3) {
 				x = left;
 				y += s(40);
 			}
@@ -8548,8 +8561,44 @@ protected:
 			const auto width = st::semiboldFont->width(chip->text()) + s(24);
 			chip->setGeometry(x, y, width, s(32));
 			x += width + s(6);
+			++placed;
 		}
 	}
+
+	void setCatalogFilterAvailability(std::array<bool, 5> available) {
+		if (_searchFilterAvailable != available) {
+			_searchFilterAvailable = available;
+			if (_tab == Tab::Search && !_searchChats) {
+				relayout();
+			}
+		}
+	}
+
+	void resetCatalogFilters() {
+		_searchCategory = SearchCategory::All;
+		_searchFilters[int(SearchCategory::All)]->setChecked(true);
+		setCatalogFilterAvailability({});
+	}
+
+	void updateCatalogFilters() {
+		auto available = std::array<bool, 5>();
+		available[int(SearchCategory::All)] = !_catalogItems.empty();
+		for (const auto &item : _catalogItems) {
+			const auto category = [&] {
+				if (const auto album = std::get_if<Album>(&item)) {
+					return (album->releaseKind == ReleaseKind::Unknown)
+						? SearchCategory::Playlists
+						: SearchCategory::Albums;
+				}
+				return std::holds_alternative<Track>(item)
+					? SearchCategory::Tracks
+					: SearchCategory::Artists;
+			}();
+			available[int(category)] = true;
+		}
+		setCatalogFilterAvailability(available);
+	}
+
 	void openCatalogCollection(const Album &album) {
 		_searchCollectionScroll = _tabScroll->scrollTop();
 		_searchCollectionTitle = album.title;
@@ -8721,6 +8770,9 @@ protected:
 					QString error) {
 				if (generation == _searchGen) {
 					_catalogItems = std::move(items);
+					if (_searchCategory == SearchCategory::All) {
+						updateCatalogFilters();
+					}
 					finish(_catalogItems.empty(), std::move(error));
 				}
 			}));
@@ -9382,8 +9434,8 @@ protected:
 		_searchField->setVisible(searching);
 		_sourceSwitch->setVisible(searching);
 		_chooseSearchChat->setVisible(searching && _searchChats);
-		for (const auto chip : _searchFilters) {
-			chip->setVisible(searching && !_searchChats);
+		for (auto i = 0; i != int(_searchFilters.size()); ++i) {
+			_searchFilters[i]->setVisible(searching && !_searchChats && _searchFilterAvailable[i]);
 		}
 		_searchRetry->setVisible(searching && _searchFailed);
 		if (fresh) {
@@ -10817,6 +10869,7 @@ private:
 	PeerId _searchChat;
 	Segmented *_sourceSwitch = nullptr;
 	std::array<QPushButton*, 5> _searchFilters = {};
+	std::array<bool, 5> _searchFilterAvailable = {};
 	SearchCategory _searchCategory = SearchCategory::All;
 	std::vector<CatalogItem> _catalogItems;
 	std::vector<Track> _searchCollectionTracks;
