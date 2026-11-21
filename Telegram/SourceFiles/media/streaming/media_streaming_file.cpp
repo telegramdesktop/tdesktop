@@ -169,13 +169,18 @@ Stream File::Context::initStream(
 			// ignore cover streams
 			return Stream();
 		}
-		result.codec = FFmpeg::MakeCodecPointer({
+		auto descriptor = FFmpeg::CodecDescriptor{
 			.stream = info,
 			.hwAllowed = options.hwAllow,
 			.videoMaxArea = kMaxFrameArea,
-		});
+		};
+		result.codec = FFmpeg::MakeCodecPointer(descriptor);
 		if (!result.codec) {
 			return result;
+		} else if (result.codec->codec
+			!= FFmpeg::FindDecoder(result.codec.get())) {
+			descriptor.hwAllowed = false;
+			result.softwareFallback = descriptor;
 		}
 		result.rotation = FFmpeg::ReadRotationFromMetadata(info);
 		result.aspect = FFmpeg::ValidateAspectRatio(
