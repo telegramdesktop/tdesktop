@@ -39,10 +39,12 @@ using TextFactory = Fn<BubbleText(int)>;
 [[nodiscard]] TextFactory ProcessTextFactory(
 	std::optional<tr::phrase<lngtag_count>> phrase);
 
+inline constexpr auto kLimitSlideDuration = crl::time(500);
+
+[[nodiscard]] float64 LimitSlideProgress(float64 delta, float64 progress);
+
 class Bubble final {
 public:
-	using EdgeProgress = float64;
-
 	Bubble(
 		const style::PremiumBubble &st,
 		Fn<void()> updateCallback,
@@ -50,23 +52,16 @@ public:
 		const style::icon *icon,
 		bool hasTail);
 
-	[[nodiscard]] static crl::time SlideNoDeflectionDuration();
-
 	[[nodiscard]] std::optional<int> counter() const;
 	[[nodiscard]] int height() const;
 	[[nodiscard]] int width() const;
-	[[nodiscard]] int bubbleRadius() const;
-	[[nodiscard]] int countTargetWidth(int targetCounter) const;
-	[[nodiscard]] QRect bubbleGeometry(const QRect &r) const;
+	[[nodiscard]] int widthForCounter(int value) const;
 
-	void setCounter(int value);
-	void setTailEdge(EdgeProgress edge);
-	void setFlipHorizontal(bool value);
+	void setCounter(int value, crl::time duration);
+	void setTailPosition(float64 position);
 	void paintBubble(QPainter &p, const QRect &r, const QBrush &brush);
 	[[nodiscard]] QPainterPath bubblePath(const QRect &r) const;
 	void setSubtext(QString subtext);
-
-	void finishAnimating();
 
 	[[nodiscard]] rpl::producer<> widthChanges() const;
 
@@ -88,8 +83,7 @@ private:
 	const bool _hasTail;
 
 	std::optional<int> _counter;
-	EdgeProgress _tailEdge = 0.;
-	bool _flipHorizontal = false;
+	float64 _tailPosition = 0.5;
 
 	rpl::event_stream<> _widthChanges;
 
@@ -128,7 +122,6 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void setupParticles(not_null<Ui::RpWidget*> parent);
@@ -142,12 +135,15 @@ private:
 			GradientParams,
 			GradientParams) = default;
 	};
-	void animateTo(BubbleRowState state);
+	void animateTo(BubbleRowState state, bool instant);
+	void resizeToBubble(int targetWidth = 0);
+	void refreshPosition();
+	void updatePosition();
+	[[nodiscard]] float64 anchorForRatio(float64 ratio) const;
+	[[nodiscard]] QRect bubbleRect() const;
+	[[nodiscard]] QTransform bubbleTransform() const;
 
 	const style::PremiumBubble &_st;
-	BubbleRowState _animatingFrom;
-	float64 _animatingFromResultRatio = 0.;
-	float64 _animatingFromBubbleEdge = 0.;
 	rpl::variable<BubbleRowState> _state;
 	Bubble _bubble;
 	std::optional<QBrush> _brushOverride;
@@ -155,17 +151,17 @@ private:
 	const style::margins _outerPadding;
 
 	Ui::Animations::Simple _appearanceAnimation;
-	Fn<void(float64)> _appearanceCallback;
-	QSize _spaceForDeflection;
+	QMargins _bubblePadding;
+	float64 _ratio = 0.;
+	float64 _anchor = 0.5;
+	float64 _tailPosition = 0.5;
+	float64 _rotation = 0.;
+	float64 _scale = 1.;
+	float64 _opacity = 1.;
+	float64 _positionOffset = 0.;
 
 	QLinearGradient _cachedGradient;
 	std::optional<GradientParams> _cachedGradientParams;
-
-	float64 _deflection;
-
-	bool _ignoreDeflection = false;
-	float64 _stepBeforeDeflection;
-	float64 _stepAfterDeflection;
 
 	RpWidget *_particlesWidget = nullptr;
 	std::optional<StarParticles> _particles;

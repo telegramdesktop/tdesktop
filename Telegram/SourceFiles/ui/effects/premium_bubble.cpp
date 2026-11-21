@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/premium_bubble.h"
 
-#include "base/debug_log.h"
 #include "base/object_ptr.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/ministar_particles.h"
+#include "ui/effects/premium_3d_support.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
@@ -19,18 +19,107 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 
+#include <QtCore/QtMath>
+
 namespace Ui::Premium {
 namespace {
 
-constexpr auto kBubbleRadiusSubtractor = 2;
-constexpr auto kDeflectionSmall = 20.;
-constexpr auto kDeflection = 30.;
-constexpr auto kStepBeforeDeflection = 0.75;
-constexpr auto kStepAfterDeflection = kStepBeforeDeflection
-+ (1. - kStepBeforeDeflection) / 2.;
-constexpr auto kSlideDuration = crl::time(1000);
+constexpr auto kFadeDuration = crl::time(100);
+constexpr auto kScaleDuration = crl::time(400);
+constexpr auto kTiltDuration = crl::time(150);
+constexpr auto kBounceDuration = crl::time(200);
+constexpr auto kSettleDuration = crl::time(150);
+constexpr auto kCounterUpdateDuration = crl::time(300);
+constexpr auto kNarrowTilt = 0.26;
+constexpr auto kWideTilt = 0.20;
+constexpr auto kBounceAngle = 0.04;
+
+float64 PhaseProgress(float64 elapsed, crl::time duration) {
+	return std::clamp(elapsed / duration, 0., 1.);
+}
+
+float64 EaseOut(float64 progress) {
+	return CubicBezier(0., 0., 0.58, 1., progress);
+}
+
+float64 EaseIn(float64 progress) {
+	return CubicBezier(0.42, 0., 1., 1., progress);
+}
+
+float64 BubbleRotation(float64 elapsed, float64 from, float64 tilt) {
+	if (elapsed < kLimitSlideDuration) {
+		const auto progress = PhaseProgress(elapsed, kTiltDuration);
+		return std::lerp(from, tilt, EaseOut(progress));
+	}
+	elapsed -= kLimitSlideDuration;
+	if (elapsed < kBounceDuration) {
+		const auto progress = PhaseProgress(elapsed, kBounceDuration);
+		return std::lerp(tilt, kBounceAngle, EaseOut(progress));
+	}
+	const auto progress = PhaseProgress(
+		elapsed - kBounceDuration,
+		kSettleDuration);
+	return std::lerp(kBounceAngle, 0., EaseIn(progress));
+}
+
+void AppendArc(
+		QPainterPath &path,
+		QPointF center,
+		float64 radius,
+		float64 from,
+		float64 to) {
+	if (radius <= 0.) {
+		path.lineTo(center);
+	} else {
+		const auto size = QSizeF(2. * radius, 2. * radius);
+		path.arcTo(
+			QRectF(center - QPointF(radius, radius), size),
+			from,
+			to - from);
+	}
+}
+
+struct TailSide {
+	float64 cornerSweep = 0.;
+	float64 connectionRadius = 0.;
+	float64 halfWidth = 0.;
+	float64 taper = 0.;
+};
+
+TailSide ComputeTailSide(float64 position, float64 width, float64 radius) {
+	const auto distance = std::min(position, 0.5);
+	const auto taper = std::min(distance / 0.27, 1.);
+	return {
+		.cornerSweep = 90. * std::max(0., distance - 0.15) / 0.35,
+		.connectionRadius = radius
+			* std::max(0., distance - 0.35) / 0.15,
+		.halfWidth = (width / 2.) * taper,
+		.taper = taper,
+	};
+}
+
+float64 TailFlankAngle(
+		const TailSide &side,
+		float64 horizontal,
+		float64 height,
+		float64 tipRadius) {
+	const auto radii = side.connectionRadius + tipRadius;
+	const auto vertical = height - radii;
+	const auto distance = std::hypot(horizontal, vertical);
+	if (!distance) {
+		return 0.;
+	}
+	// The flank is the internal tangent of the shoulder and tip circles.
+	const auto angle = std::atan2(vertical, horizontal)
+		+ std::asin(std::min(radii / distance, 1.));
+	return std::min(qRadiansToDegrees(angle), 90.) * side.taper;
+}
 
 } // namespace
+
+float64 LimitSlideProgress(float64 delta, float64 progress) {
+	return delta * CubicBezier(0.42, 0., 0.58, 1., progress);
+}
 
 TextFactory ProcessTextFactory(
 		std::optional<tr::phrase<lngtag_count>> phrase) {
@@ -68,20 +157,12 @@ Bubble::Bubble(
 	}
 }
 
-crl::time Bubble::SlideNoDeflectionDuration() {
-	return kSlideDuration * kStepBeforeDeflection;
-}
-
 std::optional<int> Bubble::counter() const {
 	return _counter;
 }
 
 int Bubble::height() const {
 	return _height;
-}
-
-int Bubble::bubbleRadius() const {
-	return (_st.height / 2) - kBubbleRadiusSubtractor;
 }
 
 int Bubble::filledWidth() const {
@@ -111,15 +192,15 @@ int Bubble::width() const {
 	return std::max(topTextWidth(), bottomTextWidth());
 }
 
-int Bubble::countTargetWidth(int targetCounter) const {
-	auto numbers = Ui::NumbersAnimation(_st.font, [] {});
+int Bubble::widthForCounter(int value) const {
+	auto numbers = NumbersAnimation(_st.font, [] {});
 	numbers.setDisabledMonospace(true);
 	numbers.setDuration(0);
-	const auto texts = _textFactory(targetCounter);
-	numbers.setText(texts.counter, targetCounter);
+	const auto texts = _textFactory(value);
+	numbers.setText(texts.counter, value);
 	numbers.finishAnimating();
 	const auto top = filledWidth()
-		+ numbers.maxWidth()
+		+ numbers.countWidth()
 		+ (texts.additional.isEmpty()
 			? 0
 			: (_st.additionalSkip
@@ -127,86 +208,122 @@ int Bubble::countTargetWidth(int targetCounter) const {
 	return std::max(top, bottomTextWidth());
 }
 
-void Bubble::setCounter(int value) {
-	if (_counter != value) {
-		_counter = value;
-		const auto texts = _textFactory(value);
-		_numberAnimation.setText(texts.counter, value);
-		if (_additional.toString() != texts.additional) {
-			if (texts.additional.isEmpty()) {
-				_additional = {};
-			} else {
-				_additional.setText(_st.additionalStyle, texts.additional);
-			}
-			_widthChanges.fire({});
+void Bubble::setCounter(int value, crl::time duration) {
+	if (_counter == value) {
+		return;
+	}
+	_counter = value;
+	_numberAnimation.setDuration(duration);
+	if (!duration) {
+		_numberAnimation.finishAnimating();
+	}
+	const auto texts = _textFactory(value);
+	_numberAnimation.setText(texts.counter, value);
+	if (!duration) {
+		_numberAnimation.finishAnimating();
+	}
+	if (_additional.toString() != texts.additional) {
+		if (texts.additional.isEmpty()) {
+			_additional = {};
+		} else {
+			_additional.setText(
+				_st.additionalStyle,
+				texts.additional);
 		}
+		_widthChanges.fire({});
 	}
 }
 
-void Bubble::setTailEdge(EdgeProgress edge) {
-	_tailEdge = std::clamp(edge, 0., 1.);
-}
-
-void Bubble::setFlipHorizontal(bool value) {
-	_flipHorizontal = value;
-}
-
-QRect Bubble::bubbleGeometry(const QRect &r) const {
-	const auto penWidth = _st.penWidth;
-	const auto penWidthHalf = penWidth / 2;
-	return r - style::margins(
-		penWidthHalf,
-		penWidthHalf,
-		penWidthHalf,
-		_st.tailSize.height() + penWidthHalf);
+void Bubble::setTailPosition(float64 position) {
+	_tailPosition = position;
 }
 
 QPainterPath Bubble::bubblePath(const QRect &r) const {
-	const auto bubbleRect = bubbleGeometry(r);
-	const auto radius = bubbleRadius();
-	auto pathTail = QPainterPath();
-
-	const auto tailWHalf = _st.tailSize.width() / 2.;
-	const auto progress = _tailEdge;
-
-	const auto tailTop = bubbleRect.y() + bubbleRect.height();
-	const auto tailLeftFull = bubbleRect.x()
-		+ (bubbleRect.width() * 0.5)
-		- tailWHalf;
-	const auto tailLeft = bubbleRect.x()
-		+ (bubbleRect.width() * 0.5 * (progress + 1.))
-		- tailWHalf;
-	const auto tailCenter = tailLeft + tailWHalf;
-	const auto tailRight = [&] {
-		const auto max = bubbleRect.x() + bubbleRect.width();
-		const auto right = tailLeft + _st.tailSize.width();
-		const auto bottomMax = max - radius;
-		return (right > bottomMax)
-			? std::max(float64(tailCenter), float64(bottomMax))
-			: right;
-	}();
-	if (_hasTail) {
-		pathTail.moveTo(tailLeftFull, tailTop);
-		pathTail.lineTo(tailLeft, tailTop);
-		pathTail.lineTo(tailCenter, tailTop + _st.tailSize.height());
-		pathTail.lineTo(tailRight, tailTop);
-		pathTail.lineTo(tailRight, tailTop - radius);
-		pathTail.moveTo(tailLeftFull, tailTop);
+	const auto body = QRectF(r.x(), r.y(), r.width(), _st.height);
+	const auto radius = std::min(body.width(), body.height()) / 2.;
+	auto path = QPainterPath();
+	if (!_hasTail) {
+		path.addRoundedRect(body, radius, radius);
+		return path;
 	}
-	auto pathBubble = QPainterPath();
-	pathBubble.setFillRule(Qt::WindingFill);
-	pathBubble.addRoundedRect(bubbleRect, radius, radius);
 
-	auto result = pathTail + pathBubble;
-	if (_flipHorizontal) {
-		auto m = QTransform();
-		const auto center = QRectF(bubbleRect).center();
-		m.translate(center.x(), center.y());
-		m.scale(-1., 1.);
-		m.translate(-center.x(), -center.y());
-		return m.map(result);
-	}
-	return result;
+	const auto tailWidth = _st.tailSize.width();
+	const auto tailHeight = _st.tailSize.height();
+	const auto tipRadius = std::min(
+		float64(_st.tailRadius),
+		tailHeight / 2.);
+	const auto left = ComputeTailSide(
+		_tailPosition,
+		tailWidth,
+		tipRadius);
+	const auto right = ComputeTailSide(
+		1. - _tailPosition,
+		tailWidth,
+		tipRadius);
+	const auto x = body.x() + body.width() * _tailPosition;
+	const auto bottom = body.bottom();
+	const auto leftShoulder = std::max(
+		body.left(),
+		x - left.halfWidth - left.connectionRadius);
+	const auto rightShoulder = std::min(
+		body.right(),
+		x + right.halfWidth + right.connectionRadius);
+	const auto leftAngle = TailFlankAngle(
+		left,
+		x - leftShoulder,
+		tailHeight,
+		tipRadius);
+	const auto rightAngle = TailFlankAngle(
+		right,
+		rightShoulder - x,
+		tailHeight,
+		tipRadius);
+
+	path.moveTo(body.left(), bottom - radius);
+	AppendArc(
+		path,
+		{ body.left() + radius, bottom - radius },
+		radius,
+		180.,
+		180. + left.cornerSweep);
+	AppendArc(
+		path,
+		{ leftShoulder, bottom + left.connectionRadius },
+		left.connectionRadius,
+		90.,
+		90. - leftAngle);
+	AppendArc(
+		path,
+		{ x, bottom + tailHeight - tipRadius },
+		tipRadius,
+		-90. - leftAngle,
+		-90. + rightAngle);
+	AppendArc(
+		path,
+		{ rightShoulder, bottom + right.connectionRadius },
+		right.connectionRadius,
+		90. + rightAngle,
+		90.);
+	AppendArc(
+		path,
+		{ body.right() - radius, bottom - radius },
+		radius,
+		-right.cornerSweep,
+		0.);
+	AppendArc(
+		path,
+		{ body.right() - radius, body.top() + radius },
+		radius,
+		0.,
+		90.);
+	AppendArc(
+		path,
+		{ body.left() + radius, body.top() + radius },
+		radius,
+		90.,
+		180.);
+	path.closeSubpath();
+	return path;
 }
 
 void Bubble::setSubtext(QString subtext) {
@@ -221,28 +338,15 @@ void Bubble::setSubtext(QString subtext) {
 	_updateCallback();
 }
 
-void Bubble::finishAnimating() {
-	_numberAnimation.finishAnimating();
-}
-
 void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
 	if (!_counter.has_value()) {
 		return;
 	}
 
-	const auto bubbleRect = bubbleGeometry(r);
-	const auto penWidth = _st.penWidth;
-	{
-		auto hq = PainterHighQualityEnabler(p);
-		p.setPen(QPen(
-			brush,
-			penWidth,
-			Qt::SolidLine,
-			Qt::RoundCap,
-			Qt::RoundJoin));
-		p.setBrush(brush);
-		p.drawPath(bubblePath(r));
-	}
+	auto hq = PainterHighQualityEnabler(p);
+	p.fillPath(bubblePath(r), brush);
+	const auto opacity = p.opacity();
+	const auto outerWidth = r.x() * 2 + r.width();
 	p.setPen(st::activeButtonFg);
 	const auto withSubtext = !_subtext.isEmpty();
 	const auto height = withSubtext
@@ -257,15 +361,20 @@ void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
 		: (bottomWidth - topWidth) / 2;
 	const auto iconLeft = r.x() + _st.padding.left() + iconShift;
 	const auto topShift = (_st.font->height - height) / 2;
-	const auto iconTop = bubbleRect.y()
+	const auto iconTop = r.y()
 		+ topShift
-		+ (bubbleRect.height() - _icon->height()) / 2;
-	_icon->paint(p, iconLeft, iconTop, bubbleRect.width());
+		+ (_st.height - _icon->height()) / 2;
+	_icon->paint(p, iconLeft, iconTop, outerWidth);
 	const auto numberLeft = iconLeft + _icon->width() + _st.textSkip;
 	const auto numberTop = r.y() + (_st.height - height) / 2;
-	_numberAnimation.paint(p, numberLeft, numberTop, width());
+	p.save();
+	p.setClipRect(
+		QRect(r.x(), numberTop, r.width(), _st.font->height),
+		Qt::IntersectClip);
+	_numberAnimation.paint(p, numberLeft, numberTop, outerWidth);
+	p.restore();
 	if (!_additional.isEmpty()) {
-		p.setOpacity(0.7);
+		p.setOpacity(opacity * 0.7);
 		const auto additionalLeft = numberLeft
 			+ _numberAnimation.countWidth()
 			+ _st.additionalSkip;
@@ -278,7 +387,7 @@ void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
 		});
 	}
 	if (withSubtext) {
-		p.setOpacity(1.);
+		p.setOpacity(opacity);
 		const auto subtextShift = (bottomWidth >= topWidth)
 			? 0
 			: (topWidth - bottomWidth) / 2;
@@ -318,26 +427,22 @@ BubbleWidget::BubbleWidget(
 	icon,
 	(type != BubbleType::NoPremium))
 , _type(type)
-, _outerPadding(outerPadding)
-, _deflection(kDeflection)
-, _stepBeforeDeflection(kStepBeforeDeflection)
-, _stepAfterDeflection(kStepAfterDeflection) {
+, _outerPadding(outerPadding) {
 	if (_type == BubbleType::Credits) {
 		setupParticles(parent);
 	}
-	const auto resizeTo = [=](int w, int h) {
-		_deflection = (w > _st.widthLimit)
-			? kDeflectionSmall
-			: kDeflection;
-		_spaceForDeflection = QSize(_st.skip, _st.skip);
-		resize(QSize(w, h) + 2 * _spaceForDeflection);
-	};
+	resizeToBubble();
+	_bubble.widthChanges() | rpl::on_next(
+		[=] {
+			resizeToBubble();
+		},
+		lifetime());
 
-	resizeTo(_bubble.width(), _bubble.height());
-	_bubble.widthChanges(
-	) | rpl::on_next([=] {
-		resizeTo(_bubble.width(), _bubble.height());
-	}, lifetime());
+	parent->widthValue() | rpl::on_next(
+		[=] {
+			refreshPosition();
+		},
+		lifetime());
 
 	const auto instant = !showFinishes;
 	if (instant) {
@@ -345,35 +450,16 @@ BubbleWidget::BubbleWidget(
 	}
 	std::move(
 		showFinishes
-	) | rpl::take(1) | rpl::on_next([=] {
-		_state.value(
-		) | rpl::on_next([=](BubbleRowState state) {
-			animateTo(state);
-		}, lifetime());
-		if (instant) {
-			_appearanceAnimation.stop();
-			if (const auto onstack = base::take(_appearanceCallback)) {
-				onstack(1.);
-			}
-			_bubble.finishAnimating();
-		}
-
-		parent->widthValue() | rpl::on_next([=](int w) {
-			if (!_appearanceAnimation.animating()) {
-				const auto available = w
-					- _outerPadding.left()
-					- _outerPadding.right();
-				const auto x = (available * _animatingFromResultRatio);
-				moveToLeft(-_spaceForDeflection.width()
-					+ std::max(
-						int(base::SafeRound(x
-							- (_bubble.width() / 2)
-							+ _outerPadding.left())),
-						0),
-					0);
-			}
-		}, lifetime());
-	}, lifetime());
+	) | rpl::take(1) | rpl::on_next(
+		[=] {
+			_state.value() | rpl::on_next(
+				[=](BubbleRowState state) {
+					const auto first = !_bubble.counter();
+					animateTo(state, instant && first);
+				},
+				lifetime());
+		},
+		lifetime());
 }
 
 void BubbleWidget::setupParticles(not_null<Ui::RpWidget*> parent) {
@@ -387,7 +473,7 @@ void BubbleWidget::setupParticles(not_null<Ui::RpWidget*> parent) {
 
 	_particlesAnimation.init([=] { _particlesWidget->update(); });
 
-	_particlesWidget->paintRequest() | rpl::on_next([=] {
+	const auto paint = [=] {
 		if (!_particlesAnimation.animating()) {
 			_particlesAnimation.start();
 		}
@@ -397,32 +483,29 @@ void BubbleWidget::setupParticles(not_null<Ui::RpWidget*> parent) {
 		const auto offset = QPoint(
 			(_particlesWidget->width() - width()) / 2,
 			(_particlesWidget->height() - height()) / 2);
-		const auto bubbleRect = rect().translated(offset)
-			- QMargins(
-				_spaceForDeflection.width(),
-				_spaceForDeflection.height(),
-				_spaceForDeflection.width(),
-				_spaceForDeflection.height());
-
-		p.save();
-		p.translate(offset);
-		const auto bubblePath = _bubble.bubblePath(bubbleRect);
-		p.restore();
+		const auto bubblePath = bubbleTransform().map(
+			_bubble.bubblePath(bubbleRect())).translated(offset);
 
 		auto fullRect = QPainterPath();
 		fullRect.addRect(QRectF(_particlesWidget->rect()));
 
 		p.setClipPath(bubblePath);
+		p.setOpacity(_opacity);
 		_particles->setColor(st::premiumButtonFg->c);
 		_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
 		p.setClipping(false);
+		p.setOpacity(1.);
 
 		p.setClipPath(fullRect.subtracted(bubblePath));
-		_particles->setColor(_brushOverride
-			? st::groupCallMemberInactiveIcon->c
-			: st::creditsBg3->c);
+		_particles->setColor(
+			_brushOverride
+				? st::groupCallMemberInactiveIcon->c
+				: st::creditsBg3->c);
 		_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
-	}, _particlesWidget->lifetime());
+	};
+	_particlesWidget->paintRequest() | rpl::on_next(
+		paint,
+		_particlesWidget->lifetime());
 
 	geometryValue() | rpl::on_next([=](QRect geometry) {
 		const auto particlesSize = QSize(
@@ -437,118 +520,176 @@ void BubbleWidget::setupParticles(not_null<Ui::RpWidget*> parent) {
 	}, lifetime());
 }
 
-void BubbleWidget::animateTo(BubbleRowState state) {
-	const auto targetWidth = _bubble.countTargetWidth(state.counter);
-	const auto parent = parentWidget();
-	const auto available = parent->width()
-		- _outerPadding.left()
-		- _outerPadding.right();
-	const auto halfWidth = (targetWidth / 2);
-	const auto computeLeft = [=](float64 pointRatio, float64 animProgress) {
-		const auto delta = (pointRatio - _animatingFromResultRatio);
-		const auto center = available
-			* (_animatingFromResultRatio + delta * animProgress);
-		return center - halfWidth + _outerPadding.left();
-	};
-	const auto moveEndPoint = state.ratio;
-	const auto computeRightEdge = [=] {
-		return parent->width() - _outerPadding.right() - targetWidth;
-	};
-	struct Edge final {
-		float64 goodPointRatio = 0.;
-		float64 bubbleEdge = 0.;
-	};
-	const auto desiredFinish = computeLeft(moveEndPoint, 1.);
-	const auto leftEdge = [&]() -> Edge {
-		const auto edge = _outerPadding.left();
-		if (desiredFinish < edge) {
-			const auto goodPointRatio = float64(halfWidth) / available;
-			const auto bubbleLeftEdge = (desiredFinish - edge)
-				/ float64(halfWidth);
-			return { goodPointRatio, bubbleLeftEdge };
+void BubbleWidget::animateTo(BubbleRowState state, bool instant) {
+	const auto first = !_bubble.counter().has_value();
+	const auto target = std::clamp(state.ratio, 0., 1.);
+	const auto from = (first || state.animateFromZero) ? 0. : _ratio;
+	const auto fromAnchor = _anchor;
+	const auto fromTail = _tailPosition;
+	const auto fromRotation = first ? 0. : _rotation;
+	const auto fromScale = first ? 0.1 : _scale;
+	const auto fromOpacity = first ? 0. : _opacity;
+	instant = instant
+		|| anim::Disabled()
+		|| _type == BubbleType::NoPremium
+		|| (first && target < 0.1);
+
+	_appearanceAnimation.stop();
+	const auto counterDuration = instant
+		? 0
+		: first ? kLimitSlideDuration : kCounterUpdateDuration;
+	_bubble.setCounter(state.counter, counterDuration);
+
+	const auto targetWidth = instant
+		? _bubble.width()
+		: _bubble.widthForCounter(state.counter);
+	const auto tilt = (targetWidth > _st.widthLimit)
+		? -kWideTilt
+		: -kNarrowTilt;
+	const auto travels = (from != target);
+	const auto rotates = !instant
+		&& (_type != BubbleType::Credits)
+		&& (travels || fromRotation != 0.);
+	const auto duration = instant
+		? crl::time(0)
+		: rotates
+		? kLimitSlideDuration + kBounceDuration + kSettleDuration
+		: kLimitSlideDuration;
+	const auto frame = [=](float64 elapsed) {
+		const auto time = PhaseProgress(elapsed, kLimitSlideDuration);
+		const auto slide = LimitSlideProgress(1., time);
+		const auto targetAnchor = anchorForRatio(target);
+		_ratio = std::lerp(from, target, slide);
+		_anchor = first
+			? targetAnchor
+			: std::lerp(fromAnchor, targetAnchor, slide);
+		_tailPosition = first
+			? targetAnchor
+			: std::lerp(fromTail, targetAnchor, time);
+		_rotation = rotates
+			? BubbleRotation(elapsed, fromRotation, tilt)
+			: 0.;
+		const auto scale = PhaseProgress(elapsed, kScaleDuration);
+		const auto fade = PhaseProgress(elapsed, kFadeDuration);
+		_scale = std::lerp(
+			fromScale,
+			1.,
+			LimitSlideProgress(1., scale));
+		_opacity = std::lerp(
+			fromOpacity,
+			1.,
+			LimitSlideProgress(1., fade));
+		if (_particles && first) {
+			_particles->setSpeed(0.01 + slide * 0.25);
 		}
-		return {};
-	}();
-	const auto rightEdge = [&]() -> Edge {
-		const auto edge = computeRightEdge();
-		if (desiredFinish > edge) {
-			const auto goodPointRatio = 1. - float64(halfWidth) / available;
-			const auto bubbleRightEdge = (desiredFinish - edge)
-				/ float64(halfWidth);
-			return { goodPointRatio, bubbleRightEdge };
-		}
-		return {};
-	}();
-	const auto finalEdge = (leftEdge.bubbleEdge < 0.)
-		? leftEdge.bubbleEdge
-		: rightEdge.bubbleEdge;
-	_ignoreDeflection = !_state.current().dynamic && (finalEdge != 0.);
-	if (_ignoreDeflection) {
-		_stepBeforeDeflection = 1.;
-		_stepAfterDeflection = 1.;
+		updatePosition();
+	};
+	if (duration) {
+		_appearanceAnimation.start(
+			frame,
+			0.,
+			duration,
+			duration);
+		resizeToBubble(targetWidth);
+		frame(0.);
 	} else {
-		_stepBeforeDeflection = kStepBeforeDeflection;
-		_stepAfterDeflection = kStepAfterDeflection;
+		_ratio = target;
+		resizeToBubble();
+		frame(kLimitSlideDuration);
 	}
-	const auto resultMoveEndPoint = (finalEdge < 0)
-		? leftEdge.goodPointRatio
-		: (finalEdge > 0)
-		? rightEdge.goodPointRatio
-		: moveEndPoint;
+}
 
-	const auto duration = kSlideDuration
-		* (_ignoreDeflection ? kStepBeforeDeflection : 1.)
-		* ((_state.current().ratio < 0.001) ? 0.5 : 1.);
-	if (state.animateFromZero) {
-		_animatingFrom.ratio = 0.;
-		_animatingFrom.counter = 0;
-		_animatingFromResultRatio = 0.;
-		_animatingFromBubbleEdge = 0.;
+float64 BubbleWidget::anchorForRatio(float64 ratio) const {
+	const auto available = std::max(
+		parentWidget()->width()
+			- _outerPadding.left()
+			- _outerPadding.right(),
+		0);
+	const auto width = _bubble.width();
+	if (width <= 0 || width > available) {
+		return 0.5;
 	}
-	_appearanceCallback = [=](float64 value) {
-		if (!_appearanceAnimation.animating()) {
-			_animatingFrom = state;
-			_animatingFromResultRatio = resultMoveEndPoint;
-			_animatingFromBubbleEdge = finalEdge;
-			_appearanceCallback = nullptr;
-		}
-		value = std::abs(value);
-		const auto moveProgress = std::clamp(
-			(value / _stepBeforeDeflection),
-			0.,
-			1.);
-		const auto counterProgress = std::clamp(
-			(value / _stepAfterDeflection),
-			0.,
-			1.);
-		const auto nowBubbleEdge = _animatingFromBubbleEdge
-			+ (finalEdge - _animatingFromBubbleEdge) * moveProgress;
-		moveToLeft(-_spaceForDeflection.width()
-			+ std::max(
-				int(base::SafeRound(
-					computeLeft(resultMoveEndPoint, moveProgress))),
-				0),
-			0);
-
-		const auto now = _animatingFrom.counter
-			+ counterProgress * (state.counter - _animatingFrom.counter);
-		_bubble.setCounter(int(base::SafeRound(now)));
-
-		if (_particles) {
-			const auto progress = now / float(state.counter);
-			_particles->setSpeed(0.01 + progress * 0.25);
-		}
-
-		_bubble.setFlipHorizontal(nowBubbleEdge < 0);
-		_bubble.setTailEdge(std::abs(nowBubbleEdge));
-		update();
-	};
-	_appearanceAnimation.start(
-		_appearanceCallback,
+	const auto x = available * ratio;
+	const auto left = std::clamp(
+		x - width / 2.,
 		0.,
-		(state.ratio >= _animatingFrom.ratio) ? 1. : -1.,
-		duration,
-		anim::easeOutCirc);
+		float64(available - width));
+	return std::clamp((x - left) / width, 0., 1.);
+}
+
+void BubbleWidget::resizeToBubble(int targetWidth) {
+	const auto width = _bubble.width();
+	const auto height = _bubble.height();
+	const auto skip = _st.skip;
+	const auto angle = (_type == BubbleType::Credits
+		|| _type == BubbleType::NoPremium) ? 0. : kNarrowTilt;
+	const auto reservedWidth = std::max(width, targetWidth);
+	const auto radius = std::min(reservedWidth, _st.height) / 2.;
+	const auto verticalTravel = (reservedWidth - radius)
+		* std::sin(angle);
+	const auto horizontal = std::max(
+		skip,
+		int(std::ceil(height * std::sin(angle))));
+	const auto top = std::max({ skip, _bubblePadding.top(),
+		int(std::ceil(verticalTravel
+			- (height - radius) * (1. - std::cos(angle)))),
+	});
+	const auto bottom = std::max({ skip, _bubblePadding.bottom(),
+		int(std::ceil(verticalTravel
+			+ radius
+			- (radius + _st.tailSize.height())
+				* std::cos(angle))),
+	});
+	_bubblePadding = QMargins(horizontal, top, horizontal, bottom);
+	resize(QSize(width + 2 * horizontal, height + top + bottom));
+	refreshPosition();
+}
+
+void BubbleWidget::refreshPosition() {
+	if (_bubble.counter().has_value()) {
+		if (!_appearanceAnimation.animating()) {
+			_anchor = _tailPosition = anchorForRatio(_ratio);
+		}
+		updatePosition();
+	}
+}
+
+void BubbleWidget::updatePosition() {
+	const auto available = std::max(
+		parentWidget()->width()
+			- _outerPadding.left()
+			- _outerPadding.right(),
+		0);
+	const auto left = _outerPadding.left()
+		+ available * _ratio
+		- _anchor * _bubble.width()
+		- _bubblePadding.left();
+	const auto rounded = int(base::SafeRound(left));
+	_positionOffset = (style::RightToLeft() ? -1. : 1.)
+		* (left - rounded);
+	moveToLeft(rounded, 0);
+	_bubble.setTailPosition(style::RightToLeft()
+		? (1. - _tailPosition)
+		: _tailPosition);
+	update();
+}
+
+QRect BubbleWidget::bubbleRect() const {
+	return rect() - _bubblePadding;
+}
+
+QTransform BubbleWidget::bubbleTransform() const {
+	const auto r = bubbleRect();
+	const auto anchor = style::RightToLeft() ? (1. - _anchor) : _anchor;
+	const auto pivotX = r.x() + r.width() * anchor;
+	const auto pivotY = r.y() + r.height();
+	auto transform = QTransform();
+	transform.translate(pivotX + _positionOffset, pivotY);
+	transform.rotateRadians(
+		style::RightToLeft() ? -_rotation : _rotation);
+	transform.scale(_scale, _scale);
+	transform.translate(-pivotX, -pivotY);
+	return transform;
 }
 
 void BubbleWidget::setBrushOverride(std::optional<QBrush> brushOverride) {
@@ -567,16 +708,11 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 
 	auto p = QPainter(this);
 
-	const auto padding = QMargins(
-		_spaceForDeflection.width(),
-		_spaceForDeflection.height(),
-		_spaceForDeflection.width(),
-		_spaceForDeflection.height());
-	const auto bubbleRect = rect() - padding;
+	const auto r = bubbleRect();
 
 	const auto params = GradientParams{
-		.left = x() + _spaceForDeflection.width(),
-		.width = bubbleRect.width(),
+		.left = x() + r.x(),
+		.width = r.width(),
 		.outer = parentWidget()->parentWidget()->width(),
 	};
 	if (_cachedGradientParams != params) {
@@ -586,38 +722,10 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 			params.width);
 		_cachedGradientParams = params;
 	}
-	if (_appearanceAnimation.animating()) {
-		const auto value = _appearanceAnimation.value(1.);
-		const auto progress = std::abs(value);
-		const auto finalScale = (_animatingFromResultRatio > 0.)
-			|| (_state.current().ratio < 0.001);
-		const auto scaleProgress = finalScale
-			? 1.
-			: std::clamp((progress / _stepBeforeDeflection), 0., 1.);
-		const auto scale = scaleProgress;
-		const auto rotationProgress = std::clamp(
-			(progress - _stepBeforeDeflection) / (1. - _stepBeforeDeflection),
-			0.,
-			1.);
-		const auto rotationProgressReverse = std::clamp(
-			(progress - _stepAfterDeflection) / (1. - _stepAfterDeflection),
-			0.,
-			1.);
+	p.setTransform(bubbleTransform(), true);
+	p.setOpacity(_opacity);
 
-		const auto offsetX = bubbleRect.x() + bubbleRect.width() / 2;
-		const auto offsetY = bubbleRect.y() + bubbleRect.height();
-		p.translate(offsetX, offsetY);
-		p.scale(scale, scale);
-		if (!_ignoreDeflection) {
-			p.rotate((rotationProgress - rotationProgressReverse)
-				* _deflection
-				* (value < 0. ? -1. : 1.));
-		}
-		p.translate(-offsetX, -offsetY);
-	}
-
-
-	_bubble.paintBubble(p, bubbleRect, [&] {
+	const auto brush = [&] {
 		if (_brushOverride) {
 			return *_brushOverride;
 		}
@@ -630,11 +738,8 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 		case BubbleType::Credits: return st::creditsBg3->b;
 		}
 		Unexpected("Type in Premium::BubbleWidget.");
-	}());
-}
-
-void BubbleWidget::resizeEvent(QResizeEvent *e) {
-	RpWidget::resizeEvent(e);
+	}();
+	_bubble.paintBubble(p, r, brush);
 }
 
 not_null<BubbleWidget*> AddBubbleRow(
@@ -653,7 +758,9 @@ not_null<BubbleWidget*> AddBubbleRow(
 		std::move(showFinishes),
 		rpl::single(BubbleRowState{
 			.counter = current,
-			.ratio = (current - min) / float64(max - min),
+			.ratio = (max > min)
+				? (current - min) / float64(max - min)
+				: 0.,
 		}),
 		type,
 		ProcessTextFactory(phrase),

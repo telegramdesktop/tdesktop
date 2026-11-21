@@ -16,7 +16,7 @@ PremiumBubble {
 	height: pixels;
 	padding: margins;
 	skip: pixels;
-	penWidth: pixels;
+	tailRadius: pixels;
 	textSkip: pixels;
 	tailSize: size;
 	font: font;
@@ -154,7 +154,7 @@ defaultPremiumBubble: PremiumBubble {
 	height: 40px;
 	padding: margins(14px, 0px, 14px, 0px);
 	skip: 8px;
-	penWidth: 6px;
+	tailRadius: 3px;
 	textSkip: 3px;
 	tailSize: size(21px, 7px);
 	font: font(19px);

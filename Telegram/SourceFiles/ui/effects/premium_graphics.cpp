@@ -244,19 +244,23 @@ Line::Line(
 	set(_rightLabel, labels.rightLabel);
 	set(_rightText, labels.rightCount);
 
-	std::move(state) | rpl::on_next([=](LimitRowState state) {
-		_dynamic = state.dynamic;
-		if (width() > 0) {
-			const auto from = state.animateFromZero
-				? 0.
-				: _animation.value(_ratio);
-			const auto duration = Bubble::SlideNoDeflectionDuration();
-			_animation.start([=] {
-				update();
-			}, from, state.ratio, duration, anim::easeOutCirc);
-		}
-		_ratio = state.ratio;
-	}, lifetime());
+	std::move(state) | rpl::on_next(
+		[=](LimitRowState state) {
+			_dynamic = state.dynamic;
+			if (width() > 0) {
+				const auto from = state.animateFromZero
+					? 0.
+					: _animation.value(_ratio);
+				_animation.start(
+					[=] { update(); },
+					from,
+					state.ratio,
+					kLimitSlideDuration,
+					LimitSlideProgress);
+			}
+			_ratio = state.ratio;
+		},
+		lifetime());
 
 	rpl::combine(
 		sizeValue(),
@@ -713,20 +717,21 @@ QLinearGradient ComputeGradient(
 		int width) {
 	// Take a full width of parent box without paddings.
 	const auto fullGradientWidth = content->parentWidget()->width();
-	auto fullGradient = QLinearGradient(0, 0, fullGradientWidth, 0);
-	fullGradient.setStops(ButtonGradientStops());
+	const auto stops = ButtonGradientStops();
+	const auto fullWidth = float64(std::max(fullGradientWidth, 1));
+	const auto colorAt = [&](float64 position) {
+		if (position <= 0.) {
+			return stops.front().second;
+		} else if (position >= fullWidth) {
+			return stops.back().second;
+		}
+		return anim::gradient_color_at(stops, position / fullWidth);
+	};
 
 	auto gradient = QLinearGradient(0, 0, width, 0);
-	const auto fullFinal = float64(fullGradient.finalStop().x());
 	left += ((fullGradientWidth - content->width()) / 2);
-	gradient.setColorAt(
-		.0,
-		anim::gradient_color_at(fullGradient, left / fullFinal));
-	gradient.setColorAt(
-		1.,
-		anim::gradient_color_at(
-			fullGradient,
-			std::min(1., (left + width) / fullFinal)));
+	gradient.setColorAt(0., colorAt(left));
+	gradient.setColorAt(1., colorAt(left + width));
 
 	return gradient;
 }
