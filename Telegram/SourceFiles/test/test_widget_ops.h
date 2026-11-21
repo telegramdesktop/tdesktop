@@ -728,10 +728,14 @@ struct WidgetOpsSelfCheck {
 // bytes) and ones at it (read: one batch of one op, a host message with no
 // gap, a violation `at`), then a batch with 100 KiB names: every leak
 // counted, its examples and their places bounded. Without a Debug helper
-// the mirrored records pass on unread and only the batch's gap counts.
-// Each row and its carrier: docs/helpers/test_widget_ops.md,
-// "Verification". Disarms its ids before it returns. The caller turns each
-// row into a Check().
+// the mirrored records pass on unread and only the batch's gap counts. Its
+// scan-gap leg, the same in both builds, gives onRenderOps an array cut off
+// and an object in an array's place, which the tap reads, wrapped as
+// WidgetHost wraps a batch, as an unparsable message and an `ops` message
+// without an array: two scan gaps with their examples, no batch, both
+// forwarded unchanged. Each row and its carrier:
+// docs/helpers/test_widget_ops.md, "Verification". Disarms its ids before
+// it returns. The caller turns each row into a Check().
 [[nodiscard]] WidgetOpsSelfCheck RunWidgetOpsSelfCheck();
 
 // Main thread, synchronous, needs Active(). |fixture| is the bytes of

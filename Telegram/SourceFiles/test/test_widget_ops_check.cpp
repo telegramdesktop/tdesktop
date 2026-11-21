@@ -174,6 +174,9 @@ constexpr auto kBudgetIndex = 8;
 constexpr auto kHostedOlderIndex = 9;
 constexpr auto kHostedNewerIndex = 10;
 
+// The scan-gap leg's id.
+constexpr auto kScanGapsIndex = 12;
+
 // The hosted leg's message with two generations on one tap, and its
 // messages for theme applications underway, hosts retired mid-probe and
 // themes selected while a theme job runs.
@@ -2593,6 +2596,54 @@ void CheckBudget(WidgetOpsSelfCheck &result) {
 	CheckLongNames(result, reading, sunk);
 }
 
+// Two validated batches the tap cannot read, the same in both builds,
+// through onRenderOps: wrapped as WidgetHost wraps a batch, an array cut
+// off is an unparsable message and an object in its place an `ops` message
+// without an array. Each is a scan gap named by its whole message, never a
+// batch, and both reach the stand-in unchanged, in order.
+void CheckScanGaps(WidgetOpsSelfCheck &result) {
+	const auto id = SelfCheckId(kScanGapsIndex);
+	auto side = SelectHostedSide(id, 0);
+	const auto built = BuildHostedSide(side);
+	// An array cut off, then an object in an array's place.
+	const auto inputs = std::vector<std::string>{
+		"[",
+		R"json({"op":"rm","id":5})json",
+	};
+	if (built) {
+		side.install(side.host);
+		for (const auto &input : inputs) {
+			side.host->onRenderOps(input);
+		}
+	}
+	const auto reading = ReadWidgetOps(*side.tap);
+	const auto &forwarded = side.product->ops;
+	side.host = nullptr;
+	side.install = nullptr;
+	DisarmWidgetOpsTap(id);
+	const auto gaps = std::vector<std::string>{
+		R"json(unparsable host message: {"type":"ops","ops":[})json",
+		R"json(ops message without an ops array: )json"
+			R"json({"type":"ops","ops":{"op":"rm","id":5}})json",
+	};
+	AddRow(
+		result,
+		built
+			&& (forwarded == inputs)
+			&& (reading.hostMessages == 2)
+			&& (reading.scanGaps == 2)
+			&& (reading.batches == 0)
+			&& (reading.ops == 0)
+			&& (reading.gapExamples == gaps),
+		u"hosted: an unparsable message and an ops message without an "
+		"array are scan gaps, forwarded unchanged"_q,
+		u"sideBuilt=%1 forwarded=%2 %3 gapExamples=%4"_q.arg(
+			Flag(built),
+			ExamplesText(forwarded),
+			ReadingText(reading),
+			ExamplesText(reading.gapExamples)));
+}
+
 // How probe-fixture.json writes an `ops` message around its array.
 constexpr auto kFixtureOpsPrefix = std::string_view(
 	R"json({"type": "ops", "ops": )json");
@@ -3063,6 +3114,7 @@ WidgetOpsSelfCheck RunWidgetOpsSelfCheck() {
 		AddRow(result, row.passed, row.name, row.details);
 	}
 	CheckBudget(result);
+	CheckScanGaps(result);
 	return result;
 }
 

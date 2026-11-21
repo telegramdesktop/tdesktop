@@ -13,7 +13,7 @@ Internal to it:
 | `test_widget_ops_internal.h` | What the four translation units share: the scan and kept-value bounds, `kHelperMirrors`, the tap's record (`WidgetOpsTap`), the armed taps, the scan budget, the reader of effective theme answers, the mapping of helper stamps and the exchange leg's entry (`CheckHostedExchanges()`). |
 | `test_widget_ops.cpp` | The tap's record, the scan (the `Upstream` block and its `ScanSink`), the result reader, arming and the readings; without the harness, nothing. |
 | `test_widget_ops_hosted.cpp` | The hosted tap: `TapHostedWidget()`, its observations and registry, `WidgetThemeObservation()`, `WidgetThemeApplied()`, `WidgetPressDispatched()`, `WidgetCoreDetached()`, `WidgetPressObserved()`, the effective theme probe, `WidgetThemeUnobserved()`, `CheckWidgetTheme()`, the helper work records and `CheckedTimeSum()`; without the harness, the hosted seams alone. |
-| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` with its session, stress, hosted, budget and long-name legs, and `RunWidgetConformanceProbeCheck()` with its fixture replay and replacement legs, every leg on hosted taps. |
+| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` with its session, stress, hosted, budget, long-name and scan-gap legs, and `RunWidgetConformanceProbeCheck()` with its fixture replay and replacement legs, every leg on hosted taps. |
 | `test_widget_ops_exchanges.cpp` | The self-check's exchange leg (`CheckHostedExchanges()`): `Tgw::HostedAnswers()` against TwidgetCore's own encodings and `decode()`, and a widget helper's stream end on two routes played over widget-sandbox's in-memory pair with its `ScriptedEngineEnd`; without the harness, nothing. |
 
 ## Use when
@@ -979,7 +979,22 @@ the harness compiles those branches. The legs, in the order they run:
   and style names and 164 leaks counts all 164, keeps exactly 64 examples
   within 64 KiB, each place cut to 240 bytes, the first one's text checked
   exactly, and adds no gap. It reads few JSON values in many bytes, so of
-  the rows only the budget row reads a message near the budget.
+  the rows only the budget row reads a message near the budget;
+- the scan-gap leg (`hosted: an unparsable message and an ops message
+  without an array are scan gaps, forwarded unchanged`) on a host of its
+  own, the same in both builds: two validated batches through
+  `onRenderOps`, an array cut off (`[`), then an object in its place
+  (`{"op":"rm","id":5}`), which the tap, wrapping each as `WidgetHost`
+  wraps a batch, reads as `{"type":"ops","ops":[}`, which does not parse,
+  and `{"type":"ops","ops":{"op":"rm","id":5}}`, an `ops` message without
+  an array. The row requires 2 host messages, 2 scan gaps, no batch and
+  no op, the gap examples `unparsable host message: ` and
+  `ops message without an ops array: `, each followed by its whole
+  wrapped message, in the order sent, and the stand-in's `ops` list
+  exactly the two inputs, in the same order. The inputs take the
+  validated-batch route alone: the helper's tap never mirrors a
+  served-host message that starts `{"type":"ops",`, as both wrapped
+  inputs do, so no helper mirrors either as a served-host record.
 
 Every expected value is a literal of the self-check, not derived from the tap.
 
@@ -1271,6 +1286,19 @@ their rows had run in the app; their Release branches had been read, not
 compiled. That task's evidence campaign is to run them in a Debug
 conformance launch, and again with the scan budget made one value short,
 where only the budget row should fail.
+
+Since `2026/11/21/re-drive-the-widget-ops-self-checks-scan-gap-row-through-a-hosted-tap`
+one row of the wrapping factory's leg runs again, as the scan-gap leg
+above, named as before with `hosted: ` in front; the reader is unchanged.
+Of the messages its inputs give the reader, the unparsable one is the
+removed leg's with the wrapping's closing brace after it and the other is
+byte-equal. The wrapping factory's other rows stay removed: their subject
+was the local factory, or a hosted row already pins their reader (the
+violation detail, by the budget row), or no consumer reads what they
+pinned (the limit-report examples). That task's evidence campaign is to
+run the row in a Debug conformance launch, and again with the reader
+taking an `ops` message without an array for an empty batch, the
+deviation the row is there to detect, where only this row should fail.
 
 ## Related guidance
 
