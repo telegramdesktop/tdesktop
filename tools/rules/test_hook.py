@@ -311,6 +311,38 @@ class StagedHook(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("a.cpp:2: Put each argument of the multiline call", why)
 
+    def test_multiline_sum_rejects_packed_terms_on_both_lines(self):
+        code, why = self.stage({"a.cpp": "auto left = outer + width * ratio\n"
+            "\t- anchor * bubbleWidth - padding;\n"})
+        self.assertEqual(code, 1)
+        for line in (1, 2):
+            self.assertIn(f"a.cpp:{line}: Start each continuation term", why)
+
+    def test_multiline_sum_keeps_operator_with_term(self):
+        code, why = self.stage({"a.cpp": "auto width = outer +\n"
+            "\tlimits\n"
+            "\t-\n"
+            "\tpadding;\n"})
+        self.assertEqual(code, 1)
+        for line in (1, 3):
+            self.assertIn(f"a.cpp:{line}: Start each continuation term", why)
+
+    def test_sum_layout_understands_precedence_and_unary_signs(self):
+        code, why = self.stage({"a.cpp": "auto total = a - b + c;\n"
+            "auto width = outer\n"
+            "\t+ ratio * (left + right)\n"
+            "\t- (-padding + border);\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_sum_layout_only_checks_affected_expressions(self):
+        original = "auto width = outer + left\n\t- right;\n"
+        self.repo.commit({"a.cpp": original})
+        code, why = self.stage({"a.cpp": original + "auto height = top;\n"})
+        self.assertEqual(code, 0, why)
+        code, why = self.stage({"a.cpp": original.replace("right", "padding")})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:1: Start each continuation term", why)
+
     def test_commit_is_rejected_by_installed_hook(self):
         hook = os.path.join(self.repo.path, "hooks", "pre-commit")
         with open(hook, "w", encoding="utf-8") as stream:
