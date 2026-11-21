@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Refuse what the house rules ban: as an edit hook, or --staged."""
+import ast
 import json
 import os
 import re
@@ -13,6 +14,8 @@ LICENSE = "This file is part of "
 HARNESS = "/SourceFiles/test/"
 URL = re.compile(r"https?://")
 PLAIN_LINES = 2
+MAX_COLUMNS = 78
+TAB_WIDTH = 8
 
 
 def banned():
@@ -149,22 +152,41 @@ def check_edit(payload, path):
 
 def staged():
     # No cwd: the hook answers for the repository it was invoked in.
-    diff = subprocess.run(["git", "diff", "--cached", "-U0", "-M"],
-        capture_output=True, text=True).stdout
-    path, number, added, dropped, bad = "", 0, {}, set(), 0
-    for line in diff.split("\n"):
-        if line.startswith("+++ b/"):
-            path, number = line[6:], 0
+    diff = subprocess.run([
+        "git", "-c", "core.quotePath=true", "diff", "--cached", "-U0", "-M",
+        "--no-color", "--no-ext-diff", "--no-textconv",
+        "--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=all",
+    ], stdout=subprocess.PIPE, text=True)
+    if diff.returncode:
+        return diff.returncode
+    path, number, added, dropped, in_hunk = "", 0, {}, set(), False
+    for line in diff.stdout.split("\n"):
+        if line.startswith("diff --git "):
+            path, in_hunk = "", False
+        elif not in_hunk and line.startswith("+++ "):
+            name = line[4:].rstrip("\t")
+            if name.startswith('"'):
+                name = os.fsdecode(ast.literal_eval("b" + name))
+            path = name[2:] if name.startswith("b/") else ""
         elif line.startswith("@@"):
+            in_hunk = True
             number = int(re.search(r"\+(\d+)", line).group(1)) - 1
-        elif line.startswith("-") and not line.startswith("---"):
+        elif in_hunk and line.startswith("-"):
             dropped.add(comment_text(line[1:]))
-        elif line.startswith("+") and not line.startswith("+++"):
+        elif in_hunk and line.startswith(" "):
+            number += 1
+        elif in_hunk and line.startswith("+"):
             number += 1
             if path.endswith(SOURCES):
                 added.setdefault(path, []).append((number, line[1:]))
-    plain = 0
+    plain, bad = 0, 0
     for path, lines in added.items():
+        for number, line in lines:
+            width = len(line.expandtabs(TAB_WIDTH))
+            if width > MAX_COLUMNS:
+                print(f"{path}:{number}: {width} columns (limit {MAX_COLUMNS},"
+                    f" tab width {TAB_WIDTH}). Wrap the line.", file=sys.stderr)
+                bad += 1
         for name, into in banned():
             for number, line in lines:
                 if re.search(r"\b" + name + r"\s*\(", without_comments(line)):

@@ -241,8 +241,44 @@ class StagedHook(unittest.TestCase):
     def test_other_files_are_ignored(self):
         code, why = self.stage({
             "t.py": "# a\n# b\n// c\n// d\nqMin(1, 2)\n",
-            "a.style": "// a\n// b\nx: 1px;\n"})
+            "a.style": "// a\n// b\nx: 1px;\n" + "x" * 79 + "\n"})
         self.assertEqual(code, 0, why)
+
+    def test_line_width_counts_tab_stops_and_allows_78_columns(self):
+        line = "\t" + "x" * 69
+        code, why = self.stage({"a.cpp": line + ";\n"})
+        self.assertEqual(code, 0, why)
+        code, why = self.stage({"a.cpp": line + "x;\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:1: 79 columns (limit 78, tab width 8)", why)
+
+    def test_only_staged_changes_count(self):
+        long_line = "x" * 79 + "\n"
+        self.repo.commit({"a.cpp": long_line + "int a;\n"})
+        self.repo.put({"a.cpp": long_line + "int b;\n"})
+        with open(os.path.join(self.repo.path, "a.cpp"), "a") as stream:
+            stream.write(long_line)
+        code, why = self.repo.staged()
+        self.assertEqual(code, 0, why)
+
+    def test_overlong_line_with_quoted_path_and_plus_prefix(self):
+        code, why = self.stage({"répertoire/file name.cpp":
+            "\n++value; " + "x" * 70 + "\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("répertoire/file name.cpp:2: 79 columns", why)
+
+    def test_commit_is_rejected_by_installed_hook(self):
+        hook = os.path.join(self.repo.path, "hooks", "pre-commit")
+        with open(hook, "w", encoding="utf-8") as stream:
+            stream.write(f'#!/bin/sh\nexec "{sys.executable}" "{HOOK}"'
+                ' --staged\n')
+        os.chmod(hook, 0o755)
+        self.repo.put({"a.cpp": "x" * 79 + "\n"})
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            self.repo.git("commit", "-m", "Overlong line")
+        self.assertIn("a.cpp:1: 79 columns", failure.exception.stderr)
+        self.repo.put({"a.cpp": "int a;\n"})
+        self.repo.git("commit", "-m", "Short line")
 
     def test_license_header_of_new_file_is_free(self):
         code, why = self.stage({"b.cpp": LICENSE + "int b() {\n"
