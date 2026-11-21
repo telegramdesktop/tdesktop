@@ -88,7 +88,36 @@ endfunction()
 
 add_widget_sandbox_host(lib_widget_sandbox_host)
 add_widget_sandbox_host(lib_widget_sandbox_host_hardened)
-set(widget_sandbox_targets lib_widget_sandbox_host lib_widget_sandbox_host_hardened lib_widget_sandbox)
+set(widget_sandbox_targets
+    lib_widget_sandbox_host
+    lib_widget_sandbox_host_hardened
+    lib_widget_sandbox_platform
+    lib_widget_sandbox)
+
+add_library(lib_widget_sandbox_platform STATIC)
+if (APPLE)
+    init_standalone_target(lib_widget_sandbox_platform "(external)")
+else()
+    init_target(lib_widget_sandbox_platform "(external)")
+endif()
+
+add_library(tdesktop::lib_widget_sandbox_platform ALIAS lib_widget_sandbox_platform)
+
+nice_target_sources(lib_widget_sandbox_platform ${widget_sandbox_loc}
+PRIVATE
+    include/twidget/engine_platform.h
+    src/engine_platform.cpp
+    src/steady_clock.h
+)
+
+target_include_directories(lib_widget_sandbox_platform
+PUBLIC
+    ${widget_sandbox_loc}/include
+)
+
+if (WIN32)
+    target_link_libraries(lib_widget_sandbox_platform PUBLIC bcrypt)
+endif()
 
 add_library(lib_widget_sandbox STATIC)
 if (APPLE)
@@ -121,6 +150,7 @@ PRIVATE
 target_link_libraries(lib_widget_sandbox
 PUBLIC
     lib_widget_sandbox_host_hardened
+    lib_widget_sandbox_platform
 )
 
 # Not SYSTEM, so that an engine update rebuilds the object compiled against nova_engine.h.

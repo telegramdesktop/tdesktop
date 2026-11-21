@@ -116,6 +116,7 @@ if (WIN32)
         foreach (target
             TelegramWidgetHelper
             lib_widget_sandbox
+            lib_widget_sandbox_platform
             lib_widget_renderer
             lib_litehtml
             lib_widget_sandbox_host_hardened
@@ -249,6 +250,7 @@ else()
     foreach (target
         TelegramWidgetHelper
         lib_widget_sandbox
+        lib_widget_sandbox_platform
         lib_widget_renderer
         lib_litehtml
         lib_widget_sandbox_host_hardened
