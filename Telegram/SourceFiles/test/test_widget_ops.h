@@ -654,9 +654,9 @@ struct WidgetHostedDeath {
 [[nodiscard]] QString WidgetHostedDeathText(const WidgetHostedDeath &death);
 
 // Whether the cumulative counts of |reading| hold a death of its widget: a
-// fatal frozen notice of a local renderer, or a hosted work's final charge
-// (`fatalFrozen` or `desktopCharges`). A raw death a host reported is never
-// one, so a wait that ends at a death ends at no other host's line.
+// hosted work's final charge (`fatalFrozen` or `desktopCharges`). A raw
+// death a host reported is never one, so a wait that ends at a death ends
+// at no other host's line.
 [[nodiscard]] bool WidgetTapCharged(const WidgetOpsReading &reading);
 
 // Whether |reading|'s tap selected a hosted work for the runtime's
@@ -664,7 +664,7 @@ struct WidgetHostedDeath {
 // helper, and its death is read by ReadHostedDeath(). Read from the
 // message's own selections, never from the runtime's engine placement,
 // which no construction may have chosen yet: a reading with no selection
-// at all is not hosted, and holds no death of either kind.
+// at all is not hosted, and holds no charge.
 [[nodiscard]] bool WidgetTapHosted(const WidgetOpsReading &reading);
 
 // "none", "spared", "ordinary", "stalled" or "refused", for rows.

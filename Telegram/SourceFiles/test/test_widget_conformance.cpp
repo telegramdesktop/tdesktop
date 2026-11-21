@@ -2242,8 +2242,7 @@ void TakeSelfCheckRow(
 // apart (TakeExchangeRows()), the played bot's, the tap's probe-fixture
 // checks, then the pure result reader, summary reader, observation, run
 // file, message context and bot table, selection, host reading, death
-// reading, desktop stop, picture and totals controls; every row is one
-// Check.
+// reading, picture and totals controls; every row is one Check.
 void RunSelfChecks(ConformanceState &state) {
 	const auto take = [&](const WidgetOpsSelfCheckRow &row) {
 		TakeSelfCheckRow(state, row);
@@ -2286,9 +2285,6 @@ void RunSelfChecks(ConformanceState &state) {
 	take(CheckSelection());
 	take(CheckHostReadings());
 	for (const auto &row : RunDeathReadingCheck()) {
-		take(SelfCheckRow(row.passed, row.name, row.details));
-	}
-	for (const auto &row : RunDesktopStopCheck()) {
 		take(SelfCheckRow(row.passed, row.name, row.details));
 	}
 	for (const auto &row : RunPictureCheck()) {
@@ -2589,7 +2585,7 @@ void RecordResult(const ConformanceState &state, ConformanceRun &run) {
 	run.loaded = HostLoaded(reading);
 	run.died = charged || stopped;
 	if (run.died) {
-		run.dead = DeathPlaceholder(charged, WidgetTapHosted(reading));
+		run.dead = DeathPlaceholder(charged);
 	}
 	run.resultOutcome = WaitOutcome(
 		state,
@@ -2616,7 +2612,7 @@ void RecordDone(const ConformanceState &state, ConformanceRun &run) {
 	run.loaded = run.loaded || HostLoaded(reading);
 	if (!run.died && (charged || stopped)) {
 		run.died = true;
-		run.dead = DeathPlaceholder(charged, WidgetTapHosted(reading));
+		run.dead = DeathPlaceholder(charged);
 	}
 	run.doneOutcome = WaitOutcome(
 		state,

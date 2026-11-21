@@ -320,12 +320,12 @@ struct ConformanceActions;
 // whether it was the fresh or final summary of the host the log was
 // requested for (WidgetLogSummaryOwn()), the only one that can give a
 // cause, |deathLine| that summary's "Died: " line, verbatim, kept whatever
-// its state for a hosted reading and, as ever, only from an own summary
-// for a local one, |desktopStop| a stop the desktop decided itself, read
-// then, |deathMeasured| whether |dead| is a measured reason, never a
-// placeholder, |deathHosted| whether the death was read as hosted
-// (WidgetTapHosted()), and |hostedDeath| the hosted reading of its death,
-// taken at the log stage and again through the final barrier.
+// its state for a hosted reading and otherwise only from an own summary,
+// which a run whose tap selected no hosted work never has, so its line is
+// empty, |desktopStop| a stop the desktop decided itself, read then,
+// |deathMeasured| whether |dead| is a measured reason, never a
+// placeholder, and |hostedDeath| the hosted reading of its death, taken
+// at the log stage and again through the final barrier.
 struct ConformanceRun {
 	QString id;
 	QString set;
@@ -381,7 +381,6 @@ struct ConformanceRun {
 	int palette = -1;
 	bool measured = false;
 	bool deathMeasured = false;
-	bool deathHosted = false;
 	bool summaryOwn = false;
 	bool summaryRead = false;
 	bool itemGone = false;

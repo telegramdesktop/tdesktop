@@ -3092,8 +3092,7 @@ diagnostics and take no cause from either, so a charge then reads
 `charged, reason unmeasured`
 ([test_widget_ops](test_widget_ops.md#hosted-deaths-and-final-charges)),
 refused by name only for a conformance entry with `stops`
-([test_widget_conformance](test_widget_conformance.md#readings-and-refusals));
-the conformance runner's local reading drops that line.
+([test_widget_conformance](test_widget_conformance.md#readings-and-refusals)).
 The summary and the log are bounded by the product (`kMaxLogLine`,
 `kLogBytes`, the tail limits of `Summarize()`), so neither proves an absence.
 

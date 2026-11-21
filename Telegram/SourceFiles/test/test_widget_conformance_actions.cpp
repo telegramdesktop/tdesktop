@@ -294,7 +294,7 @@ void EndInput(ConformanceRun &run, int i) {
 		: (runtime->state() != RuntimeState::Live)
 		? (u"the runtime is "_q + RuntimeStateName(runtime->state()))
 		: charged
-		? DeathPlaceholder(true, WidgetTapHosted(reading))
+		? DeathPlaceholder(true)
 		: QString();
 }
 

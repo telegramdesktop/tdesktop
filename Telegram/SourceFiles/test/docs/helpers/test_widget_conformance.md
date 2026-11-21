@@ -213,11 +213,10 @@ Use something else when:
   ends its wait, so a widget its host never stops publishes `done` and the
   wait runs to the 20 s bound, and only a charged death
   (`WidgetTapCharged()`: a hosted work's final ordinary, stalled or
-  desktop charge, or a local renderer's fatal `frozen`), a stopped or
-  failed runtime or the message gone end it sooner. A raw death a host
-  reports ends no wait. Its `dead` is read as **A run's death** below,
-  never the localized stopped label. Whether it starts with the entry's
-  `stops` is `report.mjs`'s judgement alone.
+  desktop charge), a stopped or failed runtime or the message gone end it
+  sooner. A raw death a host reports ends no wait. Its `dead` is read as
+  **A run's death** below, never the localized stopped label. Whether it
+  starts with the entry's `stops` is `report.mjs`'s judgement alone.
 - **Desktop stops.** A stop the desktop decided itself, such as a paint
   bound's refusal of the widget's frames, is no host death: the summary
   has no `Died: ` line, `Died: terminated` once the retired host is gone,
@@ -231,19 +230,20 @@ Use something else when:
   ([test_widget_fixture](test_widget_fixture.md)), cut by
   `Tgw::ClipLogLine()` as a summary's dead is (240 characters, its "..."
   included). It reads it whatever the result waits saw, so a stop after
-  the last wait counts too, and keeps it in the run's `desktopStop`. Only
-  a local reading takes it as the death's reason (below); a hosted
-  widget's refusal is a charge of its work instead.
+  the last wait counts too, and keeps it in the run's `desktopStop`. It is
+  never a death's reason (below): a hosted widget's refusal is a charge of
+  its work instead, and a stop read apart only names itself in a
+  `stop-reason-unmeasured` detail.
 - **A run's death.** `ReadDeath()`, `ReconcileDeath()` and their texts are
   `test_widget_conformance_death.{h,cpp}`. The log stage keeps, apart
   from any measured reason, the summary's raw `Died: ` line
   (`deathLine`), the work that summary was sampled from (`summaryWork`,
   whatever its state) and `summaryOwn` for a `Fresh` or `Final` summary
   (`WidgetLogSummaryOwn()`).
-  - Hosted, when the run's tap selected hosted works (`WidgetTapHosted()`,
-    `deathHosted`): `deathLine` is kept verbatim whatever the summary's
-    state and never makes a death by itself, since every host of an ended
-    helper prints `Died: the widget engine process ended`. The shared
+  - Hosted, when the run's tap selected hosted works (`WidgetTapHosted()`):
+    `deathLine` is kept verbatim whatever the summary's state and never
+    makes a death by itself, since every host of an ended helper prints
+    `Died: the widget engine process ended`. The shared
     reading `ReadHostedDeath()`
     ([test_widget_ops](test_widget_ops.md#hosted-deaths-and-final-charges)),
     given that work and line only for an own summary, decides `died`
@@ -259,14 +259,18 @@ Use something else when:
     that reading final (`readingFinal`, `WidgetTapFinished()`). Otherwise
     the run is incomplete, and the `dead` of its `CONFORMANCE_RUN` row, null
     while nothing was charged, proves no survival.
-  - Local, with no hosted selection: `deathLine` is an own summary's line
-    alone, a stale one's dropped. That line is the death when its reason,
-    trimmed, is not `terminated`: the reason, cut at 240 characters, is
-    measured, and a blank one leaves `dead` empty (the run file's "died,
-    reason not observed") with no desktop stop in its place. Without such
-    a line (none, or one reading `terminated` once trimmed, padded or
-    not), the desktop's own stop is the measured death; with neither, a
-    fatal `frozen` or a stopped runtime leaves the runner's placeholder.
+  - With no hosted selection, when the run's tap selected no hosted work:
+    `ReadDeath()` judges nothing, and `deathLine` takes an own summary's
+    line alone. No host was sampled for such a run, so its summary is
+    `Absent` (work 0, `summaryOwn` false) and `deathLine` is empty; its
+    host watch has no attachment, so `desktopStop` is empty too. Nothing
+    charged it, and `died`, `dead` and `deathMeasured` stay as its result
+    waits read them: alive and unmeasured. The final barrier leaves the
+    run as its earlier stages read it while its reading still has no
+    selection (`ReconcileDeath()`); a selection made since is read as
+    hosted above. A run whose log stage was skipped keeps these fields'
+    defaults (work 0, not own, `deathLine` and `desktopStop` empty) and
+    is incomplete.
 - **2x.** The stage crops and the picture bands need the device pixel ratio
   times the interface scale to be 200 % (a Retina display at 100 %, say), and
   the accepted image of each snapshot and band must be exactly twice its CSS
@@ -674,11 +678,12 @@ still carry runner refusals; they fail the totals. Its fields:
 - `id`, `theme`, `width` (the measured core width rounded, or 390 with
   `widthMeasured` false), `loaded` (the host's post-load ack answered),
   `dead` (null while alive; for a hosted run its sampled work's measured
-  cause or `charged, reason unmeasured`; locally a fatal `frozen`, a
-  stopped runtime, the summary's `Died:` reason other than `terminated`,
-  a stop the desktop decided itself
-  ([desktop stops](#preconditions-and-limits)), or "died, reason not
-  observed"; [a run's death](#preconditions-and-limits)), `status`
+  cause or `charged, reason unmeasured`, never the desktop's own stop
+  read apart ([desktop stops](#preconditions-and-limits)); a run whose
+  tap selected no hosted work keeps what its result waits read, null, as
+  nothing charged it; `DeadValue()` writes "died, reason not observed"
+  only for a dead run with an empty `dead`, which no reading leaves;
+  [a run's death](#preconditions-and-limits)), `status`
   and `checks` verbatim from the reported value;
 - `stages` as above; `observed`: `bridge` (`{method, args}`, `args` a JSON
   array), `height` (the card's height in CSS px before the removal),
@@ -765,21 +770,21 @@ caption, whose host got a nonzero field in any construction: the runner did
 not make `CLIENTS.md`'s all-0 state), `safe-area-unmeasured` (a loaded run
 with no watch reading or no `applied` entry), `stop-reason-unmeasured` (a
 run of an entry with `stops` that died without a measured reason, so its
-`dead` is the runner's placeholder or empty: locally a blank `Died: `
-reason in its host's fresh or final summary, a desktop stop being no
-fallback for it, or no `Died: ` line other than `terminated` there and no
-stop the desktop decided itself; for a hosted run no cause its sampled
-work's own record gives), and the summary reader's. None of the three
-drops a run from `runs`. `StopRefusal(stops, run)` judges the run's death
-as it stands; its detail names, each apart, the raw `deathLine`, for a
-hosted run that its sample gave no attributable cause with that summary's
-eligibility (`fresh or final`, or `stale or absent`) and `summaryWork`,
-and the desktop's own stop, named when one was read and otherwise said
-not to have happened, for a hosted run only not to have been observed.
-The log stage makes it. For a hosted run the final barrier replaces it as
-the death then stands (`ReconcileDeath()`, `RefuseUnmeasuredStop()`); a
-local run keeps the log stage's. A result value that is not a
-JSON object, not published for this run's id, or whose `checks` is not an
+`dead` is the runner's placeholder: no cause its sampled work's own record
+gives, a stop the desktop decided itself giving none), and the summary
+reader's. None of the three drops a run from `runs`.
+`StopRefusal(stops, run)` judges the run's death as it stands, which is
+always a hosted reading's charge, as a run whose tap selected no hosted
+work is never dead then; its detail names, each apart, the raw
+`deathLine`, that the run's sample gave no attributable cause with that
+summary's eligibility (`fresh or final`, or `stale or absent`) and
+`summaryWork`, and the desktop's own stop, named when one was read and
+otherwise only not to have been observed, never denied, as the desktop's
+charge of a selected work may still stand. The log stage makes it. For a
+hosted run the final barrier replaces it as the death then stands
+(`ReconcileDeath()`, `RefuseUnmeasuredStop()`); a run whose tap selected
+no hosted work keeps the log stage's. A result value that is not a JSON
+object, not published for this run's id, or whose `checks` is not an
 array is not used; `result.error` names why.
 
 **Rows**, each `NOTE: <marker>: <compact JSON>`:
@@ -1243,13 +1248,13 @@ negatives: `SafeAreaRefusal()` gives none for an entry without `safeArea`
 with all 0, `safe-area-not-zero` for `bottom` 26 and for `cornerRight` 118
 alone, `safe-area-unmeasured` for a loaded run with no `applied` and none
 for one not loaded, and none for a `safeArea` entry with 26/118 or with
-all 0; `StopRefusal()` of a run read by `ReadDeath()` locally from a fresh
-summary gives none for a stop run that died with a `Died: `
-line, `stop-reason-unmeasured` for one that died without, and none for a
+all 0; `StopRefusal()` of literal hosted runs with an own summary gives
+none for a stop run that died with its `Died: ` line's measured cause,
+`stop-reason-unmeasured` for one that died without, and none for a
 stop run that did not die or a run without `stops` that died without one;
 `WantedStatus()` at `done` is false for a `stops` entry and true for a plain
 auto entry, in a literal `ConformanceState`); a death reading control
-(`RunDeathReadingCheck()` of `test_widget_conformance_death.cpp`, six
+(`RunDeathReadingCheck()` of `test_widget_conformance_death.cpp`, five
 `death reading self-check: ...` rows on taps of their own, every work
 played as `WidgetHostedPlay` plays it and read as the log stage, the final
 barrier, the run file and the totals read it: a spared work and its
@@ -1258,14 +1263,10 @@ whichever is sampled, measured only from the charged work's own sample;
 a run sampled healthy dies, measured, of a later refusal on a route the
 stream spared and stays alive after a valid reply; the barrier adds and
 drops `stop-reason-unmeasured` as the death then stands; a charged first
-selection evicted by 33 later ones still kills the run; a stale or absent
-sample, or a skipped log stage, leaves a charge unmeasured, taking no
-cause from the desktop's own stop; and the local rule, its blank reason
-and its `terminated` fallbacks, unchanged at the barrier); a desktop stop
-control (`RunDesktopStopCheck()` of `test_widget_conformance_stop.cpp`:
-`StopRefusal()` of a stop run read by `ReadDeath()` locally that died
-with only `Died: terminated` gives none with a stop the desktop decided
-itself and `stop-reason-unmeasured` without one); `RunPictureCheck()` (requested
+selection evicted by 33 later ones still kills the run; and a stale or
+absent sample, or a skipped log stage, leaves a charge unmeasured, taking
+no cause from the desktop's own stop; no row reads a run whose tap
+selected no hosted work); `RunPictureCheck()` (requested
 visual, auto, unknown, unselected and no picture ids through
 `SelectPictures()` and the notes; the bands of a 544 CSS px card and the
 completeness of 336, 280 and 650 CSS px pictures, with band 1 refused,
@@ -1358,14 +1359,22 @@ the per-ID report.
 
 The [desktop stop](#preconditions-and-limits) reading of
 `test_widget_conformance_stop.{h,cpp}`, its `RecordLog()` call, the
-`StopRefusal()` argument and the two literal cases of
-`RunDesktopStopCheck()` compiled in the Windows Win32 Debug build of
+`StopRefusal()` argument and a two-case desktop stop control compiled in
+the Windows Win32 Debug build of
 `2026/10/31/stop-a-widget-on-its-last-picture-when-the-paint-bounds-refuse-its-frames`.
-`RunDesktopStopCheck()` runs in the pack's first stage, so only a launch of
-the pack runs it; that task's evidence loop runs it and a synthetic smoke
-of a paint stop, and neither has run yet. Before that build this page
-recorded no Windows build or run of the pack; the code is portable C++ and
-Qt.
+That task's evidence campaign (its `work/test.md`, Runs 5 and 8) then
+launched the pack in Win32 Debug builds with its disposable overlay, on
+a synthetic smoke package of a paint-limit and a text-limit `stops`
+entry. The control passed in the pack's first stage in Run 5 and again
+in Run 8. In Run 8, with the window in the one-column layout, both runs
+completed at width 390 with no runner refusal: the paint-limit run dead
+with the desktop's filter-work reason, which the runner then took as the
+death's measured reason, and the text-limit run with its host's
+`Text limit exceeded` reason. Before that build this page recorded no
+Windows build or run of the pack; the code is portable C++ and Qt. The
+control, whose runs died only through the in-process renderer's death
+reading, was removed with that reading by
+`2026/11/21/remove-the-unreachable-local-widget-crash-count-and-death-readings`.
 
 The right click's [menu wait](#timed-pointer-sequences) (the chat-list
 reader's `Begin`, `Poll` and `End` with the 250 ms bound) was added by
@@ -1406,7 +1415,11 @@ with the same raw `Died: the widget engine process ended` dead as
 with its line's reason, measured. That launch's totals failed two rows,
 both from the runner's existing `summary-multiple-hosts` refusal of the
 bridge reading of the deliberately two-host fourth case. No Release build
-with the harness and no other platform ran it.
+with the harness and no other platform ran it. Of those six death reading
+rows, the one pinning the in-process renderer's death reading was removed
+with that reading by
+`2026/11/21/remove-the-unreachable-local-widget-crash-count-and-death-readings`,
+which leaves the five above.
 
 ## Related guidance
 

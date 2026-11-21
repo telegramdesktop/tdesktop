@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStringList>
 
 #include <algorithm>
-#include <array>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -29,8 +28,6 @@ namespace {
 
 using Outcome = Tgw::HostedOutcome;
 
-constexpr auto kTerminated = "terminated";
-
 // The session of the messages the checks arm their taps for, apart from
 // the ops self-check's and the attack audit's, and work ids no
 // RendererCore is given (theirs count up from 1).
@@ -40,39 +37,33 @@ constexpr auto kCheckWork = std::numeric_limits<uint64>::max() - 1000;
 // The texts of the checks: the end of the widget helper, which every host
 // it served reports alike, spared or charged, and the line of a summary
 // that carries it; StalledReason(), an ordinary death's label, one of
-// Telegram's own refusals, an engine's own death, a paint bound's stop as
-// the run's record and as the desktop's own reading of it, and the stops
-// entry the runs belong to.
+// Telegram's own refusals, a paint bound's stop as the run's record and as
+// the desktop's own reading of it, and the stops entry the runs belong to.
 constexpr auto kHelperEnded = "the widget engine process ended";
 constexpr auto kHelperLine = "Died: the widget engine process ended";
 constexpr auto kStalledReason = "The widget stopped responding";
 constexpr auto kStoppedLabel = "Widget stopped";
 constexpr auto kSkippedFrame
 	= "The widget renderer skipped a frame asked to paint";
-constexpr auto kOutOfMemory = "Out of memory";
 constexpr auto kPaintLimit = "Paint limit exceeded: a control reason";
 constexpr auto kDesktopStop = "Paint limit exceeded: the desktop's reading";
 constexpr auto kStops = "Text limit exceeded";
 
-// The clauses StopRefusal() puts in the refusal of a local run the desktop
-// did not stop itself, in the one of a hosted run whose separate reading
-// of the desktop's own stop found none, which the desktop's charge of a
-// selected work can still be, and in the one of a hosted run, whose sample
-// gave no cause.
+// The denial StopRefusal() never makes when its separate reading of the
+// desktop's own stop found none, as the desktop's charge of a selected
+// work can still be one; the clause it puts in its refusal then instead;
+// and the one saying that the run's sample gave no cause.
 constexpr auto kNoDesktopStop = "the desktop did not stop it itself";
 constexpr auto kNoDesktopStopObserved
 	= "no stop of the desktop's own was observed apart from it";
 constexpr auto kNoAttributableCause = "its sample gave no attributable cause";
 
 // What a run's death reads as at one stage: its run file's dead (empty
-// while it is alive, "died, reason not observed" for a death with an empty
-// reason), the text its totals' dead list entry has after "<key>: " when
-// that is not |dead| (a local death with an empty reason keeps it empty
-// there, as the totals always wrote it), whether the dead is measured and
-// whether its stops entry refused it as stop-reason-unmeasured.
+// while it is alive), which its totals' dead list entry also has after
+// "<key>: ", whether the dead is measured and whether its stops entry
+// refused it as stop-reason-unmeasured.
 struct Expected {
 	QString dead;
-	std::optional<QString> entry;
 	bool measured = false;
 	bool refused = false;
 };
@@ -117,13 +108,12 @@ struct Expected {
 // else the placeholder. A stop the desktop read gives a hosted run
 // nothing: its cause is the sampled work's own record or none.
 void JudgeHosted(ConformanceRun &run, WidgetHostedDeath death) {
-	run.deathHosted = true;
 	run.died = death.died;
 	run.deathMeasured = death.measured;
 	run.dead = death.measured
 		? death.reason
 		: death.died
-		? DeathPlaceholder(true, true)
+		? DeathPlaceholder(true)
 		: QString();
 	run.hostedDeath = std::move(death);
 }
@@ -164,7 +154,7 @@ void JudgeHosted(ConformanceRun &run, WidgetHostedDeath death) {
 // RecordLog()'s death steps for a run of the stops entry kStops: ReadDeath()
 // of |log| and the tap's reading now, then its refusal.
 [[nodiscard]] ConformanceRun Logged(
-		const WidgetOpsReading &reading,
+		const WidgetOpsTap &tap,
 		const WidgetRuntimeLog &log,
 		const QString &desktopStop = QString()) {
 	auto result = ConformanceRun{
@@ -173,16 +163,9 @@ void JudgeHosted(ConformanceRun &run, WidgetHostedDeath death) {
 		.theme = u"light"_q,
 		.key = u"auto/death.light"_q,
 	};
-	ReadDeath(result, log, reading, desktopStop);
+	ReadDeath(result, log, ReadWidgetOps(tap), desktopStop);
 	RefuseUnmeasuredStop(result, QString::fromLatin1(kStops));
 	return result;
-}
-
-[[nodiscard]] ConformanceRun Logged(
-		const WidgetOpsTap &tap,
-		const WidgetRuntimeLog &log,
-		const QString &desktopStop = QString()) {
-	return Logged(ReadWidgetOps(tap), log, desktopStop);
 }
 
 // FinalizeRun()'s: the tap's reading after the removal, whether it is
@@ -203,10 +186,9 @@ void Finalize(ConformanceRun &run, const WidgetOpsTap &tap) {
 
 // Whether every stop-reason-unmeasured refusal of |run| tells what the run
 // read: the desktop's own stop named when one was read (`desktopStop`);
-// when none was, said not to have happened for a local reading and only
-// unobserved for a hosted one, never denied there, as a charge of the
-// desktop's may still stand; and for a hosted reading that its sample gave
-// no attributable cause.
+// when none was, only unobserved, never denied, as a charge of the
+// desktop's may still stand; and that its sample gave no attributable
+// cause.
 [[nodiscard]] bool RefusalTold(const ConformanceRun &run) {
 	const auto name = QString::fromLatin1(kStopReasonUnmeasured);
 	const auto denial = QString::fromLatin1(kNoDesktopStop);
@@ -223,11 +205,9 @@ void Finalize(ConformanceRun &run, const WidgetOpsTap &tap) {
 			const auto denied = detail.contains(denial);
 			const auto missed = detail.contains(unobserved);
 			const auto stop = !run.desktopStop.isEmpty()
-				? (!denied && !missed && detail.contains(run.desktopStop))
-				: run.deathHosted
-				? (!denied && missed)
-				: (denied && !missed);
-			return stop && (!run.deathHosted || detail.contains(uncaused));
+				? (!missed && detail.contains(run.desktopStop))
+				: missed;
+			return stop && !denied && detail.contains(uncaused);
 		});
 }
 
@@ -242,7 +222,7 @@ void Finalize(ConformanceRun &run, const WidgetOpsTap &tap) {
 		: QJsonValue(expected.dead);
 	const auto entry = alive
 		? QString()
-		: (run.key + u": "_q + expected.entry.value_or(expected.dead));
+		: (run.key + u": "_q + expected.dead);
 	return (run.died == !alive)
 		&& (run.deathMeasured == expected.measured)
 		&& (DeadValue(run) == value)
@@ -777,141 +757,12 @@ void PlaySample(
 		u"desktop did not stop it; the stale line and its work kept"_q);
 }
 
-// The local rule, as the runner read it before hosted deaths, unchanged at
-// the barrier: a summary's own "Died: " line is the death, its reason
-// measured unless empty (then "died, reason not observed" in the run file
-// and an empty reason in the totals' entry, refused, the desktop's stop not
-// taken); "terminated", no line and a stale summary's line leave the
-// placeholder of a frozen notice (refused) or the desktop's own stop
-// (measured), else alive. Only an own summary's line is kept in
-// `deathLine`, the run's log row and its refusal: a stale summary's,
-// possibly an older host's, is not.
-[[nodiscard]] WidgetOpsSelfCheckRow CheckLocal() {
-	struct LocalCase {
-		const char *name = nullptr;
-		const char *line = nullptr;
-		const char *desktopStop = "";
-		Expected expected;
-		WidgetLogSummary state = WidgetLogSummary::Fresh;
-		bool frozen = false;
-	};
-	const auto notObserved = u"died, reason not observed"_q;
-	const auto frozenNotice = DeathPlaceholder(true, false);
-	const auto paintLimit = QString::fromLatin1(kPaintLimit);
-	const auto local = std::array{
-		LocalCase{
-			.name = "its own line",
-			.line = "Died: Out of memory",
-			.expected = {
-				.dead = QString::fromLatin1(kOutOfMemory),
-				.measured = true,
-			},
-			.frozen = true,
-		},
-		LocalCase{
-			.name = "an empty reason",
-			.line = "Died: ",
-			.expected = {
-				.dead = notObserved,
-				.entry = QString(),
-				.refused = true,
-			},
-		},
-		LocalCase{
-			.name = "a blank reason, a frozen notice and a desktop stop",
-			.line = "Died:   ",
-			.desktopStop = kPaintLimit,
-			.expected = {
-				.dead = notObserved,
-				.entry = QString(),
-				.refused = true,
-			},
-			.frozen = true,
-		},
-		LocalCase{
-			.name = "terminated, a frozen notice",
-			.line = "Died: terminated",
-			.expected = { .dead = frozenNotice, .refused = true },
-			.frozen = true,
-		},
-		LocalCase{
-			.name = "terminated, the desktop's own stop",
-			.line = "Died: terminated",
-			.desktopStop = kPaintLimit,
-			.expected = { .dead = paintLimit, .measured = true },
-		},
-		LocalCase{
-			.name = "terminated alone",
-			.line = "Died: terminated",
-		},
-		LocalCase{
-			.name = "no line, a frozen notice",
-			.expected = { .dead = frozenNotice, .refused = true },
-			.frozen = true,
-		},
-		LocalCase{
-			.name = "no line, the desktop's own stop",
-			.desktopStop = kPaintLimit,
-			.expected = { .dead = paintLimit, .measured = true },
-		},
-		LocalCase{
-			.name = "no line",
-		},
-		LocalCase{
-			.name = "a stale summary's line, a frozen notice",
-			.line = "Died: Out of memory",
-			.expected = { .dead = frozenNotice, .refused = true },
-			.state = WidgetLogSummary::Stale,
-			.frozen = true,
-		},
-	};
-	auto cases = Cases();
-	for (const auto &entry : local) {
-		auto reading = WidgetOpsReading();
-		reading.fatalFrozen = entry.frozen ? 1 : 0;
-		const auto log = Sample(1, entry.line, entry.state);
-		const auto line = (entry.line && WidgetLogSummaryOwn(log))
-			? QString::fromLatin1(entry.line)
-			: QString();
-		auto run = Logged(
-			reading,
-			log,
-			QString::fromLatin1(entry.desktopStop));
-		run.key = u"auto/local.light"_q;
-		const auto logged = Reads(run, entry.expected)
-			&& (run.deathLine == line);
-		run.reading = reading;
-		run.reading.fatalFrozen += 1;
-		run.reading.desktopCharges = 1;
-		ReconcileDeath(run, QString::fromLatin1(kStops));
-		cases.add(
-			entry.name,
-			logged
-				&& Reads(run, entry.expected)
-				&& (run.deathLine == line)
-				&& !run.deathHosted,
-			RunText(run));
-	}
-	return cases.row(u"death reading self-check: locally a fresh or final "
-		u"summary's own \"Died: \" line is the death, its reason measured, "
-		u"or with an empty reason \"died, reason not observed\" in the run "
-		u"file, \"<key>: \" in the totals and refused as "
-		u"stop-reason-unmeasured whatever the desktop stopped; "
-		u"\"terminated\", no line or a stale summary's line give the frozen "
-		u"notice's placeholder, refused, unless the desktop stopped the "
-		u"widget itself, as the runner read them before hosted deaths; a "
-		u"stale summary's line, an older host's, stays out of the run's "
-		u"death line and refusal, and the barrier changes none of it"_q);
-}
-
 } // namespace
 
-QString DeathPlaceholder(bool charged, bool hosted) {
-	return !charged
-		? u"the runtime stopped the widget"_q
-		: hosted
+QString DeathPlaceholder(bool charged) {
+	return charged
 		? WidgetHostedDeathText({ .died = true })
-		: u"the host sent a fatal frozen notice"_q;
+		: u"the runtime stopped the widget"_q;
 }
 
 void ReadDeath(
@@ -930,21 +781,6 @@ void ReadDeath(
 		return;
 	}
 	run.deathLine = run.summaryOwn ? line : QString();
-	if (WidgetTapCharged(reading) && !run.died) {
-		run.died = true;
-		run.dead = DeathPlaceholder(true, false);
-	}
-	const auto reason = run.deathLine.mid(6).trimmed();
-	if (!run.deathLine.isEmpty()
-		&& (reason != QString::fromLatin1(kTerminated))) {
-		run.died = true;
-		run.dead = reason;
-		run.deathMeasured = !reason.isEmpty();
-	} else if (!desktopStop.isEmpty()) {
-		run.died = true;
-		run.dead = desktopStop;
-		run.deathMeasured = true;
-	}
 }
 
 void RefuseUnmeasuredStop(ConformanceRun &run, const QString &stops) {
@@ -993,7 +829,6 @@ std::vector<WidgetOpsSelfCheckRow> RunDeathReadingCheck() {
 		CheckStopRefusal(),
 		CheckEviction(),
 		CheckSamples(),
-		CheckLocal(),
 	};
 }
 

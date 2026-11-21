@@ -86,9 +86,9 @@ constexpr auto kMaxLogChars = 32768;
 // selected hosted works (WidgetTapHosted()), the shared reading of the
 // final charges (ReadHostedDeath()), its reason measured (|deathMeasured|)
 // only from the record of the work a fresh or final summary of the log was
-// sampled from (|sampled|), else "charged, reason unmeasured"; locally a
-// fatal frozen notice or a "Died: " reason other than "terminated",
-// "frozen, reason unavailable" for the notice alone.
+// sampled from (|sampled|), else "charged, reason unmeasured"; a file whose
+// tap selected no hosted work (refused, skipped or finished before any
+// renderer of it was selected) is alive, its reason empty and unmeasured.
 struct Verdict {
 	QString notRun;
 	// A fixture check's reason for a file that ran but was then refused.
@@ -108,14 +108,14 @@ struct Verdict {
 // One selected corpus file. Its fixture record names the message by id
 // only, and its tap by the session-qualified key it was armed with, kept
 // for every disarm. Its display log's "Died: " line after the first sandbox
-// header gives |diedLine|, whether there is one, and |diedReason|, its
-// reason unless "terminated", for the local rule; |diedText| is the
-// "Died: " line the summary the log took starts with, verbatim, paired
-// with |summaryWork|, the work that summary was sampled from, and
-// |summaryOwn|, whether it was the fresh or final summary of the host the
-// log was requested for (WidgetLogSummaryOwn()), the only one a hosted
-// reading takes a cause from; |logDeath| is the hosted reading of that
-// sample at the log stage, when the tap had selected hosted works by then.
+// header gives |diedLine|, whether there is one, written in the row's `log`
+// fields with |logHeader|; |diedText| is the "Died: " line the summary the
+// log took starts with, verbatim, paired with |summaryWork|, the work that
+// summary was sampled from, and |summaryOwn|, whether it was the fresh or
+// final summary of the host the log was requested for
+// (WidgetLogSummaryOwn()), the only one a hosted reading takes a cause
+// from; |logDeath| is the hosted reading of that sample at the log stage,
+// when the tap had selected hosted works by then.
 struct AttackFile {
 	QString name;
 	QByteArray html;
@@ -135,7 +135,6 @@ struct AttackFile {
 	QString clickOutcome;
 	QString clickDetails;
 	QString diedText;
-	QString diedReason;
 	QString rowPath;
 	WidgetHostedDeath logDeath;
 	crl::time watchStarted = 0;
@@ -772,9 +771,10 @@ void RecordWatch(AuditState &state, AttackFile &file) {
 }
 
 // The one field of the runtime log the row needs, the "Died: " line, read
-// twice. Locally, as ever, from the display log (Runtime::logText()): the
-// line Summarize() puts right after the first sandbox header, before any
-// text a widget controls (its errors and console may hold line breaks).
+// twice. The display log's own line (Runtime::logText()), the one
+// Summarize() puts right after the first sandbox header, before any text a
+// widget controls (its errors and console may hold line breaks), gives the
+// row's `log.sandboxHeader` and `log.diedLine` alone.
 // For a hosted reading, from the summary the log took itself
 // (WidgetRuntimeLog::summary), whose first line Summarize() writes,
 // verbatim and paired with the work that summary was sampled from
@@ -799,12 +799,6 @@ void ParseLog(AttackFile &file) {
 		}
 		const auto &next = lines[i + 1];
 		file.diedLine = next.startsWith(u"Died: "_q);
-		if (file.diedLine) {
-			const auto reason = next.mid(6).trimmed();
-			if (reason != u"terminated"_q) {
-				file.diedReason = reason;
-			}
-		}
 		file.logHeader = true;
 		return;
 	}
@@ -886,24 +880,19 @@ void RecordLog(AuditState &state, AttackFile &file) {
 // The death of |file| from its reading: once its tap selected hosted
 // works, ReadSampledDeath() for the sample its log paired (ParseLog()),
 // none for a skipped log stage, the log stage's own reading standing for
-// a record evicted since, never a raw line by itself; locally as ever.
+// a record evicted since, never a raw line by itself; a file whose tap
+// selected no hosted work keeps the alive, unmeasured, reasonless verdict
+// Judge() starts from.
 void JudgeDeath(Verdict &verdict, const AttackFile &file) {
 	const auto &reading = file.reading;
-	if (WidgetTapHosted(reading)) {
-		const auto death = ReadSampledDeath(file, reading, &file.logDeath);
-		verdict.died = death.died;
-		verdict.deathMeasured = death.measured;
-		verdict.deathReason = WidgetHostedDeathText(death);
-		verdict.sampled = death.sampled;
+	if (!WidgetTapHosted(reading)) {
 		return;
 	}
-	verdict.died = (reading.fatalFrozen > 0) || !file.diedReason.isEmpty();
-	verdict.deathMeasured = !file.diedReason.isEmpty();
-	verdict.deathReason = verdict.deathMeasured
-		? file.diedReason
-		: verdict.died
-		? u"frozen, reason unavailable"_q
-		: QString();
+	const auto death = ReadSampledDeath(file, reading, &file.logDeath);
+	verdict.died = death.died;
+	verdict.deathMeasured = death.measured;
+	verdict.deathReason = WidgetHostedDeathText(death);
+	verdict.sampled = death.sampled;
 }
 
 // Independent statuses from the final reading: a death with a leak is in
@@ -971,23 +960,15 @@ void JudgeDeath(Verdict &verdict, const AttackFile &file) {
 	return fields.join(QChar(' '));
 }
 
-// The totals' dead list: each file whose row's verdict died. A hosted
-// file's entry has that verdict's reason, so the list and its row never
-// disagree; a local one's is "<file>: <reason>" as the totals always wrote
-// it, the "Died: " reason, or "frozen" for a fatal frozen notice alone,
-// whose row reads "frozen, reason unavailable".
+// The totals' dead list: each file whose row's verdict died, with that
+// verdict's reason, so the list and its row never disagree.
 [[nodiscard]] QStringList DeadFiles(const AuditState &state) {
 	auto result = QStringList();
 	for (const auto &file : state.files) {
 		if (!file.verdict.died) {
 			continue;
 		}
-		const auto reason = WidgetTapHosted(file.reading)
-			? file.verdict.deathReason
-			: file.diedReason.isEmpty()
-			? u"frozen"_q
-			: file.diedReason;
-		result.push_back(file.name + u": "_q + reason);
+		result.push_back(file.name + u": "_q + file.verdict.deathReason);
 	}
 	return result;
 }
@@ -1610,24 +1591,16 @@ constexpr auto kDeathWork = kVerdictOlderWork - 100;
 }
 
 // The clean control row's file named |name|, its runtime log |log| parsed
-// by ParseLog(): with a |tap|, read by the log stage on that tap now;
-// without, locally with |frozen| fatal frozen notices and judged.
+// by ParseLog() and read by the log stage on |tap| now.
 [[nodiscard]] AttackFile DeathFile(
-		const AuditState &state,
 		const char *name,
-		const WidgetOpsTap *tap,
-		const WidgetRuntimeLog &log,
-		int frozen = 0) {
+		const WidgetOpsTap &tap,
+		const WidgetRuntimeLog &log) {
 	auto result = VerdictControlFile();
 	result.name = QString::fromLatin1(name);
 	result.message->log = log;
 	ParseLog(result);
-	if (tap) {
-		ReadLogDeath(result, ReadWidgetOps(*tap));
-	} else {
-		result.reading.fatalFrozen = frozen;
-		result.verdict = Judge(state, result);
-	}
+	ReadLogDeath(result, ReadWidgetOps(tap));
 	return result;
 }
 
@@ -1730,33 +1703,28 @@ void SettleDeath(
 			FlagText(chargedDropped)));
 	auto result = std::vector<AttackFile>();
 	result.push_back(DeathFile(
-		state,
 		"spared sample",
-		tap.get(),
+		*tap,
 		DeathLog(spared.work(), kDeathHelperLine)));
 	result.push_back(DeathFile(
-		state,
 		"charged replacement sample",
-		tap.get(),
+		*tap,
 		DeathLog(charged.work(), kDeathHelperLine)));
 	result.push_back(DeathFile(
-		state,
 		"no sandbox header",
-		tap.get(),
+		*tap,
 		DeathLog(0, nullptr)));
 	result.push_back(DeathFile(
-		state,
 		"charged sample behind a forged stop reason",
-		tap.get(),
+		*tap,
 		DeathLog(
 			charged.work(),
 			kDeathHelperLine,
 			(u"a renderer's stop\nCurrent sandbox:\n"_q
 				+ QString::fromLatin1(kDeathForged)))));
 	result.push_back(DeathFile(
-		state,
 		"spared sample behind a forged stop reason",
-		tap.get(),
+		*tap,
 		DeathLog(
 			spared.work(),
 			kDeathHelperLine,
@@ -1786,9 +1754,8 @@ void SettleDeath(
 	const auto healthyDropped = healthy.drop();
 	const auto withdrawnDropped = withdrawn.drop();
 	result.push_back(DeathFile(
-		state,
 		"healthy collateral sample",
-		collateralTap.get(),
+		*collateralTap,
 		DeathLog(healthy.work(), kDeathHelperLine)));
 	SettleDeath(state, result.back(), *collateralTap);
 	DisarmWidgetOpsTap(collateralId);
@@ -1837,8 +1804,6 @@ void SettleDeath(
 			&& (forged.diedText == line)
 			&& (forged.summaryWork == charged.work())
 			&& forged.diedLine
-			&& (forged.diedReason
-				== QString::fromLatin1(kDeathForged).mid(6))
 			&& DeathReads(hidden, unmeasured, false)
 			&& (hidden.diedText == line)
 			&& (hidden.summaryWork == spared.work())
@@ -1869,9 +1834,8 @@ void SettleDeath(
 	auto played = WidgetHostedPlay(tap, id, kDeathWork - 10 - index);
 	const auto built = InstallDeath(played, nullptr);
 	auto file = DeathFile(
-		state,
 		name,
-		tap.get(),
+		*tap,
 		DeathLog(played.work(), nullptr));
 	const auto dropped = played.drop();
 	SettleDeath(state, file, *tap);
@@ -1959,9 +1923,8 @@ void SettleDeath(
 	auto played = firstBuilt && firstFinished && firstDropped;
 	auto result = std::vector<AttackFile>();
 	result.push_back(DeathFile(
-		state,
 		"first sampled before the eviction",
-		tap.get(),
+		*tap,
 		DeathLog(first.work(), kDeathHelperLine)));
 	for (auto i = 1; i <= kWidgetHostedRuns + 1; ++i) {
 		auto later = WidgetHostedPlay(tap, id, first.work() - i);
@@ -1973,9 +1936,8 @@ void SettleDeath(
 		played = played && chosen && finished && dropped;
 	}
 	result.push_back(DeathFile(
-		state,
 		"first sampled after the eviction",
-		tap.get(),
+		*tap,
 		DeathLog(first.work(), kDeathHelperLine)));
 	for (auto &file : result) {
 		SettleDeath(state, file, *tap);
@@ -2048,14 +2010,12 @@ void SettleDeath(
 		&& replacementDropped;
 	auto result = std::vector<AttackFile>();
 	result.push_back(DeathFile(
-		state,
 		"charged work's own fresh sample",
-		tap.get(),
+		*tap,
 		DeathLog(charged.work(), kDeathHelperLine)));
 	result.push_back(DeathFile(
-		state,
 		"stale sample of the charged work",
-		tap.get(),
+		*tap,
 		DeathLog(
 			charged.work(),
 			kDeathHelperLine,
@@ -2113,43 +2073,6 @@ void SettleDeath(
 			u"unmeasured\" at the log stage, at the removal and after the "
 			u"record's eviction, never taking that work's reason"_q,
 		u"kept: %1 | evicted: %2"_q.arg(keptText, DeathFilesText(result)));
-	return result;
-}
-
-// The local rule on the clean control row's log: a "Died: " reason, a
-// fatal frozen notice with "Died: terminated", and "terminated" alone.
-[[nodiscard]] std::vector<AttackFile> PlayLocalDeaths(
-		const AuditState &state,
-		const QString &prefix) {
-	auto result = std::vector<AttackFile>();
-	result.push_back(DeathFile(
-		state,
-		"local own line",
-		nullptr,
-		DeathLog(1, "Died: Out of memory"),
-		1));
-	result.push_back(DeathFile(
-		state,
-		"local frozen, terminated",
-		nullptr,
-		DeathLog(1, "Died: terminated"),
-		1));
-	result.push_back(DeathFile(
-		state,
-		"local terminated alone",
-		nullptr,
-		DeathLog(1, "Died: terminated")));
-	Check(
-		DeathReads(result[0], u"Out of memory"_q, true)
-			&& DeathReads(result[1], u"frozen, reason unavailable"_q, false)
-			&& DeathReads(result[2], QString(), false)
-			&& (result[2].diedText == u"Died: terminated"_q)
-			&& result[2].verdict.clean,
-		prefix + u"locally a \"Died: \" reason other than \"terminated\" "
-			u"is the death and its reason, a fatal frozen notice alone is a "
-			u"death whose reason is unavailable, and \"terminated\" alone is "
-			u"none"_q,
-		DeathFilesText(result));
 	return result;
 }
 
@@ -2375,9 +2298,9 @@ void CheckUnselectedRuns(const AuditState &state, const QString &prefix) {
 }
 
 // Judge() of hosted files whose readings come from real taps of messages
-// of no history, each work played as WidgetHostedPlay plays it, then of
-// local ones and of a file refused before any selection, then the totals'
-// dead list of them all.
+// of no history, each work played as WidgetHostedPlay plays it, then of a
+// file refused before any selection, then the totals' dead list of them
+// all.
 void CheckDeathVerdicts(const AuditState &state, const QString &prefix) {
 	auto control = AuditState();
 	const auto take = [&](std::vector<AttackFile> files) {
@@ -2389,7 +2312,6 @@ void CheckDeathVerdicts(const AuditState &state, const QString &prefix) {
 	take(PlayLateCharges(state, prefix));
 	take(PlayEviction(state, prefix));
 	take(PlayStaleSample(state, prefix));
-	take(PlayLocalDeaths(state, prefix));
 	take(PlayUnselected(state, prefix));
 	const auto dead = DeadFiles(control);
 	const auto unmeasured = WidgetHostedDeathText({ .died = true });
@@ -2409,16 +2331,11 @@ void CheckDeathVerdicts(const AuditState &state, const QString &prefix) {
 		u"charged work's own fresh sample: "_q
 			+ QString::fromLatin1(kDeathRefusal),
 		u"stale sample of the charged work: "_q + unmeasured,
-		u"local own line: Out of memory"_q,
-		u"local frozen, terminated: frozen"_q,
 	};
 	Check(
-		(dead == expected) && (int(control.files.size()) == 16),
+		(dead == expected) && (int(control.files.size()) == 13),
 		prefix + u"the totals' dead list names every file whose row is "
-			u"dead, a hosted one with that row's reason and a local one as "
-			u"the totals always wrote it (\"frozen\" for a fatal frozen "
-			u"notice alone, which its row reads \"frozen, reason "
-			u"unavailable\"), and no file alive in its row"_q,
+			u"dead, with that row's reason, and no file alive in its row"_q,
 		dead.join(u"; "_q));
 }
 

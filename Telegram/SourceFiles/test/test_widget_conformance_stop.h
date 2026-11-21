@@ -7,11 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "test/test_widget_ops.h"
-
 #include <QtCore/QString>
-
-#include <vector>
 
 // The widget conformance runner's reading of a stop the desktop decided
 // itself, such as a paint bound's refusal of the widget's frames, which no
@@ -37,33 +33,29 @@ inline constexpr auto kStopReasonUnmeasured = "stop-reason-unmeasured";
 // host watch, read only when that watch has exactly one attachment, cut by
 // Tgw::ClipLogLine() as a summary's dead is. Empty when the desktop did
 // not stop the run's own core. ReadDeath() of
-// test_widget_conformance_death.cpp takes it only locally, for a death it
-// measured no reason of. Only reads.
+// test_widget_conformance_death.cpp keeps it in every run's `desktopStop`,
+// where it gives no death a cause and StopRefusal()'s detail names it.
+// Only reads.
 [[nodiscard]] QString ReadDesktopStop(
 	const WidgetFixture &fixture,
 	const WidgetFixtureMessage &message,
 	int fatalFrozen);
 
 // |run| of the stops entry |stops| died without a measured reason
-// (`deathMeasured`: the reason ReadDeath() of
-// test_widget_conformance_death.cpp took, a "Died: " line's other than
-// "terminated", a hosted sample's own cause, or a stop the desktop decided
-// itself): its dead would be the runner's placeholder, never the stop
-// reason that report.mjs judges. The detail tells what the run read, each
-// apart: its raw `deathLine`; for a hosted reading (`deathHosted`) that
-// its sample gave no attributable cause, with that summary's eligibility
-// (`summaryOwn`) and work (`summaryWork`); and the desktop's own stop
-// (`desktopStop`), named when one was read, which gives a hosted widget no
-// cause, and said not to have happened only when none was.
+// (`deathMeasured`: the reason ReadDeath() or ReconcileDeath() of
+// test_widget_conformance_death.cpp took, a hosted sample's own cause):
+// its dead would be the runner's placeholder, never the stop reason that
+// report.mjs judges. Such a death is always their hosted reading of a
+// charge of the run's selected works, as a run whose tap selected no
+// hosted work is never dead when they read it. The detail tells what the
+// run read, each apart: its raw `deathLine`; that its sample gave no
+// attributable cause, with that summary's eligibility (`summaryOwn`) and
+// work (`summaryWork`); and the desktop's own stop (`desktopStop`), named
+// when one was read, which gives a hosted widget no cause, and when none
+// was, only unobserved beside the charge, never denied, as the desktop's
+// charge of a selected work may still stand.
 [[nodiscard]] ConformanceRefusal StopRefusal(
 	const QString &stops,
 	const ConformanceRun &run);
-
-// StopRefusal() controls on a stops run that died with only "Died:
-// terminated", through ReadDeath()'s local reading: none with a stop the
-// desktop decided itself and stop-reason-unmeasured without one.
-// CheckHostReadings() of test_widget_conformance_hosts.cpp holds its other
-// cases. Row names carry no prefix.
-[[nodiscard]] std::vector<WidgetOpsSelfCheckRow> RunDesktopStopCheck();
 
 } // namespace Test::Conformance

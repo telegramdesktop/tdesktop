@@ -195,7 +195,7 @@ and escaped by `QJsonDocument`.
 | `ATTACK_NET_CONTROL` | `phase` (before/after), `protocol` (tcp/udp), `port`, `connected`, `written`, `lineBytes`, `error`, `localPort`, `startedMs`, `doneMs` (ms since the epoch), `line`. |
 | `ATTACK_LOG` | `file`, `source` (`requestLog`, `logText` when the retired runtime keeps no callback, `logText-at-bound`, `unavailable`), `summaryWork`, `summaryOwn`, `diedText`, `pending`, `waitedMs`, `chars`, `truncated`, `text` (its first 32768 characters). |
 | `ATTACK` | One per selected file, see below. |
-| `ATTACK_TOTALS` | `path`, `files`, `ran`, `loaded`, `complete`, `clean`, `leaks`, `notes`, `gaps`, `batches`, `violations`, `liveAtClick`, `clicksAttempted`, `clicksObserved`, `clicksDecided`, `clickSource` (as `click.source` below), `layers`, named lists (`count`, `files`) `dead` (`DeadFiles()`: each file whose row died, `<file>: <reason>`, a hosted file's reason its row's `deathReason`, a local one's its `Died: ` reason or `frozen` for a fatal frozen notice alone), `notLoaded`, `notRun`, `incomplete` (`<file>: <reasons>`, with a fixture refusal's reason in parentheses), `leaking`, `violating`, then `unknownRequested`, `selfChecked`, `selfCheckControl`. |
+| `ATTACK_TOTALS` | `path`, `files`, `ran`, `loaded`, `complete`, `clean`, `leaks`, `notes`, `gaps`, `batches`, `violations`, `liveAtClick`, `clicksAttempted`, `clicksObserved`, `clicksDecided`, `clickSource` (as `click.source` below), `layers`, named lists (`count`, `files`) `dead` (`DeadFiles()`: each file whose row died, `<file>: <reason>`, its row's `deathReason`), `notLoaded`, `notRun`, `incomplete` (`<file>: <reasons>`, with a fixture refusal's reason in parentheses), `leaking`, `violating`, then `unknownRequested`, `selfChecked`, `selfCheckControl`. |
 
 `ATTACK` fields: `file`, `index`, `bytes`, `sha256`, `item`, `path` (`final`
 from the remove stage, `totals` for a file never started, `onFinish` after an
@@ -265,10 +265,16 @@ The statuses are independent, so a death with a leak is in both lists:
   host of an ended helper prints `Died: the widget engine process ended`,
   spared or charged, and the display log's text before its sandbox header
   (a renderer's multiline stop reason) can neither forge nor hide the
-  summary's line. Locally, with no hosted selection: `fatalFrozen > 0`, or
-  a `Died: ` line right after the display log's first sandbox header whose
-  trimmed reason is neither empty nor `terminated` (`diedLine`,
-  `diedReason`), `frozen, reason unavailable` for the notice alone;
+  summary's line. The display log's own readings, a sandbox header
+  (`log.sandboxHeader`) and a `Died: ` line right after its first one
+  (`log.diedLine`), are row diagnostics no verdict reads. A file whose tap
+  selected no hosted work (refused, skipped or finished before any
+  renderer of it was selected) is judged nothing: no host was sampled for
+  it, so its `diedText` is empty and its `summaryWork` 0, nothing charged
+  it, and it keeps the verdict `Judge()` starts from, alive, `deathMeasured`
+  false and `deathReason` empty. Its `notRun` reason (see `ran`) and its
+  `click.source` (above) are read apart from its death, and the totals
+  list it under `notRun`, never under `dead`;
 - `click.outcome`: `observed` (with the Debug helper's tap,
   `trustedClicks >= 1` of the marked generation and `clicksCompleted >= 1`
   of the played press, its click decision: a nonzero `markedWork ==
@@ -424,11 +430,11 @@ then dead, measured, of a refusal on a route the stream spared, and clean
 after a valid reply; a charged first selection evicted by 33 later ones
 keeps its file dead, measured only when the log stage read its record
 first; a stale summary holding the charged work's line and work keeps both
-raw and the file dead and unmeasured; the local rule holds; a file refused
-before any renderer of it was selected is not run, alive and uncharged,
-its rows and the totals naming the build's click source; and the totals'
-dead list (`DeadFiles()`) names every dead row with that row's reason and
-no live one.
+raw and the file dead and unmeasured; a file refused before any renderer
+of it was selected is not run, alive and uncharged, its rows and the
+totals naming the build's click source; and the totals' dead list
+(`DeadFiles()`) of those 13 files names their 10 dead rows, each with that
+row's reason, and no live one.
 
 **Evidence.** Executed on macOS arm64 Debug against the Test account's
 Twsteg megagroup in the evidence campaign of
@@ -522,7 +528,10 @@ was then charged with the same raw `Died: the widget engine process ended`
 read dead, `charged, reason unmeasured`; and that replacement, sampled
 itself, read dead with its line's reason, measured. `ATTACK_TOTALS.dead`
 named those three files with their rows' reasons. No Release build with
-the harness and no other platform ran it.
+the harness and no other platform ran it. Of those 18 verdict rows, the
+one pinning the in-process renderer's death verdict was removed with that
+verdict and its three control files by
+`2026/11/21/remove-the-unreachable-local-widget-crash-count-and-death-readings`.
 
 ## Related guidance
 

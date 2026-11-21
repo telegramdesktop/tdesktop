@@ -15,15 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <vector>
 
 // The widget conformance runner's reading of a run's death: the "Died: "
-// line of the summary its log stage took, kept raw for a hosted reading
-// (locally only an own summary's, as ever), with the work that summary was
-// sampled from and whether it was the summary of the host the log was
-// requested for. For a widget whose tap selected hosted works
-// (WidgetTapHosted()), the shared hosted reading (ReadHostedDeath()) of
-// the tap's counts, taken at the log stage and again through the final
-// barrier, so that a run dies only of a charge of its selected works and
-// its cause is measured only from the record of a work its own summary was
-// sampled from. Internal to test_widget_conformance.cpp; reference:
+// line of the summary its log stage took, kept raw for a hosted reading,
+// with the work that summary was sampled from and whether it was the
+// summary of the host the log was requested for. For a widget whose tap
+// selected hosted works (WidgetTapHosted()), the shared hosted reading
+// (ReadHostedDeath()) of the tap's counts, taken at the log stage and
+// again through the final barrier, so that a run dies only of a charge of
+// its selected works and its cause is measured only from the record of a
+// work its own summary was sampled from. A run whose tap selected no
+// hosted work had no host sampled for it: with no own summary its death
+// line is empty, nothing charged it, and its death stays as its earlier
+// stages read it. Internal to test_widget_conformance.cpp; reference:
 // docs/helpers/test_widget_conformance.md.
 
 namespace Test {
@@ -34,27 +36,25 @@ namespace Test::Conformance {
 
 struct ConformanceRun;
 
-// The dead of a run that died with no measured reason: locally "the host
-// sent a fatal frozen notice" once the tap counted one (|charged|), else
-// "the runtime stopped the widget"; |hosted|, "charged, reason unmeasured"
-// (WidgetHostedDeathText()) once a selected work was charged.
-[[nodiscard]] QString DeathPlaceholder(bool charged, bool hosted);
+// The dead of a run that died with no measured reason: "charged, reason
+// unmeasured" (WidgetHostedDeathText()) once a selected work was charged
+// (|charged|), else "the runtime stopped the widget".
+[[nodiscard]] QString DeathPlaceholder(bool charged);
 
 // The log stage's reading of |run|'s death from the runtime |log| and the
 // tap's |reading| then. Keeps the work the summary was sampled from in
 // `summaryWork`, whatever its state, `summaryOwn` for a fresh or final one
 // (WidgetLogSummaryOwn()), the only kind whose line or work can give a
-// cause, and |desktopStop| (ReadDesktopStop()) in `desktopStop`. Locally
-// as ever: `deathLine` is an own summary's "Died: " line alone, never a
-// stale one's, which may be an older host's; a death the tap counted
-// kills a run still alive with the placeholder; that line other than
-// "terminated" is the death, its reason measured unless empty (dead then
-// empty: "died, reason not observed" in the run file); else a desktop stop
-// is the measured dead. For a hosted reading (`deathHosted`) `deathLine`
+// cause, and |desktopStop| (ReadDesktopStop()) in `desktopStop`, for every
+// run. For a hosted reading (WidgetTapHosted() of |reading|) `deathLine`
 // keeps the summary's "Died: " line verbatim whatever its state, and
 // ReadHostedDeath() of |reading| for an own summary (for none else), kept
 // in `hostedDeath`, decides `died` alone, and `dead` is its measured
 // cause, else the placeholder: a desktop stop gives a hosted run nothing.
+// A run whose tap selected no hosted work is judged nothing here:
+// `deathLine` takes only an own summary's "Died: " line, and such a run
+// has none, so it is empty, and `died` and `dead` stay as its result waits
+// read them.
 void ReadDeath(
 	ConformanceRun &run,
 	const WidgetRuntimeLog &log,
@@ -74,17 +74,16 @@ void RefuseUnmeasuredStop(ConformanceRun &run, const QString &stops);
 // a charge after a healthy sample kills it, measured when it is the
 // sampled work's own and unmeasured otherwise, and a run is alive when no
 // selected work was charged; its dead and its refusal for |stops| follow.
-// Locally nothing changes.
+// A run whose tap selected no hosted work is left as its earlier stages
+// read it.
 void ReconcileDeath(ConformanceRun &run, const QString &stops);
 
 // The run file's `dead` of |run|: null while it is alive.
 [[nodiscard]] QJsonValue DeadValue(const ConformanceRun &run);
 
 // The entry of |run| in the totals' dead list, empty while it is alive:
-// "<key>: <dead>", as the totals always wrote it, so a local death with an
-// empty reason ends in ": " where its run file says "died, reason not
-// observed"; a hosted death's dead is its final measured cause or the
-// placeholder, never empty.
+// "<key>: <dead>", as the totals always wrote it; a dead run's dead is its
+// final measured cause or the runner's placeholder, never empty.
 [[nodiscard]] QString DeadEntry(const ConformanceRun &run);
 
 // The record of the work |run|'s hosted death was read for, as the run's
