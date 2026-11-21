@@ -4167,6 +4167,15 @@ public:
 			(_scaledBanner.width() - bounds.width()) / 2,
 			(_scaledBanner.height() - bounds.height()) / 2,
 			bounds.width(), bounds.height()));
+		const auto fadeHeight = std::min(bounds.height(), style::ConvertScale(64));
+		const auto fadeRect = QRect(
+			bounds.x(), bounds.bottom() + 1 - fadeHeight, bounds.width(), fadeHeight);
+		auto fade = QLinearGradient(0, fadeRect.y(), 0, fadeRect.bottom() + 1);
+		auto transparent = st::windowBg->c;
+		transparent.setAlpha(0);
+		fade.setColorAt(0., transparent);
+		fade.setColorAt(1., st::windowBg->c);
+		p.fillRect(fadeRect, fade);
 	}
 
 protected:
@@ -4274,9 +4283,8 @@ private:
 
 		const auto identityTop = artistBannerHeight();
 		if (hasArtistBanner()) {
-			p.fillRect(
-				QRect(0, identityTop, width(), height() - identityTop - s(8)),
-				st::windowBg);
+			const auto identity = QRect(0, identityTop, width(), height() - identityTop - s(8));
+			BoxParts::PaintCard(p, identity.adjusted(0, -s(BoxParts::kCardRadius), 0, 0));
 		}
 		const auto narrow = width() < s(520);
 		const auto banner = QRect(0, 0, width(), identityTop);
