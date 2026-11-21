@@ -97,6 +97,10 @@ premiumPreviewBox: Box(defaultBox) {
 premiumPreviewDoubledLimitsBox: Box(premiumPreviewBox) {
 	buttonPadding: margins(12px, 12px, 12px, 12px);
 }
+storyPostingLimitBox: Box(premiumPreviewBox) {
+	buttonPadding: margins(16px, 12px, 16px, 16px);
+	buttonWide: true;
+}
 premiumPreviewAboutTitlePadding: margins(18px, 19px, 18px, 0px);
 premiumPreviewAboutTitle: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
@@ -167,6 +171,7 @@ premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
 premiumIconPins: icon {{ "limits/pins", settingsIconFg }};
 premiumIconAccounts: icon {{ "limits/accounts", settingsIconFg }};
 premiumIconBoost: icon {{ "limits/boost", settingsIconFg }};
+premiumIconStories: icon {{ "limits/stories-24x24", activeButtonFg }};
 
 premiumAccountsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 	imageRadius: 27px;

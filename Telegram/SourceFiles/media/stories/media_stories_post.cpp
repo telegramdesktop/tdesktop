@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "boxes/premium_preview_box.h"
+#include "boxes/premium_story_limits_box.h"
 #include "boxes/send_story_box.h"
 #include "boxes/story_drafts_box.h"
 
@@ -26,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
-#include "data/data_premium_limits.h"
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_story.h"
@@ -55,7 +55,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download_web.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
-#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image.h"
 #include "ui/layers/generic_box.h"
@@ -1075,20 +1074,6 @@ void WaitForStoryMedia(
 	}), waiting->lifetime);
 }
 
-void ShowLimitBox(
-		not_null<Window::SessionController*> controller,
-		rpl::producer<TextWithEntities> text) {
-	controller->show(Ui::MakeConfirmBox({
-		.text = std::move(text),
-		.confirmed = Fn<void(Fn<void()>)>([=](Fn<void()> close) {
-			close();
-			ShowPremiumPreviewBox(controller, PremiumFeature::Stories);
-		}),
-		.confirmText = tr::lng_premium_more_about(),
-		.title = tr::lng_story_limit_title(),
-	}));
-}
-
 constexpr auto kWebAppStoryShareMaxFileSize = int64(100 * 1024 * 1024);
 constexpr auto kWebAppStoryShareFileLife = 24 * 60 * 60;
 
@@ -1846,9 +1831,6 @@ void ShowCanSendStoryError(
 		const Api::CanSendStory &result,
 		CanSendStoryErrorContext ctx) {
 	using Type = Api::CanSendStory::Type;
-	const auto session = &controller->session();
-	const auto premium = session->premium();
-	const auto limits = Data::PremiumLimits(session);
 	const auto stopLoading = [&] {
 		if (ctx.setLoading) {
 			ctx.setLoading(false);
@@ -1874,40 +1856,10 @@ void ShowCanSendStoryError(
 		}
 		return;
 	case Type::CountLimit:
-		stopLoading();
-		ShowLimitBox(controller, premium
-			? tr::lng_story_limit_count_premium(
-				lt_count,
-				rpl::single(float64(limits.storiesExpiringPremium())),
-				tr::rich)
-			: tr::lng_story_limit_count(
-				lt_count,
-				rpl::single(float64(limits.storiesExpiringDefault())),
-				tr::rich));
-		return;
 	case Type::WeeklyLimit:
-		stopLoading();
-		ShowLimitBox(controller, premium
-			? tr::lng_story_limit_weekly_premium(
-				lt_count,
-				rpl::single(float64(limits.storiesSentWeeklyPremium())),
-				tr::rich)
-			: tr::lng_story_limit_weekly(
-				lt_count,
-				rpl::single(float64(limits.storiesSentWeeklyDefault())),
-				tr::rich));
-		return;
 	case Type::MonthlyLimit:
 		stopLoading();
-		ShowLimitBox(controller, premium
-			? tr::lng_story_limit_monthly_premium(
-				lt_count,
-				rpl::single(float64(limits.storiesSentMonthlyPremium())),
-				tr::rich)
-			: tr::lng_story_limit_monthly(
-				lt_count,
-				rpl::single(float64(limits.storiesSentMonthlyDefault())),
-				tr::rich));
+		controller->show(Box(StoryPostingLimitBox, controller, result.type));
 		return;
 	case Type::LiveAlready:
 		stopLoading();

@@ -9304,6 +9304,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_upload_retry" = "Try Again";
 "lng_story_upload_cancel" = "Remove";
 "lng_story_limit_title" = "Limit Reached";
+"lng_story_limit_increase" = "Subscribe to **Telegram Premium** to increase this limit to **{limit}**.";
 "lng_story_limit_count#one" = "You can post **{count}** story in **24** hours. Subscribe to **Telegram Premium** to increase this limit.";
 "lng_story_limit_count#other" = "You can post **{count}** stories in **24** hours. Subscribe to **Telegram Premium** to increase this limit.";
 "lng_story_limit_count_premium#one" = "Sorry, you can't post more than **{count}** story in **24** hours.";
