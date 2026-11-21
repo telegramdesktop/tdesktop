@@ -101,14 +101,8 @@ function(add_widget_renderer_platform target_name host_target)
 endfunction()
 
 add_widget_renderer_platform(lib_widget_renderer_platform tdesktop::lib_widget_sandbox_host)
-set(widget_renderer_targets lib_widget_renderer_platform lib_widget_renderer)
-if (MSVC OR LINUX)
-    add_widget_renderer_platform(lib_widget_renderer_platform_hardened tdesktop::lib_widget_sandbox_host_hardened)
-    list(APPEND widget_renderer_targets lib_widget_renderer_platform_hardened)
-    set(widget_helper_renderer_platform lib_widget_renderer_platform_hardened)
-else()
-    set(widget_helper_renderer_platform lib_widget_renderer_platform)
-endif()
+add_widget_renderer_platform(lib_widget_renderer_platform_hardened tdesktop::lib_widget_sandbox_host_hardened)
+set(widget_renderer_targets lib_widget_renderer_platform lib_widget_renderer_platform_hardened lib_widget_renderer)
 
 add_library(lib_widget_renderer STATIC)
 if (APPLE)
@@ -155,7 +149,7 @@ PUBLIC
 
 target_link_libraries(lib_widget_renderer
 PUBLIC
-    ${widget_helper_renderer_platform}
+    lib_widget_renderer_platform_hardened
     tdesktop::lib_litehtml
 )
 

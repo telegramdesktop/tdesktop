@@ -87,14 +87,8 @@ function(add_widget_sandbox_host target_name)
 endfunction()
 
 add_widget_sandbox_host(lib_widget_sandbox_host)
-set(widget_sandbox_targets lib_widget_sandbox_host lib_widget_sandbox)
-if (MSVC OR LINUX)
-    add_widget_sandbox_host(lib_widget_sandbox_host_hardened)
-    list(APPEND widget_sandbox_targets lib_widget_sandbox_host_hardened)
-    set(widget_helper_sandbox_host lib_widget_sandbox_host_hardened)
-else()
-    set(widget_helper_sandbox_host lib_widget_sandbox_host)
-endif()
+add_widget_sandbox_host(lib_widget_sandbox_host_hardened)
+set(widget_sandbox_targets lib_widget_sandbox_host lib_widget_sandbox_host_hardened lib_widget_sandbox)
 
 add_library(lib_widget_sandbox STATIC)
 if (APPLE)
@@ -126,7 +120,7 @@ PRIVATE
 
 target_link_libraries(lib_widget_sandbox
 PUBLIC
-    ${widget_helper_sandbox_host}
+    lib_widget_sandbox_host_hardened
 )
 
 # Not SYSTEM, so that an engine update rebuilds the object compiled against nova_engine.h.

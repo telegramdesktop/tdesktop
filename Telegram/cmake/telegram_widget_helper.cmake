@@ -137,6 +137,8 @@ if (WIN32)
 
     generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode)
 elseif (APPLE)
+    include(cmake/widget_helper_hardening.cmake)
+
     set_target_properties(TelegramWidgetHelper PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${output_folder}
         XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED NO
