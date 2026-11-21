@@ -290,7 +290,6 @@ parts:
       - --enable-decoder=pcm_u32be
       - --enable-decoder=pcm_u32le
       - --enable-decoder=pcm_u8
-      - --enable-decoder=pcm_zork
       - --enable-decoder=vorbis
       - --enable-decoder=vp8
       - --enable-decoder=wavpack

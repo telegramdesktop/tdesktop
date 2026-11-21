@@ -736,7 +736,6 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-decoder=pcm_u32be \
 	--enable-decoder=pcm_u32le \
 	--enable-decoder=pcm_u8 \
-	--enable-decoder=pcm_zork \
 	--enable-decoder=vorbis \
 	--enable-decoder=vp8 \
 	--enable-decoder=wavpack \
