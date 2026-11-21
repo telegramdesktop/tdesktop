@@ -20,6 +20,7 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QRegularExpression>
+#include <QtCore/QSaveFile>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
 #include <QtCore/QUrl>
@@ -35,6 +36,7 @@
 #include <set>
 #include <algorithm>
 #include <tuple>
+#include <utility>
 
 namespace Mokagram::Music {
 namespace {
@@ -46,6 +48,7 @@ constexpr auto kPageSize = 20;
 constexpr auto kMaxAudioBytes = 200 * 1024 * 1024; // предел на размер трека
 constexpr auto kMaxImageBytes = 32 * 1024 * 1024;  // предел на размер обложки
 constexpr auto kMaxHlsSegments = 512;              // предел числа сегментов HLS
+constexpr auto kConcurrentHlsSegments = 3;
 // Кэш обложек в памяти: LRU по числу и по размеру QImage, без полного clear().
 constexpr auto kImageCacheCount = 200;
 constexpr auto kImageCacheBytes = qint64(48) * 1024 * 1024; // ~200 обложек t500x500
@@ -593,19 +596,56 @@ void TrimAudioCache(const QString &protectPath) {
 
 void FinishFile(
 		const QString &path,
-		const QByteArray &bytes,
+		const std::vector<QByteArray> &parts,
 		Fn<void(const QString &, const QString &)> done) {
 	QDir().mkpath(CacheDir());
-	auto file = QFile(path + u".part"_q);
-	if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)
-		|| file.write(bytes) != bytes.size()) {
-		done({}, QString::fromUtf8(Mokagram::Lang::Tr("не удалось записать файл")));
-		return;
+	auto file = QSaveFile(path);
+	if (file.open(QIODevice::WriteOnly)) {
+		const auto written = std::all_of(parts.begin(), parts.end(), [&](const QByteArray &part) {
+			return file.write(part) == part.size();
+		});
+		if (written && file.commit()) {
+			done(path, QString());
+			return;
+		}
 	}
-	file.close();
-	QFile::remove(path);
-	file.rename(path);
-	done(path, QString());
+	done({}, QString::fromUtf8(Mokagram::Lang::Tr("не удалось записать файл")));
+}
+
+struct HlsDownload {
+	QString path;
+	QStringList urls;
+	std::vector<QByteArray> parts;
+	Fn<void(const QString &, const QString &)> done;
+	qsizetype next = 0;
+	qsizetype received = 0;
+	qint64 bytes = 0;
+};
+
+void DownloadHlsSegment(const std::shared_ptr<HlsDownload> &job) {
+	const auto index = job->next++;
+	const auto reply = Get(QUrl(job->urls[index]), kMaxAudioBytes);
+	QObject::connect(reply, &QNetworkReply::finished, [=] {
+		reply->deleteLater();
+		if (!job->done) {
+			return;
+		}
+		auto part = reply->readAll();
+		job->bytes += part.size();
+		if (reply->error() != QNetworkReply::NoError
+			|| part.isEmpty()
+			|| job->bytes > kMaxAudioBytes) {
+			const auto done = std::exchange(job->done, {});
+			done({}, QString::fromUtf8(Mokagram::Lang::Tr("сбой загрузки сегмента")));
+			return;
+		}
+		job->parts[index] = std::move(part);
+		if (++job->received == job->urls.size()) {
+			FinishFile(job->path, job->parts, std::exchange(job->done, {}));
+		} else if (job->next < job->urls.size()) {
+			DownloadHlsSegment(job);
+		}
+	});
 }
 
 // Скачивает HLS: init-сегмент (EXT-X-MAP) и сегменты по порядку, склеивает в один файл.
@@ -652,29 +692,17 @@ void DownloadHls(
 			done({}, QString::fromUtf8(Mokagram::Lang::Tr("слишком большой плейлист")));
 			return;
 		}
-		const auto buffer = std::make_shared<QByteArray>();
-		const auto next = std::make_shared<Fn<void(int)>>();
-		*next = [=](int index) {
-			if (index >= parts.size()) {
-				FinishFile(path, *buffer, done);
-				return;
-			}
-			const auto segment = Get(QUrl(parts[index]), kMaxAudioBytes);
-			QObject::connect(segment, &QNetworkReply::finished, [=] {
-				const auto ok = (segment->error() == QNetworkReply::NoError);
-				if (ok) {
-					buffer->append(segment->readAll());
-				}
-				segment->deleteLater();
-				// Общий размер склейки ограничен так же, как обычная загрузка.
-				if (!ok || buffer->size() > kMaxAudioBytes) {
-					done({}, QString::fromUtf8(Mokagram::Lang::Tr("сбой загрузки сегмента")));
-					return;
-				}
-				(*next)(index + 1);
-			});
-		};
-		(*next)(0);
+		const auto job = std::make_shared<HlsDownload>();
+		job->path = path;
+		job->parts.resize(parts.size());
+		job->urls = std::move(parts);
+		job->done = done;
+		const auto concurrent = std::min<qsizetype>(
+			kConcurrentHlsSegments,
+			job->urls.size());
+		for (auto i = qsizetype(0); i != concurrent; ++i) {
+			DownloadHlsSegment(job);
+		}
 	});
 }
 
@@ -1552,7 +1580,7 @@ void Download(
 				finish({}, QString::fromUtf8(Mokagram::Lang::Tr("сбой загрузки трека")));
 				return;
 			}
-			FinishFile(path, bytes, finish);
+			FinishFile(path, { bytes }, finish);
 		});
 	});
 }
