@@ -402,6 +402,7 @@ parts:
       - qtwayland
     plugin: cmake
     build-packages:
+      - libgl-dev
       - libxcb-cursor-dev
       - libxcb-glx0-dev
       - libxcb-icccm4-dev
