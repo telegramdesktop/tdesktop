@@ -12,6 +12,7 @@
 #include <QtCore/QString>
 #include <QtCore/QStringList>
 #include <QtGui/QImage>
+#include <optional>
 #include <variant>
 #include <vector>
 
@@ -116,6 +117,8 @@ struct Album {
 	QString artistId;
 	ReleaseKind releaseKind = ReleaseKind::Unknown;
 	int releaseYear = 0;
+	// nullopt: some of the track artwork is unknown.
+	std::optional<QString> backdropArtworkUrl;
 };
 
 enum class SearchCategory { All, Tracks, Playlists, Albums, Artists };
@@ -152,6 +155,8 @@ void TrackAlbums(
 void AlbumTracks(
 	const QString &albumId,
 	Fn<void(std::vector<Track>, QString error)> done);
+
+void LoadAlbumBackdrop(const Album &album, Fn<void(QString)> done);
 
 // Поиск с произвольным лимитом (для подбора кандидатов).
 void SearchLimited(

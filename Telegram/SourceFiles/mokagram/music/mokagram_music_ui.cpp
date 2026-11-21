@@ -3938,6 +3938,23 @@ public:
 		}));
 	}
 
+	void setAlbumBackdrop(Album album) {
+		if (album.backdropArtworkUrl && album.backdropArtworkUrl->isEmpty()) {
+			return;
+		}
+		_startBackdropLoad = [=, album = std::move(album)] {
+			LoadAlbumBackdrop(album, crl::guard(this, [=](QString url) {
+				if (url.isEmpty()) {
+					return;
+				}
+				LoadImage(ArtUrl(url, u"t200x200"_q), crl::guard(this, [=](QImage image) {
+					_backdrop = std::move(image);
+					update();
+				}));
+			}));
+		};
+	}
+
 protected:
 	void resizeEvent(QResizeEvent *event) override {
 		AbstractButton::resizeEvent(event);
@@ -3967,20 +3984,22 @@ protected:
 		const auto art = QRect(s(_play ? 24 : 20), (height() - side) / 2, side, side);
 		const auto release = (_artworkStyle == CatalogArtwork::Release);
 		if (release) {
-			const auto layer = [&](int offset, int inset, int angle, float64 tint) {
-				const auto card = QRectF(art)
-					.adjusted(s(inset), s(inset), -s(inset), -s(inset))
-					.translated(-s(offset), 0);
-				p.save();
-				p.translate(card.center());
-				p.rotate(angle);
-				p.setPen(Qt::NoPen);
-				p.setBrush(anim::color(st::windowBgOver, st::windowSubTextFg, tint));
-				p.drawRoundedRect(card.translated(-card.center()), s(11), s(11));
-				p.restore();
-			};
-			layer(8, 3, -14, 0.16);
-			layer(4, 1, -8, 0.28);
+			if (_startBackdropLoad) {
+				crl::on_main(this, std::exchange(_startBackdropLoad, {}));
+			}
+			const auto card = QRectF(art).adjusted(s(2), s(3), -s(2), -s(3)).translated(-s(8), 0);
+			const auto local = card.translated(-card.center());
+			p.save();
+			p.translate(card.center());
+			p.rotate(-12);
+			auto clip = QPainterPath();
+			clip.addRoundedRect(local, s(11), s(11));
+			p.fillPath(clip, anim::color(st::windowBgOver, st::windowSubTextFg, 0.28));
+			if (!_backdrop.isNull()) {
+				p.setClipPath(clip, Qt::IntersectClip);
+				p.drawImage(local, _backdrop);
+			}
+			p.restore();
 		}
 		auto clip = QPainterPath();
 		if (_artworkStyle == CatalogArtwork::Artist) {
@@ -4024,6 +4043,8 @@ private:
 	QString _subtitle;
 	CatalogArtwork _artworkStyle;
 	QImage _art;
+	QImage _backdrop;
+	Fn<void()> _startBackdropLoad;
 	Ui::RoundButton *_play = nullptr;
 };
 
@@ -8834,6 +8855,7 @@ protected:
 					playlist ? CatalogArtwork::Playlist : CatalogArtwork::Release,
 					crl::guard(this, [=, album = *album] { openCatalogCollection(album); })));
 				if (!playlist) {
+					row->setAlbumBackdrop(*album);
 					InstallAlbumContextMenu(row, _controller, *album);
 				}
 			} else if (const auto artist = std::get_if<ArtistInfo>(&item); artist && artist != featured) {

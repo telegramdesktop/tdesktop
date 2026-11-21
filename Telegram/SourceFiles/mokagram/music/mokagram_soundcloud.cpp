@@ -1210,6 +1210,21 @@ void SearchLimited(
 
 namespace {
 
+[[nodiscard]] QString AlbumArtworkKey(const QString &url) {
+	const auto parsed = QUrl(url);
+	const auto path = parsed.path();
+	static const auto variant = QRegularExpression(
+		u"-(?:large|original|small|tiny|badge|crop|mini|t[0-9]+x[0-9]+)\\.[^.]+$"_q);
+	const auto match = variant.match(path);
+	return match.hasMatch()
+		? path.left(match.capturedStart())
+		: parsed.adjusted(QUrl::RemoveQuery | QUrl::RemoveFragment).toString();
+}
+
+[[nodiscard]] bool IsAlbumBackdrop(const QString &url, const QString &primaryKey) {
+	return SafeMediaUrl(QUrl(url)) && AlbumArtworkKey(url) != primaryKey;
+}
+
 [[nodiscard]] Album ParseAlbum(const QJsonObject &object) {
 	auto result = Album();
 	result.id = QString::number(object.value("id").toVariant().toLongLong());
@@ -1217,13 +1232,10 @@ namespace {
 	const auto user = object.value("user").toObject();
 	result.artist = user.value("username").toString();
 	result.artistId = QString::number(user.value("id").toVariant().toLongLong());
+	const auto tracks = object.value("tracks").toArray();
 	result.artworkUrl = object.value("artwork_url").toString();
-	if (result.artworkUrl.isEmpty()) {
-		const auto tracks = object.value("tracks").toArray();
-		if (!tracks.isEmpty()) {
-			result.artworkUrl = tracks.first().toObject()
-				.value("artwork_url").toString();
-		}
+	if (result.artworkUrl.isEmpty() && !tracks.isEmpty()) {
+		result.artworkUrl = tracks.first().toObject().value("artwork_url").toString();
 	}
 	if (result.artworkUrl.isEmpty()) {
 		result.artworkUrl = user.value("avatar_url").toString();
@@ -1244,6 +1256,20 @@ namespace {
 	if (result.releaseYear <= 0) {
 		const auto releaseDate = object.value("release_date").toString();
 		result.releaseYear = releaseDate.left(4).toInt();
+	}
+	const auto primaryKey = AlbumArtworkKey(result.artworkUrl);
+	auto complete = tracks.size() >= result.trackCount;
+	for (const auto &value : tracks) {
+		const auto track = value.toObject();
+		const auto url = track.value("artwork_url").toString();
+		if (IsAlbumBackdrop(url, primaryKey)) {
+			result.backdropArtworkUrl = url;
+			return result;
+		}
+		complete = complete && track.contains("artwork_url");
+	}
+	if (complete) {
+		result.backdropArtworkUrl = QString();
 	}
 	return result;
 }
@@ -1577,6 +1603,27 @@ void AlbumTracks(
 				done(std::move(result), QString());
 			});
 		});
+}
+
+void LoadAlbumBackdrop(const Album &album, Fn<void(QString)> done) {
+	if (album.backdropArtworkUrl || !ValidTrackId(album.id)) {
+		done(album.backdropArtworkUrl.value_or(QString()));
+		return;
+	}
+	AlbumTracks(album.id, [=, primaryKey = AlbumArtworkKey(album.artworkUrl)](
+			std::vector<Track> tracks,
+			QString error) {
+		if (error.isEmpty()) {
+			for (const auto &track : tracks) {
+				if (track.artworkUrl != track.artistArtworkUrl
+					&& IsAlbumBackdrop(track.artworkUrl, primaryKey)) {
+					done(track.artworkUrl);
+					return;
+				}
+			}
+		}
+		done({});
+	});
 }
 
 QString CacheDir() {
