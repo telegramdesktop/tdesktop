@@ -62,10 +62,14 @@ Use something else when:
   HTML file contains its name and every non-empty line of it is a line of the
   HTML file of its stem (at `v0.1.2`: `mem-cap-probe.js`, inlined in
   `mem-cap-probe.html`). No other dependency is looked for.
-- **One file at a time.** A file's message is destroyed and its tap must
-  finish (every selected factory released, every built wrapper destroyed)
-  within 10 s before the next file starts. A file that does not finish stops
-  the audit: the remaining files are not run, by name.
+- **One file at a time.** A file's message is destroyed, and the removal
+  waits up to 10 s for its tap to finish (`WidgetTapFinished()`: every
+  selected factory released, every built wrapper destroyed and every
+  hosted work selected for the runtime's accounting final)
+  ([test_widget_fixture](test_widget_fixture.md#readings-and-refusals)).
+  A file whose reading taken after that wait is not finished stops the
+  audit: the remaining files are not run, by name, the abort giving the
+  tap's counts (`WidgetTapCounts()`).
 - **Time.** Per file about 4-8 s in Debug for a healthy widget, and about
   70 s for one that reaches every bound (8 s layout, two 10 s shows, 25 s
   load, the 1.5 s watch, 3 s log, 10 s barrier). The runner's watchdog (`TDESKTOP_TEST_WATCHDOG`, at most 3600 s)
@@ -158,8 +162,14 @@ void SetupScenario(not_null<Runner*> runner) {
 ## Stages
 
 `widget attack audit: tap, scanner and verdict self-check` (every
-`RunWidgetOpsSelfCheck()` row as a Check, then the verdict controls
-of Verification), `report the corpus`, `capture the
+`RunWidgetOpsSelfCheck(WidgetOpsExchangeLeg::Apart)` row as a Check, then
+the verdict controls of Verification; it then waits up to
+`kWidgetOpsExchangesTimeout`, 30 s, with the event loop running, for the
+exchange leg its `WidgetOpsExchanges` plays on a thread of its own and
+Checks the leg's rows, normally seven, or one failed row when its thread did
+not start or the leg threw. Taking them sets `selfChecked` whatever they
+read, so that flag says only that the stage got that far, never that the
+rows passed), `report the corpus`, `capture the
 baseline and show the window normally`, `keep the window exposed`, `open the
 chat in the legacy HistoryWidget`, `network control before the first file`,
 then per file `<name>: arm the tap and inject the widget message`, `show in
@@ -183,19 +193,21 @@ and escaped by `QJsonDocument`.
 | `ATTACK_CORPUS` | `dir`, `error`, `html`, `nonWidget`, `ignoredDotEntries`, `requested`, `unknown`, `unreadable`, `selected`, `network` (`available` or the unavailability). |
 | `ATTACK_NON_WIDGET` | `name`, `file`, `bytes`, `lines`, `referencedBy`, `inlinedIn`, `known`, `disposition`. |
 | `ATTACK_NET_CONTROL` | `phase` (before/after), `protocol` (tcp/udp), `port`, `connected`, `written`, `lineBytes`, `error`, `localPort`, `startedMs`, `doneMs` (ms since the epoch), `line`. |
-| `ATTACK_LOG` | `file`, `source` (`requestLog`, `logText` when the retired runtime keeps no callback, `logText-at-bound`, `unavailable`), `pending`, `waitedMs`, `chars`, `truncated`, `text` (its first 32768 characters). |
+| `ATTACK_LOG` | `file`, `source` (`requestLog`, `logText` when the retired runtime keeps no callback, `logText-at-bound`, `unavailable`), `summaryWork`, `summaryOwn`, `diedText`, `pending`, `waitedMs`, `chars`, `truncated`, `text` (its first 32768 characters). |
 | `ATTACK` | One per selected file, see below. |
-| `ATTACK_TOTALS` | `path`, `files`, `ran`, `loaded`, `complete`, `clean`, `leaks`, `notes`, `gaps`, `batches`, `violations`, `liveAtClick`, `clicksAttempted`, `clicksObserved`, `clicksDecided`, `clickSource` (as `click.source` below), `layers`, named lists (`count`, `files`) `dead`, `notLoaded`, `notRun`, `incomplete` (`<file>: <reasons>`, with a fixture refusal's reason in parentheses), `leaking`, `violating`, then `unknownRequested`, `selfChecked`, `selfCheckControl`. |
+| `ATTACK_TOTALS` | `path`, `files`, `ran`, `loaded`, `complete`, `clean`, `leaks`, `notes`, `gaps`, `batches`, `violations`, `liveAtClick`, `clicksAttempted`, `clicksObserved`, `clicksDecided`, `clickSource` (as `click.source` below), `layers`, named lists (`count`, `files`) `dead` (`DeadFiles()`: each file whose row died, `<file>: <reason>`, a hosted file's reason its row's `deathReason`, a local one's its `Died: ` reason or `frozen` for a fatal frozen notice alone), `notLoaded`, `notRun`, `incomplete` (`<file>: <reasons>`, with a fixture refusal's reason in parentheses), `leaking`, `violating`, then `unknownRequested`, `selfChecked`, `selfCheckControl`. |
 
 `ATTACK` fields: `file`, `index`, `bytes`, `sha256`, `item`, `path` (`final`
 from the remove stage, `totals` for a file never started, `onFinish` after an
 abort), `startMs` / `endMs` (ms since the epoch, injection to final reading),
-`ran`, `notRun`, `loaded`, `notLoaded`, `died`, `deathReason`, `complete`,
+`ran`, `notRun`, `loaded`, `notLoaded`, `died`, `deathReason`,
+`deathMeasured`, `complete`,
 `incomplete`, `fixtureRefusal`, `clean`, `fixture` (local shape, widget
 media, payload),
 `loadShow` and `clickShow` (`finished`, `shown`, `kind`, `refusal`, `reason`,
 `local`, `card`, `wholeCard`, `rect`, `viewport`, `hover`, `hovered`, `paints`,
-`elapsedMs`, `readiness`), `loadOutcome` (`loaded`, `died`, `stopped`,
+`elapsedMs`, `readiness`), `loadOutcome` (`loaded`, `died` (a charge the
+tap counted, `WidgetTapCharged()`, never a raw death), `stopped`,
 `failed`, `no-runtime`, `bound`), `loadWaitMs`, `stateAfterLoad`,
 `liveAtClick`, `click` (`outcome`, `details`, `attempted`, `pressMs`,
 `source`, `playedWork` (the work id of the core the click hit), then
@@ -204,14 +216,22 @@ media, payload),
 `clicksCompleted`, `pressStepsElsewhere`, `trustedClicks`, `trustedEvents`
 and `eventTypes`
 since the mark taken right before the press), `watchMs`, `stateAfterWatch`, `log` (`source`, `chars`,
-`sandboxHeader`, `diedLine`), `layers`, `barrierClosed`, `barrierMs`,
+`sandboxHeader`, `diedLine`, `diedText`, `summaryWork`, `summaryOwn` and
+`sampledRun`, the sampled work's record as `WidgetHostedRunText()` gives
+it, null without one), `layers`, `barrierClosed`, `readingFinal` (a
+`final` row whose barrier closed: the only row whose reading, its death
+included, is final), `barrierMs`,
 `itemGone`, `examplesTruncated`, and `tap`: the reading's counts, with
-`renderedHosts`, and its `leakExamples`, `noteExamples`, `gapExamples` and
-`violationDetails`. `click.source` names where a click is read from:
-`helper-mirror` (the Debug helper's mirrored trusted click with the marked
-press's click decision) or `click-decision` (a Release build with the
-harness, the marked press's click decision alone). Every source is bound
-to the played press.
+`renderedHosts`, `hostedSelected`, `hostedFinal`, `desktopCharges`,
+`sparedRuns`, `unaffectedRuns` and `WidgetTapCounts()` as `counts`, and
+its `leakExamples`, `noteExamples`, `gapExamples` and
+`violationDetails`. `click.source` is the build's own reader
+(`ClickSource()`), written in every row and in the totals, a file refused
+before any renderer of it was selected included: `helper-mirror` (the
+Debug helper's mirrored trusted click with the marked press's click
+decision) or `click-decision` (a Release build with the harness, the
+marked press's click decision alone). Only a positive outcome
+(`observed`, `decided`) is bound to the played press.
 
 The statuses are independent, so a death with a leak is in both lists:
 
@@ -224,8 +244,31 @@ The statuses are independent, so a death with a leak is in both lists:
 - `loaded`: `ackQueries > 0 && ackResults > 0`, or `renderedHosts > 0` (a
   hosted host's own rendered acknowledgment, the one a Release harness
   has); `notLoaded` is ran and not loaded;
-- `died`: `fatalFrozen > 0`, or a `Died: ` line right after the log's first
-  sandbox header that is not `terminated`;
+- `died` and `deathReason` (`Judge()`): for a file whose tap selected
+  hosted works (`WidgetTapHosted()`), the shared reading of the final
+  charges, `ReadHostedDeath()`
+  ([test_widget_ops](test_widget_ops.md#hosted-deaths-and-final-charges)):
+  dead when any selected work was charged, read from the `final` row's
+  reading, so a charge after a healthy sample kills the file and no
+  record's eviction revives it. `ParseLog()` keeps the first line of the
+  summary the log took only when it is a `Died: ` line (`diedText`,
+  verbatim; empty after any other first line, such as a healthy
+  summary's `Loaded: ...`) and pairs it with the work that summary was
+  sampled from (`summaryWork`) and `summaryOwn` (a `Fresh` or `Final`
+  summary, `WidgetLogSummaryOwn()`). Only an own summary's work and line
+  are read, so the reason is measured (`deathMeasured`) only from that
+  work's own final charged record, and the log stage's reading
+  (`ReadLogDeath()`) keeps a reason so measured for that work once its
+  record is evicted. Otherwise a dead file reads
+  `charged, reason unmeasured`, a stale summary's line and work staying in
+  the row as diagnostics. No raw `Died: ` line is a death by itself: every
+  host of an ended helper prints `Died: the widget engine process ended`,
+  spared or charged, and the display log's text before its sandbox header
+  (a renderer's multiline stop reason) can neither forge nor hide the
+  summary's line. Locally, with no hosted selection: `fatalFrozen > 0`, or
+  a `Died: ` line right after the display log's first sandbox header whose
+  trimmed reason is neither empty nor `terminated` (`diedLine`,
+  `diedReason`), `frozen, reason unavailable` for the notice alone;
 - `click.outcome`: `observed` (with the Debug helper's tap,
   `trustedClicks >= 1` of the marked generation and `clicksCompleted >= 1`
   of the played press, its click decision: a nonzero `markedWork ==
@@ -235,8 +278,8 @@ The statuses are independent, so a death with a leak is in both lists:
   `markedPress`; an answered down or up alone never), `not-observed`,
   `show-refused`,
   `revalidation-failed`, `died-before-press` (not live at the press and
-  frozen, stopped or failed), or `not-live` (not live after the load wait,
-  so no click was owed);
+  charged, `WidgetTapCharged()`, stopped or failed), or `not-live` (not
+  live after the load wait, so no click was owed);
 - `incomplete`: `fixture-refused` (see `ran`), `aborted`, `hosts-pending`,
   `watch-missing` (the 1500 ms watch did not run to its end), `scan-gaps`,
   or `click-<outcome>` for a card live after its load wait whose click was
@@ -258,10 +301,12 @@ must have matched known leaks in the same run), `no attack file leaks a URL
 into the validated ops`, `every host message of every file was scanned: no
 scan gaps`, `every loaded file's validated batches were observed`, `every
 requested file ran`, `every file that ran was observed completely: ...` (no
-fixture refusal, every watch run, every live card's click observed or,
-without the Debug helper's tap, completed by the helper's renderer, every
+fixture refusal, every watch run, every card live after its load wait
+either clicked with its click `observed` or, without the Debug helper's
+tap, `decided`, or `died-before-press` with no press played, every
 barrier closed, no scan gap), `every file's factories and wrappers finished
-before its final reading`, `no
+before its final reading` (its barrier, `WidgetTapFinished()`, its hosted
+works' finals included), `no
 attack file opened a layer`, `CheckNoBlockedLaunches(no widget handed
 anything to the operating system)`, and the teardown and settle rows. Deaths,
 not-loaded files and renderer violations are Noted, not failed, and never
@@ -270,18 +315,26 @@ counted clean.
 A pass proves, for the files of that launch: each ran in the product's own
 `HtmlWidget` view of a local message of the fixture session, no fixture
 check refused it and its watch ran, every batch every host reported was
-scanned at its `onRenderOps` with zero leaks and no gap, every live card
-took one real press and release with a trusted `click` observed or,
-without the Debug helper's tap, with the up that completed it answered by
-the helper's renderer on the live route, every host
-finished before its final reading, no layer opened, no OS hand-off, and the
-controls were written. It does not prove that no request was made (that needs
-the listener and the source audit), that a control was received, which
-element the click hit, or anything about files of other launches.
+scanned at its `onRenderOps` with zero leaks and no gap, every card live
+after its load wait either took one real press and release whose click
+was `observed` or, without the Debug helper's tap, `decided`, or was
+charged, stopped or failed before the press and got none
+(`died-before-press`), every host
+finished and every hosted work had its final before its final reading, so
+each row's death was read from final charges, no layer opened, no OS
+hand-off, and each network control stage that ran wrote its controls (an
+empty token, no port or a port out of range makes both N/A, and none is
+sent). It does
+not prove that no request was made (that needs
+the listener and the source audit), that a control was received, that a
+card was clicked, which element the click hit, or anything about files of
+other launches.
 
 ## Lifetime and cleanup
 
 `Runner::onFinish` is registered before any stage: on every exit path it
+stops the self-check's exchange leg without waiting for it
+([test_widget_ops](test_widget_ops.md#lifetime-and-cleanup)),
 disarms every tap by the session-qualified id it was armed with, destroys
 every local message by id, closes the control
 sockets, leaves the list, restores the `use-new-chat-view` value it found, the
@@ -296,8 +349,10 @@ position is not restored.
 
 ## Verification
 
-The pack runs `Test::RunWidgetOpsSelfCheck()` first and packs the scanner's
-2-leak, 1-note control into every campaign. In the same stage pure
+The pack runs `Test::RunWidgetOpsSelfCheck(WidgetOpsExchangeLeg::Apart)`
+first (52 rows in Debug) and the exchange leg's rows last in the same stage
+([test_widget_ops](test_widget_ops.md#verification)); it packs the
+scanner's 2-leak, 1-note control into every campaign. In the same stage pure
 controls of the row verdict, on literal final rows, must hold: a loaded,
 clicked, watched and finished file with no leak, gap or violation is
 complete and clean (the positive control); the same row refused by a
@@ -353,6 +408,27 @@ retired; a
 Release build's tap reads no mirror, so there that reader gives
 `not-observed`. The same reading with no played work gives `not-observed`
 in every reader.
+
+The verdict controls end with the death verdicts
+(`CheckDeathVerdicts()`), on real taps of messages of no history, every
+work played as `WidgetHostedPlay` plays it and each file read by
+`ParseLog()`, the log stage's `ReadLogDeath()` and `Judge()` on the
+reading after the removal: a spared work and its charged
+replacement printing the same `Died: the widget engine process ended`
+make the file dead whichever is sampled, measured only from the charged
+work's own sample, while a spared sample beside a work withdrawn first is
+alive; a display log whose stop reason forges a sandbox header and another
+`Died: ` line neither replaces nor hides the summary's line; a file
+sampled healthy is `hosts-pending` and alive while its final is left last,
+then dead, measured, of a refusal on a route the stream spared, and clean
+after a valid reply; a charged first selection evicted by 33 later ones
+keeps its file dead, measured only when the log stage read its record
+first; a stale summary holding the charged work's line and work keeps both
+raw and the file dead and unmeasured; the local rule holds; a file refused
+before any renderer of it was selected is not run, alive and uncharged,
+its rows and the totals naming the build's click source; and the totals'
+dead list (`DeadFiles()`) names every dead row with that row's reason and
+no live one.
 
 **Evidence.** Executed on macOS arm64 Debug against the Test account's
 Twsteg megagroup in the evidence campaign of
@@ -421,6 +497,32 @@ the app yet. Outside the app the tap's methods and the verdict sequence,
 taken unchanged from the sources into a scratch harness, gave that outcome
 in Debug and Release, and the tap before the change gave `observed` and
 `decided`.
+
+The death verdicts from final charges (`ParseLog()`'s paired sample,
+`Judge()`'s `ReadHostedDeath()`, `deathMeasured`, `readingFinal`,
+`DeadFiles()`), the barrier through every hosted final and the exchange
+leg played apart came with
+`2026/11/20/count-a-widget-helpers-death-only-against-widgets-with-work-in-flight`.
+Its evidence campaign (its `work/test.md`, Attempt 1, which holds the
+measurements) ran the pack in the macOS arm64 direct-download Debug client
+and its embedded Debug helper, built with its disposable evidence overlay.
+The first stage's rows passed, the 57 ops self-check rows and the 18
+verdict rows among them. `layout-query-loop.html` and
+`mem-uncaught-growth.html` died of their own limits on a live helper, each
+measured from its own sampled work with its raw line kept, beside a live
+`api-eval.html`, and `ATTACK_TOTALS.dead` named both with the same reasons.
+On a run-local corpus of four text-free animated boxes, the overlay
+holding the card's answer and stalling an unselected sibling around the
+pack's own log and removal stages, every barrier closed with every
+selected work final: a file sampled healthy, then charged
+`refused/spared` for Telegram's refusal of a credited frame, read dead
+with that refusal's reason, measured; the same file given the real painted
+answer read alive and clean; a sample of a spared work whose replacement
+was then charged with the same raw `Died: the widget engine process ended`
+read dead, `charged, reason unmeasured`; and that replacement, sampled
+itself, read dead with its line's reason, measured. `ATTACK_TOTALS.dead`
+named those three files with their rows' reasons. No Release build with
+the harness and no other platform ran it.
 
 ## Related guidance
 

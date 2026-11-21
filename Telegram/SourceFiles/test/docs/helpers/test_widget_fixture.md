@@ -150,12 +150,17 @@ screen choice and stay-on-top hint.
   the core's `stopped()`, `stopReason()` and `stopFatal()` read it and the
   runtime retire, so the reading stays empty until that answer arrives. A
   hosted host's death goes the other way: its `onDeath` callback calls
-  `HostLink::postDeath()`, whose `HostLink::postFrozen()` posts
+  `HostLink::postDeath()`, which, for a death the stream did not spare,
+  records the run's decision and calls `HostLink::postFrozen()`: that posts
   `RendererCore::hostFrozen()` to the main thread, which latches the
   freeze as soon as it runs, and `RendererWork::freeze()` to the widget
   render thread; that stop, too, is published only by the posted answer.
-  A desktop stop reaches no host death: the host watch's `dead` stays
-  null, or reads `terminated` once the retired host is destroyed
+  A spared death posts only `RendererCore::hostFrozen()`, and no stop
+  ([Remote engines](#remote-engines), *Deaths*).
+  A desktop stop is no host death: the host watch's `dead` stays null,
+  reads `terminated` once the retired host is destroyed, or holds another
+  death of that host, such as `the widget engine process ended` when the
+  desktop refused the traffic of a route its helper's end had spared
   ([test_widget_host](test_widget_host.md)).
   The identity is the caller's: `core` is `WidgetHostSample::core` of the
   run's one watched attachment, compared by address with the list's own
@@ -165,11 +170,17 @@ screen choice and stay-on-top hint.
   picture while an older still is shown: `Runtime::retire()` then
   discards the stopped core, `Runtime::core()` stays the older still,
   another address, and the reading is empty, as for any other core.
-  `fatalFrozen` is the run's tap count of the hosted host's deaths, one
-  per `onDeath` ([test_widget_ops](test_widget_ops.md)), and the reading is
+  `fatalFrozen` is the run's tap count of its hosted works' final ordinary
+  or stalled charges
+  ([test_widget_ops](test_widget_ops.md#hosted-deaths-and-final-charges)),
+  never of a death a host reported by itself, and the reading is
   empty once it is above 0: a host's counted-cap stop carries its reason
   in the host's own death, so a stop that death made is never read as the
-  desktop's. The reading changes nothing, keeps nothing and never takes another view's
+  desktop's. A refusal the desktop made of a hosted widget's traffic is a
+  final charge of its work too, counted apart (`desktopCharges`), which
+  this reading does not consult; the conformance runner takes a hosted
+  widget's cause from its sampled work's own record, never from this
+  reading. The reading changes nothing, keeps nothing and never takes another view's
   runtime. Its consumers are the stress-kit runner, which latches its first
   answer with that reading's time, and the conformance runner, which reads
   it once in its log stage.
@@ -534,11 +545,9 @@ packs, the fixture and the seams they use need no change for it.
     renderers' answers by Telegram's reading of the hosted messages,
     `Tgw::HostedAnswers()` (`tgw_remote.cpp`), which `Manager::launch()`
     gives every hosting start (widget-sandbox's `SandboxHostedAnswers`).
-    The Linux source selects the same manager and classifier, but at this
-    revision Telegram's integrated Nova recipe configures on macOS only:
-    `Telegram/CMakeLists.txt` includes `cmake/lib_nova_engine.cmake`,
-    which refuses a non-Apple configure, so a Linux build of this
-    deadline cannot be configured yet ([Verification](#verification)).
+    The Linux source selects the same manager and classifier; the deadline
+    was measured only in the macOS arm64 direct-download Debug client
+    ([Verification](#verification)).
     Telegram expects exactly one answer, per widget in the order it sent
     them, to each frame request (the frame of its sequence, painted or
     unchanged, a painted one whole or as a frame delta), each touch or
@@ -599,7 +608,8 @@ packs, the fixture and the seams they use need no change for it.
     answer to a later message that comes before its frame settles nothing,
     and at an end that is neither the unanswered one nor the owner's stop
     its route counts among those with a message unanswered (`Ordinary`, not
-    `Spared`), a decision Telegram's runtime does not read. A look of the
+    `Spared`), so its run is charged (**Runtime log and deaths** below).
+    A look of the
     stream's monitor more than 1 s after the wake it planned (a Mac that
     slept, or a thread that did not run) concludes nothing and looks once
     more 1 s later, so a run that measures the 3 s must keep the Mac awake.
@@ -615,15 +625,15 @@ packs, the fixture and the seams they use need no change for it.
     route that takes part (`Connection::blameLocked()` in widget-sandbox's
     `remote_stream.cpp`): `Stalled` for each one whose oldest timed message
     was overdue at that instant, one or several, `Spared` for the others.
-    Each live widget whose own route it decided `Stalled` stops fatally with
-    the reason `The widget stopped responding` (`StalledReason()` in
+    The run of a route it decided `Stalled` is charged, with the reason
+    `The widget stopped responding` (`StalledReason()` in
     `tgw_renderer_work.cpp`, which `HostLink::postDeath()` gives when its
     own channel's `death()` is `Stalled`, and `RendererWork::refuseRoute()`
-    when Telegram refuses that route after the stream decided), and the stop
-    counts as its crash. Every other live widget that end stops is stopped
-    fatally and counted as at any helper end (**Runtime log and deaths**
-    below): Telegram's runtime reads `Stalled` alone and does not apply
-    `Spared`. A widget whose route Telegram refused for good first (a frame
+    when Telegram refuses that route after the stream decided);
+    **Runtime log and deaths** below says which widget, if any, shows that
+    stop. A route it decided `Spared` gets no charge from
+    that end; whether its widget then starts again is **Runtime log and
+    deaths** below. A widget whose route Telegram refused for good first (a frame
     of another sequence, a bound: `RendererPlatform::refused()` and
     `fail()`, `RendererWork::refuseRoute()` and `backendRefused()`, through
     `HostLink::localStop()`), or whose hosted client a counted stop
@@ -631,7 +641,11 @@ packs, the fixture and the seams they use need no change for it.
     the same step (`SandboxHostedChannel::localStop()` and the client's
     claim of its own death) takes everything its renderer owed out of the
     stream's account, so none of it times out the helper its siblings still
-    use.
+    use. Such a refusal is that widget's own charge, once, also when an end
+    that spared its route came first: until the run settles at that end's
+    marker (*Deaths* below), a surviving core that refuses an answer the
+    stream had already credited still charges its run (`Refused`, with the
+    stream's `Spared` kept apart).
   - *Frames.* One frame request is outstanding at a time, a tick apart
     from a paint. A frame that answers no outstanding request, or a tick
     with a paint or the reverse, a malformed state or a list the checks
@@ -826,12 +840,32 @@ packs, the fixture and the seams they use need no change for it.
     font request (its check of the families, 16 new canvas fonts per
     frame, 32 per widget) are handled on its side, and the helper sends no
     `CanvasRefused` for them.
-  - *Deaths.* The hosted host's `onDeath` freezes the widget on its last
-    picture, a kill of the client's own (the
-    helper ended, a flood, an unanswered request) included, with the
-    localized pill and the diagnostic in the runtime log (`The widget
-    stopped responding` for each live widget whose own route the stream's
-    end decided `Stalled`, *A renderer that stops answering* above). An
+  - *Deaths.* The hosted host's `onDeath` reaches `HostLink::postDeath()`,
+    which reads its own channel's `death()` once, at that admission. A
+    `Stalled` or `Ordinary` death, a kill of the client's own (the
+    helper ended, a flood, an unanswered request) included, records the
+    run's decision there and freezes the widget's core on its last
+    picture, which a widget still live on that core shows under the
+    localized pill, with the diagnostic in its runtime log (`The widget
+    stopped responding` for a `Stalled` death, *A renderer that stops
+    answering* above). A
+    `Spared` death only ends the widget's input
+    (`RendererCore::hostFrozen()`); a marker goes to `widget.render` behind
+    the traffic the helper sent before the end (`RendererWork::hostDied()`),
+    and the run settles `Spared` once the work consumed that traffic, a
+    credited answer still held there included (`HostLink::reached()`),
+    unless a refusal of it recorded the run's decision first. The decision
+    recorded first stays the run's: its posted application, a withdrawal
+    at the core's retirement or the core's disposal (`SealRoute()` in
+    `tgw_runtime.cpp`, `HostLink::forget()`) delivers it, whichever comes
+    first, a refusal whose posted application was still delayed included.
+    A disposal that finds none recorded ends that order:
+    `Runtime::RunGone()` finalizes the run from the withdrawal, `Spared`
+    here, at once or once the stream settles the route; traffic not yet
+    delivered to the work is dropped (`HostLink::postTraffic()`), and no
+    refusal can charge the run any more (`HostLink::localStop()` records
+    nothing once the link is gone). What a final run does next is
+    **Runtime log and deaths** below. An
     attached
     work publishes the stop only after it has consumed the traffic the
     helper sent before the death (its platform queue drained), and, when
@@ -863,7 +897,13 @@ packs, the fixture and the seams they use need no change for it.
     (`WidgetHost::keepRenderer`), so its still can reflow: at most 8 kept
     routes in the process, a keep in progress and a release not yet
     complete counted; with all 8 taken the newly retiring widget's route is
-    closed instead. A checked refusal or a drain never keeps. Kept routes
+    closed instead. A checked refusal or a drain never keeps. Nor does a
+    widget retired after its helper's end came first while its run still
+    awaits that end's marker: its still holds the host and the route open
+    (`Runtime::keepStill()`, `HostLink::holdRoute()`), outside the 8, until
+    the work reaches the marker, and the route then closes; a disposal of
+    that still first ends the hold and settles the run as *Deaths* above
+    says. Kept routes
     do not hold the helper's 30 s idle exit; that exit, a crash or a
     release ends them, and their stills lose their documents. A route
     that ended for good also ends its work's wait for emoji, and the
@@ -2653,13 +2693,87 @@ packs, the fixture and the seams they use need no change for it.
   crashes in a row like any other, with no `Tgw Error` line and no helper
   start. A helper that ends
   under live widgets (killed, crashed or cut
-  off by a stream violation) kills each of them with `the widget engine
-  process ended`, the host watch's `dead`; the helper's own reason is only
-  in the main log's `stream ended` line, `the engine process closed the
-  stream` for a kill. That death is a fatal stop like any other: it counts
-  towards the widget's crashes in a row (two stop it), the card keeps its
-  last picture when it had loaded, is released when it leaves the view and
-  starts again, in a fresh helper, when it is painted visible. A helper
+  off by a stream violation) ends each of their hosts with `the widget
+  engine process ended`, the host watch's `dead` and the summary's `Died:`
+  line alike, whatever the stream decided for that widget; the helper's
+  own reason is only in the main log's `stream ended` line, `the engine
+  process closed the stream` for a kill. What counts is each hosted run's
+  own decision, applied once on the main thread (`Runtime::FinishRun()`;
+  *Deaths* above says which decision is the run's):
+  - `Stalled` (*A renderer that stops answering* above) or `Ordinary`: the
+    run is charged (below), whether or not a widget shows its stop. A
+    widget still live on that run's core stops fatally once the core's
+    posted stop reaches it (`Runtime::coreStopped()`), keeping its last
+    picture under the localized pill when it had loaded, with
+    `Stopped (fatal): The widget stopped responding` or, for `Ordinary`,
+    the localized stop label (`Stopped (fatal): Widget stopped`); an
+    attempt discarded before its start that still owns its request stops
+    with the run's reason (`Runtime::stopForRun()`). A run whose message
+    was removed while its stop was held shows no stop and is still
+    charged as below. At
+    an unexpected end that was no timeout (a kill, a crash, a stream
+    violation) the stream decides `Ordinary` for each route taking part
+    that had a message unanswered then and `Spared` for the others, or
+    `Ordinary` for every route taking part when none had one
+    (`Connection::blameLocked()`); the owner's stop decides no route
+    (`Connection::endLocked()` skips that blame). An engine's own death on
+    a live helper reads `Ordinary` too, since no end decided its route.
+  - `Spared`: no charge from that end. Only a run whose final is `Spared`,
+    whose host had started and whose content is still current earns its
+    widget a start of its own (`Runtime::applyFinal()`): a widget still
+    live on that run is released (`Released to restart after its widget
+    helper ended.`, `Runtime::restartSpared()`), and the start then comes
+    with no repaint, scroll or input, in the replacement helper the manager
+    launches and locks down as for any start, the message's crash count
+    unchanged. That start needs what any start needs
+    (`Runtime::wantsStart()`), among them the card on screen, its content
+    current and the message's count below the two-crash cutoff, which the
+    charge of another run of the same message can have reached; and after
+    the third helper failure the manager launches no helper for it
+    (**Failure limit** below).
+  - `Refused`, a refusal Telegram itself made of the widget's own traffic
+    (*A renderer that stops answering* above): charged once with its own
+    reason, also on a route the stream spared; it earns no start.
+  - `None`, a run withdrawn before any end decided it, with no decision
+    recorded (its view unloaded or its message removed first): neither
+    charged nor spared. A decision recorded before the withdrawal, a
+    refusal included, stays the run's (*Deaths* above), and a
+    construction whose engine had claimed its own death before a guard
+    of its start, the two-crash cutoff or a stale or capacity discard of
+    a recovery attempt withdrew it reads `Ordinary`, with the localized
+    stop label and no end of the stream (`Runtime::RunGone()`).
+
+  A run's final survives an unload, a held delivery, the view's or the
+  message's removal and a construction discarded before its host started,
+  and the tap counts it
+  ([test_widget_ops](test_widget_ops.md#hosted-deaths-and-final-charges)).
+  A charge moves the crash count of the message and content serial the
+  run was built for (`Runtime::ChargeRun()`) only while that message's
+  memory lives, its content is still that serial and the count is below
+  the cutoff, and only then, while the run's runtime lives, is it noted,
+  `Counted a crash, N of 2: <reason>`; a run of HTML that an edit replaced
+  since leaves the new content's count alone. A present note proves that
+  an accepted charge moved that count. Its absence rules out no final, and
+  the note names no sampled work and says nothing of the tap's barrier:
+  the tap's finals do. Two charges in a row stop the widget: a later start
+  reads `Stopped: 2 crashes in a row.` and starts no host, while the
+  accounting of runs that already took part goes on. A release or
+  destruction of a healthy live widget (its core has reported content and
+  not stopped, its content is current and the count is below the cutoff)
+  ends the streak, its count back to 0 (`Runtime::breakCrashRun()`),
+  unless withdrawing its route finds its helper's end or a decision
+  already recorded, which keeps the count; a charge its run takes after
+  such a release counts from no less than the count the release ended.
+  While another run of
+  the same message and content is undecided (its construction not
+  returned yet, its core disposed before its final, or its link deciding,
+  `RunsDeciding()`), a start waits (`Runtime::wantsStart()`), keeping the
+  paint that asked for it and writing no note; the scheduler considers it
+  again once that construction returns and is bound to its run, or that
+  run's final is applied. An attempt already underway when such a run is
+  found is discarded (`Runtime::resourcesReady()`, `constructed()`),
+  noting `Released, a run of the same widget is still being decided.`
+  unless its own route had already ended, died or been decided. A helper
   ended because a renderer stopped answering (*A renderer that stops
   answering* above) reads `Tgw: Widget helper <pid> stream ended: a hosted
   renderer left a platform message unanswered for more than 3000 ms.` in
@@ -2674,14 +2788,12 @@ packs, the fixture and the seams they use need no change for it.
   of signaling it, and its `ended` line reads as **The Mac App Store
   service** above lists; that path was read, not run.
   The stream decides each live route at that end
-  (`Connection::blameLocked()`) and each widget's host reads its own
-  route's decision (`HostLink::postDeath()`): every live widget whose
-  route it decided `Stalled` (its timed message overdue; one or several)
-  reads `Stopped (fatal): The widget stopped responding` in its runtime
-  log, under the same localized pill, while its host watch's `dead` is
-  still `the widget engine process ended`; every other live widget that
-  end stopped reads the localized stop label, as at any helper end. Each
-  of those stops counts once towards that widget's crashes in a row. A
+  (`Connection::blameLocked()`): the run of each route it decided
+  `Stalled` (its timed message overdue; one or several) is charged once,
+  and the end spares the others (*A renderer that stops answering*
+  above). The `Stalled` or `Ordinary` case above says which widget, if
+  any, then reads `Stopped (fatal): The widget stopped responding` in its
+  runtime log, under the same localized pill. A
   widget that had already stopped keeps its own reason and count, since a
   later stop changes neither (`RendererWork::freeze()`,
   `Runtime::coreStopped()`). The app measured one overdue widget alone
@@ -2817,8 +2929,12 @@ packs, the fixture and the seams they use need no change for it.
   as one start failure, `the widget helper could not start: <what()>`. A
   helper that did not exit even
   when killed stops them the same way, with `the widget helper was not
-  reaped`. Two kills already stop the widgets they killed, so a test of
-  this limit needs fresh widgets. Once a quit has stopped the helper,
+  reaped`. An end charges only the widgets the stream did not spare
+  (**Runtime log and deaths** above), and a spared one that can start
+  again does so in the next helper, so the same widgets can carry this
+  limit: one that hangs every helper it runs in stops at its own second
+  crash, before the third failure, while its spared sibling keeps
+  restarting. Once a quit has stopped the helper,
   widgets die with `the widget helper was stopped`. None of these runs a
   widget anywhere else. The stop of every widget where no helper
   is available is no helper failure: no start is attempted, so nothing
@@ -2861,10 +2977,16 @@ packs, the fixture and the seams they use need no change for it.
   by terminating its job, inside Flatpak through the portal, in the Mac
   App Store build by canceling its XPC connection) and waits up to 1 s
   more; an outstanding theme probe can hold the quit for its 10 s
-  before that. The stop reaches the stream only on the manager's reap
-  worker (`Manager::stop()`, `Manager::reap()`), after
-  `Runtime::IsQuitPrevent()`'s drain and once `BusyStoppingEngines()`
-  finds no job left, and the stream keeps its first end
+  before that. The drain closes the manager's launch admission first,
+  before it releases the views (`Runtime::Drain()` calls
+  `RefuseRemoteEngines()`, `Manager::refuse()`): from then on a request
+  for a hosted channel, one waiting for a helper being launched or retired
+  included, gets `the widget helper was stopped` and launches nothing,
+  while a launch already underway finishes. The stop itself reaches the
+  stream only on the manager's reap worker (`Manager::stop()`,
+  `Manager::reap()`), after `Runtime::IsQuitPrevent()`'s drain and once
+  `BusyStoppingEngines()` finds no job left, and the stream keeps its
+  first end
   (`Connection::endLocked()` in widget-sandbox's `remote_stream.cpp`).
   So the stream's end reads `the host stopped the stream`, the owner's
   stop, when that stop is the stream's first end; when the stream ended
@@ -2875,12 +2997,10 @@ packs, the fixture and the seams they use need no change for it.
   the stream with the owner's stop 0.063 s after that admission, then
   killed the helper after the 1 s exit wait (`signal 9, sent SIGKILL after
   1011 ms`), and no helper started after it.
-  Since the stop waits for build jobs, a build that is
-  starting a Mac App Store service holds the quit for that start: at most
-  16 s (`kStartWait` plus the 1 s cleanup) per start, with waiting builds
-  starting one after another up to the failure limit, so about 48 s only
-  for a service that neither answers nor ends and about 12 s for a
-  launchd-deferred start and its stop. Measured Store quits: 0.1-0.2 s
+  Since the stop waits for build jobs, a build that was already
+  starting a Mac App Store service when the drain began holds the quit
+  for that one start; builds waiting for it are refused at the drain.
+  Measured Store quits: 0.1-0.2 s
   with a live service, 1.1 s with a stuck serve thread and 2.1 s with a
   `SIGSTOP`ped service, which launchd ended about 5 s after Telegram
   exited.
@@ -2918,10 +3038,12 @@ packs, the fixture and the seams they use need no change for it.
 | `InjectWidgetMessage` | Empty, `not injected: ...` (not registered, history gone or not at its bottom, list not shown, payload does not unpack) with nothing added, or `the injected message got id ..., not the armed ...`. |
 | `CheckWidgetMessage` | Fills `shape`; empty, or `no HtmlWidget view: ...` (not a local outgoing client-id message, not a `Tgw::WidgetMedia` of the bytes, `its media's flags, state or widget id are not the injected ones (the media has ...)` comparing `Tgw::WidgetMedia::fields()` with the record, absent and present-empty bytes and an absent and a zero id told apart, `it comes via bot <id or none>, not the injected <id or none>` comparing `HistoryItem::viaBot()` with `fields.viaBot`, no laid-out card of the list's own). `shape` includes the record's `flags=<copy\|query\|background or none> chat=<bytes or none> public=<bytes or none> widgetId=<id or none>`: sizes, never the state's contents (`chat=0` is present and empty). |
 | `RuntimeLogDecided` / `FinishRuntimeLog` | `log.source`: `requestLog`, `logText` (the runtime kept no callback), `logText-at-bound`, `unavailable`; `log.chars`, `log.pending`. |
-| `log.summary` | The raw `Tgw::Runtime::_summary` (the `Summarize()` text) with `log.summaryState`. |
+| `log.summary` | The raw `Tgw::Runtime::_summary` (the `Summarize()` text) with `log.summaryState` and `log.summaryWork`: the key of the host that summary was sampled from (`Tgw::Runtime::_summaryHost`, the `RendererCore::workId()` of that host's core), read with the text, whether or not the summary has a `Died: ` line; 0 and empty text without a summary. |
 | `RevalidateWidgetCard` | Empty, or what changed: show refused, list gone, no hover, view gone or another, card not ready, core, card or view geometry. |
-| `WidgetDesktopStop` | `RendererCore::stopReason()` verbatim, or empty: `core` 0, no own runtime or no current core, another core (the older still when the watched core stopped before its first delivered picture), a runtime not `Stopped` (a stop whose posted answer has not reached the chat yet; a stop off screen that `release()` already rearmed reads `Released`), a stop that is not fatal, or a fatal `frozen` counted on the tap. Empty is no desktop stop seen, never proof that the widget is alive. |
-| `FixtureBarrierDecided` | True once no tap, the tap finished (`WidgetTapFinished()`: every factory released, every wrapper destroyed), or the bound passed; only a reading after a finished tap is final. True at the bound too, so a caller that needs the hosts gone (one widget alive at a time) checks `WidgetTapFinished(ReadWidgetOps(*message.tap))` after it and stops before another injection when it is false. |
+| `WidgetDesktopStop` | `RendererCore::stopReason()` verbatim, or empty: `core` 0, no own runtime or no current core, another core (the older still when the watched core stopped before its first delivered picture), a runtime not `Stopped` (a stop whose posted answer has not reached the chat yet; a stop off screen that `release()` already rearmed reads `Released`), a stop that is not fatal, or a final ordinary or stalled charge counted on the tap (`fatalFrozen` above 0). Empty is no desktop stop seen, never proof that the widget is alive. |
+| `FixtureBarrierDecided` | The removal wait: true once there is no tap, the tap finished (`WidgetTapFinished()` of [test_widget_ops](test_widget_ops.md#readings-and-refusals): every factory released, every wrapper destroyed and every hosted work selected for the runtime's accounting final), or `kWidgetBarrierBound` (10 s) passed since the removal. It does not say which. A caller tests `message.tap` first, since with no tap there is nothing to read: the conformance runner then counts its reading not final (`readingFinal` needs a tap), and the attack audit judges a default reading, balanced and empty, so that file did not run. With a tap it checks `WidgetTapFinished(ReadWidgetOps(*message.tap))`, a finished reading taken at or past the bound included; only when that is false has the barrier timed out with an incomplete reading, which proves no absence and which the caller reports with `WidgetTapCounts()` and stops before another injection. |
+| `WidgetTapCounts` | The counts `WidgetTapFinished()` compares, for a diagnostic: `factories 1 of 2 released, wrappers 1 of 1 destroyed, hosted works 0 of 1 final`. The packs' aborts and rows and the stress-kit runner's barrier write it. |
+| `WidgetLogSummaryOwn` | Whether `log`'s summary is the one of the host the request was made for (`Fresh` or `Final`, below): the only summary whose `Died: ` line and `summaryWork` may describe that host, so the only one a reader takes a cause from. |
 | `ReadFixtureColumns` | The columns, or `error` `the primary window has no session controller, body or content` with only `threshold` set. `FixtureColumnsText()` is `layout: <error>`, or `columns=<name> body= threshold= bodyWidget= filters= content= chat= chatShown= dialogsShown= minimumWidth=` with each value. |
 | `MoveFixtureWindow` | `target.error`: the columns' error, or `the one-column frame <frame> does not fit in the screen's available area <inner> inside its margin`, and nothing moved; `moved` is false as well for a window already at the target. |
 | `FixtureWindowSettled` | True once placed and unchanged for 1 s, or at `kWidgetPlaceBound`; never a verdict: only the caller's gate after it judges the placement. |
@@ -2937,11 +3059,18 @@ summary:
   that was not final;
 - `Absent`: no summary, or no runtime.
 
-Only `Fresh` and `Final` describe the host the request was made for; a
-consumer that reads anything from the summary refuses the other two by name,
-as the conformance runner's
+Only `Fresh` and `Final` describe the host the request was made for
+(`WidgetLogSummaryOwn()`). The conformance runner's
 [bridge reader](test_widget_conformance.md#bridge-calls-and-uncaught-errors)
-does.
+refuses the other two by name. An `Absent` summary has no text and work 0.
+A `Stale` one may hold an older host's `Died: ` line and work: both packs'
+hosted death readings keep that line and `summaryWork` in their rows as
+diagnostics and take no cause from either, so a charge then reads
+`charged, reason unmeasured`
+([test_widget_ops](test_widget_ops.md#hosted-deaths-and-final-charges)),
+refused by name only for a conformance entry with `stops`
+([test_widget_conformance](test_widget_conformance.md#readings-and-refusals));
+the conformance runner's local reading drops that line.
 The summary and the log are bounded by the product (`kMaxLogLine`,
 `kLogBytes`, the tail limits of `Summarize()`), so neither proves an absence.
 
@@ -4252,7 +4381,53 @@ engine end passed, among them a 3.6 s wait on the host's side for a
 renderer request's answer that ended nothing and two overdue routes of
 one stream both decided `Stalled`. Not run: the Mac App Store service's
 path (read in `widget_helper_store_mac.mm`) and a stall by a widget's own
-content.
+content. Those runs predate the per-run accounting of **Runtime log and
+deaths**: the live sibling Run 3 read stopped at `1 of 2` is now decided
+`Spared` and gets no charge from that end.
+
+The per-run accounting of **Runtime log and deaths** (stalled, ordinary,
+spared, refused and withdrawn runs, the spared restart, the held route and
+the start gate) and the removal barrier through every hosted final came
+with
+`2026/11/20/count-a-widget-helpers-death-only-against-widgets-with-work-in-flight`.
+Its evidence campaign (its `work/test.md`, Attempt 1, which holds the
+measurements) ran them in the macOS arm64 direct-download Debug client and
+its embedded Debug helper, each launch built with that campaign's
+disposable evidence overlay: Debug helper tap verbs that withhold a frame
+request or replace an answer, an external `SIGKILL` of the verified direct
+child, and bounded gates that only delay a delivery, a construction or a
+render creation. It observed:
+
+- a stall charging only its own widget, while the spared sibling started
+  again uncharged, with no paint, on a new helper verified as a sandboxed
+  direct child; the stalled widget stopping at `2 of 2` after its second
+  stall; and a third helper failure latching the manager;
+- an external kill charging only the route with a request open, and
+  both routes when neither had one;
+- a credited answer held across a sibling's timeout settling `Spared`, the
+  count unchanged, when the surviving core painted it, and charged
+  `refused/spared` when that core refused it; one paint given while that
+  run was undecided started its widget once after the `Spared` final, and
+  none after the refusal's second crash; a removal before such a refusal
+  finalized the run `Spared`, and the answer released afterwards charged
+  nothing;
+- an engine's own death charged once, whether its message was removed
+  while its stop was held or not, and nothing when withdrawn before its
+  admission;
+- healthy, hidden, static and kept cards and a credited answer held behind
+  render work keeping their helper and their count, and an ordinary quit
+  leaving no helper;
+- both packs' removal barriers closing with every hosted work final
+  ([test_widget_attacks](test_widget_attacks.md#verification),
+  [test_widget_conformance](test_widget_conformance.md#verification)).
+
+A render creation skipped because its link was already gone
+(`RendererCore`'s constructor tests `HostLink::gone()` before
+`RendererWork::Create`) leaves no renderer platform to send that work a
+timed request, and the open buffered for its route expects no answer, so
+that route is never `Stalled` by its own request; a decision already
+recorded for its run survives the skip. Not run: a Release build with the
+harness, the Mac App Store service and the other platforms.
 
 On Windows it was turned on by
 `2026/11/14/run-widget-validators-and-renderers-in-the-windows-helper`,

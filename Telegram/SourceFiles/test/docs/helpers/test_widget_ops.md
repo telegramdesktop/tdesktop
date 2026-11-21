@@ -9,12 +9,13 @@ Internal to it:
 
 | File | Holds |
 | --- | --- |
-| `test_widget_ops.h` | The contract: the hosted seams, arming, the readings, the helper work and the self-checks. |
-| `test_widget_ops_internal.h` | What the four translation units share: the scan and kept-value bounds, `kHelperMirrors`, the tap's record (`WidgetOpsTap`), the armed taps, the scan budget, the reader of effective theme answers, the mapping of helper stamps and the exchange leg's entry (`CheckHostedExchanges()`). |
-| `test_widget_ops.cpp` | The tap's record, the scan (the `Upstream` block and its `ScanSink`), the result reader, arming and the readings; without the harness, nothing. |
-| `test_widget_ops_hosted.cpp` | The hosted tap: `TapHostedWidget()`, its observations and registry, `WidgetThemeObservation()`, `WidgetThemeApplied()`, `WidgetPressDispatched()`, `WidgetCoreDetached()`, `WidgetPressObserved()`, the effective theme probe, `WidgetThemeUnobserved()`, `CheckWidgetTheme()`, the helper work records and `CheckedTimeSum()`; without the harness, the hosted seams alone. |
-| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` with its session, stress, hosted, budget, long-name and scan-gap legs, and `RunWidgetConformanceProbeCheck()` with its fixture replay and replacement legs, every leg on hosted taps. |
-| `test_widget_ops_exchanges.cpp` | The self-check's exchange leg (`CheckHostedExchanges()`): `Tgw::HostedAnswers()` against TwidgetCore's own encodings and `decode()`, and a widget helper's stream end on two routes played over widget-sandbox's in-memory pair with its `ScriptedEngineEnd`; without the harness, nothing. |
+| `test_widget_ops.h` | The contract: the hosted seams, arming, the readings, the hosted death reading, the helper work and the self-checks. |
+| `test_widget_ops_internal.h` | What the five translation units share: the scan and kept-value bounds, `kHelperMirrors`, the tap's record (`WidgetOpsTap`), the armed taps, the scan budget, the reader of effective theme answers, the mapping of helper stamps, the entries of the deaths, finals and exchange legs (`CheckHostedDeaths()`, `CheckHostedFinals()`, `CheckHostedExchanges()`) and `SelfCheckRowName()`. |
+| `test_widget_ops.cpp` | The tap's record with its hosted works' records and finals, the scan (the `Upstream` block and its `ScanSink`), the result reader, arming, the readings and `WidgetTapFinished()`; without the harness, nothing. |
+| `test_widget_ops_hosted.cpp` | The hosted tap: `TapHostedWidget()` with the final observation it hands the runtime, its observations and registry, `WidgetThemeObservation()`, `WidgetThemeApplied()`, `WidgetPressDispatched()`, `WidgetCoreDetached()`, `WidgetPressObserved()`, the effective theme probe, `WidgetThemeUnobserved()`, `CheckWidgetTheme()`, the helper work records and `CheckedTimeSum()`; without the harness, the hosted seams alone. |
+| `test_widget_ops_check.cpp` | `RunWidgetOpsSelfCheck()` with its session, stress, hosted, finals, budget, long-name and scan-gap legs, its exchange leg played within the call or left apart, and `RunWidgetConformanceProbeCheck()` with its fixture replay and replacement legs, every leg on hosted taps. |
+| `test_widget_ops_deaths.cpp` | The hosted death reading (`ReadHostedDeath()`, `WidgetHostedDeathText()`, `WidgetTapCharged()`, `WidgetTapHosted()` and the row texts), `WidgetHostedPlay`, and the self-check's deaths and finals legs (`CheckHostedDeaths()`, `CheckHostedFinals()`); without the harness, nothing. |
+| `test_widget_ops_exchanges.cpp` | The self-check's exchange leg (`CheckHostedExchanges()`, seven rows): `Tgw::HostedAnswers()` against TwidgetCore's own encodings and `decode()`, frame deltas included, and a widget helper's stream end on two routes played over widget-sandbox's in-memory pair with its `ScriptedEngineEnd`; and `WidgetOpsExchanges`, which plays that leg on a thread of its own; without the harness, nothing. |
 
 ## Use when
 
@@ -31,9 +32,13 @@ Debug half ([test_widget_helper_tap](test_widget_helper_tap.md)) mirrors to
 it. Each `ops` batch is scanned with widget-sandbox's `--attacks` leak
 definition, its predicates copied and its examples bounded
 ([Leak definition and fidelity](#leak-definition-and-fidelity)). The tap also counts the host's
-post-load ack, the renderer's answer to it, a fatal `frozen`, renderer
+post-load ack, the renderer's answer to it, renderer
 `violation` messages, renderer `limit` reports and trusted renderer events,
-and it says when no tap or host of the message is still pending. A Release
+and, for each hosted work selected for the runtime's accounting, the
+final charge that accounting made
+([Hosted deaths and final charges](#hosted-deaths-and-final-charges)).
+`WidgetTapFinished()` says when no tap or host of the message is still
+pending and every such work has its final. A Release
 build with the harness, whose helper has no Debug half, reads instead the
 theme the widget itself took after each application and the clicks the
 helper's renderer completed
@@ -61,7 +66,11 @@ is the planned reader of the `data-stress` values and the batch counts;
 until it lands nothing reads them. The heavy-box evidence of
 `2026/11/02/stop-widgets-past-the-heavy-box-limit-with-a-v0-6-0-twidgetcore`
 reads `limitReports` and `limitExamples`: one report per strict host, none
-under compat.
+under compat. The fixture's removal barrier
+([test_widget_fixture](test_widget_fixture.md#readings-and-refusals)) and
+the reading after it in both packs and the stress-kit runner decide
+finality with `WidgetTapFinished()`; both packs read a hosted widget's
+death with `ReadHostedDeath()`.
 
 Use something else when:
 
@@ -85,8 +94,9 @@ Use something else when:
   tapped, and two armed ones get two taps. Keep the armed id for
   `DisarmWidgetOpsTap()`; never rebuild it later from whichever account is
   active then.
-- **Active harness.** `TapHostedWidget()` returns an empty function unless
-  `Test::Active()`, and for every message id that is not armed; a build
+- **Active harness.** `TapHostedWidget()` returns an empty function, and
+  leaves its `finish` out-parameter untouched, unless `Test::Active()`, and
+  for every message id that is not armed; a build
   without the harness defines only the hosted seams: `TapHostedWidget()`
   and `WidgetThemeObservation()`, which return an empty function,
   `WidgetThemeScheduled()`, which returns 0, and `WidgetThemeSelected()`,
@@ -138,9 +148,16 @@ Use something else when:
   `theme` message or a `setTheme()` among it leaves the latest fields alone
   and is counted in `staleUpdates`, and none of its batches enters the
   latest `batches`, `ops` or `maxBatchOps`.
-  `generation` above 1 names a run in which more than one host was
-  constructed; the latest fields, like `Tgw::Runtime`'s log, cover only the
-  last of them.
+  `generation` advances at each selection, also one whose host was never
+  installed (a failed or discarded construction), so above 1 it says only
+  that the message was selected more than once, and 1 is no proof that a
+  host ran: `wrappersBuilt` counts the hosts the tap was installed on, and
+  only a result, a batch or another observation of a host shows that it
+  ran. The latest fields cover only the newest selection. A runtime log is
+  not tied to it: its summary can still be an older host's, which only
+  that summary's own work and eligibility tell (`summaryWork`,
+  `WidgetLogSummaryOwn()`,
+  [test_widget_fixture](test_widget_fixture.md#readings-and-refusals)).
 - **The value is raw.** `conformance` and each `stress` value are the
   attribute text, not checked to be JSON; the caller parses them and can
   cache a parsed `conformance` by `generation` and `serial`. A later `el` op
@@ -170,7 +187,9 @@ Use something else when:
 ## Minimal use
 
 Arm, inject, mark before the click, then disarm, remove and wait until the
-tap is final before reading it.
+tap is final before reading it. The wait's bound ends it too, so the
+example reads absences only from a finished reading: an unfinished one
+proves none.
 
 ```cpp
 runner->add({
@@ -198,17 +217,18 @@ runner->add({
 		state->removedAt = crl::now();
 	},
 	.until = [=] {
-		const auto r = Test::ReadWidgetOps(*state->tap);
-		const auto final = (r.factoriesReleased == r.factoriesSelected)
-			&& (r.wrappersDestroyed == r.wrappersBuilt);
-		return final || (crl::now() - state->removedAt > kJoinBound);
+		return Test::WidgetTapFinished(Test::ReadWidgetOps(*state->tap))
+			|| (crl::now() - state->removedAt > kJoinBound);
 	},
 	.then = [=] {
 		const auto r = Test::ReadWidgetOps(*state->tap);
+		const auto finished = Test::WidgetTapFinished(r);
 		Test::Check(
-			(r.factoriesReleased == r.factoriesSelected)
-				&& (r.wrappersDestroyed == r.wrappersBuilt),
-			u"the message's hosts are gone"_q);
+			finished,
+			u"the message's hosts are gone and its hosted works are final"_q);
+		if (!finished) {
+			return;
+		}
 		Test::Check(
 			(r.batches > 0) && !r.scanGaps && !r.leaks,
 			u"every validated batch was scanned and none leaks"_q);
@@ -218,7 +238,9 @@ runner->add({
 ```
 
 A conformance widget's result is waited for on the latest reading, parsed by
-the caller and kept with the generation it came from:
+the caller and kept with the generation it came from. Only the result
+shows that a host ran: the wait can end at its bound, and a selection
+whose host was never installed has generation 1 too:
 
 ```cpp
 runner->add({
@@ -240,26 +262,29 @@ runner->add({
 	},
 	.then = [=] {
 		const auto latest = Test::ReadWidgetOpsLatest(*state->tap);
+		const auto status = state->result.value(u"status"_q).toString();
 		Test::Check(
-			latest.generation == 1,
-			u"one host ran the widget"_q,
-			u"generation=%1"_q.arg(latest.generation));
+			(status == u"done"_q)
+				&& (state->generation == 1)
+				&& (latest.generation == 1),
+			u"the message's one selected host ran the widget to done"_q,
+			u"status=%1 generation=%2"_q.arg(status).arg(latest.generation));
 	},
 	.timeout = kResultBound + Test::kDefaultStageTimeout,
 });
 ```
 
 A stress widget's values are read once, after a measuring window whose
-endpoints are `crl::profile()` stamps; the receipts place each value:
+endpoints are `crl::profile()` stamps; the receipts place each value, and
+only values in the window show that the host published there. The
+example reports what it found and `stressDropped` rather than claiming
+every value:
 
 ```cpp
 runner->add({
 	.name = u"read the window's data-stress values"_q,
 	.run = [=] {
 		const auto latest = Test::ReadWidgetOpsLatest(*message->tap);
-		Test::Check(
-			(latest.generation == 1) && !latest.stressDropped,
-			u"one host, every data-stress value kept"_q);
 		for (const auto &entry : latest.stress) {
 			if (entry.receivedAt >= state->windowStart
 				&& entry.receivedAt <= state->windowEnd) {
@@ -267,21 +292,43 @@ runner->add({
 			}
 		}
 		state->maxBatchOps = latest.maxBatchOps;
+		Test::Check(
+			(latest.generation == 1) && !state->windowValues.empty(),
+			u"the message's one selected host published in the window"_q,
+			u"values=%1 dropped=%2"_q
+				.arg(int(state->windowValues.size()))
+				.arg(latest.stressDropped));
 	},
 });
 ```
 
 The self-checks are run from one stage each and turned into checks by their
-caller; the probe check gets the bytes of the pinned `probe-fixture.json`:
+caller; the probe check gets the bytes of the pinned `probe-fixture.json`.
+`RunWidgetOpsSelfCheck()` with no argument plays its exchange leg within
+the call, about 5 s with the event loop blocked. A stage can leave the leg
+apart and play it on a `WidgetOpsExchanges` that `onFinish` stops, as both
+packs do. Every row is a Check of its own: reaching `then` passes nothing.
 
 ```cpp
+const auto exchanges = std::make_shared<Test::WidgetOpsExchanges>();
+runner->onFinish([=] { exchanges->stop(); });
 runner->add({
 	.name = u"widget ops self-check"_q,
-	.run = [] {
-		for (const auto &row : Test::RunWidgetOpsSelfCheck().rows) {
+	.run = [=] {
+		const auto check = Test::RunWidgetOpsSelfCheck(
+			Test::WidgetOpsExchangeLeg::Apart);
+		for (const auto &row : check.rows) {
+			Test::Check(row.passed, row.name, row.details);
+		}
+		exchanges->start();
+	},
+	.until = [=] { return exchanges->ready(); },
+	.then = [=] {
+		for (const auto &row : exchanges->take()) {
 			Test::Check(row.passed, row.name, row.details);
 		}
 	},
+	.timeout = Test::kWidgetOpsExchangesTimeout,
 });
 runner->add({
 	.name = u"widget conformance probe check"_q,
@@ -313,7 +360,8 @@ Counts are uncapped;
 the example lists (`leakExamples`, `noteExamples`, `gapExamples`,
 `violationDetails`, `limitExamples`, `trustedEventTypes`) keep only their
 first 64 entries, so
-compare a list with its count before calling it complete.
+compare a list with its count before calling it complete; `hostedRuns`
+keeps the newest 32 (`kWidgetHostedRuns`), and no count is read from it.
 
 | Field | Meaning |
 | --- | --- |
@@ -334,7 +382,10 @@ compare a list with its count before calling it complete.
 | `markSuperseded` | The generation whose selection superseded the marked one, 0 while the marked one is the newest: the mark's later steps and trusted events stop counting, and what it counted before stays. |
 | `markDetached` | Whether the core of the work the mark is bound to was detached (`WidgetCoreDetached()`, first in `RendererCore::detach()`, before it closes the host link and before the runtime releases the route or retires the host) before the played press's click completed, or the runtime retired that work's host (`WidgetHostRetired()`) before the helper reported its renderer's click for the played press, while the widget render thread, which learns of the detach only later, can still report the up and click of a reply it already took. Either way the mark is revoked, its later steps count elsewhere and no click of it completes it, also one a lookup that held the registration brings later, while what it counted before stays. A click completed before keeps it false. |
 | `ackQueries`, `ackResults` | The host's post-load `query` and the renderer's `result`, each with numeric `qid` -1 (`WidgetHost`'s `kRenderAckQid`). |
-| `fatalFrozen` | The host's deaths: every `onDeath`, whatever its reason's text, never the served host's mirrored `frozen` ([Hosted widgets](#hosted-widgets)). |
+| `fatalFrozen` | Hosted works whose final the runtime's accounting charged as an ordinary or a stalled death. Never a death a host reported by itself (its `onDeath` or its diagnostics' `dead`), nor the served host's mirrored `frozen` ([Hosted deaths and final charges](#hosted-deaths-and-final-charges)). |
+| `hostedSelected`, `hostedFinal` | Hosted works selected for the runtime's accounting (`TapHostedWidget()` with its `finish` out-parameter), and those whose final reached the tap, each once, after the runtime's accounting applied it. |
+| `desktopCharges`, `sparedRuns`, `unaffectedRuns` | The other finals: a refusal Telegram itself made of the widget's own traffic (`Refused`), also on a route the stream spared; a run the stream spared that nothing charged (`Spared`); a run nothing charged or spared (`None`: withdrawn first, or never part of an end). Each final counts in exactly one of these or `fatalFrozen`. |
+| `hostedRuns` | The newest 32 hosted selections (`WidgetHostedRun`), in selection order, for attribution: a work's verdict is never read from its record's absence. |
 | `renderedHosts` | Hosted hosts whose own `WidgetDiagnostics::rendered` the tap saw, each once: the served host's post-load query answered by the helper's renderer, as the hosted client recorded it. The hosted twin of an `ackQueries` / `ackResults` pair, and the one a Release harness has. |
 
 The message shapes are the ones `WidgetHost` sends and reads in widget-sandbox's
@@ -345,13 +396,23 @@ scanner reads. TwidgetCore marks every event it forwards `trusted` except the
 `pointerdown` and `mousedown` of a real finger's press (widget-sandbox
 v0.3.0's finger rule); mouse presses and a tap's `click` stay trusted.
 
-A reading is final only when `factoriesReleased == factoriesSelected` and
-`wrappersDestroyed == wrappersBuilt`: then no hosted tap selected for the
-message can still be installed, and every host it was installed on is
-destroyed, so none of its observers can record more; a renderer the helper
-kept past that host is outside the reading.
-`wrappersBuilt == wrappersDestroyed == 0` alone is not that: a Build worker may
-not have installed its tap yet. Readings before that point are diagnostic.
+A reading is final only when `WidgetTapFinished(reading)` holds:
+`factoriesReleased == factoriesSelected`, `wrappersDestroyed ==
+wrappersBuilt` and `hostedFinal == hostedSelected`. Then no hosted tap
+selected for the message can still be installed, every host it was
+installed on is destroyed, so none of its observers can record more, and
+every hosted work selected for the runtime's accounting had its final; a
+renderer the helper kept past that host is outside the reading.
+`wrappersBuilt == wrappersDestroyed == 0` alone is not that: a Build worker
+may not have installed its tap yet. Nor are balanced factories and
+wrappers: a work's final can come after its host is gone, since the final
+observation holds neither. Readings before that point are diagnostic. A
+wait's bound decides nothing by itself: a host can finish between the
+wait's last poll and the caller's next snapshot, so the snapshot read
+after the wait decides, one taken at or past the bound included, and
+only one that is not final is incomplete; the fixture's removal barrier
+reports it with `WidgetTapCounts()`
+([test_widget_fixture](test_widget_fixture.md#readings-and-refusals)).
 
 ### The latest result
 
@@ -402,27 +463,34 @@ widget helper (macOS, Linux and Windows, the Mac App Store and Windows
 Store builds included;
 [Remote engines](test_widget_fixture.md#remote-engines)), and Telegram
 keeps only the hosted client and its checked Qt work. The runtime
-calls `TapHostedWidget(_item->globalId(), _live->workId(), *_theme)`
+calls `TapHostedWidget(_item->globalId(), _live->workId(), *_theme,
+&run->observe)` in `Runtime::construct()`
 on main, with the `RendererCore::workId()`
 of the core it builds the host for (counted up from 1 on main and never
-reused, so no later core shares it) and the theme its `Job` carries into
-the host's constructor. For
-an armed id it selects the next generation at once and returns a function
+reused, so no later core shares it), the theme its `Job` carries into
+the host's constructor and the final observation slot of the
+construction's run. For
+an armed id it selects the next generation at once, starts that
+selection's record, sets the slot to the selection's final observation
+([Hosted deaths and final charges](#hosted-deaths-and-final-charges)) and
+returns a function
 that `Build()` calls on its worker, once, with the hosted host's shared
 pointer, after its constructor returned and the runtime set its
 observers, before the host is bound or started. That call records that
 theme as the generation's first applied theme (`appliedScheme`,
 `appliedThemeMessage`, serial 1), registers the host and the work id for
 the runtime's three other hosted seams below, and
-wraps four observers of that host, each recording first and then calling
-the runtime's own:
+wraps three observers of that host, each recording first and then calling
+the runtime's own. The host's `onDeath` stays the runtime's own,
+unwrapped: the tap counts no death a host reports, only the runtime's
+final decision of the work
+([Hosted deaths and final charges](#hosted-deaths-and-final-charges)).
 
 | Observer | What the tap records |
 | --- | --- |
 | `onRenderOps` | Every validated batch, as the helper's validator passed it, rebuilt into the host's own `{"type":"ops","ops":...}` message and scanned: leaks, notes, results, `data-stress` values with their receipts and the newest host's batch counts. Set before `start()`, it is also the hosted start's ask for the batches, which a host without the observer never gets. The served host's `WidgetHost::localSetTheme()` reports the batch a theme change re-sanitises the stylesheets into as well, when it is not empty. |
 | `onPlatformMessage` | The helper tap's `Mirrored` records, consumed only when well-formed and only after the tap asked for them: way `b` (the scheme the renderer was built with, the latest `scheme`, once), `h` (every served-host message to the renderer but `ops`, such as the theme message, the ack query, layout queries, `requestFrame` and `frozen`), `r` (every renderer message to the served host, such as the ack's `result`, events, `violation`, `limit` and `size` reports) and `t` (each `setTheme()`). Every other message, a malformed `Mirrored` record included, goes to the runtime's observer unchanged, in order, inside the same call, so `WidgetHost::platformDelivery()` still gives it its delivery. |
-| `onDeath` | The hosted host's death as its diagnostics recorded it, once: every one counts one `fatalFrozen`, whatever its reason's text (a widget helper can report `terminated` for a death nobody asked for), a kill of the client's own (the helper ended, a flood, a platform request left unanswered) included. `WidgetHost` itself never reports the end its owner asked for (`destroy()`, `keepRenderer()`), so a retirement counts none. The served host's own `frozen`, mirrored as way `h`, is a host message but never a death, so a death is never counted twice. |
-| `onChange` | The host's own rendered acknowledgment: the first change whose diagnostics have `rendered` counts one `renderedHosts`; the observer probes nothing ([The effective theme](#the-effective-theme)). Every change is passed on unchanged; the watch of [test_widget_host](test_widget_host.md), when armed, wraps this observer in turn. |
+| `onChange` | The host's own rendered acknowledgment: the first change whose diagnostics have `rendered` counts one `renderedHosts`; the observer probes nothing ([The effective theme](#the-effective-theme)). The first change whose diagnostics have `dead` keeps that death raw, cut by `Tgw::ClipLogLine()`, in the selection's record (`WidgetHostedRun::died`), also after the final and also when the host's owner kept or destroyed it so that its `onDeath` stays silent; it counts nothing. Every change is passed on unchanged; the watch of [test_widget_host](test_widget_host.md), when armed, wraps this observer in turn. |
 
 The runtime's other hosted seams reach the installed tap through a
 registry of the hosts and work ids it was installed for, each entry living
@@ -447,7 +515,8 @@ the tap is armed before the first served-host message. A Release build with
 the harness starts a Release helper, which has no tap and would end the
 route at a `Mirror`, so it asks nothing: its readings have the validated
 batches, the leaks, `renderedHosts`, the applied and effective themes, the
-marked interaction's press steps and the death only, and
+marked interaction's press steps, the raw deaths and the final charges
+only, and
 `ackQueries`, `ackResults`, trusted events, `violations` and
 `limitReports` stay 0.
 
@@ -474,6 +543,9 @@ What the readings rest on:
   parse, and never the tap. The tap's function, its last copy gone, counts
   as released, and when it was never called (a build that threw or was
   discarded before the install) also as completed; `factoriesThrew` stays 0.
+  A hosted work's final is no observation of its host and can come after
+  the host is gone
+  ([Hosted deaths and final charges](#hosted-deaths-and-final-charges)).
 - **Order and time.** Each record crosses the stream after the helper did
   the work, so a renderer message that a batch caused can precede that
   batch's `onRenderOps` record, and every receipt (`receivedAt` of a
@@ -552,6 +624,102 @@ scheme than `scheme`, or the kept reading differs from the applied theme
 (`effectiveMismatch`: a wrong palette key with the right scheme too);
 Matches otherwise. An application request, an app theme switch or an
 earlier good reading never makes it Matches.
+
+### Hosted deaths and final charges
+
+Every host of an ended widget helper reports the same raw death, `the
+widget engine process ended`, whether the stream spared its widget or
+charged it, so the tap counts no death a host reports. It counts the
+runtime's own decision for each hosted work; what decides it and what it
+does to the widget is the fixture's
+([Remote engines](test_widget_fixture.md#remote-engines), *Deaths* and
+**Runtime log and deaths**).
+
+- **Selection.** Each `TapHostedWidget()` selection of an armed id starts
+  its record in `hostedRuns` (`WidgetHostedRun`: `work`, and `generation`,
+  the selection's index), the oldest dropped past `kWidgetHostedRuns` (32).
+  With the `finish` out-parameter, which `Runtime::construct()` passes for
+  every hosted construction and a check that only installs leaves out, it
+  also counts one `hostedSelected` and sets `*finish` to the selection's
+  final observation.
+- **The final.** The runtime keeps that observation with the
+  construction's run (`HostedRun::observe` in `tgw_runtime.cpp`), takes it
+  once and calls it on main from the run's one final accounting
+  (`Runtime::FinishRun()`) with the run's `Tgw::HostedDecision`, installed
+  or not, started or not, and never from the host's `onDeath`. The call
+  follows the update of the message's crash history when one applies
+  (`Runtime::ChargeRun()`, which a run whose message memory is gone skips
+  altogether, and which leaves the count alone for HTML an edit replaced
+  or a count at the two-crash cutoff); it counts the decision either way:
+  one `hostedFinal` and exactly one of `fatalFrozen` (`Ordinary`,
+  `Stalled`), `desktopCharges` (`Refused`), `sparedRuns` (`Spared`) and
+  `unaffectedRuns` (`None`). It holds the tap weakly, the selection's
+  number and the work id, and nothing of the installer, the host or its
+  observers; a second call of it or of any copy does nothing
+  (`HostedFinish()` in `test_widget_ops_hosted.cpp`), the tap's own guard
+  and no proof of the runtime's once-only accounting.
+- **Per work and cumulative.** While its record is kept, the final also
+  fills it: `outcome`, the charge, and apart from it `transport`, what the
+  deciding event read of the stream's decision for the route, so a
+  refusal on a route the stream spared reads `refused/spared` and counts
+  in `desktopCharges`, never in `sparedRuns`; `reason`, the decision's
+  own (the stopped-responding text, an ordinary death's label, Telegram's
+  refusal); `claimed`, a charge decided with no end of the stream to read
+  (transport `None`); and `final`. An engine's own death on a live helper
+  reads transport `Ordinary` as an ordinary end does, so an `Ordinary`
+  transport is no proof that the stream published an end. `died`, the
+  first death the host's `onChange` carried, is kept raw beside them.
+  Texts are cut by `Tgw::ClipLogLine()`, as a summary's `Died: ` line is.
+  Eviction drops a record and never a count: a charge whose record is gone
+  still counts.
+
+`ReadHostedDeath(reading, work, deathLine, earlier)` is the one hosted
+reading of a death, the conformance runner's and the attack audit's:
+
+- **Verdict.** Dead when any selected work was charged: `fatalFrozen` or
+  `desktopCharges` positive (`WidgetTapCharged()`), or the sampled work's
+  record final with a charge. Read from a final reading
+  (`WidgetTapFinished()`) it is final, and no eviction reverses it. A raw
+  `Died: ` line is never a verdict.
+- **Sample.** `work` is the work the summary was sampled from
+  (`WidgetRuntimeLog::summaryWork`) and `deathLine` that summary's raw
+  `Died: ` line, kept verbatim in `WidgetHostedDeath::deathLine` beside the
+  sampled record (`sampled`). Both packs pass them only for a `Fresh` or
+  `Final` summary (`WidgetLogSummaryOwn()`,
+  [test_widget_fixture](test_widget_fixture.md#readings-and-refusals)),
+  and otherwise work 0 and no line, keeping a `Stale` summary's line and
+  work in their rows as diagnostics.
+- **Cause.** Only the sampled work's own record gives one, final and
+  charged: a `Stalled` or `Refused` final the reason recorded with it, also
+  over a healthy sample or a sample that shows the end of a helper that
+  spared it; an `Ordinary` final that host's own raw diagnosis, the trimmed
+  reason of `deathLine` or, when that is empty, the record's `died`,
+  unless what it takes is empty or `terminated`. A spared, unaffected,
+  unfinished, evicted or absent sample gives none, so a dead reading stays
+  unmeasured: `WidgetHostedDeathText()` gives
+  `charged, reason unmeasured`. `earlier`, a reading of the same nonzero
+  `work` made while its record was kept, keeps its measured reason once
+  the record is evicted; another work's reason is never used.
+
+`WidgetTapHosted(reading)` (`hostedSelected` positive) says whether a
+message's death is read this way, from its own selections rather than the
+runtime's engine placement. `WidgetHostedOutcomeText()` and
+`WidgetHostedRunText()` give the rows' texts: a record reads
+`<generation>:<outcome>/<transport>`, then `/claimed` and `/open` (before
+its final) where they apply, its work, its reason and its raw death (`-`
+for none).
+
+`WidgetHostedPlay` plays a hosted construction as `Runtime::construct()`
+makes one, for self-checks only: selected with its final observation,
+installed or not on a stub host of its own (no channel, never started, its
+`onDeath` standing for the runtime's), whose `change()` reports a raw death
+as a host of an ended helper does; `finish()` takes the observation once
+and calls it, `observation()` copies it as a second holder would, and
+`drop()` releases the installer and the host. `selected()`, `install()`
+and `drop()` read the tap around their step, so a play whose step did not
+happen says so. The finals leg below, the conformance runner's death
+reading checks and the attack audit's death verdicts use it; it never
+reads a real widget.
 
 ### Helper renderer work
 
@@ -642,16 +810,33 @@ helper's Debug tap times it when asked, and this tap keeps it:
   job at a time per host, never beside another probe of it or a keep that
   moves its engine; no lock of the tap or the registry is held while a
   probe waits.
+- A hosted work's selection and its final observation run on main, the
+  first death a host's `onChange` carries on that host's thread; each takes
+  only the tap's mutex, any text cut before it. The final
+  observation holds the tap weakly: it records while anything still holds
+  the tap (the caller, the armed map, an installer or an installed host's
+  observers) and nothing once none does.
+- `WidgetOpsExchanges` owns the exchange leg's thread: `start()`, `ready()`,
+  `take()` and `stop()` run on main; `ready()` acquires what the leg's
+  thread wrote before it, `take()` joins that thread once ready, `stop()`
+  raises the leg's halt without waiting, and the destructor stops and
+  joins it.
 
 ## Lifetime and cleanup
 
 `ArmWidgetOpsTap()` returns a shared tap that the armed map, every hosted
 tap's function and every installed host's observers keep.
 `DisarmWidgetOpsTap()` only stops future
-selections; keep the caller's tap until its reading is final. Nothing is
+selections; keep the caller's tap until its reading is final, the last
+hosted final included, since the runtime's final observation holds no
+strong reference to it. Nothing is
 written to the account, the disk or the clipboard. A scenario that arms ids
 disarms them on its finish path (`Runner::onFinish`); an armed id that is never
-constructed holds only its empty record.
+constructed holds only its empty record. A stage that plays the exchange
+leg apart keeps its `WidgetOpsExchanges` in its captures and calls `stop()`
+from `Runner::onFinish`: once stopped, the leg starts no stream, each open
+stream's waits give up within 50 ms and it closes, and its rows are never
+given.
 
 ## Leak definition and fidelity
 
@@ -675,8 +860,10 @@ because the served host reports every non-empty validated batch there.
 
 The production calls are in `Tgw::Runtime::construct()` (`tgw_runtime.cpp`),
 one per construction, each passing `_item->globalId()`:
-`TapHostedWidget()` with the core's work id and the theme, whose function
-`Build()` calls once on the constructed host when it is not empty; then
+`TapHostedWidget()` with the core's work id, the theme and its run's final
+observation slot, whose function `Build()` calls once on the constructed
+host when it is not empty, and whose observation `Runtime::FinishRun()`
+takes and calls once; then
 `WidgetThemeObservation()` once per started host in `Runtime::constructed()`,
 `WidgetThemeScheduled()` in `Runtime::syncHostTheme()` right before each
 theme job starts and `WidgetThemeSelected()` there when a running theme job
@@ -694,11 +881,13 @@ harness, in a build that is neither Debug nor configured with
 ([Release builds with the harness](../launch.md#release-builds-with-the-harness)),
 the module defines only these nine, in `test_widget_ops_hosted.cpp`:
 `TapHostedWidget()` and `WidgetThemeObservation()`, returning an empty
-function, `WidgetThemeScheduled()`, returning 0, and
+function (`TapHostedWidget()` leaving the run's observation slot empty, so
+no run calls anything), `WidgetThemeScheduled()`, returning 0, and
 `WidgetThemeSelected()`, `WidgetThemeApplied()`, `WidgetHostRetired()`,
 `WidgetPressDispatched()`, `WidgetCoreDetached()` and
 `WidgetPressObserved()`, doing nothing. `test_widget_ops.cpp`,
-`test_widget_ops_check.cpp` and `test_widget_ops_exchanges.cpp` compile to
+`test_widget_ops_check.cpp`, `test_widget_ops_deaths.cpp` and
+`test_widget_ops_exchanges.cpp` compile to
 nothing there, and every other declaration of the header is left
 undefined. With the harness, an
 inactive harness and an unarmed id return the same before any observation
@@ -787,8 +976,13 @@ the harness compiles those branches. The legs, in the order they run:
   with it, refuses one that ends after its receipt however short and
   ordered (a record of 995 to 1003 µs received at 1000) before mapping it,
   refuses both offsets that do not fit, and `CheckedTimeSum()` refuses an
-  overflow at either limit; an `onDeath` reading `terminated` and the next death count one
-  each, both reaching the stand-in; of the effective readings, one for a
+  overflow at either limit; an `onDeath` reading `terminated` and the next
+  death both reach the stand-in and count nothing (`hosted: every death the
+  host reports reaches the runtime's own observer ...`), and the first
+  change that carries a death keeps it raw in the selection's record, a
+  later one changing nothing, neither making the record final (`hosted:
+  the host's first change that carries its death ...`); of the effective
+  readings, one for a
   superseded theme, one past 64 KiB and one that is no `[scheme, palette]`
   pair are not kept, one in the other scheme or with another colour for a
   theme key is kept with its exact difference, and a matching one is kept
@@ -863,14 +1057,38 @@ the harness compiles those branches. The legs, in the order they run:
   expects every message to reach the stand-in and only the batch to be
   recorded, no scheme before the widget's own reading, and the kept
   effective readings to give the scheme, its change and the theme message;
+- the finals leg (`CheckHostedFinals()` in `test_widget_ops_deaths.cpp`),
+  on two messages of its own, every work played with `WidgetHostedPlay`:
+  `hosted finals: ...`, five works selected as the runtime constructs
+  them, two installed on stub hosts and three never installed, all
+  awaited; a host's raw death reaches the runtime's stand-in and charges
+  nothing; a refusal on a route the stream spared, a refusal whose claim
+  found no end, a spared and an unaffected final count once each in their
+  own field, a second call of a copy of one observation counts nothing,
+  and a raw death after a final fills its record alone; dropping every
+  installer and host balances the factories and wrappers while the first
+  work's `Stalled` final, left last, keeps `WidgetTapFinished()` false
+  until it comes; each record, in selection order, keeps its outcome and
+  transport apart from its raw death. `hosted eviction: ...`, a charged
+  first selection evicted by 33 later uncharged ones stays counted, and
+  `ReadHostedDeath()` reads its work, and a spared later sample printing
+  the same raw line, dead and unmeasured, keeping a reason measured while
+  the record was kept for that work alone. `hosted reading: ...`,
+  `ReadHostedDeath()` over nine literal readings of one sampled work: a
+  stalled final and a refusal measured from their records over a healthy
+  or collateral line, an ordinary one from its own line or raw death and
+  unmeasured at `terminated`, a spared sample dead and unmeasured beside
+  another work's charge and alive without one, an unfinished or absent
+  sample unmeasured;
 - the exchange leg (rows named `hosted exchanges: ...`, in
   `test_widget_ops_exchanges.cpp`) reads TwidgetCore's own encodings
   through `Tgw::HostedAnswers()`, the classifier the widget helper's
   stream times hosted renderers with
   ([Remote engines](test_widget_fixture.md#remote-engines), *A renderer
-  that stops answering*). Its first row reads single messages. A frame
-  request, painting or ticking, reads `whenVisible`, timed only when sent
-  visible, and expects the frame of its sequence, painted or unchanged.
+  that stops answering*), in seven rows. Its first row reads single
+  messages. A frame request, painting or ticking, reads `whenVisible`,
+  timed only when sent visible, and expects the frame of its sequence,
+  painted or unchanged.
   `Touch` and `Hover` expect a `Pointer`, with or without a claim, and a
   claim query the claim answer of its sequence, which the classifier
   reads with TwidgetCore's own `decode()`; none of the three reads
@@ -926,8 +1144,9 @@ the harness compiles those branches. The legs, in the order they run:
   host's end reports `the engine process closed the stream` and each
   client dies of `the widget engine process ended`, both required in
   every case. A route's death is the stream's decision as its channel's
-  `death()` gives it, which Telegram's runtime reads only for a stalled
-  death.
+  `death()` gives it, the decision Telegram's runtime reads for each run
+  ([Remote engines](test_widget_fixture.md#remote-engines), **Runtime log
+  and deaths**).
   - A route keeps its `Ordinary` death while the legally answered route
     is `Spared` when its request stayed unanswered. Its answer can be an
     impossible painted frame, one past the frame cap, a claim answer cut
@@ -937,23 +1156,6 @@ the harness compiles those branches. The legs, in the order they run:
     unanswered and both keep `Ordinary`. That is the fallback for an end
     with nothing unanswered. Both also keep it when neither answer earned
     credit.
-
-  The third row bounds its observations at 5 s each (`kEndBound`):
-  `PlayEnd()`'s waits for the opening (`ScriptedEngineEnd::ready()`), for
-  each route's `open`, hosted start and request (`sawWithin()`), for each
-  client's death (`DeathWait::died()`) and for the end's reason (`ended()`),
-  past which that case's reading names the step and the row fails instead of
-  hanging the self-check. Then `EndOfStream()` drops the clients and calls
-  `finish()`, which first stops the host's end, whose `stop()` joins that
-  end's threads with no deadline, and only then waits 5 s for the engine
-  process's end to stop reading, past which the row fails too and the
-  framework's destructor waits up to its own 5 s (`kFinish`) and then leaves
-  a reader still reading to return on its own. Nothing else in the row has a
-  deadline of its own: building the stream and the clients, writing the answers
-  (`ScriptedEngineEnd::send()`, whose `MemoryStream::write()` waits for room
-  on the 1 MiB pair), the clients' teardown and the host's end's `stop()`
-  can each hold the self-check as long as they take, so a 5 s failure names
-  a step that did not come in time and says nothing of those.
 
   The fourth row reads frame deltas, which a renderer sends for a painted
   frame whenever that is shorter than the whole frame. A `FrameDelta`
@@ -992,7 +1194,84 @@ the harness compiles those branches. The legs, in the order they run:
     its last byte, with a byte after it, with a run of an unknown tag,
     with the 11-byte delta's copy a byte past the delta base (encoded under
     a base a byte longer), with a damage flag that is no flag, and padded
-    to one byte past Telegram's frame cap;
+    to one byte past Telegram's frame cap.
+
+  The fifth row reads the fields of a delta that the fourth leaves
+  unread, through the classifier and TwidgetCore's `decode()` alike. Its
+  malformed cases are laid out by hand, as the codec would not write them,
+  beside a plain copy laid out the same way, which must equal
+  TwidgetCore's own encoding. The row writes both caps out, the 256 KiB
+  delta base (`HostedWire::kMaxDeltaBaseBytes`) and the run cap (one run
+  for the list's head and one per command of the list cap), so its cases
+  at a cap and past it fail when the cap moves. The row's cases:
+  - Credit, each also taken by `decode()`: a copy of the whole base, a
+    length at the base cap and runs at the run cap.
+  - No credit, each also refused by `decode()`: a state flag that is no
+    flag, no runs, an empty rebuild, more runs than follow, runs past the
+    run cap, an empty copy, an empty literal, runs that rebuild short of or
+    past their length, a literal past the message, a length past the base
+    cap, and a damage missing, of another form or with rectangles past the
+    cap.
+
+  The sixth row is the equivalence the delta rows rest on, and the
+  refusal that stays with the render thread: a platform end on Telegram's
+  caps, as that thread keeps one, asked for two forced frames and given
+  the painted base for the first, takes the whole second frame and the
+  delta that copies it as one and the same frame, while a delta the stream
+  credits alike that cannot rebuild on the base that end kept (none
+  painted, another base, a copy past the base, bytes that make no list) is
+  that end's own refusal and gives no frame.
+
+  The seventh row plays a frame delta at a stream's end as the third row
+  plays one, on two visible routes that each painted their base whole
+  first and hold their answers to the second forced frame request at
+  their consumer, so that only the answers' arrival can pay. Route 1's
+  delta that copies its base pays as the equivalent whole frame of the
+  same sequence does: with route 2 still owing its own, the close spares
+  route 1 and keeps route 2's `Ordinary` death; with both answered both
+  keep it, also when the stream stays open past the 3000 ms answer
+  deadline (`kOpenBound`, that deadline and 1.5 s more), which then ends
+  nothing. A delta of a later sequence, the delta sent on route 2 after
+  its own answer, one cut short, one whose runs rebuild short of their
+  length and one past the base cap pay nothing: route 1 keeps its
+  `Ordinary` death and route 2 is spared.
+
+  Every stream of the leg runs inside `OnStream()`, and each wait for a
+  step (the opening, each route's frames, a held answer, the stream's end,
+  each client's death) is bounded at 5 s (`kEndBound`), looking in slices
+  of at most 50 ms (`kHaltSlice`, `WaitFor()`) and checking before each
+  whether the leg stopped; past its bound that case's reading names the
+  step and the row fails instead of hanging. Then `OnStream()` lets every
+  held message go, drops the clients and calls `finish()`, which first
+  stops the host's end, whose `stop()` joins that end's threads with no
+  deadline, and only then waits 5 s for the engine process's end to stop
+  reading, past which the row fails too and the framework's destructor
+  waits up to its own 5 s (`kFinish`) and then leaves a reader still
+  reading to return on its own. The whole leg shares one deadline
+  (`Halt`): 20 s after it began (`kLegBound`, `kWidgetOpsExchangesTimeout`
+  less twice `kEndBound`), or `WidgetOpsExchanges::stop()`, whichever comes
+  first. From then on it starts no stream, each open stream's waits give
+  up within a slice and it closes, and each case it did not finish fails
+  its row with `the leg ran past its 20000 ms` or `the leg was stopped`.
+  Nothing else in the leg has a deadline of its own: building the stream
+  and the clients, writing the answers (`ScriptedEngineEnd::send()`, whose
+  `MemoryStream::write()` waits for room on the 1 MiB pair), the clients'
+  teardown and the host's end's `stop()` can each hold it as long as they
+  take, so a 5 s failure names a step that did not come in time and says
+  nothing of those.
+
+  `RunWidgetOpsSelfCheck()` plays the leg within the call by default (59
+  rows in the Debug build, the seven exchange rows among them). With
+  `WidgetOpsExchangeLeg::Apart` it skips the leg (52 rows), and a
+  `WidgetOpsExchanges` plays it on a thread of its own: `start()` once,
+  `ready()` as a stage's until, `take()` for its rows, named as the call
+  names them (`SelfCheckRowName()`), and `stop()` from `Runner::onFinish`.
+  A leg thread that does not start, or a leg that throws, gives one failed
+  row instead, `hosted exchanges: the leg played to its end on a thread of
+  its own`, with why. Both packs play the leg apart in their first stage,
+  which waits up to `kWidgetOpsExchangesTimeout` (30 s) with the event
+  loop running and then takes its rows after every other row of that
+  stage; a stage that times out fails the scenario and takes none;
 - the budget leg (`hosted: a host and a renderer message past the scan
   budget ...`; without a Debug helper `hosted: without a Debug helper a
   validated batch past the scan budget ...`) on a host of its own, with the
@@ -1338,6 +1617,30 @@ pinned (the limit-report examples). That task's evidence campaign is to
 run the row in a Debug conformance launch, and again with the reader
 taking an `ops` message without an array for an empty batch, the
 deviation the row is there to detect, where only this row should fail.
+
+The final charges (`hostedSelected` to `hostedRuns` and the final
+observation of `TapHostedWidget()`), `WidgetTapFinished()` with its hosted
+balance (moved here from the fixture), `ReadHostedDeath()` and its
+helpers, `WidgetHostedPlay`, the deaths and finals legs, the exchange
+leg's delta field, rebuild and delta-end rows, `WidgetOpsExchanges` and
+the leg's shared deadline were added by
+`2026/11/20/count-a-widget-helpers-death-only-against-widgets-with-work-in-flight`.
+Its evidence campaign (its `work/test.md`, Attempt 1, which holds the
+measurements) ran them in the macOS arm64 direct-download Debug client and
+its embedded Debug helper, built with its disposable evidence overlay.
+Both packs' first stages gave all 57 `widget ops self-check:` rows,
+passing, the six exchange rows taken from the leg's thread, and the
+packs' removal barriers closed with every selected hosted work final.
+That campaign ran before the task moved onto the scan-gap leg above and
+onto
+`2026/11/21/count-a-hosted-widgets-frame-differences-as-answers-to-its-frame-requests`,
+whose credit of frame deltas in the classifier replaced the task's own
+and whose frame delta row, the fourth, took the cases the two rows
+shared; the task's row keeps the rest, as the fifth. What
+each pack then read of its widgets' deaths is on its own page
+([test_widget_attacks](test_widget_attacks.md#verification),
+[test_widget_conformance](test_widget_conformance.md#verification)). No
+Release build with the harness and no other platform ran them.
 
 ## Related guidance
 
