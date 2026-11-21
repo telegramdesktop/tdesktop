@@ -98,6 +98,7 @@ struct Library {
 	o.insert("id", t.id);
 	o.insert("title", t.title);
 	o.insert("artist", t.artist);
+	o.insert("uploaderName", t.uploaderName);
 	o.insert("art", t.artworkUrl);
 	o.insert("link", t.permalink);
 	o.insert("dur", t.durationMs);
@@ -122,6 +123,7 @@ struct Library {
 	}
 	t.title = o.value("title").toString();
 	t.artist = o.value("artist").toString();
+	t.uploaderName = o.value("uploaderName").toString();
 	t.artworkUrl = o.value("art").toString();
 	t.permalink = o.value("link").toString();
 	t.durationMs = o.value("dur").toInt();

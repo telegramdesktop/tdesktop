@@ -37,7 +37,10 @@ struct Track {
 	qint64 playbackCount = 0;
 	qint64 likesCount = 0;
 	qint64 createdAt = 0;    // unix time
+	QString uploaderName;
 };
+
+[[nodiscard]] QStringList TrackArtistNames(const Track &track);
 
 struct SearchResult {
 	std::vector<Track> tracks;
@@ -89,6 +92,11 @@ struct ArtistInfo {
 // Публичный профиль исполнителя SoundCloud, включая аватар и обложку страницы.
 void LoadArtistInfo(
 	const QString &userId,
+	Fn<void(ArtistInfo)> done);
+
+void ResolveTrackArtist(
+	const Track &track,
+	const QString &name,
 	Fn<void(ArtistInfo)> done);
 
 enum class ReleaseKind {

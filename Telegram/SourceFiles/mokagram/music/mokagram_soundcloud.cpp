@@ -444,10 +444,14 @@ struct TrackStream {
 	result.id = ResourceId(object, u"id"_q);
 	result.title = object.value("title").toString();
 	const auto user = object.value("user").toObject();
+	result.uploaderName = user.value("username").toString().trimmed();
 	result.artist = object.value("publisher_metadata").toObject()
 		.value("artist").toString().trimmed();
 	if (result.artist.isEmpty()) {
-		result.artist = user.value("username").toString();
+		result.artist = object.value("metadata_artist").toString().trimmed();
+	}
+	if (result.artist.isEmpty()) {
+		result.artist = result.uploaderName;
 	}
 	result.artworkUrl = object.value("artwork_url").toString();
 	if (result.artworkUrl.isEmpty()) {
@@ -1110,7 +1114,7 @@ void LoadArtistInfo(
 				? ParseArtistInfo(QJsonDocument::fromJson(data).object(), userId)
 				: ArtistInfo();
 			if (!info.id.isEmpty()) {
-				InsertArtistInfo(userId, std::move(info));
+				InsertArtistInfo(userId, info);
 			}
 			auto callbacks = std::move(PendingArtistInfo()[userId]);
 			PendingArtistInfo().erase(userId);
@@ -1118,6 +1122,80 @@ void LoadArtistInfo(
 				callback(info);
 			}
 		});
+}
+
+QStringList TrackArtistNames(const Track &track) {
+	const auto credit = track.artist.trimmed();
+	if (credit.isEmpty()) {
+		return {};
+	}
+	if (!ValidTrackId(track.id) || credit.compare(track.uploaderName, Qt::CaseInsensitive) == 0) {
+		return { credit };
+	}
+	static const auto separator = QRegularExpression(
+		u"\\s*,\\s*|\\s+(?:feat\\.?|ft\\.?)\\s+"_q,
+		QRegularExpression::CaseInsensitiveOption);
+	auto result = QStringList();
+	auto seen = std::set<QString>();
+	for (const auto &part : credit.split(separator, Qt::SkipEmptyParts)) {
+		const auto name = part.trimmed();
+		if (!name.isEmpty() && seen.insert(name.toCaseFolded()).second) {
+			result.push_back(name);
+		}
+	}
+	return result.empty() ? QStringList{ credit } : result;
+}
+
+void ResolveTrackArtist(
+		const Track &track,
+		const QString &name,
+		Fn<void(ArtistInfo)> done) {
+	const auto matches = [target = name.simplified()](const QString &candidate) {
+		return candidate.simplified().compare(target, Qt::CaseInsensitive) == 0;
+	};
+	const auto findByName = [=] {
+		auto query = QUrlQuery();
+		query.addQueryItem(u"q"_q, name);
+		query.addQueryItem(u"limit"_q, QString::number(kPageSize));
+		query.addQueryItem(u"linked_partitioning"_q, u"1"_q);
+		ApiGet(QString::fromLatin1(kApi) + u"/search/users"_q, std::move(query), [=](
+				QByteArray data,
+				QString error) {
+			auto best = ArtistInfo();
+			auto bestRank = std::pair(false, qint64(0));
+			if (error.isEmpty()) {
+				const auto collection = QJsonDocument::fromJson(data).object().value("collection").toArray();
+				for (const auto &value : collection) {
+					const auto object = value.toObject();
+					if (!matches(object.value("username").toString())) {
+						continue;
+					}
+					auto artist = ParseArtistInfo(object, QString());
+					const auto rank = std::pair(
+						object.value("verified").toBool(),
+						object.value("followers_count").toVariant().toLongLong());
+					if (!artist.id.isEmpty() && (best.id.isEmpty() || rank > bestRank)) {
+						best = std::move(artist);
+						bestRank = rank;
+					}
+				}
+			}
+			done(std::move(best));
+		});
+	};
+	if (ValidTrackId(track.artistId) && track.uploaderName.isEmpty()) {
+		LoadArtistInfo(track.artistId, [=](ArtistInfo info) {
+			if (!info.id.isEmpty() && matches(info.name)) {
+				done(std::move(info));
+			} else {
+				findByName();
+			}
+		});
+	} else if (ValidTrackId(track.artistId) && matches(track.uploaderName)) {
+		done({ track.artistId, track.uploaderName, track.artistArtworkUrl, {} });
+	} else {
+		findByName();
+	}
 }
 
 void SearchLimited(
