@@ -134,14 +134,20 @@ inline constexpr auto kWidgetHelperRenderingMaxMs = 60000;
 // missing names none), and its network ones: its own Winsock start, the
 // loopback port's four targets and the numeric targets after it, AFD
 // endpoint opens and, with "connect-control" and Winsock, one preopened
-// socket per target. A refusal of |lockdown| is returned with no probe line
-// and every socket closed. Otherwise it repeats the attempts, uses and
-// closes the preopened sockets, writes every line to stderr as "Widget
-// helper probe: <line>" and returns "", so the helper serves widgets. A
-// malformed argument is a report line, never a refusal; the data directory
-// and keychain arguments are ignored, and "probe-unsandboxed" refuses as
-// not available. Lines, limits and controls:
-// docs/helpers/test_widget_helper_probe.md#windows.
+// socket per target; on the Windows 7 tier it also opens its own process
+// token for TOKEN_QUERY, since that tier has no pseudo token handles. A
+// refusal of |lockdown| is returned with no probe line, every socket and
+// that token closed. Otherwise it repeats the attempts, uses and closes
+// the preopened sockets, reads its token (closing the Windows 7 one right
+// after), its job and its tier, "tier: <tier>, version
+// <major>.<minor>.<build>" from the shared unit's own cached choice, never
+// from an argument, reads each policy only from the Windows version that
+// documents its query (x86 DEP on Windows 7 through GetProcessDEPPolicy),
+// writes every line to stderr as "Widget helper probe: <line>" and returns
+// "", so the helper serves widgets. A malformed argument is a report line,
+// never a refusal; the data directory and keychain arguments are ignored,
+// and "probe-unsandboxed" refuses as not available. Lines, tiers, limits
+// and controls: docs/helpers/test_widget_helper_probe.md#windows.
 // Defined only in TelegramWidgetHelper's Debug build.
 [[nodiscard]] std::string WidgetHelperProbeLockdown(
 	const std::vector<std::string> &arguments,

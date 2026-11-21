@@ -14,10 +14,11 @@ runtime log, loopback network controls, the primary window's one-column
 placement and one idempotent release. [Remote engines](#remote-engines)
 says where its widgets run: in a sandboxed
 widget helper, packaged builds included, which on macOS, on Linux x86_64
-and aarch64 and on Windows 10 1809 or later, the Windows Store build too,
-is the separate Qt-free `TelegramWidgetHelper` (in the Mac App Store
-build, from macOS 12, an App-Sandboxed XPC service), on Windows a
-restricted `modules\<arch>\TelegramWidgetHelper.exe`. Where no such
+and aarch64 and on Windows 7 SP1 or later (the Windows Store build from
+Windows 10 1809) is the separate Qt-free `TelegramWidgetHelper` (in the
+Mac App Store build, from macOS 12, an App-Sandboxed XPC service), on Windows a
+restricted `modules\<arch>\TelegramWidgetHelper.exe` in the sandbox tier
+of its Windows version. Where no such
 helper is available no widget engine runs: every widget stops with `no
 sandboxed widget helper is available here: <reason>`.
 
@@ -317,8 +318,10 @@ stay with each caller (their policies close this section).
 ## Remote engines
 
 On macOS (in the Mac App Store build from macOS 12), on Linux x86_64 and
-aarch64 and on Windows 10 1809 or later (the Windows Store build too),
-packaged builds included on all three, every widget of the client
+aarch64 and on Windows 7 SP1 or later (each Windows version in its own
+sandbox tier, **The Windows sandbox tiers** below; the Windows Store build
+from Windows 10 1809, in the full tier alone, **The Windows Store build**
+below), packaged builds included on all three, every widget of the client
 runs in one shared widget helper process that has locked itself down,
 instead of the client's own threads, in Debug and Release builds alike
 and with no switch. That helper is the separate Qt-free executable
@@ -344,8 +347,9 @@ packs, the fixture and the seams they use need no change for it.
 - **Platform default.** It is `Platform::WidgetHelper::Enabled()`: true on
   macOS, builds with packaged libraries (`DESKTOP_APP_USE_PACKAGED`)
   included and the Mac App Store build (`OS_MAC_STORE`) from macOS 12, on
-  Windows 10 1809 or later, the Windows Store build (`OS_WIN_STORE`)
-  included, and on Linux x86_64 and aarch64, so a launch with no switch
+  Windows 7 SP1 or later, Windows 7 with update KB2533623, in the Windows
+  Store build (`OS_WIN_STORE`) from Windows 10 1809, and on Linux x86_64
+  and aarch64, so a launch with no switch
   runs every widget in the sandboxed helper. Everywhere else it is
   false, and a launch with no switch stops every widget with `no
   sandboxed widget helper is available here: <reason>`, the reason of
@@ -354,7 +358,12 @@ packs, the fixture and the seams they use need no change for it.
   refuses before any spawn or connection: `the widget helper needs macOS
   12 or later in the Store build` in the Mac App Store build before macOS
   12 (`@available(macOS 12.0, *)` in `widget_helper_mac.mm`), `the widget
-  helper needs Windows 10 1809 or later` on Windows before 10 1809, `the
+  helper needs Windows 7 SP1 or later` on Windows before 7 SP1 or when the
+  Windows version cannot be read, `the widget helper needs update
+  KB2533623 on Windows 7` on a Windows 7 whose kernel32 lacks
+  `SetDefaultDllDirectories`, `the widget helper needs Windows 10 1809 or
+  later` in the Windows Store build before Windows 10 1809 or when the
+  Windows version cannot be read, `the
   widget helper is not available on this architecture` on other Linux
   architectures and `the widget helper is not available on this
   platform` on the non-Linux all-other platforms. A build configured with
@@ -366,8 +375,15 @@ packs, the fixture and the seams they use need no change for it.
   which such a build still builds, and reads no Debug switch.
   On Windows it is true exactly when `UnsupportedReason()`, defined in the
   client's `platform/win/widget_helper_win.cpp`, returns no reason,
-  whatever the architecture and in the Store build alike: it checks only
-  the 1809 floor.
+  whatever the architecture. It returns
+  `SandboxUnsupportedReason()` of the shared `widget_sandbox_win.cpp`,
+  which checks only that the version reading maps to a sandbox tier and,
+  on the Windows 7 tier, that kernel32 exports `SetDefaultDllDirectories`
+  (the update the helper's `Adopt()` refuses without), so such a system
+  stops at that place instead of failing every start (**The Windows
+  sandbox tiers** below). In the Store build only Windows 10 1809 and
+  later map to a tier, the full one, so it keeps the floor and the reason
+  it had before the tiers (**The Windows Store build** below).
   On Linux it is true on x86_64 and aarch64 in every build, Debug and
   Release, with or without the harness, and has no packaged exclusion:
   distribution builds against packaged libraries, Flatpak and Snap default
@@ -416,7 +432,10 @@ packs, the fixture and the seams they use need no change for it.
   and
   `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`,
   their `work/test.md`); ARM64, an x86 or Release Store build and
-  Windows before that build have not.
+  Windows before that build have not. A tier other than the full one runs
+  on that build only as a simulation, forced by a disposable overlay, and
+  a real older Windows is field coverage (**The Windows sandbox tiers**
+  below).
 - **Debug switch.** Debug builds that keep the private Qt API also read
   `TDESKTOP_WIDGET_ENGINES` at that point:
   - unset or any other value: the platform default, so a Debug build runs
@@ -424,7 +443,8 @@ packs, the fixture and the seams they use need no change for it.
     every widget elsewhere;
   - `helper`: the sandboxed helper explicitly, the same as the default on
     macOS (the Mac App Store build from macOS 12), on Linux and on Windows
-    10 1809 or later, so command lines that name it keep working; it hosts
+    7 SP1 or later, so command lines that name it keep working; it selects
+    the helper, never its Windows sandbox tier; it hosts
     the whole widget as the default does (**Hosted widgets on macOS, Linux
     and Windows** below), and on Windows it is the restricted helper (**The
     Windows helper** below);
@@ -1118,17 +1138,28 @@ packs, the fixture and the seams they use need no change for it.
   ([Verification](#verification)).
   The Windows Store build is no build without a helper any more: it
   builds, packages and starts `TelegramWidgetHelper.exe` like the other
-  Windows builds (**The Windows Store build** below). Windows before 10
-  1809 stops every widget with `no sandboxed widget helper is available
-  here: the widget helper needs Windows 10 1809 or later`, because the
+  Windows builds (**The Windows Store build** below). Windows before 7
+  SP1, or one whose version cannot be read, stops every widget with `no
+  sandboxed widget helper is available here: the widget helper needs
+  Windows 7 SP1 or later`, and Windows 7 without update KB2533623 with
+  `... the widget helper needs update KB2533623 on Windows 7`, because the
   default is false there; an explicit `helper` or probe value makes the
   seam fail every launch closed with the same reason, `the widget helper
   could not start: <reason>`, before it builds the helper's path, each a
-  failure towards the failure limit. That floor holds for the Store build
-  too, whose package declares Windows 10.0.14316 as its minimum; it has
-  not been run. The Windows default reads nothing else, so a Windows
-  build with packaged libraries defaults to the helper as well; no such
-  build has been run.
+  failure towards the failure limit. Neither path has run on such a
+  Windows: any reading of them is a simulation on Windows 11 (**The
+  Windows sandbox tiers** below). The Store build keeps the floor it had
+  before the tiers: its package declares Windows 10.0.14316 as its
+  minimum, and `ChooseTier()` in `widget_sandbox_win.cpp`, compiled with
+  `OS_WIN_STORE` into its client and its helper alike, maps no version
+  below 10.0.17763 (Windows 10 1809) to a tier, so a Store build before
+  1809, or one whose version cannot be read, stops every widget with `...
+  the widget helper needs Windows 10 1809 or later` the same way, and from
+  1809 on it runs the full tier alone. That Store branch was read in the
+  source and the CMake that defines `OS_WIN_STORE` only; no Store build
+  has been built or run with it. The
+  Windows default reads nothing else, so a Windows build with packaged
+  libraries defaults to the helper as well; no such build has been run.
 - **The shared helper.** One helper serves every widget of the client, of
   every account. The first host construction that needs one starts it from
   its `Build()` worker, and later widgets attach to the same process. On
@@ -1607,7 +1638,12 @@ packs, the fixture and the seams they use need no change for it.
   ms` added when its job had to be killed, which ends it with `exit 1067`
   (`ERROR_PROCESS_ABORTED`): `exit 1067, terminated after 1000 ms` after
   the 1 s wait for its own exit. A helper that does not end even then
-  reads `not reaped after N ms` before that addition. A stop by the client
+  reads `not reaped after N ms` before that addition. A helper that was
+  never put into its job (a failed assignment on the AppContainer and
+  Windows 7 tiers) is killed through its process handle instead, with
+  `TerminateProcess failed: <reason>` in place of the addition when that
+  fails, and on the Windows 7 tier a failed close of its desktop adds
+  `, CloseDesktop failed: <reason>`. A stop by the client
   reads `the host stopped the stream`; that stop drops unsent frames, so
   the helper can exit 1 after it, with a `Widget helper: <reason>` line in
   `app_stderr.txt`. That exit is no helper failure: after a stop by the
@@ -1848,8 +1884,11 @@ packs, the fixture and the seams they use need no change for it.
   from the held file's own normalized path, and before it resumes confirms
   the child's image is that same file (its `PROCESS_NAME_NATIVE` name equals
   the held file's and its `FILE_ID_INFO` matches); then it attaches the
-  initial token and resumes. A digest mismatch, a file it cannot open that
-  way, a failed digest call, a redirected path component or a started image
+  initial token and resumes. On the Windows 7 tier the same pin is
+  computed and every identity is read without the Windows 8 functions
+  (**The Windows 7 tier** below). A digest mismatch, a file it cannot
+  open that way, a failed digest call, a redirected path component or a
+  started image
   that is not the held file stops widgets with a diagnostic, and a path
   it cannot build still fails with
   `GetModuleFileNameW failed: <reason>`, `the executable path is too long`
@@ -1895,7 +1934,11 @@ packs, the fixture and the seams they use need no change for it.
   creation's handle list passes it nothing else. The channel is one
   overlapped duplex named pipe with an unpredictable name, one instance,
   remote clients rejected and access for the client's user only; the
-  client opens the helper's end itself before the spawn. The client
+  client opens the helper's end itself before the spawn. Both ends give
+  each overlapped `ReadFile` and `WriteFile` a byte-count variable of its
+  own that lives through the completion, since Windows 7 requires one,
+  and take the count from `GetOverlappedResult`
+  (`widget_channel_win.cpp`). The client
   creates the helper suspended with `CreateProcessAsUserW` on a lockdown
   primary token derived from its own: Low integrity, no privilege but
   `SeChangeNotifyPrivilege`, the user and every group but the integrity
@@ -1903,9 +1946,13 @@ packs, the fixture and the seams they use need no change for it.
   Before it resumes the helper it attaches an initial impersonation token
   to the helper's main thread and reads it back: Low as well and
   restricted to the client's user and enabled groups, so that the helper's
-  startup can load its DLLs. Both are AppContainer tokens of the helper's
-  package, and the creation makes the primary a less privileged one
-  (**The Windows lowbox** below). The creation puts the helper in a new job
+  startup can load its DLLs. On the lowbox tiers both are AppContainer
+  tokens of the helper's package, and on the two LPAC tiers the creation
+  makes the primary a less privileged one (**The Windows lowbox** below);
+  the Windows 7 tier keeps both unboxed. What follows is the full tier's
+  launch, from Windows 10 1809; each older tier sets the part of it that
+  its Windows version documents (**The Windows sandbox tiers** below).
+  The creation puts the helper in a new job
   (one active process, kill on job close, death on an unhandled exception
   and the eight UI restrictions) and sets every mitigation the helper
   takes at its creation, from `SandboxPolicies()` in
@@ -1926,7 +1973,7 @@ packs, the fixture and the seams they use need no change for it.
   Low-labelled images depend on where the user put the files, and CFG and
   strict CET need another binary contract, so none of them is set. A
   creation the system refuses, the job included, is a start failure: no
-  helper runs outside its job or without these policies.
+  helper runs outside its job or without its tier's policies.
   The helper links no Qt, user32 or gdi32: it is built from
   widget-sandbox's engine end, the Nova engine, the shared `main()` of
   `_other/widget_helper.cpp`, `_other/widget_helper_win.cpp` and the
@@ -2019,7 +2066,9 @@ packs, the fixture and the seams they use need no change for it.
   `bcrypt.dll`, `bcryptprimitives.dll` and, for the probe, `WS2_32.dll`.
   No helper imports user32, gdi32 or Qt, and each binds its delay-loaded
   DLLs, `WS2_32.dll` aside, in its lowering (**The Windows lowering**
-  below). The imports before the Nova change
+  below); only the Windows 7 tier's lowering loads `user32.dll`, at run
+  time from the system directory (**The Windows sandbox tiers** below).
+  The imports before the Nova change
   were read on helpers built with the QuickJS engine, the hosted helper's
   the same as the engine-only one's: their static imports were ADVAPI32 and
   KERNEL32, both KnownDLLs, loaded from the system directory
@@ -2034,7 +2083,9 @@ packs, the fixture and the seams they use need no change for it.
   `LOAD_LIBRARY_SEARCH_SYSTEM32`, looked up at run time in the already
   mapped kernel32, because Windows 7 has it only with KB2533623, so no
   helper image imports it; without kernel32 or the function, or when the
-  call fails, it refuses as below before it reads the token), then takes
+  call fails, it refuses as below before it reads the token, while the
+  client looks the same export up first on Windows 7 and stops at the
+  nowhere place without it, **Platform default** above), then takes
   the token only as a decimal handle value without a sign, a leading zero
   or trailing text that is no pseudo-handle, and adopts only the
   byte-mode client end of a pipe, whose inheritance it clears; anything
@@ -2042,16 +2093,263 @@ packs, the fixture and the seams they use need no change for it.
   before it reads the channel. The CRT's delay-load helper loads its DLLs
   with no search flags of its own, and every such load comes after
   `Adopt()`, so it inherits that limit.
-- **The Windows lowbox.** `NtCreateLowBoxToken` boxes each of the two
+- **The Windows sandbox tiers.** The Windows helper runs from Windows 7
+  SP1 on, confined by one of four tiers, four strictnesses of the same
+  launch. The owner chose them on 2026-11-20: the x86 and x64
+  direct-download builds are Windows 7 SP1 baseline builds
+  (`DESKTOP_APP_WIN7_BASELINE`), and widgets in direct downloads should
+  work as broadly as possible, so every Windows Telegram runs on gets the
+  helper, each in the strongest confinement its version has, while the
+  full tier stays exactly as it was
+  (`2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`;
+  its `work/plan.md` names the documented floor and the source of every
+  policy, attribute and function a tier uses). The tiers below the full
+  one are the direct downloads': the Store build maps no version below
+  10.0.17763 to a tier (**The Windows Store build** below). The version
+  alone picks the tier: `CurrentSandbox()` in `widget_sandbox_win.cpp`
+  reads it once per process with `RtlGetVersion`, looked up in the
+  mapped ntdll, which no
+  compatibility manifest lowers as it does `GetVersionExW`, compares major,
+  minor and build in that order and caches the version with its tier.
+  Telegram and the helper compile that unit and each reads the version
+  itself; nothing the helper receives (its arguments, the channel, the
+  environment) selects a tier, no product switch does, and a failed
+  reading selects none. By the version read:
+  - **Full**, from 10.0.17763 (Windows 10 1809): the launch of **The
+    Windows helper** above and **The Windows lowbox** below, unchanged:
+    an LPAC primary and a regular AppContainer startup token of the
+    package with no capability, the five creation attributes in the order
+    handle list, mitigation policy, child-process policy,
+    all-application-packages opt-out and job list, and the words
+    `0x1001101111010101` (8 bytes) on x86 and `0x1001101111110100`, with
+    `0x10000000` (16 bytes in all) where `IsUserCetAvailableInEnvironment`
+    offers CET, on x64. The helper reads back, in order, DEP (x86 only),
+    ASLR, extension points, dynamic code, win32k, child process, shadow
+    stack (with CET), signature, strict handles, fonts and image load.
+  - **LPAC 1703**, from 10.0.15063 (10 1703) through 1803: the full tier's
+    tokens, attributes and first word, no CET word, and the readback
+    without child process and shadow stack, whose queries Microsoft
+    documents from 1709 and 2004. Its x86 creation equals the full tier's,
+    and an x64 helper linked `/CETCOMPAT` may get shadow stacks without the
+    word, so a full helper under this launch can find nothing weaker to
+    refuse.
+  - **AppContainer**, from 6.2 (Windows 8) through 8.1 and 10 1507 to 1607:
+    regular AppContainer tokens of the same package for both, with no
+    capability, no opt-out and no job-list attribute; the handle list, the
+    mitigation policy (8 bytes) and, from 10.0.10586, the child-process
+    policy. Its words hold the full set minus what its version lacks:
+    dynamic code joins at 6.3 (8.1), fonts at 10.0.10240, Microsoft-signed
+    only at 10.0.10586 and System32 images preferred at 10.0.14393, from
+    `0x0000000111010101` on x86 and `0x0000000111110100` on x64 at 6.2 to
+    the full tier's first word at 10.0.14393, and its readback is the
+    full tier's list without child process and shadow stack and without
+    each policy below its floor.
+  - **Windows 7**, 6.1.7601 (7 SP1): the restricted pair at Low with no
+    lowbox, the handle list and, on x86 alone, the mitigation policy as
+    one 4-byte word, `PROCESS_CREATION_MITIGATION_POLICY_DEP_ENABLE` (DEP
+    with ATL thunk emulation off; a 64-bit word is illegal on 32-bit
+    Windows 7), with the measures of **The Windows 7 tier** below.
+  - **None**, below 6.1.7601 or with no reading: no helper starts, and
+    every widget stops at the nowhere place (**Platform default** above).
+
+  Every tier keeps the job's limits `0x2408` (one active process, kill on
+  job close, death on an unhandled exception) and its UI restrictions
+  `0xFF`, the pin through the held handle, no thread token after the
+  lowering, the forgotten registry roots and the helper's own check
+  before Ready. The two LPAC tiers put the helper into its job at the
+  creation through the job-list attribute, a Windows 10 one. On the
+  AppContainer and Windows 7 tiers the client assigns the suspended
+  helper with `AssignProcessToJobObject` right after the creation, before
+  the image check, the token attachment and the resume; a failed
+  assignment keeps the error, terminates that helper through its process
+  handle, never the job, and waits up to 1 s for its end with the same
+  wait and texts as every other end (`Complete()` in
+  `widget_helper_win.cpp`), failing the start with
+  `AssignProcessToJobObject failed: <reason> (<end>, terminated after <n>
+  ms)` (`TerminateProcess failed: <reason>` for the termination when that
+  failed, `not reaped after <n> ms` for `<end>` when the wait ran out), so
+  a parent job that forbids the assignment, such as one without breakaway
+  on Windows 7, which nests no jobs, fails closed. When that wait does not
+  confirm the end, the failed start keeps the helper's process handle and
+  hands it to the client's reaping, as for an ended helper: no other
+  helper starts while the reaping waits 1 s for the end and, if the
+  helper still runs, terminates it again through its process handle and
+  waits 1 s more, and an end it never confirms stops launches with `the
+  widget helper was not reaped` (**Failure limit** below). On those
+  two tiers the assignment is not atomic with the creation: a client that
+  dies in between leaves a suspended helper that never ran. Only the full
+  tier reads the helper's child-process policy back (below 10.0.10586 the
+  child-process attribute is not even set), so on the Windows 7,
+  AppContainer and LPAC 1703 tiers the job is the one checked hold on the
+  helper's children, and the helper's own job check there also refuses a
+  job that allows breakaway, silent or not, with `the job's limits
+  0x<flags> allow breakaway`.
+
+  The client checks each tier's own pair. Before the creation it checks
+  the lockdown and initial token shapes (on Windows 7 reading its own
+  token through a real `TOKEN_QUERY` handle, since the pseudo token
+  handles are Windows 8 ones) and, on the lowbox tiers, a regular
+  AppContainer token of the package with no capability for both. Before
+  the resume it checks the actual primary's shape and, on the LPAC tiers,
+  an LPAC token, on the AppContainer tier an AppContainer token of either
+  level, then the attached startup token the same way; the AppContainer
+  tier leaves the `WIN://NOALLAPPPKG` attribute unread, since Microsoft
+  marks its token class reserved and that tier never passes the opt-out.
+  The texts and prefixes are those of **The Windows lowbox** below. The
+  helper checks the set of the tier its own reading maps to (**The Windows
+  lowering** below) and never learns which tier the client launched, so
+  a helper whose reading maps to a stronger tier refuses before Ready
+  wherever its launch lacks a protection that tier requires (a full
+  helper under an AppContainer launch, at its LPAC check), and nothing
+  refuses where the launch has the same effective protections. No
+  refusal leads to a weaker tier: each is a start failure or a refused
+  stream (**Failure limit** below).
+
+  Every mechanism of every tier exists on Windows 11, so each tier is
+  tested there: that task's disposable overlay overrides only
+  `ReadWindowsVersion()`, in the client and in the helper, or in the
+  client alone while the helper reads its own version, and every reading
+  of a forced tier is such a simulation on Windows 11 build 26300
+  (10.0.26300). What only a real older Windows shows is field coverage
+  that no record here claims: whether it accepts each attribute and flag
+  as documented and reads them back as Windows 11 does, its loader, the
+  win7 Rust std there, the Windows 8 functions really missing, nested
+  jobs, KB2533623 missing, AppContainer networking on 8 and 8.1, the
+  `WIN://NOALLAPPPKG` reading on 1703 to 1803 and the version a
+  compatibility layer reports. The forced tiers' readings are that task's
+  evidence campaign's; until it records them, the tier lines on this page
+  and on [test_widget_helper_probe](test_widget_helper_probe.md#windows-tiers)
+  are the design.
+- **The Windows 7 tier.** Its path, from Telegram's launch to the
+  helper's Ready, is built to call only functions that Windows 7 SP1 has,
+  imported or looked up at run time (that task's audit of every call is
+  its evidence), and of what Chromium's Windows 7 sandbox took it adds an
+  alternate desktop, DEP with ATL thunk emulation off on x86 and heap
+  termination (that task's `work/plan.md`, P-T8). Telegram's
+  `UnsupportedReason()` first requires `SetDefaultDllDirectories` in
+  kernel32, KB2533623's (**Platform default** above).
+  - **Desktop.** For each helper the client creates a desktop with
+    `CreateDesktopW` on its own window station, named
+    `TelegramWidgetHelper-<client pid>-<32 hex digits>` (the prefix
+    `kHelperDesktopPrefix`, then the client's pid and 128 bits of
+    `BCryptGenRandom` with `BCRYPT_USE_SYSTEM_PREFERRED_RNG`, whose
+    failure fails the start with `BCryptGenRandom failed: status
+    0x<status>` before any desktop or helper exists), asking
+    only `DESKTOP_CREATEWINDOW`, with no hook flag, no inheritable handle
+    and the window station's default security, and passes
+    `<station>\<name>` as the creation's `lpDesktop`. `CreateDesktopW` is
+    documented to assign the new desktop to its calling thread, so the
+    client calls it on a short-lived thread of its own and joins that
+    thread before the launch goes on: the launching thread's desktop never
+    changes, and no thread of the client is left on the helper's desktop.
+    It holds that handle
+    with the helper's process and job handles, and it neither switches the
+    input desktop nor changes its own window station. Once the helper's
+    end is confirmed the client closes the desktop itself and lets go of
+    the handle only when that close succeeds; a failed `CloseDesktop`
+    adds `, CloseDesktop failed: <reason>` to the end's status and keeps
+    the handle held. A handle still held, after a failed close or for a
+    helper whose end is not confirmed, is closed unchecked when the
+    client lets go of that helper: at the end of its failed start, or
+    when it drops the helper's completion. A desktop it cannot
+    create fails the start with `CreateDesktopW failed: <reason>`, or the
+    station name's `GetProcessWindowStation failed: <reason>` or
+    `GetUserObjectInformationW failed: <reason>`. Window messages are not
+    access-checked between the windows of one desktop, so a desktop of
+    its own keeps the helper from the user's windows. The window station
+    stays Telegram's, because another one would change a process-wide
+    resource of Telegram.
+  - **Tokens.** The restricted pair of **The Windows helper** above, both
+    Low and unboxed. Untrusted integrity, a lockdown default DACL and
+    closing other handles before the lowering are not taken: the pair
+    stays the one every tier checks, its default DACL is its own, and the
+    helper inherits only the pipe and the stderr copy.
+  - **Pin.** The pin of **The Windows helper** above without its Windows 8
+    functions. The identity of each held folder, of the file and of the
+    started image is `GetFileInformationByHandle`'s volume serial and
+    64-bit file index, read on NTFS only (`GetVolumeInformationByHandleW`;
+    `the <fs> file system has no reliable file index` otherwise, since FAT
+    identifiers can change and ReFS's 64-bit ones are not unique), and
+    never a zero index, the value of an unavailable file ID, which would
+    make any two such files of a volume equal (`the file index is
+    unavailable`). The
+    digest is the same pinned Authenticode digest, computed without
+    `wintrust.dll`. `widget_helper_identity.py` also derives the
+    checksum's offset, the certificate-table directory entry's offset and
+    the unsigned image's end from the built image, requires the SHA-256
+    of the three ranges they bound to equal the catalog digest (`the
+    helper image digest differs from its Authenticode digest` stops the
+    build otherwise) and writes them into `kBuiltDigests`. Telegram reads
+    the 8-byte directory entry at that offset through the held handle,
+    accepts either no certificate table with the file ending at the
+    unsigned end or a non-empty table, a multiple of 8 bytes, that starts
+    exactly there and ends the file (`the widget helper image extent is
+    invalid` otherwise), and hashes exactly those ranges in 64 KiB reads
+    with BCrypt's SHA-256 (`the widget helper digest does not match this
+    build` for any other bytes). Windows' PE subject interface provider
+    was not taken: its SHA-256 on an unupdated Windows 7 SP1 is
+    undocumented.
+  - **Lowering.** `LockDownWindows7()` in `widget_sandbox_win.cpp`. Under
+    the startup token, restricted to the user and the enabled groups at
+    Low, the helper still opens what the user may read: it runs the
+    warm-up's binds and random draw (without the mitigation functions and
+    the package, which Windows 7 lacks), opens its own process token with
+    `TOKEN_QUERY`, turns on heap termination on corruption
+    (`HeapSetInformation(HeapEnableTerminationOnCorruption)`) and checks
+    its desktop: the startup request (`GetStartupInfoW`) must be
+    `<station>\TelegramWidgetHelper-<decimal pid>-<32 hex digits>` before
+    it loads `user32.dll` from the system directory, an ordinary USER call
+    (`GetDesktopWindow`) connects the serving thread, and the names of
+    `GetProcessWindowStation()` and of `GetThreadDesktop()` of that thread,
+    read with `GetUserObjectInformationW(UOI_NAME)`, must equal the
+    request but for case (`the widget helper is not on its own desktop`,
+    or the failing call with its error). Then it reverts, forgets the
+    registry roots and checks no thread token, the one step every tier's
+    lowering shares (`DropStartupToken()`), then the lockdown token through
+    its own handle, the job, which must not allow breakaway either (**The
+    Windows sandbox tiers** above), and, on x86, `GetProcessDEPPolicy`'s
+    `0x3`, permanent (`the DEP policy reads 0x<flags>, permanent <0|1>`); the
+    handle is closed when the lowering returns. The independent evidence
+    of the desktop is an outside reading of `GetThreadDesktop` of the
+    serving thread from Telegram's window station: a startup name records
+    only what was asked.
+  - **What it leaves.** By design, which only simulations on Windows 11
+    read here, the Windows 7 tier leaves unconfined:
+    - the network: without a lowbox nothing keeps native code from
+      sockets. A restricted Low token with its job and policies created a
+      socket and connected to a loopback listener in the helpers before
+      the lowbox (**What the Windows lowering leaves** below), so the
+      probe's socket and AFD lines of this tier are recorded as they
+      read, never judged as denials;
+    - win32k: no Windows 7 policy disables it, and the helper connects
+      to USER in its own lowering, so user32 and win32k stay reachable on
+      its own desktop of Telegram's window station, within the job's UI
+      restrictions (no USER handles of processes outside the job, no
+      clipboard, its own atom table, no desktop creation or switch,
+      system parameters, display settings or exit);
+    - the mitigations: no readback but x86's DEP, since
+      `GetProcessMitigationPolicy` is Windows 8: no ASLR, extension point,
+      dynamic code, strict handle, signature, font or image load policy,
+      no child-process attribute (the job's one process and the lockdown
+      token hold child creation), no SEHOP (no documented Windows 7
+      readback) and on x64 no creation policy at all;
+    - the heap: termination on corruption only, set in-process before the
+      lowering and never readable back.
+- **The Windows lowbox.** On the full, LPAC 1703 and AppContainer tiers
+  (**The Windows sandbox tiers** above; the Windows 7 tier has no lowbox)
+  `NtCreateLowBoxToken` boxes each of the two
   restricted tokens with one package SID, derived from the fixed name
   `telegram.desktop.widget-helper` by
   `DeriveAppContainerSidFromAppContainerName` (loaded from `USERENV.dll`),
   with no capability and no handle; no AppContainer profile, named-object
-  directory, file grant or loopback exemption is created. The creation's
+  directory, file grant or loopback exemption is created. On the two LPAC
+  tiers the creation's
   attribute list adds `PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY`
   with `PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT`, which makes the
   helper's primary a less privileged AppContainer (LPAC) token, one that
-  `ALL APPLICATION PACKAGES` grants do not reach. The startup token stays
+  `ALL APPLICATION PACKAGES` grants do not reach; the AppContainer tier
+  leaves it out, so its primary stays a regular AppContainer token, which
+  those grants reach. The startup token stays
   a regular AppContainer token of the same package on purpose. In the
   experiment of
   `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
@@ -2069,9 +2367,13 @@ packs, the fixture and the seams they use need no change for it.
   LPAC token of that package with no capability (`the process token check
   failed: <error>`), then reads the attached initial token back and
   requires its shape and a regular AppContainer token of that package
-  (`the attached token check failed: <error>`); either failure ends the
-  suspended helper through its job and is a start failure (**Runtime log
-  and deaths** below). Building the pair can fail with
+  (`the attached token check failed: <error>`); on the AppContainer tier
+  every one of these checks takes an AppContainer token of either level,
+  reading no `WIN://NOALLAPPPKG`, and on the Windows 7 tier only the
+  shapes are checked (**The Windows sandbox tiers** above). Either
+  failure ends the suspended helper through its job and is a start
+  failure (**Runtime log and deaths** below). Building the pair can fail
+  with
   `NtCreateLowBoxToken is not available`, `NtCreateLowBoxToken failed:
   status 0x<status>`, `DeriveAppContainerSidFromAppContainerName is not
   available` or `DeriveAppContainerSidFromAppContainerName failed:
@@ -2189,9 +2491,15 @@ packs, the fixture and the seams they use need no change for it.
   the framework's lockdown callback, after it accepted the opening and
   holds the bundles and before it answers Ready, so before any runtime
   exists (`LockDownHelper()` in `widget_sandbox_win.cpp`, which
-  `WidgetHelper::Lockdown()` calls). While still impersonating it checks
-  that the mitigation readback is available (`the mitigation policy
-  functions are not available` otherwise), binds the delay-loaded imports
+  `WidgetHelper::Lockdown()` calls). It lowers by the tier its own version
+  reading maps to: `LockDownLowBox()` on the full, LPAC 1703 and
+  AppContainer tiers, described here, and `LockDownWindows7()` on the
+  Windows 7 tier (**The Windows 7 tier** above); with no tier it refuses
+  with `the widget helper needs Windows 7 SP1 or later` (in the Store
+  build `the widget helper needs Windows 10 1809 or later`). While still
+  impersonating it checks that the mitigation readback is available (`the
+  mitigation policy functions are not available` otherwise), binds the
+  delay-loaded imports
   with `__HrLoadAllImportsForDll`, on x86 and x64 those of `ADVAPI32.dll`
   and then those of `bcrypt.dll`, on ARM64 those of `bcrypt.dll` and then
   those of `bcryptprimitives.dll`, each by the exact name the linker gave
@@ -2251,11 +2559,17 @@ packs, the fixture and the seams they use need no change for it.
   leaves** below records ended a helper later, during widget work before
   the random warm-up existed. Then the helper reverts to its lockdown
   token, disables the predefined registry key
-  cache and closes the cached roots, and verifies itself: no thread token,
-  the lockdown token above, an LPAC token of exactly its package with no
-  capability (the AppContainer check's errors above), its job's limits and
-  UI restrictions, and every mitigation of its creation read back (**The
-  Windows helper** above); it sets no mitigation itself. The first step
+  cache and closes the cached roots, and verifies itself: no thread token
+  (these three are `DropStartupToken()`, the step the Windows 7 lowering
+  shares), the lockdown token above, an LPAC token of exactly its package
+  with no capability (the AppContainer check's errors above; on the
+  AppContainer tier an AppContainer token of either level, the one rule
+  `CheckAppContainerToken()` applies to the client's checks too), its
+  job's limits and UI restrictions (and, on every tier but the full one,
+  no breakaway, **The Windows sandbox tiers** above), and every
+  mitigation of its tier's creation read back
+  (**The Windows helper** and **The Windows sandbox tiers** above); it
+  sets no mitigation itself. The first step
   that fails refuses the stream: the helper writes `Widget helper: the
   widget helper is not sandboxed: <error>` to stderr and exits 1, the main
   log reads `Tgw: Widget helper <pid> stream ended: the engine process
@@ -2267,7 +2581,8 @@ packs, the fixture and the seams they use need no change for it.
   reading that failed, such as `the token's integrity 0x2000 is not Low`,
   `the token's user is not deny-only`, `the token's restricting SIDs are
   not exactly S-1-0-0`, `the job's limits are 0x<flags> for <n>
-  processes` or `the mitigation policy <policy> reads 0x<flags>`.
+  processes`, `the job's limits 0x<flags> allow breakaway` or `the
+  mitigation policy <policy> reads 0x<flags>`.
 - **Windows probe.** With `probe` the client passes the mode to the
   Windows helper, and the lockdown hook of its Debug build adds the
   native probe of `test/test_widget_helper_probe_lockdown_win.cpp`
@@ -2288,12 +2603,16 @@ packs, the fixture and the seams they use need no change for it.
   found in the system directory, and the time zone (`bias <minutes>`); a
   passing listener, directory or registry control reads `ok`, and the
   `whoami.exe` lookup `present`.
-  The startup token reaches a directory only where it grants the package
-  or `ALL APPLICATION PACKAGES`: the checkpoint named in **What the Windows
-  lowering leaves** read `error 5` for the client's working directory and
+  On the lowbox tiers the startup token reaches a directory only where it
+  grants the package or `ALL APPLICATION PACKAGES`: the checkpoint named
+  in **What the Windows lowering leaves** read `error 5` for the client's
+  working directory and
   `%APPDATA%` before the lowering, so their `after lowering:` denials have
   no control in the helper, and the same paths opened by the client are
-  their positive control.
+  their positive control. The Windows 7 tier's startup token, restricted
+  to the user and the enabled groups at Low with no package, is expected
+  to open them (**The Windows 7 tier** above); no such control has been
+  read yet.
   The lines that start `after lowering:` try `CreateProcessW` of that
   `whoami.exe`, a TCP socket and a 1 s connect to the listener (`socket:
   not tried, the loopback listener did not start` when Winsock failed
@@ -2301,7 +2620,13 @@ packs, the fixture and the seams they use need no change for it.
   (two when the client's working directory was not given),
   `HKEY_CURRENT_USER\Software` and
   `HKEY_LOCAL_MACHINE\SOFTWARE`; read back the thread token, the process
-  token and the job; read the helper's package identity through
+  token (on the Windows 7 tier through the probe's own handle, opened
+  before the lowering and closed after the row) and the job; name the
+  helper's own tier and version, `tier: <tier>, version
+  <major>.<minor>.<build>` (`full`, `LPAC 1703`, `AppContainer` or
+  `Windows 7`), and, on the Windows 7 tier alone, the window station and
+  desktop of its serving thread, `desktop: <station>\<desktop> (thread
+  <tid>)`; read the helper's package identity through
   `GetCurrentPackageFullName`, which `ProbePackage()` looks up at this
   point, after the lowering, in the already mapped kernel32, a lookup
   that binds no import slot (`package identity: none
@@ -2309,7 +2634,7 @@ packs, the fixture and the seams they use need no change for it.
   name in an installed Store package, **The Windows Store build** below,
   `GetCurrentPackageFullName failed: error N`, or `not available
   (GetCurrentPackageFullName is missing)` where kernel32 lacks the
-  function, as on Windows 7);
+  function from Windows 8 on);
   read back the win32k disable of the helper's creation
   (`win32k system calls: DISABLED (ProcessSystemCallDisablePolicy
   0x<flags>)`, `ENABLED (...)` when `DisallowWin32kSystemCalls` is clear,
@@ -2319,7 +2644,14 @@ packs, the fixture and the seams they use need no change for it.
   `dynamic code`, `handles`, `win32k`, `extension points`, `signature`,
   `child process`, `shadow stack`, `font disable` and `image load`; and
   run a thread, an event, `OpenProcess` of its own pid, 32 random bytes
-  and the time zone again. A refused process,
+  and the time zone again. The package, win32k and mitigation rows are
+  read only from the version whose documentation has their query, and
+  read `not read (<call> is documented from <version>)` below it, as
+  every one of them does on the Windows 7 tier but x86's DEP, read there
+  through `GetProcessDEPPolicy`
+  ([test_widget_helper_probe](test_widget_helper_probe.md#windows-tiers)).
+  A full-tier report has the rows it had before the tier row, in order,
+  plus that row. A refused process,
   socket, connect, directory or key reads `denied (error N)` only for
   access denied (5, or `WSAEACCES` for the socket and the connect) and
   `failed (error N)` for any other error, so a connect that timed out is
@@ -2338,7 +2670,12 @@ packs, the fixture and the seams they use need no change for it.
   ([test_widget_helper_probe](test_widget_helper_probe.md)), and so is the
   Linux one (**Linux probe** below); on the non-Linux all-other platforms
   no helper starts, so nothing is written.
-- **What the Windows lowering leaves.** Without the lowbox the Windows
+- **What the Windows lowering leaves.** The readings below were all taken
+  before the tiers existed, first under the restricted token alone, then
+  under what is now the full tier. The Windows 7 tier runs without a
+  lowbox, so the first of them applies to it by design, and what else it
+  leaves is under **The Windows 7 tier** above; the AppContainer tier
+  keeps the lowbox without the LPAC opt-out. Without the lowbox the Windows
   helper was no network boundary. In the Windows runs of
   `2026/11/10/run-widget-engines-in-a-sandboxed-helper-process-on-windows`
   (its `work/decisions.md`, I1 to I3) and in the probe run of
@@ -2440,11 +2777,22 @@ packs, the fixture and the seams they use need no change for it.
   `Telegram/CMakeLists.txt` includes `init_standalone_target.cmake` and
   `telegram_widget_helper.cmake` in every Windows build, so the Store
   build compiles the helper and its client pins the Store helper's own
-  Authenticode digest. `UnsupportedReason()` keeps only the Windows 10
-  1809 floor, so the Store client starts the helper like the other
-  Windows builds, with the same `Launch()`, hold, pin, started-image
-  check, tokens, job and creation policies; the widget helper code of
-  the client and of the helper has no Store branch. `build.bat` signs
+  Authenticode digest. The Store build keeps the eligibility it had
+  before the sandbox tiers: the one Store branch of the widget helper
+  code is in `ChooseTier()` of the shared `widget_sandbox_win.cpp`, where
+  `OS_WIN_STORE` maps no Windows before 10 1809 (10.0.17763) to a tier,
+  so its client stops every widget below that with `no sandboxed widget
+  helper is available here: the widget helper needs Windows 10 1809 or
+  later`, the reason of the earlier 1809 floor, although its package
+  declares Windows 10.0.14316 as its minimum. From 1809 on the Store
+  client and helper each map their own version reading to the full tier
+  alone, and the client starts the helper like the other Windows builds,
+  with the same `Launch()`, hold, pin, started-image check, tokens, job
+  and creation policies of that tier (**The Windows sandbox tiers**
+  above). `OS_WIN_STORE` reaches the helper too:
+  `init_standalone_target.cmake` copies `common_options`' definitions,
+  among them the one `cmake/options_win.cmake` adds for
+  `build_winstore`. `build.bat` signs
   `modules\%Platform%\TelegramWidgetHelper.exe` after `StartupTask.exe`
   for every Store target and copies it into the AppX folder's
   `modules\%Platform%\` (which it creates on ARM64, where no `d3d` folder
@@ -2677,7 +3025,8 @@ packs, the fixture and the seams they use need no change for it.
   serving variant.
   Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`: where none
-  is available (Windows before 10 1809, the Mac App Store build before
+  is available (Windows before 7 SP1 or Windows 7 without update
+  KB2533623, the Mac App Store build before
   macOS 12, a Linux architecture other than x86_64 and aarch64, a build
   without the private Qt API), each widget takes the refusing hosted
   route, whose `WidgetHost` has no validator (*Failure* under **Hosted
@@ -2841,8 +3190,25 @@ packs, the fixture and the seams they use need no change for it.
   `modules` or `modules\<arch>` or the file), `<function> is not available`
   or `CryptCATAdminCalcHashFromFileHandle2 failed: <reason>` (catalog
   hashing), and `the image check failed: the started image is not the
-  checked file` (the suspended child is not the held file); the main log
-  adds `Tgw Error: The widget helper could not start: <error>.`. The Mac
+  checked file` (the suspended child is not the held file). On the
+  Windows 7 tier (**The Windows 7 tier** above) the pin adds `the widget
+  helper image extent is invalid` (a certificate table that does not
+  start at the generated unsigned end or does not end the file), `the
+  <fs> file system has no reliable file index` (a volume that is not
+  NTFS), `the file index is unavailable` (a zero file index), the failed
+  call of the identity (`GetFileInformationByHandle`,
+  `GetVolumeInformationByHandleW`), of the reads (`GetFileSizeEx`,
+  `SetFilePointerEx`, `ReadFile`, or `ReadFile read <n> of <m> bytes`) or
+  of the hash (`BCrypt<function> failed: status 0x<status>`) in place of
+  the catalog's, and its desktop `BCryptGenRandom failed: status
+  0x<status>` (the name's random part) or `CreateDesktopW failed:
+  <reason>`; the AppContainer and Windows 7 tiers add
+  `AssignProcessToJobObject failed: <reason> (<end>, terminated after <n>
+  ms)` (**The Windows sandbox tiers** above), which, when `<end>` is not
+  an exit, is followed by the end lines of the reaping like an ended
+  helper's.
+  The main log adds `Tgw Error: The widget helper could not start:
+  <error>.`. The Mac
   App Store build's errors are listed under **The Mac App Store service**.
   On macOS outside the Mac App Store build a certificate-signed client
   refuses a helper that fails the static slice check of **The shared
@@ -2940,7 +3306,9 @@ packs, the fixture and the seams they use need no change for it.
   On Windows a start that fails between the creation and the resume, while
   the helper's primary token is checked or the initial token is attached
   and checked, ends the suspended helper through its job first and adds
-  that end's status in parentheses.
+  that end's status in parentheses; a failed job assignment on the
+  AppContainer and Windows 7 tiers ends the helper, which is in no job
+  yet, through its process handle instead.
 - **Failure limit.** A start failure and an unexpected end are helper
   failures; an end after at least 60 s of helper uptime starts a new run at
   one, and a finished idle stop resets the run. The third failure in a row
@@ -2952,7 +3320,13 @@ packs, the fixture and the seams they use need no change for it.
   as one start failure, `the widget helper could not start: <what()>`. A
   helper that did not exit even
   when killed stops them the same way, with `the widget helper was not
-  reaped`. An end charges only the widgets the stream did not spare
+  reaped`. A start failure whose `Launched` still carries a completion
+  (on Windows, a helper the client could not put into its job and whose
+  end its first wait did not confirm) counts as one start failure and is
+  then reaped like an ended helper before any other helper starts
+  (`Manager::launch()` in `tgw_remote.cpp`), so that helper too stops
+  them with `the widget helper was not reaped` when its end is never
+  confirmed. An end charges only the widgets the stream did not spare
   (**Runtime log and deaths** above), and a spared one that can start
   again does so in the next helper, so the same widgets can carry this
   limit: one that hangs every helper it runs in stops at its own second
@@ -4306,6 +4680,22 @@ builds other than 26300.9711, a package on a volume other than the
 system's, the startup-task and protocol-activation starts, and, in the
 Store build, `probe-unsandboxed`, `connect-control` and targets other
 than the loopback ones.
+
+The [Windows sandbox tiers](#remote-engines) (**The Windows sandbox
+tiers** and **The Windows 7 tier** above) were added by
+`2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`,
+whose `work/plan.md` records the tier table and the documented floor and
+source of every policy, attribute and function a tier uses. Its evidence
+campaign forces each tier on Windows 11 build 26300 (10.0.26300), on x86
+and x64, through a disposable overlay that overrides only the version
+reading of the client and of the helper, and repeats the unforced full
+tier's readings on the final images; its records will be the first
+readings of the tiers below the full one. Every such reading is a
+simulation on Windows 11, and a real Windows 7, 8, 8.1 or Windows 10
+before 1809 is field coverage that no record here claims. The paragraphs
+above that name Windows 10 1809 as the helper's floor describe the
+campaigns of their own tasks, run before the tiers; only the Store build
+keeps that floor now (**The Windows Store build** above).
 
 The settle in `RemoveFixtureMessage()` compiled in the macOS arm64 Debug
 build of

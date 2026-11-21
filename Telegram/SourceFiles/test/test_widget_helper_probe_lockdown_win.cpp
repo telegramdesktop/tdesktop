@@ -34,18 +34,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <optional>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 
 namespace Test {
 namespace {
 
+using Platform::WidgetHelper::CurrentSandbox;
+using Platform::WidgetHelper::DesktopQueries;
 using Platform::WidgetHelper::Hex;
 using Platform::WidgetHelper::NumberedError;
 using Platform::WidgetHelper::PolicyError;
+using Platform::WidgetHelper::ReadAssignedDesktop;
+using Platform::WidgetHelper::SandboxTier;
 using Platform::WidgetHelper::UniqueHandle;
+using Platform::WidgetHelper::UserObjectQuery;
 using Platform::WidgetHelper::Utf8;
+using Platform::WidgetHelper::WindowsVersion;
 using Ran = std::shared_ptr<std::atomic<bool>>;
+
+#ifdef _M_IX86
+constexpr auto kProbeX86 = true;
+#else // _M_IX86
+constexpr auto kProbeX86 = false;
+#endif // _M_IX86
+
+// The first Windows version whose documentation has each query.
+constexpr auto kWindows8 = WindowsVersion{ 6, 2, 0 };
+constexpr auto kWindows81 = WindowsVersion{ 6, 3, 0 };
+constexpr auto kWindows10 = WindowsVersion{ 10, 0, 10240 };
+constexpr auto kWindows1709 = WindowsVersion{ 10, 0, 16299 };
+constexpr auto kWindows2004 = WindowsVersion{ 10, 0, 19041 };
 
 constexpr auto kProbePathCapacity = DWORD(32768);
 constexpr auto kProbeConnectSeconds = 1;
@@ -96,10 +116,11 @@ struct ProbePolicy {
 	PROCESS_MITIGATION_POLICY policy = {};
 	DWORD size = 0;
 	const char *name = nullptr;
+	WindowsVersion documented;
 };
 
 // The native probe's controls taken before the lowering and what its
-// attempts after it reuse.
+// attempts after it reuse, on the Windows 7 tier its own process token.
 struct NativeProbe {
 	std::vector<std::string> lines;
 	std::vector<ProbeTarget> directories;
@@ -107,6 +128,8 @@ struct NativeProbe {
 	std::string zone;
 	sockaddr_in address = {};
 	SOCKET listener = INVALID_SOCKET;
+	UniqueHandle token;
+	DWORD tokenError = 0;
 	bool winsock = false;
 };
 
@@ -115,21 +138,63 @@ constexpr auto kProbePolicies = std::array{
 		ProcessDEPPolicy,
 		sizeof(PROCESS_MITIGATION_DEP_POLICY),
 		"DEP",
+		kWindows8,
 	},
-	ProbePolicy{ ProcessASLRPolicy, sizeof(DWORD), "ASLR" },
-	ProbePolicy{ ProcessDynamicCodePolicy, sizeof(DWORD), "dynamic code" },
-	ProbePolicy{ ProcessStrictHandleCheckPolicy, sizeof(DWORD), "handles" },
-	ProbePolicy{ ProcessSystemCallDisablePolicy, sizeof(DWORD), "win32k" },
+	ProbePolicy{ ProcessASLRPolicy, sizeof(DWORD), "ASLR", kWindows8 },
+	ProbePolicy{
+		ProcessDynamicCodePolicy,
+		sizeof(DWORD),
+		"dynamic code",
+		kWindows81,
+	},
+	ProbePolicy{
+		ProcessStrictHandleCheckPolicy,
+		sizeof(DWORD),
+		"handles",
+		kWindows8,
+	},
+	ProbePolicy{
+		ProcessSystemCallDisablePolicy,
+		sizeof(DWORD),
+		"win32k",
+		kWindows8,
+	},
 	ProbePolicy{
 		ProcessExtensionPointDisablePolicy,
 		sizeof(DWORD),
 		"extension points",
+		kWindows8,
 	},
-	ProbePolicy{ ProcessSignaturePolicy, sizeof(DWORD), "signature" },
-	ProbePolicy{ ProcessChildProcessPolicy, sizeof(DWORD), "child process" },
-	ProbePolicy{ ProcessUserShadowStackPolicy, sizeof(DWORD), "shadow stack" },
-	ProbePolicy{ ProcessFontDisablePolicy, sizeof(DWORD), "font disable" },
-	ProbePolicy{ ProcessImageLoadPolicy, sizeof(DWORD), "image load" },
+	ProbePolicy{
+		ProcessSignaturePolicy,
+		sizeof(DWORD),
+		"signature",
+		kWindows10,
+	},
+	ProbePolicy{
+		ProcessChildProcessPolicy,
+		sizeof(DWORD),
+		"child process",
+		kWindows1709,
+	},
+	ProbePolicy{
+		ProcessUserShadowStackPolicy,
+		sizeof(DWORD),
+		"shadow stack",
+		kWindows2004,
+	},
+	ProbePolicy{
+		ProcessFontDisablePolicy,
+		sizeof(DWORD),
+		"font disable",
+		kWindows10,
+	},
+	ProbePolicy{
+		ProcessImageLoadPolicy,
+		sizeof(DWORD),
+		"image load",
+		kWindows10,
+	},
 };
 
 // FILE_FULL_EA_INFORMATION of the DDK's ntifs.h.
@@ -485,6 +550,41 @@ unsigned __stdcall ProbeThread(void *argument) {
 	return path;
 }
 
+[[nodiscard]] bool OnWindows7() {
+	return (CurrentSandbox().tier == SandboxTier::Windows7);
+}
+
+[[nodiscard]] std::string VersionText(const WindowsVersion &version) {
+	return std::to_string(version.major)
+		+ '.'
+		+ std::to_string(version.minor)
+		+ '.'
+		+ std::to_string(version.build);
+}
+
+// Whether the helper's own version reading is at least |since|.
+[[nodiscard]] bool Documented(const WindowsVersion &since) {
+	const auto &version = CurrentSandbox().version;
+	return std::tie(version.major, version.minor, version.build)
+		>= std::tie(since.major, since.minor, since.build);
+}
+
+[[nodiscard]] std::string NotDocumented(
+		const std::string &call,
+		const WindowsVersion &since) {
+	return "not read ("
+		+ call
+		+ " is documented from "
+		+ VersionText(since)
+		+ ')';
+}
+
+[[nodiscard]] std::string PolicyCall(PROCESS_MITIGATION_POLICY policy) {
+	return "GetProcessMitigationPolicy("
+		+ std::to_string(int(policy))
+		+ ')';
+}
+
 void PrepareProbeNetwork(NativeProbe &probe) {
 	const auto bound = __HrLoadAllImportsForDll("WS2_32.dll");
 	if (FAILED(bound)) {
@@ -586,6 +686,20 @@ void PrepareProbeTargets(
 	probe.lines.push_back("before lowering: time zone " + probe.zone);
 }
 
+// The Windows 7 tier has no pseudo token handles: open a real one while
+// the startup token still grants it.
+void PrepareProbeToken(NativeProbe &probe) {
+	if (!OnWindows7()) {
+		return;
+	}
+	auto token = HANDLE();
+	if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token)) {
+		probe.token = UniqueHandle(token);
+	} else {
+		probe.tokenError = GetLastError();
+	}
+}
+
 [[nodiscard]] std::string ProbeProcess(const std::wstring &executable) {
 	auto command = L"\"" + executable + L"\"";
 	auto startup = STARTUPINFOW{ .cb = DWORD(sizeof(STARTUPINFOW)) };
@@ -641,8 +755,16 @@ void PrepareProbeTargets(
 			: std::string("CONNECTED"));
 }
 
-[[nodiscard]] std::string ProbeToken() {
-	const auto token = GetCurrentProcessToken();
+[[nodiscard]] std::string ProbeToken(const NativeProbe &probe) {
+	const auto windows7 = OnWindows7();
+	if (windows7 && !probe.token) {
+		return "process token: "
+			+ NumberedError("OpenProcessToken", probe.tokenError)
+			+ " before the lowering";
+	}
+	const auto token = windows7
+		? probe.token.get()
+		: GetCurrentProcessToken();
 	const auto label = ReadToken(token, TokenIntegrityLevel);
 	const auto privileges = ReadToken(token, TokenPrivileges);
 	const auto failed = label.bytes.empty()
@@ -683,7 +805,66 @@ void PrepareProbeTargets(
 		+ (check.empty() ? std::string("passed") : check);
 }
 
+[[nodiscard]] const char *TierName(std::optional<SandboxTier> tier) {
+	if (!tier) {
+		return "none";
+	}
+	switch (*tier) {
+	case SandboxTier::Windows7: return "Windows 7";
+	case SandboxTier::AppContainer: return "AppContainer";
+	case SandboxTier::Lpac1703: return "LPAC 1703";
+	case SandboxTier::Full: return "full";
+	}
+	return "unknown";
+}
+
+// The helper's own choice, cached by the shared unit: never an input.
+[[nodiscard]] std::string ProbeTier() {
+	const auto &sandbox = CurrentSandbox();
+	return "tier: "
+		+ std::string(TierName(sandbox.tier))
+		+ ", version "
+		+ VersionText(sandbox.version);
+}
+
+// Windows 7 only: the serving thread's window station and desktop after
+// the lowering, looked up in the user32.dll that the lowering mapped. The
+// outside reading of the thread's desktop is the evidence, not this row.
+[[nodiscard]] std::string ProbeDesktop() {
+	using GetStation = decltype(&::GetProcessWindowStation);
+	using GetDesktop = decltype(&::GetThreadDesktop);
+	const auto user32 = GetModuleHandleW(L"user32.dll");
+	if (!user32) {
+		return "desktop: not read (user32.dll is not mapped)";
+	}
+	const auto queries = DesktopQueries{
+		.station = reinterpret_cast<GetStation>(
+			GetProcAddress(user32, "GetProcessWindowStation")),
+		.threadDesktop = reinterpret_cast<GetDesktop>(
+			GetProcAddress(user32, "GetThreadDesktop")),
+		.information = reinterpret_cast<UserObjectQuery>(
+			GetProcAddress(user32, "GetUserObjectInformationW")),
+	};
+	if (!queries.station || !queries.threadDesktop || !queries.information) {
+		return "desktop: not read (a user32.dll function is missing)";
+	}
+	const auto thread = GetCurrentThreadId();
+	const auto desktop = ReadAssignedDesktop(queries, thread);
+	if (desktop.failed) {
+		return "desktop: " + NumberedError(desktop.failed, desktop.error);
+	}
+	return "desktop: "
+		+ Utf8(desktop.name)
+		+ " (thread "
+		+ std::to_string(thread)
+		+ ')';
+}
+
 [[nodiscard]] std::string ProbePackage() {
+	if (!Documented(kWindows8)) {
+		return "package identity: "
+			+ NotDocumented("GetCurrentPackageFullName", kWindows8);
+	}
 	using GetFullName = decltype(&GetCurrentPackageFullName);
 	auto get = GetFullName();
 	if (const auto kernel = GetModuleHandleW(L"kernel32.dll")) {
@@ -712,6 +893,12 @@ void PrepareProbeTargets(
 
 // The helper disables win32k system calls at its creation: read it back.
 [[nodiscard]] std::string ProbeWin32k() {
+	if (!Documented(kWindows8)) {
+		return "win32k system calls: "
+			+ NotDocumented(
+				PolicyCall(ProcessSystemCallDisablePolicy),
+				kWindows8);
+	}
 	const auto flags = Platform::WidgetHelper::ReadMitigation(
 		ProcessSystemCallDisablePolicy,
 		sizeof(PROCESS_MITIGATION_SYSTEM_CALL_DISABLE_POLICY));
@@ -733,14 +920,39 @@ void PrepareProbeTargets(
 		+ ')';
 }
 
+// A policy before the version that documents its query: not read, but an
+// x86 process reads its DEP through GetProcessDEPPolicy.
+[[nodiscard]] std::string ProbeUndocumented(const ProbePolicy &entry) {
+	if constexpr (kProbeX86) {
+		if (entry.policy == ProcessDEPPolicy) {
+			auto flags = DWORD();
+			auto permanent = BOOL();
+			if (!GetProcessDEPPolicy(
+					GetCurrentProcess(),
+					&flags,
+					&permanent)) {
+				return NumberedError("GetProcessDEPPolicy", GetLastError());
+			}
+			return "0x"
+				+ Hex(flags)
+				+ ", permanent "
+				+ std::to_string(permanent)
+				+ " (GetProcessDEPPolicy)";
+		}
+	}
+	return NotDocumented(PolicyCall(entry.policy), entry.documented);
+}
+
 [[nodiscard]] std::string ProbeMitigation(const ProbePolicy &entry) {
+	const auto name = std::string("mitigation ") + entry.name + ": ";
+	if (!Documented(entry.documented)) {
+		return name + ProbeUndocumented(entry);
+	}
 	const auto flags = Platform::WidgetHelper::ReadMitigation(
 		entry.policy,
 		entry.size);
 	const auto error = flags ? DWORD() : GetLastError();
-	return std::string("mitigation ")
-		+ entry.name
-		+ ": "
+	return name
 		+ (flags
 			? ("0x" + Hex(*flags))
 			: ("error " + std::to_string(error)));
@@ -862,8 +1074,13 @@ void CloseProbeNetwork(NativeProbe &probe) {
 	const auto thread = Platform::WidgetHelper::VerifyNoThreadToken();
 	add("thread token: "
 		+ (thread.empty() ? std::string("none (ERROR_NO_TOKEN)") : thread));
-	add(ProbeToken());
+	add(ProbeToken(probe));
+	probe.token.reset();
 	add(ProbeJob());
+	add(ProbeTier());
+	if (OnWindows7()) {
+		add(ProbeDesktop());
+	}
 	add(ProbePackage());
 	add(ProbeWin32k());
 	for (const auto &entry : kProbePolicies) {
@@ -1492,9 +1709,9 @@ void NetworkProbe::close() {
 // The native probe takes its controls before the real lockdown, while the
 // helper still impersonates, then the harness takes its own network
 // controls; both make their attempts after the lockdown, the network ones
-// first. The report goes to stderr, every socket either part holds is
-// closed before it returns, a refused lockdown included, and the helper
-// serves widgets.
+// first. The report goes to stderr, every socket either part holds and the
+// Windows 7 tier's token handle are closed before it returns, a refused
+// lockdown included, and the helper serves widgets.
 [[nodiscard]] std::string LockDownWithProbe(
 		const std::vector<std::string> &arguments,
 		const std::function<std::string()> &lockdown) {
@@ -1507,6 +1724,7 @@ void NetworkProbe::close() {
 	});
 	PrepareProbeNetwork(probe);
 	PrepareProbeTargets(probe, Argument(arguments, 2));
+	PrepareProbeToken(probe);
 	auto network = NetworkProbe(arguments);
 	network.prepare();
 	const auto error = lockdown();

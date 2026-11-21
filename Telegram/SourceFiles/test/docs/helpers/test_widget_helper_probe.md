@@ -543,7 +543,10 @@ order, once per helper:
    `PrepareProbeNetwork()` binds the delay-loaded `WS2_32.dll` imports and
    starts its own Winsock and 127.0.0.1 listener, and
    `PrepareProbeTargets()` takes its other `before lowering:` controls,
-   while the helper still impersonates its startup token.
+   while the helper still impersonates its startup token. On the Windows 7
+   tier `PrepareProbeToken()` then opens the probe's own `TOKEN_QUERY`
+   handle to the helper's process token, which the native probe holds
+   until its `process token:` row ([Windows tiers](#windows-tiers)).
 2. The harness's own preparation, under the same token: its own
    `WSAStartup`, then its `before lowering:` socket, target and AFD endpoint
    controls and, with `connect-control`, the preopened sockets; without
@@ -551,9 +554,14 @@ order, once per helper:
    ([Windows harness lines](#windows-harness-lines)).
 3. The real lockdown: the `lockdown` callable, which is
    `WidgetHelper::Lockdown()`, that is
-   `Platform::WidgetHelper::LockDownHelper()` in `widget_sandbox_win.cpp`.
+   `Platform::WidgetHelper::LockDownHelper()` in `widget_sandbox_win.cpp`,
+   the lowering of the helper's own sandbox tier (**The Windows sandbox
+   tiers** in [Remote engines](test_widget_fixture.md#remote-engines)).
    A failure refuses the stream with the lockdown's own text, writes no
-   probe line and closes what both probes hold.
+   probe line and closes what both probes hold, the Windows 7 tier's token
+   handle included; `LockDownWithProbe()` returns before `FinishProbe()`,
+   so no reading of a refused helper enters the report, and a diagnostic
+   capture of one belongs to the run's own overlay.
 4. The harness's `after lowering:` attempts, then the native probe's,
    after which the native probe closes its listener and ends its own
    `WSAStartup`.
@@ -578,18 +586,24 @@ and the `WS2_32.dll` imports, which the native probe and then the
 harness's own Winsock start each bind (the harness uses Winsock only when
 its own bind and `WSAStartup` succeeded). The probe's own lookups are
 `NtCreateFile` and `RtlInitUnicodeString`, which the harness resolves
-from the already mapped ntdll before the lowering, and
+from the already mapped ntdll before the lowering,
 `GetCurrentPackageFullName`, which `FinishProbe()`'s `ProbePackage()`
 resolves from the already mapped kernel32 after it, when it writes the
-`package identity` row ([Windows Store](#windows-store)). After the
-lowering `FinishProbe()` also calls `ProbeWin32k()` and
-`ProbeMitigation()` for its `win32k system calls:` and
-`mitigation <name>:` rows, and both read through
-`Platform::WidgetHelper::ReadMitigation()`, which calls the
+`package identity` row ([Windows Store](#windows-store)), from Windows 8
+on, and on the Windows 7 tier alone `GetProcessWindowStation`,
+`GetThreadDesktop` and `GetUserObjectInformationW`, which `ProbeDesktop()`
+resolves after it from the `user32.dll` that tier's lowering mapped
+([Windows tiers](#windows-tiers)). After the lowering on the other tiers
+`FinishProbe()` also calls `ProbeWin32k()` and `ProbeMitigation()` for
+its `win32k system calls:` and `mitigation <name>:` rows, and both read
+through `Platform::WidgetHelper::ReadMitigation()`, which calls the
 `GetProcessMitigationPolicy` pointer that `ResolvedPolicyFunctions()` in
 `widget_sandbox_win.cpp` looked up in the mapped kernel32 and cached
 before the reversion, at the latest in the warm-up, which refuses
-without it. Neither those reads nor the package lookup bind an import
+without it there. The Windows 7 tier's warm-up does not look that
+function up, and its probe calls neither it nor `ReadMitigation()`: x86
+reads its DEP through `GetProcessDEPPolicy`, a static KERNEL32 import of
+the x86 helper. Neither those reads nor the lookups bind an import
 slot or complete a delay-load entry. The warm-up's descriptors follow each
 architecture's Nova engine: x86 and x64 build it for
 `i686-win7-windows-msvc` and `x86_64-win7-windows-msvc`, whose std draws
@@ -755,17 +769,133 @@ bytes is a denial of endpoint creation.
 
 ### What the Windows controls show
 
-The `before lowering:` lines run under the helper's startup token, a
-regular AppContainer token of the helper's own package
-([Remote engines](test_widget_fixture.md#remote-engines)), not under an
-unconfined one: they are the in-helper control for the same calls, and an
-AppContainer token may be kept from other processes' loopback listeners
-before the lowering as well. Whether a target was reachable is therefore
+The `before lowering:` lines run under the helper's startup token, on the
+lowbox tiers a regular AppContainer token of the helper's own package
+([Remote engines](test_widget_fixture.md#remote-engines)) and on the
+Windows 7 tier the restricted startup token at Low without a lowbox
+([Windows tiers](#windows-tiers)), never under an unconfined one: they
+are the in-helper control for the same calls, and an AppContainer token
+may be kept from other processes' loopback listeners before the lowering
+as well. Whether a target was reachable is therefore
 decided by the fixture's own connections and datagrams to the same
 listeners, from an ordinary process, before and after the helper; a
 helper attempt that the fixture did not receive is no denial.
 With `connect-control` the helper holds the preopened sockets across the
 lowering and the run is an instrumented one, not the ordinary helper.
+
+### Windows tiers
+
+The Windows helper is confined by one of four sandbox tiers, full, LPAC
+1703, AppContainer and Windows 7, which Telegram picks from the Windows
+version and the helper picks again from its own reading of it (**The
+Windows sandbox tiers** in
+[Remote engines](test_widget_fixture.md#remote-engines) has the tiers,
+their launches and lowerings). The probe reads the helper's own choice,
+`CurrentSandbox()` of `widget_sandbox_win.cpp`: the version the helper
+read itself (`RtlGetVersion`, or the version a disposable test overlay
+simulates in its place) and the tier derived from it, both cached once
+per process. Nothing the probe receives names a tier, and the probe
+selects none: its rows are readings of the tier the lowering already
+applied.
+
+- **The tier row.** Right after `job:` the native probe writes
+  `after lowering: tier: <tier>, version <major>.<minor>.<build>`, with
+  `full`, `LPAC 1703`, `AppContainer` or `Windows 7` (`none` only names a
+  helper without a tier, whose lowering refuses before any row). An
+  unforced helper on the host of the records reads `tier: full, version
+  10.0.26300`, and a forced one the version its overlay simulated. The
+  unforced full-tier report on 10.0.26300 keeps every row it had before
+  the tier row, in order and with the same text: its 53 rows with no
+  fixture and this one, so a reader compares it with the older full-tier
+  readings of that host by setting the tier row aside. That holds for the
+  26300 control alone: a full-tier report whose version is below a
+  query's floor (**Queries by version** below) reads that row `not
+  read`, as a forced 10.0.17763 reads `mitigation shadow stack: not read
+  (GetProcessMitigationPolicy(15) is documented from 10.0.19041)`.
+- **Queries by version.** The `package identity:`, `win32k system
+  calls:` and `mitigation <name>:` rows are read only when the helper's
+  version reaches the first one whose documentation has that query:
+  `GetCurrentPackageFullName`, and `GetProcessMitigationPolicy` with
+  `ProcessDEPPolicy`, `ProcessASLRPolicy`,
+  `ProcessStrictHandleCheckPolicy`, `ProcessSystemCallDisablePolicy` or
+  `ProcessExtensionPointDisablePolicy`, from 6.2.0 (Windows 8);
+  `ProcessDynamicCodePolicy` from 6.3.0 (8.1); `ProcessSignaturePolicy`,
+  `ProcessFontDisablePolicy` and `ProcessImageLoadPolicy` from 10.0.10240;
+  `ProcessChildProcessPolicy` from 10.0.16299 (1709); and
+  `ProcessUserShadowStackPolicy` from 10.0.19041 (2004). Below that
+  version the row reads `not read (<call> is documented from <version>)`
+  and nothing is called (x86's DEP on Windows 7 aside, below), such as
+  `mitigation child process: not read
+  (GetProcessMitigationPolicy(13) is documented from 10.0.16299)` on the
+  LPAC 1703 tier. A row that is read keeps its form. These are the floors
+  of each query, not of the creation flag: where a tier documents the
+  query but its creation did not set the policy (`signature` on the
+  AppContainer tier below 10.0.10586), the row reads what the process
+  has. The outside observer of a forced run reads every policy of the
+  Windows 11 host, the rows the probe leaves out included.
+- **Windows 7 rows.** The Windows 7 tier has neither the pseudo token
+  handles nor `GetProcessMitigationPolicy`, both Windows 8, and no
+  `GetCurrentPackageFullName`, so its probe calls none of them:
+  - `process token:` reads the handle that `PrepareProbeToken()` opened
+    with `TOKEN_QUERY` before the lowering, while the startup token still
+    granted it, and the native probe closes that handle right after the
+    row, or with the rest of its state when the lowering refuses. A
+    failed open reads `process token: OpenProcessToken failed: error <n>
+    before the lowering`.
+  - Right after the tier row, `desktop: <station>\<desktop> (thread
+    <tid>)` names the window station and the desktop of the serving
+    thread after the lowering, through `GetProcessWindowStation`,
+    `GetThreadDesktop` and `GetUserObjectInformationW(UOI_NAME)` looked up
+    in the `user32.dll` that the Windows 7 lowering itself mapped, and
+    read by the shared `ReadAssignedDesktop()` of `widget_sandbox_win.cpp`,
+    the reading that the lowering compares with its startup request
+    before the revert; the probe loads nothing (`desktop: not read
+    (user32.dll is not mapped)` otherwise, or the failing call with its
+    error). It is the helper's
+    own reading under its lockdown token, and that USER calls still work
+    there is itself part of what the tier leaves (**The Windows 7 tier**
+    in [Remote engines](test_widget_fixture.md#remote-engines)). The
+    evidence that the helper runs on its own desktop is the
+    outside reading of the same thread's `GetThreadDesktop` from the
+    client's window station, not this row. No lowbox tier writes it, and
+    no lowbox helper maps `user32.dll`.
+  - `package identity:` and `win32k system calls:` read `not read (... is
+    documented from 6.2.0)`, and so does every `mitigation` row but x86's
+    DEP: `mitigation DEP: 0x<flags>, permanent <0|1> (GetProcessDEPPolicy)`,
+    with `GetProcessDEPPolicy`'s flags (1 DEP, 2 ATL thunk emulation off),
+    where the x86 Windows 7 launch requires `0x3, permanent 1`. The x64
+    helper's Windows 7 DEP row is one of the rows not read, `mitigation
+    DEP: not read (GetProcessMitigationPolicy(0) is documented from
+    6.2.0)`: 64-bit processes always run with DEP, and
+    `GetProcessDEPPolicy` serves 32-bit processes only.
+- **Controls under the startup token.** On the lowbox tiers the
+  `before lowering:` directory controls of the client's working directory
+  and `%APPDATA%` read `error 5`, as the LPAC checkpoint read them
+  (**Windows probe** in
+  [Remote engines](test_widget_fixture.md#remote-engines)), so their
+  `after lowering:` denials have their control in the client
+  ([What the Windows controls show](#what-the-windows-controls-show)).
+  The Windows 7 startup token is the restricted token at Low, restricted
+  to the user and the enabled groups, with no package, so those controls
+  are expected to read `ok` wherever the user may list the folder, Low
+  integrity not stopping a read; no Windows 7 control has been read yet.
+- **Denials by design.** After the lowering every tier is expected to
+  refuse `CreateProcessW` (the lockdown token, the job's one process and,
+  from 10.0.10586, the child-process attribute) and every directory and
+  registry key the probe opens (the lockdown token's deny-only groups and
+  its only restricting SID `S-1-0-0`). The lowbox tiers are expected to
+  refuse the fresh sockets and AFD endpoints of every kind the harness
+  asks for (the package has no capability): a regular AppContainer
+  lockdown token already refused `socket(AF_INET, SOCK_STREAM)` with
+  10013 after the lowering in the experiment of
+  `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
+  (its `work/experiment.md`, Q4, the same-binary x86 helper on Windows
+  10.0.26300), as the LPAC one did. The Windows 7 tier draws no network
+  boundary: the same experiment's restricted Low primary without a
+  lowbox read `ALLOWED ... CONNECTED`, so that tier's socket and AFD
+  lines are recorded as they read, never judged as denials. Which
+  denials each tier actually shows is left to the readings under
+  [Verification](#verification).
 
 ### Windows Store
 
@@ -808,8 +938,8 @@ rows. What differs was measured on Windows 10.0.26300.9711 x64 in a
   its own: the `job:` row reads as on x64, `in a job 1, limits 0x2408,
   active processes 1, UI 0xff, check passed`. The row reads the immediate
   job only; the package job's members were not listed.
-- **`package identity`.** Right after `job:` the native probe writes
-  `after lowering: package identity: <reading>` from
+- **`package identity`.** After `job:` and the tier row the native probe
+  writes `after lowering: package identity: <reading>` from
   `GetCurrentPackageFullName()`. Unlike the import entries the probe calls,
   all bound before the lowering ([Windows](#windows)), that function is
   looked up after it: `FinishProbe()`'s `ProbePackage()` resolves it from
@@ -820,7 +950,9 @@ rows. What differs was measured on Windows 10.0.26300.9711 x64 in a
   read it, the package full name in one with it,
   `GetCurrentPackageFullName failed: error <n>` for any other result, and
   `not available (GetCurrentPackageFullName is missing)` where kernel32
-  lacks the function, as on Windows 7, where no probe has run.
+  lacks the function from Windows 8 on. The Windows 7 tier makes no lookup
+  and reads `not read (GetCurrentPackageFullName is documented from
+  6.2.0)` ([Windows tiers](#windows-tiers)).
   The Store helper read the package's full name: it inherits the identity
   of the package its client runs in. Nothing in the confinement relies on
   its absence; the hold, every token check and every denial held with it.
@@ -884,9 +1016,10 @@ socket and AFD lines included, was equal after normalization:
    difference.
 
 To read a Store probe against the x64 references, normalize paths, pids
-and the package full name, set the `package identity` row aside on both
-sides (a reference made before the row has none, which shifts a
-line-for-line comparison by one) and compare with the x64 non-Store probe
+and the package full name, set the `package identity` and `tier` rows
+aside on both sides (a reference made before either row has none, which
+shifts a line-for-line comparison by one per row; the Store readings
+above predate the tier row) and compare with the x64 non-Store probe
 of the same Windows build: every other row must be equal but for the
 `CreateProcessW` row's `failed (error 31)`, which comes with the package
 on 26300.9711, and an outside reading differs by the package SID and the
@@ -1459,8 +1592,11 @@ attempt and each preopened socket right after its `after lowering:` use
 before it returns, and on a lockdown failure, it closes whatever it still
 holds and ends its own `WSAStartup`, so no harness socket survives into
 Ready. The native probe closes its listener and ends its own start after
-its `after lowering:` attempts, and on a lockdown failure too. The overlay
-owns its listeners and closes them after the helper ended.
+its `after lowering:` attempts, and on a lockdown failure too. On the
+Windows 7 tier it closes its own process token handle right after its
+`process token:` row, and on a lockdown failure with the rest of its
+state, so that handle, too, never reaches Ready. The overlay owns its
+listeners and closes them after the helper ended.
 
 On Linux the probe keeps no state either. Each forked copy sets
 `PR_SET_PDEATHSIG(SIGKILL)`, makes itself non-dumpable and ends only with
@@ -2060,6 +2196,23 @@ submission, certification and signing, Windows builds other than
 startup-task and protocol-activation starts, and, in the Store build,
 `probe-unsandboxed`, `connect-control` and a target other than the
 loopback port's four.
+
+The tier row, the version floors of the queries and the Windows 7 rows
+([Windows tiers](#windows-tiers)) were added by
+`2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`
+and compiled in the Win32 and x64 Debug helpers. They have not run yet:
+that task's evidence campaign probes each tier on x86 and x64, forced on
+Windows 11 build 26300 (10.0.26300) by a disposable overlay that
+overrides only the version reading of the client and of the helper, and
+repeats the unforced full-tier probe against the 53 clean rows of the
+Nova helpers
+(`2026/11/21/build-the-x64-windows-widget-helper-image-for-windows-7`
+and `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`,
+their `evidence/confinement.md`, E7/G2) with the tier row set aside; its
+records are the first. Every reading of a tier other than the full one
+is therefore a simulation on Windows 11, and what a real Windows 7, 8,
+8.1 or Windows 10 before 1809 shows is field coverage that no record
+here claims.
 
 On Linux the probe first ran in the same-binary helper, the client's own
 `/proc/self/exe -widgethelper 3`, in the x86_64 Debug client (the Docker
