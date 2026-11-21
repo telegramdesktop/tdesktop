@@ -11,6 +11,7 @@ include(CMakePushCheckState)
 set(widget_helper_hardened_targets
     TelegramWidgetHelper
     lib_widget_sandbox
+    lib_widget_sandbox_platform
     lib_widget_renderer
     lib_litehtml
     lib_widget_sandbox_host_hardened

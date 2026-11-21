@@ -7,10 +7,6 @@
 # The widget helper's serving in Rust (ThirdParty/twidget, rust/crates/helper_ffi) with Nova inside, built by cargo:
 # TelegramWidgetHelper's one Rust library when TDESKTOP_WIDGET_HELPER_RUST is ON.
 
-if (APPLE)
-    message(FATAL_ERROR "TDESKTOP_WIDGET_HELPER_RUST is supported on Windows and Linux only so far.")
-endif()
-
 set(widget_helper_rust_loc ${third_party_loc}/twidget/rust)
 if (NOT EXISTS ${widget_helper_rust_loc}/crates/helper_ffi/Cargo.toml)
     message(FATAL_ERROR "twidget sources are missing, run 'git submodule update --init --recursive'.")
@@ -21,6 +17,12 @@ if (WIN32)
     set(widget_helper_rust_library ${widget_helper_rust_out}/twidget_helper_ffi.lib)
     # Nova's target, whose std imports the helper's delay loads and lockdown already answer.
     set(widget_helper_rust_platform -DHELPER_TARGET=${nova_target})
+elseif (APPLE)
+    set(widget_helper_rust_library ${widget_helper_rust_out}/libtwidget_helper_ffi.a)
+    string(REPLACE ";" "," widget_helper_rust_archs "${CMAKE_OSX_ARCHITECTURES}")
+    set(widget_helper_rust_platform
+        -DHELPER_ARCHS=${widget_helper_rust_archs}
+        -DHELPER_DEPLOYMENT=${CMAKE_OSX_DEPLOYMENT_TARGET})
 else()
     set(widget_helper_rust_library ${widget_helper_rust_out}/libtwidget_helper_ffi.a)
     set(widget_helper_rust_platform)
@@ -72,6 +74,6 @@ if (WIN32)
     if (nova_target MATCHES "-win7-")
         target_link_libraries(lib_widget_helper_rust INTERFACE advapi32)
     endif()
-else()
+elseif (NOT APPLE)
     target_link_libraries(lib_widget_helper_rust INTERFACE ${CMAKE_DL_LIBS} m)
 endif()
