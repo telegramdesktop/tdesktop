@@ -3,7 +3,7 @@
 On Linux the widget engines run in a helper process, the Qt-free
 `TelegramWidgetHelper` executable started as `<path> 3` with the channel on
 descriptor 3. It lies in `TelegramHelpers/` next to the client's binary, or
-in the package's libexec directory (its `telegram-desktop/` folder) in a
+in the package's libexec directory (its `TelegramDesktop/` folder) in a
 package-managed build, and the lockdown is compiled only into it. Before it
 serves its first widget, while it still has one thread,
 `Platform::WidgetHelper::LockDownHelper()` in

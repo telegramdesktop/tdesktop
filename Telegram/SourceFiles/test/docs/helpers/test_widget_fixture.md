@@ -910,8 +910,8 @@ packs, the fixture and the seams they use need no change for it.
   defines the helper. A package-managed build, one with packaged libraries
   (`DESKTOP_APP_USE_PACKAGED`) and no special target (distributions, Snap
   and Flathub), installs it into
-  `${CMAKE_INSTALL_LIBEXECDIR}/telegram-desktop/` and builds it at the same
-  place relative to its built binary (`../libexec/telegram-desktop/` with
+  `${CMAKE_INSTALL_LIBEXECDIR}/TelegramDesktop/` and builds it at the same
+  place relative to its built binary (`../libexec/TelegramDesktop/` with
   the default directories); every other build, the official tarball's
   (packaged too, with the special target `linux`) and the Docker
   development builds included, puts it into `TelegramHelpers/` next to the
@@ -937,7 +937,7 @@ packs, the fixture and the seams they use need no change for it.
   package-managed build holds no file (**The shared helper** below). The
   Snap's `telegram` part builds with the prefix `/usr` and no special
   target, so it stages and primes
-  `usr/libexec/telegram-desktop/TelegramWidgetHelper`, which the renamed
+  `usr/libexec/TelegramDesktop/TelegramWidgetHelper`, which the renamed
   `usr/bin/telegram-desktop` finds. The Snap's `avif` part writes the
   forced `dav1d` link,
   `-Wl,--push-state,--no-as-needed,-ldav1d,--pop-state`, into the `Libs:`
@@ -1086,16 +1086,16 @@ packs, the fixture and the seams they use need no change for it.
   `TelegramHelpers/TelegramWidgetHelper` next to the client's binary
   (`out/Debug/TelegramHelpers/TelegramWidgetHelper` in the Docker
   tree, the tarball layout) or, in a package-managed build,
-  `<libexecdir>/telegram-desktop/TelegramWidgetHelper`
-  (`/usr/libexec/telegram-desktop/` with the prefix `/usr`,
-  `/app/libexec/telegram-desktop/` inside Flatpak,
-  `$SNAP/usr/libexec/telegram-desktop/` in the Snap). The client finds it
+  `<libexecdir>/TelegramDesktop/TelegramWidgetHelper`
+  (`/usr/libexec/TelegramDesktop/` with the prefix `/usr`,
+  `/app/libexec/TelegramDesktop/` inside Flatpak,
+  `$SNAP/usr/libexec/TelegramDesktop/` in the Snap). The client finds it
   as `cExeDir()`, the canonical directory of its own binary that it
   resolved once at start from `/proc/<pid>/exe`, joined with the relative
   path CMake fixed at configure time (`TDESKTOP_WIDGET_HELPER_PATH`, a
   definition on `widget_helper_linux.cpp` only:
   `TelegramHelpers/TelegramWidgetHelper`, or the path from the bindir to
-  the libexec folder, `../libexec/telegram-desktop/TelegramWidgetHelper`
+  the libexec folder, `../libexec/TelegramDesktop/TelegramWidgetHelper`
   with the default directories) and cleaned lexically (`QDir::cleanPath`).
   So a binary started through a symlink or renamed, as the Snap's
   `telegram-desktop` is, finds it. The path does not follow a folder
@@ -1105,7 +1105,7 @@ packs, the fixture and the seams they use need no change for it.
   which looks the old path up at each start, misses its helper. An
   absolute `CMAKE_INSTALL_LIBEXECDIR`, such as `/usr/lib/x86_64-linux-gnu`,
   still gives a path relative to the configured prefix
-  (`../lib/x86_64-linux-gnu/telegram-desktop/TelegramWidgetHelper`), so
+  (`../lib/x86_64-linux-gnu/TelegramDesktop/TelegramWidgetHelper`), so
   `cmake --install --prefix <another prefix>` puts the helper into that
   absolute directory while Telegram moves, and that Telegram misses it;
   package tooling installs at the configured prefix, staged with
@@ -1192,7 +1192,7 @@ packs, the fixture and the seams they use need no change for it.
   failed: <reason>.` and the client clones it again as a plain child.
   Inside Flatpak the Flatpak portal starts it instead, through
   `Spawn` with the flags 28 (`SANDBOX`, `NO_NETWORK` and `WATCH_BUS`): the
-  same argv, `/app/libexec/telegram-desktop/TelegramWidgetHelper 3` in an
+  same argv, `/app/libexec/TelegramDesktop/TelegramWidgetHelper 3` in an
   `/app` install, the working directory `/`, the same four
   descriptors and an empty environment table, so the helper gets the
   environment of the portal's sandbox, not the client's. That helper is
@@ -3213,25 +3213,25 @@ and `twidget::SandboxEngine::make`, on a short-lived `std::thread` and on
   `execve` of the helper's file with argv `[<path>, 3]` and none carrying
   `-widgethelper`.
 - A package-managed tree (the same image, no special target, the prefix
-  `/usr`) compiled `../libexec/telegram-desktop/TelegramWidgetHelper`.
+  `/usr`) compiled `../libexec/TelegramDesktop/TelegramWidgetHelper`.
   `cmake --install --prefix <prefix>` put Telegram into `<prefix>/bin` and
-  the helper into `<prefix>/libexec/telegram-desktop`, and that Telegram
+  the helper into `<prefix>/libexec/TelegramDesktop`, and that Telegram
   started the installed helper (Run 4). A `DESTDIR` install with the prefix
   `/usr` and the binary renamed `telegram-desktop`, the Snap's shape,
-  started `usr/libexec/telegram-desktop/TelegramWidgetHelper` the same way.
+  started `usr/libexec/TelegramDesktop/TelegramWidgetHelper` the same way.
   With the installed helper removed, three starts failed with `execve
   failed: No such file or directory`, the fourth engine died with `the
   widget helper failed 3 times in a row`, and nothing ran in process. A
   configure with the absolute libexec directory `/usr/lib/x86_64-linux-gnu`
   (configured, not built) compiled
-  `../lib/x86_64-linux-gnu/telegram-desktop/TelegramWidgetHelper`, and its
+  `../lib/x86_64-linux-gnu/TelegramDesktop/TelegramWidgetHelper`, and its
   install script installs to that absolute directory. The official
   configuration compiles `TelegramHelpers/TelegramWidgetHelper`, and its
   install script installs to `bin/TelegramHelpers`.
 - Inside Flatpak 1.14.6 (an `/app` install of that tree in a privileged
   container, `org.freedesktop.Platform//24.08`, Run 4) the client called
   the portal's `Spawn` once per start with the working directory `/`, the
-  argv `/app/libexec/telegram-desktop/TelegramWidgetHelper 3`, descriptors
+  argv `/app/libexec/TelegramDesktop/TelegramWidgetHelper 3`, descriptors
   0 to 3, an empty `envs` and flags 28; the helper descended from the
   portal, not the client, with `Seccomp: 2`, `NoNewPrivs: 1`, no
   capabilities, user, PID, network and mount namespaces other than the
@@ -3261,7 +3261,7 @@ and `twidget::SandboxEngine::make`, on a short-lived `std::thread` and on
   (its `work/test.md`, Attempt 1, Runs 3-4), in an Ubuntu 24.04 VM
   (kernel 6.8): snapcraft 9.2.1 built the recipe with and without that
   task's change in destructive mode. With the change the `.snap`'s
-  `usr/libexec/telegram-desktop/TelegramWidgetHelper` had the NEEDED
+  `usr/libexec/TelegramDesktop/TelegramWidgetHelper` had the NEEDED
   `libstdc++.so.6`, `libm.so.6`, `libgcc_s.so.1`, `libc.so.6` and
   `ld-linux-x86-64.so.2`; without it `libdav1d.so.7` came first, before
   the same five. `usr/bin/telegram-desktop` had the same 80 NEEDED
@@ -3273,7 +3273,7 @@ and `twidget::SandboxEngine::make`, on a short-lived `std::thread` and on
   `.snap` tree in which only `usr/bin/telegram-desktop` was replaced, and
   with the `LD_LIBRARY_PATH` that the Snap's launch composes from snapd,
   `meta/snap.yaml`, `mesa-2404` and `gnome-46-2404`. It started that
-  tree's `usr/libexec/telegram-desktop/TelegramWidgetHelper`
+  tree's `usr/libexec/TelegramDesktop/TelegramWidgetHelper`
   (`/proc/<pid>/exe` that file, the path its lookup computes from the
   tree's `usr/bin/`), whose maps held its own file, glibc's objects, libm
   and the C++ runtime and nothing of `libdav1d`, while the client's held
@@ -3320,7 +3320,7 @@ put the helper with the pinned digest into its update and its portable
 archive. A Snap that snapcraft built from the base commit in an Ubuntu
 24.04 VM like the one above (the Snap builds no Updater and reads none
 of the other changed files) shipped
-`usr/libexec/telegram-desktop/TelegramWidgetHelper` `-rwxr-xr-x`,
+`usr/libexec/TelegramDesktop/TelegramWidgetHelper` `-rwxr-xr-x`,
 byte-equal to its build tree's, with its symbol table and without the
 `.gnu_debugdata` that `usr/bin/telegram-desktop` had. A Release client
 with the test harness, unconfined in a copy of that unpacked tree with
@@ -3359,7 +3359,7 @@ starts without namespaces: clone failed: Permission denied.`, after
 AppArmor had denied its namespaced `clone` (`userns_create`). Read as
 root, the helper with the plain recipe's bytes, which ran without the
 probe, had `/proc/<pid>/exe`
-`$SNAP/usr/libexec/telegram-desktop/TelegramWidgetHelper` with that
+`$SNAP/usr/libexec/TelegramDesktop/TelegramWidgetHelper` with that
 file's device and inode, the client's label, the client as its parent
 and the `cmdline` `<path>`, `3`. It shared the client's user, PID,
 network and mount namespaces, its `uid_map` the initial namespace's, and

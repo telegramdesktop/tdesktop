@@ -199,8 +199,8 @@ else()
         if (NOT DESKTOP_APP_SPECIAL_TARGET)
             file(RELATIVE_PATH widget_helper_folder
                 "${CMAKE_INSTALL_FULL_BINDIR}"
-                "${CMAKE_INSTALL_FULL_LIBEXECDIR}/telegram-desktop")
-            set(widget_helper_destination "${CMAKE_INSTALL_LIBEXECDIR}/telegram-desktop")
+                "${CMAKE_INSTALL_FULL_LIBEXECDIR}/TelegramDesktop")
+            set(widget_helper_destination "${CMAKE_INSTALL_LIBEXECDIR}/TelegramDesktop")
             set(widget_helper_pinned OFF)
         endif()
         install(TARGETS TelegramWidgetHelper RUNTIME DESTINATION "${widget_helper_destination}")

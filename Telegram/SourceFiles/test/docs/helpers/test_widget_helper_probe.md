@@ -24,7 +24,7 @@ the App-Sandboxed XPC service `Contents/XPCServices/TelegramWidgetHelper.xpc`,
 and the probe runs there with the differences of
 [Mac App Store](#mac-app-store). On Linux the helper is `TelegramWidgetHelper` too,
 in `TelegramHelpers/` next to the client's binary or in a package-managed
-build's `libexec/telegram-desktop/`, and its Debug build's lockdown hook
+build's `libexec/TelegramDesktop/`, and its Debug build's lockdown hook
 again runs a probe, that of
 `test/test_widget_helper_probe_lockdown_linux.cpp`: it runs its own probe
 in forked copies of the helper and around the real
@@ -853,9 +853,9 @@ on both of its spawn paths, so the helper runs as `<helper path> 3 <mode>
 <cwd> <data>`. A direct clone executes the descriptor of
 `TelegramHelpers/TelegramWidgetHelper` next to the client's binary that
 the client opened and checked against its build's SHA-256, or the
-package's `libexec/telegram-desktop/TelegramWidgetHelper` by path in a
+package's `libexec/TelegramDesktop/TelegramWidgetHelper` by path in a
 package-managed build; inside Flatpak the portal's argv starts
-`/app/libexec/telegram-desktop/TelegramWidgetHelper`
+`/app/libexec/TelegramDesktop/TelegramWidgetHelper`
 ([Remote engines](test_widget_fixture.md#remote-engines) says how the
 client finds and checks that path). The hook,
 `Test::WidgetHelperProbeLockdown()` in
@@ -2056,7 +2056,7 @@ every leg the probed helper went on serving widgets.
   `WidgetHelper::Adopt()`.
 - Inside Flatpak 1.14.6, an `/app` install of a package-managed build
   (Run 4): the portal's `Spawn` got the argv
-  `/app/libexec/telegram-desktop/TelegramWidgetHelper 3 probe <cwd>
+  `/app/libexec/TelegramDesktop/TelegramWidgetHelper 3 probe <cwd>
   <data>`, and the six lines were byte-equal to the first Linux
   campaign's Flatpak lines: `landlock alone: cwd=EACCES client-cwd=ENOENT
   data=ENOENT root=kept lockdown=prctl(PR_SET_SECCOMP) failed: EPERM`, the
@@ -2088,7 +2088,7 @@ helper bytes the plain recipe ships had no probe
 Each client logged `Tgw: The widget helper starts without namespaces:
 clone failed: Permission denied.`, and its helper ran under the app's
 label, `snap.telegram-desktop.telegram-desktop (enforce)`, as
-`$SNAP/usr/libexec/telegram-desktop/TelegramWidgetHelper 3 <mode> <cwd>
+`$SNAP/usr/libexec/TelegramDesktop/TelegramWidgetHelper 3 <mode> <cwd>
 <data>`, `<cwd>` the client's working directory and `<data>`
 `$SNAP_USER_DATA/.local/share`, and went on serving widgets. With
 `probe` its six lines in `app_stderr.txt` were `landlock alone:
