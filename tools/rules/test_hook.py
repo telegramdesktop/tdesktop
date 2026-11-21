@@ -2,6 +2,8 @@
 """Tests of hook.py: python3 tools/rules/test_hook.py"""
 import json
 import os
+from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -9,6 +11,8 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 HOOK = os.path.join(HERE, "hook.py")
+CPP_LAYOUT = os.path.join(HERE, "cpp_layout.py")
+INSTALL = os.path.join(HERE, "install.py")
 LICENSE = "/*\nThis file is part of Telegram Desktop,\nthe official desktop"\
     " application for the Telegram messaging service.\n\nFor license and"\
     " copyright information please follow this link:\n"\
@@ -93,6 +97,11 @@ class EditHook(unittest.TestCase):
         self.assertEqual(edit("// qMin(a, b) was here\n")[0], 0)
         self.assertEqual(edit('log("qMin(a, b)");\n')[0], 0)
 
+    def test_raw_literal_contents_are_neither_calls_nor_comments(self):
+        literal = 'auto text = u8R"example(\n" // qMin(1, 2)\n// prose\n)example";\n'
+        self.assertEqual(edit(literal)[0], 0)
+        self.assertEqual(edit(literal + "qMin(1, 2);\n")[0], 2)
+
     def test_banned_call_after_url_string_still_fails(self):
         self.assertEqual(edit('u = "http://x"; v = qMin(a, b);\n')[0], 2)
 
@@ -126,6 +135,46 @@ class EditHook(unittest.TestCase):
         self.assertEqual(code, 2)
 
 
+class CallLayoutFix(unittest.TestCase):
+    def fix(self, path):
+        done = subprocess.run([sys.executable, CPP_LAYOUT, "--fix", path],
+            capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        with open(path, "rb") as stream:
+            return stream.read()
+
+    def test_fix_expands_split_arguments_in_a_method_chain(self):
+        original = (b"void send() {\n"
+            b"\t_api.request(request()\n"
+            b"\t).done(completed\n"
+            b"\t).fail(failed\n"
+            b"\t).handleFloodErrors().send();\n}\n")
+        expected = (b"void send() {\n"
+            b"\t_api.request(\n\t\trequest()\n"
+            b"\t).done(\n\t\tcompleted\n"
+            b"\t).fail(\n\t\tfailed\n"
+            b"\t).handleFloodErrors().send();\n}\n")
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "send.cpp")
+            with open(path, "wb") as stream:
+                stream.write(original)
+            self.assertEqual(self.fix(path), expected)
+            self.assertEqual(self.fix(path), expected)
+
+    def test_fix_preserves_crlf_and_ignores_other_call_layouts(self):
+        original = (b"void send() {\r\n"
+            b"\trequest(peer\r\n\t).send();\r\n"
+            b"\tupdate(peer // the current recipient\r\n\t);\r\n"
+            b"\tobserve(\r\n\t);\r\n"
+            b"\tdone([&] {\r\n\t\tfinish();\r\n\t});\r\n}\r\n")
+        expected = original.replace(b"request(peer\r\n", b"request(\r\n\t\tpeer\r\n")
+        with tempfile.TemporaryDirectory() as folder:
+            path = os.path.join(folder, "send.cpp")
+            with open(path, "wb") as stream:
+                stream.write(original)
+            self.assertEqual(self.fix(path), expected)
+
+
 class Repository:
     def __init__(self):
         self.folder = tempfile.TemporaryDirectory()
@@ -153,9 +202,9 @@ class Repository:
         self.put(files)
         self.git("commit", "-q", "-m", "base")
 
-    def staged(self):
+    def staged(self, env=None):
         done = subprocess.run([sys.executable, HOOK, "--staged"],
-            cwd=self.path, capture_output=True, text=True)
+            cwd=self.path, env=env, capture_output=True, text=True)
         return done.returncode, done.stderr
 
 
@@ -170,6 +219,30 @@ class StagedHook(unittest.TestCase):
     def stage(self, files):
         self.repo.put(files)
         return self.repo.staged()
+
+    def test_staged_raw_literal_uses_unchanged_delimiters(self):
+        def snippet(body):
+            return 'auto text = R"demo(\n' + body + '\n)demo";\n'
+
+        self.repo.commit({"raw.cpp": snippet("old")})
+        code, why = self.stage({
+            "raw.cpp": snippet('qMin(1, 2)\n// prose\n// more prose'),
+        })
+        self.assertEqual(code, 0, why)
+
+    def test_staged_block_comment_uses_unchanged_delimiters(self):
+        self.repo.commit({"block.cpp": "/*\nold\n*/\n"})
+        code, why = self.stage({"block.cpp": "/*\nqMin(1, 2)\n*/\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_real_call_after_literal_and_digit_separator_is_rejected(self):
+        code, why = self.stage({
+            "a.cpp": 'auto text = R"(qMax(1, 2))";\n'
+                "\treturn qMin(1'000, 2);\n",
+        })
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:2: qMin is banned", why)
+        self.assertNotIn("qMax is banned", why)
 
     def test_two_plain_lines_pass(self):
         code, why = self.stage({"a.cpp": "// one\nint a() {\n"
@@ -301,6 +374,56 @@ class StagedHook(unittest.TestCase):
             "}\n"})
         self.assertEqual(code, 0, why)
 
+    def test_call_layout_rejects_dangling_parentheses_in_method_chain(self):
+        code, why = self.stage({"a.cpp": "void send() {\n"
+            "\t_api.request(request()\n"
+            "\t).done(completed\n"
+            "\t).fail(failed\n"
+            "\t).handleFloodErrors().send();\n}\n"})
+        self.assertEqual(code, 1)
+        self.assertEqual(why.count("Close the inline argument list"), 3)
+        for line in (3, 4, 5):
+            self.assertIn(f"a.cpp:{line}: Close the inline argument list", why)
+
+    def test_call_layout_allows_breaks_between_chain_methods(self):
+        code, why = self.stage({"a.cpp": "void send() {\n"
+            "\t_api.request(request())\n"
+            "\t\t.done(completed)\n"
+            "\t\t.fail(failed)\n"
+            "\t\t.handleFloodErrors()\n"
+            "\t\t.send();\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_call_layout_allows_expanded_or_multiline_single_arguments(self):
+        code, why = self.stage({"a.cpp": "void send() {\n"
+            "\t_api.request(Request(\n"
+            "\t\tpeer,\n"
+            "\t\tflags\n"
+            "\t)).done([=] {\n"
+            "\t\tfinish();\n"
+            "\t}).fail(\n"
+            "\t\tfailed\n"
+            "\t).send();\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_call_layout_allows_empty_lists_and_comments(self):
+        code, why = self.stage({"a.cpp": "void observe() {\n"
+            "\tupdates(\n"
+            "\t) | observe();\n"
+            "\trequest(peer // the current recipient\n"
+            "\t);\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_call_layout_leaves_unchanged_chain_arguments_alone(self):
+        original = ("void send() {\n"
+            "\tbuilder.prepare(oldState)\n"
+            "\t\t.done(completed\n"
+            "\t\t).send();\n}\n")
+        self.repo.commit({"a.cpp": original})
+        code, why = self.stage({"a.cpp": original.replace(
+            "oldState", "newState")})
+        self.assertEqual(code, 0, why)
+
     def test_call_layout_checks_full_call_from_staged_hunk(self):
         original = ("void draw() {\n\tAppendArc(path, { x, y }, radius,\n"
             "\t\t180., 270.);\n}\n")
@@ -308,6 +431,58 @@ class StagedHook(unittest.TestCase):
         code, why = self.stage({"a.cpp": original + "int width;\n"})
         self.assertEqual(code, 0, why)
         code, why = self.stage({"a.cpp": original.replace("270.", "360.")})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:2: Put each argument of the multiline call", why)
+
+    def test_match_accepts_adding_an_inline_visitor_branch(self):
+        original = ("void refresh() {\n"
+            "\tv::match(origin.data, [&](Message data) {\n"
+            "\t\trequest(data);\n"
+            "\t}, [&](Missing) {\n"
+            "\t\tfail();\n"
+            "\t});\n}\n")
+        self.repo.commit({"a.cpp": original})
+        code, why = self.stage({"a.cpp": original.replace(
+            "\t}, [&](Missing) {\n",
+            "\t}, [&](Preview data) {\n\t\trequestPreview(data);\n"
+            "\t}, [&](Missing) {\n")})
+        self.assertEqual(code, 0, why)
+
+    def test_member_match_accepts_inline_visitor_branches(self):
+        code, why = self.stage({"a.cpp": "void refresh() {\n"
+            "\torigin.match([&](Message data) {\n"
+            "\t\trequest(data);\n"
+            "\t}, [&](Missing) {\n"
+            "\t\tfail();\n"
+            "\t});\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_inline_match_still_checks_calls_inside_its_branches(self):
+        code, why = self.stage({"a.cpp": "void refresh() {\n"
+            "\tv::match(origin.data, [&](Message data) {\n"
+            "\t\trequest(data,\n"
+            "\t\t\tflags);\n"
+            "\t}, [&](Missing) {\n"
+            "\t\tfail();\n"
+            "\t});\n}\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:3: Put each argument of the multiline call", why)
+        self.assertNotIn("a.cpp:2:", why)
+
+    def test_match_with_named_handler_checks_argument_layout(self):
+        code, why = self.stage({"a.cpp": "void refresh() {\n"
+            "\tv::match(origin.data, message,\n"
+            "\t\t[&](Missing) {\n"
+            "\t\t\tfail();\n"
+            "\t\t});\n}\n"})
+        self.assertEqual(code, 1)
+        self.assertIn("a.cpp:2: Put each argument of the multiline call", why)
+
+    def test_inline_match_rejects_two_branches_starting_on_one_line(self):
+        code, why = self.stage({"a.cpp": "void refresh() {\n"
+            "\tv::match(origin, [](Message) {}, [](Missing) {\n"
+            "\t\tfail();\n"
+            "\t});\n}\n"})
         self.assertEqual(code, 1)
         self.assertIn("a.cpp:2: Put each argument of the multiline call", why)
 
@@ -363,10 +538,276 @@ class StagedHook(unittest.TestCase):
             "\t\tpath,\n\t\t{ x, y },\n\t\tradius,\n\t\t180.,\n\t\t270.);\n}\n"})
         self.repo.git("commit", "-m", "Expanded call")
 
+    def test_logical_operators_start_continuation_lines(self):
+        code, why = self.stage({"logic.cpp": "bool both() {\n"
+            "\treturn a &&\n\t\tb ||\n\t\tc;\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("logic.cpp:2: Start the continuation with &&", why)
+        self.assertIn("logic.cpp:3: Start the continuation with ||", why)
+
+    def test_logical_layout_allows_leading_operators_and_other_tokens(self):
+        code, why = self.stage({"logic.cpp": "bool both(Value &&\n\t\ta) {\n"
+            "\treturn a\n\t\t&& b\n\t\t|| c;\n}\n"
+            'auto raw = R"(a &&\nb)";\n'
+            "bool enabled() {\n\treturn a && // kept with its comment\n"
+            "\t\tb;\n}\n"
+            "bool configured() {\n\treturn a &&\n#if FLAG\n"
+            "\t\tb;\n#else\n\t\tc;\n#endif\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_logical_layout_only_checks_changed_operator_boundaries(self):
+        original = "bool both() {\n\treturn a &&\n\t\t(c\n\t\t\t|| d);\n}\n"
+        self.repo.commit({"logic.cpp": original})
+        code, why = self.stage({"logic.cpp": original.replace("|| d", "|| e")})
+        self.assertEqual(code, 0, why)
+        code, why = self.stage({"logic.cpp": original.replace("(c", "(e")})
+        self.assertEqual(code, 1, why)
+        self.assertIn("logic.cpp:2: Start the continuation with &&", why)
+
     def test_license_header_of_new_file_is_free(self):
         code, why = self.stage({"b.cpp": LICENSE + "int b() {\n"
             "\treturn 2;\n}\n"})
         self.assertEqual(code, 0, why)
+
+
+class ClangTidyHook(unittest.TestCase):
+    def clang_tools(self):
+        default_plugin = (Path(HERE).parents[2]
+            / "stylecheck/build/libtdesktopstylecheck.so")
+        plugin = Path(os.environ.get("STYLECHECK_PLUGIN", default_plugin)).resolve()
+        tidy = (os.environ.get("CLANG_TIDY") or shutil.which("clang-tidy")
+            or shutil.which("clang-tidy", path="/opt/homebrew/opt/llvm/bin"))
+        if not plugin.is_file() or not tidy:
+            self.skipTest("built stylecheck plugin and clang-tidy required")
+        return str(plugin), tidy
+
+    def test_constructor_indent_checks_only_staged_parameter_lines(self):
+        plugin, tidy = self.clang_tools()
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        root = Path(repo.path)
+        name = "Telegram/SourceFiles/preview.cpp"
+        source = root / name
+        database = root / "out/clang-tidy"
+        database.mkdir(parents=True)
+        (database / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(root),
+            "file": str(source),
+            "arguments": ["clang++", "-std=c++20", "-c", str(source)],
+        }]))
+        env = dict(os.environ, CLANG_TIDY=tidy, STYLECHECK_PLUGIN=plugin,
+            STYLECHECK_DB=str(database))
+        legacy = ("struct PreviewPage {\n\tint width = 0;\n"
+            "\tPreviewPage(int first, int second);\n};\n\n"
+            "PreviewPage::PreviewPage(\n\t\tint first,\n\tint second)\n"
+            ": width(first + second) {\n}\n")
+        repo.commit({name: legacy})
+        broken = legacy.replace("\tint second)", "\t\tint second)")
+        repo.put({name: broken})
+        source.write_text(legacy)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("preview.cpp:8:", why)
+        self.assertIn("tdesktop-constructor-param-indent", why)
+        self.assertNotIn("preview.cpp:7:", why)
+
+        fixed = legacy.replace("\t\tint first,", "\tint first,")
+        repo.put({name: fixed})
+        source.write_text(broken)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+    def test_nested_multiline_call_checks_the_staged_opening(self):
+        plugin, tidy = self.clang_tools()
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        root = Path(repo.path)
+        name = "Telegram/SourceFiles/nesting.cpp"
+        source = root / name
+        database = root / "out/clang-tidy"
+        database.mkdir(parents=True)
+        (database / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(root),
+            "file": str(source),
+            "arguments": ["clang++", "-std=c++20", "-c", str(source)],
+        }]))
+        env = dict(os.environ, CLANG_TIDY=tidy, STYLECHECK_PLUGIN=plugin,
+            STYLECHECK_DB=str(database))
+        declarations = ("int add(int value);\nint make(int x, int y);\n\n"
+            "int preview() {\n")
+        packed = declarations + "\treturn add(make(\n\t\t1,\n\t\t2));\n}\n"
+        split = declarations + "\treturn add(\n\t\tmake(\n\t\t\t1,\n\t\t\t2));\n}\n"
+        repo.commit({name: split})
+        repo.put({name: packed})
+        source.write_text(split)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("nesting.cpp:5:", why)
+        self.assertIn("tdesktop-nested-multiline-call", why)
+
+        repo.commit({name: packed})
+        repo.put({name: packed.replace("2));", "3));")})
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+        repo.put({name: split})
+        source.write_text(packed)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+    def test_header_only_commit_uses_a_built_consumer_and_staged_header(self):
+        plugin, tidy = self.clang_tools()
+        if not shutil.which("ninja") or not shutil.which("clang++"):
+            self.skipTest("Ninja and clang++ required")
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        header = "Telegram/SourceFiles/component.h"
+        untouched = "Telegram/SourceFiles/untouched.h"
+        source = "Telegram/SourceFiles/consumer.cpp"
+        root = Path(repo.path)
+        build = root / "out"
+        build.mkdir()
+        (build / "build.ninja").write_text(
+            "rule cxx\n"
+            "  command = clang++ -MMD -MF $out.d -I.. -c $in -o $out\n"
+            "  depfile = $out.d\n"
+            "  deps = gcc\n"
+            f"build consumer.o: cxx ../{source}\n")
+        good = "struct Component { int count = 0; };\n"
+        bad = "struct Component { int count; };\n"
+        repo.commit({header: good, untouched: "struct Legacy { int value; };\n",
+            source: f'#include "{header}"\n#include "{untouched}"\n'})
+        subprocess.run(["ninja", "-C", str(build)], check=True,
+            capture_output=True)
+        env = dict(os.environ, CLANG_TIDY=tidy, STYLECHECK_PLUGIN=plugin,
+            STYLECHECK_DB=str(build / "clang-tidy"))
+        generator = Path(HERE).parent / "clangtidy/compile_db.py"
+        subprocess.run([sys.executable, generator, build], cwd=root,
+            env=env, check=True, capture_output=True)
+
+        repo.put({header: bad})
+        (root / header).write_text(good)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("component.h:1:", why)
+        self.assertIn("tdesktop-init-basic-field", why)
+        self.assertNotIn("untouched.h:", why)
+
+        repo.put({header: good + "\n"})
+        (root / header).write_text(bad)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+        constructor = ("struct Component {\n\tint count = 0;\n"
+            "\tComponent(\n\t\t\tint value)\n\t: count(value) {\n\t}\n};\n")
+        repo.put({header: constructor})
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("component.h:4:", why)
+        self.assertIn("tdesktop-constructor-param-indent", why)
+
+    def test_clang_tidy_reads_staged_source_and_header(self):
+        plugin, tidy = self.clang_tools()
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        name = "Telegram/SourceFiles/check.cpp"
+        header = "Telegram/SourceFiles/check.h"
+        root = Path(repo.path)
+        source = root / name
+        database = root / "out/clang-tidy"
+        database.mkdir(parents=True)
+        (database / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(root),
+            "file": str(source),
+            "arguments": ["clang++", "-c", str(source)],
+        }]))
+        clean = '#include "check.h"\n\nvoid use() {\n}\n'
+        removable = "\tint count = 0;\n"
+        old_violation = ("\nvoid existing() {\n" + removable
+            + "\tItem *item = nullptr;\n}\n")
+        repo.commit({name: clean + old_violation, header: "struct Item {};\n"})
+        repo.put({name: clean.replace("void use() {\n",
+            "void use() {\n\tItem *item = nullptr;\n") + old_violation})
+        source.write_text(clean)
+        (root / header).write_text("#error Unstaged header must not be read\n")
+        env = dict(os.environ, CLANG_TIDY=tidy, STYLECHECK_PLUGIN=str(plugin),
+            STYLECHECK_DB=str(database))
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("check.cpp:4:", why)
+        self.assertIn("tdesktop-pointer-nullptr-auto", why)
+        self.assertNotIn("Unstaged header", why)
+
+        fixed = clean.replace("void use() {\n",
+            "void use() {\n\tauto item = static_cast<Item*>(nullptr);\n")
+        repo.put({name: fixed + old_violation})
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+        repo.commit({name: fixed + old_violation})
+        repo.put({name: fixed + old_violation.replace(removable, "")})
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("tdesktop-pointer-nullptr-auto", why)
+
+
+class CommitMsgHook(unittest.TestCase):
+    def test_staged_hook_changes_require_scope(self):
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        root = Path(repo.path)
+        name = "tools/rules/check_rule.py"
+        repo.git("config", "core.hooksPath", ".git/hooks")
+        repo.commit({name: "before\n", "ordinary.txt": "before\n",
+            ".clang-tidy": "",
+            **{"tools/rules/" + source: (Path(HERE) / source).read_text()
+                for source in ("hook.py", "clang_style.py", "cpp_layout.py")}})
+        self.install(repo)
+
+        (root / name).write_text("after\n")
+        repo.put({"ordinary.txt": "after\n"})
+        repo.git("commit", "-qm", "Improved ordinary file.")
+        repo.put({"a.cpp": "x" * 79 + "\n"})
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            repo.git("commit", "-qm", "Added line to source.")
+        self.assertIn("79 columns", failure.exception.stderr)
+        repo.git("rm", "--cached", "--force", "a.cpp")
+
+        repo.git("add", name)
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            repo.git("commit", "-qm", "Improved pre-commit hook.")
+        self.assertIn("must start with [git-hook]", failure.exception.stderr)
+        repo.git("commit", "-qm", "[git-hook] change hook checks")
+
+        repo.git("mv", name, "moved.py")
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            repo.git("commit", "-qm", "Moved pre-commit hook.")
+        self.assertIn("must start with [git-hook]", failure.exception.stderr)
+        repo.git("commit", "-qm", "[git-hook] Moved pre-commit hook.")
+        repo.git("revert", "--no-commit", "HEAD")
+        repo.git("commit", "-qm",
+            '[git-hook] Reverted "[git-hook] Moved pre-commit hook."')
+
+    def test_reinstall_keeps_existing_commit_msg(self):
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        repo.git("config", "core.hooksPath", ".git/hooks")
+        repo.commit({"ordinary.txt": "before\n"})
+        previous = Path(repo.path) / ".git/hooks/commit-msg"
+        previous.write_text("#!/bin/sh\necho Existing validator >&2\nexit 1\n")
+        previous.chmod(0o755)
+        self.install(repo)
+        self.install(repo)
+
+        repo.put({"ordinary.txt": "after\n"})
+        with self.assertRaises(subprocess.CalledProcessError) as failure:
+            repo.git("commit", "-qm", "Improved ordinary file.")
+        self.assertEqual(failure.exception.stderr.count("Existing validator"), 1)
+
+    def install(self, repo):
+        result = subprocess.run([sys.executable, INSTALL], cwd=repo.path,
+            capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
 
 if __name__ == "__main__":

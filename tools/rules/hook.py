@@ -16,6 +16,17 @@ URL = re.compile(r"https?://")
 PLAIN_LINES = 2
 MAX_COLUMNS = 78
 TAB_WIDTH = 8
+CPP_TOKEN = re.compile(
+    r'(?P<comment>//(?:[^\r\n]|(?<=\\)\r?\n)*|/\*[\s\S]*?(?:\*/|\Z))'
+    r'|(?P<literal>R"(?P<delimiter>[^ ()\\\t\v\f\r\n]{0,16})'
+    r'\([\s\S]*?\)(?P=delimiter)"'
+    r'|"(?:[^"\\\r\n]|\\(?:\r\n|[\s\S]))*"'
+    r"|'(?:[^'\\\r\n]|\\(?:\r\n|[\s\S]))*')"
+    r"|\b\d[\w.]*(?:'[\w.]+)*")
+
+
+def clang_source(path):
+    return path.startswith("Telegram/SourceFiles/") and path.endswith((".cpp", ".h"))
 
 
 def banned():
@@ -24,42 +35,43 @@ def banned():
         return re.findall(r"\^::(\w+)\$,([^,;]+),", stream.read())
 
 
-def hollow(match):
-    """The literal's quotes around filler, so offsets stay put."""
-    quoted = match.group()
-    return quoted[0] + "_" * (len(quoted) - 2) + quoted[-1]
+def lexical_views(text):
+    literals_masked, code_only, previous = [], [], 0
+    for token in CPP_TOKEN.finditer(text):
+        if token["literal"] is None and token["comment"] is None:
+            continue
+        start, end = token.span()
+        gap = text[previous:start]
+        fragment = token.group()
+        if token["literal"] is not None:
+            masked = re.sub(r"[^\r\n]", "\0", fragment)
+            literals_masked.extend((gap, masked))
+        else:
+            masked = re.sub(r"[^\r\n]", " ", fragment)
+            literals_masked.extend((gap, fragment))
+        code_only.extend((gap, masked))
+        previous = end
+    suffix = text[previous:]
+    return "".join(literals_masked) + suffix, "".join(code_only) + suffix
 
 
-def blanked(line):
-    line = re.sub(r'"(?:[^"\\]|\\.)*"', hollow, line)
-    return re.sub(r"'(?:[^'\\]|\\.)*'", hollow, line)
-
-
-def without_comments(text):
-    text = "\n".join(blanked(line) for line in text.split("\n"))
-    text = re.sub(r"//[^\n]*", "", text)
-    return re.sub(r"/\*.*?\*/", "", text, flags=re.S)
-
-
-def comment_start(line):
+def comment_start(body):
     """Offset of the first comment marker outside literals, or -1."""
-    body = blanked(line)
     found = [at for at in (body.find("//"), body.find("/*")) if at >= 0]
     return min(found) if found else -1
 
 
 def comment_text(line):
     """What a moved comment keeps: its text, not the code beside it."""
-    at = comment_start(line)
+    at = comment_start(lexical_views(line)[0])
     return line[at:].strip() if at >= 0 else line.strip()
 
 
-def classify(line, inside):
+def classify(body, inside):
     """("full" | "tail" | None, inside a /* */ block after this line)."""
-    body = blanked(line)
     if inside:
         return "full", "*/" not in body
-    at = comment_start(line)
+    at = comment_start(body)
     if at < 0:
         return None, False
     opens = body[at:].startswith("/*") and "*/" not in body[at + 2:]
@@ -69,14 +81,14 @@ def classify(line, inside):
     return ("tail" if code else "full"), opens
 
 
-def blocks(numbered):
+def blocks(numbered, syntax_lines):
     """Comment blocks as (line number, lines): runs of whole-line
     comments, and every trailing comment on its own."""
     out, run, first, previous, inside = [], [], 0, None, False
     for number, line in numbered:
         gap = previous is not None and number != previous + 1
         was = inside and not gap
-        kind, inside = classify(line, was)
+        kind, inside = classify(syntax_lines[number - 1], was)
         if run and (gap or kind != "full"):
             out.append((first, run))
             run = []
@@ -130,14 +142,16 @@ def replaced(payload, path):
 
 def check_edit(payload, path):
     text = written(payload)
+    syntax, code = lexical_views(text)
     found = [(name, into) for name, into in banned()
-        if re.search(r"\b" + name + r"\s*\(", without_comments(text))]
+        if re.search(r"\b" + name + r"\s*\(", code)]
     for name, into in found:
         print(f"{name} is banned in this repository -- write {into} instead.",
             file=sys.stderr)
     was = replaced(payload, path)
+    numbers = enumerate(text.split("\n"), 1)
     for _, block in ([] if HARNESS in path
-            else blocks(list(enumerate(text.split("\n"))))):
+            else blocks(numbers, syntax.split("\n"))):
         why = fault(block)
         if why and "\n".join(block) not in was:
             found.append(True)
@@ -160,6 +174,7 @@ def staged():
     if diff.returncode:
         return diff.returncode
     path, number, added, dropped, in_hunk = "", 0, {}, set(), False
+    clang_file, clang_deletions = False, {}
     for line in diff.stdout.split("\n"):
         if line.startswith("diff --git "):
             path, in_hunk = "", False
@@ -168,9 +183,14 @@ def staged():
             if name.startswith('"'):
                 name = os.fsdecode(ast.literal_eval("b" + name))
             path = name[2:] if name.startswith("b/") else ""
+            clang_file = clang_source(path)
         elif line.startswith("@@"):
             in_hunk = True
-            number = int(re.search(r"\+(\d+)", line).group(1)) - 1
+            start, count = re.search(r"\+(\d+)(?:,(\d+))?", line).groups()
+            number = int(start) - 1
+            if clang_file and count == "0":
+                clang_deletions.setdefault(path, set()).update(
+                    (max(1, int(start)), int(start) + 1))
         elif in_hunk and line.startswith("-"):
             dropped.add(comment_text(line[1:]))
         elif in_hunk and line.startswith(" "):
@@ -188,11 +208,17 @@ def staged():
                 f' "{requirements}"', file=sys.stderr)
             return 1
     plain, bad = 0, 0
+    clang_sources = {}
     for path, lines in added.items():
         blob = subprocess.run(["git", "show", ":" + path], stdout=subprocess.PIPE)
         if blob.returncode:
             return blob.returncode
+        syntax, code = lexical_views(blob.stdout.decode("utf-8", "surrogateescape"))
+        code_lines = code.split("\n")
         added_lines = [number for number, _ in lines]
+        if clang_source(path):
+            clang_sources[path] = (
+                set(added_lines).union(clang_deletions.pop(path, ())), blob.stdout)
         for number, message in sorted(set(layout_errors(blob.stdout, added_lines))):
             print(f"{path}:{number}: {message}", file=sys.stderr)
             bad += 1
@@ -203,13 +229,13 @@ def staged():
                     f" tab width {TAB_WIDTH}). Wrap the line.", file=sys.stderr)
                 bad += 1
         for name, into in banned():
-            for number, line in lines:
-                if re.search(r"\b" + name + r"\s*\(", without_comments(line)):
+            for number in added_lines:
+                if re.search(r"\b" + name + r"\s*\(", code_lines[number - 1]):
                     print(f"{path}:{number}: {name} is banned -- write"
                         f" {into} instead.", file=sys.stderr)
                     bad += 1
         for number, block in ([] if HARNESS in "/" + path
-                else blocks(lines)):
+                else blocks(lines, syntax.split("\n"))):
             if any(LICENSE in one for one in block):
                 continue
             if all(comment_text(one) in dropped for one in block):
@@ -224,7 +250,12 @@ def staged():
         print(f"this commit adds {plain} comment lines; {PLAIN_LINES} is the"
             " budget.", file=sys.stderr)
         bad += 1
-    return 1 if bad else 0
+    if bad:
+        return 1
+    for path, lines in clang_deletions.items():
+        clang_sources[path] = (lines, None)
+    from clang_style import check_staged
+    return check_staged(clang_sources)
 
 
 def main():

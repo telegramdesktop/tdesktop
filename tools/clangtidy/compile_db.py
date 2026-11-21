@@ -102,8 +102,49 @@ def rewrite(command):
     return kept
 
 
+def source_path(entry):
+    return os.path.abspath(os.path.join(entry["directory"], entry["file"]))
+
+
+def header_sources(build, commands):
+    if not os.path.isfile(os.path.join(build, ".ninja_deps")):
+        return {}
+    marker = os.sep + os.path.join("Telegram", "SourceFiles") + os.sep
+    source_prefix = "Telegram/SourceFiles/"
+    consumers = {}
+    for entry, _ in commands:
+        output = entry.get("output")
+        root, separator, relative = source_path(entry).rpartition(marker)
+        if output and separator and relative.endswith(".cpp"):
+            consumers[os.path.normpath(output)] = (
+                root + marker, source_prefix + relative.replace(os.sep, "/"))
+
+    headers = {}
+    with subprocess.Popen(["ninja", "-C", build, "-t", "deps"],
+            stdout=subprocess.PIPE, text=True, errors="surrogateescape") as deps:
+        consumer = None
+        for line in deps.stdout:
+            if not line.startswith("    "):
+                output, separator, _ = line.partition(": #deps ")
+                consumer = consumers.get(os.path.normpath(output)) if separator else None
+                continue
+            path = line[4:].rstrip("\r\n")
+            if not consumer or not path.endswith(".h"):
+                continue
+            prefix, source = consumer
+            full = os.path.abspath(os.path.join(build, path))
+            if full.startswith(prefix):
+                header = source_prefix + full[len(prefix):].replace(os.sep, "/")
+                rank = (header[:-2] != source[:-4], source)
+                if header not in headers or rank < headers[header]:
+                    headers[header] = rank
+        if deps.wait():
+            raise subprocess.CalledProcessError(deps.returncode, deps.args)
+    return {header: rank[1] for header, rank in sorted(headers.items())}
+
+
 def main():
-    build = sys.argv[1] if len(sys.argv) > 1 else "out"
+    build = os.path.realpath(sys.argv[1] if len(sys.argv) > 1 else "out")
     if not os.path.exists(os.path.join(build, "build.ninja")):
         sys.exit(f"error: no ninja build in {build}")
     raw = subprocess.run(["ninja", "-C", build, "-t", "compdb"], check=True,
@@ -112,7 +153,7 @@ def main():
     for entry in json.loads(raw):
         if not entry["file"].endswith((".cpp", ".mm", ".cxx")):
             continue
-        if not entry["command"].strip() or not os.path.exists(entry["file"]):
+        if not entry["command"].strip() or not os.path.exists(source_path(entry)):
             continue
         kept = rewrite(entry["command"])
         if kept:
@@ -130,7 +171,11 @@ def main():
     os.makedirs(target, exist_ok=True)
     with open(os.path.join(target, "compile_commands.json"), "w") as stream:
         json.dump(entries, stream, indent=1)
+    headers = header_sources(build, commands)
+    with open(os.path.join(target, "header_sources.json"), "w") as stream:
+        json.dump(headers, stream, indent=1)
     print(f"{len(entries)} entries -> {target}/compile_commands.json")
+    print(f"{len(headers)} entries -> {target}/header_sources.json")
 
 
 if __name__ == "__main__":
