@@ -158,6 +158,7 @@ foreach (target ${widget_renderer_targets})
         target_compile_definitions(${target} PRIVATE _CRT_SECURE_NO_WARNINGS)
         target_link_libraries(${target} PRIVATE lib_widget_renderer_warnings_off)
     else()
-        target_compile_options(${target} PRIVATE -w)
+        # No fused multiply-adds, which MSVC does not form either: the same float results on every compiler.
+        target_compile_options(${target} PRIVATE -w -ffp-contract=off)
     endif()
 endforeach()

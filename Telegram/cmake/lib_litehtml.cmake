@@ -69,5 +69,6 @@ if (MSVC)
     )
     target_link_libraries(lib_litehtml PRIVATE lib_litehtml_warnings_off)
 else()
-    target_compile_options(lib_litehtml PRIVATE -w)
+    # No fused multiply-adds, which MSVC does not form either: the same float results on every compiler.
+    target_compile_options(lib_litehtml PRIVATE -w -ffp-contract=off)
 endif()
