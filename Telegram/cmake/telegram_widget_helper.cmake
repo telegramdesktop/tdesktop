@@ -106,8 +106,14 @@ function(add_widget_helper_rust target_name)
     )
 endfunction()
 
+set(widget_helpers TelegramWidgetHelper)
 if (TDESKTOP_WIDGET_HELPER_RUST)
     add_widget_helper_rust(TelegramWidgetHelper)
+    get_property(widget_helper_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
+    if (widget_helper_multi_config OR CMAKE_BUILD_TYPE STREQUAL "Debug")
+        add_widget_helper_cpp(TelegramWidgetHelperCpp)
+        list(APPEND widget_helpers TelegramWidgetHelperCpp)
+    endif()
 else()
     add_widget_helper_cpp(TelegramWidgetHelper)
 endif()
@@ -124,37 +130,47 @@ if (WIN32)
         set(widget_helper_arch x86)
     endif()
 
-    set_target_properties(TelegramWidgetHelper PROPERTIES
-        WIN32_EXECUTABLE TRUE
-        RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/modules/${widget_helper_arch}"
-    )
-    target_link_libraries(TelegramWidgetHelper
-    PRIVATE
-        advapi32
-        bcrypt
-        $<$<CONFIG:Debug>:ws2_32>
-        delayimp
-    )
-    target_link_options(TelegramWidgetHelper
-    PRIVATE
-        # GUI image with main(): a console one would start a conhost.exe the job forbids.
-        /ENTRY:mainCRTStartup
-        # Not KnownDLLs on every Windows, which the LPAC primary cannot open: WarmUp() binds them while impersonating.
-        /DELAYLOAD:bcrypt.dll
-        $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
-    )
-    if (NOT build_winarm)
-        # advapi32 can forward SystemFunction036 to cryptbase.dll, no KnownDLL: a delay-load hook answers it instead.
-        target_link_options(TelegramWidgetHelper PRIVATE /DELAYLOAD:advapi32.dll)
-    else()
-        target_link_options(TelegramWidgetHelper PRIVATE /DELAYLOAD:bcryptprimitives.dll)
-    endif()
-    if (DESKTOP_APP_WIN7_BASELINE)
-        target_link_options(TelegramWidgetHelper PRIVATE /SUBSYSTEM:WINDOWS,6.01)
-    endif()
+    foreach (helper ${widget_helpers})
+        set_target_properties(${helper} PROPERTIES
+            WIN32_EXECUTABLE TRUE
+            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/modules/${widget_helper_arch}"
+        )
+        target_link_libraries(${helper}
+        PRIVATE
+            advapi32
+            bcrypt
+            $<$<CONFIG:Debug>:ws2_32>
+            delayimp
+        )
+        target_link_options(${helper}
+        PRIVATE
+            # GUI image with main(): a console one would start a conhost.exe the job forbids.
+            /ENTRY:mainCRTStartup
+            # Not KnownDLLs on every Windows, which the LPAC primary cannot open: WarmUp() binds them while impersonating.
+            /DELAYLOAD:bcrypt.dll
+            $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
+        )
+        if (NOT build_winarm)
+            # advapi32 can forward SystemFunction036 to cryptbase.dll, no KnownDLL: a delay-load hook answers it instead.
+            target_link_options(${helper} PRIVATE /DELAYLOAD:advapi32.dll)
+        else()
+            target_link_options(${helper} PRIVATE /DELAYLOAD:bcryptprimitives.dll)
+        endif()
+        if (DESKTOP_APP_WIN7_BASELINE)
+            target_link_options(${helper} PRIVATE /SUBSYSTEM:WINDOWS,6.01)
+        endif()
+        if (MSVC)
+            target_link_options(${helper} PRIVATE /GUARD:CF)
+            # The ARM64 linker refuses /CETCOMPAT with LNK1246.
+            if (CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "^(X86|x64)$")
+                target_link_options(${helper} PRIVATE /CETCOMPAT)
+            endif()
+        endif()
+        add_dependencies(Telegram ${helper})
+    endforeach()
     if (MSVC)
         foreach (target
-            TelegramWidgetHelper
+            ${widget_helpers}
             lib_widget_sandbox
             lib_widget_sandbox_platform
             lib_widget_renderer
@@ -168,15 +184,15 @@ if (WIN32)
             )
             target_compile_options(${target} PRIVATE /guard:cf)
         endforeach()
-        target_link_options(TelegramWidgetHelper PRIVATE /GUARD:CF)
-        # The ARM64 linker refuses /CETCOMPAT with LNK1246.
-        if (CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "^(X86|x64)$")
-            target_link_options(TelegramWidgetHelper PRIVATE /CETCOMPAT)
-        endif()
     endif()
-    add_dependencies(Telegram TelegramWidgetHelper)
 
-    generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode)
+    if (TARGET TelegramWidgetHelperCpp)
+        generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode
+            DEBUG_ALTERNATE TelegramWidgetHelperCpp)
+        target_compile_definitions(Telegram PRIVATE $<$<CONFIG:Debug>:TDESKTOP_WIDGET_HELPER_AB>)
+    else()
+        generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode)
+    endif()
 elseif (APPLE)
     include(cmake/widget_helper_hardening.cmake)
 

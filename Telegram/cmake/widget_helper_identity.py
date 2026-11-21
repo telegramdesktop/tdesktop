@@ -397,7 +397,16 @@ def literal(line):
         for byte in line) + '"'
 
 
-def header(digests, identifier, entitlements):
+def table(name, digests):
+    lines = ['inline constexpr BuiltDigest ' + name + '[] = {']
+    for arch, digest, *bounds in digests:
+        values = ['"' + arch + '"', '"' + digest + '"']
+        values += [hex(bound) for bound in bounds]
+        lines.append('\t{ ' + ', '.join(values) + ' },')
+    return lines + ['};', '']
+
+
+def header(digests, identifier, entitlements, alternate):
     lines = [
         '// This file was generated from the widget helper target,',
         '// see Telegram/cmake/widget_helper_identity.py.',
@@ -431,14 +440,10 @@ def header(digests, identifier, entitlements):
         ]
         lines[-1] += ';'
         lines.append('')
-    lines.append('inline constexpr BuiltDigest kBuiltDigests[] = {')
-    for arch, digest, *bounds in digests:
-        values = ['"' + arch + '"', '"' + digest + '"']
-        values += [hex(bound) for bound in bounds]
-        lines.append('\t{ ' + ', '.join(values) + ' },')
+    lines += table('kBuiltDigests', digests)
+    if alternate is not None:
+        lines += table('kAlternateDigests', alternate)
     lines += [
-        '};',
-        '',
         '} // namespace Platform::WidgetHelper::details',
         '',
     ]
@@ -460,6 +465,7 @@ def main():
         choices=['cdhash', 'authenticode', 'sha256'],
         required=True)
     parser.add_argument('--helper', type=pathlib.Path, required=True)
+    parser.add_argument('--alternate', type=pathlib.Path)
     parser.add_argument('--output', type=pathlib.Path, required=True)
     parser.add_argument('--identifier')
     parser.add_argument('--entitlements', type=pathlib.Path)
@@ -468,17 +474,25 @@ def main():
     if args.kind == 'authenticode':
         if args.identifier is not None:
             parser.error('--identifier does not apply to --kind authenticode')
-        digests = authenticode(args.helper)
+        measure = authenticode
     elif args.kind == 'sha256':
-        digests = sha256_digests(args.helper)
+        measure = sha256_digests
     else:
         expected = expected_entitlements(args.entitlements)
-        digests = cdhashes(
-            args.helper,
-            args.identifier,
-            expected,
-            args.entitlements)
-    write(args.output, header(digests, args.identifier, expected))
+
+        def measure(helper):
+            return cdhashes(
+                helper,
+                args.identifier,
+                expected,
+                args.entitlements)
+    digests = measure(args.helper)
+    alternate = None
+    if args.alternate is not None:
+        alternate = measure(args.alternate)
+    write(
+        args.output,
+        header(digests, args.identifier, expected, alternate))
 
 
 if __name__ == '__main__':
