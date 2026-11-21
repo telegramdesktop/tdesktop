@@ -3044,7 +3044,7 @@ Result JsonWriter::writeDialogEnd() {
 }
 
 Result JsonWriter::writeDialogsEnd() {
-	if (_settings.onlySinglePeer()) {
+	if (_settings.onlySinglePeer() || _dialogsMode == DialogsMode::None) {
 		return Result::Success();
 	}
 	return writeChatsEnd();
