@@ -569,10 +569,11 @@ the report ([Remote engines](test_widget_fixture.md#remote-engines)). After
 the lockdown the hook calls only import entries bound before it and
 functions looked up in modules mapped before it. The import entries are
 the helper's static imports; the delay-loaded imports that the lockdown's
-warm-up binds in this order, `ADVAPI32.dll` then `bcrypt.dll` on x64, and
-`bcrypt.dll` then `bcryptprimitives.dll` on x86 and ARM64, whose ADVAPI32
-is a static import (on x64 the probe's `PrepareProbeTargets()` resolves
-ADVAPI32's `RegOpenKeyExW` earlier, on the same impersonating thread);
+warm-up binds in this order, `ADVAPI32.dll` then `bcrypt.dll` on x86 and
+x64, and `bcrypt.dll` then `bcryptprimitives.dll` on ARM64, whose
+ADVAPI32 is a static import (on x86 and x64 the probe's
+`PrepareProbeTargets()` resolves ADVAPI32's `RegOpenKeyExW` earlier, on
+the same impersonating thread);
 and the `WS2_32.dll` imports, which the native probe and then the
 harness's own Winsock start each bind (the harness uses Winsock only when
 its own bind and `WSAStartup` succeeded). The probe's own lookups are
@@ -590,11 +591,11 @@ lowering `FinishProbe()` also calls `ProbeWin32k()` and
 before the reversion, at the latest in the warm-up, which refuses
 without it. Neither those reads nor the package lookup bind an import
 slot or complete a delay-load entry. The warm-up's descriptors follow each
-architecture's Nova engine: on x64 it is built for
-`x86_64-win7-windows-msvc`, whose std draws its random bytes through
-ADVAPI32's `SystemFunction036`, and the helper's delay-load hook answers
-that import with the helper's own `BCryptGenRandom` adapter; x86 and
-ARM64 build it for the pc targets `i686-pc-windows-msvc` and
+architecture's Nova engine: x86 and x64 build it for
+`i686-win7-windows-msvc` and `x86_64-win7-windows-msvc`, whose std draws
+its random bytes through ADVAPI32's `SystemFunction036`, and the
+helper's delay-load hook answers that import with the helper's own
+`BCryptGenRandom` adapter; ARM64 builds it for the pc target
 `aarch64-pc-windows-msvc`, whose std calls `bcryptprimitives.dll`'s
 `ProcessPrng`. **The Windows helper** in
 [Remote engines](test_widget_fixture.md#remote-engines) has each

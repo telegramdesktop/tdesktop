@@ -1941,63 +1941,79 @@ packs, the fixture and the seams they use need no change for it.
   `build_nova_engine.cmake`), and only the helper links it: `Telegram.exe`
   on Windows links without any widget engine. The target is
   `x86_64-win7-windows-msvc` in an x64 tree, the one `prepare.py`'s
-  `tdesktop_rust` stage builds for x64, whose std supports Windows 7 and
-  links ADVAPI32; `i686-pc-windows-msvc` in a Win32 tree for now; and
+  `tdesktop_rust` stage builds for x64, and `i686-win7-windows-msvc` in a
+  Win32 tree, whose std supports Windows 7 and links ADVAPI32; and
   `aarch64-pc-windows-msvc` for ARM64, whose helpers have not been built
-  with Nova. x86 stays on its pc target because an
-  `i686-win7-windows-msvc` archive built with the same recipe ended the
-  process with `0xC0000374` (heap corruption) whenever it compiled a
-  script that declares a class
+  with Nova. An `i686-win7-windows-msvc` archive built before the
+  engine's metering allocator reached its block headers through the
+  system allocation's exposed provenance ended the process with
+  `0xC0000374` (heap corruption) whenever it compiled a script that
+  declares a class
   (`2026/11/21/build-the-windows-widget-helper-image-for-windows-7`, its
-  `work/decisions.md`, W16); the x86 move to a win7 target belongs to
-  `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`.
+  `work/decisions.md`, W16). That was the fold of the allocator's header
+  reads that
+  `2026/11/21/remove-the-misaligned-nova-result-writes-and-turn-on-overflow-checks-on-x86-windows`
+  diagnosed on the pc target with overflow checks, reached here through
+  the win7 std's OS TLS slots, which keep the allocator an out-of-line
+  call as the checks did, and that task's metering fix alone removes it
+  (`2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`,
+  its `work/decisions.md`, D2). The archive the Win32 helpers link, built
+  by the same recipe with overflow checks, compiled and evaluated W16's
+  class scripts and the class cases of that diagnosis in a standalone x86
+  driver, three processes each, while W16's archive still ended each of
+  them with `0xC0000374`.
   Under `DESKTOP_APP_WIN7_BASELINE`, the Windows 7 baseline of the x86 and
   x64 builds, the helper links `/SUBSYSTEM:WINDOWS,6.01` as `Telegram.exe`
   and the Updater do, so its header names 6.01, Windows 7, as the lowest
   Windows version; ARM64 has no such baseline and keeps the linker's
   default version.
-  The x64 helper imports statically only KERNEL32 and ntdll, and
-  delay-loads ADVAPI32, `bcrypt.dll` and, in the Debug build for the probe
-  alone, `WS2_32.dll`. The x64 helper's win7 std draws its random bytes
-  through ADVAPI32's `SystemFunction036` (`RtlGenRandom`). The Windows 7 SP1
-  export database `win7sp1_exports.txt` of the import gate that
+  The x86 and x64 helpers import statically only KERNEL32 and ntdll, and
+  delay-load ADVAPI32, `bcrypt.dll` and, in the Debug build for the probe
+  alone, `WS2_32.dll`. Their win7 std draws its random bytes through
+  ADVAPI32's `SystemFunction036` (`RtlGenRandom`), which the x86 and x64
+  images import by name. The Windows 7 SP1 export database
+  `win7sp1_exports.txt` of the import gate that
   `.github/workflows/win7-gate.yml` runs on `Telegram.exe` records that
   function as ADVAPI32's own export. On Windows 10.0.26300, where the
-  helper was measured, ADVAPI32 forwards it to
+  helpers were measured, both ADVAPI32 copies, the System32 one and the
+  SysWOW64 one that x86 processes load, forward it to
   `CRYPTBASE.SystemFunction036`, `cryptbase.dll` is no KnownDLL, and a
   lookup through the forwarder maps it: for a static import at process
   start, where Windows' parallel loader can open it on a worker thread
   that runs as the LPAC primary (P6 in **The Windows lowering** below),
   and for a delay import in the `GetProcAddress` of the CRT's delay-load
-  helper. So the x64 helper's delay-load notification hook
+  helper. So the delay-load notification hook of the x86 and x64 helpers
   (`__pfnDliNotifyHook2` in `_other/widget_helper_win.cpp`, compiled for
-  x64 only) answers that one import at `dliNotePreGetProcAddress`, before
-  that `GetProcAddress`, with the helper's own function, which returns
-  whether `BCryptGenRandom` with `BCRYPT_USE_SYSTEM_PREFERRED_RNG`
-  succeeded; the delay-load helper writes that address into the import
-  table, and every other import resolves as without the hook.
-  The x86 helper keeps the pc target's imports: it imports statically
-  ADVAPI32, KERNEL32, ntdll and the pc std's API set
-  `api-ms-win-core-synch-l1-2-0.dll`, and delay-loads `bcrypt.dll`,
-  `bcryptprimitives.dll`, whose `ProcessPrng` is its std's random
-  source, and, in the Debug build for the probe alone, `WS2_32.dll`.
-  These DLLs were read on the same target's Debug and Release helpers in
-  the x86 tree on Windows 10.0.26300, before the run-time lookups of
-  `SetDefaultDllDirectories` and `GetCurrentPackageFullName` (`Adopt()`
-  below, and **Windows probe**): both imported `WaitOnAddress`,
-  `WakeByAddressAll` and `WakeByAddressSingle` from the API set, and only
-  the Debug one delay-loaded `WS2_32.dll`. Windows 7 SP1, as the import
-  gate's database records it, lacks three of the pc std's imports in the
-  x86 image: the API set, KERNEL32's `GetSystemTimePreciseAsFileTime` and
-  `bcryptprimitives.dll`'s `ProcessPrng`, so the x86 image meets the
-  Windows 7 baseline by its header but not by its tables.
-  The ARM64 helper keeps the pc target's std as well, whose random source
-  is the same `ProcessPrng`, so by its build rules (no ARM64 helper's
-  tables have been read) it imports ADVAPI32 and the pc std's API set
-  statically and delay-loads `bcrypt.dll`, `bcryptprimitives.dll` and,
-  for the probe, `WS2_32.dll`. No helper imports user32, gdi32 or Qt, and
-  each binds its delay-loaded DLLs, `WS2_32.dll` aside, in its lowering
-  (**The Windows lowering** below). The imports before the Nova change
+  x86 and x64, not for ARM64) answers that one import at
+  `dliNotePreGetProcAddress`, before that `GetProcAddress`, with the
+  helper's own function, declared `BOOLEAN WINAPI` like `RtlGenRandom`
+  (stdcall on x86), which returns whether `BCryptGenRandom` with
+  `BCRYPT_USE_SYSTEM_PREFERRED_RNG` succeeded; the delay-load helper
+  writes that address into the import table, and every other import
+  resolves as without the hook. The x86 tables were read on the Win32
+  Debug and Release-configured helpers on Windows 10.0.26300: static
+  `KERNEL32.dll` and `ntdll.dll` (`NtWriteFile` and
+  `RtlNtStatusToDosError`), and the delay descriptors `ADVAPI32.dll`
+  (23 functions in Debug, 12 in Release), `bcrypt.dll` (`BCryptGenRandom`)
+  and, in Debug only, `WS2_32.dll` (`WSAStringToAddressW` and 18
+  ordinals), `ADVAPI32.dll` and `bcrypt.dll` spelled as `WarmUp()` binds
+  them. Built for the pc target `i686-pc-windows-msvc` before, the same
+  helpers imported statically ADVAPI32, KERNEL32, ntdll and the pc std's
+  API set `api-ms-win-core-synch-l1-2-0.dll` (`WaitOnAddress`,
+  `WakeByAddressAll` and `WakeByAddressSingle`), and delay-loaded
+  `bcrypt.dll`, `bcryptprimitives.dll`, whose `ProcessPrng` was that
+  std's random source, and the Debug `WS2_32.dll`. Windows 7 SP1, as the
+  import gate's database records it, lacks three of those imports: the
+  API set, KERNEL32's `GetSystemTimePreciseAsFileTime` and
+  `ProcessPrng`. The win7 images import none of them.
+  The ARM64 helper keeps the pc target's std, whose random source is
+  `bcryptprimitives.dll`'s `ProcessPrng`, so by its build rules (no ARM64
+  helper's tables have been read) it imports ADVAPI32 and the pc std's
+  API set `api-ms-win-core-synch-l1-2-0.dll` statically and delay-loads
+  `bcrypt.dll`, `bcryptprimitives.dll` and, for the probe, `WS2_32.dll`.
+  No helper imports user32, gdi32 or Qt, and each binds its delay-loaded
+  DLLs, `WS2_32.dll` aside, in its lowering (**The Windows lowering**
+  below). The imports before the Nova change
   were read on helpers built with the QuickJS engine, the hosted helper's
   the same as the engine-only one's: their static imports were ADVAPI32 and
   KERNEL32, both KnownDLLs, loaded from the system directory
@@ -2066,8 +2082,8 @@ packs, the fixture and the seams they use need no change for it.
   `the token's WIN://NOALLAPPPKG has <n> values`, `the token's
   WIN://NOALLAPPPKG value is <n>` and `GetTokenInformation failed: error
   <n>`. The design makes no grant: the client opens the image, the
-  helper imports statically only system DLLs, on x86 and ARM64 with the pc
-  std's API set (**The Windows helper** above; the static imports of the
+  helper imports statically only system DLLs, on ARM64 with the pc std's
+  API set (**The Windows helper** above; the static imports of the
   QuickJS-era helpers were ADVAPI32 and KERNEL32, both KnownDLLs), it
   binds the delay-loaded DLLs it uses while it still impersonates (**The
   Windows lowering** below), and every later DLL comes from the system
@@ -2170,8 +2186,8 @@ packs, the fixture and the seams they use need no change for it.
   `WidgetHelper::Lockdown()` calls). While still impersonating it checks
   that the mitigation readback is available (`the mitigation policy
   functions are not available` otherwise), binds the delay-loaded imports
-  with `__HrLoadAllImportsForDll`, on x64 those of `ADVAPI32.dll` and then
-  those of `bcrypt.dll`, on x86 and ARM64 those of `bcrypt.dll` and then
+  with `__HrLoadAllImportsForDll`, on x86 and x64 those of `ADVAPI32.dll`
+  and then those of `bcrypt.dll`, on ARM64 those of `bcrypt.dll` and then
   those of `bcryptprimitives.dll`, each by the exact name the linker gave
   its descriptor (the CRT's `PiddFromDllName()` in `delayhlp.cpp` compares
   names case-sensitively), derives its
@@ -2188,15 +2204,15 @@ packs, the fixture and the seams they use need no change for it.
   trace pointed to Windows' parallel loader opening it on a worker thread
   that runs as the primary
   (`2026/11/15/move-the-windows-widget-helper-into-a-qt-free-executable-and-run-it-on-x64`,
-  its `work/decisions.md`, P6). On x86 and ARM64 the pc target's Rust
-  runtime adds `bcryptprimitives.dll`, its random source, which is not a
-  KnownDLL on every Windows either, so the x86 and ARM64 helpers
-  delay-load it too and bind it right after `bcrypt.dll`. On x64 the win7
-  runtime's random source is ADVAPI32's `SystemFunction036`, which the
-  delay-load hook answers with the helper's own `BCryptGenRandom`
-  function (**The Windows helper** above), so the ADVAPI32 bind follows
-  no forwarder into `cryptbase.dll`. The x64 helper binds the whole
-  ADVAPI32 descriptor because ADVAPI32 is still called after the
+  its `work/decisions.md`, P6). On ARM64 the pc target's Rust runtime
+  adds `bcryptprimitives.dll`, its random source, which is not a KnownDLL
+  on every Windows either, so the ARM64 helper delay-loads it too and
+  binds it right after `bcrypt.dll`. On x86 and x64 the win7 runtime's
+  random source is ADVAPI32's `SystemFunction036`, which the delay-load
+  hook answers with the helper's own `BCryptGenRandom` function (**The
+  Windows helper** above), so the ADVAPI32 bind follows no forwarder into
+  `cryptbase.dll`. The x86 and x64 helpers bind the whole ADVAPI32
+  descriptor because ADVAPI32 is still called after the
   reversion: the steps and checks after it call
   `RegDisablePredefinedCacheEx`, `RegCloseKey`, `OpenThreadToken`,
   `GetTokenInformation` and more, the Debug probe calls
@@ -2213,14 +2229,15 @@ packs, the fixture and the seams they use need no change for it.
   returns `0x8007007E` (`HRESULT_FROM_WIN32(ERROR_MOD_NOT_FOUND)`) to the
   warm-up, which refuses with
   `__HrLoadAllImportsForDll(<dll>) failed: 0x<hresult>`, here
-  `0x8007007e`, `<dll>` being `ADVAPI32.dll` or `bcrypt.dll` on x64 and
-  `bcrypt.dll` or `bcryptprimitives.dll` on x86 and ARM64. A matching
+  `0x8007007e`, `<dll>` being `ADVAPI32.dll` or `bcrypt.dll` on x86 and
+  x64 and `bcrypt.dll` or `bcryptprimitives.dll` on ARM64. A matching
   descriptor never makes it return a failure: it calls
   `__delayLoadHelper2` for each of the descriptor's entries and returns
   `S_OK` after the last, and `__delayLoadHelper2` raises `0xC06D007E`
   (`ERROR_MOD_NOT_FOUND`) when `LoadLibraryEx` cannot load the DLL and
-  `0xC06D007F` (`ERROR_PROC_NOT_FOUND`) when neither the x64 delay-load
-  hook nor `GetProcAddress` resolves a function of the loaded DLL. No
+  `0xC06D007F` (`ERROR_PROC_NOT_FOUND`) when neither the delay-load hook
+  of the x86 and x64 helpers nor `GetProcAddress` resolves a function of
+  the loaded DLL. No
   failure hook is set and nothing catches either exception, so the
   helper dies before Ready, and so before any frame, with
   `exit 0xC06D007E` or `exit 0xC06D007F`. No run has seen either from the
@@ -2398,7 +2415,7 @@ packs, the fixture and the seams they use need no change for it.
   warm-up existed, a widget's `crypto.getRandomValues` ended the helper
   with `exit 0xC06D007E`. `TelegramWidgetHelper.exe` binds the delay
   imports it needs outside the probe before the lowering: `ADVAPI32.dll`
-  and `bcrypt.dll` on x64, and on x86 and ARM64, which import ADVAPI32
+  and `bcrypt.dll` on x86 and x64, and on ARM64, which imports ADVAPI32
   statically, `bcrypt.dll` and `bcryptprimitives.dll` (**The Windows
   lowering** above). At ordinary Ready and after
   widget work, measured with the QuickJS engine while it served engines
