@@ -185,7 +185,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin 69f23a834024d6064da209076151393582b3c966
+git fetch --depth=1 origin 4d1fd54df8d2739a22f520c7541977e0a8115268
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -659,9 +659,9 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-libdrm \
 	--enable-ffnvcodec \
 	--enable-nvdec \
-	--enable-cuvid \
 	--enable-protocol=file \
 	--enable-hwaccel=av1_vaapi \
+	--enable-hwaccel=av1_vdpau \
 	--enable-hwaccel=av1_nvdec \
 	--enable-hwaccel=h264_vaapi \
 	--enable-hwaccel=h264_vdpau \
@@ -669,6 +669,8 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-hwaccel=hevc_vaapi \
 	--enable-hwaccel=hevc_vdpau \
 	--enable-hwaccel=hevc_nvdec \
+	--enable-hwaccel=mpeg1_vdpau \
+	--enable-hwaccel=mpeg1_nvdec \
 	--enable-hwaccel=mpeg2_vaapi \
 	--enable-hwaccel=mpeg2_vdpau \
 	--enable-hwaccel=mpeg2_nvdec \
@@ -684,7 +686,6 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-decoder=ac3 \
 	--enable-decoder=alac \
 	--enable-decoder=av1 \
-	--enable-decoder=av1_cuvid \
 	--enable-decoder=eac3 \
 	--enable-decoder=flac \
 	--enable-decoder=gif \
@@ -698,11 +699,11 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-decoder=mp2 \
 	--enable-decoder=mp2float \
 	--enable-decoder=mp3 \
-	--enable-decoder=mp3adu \
-	--enable-decoder=mp3adufloat \
 	--enable-decoder=mp3float \
 	--enable-decoder=mp3on4 \
 	--enable-decoder=mp3on4float \
+	--enable-decoder=mpeg1video \
+	--enable-decoder=mpeg2video \
 	--enable-decoder=mpeg4 \
 	--enable-decoder=msmpeg4v2 \
 	--enable-decoder=msmpeg4v3 \
@@ -712,23 +713,16 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-decoder=pcm_f32le \
 	--enable-decoder=pcm_f64be \
 	--enable-decoder=pcm_f64le \
-	--enable-decoder=pcm_lxf \
 	--enable-decoder=pcm_mulaw \
 	--enable-decoder=pcm_s16be \
-	--enable-decoder=pcm_s16be_planar \
 	--enable-decoder=pcm_s16le \
-	--enable-decoder=pcm_s16le_planar \
 	--enable-decoder=pcm_s24be \
-	--enable-decoder=pcm_s24daud \
 	--enable-decoder=pcm_s24le \
-	--enable-decoder=pcm_s24le_planar \
 	--enable-decoder=pcm_s32be \
 	--enable-decoder=pcm_s32le \
-	--enable-decoder=pcm_s32le_planar \
 	--enable-decoder=pcm_s64be \
 	--enable-decoder=pcm_s64le \
 	--enable-decoder=pcm_s8 \
-	--enable-decoder=pcm_s8_planar \
 	--enable-decoder=pcm_u16be \
 	--enable-decoder=pcm_u16le \
 	--enable-decoder=pcm_u24be \
@@ -752,12 +746,14 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-filter=atempo \
 	--enable-parser=aac \
 	--enable-parser=aac_latm \
+	--enable-parser=ac3 \
 	--enable-parser=flac \
 	--enable-parser=gif \
 	--enable-parser=h264 \
 	--enable-parser=hevc \
 	--enable-parser=mpeg4video \
 	--enable-parser=mpegaudio \
+	--enable-parser=mpegvideo \
 	--enable-parser=opus \
 	--enable-parser=vorbis \
 	--enable-demuxer=aac \
@@ -769,6 +765,8 @@ find ../patches/ffmpeg -type f -name '*.patch' -print0 | sort -z | xargs -r0 git
 	--enable-demuxer=m4v \
 	--enable-demuxer=mov \
 	--enable-demuxer=mp3 \
+	--enable-demuxer=mpegps \
+	--enable-demuxer=mpegts \
 	--enable-demuxer=ogg \
 	--enable-demuxer=wav \
 	--enable-muxer=mp4 \
