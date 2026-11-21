@@ -1226,6 +1226,8 @@
 	{ "Поиск альбомов на SoundCloud", "Search albums on SoundCloud" },
 	{ "Не удалось загрузить результаты поиска SoundCloud.", "Could not load SoundCloud search results." },
 	{ "Исполнители", "Artists" },
+	{ "Все исполнители", "All artists" },
+	{ "Профиль «%1» не найден", "Profile for %1 was not found" },
 	{ "Плейлист", "Playlist" },
 	{ "Слушать", "Play" },
 	{ "Нет треков", "No tracks" },

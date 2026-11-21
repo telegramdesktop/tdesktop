@@ -2410,26 +2410,22 @@ public:
 		}, lifetime());
 	}
 
-	void setTextLinks(Fn<void(Track)> title, Fn<void(Track)> artist) {
-		const auto make = [&](Fn<void(Track)> action) {
-			const auto button = Ui::CreateChild<Ui::AbstractButton>(this);
-			button->setPointerCursor(true);
-			button->setFocusPolicy(Qt::TabFocus);
-			button->setClickedCallback([=] { action(_track); });
-			button->paintRequest() | rpl::on_next([=](QRect) {
-				if (button->isOver() || button->hasFocus()) {
-					auto p = QPainter(button);
-					p.setPen(st::windowActiveTextFg);
-					p.drawLine(0, button->height() - style::ConvertScale(2),
-						button->width(), button->height() - style::ConvertScale(2));
+	void setTextLinks(Fn<void(Track)> title, Fn<void(const Track&, const QString&)> artist) {
+		_titleLink = makeTextLink(_track.title, [=] { title(_track); });
+		_artistNames = TrackArtistNames(_track);
+		for (const auto &name : _artistNames) {
+			_artistLinks.push_back(makeTextLink(name, [=] { artist(_track, name); }));
+		}
+		if (_artistLinks.size() > 1) {
+			_moreArtists = makeTextLink(PlaylistText("Все исполнители"), [=] {
+				_artistsMenu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+				for (const auto &name : _artistNames) {
+					_artistsMenu->addAction(name, [=] { artist(_track, name); }, nullptr);
 				}
-			}, button->lifetime());
-			return button;
-		};
-		_titleLink = make(std::move(title));
-		_artistLink = make(std::move(artist));
-		_titleLink->setAccessibleName(_track.title);
-		_artistLink->setAccessibleName(_track.artist);
+				_artistsMenu->popup(_moreArtists->mapToGlobal(_moreArtists->rect().bottomLeft()));
+			});
+			_moreArtists->setToolTip(PlaylistText("Все исполнители"));
+		}
 		layoutTextLinks();
 	}
 
@@ -2461,6 +2457,23 @@ protected:
 	}
 
 private:
+	[[nodiscard]] Ui::AbstractButton *makeTextLink(const QString &text, Fn<void()> action) {
+		const auto button = Ui::CreateChild<Ui::AbstractButton>(this);
+		button->setPointerCursor(true);
+		button->setFocusPolicy(Qt::TabFocus);
+		button->setAccessibleName(text);
+		button->setClickedCallback(std::move(action));
+		button->paintRequest() | rpl::on_next([=](QRect) {
+			if (button->isOver() || button->hasFocus()) {
+				auto p = QPainter(button);
+				p.setPen(st::windowActiveTextFg);
+				const auto y = button->height() - style::ConvertScale(2);
+				p.drawLine(0, y, button->width(), y);
+			}
+		}, button->lifetime());
+		return button;
+	}
+
 	[[nodiscard]] int listMetric(int value) const {
 		return _catalogStyle ? style::ConvertScale(value) : value;
 	}
@@ -2487,18 +2500,75 @@ private:
 	}
 
 	void layoutTextLinks() {
-		if (!_titleLink || !_artistLink) return;
+		if (!_titleLink) {
+			return;
+		}
 		auto title = listTextRect(true);
-		auto artist = listTextRect(false);
 		title.setWidth(std::min(st::semiboldFont->width(_track.title), title.width()));
-		artist.setWidth(std::min(st::normalFont->width(_track.artist), artist.width()));
 		_titleLink->setGeometry(title);
-		_artistLink->setGeometry(artist);
-		_titleLink->setVisible(!_track.title.isEmpty());
-		_artistLink->setVisible(!_track.artist.trimmed().isEmpty());
+		_titleLink->setVisible(!title.isEmpty());
+		if (_artistLinks.empty()) {
+			return;
+		}
+		const auto subtitle = listTextRect(false);
+		const auto font = st::normalFont;
+		const auto separator = font->width(u", "_q);
+		auto total = -separator;
+		for (const auto &name : _artistNames) {
+			total += font->width(name) + separator;
+		}
+		const auto overflow = _moreArtists && total > subtitle.width();
+		const auto moreWidth = std::min(subtitle.width(), style::ConvertScale(18));
+		const auto limit = subtitle.x() + subtitle.width() - (overflow ? moreWidth + separator : 0);
+		auto x = subtitle.x();
+		_visibleArtistLinks = 0;
+		for (auto i = 0; i != int(_artistLinks.size()); ++i) {
+			const auto button = _artistLinks[i];
+			const auto nameWidth = font->width(_artistNames[i]);
+			const auto start = x + (i ? separator : 0);
+			const auto remaining = std::max(limit - start, 0);
+			const auto visible = (i == _visibleArtistLinks) && remaining > 0
+				&& (i == 0 || nameWidth <= remaining);
+			button->setVisible(visible);
+			if (visible) {
+				const auto width = std::min(nameWidth, remaining);
+				button->setGeometry(start, subtitle.y(), width, subtitle.height());
+				x = start + width;
+				++_visibleArtistLinks;
+			}
+		}
+		if (_moreArtists) {
+			_moreArtists->setGeometry(
+				x + (_visibleArtistLinks ? separator : 0),
+				subtitle.y(), moreWidth, subtitle.height());
+			_moreArtists->setVisible(overflow && moreWidth > 0);
+		}
 	}
+
+	void paintArtistLinks(QPainter &p, const QRect &subtitle) const {
+		const auto font = st::normalFont;
+		const auto separator = u", "_q;
+		const auto separatorWidth = font->width(separator);
+		for (auto i = 0; i != _visibleArtistLinks; ++i) {
+			const auto rect = _artistLinks[i]->geometry();
+			p.drawText(rect, Qt::AlignVCenter | Qt::AlignLeft,
+				font->elided(_artistNames[i], rect.width()));
+			if (i + 1 < _visibleArtistLinks || !_moreArtists->isHidden()) {
+				p.drawText(QRect(rect.right() + 1, subtitle.y(), separatorWidth, subtitle.height()),
+					Qt::AlignVCenter | Qt::AlignLeft, separator);
+			}
+		}
+		if (!_moreArtists->isHidden()) {
+			p.drawText(_moreArtists->geometry(), Qt::AlignCenter, u"…"_q);
+		}
+	}
+
 	Ui::AbstractButton *_titleLink = nullptr;
-	Ui::AbstractButton *_artistLink = nullptr;
+	QStringList _artistNames;
+	std::vector<Ui::AbstractButton*> _artistLinks;
+	Ui::AbstractButton *_moreArtists = nullptr;
+	int _visibleArtistLinks = 0;
+	base::unique_qptr<Ui::PopupMenu> _artistsMenu;
 	void updateAnimation();
 	QToolButton *_menuButton = nullptr;
 
@@ -2667,12 +2737,16 @@ private:
 			st::semiboldFont->elided(_track.title, titleRect.width()));
 		p.setFont(st::normalFont);
 		p.setPen(st::windowSubTextFg);
+		if (_moreArtists && !_track.unavailable) {
+			paintArtistLinks(p, subtitleRect);
+			return;
+		}
 		const auto item = TrackMessage(_track);
 		const auto subtitle = _track.unavailable
 			? _track.artist + u" · "_q + QString::fromUtf8(Mokagram::Lang::Tr("Недоступен для воспроизведения"))
 			: item
 			? _track.artist + u" · "_q + item->history()->peer->name()
-			: _track.artist;
+			: _artistNames.value(0, _track.artist);
 		p.drawText(
 			subtitleRect,
 			Qt::AlignVCenter | Qt::AlignLeft,
@@ -3448,12 +3522,12 @@ private:
 }
 
 [[nodiscard]] std::vector<Track> HomeSimilarArtists(
-		const Track &artist,
+		const ArtistInfo &artist,
 		const std::vector<Track> &tracks) {
 	auto result = HomeRecommendationArtists(tracks);
-	const auto artistName = artist.artist.trimmed();
+	const auto artistName = artist.name.trimmed();
 	std::erase_if(result, [&](const Track &candidate) {
-		return (!artist.artistId.isEmpty() && candidate.artistId == artist.artistId)
+		return (!artist.id.isEmpty() && candidate.artistId == artist.id)
 			|| (!artistName.isEmpty()
 				&& candidate.artist.trimmed().compare(artistName, Qt::CaseInsensitive) == 0);
 	});
@@ -7472,7 +7546,7 @@ public:
 				return;
 			}
 			if (_homeReturnToArtist) {
-				openHomeArtist(_homeArtistSeed);
+				openHomeArtist(_homeArtistProfile, _homeArtistSeed);
 				return;
 			}
 			_homeAlbumOpen = false;
@@ -7509,7 +7583,7 @@ public:
 			p.setFont(st::semiboldFont);
 			p.setPen(st::windowFg);
 			p.drawText(text, Qt::AlignVCenter | Qt::AlignLeft,
-				st::semiboldFont->elided(_homeArtistSeed.artist, text.width()));
+				st::semiboldFont->elided(_homeArtistProfile.name, text.width()));
 		});
 		_homeArtistBar->hide();
 		AttachCommentsToPlayer(controller, _playbackBar, _seek, false);
@@ -8050,8 +8124,7 @@ protected:
 			openHomeTrack(track);
 		} else if (!artist.isEmpty()) {
 			setHover(InfoHover::None);
-			setTab(Tab::Home);
-			openHomeArtist(track);
+			chooseTrackArtist(track);
 		}
 	}
 	void contextMenuEvent(QContextMenuEvent *e) override {
@@ -8618,10 +8691,60 @@ protected:
 				setTab(Tab::Home);
 				openHomeTrack(std::move(track));
 			}),
-			crl::guard(this, [=](Track track) {
-				setTab(Tab::Home);
-				openHomeArtist(std::move(track));
+			crl::guard(this, [=](const Track &track, const QString &name) {
+				openTrackArtist(track, name);
 			}));
+	}
+
+	void showArtistProfile(ArtistInfo artist, Track track = {}) {
+		const auto fromSearch = (_tab == Tab::Search);
+		if (fromSearch) {
+			_searchArtistReturnScroll = _tabScroll->scrollTop();
+		}
+		setTab(Tab::Home);
+		if (fromSearch) {
+			_homeArtistBackToSearch = true;
+		}
+		openHomeArtist(std::move(artist), std::move(track));
+	}
+
+	void openTrackArtist(const Track &track, const QString &name) {
+		if (IsTelegramTrack(track)) {
+			showArtistProfile({ {}, name, track.artistArtworkUrl, {} }, track);
+			return;
+		}
+		const auto generation = ++_artistLinkGeneration;
+		const auto searchGeneration = _searchGen;
+		const auto homeGeneration = _homeAlbumGeneration;
+		ResolveTrackArtist(track, name, crl::guard(this, [=, seed = track](ArtistInfo artist) {
+			if (generation != _artistLinkGeneration
+				|| (_tab == Tab::Search && searchGeneration != _searchGen)
+				|| (_tab == Tab::Home && homeGeneration != _homeAlbumGeneration)) {
+				return;
+			}
+			if (artist.id.isEmpty()) {
+				_controller->showToast(PlaylistText("Профиль «%1» не найден").arg(name));
+				return;
+			}
+			showArtistProfile(std::move(artist), seed);
+		}));
+	}
+
+	void chooseTrackArtist(const Track &track) {
+		const auto names = TrackArtistNames(track);
+		if (names.isEmpty()) {
+			return;
+		} else if (names.size() == 1) {
+			openTrackArtist(track, names.front());
+			return;
+		}
+		_trackArtistsMenu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
+		for (const auto &name : names) {
+			_trackArtistsMenu->addAction(name, [=, seed = track] {
+				openTrackArtist(seed, name);
+			}, nullptr);
+		}
+		_trackArtistsMenu->popup(QCursor::pos());
 	}
 
 	void addCatalogArtist(const ArtistInfo &artist, bool featured) {
@@ -8650,14 +8773,7 @@ protected:
 			artist.avatarUrl,
 			CatalogArtwork::Artist,
 			crl::guard(this, [=] {
-				_searchArtistReturnScroll = _tabScroll->scrollTop();
-				auto seed = Track();
-				seed.artistId = artist.id;
-				seed.artist = artist.name;
-				seed.artistArtworkUrl = artist.avatarUrl;
-				setTab(Tab::Home);
-				_homeArtistBackToSearch = true;
-				openHomeArtist(std::move(seed));
+				showArtistProfile(artist);
 			}),
 			std::move(play)));
 	}
@@ -8801,6 +8917,7 @@ protected:
 		_homeArtistOpen = false;
 		_homeReturnToArtist = false;
 		_homeArtistBackToSearch = false;
+		++_artistLinkGeneration;
 		_nav[1]->setActiveColor(Qt::white);
 		++_homeAlbumGeneration;
 	}
@@ -9089,7 +9206,9 @@ protected:
 				}
 				std::erase_if(tracks, [&](const Track &other) {
 					return other.id == trackId || (_homeArtistOpen && !_homeArtistSeed.id.isEmpty()
-						&& other.artist.trimmed().compare(name.trimmed(), Qt::CaseInsensitive) != 0);
+						&& !std::ranges::any_of(TrackArtistNames(other), [&](const QString &credit) {
+							return credit.compare(name, Qt::CaseInsensitive) == 0;
+						}));
 				});
 				if (_homeArtistOpen) {
 					if (tracks.empty() && !_homeArtistSeed.id.isEmpty()) {
@@ -9170,7 +9289,7 @@ protected:
 		_homeArtistBar->update();
 	}
 
-	void openHomeArtist(Track track) {
+	void openHomeArtist(ArtistInfo artist, Track track) {
 		if (!_homeReturnToArtist) {
 			_homeArtistFeedScroll = _tabScroll->scrollTop();
 			_homeArtistLikesOpen = false;
@@ -9184,16 +9303,17 @@ protected:
 		_homeAlbumOpen = true;
 		_homeAlbumIsTrack = false;
 		_homeArtistSeed = track;
+		_homeArtistProfile = artist;
 		const auto generation = ++_homeAlbumGeneration;
-		_homeArtistBannerUrl.clear();
-		const auto art = track.artistArtworkUrl.isEmpty() ? track.artworkUrl : track.artistArtworkUrl;
-		_homeAlbum = { {}, track.artist, {}, art, 0 };
+		_homeArtistBannerUrl = artist.bannerUrl;
+		const auto art = artist.avatarUrl.isEmpty() ? track.artworkUrl : artist.avatarUrl;
+		_homeAlbum = { {}, artist.name, {}, art, 0 };
 		_homeAlbumTracks.clear();
 		_homeAlbumNote.clear();
 		_homeAlbumLoading = false;
 		loadHomeAccent(art, generation);
-		if (!track.artistId.isEmpty()) {
-			LoadArtistInfo(track.artistId, crl::guard(this, [=](ArtistInfo info) {
+		if (!artist.id.isEmpty()) {
+			LoadArtistInfo(artist.id, crl::guard(this, [=](ArtistInfo info) {
 				if (generation != _homeAlbumGeneration || !_homeArtistOpen) {
 					return;
 				}
@@ -9206,7 +9326,7 @@ protected:
 				}
 			}));
 		}
-		loadHomeArtist(track.artist, track.artistId, {}, {}, generation);
+		loadHomeArtist(artist.name, artist.id, {}, {}, generation);
 		if (track.id.isEmpty()) {
 			_homeSimilarTracks.clear();
 			_homeSimilarLoading = false;
@@ -9491,9 +9611,9 @@ protected:
 									_homeAlbum.artist.trimmed(), Qt::CaseInsensitive) == 0;
 							});
 						if (artistTrack != _homeAlbumTracks.end()) {
-							openHomeArtist(*artistTrack);
+							chooseTrackArtist(*artistTrack);
 						} else if (!_homeAlbumTracks.empty()) {
-							openHomeArtist(_homeAlbumTracks.front());
+							chooseTrackArtist(_homeAlbumTracks.front());
 						}
 					}), crl::guard(this, [=] {
 						updateHomeArtistBar();
@@ -9511,14 +9631,13 @@ protected:
 						addRows(_homeArtistTracks, RowMode::Album);
 					}
 					auto artistLikes = std::vector<Track>();
-					const auto &artistId = _homeArtistSeed.artistId;
-					const auto artistName = _homeArtistSeed.artist.trimmed();
+					const auto &artistId = _homeArtistProfile.id;
+					const auto artistName = _homeArtistProfile.name.trimmed();
 					for (const auto &track : liked) {
-						const auto matches = !artistId.isEmpty() && artistId != u"0"_q
-							&& !track.artistId.isEmpty() && track.artistId != u"0"_q
-							? artistId == track.artistId
-							: !artistName.isEmpty()
-								&& track.artist.trimmed().compare(artistName, Qt::CaseInsensitive) == 0;
+						const auto matches = (!artistId.isEmpty() && artistId == track.artistId)
+							|| std::ranges::any_of(TrackArtistNames(track), [&](const QString &credit) {
+								return credit.compare(artistName, Qt::CaseInsensitive) == 0;
+							});
 						if (matches) artistLikes.push_back(track);
 					}
 					auto likedReleases = std::vector<Album>();
@@ -9565,7 +9684,7 @@ protected:
 					}
 					addHomeDiscography();
 					const auto similarArtists = HomeSimilarArtists(
-						_homeArtistSeed,
+						_homeArtistProfile,
 						_homeSimilarTracks);
 					if (!similarArtists.empty() || _homeSimilarLoading) {
 						_tabList->add(object_ptr<Ui::FlatLabel>(
@@ -9592,7 +9711,7 @@ protected:
 								std::make_shared<int>(0),
 								similarArtists,
 								crl::guard(this, [=](Track track) {
-									openHomeArtist(std::move(track));
+									chooseTrackArtist(track);
 								})));
 						} else {
 							_tabList->add(object_ptr<HomeLoadingView>(
@@ -9696,7 +9815,7 @@ protected:
 						crl::guard(this, [=](Track track) { openHomeTrack(std::move(track)); }),
 						true, offset,
 						pageTracks ? HomeRecommendationArtists(tracks) : std::vector<Track>(),
-						crl::guard(this, [=](Track track) { openHomeArtist(std::move(track)); }),
+						crl::guard(this, [=](Track track) { chooseTrackArtist(track); }),
 						!pageTracks || page == 0));
 				}
 				break;
@@ -9803,7 +9922,7 @@ protected:
 					crl::guard(this, [=](Album album) { openHomeAlbum(std::move(album)); }),
 					crl::guard(this, [=](Track track) { openHomeTrack(std::move(track)); }),
 					false, page.shelfOffset, HomeRecommendationArtists(page.tracks),
-					crl::guard(this, [=](Track track) { openHomeArtist(std::move(track)); }),
+					crl::guard(this, [=](Track track) { chooseTrackArtist(track); }),
 					i == 0));
 				if (!i) section(tr("Избранное"), 2, liked);
 			}
@@ -10921,6 +11040,9 @@ private:
 	QColor _homeAccent;
 	Album _homeAlbum;
 	Track _homeArtistSeed;
+	ArtistInfo _homeArtistProfile;
+	base::unique_qptr<Ui::PopupMenu> _trackArtistsMenu;
+	int _artistLinkGeneration = 0;
 	QString _homeAlbumNote;
 	QTimer _homeMoreRetryTimer;
 	int _homeSection = 0;
