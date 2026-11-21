@@ -409,8 +409,14 @@ packs, the fixture and the seams they use need no change for it.
   installed, portable and updated and x64 installed, and in an x64 Store
   Debug build installed as a test package
   ([Verification](#verification)), all with the QuickJS engine, before
-  the Nova change; ARM64, an x86 or Release Store build and Windows
-  before that build have not.
+  the Nova change; with Nova, the x86 and x64 helpers have since run
+  there under the full policy in Debug and Release-configured (LTO off)
+  builds
+  (`2026/11/21/build-the-x64-windows-widget-helper-image-for-windows-7`
+  and
+  `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`,
+  their `work/test.md`); ARM64, an x86 or Release Store build and
+  Windows before that build have not.
 - **Debug switch.** Debug builds that keep the private Qt API also read
   `TDESKTOP_WIDGET_ENGINES` at that point:
   - unset or any other value: the platform default, so a Debug build runs

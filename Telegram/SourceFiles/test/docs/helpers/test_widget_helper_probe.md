@@ -572,8 +572,8 @@ the helper's static imports; the delay-loaded imports that the lockdown's
 warm-up binds in this order, `ADVAPI32.dll` then `bcrypt.dll` on x86 and
 x64, and `bcrypt.dll` then `bcryptprimitives.dll` on ARM64, whose
 ADVAPI32 is a static import (on x86 and x64 the probe's
-`PrepareProbeTargets()` resolves ADVAPI32's `RegOpenKeyExW` earlier, on
-the same impersonating thread);
+`PrepareProbeTargets()` resolves ADVAPI32's `RegOpenKeyExW` and
+`RegCloseKey` earlier, on the same impersonating thread);
 and the `WS2_32.dll` imports, which the native probe and then the
 harness's own Winsock start each bind (the harness uses Winsock only when
 its own bind and `WSAStartup` succeeded). The probe's own lookups are
