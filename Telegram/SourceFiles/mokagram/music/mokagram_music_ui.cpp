@@ -2269,26 +2269,6 @@ void InstallAlbumContextMenu(
 
 enum class RowMode { Results, Queue, Context, Home, Album };
 
-[[nodiscard]] int CatalogTypeLeft(int width) {
-	return (width >= style::ConvertScale(620)) ? width * 2 / 3 : width;
-}
-
-void PaintCatalogType(QPainter &p, const QString &type, int width, int height) {
-	const auto left = CatalogTypeLeft(width);
-	if (type.isEmpty() || left == width) {
-		return;
-	}
-	const auto s = [](int value) { return style::ConvertScale(value); };
-	const auto font = st::normalFont;
-	const auto pill = QRect(left, (height - s(22)) / 2, font->width(type) + s(16), s(22));
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::windowBg);
-	p.drawRoundedRect(pill, s(11), s(11));
-	p.setFont(font);
-	p.setPen(st::windowSubTextFg);
-	p.drawText(pill, Qt::AlignCenter, type);
-}
-
 class Row final : public Ui::AbstractButton {
 public:
 	void onStateChanged(State, StateChangeSource) override {
@@ -2455,8 +2435,8 @@ public:
 		update();
 	}
 
-	void setCatalogStyle(QString type) {
-		_catalogType = std::move(type);
+	void setCatalogStyle() {
+		_catalogStyle = true;
 		resize(width(), style::ConvertScale(64));
 	}
 
@@ -2478,11 +2458,11 @@ protected:
 
 private:
 	[[nodiscard]] int listMetric(int value) const {
-		return _catalogType ? style::ConvertScale(value) : value;
+		return _catalogStyle ? style::ConvertScale(value) : value;
 	}
 
 	[[nodiscard]] QRect listArtRect() const {
-		const auto side = _catalogType ? style::ConvertScale(48) : kArtSize;
+		const auto side = _catalogStyle ? style::ConvertScale(48) : kArtSize;
 		return QRect(listMetric(20), (height() - side) / 2, side, side);
 	}
 
@@ -2495,13 +2475,10 @@ private:
 		const auto right = IsTelegramTrack(_track)
 			? durationRight() - st::normalFont->width(FormatDuration(_track.durationMs)) - listMetric(14)
 			: heartRect().left() - listMetric(12);
-		const auto typeLeft = (_catalogType && !_catalogType->isEmpty())
-			? CatalogTypeLeft(width()) - listMetric(12)
-			: width();
 		return QRect(
 			left,
-			height() / 2 + listMetric(title ? (_catalogType ? -20 : -24) : (_catalogType ? 0 : 2)),
-			std::max(std::min(right, typeLeft) - left, 0),
+			height() / 2 + listMetric(title ? (_catalogStyle ? -20 : -24) : (_catalogStyle ? 0 : 2)),
+			std::max(right - left, 0),
 			listMetric(title ? 22 : 20));
 	}
 
@@ -2668,9 +2645,6 @@ private:
 					2);
 			}
 		}
-		if (_catalogType) {
-			PaintCatalogType(p, *_catalogType, width(), height());
-		}
 		const auto duration = FormatDuration(_track.durationMs);
 		const auto durationWidth = st::normalFont->width(duration);
 		p.setFont(st::normalFont);
@@ -2769,7 +2743,7 @@ private:
 	Track _track;
 	RowMode _mode;
 	std::shared_ptr<std::vector<Track>> _results;
-	std::optional<QString> _catalogType;
+	bool _catalogStyle = false;
 	bool _homePlaybackControls = true;
 	TrackLikeButton *_likeButton = nullptr;
 	bool _glass = false;
@@ -3862,12 +3836,13 @@ public:
 	: AbstractButton(parent)
 	, _title(std::move(title))
 	, _subtitle(std::move(subtitle))
-	, _type(std::move(type))
 	, _artist(artist) {
 		resize(width(), style::ConvertScale(play ? 96 : 64));
 		setPointerCursor(true);
 		setFocusPolicy(Qt::TabFocus);
-		setAccessibleName(QStringList{ _title, _subtitle, _type }.join(u" · "_q));
+		auto accessible = QStringList{ _title, _subtitle, std::move(type) };
+		accessible.removeAll(QString());
+		setAccessibleName(accessible.join(u" · "_q));
 		setClickedCallback(std::move(open));
 		if (play) {
 			_play = Ui::CreateChild<Ui::RoundButton>(
@@ -3926,8 +3901,7 @@ protected:
 		p.restore();
 
 		const auto left = art.right() + s(16);
-		const auto typeLeft = CatalogTypeLeft(width());
-		const auto right = _play ? _play->x() : typeLeft;
+		const auto right = _play ? _play->x() : width();
 		const auto available = std::max(right - left - s(14), 0);
 		auto titleFont = st::semiboldFont->f;
 		if (_play) {
@@ -3939,24 +3913,17 @@ protected:
 			QRect(left, height() / 2 - s(_play ? 25 : 20), available, s(_play ? 26 : 22)),
 			Qt::AlignVCenter,
 			QFontMetrics(titleFont).elidedText(_title, Qt::ElideRight, available));
-		const auto subtitle = (!_play && typeLeft == width() && !_type.isEmpty())
-			? (_subtitle.isEmpty() ? _type : _subtitle + u" · "_q + _type)
-			: _subtitle;
 		p.setFont(st::normalFont);
 		p.setPen(st::windowSubTextFg);
 		p.drawText(
 			QRect(left, height() / 2, available, s(20)),
 			Qt::AlignVCenter,
-			st::normalFont->elided(subtitle, available));
-		if (!_play) {
-			PaintCatalogType(p, _type, width(), height());
-		}
+			st::normalFont->elided(_subtitle, available));
 	}
 
 private:
 	QString _title;
 	QString _subtitle;
-	QString _type;
 	bool _artist = false;
 	QImage _art;
 	Ui::RoundButton *_play = nullptr;
@@ -8633,8 +8600,7 @@ protected:
 			}));
 	}
 
-	void addCatalogArtist(const ArtistInfo &artist, bool featured, bool mixed) {
-		const auto type = PlaylistText("Исполнитель");
+	void addCatalogArtist(const ArtistInfo &artist, bool featured) {
 		auto play = Fn<void(not_null<Ui::RoundButton*>)>();
 		if (featured) {
 			play = [=](not_null<Ui::RoundButton*> button) {
@@ -8655,8 +8621,8 @@ protected:
 		_tabList->add(object_ptr<CatalogEntityRow>(
 			_tabList,
 			artist.name,
-			(featured || !mixed) ? type : QString(),
-			(!featured && mixed) ? type : QString(),
+			PlaylistText("Исполнитель"),
+			QString(),
 			artist.avatarUrl,
 			true,
 			crl::guard(this, [=] {
@@ -8688,7 +8654,7 @@ protected:
 				}
 			}
 			if (featured) {
-				addCatalogArtist(*featured, true, true);
+				addCatalogArtist(*featured, true);
 			}
 		}
 
@@ -8704,7 +8670,7 @@ protected:
 			if (const auto track = std::get_if<Track>(&item)) {
 				const auto row = _tabList->add(object_ptr<Row>(
 					_tabList, _controller, *track, index, RowMode::Results, playable, index));
-				row->setCatalogStyle(mixed ? PlaylistText("Трек") : QString());
+				row->setCatalogStyle();
 				setResultTrackLinks(row);
 				++index;
 			} else if (const auto album = std::get_if<Album>(&item)) {
@@ -8725,7 +8691,7 @@ protected:
 					InstallAlbumContextMenu(row, _controller, *album);
 				}
 			} else if (const auto artist = std::get_if<ArtistInfo>(&item); artist && artist != featured) {
-				addCatalogArtist(*artist, false, mixed);
+				addCatalogArtist(*artist, false);
 			}
 		}
 	}
