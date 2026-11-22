@@ -25,6 +25,7 @@ sys.path.insert(0, str(TOOLS))
 import clang_style
 import cpp_layout
 import hook
+from laws import closing_parenthesis
 
 
 def read_json(path):
@@ -226,7 +227,7 @@ def clang_result(root, mappings, source, case, catalog, plugin, lines, staged):
             first = edit["Offset"]
             replacements.add((first, first + edit["Length"],
                 edit["ReplacementText"].encode("utf-8")))
-    if staged:
+    if staged and not case["expect"].get("python"):
         env = dict(os.environ, STYLECHECK_PLUGIN=str(plugin), STYLECHECK_DB=str(db),
             STYLECHECK_CATALOG=str(catalog))
         result = run_hook(root, env)
@@ -277,10 +278,31 @@ def run_engine(engine, case, catalog, mappings, plugin, source, parent=None):
             plugin, lines, staged=parent is not None)
 
 
-def check_case(case, catalog, matchers, engines, plugin, source_rewrites):
+def check_case(case, catalog, matchers, engines, plugin, source_rewrites,
+        layout, closer_result):
     before = fixture(catalog, case["before"]).read_bytes()
     after = fixture(catalog, case["after"]).read_bytes() if "after" in case else before
     parent = fixture(catalog, case["parent"]).read_bytes() if "parent" in case else None
+    if "spec" in case:
+        ranges = [(line, line) for line in case["changed"]] if parent is not None else None
+        findings = list(closing_parenthesis.select(
+            closing_parenthesis.inspect(before, layout), ranges))
+        closer_result.validate([closing_parenthesis.encode(finding) for finding in findings])
+        if any(before[item.offset:item.offset + 1] != b")"
+                or before.count(b"\n", 0, item.offset) + 1 != item.last_line
+                or not item.first_line <= item.anchor_line <= item.last_line
+                for item in findings):
+            raise ValueError("spec: invalid location or line interval")
+        diagnostics = Counter((case["spec"], finding.last_line, bool(finding.edits))
+            for finding in findings)
+        for expected in case["expect"].values():
+            want = Counter((item["rule"], item.get("line"), item["fix"]) for item in expected)
+            if diagnostics != want:
+                raise ValueError(f"spec: expected {dict(want)}, got {dict(diagnostics)}")
+        if closing_parenthesis.apply(before, findings) != after:
+            raise ValueError("spec: fixed bytes differ")
+        if after != before and list(closing_parenthesis.inspect(after, layout)):
+            raise ValueError("spec: fixed source is not clean")
 
     def run(engine, source, parent=None):
         return run_engine(engine, case, catalog, matchers[engine], plugin, source, parent)
@@ -323,14 +345,17 @@ def default_plugin():
         ROOT.parent / "stylecheck/build/libtdesktopstylecheck.so"))
 
 
-def check_plugin_layout(plugin, layout):
+def check_plugin_layout(plugin, layout, catalog_path):
     header = plugin.with_name("LayoutConfig.h")
     if not header.is_file():
         raise ValueError(f"missing {header}; rebuild the plugin with --catalog")
+    generated = header.read_text(encoding="utf-8")
     values = {name: int(value) for name, value in re.findall(
-        r"^inline constexpr auto (kColumnLimit|kTabWidth) = (\d+);$",
-        header.read_text(encoding="utf-8"), re.MULTILINE)}
-    if values != {"kColumnLimit": layout["columns"], "kTabWidth": layout["tab_width"]}:
+        r"^inline constexpr auto (kColumnLimit|kTabWidth) = (\d+);$", generated, re.MULTILINE)}
+    configured = re.search(r'^inline constexpr auto kStylecheckCatalog = R"spec\((.*)\)spec";$',
+        generated, re.MULTILINE)
+    if (values != {"kColumnLimit": layout["columns"], "kTabWidth": layout["tab_width"]}
+            or not configured or Path(configured[1]).resolve() != catalog_path.resolve()):
         raise ValueError(f"{header} disagrees with the catalog; rebuild the plugin")
 
 
@@ -365,7 +390,7 @@ def replay(revisions, plugin, catalog, quick):
     if missing:
         print(f"SKIP replay: missing {missing}")
         return not quick
-    check_plugin_layout(plugin, read_json(catalog)["layout"])
+    check_plugin_layout(plugin, read_json(catalog)["layout"], catalog)
 
     def query(*args, env=None):
         return subprocess.check_output(["git", *args], cwd=ROOT, env=env,
@@ -439,11 +464,12 @@ def main():
     missing = clang_missing(plugin) if needs_clang else ""
     if needs_clang and not missing:
         try:
-            check_plugin_layout(plugin, catalog["layout"])
+            check_plugin_layout(plugin, catalog["layout"], args.catalog)
             check_plugin_inventory(plugin, matchers["clang"], full=default_catalog)
         except (OSError, ValueError) as error:
             parser.error(str(error))
     passed, skipped = Counter(), Counter()
+    closer_result = Draft202012Validator(read_json(HERE / "closing_parenthesis.schema.json"))
     source_rewrites = {rule["id"] for rule in catalog["rules"]
         if rule.get("fix_kind") == "source-rewrite"}
     failed = False
@@ -460,8 +486,9 @@ def main():
         if not engines:
             continue
         try:
-            check_case(case, args.catalog.resolve(), matchers, engines, plugin, source_rewrites)
-        except (OSError, ValueError, subprocess.CalledProcessError) as error:
+            check_case(case, args.catalog.resolve(), matchers, engines, plugin,
+                source_rewrites, catalog["layout"], closer_result)
+        except (OSError, ValueError, ValidationError, subprocess.CalledProcessError) as error:
             print(f"FAIL {name}: {error}", flush=True)
             failed = True
         else:

@@ -95,12 +95,14 @@ def run(root, plugin, sources, *, database=None, export_fixes=None):
         if header_filter:
             command.append("--header-filter=.*")
         command.extend(map(str, sorted(units)))
+        env = dict(os.environ)
+        env.setdefault("STYLECHECK_PYTHON", sys.executable)
         if export_fixes is not None:
-            result = subprocess.run(command, capture_output=True, text=True)
+            result = subprocess.run(command, capture_output=True, text=True, env=env)
             if result.returncode:
                 raise ValueError(result.stdout + result.stderr)
             return 0
-        return 1 if subprocess.run(command, stdout=sys.stderr).returncode else 0
+        return 1 if subprocess.run(command, stdout=sys.stderr, env=env).returncode else 0
 
 
 def write_overlay(roots, folder, sources):

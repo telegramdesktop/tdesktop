@@ -9,10 +9,11 @@
     "layout": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["columns", "tab_width"],
+      "required": ["columns", "tab_width", "closing_parenthesis_decisions"],
       "properties": {
         "columns": {"type": "integer", "minimum": 1},
-        "tab_width": {"type": "integer", "minimum": 1}
+        "tab_width": {"type": "integer", "minimum": 1},
+        "closing_parenthesis_decisions": {"type": "string", "pattern": "^[012]{16}$"}
       }
     },
     "rules": {
@@ -108,6 +109,7 @@
         "id": {"$ref": "#/$defs/id"},
         "before": {"type": "string"},
         "mode": {"enum": ["staged", "edit", "commit-msg"]},
+        "spec": {"const": "call.closing-parenthesis"},
         "after": {"$ref": "#/$defs/file"},
         "parent": {"$ref": "#/$defs/file"},
         "changed": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/line"}},

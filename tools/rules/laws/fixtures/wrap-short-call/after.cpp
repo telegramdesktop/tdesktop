@@ -1,8 +1,7 @@
 void
-send(
+sendNotificationToEverySubscriberInTheCurrentWorkspaceWithIDTracking(
 	int value);
 void run() {
-	send(
-		1
-	);
+	sendNotificationToEverySubscriberInTheCurrentWorkspaceWithIDTracking(
+		1);
 }

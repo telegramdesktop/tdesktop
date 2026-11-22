@@ -240,7 +240,7 @@ class CallLayoutFix(unittest.TestCase):
             self.assertEqual(self.fix(path), expected)
             self.assertEqual(self.fix(path), expected)
 
-    def test_fix_joins_dot_call_and_keeps_its_ternary_argument_together(self):
+    def test_fix_does_not_create_a_dangling_closer_for_a_long_argument(self):
         indent = b"\t" * 6
         original = (b"void draw() {\n\tconst auto over = allowed()\n"
             + indent + b"? _inMediaEditOver\n"
@@ -248,16 +248,35 @@ class CallLayoutFix(unittest.TestCase):
             + indent + b"\t? 1.\n"
             + indent + b"\t: 0.)\n"
             + indent + b": 0.;\n}\n")
-        expected = (b"void draw() {\n\tconst auto over = allowed()\n"
-            + indent + b"? _inMediaEditOver.value(\n"
-            + indent + b"\t_inMediaEdit ? 1. : 0.\n"
-            + indent + b")\n"
-            + indent + b": 0.;\n}\n")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "draw.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), original)
+
+    def test_fix_attaches_nested_dangling_closers_without_changing_crlf(self):
+        original = (b"void draw() {\r\n\touter(\r\n\t\tinner(\r\n"
+            b"\t\t\tvalue\r\n\t\t)\r\n\t);\r\n}\r\n")
+        expected = (b"void draw() {\r\n\touter(\r\n\t\tinner(\r\n"
+            b"\t\t\tvalue));\r\n}\r\n")
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "draw.cpp"
             path.write_bytes(original)
             self.assertEqual(self.fix(path), expected)
             self.assertEqual(self.fix(path), expected)
+
+    def test_fix_leaves_closer_after_line_comment_for_manual_reflow(self):
+        original = b"void send() {\n\trequest(peer // recipient\n\t);\n}\n"
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "send.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), original)
+
+    def test_fix_tracks_closers_after_line_256(self):
+        original = b"\n" * 300 + b"void draw() {\n\tpaint(\n\t\t42\n\t);\n}\n"
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "draw.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), original.replace(b"42\n\t);", b"42);"))
 
 
 class Repository:
@@ -554,6 +573,20 @@ class StagedHook(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("a.cpp:6: Put each argument of the multiline call", why)
 
+    def test_nonempty_call_rejects_a_standalone_closer(self):
+        code, why = self.stage({"a.cpp": "void draw() {\n"
+            "\tauto x = value(\n\t\tactive ? 1. : 0.\n\t);\n"
+            "\tpaint(\n\t\tx,\n\t\ty\n\t);\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:4: Keep the closing parenthesis", why)
+        self.assertIn("a.cpp:8: Keep the closing parenthesis", why)
+
+    def test_pipeline_may_keep_a_closer_with_the_bar(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n"
+            "\tupdates(\n\t) | rpl::map_to(value);\n"
+            "\trpl::single(\n\t\tstate\n\t) | rpl::map_to(value);\n}\n"})
+        self.assertEqual(code, 0, why)
+
     def test_call_layout_understands_nested_cpp_syntax(self):
         code, why = self.stage({"a.cpp": "void declare(int first,\n"
             "\tint second);\n"
@@ -578,9 +611,9 @@ class StagedHook(unittest.TestCase):
             "\t).fail(failed\n"
             "\t).handleFloodErrors().send();\n}\n"})
         self.assertEqual(code, 1)
-        self.assertEqual(why.count("Close the inline argument list"), 3)
+        self.assertEqual(why.count("Keep the closing parenthesis"), 3)
         for line in (3, 4, 5):
-            self.assertIn(f"a.cpp:{line}: Close the inline argument list", why)
+            self.assertIn(f"a.cpp:{line}: Keep the closing parenthesis", why)
 
     def test_call_layout_allows_breaks_between_chain_methods(self):
         code, why = self.stage({"a.cpp": "void send() {\n"
@@ -633,8 +666,7 @@ class StagedHook(unittest.TestCase):
         code, why = self.stage({"a.cpp": "void observe() {\n"
             "\tupdates(\n"
             "\t) | observe();\n"
-            "\trequest(peer // the current recipient\n"
-            "\t);\n}\n"})
+            "\trequest(peer); // the current recipient\n}\n"})
         self.assertEqual(code, 0, why)
 
     def test_call_layout_leaves_unchanged_chain_arguments_alone(self):
@@ -1131,7 +1163,7 @@ class CommitMsgHook(unittest.TestCase):
             ".clang-tidy": "",
             **{"tools/rules/" + source: (Path(HERE) / source).read_text()
                 for source in ("hook.py", "clang_style.py", "cpp_layout.py",
-                    "laws/catalog.json")}})
+                    "laws/catalog.json", "laws/closing_parenthesis.py")}})
         self.install(repo)
 
         (root / name).write_text("after\n")

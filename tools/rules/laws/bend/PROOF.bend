@@ -33,3 +33,26 @@ def Laws.keeps_closer_attached(tokens, opening, span, gap, width, limit):
 
 def Laws.offers_short_wrap():
   {==}
+
+def Laws.skips_inline_closer(tail, gap, fits):
+  {==}
+
+def Laws.skips_expression_after_closer(standalone, gap, fits):
+  match standalone:
+    case False{}:
+      {==}
+    case True{}:
+      {==}
+
+def Laws.keeps_nonwhitespace_gap(fits):
+  {==}
+
+def Laws.keeps_overlong_closer(gap):
+  match gap:
+    case False{}:
+      {==}
+    case True{}:
+      {==}
+
+def Laws.offers_safe_closer_fix():
+  {==}

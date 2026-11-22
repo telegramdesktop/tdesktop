@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Closing-parenthesis findings from one C++ source",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["offset", "first_line", "last_line", "anchor_line", "edits"],
+    "properties": {
+      "offset": {
+        "description": "Zero-based byte offset of the diagnosed closing parenthesis.",
+        "$ref": "#/$defs/offset"
+      },
+      "first_line": {
+        "description": "First line that can activate the diagnosis. Lines start at one.",
+        "$ref": "#/$defs/line"
+      },
+      "last_line": {
+        "description": "Last line that can activate the diagnosis. The closer is on this line.",
+        "$ref": "#/$defs/line"
+      },
+      "anchor_line": {
+        "description": "Earliest line in the diagnostic interval selected by the line filter.",
+        "$ref": "#/$defs/line"
+      },
+      "edits": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "description": "Replace bytes in [start, end) of the original source.",
+          "prefixItems": [
+            {"$ref": "#/$defs/offset"},
+            {"$ref": "#/$defs/offset"},
+            {"type": "string", "pattern": "^[ \\t\\r\\n]*$"}
+          ],
+          "minItems": 3,
+          "items": false
+        }
+      }
+    }
+  },
+  "$defs": {
+    "offset": {"type": "integer", "minimum": 0},
+    "line": {"type": "integer", "minimum": 1}
+  }
+}

@@ -81,3 +81,47 @@ and line positions reported by Tree-sitter and Clang against the same Bend
 function.
 [Bend proof guide](https://github.com/bendlang/bend/blob/main/guide/GUIDE.md#laws-and-proofs).
 [lawcheck documentation](https://github.com/bendlib/bendlib/tree/main/tools/lawcheck).
+
+## Run the closing-parenthesis specification
+
+Run [closing_parenthesis.py](closing_parenthesis.py) on a C++ file to get its
+diagnostics, applicable line intervals, and exact edits. The parser versions
+are pinned in [the hook requirements](../requirements.txt). The output
+follows [the findings schema](closing_parenthesis.schema.json).
+
+```sh
+python3 tools/rules/laws/closing_parenthesis.py < before.cpp
+python3 tools/rules/laws/closing_parenthesis.py --line-ranges '[[4,4]]' < before.cpp
+python3 tools/rules/laws/closing_parenthesis.py --fix < before.cpp > after.cpp
+```
+
+Input and fixed output are raw bytes. Each edit replaces a zero-based
+half-open byte range from the original source. Source lines are one-based,
+and line range endpoints are inclusive. Omit `--line-ranges` to inspect the
+whole file. Add `--catalog` to select layout parameters.
+
+The Python hook imports the specification. clang-tidy runs the same script
+with the source bytes already loaded through Clang's virtual filesystem.
+The plugin build records the Python executable used by `run.py build`.
+Install the pinned requirements in that environment or set
+`STYLECHECK_PYTHON` to the absolute path of an interpreter that has them.
+
+## Change the closing-parenthesis decision
+
+Edit [closer.bend](bend/closer.bend) and update its laws and fixture expectations.
+The inputs are whether the closer starts its own line, whether the tail
+contains only closing punctuation, whether the gap is whitespace, and
+whether the adapter can join the lines within the width limit. The outputs
+are skip, diagnose, and attach.
+
+```sh
+bend tools/rules/laws/bend/PROOF.bend --verdict
+python3 tools/rules/laws/bend/generate_closer.py --write
+python3 ../stylecheck/run.py build --catalog tools/rules/laws/catalog.json
+python3 tools/rules/laws/run.py
+```
+
+Run the generator without `--write` to check that the catalog matches Bend.
+The executable specification reads the generated table. It also defines the
+parser inputs, layout checks, line selection, and byte edits that surround
+the decision.

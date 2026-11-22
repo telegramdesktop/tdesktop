@@ -2,7 +2,8 @@
   "version": 1,
   "layout": {
     "columns": 78,
-    "tab_width": 8
+    "tab_width": 8,
+    "closing_parenthesis_decisions": "0000000000001112"
   },
   "rules": [
     {
@@ -23,17 +24,21 @@
     },
     {
       "id": "call.closing-parenthesis",
-      "scope": "A sole inline argument followed by a detached closing parenthesis.",
-      "exceptions": "Empty calls and arguments starting on a later line are outside scope.",
-      "diagnostic": "Report the closer when the opening-to-closing span changes.",
-      "fix": "Move the inline argument to a continuation line and align the closer with the call.",
+      "scope": "Written C++ calls with a detached closing parenthesis, including a sole inline argument followed by a split call tail.",
+      "exceptions": "Empty calls, same-line closers, syntax errors, and continued expressions after a detached closer when the final argument already starts on a new line.",
+      "diagnostic": "Report the closer when a staged line intersects the span emitted by the executable specification.",
+      "fix": "Use the byte edits emitted by the specification for an attachment or a safe wrap of a sole inline argument.",
       "implementations": {
         "python": {
-          "match": "^Close the inline argument list on the same line as its argument\\.$",
-          "inputs": "Tree-sitter argument list and changed lines.",
+          "match": "^Keep the closing parenthesis with the final argument\\.$",
+          "inputs": "C++ source bytes, the shared Tree-sitter grammar and layout settings, and staged line ranges.",
           "modes": [
             "staged"
           ]
+        },
+        "clang": {
+          "match": "tdesktop-closing-parenthesis",
+          "inputs": "Original C++ source bytes from Clang's buffer and line filters. The shared specification reads the same grammar and layout settings."
         }
       }
     },
@@ -448,6 +453,67 @@
       }
     },
     {
+      "id": "move-standalone-closer",
+      "before": "fixtures/move-standalone-closer/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 5,
+            "fix": true
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 5,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/move-standalone-closer/after.cpp",
+      "headers": [
+        "fixtures/move-standalone-closer/calls.h"
+      ],
+      "spec": "call.closing-parenthesis"
+    },
+    {
+      "id": "closer-with-pipe",
+      "before": "fixtures/closer-with-pipe/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": []
+      },
+      "headers": [
+        "fixtures/closer-with-pipe/calls.h"
+      ],
+      "spec": "call.closing-parenthesis"
+    },
+    {
+      "id": "closer-after-comment",
+      "before": "fixtures/closer-after-comment/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 5,
+            "fix": false
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 5,
+            "fix": false
+          }
+        ]
+      },
+      "headers": [
+        "fixtures/closer-after-comment/calls.h"
+      ],
+      "spec": "call.closing-parenthesis"
+    },
+    {
       "id": "wrap-member-call",
       "before": "fixtures/wrap-member-call/before.cpp",
       "expect": {
@@ -483,6 +549,28 @@
       "headers": [
         "fixtures/wrap-nested-call/calls.h"
       ]
+    },
+    {
+      "id": "preserve-multiline-literal-and-directive",
+      "before": "fixtures/preserve-multiline-literal-and-directive/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 8,
+            "fix": true
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 8,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/preserve-multiline-literal-and-directive/after.cpp",
+      "spec": "call.closing-parenthesis"
     },
     {
       "id": "change-logical-continuation",
@@ -571,6 +659,29 @@
           }
         ]
       }
+    },
+    {
+      "id": "wrap-short-call",
+      "before": "fixtures/wrap-short-call/before.cpp",
+      "after": "fixtures/wrap-short-call/after.cpp",
+      "bend_call": "sendNotificationToEverySubscriberInTheCurrentWorkspaceWithIDTracking",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ]
+      },
+      "spec": "call.closing-parenthesis"
     },
     {
       "id": "packed-call-arguments",
@@ -1102,8 +1213,71 @@
       "after": "fixtures/deduce-null-pointer-type/after.cpp"
     },
     {
-      "id": "wrap-short-call",
-      "before": "fixtures/wrap-short-call/before.cpp",
+      "id": "closer-would-exceed-width",
+      "before": "fixtures/closer-would-exceed-width/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 5,
+            "fix": false
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 5,
+            "fix": false
+          }
+        ]
+      },
+      "spec": "call.closing-parenthesis"
+    },
+    {
+      "id": "empty-and-inline-closers",
+      "before": "fixtures/empty-and-inline-closers/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": []
+      },
+      "spec": "call.closing-parenthesis"
+    },
+    {
+      "id": "merge-nested-standalone-closers",
+      "before": "fixtures/merge-nested-standalone-closers/before.cpp",
+      "after": "fixtures/merge-nested-standalone-closers/after.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 7,
+            "fix": true
+          },
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 8,
+            "fix": true
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 7,
+            "fix": true
+          },
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 8,
+            "fix": true
+          }
+        ]
+      },
+      "spec": "call.closing-parenthesis"
+    },
+    {
+      "id": "closer-mixed-indent",
+      "spec": "call.closing-parenthesis",
+      "before": "fixtures/closer-mixed-indent/before.cpp",
       "expect": {
         "python": [
           {
@@ -1112,9 +1286,97 @@
             "fix": true
           }
         ],
-        "clang": []
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ]
       },
-      "after": "fixtures/wrap-short-call/after.cpp"
+      "after": "fixtures/closer-mixed-indent/after.cpp"
+    },
+    {
+      "id": "closer-staged-argument",
+      "spec": "call.closing-parenthesis",
+      "before": "fixtures/closer-staged-argument/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/closer-staged-argument/after.cpp",
+      "parent": "fixtures/closer-staged-argument/parent.cpp",
+      "changed": [
+        4
+      ]
+    },
+    {
+      "id": "closer-staged-comment",
+      "spec": "call.closing-parenthesis",
+      "before": "fixtures/closer-staged-comment/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": false
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": false
+          }
+        ]
+      },
+      "parent": "fixtures/closer-staged-comment/parent.cpp",
+      "changed": [
+        5
+      ]
+    },
+    {
+      "id": "closer-macro-argument",
+      "spec": "call.closing-parenthesis",
+      "before": "fixtures/closer-macro-argument/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ],
+        "clang": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/closer-macro-argument/after.cpp"
+    },
+    {
+      "id": "closer-with-trailing-comment",
+      "spec": "call.closing-parenthesis",
+      "before": "fixtures/closer-with-trailing-comment/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": []
+      }
     }
   ]
 }

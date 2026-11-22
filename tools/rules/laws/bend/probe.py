@@ -134,7 +134,7 @@ def main():
     plugin = default_plugin().resolve()
     if missing := clang_missing(plugin):
         sys.exit(f"The fixture probe needs {missing}.")
-    check_plugin_layout(plugin, catalog["layout"])
+    check_plugin_layout(plugin, catalog["layout"], catalog_path)
     tidy = clang_style.tidy_binary()
     sibling = Path(tidy).with_name("clang++") if tidy else None
     compiler = sibling if sibling and sibling.is_file() else shutil.which("clang++")

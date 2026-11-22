@@ -5,19 +5,20 @@ import json
 import os
 import re
 
-from tree_sitter import Language, Parser
-import tree_sitter_cpp
+from tree_sitter import Parser
+
+from laws import closing_parenthesis
 
 
-CPP = Language(tree_sitter_cpp.language())
 CATALOG = Path(os.environ.get("STYLECHECK_CATALOG",
     Path(__file__).with_name("laws") / "catalog.json"))
 LAYOUT = json.loads(CATALOG.read_bytes())["layout"]
 MAX_COLUMNS = LAYOUT["columns"]
 TAB_WIDTH = LAYOUT["tab_width"]
+CPP = closing_parenthesis.CPP
 CALL_MESSAGE = ("Put each argument of the multiline call on its own line"
     " after the opening parenthesis.")
-CLOSE_INLINE_MESSAGE = "Close the inline argument list on the same line as its argument."
+CLOSE_ARGUMENT_MESSAGE = "Keep the closing parenthesis with the final argument."
 LAMBDA_PARAMETER_MESSAGE = "Keep the sole lambda parameter on the same line as the capture."
 LAMBDA_BODY_MESSAGE = "Keep the short lambda body on one line."
 PIPELINE_MESSAGE = "Wrap before the producer closing parenthesis and keep the short RPL stage together."
@@ -81,21 +82,7 @@ def inline_rpl_handler(node, arguments, opening_line, line_at):
         and line_at(lifetime.start_byte) == line_at(lifetime.end_byte - 1))
 
 
-def split_inline_argument(call, line_at):
-    if call is None or call.has_error:
-        return None
-    children = call.named_children
-    if len(children) != 1 or children[0].is_extra:
-        return None
-    argument = children[0]
-    opening_line = line_at(call.start_byte)
-    if (line_at(argument.end_byte - 1) == opening_line
-        and opening_line < line_at(call.end_byte - 1)):
-        return argument
-    return None
-
-
-def call_layout_error(node, added_lines, line_at):
+def call_layout_error(node, line_at):
     call = node.child_by_field_name("arguments")
     if call is None or call.has_error:
         return None
@@ -105,13 +92,7 @@ def call_layout_error(node, added_lines, line_at):
         return None
     children = call.named_children
     arguments = [child for child in children if not child.is_extra]
-    if not arguments:
-        return None
-    if len(arguments) == 1:
-        change = bisect_left(added_lines, opening_line)
-        if (split_inline_argument(call, line_at) is not None
-            and change < len(added_lines) and added_lines[change] <= closing_line):
-            return closing_line, CLOSE_INLINE_MESSAGE
+    if len(arguments) <= 1:
         return None
     if (inline_lambda_branches(node, arguments, opening_line, line_at)
             or inline_rpl_handler(node, arguments, opening_line, line_at)):
@@ -422,8 +403,6 @@ def member_argument_wrap(arguments, source, line_starts, line_at, header, indent
     continuation = indent + b"\t" + value
     if fits_width(continuation + suffix):
         return newline + continuation
-    if fits_width(continuation) and fits_width(indent + suffix):
-        return newline + continuation + newline + indent
     return None
 
 
@@ -485,6 +464,9 @@ def layout_errors(source, added_lines):
         return bisect_right(line_starts, offset)
 
     tree = Parser(CPP).parse(source)
+    findings = closing_parenthesis.inspect(source, LAYOUT, tree.root_node)
+    for finding in closing_parenthesis.select(findings, ((line, line) for line in added_lines)):
+        yield finding.last_line, CLOSE_ARGUMENT_MESSAGE
     for node in changed_nodes(tree.root_node, added_lines, line_at):
         joined = layout_join(node, source, line_starts, line_at)
         if joined is not None:
@@ -500,7 +482,7 @@ def layout_errors(source, added_lines):
                 change = bisect_left(added_lines, first)
                 if change < len(added_lines) and added_lines[change] <= arrow:
                     yield first, MEMBER_CALL_MESSAGE
-            error = call_layout_error(node, added_lines, line_at)
+            error = call_layout_error(node, line_at)
             if error is not None:
                 yield error
         elif node.type == "binary_expression":
@@ -517,43 +499,6 @@ def layout_errors(source, added_lines):
                 error = packed_logical_term(node, source, added_lines, line_at)
                 if error is not None:
                     yield error
-
-
-def expand_split_inline_arguments(source):
-    line_starts = starts_of_lines(source)
-
-    def line_at(offset):
-        return bisect_right(line_starts, offset)
-
-    tree = Parser(CPP).parse(source)
-    matches = []
-    for node in changed_nodes(tree.root_node, range(1, len(line_starts) + 1), line_at):
-        if node.type == "call_expression":
-            call = node.child_by_field_name("arguments")
-            argument = split_inline_argument(call, line_at)
-            if argument is not None:
-                matches.append((call, argument))
-
-    edits, closing_indents = [], {}
-    for call, argument in sorted(matches, key=lambda match: match[0].start_byte):
-        opening = call.start_byte
-        closing = call.end_byte - 1
-        before = source[opening + 1:argument.start_byte]
-        after = source[argument.end_byte:closing]
-        if before.strip() or after.strip():
-            continue
-        opening_line = line_at(opening)
-        prefix = source[line_starts[opening_line - 1]:opening]
-        leading = prefix[:len(prefix) - len(prefix.lstrip(b" \t"))]
-        indent = closing_indents.get(opening_line, leading)
-        newline = b"\r\n" if b"\r\n" in after else b"\n"
-        closing_indents[line_at(closing)] = indent
-        edits.extend((
-            (opening + 1, argument.start_byte, newline + indent + b"\t"),
-            (argument.end_byte, closing, newline + indent),
-        ))
-
-    return apply_layout_edits(source, edits)
 
 
 def apply_layout_edits(source, edits):
@@ -593,7 +538,9 @@ def main():
     parser.add_argument("--fix", nargs="+", type=Path, required=True, metavar="FILE")
     for path in parser.parse_args().fix:
         source = path.read_bytes()
-        formatted = expand_split_inline_arguments(join_short_layouts(source))
+        joined = join_short_layouts(source)
+        formatted = closing_parenthesis.apply(joined,
+            closing_parenthesis.inspect(joined, LAYOUT))
         if formatted != source:
             path.write_bytes(formatted)
 

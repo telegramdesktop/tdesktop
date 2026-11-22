@@ -5,6 +5,8 @@
 *.diff text eol=lf
 *.bat text eol=crlf
 tools/rules/laws/fixtures/**/*.cpp -text whitespace=cr-at-eol
+tools/rules/laws/fixtures/closer-mixed-indent/*.cpp whitespace=cr-at-eol,-space-before-tab
+tools/rules/laws/fixtures/closer-staged-argument/*.cpp whitespace=cr-at-eol,-space-before-tab
 
 # Keep the zxcvbn word lists byte-identical to upstream so their digests hold
 Telegram/Resources/zxcvbn/*.txt text eol=lf
