@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tgw/tgw_hosted_wire.h"
 #include "twidget/remote_stream.h"
 
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <variant>
@@ -45,6 +46,7 @@ using HostedFactory = Fn<HostedRoute(
 	std::shared_ptr<twidget::SandboxResources>)>;
 using Completion = Platform::WidgetHelper::Completion;
 using Answers = twidget::SandboxHostedAnswers;
+using Clock = std::chrono::steady_clock;
 
 struct Choice {
 	EnginePlace place = EnginePlace::Nowhere;
@@ -300,10 +302,12 @@ struct Helper {
 	std::shared_ptr<Reports> reports;
 	FnMut<Completion(crl::time exitWait, crl::time killWait)> complete;
 	crl::time started = 0;
+	Clock::time_point launched;
 	crl::time handed = 0;
 	int64 pid = 0;
 	uint64 id = 0;
 	bool retiring = false;
+	bool reaping = false;
 	bool intentional = false;
 	bool launching = false;
 };
@@ -336,6 +340,7 @@ private:
 	[[nodiscard]] crl::time idleDeadlineLocked() const;
 	void failedLocked(crl::time uptime);
 	void scheduleReap(uint64 id);
+	[[nodiscard]] bool claimReapLocked(uint64 id);
 	void reap(uint64 id);
 	void finished();
 	void checkIdle();
@@ -623,6 +628,11 @@ Manager::Selected Manager::endFor(
 			return _disabled;
 		} else if (!_helper) {
 			return launch(lock, resources);
+		} else if (claimReapLocked(_helper->id)) {
+			const auto id = _helper->id;
+			lock.unlock();
+			reap(id);
+			lock.lock();
 		} else if (_helper->retiring || _helper->launching) {
 			_reaped.wait(lock);
 		} else if (!Read(*_helper->reports).ended) {
@@ -680,6 +690,7 @@ Manager::Selected Manager::launch(
 	_helper->stream = std::move(launched.stream);
 	_helper->complete = std::move(launched.complete);
 	_helper->started = crl::now();
+	_helper->launched = Clock::now();
 	_helper->pid = launched.pid;
 	_helper->launching = false;
 	_reaped.notify_all();
@@ -722,12 +733,13 @@ uint64 Manager::retireLocked(bool intentional) {
 	Expects(_helper && !_helper->retiring);
 
 	_helper->retiring = true;
-	_helper->intentional = intentional && !Read(*_helper->reports).ended;
-	if (!_helper->intentional) {
+	_helper->intentional = intentional;
+	if (!intentional && !_helper->end) {
 		failedLocked(_helper->started
 			? (crl::now() - _helper->started)
 			: crl::time(0));
 	}
+	_reaped.notify_all();
 	return _helper->id;
 }
 
@@ -757,13 +769,31 @@ void Manager::failedLocked(crl::time uptime) {
 
 void Manager::scheduleReap(uint64 id) {
 	crl::async([=] {
-		reap(id);
+		auto lock = Lock(_mutex);
+		if (claimReapLocked(id)) {
+			lock.unlock();
+			reap(id);
+		}
 	});
+}
+
+bool Manager::claimReapLocked(uint64 id) {
+	if (!_helper
+		|| (_helper->id != id)
+		|| !_helper->retiring
+		|| _helper->reaping) {
+		return false;
+	}
+	_helper->reaping = true;
+	return true;
 }
 
 void Manager::reap(uint64 id) {
 	auto lock = Lock(_mutex);
-	Assert(_helper && _helper->retiring && (_helper->id == id));
+	Assert(_helper
+		&& _helper->retiring
+		&& _helper->reaping
+		&& (_helper->id == id));
 	const auto end = base::take(_helper->end);
 	const auto stream = base::take(_helper->stream);
 	auto complete = base::take(_helper->complete);
@@ -771,8 +801,9 @@ void Manager::reap(uint64 id) {
 	const auto pid = _helper->pid;
 	lock.unlock();
 
+	auto endedAt = std::optional<Clock::time_point>();
 	if (end) {
-		end->stop();
+		endedAt = end->stop();
 		LOG(("Tgw: Widget helper %1 stream ended: %2."
 			).arg(pid
 			).arg(ReasonText(Read(*reports).reason)));
@@ -784,9 +815,13 @@ void Manager::reap(uint64 id) {
 
 	lock.lock();
 	const auto record = base::take(_helper);
+	if (endedAt) {
+		failedLocked(std::chrono::duration_cast<std::chrono::milliseconds>(
+			*endedAt - record->launched).count());
+	}
 	if (!result.reaped && _disabled.isEmpty()) {
 		_disabled = u"the widget helper was not reaped"_q;
-	} else if (result.reaped && record->intentional) {
+	} else if (result.reaped && record->intentional && !endedAt) {
 		_failures = 0;
 	}
 	_reaped.notify_all();
