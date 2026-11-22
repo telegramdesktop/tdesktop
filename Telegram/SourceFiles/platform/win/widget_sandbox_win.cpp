@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <gsl/gsl>
 
+#include <appmodel.h>
 #include <bcrypt.h>
 #include <delayimp.h>
-#include <userenv.h>
 #include <winternl.h>
 
 #include <algorithm>
@@ -57,8 +57,7 @@ constexpr auto kStoreBuild = false;
 #endif // OS_WIN_STORE
 
 constexpr auto k64Bit = kX64 || kARM64;
-constexpr auto kAppContainerName = L"telegram.desktop.widget-helper";
-// Deriving kAppContainerName's unpackaged SID fails under LPAC on Windows 10.
+// Deriving telegram.desktop.widget-helper's SID fails under LPAC on Windows 10.
 constexpr auto kPackageRids = std::array<DWORD, SECURITY_APP_PACKAGE_RID_COUNT>{
 	SECURITY_APP_PACKAGE_BASE_RID,
 	2297200083,
@@ -99,7 +98,6 @@ constexpr auto kWindows7Dep = DWORD(PROCESS_DEP_ENABLE
 
 using Check = std::string(*)(HANDLE token);
 using Step = std::string(*)();
-using DeriveSid = decltype(&::DeriveAppContainerSidFromAppContainerName);
 using CreateLowBoxToken = NTSTATUS(NTAPI*)(
 	PHANDLE token,
 	HANDLE existing,
@@ -527,51 +525,65 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 	return result;
 }
 
+[[nodiscard]] std::vector<std::byte> PackageSid(std::span<const DWORD> rids) {
+	const auto header = SID{
+		.Revision = SID_REVISION,
+		.SubAuthorityCount = BYTE(rids.size()),
+		.IdentifierAuthority = SECURITY_APP_PACKAGE_AUTHORITY,
+	};
+	const auto prefix = std::as_bytes(std::span(&header, 1)).first(
+		offsetof(SID, SubAuthority));
+	const auto bytes = std::as_bytes(rids);
+	auto result = std::vector<std::byte>(prefix.begin(), prefix.end());
+	result.insert(result.end(), bytes.begin(), bytes.end());
+	return result;
+}
+
 [[nodiscard]] Package DerivePackage() {
 	if constexpr (kStoreBuild) {
-		auto derive = DeriveSid();
-		if (const auto userenv = LoadLibraryExW(
-				L"userenv.dll",
-				nullptr,
-				LOAD_LIBRARY_SEARCH_SYSTEM32)) {
-			Resolve(
-				userenv,
-				derive,
-				"DeriveAppContainerSidFromAppContainerName");
-		}
-		if (!derive) {
+		// The child SID userenv's derivation returns to a packaged caller.
+		auto family = std::array<wchar_t, PACKAGE_FAMILY_NAME_MAX_LENGTH + 1>();
+		auto length = UINT32(family.size());
+		const auto read = GetCurrentPackageFamilyName(&length, family.data());
+		if (read != ERROR_SUCCESS || !length) {
 			return {
-				.error = "DeriveAppContainerSidFromAppContainerName "
-					"is not available",
+				.error = NumberedError(
+					"GetCurrentPackageFamilyName",
+					DWORD(read)),
 			};
 		}
-		auto sid = PSID();
-		const auto derived = derive(kAppContainerName, &sid);
-		if (FAILED(derived)) {
+		const auto name = std::span(family).first(length - 1);
+		for (auto &ch : name) {
+			if (ch >= L'A' && ch <= L'Z') {
+				ch = wchar_t(ch - L'A' + L'a');
+			}
+		}
+		auto digest = std::array<DWORD, 8>();
+		const auto status = BCryptHash(
+			BCRYPT_SHA256_ALG_HANDLE,
+			nullptr,
+			0,
+			reinterpret_cast<PUCHAR>(name.data()),
+			ULONG(name.size_bytes()),
+			reinterpret_cast<PUCHAR>(digest.data()),
+			ULONG(sizeof(digest)));
+		if (!BCRYPT_SUCCESS(status)) {
 			return {
-				.error = "DeriveAppContainerSidFromAppContainerName failed: 0x"
-					+ Hex(DWORD(derived)),
+				.error = "BCryptHash failed: status 0x" + Hex(DWORD(status)),
 			};
 		}
-		const auto guard = gsl::finally([&] {
-			FreeSid(sid);
-		});
-		const auto bytes = static_cast<const std::byte*>(sid);
-		return {
-			.sid = std::vector<std::byte>(bytes, bytes + GetLengthSid(sid)),
+		auto rids = std::array<DWORD, SECURITY_CHILD_PACKAGE_RID_COUNT>{
+			SECURITY_APP_PACKAGE_BASE_RID,
 		};
+		const auto hashed = std::span(digest).first(
+			SECURITY_APP_PACKAGE_RID_COUNT - 1);
+		const auto fixed = std::span(kPackageRids).last(
+			SECURITY_CHILD_PACKAGE_RID_COUNT - SECURITY_APP_PACKAGE_RID_COUNT);
+		const auto tail = std::ranges::copy(hashed, rids.begin() + 1).out;
+		std::ranges::copy(fixed, tail);
+		return { .sid = PackageSid(rids) };
 	} else {
-		const auto header = SID{
-			.Revision = SID_REVISION,
-			.SubAuthorityCount = BYTE(kPackageRids.size()),
-			.IdentifierAuthority = SECURITY_APP_PACKAGE_AUTHORITY,
-		};
-		const auto prefix = std::as_bytes(std::span(&header, 1)).first(
-			offsetof(SID, SubAuthority));
-		const auto rids = std::as_bytes(std::span(kPackageRids));
-		auto sid = std::vector<std::byte>(prefix.begin(), prefix.end());
-		sid.insert(sid.end(), rids.begin(), rids.end());
-		return { .sid = std::move(sid) };
+		return { .sid = PackageSid(kPackageRids) };
 	}
 }
 
