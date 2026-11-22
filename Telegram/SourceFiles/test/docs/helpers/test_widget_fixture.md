@@ -1924,10 +1924,11 @@ packs, the fixture and the seams they use need no change for it.
   The system cannot find the file specified.`. The
   client starts it as `"<path>" <handle>`, where `<handle>`
   is the decimal value of the pipe handle it inherits, without
-  `-testagent`, with the client's environment and the system directory as
-  its working directory (`C:\WINDOWS\system32` as `GetCurrentDirectoryW`
-  reads it, which an x86 helper on 64-bit Windows holds open through
-  WOW64 as `C:\Windows\SysWOW64`). Only a Debug probe value adds
+  `-testagent`, with the system directory as its working directory
+  (`C:\WINDOWS\system32` as `GetCurrentDirectoryW` reads it, which an x86
+  helper on 64-bit Windows holds open through WOW64 as
+  `C:\Windows\SysWOW64`) and with the client's environment except
+  `__COMPAT_LAYER`. Only a Debug probe value adds
   arguments after the handle, the same ones as on macOS: the mode, the
   client's working directory and its
   `QStandardPaths::GenericDataLocation`, each quoted for
@@ -2139,9 +2140,9 @@ packs, the fixture and the seams they use need no change for it.
   one are the direct downloads': the Store build maps no version below
   10.0.17763 to a tier (**The Windows Store build** below). The version
   alone picks the tier: `CurrentSandbox()` in `widget_sandbox_win.cpp`
-  reads it once per process with `RtlGetVersion`, looked up in the
-  mapped ntdll, which no
-  compatibility manifest lowers as it does `GetVersionExW`, compares major,
+  reads it once per process with `RtlGetNtVersionNumbers`, looked up in
+  the mapped ntdll, which no compatibility manifest lowers as it does
+  `GetVersionExW`, takes the build from its low 16 bits, compares major,
   minor and build in that order and caches the version with its tier.
   Telegram and the helper compile that unit and each reads the version
   itself; nothing the helper receives (its arguments, the channel, the

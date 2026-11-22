@@ -792,11 +792,11 @@ Windows sandbox tiers** in
 [Remote engines](test_widget_fixture.md#remote-engines) has the tiers,
 their launches and lowerings). The probe reads the helper's own choice,
 `CurrentSandbox()` of `widget_sandbox_win.cpp`: the version the helper
-read itself (`RtlGetVersion`, or the version a disposable test overlay
-simulates in its place) and the tier derived from it, both cached once
-per process. Nothing the probe receives names a tier, and the probe
-selects none: its rows are readings of the tier the lowering already
-applied.
+read itself (`RtlGetNtVersionNumbers`, or the version a disposable test
+overlay simulates in its place) and the tier derived from it, both
+cached once per process. Nothing the probe receives names a tier, and
+the probe selects none: its rows are readings of the tier the lowering
+already applied.
 
 - **The tier row.** Right after `job:` the native probe writes
   `after lowering: tier: <tier>, version <major>.<minor>.<build>`, with
