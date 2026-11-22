@@ -36,7 +36,10 @@ void LoadGif(
 			return;
 		}
 		crl::async([=] {
-			auto prepared = Media::Clip::PrepareForSending(path, content);
+			auto prepared
+				= Media::Clip::PrepareForSending(
+					path,
+					content);
 			using Video = Ui::PreparedFileInformation::Video;
 			auto video = std::get_if<Video>(&prepared.media);
 			auto result = Storage::PhotoEditorMedia();
@@ -48,7 +51,8 @@ void LoadGif(
 					.videoDuration = video->duration,
 				};
 			}
-			crl::on_main([=, result = std::move(result)]() mutable {
+			crl::on_main([=, result = std::move(result)](
+				) mutable {
 				deliver(std::move(result));
 			});
 		});

@@ -57,15 +57,17 @@ namespace {
 		std::shared_ptr<ChatHelpers::Show> show,
 		ChatHelpers::TabbedSelector::Mode mode,
 		ChatHelpers::ComposeFeatures features) {
+	const auto level = Window::GifPauseReason::Layer;
 	auto panel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		parent,
 		ChatHelpers::TabbedPanelDescriptor{
-			.ownedSelector = object_ptr<ChatHelpers::TabbedSelector>(
+			.ownedSelector
+				= object_ptr<ChatHelpers::TabbedSelector>(
 				nullptr,
 				ChatHelpers::TabbedSelectorDescriptor{
 					.show = std::move(show),
 					.st = st::mediaviewEmojiPan,
-					.level = Window::GifPauseReason::Layer,
+					.level = level,
 					.mode = mode,
 					.features = features,
 				}),
@@ -121,7 +123,8 @@ StickersPanelController::StickersPanelController(
 	PrepareFeatures(
 		withAudio,
 		storyWidgets,
-		Ui::LocationPicker::Available(Ui::ResolveMapsConfig(&session())))))
+		Ui::LocationPicker::Available(
+			Ui::ResolveMapsConfig(&session())))))
 , _textEmojiPanel(storyWidgets
 	? MakePanel(
 		panelContainer,
@@ -144,16 +147,15 @@ StickersPanelController::~StickersPanelController() {
 auto StickersPanelController::stickerChosen() const
 -> rpl::producer<not_null<DocumentData*>> {
 	const auto selector = _stickersPanel->selector();
+	using FileChosen = ChatHelpers::FileChosen;
 	return rpl::merge(
 		selector->fileChosen() | rpl::filter([](const auto &data) {
 			return data.document->sticker() != nullptr;
 		}),
 		selector->hasEmojiTab()
 			? selector->customEmojiChosen()
-			: rpl::never<ChatHelpers::FileChosen>() | rpl::type_erased
-	) | rpl::map([](const auto &data) {
-		return data.document;
-	});
+			: rpl::never<FileChosen>() | rpl::type_erased
+	) | rpl::map([](const auto &data) { return data.document; });
 }
 
 auto StickersPanelController::gifChosen() const
@@ -166,11 +168,14 @@ auto StickersPanelController::gifChosen() const
 		selector->fileChosen() | rpl::map([](const auto &data) {
 			return data.document.get();
 		}),
-		selector->inlineResultChosen() | rpl::map([](const auto &data) {
+		selector->inlineResultChosen() | rpl::map([](
+			const auto &data) {
 			return data.result->document();
 		})
 	) | rpl::filter([](DocumentData *document) {
-		return document && document->isAnimation() && !document->sticker();
+		return document
+			&& document->isAnimation()
+			&& !document->sticker();
 	}) | rpl::map([](DocumentData *document) {
 		return not_null{ document };
 	});
@@ -181,7 +186,8 @@ rpl::producer<EmojiPtr> StickersPanelController::emojiChosen() const {
 	if (!selector->hasEmojiTab()) {
 		return rpl::never<EmojiPtr>();
 	}
-	return selector->emojiChosen() | rpl::map(&ChatHelpers::EmojiChosen::emoji);
+	return selector
+		->emojiChosen() | rpl::map(&ChatHelpers::EmojiChosen::emoji);
 }
 
 rpl::producer<EmojiPtr> StickersPanelController::textEmojiChosen() const {

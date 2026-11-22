@@ -257,8 +257,10 @@ Paint::Paint(
 
 		controllers->stickersPanelController->setShowRequestChanges(
 			rpl::merge(
-				panel->emojiChosen() | rpl::map_to(ShowRequest::HideAnimated),
-				panel->gifChosen() | rpl::map_to(ShowRequest::HideAnimated),
+				panel->emojiChosen(
+				) | rpl::map_to(ShowRequest::HideAnimated),
+				panel->gifChosen(
+				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->stickerChosen(
 				) | rpl::map_to(ShowRequest::HideAnimated),
 				controllers->stickersPanelController->photoRequests(
@@ -295,14 +297,17 @@ Paint::Paint(
 			}
 			auto data = itemBaseData();
 			data.size /= 2;
-			addMediaItem(std::make_shared<ItemImage>(
-				Ui::PixmapFromImage(std::move(image)),
-				data));
+			addMediaItem(
+				std::make_shared<ItemImage>(
+					Ui::PixmapFromImage(std::move(image)),
+					data));
 		}, lifetime());
-		panel->gifChosen() | rpl::on_next([=](not_null<DocumentData*> gif) {
-			LoadGif(this, gif, [=](Storage::PhotoEditorMedia &&media) {
+		panel->gifChosen() | rpl::on_next([=](
+			not_null<DocumentData*> gif) {
+			auto addGif = [=](Storage::PhotoEditorMedia &&media) {
 				addMedia(std::move(media));
-			});
+			};
+			LoadGif(this, gif, std::move(addGif));
 		}, lifetime());
 
 		controllers->stickersPanelController->photoRequests(

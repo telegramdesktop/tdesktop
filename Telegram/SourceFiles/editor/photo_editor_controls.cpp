@@ -587,68 +587,80 @@ public:
 
 class TextToolButton final : public Ui::AbstractButton {
 public:
-	TextToolButton(not_null<QWidget*> parent, bool supportsEmoji)
-	: AbstractButton(parent)
-	, _supportsEmoji(supportsEmoji) {
-		resize(
-			st::photoEditorTextButtonSize.width(),
-			st::photoEditorTextButtonSize.height());
-		updateAccessibleName();
-		events(
-		) | rpl::on_next([=](not_null<QEvent*> event) {
-			if (event->type() == QEvent::Enter
-				|| event->type() == QEvent::Leave) {
-				update();
-			}
-		}, lifetime());
-	}
+	TextToolButton(not_null<QWidget*> parent, bool supportsEmoji);
 
-	void setEditing(bool editing) {
-		const auto emoji = _supportsEmoji && editing;
-		if (_emoji == emoji) {
-			return;
-		}
-		_emoji = emoji;
-		updateAccessibleName();
-		update();
-	}
+	void setEditing(bool editing);
 
-	[[nodiscard]] bool emojiMode() const {
-		return _emoji;
-	}
+	[[nodiscard]] bool emojiMode() const;
 
 private:
-	void updateAccessibleName() {
-		setAccessibleName(_emoji
-			? tr::lng_photo_editor_insert_emoji(tr::now)
-			: tr::lng_photo_editor_text_placeholder(tr::now));
-	}
+	void updateAccessibleName();
 
-	void paintEvent(QPaintEvent *) override {
-		auto p = QPainter(this);
-		auto hq = PainterHighQualityEnabler(p);
-		const auto content = rect().translated(
-			0,
-			st::photoEditorTextButtonGlyphSkip);
-		if (_emoji) {
-			const auto &button = st::photoEditorTextEmojiButton;
-			const auto &icon = isOver() ? button.iconOver : button.icon;
-			icon.paintInCenter(p, content);
-			return;
-		}
-		auto font = st::semiboldFont->f;
-		font.setPixelSize(QWidget::rect().height() / 2);
-		p.setFont(font);
-		p.setPen(isOver()
-			? st::photoEditorButtonIconFgOver
-			: st::photoEditorButtonIconFg);
-		p.drawText(content, style::al_center, u"A"_q);
-	}
+	void paintEvent(QPaintEvent *) override;
 
 	const bool _supportsEmoji;
 	bool _emoji = false;
 
 };
+
+TextToolButton::TextToolButton(not_null<QWidget*> parent, bool supportsEmoji)
+: AbstractButton(parent)
+, _supportsEmoji(supportsEmoji) {
+	resize(
+		st::photoEditorTextButtonSize.width(),
+		st::photoEditorTextButtonSize.height());
+	updateAccessibleName();
+	events(
+	) | rpl::on_next([=](not_null<QEvent*> event) {
+		if (event->type() == QEvent::Enter
+			|| event->type() == QEvent::Leave) {
+			update();
+		}
+	}, lifetime());
+}
+
+void TextToolButton::setEditing(bool editing) {
+	const auto emoji = _supportsEmoji && editing;
+	if (_emoji == emoji) {
+		return;
+	}
+	_emoji = emoji;
+	updateAccessibleName();
+	update();
+}
+
+bool TextToolButton::emojiMode() const {
+	return _emoji;
+}
+
+void TextToolButton::updateAccessibleName() {
+	setAccessibleName(_emoji
+		? tr::lng_photo_editor_insert_emoji(tr::now)
+		: tr::lng_photo_editor_text_placeholder(tr::now));
+}
+
+void TextToolButton::paintEvent(QPaintEvent *) {
+	auto p = QPainter(this);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto content = rect().translated(
+		0,
+		st::photoEditorTextButtonGlyphSkip);
+	if (_emoji) {
+		const auto &button = st::photoEditorTextEmojiButton;
+		const auto &icon = isOver()
+			? button.iconOver
+			: button.icon;
+		icon.paintInCenter(p, content);
+		return;
+	}
+	auto font = st::semiboldFont->f;
+	font.setPixelSize(QWidget::rect().height() / 2);
+	p.setFont(font);
+	p.setPen(isOver()
+		? st::photoEditorButtonIconFgOver
+		: st::photoEditorButtonIconFg);
+	p.drawText(content, style::al_center, u"A"_q);
+}
 
 PhotoEditorControls::PhotoEditorControls(
 	not_null<Ui::RpWidget*> parent,
@@ -770,8 +782,9 @@ PhotoEditorControls::PhotoEditorControls(
 	const auto panel = controllers->stickersPanelController.get();
 	_textButton->setClickedCallback([=] {
 		if (_textButton->emojiMode()) {
-			panel->toggleTextEmojiPanel(_textButton->mapToGlobal(
-				QPoint(_textButton->width() / 2, 0)));
+			panel->toggleTextEmojiPanel(
+				_textButton->mapToGlobal(
+					QPoint(_textButton->width() / 2, 0)));
 		} else {
 			_textRequests.fire({});
 		}

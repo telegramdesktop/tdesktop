@@ -96,25 +96,7 @@ protected:
 		QGraphicsTextItem::keyPressEvent(event);
 	}
 
-	void focusOutEvent(QFocusEvent *event) override {
-		QGraphicsTextItem::focusOutEvent(event);
-		if (!emojiPanel) {
-			fire(onFinish);
-			return;
-		}
-		crl::on_main(this, [=] {
-			const auto focused = QApplication::focusWidget();
-			const auto inPanel = focused
-				&& emojiPanel
-				&& emojiPanel->isAncestorOf(focused);
-			if (!hasFocus()
-				&& onFinish
-				&& !inPanel) {
-				const auto finish = onFinish;
-				finish();
-			}
-		});
-	}
+	void focusOutEvent(QFocusEvent *event) override;
 
 	void contextMenuEvent(QGraphicsSceneContextMenuEvent *event) override {
 		event->accept();
@@ -221,6 +203,29 @@ private:
 	QColor _color;
 	float64 _fontSize = 0.;
 };
+
+void TextEditProxy::focusOutEvent(QFocusEvent *event) {
+	QGraphicsTextItem::focusOutEvent(event);
+	if (!emojiPanel) {
+		fire(onFinish);
+		return;
+	}
+	crl::on_main(
+		this,
+		[=] {
+			const auto focused
+				= QApplication::focusWidget();
+			const auto inPanel = focused
+				&& emojiPanel
+				&& emojiPanel->isAncestorOf(focused);
+			if (!hasFocus()
+				&& onFinish
+				&& !inPanel) {
+				const auto finish = onFinish;
+				finish();
+			}
+		});
+}
 
 } // namespace
 
