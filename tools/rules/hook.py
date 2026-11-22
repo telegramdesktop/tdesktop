@@ -14,8 +14,6 @@ LICENSE = "This file is part of "
 HARNESS = "/SourceFiles/test/"
 URL = re.compile(r"https?://")
 PLAIN_LINES = 2
-MAX_COLUMNS = 78
-TAB_WIDTH = 8
 CPP_TOKEN = re.compile(
     r'(?P<comment>//(?:[^\r\n]|(?<=\\)\r?\n)*|/\*[\s\S]*?(?:\*/|\Z))'
     r'|(?P<literal>R"(?P<delimiter>[^ ()\\\t\v\f\r\n]{0,16})'
@@ -201,7 +199,7 @@ def staged():
                 added.setdefault(path, []).append((number, line[1:]))
     if added:
         try:
-            from cpp_layout import layout_errors
+            from cpp_layout import MAX_COLUMNS, TAB_WIDTH, layout_errors
         except ImportError:
             requirements = os.path.join(HERE, "requirements.txt")
             print(f'Install the C++ parser with: python3 -m pip install -r'

@@ -166,12 +166,97 @@ class CallLayoutFix(unittest.TestCase):
             b"\trequest(peer\r\n\t).send();\r\n"
             b"\tupdate(peer // the current recipient\r\n\t);\r\n"
             b"\tobserve(\r\n\t);\r\n"
-            b"\tdone([&] {\r\n\t\tfinish();\r\n\t});\r\n}\r\n")
+            b"\tdone([&] {\r\n\t\tfinish();\r\n\t\tnotify();\r\n\t});\r\n}\r\n")
         expected = original.replace(b"request(peer\r\n", b"request(\r\n\t\tpeer\r\n")
         with tempfile.TemporaryDirectory() as folder:
             path = os.path.join(folder, "send.cpp")
             with open(path, "wb") as stream:
                 stream.write(original)
+            self.assertEqual(self.fix(path), expected)
+
+    def test_fix_joins_short_lambda_parameter_and_preserves_crlf(self):
+        original = (b"void setup() {\r\n"
+            b"\tauto callback = [=](\r\n\t\tint value\r\n"
+            b"\t) mutable {\r\n\t\tuse(value);\r\n\t\tnotify();\r\n\t};\r\n}\r\n")
+        expected = original.replace(b"[=](\r\n\t\tint value\r\n\t)",
+            b"[=](int value)")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "setup.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), expected)
+            self.assertEqual(self.fix(path), expected)
+
+    def test_fix_wraps_pipeline_at_empty_producer_and_preserves_crlf(self):
+        original = (b"void setup() {\r\n\treceive(\r\n"
+            b"\t\tpanel->emojiChosen() | rpl::map_to(\r\n"
+            b"\t\t\tShowRequest::HideAnimated),\r\n"
+            b"\t\tother());\r\n}\r\n")
+        expected = original.replace(
+            b"emojiChosen() | rpl::map_to(\r\n\t\t\t",
+            b"emojiChosen(\r\n\t\t) | rpl::map_to(")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "setup.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), expected)
+            self.assertEqual(self.fix(path), expected)
+
+    def test_fix_keeps_each_pipeline_bar_with_the_previous_closer(self):
+        original = (b"void setup() {\r\n"
+            b"\tauto label = rpl::single(loading())\r\n"
+            b"\t\t| rpl::then(std::move(progress))\r\n"
+            b"\t\t| rpl::distinct_until_changed();\r\n}\r\n")
+        expected = (b"void setup() {\r\n\tauto label = rpl::single(\r\n"
+            b"\t\tloading()\r\n\t) | rpl::then(\r\n"
+            b"\t\tstd::move(progress)\r\n"
+            b"\t) | rpl::distinct_until_changed();\r\n}\r\n")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "setup.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), expected)
+            self.assertEqual(self.fix(path), expected)
+
+    def test_fix_compacts_short_lambda_body_without_changing_crlf(self):
+        original = (b"void setup() {\r\n\tbind(\r\n\t\t[=](\r\n"
+            b"\t\t\tint value) {\r\n\t\t\tuse(value);\r\n\t\t},\r\n"
+            b"\t\tstate);\r\n}\r\n")
+        expected = (b"void setup() {\r\n\tbind(\r\n"
+            b"\t\t[=](int value) { use(value); },\r\n\t\tstate);\r\n}\r\n")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "setup.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), expected)
+            self.assertEqual(self.fix(path), expected)
+
+    def test_fix_keeps_simple_receiver_with_method_and_preserves_crlf(self):
+        original = (b"void show() {\r\n\t\t\tcontroller\r\n"
+            b"\t\t\t\t->showToast(\r\n"
+            b"\t\t\t\t\ttr::lng_edit_media_invalid_file(\r\n"
+            b"\t\t\t\t\t\ttr::now));\r\n}\r\n")
+        expected = (b"void show() {\r\n\t\t\tcontroller->showToast(\r\n"
+            b"\t\t\t\ttr::lng_edit_media_invalid_file(tr::now));\r\n}\r\n")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "toast.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), expected)
+            self.assertEqual(self.fix(path), expected)
+
+    def test_fix_joins_dot_call_and_keeps_its_ternary_argument_together(self):
+        indent = b"\t" * 6
+        original = (b"void draw() {\n\tconst auto over = allowed()\n"
+            + indent + b"? _inMediaEditOver\n"
+            + indent + b"\t.value(_inMediaEdit\n"
+            + indent + b"\t? 1.\n"
+            + indent + b"\t: 0.)\n"
+            + indent + b": 0.;\n}\n")
+        expected = (b"void draw() {\n\tconst auto over = allowed()\n"
+            + indent + b"? _inMediaEditOver.value(\n"
+            + indent + b"\t_inMediaEdit ? 1. : 0.\n"
+            + indent + b")\n"
+            + indent + b": 0.;\n}\n")
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "draw.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), expected)
             self.assertEqual(self.fix(path), expected)
 
 
@@ -219,6 +304,117 @@ class StagedHook(unittest.TestCase):
     def stage(self, files):
         self.repo.put(files)
         return self.repo.staged()
+
+    def test_short_lambda_parameter_stays_with_capture(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n"
+            "\tbind(\n\t\tbutton,\n\t\t[=](\n"
+            "\t\t\t\tnot_null<Ui::PopupMenu*> menu) {\n"
+            "\t\t\tuse(menu);\n\t\t\tnotify();\n\t\t});\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:4: Keep the sole lambda parameter", why)
+
+    def test_short_lambda_body_stays_on_one_line(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n\tbind(\n"
+            "\t\t[=] {\n\t\t\tnotify();\n\t\t},\n\t\tstate);\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:3: Keep the short lambda body on one line", why)
+
+    def test_lambda_layout_preserves_comments_long_and_compound_bodies(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n"
+            "\tauto body = [someExceptionallyLongCaptureName] {\n"
+            "\t\treturn someExceptionallyLongCaptureName;\n\t};\n"
+            "\tauto withComment = [=] {\n\t\t// retain this explanation\n"
+            "\t\tuse();\n\t};\n"
+            "\tauto branch = [=] {\n\t\tif (valid()) use();\n\t};\n"
+            "\tauto several = [=] {\n\t\tprepare();\n\t\tuse();\n\t};\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_lambda_parameter_keeps_long_and_commented_signatures(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n"
+            "\tauto longName = [=](\n"
+            "\t\tVeryLongNamespace::VeryLongMenuClassName parameter) {\n"
+            "\t\tuse(parameter);\n\t};\n"
+            "\tauto explained = [=]( // theme owns this menu\n"
+            "\t\tMenu *menu) {\n\t\tuse(menu);\n\t};\n"
+            "\tauto configured = [=](\n#if ENABLED\n"
+            "\t\tMenu *menu\n#else\n\t\tint menu\n#endif\n"
+            "\t) {\n\t\tuse(menu);\n\t};\n"
+            "\tauto both = [=](\n\t\tMenu *menu,\n\t\tint index) {\n"
+            "\t\tuse(menu, index);\n\t};\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_lambda_param_layout_only_checks_changed_signature(self):
+        original = ("void setup() {\n\tauto callback = [=](\n"
+            "\t\tint value) {\n\t\tuse(value);\n\t\tnotify();\n\t};\n}\n")
+        self.repo.commit({"a.cpp": original})
+        code, why = self.stage({"a.cpp": original.replace("use(", "handle(")})
+        self.assertEqual(code, 0, why)
+
+    def test_pipeline_puts_short_rpl_stage_on_the_continuation_line(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n\treceive(\n"
+            "\t\tpanel->emojiChosen() | rpl::map_to(\n"
+            "\t\t\tShowRequest::HideAnimated),\n\t\tother());\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:3: Wrap before the producer", why)
+
+    def test_pipeline_keeps_long_and_commented_stage_arguments(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n"
+            "\tstream() | rpl::map_to(\n"
+            "\t\tChoice::LongNamedValueThatNeedsItsOwnPipelineContinuation);\n"
+            "\tstream() | rpl::map_to( // stages need context\n"
+            "\t\tvalue);\n"
+            "\tstream(value) | rpl::map_to(\n\t\tvalue);\n"
+            "\tstream() | other::map_to(\n\t\tvalue);\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_pipeline_only_checks_changed_lines(self):
+        original = ("void setup() {\n\tstream() | rpl::map_to(\n"
+            "\t\tvalue);\n}\n")
+        self.repo.commit({"a.cpp": original})
+        code, why = self.stage({"a.cpp": original + "void next() {}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_pipeline_rejects_a_leading_bar_after_an_rpl_call(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n"
+            "\tauto label = rpl::single(loading())\n"
+            "\t\t| rpl::then(std::move(progress))\n"
+            "\t\t| rpl::distinct_until_changed();\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:3: Keep the RPL pipe with the closing parenthesis", why)
+        self.assertIn("a.cpp:4: Keep the RPL pipe with the closing parenthesis", why)
+
+    def test_pipeline_preserves_leading_bar_in_historical_shapes(self):
+        code, why = self.stage({"a.cpp": "void setup() {\n"
+            "\t_layout->events()\n"
+            "\t| rpl::start_with_next_done(handler());\n"
+            "\twrap->toggleOn(rpl::duplicate(value)\n"
+            "\t\t| rpl::map(!rpl::mappers::_1));\n"
+            "\tflags()\n\t\t| options();\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_simple_arrow_receiver_stays_with_method(self):
+        code, why = self.stage({"a.cpp": "void show() {\n\tcontroller\n"
+            "\t\t->showToast(\n\t\t\ttext());\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:2: Keep the method name with its receiver", why)
+
+    def test_simple_dot_receiver_in_ternary_branch_stays_with_method(self):
+        code, why = self.stage({"a.cpp": "void draw() {\n"
+            "\tconst auto over = allowed()\n\t\t? progress\n"
+            "\t\t\t.value(active ? 1. : 0.)\n\t\t: 0.;\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:3: Keep the method name with its receiver", why)
+
+    def test_arrow_layout_keeps_long_receivers_and_comments(self):
+        code, why = self.stage({"a.cpp": "void show() {\n"
+            "\tcontrollerForThisLongerNestedOperation()\n"
+            "\t\t->showToast(text());\n"
+            "\tcontroller // use the parent controller\n"
+            "\t\t->showToast(text());\n"
+            "\tcontroller\n"
+            "\t\t->ShowLongNamedMenuActionThatDoesNotFitAfterItsReceiverNameXX(\n"
+            "\t\t\ttext());\n}\n"})
+        self.assertEqual(code, 0, why)
 
     def test_staged_raw_literal_uses_unchanged_delimiters(self):
         def snippet(body):
@@ -370,6 +566,7 @@ class StagedHook(unittest.TestCase):
             "\t\t/* end */ 90.);\n"
             "\tvisit([&] {\n"
             "\t\tdraw();\n"
+            "\t\tnotify();\n"
             "\t});\n"
             "}\n"})
         self.assertEqual(code, 0, why)
@@ -401,10 +598,36 @@ class StagedHook(unittest.TestCase):
             "\t\tflags\n"
             "\t)).done([=] {\n"
             "\t\tfinish();\n"
+            "\t\tnotify();\n"
             "\t}).fail(\n"
             "\t\tfailed\n"
             "\t).send();\n}\n"})
         self.assertEqual(code, 0, why)
+
+    def test_call_layout_allows_inline_rpl_handler_with_lifetime(self):
+        code, why = self.stage({"a.cpp": "void subscribe() {\n"
+            "\ttoggle->paintRequest(\n"
+            "\t) | rpl::on_next([=] {\n"
+            "\t\tpaint(toggle);\n"
+            "\t\tnotify();\n"
+            "\t}, toggle->lifetime());\n"
+            "\tupdates() | rpl::on_next([=] {\n"
+            "\t\trefresh();\n"
+            "\t\tnotify();\n"
+            "\t});\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_call_layout_keeps_other_callbacks_under_argument_rules(self):
+        code, why = self.stage({"a.cpp": "void subscribe() {\n"
+            "\tobserve([=] {\n"
+            "\t\trefresh();\n"
+            "\t}, lifetime());\n"
+            "\tupdates() | rpl::on_next_error([=] {\n"
+            "\t\trefresh();\n"
+            "\t}, [](auto) {}, lifetime());\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:2: Put each argument", why)
+        self.assertIn("a.cpp:5: Put each argument", why)
 
     def test_call_layout_allows_empty_lists_and_comments(self):
         code, why = self.stage({"a.cpp": "void observe() {\n"
@@ -434,6 +657,24 @@ class StagedHook(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("a.cpp:2: Put each argument of the multiline call", why)
 
+    def test_enumerate_accepts_two_inline_lambda_branches(self):
+        code, why = self.stage({"a.cpp": "void paint() {\n"
+            "\tenumerate([&](Single single) {\n"
+            "\t\tpaintSingle(single);\n"
+            "\t}, [&](Single single) {\n"
+            "\t\tpaintFull(single);\n"
+            "\t\tnotify();\n"
+            "\t});\n}\n"})
+        self.assertEqual(code, 0, why)
+
+    def test_enumerate_requires_inline_lambda_branches_to_start_separately(self):
+        code, why = self.stage({"a.cpp": "void paint() {\n"
+            "\tenumerate([&] {}, [&] {\n"
+            "\t\tpaintFull();\n"
+            "\t});\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("a.cpp:2: Put each argument", why)
+
     def test_match_accepts_adding_an_inline_visitor_branch(self):
         original = ("void refresh() {\n"
             "\tv::match(origin.data, [&](Message data) {\n"
@@ -454,6 +695,7 @@ class StagedHook(unittest.TestCase):
             "\t\trequest(data);\n"
             "\t}, [&](Missing) {\n"
             "\t\tfail();\n"
+            "\t\tnotify();\n"
             "\t});\n}\n"})
         self.assertEqual(code, 0, why)
 
@@ -545,6 +787,24 @@ class StagedHook(unittest.TestCase):
         self.assertIn("logic.cpp:2: Start the continuation with &&", why)
         self.assertIn("logic.cpp:3: Start the continuation with ||", why)
 
+    def test_multiline_logical_chain_puts_every_term_on_its_own_line(self):
+        code, why = self.stage({"logic.cpp": "bool canAdd() {\n"
+            "\treturn canChange() && status == Ready\n"
+            "\t\t&& count < limit;\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("logic.cpp:2: Start the continuation with &&", why)
+
+    def test_multiline_logical_chain_handles_mixed_precedence(self):
+        code, why = self.stage({"logic.cpp": "bool enabled() {\n"
+            "\treturn a || b\n\t\t&& c;\n}\n"})
+        self.assertEqual(code, 1, why)
+        self.assertIn("logic.cpp:2: Start the continuation with ||", why)
+
+    def test_logical_chain_allows_inline_parenthesized_operands(self):
+        code, why = self.stage({"logic.cpp": "bool enabled() {\n"
+            "\treturn (a || b)\n\t\t&& (c || d);\n}\n"})
+        self.assertEqual(code, 0, why)
+
     def test_logical_layout_allows_leading_operators_and_other_tokens(self):
         code, why = self.stage({"logic.cpp": "bool both(Value &&\n\t\ta) {\n"
             "\treturn a\n\t\t&& b\n\t\t|| c;\n}\n"
@@ -617,6 +877,69 @@ class ClangTidyHook(unittest.TestCase):
         code, why = repo.staged(env)
         self.assertEqual(code, 0, why)
 
+    def test_empty_function_param_indent_uses_the_staged_body(self):
+        plugin, tidy = self.clang_tools()
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        root = Path(repo.path)
+        name = "Telegram/SourceFiles/empty.cpp"
+        source = root / name
+        database = root / "out/clang-tidy"
+        database.mkdir(parents=True)
+        (database / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(root),
+            "file": str(source),
+            "arguments": ["clang++", "-std=c++20", "-c", str(source)],
+        }]))
+        env = dict(os.environ, CLANG_TIDY=tidy, STYLECHECK_PLUGIN=plugin,
+            STYLECHECK_DB=str(database))
+        empty = "void check(\n\t\tint width) {\n}\n"
+        nonempty = empty.replace(") {\n", ") {\n\t++width;\n")
+        repo.commit({name: "void check(int width);\n"})
+        repo.put({name: empty})
+        source.write_text(nonempty)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("empty.cpp:2:", why)
+        self.assertIn("tdesktop-empty-function-param-indent", why)
+
+        repo.put({name: nonempty})
+        source.write_text(empty)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+    def test_lambda_argument_indent_checks_changed_capture_line(self):
+        plugin, tidy = self.clang_tools()
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        root = Path(repo.path)
+        name = "Telegram/SourceFiles/callback.cpp"
+        source = root / name
+        database = root / "out/clang-tidy"
+        database.mkdir(parents=True)
+        (database / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(root),
+            "file": str(source),
+            "arguments": ["clang++", "-std=c++20", "-c", str(source)],
+        }]))
+        env = dict(os.environ, CLANG_TIDY=tidy, STYLECHECK_PLUGIN=plugin,
+            STYLECHECK_DB=str(database))
+        original = ("template <typename F> void guard(int, F) {}\n"
+            "void setup() {\n\tguard(\n\t\t1,\n\t\t[=](\n"
+            "\t\t\t\tint first,\n\t\t\t\tint second) {\n"
+            "\t\t\treturn first + second;\n\t\t});\n}\n")
+        repo.commit({name: original})
+        changed = original.replace("[=]", "[&]")
+        repo.put({name: changed})
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("callback.cpp:6:", why)
+        self.assertIn("tdesktop-lambda-argument-param-indent", why)
+
+        repo.put({name: changed.replace("\t\t\t\tint", "\t\t\tint")})
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
     def test_nested_multiline_call_checks_the_staged_opening(self):
         plugin, tidy = self.clang_tools()
         repo = Repository()
@@ -652,6 +975,52 @@ class ClangTidyHook(unittest.TestCase):
 
         repo.put({name: split})
         source.write_text(packed)
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+    def test_logical_checks_use_changed_continuation_lines(self):
+        plugin, tidy = self.clang_tools()
+        repo = Repository()
+        self.addCleanup(repo.folder.cleanup)
+        root = Path(repo.path)
+        name = "Telegram/SourceFiles/logic.cpp"
+        source = root / name
+        database = root / "out/clang-tidy"
+        database.mkdir(parents=True)
+        (database / "compile_commands.json").write_text(json.dumps([{
+            "directory": str(root),
+            "file": str(source),
+            "arguments": ["clang++", "-std=c++20", "-c", str(source)],
+        }]))
+        env = dict(os.environ, CLANG_TIDY=tidy, STYLECHECK_PLUGIN=plugin,
+            STYLECHECK_DB=str(database))
+        original = ("bool enabled(bool a, bool b, bool c) {\n"
+            "\treturn a && (b\n\t\t|| c);\n}\n")
+        flattened = original.replace("a && (b", "a\n\t\t&& (b")
+        repo.commit({name: original})
+        repo.put({name: flattened})
+        self.assertNotIn("+\t\t|| c", repo.git("diff", "--cached", "-U0"))
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("logic.cpp:4:", why)
+        self.assertIn("tdesktop-logical-group-indent", why)
+
+        repo.put({name: flattened.replace("\t\t|| c", "\t\t\t|| c")})
+        code, why = repo.staged(env)
+        self.assertEqual(code, 0, why)
+
+        legacy = ("int choose(bool a, bool b, bool c) {\n"
+            "\treturn a\n\t\t&& b\n\t\t? 1\n\t\t: 0;\n}\n")
+        repo.commit({name: legacy})
+        flattened = legacy.replace("&& b", "&& c")
+        repo.put({name: flattened})
+        self.assertNotIn("+\treturn", repo.git("diff", "--cached", "-U0"))
+        code, why = repo.staged(env)
+        self.assertEqual(code, 1, why)
+        self.assertIn("tdesktop-ternary-branch-indent", why)
+
+        indented = flattened.replace("\t\t?", "\t\t\t?").replace("\t\t:", "\t\t\t:")
+        repo.put({name: indented})
         code, why = repo.staged(env)
         self.assertEqual(code, 0, why)
 
