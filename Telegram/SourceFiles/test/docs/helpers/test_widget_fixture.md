@@ -419,8 +419,8 @@ packs, the fixture and the seams they use need no change for it.
   answered no valid opening on the inherited pipe
   ([Verification](#verification)). A Windows helper that runs without the
   client's confinement refuses in its lowering (`LockDownHelper()`, **The
-  Windows lowering** below) before Ready. The Windows helper has run only
-  on Windows 11 build 26300 (10.0.26300): in Win32 (x86 on WOW64) and x64
+  Windows lowering** below) before Ready. The Windows helper has run on
+  Windows 11 build 26300 (10.0.26300): in Win32 (x86 on WOW64) and x64
   Debug builds, and from Release packages (test harness on, LTO off), x86
   installed, portable and updated and x64 installed, and in an x64 Store
   Debug build installed as a test package
@@ -431,11 +431,18 @@ packs, the fixture and the seams they use need no change for it.
   (`2026/11/21/build-the-x64-windows-widget-helper-image-for-windows-7`
   and
   `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`,
-  their `work/test.md`); ARM64, an x86 or Release Store build and
-  Windows before that build have not. A tier other than the full one runs
-  on that build only as a simulation, forced by a disposable overlay, and
-  a real older Windows is field coverage (**The Windows sandbox tiers**
-  below).
+  their `work/test.md`). Before that build it has run on Windows 10 22H2
+  (10.0.19045.6466) in a Hyper-V guest: the x86 (on WOW64) and x64 Debug
+  clients and their Nova helpers, outside the Store, under the full tier
+  that each process chose from its own unforced version reading, once
+  the non-Store package SID was fixed data (**The Windows lowbox** below)
+  (`2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`,
+  its `work/test.md`). ARM64, an x86 or Release Store build, a Release or
+  Store build before 26300, the other builds from 10.0.17763 to
+  10.0.26299 and a Windows before 26300 on bare metal have not. A tier
+  other than the full one runs only as a simulation on build 26300,
+  forced by a disposable overlay, and a real Windows below 10.0.17763 is
+  field coverage (**The Windows sandbox tiers** below).
 - **Debug switch.** Debug builds that keep the private Qt API also read
   `TDESKTOP_WIDGET_ENGINES` at that point:
   - unset or any other value: the platform default, so a Debug build runs
@@ -2028,14 +2035,18 @@ packs, the fixture and the seams they use need no change for it.
   `win7sp1_exports.txt` of the import gate that
   `.github/workflows/win7-gate.yml` runs on `Telegram.exe` records that
   function as ADVAPI32's own export. On Windows 10.0.26300, where the
-  helpers were measured, both ADVAPI32 copies, the System32 one and the
-  SysWOW64 one that x86 processes load, forward it to
+  helpers were first measured, both ADVAPI32 copies, the System32 one and
+  the SysWOW64 one that x86 processes load, forward it to
   `CRYPTBASE.SystemFunction036`, `cryptbase.dll` is no KnownDLL, and a
   lookup through the forwarder maps it: for a static import at process
   start, where Windows' parallel loader can open it on a worker thread
   that runs as the LPAC primary (P6 in **The Windows lowering** below),
   and for a delay import in the `GetProcAddress` of the CRT's delay-load
-  helper. So the delay-load notification hook of the x86 and x64 helpers
+  helper. Windows 10 22H2 (10.0.19045.6466) has the same forwarder in
+  both copies and no `cryptbase.dll` among its KnownDLLs
+  (`2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`,
+  its `evidence/record.md`). So the delay-load notification hook of the
+  x86 and x64 helpers
   (`__pfnDliNotifyHook2` in `_other/widget_helper_win.cpp`, compiled for
   x86 and x64, not for ARM64) answers that one import at
   `dliNotePreGetProcAddress`, before that `GetProcAddress`, with the
@@ -2052,7 +2063,17 @@ packs, the fixture and the seams they use need no change for it.
   ordinals), `ADVAPI32.dll` and `bcrypt.dll` spelled as `WarmUp()` binds
   them. These are the readings of the final helpers of
   `2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`
-  (its `evidence/imports.md`). When
+  (its `evidence/imports.md`): in Debug 170 static functions (KERNEL32
+  168, ntdll 2) and 43 delayed ones on x86 and on x64. Outside the Store
+  build the helpers have since lost one import, the delayed
+  `ADVAPI32!FreeSid`, whose one caller in the helper was the package
+  derivation that only the Store build still runs (**The Windows lowbox**
+  below): the repaired x86 and x64 Debug helpers of
+  `2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`
+  (its `work/test.md`, Attempt 1 Run 4) import 170 functions statically
+  and delay-load 42, 22 of them from `ADVAPI32.dll`, in the same three
+  descriptors, with nothing added; their Release tables have not been
+  read again. When
   `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`
   first read these tables, the Release `ADVAPI32.dll` descriptor had 12
   functions: the later task's Windows 7 lowering (`LockDownWindows7()`)
@@ -2226,7 +2247,19 @@ packs, the fixture and the seams they use need no change for it.
   `ReadWindowsVersion()`, in the client and in the helper, or in the
   client alone while the helper reads its own version, and every reading
   of a forced tier is such a simulation on Windows 11 build 26300
-  (10.0.26300). What only a real older Windows shows is field coverage
+  (10.0.26300). The full tier alone has also run unforced on a real older
+  Windows, Windows 10 22H2 (10.0.19045.6466) in a Hyper-V guest, in x86
+  and x64 Debug builds: Telegram and the helper each read 10.0.19045 and
+  chose it, that build accepted the tier's attributes and creation words,
+  and its tokens' `WIN://NOALLAPPPKG`, the mitigation readbacks the full
+  tier requires and the probe's socket denials read as on Windows 11,
+  while the helper's package derivation failed there under the LPAC
+  primary until the non-Store package SID became fixed data
+  (**The Windows lowbox** below;
+  `2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`,
+  its `work/test.md`). No other build from 10.0.17763 to 10.0.26299 and
+  no bare-metal Windows before 26300 has run it. For the lower tiers,
+  what only a real older Windows shows is field coverage
   that no record here claims: whether it accepts each attribute and flag
   as documented and reads them back as Windows 11 does, its loader, the
   win7 Rust std there, the Windows 8 functions really missing, nested
@@ -2434,7 +2467,8 @@ packs, the fixture and the seams they use need no change for it.
   AppContainer token` (the level is read from the token's
   `WIN://NOALLAPPPKG` security attribute, because
   `TokenIsLessPrivilegedAppContainer` failed with error 87 on Windows
-  10.0.26300), `the token's AppContainer information is truncated`, `the
+  10.0.26300, and on 10.0.19045.6466 too), `the token's AppContainer
+  information is truncated`, `the
   token's security attributes version is <n>`, `the token's security
   attributes are malformed`, `the token's WIN://NOALLAPPPKG type is <n>`,
   `the token's WIN://NOALLAPPPKG has <n> values`, `the token's
@@ -2724,9 +2758,11 @@ packs, the fixture and the seams they use need no change for it.
   ([test_widget_helper_probe](test_widget_helper_probe.md)), and so is the
   Linux one (**Linux probe** below); on the non-Linux all-other platforms
   no helper starts, so nothing is written.
-- **What the Windows lowering leaves.** The readings below were all taken
+- **What the Windows lowering leaves.** The readings below were taken
   before the tiers existed, first under the restricted token alone, then
-  under what is now the full tier. The Windows 7 tier runs without a
+  under what is now the full tier, but for the Nova helpers' Ready
+  modules at the end, read under the unforced full tier. The Windows 7
+  tier runs without a
   lowbox, so the first of them applies to it by design, and what else it
   leaves is under **The Windows 7 tier** above; the AppContainer tier
   keeps the lowbox without the LPAC opt-out. Without the lowbox the Windows
@@ -2823,7 +2859,23 @@ packs, the fixture and the seams they use need no change for it.
   modules, and 13 x64 modules on x64; none from outside the system
   directories, no user32, gdi32, win32u, Qt or `WS2_32.dll`, and
   `bcrypt.dll` from the system directory. On x86 the first start of a copy
-  at a new path also mapped `apphelp.dll` from there. The warm-up covers
+  at a new path also mapped `apphelp.dll` from there. With Nova the same
+  13 names were read at Ready on both architectures on 10.0.26300.9711
+  on 2026-11-21
+  (`2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`,
+  its `evidence/full-tier.md`, E7). Since the non-Store package SID is
+  fixed data (**The Windows lowbox** above) `userenv`, `ucrtbase` and
+  `profext` no longer load: at Ready the repaired x86 and x64 Debug
+  helpers held 11 modules of their own machine, the image, ntdll,
+  KERNEL32, KERNELBASE, apphelp, ADVAPI32, msvcrt, sechost, RPCRT4,
+  bcrypt and bcryptprimitives, the same on 10.0.26300.9711 and on
+  Windows 10 22H2 (10.0.19045.6466), `apphelp.dll` on the first start
+  from a freshly staged path, with no `cryptbase.dll` and nothing else.
+  The x86 helper's x64 WOW64 view was the six modules on 10.0.26300 and
+  ntdll, wow64, wow64win and wow64cpu on 10.0.19045, where neither
+  `wow64base.dll` nor `wow64con.dll` appeared in that view
+  (`2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`,
+  its `work/test.md`, Attempt 1 Runs 1 and 3). The warm-up covers
   the paths those runs found, not every load a later path can need.
 - **The Windows Store build.** In the Windows Store build
   (`OS_WIN_STORE`, the special targets `uwp`, `uwp64` and `uwparm`) the
