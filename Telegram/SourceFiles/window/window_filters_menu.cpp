@@ -28,13 +28,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_unread_value.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
-#include "ui/filter_title_icon.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/filter_title_icon.h"
 #include "ui/power_saving.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
@@ -606,11 +606,12 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 		: Ui::FilterIcon::All);
 	raw->setIconOverride(icons.normal, icons.active);
 	if (titleIcon && titleIcon->document) {
-		raw->setIconPainter(Ui::MakeFilterEmojiIcon(
-			raw,
-			*titleIcon,
-			isStatic,
-			paused));
+		raw->setIconPainter(
+			Ui::MakeFilterEmojiIcon(
+				raw,
+				*titleIcon,
+				isStatic,
+				paused));
 	}
 	if (id >= 0) {
 		if (locked) {

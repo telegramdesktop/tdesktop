@@ -53,7 +53,8 @@ FilterTitleIcon ResolveFilterTitleIcon(
 	}
 	const auto eligible = [](not_null<DocumentData*> document) {
 		const auto sticker = document->sticker();
-		return sticker && sticker->isLottie()
+		return sticker
+			&& sticker->isLottie()
 			&& document->emojiUsesTextColor();
 	};
 	const auto document = session->data().document(id);
@@ -66,15 +67,20 @@ FilterTitleIcon ResolveFilterTitleIcon(
 		lifetime.make_state<base::has_weak_ptr>());
 	session->data().customEmojiManager().resolve(
 		id
-	) | rpl::on_next_error([=](not_null<DocumentData*> resolved) {
-		if (eligible(resolved)) {
-			InvokeQueued(widget, [=] {
-				if (guard) {
-					refresh();
-				}
-			});
-		}
-	}, [](rpl::empty_error) {}, lifetime);
+	) | rpl::on_next_error(
+		[=](not_null<DocumentData*> resolved) {
+			if (eligible(resolved)) {
+				InvokeQueued(
+					widget,
+					[=] {
+						if (guard) {
+							refresh();
+						}
+					});
+			}
+		},
+		[](rpl::empty_error) {},
+		lifetime);
 	return {};
 }
 
@@ -123,13 +129,15 @@ FilterEmojiIconPaint MakeFilterEmojiIcon(
 		p.translate(target.topLeft());
 		p.scale(scale, scale);
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
-		emoji->paint(p, {
-			.textColor = color,
-			.now = crl::now(),
-			.scale = 1.,
-			.paused = paused && paused(),
-			.internal = { .forceFirstFrame = isStatic },
-		});
+		emoji->paint(
+			p,
+			{
+				.textColor = color,
+				.now = crl::now(),
+				.scale = 1.,
+				.paused = paused && paused(),
+				.internal = { .forceFirstFrame = isStatic },
+			});
 		p.restore();
 		return true;
 	};

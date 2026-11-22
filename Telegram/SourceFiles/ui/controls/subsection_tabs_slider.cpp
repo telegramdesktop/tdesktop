@@ -28,8 +28,10 @@ constexpr auto kVerticalPinScale = 0.6;
 constexpr auto kHorizontalPinScale = 0.75;
 
 int HorizontalPinWidth() {
-	return int(std::ceil(
-		st::dialogsPinnedIcon.icon.width() * kHorizontalPinScale));
+	return int(
+		std::ceil(
+			st::dialogsPinnedIcon.icon.width()
+				* kHorizontalPinScale));
 }
 
 class VerticalButton final : public SubsectionButton {
@@ -237,7 +239,7 @@ void VerticalButton::paintEvent(QPaintEvent *e) {
 	const auto &state = _data.badges;
 	const auto top = _st.userpicTop / 2;
 	auto right = width() - textLeft;
-	UnreadBadgeStyle st;
+	auto st = UnreadBadgeStyle();
 	if (state.unread) {
 		st.muted = state.unreadMuted;
 		const auto counter = FormatUnreadCounter(
@@ -285,7 +287,7 @@ void HorizontalButton::updateSize() {
 	auto width = _st.strictSkip + _text.maxWidth() + pinWidth;
 
 	const auto &state = _data.badges;
-	UnreadBadgeStyle st;
+	auto st = UnreadBadgeStyle();
 	if (state.unread) {
 		const auto counter = FormatUnreadCounter(
 			state.unreadCounter,
@@ -414,15 +416,20 @@ void HorizontalButton::paintEvent(QPaintEvent *e) {
 		? (width() - labelWidth - labelPadding)
 		: labelPadding;
 	p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
-	_text.draw(p, {
-		.position = QPoint(labelLeft, _st.labelTop),
-		.availableWidth = labelWidth,
-		.paused = _delegate->buttonPaused(),
-	});
+	_text.draw(
+		p,
+		{
+			.position = QPoint(labelLeft, _st.labelTop),
+			.availableWidth = labelWidth,
+			.paused = _delegate->buttonPaused(),
+		});
 
 	const auto pinWidth = _reservePinnedIcon ? HorizontalPinWidth() : 0;
-	auto right = width() - pinWidth - _st.strictSkip + (_st.strictSkip / 2);
-	UnreadBadgeStyle st;
+	auto right = width()
+		- pinWidth
+		- _st.strictSkip
+		+ (_st.strictSkip / 2);
+	auto st = UnreadBadgeStyle();
 	const auto &state = _data.badges;
 	const auto badgeTop = (height() - st.size) / 2;
 	if (state.unread) {
@@ -457,8 +464,11 @@ void HorizontalButton::paintEvent(QPaintEvent *e) {
 	if (pinWidth && isPinned() && isLastPinned()) {
 		const auto &pin = st::dialogsPinnedIcon.icon;
 		const auto pinLeft = width() - pinWidth - _st.strictSkip / 3;
-		const auto pinTop = (height() - pin.height() * kHorizontalPinScale) / 2;
-		p.translate(rtl ? (width() - pinLeft - pinWidth) : pinLeft, pinTop);
+		const auto pinTop
+			= (height() - pin.height() * kHorizontalPinScale) / 2;
+		p.translate(
+			rtl ? (width() - pinLeft - pinWidth) : pinLeft,
+			pinTop);
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
 		p.scale(kHorizontalPinScale, kHorizontalPinScale);
 		pin.paint(p, 0, 0, pin.width());
@@ -622,7 +632,8 @@ void SubsectionSlider::setSections(
 			&& (index < _fixedCount + _pinnedCount);
 		_tabs.back()->setIsPinned(isPinned);
 		const auto isFirst = isPinned && (index == _fixedCount);
-		const auto isLast = isPinned && (index == _fixedCount + _pinnedCount - 1);
+		const auto isLast = isPinned
+			&& (index == _fixedCount + _pinnedCount - 1);
 		_tabs.back()->setPinnedPosition(isFirst, isLast);
 		_tabs.back()->setPinnedIconSpace(!_vertical && isLast);
 		_tabs.back()->setClickedCallback([=, raw = _tabs.back().get()] {
@@ -808,7 +819,9 @@ void SubsectionSlider::reorderButtons(int from, int to) {
 	const auto lastPinned = _fixedCount + _pinnedCount - 1;
 	for (auto i = 0; i < int(_tabs.size()); ++i) {
 		_tabs[i]->setPinnedIconSpace(
-			!_vertical && (_pinnedCount > 0) && (i == lastPinned));
+			!_vertical
+				&& (_pinnedCount > 0)
+				&& (i == lastPinned));
 		_tabs[i]->move(_vertical ? 0 : position, _vertical ? position : 0);
 		position += _vertical ? _tabs[i]->height() : _tabs[i]->width();
 	}
