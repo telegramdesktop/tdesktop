@@ -501,7 +501,9 @@ void FieldHeader::init() {
 				|| displayedReplyingToMessage()
 				|| _preview.parsed);
 	}) | rpl::on_next([=](not_null<QEvent*> event) {
-		const auto updateOver = [&](bool inClickable, bool inMediaEdit) {
+		const auto updateOver = [&](
+			bool inClickable,
+			bool inMediaEdit) {
 			if (_inClickable != inClickable) {
 				_inClickable = inClickable;
 				setCursor(_inClickable

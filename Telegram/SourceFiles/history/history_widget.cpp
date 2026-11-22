@@ -6712,7 +6712,8 @@ void HistoryWidget::clearOverStates() {
 
 bool HistoryWidget::canEditMediaPreview() const {
 	return _editMsgId
-		&& (_photoEditMedia || FindEditableMessageVideo(_replyEditMsg));
+		&& (_photoEditMedia
+			|| FindEditableMessageVideo(_replyEditMsg));
 }
 
 void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
@@ -11613,8 +11614,10 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		if (drawMsgText) {
 			if (hasPreview) {
 				if (preview) {
-					const auto overEdit = canEditMediaPreview()
-						? _inMediaEditOver.value(_inMediaEdit ? 1. : 0.)
+					const auto overEdit
+						= canEditMediaPreview()
+						? _inMediaEditOver.value(
+							float64(_inMediaEdit))
 						: 0.;
 					auto to = QRect(
 						replyLeft,
@@ -11638,7 +11641,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 							Ui::DefaultImageSpoiler().frame(
 								_replySpoiler->index(now, pausedSpoiler)));
 					}
-					HistoryView::MediaEditManager::PaintPreviewHover(
+					using HistoryView::MediaEditManager;
+					MediaEditManager::PaintPreviewHover(
 						p,
 						to,
 						overEdit);

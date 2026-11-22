@@ -133,13 +133,13 @@ void MessageVideo::load() {
 		LoadFromCloudOrLocal,
 		false);
 	_loader->updates(
-	) | rpl::on_next_error_done([=] {
-		_changes.fire({});
-	}, [=](FileLoader::Error) {
-		crl::on_main(base::make_weak(this), [=] { fail(); });
-	}, [=] {
-		readSource(*_temporaryPath, QByteArray());
-	}, _lifetime);
+	) | rpl::on_next_error_done(
+		[=] { _changes.fire({}); },
+		[=](FileLoader::Error) {
+			crl::on_main(base::make_weak(this), [=] { fail(); });
+		},
+		[=] { readSource(*_temporaryPath, QByteArray()); },
+		_lifetime);
 	_loader->start();
 	_changes.fire({});
 }

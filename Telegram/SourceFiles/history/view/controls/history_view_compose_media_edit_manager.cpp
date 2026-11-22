@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_chat_helpers.h"
 

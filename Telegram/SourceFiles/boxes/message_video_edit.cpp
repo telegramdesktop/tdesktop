@@ -22,13 +22,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/labels.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
 DocumentData *FindEditableMessageVideo(HistoryItem *item) {
-	const auto media = item && item->allowsEditMedia() && item->canBeEdited()
-		? item->media()
-		: nullptr;
+	const auto media = item
+		&& item->allowsEditMedia()
+		&& item->canBeEdited()
+			? item->media()
+			: nullptr;
 	const auto document = (media
 		&& media->allowsEditMedia()
 		&& !media->webpage())
@@ -59,15 +62,17 @@ void EditMessageVideo(
 		Media::Encode::MaxTranscodeSourceSize());
 	const auto current = [=] {
 		return FindEditableMessageVideo(
-			controller->session().data().message(itemId)) == document;
+			controller->session().data().message(itemId))
+				== document;
 	};
-	const auto open = crl::guard(controller, [=] {
+	auto openEditor = [=] {
 		if (!current()) {
 			return;
 		}
 		const auto source = video->source();
 		if (!source) {
-			controller->showToast(tr::lng_edit_media_invalid_file(tr::now));
+			controller->showToast(
+				tr::lng_edit_media_invalid_file(tr::now));
 			return;
 		}
 		const auto list = std::make_shared<Ui::PreparedList>();
@@ -77,7 +82,8 @@ void EditMessageVideo(
 		file.size = document->size;
 		file.temporaryPath = video->temporaryPath();
 		file.type = Ui::PreparedFile::Type::Video;
-		file.information = std::make_unique<Ui::PreparedFileInformation>();
+		file.information
+			= std::make_unique<Ui::PreparedFileInformation>();
 		file.information->filemime = document->mimeString();
 		file.information->media = Ui::PreparedFileInformation::Video{
 			.supportsStreaming = document->supportsStreaming(),
@@ -87,46 +93,53 @@ void EditMessageVideo(
 		};
 		const auto dimensions = source->thumbnail.size();
 		const auto duration = source->duration;
+		auto confirmEdit = [=](bool accepted) {
+			if (!accepted || !current()) {
+				return;
+			}
+			using Video = Ui::PreparedFileInformation::Video;
+			const auto &info = std::get<Video>(
+				list->files.front().information->media);
+			if (info.modifications.cover
+				|| Editor::VideoEdited(
+					info.modifications,
+					dimensions,
+					duration,
+					true)) {
+				done(std::move(*list));
+			}
+		};
 		Editor::OpenWithPreparedVideoFile(
 			controller->content(),
 			controller->uiShow(),
 			list.get(),
 			0,
 			st::sendMediaPreviewSize,
-			crl::guard(controller, [=](bool accepted) {
-				if (!accepted || !current()) {
-					return;
-				}
-				using Video = Ui::PreparedFileInformation::Video;
-				const auto &info = std::get<Video>(
-					list->files.front().information->media);
-				if (info.modifications.cover
-					|| Editor::VideoEdited(
-						info.modifications,
-						dimensions,
-						duration,
-						true)) {
-					done(std::move(*list));
-				}
-			}),
+			crl::guard(controller, std::move(confirmEdit)),
 			PhotoSideLimit(true),
 			allowGif);
-	});
+	};
+	const auto open = crl::guard(controller, std::move(openEditor));
 	controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 		box->setTitle(tr::lng_context_edit_video());
-		box->addRow(object_ptr<Ui::FlatLabel>(
-			box,
-			rpl::single(tr::lng_contacts_loading(tr::now))
-				| rpl::then(video->changes() | rpl::map([=] {
-					const auto percent = int(base::SafeRound(
-						video->progress() * 100));
-					return tr::lng_send_video_preparing(
-						tr::now,
-						lt_progress,
-						QString::number(percent));
-				}))
-				| rpl::distinct_until_changed(),
-			st::boxLabel));
+		auto progress = video->changes() | rpl::map([=] {
+			const auto percent = int(
+				base::SafeRound(video->progress() * 100));
+			return tr::lng_send_video_preparing(
+				tr::now,
+				lt_progress,
+				QString::number(percent));
+		});
+		auto label = rpl::single(
+			tr::lng_contacts_loading(tr::now)
+		) | rpl::then(
+			std::move(progress)
+		) | rpl::distinct_until_changed();
+		box->addRow(
+			object_ptr<Ui::FlatLabel>(
+				box,
+				std::move(label),
+				st::boxLabel));
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 		const auto active = box->lifetime().make_state<bool>(true);
 		box->boxClosing() | rpl::on_next([=] {
@@ -139,17 +152,21 @@ void EditMessageVideo(
 		) | rpl::filter([=] {
 			return *active && !video->loading();
 		}) | rpl::take(1) | rpl::on_next([=] {
-			InvokeQueued(box, [=] {
+			InvokeQueued(
+				box,
+				[=] {
+					if (*active) {
+						box->closeBox();
+						open();
+					}
+				});
+		}, box->lifetime());
+		InvokeQueued(
+			box,
+			[=] {
 				if (*active) {
-					box->closeBox();
-					open();
+					video->load();
 				}
 			});
-		}, box->lifetime());
-		InvokeQueued(box, [=] {
-			if (*active) {
-				video->load();
-			}
-		});
 	}));
 }

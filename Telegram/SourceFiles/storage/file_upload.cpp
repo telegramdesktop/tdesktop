@@ -353,7 +353,9 @@ void Uploader::upload(
 		if (!preparing && !file->content.isEmpty()) {
 			document->setDataAndCache(file->content);
 		}
-		if (!preparing && !file->filepath.isEmpty() && !file->temporaryPath) {
+		if (!preparing
+			&& !file->filepath.isEmpty()
+			&& !file->temporaryPath) {
 			document->setLocation(Core::FileLocation(file->filepath));
 		} else if (!preparing
 			&& !file->content.isEmpty()
@@ -558,7 +560,11 @@ void Uploader::finishTranscode(
 		if (size > limit) {
 			QFile::remove(path);
 			Ui::show(
-				Box(FileSizeLimitBox, &session(), uint64(size), nullptr),
+				Box(
+					FileSizeLimitBox,
+					&session(),
+					uint64(size),
+					nullptr),
 				Ui::LayerOption::KeepOther);
 			failed(itemId);
 			return;

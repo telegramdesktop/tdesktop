@@ -260,21 +260,25 @@ void OpenWithPreparedVideoFile(
 			return;
 		}
 		const auto kept = video->thumbnail;
-		const auto done = crl::guard(parent, [=](
+		const auto done = crl::guard(
+			parent,
+			[=](
 				QImage &&frame,
 				Storage::VideoDetails &&details) {
-			const auto video = lookup();
-			if (!video) {
-				doneCallback(false);
-				return;
-			}
-			const auto file = lookupFile();
-			if (!frame.isNull()) {
-				video->thumbnail = std::move(frame);
-			}
-			Storage::ApplyVideoDetails(*file, std::move(details));
-			doneCallback(true);
-		});
+				const auto video = lookup();
+				if (!video) {
+					doneCallback(false);
+					return;
+				}
+				const auto file = lookupFile();
+				if (!frame.isNull()) {
+					video->thumbnail = std::move(frame);
+				}
+				Storage::ApplyVideoDetails(
+					*file,
+					std::move(details));
+				doneCallback(true);
+			});
 		crl::async([=, temporary = file->temporaryPath] {
 			auto frame = Media::Video::ExtractFrame(
 				temporary ? *temporary : path,

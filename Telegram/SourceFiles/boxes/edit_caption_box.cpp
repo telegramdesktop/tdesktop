@@ -376,22 +376,24 @@ void EditCaptionBox::StartMediaEdit(
 	if (!item) {
 		return;
 	}
-	const auto done = crl::guard(controller, [=](
-			Ui::PreparedList &&list) mutable {
-		const auto item = session->data().message(itemId);
-		if (!item || !item->allowsEditMedia()) {
-			return;
-		}
-		controller->show(Box<EditCaptionBox>(
-			controller,
-			item,
-			std::move(text),
-			suggest,
-			spoilered,
-			invertCaption,
-			std::move(list),
-			std::move(saved)));
-	});
+	const auto done = crl::guard(
+		controller,
+		[=](Ui::PreparedList &&list) mutable {
+			const auto item = session->data().message(itemId);
+			if (!item || !item->allowsEditMedia()) {
+				return;
+			}
+			controller->show(
+				Box<EditCaptionBox>(
+					controller,
+					item,
+					std::move(text),
+					suggest,
+					spoilered,
+					invertCaption,
+					std::move(list),
+					std::move(saved)));
+		});
 	if (media) {
 		EditPhotoImage(
 			controller,

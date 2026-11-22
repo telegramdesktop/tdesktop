@@ -183,37 +183,47 @@ void VideoTimeline::reloadFrames() {
 	const auto content = _content;
 	const auto box = _loading->set.box * style::DevicePixelRatio();
 	crl::async([=, weak = base::make_weak(this)] {
-		Media::Video::ExtractFrames(path, content, {
-			.positions = positions,
-			.box = box,
-			.cover = true,
-		}, [&](int index, QImage &&frame) {
+		auto acceptFrame = [&](int index, QImage &&frame) {
 			if (cancel->load()) {
 				return false;
 			}
 			frame.setDevicePixelRatio(style::DevicePixelRatio());
-			crl::on_main(weak, [=, frame = std::move(frame)]() mutable {
+			auto showFrame = [=, frame = std::move(frame)](
+				) mutable {
 				if (cancel->load()
 					|| !_loading
 					|| index >= int(_loading->set.frames.size())) {
 					return;
 				}
 				_loading->set.frames[index] = std::move(frame);
-				if (!_frames.frames.empty() || _preview.isNull()) {
+				if (!_frames.frames.empty()
+					|| _preview.isNull()) {
 					update();
 				}
-			});
+			};
+			crl::on_main(weak, std::move(showFrame));
 			return true;
-		});
-		crl::on_main(weak, [=] {
+		};
+		Media::Video::ExtractFrames(
+			path,
+			content,
+			{
+				.positions = positions,
+				.box = box,
+				.cover = true,
+			},
+			std::move(acceptFrame));
+		auto finishLoading = [=] {
 			if (cancel->load() || !_loading) {
 				return;
 			}
 			const auto fade = _frames.frames.empty()
 				&& !_preview.isNull()
-				&& ranges::any_of(_loading->set.frames, [](const QImage &frame) {
-					return !frame.isNull();
-				});
+				&& ranges::any_of(
+					_loading->set.frames,
+					[](const QImage &frame) {
+						return !frame.isNull();
+					});
 			_frames = std::move(_loading->set);
 			_loading = nullptr;
 			if (_cache) {
@@ -228,13 +238,15 @@ void VideoTimeline::reloadFrames() {
 					anim::linear);
 			}
 			update();
-		});
+		};
+		crl::on_main(weak, std::move(finishLoading));
 	});
 }
 
 void VideoTimeline::paintStrip(QPainter &p, const QRect &strip) {
 	p.fillRect(strip, st::videoTimelinePlaceholderBg);
-	const auto initialPreview = _frames.frames.empty() && !_preview.isNull();
+	const auto initialPreview = _frames.frames.empty()
+		&& !_preview.isNull();
 	const auto opacity = _framesShown.value(1.);
 	if (initialPreview || opacity < 1.) {
 		const auto width = std::max(
@@ -246,7 +258,9 @@ void VideoTimeline::paintStrip(QPainter &p, const QRect &strip) {
 		p.save();
 		p.setOpacity(p.opacity() * 0.35);
 		for (auto x = strip.x(); x < rect::right(strip); x += width) {
-			p.drawImage(QRect(x, strip.y(), width, strip.height()), _preview);
+			p.drawImage(
+				QRect(x, strip.y(), width, strip.height()),
+				_preview);
 		}
 		p.restore();
 	}
