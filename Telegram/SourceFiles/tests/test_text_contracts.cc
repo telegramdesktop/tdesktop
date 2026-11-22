@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/text/text_entity.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/emoji_config.h"
 #include "ui/integration.h"
 #include "ui/qt_object_factory.h"
 #include "ui/rp_widget.h"
@@ -31,11 +32,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QFontDatabase>
 #include <QtGui/QFontInfo>
 #include <QtGui/QImage>
+#include <QtGui/QInputMethodEvent>
 #include <QtGui/QPainter>
 #include <QtGui/QScreen>
+#include <QtGui/QTextDocument>
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QTextEdit>
 
+#include <array>
 #include <cstdio>
 #include <vector>
 
@@ -63,6 +67,27 @@ struct SymbolHit {
 		const SymbolHit &) = default;
 };
 
+using InputMethodAttributes = QList<QInputMethodEvent::Attribute>;
+
+struct InputMethodRow {
+	const char *name = nullptr;
+	TextWithTags initial;
+	int breakAt = -1;
+	int maxLength = 0;
+	int from = 3;
+	int till = 3;
+	QString preedit;
+	QString commit;
+	int replacementStart = 0;
+	int replacementLength = 0;
+	TextWithTags expected;
+	std::optional<TextWithTags> undone;
+	QString changes;
+	bool splices = true;
+	Fn<void(not_null<Ui::InputField*>)> setup;
+	Fn<InputMethodAttributes(not_null<Ui::InputField*>)> attributes;
+};
+
 class BaseIntegration final : public base::Integration {
 public:
 	using Integration::Integration;
@@ -85,6 +110,18 @@ public:
 	[[nodiscard]] QString angleBackendFilePath() override;
 	void touchCounterIncrement() override;
 	[[nodiscard]] int touchCounterNow() override;
+
+};
+
+class RejectedMime final : public QMimeData {
+public:
+	RejectedMime(not_null<Ui::InputField*> field, int position);
+
+	bool hasFormat(const QString &mimeType) const override;
+
+private:
+	const not_null<Ui::InputField*> _field;
+	const int _position = 0;
 
 };
 
@@ -132,6 +169,21 @@ void UiIntegration::touchCounterIncrement() {
 
 int UiIntegration::touchCounterNow() {
 	return 0;
+}
+
+RejectedMime::RejectedMime(
+	not_null<Ui::InputField*> field,
+	int position)
+: _field(field)
+, _position(position) {
+	setParent(field);
+}
+
+bool RejectedMime::hasFormat(const QString &mimeType) const {
+	auto cursor = _field->textCursor();
+	cursor.setPosition(_position);
+	_field->setTextCursor(cursor);
+	return false;
 }
 
 [[nodiscard]] QString StartOffscreenStyle() {
@@ -347,6 +399,20 @@ void Insert(
 	field->rawTextEdit()->insertPlainText(text);
 }
 
+void SendInputMethod(
+		not_null<Ui::InputField*> field,
+		const InputMethodRow &row) {
+	Select(field, row.from, row.till);
+	auto event = QInputMethodEvent(
+		row.preedit,
+		row.attributes ? row.attributes(field) : InputMethodAttributes());
+	event.setCommitString(
+		row.commit,
+		row.replacementStart,
+		row.replacementLength);
+	QCoreApplication::sendEvent(field->rawTextEdit(), &event);
+}
+
 void Paste(
 		not_null<Ui::InputField*> field,
 		int from,
@@ -493,6 +559,505 @@ void Paste(
 		uncorrected,
 		ExpectExport(field, BoldBase()),
 	});
+}
+
+[[nodiscard]] not_null<Ui::InputField*> CreateInputMethodField(
+		not_null<QWidget*> parent,
+		const InputMethodRow &row) {
+	const auto result = CreateField(parent, row.initial);
+	if (row.breakAt >= 0) {
+		Insert(result, row.breakAt, u"\n"_q);
+	}
+	if (row.maxLength > 0) {
+		result->setMaxLength(row.maxLength);
+	}
+	if (row.setup) {
+		row.setup(result);
+	}
+	return result;
+}
+
+[[nodiscard]] bool IsSplice(
+		QStringView before,
+		QStringView after,
+		int position,
+		int removed,
+		int added) {
+	return (position >= 0)
+		&& (removed >= 0)
+		&& (added >= 0)
+		&& (position + removed <= before.size())
+		&& (position + added <= after.size())
+		&& (before.first(position) == after.first(position))
+		&& (before.sliced(position + removed)
+			== after.sliced(position + added));
+}
+
+void AddRowFailure(
+		QStringList &failures,
+		const InputMethodRow &row,
+		const QString &failure) {
+	if (!failure.isEmpty()) {
+		failures.push_back(QString::fromLatin1(row.name) + u": "_q + failure);
+	}
+}
+
+[[nodiscard]] QString CheckInputMethodCommits() {
+	const auto &bold = Ui::InputField::kTagBold;
+	const auto &italic = Ui::InputField::kTagItalic;
+	const auto edge = TextWithTags{ u"a\U0001D400Z"_q, { { 1, 2, bold } } };
+	const auto tail = TextWithTags{ u"a\U0001D400b"_q, { { 1, 2, bold } } };
+	const auto end = TextWithTags{ u"a\U0001D400"_q, { { 1, 2, bold } } };
+	const auto mixed = TextWithTags{
+		u"a\U0001D400\U0001D402Z"_q,
+		{ { 1, 2, bold }, { 3, 2, italic } },
+	};
+	const auto rows = std::vector<InputMethodRow>{
+		{
+			.name = "letter",
+			.initial = edge,
+			.breakAt = 3,
+			.commit = u"\U0001D401"_q,
+			.expected = { u"a\U0001D400\U0001D401\nZ"_q, { { 1, 4, bold } } },
+		},
+		{
+			.name = "space",
+			.initial = edge,
+			.breakAt = 3,
+			.commit = u" "_q,
+			.expected = { u"a\U0001D400 \nZ"_q, { { 1, 2, bold } } },
+		},
+		{
+			.name = "exclamation",
+			.initial = edge,
+			.breakAt = 3,
+			.commit = u"!"_q,
+			.expected = { u"a\U0001D400!\nZ"_q, { { 1, 2, bold } } },
+		},
+		{
+			.name = "ascii",
+			.initial = edge,
+			.breakAt = 3,
+			.commit = u"B"_q,
+			.expected = { u"a\U0001D400B\nZ"_q, { { 1, 3, bold } } },
+		},
+		{
+			.name = "symbol-before-text",
+			.initial = tail,
+			.commit = u"\U0001D6C1"_q,
+			.expected = { u"a\U0001D400\U0001D6C1b"_q, { { 1, 2, bold } } },
+		},
+		{
+			.name = "symbol-at-end",
+			.initial = end,
+			.commit = u"\U0001D6C1"_q,
+			.expected = { u"a\U0001D400\U0001D6C1"_q, { { 1, 2, bold } } },
+		},
+		{
+			.name = "letters-before-italic",
+			.initial = mixed,
+			.breakAt = 5,
+			.commit = u"abc"_q,
+			.expected = {
+				u"a\U0001D400abc\U0001D402\nZ"_q,
+				{ { 1, 5, bold }, { 6, 2, italic } },
+			},
+		},
+		{
+			.name = "preedit",
+			.initial = edge,
+			.breakAt = 3,
+			.preedit = u"draft"_q,
+			.expected = { u"a\U0001D400\nZ"_q, { { 1, 2, bold } } },
+		},
+		{
+			.name = "preedit-no-newlines",
+			.initial = edge,
+			.breakAt = 3,
+			.preedit = u"draft"_q,
+			.expected = { u"a\U0001D400\nZ"_q, { { 1, 2, bold } } },
+			.setup = [](not_null<Ui::InputField*> field) {
+				field->setMode(Ui::InputField::Mode::NoNewlines);
+			},
+		},
+		{
+			.name = "selection",
+			.initial = tail,
+			.till = 4,
+			.commit = u"x"_q,
+			.expected = { u"a\U0001D400x"_q, { { 1, 3, bold } } },
+		},
+		{
+			.name = "relative",
+			.initial = tail,
+			.from = 4,
+			.till = 4,
+			.commit = u"x"_q,
+			.replacementStart = -1,
+			.replacementLength = 1,
+			.expected = { u"a\U0001D400x"_q, { { 1, 2, bold } } },
+		},
+		{
+			.name = "gap-limit",
+			.initial = { u"abcde"_q },
+			.maxLength = 5,
+			.till = 4,
+			.commit = u"WXYZ"_q,
+			.replacementStart = -2,
+			.replacementLength = 1,
+			.expected = { u"aWXce"_q },
+		},
+	};
+	auto failures = QStringList();
+	for (const auto &row : rows) {
+		auto parent = Ui::RpWidget();
+		const auto field = CreateInputMethodField(&parent, row);
+		SendInputMethod(field, row);
+		AddRowFailure(failures, row, ExpectExport(field, row.expected));
+	}
+	return failures.join(u"; "_q);
+}
+
+[[nodiscard]] InputMethodAttributes MoveToFirstBlock(
+		not_null<Ui::InputField*>) {
+	return {
+		QInputMethodEvent::Attribute(QInputMethodEvent::Selection, -2, 0),
+	};
+}
+
+[[nodiscard]] auto RejectedMimeAt(int position)
+-> Fn<InputMethodAttributes(not_null<Ui::InputField*>)> {
+	return [=](not_null<Ui::InputField*> field) {
+		const auto payload = new RejectedMime(field, position);
+		return InputMethodAttributes{
+			QInputMethodEvent::Attribute(
+				QInputMethodEvent::MimeData,
+				0,
+				0,
+				QVariant::fromValue<QMimeData*>(payload)),
+		};
+	};
+}
+
+[[nodiscard]] Fn<void(not_null<Ui::InputField*>)> MoveCaretOnUndoAvailable(
+		int position) {
+	return [=](not_null<Ui::InputField*> field) {
+		const auto kept = field->lifetime().make_state<QTextCursor>();
+		QObject::connect(
+			field->rawTextEdit(),
+			&QTextEdit::undoAvailable,
+			field,
+			[=] {
+				*kept = field->textCursor();
+				Select(field, position, position);
+			},
+			Qt::SingleShotConnection);
+	};
+}
+
+void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
+	QGuiApplication::clipboard()->setText(u"clipboard"_q);
+	const auto edit = field->rawTextEdit();
+	QObject::connect(
+		edit->document(),
+		&QTextDocument::undoCommandAdded,
+		field,
+		[=] { edit->canPaste(); },
+		Qt::SingleShotConnection);
+}
+
+[[nodiscard]] QString CheckInputMethodChanges() {
+	const auto &bold = Ui::InputField::kTagBold;
+	const auto gap = InputMethodRow{
+		.name = "gap",
+		.initial = { u"abcde"_q },
+		.till = 4,
+		.commit = u"WXYZ"_q,
+		.replacementStart = -2,
+		.replacementLength = 1,
+		.expected = { u"aWXYZce"_q },
+		.changes = u"(3,1,0),(1,1,4)"_q,
+	};
+	auto limited = gap;
+	limited.name = "gap-limit";
+	limited.maxLength = 5;
+	limited.expected = { u"aWXce"_q };
+	limited.splices = false;
+	auto undone = limited;
+	undone.name = "undo-redo";
+	undone.undone = TextWithTags{ u"abcde"_q };
+	undone.changes = u"(3,1,0),(1,1,4),(1,3,3),(1,3,3)"_q;
+	const auto emptyRelative = InputMethodRow{
+		.name = "empty-relative",
+		.initial = { u"abcXYZ"_q },
+		.from = 1,
+		.till = 2,
+		.replacementStart = 3,
+		.replacementLength = 3,
+		.expected = { u"acXYZ"_q },
+		.changes = u"(1,1,0)"_q,
+	};
+	auto emptyRelativeBreak = emptyRelative;
+	emptyRelativeBreak.name = "empty-relative-break";
+	emptyRelativeBreak.breakAt = 3;
+	emptyRelativeBreak.expected = { u"ac\nXYZ"_q };
+	const auto canPaste = InputMethodRow{
+		.name = "can-paste",
+		.initial = { u"aXYcd"_q },
+		.maxLength = 6,
+		.from = 1,
+		.till = 1,
+		.commit = u"XY"_q,
+		.expected = { u"aXXYcd"_q },
+		.changes = u"(1,0,2)"_q,
+		.splices = false,
+		.setup = QueryPasteOnCommand,
+	};
+	auto canPasteBold = canPaste;
+	canPasteBold.name = "can-paste-bold";
+	canPasteBold.initial = { u"aXbcd"_q, { { 1, 1, bold } } };
+	canPasteBold.maxLength = 5;
+	canPasteBold.commit = u"X"_q;
+	canPasteBold.expected = canPasteBold.initial;
+	canPasteBold.changes = u"(1,0,1)"_q;
+	const auto rows = std::vector<InputMethodRow>{
+		{
+			.name = "caret",
+			.initial = { u"a\U0001D400b"_q, { { 1, 2, bold } } },
+			.commit = u"x"_q,
+			.expected = { u"a\U0001D400xb"_q, { { 1, 3, bold } } },
+			.changes = u"(3,0,1)"_q,
+		},
+		{
+			.name = "preedit",
+			.initial = { u"a\U0001D400Z"_q, { { 1, 2, bold } } },
+			.breakAt = 3,
+			.preedit = u"draft"_q,
+			.expected = { u"a\U0001D400\nZ"_q, { { 1, 2, bold } } },
+			.changes = u"(4,0,0)"_q,
+		},
+		gap,
+		limited,
+		undone,
+		emptyRelative,
+		emptyRelativeBreak,
+		{
+			.name = "empty-relative-cross-block",
+			.initial = { u"PQabc"_q },
+			.breakAt = 2,
+			.from = 4,
+			.till = 5,
+			.replacementStart = -4,
+			.replacementLength = 99,
+			.expected = { u"PQ\nac"_q },
+			.changes = u"(4,1,0)"_q,
+			.setup = [](not_null<Ui::InputField*> field) {
+				field->setMode(Ui::InputField::Mode::NoNewlines);
+			},
+		},
+		{
+			.name = "full",
+			.initial = { u"ABCDE"_q },
+			.maxLength = 5,
+			.from = 1,
+			.till = 1,
+			.commit = u"x"_q,
+			.expected = { u"ABCDE"_q },
+			.changes = u"(1,0,1)"_q,
+			.splices = false,
+		},
+		{
+			.name = "collapsed-quote",
+			.from = 0,
+			.till = 0,
+			.commit = u"x"_q,
+			.expected = {
+				u"x\nP\nQ"_q,
+				{ { 2, 1, Ui::InputField::kTagBlockquoteCollapsed } },
+			},
+			.changes = u"(0,0,1)"_q,
+			.splices = false,
+			.setup = [](not_null<Ui::InputField*> field) {
+				field->setCustomTextContext({});
+				field->setTextWithTags(
+					{
+						u"PQ"_q,
+						{ { 0, 1, Ui::InputField::kTagBlockquoteCollapsed } },
+					},
+					Ui::InputField::HistoryAction::Clear);
+			},
+		},
+		{
+			.name = "null-cursor",
+			.initial = { u"abc"_q },
+			.commit = u"x"_q,
+			.expected = { u"abc"_q },
+			.setup = [](not_null<Ui::InputField*> field) {
+				field->setTextCursor(QTextCursor());
+			},
+		},
+		{
+			.name = "keycap",
+			.initial = { u"abc\uFE0F\u20E3 tail"_q },
+			.commit = u"#"_q,
+			.expected = { u"abc#\uFE0F\u20E3 tail"_q },
+			.changes = u"(3,0,-1)"_q,
+			.splices = false,
+		},
+		{
+			.name = "keycap-same-length",
+			.initial = { u"A\uFE0F\u20E3Z"_q },
+			.from = 1,
+			.till = 1,
+			.commit = u"x1"_q,
+			.expected = { u"Ax1\uFE0F\u20E3Z"_q },
+			.changes = u"(1,0,0)"_q,
+			.splices = false,
+		},
+		{
+			.name = "mime-rejected",
+			.initial = { u"aXbcd"_q, { { 1, 1, bold } } },
+			.from = 1,
+			.till = 1,
+			.commit = u"X"_q,
+			.expected = { u"aXXbcd"_q, { { 2, 1, bold } } },
+			.changes = u"(6,0,1)"_q,
+			.splices = false,
+			.attributes = RejectedMimeAt(1),
+		},
+		canPaste,
+		canPasteBold,
+		{
+			.name = "undo-available",
+			.initial = { u"abXXcde"_q },
+			.maxLength = 7,
+			.from = 1,
+			.till = 2,
+			.commit = u"XX"_q,
+			.expected = { u"aXXcXde"_q },
+			.changes = u"(1,1,0),(4,0,2)"_q,
+			.splices = false,
+			.setup = MoveCaretOnUndoAvailable(5),
+		},
+		{
+			.name = "width-change",
+			.initial = { u"abcdefg"_q },
+			.maxLength = 7,
+			.from = 1,
+			.till = 2,
+			.commit = u"WX"_q,
+			.replacementLength = 3,
+			.expected = { u"acdeWfg"_q },
+			.changes = u"(1,1,0),(4,0,2)"_q,
+			.splices = false,
+			.setup = MoveCaretOnUndoAvailable(5),
+		},
+		{
+			.name = "fresh-ambiguity",
+			.initial = { u"aXbc"_q },
+			.breakAt = 2,
+			.maxLength = 5,
+			.from = 4,
+			.till = 5,
+			.commit = u"XX"_q,
+			.replacementStart = -2,
+			.expected = { u"aXX\nb"_q },
+			.changes = u"(4,1,0),(2,0,2)"_q,
+			.splices = false,
+			.setup = [](not_null<Ui::InputField*> field) {
+				field->document()->clearUndoRedoStacks();
+			},
+		},
+		{
+			.name = "merged-edit",
+			.initial = { u"PabcY"_q },
+			.breakAt = 1,
+			.commit = u"b"_q,
+			.expected = { u"P\nabcdY"_q },
+			.changes = u"(3,2,3),(2,0,0)"_q,
+			.setup = [](not_null<Ui::InputField*> field) {
+				const auto document = field->rawTextEdit()->document();
+				QObject::connect(
+					document,
+					&QTextDocument::undoCommandAdded,
+					field,
+					[=] {
+						auto cursor = QTextCursor(document);
+						cursor.setPosition(4);
+						cursor.setPosition(6, QTextCursor::KeepAnchor);
+						cursor.insertText(u"cd"_q);
+					},
+					Qt::SingleShotConnection);
+			},
+			.attributes = MoveToFirstBlock,
+		},
+		{
+			.name = "capped",
+			.initial = { u"Pwrod tail"_q },
+			.breakAt = 1,
+			.maxLength = 11,
+			.commit = u"x"_q,
+			.expected = { u"P\nwrod tail"_q },
+			.changes = u"(3,0,1),(2,0,0)"_q,
+			.splices = false,
+			.attributes = MoveToFirstBlock,
+		},
+	};
+	auto failures = QStringList();
+	for (const auto &row : rows) {
+		auto parent = Ui::RpWidget();
+		const auto field = CreateInputMethodField(&parent, row);
+		const auto document = field->rawTextEdit()->document();
+		auto documents = QStringList{ document->toRawText() };
+		auto changes = std::vector<std::array<int, 3>>();
+		auto lifetime = rpl::lifetime();
+		field->documentContentsChanges(
+		) | rpl::on_next([&](const auto &value) {
+			const auto &[position, removed, added] = value;
+			changes.push_back({ position, removed, added });
+			documents.push_back(document->toRawText());
+		}, lifetime);
+		SendInputMethod(field, row);
+		if (row.undone) {
+			field->undo();
+			AddRowFailure(failures, row, ExpectExport(field, *row.undone));
+			field->redo();
+		}
+		const auto exported = field->getTextWithTags();
+		auto list = QStringList();
+		auto spliced = true;
+		for (auto i = 0; i != int(changes.size()); ++i) {
+			const auto &[position, removed, added] = changes[i];
+			list.push_back(u"(%1,%2,%3)"_q
+				.arg(position)
+				.arg(removed)
+				.arg(added));
+			spliced = spliced
+				&& (!row.splices
+					|| IsSplice(
+						documents[i],
+						documents[i + 1],
+						position,
+						removed,
+						added));
+		}
+		const auto got = list.join(u","_q);
+		const auto ok = (exported == row.expected)
+			&& (got == row.changes)
+			&& spliced;
+		AddRowFailure(
+			failures,
+			row,
+			ok
+				? QString()
+				: u"got %1 with [%2]%3, expected %4 with [%5]"_q.arg(
+					Describe(exported),
+					got,
+					spliced ? QString() : u" (not a splice)"_q,
+					Describe(row.expected),
+					row.changes));
+	}
+	return failures.join(u"; "_q);
 }
 
 [[nodiscard]] Ui::Text::String MakeText(const QString &text) {
@@ -873,6 +1438,8 @@ void Paste(
 		{ "field.incompatible-formatting", CheckIncompatibleFormatting },
 		{ "field.unicode-boundaries", CheckUnicodeBoundaries },
 		{ "field.undo", CheckFieldUndo },
+		{ "field.input-method", CheckInputMethodCommits },
+		{ "field.input-method-changes", CheckInputMethodChanges },
 		{ "layout.wrapping", CheckWrapping },
 		{ "layout.trailing-spaces", CheckTrailingSpaces },
 		{ "layout.clipping", CheckClipping },
@@ -897,6 +1464,7 @@ int main(int argc, char *argv[]) {
 		std::printf("FAIL setup: %s\n", failure.toUtf8().constData());
 		return 2;
 	}
+	Ui::Emoji::Init();
 	auto animations = Ui::Animations::Manager();
 	return Test::NamedChecks::Run(Checks());
 }
