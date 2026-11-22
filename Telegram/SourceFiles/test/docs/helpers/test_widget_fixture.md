@@ -2047,10 +2047,19 @@ packs, the fixture and the seams they use need no change for it.
   Debug and Release-configured helpers on Windows 10.0.26300: static
   `KERNEL32.dll` and `ntdll.dll` (`NtWriteFile` and
   `RtlNtStatusToDosError`), and the delay descriptors `ADVAPI32.dll`
-  (23 functions in Debug, 12 in Release), `bcrypt.dll` (`BCryptGenRandom`)
+  (23 functions in Debug, 13 in Release), `bcrypt.dll` (`BCryptGenRandom`)
   and, in Debug only, `WS2_32.dll` (`WSAStringToAddressW` and 18
   ordinals), `ADVAPI32.dll` and `bcrypt.dll` spelled as `WarmUp()` binds
-  them. Built for the pc target `i686-pc-windows-msvc` before, the same
+  them. These are the readings of the final helpers of
+  `2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`
+  (its `evidence/imports.md`). When
+  `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`
+  first read these tables, the Release `ADVAPI32.dll` descriptor had 12
+  functions: the later task's Windows 7 lowering (`LockDownWindows7()`)
+  added `OpenProcessToken`, for its own `TOKEN_QUERY` handle, to the
+  Release descriptor of both the x86 and the x64 helper, 12 functions to
+  13 each, while the Debug descriptors imported it already. Built for the
+  pc target `i686-pc-windows-msvc` before, the same
   helpers imported statically ADVAPI32, KERNEL32, ntdll and the pc std's
   API set `api-ms-win-core-synch-l1-2-0.dll` (`WaitOnAddress`,
   `WakeByAddressAll` and `WakeByAddressSingle`), and delay-loaded
@@ -3348,8 +3357,12 @@ packs, the fixture and the seams they use need no change for it.
   same run, limit and latch. A `Launch()` that throws counts
   as one start failure, `the widget helper could not start: <what()>`. A
   helper that did not exit even
-  when killed stops them the same way, with `the widget helper was not
-  reaped`. A start failure whose `Launched` still carries a completion
+  when killed stops them the same way: `Manager::reap()` logs its pid as
+  not reaped whether or not a reason is latched, and latches `the widget
+  helper was not reaped` only when none is latched yet; when the helper's
+  unexpected end was the third failure in a row, that end has already
+  latched `the widget helper failed 3 times in a row`, which stays. A
+  start failure whose `Launched` still carries a completion
   (on Windows, a helper the client could not put into its job and whose
   end its first wait did not confirm) counts as one start failure and is
   then reaped like an ended helper before any other helper starts
