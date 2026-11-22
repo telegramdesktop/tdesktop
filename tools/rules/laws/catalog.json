@@ -395,6 +395,103 @@
         }
       },
       "fix_kind": "source-rewrite"
+    },
+    {
+      "id": "expression.assignment-continuation",
+      "scope": "An initializer or assignment with = at the end of its left-hand line.",
+      "exceptions": "Same-line assignments, an already leading =, and comments or directives between the operator and operand.",
+      "diagnostic": "Report the = line when it or the first right-hand line changes.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Start the continuation with = and its right operand\\.",
+          "inputs": "Tree-sitter node ranges, source bytes and staged lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "text.empty-marked",
+      "scope": "Unqualified empty TextWithEntities temporaries written as () or {}.",
+      "exceptions": "Type syntax, named object declarations, qualified names, and nonempty or commented argument lists.",
+      "diagnostic": "Report the explicit empty temporary on a changed line.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Use tr::marked\\(\\) to create empty TextWithEntities\\.",
+          "inputs": "Tree-sitter node ranges, source bytes and staged lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "class.local-method-definition",
+      "scope": "Changed signatures of multiline member definitions in namespace-scoped classes in implementation files.",
+      "exceptions": "Function-local classes, templates, one-line bodies and headers.",
+      "diagnostic": "Define the method outside the class body.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Define the method outside the class body\\.",
+          "inputs": "Tree-sitter nodes, source bytes and staged lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "initializer.entry-lines",
+      "scope": "Multiline designated initializer lists and brace arguments to std::min or std::max.",
+      "exceptions": "Single-line lists and other positional lists.",
+      "diagnostic": "Put each entry of the multiline initializer on its own line.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Put each entry of the multiline initializer on its own line\\.",
+          "inputs": "Tree-sitter nodes, source bytes and staged lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "initializer.ternary-closer-indent",
+      "scope": "Multiline braced aggregates that open beside a leading ? or :.",
+      "exceptions": "Inline branches and closing braces sharing a line with an entry.",
+      "diagnostic": "Align the closing brace with the ternary branch marker.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Align the closing brace with the ternary branch marker\\.",
+          "inputs": "Tree-sitter nodes, source bytes and staged lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "include.block-order",
+      "scope": "A touched block of literal include directives in a translation unit or preprocessing branch.",
+      "exceptions": "Standalone comments and preprocessing directives split the blocks.",
+      "diagnostic": "Sort the include block with the Python formatter.",
+      "fix": "Keep the own header first, group project, system and generated style headers, and sort each group.",
+      "implementations": {
+        "python": {
+          "match": "Sort the include block with the Python formatter\\.",
+          "inputs": "Tree-sitter include directives and original source lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      },
+      "fix_kind": "source-rewrite"
     }
   ],
   "cases": [
@@ -1377,6 +1474,184 @@
         "python": [],
         "clang": []
       }
+    },
+    {
+      "id": "assignment-before-line-break",
+      "before": "fixtures/assignment-before-line-break/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "expression.assignment-continuation",
+            "line": 2,
+            "fix": false
+          },
+          {
+            "rule": "expression.assignment-continuation",
+            "line": 4,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "leading-assignment-and-comment-exception",
+      "before": "fixtures/leading-assignment-and-comment-exception/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "assignment-staged-right-operand",
+      "before": "fixtures/assignment-staged-right-operand/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "expression.assignment-continuation",
+            "line": 2,
+            "fix": false
+          }
+        ]
+      },
+      "parent": "fixtures/assignment-staged-right-operand/parent.cpp",
+      "changed": [
+        3
+      ]
+    },
+    {
+      "id": "empty-marked-temporaries",
+      "before": "fixtures/empty-marked-temporaries/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "text.empty-marked",
+            "line": 2,
+            "fix": false
+          },
+          {
+            "rule": "text.empty-marked",
+            "line": 6,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "marked-and-other-text-expressions",
+      "before": "fixtures/marked-and-other-text-expressions/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "misplaced-project-includes",
+      "before": "fixtures/misplaced-project-includes/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "include.block-order",
+            "line": 2,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/misplaced-project-includes/after.cpp"
+    },
+    {
+      "id": "misplaced-style-headers",
+      "before": "fixtures/misplaced-style-headers/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "include.block-order",
+            "line": 4,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/misplaced-style-headers/after.cpp"
+    },
+    {
+      "id": "ordered-includes",
+      "before": "fixtures/ordered-includes/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "inline-local-method",
+      "before": "fixtures/inline-local-method/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "class.local-method-definition",
+            "line": 4,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "out-of-line-and-function-local-methods",
+      "before": "fixtures/out-of-line-and-function-local-methods/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "packed-multiline-initializers",
+      "before": "fixtures/packed-multiline-initializers/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "initializer.entry-lines",
+            "line": 2,
+            "fix": false
+          },
+          {
+            "rule": "initializer.entry-lines",
+            "line": 6,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "ternary-initializer-brace-indent",
+      "before": "fixtures/ternary-initializer-brace-indent/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "initializer.ternary-closer-indent",
+            "line": 7,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "unpacked-and-aligned-initializers",
+      "before": "fixtures/unpacked-and-aligned-initializers/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "include-before-existing-style",
+      "before": "fixtures/include-before-existing-style/before.cpp",
+      "parent": "fixtures/include-before-existing-style/parent.cpp",
+      "changed": [
+        2
+      ],
+      "expect": {
+        "python": [
+          {
+            "rule": "include.block-order",
+            "line": 2,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/include-before-existing-style/after.cpp"
     }
   ]
 }

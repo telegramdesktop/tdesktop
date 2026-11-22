@@ -26,6 +26,12 @@ PIPELINE_BAR_MESSAGE = "Keep the RPL pipe with the closing parenthesis of the pr
 MEMBER_CALL_MESSAGE = "Keep the method name with its receiver and wrap the arguments."
 SUM_MESSAGE = "Start each continuation term on its own line with + or -."
 LOGICAL_MESSAGE = "Start the continuation with {operator} and its right operand."
+ASSIGNMENT_MESSAGE = "Start the continuation with = and its right operand."
+EMPTY_MARKED_MESSAGE = "Use tr::marked() to create empty TextWithEntities."
+INCLUDE_ORDER_MESSAGE = "Sort the include block with the Python formatter."
+INLINE_METHOD_MESSAGE = "Define the method outside the class body."
+INITIALIZER_ENTRY_MESSAGE = "Put each entry of the multiline initializer on its own line."
+TERNARY_BRACE_MESSAGE = "Align the closing brace with the ternary branch marker."
 SUM_OPERATORS = ("+", "-")
 LOGICAL_OPERATORS = ("&&", "||")
 
@@ -156,6 +162,161 @@ def packed_logical_term(node, source, added_lines, line_at):
     if change < len(added_lines) and added_lines[change] <= right_line:
         return operator_line, LOGICAL_MESSAGE.format(operator=operator.type)
     return None
+
+
+def assignment_layout_error(node, source, added_lines, line_at):
+    if node.has_error:
+        return None
+    if node.type == "init_declarator":
+        left = node.child_by_field_name("declarator")
+        right = node.child_by_field_name("value")
+    else:
+        left = node.child_by_field_name("left")
+        right = node.child_by_field_name("right")
+    equal = next((child for child in node.children if child.type == "="), None)
+    if left is None or right is None or equal is None:
+        return None
+    line = line_at(equal.start_byte)
+    continuation = line_at(right.start_byte)
+    if (line != line_at(left.end_byte - 1) or line >= continuation
+            or source[equal.end_byte:right.start_byte].strip()):
+        return None
+    change = bisect_left(added_lines, line)
+    if change < len(added_lines) and added_lines[change] <= continuation:
+        return line, ASSIGNMENT_MESSAGE
+    return None
+
+
+def empty_marked_temporary(node):
+    if node.has_error:
+        return None
+    if node.type == "call_expression":
+        name = node.child_by_field_name("function")
+        arguments = node.child_by_field_name("arguments")
+    else:
+        name = node.child_by_field_name("type")
+        arguments = node.child_by_field_name("value")
+    if (name is not None and name.text == b"TextWithEntities"
+            and arguments is not None and not arguments.named_child_count):
+        return name
+    return None
+
+
+def include_blocks(source, root, line_starts, line_at):
+    pending = [root]
+    while pending:
+        block = []
+        for node in pending.pop().named_children:
+            path = node.child_by_field_name("path") if node.type == "preproc_include" else None
+            if path is not None and path.type in ("string_literal", "system_lib_string"):
+                start = line_starts[line_at(node.start_byte) - 1]
+                end = node.end_byte
+                line = source[start:end]
+                if (line.endswith(b"\n") and b"\n" not in line[:-1]
+                        and not source[start:node.start_byte].strip()
+                        and (not block or not source[block[-1][1]:start].strip())):
+                    block.append((start, end, path.text, line))
+                    continue
+            if block and node.type == "comment" and node.start_byte < block[-1][1]:
+                continue
+            if block:
+                yield block
+                block = []
+            if node.type in ("preproc_if", "preproc_ifdef", "preproc_elif", "preproc_else"):
+                pending.append(node)
+        if block:
+            yield block
+
+
+def include_sort_key(name):
+    first, *parts = name[1:-1].split(b"/")
+    return first, tuple((index == len(parts) - 1, part) for index, part in enumerate(parts))
+
+
+def include_edits(source, root, path, line_starts, line_at):
+    own = os.fsencode(Path(path).with_suffix(".h").as_posix()) if path else None
+    for block in include_blocks(source, root, line_starts, line_at):
+        groups = [[], [], [], []]
+        for _, _, name, line in block:
+            header = name[1:-1]
+            if (own is not None and name.startswith(b'"')
+                    and (own == header or own.endswith(b"/" + header))):
+                group = 0
+            elif name.startswith(b'"styles/style_'):
+                group = 3
+            elif name.startswith(b"<"):
+                group = 2
+            else:
+                group = 1
+            groups[group].append((name, line))
+        newline = b"\r\n" if block[0][3].endswith(b"\r\n") else b"\n"
+        formatted = newline.join(b"".join(line for _, line in sorted(
+            group, key=lambda entry: include_sort_key(entry[0]))) for group in groups if group)
+        first, last = block[0][0], block[-1][1]
+        original = source[first:last]
+        if formatted != original:
+            yield first, last, formatted
+
+
+def fix_includes(source, path):
+    line_starts = starts_of_lines(source)
+
+    def line_at(offset):
+        return bisect_right(line_starts, offset)
+
+    root = Parser(CPP).parse(source).root_node
+    return apply_layout_edits(source, include_edits(source, root, path, line_starts, line_at))
+
+
+def inline_method_error(node, added_lines, line_at):
+    owner = node.parent
+    if owner is None or owner.type != "field_declaration_list":
+        return None
+    owner = owner.parent
+    if owner is None or owner.type != "class_specifier":
+        return None
+    while (owner := owner.parent) is not None:
+        if owner.type in ("class_specifier", "struct_specifier", "function_definition",
+                "lambda_expression", "template_declaration"):
+            return None
+    body = node.child_by_field_name("body")
+    if body is None or body.type != "compound_statement":
+        return None
+    first = line_at(node.start_byte)
+    body_line = line_at(body.start_byte)
+    change = bisect_left(added_lines, first)
+    if (body_line < line_at(body.end_byte - 1)
+            and change < len(added_lines) and added_lines[change] <= body_line):
+        return first, INLINE_METHOD_MESSAGE
+    return None
+
+
+def initializer_layout_errors(node, source, line_starts, added_lines, line_at):
+    if node.has_error:
+        return
+    first, last = line_at(node.start_byte), line_at(node.end_byte - 1)
+    if first == last:
+        return
+    entries = [child for child in node.named_children if not child.is_extra]
+    parent = node.parent
+    call = parent.parent if parent is not None and parent.type == "argument_list" else None
+    callee = call.child_by_field_name("function") if call is not None else None
+    if (entries and all(entry.type == "initializer_pair" for entry in entries)
+            or callee is not None and callee.text in (b"std::min", b"std::max")):
+        for previous, entry in zip(entries, entries[1:]):
+            line = line_at(entry.start_byte)
+            if line == line_at(previous.end_byte - 1) and line in added_lines:
+                yield line, INITIALIZER_ENTRY_MESSAGE
+    if parent is None or parent.type != "compound_literal_expression":
+        return
+    marker = parent.prev_sibling
+    if marker is None or marker.type not in ("?", ":") or line_at(marker.start_byte) != first:
+        return
+    branch_indent = source[line_starts[first - 1]:marker.start_byte]
+    closer_indent = source[line_starts[last - 1]:node.end_byte - 1]
+    if (not branch_indent.strip() and not closer_indent.strip()
+            and branch_indent != closer_indent and (first in added_lines or last in added_lines)):
+        yield last, TERNARY_BRACE_MESSAGE
 
 
 def lambda_parameter_join(node, source, line_starts, line_at):
@@ -457,17 +618,29 @@ def layout_join(node, source, line_starts, line_at):
     return None
 
 
-def layout_errors(source, added_lines):
+def layout_errors(source, added_lines, path=""):
     line_starts = starts_of_lines(source)
 
     def line_at(offset):
         return bisect_right(line_starts, offset)
 
     tree = Parser(CPP).parse(source)
+    for first, last, formatted in include_edits(
+            source, tree.root_node, path, line_starts, line_at):
+        change = bisect_left(added_lines, line_at(first))
+        if change < len(added_lines) and added_lines[change] <= line_at(last - 1):
+            difference = next((offset for offset, (left, right)
+                in enumerate(zip(source[first:last], formatted)) if left != right),
+                min(last - first, len(formatted)))
+            yield line_at(first + difference), INCLUDE_ORDER_MESSAGE
     findings = closing_parenthesis.inspect(source, LAYOUT, tree.root_node)
     for finding in closing_parenthesis.select(findings, ((line, line) for line in added_lines)):
         yield finding.last_line, CLOSE_ARGUMENT_MESSAGE
     for node in changed_nodes(tree.root_node, added_lines, line_at):
+        if node.type in ("call_expression", "compound_literal_expression"):
+            name = empty_marked_temporary(node)
+            if name is not None:
+                yield line_at(name.start_byte), EMPTY_MARKED_MESSAGE
         joined = layout_join(node, source, line_starts, line_at)
         if joined is not None:
             edit, message = joined
@@ -485,6 +658,16 @@ def layout_errors(source, added_lines):
             error = call_layout_error(node, line_at)
             if error is not None:
                 yield error
+        elif node.type in ("init_declarator", "assignment_expression"):
+            error = assignment_layout_error(node, source, added_lines, line_at)
+            if error is not None:
+                yield error
+        elif node.type == "function_definition" and path.endswith((".cpp", ".cxx", ".mm")):
+            error = inline_method_error(node, added_lines, line_at)
+            if error is not None:
+                yield error
+        elif node.type == "initializer_list":
+            yield from initializer_layout_errors(node, source, line_starts, added_lines, line_at)
         elif node.type == "binary_expression":
             split = leading_pipeline_layout(node, source, line_starts, line_at)
             if split is not None:
@@ -535,12 +718,17 @@ def join_short_layouts(source):
 
 def main():
     parser = argparse.ArgumentParser(description="Fix supported C++ line layouts.")
-    parser.add_argument("--fix", nargs="+", type=Path, required=True, metavar="FILE")
-    for path in parser.parse_args().fix:
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--fix", nargs="+", type=Path, metavar="FILE")
+    mode.add_argument("--fix-includes", nargs="+", type=Path, metavar="FILE")
+    args = parser.parse_args()
+    for path in args.fix or args.fix_includes:
         source = path.read_bytes()
-        joined = join_short_layouts(source)
-        formatted = closing_parenthesis.apply(joined,
-            closing_parenthesis.inspect(joined, LAYOUT))
+        formatted = fix_includes(source, path)
+        if args.fix:
+            joined = join_short_layouts(formatted)
+            formatted = closing_parenthesis.apply(joined,
+                closing_parenthesis.inspect(joined, LAYOUT))
         if formatted != source:
             path.write_bytes(formatted)
 

@@ -229,7 +229,7 @@ def staged():
         if clang_source(path):
             clang_sources[path] = (
                 set(added_lines).union(clang_deletions.pop(path, ())), blob.stdout)
-        for number, message in sorted(set(layout_errors(blob.stdout, added_lines))):
+        for number, message in sorted(set(layout_errors(blob.stdout, added_lines, path))):
             print(f"{path}:{number}: {message}", file=sys.stderr)
             bad += 1
         for number, line in lines:

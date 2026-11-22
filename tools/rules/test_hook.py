@@ -143,6 +143,41 @@ class CallLayoutFix(unittest.TestCase):
         with open(path, "rb") as stream:
             return stream.read()
 
+    def test_fix_orders_whole_include_groups_and_preserves_crlf(self):
+        original = (
+            b'#include "panel.h"\r\n\r\n'
+            b'#include "data/data_user.h"\r\n'
+            b'#include "styles/style_panel.h"\r\n'
+            b'#include "data/stickers/z.h"\r\n'
+            b'#include "data/stickers/a.h" // needed by the panel\r\n'
+            b'#include "apiwrap.h"\r\n'
+            b'#include <QtCore/QtMath>\r\n'
+            b'// Keep this group separate.\r\n'
+            b'#include "a.h"\r\n'
+            b'#if FEATURE\r\n'
+            b'#include "data/z.h"\r\n'
+            b'#include "data/a.h"\r\n'
+            b'#endif\r\n')
+        expected = (
+            b'#include "panel.h"\r\n\r\n'
+            b'#include "apiwrap.h"\r\n'
+            b'#include "data/stickers/a.h" // needed by the panel\r\n'
+            b'#include "data/stickers/z.h"\r\n'
+            b'#include "data/data_user.h"\r\n\r\n'
+            b'#include <QtCore/QtMath>\r\n\r\n'
+            b'#include "styles/style_panel.h"\r\n'
+            b'// Keep this group separate.\r\n'
+            b'#include "a.h"\r\n'
+            b'#if FEATURE\r\n'
+            b'#include "data/a.h"\r\n'
+            b'#include "data/z.h"\r\n'
+            b'#endif\r\n')
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "panel.cpp"
+            path.write_bytes(original)
+            self.assertEqual(self.fix(path), expected)
+            self.assertEqual(self.fix(path), expected)
+
     def test_fix_expands_split_arguments_in_a_method_chain(self):
         original = (b"void send() {\n"
             b"\t_api.request(request()\n"

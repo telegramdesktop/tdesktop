@@ -156,6 +156,7 @@ def python_result(root, mappings, source, catalog):
         fixed.splitlines(keepends=True), autojunk=False).get_opcodes()
     edited = {line for op, first, end, _, _ in opcodes if op != "equal"
         for line in range(first + 1, end + 1)}
+    edited.update(first + 1 for op, first, _, _, _ in opcodes if op == "insert")
     diagnostics = []
     for report in output:
         if report.startswith(SOURCE + ":"):
