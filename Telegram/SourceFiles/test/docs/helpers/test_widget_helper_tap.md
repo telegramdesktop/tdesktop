@@ -3,44 +3,45 @@
 [Harness guide](../../README.md) · [Helper index](README.md)
 
 Type: Internal dependency.
-Source contract: [test_widget_helper_tap.h](../../test_widget_helper_tap.h).
+Source contract: twidget's `rust/crates/helper/src/tap.rs`, with the
+forwarding renderer and the work record in `forward.rs`; no tdesktop
+source.
 
 ## Use when
 
 Never from an overlay directly. This is the helper's half of the
 validated-ops tap ([test_widget_ops](test_widget_ops.md)) for a widget hosted
 in the widget helper, where the served host and its renderer run in
-`TelegramWidgetHelper` and Telegram has no renderer to wrap. Its only caller
-is the hosted renderer factory of `WidgetHelper::Serve()` in
-`_other/widget_helper_renderer.cpp`, the thin entry both macOS packages
-and the Linux and Windows helpers serve with; the factory builds the
-renderer through
-`Tgw::MakeHostedRenderer()` (`tgw/tgw_hosted_glue.cpp`, the portable glue)
-inside the tap's `build` callback, so the glue gets the tap's platform and
-the tap wraps the renderer the glue returns. Its Telegram counterpart,
-`Test::TapHostedWidget()`, asks it to mirror and records what it sends. An
-overlay arms the message with `ArmWidgetOpsTap()` and reads
-`ReadWidgetOps()`, and asks for the helper's renderer work with
-`TimeWidgetHelperWork()`; nothing here is called by name.
+`TelegramWidgetHelper` and Telegram has no renderer to wrap. The helper
+serves widgets through twidget's Rust serving alone
+(`_other/widget_helper_rust.cpp` calls `tw_helper_serve()` of
+`twidget_helper_ffi`), whose hosted renderer factory builds each renderer
+through the hosted glue (`glue.rs`) inside the tap's `build` callback, so the
+glue gets the tap's platform and the tap wraps the renderer the glue
+returns. Its Telegram counterpart, `Test::TapHostedWidget()`, asks it to
+mirror and records what it sends. An overlay arms the message with
+`ArmWidgetOpsTap()` and reads `ReadWidgetOps()`, and asks for the helper's
+renderer work with `TimeWidgetHelperWork()`; nothing here is called by name.
 
 ## Preconditions and limits
 
-- **Debug helper only.** Every Debug build of `TelegramWidgetHelper`
-  compiles it (macOS, Linux and Windows); its Release build takes the
-  inline identity of the header (`build(platform)`), so a Release helper
-  mirrors and times nothing and ends a route at a `Mirror` or `MirrorWork`
-  control, as a control the helper does not take. A Telegram Release build
-  with the harness starts that Release helper and therefore never asks.
-- **Qt-free.** It links only what the helper links: widget-sandbox's hosted
-  platform, TwidgetCore's remote codec and `tgw/tgw_hosted_wire.h`. It keeps
-  the macOS helper's libSystem-and-libc++ load commands, and the Linux
-  helper's NEEDED: glibc's objects, libm and the loader, with the C++
-  runtime linked statically in the Docker build.
-- **One forwarding.** The renderer wrapper is
-  `Test::ForwardingRenderer` (`test_widget_renderer_forward.h`): the five
-  forwarded calls, the `onMessage` / `onDiag` chaining and the order that
-  destroys the glue's renderer before the observer. The arming, the mirror
-  records and the timing are the observer's.
+- **Debug helper only.** `_other/widget_helper_rust.cpp` passes `tapped`
+  to `tw_helper_serve()` in a Debug build of `TelegramWidgetHelper` alone
+  (macOS, Linux and Windows); a Release helper builds its renderers
+  untapped, mirrors and times nothing and ends a route at a `Mirror` or
+  `MirrorWork` control, as a control the helper does not take. A Telegram
+  Release build with the harness starts that Release helper and therefore
+  never asks.
+- **Rust without `unsafe`.** It is part of the helper's one Rust library,
+  in a crate that forbids `unsafe` code; its wire is the Rust mirror of
+  `tgw/tgw_hosted_wire.h`.
+- **One forwarding.** The renderer wrapper is `ForwardingRenderer` of
+  `forward.rs`: `load()`, `send()`, `setTheme()`, `setWidth()` and
+  `destroy()` forwarded once each on the caller's thread, the renderer's
+  `onMessage` and `onDiag` chained to the wrapper's own, read when invoked
+  because the served host assigns them after the factory returned, and
+  the glue's renderer destroyed before the observer. The arming, the
+  mirror records and the timing are the observer's.
 - **Armed per renderer.** Nothing is sent until the platform's first exact
   `Mirror` (`[0xFF][5]`) or `MirrorWork` (`[0xFF][6]`) control, which it
   swallows: the glue never sees one. Telegram sends one of them right after
@@ -67,26 +68,26 @@ overlay arms the message with `ArmWidgetOpsTap()` and reads
   times each `request()`, the glue's wait for Telegram's answer to a backend
   request (a font, a text width, an image, canvas pixels). Each outermost
   operation of the glue thread is one record: `kind`, `started` and
-  `finished` on the helper's steady clock (microseconds; on macOS the
-  system-wide uptime clock and on Windows `QueryPerformanceCounter`, which
-  Telegram's process reads too), `waited` and `waits` (the requests
-  inside it), `seq` of a `FrameRequest`, and `frameBytes`, the encoded
-  `Frame` and `FrameDelta` messages it sent. A call made inside another
-  (the glue defers nested steps to the outer loop) belongs to the outer
-  one, and so does the work of the steps it ran. The kinds:
+  `finished` on the helper's steady clock (microseconds of
+  `std::chrono::steady_clock`, which `_other/widget_helper_rust.cpp` hands
+  the Rust serving and Telegram's process reads too), `waited` and `waits`
+  (the requests inside it), `seq` of a `FrameRequest`, and `frameBytes`,
+  the encoded `Frame` and `FrameDelta` messages it sent. A call made inside
+  another (the glue defers nested steps to the outer loop) belongs to the
+  outer one, and so does the work of the steps it ran. The kinds:
 
 | Kind | The operation |
 | --- | --- |
-| `Message` | A served-host message: TwidgetCore's `receive()`, a validated batch applied or a layout query answered, with the style and layout they need. |
+| `Message` | A served-host message: the renderer's `receive()`, a validated batch applied or a layout query answered, with the style and layout they need. |
 | `Theme` | The served host's `setTheme()`. |
 | `Tick` | A `FrameRequest` that ticks and does not paint: animations and the build they need. |
 | `Paint` | A `FrameRequest` that paints: the settle, style, layout, the display-list build and the `Frame`'s encoding. |
-| `Platform` | Any other TwidgetCore platform message: input, sizes, selection, claims. |
+| `Platform` | Any other renderer platform message: input, sizes, selection, claims. |
 | `Control` | A glue control: `Open` (the renderer end's construction, theme and first layout) and the press controls. |
 
   The record's own send comes after `finished`; the mirror records of ways
   `h`, `r` and `t` sent during an operation are inside it (Debug only, a few
-  copies of each message). An operation that threw sends no record.
+  copies of each message). An operation that failed sends no record.
 - **Not mirrored.** A message longer than `kMaxMirroredTextBytes` (the
   limit less the record's 7 bytes) is skipped, with no marker. The renderer's
   diagnostics (`onDiag`) are forwarded and not mirrored: they reach Telegram
@@ -111,10 +112,8 @@ This half stamps `finished` on the steady clock before it sends the record,
 so Telegram's tap, which reads the same clock at the receipt, counts a
 record that ends after its receipt as malformed before it maps the stamps
 ([Helper renderer work](test_widget_ops.md#helper-renderer-work)).
-The record's format
-(`HelperWorkKind`, `HelperWorkRecord`, `EncodeHelperWork()`,
-`DecodeHelperWork()`) lives in `test_widget_renderer_forward.h`, which both
-targets compile, so Telegram's tap reads it without including this header.
+The record's format is `test_widget_renderer_forward.h` on Telegram's side
+and `forward.rs` on the helper's, which encode and decode it alike.
 
 ## Lifetime and cleanup
 
@@ -133,25 +132,14 @@ never the tap. Nothing is written anywhere.
 
 ## Verification
 
-Compiled in the Debug helper on macOS (arm64 and x86_64) by
-`2026/11/14/run-widget-validators-and-renderers-in-the-macos-helper`, whose
-helper still loads only libSystem and libc++. The Telegram half's self-check
-(`RunWidgetOpsSelfCheck()`, its `hosted:` rows) decodes records encoded with
-the same headers' `EncodeMirrored()` and `EncodeHelperWork()`, but it does
-not run this wrapper: no row has crossed a real helper yet. That task's
-evidence campaign runs the attack, conformance and stress suites through it,
-and reads the work records of a known nontrivial stress level beside its
-Telegram replay, with an unasked control.
-
-On Linux x86_64 it compiled in the Debug helpers of
-`2026/11/14/run-widget-validators-and-renderers-in-the-linux-helper` (the
-Docker image's tree and a package-managed tree), whose NEEDED stayed those
-of the engine-only helper; that task's records hold its runs.
-
-On Windows it compiled in the x86, x64 and x64 Store Debug helpers of
-`2026/11/14/run-widget-validators-and-renderers-in-the-windows-helper`,
-built with the QuickJS engine before the Nova change, whose import tables
-stayed those of the engine-only helper; that task's records hold its runs.
+It is the port of the C++ tap the Debug helper compiled until the helper
+became Rust-only (twidget's `rust/PLAN.md`, stages H1, H4 and H5). In stage
+H4 the conformance and attack packs ran on Windows (x64 and x86) and Linux,
+and the stress pack on Windows x64, with the C++ helper and with the Rust
+one, through an overlay that dumped every record by host: ways `b` and `t`
+and the `w` kinds and sequences matched, and ways `h` and `r` matched
+outside clock-driven widgets, with the same remaining differences as two
+runs of the C++ helper.
 
 ## Related guidance
 

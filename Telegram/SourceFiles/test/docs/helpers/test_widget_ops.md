@@ -458,7 +458,7 @@ runtime log to cover every host.
 ## Hosted widgets
 
 `Tgw::Runtime::construct()` builds a hosted `WidgetHost` for every widget:
-its engine, validator, served host and TwidgetCore renderer run in the
+its engine, validator, served host and twidget renderer run in the
 widget helper (macOS, Linux and Windows, the Mac App Store and Windows
 Store builds included;
 [Remote engines](test_widget_fixture.md#remote-engines)), and Telegram

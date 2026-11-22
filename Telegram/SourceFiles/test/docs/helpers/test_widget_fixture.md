@@ -332,12 +332,12 @@ packages it as an App-Sandboxed XPC service (**The Mac App Store
 service** below). On macOS, both packages alike, on Linux, in the
 `TelegramHelpers` and the libexec layouts alike, and on Windows, the
 Windows Store build too, that helper runs the whole widget: its engine,
-its trusted validator and its TwidgetCore renderer, while the client
-keeps the checked Qt work and the pictures (**Hosted widgets on macOS,
-Linux and Windows** below). Telegram links no widget engine, validator,
-renderer or litehtml on any platform: Nova, the validator, TwidgetCore's
-renderer and litehtml are linked into the helper alone (**The shared
-helper** and **The Windows helper** below). Everywhere else, and in every
+its trusted validator and its renderer, while the client keeps the
+checked Qt work and the pictures (**Hosted widgets on macOS, Linux and
+Windows** below). Telegram links no widget engine, validator, renderer or
+litehtml on any platform: Nova, the validator, the renderer and its
+litehtml are twidget's Rust serving, the helper's one Rust library
+(**The shared helper** and **The Windows helper** below). Everywhere else, and in every
 build configured with `DESKTOP_APP_DISABLE_PRIVATE_QT_API`, no widget
 engine runs: every widget stops with `no sandboxed widget helper is
 available here: <reason>` (**Platform default** and **Store, packaged and
@@ -515,25 +515,21 @@ packs, the fixture and the seams they use need no change for it.
 - **Hosted widgets on macOS, Linux and Windows.** The helper always
   renders: every macOS, Linux and Windows build, the Mac App Store build,
   both Linux layouts and the Windows Store build included, builds it with
-  the thin `_other/widget_helper_renderer.cpp` entry, the portable glue
-  `tgw/tgw_hosted_glue.cpp` and the renderer message rules it shares with
-  `RendererWork`, `tgw/tgw_renderer_rules.h` (`telegram_widget_helper.cmake`),
-  and links `lib_widget_renderer` with litehtml into it, while Telegram
-  links only TwidgetCore's platform end with its wire, remote messages, PNG
-  and filter code (`lib_widget_renderer_platform`). The default, `helper`
+  the thin `_other/widget_helper_rust.cpp` entry over twidget's Rust
+  serving (`twidget_helper_ffi`, `lib_widget_helper_rust.cmake`), whose
+  hosted glue keeps the renderer message rules `RendererWork` keeps
+  (`tgw/tgw_renderer_rules.h`, mirrored in twidget's `rust/crates/helper`),
+  while Telegram links only TwidgetCore's platform end with its wire,
+  remote messages, PNG and filter code (`lib_widget_renderer_platform`). The default, `helper`
   and the probe values host each widget in the helper, in Release with no
   switch at all:
   - *Where the work runs.* The helper serves the hosted opening
-    (`serveHosting`): at each widget's hosted start, after its lockdown, it
-    builds a served `WidgetHost` with the engine, the `TrustedValidator`
-    and a TwidgetCore `RendererEnd` over the litehtml fork, built on the
-    glue thread from the client's `Open` control with the device pixel
-    ratio. Layout, style, display lists, layout queries and held context
+    (`serve_hosting`): at each widget's hosted start, after its lockdown,
+    it builds a served host with the engine, the trusted validator and a
+    renderer end over twidget's Rust litehtml, built on the glue thread
+    from the client's `Open` control with the device pixel ratio. Layout, style, display lists, layout queries and held context
     menus are the helper's, and so is the check of each canvas font
-    spelling, under Telegram's rule (*Canvas fonts* below). Before it
-    serves, the helper fills TwidgetCore's lazily built `ImageData`
-    decoding table on its main thread, so the widgets' glue threads only
-    read it. The client builds a hosted `WidgetHost` (no
+    spelling, under Telegram's rule (*Canvas fonts* below). The client builds a hosted `WidgetHost` (no
     Nova runtime, no validator, no litehtml document, cursor styles
     included), whose client decides every privileged call again on the
     presses its stream writer admitted (*Presses and grants* below), and
@@ -810,12 +806,12 @@ packs, the fixture and the seams they use need no change for it.
     are restyled and so lags a move behind a `:hover`- or `:active`-only
     rule; and, while a pointer rests over the widget, after each step that
     rebuilt the document (new ops, a width change, a theme). Its
-    `Glue::handAt()` runs `CursorStyles::pointer()` (`tgw/tgw_cursor.cpp`,
-    compiled into the helper alone) on the helper's renderer, with the hit
+    `Glue::hand_at()` runs `CursorStyles::pointer()` (`cursor.rs` of
+    twidget's `rust/crates/helper`) on the helper's renderer, with the hit
     from the no-event `elementFromPoint` local query and the hover and
     active elements chosen from the hit, a held primary press and the
-    element it pressed by `RendererRules::PointerTargets()`. Its
-    `Glue::trackPress()` follows the primary press from the touches it
+    element it pressed by `pointer_targets()` of `rules.rs`. Its
+    `Glue::track_press()` follows the primary press from the touches it
     delivers (where it went down, the element hit there, the documents
     parsed by then) and ends its `:active` for the rest of the press once a
     move past the slop finds another element or a reparsed document. It
@@ -845,9 +841,9 @@ packs, the fixture and the seams they use need no change for it.
     bytes is refused before it is parsed, one seen since the cache was
     last cleared answers from that cache (64 spellings, cleared when
     full), and at most 64 new spellings are parsed per refill. The glue
-    applies it in TwidgetCore's canvas font hook
+    applies it in the renderer's canvas font hook
     (`Renderer::set_canvas_font_hook`), installed right after it builds
-    the `RendererEnd` on `Open`, so TwidgetCore parses and caches no
+    the renderer end on `Open`, so the renderer parses and caches no
     canvas spelling itself and the raw spelling never crosses the stream;
     an admitted one becomes the same font request as before, whose
     resolved families and font handle Telegram still checks, and a new
@@ -1233,16 +1229,17 @@ packs, the fixture and the seams they use need no change for it.
   suspended child, or spawns none when its own identity or the static
   slice check is what failed (**Runtime log and deaths** below).
   The helper moves to the working directory `/` itself, in
-  `WidgetHelper::Adopt()` before it adopts the channel. It links only
-  libSystem and libc++, its Debug build too: no Qt, lib_base, crl or
-  framework, built from widget-sandbox's engine end, the Nova engine, the POSIX
-  stream and its own `_other/widget_helper*` sources, without Telegram's
-  precompiled header and before Telegram. On macOS it also links the
-  served host's half of widget-sandbox, TwidgetCore's renderer end and the
-  litehtml fork, the last two built standalone and litehtml without
-  CoreFoundation (`TW_LITEHTML_NO_CORE_FOUNDATION`, so an empty date
-  input's hint is a fixed pattern), and its Debug build the helper's half
-  of the ops tap ([test_widget_helper_tap](test_widget_helper_tap.md)).
+  `WidgetHelper::Adopt()` before it adopts the channel. It has no Qt,
+  lib_base, crl or framework, its Debug build neither: it is built from its
+  own `_other/widget_helper*` sources, the POSIX stream and
+  widget-sandbox's platform answers (`lib_widget_sandbox_platform`) over
+  twidget's Rust serving, the engine, validator, served host and renderer
+  with the helper's half of the ops tap in a Debug build
+  ([test_widget_helper_tap](test_widget_helper_tap.md)), built by cargo for
+  each architecture and joined by `lipo`, without Telegram's precompiled
+  header and before Telegram. The C++ helper before it linked only
+  libSystem and libc++; the Rust one has not been built on a Mac yet
+  (twidget's `rust/PLAN.md`, stages H3 and H5).
   Only a Debug probe value adds arguments after the `3`: the mode, the
   client's working directory and Application Support path, as
   [test_widget_helper_probe](test_widget_helper_probe.md) describes; the
@@ -1444,25 +1441,23 @@ packs, the fixture and the seams they use need no change for it.
   bundle: the client's own identity stays valid, and the check reads the
   replacement.
   On Linux it is `TelegramWidgetHelper` as well, built from the same
-  engine end, Nova engine, POSIX stream and `_other/widget_helper.cpp`, with
+  POSIX stream and `_other/widget_helper.cpp`, with
   `_other/widget_helper_linux.cpp`, the Linux lockdown and the descriptor
   closing (`platform/linux/widget_{lockdown,descriptors}_linux.cpp`;
   Telegram no longer links the lockdown) in place of the macOS sources,
-  without Telegram's precompiled header and before Telegram. It also
-  links, as on macOS, the
-  served host's half of widget-sandbox, TwidgetCore's renderer end and
-  the litehtml fork with the
-  glue sources of **Hosted widgets on macOS, Linux and Windows** above,
-  and its Debug build the helper's half of the ops tap
-  ([test_widget_helper_tap](test_widget_helper_tap.md)). Nova reaches it
-  as one static library: cargo builds `nova_embed_ffi` for the host,
-  always `--release`, into the build tree's
-  `nova_engine/libnova_embed_ffi.a` (`Telegram/cmake/lib_nova_engine.cmake`,
-  `build_nova_engine.cmake`), fetching its crates into
-  `nova_engine/cargo` unless the toolchain is `prepare.py`'s, and Telegram
-  links no copy. It links
+  without Telegram's precompiled header and before Telegram. As on macOS
+  its engine, validator, served host and renderer are twidget's Rust
+  serving, with the helper's half of the ops tap in its Debug build
+  ([test_widget_helper_tap](test_widget_helper_tap.md)), and it reaches
+  the helper as one static library: cargo builds `twidget_helper_ffi` for
+  the host, always `--release`, into the build tree's
+  `widget_helper_rust/libtwidget_helper_ffi.a`
+  (`Telegram/cmake/lib_widget_helper_rust.cmake`,
+  `build_widget_helper_rust.cmake`), fetching its crates into
+  `widget_helper_rust/cargo` unless the toolchain is `prepare.py`'s, and
+  Telegram links no copy. It links
   only glibc's objects, libm and the C++ runtime, its Debug build too,
-  with Nova as before it:
+  as the C++ helper before it did:
   the Docker build links the C++ runtime statically, so its NEEDED are
   `libc.so.6`, `libm.so.6`, `libpthread.so.0`, `libdl.so.2` and the
   loader, and a build that linked the C++ runtime dynamically added
@@ -1982,30 +1977,30 @@ packs, the fixture and the seams they use need no change for it.
   strict CET need another binary contract, so none of them is set. A
   creation the system refuses, the job included, is a start failure: no
   helper runs outside its job or without its tier's policies.
-  The helper links no Qt, user32 or gdi32: it is built from
-  widget-sandbox's engine end, the Nova engine, the shared `main()` of
-  `_other/widget_helper.cpp`, `_other/widget_helper_win.cpp` and the
-  client's own Qt-free `platform/win/widget_channel_win.cpp` and
-  `widget_sandbox_win.cpp`, which Telegram compiles too, and, as on macOS
-  and Linux, the served
-  host's half of widget-sandbox, TwidgetCore's renderer end, the litehtml
-  fork and the hosted entry `_other/widget_helper_renderer.cpp` with
-  `tgw`'s Qt-free glue and cursor query (**Hosted widgets on macOS, Linux
-  and Windows** above), its Debug build also the helper's half of the ops
-  tap ([test_widget_helper_tap](test_widget_helper_tap.md)), without
+  The helper links no Qt, user32 or gdi32: it is built from the shared
+  `main()` of `_other/widget_helper.cpp`, `_other/widget_helper_win.cpp`,
+  the client's own Qt-free `platform/win/widget_channel_win.cpp` and
+  `widget_sandbox_win.cpp`, which Telegram compiles too, and
+  widget-sandbox's platform answers (`lib_widget_sandbox_platform`), with,
+  as on macOS and Linux, twidget's Rust serving through the entry
+  `_other/widget_helper_rust.cpp` (**Hosted widgets on macOS, Linux and
+  Windows** above), its Debug build also the helper's half of the ops tap
+  ([test_widget_helper_tap](test_widget_helper_tap.md)), without
   Telegram's precompiled header, as a Windows GUI image with
   `/ENTRY:mainCRTStartup` (so that no console is started) and the static
-  CRT. Nova reaches it as one static library: cargo builds
-  `nova_embed_ffi` for the helper's target with `-Z build-std` and
-  `+crt-static` and always `--release`, into the build tree's
-  `nova_engine\nova_embed_ffi.lib` (`Telegram/cmake/lib_nova_engine.cmake`,
-  `build_nova_engine.cmake`), and only the helper links it: `Telegram.exe`
-  on Windows links without any widget engine. The target is
+  CRT. That serving reaches it as one static library: cargo builds
+  `twidget_helper_ffi` for the helper's target with `-Z build-std`,
+  `+crt-static`, control-flow guard, link-time optimisation and overflow
+  checks, always `--release`, into the build tree's
+  `widget_helper_rust\twidget_helper_ffi.lib`
+  (`Telegram/cmake/lib_widget_helper_rust.cmake`,
+  `build_widget_helper_rust.cmake`), and only the helper links it:
+  `Telegram.exe` on Windows links without any widget engine. The target is
   `x86_64-win7-windows-msvc` in an x64 tree, the one `prepare.py`'s
   `tdesktop_rust` stage builds for x64, and `i686-win7-windows-msvc` in a
   Win32 tree, whose std supports Windows 7 and links ADVAPI32; and
   `aarch64-pc-windows-msvc` for ARM64, whose helpers have not been built
-  with Nova. An `i686-win7-windows-msvc` archive built before the
+  in Rust. An `i686-win7-windows-msvc` archive built before the
   engine's metering allocator reached its block headers through the
   system allocation's exposed provenance ended the process with
   `0xC0000374` (heap corruption) whenever it compiled a script that
@@ -2052,8 +2047,14 @@ packs, the fixture and the seams they use need no change for it.
   x86 and x64, not for ARM64) answers that one import at
   `dliNotePreGetProcAddress`, before that `GetProcAddress`, with the
   helper's own function, declared `BOOLEAN WINAPI` like `RtlGenRandom`
-  (stdcall on x86), which returns whether `BCryptGenRandom` with
-  `BCRYPT_USE_SYSTEM_PREFERRED_RNG` succeeded; the delay-load helper
+  (stdcall on x86), which draws the bytes with `bcryptprimitives.dll`'s
+  `ProcessPrng` where Windows has it, resolved in `WidgetHelper::Lockdown()`
+  before the lowering, and with `BCryptGenRandom` and
+  `BCRYPT_USE_SYSTEM_PREFERRED_RNG` where it does not (Windows 7), and
+  returns whether that succeeded: under the impersonated initial token only
+  one preferred-RNG `BCryptGenRandom` succeeds, `WarmUp()`'s, so the
+  threads started after the lockdown draw their keys through `ProcessPrng`;
+  the delay-load helper
   writes that address into the import table, and every other import
   resolves as without the hook. The x86 tables were read on the Win32
   Debug and Release-configured helpers on Windows 10.0.26300: static
@@ -2640,8 +2641,9 @@ packs, the fixture and the seams they use need no change for it.
   on every Windows either, so the ARM64 helper delay-loads it too and
   binds it right after `bcrypt.dll`. On x86 and x64 the win7 runtime's
   random source is ADVAPI32's `SystemFunction036`, which the delay-load
-  hook answers with the helper's own `BCryptGenRandom` function (**The
-  Windows helper** above), so the ADVAPI32 bind follows no forwarder into
+  hook answers with the helper's own function over `ProcessPrng` or
+  `BCryptGenRandom` (**The Windows helper** above), so the ADVAPI32 bind
+  follows no forwarder into
   `cryptbase.dll`. The x86 and x64 helpers bind the whole ADVAPI32
   descriptor because ADVAPI32 is still called after the
   reversion: the steps and checks after it call

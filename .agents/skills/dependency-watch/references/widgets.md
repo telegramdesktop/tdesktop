@@ -6,9 +6,10 @@ component is shipped.
 
 ## Follow the consumer graph
 
-- `Telegram/cmake/lib_litehtml.cmake` selects the copied litehtml and Gumbo
-  sources in `Telegram/ThirdParty/twidget`, from
-  https://github.com/TelegramMessenger/twidget. Track original
+- `Telegram/cmake/lib_widget_helper_rust.cmake` builds the widget helper's
+  Rust serving from `Telegram/ThirdParty/twidget` (its `rust/` workspace and
+  `Cargo.lock`), from https://github.com/TelegramMessenger/twidget, whose
+  crates port the copied litehtml and Gumbo sources there. Track original
   https://github.com/litehtml/litehtml and the parser's documented upstream
   separately. Read the fork's notices and import history; a copied tree may
   incorporate fixes absent from its original upstream.

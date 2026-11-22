@@ -230,8 +230,8 @@ widget ([Linux](#linux), [Windows](#windows)).
 - **What it shows.** The listing is of a serving helper: it holds a port
   per serving thread (`thread (task_threads)`) and whatever rights the
   served host and its engine took, while the widget work loads no
-  framework (the helper links none, and its litehtml is built without
-  CoreFoundation). Compare it by entry class and object with another
+  framework (the C++ helper linked none; the Rust one has not been listed
+  on a Mac yet). Compare it by entry class and object with another
   serving listing taken the same way, not with the ordinary probe's
   pre-`Ready` counts. A widget that starts or
   ends threads during the listing can change the space between the
@@ -605,11 +605,12 @@ function up, and its probe calls neither it nor `ReadMitigation()`: x86
 reads its DEP through `GetProcessDEPPolicy`, a static KERNEL32 import of
 the x86 helper. Neither those reads nor the lookups bind an import
 slot or complete a delay-load entry. The warm-up's descriptors follow each
-architecture's Nova engine: x86 and x64 build it for
+architecture's Rust serving: x86 and x64 build it for
 `i686-win7-windows-msvc` and `x86_64-win7-windows-msvc`, whose std draws
 its random bytes through ADVAPI32's `SystemFunction036`, and the
 helper's delay-load hook answers that import with the helper's own
-`BCryptGenRandom` adapter; ARM64 builds it for the pc target
+adapter over `ProcessPrng`, or `BCryptGenRandom` where Windows has no
+`ProcessPrng`; ARM64 builds it for the pc target
 `aarch64-pc-windows-msvc`, whose std calls `bcryptprimitives.dll`'s
 `ProcessPrng`. **The Windows helper** in
 [Remote engines](test_widget_fixture.md#remote-engines) has each

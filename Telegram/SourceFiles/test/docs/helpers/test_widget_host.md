@@ -235,7 +235,7 @@ renderer to time it, recorded as raw events; turning them into per-frame
 samples is the consumer's (the stress runner groups each raster attempt
 with the work since the previous one, counts the attempts that replayed
 apart and documents that grouping next to its figures). The host messages,
-TwidgetCore's `receive()`, `tick()`, style, layout and display-list build,
+the twidget renderer's `receive()`, `tick()`, style, layout and display-list build,
 the settle before a paint and every layout query run in the widget helper
 ([Remote engines](test_widget_fixture.md#remote-engines)), and
 `RendererWork` drives the shipped platform end (`RendererPlatform`,
@@ -386,7 +386,7 @@ their stamps, not nesting.
 ### The helper's share
 
 What these events leave out is the helper's work: the engine, the
-validator, the served host's glue, TwidgetCore's whole receive, tick and
+validator, the served host's glue, the twidget renderer's whole receive, tick and
 paint, the encoding of each Frame, both stream hops and the time an entry
 waits in the render thread's queue or for its widget's hold to end. The
 one suite field whose definition holds that work is the stress kit's
