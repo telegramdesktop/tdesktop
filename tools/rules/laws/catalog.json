@@ -1,0 +1,1120 @@
+{
+  "version": 1,
+  "layout": {
+    "columns": 78,
+    "tab_width": 8
+  },
+  "rules": [
+    {
+      "id": "layout.line-width",
+      "scope": "Added physical lines of C++ sources, measured in Unicode code points.",
+      "exceptions": "The line terminator is excluded. Tabs advance to the next tab stop.",
+      "diagnostic": "Report an added line exceeding the column limit.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "^\\d+ columns \\(limit \\d+, tab width \\d+\\)\\. Wrap the line\\.$",
+          "inputs": "Source bytes and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "call.closing-parenthesis",
+      "scope": "A sole inline argument followed by a detached closing parenthesis.",
+      "exceptions": "Empty calls and arguments starting on a later line are outside scope.",
+      "diagnostic": "Report the closer when the opening-to-closing span changes.",
+      "fix": "Move the inline argument to a continuation line and align the closer with the call.",
+      "implementations": {
+        "python": {
+          "match": "^Close the inline argument list on the same line as its argument\\.$",
+          "inputs": "Tree-sitter argument list and changed lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "call.member-wrap",
+      "scope": "A split arrow method on a simple receiver, or a split dot method on a simple receiver in a ternary branch.",
+      "exceptions": "Comments and unsupported argument layouts can prevent reflow.",
+      "diagnostic": "Report the split between the receiver and the method.",
+      "fix": "Keep the method on the receiver line and wrap a short argument with its closer.",
+      "implementations": {
+        "python": {
+          "match": "^Keep the method name with its receiver and wrap the arguments\\.$",
+          "inputs": "Tree-sitter member expression, argument and changed lines.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "call.nested-wrap",
+      "scope": "A multiline nested argument starting on the outer call opening line.",
+      "exceptions": "Inline multiline lambdas, sole braced arguments, and unsafe token boundaries.",
+      "diagnostic": "Report the opening of the outer call.",
+      "fix": "Move the first argument onto the next line when the reflow fits.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-nested-multiline-call",
+          "inputs": "Clang expressions and source tokens from a compile command."
+        }
+      }
+    },
+    {
+      "id": "ternary.branch-indent",
+      "scope": "Leading ? and : after an unparenthesized multiline built-in logical condition.",
+      "exceptions": "Macro locations, crossed directives and inline markers.",
+      "diagnostic": "Report each misindented branch marker. Changed logical continuations also expose the markers.",
+      "fix": "Use one tab past the first logical continuation when the resulting line fits.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-ternary-branch-indent",
+          "inputs": "Clang conditional and built-in binary operators from a compile command."
+        }
+      }
+    },
+    {
+      "id": "call.argument-lines",
+      "scope": "Multiline calls with multiple arguments that intersect added lines.",
+      "exceptions": "Certain inline visitor lambdas and inline rpl::on_next handlers with a lifetime.",
+      "diagnostic": "Report the first packed argument. A later argument starts after the previous argument ends.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Put each argument of the multiline call on its own line after the opening parenthesis\\.",
+          "inputs": "Tree-sitter nodes, physical lines, and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "lambda.sole-parameter",
+      "scope": "A lambda with a sole parameter split from its capture.",
+      "exceptions": "Overlong joins, comments, and unsupported or preprocessed parameter syntax.",
+      "diagnostic": "Report the start of the split signature.",
+      "fix": "Join the parameter with the capture when the resulting line fits.",
+      "implementations": {
+        "python": {
+          "match": "Keep the sole lambda parameter on the same line as the capture\\.",
+          "inputs": "Tree-sitter nodes, physical lines, and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "lambda.short-body",
+      "scope": "A multiline lambda body with one eligible statement.",
+      "exceptions": "Compound statements, comments, long lines, and bodies with multiple statements.",
+      "diagnostic": "Report the start of the multiline lambda layout.",
+      "fix": "Join the body and any compatible split signature if the result fits.",
+      "implementations": {
+        "python": {
+          "match": "Keep the short lambda body on one line\\.",
+          "inputs": "Tree-sitter nodes, physical lines, and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rpl.short-stage",
+      "scope": "An empty producer call followed by an RPL stage with one argument on the next line.",
+      "exceptions": "Non-RPL stages, nonempty producers, comments, and stages that cannot fit on the continuation.",
+      "diagnostic": "Report the producer line.",
+      "fix": "Wrap before the producer's closing parenthesis and join the short stage.",
+      "implementations": {
+        "python": {
+          "match": "Wrap before the producer closing parenthesis and keep the short RPL stage together\\.",
+          "inputs": "Tree-sitter nodes, physical lines, and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "rpl.pipe-placement",
+      "scope": "A leading pipe that separates consecutive RPL stages.",
+      "exceptions": "Non-RPL operators and supported inline or nested pipeline forms.",
+      "diagnostic": "Report the leading pipe.",
+      "fix": "Rewrap the preceding stage so the pipe follows its closing parenthesis when the edit fits.",
+      "implementations": {
+        "python": {
+          "match": "Keep the RPL pipe with the closing parenthesis of the preceding stage\\.",
+          "inputs": "Tree-sitter nodes, physical lines, and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "expression.sum-terms",
+      "scope": "A multiline binary addition or subtraction chain.",
+      "exceptions": "Single-line chains and unary operators.",
+      "diagnostic": "Report an operator that shares the left term's line or is separated from its right term.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Start each continuation term on its own line with \\+ or \\-\\.",
+          "inputs": "Tree-sitter nodes, physical lines, and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "expression.logical-terms",
+      "scope": "A multiline logical chain with a changed operand boundary.",
+      "exceptions": "Single-line and independently parenthesized chains, and intervening comments or directives before an operand.",
+      "diagnostic": "Report a packed or detached logical operator.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "Start the continuation with (?:&&|\\|\\|) and its right operand\\.",
+          "inputs": "Tree-sitter nodes, physical lines, and added lines from the Git diff.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "api.standard-library-replacement",
+      "scope": "Configured forbidden Qt function spellings in staged C++ or edit payloads.",
+      "exceptions": "Comments, string and character literals, and identifiers with a matching substring.",
+      "diagnostic": "Report the configured replacement from .clang-tidy.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "\\w+ is banned (?:in this repository -- write|-- write) .+ instead\\.",
+          "inputs": "Source bytes with comments and literals masked. Read CustomFunctions from .clang-tidy.",
+          "modes": [
+            "staged",
+            "edit"
+          ]
+        }
+      }
+    },
+    {
+      "id": "comment.single-line",
+      "scope": "New multiline comment blocks in staged C++ or edit payloads.",
+      "exceptions": "License blocks, blocks carrying a reference URL, moved comments, and test harness files.",
+      "diagnostic": "Report a multiline comment block.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "(?:\\d+-line comment: )?a comment is one line; longer only to carry a reference URL\\.",
+          "inputs": "Comment blocks, added lines and removed comment text, or edit payload text.",
+          "modes": [
+            "staged",
+            "edit"
+          ]
+        }
+      }
+    },
+    {
+      "id": "comment.commit-budget",
+      "scope": "New single-line comments across staged C++ files.",
+      "exceptions": "Edit payloads, moved comments, license blocks, test harness files, and labels on directives or closing braces.",
+      "diagnostic": "Report the staged comment count when it exceeds two.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "this commit adds \\d+ comment lines; \\d+ is the budget\\.",
+          "inputs": "Comment blocks, added lines and removed comment text, or edit payload text.",
+          "modes": [
+            "staged"
+          ]
+        }
+      }
+    },
+    {
+      "id": "git.hook-subject-prefix",
+      "scope": "Commit subjects for staged changes in tools/rules or tools/clangtidy/compile_db.py.",
+      "exceptions": "Commits with no staged changes in the hook paths.",
+      "diagnostic": "Require the exact Git hook prefix followed by a space.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "python": {
+          "match": "commit\\-msg: subject must start with \\[git\\-hook\\] followed by a space when the commit changes Git hook files\\.",
+          "inputs": "Commit message bytes and staged paths.",
+          "modes": [
+            "commit-msg"
+          ]
+        }
+      }
+    },
+    {
+      "id": "constructor.parameter-indent",
+      "scope": "Constructor definitions with a written initializer list.",
+      "exceptions": "Implicit constructors, template instantiations, macro locations, and inline parameters.",
+      "diagnostic": "Report a continuation parameter with the wrong indentation.",
+      "fix": "Place the parameter one tab past the declaration indentation.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-constructor-param-indent",
+          "inputs": "Clang constructor and parameter type locations."
+        }
+      }
+    },
+    {
+      "id": "function.empty-parameter-indent",
+      "scope": "Function definitions with an empty compound body, including comment-only bodies.",
+      "exceptions": "Constructors, lambdas, declarations, macro bodies, and bodies containing a statement.",
+      "diagnostic": "Report a misindented continuation parameter.",
+      "fix": "Place the parameter one tab past the declaration indentation.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-empty-function-param-indent",
+          "inputs": "Clang function, body tokens, and parameter locations."
+        }
+      }
+    },
+    {
+      "id": "field.basic-initializer",
+      "scope": "Basic scalar or pointer fields that may be left uninitialized by a constructor.",
+      "exceptions": "Existing defaults, initialized fields, unions, and unsupported field types.",
+      "diagnostic": "Report an uninitialized field.",
+      "fix": "Insert the appropriate default after the name. Bitfields, function pointers, and macros are diagnostic only.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-init-basic-field",
+          "inputs": "Clang field type, record, constructors, and member initializers."
+        }
+      },
+      "fix_kind": "source-rewrite"
+    },
+    {
+      "id": "lambda.argument-parameter-indent",
+      "scope": "Multiline parameters in a lambda argument whose capture starts its own line.",
+      "exceptions": "Local lambdas, inline captures, macro locations, and inline parameters.",
+      "diagnostic": "Report a misindented parameter.",
+      "fix": "Place the parameter one tab past the capture indentation.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-lambda-argument-param-indent",
+          "inputs": "Clang lambda argument and parameter locations."
+        }
+      }
+    },
+    {
+      "id": "declaration.local-auto",
+      "scope": "Supported local value declarations that can use auto with an equivalent initializer.",
+      "exceptions": "Pointers, references, arrays, macros, commented declarations, and declaration types requiring an explicit spelling.",
+      "diagnostic": "Report a local declaration that can switch to auto.",
+      "fix": "Rewrite the declaration with auto and preserve the declared type and initialization.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-local-type-auto",
+          "inputs": "Clang declaration types, initializers, configured type sets, and source spelling."
+        }
+      },
+      "fix_kind": "source-rewrite"
+    },
+    {
+      "id": "expression.logical-group-indent",
+      "scope": "Multiline logical terms inside a parenthesized operand of an outer logical continuation.",
+      "exceptions": "Standalone groups, unrelated parenthesized expressions, and macros.",
+      "diagnostic": "Report a misindented inner operator.",
+      "fix": "Indent its line one tab past the group opener when it fits.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-logical-group-indent",
+          "inputs": "Clang logical and parenthesized operators with source locations."
+        }
+      }
+    },
+    {
+      "id": "member.access-line",
+      "scope": "A member data access broken before its dot or arrow.",
+      "exceptions": "Method calls, callable fields followed by parentheses, designated initializers, and macro locations.",
+      "diagnostic": "Report the access operator.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-member-access-line",
+          "inputs": "Clang member declaration and base-expression source locations."
+        }
+      }
+    },
+    {
+      "id": "attribute.repeated-nodiscard",
+      "scope": "An out-of-line method definition that repeats nodiscard from a declaration.",
+      "exceptions": "Inline definitions, free functions, and definitions whose declaration lacks the attribute.",
+      "diagnostic": "Report the repeated attribute on the method definition.",
+      "fix": "Remove a standalone attribute or its whole line. Compound attribute lists are diagnostic only.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-nodiscard-on-definition",
+          "inputs": "Clang method redeclarations, attributes, and source tokens."
+        }
+      },
+      "fix_kind": "source-rewrite"
+    },
+    {
+      "id": "function.orphaned-return-type",
+      "scope": "A qualified, template, or pointer leading return type immediately above a function name.",
+      "exceptions": "Trailing return types, simple leading types, blank gaps, special member declarations, and macros.",
+      "diagnostic": "Report the function name and suggest trailing return syntax.",
+      "fix": "No automatic edit.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-orphaned-return-type",
+          "inputs": "Clang written function type and name locations."
+        }
+      }
+    },
+    {
+      "id": "declaration.pointer-nullptr-auto",
+      "scope": "Explicitly typed pointer variables initialized with nullptr.",
+      "exceptions": "Parameters, fields, already deduced variables, and macro locations.",
+      "diagnostic": "Report the variable and recommend auto with a typed null pointer.",
+      "fix": "Preserve the type with a cast when the declaration can be safely rewritten.",
+      "implementations": {
+        "clang": {
+          "match": "tdesktop-pointer-nullptr-auto",
+          "inputs": "Clang variable type, initializer kind, storage, and source tokens."
+        }
+      },
+      "fix_kind": "source-rewrite"
+    }
+  ],
+  "cases": [
+    {
+      "id": "width-77-lf",
+      "before": "fixtures/width-77-lf/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "width-77-crlf",
+      "before": "fixtures/width-77-crlf/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "width-78-lf",
+      "before": "fixtures/width-78-lf/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "width-78-crlf",
+      "before": "fixtures/width-78-crlf/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "width-79-lf",
+      "before": "fixtures/width-79-lf/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "layout.line-width",
+            "line": 2,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "width-79-crlf",
+      "before": "fixtures/width-79-crlf/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "layout.line-width",
+            "line": 2,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "wrap-member-call",
+      "before": "fixtures/wrap-member-call/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.member-wrap",
+            "line": 3,
+            "fix": true
+          }
+        ],
+        "clang": []
+      },
+      "after": "fixtures/wrap-member-call/after.cpp",
+      "headers": [
+        "fixtures/wrap-member-call/calls.h"
+      ]
+    },
+    {
+      "id": "wrap-nested-call",
+      "before": "fixtures/wrap-nested-call/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": [
+          {
+            "rule": "call.nested-wrap",
+            "line": 4,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/wrap-nested-call/after.cpp",
+      "bend_call": "outer",
+      "headers": [
+        "fixtures/wrap-nested-call/calls.h"
+      ]
+    },
+    {
+      "id": "change-logical-continuation",
+      "before": "fixtures/change-logical-continuation/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": [
+          {
+            "rule": "ternary.branch-indent",
+            "line": 4,
+            "fix": true
+          },
+          {
+            "rule": "ternary.branch-indent",
+            "line": 5,
+            "fix": true
+          }
+        ]
+      },
+      "cxx": [
+        "-std=c++20",
+        "--target=x86_64-unknown-linux-gnu"
+      ],
+      "after": "fixtures/change-logical-continuation/after.cpp",
+      "parent": "fixtures/change-logical-continuation/parent.cpp",
+      "changed": [
+        3
+      ]
+    },
+    {
+      "id": "parenthesized-condition",
+      "before": "fixtures/parenthesized-condition/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": []
+      }
+    },
+    {
+      "id": "conditional-directive",
+      "before": "fixtures/conditional-directive/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": []
+      }
+    },
+    {
+      "id": "clang-fix-width-77",
+      "before": "fixtures/clang-fix-width-77/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": [
+          {
+            "rule": "ternary.branch-indent",
+            "line": 4,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/clang-fix-width-77/after.cpp"
+    },
+    {
+      "id": "clang-fix-width-78",
+      "before": "fixtures/clang-fix-width-78/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": [
+          {
+            "rule": "ternary.branch-indent",
+            "line": 4,
+            "fix": true
+          }
+        ]
+      },
+      "after": "fixtures/clang-fix-width-78/after.cpp"
+    },
+    {
+      "id": "clang-fix-width-79",
+      "before": "fixtures/clang-fix-width-79/before.cpp",
+      "expect": {
+        "python": [],
+        "clang": [
+          {
+            "rule": "ternary.branch-indent",
+            "line": 4,
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "packed-call-arguments",
+      "before": "fixtures/packed-call-arguments/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.argument-lines",
+            "fix": false,
+            "line": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "join-lambda-parameter",
+      "before": "fixtures/join-lambda-parameter/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "lambda.sole-parameter",
+            "fix": true,
+            "line": 2
+          }
+        ]
+      },
+      "after": "fixtures/join-lambda-parameter/after.cpp"
+    },
+    {
+      "id": "join-lambda-body",
+      "before": "fixtures/join-lambda-body/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "lambda.short-body",
+            "fix": true,
+            "line": 3
+          }
+        ]
+      },
+      "after": "fixtures/join-lambda-body/after.cpp"
+    },
+    {
+      "id": "join-short-rpl-stage",
+      "before": "fixtures/join-short-rpl-stage/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "rpl.short-stage",
+            "fix": true,
+            "line": 3
+          }
+        ]
+      },
+      "after": "fixtures/join-short-rpl-stage/after.cpp"
+    },
+    {
+      "id": "move-leading-rpl-pipes",
+      "before": "fixtures/move-leading-rpl-pipes/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "rpl.pipe-placement",
+            "fix": true,
+            "line": 3
+          },
+          {
+            "rule": "rpl.pipe-placement",
+            "fix": true,
+            "line": 4
+          }
+        ]
+      },
+      "after": "fixtures/move-leading-rpl-pipes/after.cpp"
+    },
+    {
+      "id": "packed-sum-terms",
+      "before": "fixtures/packed-sum-terms/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "expression.sum-terms",
+            "fix": false,
+            "line": 1
+          },
+          {
+            "rule": "expression.sum-terms",
+            "fix": false,
+            "line": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "detached-logical-terms",
+      "before": "fixtures/detached-logical-terms/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "expression.logical-terms",
+            "fix": false,
+            "line": 2
+          },
+          {
+            "rule": "expression.logical-terms",
+            "fix": false,
+            "line": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "qt-helper-replacements",
+      "before": "fixtures/qt-helper-replacements/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 2
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 3
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 4
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 5
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 6
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 7
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 8
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 9
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 10
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 11
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 12
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 13
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 14
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 15
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 16
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 17
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 18
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 19
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 20
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 21
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 22
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 23
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 24
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 25
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 26
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 27
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 28
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 29
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 30
+          },
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false,
+            "line": 31
+          }
+        ]
+      }
+    },
+    {
+      "id": "edit-qt-helper",
+      "before": "fixtures/edit-qt-helper/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "api.standard-library-replacement",
+            "fix": false
+          }
+        ]
+      },
+      "mode": "edit"
+    },
+    {
+      "id": "staged-multiline-comment",
+      "before": "fixtures/staged-multiline-comment/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "comment.single-line",
+            "fix": false,
+            "line": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "edit-multiline-comment",
+      "before": "fixtures/edit-multiline-comment/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "comment.single-line",
+            "fix": false
+          }
+        ]
+      },
+      "mode": "edit"
+    },
+    {
+      "id": "comment-with-url",
+      "before": "fixtures/comment-with-url/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "comment-budget",
+      "before": "fixtures/comment-budget/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "comment.commit-budget",
+            "fix": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "hook-subject-missing-prefix",
+      "before": "fixtures/hook-subject-missing-prefix/before.txt",
+      "expect": {
+        "python": [
+          {
+            "rule": "git.hook-subject-prefix",
+            "fix": false
+          }
+        ]
+      },
+      "mode": "commit-msg"
+    },
+    {
+      "id": "hook-subject-with-prefix",
+      "before": "fixtures/hook-subject-with-prefix/before.txt",
+      "expect": {
+        "python": []
+      },
+      "mode": "commit-msg"
+    },
+    {
+      "id": "constructor-parameter-indent",
+      "before": "fixtures/constructor-parameter-indent/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "constructor.parameter-indent",
+            "fix": true,
+            "line": 10
+          },
+          {
+            "rule": "constructor.parameter-indent",
+            "fix": true,
+            "line": 11
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/constructor-parameter-indent/after.cpp"
+    },
+    {
+      "id": "empty-function-parameter-indent",
+      "before": "fixtures/empty-function-parameter-indent/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "function.empty-parameter-indent",
+            "fix": true,
+            "line": 2
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/empty-function-parameter-indent/after.cpp"
+    },
+    {
+      "id": "basic-field-defaults",
+      "before": "fixtures/basic-field-defaults/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "field.basic-initializer",
+            "fix": true,
+            "line": 2
+          },
+          {
+            "rule": "field.basic-initializer",
+            "fix": true,
+            "line": 3
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/basic-field-defaults/after.cpp"
+    },
+    {
+      "id": "basic-bitfield-manual-default",
+      "before": "fixtures/basic-bitfield-manual-default/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "field.basic-initializer",
+            "fix": false,
+            "line": 2
+          }
+        ],
+        "python": []
+      }
+    },
+    {
+      "id": "lambda-argument-parameter-indent",
+      "before": "fixtures/lambda-argument-parameter-indent/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "lambda.argument-parameter-indent",
+            "fix": true,
+            "line": 8
+          },
+          {
+            "rule": "lambda.argument-parameter-indent",
+            "fix": true,
+            "line": 9
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/lambda-argument-parameter-indent/after.cpp"
+    },
+    {
+      "id": "deduce-local-value-type",
+      "before": "fixtures/deduce-local-value-type/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "declaration.local-auto",
+            "fix": true,
+            "line": 6
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/deduce-local-value-type/after.cpp"
+    },
+    {
+      "id": "logical-group-indent",
+      "before": "fixtures/logical-group-indent/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "expression.logical-group-indent",
+            "fix": true,
+            "line": 4
+          },
+          {
+            "rule": "expression.logical-group-indent",
+            "fix": true,
+            "line": 5
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/logical-group-indent/after.cpp"
+    },
+    {
+      "id": "split-data-member-access",
+      "before": "fixtures/split-data-member-access/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "member.access-line",
+            "fix": false,
+            "line": 7
+          }
+        ],
+        "python": []
+      }
+    },
+    {
+      "id": "remove-repeated-nodiscard",
+      "before": "fixtures/remove-repeated-nodiscard/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "attribute.repeated-nodiscard",
+            "fix": true,
+            "line": 5
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/remove-repeated-nodiscard/after.cpp"
+    },
+    {
+      "id": "orphaned-pointer-return-type",
+      "before": "fixtures/orphaned-pointer-return-type/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "function.orphaned-return-type",
+            "fix": false,
+            "line": 4
+          }
+        ],
+        "python": []
+      }
+    },
+    {
+      "id": "deduce-null-pointer-type",
+      "before": "fixtures/deduce-null-pointer-type/before.cpp",
+      "expect": {
+        "clang": [
+          {
+            "rule": "declaration.pointer-nullptr-auto",
+            "fix": true,
+            "line": 4
+          }
+        ],
+        "python": []
+      },
+      "after": "fixtures/deduce-null-pointer-type/after.cpp"
+    },
+    {
+      "id": "wrap-short-call",
+      "before": "fixtures/wrap-short-call/before.cpp",
+      "expect": {
+        "python": [
+          {
+            "rule": "call.closing-parenthesis",
+            "line": 6,
+            "fix": true
+          }
+        ],
+        "clang": []
+      },
+      "after": "fixtures/wrap-short-call/after.cpp"
+    }
+  ]
+}

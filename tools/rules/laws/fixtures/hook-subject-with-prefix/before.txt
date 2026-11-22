@@ -1,0 +1,1 @@
+[git-hook] Improved style checks.

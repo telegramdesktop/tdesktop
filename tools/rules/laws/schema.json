@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Telegram Desktop Git hook and C++ style contracts",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "layout", "rules", "cases"],
+  "properties": {
+    "version": {"const": 1},
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["columns", "tab_width"],
+      "properties": {
+        "columns": {"type": "integer", "minimum": 1},
+        "tab_width": {"type": "integer", "minimum": 1}
+      }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/rule"}
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"$ref": "#/$defs/case"}
+    }
+  },
+  "$defs": {
+    "id": {"type": "string", "pattern": "^[a-z][a-z0-9-]*(\\.[a-z][a-z0-9-]*)*$"},
+    "text": {"type": "string", "minLength": 1},
+    "line": {"type": "integer", "minimum": 1},
+    "file": {"type": "string", "pattern": "^fixtures/[^/]+/[^/]+\\.cpp$"},
+    "implementation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["match", "inputs"],
+      "properties": {
+        "match": {"$ref": "#/$defs/text"},
+        "inputs": {"$ref": "#/$defs/text"},
+        "modes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {"enum": ["staged", "edit", "commit-msg"]}
+        }
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "scope", "exceptions", "diagnostic", "fix", "implementations"],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "scope": {"$ref": "#/$defs/text"},
+        "exceptions": {"$ref": "#/$defs/text"},
+        "diagnostic": {"$ref": "#/$defs/text"},
+        "fix": {"$ref": "#/$defs/text"},
+        "fix_kind": {"enum": ["source-rewrite"]},
+        "implementations": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "python": {"$ref": "#/$defs/implementation"},
+            "clang": {"$ref": "#/$defs/implementation"}
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule", "fix"],
+        "properties": {
+          "rule": {"$ref": "#/$defs/id"},
+          "line": {"$ref": "#/$defs/line"},
+          "fix": {"type": "boolean"}
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "before", "expect"],
+      "dependentRequired": {"parent": ["changed"], "changed": ["parent"]},
+      "allOf": [
+        {
+          "if": {"required": ["mode"], "properties": {"mode": {"const": "commit-msg"}}},
+          "then": {"properties": {"before": {"pattern": "^fixtures/[^/]+/[^/]+\\.txt$"}}},
+          "else": {"properties": {"before": {"$ref": "#/$defs/file"}}}
+        },
+        {
+          "if": {"required": ["mode"], "properties": {"mode": {"enum": ["edit", "commit-msg"]}}},
+          "then": {
+            "properties": {
+              "after": false, "parent": false, "bend_call": false,
+              "cxx": false, "headers": false,
+              "expect": {"properties": {"clang": false}}
+            }
+          }
+        }
+      ],
+      "properties": {
+        "id": {"$ref": "#/$defs/id"},
+        "before": {"type": "string"},
+        "mode": {"enum": ["staged", "edit", "commit-msg"]},
+        "after": {"$ref": "#/$defs/file"},
+        "parent": {"$ref": "#/$defs/file"},
+        "changed": {"type": "array", "uniqueItems": true, "items": {"$ref": "#/$defs/line"}},
+        "bend_call": {"type": "string", "pattern": "^[a-zA-Z_][a-zA-Z_0-9]*$"},
+        "cxx": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/text"}
+        },
+        "headers": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^fixtures/[^/]+/[^/]+\\.h$"}
+        },
+        "expect": {
+          "type": "object",
+          "additionalProperties": false,
+          "minProperties": 1,
+          "properties": {
+            "python": {"$ref": "#/$defs/diagnostics"},
+            "clang": {"$ref": "#/$defs/diagnostics"}
+          }
+        }
+      }
+    }
+  }
+}

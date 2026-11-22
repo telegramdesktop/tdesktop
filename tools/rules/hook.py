@@ -12,6 +12,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 SOURCES = (".cpp", ".h", ".mm", ".cxx")
 LICENSE = "This file is part of "
 HARNESS = "/SourceFiles/test/"
+LAW_FIXTURES = "tools/rules/laws/fixtures/"
 URL = re.compile(r"https?://")
 PLAIN_LINES = 2
 CPP_TOKEN = re.compile(
@@ -25,6 +26,11 @@ CPP_TOKEN = re.compile(
 
 def clang_source(path):
     return path.startswith("Telegram/SourceFiles/") and path.endswith((".cpp", ".h"))
+
+
+def product_source(path):
+    relative = path.replace("\\", "/").removeprefix(ROOT.replace("\\", "/") + "/")
+    return path.endswith(SOURCES) and not relative.startswith(LAW_FIXTURES)
 
 
 def banned():
@@ -162,18 +168,16 @@ def check_edit(payload, path):
     return 2
 
 
-def staged():
+def staged_changes():
     # No cwd: the hook answers for the repository it was invoked in.
-    diff = subprocess.run([
+    diff = subprocess.check_output([
         "git", "-c", "core.quotePath=true", "diff", "--cached", "-U0", "-M",
         "--no-color", "--no-ext-diff", "--no-textconv",
         "--src-prefix=a/", "--dst-prefix=b/", "--ignore-submodules=all",
-    ], stdout=subprocess.PIPE, text=True)
-    if diff.returncode:
-        return diff.returncode
+    ], text=True)
     path, number, added, dropped, in_hunk = "", 0, {}, set(), False
     clang_file, clang_deletions = False, {}
-    for line in diff.stdout.split("\n"):
+    for line in diff.split("\n"):
         if line.startswith("diff --git "):
             path, in_hunk = "", False
         elif not in_hunk and line.startswith("+++ "):
@@ -195,11 +199,19 @@ def staged():
             number += 1
         elif in_hunk and line.startswith("+"):
             number += 1
-            if path.endswith(SOURCES):
+            if product_source(path):
                 added.setdefault(path, []).append((number, line[1:]))
+    return added, dropped, clang_deletions
+
+
+def staged():
+    try:
+        added, dropped, clang_deletions = staged_changes()
+    except subprocess.CalledProcessError as error:
+        return error.returncode
     if added:
         try:
-            from cpp_layout import MAX_COLUMNS, TAB_WIDTH, layout_errors
+            from cpp_layout import MAX_COLUMNS, TAB_WIDTH, layout_errors, line_width
         except ImportError:
             requirements = os.path.join(HERE, "requirements.txt")
             print(f'Install the C++ parser with: python3 -m pip install -r'
@@ -221,7 +233,7 @@ def staged():
             print(f"{path}:{number}: {message}", file=sys.stderr)
             bad += 1
         for number, line in lines:
-            width = len(line.expandtabs(TAB_WIDTH))
+            width = line_width(line)
             if width > MAX_COLUMNS:
                 print(f"{path}:{number}: {width} columns (limit {MAX_COLUMNS},"
                     f" tab width {TAB_WIDTH}). Wrap the line.", file=sys.stderr)
@@ -265,7 +277,7 @@ def main():
         return 0
     path = ((payload.get("tool_response") or {}).get("filePath")
         or (payload.get("tool_input") or {}).get("file_path") or "")
-    return check_edit(payload, path) if path.endswith(SOURCES) else 0
+    return check_edit(payload, path) if product_source(path) else 0
 
 
 if __name__ == "__main__":

@@ -14,6 +14,13 @@ def git(*args):
     return subprocess.check_output(["git", *args])
 
 
+def tidy_binary():
+    if configured := os.environ.get("CLANG_TIDY"):
+        return shutil.which(configured)
+    return (shutil.which("clang-tidy")
+        or shutil.which("clang-tidy", path="/opt/homebrew/opt/llvm/bin"))
+
+
 def check_staged(sources):
     if not sources:
         return 0
@@ -30,14 +37,14 @@ def check_staged(sources):
         return 1
 
 
-def run(root, plugin, sources):
+def run(root, plugin, sources, *, database=None, export_fixes=None):
     if not plugin.is_file():
         raise ValueError(f"stylecheck plugin not found at {plugin}")
-    tidy = (os.environ.get("CLANG_TIDY") or shutil.which("clang-tidy")
-        or shutil.which("clang-tidy", path="/opt/homebrew/opt/llvm/bin"))
+    tidy = tidy_binary()
     if not tidy:
         raise ValueError("clang-tidy not found; set CLANG_TIDY")
-    database = Path(os.environ.get("STYLECHECK_DB", root / "out/clang-tidy"))
+    if database is None:
+        database = Path(os.environ.get("STYLECHECK_DB", root / "out/clang-tidy"))
     commands = database / "compile_commands.json"
     if not commands.is_file():
         raise ValueError(f"{commands} is missing; regenerate the database with "
@@ -78,12 +85,21 @@ def run(root, plugin, sources):
     with tempfile.TemporaryDirectory(prefix="tdesktop-stylecheck-") as folder:
         overlay = write_overlay(sorted(roots), Path(folder), sources)
         command = [tidy, f"--load={plugin}", f"--checks=-*,{CHECKS}",
-            f"--warnings-as-errors={CHECKS}", "--config={}", "--quiet",
+            "--config={}", "--quiet",
             f"-p={database.resolve()}", f"--vfsoverlay={overlay}",
             "--line-filter=" + json.dumps(line_filter + header_filter)]
+        if export_fixes is None:
+            command.append(f"--warnings-as-errors={CHECKS}")
+        else:
+            command.append(f"--export-fixes={export_fixes}")
         if header_filter:
             command.append("--header-filter=.*")
         command.extend(map(str, sorted(units)))
+        if export_fixes is not None:
+            result = subprocess.run(command, capture_output=True, text=True)
+            if result.returncode:
+                raise ValueError(result.stdout + result.stderr)
+            return 0
         return 1 if subprocess.run(command, stdout=sys.stderr).returncode else 0
 
 

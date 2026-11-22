@@ -1130,7 +1130,8 @@ class CommitMsgHook(unittest.TestCase):
         repo.commit({name: "before\n", "ordinary.txt": "before\n",
             ".clang-tidy": "",
             **{"tools/rules/" + source: (Path(HERE) / source).read_text()
-                for source in ("hook.py", "clang_style.py", "cpp_layout.py")}})
+                for source in ("hook.py", "clang_style.py", "cpp_layout.py",
+                    "laws/catalog.json")}})
         self.install(repo)
 
         (root / name).write_text("after\n")

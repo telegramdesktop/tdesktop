@@ -1,6 +1,8 @@
 from bisect import bisect_left, bisect_right
 from pathlib import Path
 import argparse
+import json
+import os
 import re
 
 from tree_sitter import Language, Parser
@@ -8,8 +10,11 @@ import tree_sitter_cpp
 
 
 CPP = Language(tree_sitter_cpp.language())
-MAX_COLUMNS = 78
-TAB_WIDTH = 8
+CATALOG = Path(os.environ.get("STYLECHECK_CATALOG",
+    Path(__file__).with_name("laws") / "catalog.json"))
+LAYOUT = json.loads(CATALOG.read_bytes())["layout"]
+MAX_COLUMNS = LAYOUT["columns"]
+TAB_WIDTH = LAYOUT["tab_width"]
 CALL_MESSAGE = ("Put each argument of the multiline call on its own line"
     " after the opening parenthesis.")
 CLOSE_INLINE_MESSAGE = "Close the inline argument list on the same line as its argument."
@@ -19,6 +24,7 @@ PIPELINE_MESSAGE = "Wrap before the producer closing parenthesis and keep the sh
 PIPELINE_BAR_MESSAGE = "Keep the RPL pipe with the closing parenthesis of the preceding stage."
 MEMBER_CALL_MESSAGE = "Keep the method name with its receiver and wrap the arguments."
 SUM_MESSAGE = "Start each continuation term on its own line with + or -."
+LOGICAL_MESSAGE = "Start the continuation with {operator} and its right operand."
 SUM_OPERATORS = ("+", "-")
 LOGICAL_OPERATORS = ("&&", "||")
 
@@ -27,8 +33,12 @@ def starts_of_lines(source):
     return [0] + [match.end() for match in re.finditer(b"\n", source)]
 
 
+def line_width(line):
+    return len(line.rstrip("\r\n").expandtabs(TAB_WIDTH))
+
+
 def fits_width(line):
-    return len(line.decode("utf-8", "surrogateescape").expandtabs(TAB_WIDTH)) <= MAX_COLUMNS
+    return line_width(line.decode("utf-8", "surrogateescape")) <= MAX_COLUMNS
 
 
 def changed_nodes(root, added_lines, line_at):
@@ -163,8 +173,7 @@ def packed_logical_term(node, source, added_lines, line_at):
         return None
     change = bisect_left(added_lines, left_line)
     if change < len(added_lines) and added_lines[change] <= right_line:
-        return operator_line, (
-            f"Start the continuation with {operator.type} and its right operand.")
+        return operator_line, LOGICAL_MESSAGE.format(operator=operator.type)
     return None
 
 

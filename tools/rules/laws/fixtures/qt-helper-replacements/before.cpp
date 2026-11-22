@@ -1,0 +1,32 @@
+void useQtHelpers(int a, int b) {
+	qMin(1, 2);
+	qMax(1, 2);
+	qAbs(a);
+	qBound(0, 1, 2);
+	qSwap(a, b);
+	qMakePair(1, 2);
+	qExchange(a, 1);
+	qAsConst(a);
+	qFabs(a);
+	qSin(a);
+	qCos(a);
+	qTan(a);
+	qAcos(a);
+	qAsin(a);
+	qAtan(a);
+	qAtan2(1., 2.);
+	qSqrt(a);
+	qLn(a);
+	qExp(a);
+	qPow(1., 2.);
+	qHypot(1., 2.);
+	qIsNaN(a);
+	qIsInf(a);
+	qIsFinite(a);
+	qPopulationCount(a);
+	qCountLeadingZeroBits(a);
+	qCountTrailingZeroBits(a);
+	qCeil(a);
+	qFloor(a);
+	qRound(a);
+}
