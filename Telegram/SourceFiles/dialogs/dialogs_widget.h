@@ -261,7 +261,8 @@ private:
 	[[nodiscard]] bool searchHidesTopBarContent() const;
 	void updateTopBarActionsVisibility(anim::type animated);
 	void updateLoadMoreChatsVisibility();
-	void updateStoriesVisibility(anim::type animated = anim::type::normal);
+	void updateStoriesVisibility(anim::type animated
+		= anim::type::normal);
 	void updateStoriesTitleShown();
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);

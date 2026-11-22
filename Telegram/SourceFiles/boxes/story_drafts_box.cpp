@@ -175,6 +175,17 @@ void StoryDraftsBox(
 	const auto content = box->addRow(
 		object_ptr<Ui::VerticalLayout>(box),
 		QMargins());
+	const auto confirmRemoval = [=](uint64 id) {
+		box->uiShow()->show(
+			Ui::MakeConfirmBox({
+				.text = tr::lng_story_delete_draft_sure(),
+				.confirmed = crl::guard(
+					box,
+					[=] { drafts->remove(id); }),
+				.confirmText = tr::lng_story_delete_draft(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
+	};
 	const auto rebuild = [=] {
 		content->clear();
 		if (choosing) {
@@ -197,12 +208,7 @@ void StoryDraftsBox(
 				Media::Stories::PostStoryDraft(controller, id);
 			});
 			row->removeRequests() | rpl::on_next([=] {
-				box->uiShow()->show(Ui::MakeConfirmBox({
-					.text = tr::lng_story_delete_draft_sure(),
-					.confirmed = crl::guard(box, [=] { drafts->remove(id); }),
-					.confirmText = tr::lng_story_delete_draft(),
-					.confirmStyle = &st::attentionBoxButton,
-				}));
+				confirmRemoval(id);
 			}, row->lifetime());
 			++count;
 		}

@@ -60,7 +60,10 @@ int main() {
 	uploading.placeMyStoryFirst(AddStoryEntry);
 
 	const auto order = std::vector<Element>{
-		AddStoryEntry(), three.elements[0], three.elements[1], three.elements[2],
+		AddStoryEntry(),
+		three.elements[0],
+		three.elements[1],
+		three.elements[2],
 	};
 	auto expectedUpload = order;
 	expectedUpload.front() = ownUpload;
@@ -68,9 +71,13 @@ int main() {
 		posting.elements == order
 			&& posting.total == 4
 			&& posting.elements.front().canAddFirstStory(),
-		"three foreign stories retain their order behind one posting entry");
+		"three foreign stories retain their order "
+		"behind one posting entry");
 	ok &= Check(empty == Content(), "empty bar keeps the toolbar entry");
-	ok &= Check(restricted == three, "posting restrictions hide the entry");
+	ok
+		&= Check(
+			restricted == three,
+			"posting restrictions hide the entry");
 	ok &= Check(
 		uploading.elements == expectedUpload
 			&& uploading.total == 4

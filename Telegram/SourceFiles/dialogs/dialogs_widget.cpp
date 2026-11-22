@@ -519,16 +519,25 @@ Widget::Widget(
 		Core::App().maybeLockByPasscode();
 		lockUnlock->setIconOverride(nullptr);
 	});
-	Ui::SetupButtonContextMenu(lockUnlock, &st::popupMenuWithIcons, [=](
-			not_null<Ui::PopupMenu*> menu) {
-		menu->addAction(tr::lng_settings_passcode_title(tr::now), [=] {
+	auto fillPasscodeMenu = [=](not_null<Ui::PopupMenu*> menu) {
+		auto openPasscodeSettings = [=] {
+			auto context = ClickHandlerContext{
+				.sessionWindow = base::make_weak(controller),
+			};
 			Core::App().openLocalUrl(
-				u"tg://settings/privacy?highlight=security/passcode"_q,
-				QVariant::fromValue(ClickHandlerContext{
-					.sessionWindow = base::make_weak(controller),
-				}));
-		}, &st::menuIconLock);
-	});
+				u"tg://settings/privacy?"
+				u"highlight=security/passcode"_q,
+				QVariant::fromValue(std::move(context)));
+		};
+		menu->addAction(
+			tr::lng_settings_passcode_title(tr::now),
+			std::move(openPasscodeSettings),
+			&st::menuIconLock);
+	};
+	Ui::SetupButtonContextMenu(
+		lockUnlock,
+		&st::popupMenuWithIcons,
+		std::move(fillPasscodeMenu));
 
 	setupMainMenuToggle();
 	setupShortcuts();
@@ -1703,21 +1712,33 @@ void Widget::setupAddStory() {
 			Media::Stories::PostStory(controller(), self);
 		}
 	});
-	Ui::SetupButtonContextMenu(button, &st::popupMenuWithIcons, [=](
-			not_null<Ui::PopupMenu*> menu) {
-		menu->addAction(tr::lng_translate_menu_hide(tr::now), [=] {
-			Stories::SetAddStoryButtonHidden(true);
-			updateTopBarActionsVisibility(anim::type::normal);
-		}, &st::menuIconStealth);
-		menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
-	}, [=](not_null<Ui::PopupMenu*> menu) {
-		const auto extend = Ui::BoxShadow::ExtendFor(menu->st().shadow);
-		return Ui::PopupMenu::ConstrainToParentScreen(
-			menu,
-			button->mapToGlobal(QPoint(
+	Ui::SetupButtonContextMenu(
+		button,
+		&st::popupMenuWithIcons,
+		[=](not_null<Ui::PopupMenu*> menu) {
+			menu->addAction(
+				tr::lng_translate_menu_hide(tr::now),
+				[=] {
+					Stories::SetAddStoryButtonHidden(
+						true);
+					updateTopBarActionsVisibility(
+						anim::type::normal);
+				},
+				&st::menuIconStealth);
+			menu->setForcedOrigin(
+				Ui::PanelAnimation::Origin::TopRight);
+		},
+		[=](not_null<Ui::PopupMenu*> menu) {
+			const auto extend
+				= Ui::BoxShadow::ExtendFor(menu->st().shadow);
+			const auto skip = st::dialogsAddStoryMenuSkip;
+			const auto anchor = QPoint(
 				button->width() + extend.right(),
-				button->height() + st::dialogsAddStoryMenuSkip)));
-	});
+				button->height() + skip);
+			return Ui::PopupMenu::ConstrainToParentScreen(
+				menu,
+				button->mapToGlobal(anchor));
+		});
 
 	rpl::merge(
 		session().data().stories().sourcesChanged(
@@ -1845,7 +1866,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		suggestions->setVisible(!_showAnimation);
 	}
 	_scroll->setVisible(!suggestionsCoverList() && _hidingSuggestions.empty());
-	updateStoriesVisibility(fast ? anim::type::instant : anim::type::normal);
+	updateStoriesVisibility(fast
+		? anim::type::instant
+		: anim::type::normal);
 	if ((_openedFolder || _openedForum || _openedCommunity)
 		&& _searchHasFocus) {
 		setInnerFocus();
@@ -1900,7 +1923,8 @@ void Widget::updateControlsVisibility(bool fast) {
 }
 
 void Widget::updateTopBarActionsPosition() {
-	const auto stories = (_stories && !_stories->empty() && !_stories->isHidden())
+	const auto stories
+		= (_stories && !_stories->empty() && !_stories->isHidden())
 		? _stories->collapsedGeometryCurrent()
 		: Stories::List::CollapsedGeometry();
 	const auto searchRight = _search->x() + _search->width();
@@ -4557,7 +4581,8 @@ void Widget::updateTopBarActionsVisibility(anim::type animated) {
 	const auto lockHiddenInstant = hiddenInstant
 		|| !session().domain().local().hasLocalPasscode()
 		|| (hasStories
-			&& _scroll->position().overscroll < -st::dialogsFilterSkip);
+			&& _scroll->position().overscroll
+				< -st::dialogsFilterSkip);
 	const auto storyHiddenInstant = hiddenInstant
 		|| !_stories
 		|| hasStories
@@ -4570,7 +4595,9 @@ void Widget::updateTopBarActionsVisibility(anim::type animated) {
 		&& !_widthAnimationCache.isNull();
 
 	_lockUnlock->toggle(
-		!lockHiddenInstant && !hiddenAnimated && !lockWaitsForSuggestions,
+		!lockHiddenInstant
+			&& !hiddenAnimated
+			&& !lockWaitsForSuggestions,
 		lockHiddenInstant ? anim::type::instant : animated);
 	_addStory->toggle(
 		!storyHiddenInstant && !hiddenAnimated,

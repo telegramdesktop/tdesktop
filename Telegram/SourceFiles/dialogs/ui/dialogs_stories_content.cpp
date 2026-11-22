@@ -82,21 +82,25 @@ Content State::next() {
 		Assert(source != nullptr);
 
 		const auto peer = source->peer;
-		result.elements.push_back({
-			.id = uint64(peer->id.value),
-			.name = peer->shortName(),
-			.thumbnail = userpic(peer, userpics),
-			.count = info.count,
-			.unreadCount = info.unreadCount,
-			.hasVideoStream = info.hasVideoStream ? 1U : 0U,
-			.skipSmall = peer->isSelf() ? 1U : 0U,
-			.mine = peer->isSelf() ? 1U : 0U,
-			.mineUnread = (peer->isSelf()
-				&& !source->ids.empty()
-				&& source->ids.back().id > _data->viewedSelfTill())
-				? 1U
-				: 0U,
-		});
+		result.elements.push_back(
+			{
+				.id = uint64(peer->id.value),
+				.name = peer->shortName(),
+				.thumbnail = userpic(peer, userpics),
+				.count = info.count,
+				.unreadCount = info.unreadCount,
+				.hasVideoStream = info.hasVideoStream
+					? 1U
+					: 0U,
+				.skipSmall = peer->isSelf() ? 1U : 0U,
+				.mine = peer->isSelf() ? 1U : 0U,
+				.mineUnread = (peer->isSelf()
+					&& !source->ids.empty()
+					&& source->ids.back().id
+						> _data->viewedSelfTill())
+					? 1U
+					: 0U,
+			});
 	}
 	if (_list == Data::StorySourcesList::NotHidden) {
 		applyUploads(result, userpics);
@@ -105,7 +109,8 @@ Content State::next() {
 			? Fn<Element()>([&] {
 				return Element{
 					.id = uint64(self->id.value),
-					.name = tr::lng_stories_my_name(tr::now),
+					.name = tr::lng_stories_my_name(
+						tr::now),
 					.thumbnail = userpic(self, userpics),
 					.skipSmall = 1U,
 					.mine = 1U,
@@ -145,19 +150,23 @@ void State::applyUploads(Content &result, Userpics &userpics) {
 			i->uploadProgress = progress;
 			continue;
 		}
-		result.elements.insert(begin(result.elements), {
-			.id = id,
-			.name = (peer->isSelf()
-				? tr::lng_story_my_story(tr::now)
-				: peer->shortName()),
-			.thumbnail = userpic(peer, userpics),
-			.skipSmall = peer->isSelf() ? 1U : 0U,
-			.mine = peer->isSelf() ? 1U : 0U,
-			.mineUnread = 1U,
-			.uploading = 1,
-			.uploadFailed = upload.error.isEmpty() ? 0U : 1U,
-			.uploadProgress = progress,
-		});
+		result.elements.insert(
+			begin(result.elements),
+			{
+				.id = id,
+				.name = (peer->isSelf()
+					? tr::lng_story_my_story(tr::now)
+					: peer->shortName()),
+				.thumbnail = userpic(peer, userpics),
+				.skipSmall = peer->isSelf() ? 1U : 0U,
+				.mine = peer->isSelf() ? 1U : 0U,
+				.mineUnread = 1U,
+				.uploading = 1,
+				.uploadFailed = upload.error.isEmpty()
+					? 0U
+					: 1U,
+				.uploadProgress = progress,
+			});
 		++result.total;
 	}
 }

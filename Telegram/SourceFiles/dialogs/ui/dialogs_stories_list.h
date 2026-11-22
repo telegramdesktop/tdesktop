@@ -109,7 +109,10 @@ private:
 	};
 
 	void showContent(Content &&content);
-	void paintAddBadge(QPainter &p, uint64 id, const QRectF &userpic) const;
+	void paintAddBadge(
+		QPainter &p,
+		uint64 id,
+		const QRectF &userpic) const;
 	void updateUploadAnimation();
 	void stepUploadAnimation(crl::time now);
 	[[nodiscard]] float64 uploadShownProgress(uint64 id, crl::time now) const;

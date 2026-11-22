@@ -65,9 +65,9 @@ struct Content {
 		if (elements.empty()) {
 			return;
 		}
-		const auto i = std::ranges::find_if(elements, [](const Element &item) {
-			return item.mine;
-		});
+		const auto i = std::ranges::find_if(
+			elements,
+			[](const Element &item) { return item.mine; });
 		if (i != end(elements)) {
 			std::rotate(begin(elements), i, i + 1);
 		} else if (makePlaceholder) {

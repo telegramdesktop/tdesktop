@@ -859,7 +859,8 @@ void List::paint(
 		}
 
 		if (const auto full = single.itemFull) {
-			if (full->element.hasVideoStream && expandRatio > 0.) {
+			if (full->element.hasVideoStream
+				&& expandRatio > 0.) {
 				p.setOpacity(expandRatio);
 				const auto skip = std::ceil(line + lineRead);
 				Ui::PaintLiveBadge(
@@ -871,10 +872,16 @@ void List::paint(
 			} else if (full->element.mine
 				&& !full->element.uploading
 				&& expandRatio > 0.) {
-				const auto fade = badgeFadeProgress(full->element.id, now);
+				const auto fade
+					= badgeFadeProgress(
+						full->element.id,
+						now);
 				if (fade > 0.) {
 					p.setOpacity(expandRatio * fade);
-					paintAddBadge(p, full->element.id, userpic);
+					paintAddBadge(
+						p,
+						full->element.id,
+						userpic);
 				}
 			}
 		}
@@ -1293,7 +1300,8 @@ void List::mouseReleaseEvent(QMouseEvent *e) {
 			if (element.canAddFirstStory()
 				|| (_addBadge
 					&& (_addBadge->first == element.id)
-					&& _addBadge->second.contains(point))) {
+					&& _addBadge->second
+						.contains(point))) {
 				_addStoryClicks.fire_copy(element.id);
 			} else {
 				_clicks.fire_copy(element.id);
