@@ -4,19 +4,42 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# The widget helper's serving in Rust (ThirdParty/twidget, rust/crates/helper_ffi) with Nova inside, built by cargo:
-# TelegramWidgetHelper's one Rust library.
+# The widget helper's serving in Rust (ThirdParty/twidget, rust/crates/helper_ffi) with Nova (ThirdParty/nova-safe)
+# inside, built by cargo: TelegramWidgetHelper's one Rust library. It is not a part of tdesktop_rust: Telegram runs no
+# widget script.
 
 set(widget_helper_rust_loc ${third_party_loc}/twidget/rust)
 if (NOT EXISTS ${widget_helper_rust_loc}/crates/helper_ffi/Cargo.toml)
     message(FATAL_ERROR "twidget sources are missing, run 'git submodule update --init --recursive'.")
 endif()
+if (NOT EXISTS ${third_party_loc}/nova-safe/nova_meter/Cargo.toml)
+    message(FATAL_ERROR "nova-safe sources are missing, run 'git submodule update --init --recursive'.")
+endif()
+
+# The toolchain prepare.py installs next to Libraries, else whatever cargo the system has.
+if (WIN32)
+    set(widget_helper_rust_toolchain_loc ${CMAKE_SOURCE_DIR}/../ThirdParty/rust)
+else()
+    set(widget_helper_rust_toolchain_loc ${libs_loc}/../ThirdParty/rust)
+endif()
+find_program(TDESKTOP_CARGO cargo PATHS ${widget_helper_rust_toolchain_loc}/cargo/bin NO_DEFAULT_PATH)
+find_program(TDESKTOP_CARGO cargo)
+if (NOT TDESKTOP_CARGO)
+    message(FATAL_ERROR "cargo was not found: TelegramWidgetHelper needs the Rust toolchain of Telegram/build/prepare/prepare.py, or set TDESKTOP_CARGO.")
+endif()
 
 set(widget_helper_rust_out ${CMAKE_BINARY_DIR}/widget_helper_rust)
 if (WIN32)
+    # The win7 targets' std imports what the helper's delay loads and lockdown already answer.
+    if (build_winarm)
+        set(widget_helper_rust_target aarch64-pc-windows-msvc)
+    elseif (build_win64)
+        set(widget_helper_rust_target x86_64-win7-windows-msvc)
+    else()
+        set(widget_helper_rust_target i686-win7-windows-msvc)
+    endif()
     set(widget_helper_rust_library ${widget_helper_rust_out}/twidget_helper_ffi.lib)
-    # Nova's target, whose std imports the helper's delay loads and lockdown already answer.
-    set(widget_helper_rust_platform -DHELPER_TARGET=${nova_target})
+    set(widget_helper_rust_platform -DHELPER_TARGET=${widget_helper_rust_target})
 elseif (APPLE)
     set(widget_helper_rust_library ${widget_helper_rust_out}/libtwidget_helper_ffi.a)
     string(REPLACE ";" "," widget_helper_rust_archs "${CMAKE_OSX_ARCHITECTURES}")
@@ -29,12 +52,18 @@ else()
 endif()
 
 set(widget_helper_rust_toolchain)
-if (DEFINED nova_rustup_home AND DEFINED nova_cargo_home)
+get_filename_component(widget_helper_cargo_bin ${TDESKTOP_CARGO} REALPATH)
+get_filename_component(widget_helper_cargo_bin ${widget_helper_cargo_bin} DIRECTORY)
+get_filename_component(widget_helper_prepared_bin ${widget_helper_rust_toolchain_loc}/cargo/bin REALPATH)
+if (widget_helper_cargo_bin STREQUAL widget_helper_prepared_bin)
+    get_filename_component(widget_helper_rustup_home ${widget_helper_rust_toolchain_loc}/rustup REALPATH)
+    get_filename_component(widget_helper_cargo_home ${widget_helper_rust_toolchain_loc}/cargo REALPATH)
     set(widget_helper_rust_toolchain
-        -DHELPER_RUSTUP_HOME=${nova_rustup_home}
-        -DHELPER_CARGO_HOME=${nova_cargo_home})
-elseif (DEFINED nova_cargo_home)
-    set(widget_helper_rust_toolchain -DHELPER_CARGO_HOME=${nova_cargo_home})
+        -DHELPER_RUSTUP_HOME=${widget_helper_rustup_home}
+        -DHELPER_CARGO_HOME=${widget_helper_cargo_home})
+elseif (NOT APPLE AND NOT WIN32)
+    # The Docker image's toolchain is read-only for the user who builds, so crates are fetched into the build tree.
+    set(widget_helper_rust_toolchain -DHELPER_CARGO_HOME=${widget_helper_rust_out}/cargo)
 endif()
 
 # Always runs: cargo decides what is stale, and the library is replaced only when its bytes change.
@@ -63,6 +92,7 @@ target_include_directories(lib_widget_helper_rust INTERFACE ${widget_helper_rust
 add_dependencies(lib_widget_helper_rust widget_helper_rust_build)
 
 if (WIN32)
+    # What cargo rustc -- --print native-static-libs lists, its advisory /defaultlib:libcmt aside: the helper's CRT serves the archive.
     target_link_libraries(lib_widget_helper_rust
     INTERFACE
         kernel32
@@ -71,7 +101,7 @@ if (WIN32)
         ws2_32
         dbghelp
     )
-    if (nova_target MATCHES "-win7-")
+    if (widget_helper_rust_target MATCHES "-win7-")
         target_link_libraries(lib_widget_helper_rust INTERFACE advapi32)
     endif()
 elseif (NOT APPLE)

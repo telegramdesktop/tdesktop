@@ -10,12 +10,7 @@ include(CMakePushCheckState)
 
 set(widget_helper_hardened_targets
     TelegramWidgetHelper
-    lib_widget_sandbox
     lib_widget_sandbox_platform
-    lib_widget_renderer
-    lib_litehtml
-    lib_widget_sandbox_host_hardened
-    lib_widget_renderer_platform_hardened
 )
 
 get_property(widget_helper_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
@@ -125,7 +120,7 @@ endforeach()
 check_compiler_flag(CXX "-fno-typed-cxx-new-delete -fno-typed-cxx-delete" TDESKTOP_WIDGET_HELPER_TYPED_NEW_DELETE_FLAG)
 cmake_pop_check_state()
 
-widget_helper_archs(lib_widget_sandbox widget_helper_library_archs)
+widget_helper_archs(lib_widget_sandbox_platform widget_helper_library_archs)
 set(widget_helper_typed_cxx_archs)
 foreach (arch IN LISTS widget_helper_library_archs)
     # The Intel object of libc++polyfills, which typed new and delete link below macOS 15, needs macOS 10.15.

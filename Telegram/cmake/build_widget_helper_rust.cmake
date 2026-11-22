@@ -4,7 +4,7 @@
 # For license and copyright information please follow this link:
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
-# Run by lib_widget_helper_rust.cmake at build time: cargo builds twidget_helper_ffi for the Windows target, for each macOS architecture joined by lipo or for the Linux host as build_nova_engine.cmake builds Nova, with link-time optimisation as Nova's profile asks.
+# Run by lib_widget_helper_rust.cmake at build time: cargo builds twidget_helper_ffi for the Windows target, for each macOS architecture joined by lipo or for the Linux host, with link-time optimisation and overflow checks.
 
 foreach (name HELPER_ROOT HELPER_OUT HELPER_CARGO)
     if (NOT DEFINED ${name})
@@ -22,6 +22,7 @@ function(run)
     endif()
 endfunction()
 
+# Replaces `to` only when its content changes, so nothing relinks after a build that changed nothing.
 function(publish from to)
     run("${CMAKE_COMMAND}" -E copy_if_different "${from}" "${to}")
 endfunction()
@@ -35,12 +36,14 @@ endif()
 if (DEFINED HELPER_RUSTUP_HOME AND DEFINED HELPER_CARGO_HOME)
     list(APPEND environment "RUSTUP_HOME=${HELPER_RUSTUP_HOME}" "CARGO_HOME=${HELPER_CARGO_HOME}")
 elseif (DEFINED HELPER_CARGO_HOME)
+    # rustup's proxies find rustc in CARGO_HOME, here one only for crates.
     get_filename_component(cargo_bin "${HELPER_CARGO}" DIRECTORY)
     list(APPEND environment "CARGO_HOME=${HELPER_CARGO_HOME}" "PATH=${cargo_bin}:$ENV{PATH}")
 endif()
 
 function(build)
     run("${CMAKE_COMMAND}" -E env ${environment}
+        # As a static library alone: with the crate's rlib type beside it cargo leaves out link-time optimisation.
         "${HELPER_CARGO}" rustc --release --locked
         --package twidget_helper_ffi --lib --crate-type staticlib
         ${ARGN}
@@ -95,6 +98,7 @@ else()
     set(target_rustflags --config "target.${HELPER_TARGET}.rustflags=['${quoted_rustflags}']")
 endif()
 
+# The prepared toolchain has the host's prebuilt std alone, so std is built from its rust-src, as tdesktop_rust's is.
 build(--target ${HELPER_TARGET}
     -Z build-std=std,panic_abort
     ${target_rustflags})
