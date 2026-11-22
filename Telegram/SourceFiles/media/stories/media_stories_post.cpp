@@ -1920,7 +1920,11 @@ void ShowCanSendStoryError(
 	case Type::WeeklyLimit:
 	case Type::MonthlyLimit:
 		stopLoading();
-		controller->show(Box(StoryPostingLimitBox, controller, result.type));
+		controller->show(
+			Box(
+				StoryPostingLimitBox,
+				controller,
+				result.type));
 		return;
 	case Type::LiveAlready:
 		stopLoading();

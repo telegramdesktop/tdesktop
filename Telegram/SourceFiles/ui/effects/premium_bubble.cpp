@@ -16,10 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
-#include "styles/style_layers.h"
-#include "styles/style_premium.h"
 
 #include <QtCore/QtMath>
+
+#include "styles/style_layers.h"
+#include "styles/style_premium.h"
 
 namespace Ui::Premium {
 namespace {
@@ -433,15 +434,11 @@ BubbleWidget::BubbleWidget(
 	}
 	resizeToBubble();
 	_bubble.widthChanges() | rpl::on_next(
-		[=] {
-			resizeToBubble();
-		},
+		[=] { resizeToBubble(); },
 		lifetime());
 
 	parent->widthValue() | rpl::on_next(
-		[=] {
-			refreshPosition();
-		},
+		[=] { refreshPosition(); },
 		lifetime());
 
 	const auto instant = !showFinishes;
@@ -473,38 +470,8 @@ void BubbleWidget::setupParticles(not_null<Ui::RpWidget*> parent) {
 
 	_particlesAnimation.init([=] { _particlesWidget->update(); });
 
-	const auto paint = [=] {
-		if (!_particlesAnimation.animating()) {
-			_particlesAnimation.start();
-		}
-		auto p = QPainter(_particlesWidget);
-		auto hq = PainterHighQualityEnabler(p);
-
-		const auto offset = QPoint(
-			(_particlesWidget->width() - width()) / 2,
-			(_particlesWidget->height() - height()) / 2);
-		const auto bubblePath = bubbleTransform().map(
-			_bubble.bubblePath(bubbleRect())).translated(offset);
-
-		auto fullRect = QPainterPath();
-		fullRect.addRect(QRectF(_particlesWidget->rect()));
-
-		p.setClipPath(bubblePath);
-		p.setOpacity(_opacity);
-		_particles->setColor(st::premiumButtonFg->c);
-		_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
-		p.setClipping(false);
-		p.setOpacity(1.);
-
-		p.setClipPath(fullRect.subtracted(bubblePath));
-		_particles->setColor(
-			_brushOverride
-				? st::groupCallMemberInactiveIcon->c
-				: st::creditsBg3->c);
-		_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
-	};
 	_particlesWidget->paintRequest() | rpl::on_next(
-		paint,
+		[=] { paintParticles(); },
 		_particlesWidget->lifetime());
 
 	geometryValue() | rpl::on_next([=](QRect geometry) {
@@ -518,6 +485,37 @@ void BubbleWidget::setupParticles(not_null<Ui::RpWidget*> parent) {
 			particlesSize.width(),
 			particlesSize.height());
 	}, lifetime());
+}
+
+void BubbleWidget::paintParticles() {
+	if (!_particlesAnimation.animating()) {
+		_particlesAnimation.start();
+	}
+	auto p = QPainter(_particlesWidget);
+	auto hq = PainterHighQualityEnabler(p);
+
+	const auto offset = QPoint(
+		(_particlesWidget->width() - width()) / 2,
+		(_particlesWidget->height() - height()) / 2);
+	const auto bubblePath = bubbleTransform().map(
+		_bubble.bubblePath(bubbleRect())).translated(offset);
+
+	auto fullRect = QPainterPath();
+	fullRect.addRect(QRectF(_particlesWidget->rect()));
+
+	p.setClipPath(bubblePath);
+	p.setOpacity(_opacity);
+	_particles->setColor(st::premiumButtonFg->c);
+	_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
+	p.setClipping(false);
+	p.setOpacity(1.);
+
+	p.setClipPath(fullRect.subtracted(bubblePath));
+	_particles->setColor(
+		_brushOverride
+			? st::groupCallMemberInactiveIcon->c
+			: st::creditsBg3->c);
+	_particles->paint(p, _particlesWidget->rect(), crl::now(), false);
 }
 
 void BubbleWidget::animateTo(BubbleRowState state, bool instant) {
@@ -630,15 +628,22 @@ void BubbleWidget::resizeToBubble(int targetWidth) {
 	const auto horizontal = std::max(
 		skip,
 		int(std::ceil(height * std::sin(angle))));
-	const auto top = std::max({ skip, _bubblePadding.top(),
-		int(std::ceil(verticalTravel
-			- (height - radius) * (1. - std::cos(angle)))),
+	const auto top = std::max({
+		skip,
+		_bubblePadding.top(),
+		int(
+			std::ceil(verticalTravel
+				- (height - radius)
+					* (1. - std::cos(angle)))),
 	});
-	const auto bottom = std::max({ skip, _bubblePadding.bottom(),
-		int(std::ceil(verticalTravel
-			+ radius
-			- (radius + _st.tailSize.height())
-				* std::cos(angle))),
+	const auto bottom = std::max({
+		skip,
+		_bubblePadding.bottom(),
+		int(
+			std::ceil(verticalTravel
+				+ radius
+				- (radius + _st.tailSize.height())
+					* std::cos(angle))),
 	});
 	_bubblePadding = QMargins(horizontal, top, horizontal, bottom);
 	resize(QSize(width + 2 * horizontal, height + top + bottom));

@@ -125,6 +125,7 @@ protected:
 
 private:
 	void setupParticles(not_null<Ui::RpWidget*> parent);
+	void paintParticles();
 
 	struct GradientParams {
 		int left = 0;

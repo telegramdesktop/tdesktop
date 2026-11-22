@@ -86,10 +86,11 @@ void StoryPostingLimitBox(
 		layout,
 		st::defaultPremiumBubble,
 		Ui::BoxShowFinishes(box),
-		rpl::single(Ui::Premium::BubbleRowState{
-			.counter = current,
-			.ratio = ratio,
-		}),
+		rpl::single(
+			Ui::Premium::BubbleRowState{
+				.counter = current,
+				.ratio = ratio,
+			}),
 		increase ? BubbleType::Premium : BubbleType::NoPremium,
 		{},
 		&st::premiumIconStories,
@@ -123,23 +124,35 @@ void StoryPostingLimitBox(
 			std::move(text),
 			tr::lng_story_limit_increase(
 				lt_limit,
-				rpl::single(tr::marked(QString::number(limit->premium))),
+				rpl::single(
+					tr::marked(
+						QString::number(
+							limit->premium))),
 				tr::rich),
-			[](TextWithEntities first, const TextWithEntities &second) {
-				return first.append(QChar('\n')).append(second);
+			[](
+				TextWithEntities first,
+				const TextWithEntities &second) {
+				return first.append(QChar('\n'))
+					.append(second);
 			});
 	}
 	box->addRow(
-		object_ptr<Ui::FlatLabel>(box, std::move(text), st::boostText),
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(text),
+			st::boostText),
 		st::boxRowPadding,
 		style::al_top);
 
 	if (increase) {
-		auto button = CreateUnlockButton(box, tr::lng_limits_increase());
+		auto button
+			= CreateUnlockButton(box, tr::lng_limits_increase());
 		button->setFullRadius(true);
 		button->setClickedCallback([=] {
 			box->closeBox();
-			ShowPremiumPreviewBox(controller, PremiumFeature::Stories);
+			ShowPremiumPreviewBox(
+				controller,
+				PremiumFeature::Stories);
 		});
 		box->addButton(std::move(button));
 	} else {
