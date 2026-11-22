@@ -2102,8 +2102,10 @@ packs, the fixture and the seams they use need no change for it.
   helper, each in the strongest confinement its version has, while the
   full tier stays exactly as it was
   (`2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`;
-  its `work/plan.md` names the documented floor and the source of every
-  policy, attribute and function a tier uses). The tiers below the full
+  its `work/plan.md` (Tier table), `work/context.md` (section 3) and
+  `evidence/call-ledger.md` name the documented floor and the source of
+  every policy, attribute and function a tier uses, and its
+  `evidence/record.md` joins them per tier). The tiers below the full
   one are the direct downloads': the Store build maps no version below
   10.0.17763 to a tier (**The Windows Store build** below). The version
   alone picks the tier: `CurrentSandbox()` in `widget_sandbox_win.cpp`
@@ -2174,10 +2176,15 @@ packs, the fixture and the seams they use need no change for it.
   hands it to the client's reaping, as for an ended helper: no other
   helper starts while the reaping waits 1 s for the end and, if the
   helper still runs, terminates it again through its process handle and
-  waits 1 s more, and an end it never confirms stops launches with `the
-  widget helper was not reaped` (**Failure limit** below). On those
-  two tiers the assignment is not atomic with the creation: a client that
-  dies in between leaves a suspended helper that never ran. Only the full
+  waits 1 s more, and an end it never confirms stops launches for the
+  rest of the process. `Manager::reap()` in `tgw_remote.cpp` then logs
+  the helper's pid as not reaped and latches `the widget helper was not
+  reaped` only when no reason is latched yet; when that failed start was
+  the third failure in a row, its own charge has already latched `the
+  widget helper failed 3 times in a row`, which stays (**Failure limit**
+  below). On those two tiers the assignment is not atomic with the
+  creation: a client that dies in between leaves a suspended helper that
+  never ran. Only the full
   tier reads the helper's child-process policy back (below 10.0.10586 the
   child-process attribute is not even set), so on the Windows 7,
   AppContainer and LPAC 1703 tiers the job is the one checked hold on the
@@ -2217,9 +2224,10 @@ packs, the fixture and the seams they use need no change for it.
   jobs, KB2533623 missing, AppContainer networking on 8 and 8.1, the
   `WIN://NOALLAPPPKG` reading on 1703 to 1803 and the version a
   compatibility layer reports. The forced tiers' readings are that task's
-  evidence campaign's; until it records them, the tier lines on this page
-  and on [test_widget_helper_probe](test_widget_helper_probe.md#windows-tiers)
-  are the design.
+  evidence campaign's (its `work/test.md` and `evidence/`), and they agree
+  with the tier lines on this page and on
+  [test_widget_helper_probe](test_widget_helper_probe.md#windows-tiers)
+  ([Verification](#verification)).
 - **The Windows 7 tier.** Its path, from Telegram's launch to the
   helper's Ready, is built to call only functions that Windows 7 SP1 has,
   imported or looked up at run time (that task's audit of every call is
@@ -2627,9 +2635,11 @@ packs, the fixture and the seams they use need no change for it.
   `%APPDATA%` before the lowering, so their `after lowering:` denials have
   no control in the helper, and the same paths opened by the client are
   their positive control. The Windows 7 tier's startup token, restricted
-  to the user and the enabled groups at Low with no package, is expected
-  to open them (**The Windows 7 tier** above); no such control has been
-  read yet.
+  to the user and the enabled groups at Low with no package, opens them
+  (**The Windows 7 tier** above): in the forced Windows 7 probes
+  (simulations on Windows 11) they read `ok` before the lowering and
+  `denied (error 5)` after it
+  ([test_widget_helper_probe](test_widget_helper_probe.md#windows-tiers)).
   The lines that start `after lowering:` try `CreateProcessW` of that
   `whoami.exe`, a TCP socket and a 1 s connect to the listener (`socket:
   not tried, the loopback listener did not start` when Winsock failed
@@ -3042,12 +3052,12 @@ packs, the fixture and the seams they use need no change for it.
   serving variant.
   Without a helper the client has no `widget.sandbox`
   and no `widget.reader`, `widget.writer` or `widget.monitor`: where none
-  is available (Windows before 7 SP1 or Windows 7 without update
-  KB2533623, the Mac App Store build before
-  macOS 12, a Linux architecture other than x86_64 and aarch64, a build
-  without the private Qt API), each widget takes the refusing hosted
-  route, whose `WidgetHost` has no validator (*Failure* under **Hosted
-  widgets on macOS, Linux and Windows** above).
+  is available (Windows before 7 SP1, Windows 7 without update KB2533623
+  or the Windows Store build before Windows 10 1809, the Mac App Store
+  build before macOS 12, a Linux architecture other than x86_64 and
+  aarch64, a build without the private Qt API), each widget takes the
+  refusing hosted route, whose `WidgetHost` has no validator (*Failure*
+  under **Hosted widgets on macOS, Linux and Windows** above).
   Windows threads carry none of these names (the
   framework names its threads only on Apple platforms and Linux): there
   the `TelegramWidgetHelper.exe` child, the runtime log's start note
@@ -3344,9 +3354,13 @@ packs, the fixture and the seams they use need no change for it.
   end its first wait did not confirm) counts as one start failure and is
   then reaped like an ended helper before any other helper starts
   (`Manager::launch()` in `tgw_remote.cpp`), so that helper too stops
-  them with `the widget helper was not reaped` when its end is never
-  confirmed. An end charges only the widgets the stream did not spare
-  (**Runtime log and deaths** above), and a spared one that can start
+  them when its end is never confirmed: `Manager::reap()` logs its pid
+  as not reaped and latches `the widget helper was not reaped` only when
+  no reason is latched yet; when that start was the third failure in a
+  row, its own charge has already latched `the widget helper failed 3
+  times in a row`, which stays. An end charges only the widgets the
+  stream did not spare (**Runtime log and deaths** above), and a spared
+  one that can start
   again does so in the next helper, so the same widgets can carry this
   limit: one that hangs every helper it runs in stops at its own second
   crash, before the third failure, while its spared sibling keeps
@@ -4703,16 +4717,50 @@ than the loopback ones.
 The [Windows sandbox tiers](#remote-engines) (**The Windows sandbox
 tiers** and **The Windows 7 tier** above) were added by
 `2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`,
-whose `work/plan.md` records the tier table and the documented floor and
-source of every policy, attribute and function a tier uses. Its evidence
-campaign forces each tier on Windows 11 build 26300 (10.0.26300), on x86
-and x64, through a disposable overlay that overrides only the version
-reading of the client and of the helper, and repeats the unforced full
-tier's readings on the final images; its records will be the first
-readings of the tiers below the full one. Every such reading is a
-simulation on Windows 11, and a real Windows 7, 8, 8.1 or Windows 10
-before 1809 is field coverage that no record here claims. The paragraphs
-above that name Windows 10 1809 as the helper's floor describe the
+whose `work/plan.md` records the tier table, and whose `work/context.md`
+(section 3) and `evidence/call-ledger.md` give the documented floor and
+source of every policy, attribute and function a tier uses
+(`evidence/record.md` joins them per tier). Its evidence campaign (its
+`work/test.md`, Runs 1-9, and `evidence/`) forced each tier on Windows 11
+build 26300 (10.0.26300.9711), on x86 and x64, through Telegram with a
+disposable overlay or through that task's tier driver, which mirrors
+Telegram's launch, overriding only the version reading of the launching
+process and of the helper, and repeated the unforced full tier's
+readings on the final images of its first attempt, whose lowbox and full
+paths its second attempt left unchanged. Those are the first readings
+of the tiers below the full one. They read:
+
+- both processes chose the table's tier on both sides of every threshold
+  and inner floor;
+- every tier reached Ready under its token, job and policies, and the
+  Windows 7 helper ran on its own Low-labelled desktop, read from
+  outside;
+- the Windows 7 helper's exposure matched **What it leaves** under **The
+  Windows 7 tier** above: every socket, loopback target and AFD endpoint
+  open on both families
+  ([test_widget_helper_probe](test_widget_helper_probe.md#verification));
+  its own desktop and `WinSta0` as its only USER handles, and `user32`,
+  `win32u`, `GDI32`, `gdi32full`, `msvcp_win` and `IMM32` as the modules
+  its USER connection added, with no `cryptbase.dll` (the identical
+  connection in an ordinary process loaded seven modules: those six and
+  `ucrtbase.dll`, already among the helper's core modules); and DEP
+  (`0x3`, permanent) as the one mitigation policy the x86 helper reads
+  back, while the x64 launch passes no creation word (the outside
+  reading of its shadow stack, `0x105`, is the `/CETCOMPAT` image on
+  that CET host, not a tier setting);
+- every fail-closed case refused before Ready with its own text against
+  a same-session positive, and a Windows 7 desktop left unlabelled made
+  the helper refuse with `the widget helper is not sandboxed:
+  LoadLibraryExW failed: error 1114`;
+- a one-byte change of the helper was refused on the Windows 7 and full
+  tiers;
+- the 211 hosted cards on Nova equalled each architecture's reference at
+  matched readings on all four tiers.
+
+Every forced reading is a simulation on Windows 11, and a real Windows
+7, 8, 8.1 or Windows 10 before 1809 is field coverage that no record
+here claims. The paragraphs above that name Windows 10 1809 as the
+helper's floor describe the
 campaigns of their own tasks, run before the tiers; only the Store build
 keeps that floor now (**The Windows Store build** above).
 

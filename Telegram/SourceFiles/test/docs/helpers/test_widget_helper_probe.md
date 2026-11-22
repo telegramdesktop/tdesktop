@@ -884,8 +884,12 @@ applied.
   ([What the Windows controls show](#what-the-windows-controls-show)).
   The Windows 7 startup token is the restricted token at Low, restricted
   to the user and the enabled groups, with no package, so those controls
-  are expected to read `ok` wherever the user may list the folder, Low
-  integrity not stopping a read; no Windows 7 control has been read yet.
+  read `ok` where the user may list the folder, Low integrity not
+  stopping a read: in the forced Windows 7 probes (simulations on
+  Windows 11), the client's working directory and `%APPDATA%` read `ok`
+  before the lowering and `denied (error 5)` after it
+  ([Verification](#verification)), so on this tier the denials have
+  their control in the helper itself.
 - **Denials by design.** After the lowering every tier is expected to
   refuse `CreateProcessW` (the lockdown token, the job's one process and,
   from 10.0.10586, the child-process attribute) and every directory and
@@ -2207,19 +2211,67 @@ loopback port's four.
 The tier row, the version floors of the queries and the Windows 7 rows
 ([Windows tiers](#windows-tiers)) were added by
 `2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`
-and compiled in the Win32 and x64 Debug helpers. They have not run yet:
-that task's evidence campaign probes each tier on x86 and x64, forced on
-Windows 11 build 26300 (10.0.26300) by a disposable overlay that
-overrides only the version reading of the client and of the helper, and
-repeats the unforced full-tier probe against the 53 clean rows of the
-Nova helpers
-(`2026/11/21/build-the-x64-windows-widget-helper-image-for-windows-7`
-and `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`,
-their `evidence/confinement.md`, E7/G2) with the tier row set aside; its
-records are the first. Every reading of a tier other than the full one
-is therefore a simulation on Windows 11, and what a real Windows 7, 8,
-8.1 or Windows 10 before 1809 shows is field coverage that no record
-here claims.
+and compiled in the Win32 and x64 Debug helpers. They first ran in that
+task's evidence campaign (its `work/test.md`, Attempt 1 Runs 1, 2 and 4,
+Attempt 2 Runs 5 and 7; its `evidence/probe.md`) on Windows 11 build
+26300 (10.0.26300.9711), on x86 and x64, launched by Telegram with that
+task's disposable overlay (Runs 4 and 5) or by its tier driver, which
+mirrors Telegram's launch (Runs 1, 2 and 7). Each forced reading is a
+simulation that overrides only the version reading of the launching
+process and of the helper.
+
+- The tier row read `tier: AppContainer, version 6.2.9200` (and
+  `10.0.14393`), `tier: LPAC 1703, version 10.0.15063`, `tier: Windows
+  7, version 6.1.7601` and, unforced, `tier: full, version 10.0.26300`;
+  in Telegram it also read its tier and forced version at 6.3.9600,
+  10.0.10240 and 10.0.10586 (AppContainer), 10.0.17134 (LPAC 1703) and
+  10.0.17763 (full).
+- On each architecture Run 1 probed, unforced, the Debug helper built
+  before the tiers from the commit that task started on and the first
+  attempt's final clean Debug helper. With the tier row set aside, their
+  53 rows, the clean rows of the Nova helpers
+  (`2026/11/21/build-the-x64-windows-widget-helper-image-for-windows-7`
+  and `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`,
+  their `evidence/confinement.md`, E7/G2), were equal in order after the
+  loopback port, the own pid, the client directory, the user name and
+  the time zone bias were normalized (`53 vs 53 comparable lines, 0
+  differing`); unnormalized, the `connect to 127.0.0.1:<port>` and
+  `OpenProcess(own pid <pid>)` rows differed by their port and pid. The
+  second attempt's clean helpers are other images, relinked from the
+  same helper sources, and were not probed: its Run 9 carried this
+  reading forward on a comparison of those sources.
+- The child-process row read `not read (GetProcessMitigationPolicy(13)
+  is documented from 10.0.16299)` at 10.0.16298 and `0x1` at 10.0.16299,
+  and the shadow-stack row `not read (GetProcessMitigationPolicy(15) is
+  documented from 10.0.19041)` at 10.0.19040 and its value at 10.0.19041
+  (`0x100` on x86, `0x105` on x64).
+- After the lowering every tier denied `CreateProcessW` of `whoami.exe`
+  and `FILE_LIST_DIRECTORY` of the client's working directory and
+  `%APPDATA%` (and of Telegram's `tdata`, a row that task's overlay
+  adds), each `denied (error 5)` against a working control: the same
+  calls succeeded around each helper in an ordinary process of the same
+  architecture or, in Telegram, in the client.
+- The lowbox tiers also denied every fresh socket (`denied (error
+  10013)`) and AFD endpoint (`denied (status 0xC0000022)`) of both
+  families, and every loopback target read `socket creation was denied`.
+- On the Windows 7 tier the `before lowering:` directory controls read
+  `ok`, and the `desktop:` row named the launch's own desktop. x86 read
+  `mitigation DEP: 0x3, permanent 1 (GetProcessDEPPolicy)`, and x64
+  `mitigation DEP: not read (GetProcessMitigationPolicy(0) is documented
+  from 6.2.0)`.
+- The Windows 7 network rows, recorded as read and never judged (**The
+  Windows 7 tier** in
+  [Remote engines](test_widget_fixture.md#remote-engines)), read
+  `socket(AF_INET, SOCK_STREAM): ALLOWED, connect to 127.0.0.1:<port>:
+  CONNECTED`, the four fresh sockets `ALLOWED` and the four AFD
+  endpoints `ALLOWED (status 0x0)`. With a loopback port (Run 7) the TCP
+  targets read `connect CONNECTED, marker sent (47 bytes)` and the UDP
+  ones `sendto SENT (47 bytes)`, and the tier driver's listeners
+  received the markers over TCP and UDP on 127.0.0.1 and `::1`.
+
+Every forced reading, of any tier, is a simulation on Windows 11, and
+what a real Windows 7, 8, 8.1 or Windows 10 before 1809 shows is field
+coverage that no record here claims.
 
 On Linux the probe first ran in the same-binary helper, the client's own
 `/proc/self/exe -widgethelper 3`, in the x86_64 Debug client (the Docker
