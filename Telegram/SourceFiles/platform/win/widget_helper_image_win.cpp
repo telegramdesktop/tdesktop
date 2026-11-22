@@ -38,10 +38,6 @@ constexpr auto kGlobalRoot = std::wstring_view(L"\\\\?\\GLOBALROOT");
 constexpr auto kNetworkPrefix = std::wstring_view(L"\\\\?\\UNC\\");
 constexpr auto kModulesName = std::wstring_view(L"modules");
 constexpr auto kHelperName = std::wstring_view(L"TelegramWidgetHelper.exe");
-#ifdef TDESKTOP_WIDGET_HELPER_AB
-constexpr auto kCppHelperName = std::wstring_view(
-	L"TelegramWidgetHelperCpp.exe");
-#endif // TDESKTOP_WIDGET_HELPER_AB
 constexpr auto kFolderAccess = DWORD(FILE_TRAVERSE
 	| FILE_READ_ATTRIBUTES
 	| SYNCHRONIZE);
@@ -89,11 +85,6 @@ struct Root {
 	std::string error;
 };
 
-struct Helper {
-	std::wstring_view name;
-	std::span<const details::BuiltDigest> digests;
-};
-
 struct CatalogFunctions {
 	decltype(&::CryptCATAdminAcquireContext2) acquire = nullptr;
 	decltype(&::CryptCATAdminCalcHashFromFileHandle2) calculate = nullptr;
@@ -130,26 +121,9 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 	return result;
 }
 
-[[nodiscard]] Helper ChosenHelper() {
-#ifdef TDESKTOP_WIDGET_HELPER_AB
-	// The Debug A/B switch: the C++ helper built beside the Rust one.
-	auto value = std::array<wchar_t, 4>();
-	const auto length = GetEnvironmentVariableW(
-		L"TDESKTOP_WIDGET_HELPER",
-		value.data(),
-		DWORD(value.size()));
-	if (length < value.size()
-		&& std::wstring_view(value.data(), length) == L"cpp") {
-		return { kCppHelperName, details::kAlternateDigests };
-	}
-#endif // TDESKTOP_WIDGET_HELPER_AB
-	return { kHelperName, details::kBuiltDigests };
-}
-
-[[nodiscard]] const details::BuiltDigest *ExpectedDigest(
-		std::span<const details::BuiltDigest> digests) {
+[[nodiscard]] const details::BuiltDigest *ExpectedDigest() {
 	const auto architecture = Utf8(kHelperArchitecture);
-	for (const auto &built : digests) {
+	for (const auto &built : details::kBuiltDigests) {
 		if (built.architecture == architecture) {
 			return &built;
 		}
@@ -615,8 +589,7 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 } // namespace
 
 HeldHelper HoldHelper() {
-	const auto helper = ChosenHelper();
-	const auto expected = ExpectedDigest(helper.digests);
+	const auto expected = ExpectedDigest();
 	if (!expected) {
 		return {
 			.error = "the widget helper identity of this build is unknown",
@@ -673,7 +646,7 @@ HeldHelper HoldHelper() {
 		}
 	}
 	auto item = folders.back().name + L'\\';
-	item += helper.name;
+	item += kHelperName;
 	auto file = HoldEntry(item, false);
 	if (!file.error.empty()) {
 		return { .error = std::move(file.error) };

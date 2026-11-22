@@ -61,8 +61,6 @@ if (TDESKTOP_RELEASE_TEST_HARNESS)
     target_compile_definitions(Telegram PRIVATE $<$<CONFIG:Release>:TDESKTOP_RELEASE_TEST_HARNESS>)
 endif()
 
-option(TDESKTOP_WIDGET_HELPER_RUST "Build TelegramWidgetHelper serving widgets in Rust (twidget's helper_ffi) instead of C++." OFF)
-
 set(TDESKTOP_L10N_CAPTURE "" CACHE PATH "Path to an l10n-tdesktop checkout, compiles its localization capture into the -testagent harness.")
 
 option(DESKTOP_APP_DISABLE_SWIFT6 "Disable local on-device translation (build without Swift 6 on macOS)." OFF)

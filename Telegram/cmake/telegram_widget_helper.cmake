@@ -5,10 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 include(cmake/generate_widget_helper_identity.cmake)
-
-if (TDESKTOP_WIDGET_HELPER_RUST)
-    include(cmake/lib_widget_helper_rust.cmake)
-endif()
+include(cmake/lib_widget_helper_rust.cmake)
 
 if (build_macstore)
     set(widget_helper_identifier ${bundle_identifier}.WidgetHelper)
@@ -16,110 +13,58 @@ else()
     set(widget_helper_identifier com.tdesktop.Telegram.WidgetHelper)
 endif()
 
-function(add_widget_helper target_name)
-    add_executable(${target_name})
-    init_standalone_target(${target_name})
+add_executable(TelegramWidgetHelper)
+init_standalone_target(TelegramWidgetHelper)
 
-    nice_target_sources(${target_name} ${src_loc}
-    PRIVATE
-        _other/widget_helper.cpp
-        _other/widget_helper.h
-        _other/widget_helper_linux.cpp
-        _other/widget_helper_mac.cpp
+nice_target_sources(TelegramWidgetHelper ${src_loc}
+PRIVATE
+    _other/widget_helper.cpp
+    _other/widget_helper.h
+    _other/widget_helper_linux.cpp
+    _other/widget_helper_mac.cpp
+    _other/widget_helper_rust.cpp
+    _other/widget_helper_service_mac.cpp
+    _other/widget_helper_thread_mac.cpp
+    _other/widget_helper_thread_mac.h
+    _other/widget_helper_win.cpp
+    platform/linux/widget_descriptors_linux.cpp
+    platform/linux/widget_descriptors_linux.h
+    platform/linux/widget_lockdown_linux.cpp
+    platform/linux/widget_lockdown_linux.h
+    platform/posix/widget_channel_posix.cpp
+    platform/posix/widget_channel_posix.h
+    platform/win/widget_channel_win.cpp
+    platform/win/widget_channel_win.h
+    platform/win/widget_sandbox_win.cpp
+    platform/win/widget_sandbox_win.h
+    test/test_widget_helper_probe_lockdown.cpp
+    test/test_widget_helper_probe_lockdown.h
+    test/test_widget_helper_probe_lockdown_linux.cpp
+    test/test_widget_helper_probe_lockdown_mac.cpp
+    test/test_widget_helper_probe_lockdown_win.cpp
+)
+
+if (NOT build_macstore)
+    remove_target_sources(TelegramWidgetHelper ${src_loc}
         _other/widget_helper_service_mac.cpp
-        _other/widget_helper_thread_mac.cpp
-        _other/widget_helper_thread_mac.h
-        _other/widget_helper_win.cpp
-        platform/linux/widget_descriptors_linux.cpp
-        platform/linux/widget_descriptors_linux.h
-        platform/linux/widget_lockdown_linux.cpp
-        platform/linux/widget_lockdown_linux.h
-        platform/posix/widget_channel_posix.cpp
-        platform/posix/widget_channel_posix.h
-        platform/win/widget_channel_win.cpp
-        platform/win/widget_channel_win.h
-        platform/win/widget_sandbox_win.cpp
-        platform/win/widget_sandbox_win.h
-        test/test_widget_helper_probe_lockdown.cpp
-        test/test_widget_helper_probe_lockdown.h
-        test/test_widget_helper_probe_lockdown_linux.cpp
-        test/test_widget_helper_probe_lockdown_mac.cpp
-        test/test_widget_helper_probe_lockdown_win.cpp
     )
-
-    if (NOT build_macstore)
-        remove_target_sources(${target_name} ${src_loc}
-            _other/widget_helper_service_mac.cpp
-        )
-    endif()
-
-    target_include_directories(${target_name} PRIVATE ${src_loc})
-
-    target_compile_definitions(${target_name}
-    PRIVATE
-        TDESKTOP_APP_VERSION=${desktop_app_version_int}
-    )
-
-    target_link_libraries(${target_name}
-    PRIVATE
-        desktop-app::external_gsl
-    )
-endfunction()
-
-function(add_widget_helper_cpp target_name)
-    add_widget_helper(${target_name})
-
-    nice_target_sources(${target_name} ${src_loc}
-    PRIVATE
-        _other/widget_helper_renderer.cpp
-        test/test_widget_helper_tap.cpp
-        test/test_widget_helper_tap.h
-        test/test_widget_renderer_forward.h
-        tgw/tgw_cursor.cpp
-        tgw/tgw_cursor.h
-        tgw/tgw_hosted_glue.cpp
-        tgw/tgw_hosted_glue.h
-        tgw/tgw_hosted_wire.h
-        tgw/tgw_renderer_rules.h
-    )
-
-    target_link_libraries(${target_name}
-    PRIVATE
-        tdesktop::lib_widget_sandbox
-        tdesktop::lib_widget_renderer
-        tdesktop::lib_nova_engine
-    )
-endfunction()
-
-function(add_widget_helper_rust target_name)
-    add_widget_helper(${target_name})
-
-    nice_target_sources(${target_name} ${src_loc}
-    PRIVATE
-        _other/widget_helper_rust.cpp
-    )
-
-    target_link_libraries(${target_name}
-    PRIVATE
-        tdesktop::lib_widget_sandbox_platform
-        tdesktop::lib_widget_helper_rust
-    )
-endfunction()
-
-set(widget_helpers TelegramWidgetHelper)
-if (TDESKTOP_WIDGET_HELPER_RUST)
-    add_widget_helper_rust(TelegramWidgetHelper)
-    get_property(widget_helper_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
-    if (NOT APPLE AND (widget_helper_multi_config OR CMAKE_BUILD_TYPE STREQUAL "Debug"))
-        add_widget_helper_cpp(TelegramWidgetHelperCpp)
-        list(APPEND widget_helpers TelegramWidgetHelperCpp)
-    endif()
-else()
-    add_widget_helper_cpp(TelegramWidgetHelper)
 endif()
 
+target_include_directories(TelegramWidgetHelper PRIVATE ${src_loc})
+
+target_compile_definitions(TelegramWidgetHelper
+PRIVATE
+    TDESKTOP_APP_VERSION=${desktop_app_version_int}
+)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_LIST_DIR}/../build/version")
+
+target_link_libraries(TelegramWidgetHelper
+PRIVATE
+    tdesktop::lib_widget_sandbox_platform
+    tdesktop::lib_widget_helper_rust
+    desktop-app::external_gsl
+)
 
 if (WIN32)
     if (build_winarm)
@@ -130,47 +75,37 @@ if (WIN32)
         set(widget_helper_arch x86)
     endif()
 
-    foreach (helper ${widget_helpers})
-        set_target_properties(${helper} PROPERTIES
-            WIN32_EXECUTABLE TRUE
-            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/modules/${widget_helper_arch}"
-        )
-        target_link_libraries(${helper}
-        PRIVATE
-            advapi32
-            bcrypt
-            $<$<CONFIG:Debug>:ws2_32>
-            delayimp
-        )
-        target_link_options(${helper}
-        PRIVATE
-            # GUI image with main(): a console one would start a conhost.exe the job forbids.
-            /ENTRY:mainCRTStartup
-            # Not KnownDLLs on every Windows, which the LPAC primary cannot open: WarmUp() binds them while impersonating.
-            /DELAYLOAD:bcrypt.dll
-            $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
-        )
-        if (NOT build_winarm)
-            # advapi32 can forward SystemFunction036 to cryptbase.dll, no KnownDLL: a delay-load hook answers it instead.
-            target_link_options(${helper} PRIVATE /DELAYLOAD:advapi32.dll)
-        else()
-            target_link_options(${helper} PRIVATE /DELAYLOAD:bcryptprimitives.dll)
-        endif()
-        if (DESKTOP_APP_WIN7_BASELINE)
-            target_link_options(${helper} PRIVATE /SUBSYSTEM:WINDOWS,6.01)
-        endif()
-        if (MSVC)
-            target_link_options(${helper} PRIVATE /GUARD:CF)
-            # The ARM64 linker refuses /CETCOMPAT with LNK1246.
-            if (CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "^(X86|x64)$")
-                target_link_options(${helper} PRIVATE /CETCOMPAT)
-            endif()
-        endif()
-        add_dependencies(Telegram ${helper})
-    endforeach()
+    set_target_properties(TelegramWidgetHelper PROPERTIES
+        WIN32_EXECUTABLE TRUE
+        RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/modules/${widget_helper_arch}"
+    )
+    target_link_libraries(TelegramWidgetHelper
+    PRIVATE
+        advapi32
+        bcrypt
+        $<$<CONFIG:Debug>:ws2_32>
+        delayimp
+    )
+    target_link_options(TelegramWidgetHelper
+    PRIVATE
+        # GUI image with main(): a console one would start a conhost.exe the job forbids.
+        /ENTRY:mainCRTStartup
+        # Not KnownDLLs on every Windows, which the LPAC primary cannot open: WarmUp() binds them while impersonating.
+        /DELAYLOAD:bcrypt.dll
+        $<$<CONFIG:Debug>:/DELAYLOAD:ws2_32.dll>
+    )
+    if (NOT build_winarm)
+        # advapi32 can forward SystemFunction036 to cryptbase.dll, no KnownDLL: a delay-load hook answers it instead.
+        target_link_options(TelegramWidgetHelper PRIVATE /DELAYLOAD:advapi32.dll)
+    else()
+        target_link_options(TelegramWidgetHelper PRIVATE /DELAYLOAD:bcryptprimitives.dll)
+    endif()
+    if (DESKTOP_APP_WIN7_BASELINE)
+        target_link_options(TelegramWidgetHelper PRIVATE /SUBSYSTEM:WINDOWS,6.01)
+    endif()
     if (MSVC)
         foreach (target
-            ${widget_helpers}
+            TelegramWidgetHelper
             lib_widget_sandbox
             lib_widget_sandbox_platform
             lib_widget_renderer
@@ -184,15 +119,15 @@ if (WIN32)
             )
             target_compile_options(${target} PRIVATE /guard:cf)
         endforeach()
+        target_link_options(TelegramWidgetHelper PRIVATE /GUARD:CF)
+        # The ARM64 linker refuses /CETCOMPAT with LNK1246.
+        if (CMAKE_CXX_COMPILER_ARCHITECTURE_ID MATCHES "^(X86|x64)$")
+            target_link_options(TelegramWidgetHelper PRIVATE /CETCOMPAT)
+        endif()
     endif()
+    add_dependencies(Telegram TelegramWidgetHelper)
 
-    if (TARGET TelegramWidgetHelperCpp)
-        generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode
-            DEBUG_ALTERNATE TelegramWidgetHelperCpp)
-        target_compile_definitions(Telegram PRIVATE $<$<CONFIG:Debug>:TDESKTOP_WIDGET_HELPER_AB>)
-    else()
-        generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode)
-    endif()
+    generate_widget_helper_identity(Telegram TelegramWidgetHelper authenticode)
 elseif (APPLE)
     include(cmake/widget_helper_hardening.cmake)
 
@@ -280,11 +215,9 @@ else()
         install(TARGETS TelegramWidgetHelper RUNTIME DESTINATION "${widget_helper_destination}")
     endif()
 
-    foreach (helper ${widget_helpers})
-        set_target_properties(${helper} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/${widget_helper_folder}"
-        )
-    endforeach()
+    set_target_properties(TelegramWidgetHelper PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:Telegram>/${widget_helper_folder}"
+    )
     set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
         "TDESKTOP_WIDGET_HELPER_PATH=\"${widget_helper_folder}/TelegramWidgetHelper\"")
     if (widget_helper_pinned)
@@ -295,27 +228,18 @@ else()
         endif()
 
         # Strip here, nothing may change the helper after its identity is taken.
-        foreach (helper ${widget_helpers})
-            add_custom_command(TARGET ${helper} POST_BUILD
-                COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:${helper}>>"
-                COMMAND_EXPAND_LISTS
-                VERBATIM
-            )
-        endforeach()
+        add_custom_command(TARGET TelegramWidgetHelper POST_BUILD
+            COMMAND "$<$<NOT:$<CONFIG:Debug>>:${CMAKE_STRIP};$<TARGET_FILE:TelegramWidgetHelper>>"
+            COMMAND_EXPAND_LISTS
+            VERBATIM
+        )
 
         set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
             TDESKTOP_WIDGET_HELPER_PINNED)
-        if (TARGET TelegramWidgetHelperCpp)
-            generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256
-                DEBUG_ALTERNATE TelegramWidgetHelperCpp)
-            set_property(SOURCE ${src_loc}/platform/linux/widget_helper_linux.cpp APPEND PROPERTY COMPILE_DEFINITIONS
-                $<$<CONFIG:Debug>:TDESKTOP_WIDGET_HELPER_AB>)
-        else()
-            generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256)
-        endif()
+        generate_widget_helper_identity(Telegram TelegramWidgetHelper sha256)
     endif()
     foreach (target
-        ${widget_helpers}
+        TelegramWidgetHelper
         lib_widget_sandbox
         lib_widget_sandbox_platform
         lib_widget_renderer
@@ -337,12 +261,10 @@ else()
             $<$<NOT:$<CONFIG:Debug>>:-Wp,-D_FORTIFY_SOURCE=3>
         )
     endforeach()
-    foreach (helper ${widget_helpers})
-        target_link_options(${helper}
-        PRIVATE
-            LINKER:-z,relro
-            LINKER:-z,now
-        )
-        add_dependencies(Telegram ${helper})
-    endforeach()
+    target_link_options(TelegramWidgetHelper
+    PRIVATE
+        LINKER:-z,relro
+        LINKER:-z,now
+    )
+    add_dependencies(Telegram TelegramWidgetHelper)
 endif()

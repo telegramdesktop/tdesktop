@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 # The widget helper's serving in Rust (ThirdParty/twidget, rust/crates/helper_ffi) with Nova inside, built by cargo:
-# TelegramWidgetHelper's one Rust library when TDESKTOP_WIDGET_HELPER_RUST is ON.
+# TelegramWidgetHelper's one Rust library.
 
 set(widget_helper_rust_loc ${third_party_loc}/twidget/rust)
 if (NOT EXISTS ${widget_helper_rust_loc}/crates/helper_ffi/Cargo.toml)
