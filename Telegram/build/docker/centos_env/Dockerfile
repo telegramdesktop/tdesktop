@@ -185,7 +185,7 @@ RUN <<EOF
 git init patches
 cd patches
 git remote add origin https://github.com/desktop-app/patches.git
-git fetch --depth=1 origin eba559d45b4a42119326f3dcd4e8f0a7005a1358
+git fetch --depth=1 origin b28e166062ba318fc6254179de2ca72bd057aa1b
 git reset --hard FETCH_HEAD
 rm -rf .git
 EOF
@@ -283,10 +283,11 @@ cd ..
 rm -rf opus
 EOF
 
-FROM builder AS dav1d
+FROM patches AS dav1d
 RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git clone -b 1.5.4 --depth=1 https://github.com/videolan/dav1d.git
 cd dav1d
+git apply ../patches/dav1d.patch
 meson build \
 	--buildtype=plain \
 	--default-library=static \
@@ -973,7 +974,7 @@ RUN --mount=type=cache,target=/var/cache/ccache <<EOF
 git init tg_owt
 cd tg_owt
 git remote add origin https://github.com/desktop-app/tg_owt.git
-git fetch --depth=1 origin 642ddb107b42da7c8d152401b71cd429475e5266
+git fetch --depth=1 origin a9d098a8f126dff818889d56f4241d7d2aaac9c1
 git reset --hard FETCH_HEAD
 git submodule update --init --recursive --depth=1
 cmake -B build . -DTG_OWT_DLOPEN_PIPEWIRE=ON

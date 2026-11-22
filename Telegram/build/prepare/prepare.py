@@ -530,7 +530,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout eba559d45b4a42119326f3dcd4e8f0a7005a1358
+    git checkout b28e166062ba318fc6254179de2ca72bd057aa1b
 mac:
     sed -i '' "s/10.13/$MACOSX_DEPLOYMENT_TARGET/g" macos_meson_*.txt
     git clone https://github.com/desktop-app/qt6_highsierra_patches.git qt6_highsierra
@@ -841,8 +841,10 @@ win:
 
 # Somehow in x86 Debug build dav1d crashes on AV1 10bpc videos.
 stage('dav1d', """
+depends:patches/dav1d.patch
     git clone -b 1.5.4 https://code.videolan.org/videolan/dav1d.git
     cd dav1d
+    git apply ../patches/dav1d.patch
 win32:
     SET "TARGET=x86"
     SET "DAV1D_ASM_DISABLE=-Denable_asm=false"
@@ -1771,7 +1773,7 @@ win:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 642ddb107b42da7c8d152401b71cd429475e5266
+    git checkout a9d098a8f126dff818889d56f4241d7d2aaac9c1
     git submodule update --init --recursive
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg

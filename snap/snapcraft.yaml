@@ -137,7 +137,7 @@ parts:
   patches:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
-    source-commit: eba559d45b4a42119326f3dcd4e8f0a7005a1358
+    source-commit: b28e166062ba318fc6254179de2ca72bd057aa1b
     plugin: nil
     override-pull: |
       craftctl default
@@ -520,7 +520,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 642ddb107b42da7c8d152401b71cd429475e5266
+    source-commit: a9d098a8f126dff818889d56f4241d7d2aaac9c1
     plugin: cmake
     build-environment:
       - CXXFLAGS: ${CXXFLAGS:+$CXXFLAGS }-include /usr/include/c++/$(c++ -dumpversion)/math.h
