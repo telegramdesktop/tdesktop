@@ -980,10 +980,18 @@ socket and AFD lines included, was equal after normalization:
    the caller's package: `S-1-15-2-`, the package family's seven
    sub-authorities, then the last four of the unpackaged SID
    (`...-153869053-3443934028-2520258059-2811718137`); an unpackaged
-   control derived the x64 SID and the family's own. The client's
-   `ExpectedPackage()` and the helper's re-derivation both run packaged
-   and agree, so every SID check passes, and the helper's primary stays
-   an LPAC token of that SID with no capability (`WIN://NOALLAPPPKG` 1).
+   control derived the x64 SID and the family's own. In that 26300.9711
+   run the client and helper each called userenv and obtained the same
+   SID. The helper's primary was an LPAC token of that SID with no
+   capability (`WIN://NOALLAPPPKG` 1). For the current Store derivation
+   see **The Windows lowbox** in
+   [Remote engines](test_widget_fixture.md#remote-engines).
+   On the 19045.6466 Hyper-V guest, five starts of the repaired x64 Store
+   Debug package each rendered with one helper. Its observed Low LPAC
+   primary had the same child SID as the packaged client's userenv reading
+   and the 26300.9711 package, with zero capabilities and no thread token
+   (`2026/11/22/prove-the-windows-store-widget-helper-on-windows-10`,
+   `evidence/confinement.md` and `evidence/probe.md`).
    An ACE that names the parent package did not admit the helper: with
    the inheritable full-access ACEs that the package's
    `%LOCALAPPDATA%\Packages\<family>` folders carry for the family's

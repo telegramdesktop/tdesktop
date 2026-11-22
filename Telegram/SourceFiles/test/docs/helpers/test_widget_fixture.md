@@ -2065,16 +2065,22 @@ packs, the fixture and the seams they use need no change for it.
   them. These are the readings of the final helpers of
   `2026/11/21/choose-the-windows-widget-helpers-sandbox-tier-by-windows-version`
   (its `evidence/imports.md`): in Debug 170 static functions (KERNEL32
-  168, ntdll 2) and 43 delayed ones on x86 and on x64. Outside the Store
-  build the helpers have since lost one import, the delayed
-  `ADVAPI32!FreeSid`, whose one caller in the helper was the package
-  derivation that only the Store build still runs (**The Windows lowbox**
-  below): the repaired x86 and x64 Debug helpers of
+  168, ntdll 2) and 43 delayed ones on x86 and on x64. The fixed
+  non-Store package SID removed the helper's only call to the delayed
+  `ADVAPI32!FreeSid`. The repaired x86 and x64 Debug helpers of
   `2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`
   (its `work/test.md`, Attempt 1 Run 4) import 170 functions statically
   and delay-load 42, 22 of them from `ADVAPI32.dll`, in the same three
   descriptors, with nothing added; their Release tables have not been
-  read again. When
+  read again. The clean x64 Store Debug helper measured in
+  `2026/11/22/prove-the-windows-store-widget-helper-on-windows-10`
+  added static `KERNEL32!GetCurrentPackageFamilyName` and delayed
+  `bcrypt!BCryptHash` and dropped delayed `ADVAPI32!FreeSid` compared
+  with its pre-repair image (213 imports before, 214 after). The x64
+  Store Debug client added the same static family lookup and imported
+  `BCryptHash` through delayed `ncrypt.dll`. Both non-Store Debug
+  helpers, x86 and x64, matched all 212 reference entries.
+  When
   `2026/11/21/build-the-x86-windows-widget-helper-image-for-windows-7`
   first read these tables, the Release `ADVAPI32.dll` descriptor had 12
   functions: the later task's Windows 7 lowering (`LockDownWindows7()`)
@@ -2428,8 +2434,8 @@ packs, the fixture and the seams they use need no change for it.
   `DeriveAppContainerSidFromAppContainerName` for the name, kept as fixed
   data (`kPackageRids` in `widget_sandbox_win.cpp`):
   `S-1-15-2-2297200083-2220774571-4131773200-153869053-3443934028-2520258059-2811718137`.
-  The derivation, which loads `USERENV.dll` and through it `profext.dll`,
-  failed in the helper under its LPAC primary on Windows 10 22H2
+  The earlier derivation loaded `USERENV.dll` and through it
+  `profext.dll`. It failed in the helper under its LPAC primary on Windows 10 22H2
   (10.0.19045.6466): there `profext.dll` imports its dependencies
   statically (10.0.26300 delay-loads them), and the loader's worker
   threads, which run as the primary, could not map that graph, so every
@@ -2437,10 +2443,20 @@ packs, the fixture and the seams they use need no change for it.
   helper is not sandboxed: DeriveAppContainerSidFromAppContainerName
   failed: 0x80004005`
   (`2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`,
-  its `work/decisions.md`, D1). The Store build still derives the SID at
-  run time: its packaged client and helper get a child SID of their
-  package (**The Windows Store build** below). On the two LPAC
-  tiers the creation's
+  its `work/decisions.md`, D1). The first start of the pre-repair x64
+  Store Debug helper on the same guest gave the same refusal. In that
+  run the packaged client's userenv call returned the same child SID
+  recorded for the stand-in family on 10.0.26300.9711
+  (`2026/11/22/prove-the-windows-store-widget-helper-on-windows-10`,
+  its `evidence/first-start.md`).
+  In the current Store build the client and helper each read their own
+  package family name with `GetCurrentPackageFamilyName` and lowercase
+  its ASCII letters. `BCryptHash` hashes the UTF-16LE bytes with
+  SHA-256, excluding the terminating NUL. After `S-1-15-2-` the child SID
+  contains the first seven little-endian DWORDs of that digest followed
+  by the last four of `kPackageRids`. Each process caches its result in
+  `ExpectedPackage()` for token creation or verification.
+  On the two LPAC tiers the creation's
   attribute list adds `PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY`
   with `PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT`, which makes the
   helper's primary a less privileged AppContainer (LPAC) token, one that
@@ -2473,8 +2489,8 @@ packs, the fixture and the seams they use need no change for it.
   with
   `NtCreateLowBoxToken is not available` or `NtCreateLowBoxToken failed:
   status 0x<status>`, and in the Store build also with
-  `DeriveAppContainerSidFromAppContainerName is not available` or
-  `DeriveAppContainerSidFromAppContainerName failed: 0x<hresult>`. The
+  `GetCurrentPackageFamilyName failed: error <n>` (the returned Win32
+  error) or `BCryptHash failed: status 0x<status>` (the NTSTATUS). The
   AppContainer check's errors are `the token is not an
   AppContainer token`, `the token's AppContainer SID is not the widget
   helper's`, `the token has <n> capabilities`, `the token is not a less
@@ -2603,15 +2619,15 @@ packs, the fixture and the seams they use need no change for it.
   and then those of `bcrypt.dll`, on ARM64 those of `bcrypt.dll` and then
   those of `bcryptprimitives.dll`, each by the exact name the linker gave
   its descriptor (the CRT's `PiddFromDllName()` in `delayhlp.cpp` compares
-  names case-sensitively), in the Store build derives its
-  package SID once (which loads `USERENV.dll`; the checkpoint of
+  names case-sensitively). On the lowbox tiers it then reads
+  `ExpectedPackage()`. The Store helper derives the child SID using
+  the family lookup and the just-bound `bcrypt!BCryptHash`. The
+  non-Store helper uses its fixed SID (**The Windows lowbox** above).
+  The `USERENV.dll` and `profext.dll` mappings observed in
   `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
-  saw it map `profext.dll` as well, the host of the API set USERENV
-  delay-imports for the derivation; the other builds hold the SID as
-  fixed data and load nothing for it, **The Windows lowbox** above) and
-  draws random bytes once, which
-  starts the random provider that a widget's `crypto.getRandomValues` uses
-  later. `bcrypt.dll` was the image's one static import that is no
+  came from the earlier userenv derivation. Warm-up then draws random
+  bytes once to start the provider a widget's `crypto.getRandomValues`
+  uses later. `bcrypt.dll` was the image's one static import that is no
   KnownDLL, and the system directory does not let the LPAC primary open
   it, so it is delay-loaded and the impersonating main thread maps it.
   While the helper still imported it statically, 3 of 5 confined launches
@@ -2636,8 +2652,8 @@ packs, the fixture and the seams they use need no change for it.
   reversion would resolve its delay import after the lowering.
   `RevertToSelf` itself is no such case: its lazy thunk would resolve on
   its first call, before that call drops the impersonation. Telegram,
-  which compiles the same unit and delay-loads `bcrypt.dll` too, never
-  runs this lowering. A failed bind stays closed before Ready either way
+  which compiles the same unit, never runs this lowering. A failed bind stays
+  closed before Ready either way
   (`__HrLoadAllImportsForDll()` and `__delayLoadHelper2()` in MSVC
   14.44's `delayhlp.cpp`). A name that is missing or in another case
   matches no descriptor, so `__HrLoadAllImportsForDll` binds nothing and
