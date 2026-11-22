@@ -2264,13 +2264,27 @@ packs, the fixture and the seams they use need no change for it.
   that no record here claims: whether it accepts each attribute and flag
   as documented and reads them back as Windows 11 does, its loader, the
   win7 Rust std there, the Windows 8 functions really missing, nested
-  jobs, KB2533623 missing, AppContainer networking on 8 and 8.1, the
-  `WIN://NOALLAPPPKG` reading on 1703 to 1803 and the version a
-  compatibility layer reports. The forced tiers' readings are that task's
-  evidence campaign's (its `work/test.md` and `evidence/`), and they agree
-  with the tier lines on this page and on
+  jobs, KB2533623 missing, AppContainer networking on 8 and 8.1 and the
+  `WIN://NOALLAPPPKG` reading on 1703 to 1803. The forced tiers' readings
+  are that task's evidence campaign's (its `work/test.md` and
+  `evidence/`), and they agree with the tier lines on this page and on
   [test_widget_helper_probe](test_widget_helper_probe.md#windows-tiers)
-  ([Verification](#verification)).
+  ([Verification](#verification)). Compatibility modes were measured on
+  Windows 11 build 26300 (10.0.26300.9711) only, with an x64 Debug pair
+  and an x86 Release pair built with the harness: the Windows 8, Windows
+  7 and Windows Vista (Service Pack 2) modes, set per user on the copied
+  `Telegram.exe` in the Compatibility tab's form or given through
+  `__COMPAT_LAYER`, move Telegram's `GetVersionExW` to the mode's
+  version, yet both processes read 10.0.26300 and the full tier, the
+  helper starts without the layer and reaches Ready, and the widget
+  renders. Before that change the same modes moved Telegram's
+  `RtlGetVersion` reading to 6.2.9200 (AppContainer; the x64 helper read
+  the same and served under it) or to 6.1.7600 and 6.0.6002 (no tier, so
+  no helper started), and an x86 helper that inherited the layer ended
+  at DLL initialization. An x86 Debug client stalls at startup under
+  these modes in the Debug CRT's heap check, so its x86 cells used the
+  Release pair
+  (`2026/11/22/prove-the-windows-widget-helper-tier-under-a-compatibility-mode`).
 - **The Windows 7 tier.** Its path, from Telegram's launch to the
   helper's Ready, is built to call only functions that Windows 7 SP1 has,
   imported or looked up at run time (that task's audit of every call is
