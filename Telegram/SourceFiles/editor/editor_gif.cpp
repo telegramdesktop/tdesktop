@@ -23,6 +23,7 @@ void LoadGif(
 		not_null<DocumentData*> document,
 		Fn<void(Storage::PhotoEditorMedia&&)> done) {
 	const auto media = document->createMediaView();
+	const auto deliver = crl::guard(context, done);
 	const auto finish = [=] {
 		const auto content = media->bytes();
 		const auto path = content.isEmpty()
@@ -34,7 +35,6 @@ void LoadGif(
 			}
 			return;
 		}
-		const auto deliver = crl::guard(context, done);
 		crl::async([=] {
 			auto prepared = Media::Clip::PrepareForSending(path, content);
 			using Video = Ui::PreparedFileInformation::Video;
