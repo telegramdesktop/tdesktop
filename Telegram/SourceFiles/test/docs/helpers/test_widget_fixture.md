@@ -2372,11 +2372,26 @@ packs, the fixture and the seams they use need no change for it.
 - **The Windows lowbox.** On the full, LPAC 1703 and AppContainer tiers
   (**The Windows sandbox tiers** above; the Windows 7 tier has no lowbox)
   `NtCreateLowBoxToken` boxes each of the two
-  restricted tokens with one package SID, derived from the fixed name
-  `telegram.desktop.widget-helper` by
-  `DeriveAppContainerSidFromAppContainerName` (loaded from `USERENV.dll`),
+  restricted tokens with one package SID, that of the fixed name
+  `telegram.desktop.widget-helper`,
   with no capability and no handle; no AppContainer profile, named-object
-  directory, file grant or loopback exemption is created. On the two LPAC
+  directory, file grant or loopback exemption is created. Outside the
+  Store build that SID is the unpackaged result of
+  `DeriveAppContainerSidFromAppContainerName` for the name, kept as fixed
+  data (`kPackageRids` in `widget_sandbox_win.cpp`):
+  `S-1-15-2-2297200083-2220774571-4131773200-153869053-3443934028-2520258059-2811718137`.
+  The derivation, which loads `USERENV.dll` and through it `profext.dll`,
+  failed in the helper under its LPAC primary on Windows 10 22H2
+  (10.0.19045.6466): there `profext.dll` imports its dependencies
+  statically (10.0.26300 delay-loads them), and the loader's worker
+  threads, which run as the primary, could not map that graph, so every
+  confined start on x86 and x64 refused before Ready with `the widget
+  helper is not sandboxed: DeriveAppContainerSidFromAppContainerName
+  failed: 0x80004005`
+  (`2026/11/15/run-the-lpac-windows-widget-helper-on-a-windows-build-before-26300`,
+  its `work/decisions.md`, D1). The Store build still derives the SID at
+  run time: its packaged client and helper get a child SID of their
+  package (**The Windows Store build** below). On the two LPAC
   tiers the creation's
   attribute list adds `PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY`
   with `PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT`, which makes the
@@ -2408,10 +2423,11 @@ packs, the fixture and the seams they use need no change for it.
   failure ends the suspended helper through its job and is a start
   failure (**Runtime log and deaths** below). Building the pair can fail
   with
-  `NtCreateLowBoxToken is not available`, `NtCreateLowBoxToken failed:
-  status 0x<status>`, `DeriveAppContainerSidFromAppContainerName is not
-  available` or `DeriveAppContainerSidFromAppContainerName failed:
-  0x<hresult>`. The AppContainer check's errors are `the token is not an
+  `NtCreateLowBoxToken is not available` or `NtCreateLowBoxToken failed:
+  status 0x<status>`, and in the Store build also with
+  `DeriveAppContainerSidFromAppContainerName is not available` or
+  `DeriveAppContainerSidFromAppContainerName failed: 0x<hresult>`. The
+  AppContainer check's errors are `the token is not an
   AppContainer token`, `the token's AppContainer SID is not the widget
   helper's`, `the token has <n> capabilities`, `the token is not a less
   privileged AppContainer token` or `the token is a less privileged
@@ -2538,11 +2554,13 @@ packs, the fixture and the seams they use need no change for it.
   and then those of `bcrypt.dll`, on ARM64 those of `bcrypt.dll` and then
   those of `bcryptprimitives.dll`, each by the exact name the linker gave
   its descriptor (the CRT's `PiddFromDllName()` in `delayhlp.cpp` compares
-  names case-sensitively), derives its
+  names case-sensitively), in the Store build derives its
   package SID once (which loads `USERENV.dll`; the checkpoint of
   `2026/11/14/confine-the-windows-widget-helpers-network-with-lpac-and-turn-it-on`
   saw it map `profext.dll` as well, the host of the API set USERENV
-  delay-imports for the derivation) and draws random bytes once, which
+  delay-imports for the derivation; the other builds hold the SID as
+  fixed data and load nothing for it, **The Windows lowbox** above) and
+  draws random bytes once, which
   starts the random provider that a widget's `crypto.getRandomValues` uses
   later. `bcrypt.dll` was the image's one static import that is no
   KnownDLL, and the system directory does not let the LPAC primary open
@@ -2814,18 +2832,20 @@ packs, the fixture and the seams they use need no change for it.
   `telegram_widget_helper.cmake` in every Windows build, so the Store
   build compiles the helper and its client pins the Store helper's own
   Authenticode digest. The Store build keeps the eligibility it had
-  before the sandbox tiers: the one Store branch of the widget helper
-  code is in `ChooseTier()` of the shared `widget_sandbox_win.cpp`, where
+  before the sandbox tiers: the Store branch that decides it is in
+  `ChooseTier()` of the shared `widget_sandbox_win.cpp`, where
   `OS_WIN_STORE` maps no Windows before 10 1809 (10.0.17763) to a tier,
   so its client stops every widget below that with `no sandboxed widget
   helper is available here: the widget helper needs Windows 10 1809 or
   later`, the reason of the earlier 1809 floor, although its package
-  declares Windows 10.0.14316 as its minimum. From 1809 on the Store
-  client and helper each map their own version reading to the full tier
-  alone, and the client starts the helper like the other Windows builds,
-  with the same `Launch()`, hold, pin, started-image check, tokens, job
-  and creation policies of that tier (**The Windows sandbox tiers**
-  above). `OS_WIN_STORE` reaches the helper too:
+  declares Windows 10.0.14316 as its minimum. Its package SID comes from
+  a separate Store branch, in `DerivePackage()` (**The Windows lowbox**
+  above). From 1809 on the Store client and helper each map their own
+  version reading to the full tier alone, and the client starts the
+  helper like the other Windows builds, with the same `Launch()`, hold,
+  pin, started-image check, tokens, job and creation policies of that
+  tier (**The Windows sandbox tiers** above). `OS_WIN_STORE` reaches
+  the helper too:
   `init_standalone_target.cmake` copies `common_options`' definitions,
   among them the one `cmake/options_win.cmake` adds for
   `build_winstore`. `build.bat` signs
