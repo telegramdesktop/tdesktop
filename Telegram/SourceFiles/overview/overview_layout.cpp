@@ -1085,7 +1085,8 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 	}
 	const auto showPause = updateStatusText();
-	if (!_globalSearch && _nameVersion < parent()->fromOriginal()->nameVersion()) {
+	if (!_globalSearch
+		&& _nameVersion < parent()->fromOriginal()->nameVersion()) {
 		updateName();
 	}
 	const auto radial = isRadialAnimation();
@@ -1176,14 +1177,17 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		_width);
 	if (clip.intersects(nameRect)) {
 		p.setPen(st::historyFileNameInFg);
-		_name.draw(p, Ui::Text::PaintContext{
-			.position = nameRect.topLeft(),
-			.availableWidth = namewidth,
-			.palette = &p.textPalette(),
-			.paused = p.inactive() || (context && context->paused),
-			.pausedEmoji = On(PowerSaving::kEmojiChat),
-			.elisionLines = 1,
-		});
+		_name.draw(
+			p,
+			Ui::Text::PaintContext{
+				.position = nameRect.topLeft(),
+				.availableWidth = namewidth,
+				.palette = &p.textPalette(),
+				.paused = p.inactive()
+					|| (context && context->paused),
+				.pausedEmoji = On(PowerSaving::kEmojiChat),
+				.elisionLines = 1,
+			});
 	}
 
 	if (clip.intersects(style::rtlrect(nameleft, statustop, namewidth, st::normalFont->height, _width))) {

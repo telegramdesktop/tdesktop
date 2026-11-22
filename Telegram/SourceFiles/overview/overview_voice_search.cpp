@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "overview/overview_layout.h"
 
-#include "overview/overview_layout_delegate.h"
 #include "core/ui_integration.h"
 #include "data/data_changes.h"
 #include "data/data_forum.h"
@@ -17,7 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
+#include "overview/overview_layout_delegate.h"
 #include "ui/text/text_options.h"
+
 #include "styles/style_basic.h"
 
 namespace Overview::Layout {
@@ -41,7 +42,10 @@ struct VoiceSearchSource {
 	}
 	return chat->isUser()
 		? VoiceSearchSource{ .sender = sender }
-		: VoiceSearchSource{ .sender = sender->asUser(), .chat = chat };
+		: VoiceSearchSource{
+			.sender = sender->asUser(),
+			.chat = chat,
+		};
 }
 
 [[nodiscard]] TextWithEntities SearchTitle(not_null<HistoryItem*> item) {
@@ -57,7 +61,9 @@ struct VoiceSearchSource {
 	auto title = (topic && !topic->title().isEmpty())
 		? topic->titleWithIconOrLogo()
 		: TextWithEntities{ st::wrap_rtl(source.chat->name()) };
-	if (const auto user = source.sender ? source.sender->asUser() : nullptr) {
+	if (const auto user = source.sender
+		? source.sender->asUser()
+		: nullptr) {
 		const auto name = user->firstName.isEmpty()
 			? user->name()
 			: user->firstName;
@@ -100,7 +106,8 @@ void Voice::watchSearchName() {
 	}) | rpl::on_next(refresh, _searchNameLifetime);
 
 	const auto topic = forum->topicFor(rootId);
-	if ((!topic || topic->title().isEmpty()) && !forum->topicDeleted(rootId)) {
+	if ((!topic || topic->title().isEmpty())
+		&& !forum->topicDeleted(rootId)) {
 		forum->requestTopic(rootId);
 	}
 }
