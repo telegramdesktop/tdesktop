@@ -7,33 +7,20 @@ Source contract: [test_widget_renderer_forward.h](../../test_widget_renderer_for
 
 ## Use when
 
-Never from an overlay directly. It is the forwarding half of the widget
-helper's Debug renderer tap
-([test_widget_helper_tap](test_widget_helper_tap.md)), which wraps the
-glue's renderer with it and records through its own `RendererObserver`:
-the arming, mirror records and work timing. The header also holds the
-format of the helper work record (`HelperWorkKind`, `HelperWorkRecord`,
-`EncodeHelperWork()`, `DecodeHelperWork()`) that the helper's tap writes
-and Telegram's hosted tap ([test_widget_ops](test_widget_ops.md)) reads
-([The helper work record](#the-helper-work-record)): both targets list this
-header, so neither includes a header of the other's.
+Never from an overlay directly. It holds the format of the helper work
+record (`HelperWorkKind`, `HelperWorkRecord`, `EncodeHelperWork()`,
+`DecodeHelperWork()`) that the widget helper's Debug renderer tap
+([test_widget_helper_tap](test_widget_helper_tap.md)) writes and Telegram's
+hosted tap ([test_widget_ops](test_widget_ops.md)) reads
+([The helper work record](#the-helper-work-record)). The tap itself, with
+the renderer forwarding this header once held for the C++ helper, is
+twidget's Rust serving (`rust/crates/helper`: `tap.rs`, `forward.rs`),
+which encodes the record alike.
 
 ## Preconditions and limits
 
-- **Qt-free and header-only.** Telegram's harness and `TelegramWidgetHelper`'s
-  Debug build compile it the same way; it needs only widget-sandbox's
-  `twidget/renderer.h` and the number coding of `tgw/tgw_hosted_wire.h`.
-- **What it forwards.** `load()`, `send()`, `setTheme()`, `setWidth()` and
-  `destroy()`, each once, on the caller's thread, with the very same string
-  object; `calling()` runs before each call (with the message of `send()`
-  and the theme of `setTheme()`), `called()` after it returned or threw.
-- **What it chains.** It sets the wrapped renderer's `onMessage` and
-  `onDiag` at construction; they read the wrapper's own callbacks when
-  invoked, because the served host assigns those after the factory
-  returned. `received()` sees each renderer -> host
-  message first, on whatever thread the renderer calls from; diagnostics are
-  forwarded unobserved.
-- **Not a scan.** It reads no message; every observation is the observer's.
+- **Qt-free and header-only.** Telegram's harness compiles it; it needs only
+  the number coding of `tgw/tgw_hosted_wire.h`.
 
 ## The helper work record
 
@@ -57,15 +44,11 @@ are the readers' own checks
 
 ## Lifetime and cleanup
 
-The wrapper owns the renderer and the observer. Its destructor destroys the
-renderer first, which waits for a callback in flight, and only then the
-observer, so no hook runs on a destroyed observer and an observer's
-destructor sees the renderer gone. Nothing is written anywhere.
+It holds nothing: the encode and the decode are pure functions. Nothing is
+written anywhere.
 
 ## Verification
 
-The forwarding compiles in the Debug helper, whose tap wraps every
-renderer the glue builds; no self-check row drives it.
 `RunWidgetOpsSelfCheck()`'s hosted leg
 ([test_widget_ops](test_widget_ops.md#verification)) feeds records through
 the decoder: one of exactly an hour is valid, and unordered, negative,

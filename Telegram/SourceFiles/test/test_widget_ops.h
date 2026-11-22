@@ -26,9 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 // widget helper: what the helper's validator passed and its served host
 // and renderer exchanged, scanned with widget-sandbox's --attacks leak
 // definition and read for the conformance and stress results, and the
-// helper's own renderer work when asked. The helper's half is
-// test_widget_helper_tap.h; the helper work record both halves share is
-// test_widget_renderer_forward.h.
+// helper's own renderer work when asked. The helper's half is twidget's
+// Rust tap (rust/crates/helper/src/tap.rs); the helper work record it
+// writes is read with test_widget_renderer_forward.h.
 // Reference: docs/helpers/test_widget_ops.md.
 
 namespace twidget {
@@ -802,9 +802,10 @@ void DeliverMarkedPress(WidgetOpsTap &tap, Fn<void()> deliver);
 
 // Whether this build's widget helper has the Debug tap that mirrors a
 // hosted host's renderer messages, scheme and theme message
-// (test_widget_helper_tap.h): true in Debug. False in a Release build with
-// the harness, whose hosted readings of the theme are the widget's
-// effective ones and whose hosted click reading is `clicksCompleted`.
+// (docs/helpers/test_widget_helper_tap.md): true in Debug. False in a
+// Release build with the harness, whose hosted readings of the theme are
+// the widget's effective ones and whose hosted click reading is
+// `clicksCompleted`.
 [[nodiscard]] bool WidgetHelperMirrors();
 
 // What a helper renderer operation was: test_widget_renderer_forward.h's

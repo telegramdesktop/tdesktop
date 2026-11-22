@@ -8,164 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "tgw/tgw_hosted_wire.h"
-#include "twidget/renderer.h"
 
 #include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 
-// What the widget helper's Debug renderer tap (test_widget_helper_tap.cpp)
-// forwards, and the helper work record that the helper's tap writes and
-// Telegram's hosted tap reads. Qt-free and header-only,
-// and listed by both targets, so the standalone helper compiles it as
-// Telegram does and neither includes a header of the other's target.
+// The helper work record that the widget helper's Debug renderer tap
+// (twidget's Rust serving, rust/crates/helper: tap.rs and forward.rs)
+// writes and Telegram's hosted tap reads. Qt-free and header-only.
 // Reference: docs/helpers/test_widget_renderer_forward.md.
 
 namespace Test {
-
-enum class RendererCall {
-	Load,
-	Send,
-	SetTheme,
-	SetWidth,
-	Destroy,
-};
-
-// What one tap records around the renderer it wraps. Every hook runs on the
-// thread of the call or callback it observes and must not call into the
-// renderer; the defaults do nothing.
-class RendererObserver {
-public:
-	virtual ~RendererObserver() = default;
-
-	// Right before a call is forwarded: |text| is the message of Send and
-	// the theme of SetTheme, empty for the other calls.
-	virtual void calling(RendererCall call, const std::string &text);
-	// Right after the forwarded call returned or threw: every calling()
-	// gets its called().
-	virtual void called(RendererCall call);
-	// A renderer -> host message, before the wrapper's onMessage gets it.
-	virtual void received(const std::string &json);
-
-};
-
-// Forwards every call to |inner| unchanged, on the calling thread, and
-// chains |inner|'s onMessage and onDiag to its own, which WidgetHost (or the
-// served host in the widget helper) assigns after the factory returned, so
-// they are read when invoked, never when installed. Destroying it destroys
-// |inner| first, which waits for a callback in flight, and only then
-// |observer|: no hook runs on a destroyed observer.
-class ForwardingRenderer final : public twidget::Renderer {
-public:
-	ForwardingRenderer(
-		std::unique_ptr<twidget::Renderer> inner,
-		std::unique_ptr<RendererObserver> observer);
-	ForwardingRenderer(const ForwardingRenderer &other) = delete;
-	ForwardingRenderer &operator=(const ForwardingRenderer &other) = delete;
-	~ForwardingRenderer();
-
-	void load() override;
-	void send(const std::string &json) override;
-	void setTheme(const std::string &theme) override;
-	void setWidth(double width) override;
-	void destroy() override;
-
-private:
-	template <typename Forward>
-	void forward(RendererCall call, const std::string &text, Forward method);
-
-	std::unique_ptr<RendererObserver> _observer;
-	std::unique_ptr<twidget::Renderer> _inner;
-
-};
-
-inline void RendererObserver::calling(RendererCall, const std::string &) {
-}
-
-inline void RendererObserver::called(RendererCall) {
-}
-
-inline void RendererObserver::received(const std::string &) {
-}
-
-inline ForwardingRenderer::ForwardingRenderer(
-	std::unique_ptr<twidget::Renderer> inner,
-	std::unique_ptr<RendererObserver> observer)
-: _observer(std::move(observer))
-, _inner(std::move(inner)) {
-	_inner->onMessage = [this](const std::string &json) {
-		_observer->received(json);
-		if (onMessage) {
-			onMessage(json);
-		}
-	};
-	_inner->onDiag = [this](
-			const std::string &kind,
-			const std::string &detail) {
-		if (onDiag) {
-			onDiag(kind, detail);
-		}
-	};
-}
-
-inline ForwardingRenderer::~ForwardingRenderer() {
-	_inner = nullptr;
-	_observer = nullptr;
-}
-
-template <typename Forward>
-void ForwardingRenderer::forward(
-		RendererCall call,
-		const std::string &text,
-		Forward method) {
-	struct Called {
-		RendererObserver &observer;
-		RendererCall call = RendererCall::Load;
-
-		~Called() {
-			observer.called(call);
-		}
-	};
-	_observer->calling(call, text);
-	const auto called = Called{ *_observer, call };
-	method(*_inner);
-}
-
-inline void ForwardingRenderer::load() {
-	forward(RendererCall::Load, std::string(), [](twidget::Renderer &inner) {
-		inner.load();
-	});
-}
-
-inline void ForwardingRenderer::send(const std::string &json) {
-	forward(RendererCall::Send, json, [&](twidget::Renderer &inner) {
-		inner.send(json);
-	});
-}
-
-inline void ForwardingRenderer::setTheme(const std::string &theme) {
-	forward(RendererCall::SetTheme, theme, [&](twidget::Renderer &inner) {
-		inner.setTheme(theme);
-	});
-}
-
-inline void ForwardingRenderer::setWidth(double width) {
-	forward(RendererCall::SetWidth, std::string(), [&](
-			twidget::Renderer &inner) {
-		inner.setWidth(width);
-	});
-}
-
-inline void ForwardingRenderer::destroy() {
-	forward(RendererCall::Destroy, std::string(), [](
-			twidget::Renderer &inner) {
-		inner.destroy();
-	});
-}
 
 // What one helper renderer operation was, by the call that started it on
 // the served host's glue thread.
