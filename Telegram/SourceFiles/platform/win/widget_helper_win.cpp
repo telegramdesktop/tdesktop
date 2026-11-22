@@ -33,6 +33,11 @@ struct Path {
 	QString error;
 };
 
+struct Environment {
+	std::wstring block;
+	QString error;
+};
+
 struct Spawn {
 	std::wstring path;
 	std::wstring directory;
@@ -274,6 +279,37 @@ void DesktopCloser::operator()(HDESK desktop) const {
 	return InheritableCopy(handle);
 }
 
+[[nodiscard]] Environment HelperEnvironment() {
+	const auto strings = GetEnvironmentStringsW();
+	if (!strings) {
+		return {
+			.error = QtSystemError("GetEnvironmentStringsW", GetLastError()),
+		};
+	}
+	const auto guard = gsl::finally([&] {
+		FreeEnvironmentStringsW(strings);
+	});
+	auto result = Environment();
+	auto next = strings;
+	while (*next) {
+		const auto entry = std::wstring_view(next);
+		const auto name = entry.substr(0, entry.find(L'=', 1));
+		next += entry.size() + 1;
+		// A compatibility mode set on Telegram must not reach the helper.
+		if (CompareStringOrdinal(
+				name.data(),
+				int(name.size()),
+				L"__COMPAT_LAYER",
+				-1,
+				TRUE) != CSTR_EQUAL) {
+			result.block.append(entry);
+			result.block.push_back(L'\0');
+		}
+	}
+	result.block.push_back(L'\0');
+	return result;
+}
+
 [[nodiscard]] Created CreateSuspended(Spawn spawn) {
 	auto pipe = InheritableCopy(spawn.pipe);
 	if (!pipe.error.isEmpty()) {
@@ -282,6 +318,10 @@ void DesktopCloser::operator()(HDESK desktop) const {
 	auto diagnostics = InheritableDiagnostics();
 	if (!diagnostics.error.isEmpty()) {
 		return { .error = std::move(diagnostics.error) };
+	}
+	auto environment = HelperEnvironment();
+	if (!environment.error.isEmpty()) {
+		return { .error = std::move(environment.error) };
 	}
 	auto inherited = std::vector<HANDLE>{ pipe.handle.get() };
 	if (diagnostics.handle) {
@@ -381,8 +421,9 @@ void DesktopCloser::operator()(HDESK desktop) const {
 			TRUE,
 			(spawn.flags
 				| CREATE_SUSPENDED
+				| CREATE_UNICODE_ENVIRONMENT
 				| EXTENDED_STARTUPINFO_PRESENT),
-			nullptr,
+			environment.block.data(),
 			spawn.directory.c_str(),
 			&startup.StartupInfo,
 			&information)) {

@@ -612,21 +612,23 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 }
 
 [[nodiscard]] WindowsVersion ReadWindowsVersion() {
-	using GetVersion = NTSTATUS(NTAPI*)(PRTL_OSVERSIONINFOW information);
-	auto get = GetVersion();
+	using GetNumbers = void(NTAPI*)(PULONG major, PULONG minor, PULONG build);
+	auto get = GetNumbers();
 	if (const auto ntdll = GetModuleHandleW(L"ntdll.dll")) {
-		Resolve(ntdll, get, "RtlGetVersion");
+		// A compatibility mode replaces the RtlGetVersion lookup.
+		Resolve(ntdll, get, "RtlGetNtVersionNumbers");
 	}
-	auto information = RTL_OSVERSIONINFOW{
-		.dwOSVersionInfoSize = DWORD(sizeof(RTL_OSVERSIONINFOW)),
-	};
-	if (!get || !NT_SUCCESS(get(&information))) {
+	if (!get) {
 		return WindowsVersion();
 	}
+	auto major = ULONG();
+	auto minor = ULONG();
+	auto build = ULONG();
+	get(&major, &minor, &build);
 	return {
-		.major = information.dwMajorVersion,
-		.minor = information.dwMinorVersion,
-		.build = information.dwBuildNumber,
+		.major = major,
+		.minor = minor,
+		.build = build & 0xFFFF,
 	};
 }
 
