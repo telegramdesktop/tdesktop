@@ -58,6 +58,17 @@ constexpr auto kStoreBuild = false;
 
 constexpr auto k64Bit = kX64 || kARM64;
 constexpr auto kAppContainerName = L"telegram.desktop.widget-helper";
+// Deriving kAppContainerName's unpackaged SID fails under LPAC on Windows 10.
+constexpr auto kPackageRids = std::array<DWORD, SECURITY_APP_PACKAGE_RID_COUNT>{
+	SECURITY_APP_PACKAGE_BASE_RID,
+	2297200083,
+	2220774571,
+	4131773200,
+	153869053,
+	3443934028,
+	2520258059,
+	2811718137,
+};
 constexpr auto kLessPrivilegedName = L"WIN://NOALLAPPPKG";
 constexpr auto kChangeNotifyPrivilege = LUID{ .LowPart = 23 };
 constexpr auto kWarmUpRandomBytes = 16;
@@ -517,34 +528,51 @@ void Resolve(HMODULE module, Function &function, const char *name) {
 }
 
 [[nodiscard]] Package DerivePackage() {
-	auto derive = DeriveSid();
-	if (const auto userenv = LoadLibraryExW(
-			L"userenv.dll",
-			nullptr,
-			LOAD_LIBRARY_SEARCH_SYSTEM32)) {
-		Resolve(userenv, derive, "DeriveAppContainerSidFromAppContainerName");
-	}
-	if (!derive) {
+	if constexpr (kStoreBuild) {
+		auto derive = DeriveSid();
+		if (const auto userenv = LoadLibraryExW(
+				L"userenv.dll",
+				nullptr,
+				LOAD_LIBRARY_SEARCH_SYSTEM32)) {
+			Resolve(
+				userenv,
+				derive,
+				"DeriveAppContainerSidFromAppContainerName");
+		}
+		if (!derive) {
+			return {
+				.error = "DeriveAppContainerSidFromAppContainerName "
+					"is not available",
+			};
+		}
+		auto sid = PSID();
+		const auto derived = derive(kAppContainerName, &sid);
+		if (FAILED(derived)) {
+			return {
+				.error = "DeriveAppContainerSidFromAppContainerName failed: 0x"
+					+ Hex(DWORD(derived)),
+			};
+		}
+		const auto guard = gsl::finally([&] {
+			FreeSid(sid);
+		});
+		const auto bytes = static_cast<const std::byte*>(sid);
 		return {
-			.error = "DeriveAppContainerSidFromAppContainerName "
-				"is not available",
+			.sid = std::vector<std::byte>(bytes, bytes + GetLengthSid(sid)),
 		};
-	}
-	auto sid = PSID();
-	const auto derived = derive(kAppContainerName, &sid);
-	if (FAILED(derived)) {
-		return {
-			.error = "DeriveAppContainerSidFromAppContainerName failed: 0x"
-				+ Hex(DWORD(derived)),
+	} else {
+		const auto header = SID{
+			.Revision = SID_REVISION,
+			.SubAuthorityCount = BYTE(kPackageRids.size()),
+			.IdentifierAuthority = SECURITY_APP_PACKAGE_AUTHORITY,
 		};
+		const auto prefix = std::as_bytes(std::span(&header, 1)).first(
+			offsetof(SID, SubAuthority));
+		const auto rids = std::as_bytes(std::span(kPackageRids));
+		auto sid = std::vector<std::byte>(prefix.begin(), prefix.end());
+		sid.insert(sid.end(), rids.begin(), rids.end());
+		return { .sid = std::move(sid) };
 	}
-	const auto guard = gsl::finally([&] {
-		FreeSid(sid);
-	});
-	const auto bytes = static_cast<const std::byte*>(sid);
-	return {
-		.sid = std::vector<std::byte>(bytes, bytes + GetLengthSid(sid)),
-	};
 }
 
 [[nodiscard]] const Package &ExpectedPackage() {
