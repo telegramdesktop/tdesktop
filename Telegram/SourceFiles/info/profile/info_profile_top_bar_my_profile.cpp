@@ -25,7 +25,9 @@ void TopBar::setupMyProfileActions(
 		this,
 		st::infoProfileTopBarActionButtonsSpace);
 	auto buttons = std::vector<not_null<TopBarActionButton*>>();
-	const auto add = [&](rpl::producer<QString> text, const style::icon &icon) {
+	const auto add = [&](
+		rpl::producer<QString> text,
+		const style::icon &icon) {
 		const auto button = Ui::CreateChild<TopBarActionButton>(
 			this,
 			QString(),
@@ -50,11 +52,17 @@ void TopBar::setupMyProfileActions(
 			tr::lng_story_add_button(),
 			st::infoProfileTopBarActionStory);
 		story->setClickedCallback([=] {
-			::Media::Stories::PostStory(controller, peer, {
-				.setLoading = crl::guard(story, [=](bool loading) {
-					story->setDisabled(loading);
-				}),
-			});
+			::Media::Stories::PostStory(
+				controller,
+				peer,
+				{
+					.setLoading = crl::guard(
+						story,
+						[=](bool loading) {
+							story->setDisabled(
+								loading);
+						}),
+				});
 		});
 		setupStoryDrop(story, controller);
 	}

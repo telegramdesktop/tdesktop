@@ -564,7 +564,9 @@ TopBar::TopBar(
 	setupSwipeBack(controller);
 	auto chooseProfilePhoto = setupUserpicButton(controller);
 	if (_hasActions && _source == Source::Stories) {
-		setupMyProfileActions(controller, std::move(chooseProfilePhoto));
+		setupMyProfileActions(
+			controller,
+			std::move(chooseProfilePhoto));
 	} else if (_hasActions) {
 		_peer->session().changes().peerFlagsValue(
 			_peer,

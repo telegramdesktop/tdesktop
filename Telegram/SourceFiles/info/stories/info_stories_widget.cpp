@@ -259,7 +259,8 @@ void Widget::refreshBottom() {
 	const auto withButton = (albumId != Data::kStoriesAlbumIdArchive)
 		&& !_emptyAlbumShown.current()
 		&& ((albumId == Data::kStoriesAlbumIdSaved)
-			? (_inner->myProfile() && ::Media::Stories::CanPostStory(peer))
+			? (_inner->myProfile()
+				&& ::Media::Stories::CanPostStory(peer))
 			: peer->canEditStories());
 	const auto wasBottom = _pinnedToBottom ? _pinnedToBottom->height() : 0;
 	delete _pinnedToBottom.data();
