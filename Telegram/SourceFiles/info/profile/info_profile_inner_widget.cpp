@@ -194,7 +194,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 
 	const auto thirdColumn = (_controller->wrap() == Wrap::Side);
 	const auto bot = (_topic || _sublist) ? nullptr : _peer->asBot();
-	const auto tabs = bot || (UseProfileMediaTabs() && !thirdColumn);
+	const auto tabs = UseProfileMediaTabs() && !thirdColumn;
 	auto sharedTracker = Ui::MultiSlideTracker();
 	if (!tabs) {
 		auto sharedMediaWidget = SetupSharedMediaClassic(
@@ -211,17 +211,13 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		blocks.add(std::move(sharedMediaWidget));
 	}
 
-	const auto addTabsHost = [&] {
+	const auto appendSharedTabs = [&](auto &tabs) {
 		using namespace rpl::mappers;
 		const auto tabsPeer = _sublist ? _sublist->sublistPeer() : _peer;
 		const auto topicRootId = _topic ? _topic->rootId() : MsgId();
 		const auto monoforumPeerId = _sublist
 			? _sublist->sublistPeer()->id
 			: PeerId();
-		auto tabs = std::vector<MediaTabDescriptor>();
-		if (bot) {
-			tabs.push_back(MakeBotMediaPreviewsTab(bot));
-		}
 		const auto countValue = [&](Storage::SharedMediaType type) {
 			return SharedMediaCountValue(
 				_peer,
@@ -295,6 +291,15 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 				tabs.push_back(MakeSimilarPeersTabDescriptor(_peer));
 			}
 		}
+	};
+	const auto addTabsHost = [&] {
+		auto descriptors = std::vector<MediaTabDescriptor>();
+		if (bot) {
+			descriptors.push_back(MakeBotMediaPreviewsTab(bot));
+		}
+		if (tabs) {
+			appendSharedTabs(descriptors);
+		}
 		auto tabsHost = object_ptr<TabsHost>(
 			result.data(),
 			TabsHost::Descriptor{
@@ -308,7 +313,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 						_onlineCount.fire_copy(count);
 					},
 				},
-				.tabs = std::move(tabs),
+				.tabs = std::move(descriptors),
 			});
 		const auto raw = tabsHost.data();
 		_tabsHost = raw;
@@ -355,7 +360,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		blocks.addSeparator();
 		blocks.add(makeMembersPart(result.data(), std::move(shown)));
 	}
-	if (tabs) {
+	if (tabs || bot) {
 		addTabsHost();
 	}
 	Ui::AddSkip(result.data(), skip);
