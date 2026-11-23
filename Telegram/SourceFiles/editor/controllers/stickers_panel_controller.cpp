@@ -37,18 +37,18 @@ namespace {
 // Works around MSVC 14.44 ICE on bitfields set in a member-init list.
 [[nodiscard]] ChatHelpers::ComposeFeatures PrepareFeatures(
 		bool withAudio,
-		bool storyWidgets,
+		bool storyAreas,
 		bool locationAvailable) {
 	return {
 		.megagroupSet = false,
 		.stickersSettings = false,
 		.openStickerSets = false,
 		.photoButton = true,
-		.reactionButton = storyWidgets,
+		.reactionButton = storyAreas,
 		.audioButton = withAudio,
-		.linkButton = storyWidgets,
-		.locationButton = storyWidgets && locationAvailable,
-		.weatherButton = storyWidgets,
+		.linkButton = storyAreas,
+		.locationButton = storyAreas && locationAvailable,
+		.weatherButton = storyAreas,
 	};
 }
 
@@ -111,7 +111,8 @@ StickersPanelController::StickersPanelController(
 	not_null<Ui::RpWidget*> panelContainer,
 	std::shared_ptr<ChatHelpers::Show> show,
 	bool withAudio,
-	bool storyWidgets)
+	bool storyWidgets,
+	bool storyAreas)
 : _panelContainer(panelContainer)
 , _show(show)
 , _stickersPanel(MakePanel(
@@ -122,7 +123,7 @@ StickersPanelController::StickersPanelController(
 		: ChatHelpers::TabbedSelector::Mode::MediaEditor,
 	PrepareFeatures(
 		withAudio,
-		storyWidgets,
+		storyAreas,
 		Ui::LocationPicker::Available(
 			Ui::ResolveMapsConfig(&session())))))
 , _textEmojiPanel(storyWidgets

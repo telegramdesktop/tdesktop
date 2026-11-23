@@ -163,6 +163,7 @@ void SetupStoryEditorClose(
 		.period = setup.period ? setup.period : Api::kStoryDefaultPeriod,
 		.periodChoice = !setup.editing,
 		.showCaption = !setup.preview,
+		.showStoryAreas = !setup.preview,
 		.sceneItems = setup.sceneItems,
 		.sceneFiles = setup.sceneFiles,
 		.storyAudio = setup.storyAudio,

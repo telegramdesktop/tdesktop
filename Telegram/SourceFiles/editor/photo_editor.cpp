@@ -321,7 +321,8 @@ PhotoEditor::PhotoEditor(
 			this,
 			sessionShow,
 			data.composeSound,
-			data.story.has_value())
+			data.story.has_value(),
+			data.story && data.story->showStoryAreas)
 		: nullptr,
 	std::make_unique<UndoController>(),
 	show,

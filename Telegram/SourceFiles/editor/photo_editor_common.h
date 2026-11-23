@@ -71,6 +71,7 @@ struct StoryOptions {
 	bool periodChoice = true;
 	bool roundVideo = false;
 	bool showCaption = true;
+	bool showStoryAreas = true;
 
 	QImage canvasMedia;
 	Media::Encode::CanvasBackground canvasBackground;

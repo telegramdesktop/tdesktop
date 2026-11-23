@@ -44,7 +44,8 @@ public:
 		not_null<Ui::RpWidget*> panelContainer,
 		std::shared_ptr<ChatHelpers::Show> show,
 		bool withAudio,
-		bool storyWidgets = false);
+		bool storyWidgets,
+		bool storyAreas);
 	~StickersPanelController();
 
 	[[nodiscard]] Main::Session &session() const;
