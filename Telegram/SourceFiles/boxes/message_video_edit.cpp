@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
-#include "editor/editor_message_video.h"
 #include "editor/video/video_clip.h"
 #include "editor/video/video_editor_layer.h"
+#include "editor/editor_message_video.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"

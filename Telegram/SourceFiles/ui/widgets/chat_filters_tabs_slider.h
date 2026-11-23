@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/unread_badge_paint.h"
 #include "ui/widgets/chat_filters_tabs_mode.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/filter_title_icon.h"
+#include "ui/unread_badge_paint.h"
 
 namespace style {
 namespace internal {
