@@ -50,9 +50,12 @@ void SessionData::withSession(Callback &&callback) {
 	}
 }
 
-void SessionData::notifyConnectionInited(const SessionOptions &options) {
+void SessionData::notifyConnectionInited(
+		const SessionOptions &options,
+		uint64 reInitGeneration) {
 	QReadLocker optionsLock(&_optionsLock);
-	if (options.cloudLangCode == _options.cloudLangCode
+	if (reInitGeneration == _reInitGeneration
+		&& options.cloudLangCode == _options.cloudLangCode
 		&& options.systemLangCode == _options.systemLangCode
 		&& options.langPackName == _options.langPackName
 		&& options.proxy == _options.proxy) {
@@ -238,8 +241,9 @@ void Session::restart() {
 	}
 	refreshOptions();
 	if (const auto captured = _private) {
+		const auto reInitGeneration = _data->reInitGeneration();
 		InvokeQueued(captured, [=] {
-			captured->restartNow();
+			captured->restartNow(reInitGeneration);
 		});
 	}
 }
@@ -265,10 +269,9 @@ void Session::refreshOptions() {
 		useTcp));
 }
 
-void Session::reInitConnection() {
+void Session::prepareReInitConnection() {
+	_data->advanceReInitGeneration();
 	refreshOptions();
-	setConnectionNotInited();
-	restart();
 }
 
 void Session::setConnectionNotInited() {

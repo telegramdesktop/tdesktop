@@ -174,7 +174,8 @@ SessionPrivate::SessionPrivate(
 , _pingSender(thread, [=] { sendPingByTimer(); })
 , _checkSentRequestsTimer(thread, [=] { checkSentRequests(); })
 , _clearOldContainersTimer(thread, [=] { clearOldContainers(); })
-, _sessionData(std::move(data)) {
+, _sessionData(std::move(data))
+, _reInitGeneration(_sessionData->reInitGeneration()) {
 	Expects(_shiftedDcId != 0);
 
 	moveToThread(thread);
@@ -1035,10 +1036,11 @@ void SessionPrivate::retryByTimer() {
 	connectToServer();
 }
 
-void SessionPrivate::restartNow() {
+void SessionPrivate::restartNow(uint64 reInitGeneration) {
 	_retryTimeout = 1;
 	_retryTimer.cancel();
 	restart();
+	_reInitGeneration = reInitGeneration;
 }
 
 void SessionPrivate::connectToServer(bool afterConfig) {
@@ -1938,7 +1940,9 @@ SessionPrivate::HandleResult SessionPrivate::handleOneReceived(
 			// the initConnection, so we're not sure yet that it was inited.
 			// Wait till a good response is received.
 		} else {
-			_sessionData->notifyConnectionInited(*_options);
+			_sessionData->notifyConnectionInited(
+				*_options,
+				_reInitGeneration);
 		}
 		requestsAcked(ids, true);
 

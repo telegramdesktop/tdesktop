@@ -45,7 +45,7 @@ public:
 	[[nodiscard]] QString transport() const;
 
 	void updateAuthKey();
-	void restartNow();
+	void restartNow(uint64 reInitGeneration);
 	void sendPingForce();
 	void tryToSend();
 
@@ -223,6 +223,7 @@ private:
 
 	std::shared_ptr<SessionData> _sessionData;
 	std::unique_ptr<SessionOptions> _options;
+	uint64 _reInitGeneration = 0;
 	AuthKeyPtr _encryptionKey;
 	uint64 _keyId = 0;
 	uint64 _sessionId = 0;

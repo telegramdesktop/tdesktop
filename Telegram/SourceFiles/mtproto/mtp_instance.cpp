@@ -737,10 +737,18 @@ void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
 }
 
 void Instance::Private::reInitConnection(DcId dcId) {
+	auto selected = std::vector<not_null<Session*>>();
 	for (const auto &[shiftedDcId, session] : _sessions) {
 		if (BareDcId(shiftedDcId) == dcId) {
-			session->reInitConnection();
+			selected.push_back(session.get());
 		}
+	}
+	for (const auto session : selected) {
+		session->prepareReInitConnection();
+	}
+	for (const auto session : selected) {
+		session->setConnectionNotInited();
+		session->restart();
 	}
 }
 
