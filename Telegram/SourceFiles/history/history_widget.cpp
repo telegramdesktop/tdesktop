@@ -1790,7 +1790,16 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 	if (!_history) {
 		return;
 	}
-	supportInsertText(contact.comment);
+	if (contact.comment.isEmpty()) {
+		supportInsertText(contact.comment);
+	} else {
+		_field->setFocus();
+		auto cursor = _field->textCursor();
+		cursor.beginEditBlock();
+		cursor.insertText(contact.comment);
+		cursor.endEditBlock();
+		_field->ensureCursorVisible();
+	}
 	contact.comment = _field->getLastText();
 
 	const auto submit = [=](Qt::KeyboardModifiers modifiers) {

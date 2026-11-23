@@ -2508,7 +2508,17 @@ void ChatWidget::supportInsertText(const QString &text) {
 }
 
 void ChatWidget::supportShareContact(Support::Contact contact) {
-	supportInsertText(contact.comment);
+	const auto field = _composeControls->fieldForMention();
+	if (contact.comment.isEmpty() || !field) {
+		supportInsertText(contact.comment);
+	} else {
+		field->setFocus();
+		auto cursor = field->textCursor();
+		cursor.beginEditBlock();
+		cursor.insertText(contact.comment);
+		cursor.endEditBlock();
+		field->ensureCursorVisible();
+	}
 	contact.comment = _composeControls->fieldLastText();
 
 	const auto submit = [=](Qt::KeyboardModifiers modifiers) {
