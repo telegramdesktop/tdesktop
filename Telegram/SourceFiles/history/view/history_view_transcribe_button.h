@@ -58,6 +58,7 @@ private:
 	bool _loading = false;
 	bool _opened = false;
 	bool _summaryShown = false;
+	rpl::lifetime _lifetime;
 
 };
 
