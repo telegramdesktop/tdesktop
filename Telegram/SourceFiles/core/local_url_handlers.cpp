@@ -2379,6 +2379,7 @@ void ResolveAndShowUniqueGift(
 
 		const auto &data = result.data();
 		session->data().processUsers(data.vusers());
+		session->data().processChats(data.vchats());
 		if (const auto gift = Api::FromTL(session, data.vgift())) {
 			Core::App().hideMediaView();
 

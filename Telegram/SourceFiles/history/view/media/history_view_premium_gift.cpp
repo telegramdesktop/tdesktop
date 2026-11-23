@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/star_gift_box.h" // GiftReleasedByHandler
 #include "chat_helpers/stickers_gift_box_pack.h"
 #include "core/click_handler_types.h" // ClickHandlerContext
+#include "core/local_url_handlers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_credits.h"
@@ -37,6 +38,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 namespace HistoryView {
+namespace {
+
+[[nodiscard]] bool MatchesCollectibleReceipt(
+		const Data::SavedStarGift &saved,
+		const Data::GiftCode &receipt,
+		const QString &slug,
+		const Data::SavedStarGiftId &lookupId,
+		PeerId peerId) {
+	const auto unique = saved.info.unique.get();
+	if (!unique) {
+		if (receipt.unique) {
+			return (receipt.refunded || saved.refunded)
+				&& saved.info.id == receipt.unique->initialGiftId
+				&& saved.manageId == lookupId;
+		}
+		return receipt.upgraded && saved.info.id == receipt.stargiftId;
+	}
+	const auto profile = unique->hostId ? unique->hostId : unique->ownerId;
+	return unique->slug == slug
+		&& profile == peerId
+		&& saved.manageId
+		&& !saved.refunded;
+}
+
+} // namespace
 
 PremiumGift::PremiumGift(
 	not_null<Element*> parent,
@@ -515,11 +541,12 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 	const auto upgradedMsgId = data.upgraded
 		? data.realGiftMsgId
 		: MsgId(0);
-	const auto openInsteadId = data.realGiftMsgId
-		? Data::SavedStarGiftId::User(data.realGiftMsgId)
-		: (data.channel && data.channelSavedId)
+	const auto openInsteadId = (data.channel && data.channelSavedId)
 		? Data::SavedStarGiftId::Chat(data.channel, data.channelSavedId)
+		: data.realGiftMsgId
+		? Data::SavedStarGiftId::User(data.realGiftMsgId)
 		: Data::SavedStarGiftId();
+	const auto slug = data.unique ? data.unique->slug : QString();
 	const auto requesting = std::make_shared<bool>();
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -531,43 +558,71 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 			controller->showToast(tr::lng_gift_burned_message(tr::now));
 			return;
 		}
-		const auto quick = [=](not_null<Window::SessionController*> window) {
-			Settings::ShowStarGiftViewBox(window, data, itemId);
+		const auto showFallback = [=](const QString &slug) {
+			if (const auto window = weak.get()) {
+				if (slug.isEmpty()) {
+					Settings::ShowStarGiftViewBox(window, data, itemId);
+				} else {
+					Core::ResolveAndShowUniqueGift(window->uiShow(), slug);
+				}
+			}
 		};
 		if (!openInsteadId) {
-			quick(controller);
+			showFallback(slug);
 			return;
 		} else if (*requesting) {
 			return;
 		}
 		*requesting = true;
-		const auto requestSavedGift = [=] {
-			controller->session().api().request(MTPpayments_GetSavedStarGift(
+		const auto requestSavedGift = [=](const QString &slug) {
+			const auto window = weak.get();
+			if (!window) {
+				*requesting = false;
+				return;
+			}
+			window->session().api().request(MTPpayments_GetSavedStarGift(
 				MTP_vector<MTPInputSavedStarGift>(
 					1,
 					Api::InputSavedStarGiftId(openInsteadId))
 			)).done([=](const MTPpayments_SavedStarGifts &result) {
 				*requesting = false;
 				if (const auto window = weak.get()) {
-					const auto &data = result.data();
-					window->session().data().processUsers(data.vusers());
-					window->session().data().processChats(data.vchats());
+					const auto &response = result.data();
+					window->session().data().processUsers(response.vusers());
+					window->session().data().processChats(response.vchats());
 					const auto owner = openInsteadId.chat()
 						? openInsteadId.chat()
 						: window->session().user();
-					const auto &list = data.vgifts().v;
-					if (list.empty()) {
-						quick(window);
-					} else if (auto g = Api::FromTL(owner, list[0])) {
-						Settings::ShowSavedStarGiftBox(window, owner, *g);
+					const auto &list = response.vgifts().v;
+					const auto saved = list.empty()
+						? std::nullopt
+						: Api::FromTL(owner, list.front());
+					if (!saved) {
+						if (list.empty() || !slug.isEmpty()) {
+							showFallback(slug);
+						}
+						return;
 					}
+					if (!slug.isEmpty()
+						&& !MatchesCollectibleReceipt(
+							*saved,
+							data,
+							slug,
+							openInsteadId,
+							owner->id)) {
+						showFallback(slug);
+						return;
+					}
+					Settings::ShowSavedStarGiftBox(window, owner, *saved);
 				}
 			}).fail([=](const MTP::Error &error) {
 				*requesting = false;
 				if (const auto window = weak.get()) {
 					if (!Ui::ShowGiftErrorToast(window->uiShow(), error)) {
-						window->showToast(error.type());
-						quick(window);
+						if (slug.isEmpty()) {
+							window->showToast(error.type());
+						}
+						showFallback(slug);
 					}
 				}
 			}).send();
@@ -579,19 +634,16 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 				const auto media = item->media();
 				if (!media || !media->gift() || !media->gift()->unique) {
 					*requesting = false;
-					if (const auto window = weak.get()) {
-						quick(window);
-					}
+					showFallback(slug);
 					return;
 				}
 				// It is not possible to request a saved star gift
 				// when it is transferred and does not belong to you.
 				if (!media->gift()->transferred) {
-					return requestSavedGift();
+					return requestSavedGift(media->gift()->unique->slug);
 				}
 				*requesting = false;
-				const auto local = u"nft/"_q + media->gift()->unique->slug;
-				UrlClickHandler::Open(session->createInternalLinkFull(local));
+				showFallback(media->gift()->unique->slug);
 			};
 			if (const auto item = owner->nonChannelMessage(msgId)) {
 				processItem(item);
@@ -600,12 +652,12 @@ ClickHandlerPtr OpenStarGiftLink(not_null<HistoryItem*> item) {
 					if (const auto item = owner->nonChannelMessage(msgId)) {
 						processItem(item);
 					} else {
-						*requesting = false;
+						requestSavedGift(slug);
 					}
 				});
 			}
 		} else {
-			requestSavedGift();
+			requestSavedGift(slug);
 		}
 	});
 }
