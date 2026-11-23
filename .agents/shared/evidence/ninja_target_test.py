@@ -22,6 +22,8 @@ APP_PLAIN = "CMakeFiles/app.dir/Debug/app/plain.c.o"
 LIB_UTIL = "lib dir/CMakeFiles/objlib.dir/Debug/util.cpp.o"
 LIB_COMMON = "lib dir/CMakeFiles/objlib.dir/Debug/__/shared/common.cpp.o"
 TOOL_COMMON = "CMakeFiles/tool.dir/Debug/shared/common.cpp.o"
+INIT_OBJECT = "lib dir/CMakeFiles/initlib.dir/init.cpp.o"
+INIT_OPERAND = "lib dir/CMakeFiles/initlib.dir/./init.cpp.o"
 APP_HEADER = "CMakeFiles/app.dir/Debug/cmake_pch.hxx"
 LIB_HEADER = "lib dir/CMakeFiles/objlib.dir/Debug/cmake_pch.hxx"
 APP_RULE = "CXX_COMPILER__app_unscanned_Debug"
@@ -361,6 +363,18 @@ class LinkGrammarTests(unittest.TestCase):
 			build=build)
 		self.assertEqual(link.objects, ["a.o"])
 
+	def test_dot_components_name_the_graph_node(self):
+		link = self.parse(
+			"c++ a/./b.o ./c.o /work/out/d/./e.o f.o libz.a -o Debug/app")
+		self.assertEqual(link.objects, ["a/b.o", "c.o", "d/e.o", "f.o"])
+		self.assertEqual(
+			link.canonicalized,
+			[
+				("a/./b.o", "a/b.o"),
+				("./c.o", "c.o"),
+				("/work/out/d/./e.o", "d/e.o"),
+			])
+
 	def test_refusals(self):
 		cases = (
 			("c++ a.o @CMakeFiles/app.rsp -o Debug/app",
@@ -374,6 +388,9 @@ class LinkGrammarTests(unittest.TestCase):
 			("cd relative && c++ a.o -o Debug/app", "unsupported cd form"),
 			("c++ a.o -o Debug/app -o Debug/app", "several -o"),
 			("c++ a/../a.o -o Debug/app", "'..' component"),
+			("c++ a//a.o -o Debug/app", "empty or '..' component"),
+			("c++ .//a.o -o Debug/app", "empty or '..' component"),
+			("c++ a/./../a.o -o Debug/app", "'..' component"),
 		)
 		for command, message in cases:
 			with self.subTest(command=command):
@@ -486,6 +503,9 @@ class CompileGrammarTests(unittest.TestCase):
 			("c++ -o o.o -c a.cpp && :", "not a single command"),
 			("/usr/bin/cl.exe -o o.o -c a.cpp", "unsupported compiler driver"),
 			("c++ -D1BAD -o o.o -c a.cpp", "unsupported definition"),
+			("c++ -o x/./o.o -c a.cpp",
+				"unsupported object path 'x/./o.o': empty, '.' or '..' "
+				"component"),
 		)
 		for command, message in cases:
 			with self.subTest(command=command):
@@ -828,6 +848,36 @@ class HandwrittenManifestTests(unittest.TestCase):
 						re.escape(message)):
 					resolve_tree(tree, *base_args(tree))
 
+	def test_dot_operand_resolves_to_its_producer(self):
+		tree = self.tree()
+		tree.add_object(INIT_OBJECT, LIB_RULE, tree.source("lib dir/init.cpp"),
+			LIB_DEFINES)
+		tree.edges["Debug/app"]["implicit"].append(INIT_OPERAND)
+		tree.link_vars()["LINK_LIBRARIES"] += " " + shlex.quote(INIT_OPERAND)
+		tree.write()
+		result = resolve_tree(
+			tree,
+			*base_args(tree),
+			"--select-object", INIT_OBJECT)
+		self.assertEqual(result["verdict"], "PASS")
+		objects = result["objects"]
+		self.assertEqual(
+			objects["canonicalized"],
+			[{"operand": INIT_OPERAND, "object": INIT_OBJECT}])
+		self.assertEqual(
+			[item["object"] for item in objects["list"]],
+			[APP_MAIN, APP_COMMON, APP_PLAIN, LIB_UTIL, tree.prebuilt,
+				INIT_OBJECT])
+		selection = next(
+			item
+			for item in result["selections"]
+			if item["object"] == INIT_OBJECT)
+		self.assertEqual(
+			(selection["edge"], selection["rule"], selection["source"],
+				selection["pch"], selection["external"]),
+			("implicit", LIB_RULE, tree.source("lib dir/init.cpp"), None,
+				False))
+
 	def test_configured_dir_that_is_another_local_dir_refuses(self):
 		other = os.path.join(self.temporary.name, "other")
 		os.makedirs(other)
@@ -899,9 +949,17 @@ class HandwrittenManifestTests(unittest.TestCase):
 				link_libraries(APP_MAIN), None,
 				f"duplicate object operand in link command for Debug/app: "
 				f"['{APP_MAIN}']"),
+			("dot operand duplicating an object",
+				link_libraries("CMakeFiles/app.dir/Debug/./app/main.cpp.o"), None,
+				f"duplicate object operand in link command for Debug/app: "
+				f"['{APP_MAIN}']"),
 			("graph input missing from argv", drop_prebuilt, None,
 				"missing link entry for graph input(s) of Debug/app"),
 			("substituted sibling object", link_libraries(TOOL_COMMON), None,
+				f"substituted or extra link operand {TOOL_COMMON}: not an"),
+			("dot operand naming a sibling object",
+				link_libraries("CMakeFiles/tool.dir/Debug/./shared/common.cpp.o"),
+				None,
 				f"substituted or extra link operand {TOOL_COMMON}: not an"),
 			("object only order-only", order_only_sibling, None,
 				f"substituted or extra link operand {TOOL_COMMON} "
@@ -1070,6 +1128,7 @@ option(FX_DISABLE_FEATURE "Disable the fixture feature" OFF)
 option(FX_DUPLICATE_OBJECT "Link the object library objects twice" OFF)
 set(FX_PREBUILT_OBJECT "" CACHE FILEPATH "Prebuilt plugin-init analogue")
 add_subdirectory("lib dir")
+add_subdirectory(plugin)
 add_executable(fx_tool tool/main.cpp shared/common.cpp)
 target_compile_definitions(fx_tool PRIVATE FX_TOOL_POLICY)
 target_precompile_headers(fx_tool PRIVATE
@@ -1082,7 +1141,7 @@ target_precompile_headers(fx_app PRIVATE
 if (FX_DISABLE_FEATURE)
 	target_compile_definitions(fx_app PRIVATE FX_FEATURE_DISABLED)
 endif()
-target_link_libraries(fx_app PRIVATE fx_objlib "${FX_PREBUILT_OBJECT}")
+target_link_libraries(fx_app PRIVATE fx_objlib fx_plugin "${FX_PREBUILT_OBJECT}")
 if (FX_DUPLICATE_OBJECT)
 	add_library(fx_extra OBJECT "lib dir/extra.cpp")
 	target_link_libraries(fx_app PRIVATE fx_extra "$<TARGET_OBJECTS:fx_extra>")
@@ -1097,6 +1156,13 @@ target_precompile_headers(fx_objlib PRIVATE objlib_pch.h)
 	"lib dir/extra.cpp": "extern \"C\" int fx_extra_value() { return 5; }\n",
 	"lib dir/util.cpp": (
 		"extern \"C\" int fx_objlib_value() { return FX_OBJLIB_POLICY; }\n"),
+	"plugin/CMakeLists.txt": """add_library(fx_plugin STATIC plugin.cpp)
+add_library(fx_plugin_init OBJECT init.cpp)
+target_link_libraries(fx_plugin INTERFACE fx_plugin_init $<TARGET_OBJECTS:fx_plugin_init>)
+""",
+	"plugin/plugin.cpp": "extern \"C\" int fx_plugin_value() { return 0; }\n",
+	"plugin/init.cpp": (
+		"extern \"C\" int fx_plugin_init_marker() { return 6; }\n"),
 	"shared/common.cpp": """#ifdef FX_APP_POLICY
 #if FX_LEVEL != 2
 #error FX_LEVEL must be 2 in fx_app
@@ -1127,6 +1193,9 @@ FX_APP_COMMON = "CMakeFiles/fx_app.dir/Debug/shared/common.cpp.o"
 FX_TOOL_COMMON = "CMakeFiles/fx_tool.dir/Debug/shared/common.cpp.o"
 FX_APP_PCH = "CMakeFiles/fx_app.dir/Debug/cmake_pch.hxx.pch"
 FX_OBJLIB_PCH = "lib dir/CMakeFiles/fx_objlib.dir/Debug/cmake_pch.hxx.pch"
+FX_PLUGIN_INIT = "plugin/CMakeFiles/fx_plugin_init.dir/Debug/init.cpp.o"
+FX_SINGLE_PLUGIN_INIT = "plugin/CMakeFiles/fx_plugin_init.dir/init.cpp.o"
+FX_SINGLE_PLUGIN_OPERAND = "plugin/CMakeFiles/fx_plugin_init.dir/./init.cpp.o"
 
 
 class CompiledFixtureTests(unittest.TestCase):
@@ -1159,21 +1228,23 @@ class CompiledFixtureTests(unittest.TestCase):
 		cls.check([
 			shutil.which("c++"), "-c", prebuilt_source, "-o", cls.prebuilt])
 		cls.trees = {}
+		multi = "Ninja Multi-Config"
 		variants = (
-			("off", ["-DFX_DISABLE_FEATURE=OFF"], True),
-			("on", ["-DFX_DISABLE_FEATURE=ON"], True),
-			("rsp", [
+			("off", multi, ["-DFX_DISABLE_FEATURE=OFF"], True),
+			("on", multi, ["-DFX_DISABLE_FEATURE=ON"], True),
+			("rsp", multi, [
 				"-DFX_DISABLE_FEATURE=ON",
 				"-DCMAKE_NINJA_FORCE_RESPONSE_FILE=ON",
 			], False),
-			("duplicate", ["-DFX_DUPLICATE_OBJECT=ON"], False),
+			("duplicate", multi, ["-DFX_DUPLICATE_OBJECT=ON"], False),
+			("single", "Ninja", ["-DCMAKE_BUILD_TYPE=Debug"], False),
 		)
 		try:
-			for name, arguments, build in variants:
+			for name, generator, arguments, build in variants:
 				build_dir = os.path.join(root, f"build {name}")
 				cls.check([
 					"cmake",
-					"-G", "Ninja Multi-Config",
+					"-G", generator,
 					f"-DCMAKE_MAKE_PROGRAM={shutil.which('ninja')}",
 					f"-DFX_PREBUILT_OBJECT={cls.prebuilt}",
 					*arguments,
@@ -1204,12 +1275,13 @@ class CompiledFixtureTests(unittest.TestCase):
 				f"{argv} failed with exit {result.returncode}:\n{result.stdout}")
 		return result.stdout
 
-	def resolve(self, variant, *extra):
+	def resolve(self, variant, *extra, manifest="build-Debug.ninja",
+			target="Debug/fx_app"):
 		argv = [
 			"--build-dir", self.trees[variant],
-			"--manifest", "build-Debug.ninja",
+			"--manifest", manifest,
 			"--config", "Debug",
-			"--target", "Debug/fx_app",
+			"--target", target,
 			"--ninja", shutil.which("ninja"),
 			*extra,
 		]
@@ -1247,6 +1319,10 @@ class CompiledFixtureTests(unittest.TestCase):
 		self.assertEqual(result["objects"]["external"], [self.prebuilt])
 		records = {item["object"]: item for item in result["objects"]["list"]}
 		self.assertIsNone(records["CMakeFiles/fx_app.dir/Debug/app/plain.c.o"]["pch"])
+		self.assertEqual(result["objects"]["canonicalized"], [])
+		self.assertEqual(
+			records[FX_PLUGIN_INIT]["rule"],
+			"CXX_COMPILER__fx_plugin_init_unscanned_Debug")
 		build_dir = self.trees["off"]
 		mapping = result["build"]["path_mapping"]
 		if os.path.realpath(build_dir) == build_dir:
@@ -1302,6 +1378,28 @@ class CompiledFixtureTests(unittest.TestCase):
 			[item["object"] for item in rsp["objects"]["list"]],
 			[item["object"] for item in on["objects"]["list"]])
 		self.assertEqual(rsp["selections"], on["selections"])
+
+	def test_single_config_dot_operand_resolves_to_its_producer(self):
+		result = self.resolve(
+			"single",
+			*self.app_args(),
+			"--select-object", FX_SINGLE_PLUGIN_INIT,
+			manifest="build.ninja",
+			target="fx_app")
+		self.assertEqual(result["verdict"], "PASS")
+		self.assertEqual(
+			result["objects"]["canonicalized"],
+			[{
+				"operand": FX_SINGLE_PLUGIN_OPERAND,
+				"object": FX_SINGLE_PLUGIN_INIT,
+			}])
+		selection = result["selections"][0]
+		self.assertEqual(
+			(selection["object"], selection["edge"], selection["rule"],
+				selection["source"]),
+			(FX_SINGLE_PLUGIN_INIT, "implicit",
+				"CXX_COMPILER__fx_plugin_init_unscanned_Debug",
+				os.path.join(self.source_dir, "plugin/init.cpp")))
 
 	def test_duplicate_object_variant_refuses(self):
 		with self.assertRaisesRegex(

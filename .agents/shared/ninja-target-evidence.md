@@ -65,8 +65,10 @@ values of requested defined macros, so never pass `TDESKTOP_API_ID` or
 `TDESKTOP_API_HASH`. Other options: `--ninja PATH`, repeated `--select-object PATH`,
 `--expect-undefined NAME`, `--expect-defined NAME=VALUE`. A single-config
 `Ninja` tree uses `--manifest build.ninja` with `--config` equal to
-`CMAKE_BUILD_TYPE`. Selectors are exact graph spellings: build-relative object
-paths (`Telegram/CMakeFiles/Telegram.dir/Debug/SourceFiles/core/update_verify.cpp.o`)
+`CMAKE_BUILD_TYPE`, and its outputs have no configuration directory
+(`--target Telegram.app/Contents/MacOS/Telegram` on macOS). Selectors are
+exact graph spellings: build-relative object paths
+(`Telegram/CMakeFiles/Telegram.dir/Debug/SourceFiles/core/update_verify.cpp.o`)
 and absolute source paths as the graph spells them. A basename is refused.
 
 Exit 0 prints a JSON report with `verdict: "PASS"`; any refusal or unmet
@@ -78,7 +80,10 @@ interpret.
 - `objects`: consumed object count, counts by graph edge kind (`explicit`,
   `implicit`) and producer rule, `external` objects with no producer in the
   graph (prebuilt Qt plugin-init objects), and with `--list-objects` the
-  ordered list with source, rule and PCH per object.
+  ordered list with source, rule and PCH per object. `canonicalized` lists
+  each link operand spelled with `.` components and the graph node it names
+  (`operand`, `object`); it is empty when the link line spells every object
+  canonically, as on Multi-Config trees.
 - `selections`: each selected object; `--select-source` also lists
   `excluded_siblings`, the same source's objects this target does not consume,
   with their rule and graph consumers (for example Packer's copy with consumer
@@ -109,6 +114,13 @@ build directory); GCC/Clang drivers with an optional `ccache`/`sccache`
 launcher; clang `-Xclang -include-pch`/`-emit-pch` and GCC `-include` + `.gch`
 PCH dialects; response files expanded by `ninja -t compdb -x`; ordered
 `-DNAME[=V]`, `-D NAME`, `-UNAME`, `-U NAME` (later wins, `-DX=0` is defined).
+A link object operand may have `.` components, which a single-config `Ninja`
+tree writes for a `$<TARGET_OBJECTS:...>` item of a link library list
+(`<dir>/CMakeFiles/<target>.dir/./<source>.o`; the macOS `Telegram` link
+carries the kimageformats plugin-init object this way). Its `.` components are
+dropped, as Ninja drops them when it loads the manifest, and the node it then
+names must be an explicit or implicit graph input of the edge like any other
+operand. It is reported under `objects.canonicalized`.
 
 Refused with a message: other shell operators, `$`, backticks, newlines, a
 quoted `"&&"`; unexpanded `@file`; unknown link operands (including a `.pch`
@@ -119,9 +131,18 @@ inputs missing from the link line; producer output/source mismatches;
 non-compile producers; PCHs used but not graph inputs (a GCC `-Winvalid-pch`
 command counts as PCH use), or graph inputs not used, or produced by another
 target's rule (`REUSE_FROM`); `-imacros`, `-Wp,-D`, `-Xpreprocessor`,
-`-Xclang -D`; a non-PCH forced include when a macro is requested; MSVC,
-Xcode and other generators. A real graph that needs more grammar is recorded
-as a refusal, not widened in place.
+`-Xclang -D`; a non-PCH forced include when a macro is requested; a `..` or
+empty component in any object or PCH path; a `.` component anywhere but a link
+object operand (a compile `-o` or a PCH path; a `./` selector is refused as
+non-canonical, because selectors are exact graph spellings); CMake's
+multi-architecture PCH form `-Xarch_<arch> -include<header>`
+(`unsupported include form`), which the objects of a target that keeps
+several `CMAKE_OSX_ARCHITECTURES` carry; MSVC, Xcode and other generators. A
+tree configured with `Telegram/build/build_mac.py`'s `x86_64;arm64` list
+reaches such objects through `Telegram`'s link (`lib_webrtc`'s, for example),
+so its `Telegram` edge is refused; on a tree configured for `arm64` alone the
+same objects used the plain clang PCH form (read on one Release tree). A real
+graph that needs more grammar is recorded as a refusal, not widened in place.
 
 ## Policy cohorts and option contracts
 
@@ -150,7 +171,7 @@ there.
 
 ## Path identity
 
-Paths are compared as exact strings. The only transformation strips the
+Paths are compared as exact strings after two transformations. One strips the
 configured build directory (`CMAKE_CACHEFILE_DIR`) prefix from absolute
 command tokens. Ninja reports its physical working directory, which can differ
 from the configured one: macOS temporary trees (`/tmp` vs `/private/tmp`,
@@ -158,7 +179,11 @@ from the configured one: macOS temporary trees (`/tmp` vs `/private/tmp`,
 a tree configured in a container (`/usr/src/tdesktop/out`) and read on the
 host records `validated_by: "CMakeCache.txt CMAKE_CACHEFILE_DIR"`. A
 configured path that exists locally as a different directory is refused.
-No realpath, basename or suffix matching is used.
+The other then drops the `.` components of a link object operand (`a/./b.o`
+names node `a/b.o`), which is how Ninja names every path it loads. `..` and
+empty components are never resolved but refused: Ninja collapses `..`
+lexically, and that can name a different file than the one the linker opens
+through a symlink. No realpath, basename or suffix matching is used.
 
 ## Raw captures and symbols
 

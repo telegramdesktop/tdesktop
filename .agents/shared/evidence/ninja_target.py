@@ -150,6 +150,7 @@ class LinkCommand:
 	objects: List[str]
 	archives: Dict[str, int]
 	shared_libraries: List[str]
+	canonicalized: List[Tuple[str, str]] = field(default_factory=list)
 
 
 @dataclass
@@ -356,18 +357,19 @@ def identity(token, configured):
 	return token
 
 
-def check_graph_path(path, what):
+def check_graph_path(path, what, dot_components=False):
 	if not path or "\n" in path or "\r" in path:
 		raise NinjaTargetError(f"unsupported {what} path {path!r}")
-	components = path.split("/")
-	if path.startswith("/"):
-		components = components[1:]
+	root = "/" if path.startswith("/") else ""
+	components = path[len(root):].split("/")
+	refused = ("", "..") if dot_components else ("", ".", "..")
+	kinds = "empty or '..'" if dot_components else "empty, '.' or '..'"
 	for component in components:
-		if component in ("", ".", ".."):
+		if component in refused:
 			raise NinjaTargetError(
-				f"unsupported {what} path {path!r}: empty, '.' or '..' "
-				"component")
-	return path
+				f"unsupported {what} path {path!r}: {kinds} component")
+	return root + "/".join(
+		component for component in components if component != ".")
 
 
 def snapshot_manifests(build_dir):
@@ -612,6 +614,7 @@ def parse_link(entry, target, build):
 	launcher, driver, index = split_driver(linker, "linker")
 	output = None
 	objects = []
+	canonicalized = []
 	archives = {}
 	shared = []
 	while index < len(linker):
@@ -633,7 +636,10 @@ def parse_link(entry, target, build):
 			continue
 		operand = build.identity(token)
 		if operand.endswith(OBJECT_SUFFIXES):
-			objects.append(check_graph_path(operand, "object"))
+			path = check_graph_path(operand, "object", dot_components=True)
+			if path != operand:
+				canonicalized.append((token, path))
+			objects.append(path)
 		elif operand.endswith(".a"):
 			archives[operand] = archives.get(operand, 0) + 1
 		elif SHARED_LIBRARY_PATTERN.search(operand):
@@ -648,7 +654,8 @@ def parse_link(entry, target, build):
 		launcher=launcher,
 		objects=objects,
 		archives=archives,
-		shared_libraries=shared)
+		shared_libraries=shared,
+		canonicalized=canonicalized)
 
 
 def parse_definition(kind, text):
@@ -1328,6 +1335,10 @@ def resolve(options, runner=execute):
 		"by_edge": by_edge,
 		"by_rule": by_rule,
 		"external": externals,
+		"canonicalized": [
+			{"operand": operand, "object": path}
+			for operand, path in link.canonicalized
+		],
 	}
 	if options.list_objects:
 		objects["list"] = [
