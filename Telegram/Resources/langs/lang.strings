@@ -3485,19 +3485,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_stories_subtitle_views" = "Permanent View History";
 "lng_premium_stories_about_views" = "Check who opens your stories — even after they expire.";
 
-"lng_premium_stories_subtitle_expiration" = "Expiration Options*";
+"lng_premium_stories_subtitle_expiration" = "Expiration Options";
 "lng_premium_stories_about_expiration" = "Set custom durations like 6 or 48 hours for your stories.";
 
 "lng_premium_stories_subtitle_download" = "Download Stories";
 "lng_premium_stories_about_download" = "Save other people's stories that are not protected.";
 
-"lng_premium_stories_subtitle_caption" = "Longer Captions*";
+"lng_premium_stories_subtitle_caption" = "Longer Captions";
 "lng_premium_stories_about_caption" = "Add 10x longer captions to your stories – up to 2048 characters.";
 
-"lng_premium_stories_subtitle_links" = "Links and Formatting*";
+"lng_premium_stories_subtitle_links" = "Links and Formatting";
 "lng_premium_stories_about_links" = "Add links and formatting to your story captions.";
-
-"lng_premium_stories_about_mobile" = "* Available when posting stories from Telegram apps for iOS and Android.";
 
 // Doubled Limits.
 "lng_premium_double_limits_subtitle_channels" = "Groups and Channels";

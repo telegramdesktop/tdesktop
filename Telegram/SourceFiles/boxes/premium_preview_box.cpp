@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_promo_particles.h"
 #include "ui/rect.h"
+#include "ui/rect_part.h"
 #include "ui/effects/gradient.h"
 #include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
@@ -36,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
-#include "ui/vertical_list.h"
 #include "settings/sections/settings_business.h"
 #include "settings/sections/settings_premium.h"
 #include "lottie/lottie_single_player.h"
@@ -1749,10 +1749,6 @@ void UpgradedStoriesPreviewBox(
 		box,
 		st::defaultPremiumLimits,
 		std::move(entries));
-
-	Ui::AddDividerText(
-		box->verticalLayout(),
-		tr::lng_premium_stories_about_mobile());
 }
 
 void TelegramBusinessPreviewBox(
