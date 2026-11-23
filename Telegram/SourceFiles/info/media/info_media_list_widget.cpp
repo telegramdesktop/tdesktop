@@ -498,7 +498,7 @@ void ListWidget::selectAll() {
 		return;
 	}
 	for (const auto &section : _sections) {
-		for (const auto layout : section.items()) {
+		for (const auto &layout : section.items()) {
 			const auto item = layout->getItem();
 			const auto data = _provider->computeSelectionData(
 				item,
