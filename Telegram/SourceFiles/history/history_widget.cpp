@@ -1790,6 +1790,8 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 	if (!_history) {
 		return;
 	}
+	const auto undoOnClose = !contact.comment.isEmpty()
+		|| _field->textCursor().hasSelection();
 	if (contact.comment.isEmpty()) {
 		supportInsertText(contact.comment);
 	} else {
@@ -1825,10 +1827,12 @@ void HistoryWidget::supportShareContact(Support::Contact contact) {
 		_history,
 		contact,
 		crl::guard(this, submit)));
-	box->boxClosing(
-	) | rpl::on_next([=] {
-		_field->document()->undo();
-	}, lifetime());
+	if (undoOnClose) {
+		box->boxClosing(
+		) | rpl::on_next([=] {
+			_field->document()->undo();
+		}, lifetime());
+	}
 }
 
 void HistoryWidget::scrollToCurrentVoiceMessage(

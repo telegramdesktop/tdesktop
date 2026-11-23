@@ -2509,6 +2509,9 @@ void ChatWidget::supportInsertText(const QString &text) {
 
 void ChatWidget::supportShareContact(Support::Contact contact) {
 	const auto field = _composeControls->fieldForMention();
+	const auto undoOnClose = !contact.comment.isEmpty()
+		|| !field
+		|| field->textCursor().hasSelection();
 	if (contact.comment.isEmpty() || !field) {
 		supportInsertText(contact.comment);
 	} else {
@@ -2540,10 +2543,12 @@ void ChatWidget::supportShareContact(Support::Contact contact) {
 		_history,
 		contact,
 		crl::guard(this, submit)));
-	box->boxClosing(
-	) | rpl::on_next([=] {
-		_composeControls->undoFieldChange();
-	}, lifetime());
+	if (undoOnClose) {
+		box->boxClosing(
+		) | rpl::on_next([=] {
+			_composeControls->undoFieldChange();
+		}, lifetime());
+	}
 }
 
 void ChatWidget::sendRichDraft(
