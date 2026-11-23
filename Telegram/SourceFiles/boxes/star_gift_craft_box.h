@@ -13,6 +13,10 @@ namespace Data {
 struct UniqueGift;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -45,6 +49,7 @@ void ShowCraftLaterError(
 
 [[nodiscard]] bool ShowCraftAddressError(
 	std::shared_ptr<Show> show,
+	not_null<Main::Session*> session,
 	std::shared_ptr<Data::UniqueGift> gift);
 
 } // namespace Ui

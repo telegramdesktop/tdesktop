@@ -159,6 +159,7 @@ public:
 	[[nodiscard]] std::vector<StarsColoring> groupCallColorings() const;
 
 	[[nodiscard]] std::vector<std::vector<int>> craftAttributePermilles() const;
+	[[nodiscard]] bool craftMintedFirstSource() const;
 
 	void refresh(bool force = false);
 

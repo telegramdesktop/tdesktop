@@ -760,4 +760,8 @@ std::vector<std::vector<int>> AppConfig::craftAttributePermilles() const {
 		});
 }
 
+bool AppConfig::craftMintedFirstSource() const {
+	return get<bool>(u"stargifts_craft_minted_first_source"_q, false);
+}
+
 } // namespace Main
