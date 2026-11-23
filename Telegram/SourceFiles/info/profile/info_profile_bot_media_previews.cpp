@@ -126,6 +126,7 @@ private:
 	std::unique_ptr<Api::BotMediaPreviewUpload> _upload;
 	std::optional<QString> _language;
 	std::vector<QString> _languages;
+	base::flat_set<QString> _draftLanguages;
 	base::flat_map<QString, MediaList> _lists;
 	std::shared_ptr<const Data::FileOrigin> _origin;
 	Status _status = Status::Loading;
@@ -287,12 +288,24 @@ void PreviewPage::load() {
 
 void PreviewPage::loaded(Api::BotMediaPreviewList list) {
 	if (_language && _language->isEmpty()) {
+		auto languages = std::vector<QString>();
 		for (auto &code : list.languages) {
 			if (!code.isEmpty()
-				&& !ranges::contains(_languages, code)) {
-				_languages.push_back(std::move(code));
+				&& !ranges::contains(languages, code)) {
+				_draftLanguages.remove(code);
+				languages.push_back(std::move(code));
 			}
 		}
+		languages.insert(
+			end(languages),
+			begin(_draftLanguages),
+			end(_draftLanguages));
+		for (const auto &code : _languages) {
+			if (!ranges::contains(languages, code)) {
+				_lists.remove(code);
+			}
+		}
+		_languages = std::move(languages);
 	}
 	items() = std::move(list.media);
 	_uploadFooterHeight = 0;
@@ -606,6 +619,7 @@ void PreviewPage::switchLanguage(QString language, bool created) {
 		return;
 	}
 	if (created && !ranges::contains(_languages, language)) {
+		_draftLanguages.emplace(language);
 		_languages.push_back(language);
 	}
 	_language = std::move(language);
@@ -750,6 +764,7 @@ void PreviewPage::upload(
 void PreviewPage::finishUpload(
 		std::optional<Medium> published,
 		std::optional<int> replacing) {
+	_draftLanguages.remove(*_language);
 	if (published) {
 		auto &list = items();
 		if (replacing) {
@@ -799,6 +814,7 @@ void PreviewPage::remove(MediaList selected) {
 		if (leave) {
 			const auto code = *_language;
 			_lists.remove(code);
+			_draftLanguages.remove(code);
 			const auto tail = ranges::remove(_languages, code);
 			_languages.erase(tail, end(_languages));
 			switchLanguage(QString());
