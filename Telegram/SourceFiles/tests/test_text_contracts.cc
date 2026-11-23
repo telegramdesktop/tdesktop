@@ -86,6 +86,8 @@ struct InputMethodRow {
 	bool splices = true;
 	Fn<void(not_null<Ui::InputField*>)> setup;
 	Fn<InputMethodAttributes(not_null<Ui::InputField*>)> attributes;
+	bool typed = false;
+	std::optional<TextWithTags> paste;
 };
 
 class BaseIntegration final : public base::Integration {
@@ -725,17 +727,30 @@ void AddRowFailure(
 	};
 }
 
+[[nodiscard]] InputMethodAttributes MimeDataAttributes(QMimeData *payload) {
+	return {
+		QInputMethodEvent::Attribute(
+			QInputMethodEvent::MimeData,
+			0,
+			0,
+			QVariant::fromValue(payload)),
+	};
+}
+
 [[nodiscard]] auto RejectedMimeAt(int position)
 -> Fn<InputMethodAttributes(not_null<Ui::InputField*>)> {
 	return [=](not_null<Ui::InputField*> field) {
-		const auto payload = new RejectedMime(field, position);
-		return InputMethodAttributes{
-			QInputMethodEvent::Attribute(
-				QInputMethodEvent::MimeData,
-				0,
-				0,
-				QVariant::fromValue<QMimeData*>(payload)),
-		};
+		return MimeDataAttributes(new RejectedMime(field, position));
+	};
+}
+
+[[nodiscard]] auto ServicesPayload(TextWithTags payload)
+-> Fn<InputMethodAttributes(not_null<Ui::InputField*>)> {
+	return [=](not_null<Ui::InputField*> field) {
+		const auto data = TextUtilities::MimeDataFromText(
+			TextWithTags(payload)).release();
+		data->setParent(field);
+		return MimeDataAttributes(data);
 	};
 }
 
@@ -768,6 +783,7 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 
 [[nodiscard]] QString CheckInputMethodChanges() {
 	const auto &bold = Ui::InputField::kTagBold;
+	const auto &italic = Ui::InputField::kTagItalic;
 	const auto gap = InputMethodRow{
 		.name = "gap",
 		.initial = { u"abcde"_q },
@@ -782,11 +798,11 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 	limited.name = "gap-limit";
 	limited.maxLength = 5;
 	limited.expected = { u"aWXce"_q };
-	limited.splices = false;
+	limited.changes = u"(3,1,0),(1,1,2)"_q;
 	auto undone = limited;
 	undone.name = "undo-redo";
 	undone.undone = TextWithTags{ u"abcde"_q };
-	undone.changes = u"(3,1,0),(1,1,4),(1,3,3),(1,3,3)"_q;
+	undone.changes = u"(3,1,0),(1,1,2),(1,3,3),(1,3,3)"_q;
 	const auto emptyRelative = InputMethodRow{
 		.name = "empty-relative",
 		.initial = { u"abcXYZ"_q },
@@ -809,8 +825,7 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 		.till = 1,
 		.commit = u"XY"_q,
 		.expected = { u"aXXYcd"_q },
-		.changes = u"(1,0,2)"_q,
-		.splices = false,
+		.changes = u"(1,0,1)"_q,
 		.setup = QueryPasteOnCommand,
 	};
 	auto canPasteBold = canPaste;
@@ -819,7 +834,123 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 	canPasteBold.maxLength = 5;
 	canPasteBold.commit = u"X"_q;
 	canPasteBold.expected = canPasteBold.initial;
-	canPasteBold.changes = u"(1,0,1)"_q;
+	canPasteBold.changes = QString();
+	const auto full = InputMethodRow{
+		.name = "full",
+		.initial = { u"ABCDE"_q },
+		.maxLength = 5,
+		.from = 1,
+		.till = 1,
+		.commit = u"x"_q,
+		.expected = { u"ABCDE"_q },
+	};
+	const auto collapsedQuote = InputMethodRow{
+		.name = "collapsed-quote",
+		.from = 0,
+		.till = 0,
+		.commit = u"x"_q,
+		.expected = {
+			u"x\nP\nQ"_q,
+			{ { 2, 1, Ui::InputField::kTagBlockquoteCollapsed } },
+		},
+		.changes = u"(0,0,2)"_q,
+		.setup = [](not_null<Ui::InputField*> field) {
+			field->setCustomTextContext({});
+			field->setTextWithTags(
+				{
+					u"PQ"_q,
+					{ { 0, 1, Ui::InputField::kTagBlockquoteCollapsed } },
+				},
+				Ui::InputField::HistoryAction::Clear);
+		},
+	};
+	const auto keycap = InputMethodRow{
+		.name = "keycap",
+		.initial = { u"abc\uFE0F\u20E3 tail"_q },
+		.commit = u"#"_q,
+		.expected = { u"abc#\uFE0F\u20E3 tail"_q },
+		.changes = u"(3,2,1)"_q,
+	};
+	const auto keycapSameLength = InputMethodRow{
+		.name = "keycap-same-length",
+		.initial = { u"A\uFE0F\u20E3Z"_q },
+		.from = 1,
+		.till = 1,
+		.commit = u"x1"_q,
+		.expected = { u"Ax1\uFE0F\u20E3Z"_q },
+		.changes = u"(1,2,2)"_q,
+	};
+	const auto mimeRejected = InputMethodRow{
+		.name = "mime-rejected",
+		.initial = { u"aXbcd"_q, { { 1, 1, bold } } },
+		.from = 1,
+		.till = 1,
+		.commit = u"X"_q,
+		.expected = { u"aXXbcd"_q, { { 2, 1, bold } } },
+		.changes = u"(1,0,1)"_q,
+		.splices = false,
+		.attributes = RejectedMimeAt(1),
+	};
+	const auto tagged = TextWithTags{ u"xy"_q, { { 0, 2, italic } } };
+	const auto servicesTagged = InputMethodRow{
+		.name = "services-tagged",
+		.initial = BoldBase(),
+		.from = 4,
+		.till = 6,
+		.commit = u"xy"_q,
+		.expected = {
+			u"ab bxyd cd"_q,
+			{ { 3, 1, bold }, { 4, 2, italic }, { 6, 1, bold } },
+		},
+		.undone = BoldBase(),
+		.changes = u"(4,2,2),(4,2,2),(4,2,2)"_q,
+		.setup = [](not_null<Ui::InputField*> field) {
+			field->setTagMimeProcessor(IdentityMimeTag);
+		},
+		.attributes = ServicesPayload(tagged),
+	};
+	const auto servicesPlain = InputMethodRow{
+		.name = "services-plain",
+		.initial = BoldBase(),
+		.from = 6,
+		.till = 7,
+		.commit = u"x!"_q,
+		.expected = { u"ab bolx! cd"_q, { { 3, 4, bold } } },
+		.changes = u"(6,1,2)"_q,
+		.attributes = ServicesPayload({ u"x!"_q }),
+	};
+	const auto refusedLetter = InputMethodRow{
+		.name = "services-refused-letter",
+		.initial = { u"a\U0001D400Z"_q, { { 1, 2, bold } } },
+		.breakAt = 3,
+		.commit = u"\U0001D401"_q,
+		.expected = { u"a\U0001D400\U0001D401\nZ"_q, { { 1, 4, bold } } },
+		.changes = u"(3,0,2)"_q,
+		.attributes = RejectedMimeAt(3),
+	};
+	auto refusedSpace = refusedLetter;
+	refusedSpace.name = "services-refused-space";
+	refusedSpace.commit = u" "_q;
+	refusedSpace.expected = { u"a\U0001D400 \nZ"_q, { { 1, 2, bold } } };
+	refusedSpace.changes = u"(3,0,1)"_q;
+	const auto typed = [](InputMethodRow row, const char *name) {
+		row.name = name;
+		row.typed = true;
+		return row;
+	};
+	const auto committed = [](InputMethodRow row, const char *name) {
+		row.name = name;
+		row.splices = true;
+		row.attributes = nullptr;
+		return row;
+	};
+	const auto pasted = [&](
+			InputMethodRow row,
+			const char *name,
+			TextWithTags text) {
+		row.paste = std::move(text);
+		return committed(std::move(row), name);
+	};
 	const auto rows = std::vector<InputMethodRow>{
 		{
 			.name = "caret",
@@ -855,38 +986,8 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 				field->setMode(Ui::InputField::Mode::NoNewlines);
 			},
 		},
-		{
-			.name = "full",
-			.initial = { u"ABCDE"_q },
-			.maxLength = 5,
-			.from = 1,
-			.till = 1,
-			.commit = u"x"_q,
-			.expected = { u"ABCDE"_q },
-			.changes = u"(1,0,1)"_q,
-			.splices = false,
-		},
-		{
-			.name = "collapsed-quote",
-			.from = 0,
-			.till = 0,
-			.commit = u"x"_q,
-			.expected = {
-				u"x\nP\nQ"_q,
-				{ { 2, 1, Ui::InputField::kTagBlockquoteCollapsed } },
-			},
-			.changes = u"(0,0,1)"_q,
-			.splices = false,
-			.setup = [](not_null<Ui::InputField*> field) {
-				field->setCustomTextContext({});
-				field->setTextWithTags(
-					{
-						u"PQ"_q,
-						{ { 0, 1, Ui::InputField::kTagBlockquoteCollapsed } },
-					},
-					Ui::InputField::HistoryAction::Clear);
-			},
-		},
+		full,
+		collapsedQuote,
 		{
 			.name = "null-cursor",
 			.initial = { u"abc"_q },
@@ -896,35 +997,9 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 				field->setTextCursor(QTextCursor());
 			},
 		},
-		{
-			.name = "keycap",
-			.initial = { u"abc\uFE0F\u20E3 tail"_q },
-			.commit = u"#"_q,
-			.expected = { u"abc#\uFE0F\u20E3 tail"_q },
-			.changes = u"(3,0,-1)"_q,
-			.splices = false,
-		},
-		{
-			.name = "keycap-same-length",
-			.initial = { u"A\uFE0F\u20E3Z"_q },
-			.from = 1,
-			.till = 1,
-			.commit = u"x1"_q,
-			.expected = { u"Ax1\uFE0F\u20E3Z"_q },
-			.changes = u"(1,0,0)"_q,
-			.splices = false,
-		},
-		{
-			.name = "mime-rejected",
-			.initial = { u"aXbcd"_q, { { 1, 1, bold } } },
-			.from = 1,
-			.till = 1,
-			.commit = u"X"_q,
-			.expected = { u"aXXbcd"_q, { { 2, 1, bold } } },
-			.changes = u"(6,0,1)"_q,
-			.splices = false,
-			.attributes = RejectedMimeAt(1),
-		},
+		keycap,
+		keycapSameLength,
+		mimeRejected,
 		canPaste,
 		canPasteBold,
 		{
@@ -935,8 +1010,7 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 			.till = 2,
 			.commit = u"XX"_q,
 			.expected = { u"aXXcXde"_q },
-			.changes = u"(1,1,0),(4,0,2)"_q,
-			.splices = false,
+			.changes = u"(1,1,0),(4,0,1)"_q,
 			.setup = MoveCaretOnUndoAvailable(5),
 		},
 		{
@@ -948,8 +1022,7 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 			.commit = u"WX"_q,
 			.replacementLength = 3,
 			.expected = { u"acdeWfg"_q },
-			.changes = u"(1,1,0),(4,0,2)"_q,
-			.splices = false,
+			.changes = u"(1,1,0),(4,0,1)"_q,
 			.setup = MoveCaretOnUndoAvailable(5),
 		},
 		{
@@ -962,8 +1035,7 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 			.commit = u"XX"_q,
 			.replacementStart = -2,
 			.expected = { u"aXX\nb"_q },
-			.changes = u"(4,1,0),(2,0,2)"_q,
-			.splices = false,
+			.changes = u"(4,1,0),(2,0,1)"_q,
 			.setup = [](not_null<Ui::InputField*> field) {
 				field->document()->clearUndoRedoStacks();
 			},
@@ -998,10 +1070,22 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 			.maxLength = 11,
 			.commit = u"x"_q,
 			.expected = { u"P\nwrod tail"_q },
-			.changes = u"(3,0,1),(2,0,0)"_q,
-			.splices = false,
+			.changes = u"(2,0,0)"_q,
 			.attributes = MoveToFirstBlock,
 		},
+		typed(full, "full-typed"),
+		typed(collapsedQuote, "collapsed-quote-typed"),
+		typed(keycap, "keycap-typed"),
+		typed(keycapSameLength, "keycap-same-length-typed"),
+		servicesTagged,
+		pasted(servicesTagged, "services-tagged-paste", tagged),
+		servicesPlain,
+		pasted(servicesPlain, "services-plain-paste", { u"x!"_q }),
+		refusedLetter,
+		committed(refusedLetter, "services-refused-letter-commit"),
+		refusedSpace,
+		committed(refusedSpace, "services-refused-space-commit"),
+		committed(mimeRejected, "mime-rejected-commit"),
 	};
 	auto failures = QStringList();
 	for (const auto &row : rows) {
@@ -1017,7 +1101,13 @@ void QueryPasteOnCommand(not_null<Ui::InputField*> field) {
 			changes.push_back({ position, removed, added });
 			documents.push_back(document->toRawText());
 		}, lifetime);
-		SendInputMethod(field, row);
+		if (row.typed) {
+			Insert(field, row.from, row.commit);
+		} else if (row.paste) {
+			Paste(field, row.from, row.till, TextWithTags(*row.paste));
+		} else {
+			SendInputMethod(field, row);
+		}
 		if (row.undone) {
 			field->undo();
 			AddRowFailure(failures, row, ExpectExport(field, *row.undone));
