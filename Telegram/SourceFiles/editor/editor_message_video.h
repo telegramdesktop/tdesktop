@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
+#include "data/data_file_origin.h"
 
 class DocumentData;
 class FileLoader;
@@ -28,7 +29,7 @@ public:
 	explicit MessageVideo(not_null<HistoryItem*> item);
 	MessageVideo(
 		not_null<DocumentData*> document,
-		FullMsgId itemId,
+		Data::FileOrigin origin,
 		int64 sizeLimit);
 	~MessageVideo();
 
@@ -46,7 +47,7 @@ private:
 	void fail();
 
 	const not_null<DocumentData*> _document;
-	const FullMsgId _itemId;
+	const Data::FileOrigin _origin;
 	const int64 _sizeLimit;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<FileLoader> _loader;

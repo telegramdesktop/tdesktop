@@ -216,56 +216,6 @@ void BotMediaPreviews::reorder(
 		true);
 }
 
-void BotMediaPreviews::setCover(
-		const QString &language,
-		not_null<DocumentData*> document,
-		crl::time position,
-		Done done,
-		Fail fail) {
-	using VideoFlag = MTPDdocumentAttributeVideo::Flag;
-	using MediaFlag = MTPDinputMediaUploadedDocument::Flag;
-	const auto silent = document->isSilentVideo();
-	const auto videoFlags = VideoFlag::f_video_start_ts
-		| (document->supportsStreaming()
-			? VideoFlag::f_supports_streaming
-			: VideoFlag())
-		| (silent ? VideoFlag::f_nosound : VideoFlag());
-	const auto attribute = MTP_documentAttributeVideo(
-		MTP_flags(videoFlags),
-		MTP_double(document->duration() / 1000.),
-		MTP_int(document->dimensions.width()),
-		MTP_int(document->dimensions.height()),
-		MTPint(),
-		MTP_double(position / 1000.),
-		MTPstring());
-	const auto mediaFlags = silent
-		? MediaFlag::f_nosound_video
-		: MediaFlag();
-	const auto request = [=] {
-		const auto media = MTP_inputMediaUploadedDocument(
-			MTP_flags(mediaFlags),
-			MTP_inputFileStoryDocument(document->mtpInput()),
-			MTPInputFile(),
-			MTP_string(document->mimeString()),
-			MTP_vector<MTPDocumentAttribute>(1, attribute),
-			MTPVector<MTPInputDocument>(),
-			MTPInputPhoto(),
-			MTPint(),
-			MTPint());
-		return MTPbots_EditPreviewMedia(
-			_bot->inputUser(),
-			MTP_string(language),
-			ToInputMedia(document),
-			media);
-	};
-	sendMutation(
-		request,
-		language,
-		std::move(done),
-		std::move(fail),
-		true);
-}
-
 template <typename Request, typename Callback>
 void BotMediaPreviews::sendMutation(
 		Request request,

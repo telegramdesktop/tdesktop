@@ -98,7 +98,7 @@ private:
 	void setCover(not_null<DocumentData*> document, crl::time position);
 	void chooseMedia(std::optional<Medium> replaced = std::nullopt);
 	void upload(
-		Api::SendStoryMedia media,
+		Api::BotMediaPreviewUpload::Media media,
 		std::optional<Medium> replaced);
 	void finishUpload(
 		std::optional<Medium> published,
@@ -671,16 +671,12 @@ void PreviewPage::open(int index) {
 void PreviewPage::setCover(
 		not_null<DocumentData*> document,
 		crl::time position) {
-	_status = Status::Saving;
-	refreshFooter();
-	const auto fail = [=](QString) {
-		changeFailed(tr::lng_bot_media_previews_save_failed());
+	const auto cover = Api::BotMediaPreviewUpload::VideoCover{
+		.document = document,
+		.origin = origin(),
+		.position = position,
 	};
-	const auto done = [=] {
-		_origin = std::make_shared<Data::FileOrigin>(origin());
-		load();
-	};
-	_api.setCover(*_language, document, position, done, fail);
+	upload(cover, document);
 }
 
 void PreviewPage::chooseMedia(std::optional<Medium> replaced) {
@@ -717,13 +713,15 @@ void PreviewPage::chooseMedia(std::optional<Medium> replaced) {
 }
 
 void PreviewPage::upload(
-		Api::SendStoryMedia media,
+		Api::BotMediaPreviewUpload::Media media,
 		std::optional<Medium> replaced) {
 	if (!_upload) {
 		_upload = std::make_unique<Api::BotMediaPreviewUpload>(_bot);
 	}
-	const auto photo = std::get_if<Api::SendStoryPhoto>(&media);
-	const auto video = std::get_if<Api::SendStoryVideo>(&media);
+	const auto story = std::get_if<Api::SendStoryMedia>(&media);
+	const auto photo = std::get_if<Api::SendStoryPhoto>(story);
+	const auto video = std::get_if<Api::SendStoryVideo>(story);
+	const auto cover = !story;
 	const auto thumbnail = photo
 		? photo->image
 		: video ? video->cover : QImage();
@@ -745,6 +743,10 @@ void PreviewPage::upload(
 			changeFailed(std::move(error));
 		};
 		const auto saved = [=](std::optional<Medium> published) {
+			if (cover) {
+				_origin = std::make_shared<Data::FileOrigin>(
+					origin());
+			}
 			finishUpload(published, replacing);
 		};
 		_api.save(

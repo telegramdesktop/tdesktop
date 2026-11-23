@@ -7,10 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_bot_media_preview_upload.h"
 
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "editor/video/video_clip.h"
+#include "editor/editor_message_video.h"
 #include "main/main_session.h"
 #include "media/media_video_encode.h"
+#include "media/media_video_frames.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
 #include "ui/chat/attach/attach_prepare.h"
@@ -22,7 +26,7 @@ class PrepareTask final : public Task {
 public:
 	PrepareTask(
 		FileLoadTask::Args args,
-		SendStoryMedia media,
+		std::variant<SendStoryMedia, crl::time> source,
 		std::shared_ptr<std::atomic<bool>> cancel,
 		Fn<void(std::shared_ptr<FilePrepareResult>)> done);
 
@@ -30,10 +34,12 @@ public:
 	void finish() override;
 
 private:
+	bool prepareStory(SendStoryMedia &media);
 	bool prepareVideo(const SendStoryVideo &video);
+	bool prepareCover(crl::time position);
 
 	FileLoadTask::Args _args;
-	SendStoryMedia _media;
+	std::variant<SendStoryMedia, crl::time> _source;
 	std::shared_ptr<std::atomic<bool>> _cancel;
 	Fn<void(std::shared_ptr<FilePrepareResult>)> _done;
 	std::shared_ptr<FilePrepareResult> _result;
@@ -42,47 +48,61 @@ private:
 
 PrepareTask::PrepareTask(
 	FileLoadTask::Args args,
-	SendStoryMedia media,
+	std::variant<SendStoryMedia, crl::time> source,
 	std::shared_ptr<std::atomic<bool>> cancel,
 	Fn<void(std::shared_ptr<FilePrepareResult>)> done)
 : _args(std::move(args))
-, _media(std::move(media))
+, _source(std::move(source))
 , _cancel(std::move(cancel))
 , _done(std::move(done)) {
 }
 
 void PrepareTask::process() {
-	using Info = Ui::PreparedFileInformation;
-	if (const auto photo = std::get_if<SendStoryPhoto>(&_media)) {
-		if (photo->image.isNull()) {
-			return;
-		}
-		_args.information = std::make_unique<Info>();
-		_args.information->media = Info::Image{
-			.data = std::move(photo->image),
-		};
-		_args.type = SendMediaType::Photo;
-	} else if (const auto video = std::get_if<SendStoryVideo>(&_media)) {
-		if (!prepareVideo(*video)) {
-			return;
-		}
-		_args.type = SendMediaType::File;
-	} else {
+	const auto ready = v::match(
+		_source,
+		[&](SendStoryMedia &media) { return prepareStory(media); },
+		[&](crl::time position) { return prepareCover(position); });
+	if (!ready) {
 		return;
 	}
 	const auto expected = _args.type;
+	const auto story = v::is<SendStoryMedia>(_source);
 	auto task = FileLoadTask(std::move(_args));
-	task.process();
+	task.process({
+		.allowVideoTranscode = story,
+	});
 	const auto &file = task.peekResult();
 	if (!file || file->type != expected || file->filesize <= 0) {
 		return;
 	}
 	if (expected == SendMediaType::File
 		&& (file->document.type() != mtpc_document
-			|| file->filemime != u"video/mp4"_q)) {
+			|| (story && file->filemime != u"video/mp4"_q))) {
 		return;
 	}
 	_result = file;
+}
+
+bool PrepareTask::prepareStory(SendStoryMedia &media) {
+	using Info = Ui::PreparedFileInformation;
+	if (const auto photo = std::get_if<SendStoryPhoto>(&media)) {
+		if (photo->image.isNull()) {
+			return false;
+		}
+		_args.information = std::make_unique<Info>();
+		_args.information->media = Info::Image{
+			.data = std::move(photo->image),
+		};
+		_args.type = SendMediaType::Photo;
+	} else if (const auto video = std::get_if<SendStoryVideo>(&media)) {
+		if (!prepareVideo(*video)) {
+			return false;
+		}
+		_args.type = SendMediaType::File;
+	} else {
+		return false;
+	}
+	return true;
 }
 
 bool PrepareTask::prepareVideo(const SendStoryVideo &video) {
@@ -108,6 +128,29 @@ bool PrepareTask::prepareVideo(const SendStoryVideo &video) {
 		_args.content,
 		u"video/mp4"_q);
 	return v::is<Info::Video>(_args.information->media);
+}
+
+bool PrepareTask::prepareCover(crl::time position) {
+	using Video = Ui::PreparedFileInformation::Video;
+	auto &video = std::get<Video>(_args.information->media);
+	if (video.duration <= 0 || video.thumbnail.isNull()) {
+		return false;
+	}
+	const auto at = std::clamp(
+		position,
+		crl::time(0),
+		video.duration - 1);
+	auto frame = Media::Video::ExtractFrame(
+		_args.filepath,
+		_args.content,
+		at,
+		video.thumbnail.size());
+	if (frame.isNull()) {
+		return false;
+	}
+	video.thumbnail = std::move(frame);
+	video.modifications.cover = at;
+	return true;
 }
 
 void PrepareTask::finish() {
@@ -173,6 +216,7 @@ BotMediaPreviewUpload::BotMediaPreviewUpload(not_null<UserData*> bot)
 }
 
 BotMediaPreviewUpload::~BotMediaPreviewUpload() {
+	_coverLifetime.destroy();
 	_lifetime.destroy();
 	if (_cancel) {
 		_cancel->store(true);
@@ -183,12 +227,41 @@ BotMediaPreviewUpload::~BotMediaPreviewUpload() {
 }
 
 void BotMediaPreviewUpload::start(
-		SendStoryMedia media,
+		Media media,
 		Fn<void(MTPInputMedia)> done,
 		Fn<void()> fail) {
 	Expects(!_done);
 	_done = std::move(done);
 	_fail = std::move(fail);
+	_coverVideo = nullptr;
+	if (const auto cover = std::get_if<VideoCover>(&media)) {
+		loadCoverVideo(std::move(*cover));
+	} else {
+		prepare(std::get<SendStoryMedia>(std::move(media)));
+	}
+}
+
+void BotMediaPreviewUpload::loadCoverVideo(VideoCover cover) {
+	_coverVideo = std::make_unique<Editor::MessageVideo>(
+		cover.document,
+		std::move(cover.origin),
+		::Media::Encode::MaxTranscodeSourceSize());
+	const auto ready = [=] { return !_coverVideo->loading(); };
+	const auto done = [=, position = cover.position] {
+		if (_coverVideo->source()) {
+			prepare(position);
+		} else {
+			failed();
+		}
+	};
+	_coverVideo->changes(
+	) | rpl::filter(ready) | rpl::take(1) | rpl::on_next(
+		done,
+		_coverLifetime);
+	_coverVideo->load();
+}
+
+void BotMediaPreviewUpload::prepare(Source source) {
 	_cancel = std::make_shared<std::atomic<bool>>(false);
 	if (!_queue) {
 		_queue = std::make_unique<TaskQueue>();
@@ -199,12 +272,33 @@ void BotMediaPreviewUpload::start(
 		.to = { _bot->id, SendOptions(), FullReplyTo(), MsgId() },
 		.sendLargePhotos = true,
 	};
+	if (_coverVideo) {
+		using Info = Ui::PreparedFileInformation;
+		const auto document = _coverVideo->document();
+		const auto video = _coverVideo->source();
+		const auto gif = document->isGifv();
+		args.filepath = video->path;
+		args.content = video->content;
+		args.information = std::make_unique<Info>();
+		args.information->filemime = document->mimeString();
+		args.information->media = Info::Video{
+			.isGifv = gif,
+			.supportsStreaming = document->supportsStreaming(),
+			.hasAudio = video->hasAudio,
+			.duration = video->duration,
+			.thumbnail = video->thumbnail,
+			.modifications = { .gif = gif },
+		};
+		args.type = SendMediaType::File;
+		args.displayName = document->filename();
+		args.temporaryPath = _coverVideo->temporaryPath();
+	}
 	const auto prepared = [=](std::shared_ptr<FilePrepareResult> file) {
 		this->prepared(std::move(file));
 	};
 	auto task = std::make_unique<PrepareTask>(
 		std::move(args),
-		std::move(media),
+		std::move(source),
 		_cancel,
 		prepared);
 	_queue->addTask(std::move(task));
@@ -212,6 +306,8 @@ void BotMediaPreviewUpload::start(
 
 void BotMediaPreviewUpload::prepared(
 		std::shared_ptr<FilePrepareResult> file) {
+	_coverLifetime.destroy();
+	_coverVideo = nullptr;
 	if (!file) {
 		failed();
 		return;

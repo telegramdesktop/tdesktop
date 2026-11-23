@@ -53,13 +53,6 @@ public:
 		std::vector<BotPreviewMedia> order,
 		Done done,
 		Fail fail);
-	void setCover(
-		const QString &language,
-		not_null<DocumentData*> document,
-		crl::time position,
-		Done done,
-		Fail fail);
-
 private:
 	[[nodiscard]] std::vector<BotPreviewMedia> parse(
 		const MTPVector<MTPBotPreviewMedia> &list) const;

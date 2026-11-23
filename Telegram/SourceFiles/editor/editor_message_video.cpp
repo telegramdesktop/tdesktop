@@ -85,10 +85,10 @@ MessageVideo::MessageVideo(not_null<HistoryItem*> item)
 
 MessageVideo::MessageVideo(
 	not_null<DocumentData*> document,
-	FullMsgId itemId,
+	Data::FileOrigin origin,
 	int64 sizeLimit)
 : _document(document)
-, _itemId(itemId)
+, _origin(std::move(origin))
 , _sizeLimit(sizeLimit) {
 }
 
@@ -114,10 +114,9 @@ void MessageVideo::load() {
 		waitForLoader();
 		return;
 	}
-	const auto origin = Data::FileOrigin(_itemId);
 	auto reader = _document->owner().streaming().sharedReader(
 		_document,
-		origin,
+		_origin,
 		true);
 	_temporaryPath = reader ? MakeTempVideo(_document) : nullptr;
 	if (!_temporaryPath) {
@@ -126,7 +125,7 @@ void MessageVideo::load() {
 	}
 	_loader = _document->createStreamedDownloader(
 		std::move(reader),
-		origin,
+		_origin,
 		std::nullopt,
 		*_temporaryPath,
 		LoadToFileOnly,
