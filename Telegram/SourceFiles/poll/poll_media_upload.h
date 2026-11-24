@@ -10,9 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "mtproto/sender.h"
 #include "storage/localimageloader.h"
-#include "ui/dynamic_image.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/widgets/buttons.h"
+#include "ui/dynamic_image.h"
 
 struct FilePrepareResult;
 

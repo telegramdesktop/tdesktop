@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "poll/poll_link_thumbnail.h"
 
 #include "ui/painter.h"
+
 #include "styles/style_polls.h"
 
 namespace Poll {
