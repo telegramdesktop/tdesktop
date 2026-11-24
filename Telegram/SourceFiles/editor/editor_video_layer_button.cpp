@@ -21,7 +21,7 @@ namespace Editor {
 namespace {
 
 constexpr auto kTooltipDelay = crl::time(1000);
-constexpr auto kBadgeHaloTopLeft = QPointF(12., 11.);
+constexpr auto kBadgeHaloTopLeft = QPointF(13.5, 12.25);
 constexpr auto kBadgeHaloSide = 15.;
 constexpr auto kIconViewBoxSide = 24.;
 
