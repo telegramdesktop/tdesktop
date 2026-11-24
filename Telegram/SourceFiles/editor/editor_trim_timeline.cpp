@@ -27,6 +27,7 @@ constexpr auto kZoomStep = 1.2;
 constexpr auto kZoomSnap = 0.001;
 constexpr auto kMinVisibleSpan = crl::time(2000);
 constexpr auto kMinSelection = crl::time(100);
+constexpr auto kCompactZoom = 4;
 constexpr auto kCompactHandleSpans = 3;
 constexpr auto kEdgeScrollFrame = crl::time(16);
 constexpr auto kEdgeScrollSpeed = 9.; // Per second per pixel of overshoot.
@@ -531,7 +532,13 @@ void TrimTimeline::setSizeLabel(const QString &text) {
 }
 
 float64 TrimTimeline::maxZoom() const {
-	return std::max(_duration / float64(kMinVisibleSpan), 1.);
+	const auto span = _trimOnly
+		? std::clamp(
+			_duration / kCompactZoom,
+			kMinSelection,
+			kMinVisibleSpan)
+		: kMinVisibleSpan;
+	return std::max(_duration / float64(span), 1.);
 }
 
 bool TrimTimeline::setVisibleRange(float64 zoom, float64 from) {
