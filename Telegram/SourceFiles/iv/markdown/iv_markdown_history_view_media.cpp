@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_history_view_media.h"
 
-#include "iv/markdown/iv_markdown_article.h"
-#include "base/unixtime.h"
 #include "base/flat_set.h"
+#include "base/unixtime.h"
+#include "iv/markdown/iv_markdown_article.h"
 #include "iv/markdown/iv_markdown_media_block.h"
 #include "iv/markdown/iv_markdown_slideshow_chrome.h"
 
@@ -23,9 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unordered_set>
 
 #include "settings.h"
-#include "ui/effects/animations.h"
-#include "ui/image/image_location.h"
-#include "data/data_types.h"
+
+// History headers use rtl() from settings.h.
 #include "data/data_auto_download.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -34,24 +33,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
-#include "history/history.h"
-#include "history/history_item.h"
+#include "data/data_types.h"
 #include "history/admin_log/history_admin_log_item.h"
-#include "history/history_location_manager.h"
-#include "history/view/history_view_cursor_state.h"
-#include "history/history_view_top_toast.h"
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_message.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_media_grouped.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
+#include "history/view/history_view_message.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_location_manager.h"
+#include "history/history_view_top_toast.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "ui/basic_click_handlers.h"
-#include "window/window_session_controller.h"
-
 #include "rpl/event_stream.h"
 #include "rpl/filter.h"
 #include "rpl/lifetime.h"
+#include "ui/effects/animations.h"
+#include "ui/image/image_location.h"
+#include "ui/basic_click_handlers.h"
+#include "window/window_session_controller.h"
 
 #include <utility>
 

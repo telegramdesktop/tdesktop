@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_page_blocks.h"
 #include "iv/editor/iv_editor_page_list.h"
 #include "iv/editor/iv_editor_page_path.h"
-#include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare.h"
+#include "iv/iv_rich_page.h"
 
 #include <memory>
 #include <optional>

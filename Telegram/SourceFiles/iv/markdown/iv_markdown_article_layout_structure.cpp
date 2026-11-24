@@ -6,8 +6,8 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_layout_structure.h"
-#include "iv/markdown/iv_markdown_article_text.h"
 
+#include "iv/markdown/iv_markdown_article_text.h"
 #include "lang/lang_keys.h"
 #include "ui/text/text_renderer.h" // Ui::Text::kQuoteCollapsedLines
 

@@ -11,11 +11,11 @@ struct GeoPointLocation;
 
 #include "base/algorithm.h"
 #include "data/data_location.h"
+#include "history/history_location_manager.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
 #include "ui/basic_click_handlers.h"
-#include "history/history_location_manager.h"
 
 #include <algorithm>
 #include <limits>

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "window/main_window.h"
 #include "window/window_controller.h"
+
 #include "styles/style_window.h"
 
 #include <QtGui/QGuiApplication>

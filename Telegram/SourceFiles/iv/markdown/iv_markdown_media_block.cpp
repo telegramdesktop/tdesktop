@@ -11,10 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_article_layout_blocks.h"
 #include "iv/markdown/iv_markdown_prepare.h"
 #include "lang/lang_keys.h"
-
 #include "rpl/lifetime.h"
-
 #include "styles/palette.h"
+
 #include "styles/style_iv.h"
 
 #include <algorithm>

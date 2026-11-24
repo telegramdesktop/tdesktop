@@ -7,10 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/editor/iv_editor_text_entities.h"
 
-#include "ui/text/text_utilities.h"
-
-#include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
+#include "iv/markdown/iv_markdown_prepare_serialize.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"
 
 #include <algorithm>

@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_prepare_inline.h"
+
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "ui/basic_click_handlers.h"

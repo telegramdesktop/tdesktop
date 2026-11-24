@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_common.h"
+
 #include "base/basic_types.h"
 
 #include <QtCore/QFileInfo>

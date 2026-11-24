@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_rich_message_serializer.h"
 
 #include "base/flat_map.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "iv/markdown/iv_markdown_prepare.h"

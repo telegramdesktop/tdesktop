@@ -8,10 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/markdown/iv_markdown_common.h"
-
 #include "ui/chat/message_bubble.h"
-#include "ui/click_handler.h"
 #include "ui/text/text_entity.h"
+#include "ui/click_handler.h"
 
 #include <memory>
 #include <vector>

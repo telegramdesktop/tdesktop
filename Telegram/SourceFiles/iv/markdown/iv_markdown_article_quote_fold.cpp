@@ -5,9 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "iv/markdown/iv_markdown_article_layout_blocks.h"
-
 #include "base/algorithm.h"
+#include "iv/markdown/iv_markdown_article_layout_blocks.h"
 #include "ui/text/text_renderer.h"
 
 namespace Iv::Markdown {

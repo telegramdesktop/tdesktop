@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_controller.h"
+
 #include "base/event_filter.h"
 #include "core/click_handler_types.h"
 #include "core/credits_amount.h"
@@ -17,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_search_controller.h"
 #include "iv/iv_zoom_controls.h"
 #include "lang/lang_keys.h"
+#include "logs.h"
+#include "styles/palette.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/show.h"
 #include "ui/widgets/buttons.h"
@@ -26,9 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/rp_window.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/ui_utility.h"
-#include "logs.h"
 
-#include "styles/palette.h"
 #include "styles/style_iv.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_window.h"

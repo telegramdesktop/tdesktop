@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "iv/markdown/iv_markdown_microtex.h"
-
 #include "base/basic_types.h"
+#include "iv/markdown/iv_markdown_microtex.h"
 
 #include <QtCore/QSize>
 #include <QtCore/QString>

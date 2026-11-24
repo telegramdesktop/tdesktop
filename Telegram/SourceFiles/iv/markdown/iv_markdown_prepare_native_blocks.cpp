@@ -6,9 +6,10 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_prepare_native_blocks.h"
+
 #include "base/unixtime.h"
-#include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 
 #include <algorithm>

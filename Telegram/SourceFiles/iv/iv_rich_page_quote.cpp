@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_rich_page_quote.h"
 
 #include "base/algorithm.h"
-#include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare_native_blocks.h"
+#include "iv/iv_rich_page.h"
 
 #include <algorithm>
 #include <limits>

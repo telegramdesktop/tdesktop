@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_text.h"
+
 #include "api/api_bot.h"
 #include "base/weak_ptr.h"
 #include "core/click_handler_types.h"
@@ -14,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
 #include "lang/lang_keys.h"
+#include "styles/palette.h"
 #include "ui/effects/animation_value.h"
 #include "ui/style/style_core.h"
 #include "ui/style/style_core_scale.h"
@@ -25,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/integration.h"
 #include "ui/painter.h"
 
-#include "styles/palette.h"
 #include "styles/style_iv.h"
 
 #include <algorithm>

@@ -6,9 +6,10 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_view.h"
+
+#include "base/platform/base_platform_info.h"
 #include "base/algorithm.h"
 #include "base/weak_ptr.h"
-#include "base/platform/base_platform_info.h"
 #include "core/click_handler_types.h"
 #include "core/credits_amount.h"
 #include "core/file_utilities.h"
@@ -18,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_view_widget.h"
 #include "iv/iv_delegate.h"
 #include "lang/lang_keys.h"
+#include "logs.h"
 #include "ui/controls/jump_down_button.h"
 #include "ui/effects/animations.h"
 #include "ui/layers/generic_box.h"
@@ -25,16 +27,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_core_scale.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/elastic_scroll.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/selecting_scroll.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/integration.h"
 #include "ui/rect.h"
-#include "logs.h"
 
-#include "styles/style_iv.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_iv.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
 

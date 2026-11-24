@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_search_controller.h"
 
 #include "base/invoke_queued.h"
-#include "iv/iv_search_bar.h"
 #include "iv/markdown/iv_markdown_article.h"
+#include "iv/iv_search_bar.h"
 #include "logs.h"
 
 #include <algorithm>

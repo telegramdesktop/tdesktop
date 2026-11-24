@@ -6,13 +6,13 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_layout_blocks.h"
-#include "iv/markdown/iv_markdown_media_block.h"
+
 #include "iv/markdown/iv_markdown_article_text.h"
+#include "iv/markdown/iv_markdown_media_block.h"
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "iv/markdown/iv_markdown_prepare_serialize.h"
-#include "spellcheck/spellcheck_highlight_syntax.h"
-
 #include "lang/lang_keys.h"
+#include "spellcheck/spellcheck_highlight_syntax.h"
 
 #include "styles/style_chat.h"
 #include "styles/style_iv.h"

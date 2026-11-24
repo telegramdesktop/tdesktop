@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/editor/iv_editor_state.h"
+
 #include "iv/editor/iv_editor_page_media.h"
 #include "iv/editor/iv_editor_page_table_grid.h"
 #include "iv/editor/iv_editor_page_table_remove.h"

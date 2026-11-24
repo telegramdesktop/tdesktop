@@ -6,22 +6,23 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_paint.h"
+
 #include "iv/markdown/iv_markdown_article.h"
 #include "iv/markdown/iv_markdown_article_quote.h"
 #include "iv/markdown/iv_markdown_article_text.h"
-#include "ui/dynamic_image.h"
+#include "styles/palette.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/toggle_arrow.h"
-#include "ui/integration.h"
 #include "ui/style/style_core_scale.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/dynamic_image.h"
+#include "ui/integration.h"
 #include "ui/round_rect.h"
 
-#include "styles/palette.h"
 #include "styles/style_chat.h"
 #include "styles/style_iv.h"
-#include "styles/style_window.h"
 #include "styles/style_widgets.h"
+#include "styles/style_window.h"
 
 #include <QtGui/QPainterPath>
 

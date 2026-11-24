@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/flags.h"
 #include "base/basic_types.h"
+#include "base/flags.h"
 #include "base/object_ptr.h"
 #include "ui/widgets/rp_window.h"
 

@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_article_selection.h"
+
 #include "iv/markdown/iv_markdown_prepare_links.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/fields/input_field.h"

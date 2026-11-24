@@ -9,11 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/ui/dialogs_pill.h"
 #include "iv/editor/iv_editor_box.h"
+#include "styles/palette.h"
+#include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/widgets/buttons.h"
 
-#include "styles/palette.h"
 #include "styles/style_iv.h"
 
 namespace Iv::Editor {

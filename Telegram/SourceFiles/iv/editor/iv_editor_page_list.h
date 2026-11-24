@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/editor/iv_editor_clipboard.h"
-#include "iv/iv_rich_page.h"
 #include "iv/markdown/iv_markdown_prepare.h"
+#include "iv/iv_rich_page.h"
 
 #include <optional>
 #include <vector>

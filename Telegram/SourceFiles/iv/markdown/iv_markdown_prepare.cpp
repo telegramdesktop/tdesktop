@@ -6,12 +6,13 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_prepare.h"
-#include "iv/iv_rich_page.h"
+
 #include "iv/markdown/iv_markdown_prepare_blocks.h"
 #include "iv/markdown/iv_markdown_prepare_formulas.h"
 #include "iv/markdown/iv_markdown_prepare_native_blocks.h"
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
 #include "iv/markdown/iv_markdown_prepare_state.h"
+#include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 
 #include <QtCore/QElapsedTimer>

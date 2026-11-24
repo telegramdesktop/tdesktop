@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_button_row.h"
+
 #include "api/api_bot.h"
 #include "base/weak_ptr.h"
 #include "core/click_handler_types.h"

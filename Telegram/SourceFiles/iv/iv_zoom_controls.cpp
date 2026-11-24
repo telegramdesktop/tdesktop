@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_key_modifiers.h"
 #include "iv/iv_delegate.h"
 #include "lang/lang_keys.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu.h"
 #include "ui/widgets/menu/menu_action.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/rect.h"
+
 #include "styles/style_iv.h"
 #include "styles/style_widgets.h"
 

@@ -7,19 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/unique_qptr.h"
 #include "base/flat_map.h"
+#include "base/unique_qptr.h"
 #include "iv/editor/iv_editor_button_box.h"
 #include "iv/editor/iv_editor_clipboard_import.h"
 #include "iv/editor/iv_editor_insert_suggestions.h"
 #include "iv/editor/iv_editor_state.h"
 #include "iv/markdown/iv_markdown_article.h"
+#include "rpl/lifetime.h"
 #include "ui/style/style_core_types.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/dragging_scroll_manager.h"
 #include "ui/rp_widget.h"
-#include "rpl/lifetime.h"
 
 #include <rpl/event_stream.h>
 

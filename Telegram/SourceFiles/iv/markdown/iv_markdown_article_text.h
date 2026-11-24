@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "iv/markdown/iv_markdown_article.h"
-
 #include "ui/click_handler.h"
 
 #include <memory>

@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_reply_markup.h"
 #include "iv/markdown/iv_markdown_document.h"
 #include "iv/markdown/iv_markdown_math_renderer.h"
-
 #include "ui/text/text_entity.h"
 
 #include <array>

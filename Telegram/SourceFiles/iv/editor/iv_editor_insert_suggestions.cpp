@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/editor/iv_editor_insert_suggestions.h"
 
 #include "lang/lang_keys.h"
+#include "styles/palette.h"
 #include "ui/effects/premium_graphics.h"
-#include "ui/painter.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/painter.h"
 
-#include "styles/palette.h"
 #include "styles/style_iv.h"
 #include "styles/style_widgets.h"
 

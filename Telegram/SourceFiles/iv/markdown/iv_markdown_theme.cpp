@@ -8,10 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/markdown/iv_markdown_theme.h"
 
 #include "iv/markdown/iv_markdown_prepare_native_richtext.h"
+#include "styles/palette.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
-
-#include "styles/palette.h"
 
 namespace Iv::Markdown {
 

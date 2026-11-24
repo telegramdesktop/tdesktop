@@ -7,13 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flat_map.h"
 #include "iv/markdown/iv_markdown_button_row.h"
 #include "iv/markdown/iv_markdown_common.h"
 #include "iv/markdown/iv_markdown_media_block.h"
 #include "iv/markdown/iv_markdown_prepare.h"
 #include "iv/iv_rich_page.h"
-
-#include "base/flat_map.h"
 #include "spellcheck/spellcheck_highlight_syntax.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/unsupported_notice.h"

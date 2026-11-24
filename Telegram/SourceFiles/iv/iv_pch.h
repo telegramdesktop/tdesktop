@@ -25,8 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 #include "base/flat_set.h"
 #include "base/weak_qptr.h"
-
-#include "ui/qt_object_factory.h"
-
-#include "scheme.h"
 #include "logs.h"
+#include "scheme.h"
+#include "ui/qt_object_factory.h"

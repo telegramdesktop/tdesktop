@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "iv/markdown/iv_markdown_slideshow_chrome.h"
 
-#include "ui/image/image_prepare.h"
 #include "styles/palette.h"
+#include "ui/image/image_prepare.h"
+
 #include "styles/style_iv.h"
 
 #include <algorithm>
