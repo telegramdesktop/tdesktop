@@ -11293,6 +11293,8 @@ void HistoryWidget::escape() {
 		_history->setForwardDraft(MsgId(), PeerId(), {});
 	} else if (_autocomplete && !_autocomplete->isHidden()) {
 		_autocomplete->hideAnimated();
+	} else if (_attachBotsMenu && !_attachBotsMenu->isHidden()) {
+		_attachBotsMenu->hideAnimated();
 	} else if ((_replyTo || _suggestOptions)
 		&& _field->getTextWithTags().empty()) {
 		cancelReplyOrSuggest();

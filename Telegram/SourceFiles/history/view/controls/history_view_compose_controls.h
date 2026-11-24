@@ -614,7 +614,6 @@ private:
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
-	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
 	std::unique_ptr<ChatHelpers::FieldAutocomplete> _autocomplete;
 	std::unique_ptr<Ui::Emoji::SuggestionsController> _emojiSuggestions;
 
@@ -624,6 +623,7 @@ private:
 	std::unique_ptr<Controls::AiTooltipManager> _aiTooltipManager;
 	std::unique_ptr<Controls::AiTooltipManager> _sendAsFileTooltipManager;
 	std::unique_ptr<Controls::StashHintManager> _stashHintManager;
+	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
 	std::shared_ptr<Ui::ChatStyle> _chatStyle;
 
 	const Fn<SendMenu::Details()> _sendMenuDetails;
