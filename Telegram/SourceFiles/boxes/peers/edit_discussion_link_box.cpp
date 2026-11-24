@@ -7,25 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_discussion_link_box.h"
 
-#include "lang/lang_keys.h"
+#include "apiwrap.h"
+#include "boxes/add_contact_box.h"
+#include "boxes/peer_list_box.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "settings/settings_common.h" // AddButton.
-#include "data/data_changes.h"
-#include "ui/widgets/labels.h"
-#include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/text/text_utilities.h" // tr::rich
-#include "boxes/peer_list_box.h"
-#include "ui/boxes/confirm_box.h"
-#include "boxes/add_contact_box.h"
-#include "apiwrap.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_common.h" // AddButton.
+#include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h" // tr::rich
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
+#include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
-#include "styles/style_info.h"
 
 namespace {
 

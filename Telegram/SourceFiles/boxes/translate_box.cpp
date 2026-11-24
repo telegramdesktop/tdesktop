@@ -6,10 +6,9 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/translate_box.h"
-#include "boxes/translate_box_content.h"
-#include "lang/translate_provider.h"
 
 #include "base/weak_ptr.h"
+#include "boxes/translate_box_content.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/core_settings.h"
@@ -26,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_rich_page.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
+#include "lang/translate_provider.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "spellcheck/platform/platform_language.h"

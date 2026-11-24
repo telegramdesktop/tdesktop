@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/peer_list_box.h"
 #include "base/flat_set.h"
-#include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/weak_ptr.h"
+#include "boxes/peer_list_box.h"
 #include "mtproto/sender.h"
 
 class History;

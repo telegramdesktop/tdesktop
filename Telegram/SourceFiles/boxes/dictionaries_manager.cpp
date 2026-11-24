@@ -19,16 +19,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mtproto/dedicated_file_loader.h"
 #include "spellcheck/spellcheck_utils.h"
-#include "ui/wrap/vertical_layout.h"
+#include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/effects/animations.h"
+#include "ui/wrap/vertical_layout.h"
+
 #include "styles/style_layers.h"
-#include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 namespace Ui {
 namespace {

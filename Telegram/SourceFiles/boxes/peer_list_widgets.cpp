@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peer_list_widgets.h"
 
-#include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
+
 #include "styles/style_boxes.h"
 
 namespace {

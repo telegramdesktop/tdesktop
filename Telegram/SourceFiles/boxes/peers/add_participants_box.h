@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
+#include "boxes/peer_list_controllers.h"
 
 struct ChatAdminRightsInfo;
 struct ChatRestrictionsInfo;

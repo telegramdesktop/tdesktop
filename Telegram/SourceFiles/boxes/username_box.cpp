@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/username_box.h"
 
-#include "boxes/peers/edit_peer_usernames_list.h"
 #include "base/timer.h"
 #include "boxes/peers/edit_peer_common.h"
+#include "boxes/peers/edit_peer_usernames_list.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -18,19 +18,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
-#include "ui/vertical_list.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_variant.h"
 #include "ui/toast/toast.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/special_fields.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/follow_slide_wrap.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/painter.h"
+#include "ui/vertical_list.h"
+
+#include "styles/style_boxes.h"
 #include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"
-#include "styles/style_boxes.h"
 
 namespace {
 

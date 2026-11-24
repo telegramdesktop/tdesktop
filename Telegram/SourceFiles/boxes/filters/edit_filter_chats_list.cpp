@@ -7,23 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/filters/edit_filter_chats_list.h"
 
+#include "base/object_ptr.h"
 #include "core/ui_integration.h"
 #include "data/data_chat_filters.h"
 #include "data/data_premium_limits.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/history.h"
-#include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
-#include "main/main_app_config.h"
-#include "main/main_account.h"
-#include "main/main_session.h"
-#include "base/object_ptr.h"
-#include "data/data_user.h"
-#include "styles/style_window.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
+#include "styles/style_window.h"
 
 namespace {
 

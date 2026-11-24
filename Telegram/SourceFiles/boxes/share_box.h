@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
 #include "base/timer.h"
 #include "history/view/history_view_schedule_box.h"
+#include "mtproto/sender.h"
 #include "ui/chat/forward_options_box.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
-#include "mtproto/sender.h"
+#include "ui/layers/box_content.h"
 
 class History;
 

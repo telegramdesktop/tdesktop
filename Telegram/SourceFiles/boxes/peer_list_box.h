@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
+#include "base/timer.h"
+#include "ui/layers/box_content.h"
 #include "ui/empty_userpic.h"
+#include "ui/rows_scroll_cache.h"
+#include "ui/rp_widget.h"
 #include "ui/unread_badge.h"
 #include "ui/userpic_view.h"
-#include "ui/layers/box_content.h"
-#include "ui/rows_scroll_cache.h"
-#include "base/timer.h"
 
 namespace style {
 struct PeerList;

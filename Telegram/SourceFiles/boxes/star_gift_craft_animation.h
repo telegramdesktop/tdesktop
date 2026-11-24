@@ -10,9 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/unique_qptr.h"
 #include "data/data_star_gift.h"
+#include "lottie/lottie_icon.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
-#include "lottie/lottie_icon.h"
 #include "ui/text/text_custom_emoji.h"
 
 namespace ChatHelpers {

@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_members_visible.h"
 
+#include "apiwrap.h"
 #include "boxes/peers/edit_peer_info_box.h"
 #include "data/data_channel.h"
-#include "ui/rp_widget.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/widgets/buttons.h"
-#include "ui/vertical_list.h"
-#include "settings/settings_common.h" // IconDescriptor.
+#include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
-#include "apiwrap.h"
-#include "lang/lang_keys.h"
+#include "settings/settings_common.h" // IconDescriptor.
+#include "ui/widgets/buttons.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/rp_widget.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_info.h"
 
 namespace {

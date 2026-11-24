@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
 #include "api/api_common.h"
-#include "data/data_poll.h"
 #include "base/flags.h"
+#include "data/data_poll.h"
+#include "ui/layers/box_content.h"
 
 struct PollData;
 

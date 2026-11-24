@@ -7,16 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/download_path_box.h"
 
-#include "lang/lang_keys.h"
-#include "core/file_utilities.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/widgets/buttons.h"
-#include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/file_utilities.h"
+#include "lang/lang_keys.h"
+#include "platform/platform_specific.h"
 #include "storage/storage_account.h"
-#include "styles/style_layers.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 DownloadPathBox::DownloadPathBox(
 	QWidget *parent,

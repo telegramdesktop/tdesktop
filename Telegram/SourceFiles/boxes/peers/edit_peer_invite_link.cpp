@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/ui_integration.h" // TextContext
 #include "data/components/credits.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
@@ -25,10 +26,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
+#include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
 #include "history/history.h"
 #include "history/history_item_helpers.h" // GetErrorForSending.
-#include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
 #include "info/channel_statistics/earn/earn_icons.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -40,19 +40,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/invite_link_buttons.h"
 #include "ui/controls/invite_link_label.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "ui/vertical_list.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"

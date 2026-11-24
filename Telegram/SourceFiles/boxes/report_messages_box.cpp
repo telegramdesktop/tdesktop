@@ -15,16 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_report.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/boxes/report_box_graphics.h"
 #include "ui/layers/generic_box.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/buttons.h"
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/fields/input_field.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace {

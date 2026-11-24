@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 
 #include "core/application.h"
-#include "window/window_controller.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "window/window_controller.h"
 
 namespace Ui {
 namespace internal {

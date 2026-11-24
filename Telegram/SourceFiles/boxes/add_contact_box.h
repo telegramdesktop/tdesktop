@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
 #include "base/timer.h"
 #include "mtproto/sender.h"
+#include "ui/layers/box_content.h"
 
 class PeerListBox;
 struct RequestPeerQuery;

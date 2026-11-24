@@ -12,10 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/star_gift_box.h" // CollectGiftFrequentUsers.
 #include "core/ui_integration.h" // TextContext.
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "lang/lang_keys.h"
 #include "main/session/session_show.h"
 #include "settings/settings_credits_graphics.h"
@@ -23,11 +23,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/layers/generic_box.h"
-#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
-#include "ui/vertical_list.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/rect.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"

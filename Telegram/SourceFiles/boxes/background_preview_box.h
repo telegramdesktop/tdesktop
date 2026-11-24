@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
 #include "base/binary_guard.h"
+#include "data/data_wall_paper.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/view/history_view_element.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/radial_animation.h"
-#include "data/data_wall_paper.h"
+#include "ui/layers/box_content.h"
 
 namespace Data {
 class DocumentMedia;

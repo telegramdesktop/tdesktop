@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "data/data_msg_id.h"
-#include "ui/layers/box_content.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/layers/box_content.h"
 
 namespace style {
 struct ComposeControls;

@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/transfer_gift_box.h"
 
-#include "apiwrap.h"
 #include "api/api_cloud_password.h"
 #include "api/api_credits.h"
 #include "api/api_text_entities.h"
+#include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
 #include "boxes/filters/edit_filter_chats_list.h" // CreatePe...tionSubtitle.
@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_panel.h"
 #include "wallet/wallet_session.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h" // peerListSingleRow.
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"

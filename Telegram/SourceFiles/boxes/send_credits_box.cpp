@@ -11,11 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "core/ui_integration.h" // TextContext
 #include "data/components/credits.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_credits.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h" // InfiniteRadialAnimationWidget.
@@ -32,12 +32,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_top_bar.h" // Ui::Premium::ColorizedSvg.
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
-#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/peer_bubble.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_giveaway.h"

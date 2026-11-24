@@ -6,31 +6,32 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_requests_box.h"
+#include "boxes/peers/edit_peer_requests_box.h"
 
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
-#include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h" // SubscribeToMigration
 #include "boxes/peers/edit_peer_invite_link.h" // PrepareRequestedRowStatus
-#include "boxes/peers/edit_peer_requests_box.h"
+#include "boxes/peer_list_controllers.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "history/view/history_view_requests_bar.h" // kRecentRequestsLimit
+#include "info/requests_list/info_requests_list_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
-#include "info/requests_list/info_requests_list_widget.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/round_rect.h"
-#include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
 
 namespace {

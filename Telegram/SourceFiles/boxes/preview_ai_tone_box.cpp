@@ -17,14 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
-#include "window/window_session_controller.h"
 #include "ui/controls/custom_emoji_toast_icon.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/skeleton_animation.h"
 #include "ui/layers/generic_box.h"
 #include "ui/layers/show.h"
-#include "ui/painter.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_utilities.h"
@@ -34,7 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "ui/vertical_list.h"
+#include "window/window_session_controller.h"
 
 #include <optional>
 

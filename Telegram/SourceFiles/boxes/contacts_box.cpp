@@ -16,11 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h" // HighlightArgs.
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/round_checkbox.h"
-#include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
 #include "window/window_separate_id.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"

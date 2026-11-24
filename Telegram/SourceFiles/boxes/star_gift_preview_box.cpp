@@ -18,13 +18,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/boxes/about_cocoon_box.h" // Ui::AddUniqueCloseButton
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/top_background_gradient.h"
-#include "settings/settings_credits_graphics.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_layers.h"

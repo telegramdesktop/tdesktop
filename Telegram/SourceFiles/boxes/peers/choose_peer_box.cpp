@@ -12,8 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/premium_limits_box.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "history/history.h"
@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_edit_peer_members.h"

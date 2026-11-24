@@ -29,8 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
-#include "ui/rect.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/rect.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
 

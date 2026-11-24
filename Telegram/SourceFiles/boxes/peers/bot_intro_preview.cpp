@@ -18,10 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/text/text_options.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
-#include "ui/wrap/slide_wrap.h"
 #include "window/themes/window_theme.h"
 #include "window/section_widget.h"
 

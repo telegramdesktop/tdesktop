@@ -14,8 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
-#include "styles/style_layers.h"
+
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
 
 void EditPeerHistoryVisibilityBox(
 		not_null<Ui::GenericBox*> box,

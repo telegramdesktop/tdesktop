@@ -25,10 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/delayed_activation.h" // PreventDelayedActivation
 #include "ui/text/format_values.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/delayed_activation.h" // PreventDelayedActivation
 #include "window/window_session_controller.h"
+
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 

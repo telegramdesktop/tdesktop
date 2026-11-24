@@ -14,8 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/buttons.h"
-#include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
 
 #include "styles/style_edit_peer_members.h"
 #include "styles/style_layers.h"

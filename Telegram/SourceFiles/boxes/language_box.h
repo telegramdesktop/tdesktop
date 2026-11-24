@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
 #include "base/binary_guard.h"
+#include "ui/layers/box_content.h"
 
 struct LanguageId;
 

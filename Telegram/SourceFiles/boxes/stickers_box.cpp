@@ -37,9 +37,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
-#include "ui/ui_utility.h"
 #include "ui/rect.h"
+#include "ui/ui_utility.h"
 #include "ui/unread_badge_paint.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"

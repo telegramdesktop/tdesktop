@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_section_headers.h"
 
 #include "ui/painter.h"
+
 #include "styles/style_boxes.h"
 
 void PeerListSectionHeaders::rebuild(

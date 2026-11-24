@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 // Right-edge A-Z fast-scroll index strip for the contacts box: thins letters
 // when they do not all fit and magnifies the one under the cursor Dock-like.

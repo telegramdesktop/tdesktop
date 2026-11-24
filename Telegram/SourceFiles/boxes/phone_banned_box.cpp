@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/phone_banned_box.h"
 
-#include "ui/boxes/confirm_box.h"
+#include "base/platform/base_platform_info.h"
+#include "base/qthelp_url.h" // qthelp::url_encode
 #include "core/click_handler_types.h" // UrlClickHandler
 #include "core/version.h"
-#include "base/qthelp_url.h" // qthelp::url_encode
-#include "base/platform/base_platform_info.h"
-#include "window/window_controller.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/confirm_box.h"
+#include "window/window_controller.h"
 
 namespace Ui {
 
