@@ -1466,6 +1466,9 @@ ComposeControls::~ComposeControls() {
 	saveFieldToHistoryLocalDraft();
 	unregisterDraftSources();
 	setTabbedPanel(nullptr);
+	if (const auto menu = base::take(_attachBotsMenu)) {
+		menu->hideFast();
+	}
 	session().api().request(_inlineBotResolveRequestId).cancel();
 }
 
@@ -5766,7 +5769,9 @@ bool ComposeControls::updateSendAsButton(
 }
 
 void ComposeControls::updateAttachBotsMenu() {
-	_attachBotsMenu = nullptr;
+	if (const auto menu = base::take(_attachBotsMenu)) {
+		menu->hideFast();
+	}
 	if (!_features.attachBotsMenu
 		|| !_features.attachments
 		|| !_history
@@ -6183,6 +6188,9 @@ void ComposeControls::updateForwarding() {
 bool ComposeControls::handleCancelRequest() {
 	if (_isInlineBot) {
 		cancelInlineBot();
+		return true;
+	} else if (_attachBotsMenu && !_attachBotsMenu->isHidden()) {
+		_attachBotsMenu->hideAnimated();
 		return true;
 	} else if (_autocomplete && !_autocomplete->isHidden()) {
 		_autocomplete->hideAnimated();
