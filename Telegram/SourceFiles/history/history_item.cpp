@@ -1099,6 +1099,8 @@ HistoryServiceDependentData *HistoryItem::GetServiceDependentData() {
 		return append;
 	} else if (const auto poll = Get<HistoryServicePollAppendAnswer>()) {
 		return poll;
+	} else if (const auto pollDelete = Get<HistoryServicePollDeleteAnswer>()) {
+		return pollDelete;
 	} else if (const auto decision = Get<HistoryServiceSuggestDecision>()) {
 		return decision;
 	} else if (const auto finish = Get<HistoryServiceSuggestFinish>()) {

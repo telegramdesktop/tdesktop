@@ -1547,10 +1547,10 @@ void History::applyServiceChanges(
 			}
 		}
 	}, [&](const MTPDmessageActionTodoAppendTasks &data) {
-		if (const auto done = item->Get<HistoryServiceTodoCompletions>()) {
-			const auto list = done->msg
-				? done->msg
-				: owner().message(peer, done->msgId);
+		if (const auto append = item->Get<HistoryServiceTodoAppendTasks>()) {
+			const auto list = append->msg
+				? append->msg
+				: owner().message(peer, append->msgId);
 			if (const auto media = list ? list->media() : nullptr) {
 				if (const auto todolist = media->todolist()) {
 					todolist->apply(data);

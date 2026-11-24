@@ -132,6 +132,7 @@ void TodoListData::apply(
 
 void TodoListData::apply(const MTPDmessageActionTodoAppendTasks &data) {
 	const auto limit = TodoListData::kMaxOptions;
+	const auto was = items.size();
 	for (const auto &task : data.vlist().v) {
 		if (items.size() < limit) {
 			const auto parsed = TodoListItemFromMTP(
@@ -141,6 +142,9 @@ void TodoListData::apply(const MTPDmessageActionTodoAppendTasks &data) {
 				items.push_back(std::move(parsed));
 			}
 		}
+	}
+	if (items.size() != was) {
+		++version;
 	}
 	owner().notifyTodoListUpdateDelayed(this);
 }
