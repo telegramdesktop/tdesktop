@@ -8,12 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/view/stack_linear_chart_view.h"
 
 #include "data/data_statistics_chart.h"
-#include "statistics/chart_lines_filter_controller.h"
 #include "statistics/view/stack_chart_common.h"
 #include "statistics/widgets/point_details_widget.h"
+#include "statistics/chart_lines_filter_controller.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_statistics.h"
 
 #include <QtCore/QtMath>

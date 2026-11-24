@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/view/chart_view_factory.h"
 
-#include "statistics/statistics_common.h"
-#include "statistics/view/linear_chart_view.h"
 #include "statistics/view/bar_chart_view.h"
+#include "statistics/view/linear_chart_view.h"
 #include "statistics/view/stack_linear_chart_view.h"
+#include "statistics/statistics_common.h"
 
 namespace Statistic {
 

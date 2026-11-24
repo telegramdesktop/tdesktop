@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics_chart.h"
 #include "ui/effects/credits_graphics.h" // GenerateStars.
 #include "ui/painter.h"
+
 #include "styles/style_statistics.h"
 
 namespace Statistic {

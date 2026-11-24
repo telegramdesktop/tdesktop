@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/chart_lines_filter_controller.h"
 #include "statistics/statistics_common.h"
 #include "statistics/statistics_graphics.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 

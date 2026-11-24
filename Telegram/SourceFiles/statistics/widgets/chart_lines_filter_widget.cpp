@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "statistics/widgets/chart_lines_filter_widget.h"
 
-#include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/shake_animation.h"
+#include "ui/abstract_button.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 

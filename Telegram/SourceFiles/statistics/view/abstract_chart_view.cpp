@@ -5,11 +5,11 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "statistics/statistics_common.h"
 #include "statistics/view/abstract_chart_view.h"
 
 #include "data/data_statistics_chart.h"
 #include "statistics/chart_lines_filter_controller.h"
+#include "statistics/statistics_common.h"
 #include "statistics/statistics_types.h"
 
 namespace Statistic {

@@ -7,13 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "statistics/statistics_common.h"
+
 namespace Data {
 struct StatisticalChart;
 } // namespace Data
 
 namespace Statistic {
 
-struct Limits;
 class LinesFilterController;
 
 struct PaintContext final {

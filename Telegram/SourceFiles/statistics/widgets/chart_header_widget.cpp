@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "statistics/widgets/chart_header_widget.h"
 
 #include "ui/painter.h"
+
 #include "styles/style_statistics.h"
 
 namespace Statistic {

@@ -10,14 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/debug_log.h"
 #include "info/channel_statistics/earn/earn_format.h"
 #include "lang/lang_keys.h"
+#include "statistics/view/stack_linear_chart_common.h"
 #include "statistics/statistics_common.h"
 #include "statistics/statistics_format_values.h"
 #include "statistics/statistics_graphics.h"
-#include "statistics/view/stack_linear_chart_common.h"
-#include "ui/cached_round_corners.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_statistics.h"
 
