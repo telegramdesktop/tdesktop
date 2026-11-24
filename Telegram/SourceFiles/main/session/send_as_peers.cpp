@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/session/send_as_peers.h"
 
-#include "data/data_user.h"
+#include "apiwrap.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
-#include "data/data_changes.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
-#include "apiwrap.h"
 
 namespace Main {
 namespace {

@@ -6,18 +6,18 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/main_session_settings.h"
-#include "chat_helpers/spellchecker_locale_ids.h"
 
-#include "chat_helpers/tabbed_selector.h"
-#include "ui/widgets/fields/input_field.h"
-#include "ui/chat/attach/attach_send_files_way.h"
-#include "window/section_widget.h"
-#include "support/support_common.h"
-#include "storage/serialize_common.h"
 #include "boxes/send_files_box.h"
+#include "chat_helpers/spellchecker_locale_ids.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/components/promo_suggestions.h"
+#include "storage/serialize_common.h"
+#include "support/support_common.h"
+#include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/widgets/fields/input_field.h"
+#include "window/section_widget.h"
 
 namespace Main {
 namespace {

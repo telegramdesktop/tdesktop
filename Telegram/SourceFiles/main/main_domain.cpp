@@ -9,24 +9,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "core/shortcuts.h"
 #include "core/crash_reports.h"
+#include "core/shortcuts.h"
+#include "data/data_changes.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "export/export_settings.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
-#include "data/data_session.h"
-#include "data/data_changes.h"
-#include "data/data_user.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
-#include "storage/storage_domain.h"
-#include "storage/storage_account.h"
 #include "storage/localstorage.h"
-#include "export/export_settings.h"
+#include "storage/storage_account.h"
+#include "storage/storage_domain.h"
 #include "wallet/wallet_unlock.h"
 #include "wallet/wallet_vault.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
-#include "data/data_peer_values.h" // Data::AmPremiumValue.
 
 namespace Main {
 

@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_auto_download.h"
 #include "data/notify/data_peer_notify_settings.h"
 #include "data/data_authorization.h"
+#include "data/data_auto_download.h"
 #include "data/data_message_reaction_id.h"
 #include "ui/rect_part.h"
 
