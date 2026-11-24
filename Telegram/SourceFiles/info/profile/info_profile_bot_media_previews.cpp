@@ -637,7 +637,7 @@ void PreviewPage::open(int index) {
 			&& _language == language
 			&& ranges::contains(items(), item);
 	};
-	auto gallery = StandaloneGallery{ .media = items() };
+	auto gallery = BotPreviewGallery{ .bot = _bot, .media = items() };
 	if (_editable) {
 		const auto edit = [=](Medium item) {
 			if (valid(item)) {

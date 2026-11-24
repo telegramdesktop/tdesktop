@@ -15,12 +15,13 @@ namespace Media::View {
 
 OpenRequest::OpenRequest(
 	Window::SessionController *controller,
-	StandaloneGallery gallery,
+	BotPreviewGallery gallery,
 	int index,
 	Data::FileOrigin origin)
 : _controller(controller)
 , _fileOrigin(std::move(origin))
-, _gallery(std::make_shared<StandaloneGallery>(std::move(gallery))) {
+, _gallery(std::make_shared<BotPreviewGallery>(std::move(gallery)))
+, _galleryIndex(index) {
 	Expects(index >= 0 && index < _gallery->media.size());
 	const auto &item = _gallery->media[index];
 	if (const auto photo = std::get_if<not_null<PhotoData*>>(&item)) {

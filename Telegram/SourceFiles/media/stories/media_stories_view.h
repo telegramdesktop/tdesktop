@@ -86,6 +86,11 @@ public:
 	~View();
 
 	void show(not_null<Data::Story*> story, Data::StoriesContext context);
+	void showPreview(
+		not_null<PeerData*> bot,
+		DocumentData *video,
+		int index,
+		int count);
 	void ready();
 
 	[[nodiscard]] Data::Story *story() const;

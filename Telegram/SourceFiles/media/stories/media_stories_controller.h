@@ -158,6 +158,11 @@ public:
 	-> rpl::producer<ChatHelpers::FileChosen>;
 
 	void show(not_null<Data::Story*> story, Data::StoriesContext context);
+	void showPreview(
+		not_null<PeerData*> bot,
+		DocumentData *video,
+		int index,
+		int count);
 	void jumpTo(not_null<Data::Story*> story, Data::StoriesContext context);
 	void ready();
 
@@ -340,6 +345,7 @@ private:
 	FullStoryId _waitingForId;
 	int _waitingForDelta = 0;
 	int _index = 0;
+	int _previewCount = 0;
 	int _sliderIndex = 0;
 	int _sliderCount = 0;
 	bool _started = false;

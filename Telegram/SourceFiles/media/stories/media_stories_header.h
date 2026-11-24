@@ -43,6 +43,7 @@ struct HeaderData {
 	bool video = false;
 	bool videoStream = false;
 	bool silent = false;
+	bool preview = false;
 
 	friend inline auto operator<=>(HeaderData, HeaderData) = default;
 	friend inline bool operator==(HeaderData, HeaderData) = default;

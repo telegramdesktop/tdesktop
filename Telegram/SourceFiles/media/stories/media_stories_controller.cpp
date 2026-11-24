@@ -971,6 +971,32 @@ void Controller::show(
 	peer->updateFull();
 }
 
+void Controller::showPreview(
+		not_null<PeerData*> bot,
+		DocumentData *video,
+		int index,
+		int count) {
+	Expects(!_shown);
+	Expects(index >= 0 && index < count);
+
+	_index = index;
+	_previewCount = count;
+	_paused = false;
+	_started = false;
+	_photoPlayback = video
+		? nullptr
+		: std::make_unique<PhotoPlayback>(this);
+	const auto header = HeaderData{
+		.peer = bot,
+		.video = (video != nullptr),
+		.silent = (video && video->isSilentVideo()),
+		.preview = true,
+	};
+	_header->show(header, nullptr);
+	_slider->show({ .index = index, .total = count });
+	updatePlayingAllowed();
+}
+
 void Controller::jumpTo(
 		not_null<Data::Story*> story,
 		Data::StoriesContext context) {
@@ -1158,7 +1184,7 @@ void Controller::volumeChangeFinished() {
 }
 
 void Controller::updatePlayingAllowed() {
-	if (!_shown) {
+	if (!_shown && !_previewCount) {
 		return;
 	}
 	_header->updatePauseState();
@@ -1236,7 +1262,9 @@ void Controller::updatePhotoPlayback(const Player::TrackState &state) {
 void Controller::updatePlayback(const Player::TrackState &state) {
 	_slider->updatePlayback(state);
 	updatePowerSaveBlocker(state);
-	maybeMarkAsRead(state);
+	if (!_previewCount) {
+		maybeMarkAsRead(state);
+	}
 	if (Player::IsStoppedAtEnd(state.state)) {
 		if (!subjumpFor(1)) {
 			_delegate->storiesClose();
@@ -1369,6 +1397,9 @@ void Controller::markAsRead() {
 
 bool Controller::subjumpAvailable(int delta) const {
 	const auto index = _index + delta;
+	if (_previewCount) {
+		return index >= 0 && index < _previewCount;
+	}
 	if (index < 0) {
 		return _siblingLeft && _siblingLeft->shownId().valid();
 	} else if (index >= shownCount()) {
@@ -1378,6 +1409,13 @@ bool Controller::subjumpAvailable(int delta) const {
 }
 
 bool Controller::subjumpFor(int delta) {
+	if (_previewCount) {
+		if (!subjumpAvailable(delta)) {
+			return false;
+		}
+		_delegate->storiesJumpToPreview(_index + delta);
+		return true;
+	}
 	if (delta > 0) {
 		markAsRead();
 	}

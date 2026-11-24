@@ -29,6 +29,14 @@ void View::show(
 	_controller->show(story, context);
 }
 
+void View::showPreview(
+		not_null<PeerData*> bot,
+		DocumentData *video,
+		int index,
+		int count) {
+	_controller->showPreview(bot, video, index, count);
+}
+
 void View::ready() {
 	_controller->ready();
 }

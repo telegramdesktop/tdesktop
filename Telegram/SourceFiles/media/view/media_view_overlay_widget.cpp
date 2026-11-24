@@ -1687,10 +1687,6 @@ void OverlayWidget::refreshNavVisibility() {
 	if (_stories) {
 		_leftNavVisible = _stories->subjumpAvailable(-1);
 		_rightNavVisible = _stories->subjumpAvailable(1);
-	} else if (_gallery) {
-		_leftNavVisible = _index && (*_index > 0);
-		_rightNavVisible = _index
-			&& (*_index + 1 < _gallery->media.size());
 	} else if (_instantViewMediaData) {
 		_leftNavVisible = _index && (*_index > 0);
 		_rightNavVisible = _index
@@ -4743,6 +4739,9 @@ void OverlayWidget::show(OpenRequest request) {
 		_firstOpenedPeerPhoto = (contextPeer != nullptr);
 		_openFileOrigin = request.fileOrigin();
 		_gallery = request.gallery();
+		if (_gallery) {
+			prepareBotPreview(request.galleryIndex());
+		}
 		assignMediaPointer(photo);
 
 		displayPhoto(photo);
@@ -4774,6 +4773,9 @@ void OverlayWidget::show(OpenRequest request) {
 		clearControlsState();
 		_openFileOrigin = request.fileOrigin();
 		_gallery = request.gallery();
+		if (_gallery) {
+			prepareBotPreview(request.galleryIndex());
+		}
 
 		_streamingStartPaused = false;
 		if (call) {
@@ -6107,6 +6109,29 @@ void OverlayWidget::storiesRedisplay(not_null<Data::Story*> story) {
 	}, [&](v::null_t) {
 		displayDocument(nullptr, anim::activation::background);
 	});
+}
+
+void OverlayWidget::storiesJumpToPreview(int index) {
+	const auto delta = index - *_index;
+	const auto entity = entityByIndex(index);
+	prepareBotPreview(index);
+	moveToEntity(entity, delta);
+}
+
+void OverlayWidget::prepareBotPreview(int index) {
+	Expects(_gallery != nullptr);
+
+	clearStreaming();
+	_index = index;
+	setStoriesPeer(_gallery->bot);
+	const auto video = std::get_if<not_null<DocumentData*>>(
+		&_gallery->media[index]);
+	_stories->showPreview(
+		_gallery->bot,
+		video ? video->get() : nullptr,
+		index,
+		int(_gallery->media.size()));
+	_dropdown->raise();
 }
 
 void OverlayWidget::storiesClose() {
@@ -8201,10 +8226,12 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 		});
 	} else if (_peer) {
 		setContext(_peer);
-	} else {
+	} else if (!_gallery) {
 		setContext(v::null);
 	}
-	clearStreaming();
+	if (!_gallery) {
+		clearStreaming();
+	}
 	_streamingStartPaused = false;
 	if (auto photo = std::get_if<not_null<PhotoData*>>(&entity.data)) {
 		displayPhoto(*photo);
@@ -9222,22 +9249,8 @@ void OverlayWidget::updateSaveMsg() {
 void OverlayWidget::findCurrent() {
 	using namespace rpl::mappers;
 	if (_gallery) {
-		const auto photo = [=](not_null<PhotoData*> data) {
-			return data == _photo;
-		};
-		const auto document = [=](not_null<DocumentData*> data) {
-			return data == _document;
-		};
-		const auto current = [&](const GalleryMedia &item) {
-			return v::match(item, photo, document);
-		};
-		const auto &items = _gallery->media;
-		const auto i = ranges::find_if(items, current);
-		_index = (i != end(items))
-			? std::make_optional(int(i - begin(items)))
-			: std::nullopt;
 		_fullIndex = _index;
-		_fullCount = items.size();
+		_fullCount = _gallery->media.size();
 	} else if (_instantViewMediaData) {
 		const auto key = instantViewMediaKey();
 		const auto &items = *_instantViewMediaData;

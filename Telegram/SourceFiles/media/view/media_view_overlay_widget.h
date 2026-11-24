@@ -290,6 +290,7 @@ private:
 		not_null<Main::Session*> session,
 		FullStoryId id,
 		Data::StoriesContext context) override;
+	void storiesJumpToPreview(int index) override;
 	void storiesClose() override;
 	bool storiesPaused() override;
 	rpl::producer<bool> storiesLayerShown() override;
@@ -377,6 +378,7 @@ private:
 		not_null<PeerData*>,
 		StoriesContext> context);
 	void setStoriesPeer(PeerData *peer);
+	void prepareBotPreview(int index);
 
 	void refreshLang();
 	void showSaveMsgFile();
@@ -692,7 +694,7 @@ private:
 	bool _rotateVisible = false;
 	bool _drawButtonEnabled = true;
 	Data::FileOrigin _openFileOrigin;
-	std::shared_ptr<const StandaloneGallery> _gallery;
+	std::shared_ptr<const BotPreviewGallery> _gallery;
 	bool _drawVisible = false;
 	bool _recognizeVisible = false;
 	bool _headerHasLink = false;

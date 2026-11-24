@@ -258,6 +258,9 @@ struct MadePrivacyBadge {
 }
 
 [[nodiscard]] Timestamp ComposeDetails(HeaderData data, TimeId now) {
+	if (data.preview) {
+		return { tr::lng_bot_media_previews(tr::now) };
+	}
 	auto result = ComposeTimestamp(data.date, now);
 	if (data.edited) {
 		result.text.append(' '
