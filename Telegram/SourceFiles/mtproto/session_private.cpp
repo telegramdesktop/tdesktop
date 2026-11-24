@@ -1463,11 +1463,11 @@ void SessionPrivate::handleReceived() {
 		}
 
 		auto lock = QReadLocker(_sessionData->haveReceivedMutex());
-		const auto tryToReceive = !_sessionData->haveReceivedMessages().empty();
+		const auto receivedCount = _sessionData->haveReceivedMessages().size();
 		lock.unlock();
 
-		if (tryToReceive) {
-			DEBUG_LOG(("MTP Info: queueTryToReceive() - need to parse in another thread, %1 messages.").arg(_sessionData->haveReceivedMessages().size()));
+		if (receivedCount) {
+			DEBUG_LOG(("MTP Info: queueTryToReceive() - need to parse in another thread, %1 messages.").arg(receivedCount));
 			_sessionData->queueTryToReceive();
 		}
 
