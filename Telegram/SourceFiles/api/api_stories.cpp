@@ -642,8 +642,12 @@ bool Stories::posting() const {
 	});
 }
 
-void Stories::stopPostingWithConfirmation(Fn<void()> done) {
-	const auto window = Core::App().activePrimaryWindow();
+void Stories::stopPostingWithConfirmation(
+		Fn<void()> done,
+		Window::Controller *window) {
+	if (!window) {
+		window = Core::App().activePrimaryWindow();
+	}
 	if (!window) {
 		done();
 		return;

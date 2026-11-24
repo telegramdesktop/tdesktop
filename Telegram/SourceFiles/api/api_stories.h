@@ -32,6 +32,10 @@ namespace Storage {
 struct UploadedMedia;
 } // namespace Storage
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 namespace Api {
 
 inline constexpr auto kStoryDefaultPeriod = 86400;
@@ -167,7 +171,9 @@ public:
 
 	[[nodiscard]] bool posting() const;
 	void cancelPosting();
-	void stopPostingWithConfirmation(Fn<void()> done);
+	void stopPostingWithConfirmation(
+		Fn<void()> done,
+		Window::Controller *window = nullptr);
 
 private:
 	struct Upload;

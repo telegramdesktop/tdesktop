@@ -308,6 +308,34 @@ void FillSourceMenu(
 	const auto peer = owner->peer(PeerId(request.id));
 	const auto &add = request.callback;
 	const auto api = &controller->session().api().stories();
+	const auto uploads = ranges::views::reverse(api->uploads());
+	const auto uploading = ranges::find_if(
+		uploads,
+		[=](const Api::StoryUpload &upload) {
+			return (upload.peer == peer)
+				&& upload.error.isEmpty();
+		});
+	if (uploading != end(uploads)) {
+		const auto id = uploading->id;
+		auto confirm = [=] {
+			const auto &active = api->uploads();
+			const auto current = ranges::find(
+				active,
+				id,
+				&Api::StoryUpload::id);
+			if (current == end(active)
+				|| !current->error.isEmpty()) {
+				return;
+			}
+			api->stopPostingWithConfirmation(
+				crl::guard(api, [=] { api->remove(id); }),
+				&controller->window());
+		};
+		add(
+			tr::lng_story_sure_stop_title(tr::now),
+			std::move(confirm),
+			&st::menuIconCancel);
+	}
 	for (const auto &upload : api->uploads()) {
 		if (upload.peer != peer || upload.error.isEmpty()) {
 			continue;
