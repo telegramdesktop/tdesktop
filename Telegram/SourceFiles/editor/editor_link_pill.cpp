@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_editor.h"
 
+#include <QtGui/QTextLayout>
+
 namespace Editor {
 namespace {
 
@@ -53,6 +55,32 @@ constexpr auto kMinTextScale = 0.4;
 	return { text.left(best).trimmed(), text.mid(best + 1).trimmed() };
 }
 
+[[nodiscard]] QStringList WrapLinkText(
+		const QString &text,
+		const style::font &font,
+		int maxWidth) {
+	const auto simplified = text.simplified();
+	if (font->width(simplified) <= maxWidth) {
+		return { simplified };
+	}
+	auto layout = QTextLayout(simplified, font);
+	auto option = QTextOption();
+	option.setWrapMode(QTextOption::WrapAtWordBoundaryOrAnywhere);
+	layout.setTextOption(option);
+	layout.beginLayout();
+	auto first = layout.createLine();
+	first.setLineWidth(maxWidth);
+	const auto split = first.textLength();
+	layout.endLayout();
+	if (split == simplified.size()) {
+		return { font->elided(simplified, maxWidth) };
+	}
+	return {
+		simplified.left(split).trimmed(),
+		font->elided(simplified.mid(split).trimmed(), maxWidth),
+	};
+}
+
 } // namespace
 
 LinkPill::LinkPill(
@@ -76,32 +104,25 @@ LinkPill::LinkPill(
 		+ kPaddingRight) * _density;
 	const auto maxTextWidth = std::max(maxWidth - int(fixed), 1);
 	if (fit == PillTextFit::Scale) {
-		auto lines = (_font->width(text) * kMinTextScale > maxTextWidth)
+		_lines = (_font->width(text) * kMinTextScale > maxTextWidth)
 			? SplitInHalf(text)
 			: QStringList{ text };
-		auto lineWidth = 0;
-		for (const auto &line : lines) {
-			lineWidth = std::max(lineWidth, _font->width(line));
-		}
-		_textScale = std::clamp(
-			maxTextWidth / float64(lineWidth),
-			0.,
-			1.);
-		_lines = lines;
-		_size = QSizeF(
-			fixed + lineWidth * _textScale,
-			(kPaddingTop + kPaddingBottom) * _density
-				+ std::max(
-					kIconSize * _density,
-					_font->height * lines.size() * _textScale));
 	} else {
-		const auto elided = _font->elided(text, maxTextWidth);
-		_lines = { elided };
-		_size = QSizeF(
-			fixed + _font->width(elided),
-			(kPaddingTop + kPaddingBottom) * _density
-				+ std::max(kIconSize * _density, float64(_font->height)));
+		_lines = WrapLinkText(text, _font, maxTextWidth);
 	}
+	auto lineWidth = 0;
+	for (const auto &line : _lines) {
+		lineWidth = std::max(lineWidth, _font->width(line));
+	}
+	if (fit == PillTextFit::Scale && lineWidth > maxTextWidth) {
+		_textScale = maxTextWidth / float64(lineWidth);
+	}
+	_size = QSizeF(
+		fixed + lineWidth * _textScale,
+		(kPaddingTop + kPaddingBottom) * _density
+			+ std::max(
+				kIconSize * _density,
+				_font->height * _lines.size() * _textScale));
 	updateIcon();
 }
 

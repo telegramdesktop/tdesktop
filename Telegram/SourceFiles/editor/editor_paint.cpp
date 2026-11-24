@@ -1542,7 +1542,9 @@ void Paint::addStoryItems(const QJsonArray &items, Fn<QString(int)> file) {
 		item->setEditCallback(crl::guard(this, [=](not_null<ItemLink*> item) {
 			chooseLink(item->link().url, item);
 		}));
-		item->applyPlacement(link.placement);
+		auto placement = link.placement;
+		placement.aspectRatio = item->placement().aspectRatio;
+		item->applyPlacement(placement);
 		addMediaItem(std::move(item));
 	}
 	const auto controller = _controllers->stickersPanelController.get();

@@ -32,7 +32,7 @@ enum class LinkStyle : uchar {
 };
 
 enum class PillTextFit : uchar {
-	Truncate,
+	Wrap,
 	Scale,
 };
 
@@ -43,7 +43,7 @@ public:
 		float64 density,
 		int maxWidth,
 		const style::icon *customIcon = nullptr,
-		PillTextFit fit = PillTextFit::Truncate);
+		PillTextFit fit = PillTextFit::Wrap);
 
 	[[nodiscard]] static float64 DensityFor(int canvasWidth);
 	[[nodiscard]] static LinkStyle NextStyle(LinkStyle style);
