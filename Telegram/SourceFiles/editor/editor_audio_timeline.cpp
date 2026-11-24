@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 
+#include "styles/style_audio_disc_button.h"
 #include "styles/style_editor.h"
 
 #include <QtCore/QFileInfo>
@@ -258,7 +259,7 @@ void AudioTimeline::paintTextLine(
 		int centerY,
 		int width) {
 	const auto icon = st::photoEditorAudioTimelineIcon;
-	const auto image = st::photoEditorAudioDiscIcon.instance(
+	const auto image = st::audioDiscIcon.instance(
 		st::videoTimelineFg->c);
 	p.setClipRect(x, centerY - height(), width, height() * 2);
 	p.setRenderHint(QPainter::SmoothPixmapTransform);

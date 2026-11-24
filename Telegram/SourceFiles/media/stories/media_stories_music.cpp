@@ -16,11 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_music.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "editor/editor_audio_disc_button.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
+#include "ui/controls/audio_disc_button.h"
 #include "ui/image/image.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/text_entity.h"
@@ -56,10 +56,12 @@ MusicDisc::MusicDisc(
 , _music(music)
 , _story(story)
 , _title(MusicTitle(music))
-, _button(base::make_unique_q<Editor::AudioDiscButton>(
-	controller->wrap())) {
+, _button(base::make_unique_q<Ui::AudioDiscButton>(
+	controller->wrap(),
+	Ui::AudioDiscButton::FallbackRing::SpinningArc)) {
 	_music->owner().savedMusic().loadIds();
 	_button->setAccessibleName(_title);
+	_button->setContextMenuPolicy(Qt::PreventContextMenu);
 	Ui::InstallTooltip(_button.get(), [=] { return _title; });
 	_button->setClickedCallback([=] { showMenu(); });
 	_controller->layoutValue() | rpl::on_next([=](const Layout &layout) {

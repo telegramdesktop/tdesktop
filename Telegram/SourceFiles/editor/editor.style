@@ -258,13 +258,7 @@ photoEditorKeysTextWidth: 360px;
 photoEditorKeysTextMinWidth: 100px;
 photoEditorKeysTextFg: groupCallMembersFg;
 
-photoEditorAudioDiscSize: 48px;
 photoEditorAudioDiscSkip: 12px;
-photoEditorAudioDiscCoverSize: 30px;
-photoEditorAudioDiscRing: 2px;
-photoEditorAudioDiscRingFg: mediaviewControlFg;
-photoEditorAudioDiscIcon: icon {{ "photo_editor/widget_music", photoEditorButtonIconFg }};
-photoEditorAudioDiscIconOver: icon {{ "photo_editor/widget_music", photoEditorButtonIconFgOver }};
 photoEditorVideoLayerIconBody: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFg }};
 photoEditorVideoLayerIconBodyOver: icon {{ "photo_editor/video_locked-24x24", photoEditorButtonIconFgOver }};
 photoEditorVideoLayerIconBadge: icon {{ "photo_editor/video_locked_badge-24x24", photoEditorButtonIconFg }};

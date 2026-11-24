@@ -22,6 +22,7 @@ set(style_files
     ui/effects/premium.style
     ui/effects/premium_limits.style
     ui/color_indices.style
+    ui/controls/audio_disc_button.style
     ui/controls/ttl_media.style
     ui/controls/userpic_button.style
     boxes/boxes.style
@@ -541,6 +542,8 @@ PRIVATE
     ui/controls/button_busy.h
     ui/controls/button_context_menu.cpp
     ui/controls/button_context_menu.h
+    ui/controls/audio_disc_button.cpp
+    ui/controls/audio_disc_button.h
     ui/controls/button_labels.cpp
     ui/controls/button_labels.h
     ui/controls/call_button.cpp

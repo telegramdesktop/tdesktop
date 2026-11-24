@@ -11,11 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
-namespace Editor {
-class AudioDiscButton;
-} // namespace Editor
-
 namespace Ui {
+class AudioDiscButton;
 class PopupMenu;
 } // namespace Ui
 
@@ -40,7 +37,7 @@ private:
 	const not_null<DocumentData*> _music;
 	const FullStoryId _story;
 	const QString _title;
-	const base::unique_qptr<Editor::AudioDiscButton> _button;
+	const base::unique_qptr<Ui::AudioDiscButton> _button;
 	base::unique_qptr<Ui::PopupMenu> _menu;
 
 };
