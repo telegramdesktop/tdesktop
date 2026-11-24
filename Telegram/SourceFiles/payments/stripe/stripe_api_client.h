@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "stripe/stripe_payment_configuration.h"
-#include "stripe/stripe_card_params.h"
 #include "stripe/stripe_callbacks.h"
+#include "stripe/stripe_card_params.h"
+#include "stripe/stripe_payment_configuration.h"
 
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtCore/QString>

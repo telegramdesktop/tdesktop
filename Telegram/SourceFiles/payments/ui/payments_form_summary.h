@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "payments/ui/payments_panel_data.h"
 #include "base/object_ptr.h"
+#include "payments/ui/payments_panel_data.h"
+#include "ui/rp_widget.h"
+
 #include "styles/style_widgets.h"
 
 namespace Ui {

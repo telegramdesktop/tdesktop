@@ -7,17 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "payments/ui/payments_edit_information.h"
 
-#include "payments/ui/payments_panel_delegate.h"
-#include "payments/ui/payments_field.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
-#include "styles/style_payments.h"
+#include "payments/ui/payments_field.h"
+#include "payments/ui/payments_panel_delegate.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+
 #include "styles/style_passport.h"
+#include "styles/style_payments.h"
 
 namespace Payments::Ui {
 namespace {

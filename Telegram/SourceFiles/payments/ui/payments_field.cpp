@@ -7,15 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "payments/ui/payments_field.h"
 
-#include "ui/widgets/fields/input_field.h"
+#include "base/platform/base_platform_info.h"
+#include "base/qt/qt_common_adapters.h"
+#include "base/event_filter.h"
+#include "countries/countries_instance.h"
 #include "ui/boxes/country_select_box.h"
 #include "ui/text/format_values.h"
-#include "ui/ui_utility.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/special_fields.h"
-#include "countries/countries_instance.h"
-#include "base/platform/base_platform_info.h"
-#include "base/event_filter.h"
-#include "base/qt/qt_common_adapters.h"
+#include "ui/ui_utility.h"
+
 #include "styles/style_payments.h"
 
 #include <QtCore/QRegularExpression>

@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "stripe/stripe_api_client.h"
 
 #include "stripe/stripe_error.h"
-#include "stripe/stripe_token.h"
 #include "stripe/stripe_form_encoder.h"
+#include "stripe/stripe_token.h"
 
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonDocument>

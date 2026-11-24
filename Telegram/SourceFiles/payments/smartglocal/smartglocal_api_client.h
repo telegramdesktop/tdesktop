@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "stripe/stripe_card_params.h"
 #include "smartglocal/smartglocal_callbacks.h"
+#include "stripe/stripe_card_params.h"
 
 #include <QtNetwork/QNetworkAccessManager>
 #include <QtCore/QString>

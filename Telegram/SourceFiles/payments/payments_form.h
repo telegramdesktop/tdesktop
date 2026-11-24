@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "payments/ui/payments_panel_data.h"
 #include "base/weak_ptr.h"
 #include "mtproto/sender.h"
+#include "payments/ui/payments_panel_data.h"
 
 class Image;
 class QJsonObject;

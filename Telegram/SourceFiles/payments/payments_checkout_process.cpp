@@ -7,24 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "payments/payments_checkout_process.h"
 
-#include "payments/payments_form.h"
-#include "payments/ui/payments_panel.h"
-#include "main/main_session.h"
-#include "main/main_account.h"
-#include "storage/storage_account.h"
-#include "history/history_item.h"
-#include "history/history.h"
-#include "data/data_user.h" // UserData::isBot.
+#include "api/api_cloud_password.h"
+#include "apiwrap.h"
 #include "boxes/passcode_box.h"
-#include "core/local_url_handlers.h" // TryConvertUrlToLocal.
-#include "core/file_utilities.h" // File::OpenUrl.
-#include "core/core_cloud_password.h" // Core::CloudPasswordState
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/core_cloud_password.h" // Core::CloudPasswordState
 #include "core/core_screenshot_protection.h"
+#include "core/file_utilities.h" // File::OpenUrl.
+#include "core/local_url_handlers.h" // TryConvertUrlToLocal.
+#include "data/data_user.h" // UserData::isBot.
+#include "history/history.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
-#include "apiwrap.h"
-#include "api/api_cloud_password.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
+#include "payments/ui/payments_panel.h"
+#include "payments/payments_form.h"
+#include "storage/storage_account.h"
 #include "webview/webview_dialog.h"
 #include "window/themes/window_theme.h"
 
