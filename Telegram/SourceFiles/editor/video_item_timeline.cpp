@@ -75,7 +75,9 @@ rpl::producer<crl::time> VideoItemTimeline::lengthChanges() const {
 void VideoItemTimeline::refreshTrim() {
 	if (_timeline) {
 		const auto trim = _clip->trim();
-		_timeline->setTrim(trim.from, trim.till);
+		_timeline->setTrim(
+			trim.from,
+			trim.from + _clip->loopDuration());
 	}
 }
 
