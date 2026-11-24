@@ -11,10 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_emoji_document.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
-#include "ui/emoji_config.h"
-#include "ui/painter.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/emoji_config.h"
+#include "ui/painter.h"
+
 #include "styles/style_editor.h"
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"

@@ -8,17 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_message_reaction_id.h"
 #include "data/data_types.h"
+#include "editor/scene/scene_item_base.h"
 #include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_weather.h"
-#include "ui/rp_widget.h"
-#include "ui/effects/animations.h"
-
 #include "editor/photo_editor_common.h"
-#include "data/data_message_reaction_id.h"
 #include "editor/photo_editor_inner_common.h"
-#include "editor/scene/scene_item_base.h"
 #include "media/media_video_canvas.h"
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 class QGraphicsItem;
 class QGraphicsView;

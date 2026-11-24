@@ -14,16 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "core/shortcuts.h"
+#include "data/stickers/data_stickers.h"
+#include "data/data_document.h"
 #include "data/data_location.h"
 #include "data/data_peer.h"
-#include "data/data_document.h"
 #include "data/data_session.h"
-#include "data/stickers/data_stickers.h"
 #include "editor/controllers/controllers.h"
-#include "editor/editor_gif.h"
-#include "editor/editor_link_box.h"
-#include "editor/editor_message_render.h"
-#include "editor/editor_message_source.h"
+#include "editor/scene/scene.h"
+#include "editor/scene/scene_draft.h"
 #include "editor/scene/scene_item_canvas.h"
 #include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_line.h"
@@ -36,8 +34,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_item_weather.h"
-#include "editor/scene/scene_draft.h"
-#include "editor/scene/scene.h"
+#include "editor/editor_gif.h"
+#include "editor/editor_link_box.h"
+#include "editor/editor_message_render.h"
+#include "editor/editor_message_source.h"
 #include "editor/editor_weather.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -57,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 #include "window/themes/window_theme.h"
+
 #include "styles/style_editor.h"
 
 #include <QGraphicsView>

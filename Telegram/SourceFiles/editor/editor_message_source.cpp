@@ -14,9 +14,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_web_page.h"
 #include "editor/editor_message_video.h"
+#include "history/view/history_view_fake_items.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_fake_items.h"
 #include "main/main_session.h"
 
 namespace Editor {

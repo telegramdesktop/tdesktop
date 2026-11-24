@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_link_pill.h"
 
 #include "ui/painter.h"
+
 #include "styles/style_editor.h"
 
 namespace Editor {

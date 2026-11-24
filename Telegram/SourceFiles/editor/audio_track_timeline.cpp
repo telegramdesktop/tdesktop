@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/editor_audio_timeline.h"
 #include "editor/photo_editor_common.h"
+
 #include "styles/style_editor.h"
 
 namespace Editor {

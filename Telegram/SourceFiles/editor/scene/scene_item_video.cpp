@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "editor/editor_audio_menu.h"
 #include "lang/lang_keys.h"
-#include "ui/rect.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/rect.h"
+
 #include "styles/style_menu_icons.h"
 
 #include <QtGui/QPainterPath>

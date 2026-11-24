@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/image/image.h"
 #include "base/unique_qptr.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
+#include "ui/image/image.h"
+#include "ui/rp_widget.h"
 
 #include <array>
 

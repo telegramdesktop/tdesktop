@@ -8,18 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_content.h"
 
 #include "base/algorithm.h"
+#include "editor/scene/scene_item_video.h"
 #include "editor/editor_audio_disc_button.h"
-#include "editor/editor_video_layer_button.h"
 #include "editor/editor_crop.h"
 #include "editor/editor_enhance_indicator.h"
 #include "editor/editor_paint.h"
-#include "editor/scene/scene_item_video.h"
+#include "editor/editor_video_layer_button.h"
 #include "history/history_drag_area.h"
 #include "media/view/media_view_pip.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_editor.h"
 
 #include <QtGui/QClipboard>

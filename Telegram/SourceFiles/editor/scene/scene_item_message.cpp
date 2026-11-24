@@ -8,18 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_message.h"
 
 #include "data/data_document.h"
+#include "editor/scene/scene.h"
+#include "editor/video/video_segment_player.h"
 #include "editor/editor_audio_menu.h"
 #include "editor/editor_message_render.h"
 #include "editor/editor_message_source.h"
 #include "editor/editor_message_video.h"
-#include "editor/scene/scene.h"
-#include "editor/video/video_segment_player.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/widgets/popup_menu.h"
 #include "window/themes/window_theme.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 

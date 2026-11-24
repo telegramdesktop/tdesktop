@@ -7,12 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-
 #include "base/unique_qptr.h"
-#include "ui/effects/animations.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_inner_common.h"
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class IconButton;

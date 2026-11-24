@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_common.h"
 
-#include "editor/editor_enhance.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_animated.h"
 #include "editor/video/video_clip.h"
+#include "editor/editor_enhance.h"
 #include "ui/painter.h"
 #include "ui/userpic_view.h"
 

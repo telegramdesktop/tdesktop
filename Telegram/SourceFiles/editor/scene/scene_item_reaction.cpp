@@ -14,10 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/animated_icon.h"
 #include "ui/image/image_prepare.h"
-#include "ui/painter.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/animated_icon.h"
+#include "ui/painter.h"
 
 #include "styles/style_menu_icons.h"
 

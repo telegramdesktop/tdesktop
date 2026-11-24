@@ -7,26 +7,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_controls.h"
 
-#include "editor/audio_track_timeline.h"
 #include "editor/controllers/controllers.h"
+#include "editor/audio_track_timeline.h"
 #include "editor/editor_keys_legend.h"
 #include "editor/video_item_timeline.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/image/image_prepare.h"
-#include "ui/qt_object_factory.h"
+#include "ui/widgets/menu/menu_action.h"
+#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/menu/menu_action.h"
-#include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
+#include "ui/qt_object_factory.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_editor.h"
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 

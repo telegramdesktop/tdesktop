@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_enhance_indicator.h"
 
 #include "lang/lang_keys.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_editor.h"
 

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/video/video_timeline_seeker.h"
 
-#include "editor/editor_trim_timeline.h"
 #include "editor/video/video_segment_player.h"
+#include "editor/editor_trim_timeline.h"
 
 namespace Editor {
 namespace {

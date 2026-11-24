@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_text.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
+
 #include "styles/style_editor.h"
 
 #include <QApplication>

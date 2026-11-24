@@ -7,11 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/effects/animations.h"
-
 #include "base/flat_map.h"
 #include "editor/photo_editor_common.h"
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace Editor {
 

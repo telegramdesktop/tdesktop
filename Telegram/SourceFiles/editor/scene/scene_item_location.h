@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "editor/editor_link_pill.h"
 #include "editor/scene/scene_item_base.h"
+#include "editor/editor_link_pill.h"
 
 namespace Editor {
 

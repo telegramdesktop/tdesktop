@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/unique_qptr.h"
 #include "base/weak_ptr.h"
-#include "ui/effects/animations.h"
 #include "editor/video/video_editor_common.h"
+#include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 
 namespace Ui {

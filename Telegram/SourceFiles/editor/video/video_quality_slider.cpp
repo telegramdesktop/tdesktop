@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/video/video_quality_slider.h"
 
 #include "ui/painter.h"
+
 #include "styles/style_editor.h"
 
 #include <QtGui/QtEvents>

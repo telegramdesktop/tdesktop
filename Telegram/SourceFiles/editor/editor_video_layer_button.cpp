@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_video_layer_button.h"
 
 #include "lang/lang_keys.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/effects/ripple_animation.h"
-#include "styles/style_editor.h"
 #include "ui/ui_utility.h"
+
+#include "styles/style_editor.h"
 
 #include <QtGui/QPainterPath>
 

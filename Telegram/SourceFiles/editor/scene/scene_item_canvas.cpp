@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene_item_canvas.h"
+
 #include "styles/style_editor.h"
 
 #include <QGraphicsScene>

@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_crop.h"
 
 #include "ui/userpic_view.h"
-#include "styles/style_editor.h"
+
 #include "styles/style_basic.h"
+#include "styles/style_editor.h"
 
 namespace Editor {
 namespace {

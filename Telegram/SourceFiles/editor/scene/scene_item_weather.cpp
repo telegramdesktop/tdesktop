@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_weather.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_editor.h"
 

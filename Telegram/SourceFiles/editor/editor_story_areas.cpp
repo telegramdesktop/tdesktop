@@ -8,17 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_story_areas.h"
 
 #include "base/algorithm.h"
+#include "data/data_channel.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_link.h"
 #include "editor/scene/scene_item_location.h"
+#include "editor/scene/scene_item_message.h"
 #include "editor/scene/scene_item_reaction.h"
 #include "editor/scene/scene_item_weather.h"
-#include "editor/scene/scene_item_message.h"
 #include "editor/editor_message_source.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "data/data_channel.h"
 
 namespace Editor {
 namespace {

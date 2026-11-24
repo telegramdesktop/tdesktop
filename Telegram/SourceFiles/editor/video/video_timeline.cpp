@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_video_frames.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_editor.h"
 
 namespace Editor {

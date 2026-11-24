@@ -7,11 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/scene/scene_draft.h"
 
-#include "mtproto/core_types.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
-#include "editor/editor_message_source.h"
-#include "editor/photo_editor_common.h"
 #include "editor/scene/scene.h"
 #include "editor/scene/scene_item_image.h"
 #include "editor/scene/scene_item_line.h"
@@ -24,8 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene_item_text.h"
 #include "editor/scene/scene_item_video.h"
 #include "editor/scene/scene_item_weather.h"
+#include "editor/editor_message_source.h"
+#include "editor/photo_editor_common.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "mtproto/core_types.h"
 
 #include <QtCore/QCryptographicHash>
 

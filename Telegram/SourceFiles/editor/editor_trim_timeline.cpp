@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_trim_timeline.h"
 
 #include "base/event_filter.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/fields/masked_input_field.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/format_values.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_editor.h"
 
 #include <QtGui/QPainterPath>

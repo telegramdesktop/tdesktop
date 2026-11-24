@@ -10,13 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
-#include "ui/abstract_button.h"
 #include "ui/layers/generic_box.h"
+#include "ui/widgets/color_editor.h"
+#include "ui/abstract_button.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/color_editor.h"
+
 #include "styles/style_editor.h"
 
 #include <QConicalGradient>

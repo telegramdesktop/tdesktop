@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_weather.h"
 
 #include "apiwrap.h"
-#include "base/algorithm.h"
 #include "base/platform/base_platform_info.h"
+#include "base/algorithm.h"
 #include "base/weak_ptr.h"
 #include "core/application.h"
 #include "core/core_settings.h"

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
+#include "ui/abstract_button.h"
 
 namespace Ui::Paint {
 class Blobs;

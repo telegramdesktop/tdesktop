@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/color_int_conversion.h"
 #include "ui/rect.h"
+
 #include "styles/style_calls.h"
 #include "styles/style_editor.h"
 

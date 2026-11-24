@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/layer_widget.h"
+#include "base/unique_qptr.h"
+#include "editor/photo_editor_common.h"
 #include "ui/effects/layer_backdrop.h"
 #include "ui/image/image.h"
-#include "editor/photo_editor_common.h"
-#include "base/unique_qptr.h"
+#include "ui/layers/layer_widget.h"
 
 enum class ImageRoundRadius;
 

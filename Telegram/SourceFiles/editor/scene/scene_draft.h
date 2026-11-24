@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_message_reaction_id.h"
-#include "editor/editor_link_pill.h"
-#include "editor/photo_editor_inner_common.h"
 #include "editor/scene/scene_item_base.h"
 #include "editor/scene/scene_item_location.h"
 #include "editor/scene/scene_item_weather.h"
+#include "editor/editor_link_pill.h"
+#include "editor/photo_editor_inner_common.h"
 
 #include <QtCore/QJsonArray>
 

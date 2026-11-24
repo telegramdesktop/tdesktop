@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/photo_editor_layer_widget.h"
 
-#include "lang/lang_keys.h"
-#include "ui/boxes/confirm_box.h" // InformBox
 #include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
+#include "lang/lang_keys.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
+#include "ui/boxes/confirm_box.h" // InformBox
 #include "ui/chat/attach/attach_prepare.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "editor/scene/scene_item_base.h"
 #include "data/data_message_reaction_id.h"
+#include "editor/scene/scene_item_base.h"
 
 namespace Data {
 class DocumentMedia;

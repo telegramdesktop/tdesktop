@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/controllers/stickers_panel_controller.h"
 
-#include "boxes/premium_preview_box.h"
 #include "base/algorithm.h"
+#include "boxes/premium_preview_box.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "data/data_document.h"
@@ -18,12 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/controls/location_picker.h"
-#include "ui/emoji_config.h"
 #include "ui/effects/animation_value.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "ui/ui_utility.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/emoji_config.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h" // Window::GifPauseReason
 
 #include "styles/style_chat_helpers.h"

@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/editor_audio_menu.h"
 #include "editor/photo_editor_common.h"
 #include "ui/image/image_prepare.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/widgets/popup_menu.h"
+
 #include "styles/style_editor.h"
 
 #include <QtGui/QContextMenuEvent>
