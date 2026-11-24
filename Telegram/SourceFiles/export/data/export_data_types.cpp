@@ -276,7 +276,7 @@ std::vector<TextPart> ParseText(
 		const QVector<MTPMessageEntity> &entities) {
 	using Type = TextPart::Type;
 	const auto text = QString::fromUtf8(data.v);
-	const auto size = data.v.size();
+	const auto size = int(text.size());
 	const auto mid = [&](int offset, int length) {
 		return text.mid(offset, length).toUtf8();
 	};
