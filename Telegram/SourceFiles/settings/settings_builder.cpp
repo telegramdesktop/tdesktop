@@ -7,19 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_builder.h"
 
-#include "apiwrap.h"
-#include "lang/lang_keys.h"
 #include "api/api_user_privacy.h"
+#include "apiwrap.h"
 #include "boxes/edit_privacy_box.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/settings_common.h"
 #include "settings/sections/settings_privacy_security.h"
-#include "ui/vertical_list.h"
+#include "settings/settings_common.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_settings.h"
 
 namespace Settings::Builder {

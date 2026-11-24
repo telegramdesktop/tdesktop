@@ -1,8 +1,9 @@
 #include "settings/detailed_settings_button.h"
 
+#include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "ui/wrap/vertical_layout.h"
+
 #include "styles/style_settings.h"
 
 DetailedSettingsButton::DetailedSettingsButton(

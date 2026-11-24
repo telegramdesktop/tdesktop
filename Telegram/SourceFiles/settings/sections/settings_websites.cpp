@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_websites.h"
 
 #include "api/api_websites.h"
-#include "settings/settings_common_session.h"
 #include "apiwrap.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_user.h"
@@ -17,20 +16,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_active_sessions.h"
 #include "settings/sections/settings_privacy_security.h"
 #include "settings/settings_builder.h"
+#include "settings/settings_common_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/painter.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
-#include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 namespace Settings {
 namespace {

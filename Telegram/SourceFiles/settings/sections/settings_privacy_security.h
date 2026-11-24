@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_common.h"
 #include "api/api_user_privacy.h"
+#include "settings/settings_common.h"
 
 class EditPrivacyController;
 

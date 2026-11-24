@@ -12,13 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "lang/lang_keys.h"
+#include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/power_saving.h"
 #include "ui/vertical_list.h"
-#include "settings/settings_common.h"
-#include "styles/style_menu_icons.h"
+
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
 
 namespace Settings {

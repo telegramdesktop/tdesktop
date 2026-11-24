@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/sections/settings_premium.h"
 
+#include "api/api_premium.h"
+#include "apiwrap.h"
+#include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/stickers_lottie.h" // LottiePlayerFromDocument.
@@ -14,18 +17,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "core/local_url_handlers.h" // Core::TryConvertUrlToLocal.
 #include "core/ui_integration.h" // TextContext.
+#include "data/stickers/data_custom_emoji.h" // SerializeCustomEmojiId.
+#include "data/stickers/data_stickers.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h" // SerializeCustomEmojiId.
-#include "data/stickers/data_stickers.h"
 #include "history/view/media/history_view_sticker.h" // EmojiSize.
 #include "history/view/media/history_view_sticker_player.h"
-#include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/profile/info_profile_values.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
+#include "info/info_wrap_widget.h" // Info::Wrap.
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -33,14 +36,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_premium_common.h"
 #include "settings/settings_builder.h"
 #include "settings/settings_common_session.h"
-#include "ui/abstract_button.h"
-#include "ui/basic_click_handlers.h"
+#include "ui/controls/swipe_handler.h"
+#include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/effects/premium_top_bar.h"
-#include "ui/controls/swipe_handler.h"
-#include "ui/controls/swipe_handler_data.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -52,6 +53,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/abstract_button.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/new_badges.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
@@ -59,14 +62,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "window/window_session_controller_link_info.h"
-#include "base/unixtime.h"
-#include "apiwrap.h"
-#include "api/api_premium.h"
+
 #include "styles/style_chat_helpers.h"
-#include "styles/style_menu_icons.h"
-#include "styles/style_premium.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
+#include "styles/style_menu_icons.h"
+#include "styles/style_premium.h"
 #include "styles/style_settings.h"
 #include "styles/style_settings_premium.h"
 #include "styles/style_widgets.h"

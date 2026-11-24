@@ -13,12 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_email.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "settings/cloud_password/settings_cloud_password_step.h"
-#include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_settings.h"
 
 /*

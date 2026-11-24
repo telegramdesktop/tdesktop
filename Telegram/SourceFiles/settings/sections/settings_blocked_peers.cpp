@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/sections/settings_blocked_peers.h"
 
-#include "settings/settings_common_session.h"
-
 #include "api/api_blocked_peers.h"
 #include "apiwrap.h"
 #include "data/data_changes.h"
@@ -19,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/sections/settings_privacy_security.h"
 #include "settings/settings_builder.h"
 #include "settings/settings_common.h"
+#include "settings/settings_common_session.h"
 #include "settings/settings_privacy_controllers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
@@ -26,10 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
-#include "styles/style_settings.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 namespace Settings {
 namespace {

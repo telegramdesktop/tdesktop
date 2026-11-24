@@ -14,8 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "settings/business/settings_shortcut_messages.h"
 #include "settings/business/settings_recipients_helper.h"
+#include "settings/business/settings_shortcut_messages.h"
 #include "ui/boxes/time_picker_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 

@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "base/event_filter.h"
-#include "data/data_user.h"
 #include "data/data_peer_values.h"
+#include "data/data_user.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_style.h"
@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_style.h"
 

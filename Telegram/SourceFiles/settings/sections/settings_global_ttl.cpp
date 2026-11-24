@@ -24,18 +24,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_common_session.h"
 #include "ui/boxes/confirm_box.h"
-#include "ui/painter.h"
-#include "ui/vertical_list.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
+#include "styles/style_calls.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_settings.h"
-#include "styles/style_calls.h"
 
 namespace Settings {
 namespace {

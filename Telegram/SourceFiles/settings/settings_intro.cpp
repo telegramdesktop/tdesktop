@@ -7,24 +7,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_intro.h"
 
+#include "boxes/abstract_box.h"
+#include "lang/lang_keys.h"
 #include "settings/sections/settings_advanced.h"
-#include "settings/sections/settings_main.h"
 #include "settings/sections/settings_chat.h"
+#include "settings/sections/settings_main.h"
 #include "settings/settings_codes.h"
-#include "ui/basic_click_handlers.h"
-#include "ui/wrap/fade_wrap.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/cached_round_corners.h"
 #include "ui/vertical_list.h"
-#include "lang/lang_keys.h"
-#include "boxes/abstract_box.h"
 #include "window/window_controller.h"
-#include "styles/style_settings.h"
-#include "styles/style_layers.h"
+
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 namespace Settings {
 namespace {

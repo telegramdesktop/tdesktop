@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/peer_list_box.h"
-#include "boxes/edit_privacy_box.h"
-#include "history/view/history_view_element.h"
 #include "api/api_blocked_peers.h"
+#include "boxes/edit_privacy_box.h"
+#include "boxes/peer_list_box.h"
+#include "history/view/history_view_element.h"
 
 namespace Window {
 class SessionController;

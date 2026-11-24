@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 
-#include "apiwrap.h"
 #include "api/api_cloud_password.h"
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/cloud_password/settings_cloud_password_step.h"
-#include "ui/vertical_list.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -29,7 +28,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/sent_code_field.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"

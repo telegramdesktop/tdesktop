@@ -21,13 +21,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/boost_box.h" // Ui::StartFireworks.
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
-#include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/sent_code_field.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_settings.h"
 
 /*

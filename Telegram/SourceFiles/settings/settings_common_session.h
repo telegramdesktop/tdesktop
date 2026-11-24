@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "settings/settings_common.h"
-#include "ui/rp_widget.h"
 #include "base/object_ptr.h"
+#include "settings/settings_common.h"
 #include "settings/settings_type.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class ScrollArea;
