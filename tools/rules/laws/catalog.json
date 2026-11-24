@@ -87,7 +87,7 @@
     {
       "id": "call.argument-lines",
       "scope": "Multiline calls with multiple arguments that intersect added lines.",
-      "exceptions": "Certain inline visitor lambdas and inline rpl::on_next handlers with a lifetime.",
+      "exceptions": "Certain inline visitor lambdas, inline rpl::on_next handlers with a lifetime, and two-argument calls with a non-lambda first argument and a second lambda whose opening brace fits on the call line.",
       "diagnostic": "Report the first packed argument. A later argument starts after the previous argument ends.",
       "fix": "No automatic edit.",
       "implementations": {

@@ -88,7 +88,19 @@ def inline_rpl_handler(node, arguments, opening_line, line_at):
         and line_at(lifetime.start_byte) == line_at(lifetime.end_byte - 1))
 
 
-def call_layout_error(node, line_at):
+def inline_final_lambda(arguments, opening_line, source, line_starts, line_at):
+    if len(arguments) != 2:
+        return False
+    value, callback = arguments
+    if value.type == "lambda_expression" or callback.type != "lambda_expression":
+        return False
+    body = callback.child_by_field_name("body")
+    return (body is not None
+        and line_at(body.start_byte) == opening_line
+        and fits_width(source[line_starts[opening_line - 1]:body.start_byte + 1]))
+
+
+def call_layout_error(node, source, line_starts, line_at):
     call = node.child_by_field_name("arguments")
     if call is None or call.has_error:
         return None
@@ -101,7 +113,9 @@ def call_layout_error(node, line_at):
     if len(arguments) <= 1:
         return None
     if (inline_lambda_branches(node, arguments, opening_line, line_at)
-            or inline_rpl_handler(node, arguments, opening_line, line_at)):
+            or inline_rpl_handler(node, arguments, opening_line, line_at)
+            or inline_final_lambda(
+                arguments, opening_line, source, line_starts, line_at)):
         return None
     previous_line = opening_line
     for argument in arguments:
@@ -655,7 +669,7 @@ def layout_errors(source, added_lines, path=""):
                 change = bisect_left(added_lines, first)
                 if change < len(added_lines) and added_lines[change] <= arrow:
                     yield first, MEMBER_CALL_MESSAGE
-            error = call_layout_error(node, line_at)
+            error = call_layout_error(node, source, line_starts, line_at)
             if error is not None:
                 yield error
         elif node.type in ("init_declarator", "assignment_expression"):
