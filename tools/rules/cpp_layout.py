@@ -222,7 +222,7 @@ def include_blocks(source, root, line_starts, line_at):
         block = []
         for node in pending.pop().named_children:
             path = node.child_by_field_name("path") if node.type == "preproc_include" else None
-            if path is not None and path.type in ("string_literal", "system_lib_string"):
+            if path is not None and path.type == "string_literal":
                 start = line_starts[line_at(node.start_byte) - 1]
                 end = node.end_byte
                 line = source[start:end]
@@ -250,15 +250,12 @@ def include_sort_key(name):
 def include_edits(source, root, path, line_starts, line_at):
     own = os.fsencode(Path(path).with_suffix(".h").as_posix()) if path else None
     for block in include_blocks(source, root, line_starts, line_at):
-        groups = [[], [], [], []]
+        groups = [[], [], []]
         for _, _, name, line in block:
             header = name[1:-1]
-            if (own is not None and name.startswith(b'"')
-                    and (own == header or own.endswith(b"/" + header))):
+            if own is not None and (own == header or own.endswith(b"/" + header)):
                 group = 0
             elif name.startswith(b'"styles/style_'):
-                group = 3
-            elif name.startswith(b"<"):
                 group = 2
             else:
                 group = 1

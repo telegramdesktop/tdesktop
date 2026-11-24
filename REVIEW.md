@@ -191,28 +191,6 @@ auto text = tr::lng_settings_title(tr::now);
 
 Do not call `std::optional::value()` because it throws an exception that is not available on older macOS targets. Use `has_value()`, `value_or()`, `operator bool()`, or `operator*` instead.
 
-## Sort includes alphabetically, nested folders first
-
-After the file's own header, sort `#include` directives alphabetically with two special rules:
-
-1. **Nested folders before files** in the same directory — like Finder / File Explorer (folders first, then files). E.g. `ui/controls/button.h` sorts before `ui/abstract_button.h`.
-2. **Style includes (`styles/style_*.h`) always go last**, separated from the rest.
-
-```cpp
-// BAD - arbitrary order, style mixed in:
-#include "media/audio/media_audio.h"
-#include "styles/style_media_player.h"
-#include "data/data_document.h"
-#include "apiwrap.h"
-
-// GOOD - alphabetical, folders first, styles last:
-#include "apiwrap.h"
-#include "data/data_document.h"
-#include "media/audio/media_audio.h"
-
-#include "styles/style_media_player.h"
-```
-
 ## Use C++17 nested namespace syntax
 
 Use `namespace A::B {` instead of nesting `namespace A { namespace B {`. The closing comment mirrors the opening: `} // namespace A::B`.

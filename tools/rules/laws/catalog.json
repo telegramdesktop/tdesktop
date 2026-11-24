@@ -478,14 +478,9 @@
     },
     {
       "id": "include.block-order",
-      "scope": "A touched block of literal include directives in a translation unit or preprocessing branch.",
-      "exceptions": "Standalone comments and preprocessing directives split the blocks.",
-      "diagnostic": "Sort the include block with the Python formatter.",
-      "fix": "Keep the own header first, group project, system and generated style headers, and sort each group.",
       "implementations": {
         "python": {
           "match": "Sort the include block with the Python formatter\\.",
-          "inputs": "Tree-sitter include directives and original source lines.",
           "modes": [
             "staged"
           ]
@@ -1563,7 +1558,7 @@
         "python": [
           {
             "rule": "include.block-order",
-            "line": 4,
+            "line": 3,
             "fix": true
           }
         ]
@@ -1573,6 +1568,13 @@
     {
       "id": "ordered-includes",
       "before": "fixtures/ordered-includes/before.cpp",
+      "expect": {
+        "python": []
+      }
+    },
+    {
+      "id": "platform-include-order",
+      "before": "fixtures/platform-include-order/before.cpp",
       "expect": {
         "python": []
       }

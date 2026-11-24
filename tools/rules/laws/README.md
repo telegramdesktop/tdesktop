@@ -55,13 +55,6 @@ For a rewrite that changes tokens, set the rule's `fix_kind` to
 python3 tools/rules/cpp_layout.py --fix-includes Telegram/SourceFiles/chat_helpers/tabbed_selector.cpp
 ```
 
-The formatter recognizes one block of literal includes at a time. It keeps
-the file's own header first, then groups project, system, and generated
-style headers. Nested directories precede files in the same project
-directory. A standalone comment or preprocessing directive starts a new
-block. Comments on an include line move with that include. The hook checks
-touched blocks against the same order.
-
 ## Replay the installed hook
 
 Generate the Telegram Desktop compile database and install the hook before
