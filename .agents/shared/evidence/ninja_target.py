@@ -166,6 +166,7 @@ class CompileCommand:
 	pch_dialect: Optional[str] = None
 	emits_pch: bool = False
 	forced_includes: List[str] = field(default_factory=list)
+	arch_pchs: Dict[str, Tuple[str, str]] = field(default_factory=dict)
 
 
 def execute(argv):
@@ -701,12 +702,30 @@ def parse_compile(entry, build, graph_inputs):
 	xclang_includes = []
 	emits = False
 	claims_pch = False
+	arches = []
+	arch_includes = []
 	while index < len(argv):
 		token = argv[index]
 		if token.startswith("@"):
 			raise NinjaTargetError(
 				f"unexpanded response file {token!r} in compile command")
 		refuse_define_channel(token)
+		if token.startswith("-Xarch_"):
+			# clang applies the value to this arch only: a -D/-U is not global.
+			value = argv[index + 1] if index + 1 < len(argv) else ""
+			if value.startswith("-include") and value not in (
+					"-include",
+					"-include-pch"):
+				arch_includes.append((
+					token[len("-Xarch_"):],
+					build.identity(value[len("-include"):])))
+				index += 2
+				continue
+			if value.startswith(("-D", "-U")):
+				raise NinjaTargetError(
+					f"unsupported per-architecture option {token + ' ' + value!r}")
+			index += 1
+			continue
 		if token == "-Xclang":
 			value = argv[index + 1] if index + 1 < len(argv) else None
 			if value is None:
@@ -742,6 +761,8 @@ def parse_compile(entry, build, graph_inputs):
 				sources.append(build.identity(value))
 			elif token == "-x":
 				language = value
+			elif token == "-arch":
+				arches.append(value)
 			elif token in ("-D", "-U"):
 				definitions.append(parse_definition(token[1], value))
 			elif token == "-include":
@@ -768,8 +789,14 @@ def parse_compile(entry, build, graph_inputs):
 		launcher=launcher,
 		language=language,
 		definitions=definitions)
-	classify_pch(command, xclang_pch, xclang_includes, includes, emits,
-		claims_pch, {build.identity(path) for path in graph_inputs})
+	inputs = {build.identity(path) for path in graph_inputs}
+	if arch_includes:
+		classify_arch_pch(command, arch_includes, arches,
+			bool(xclang_pch or xclang_includes or includes or emits),
+			claims_pch, inputs)
+	else:
+		classify_pch(command, xclang_pch, xclang_includes, includes, emits,
+			claims_pch, inputs)
 	return command
 
 
@@ -822,6 +849,44 @@ def classify_pch(
 		command.pch_header = used[0]
 		command.pch = check_graph_path(used[0] + ".gch", "PCH")
 	command.forced_includes = [path for path in includes if path not in used]
+
+
+def classify_arch_pch(command, arch_includes, arches, mixed, claims_pch, inputs):
+	# Like .gch, clang uses an existing <header>.pch for the first -include only.
+	if mixed:
+		raise NinjaTargetError(
+			"per-architecture PCH include mixed with another include or PCH "
+			f"form in compile command for {command.output}")
+	listed = [arch for arch, _ in arch_includes]
+	if len(set(listed)) != len(listed) or set(listed) != set(arches):
+		raise NinjaTargetError(
+			f"per-architecture includes for {listed} do not match the -arch "
+			f"values {arches} of {command.output}")
+	missing = [
+		header + ".pch"
+		for _, header in arch_includes
+		if header + ".pch" not in inputs
+	]
+	if claims_pch and missing:
+		raise NinjaTargetError(
+			f"incoherent PCH for {command.output}: {', '.join(missing)} is used "
+			"on the command line but is not an implicit graph input "
+			"(-Winvalid-pch without a .pch input)")
+	for arch, header in arch_includes:
+		if header + ".pch" in inputs:
+			command.arch_pchs[arch] = (
+				check_graph_path(header + ".pch", "PCH"),
+				header)
+		else:
+			command.forced_includes.append(header)
+	if command.arch_pchs:
+		command.pch_dialect = "clang"
+
+
+def pch_uses(command):
+	if command.pch is not None:
+		return [(command.pch, command.pch_header)]
+	return list(command.arch_pchs.values())
 
 
 def definition_state(definitions, name):
@@ -1016,12 +1081,14 @@ def resolve_objects(build, run, target, consumed):
 			command,
 			node.implicit))
 		implicit = {build.identity(input): input for input in node.implicit}
-		if command.pch is not None and command.pch not in implicit:
-			raise NinjaTargetError(
-				f"incoherent PCH for {path}: {command.pch} is used on the "
-				"command line but is not an implicit graph input")
+		used = [pch for pch, _ in pch_uses(command)]
+		for pch in used:
+			if pch not in implicit:
+				raise NinjaTargetError(
+					f"incoherent PCH for {path}: {pch} is used on the "
+					"command line but is not an implicit graph input")
 		for input in implicit:
-			if input.endswith(PCH_SUFFIXES) and input != command.pch:
+			if input.endswith(PCH_SUFFIXES) and input not in used:
 				raise NinjaTargetError(
 					f"incoherent PCH for {path}: graph input {input} is not "
 					"used on the command line")
@@ -1032,14 +1099,12 @@ def resolve_pchs(build, run, produced, entries):
 	users = {}
 	graph_paths = {}
 	for item in produced:
-		pch = item.command.pch
-		if pch is None:
-			continue
-		users.setdefault(pch, []).append(item)
-		graph_paths[pch] = next(
-			input
-			for input in item.implicit
-			if build.identity(input) == pch)
+		for pch, header in pch_uses(item.command):
+			users.setdefault(pch, []).append((item, header))
+			graph_paths[pch] = next(
+				input
+				for input in item.implicit
+				if build.identity(input) == pch)
 	if not users:
 		return {}
 	nodes = query(run, sorted(set(graph_paths.values())))
@@ -1049,7 +1114,7 @@ def resolve_pchs(build, run, produced, entries):
 		node = nodes[graph_path]
 		if node.rule is None:
 			raise NinjaTargetError(f"incoherent PCH: {pch} has no producer")
-		for item in users[pch]:
+		for item, _ in users[pch]:
 			if item.rule != node.rule:
 				raise NinjaTargetError(
 					f"incoherent PCH: {pch} is produced by rule {node.rule} but "
@@ -1067,12 +1132,12 @@ def resolve_pchs(build, run, produced, entries):
 		if not command.emits_pch:
 			raise NinjaTargetError(
 				f"incoherent PCH: the producer of {pch} does not emit a PCH")
-		for item in users[pch]:
-			if (item.command.pch_header != command.pch_header
+		for item, header in users[pch]:
+			if (header != command.pch_header
 					or item.command.pch_dialect != command.pch_dialect):
 				raise NinjaTargetError(
 					f"incoherent PCH: {item.path} includes "
-					f"{item.command.pch_header} ({item.command.pch_dialect}) "
+					f"{header} ({item.command.pch_dialect}) "
 					f"with {pch} built from {command.pch_header} "
 					f"({command.pch_dialect})")
 		pchs[pch] = (node.rule, command, len(users[pch]))
@@ -1101,7 +1166,11 @@ def evaluate_policy(build, name, produced, pchs, expectations, contracts):
 		raise NinjaTargetError(
 			f"policy target {name} has no consumed objects compiled by a rule "
 			f"matching {pattern}")
-	used = sorted({item.command.pch for item in members if item.command.pch})
+	used = sorted({
+		pch
+		for item in members
+		for pch, _ in pch_uses(item.command)
+	})
 	checked = [(item.path, item.command) for item in members]
 	checked += [(pch, pchs[pch][1]) for pch in used]
 	if build.generator == "Ninja Multi-Config":
@@ -1123,19 +1192,18 @@ def evaluate_policy(build, name, produced, pchs, expectations, contracts):
 			for path, command in checked
 		}
 		mismatched = [
-			item
+			(item, pch)
 			for item in members
-			if item.command.pch
-			and states[item.path] != states[item.command.pch]
+			for pch, _ in pch_uses(item.command)
+			if states[item.path] != states[pch]
 		]
 		if mismatched:
 			raise NinjaTargetError(
 				f"requested macro {expectation.macro} differs between object "
 				"and PCH: " + ", ".join(
 					f"{item.path} ({describe_state(states[item.path])}) vs "
-					f"{item.command.pch} "
-					f"({describe_state(states[item.command.pch])})"
-					for item in mismatched[:FAILURE_LIST_LIMIT]))
+					f"{pch} ({describe_state(states[pch])})"
+					for item, pch in mismatched[:FAILURE_LIST_LIMIT]))
 		wanted = ("defined" if expectation.defined else "undefined") + (
 			f"={expectation.value}" if expectation.value is not None else "")
 		wrong = [
@@ -1181,7 +1249,7 @@ def evaluate_policy(build, name, produced, pchs, expectations, contracts):
 def object_record(item, pchs):
 	if isinstance(item, Produced):
 		pch = item.command.pch
-		return {
+		record = {
 			"object": item.path,
 			"edge": item.edge,
 			"rule": item.rule,
@@ -1190,6 +1258,12 @@ def object_record(item, pchs):
 			"pch_rule": pchs[pch][0] if pch else None,
 			"external": False,
 		}
+		if item.command.arch_pchs:
+			record["arch_pchs"] = {
+				arch: {"pch": arch_pch, "pch_rule": pchs[arch_pch][0]}
+				for arch, (arch_pch, _) in item.command.arch_pchs.items()
+			}
+		return record
 	path, edge = item
 	return {
 		"object": path,

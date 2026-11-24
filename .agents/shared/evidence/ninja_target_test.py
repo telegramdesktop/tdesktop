@@ -6,6 +6,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -26,6 +27,12 @@ INIT_OBJECT = "lib dir/CMakeFiles/initlib.dir/init.cpp.o"
 INIT_OPERAND = "lib dir/CMakeFiles/initlib.dir/./init.cpp.o"
 APP_HEADER = "CMakeFiles/app.dir/Debug/cmake_pch.hxx"
 LIB_HEADER = "lib dir/CMakeFiles/objlib.dir/Debug/cmake_pch.hxx"
+LIB_ARCH_HEADERS = {
+	"x86_64": "lib dir/CMakeFiles/objlib.dir/Debug/cmake_pch_x86_64.hxx",
+	"arm64": "lib dir/CMakeFiles/objlib.dir/Debug/cmake_pch_arm64.hxx",
+}
+LIB_X86_64_PCH = "lib dir/CMakeFiles/objlib.dir/Debug/cmake_pch_x86_64.hxx.pch"
+LIB_ARM64_PCH = "lib dir/CMakeFiles/objlib.dir/Debug/cmake_pch_arm64.hxx.pch"
 APP_RULE = "CXX_COMPILER__app_unscanned_Debug"
 APP_C_RULE = "C_COMPILER__app_unscanned_Debug"
 LIB_RULE = "CXX_COMPILER__objlib_unscanned_Debug"
@@ -150,6 +157,24 @@ class HandTree:
 					part for part in (options, self.emit_flags(header)) if part),
 			},
 		}
+
+	def use_arch_pchs(self, output, headers, rule, defines):
+		"""CMake's multi-architecture PCH form."""
+		edge = self.edges[output]
+		edge["implicit"] = [
+			path
+			for header in headers.values()
+			for path in (header, self.pch(header))
+		]
+		edge["vars"]["FLAGS"] = " ".join(
+			[f"-arch {arch}" for arch in headers]
+			+ ["-Winvalid-pch"]
+			+ [
+				f"-Xarch_{arch} " + shlex.quote("-include" + self.absolute(header))
+				for arch, header in headers.items()
+			])
+		for arch, header in headers.items():
+			self.add_pch(header, rule, defines, f"-arch {arch}")
 
 	def populate(self):
 		gcc = self.dialect == "gcc"
@@ -458,6 +483,46 @@ class CompileGrammarTests(unittest.TestCase):
 				"forced include may change requested macro"):
 			ninja_target.macro_state(forced, "A")
 
+	def test_multi_arch_pch_form(self):
+		consumer = (
+			"/usr/bin/c++ -DA -arch x86_64 -arch arm64 -Winvalid-pch "
+			"-Xarch_x86_64 -include/work/out/x/cmake_pch_x86_64.hxx "
+			"-Xarch_arm64 -include/work/out/x/cmake_pch_arm64.hxx "
+			"-o o.o -c /src/a.cpp")
+		command = self.parse(
+			consumer,
+			["/src/a.cpp", "x/cmake_pch_x86_64.hxx", "x/cmake_pch_x86_64.hxx.pch",
+				"x/cmake_pch_arm64.hxx", "x/cmake_pch_arm64.hxx.pch"])
+		self.assertEqual(
+			command.arch_pchs,
+			{
+				"x86_64": ("x/cmake_pch_x86_64.hxx.pch", "x/cmake_pch_x86_64.hxx"),
+				"arm64": ("x/cmake_pch_arm64.hxx.pch", "x/cmake_pch_arm64.hxx"),
+			})
+		self.assertEqual(
+			(command.pch, command.pch_header, command.pch_dialect,
+				command.emits_pch, command.forced_includes),
+			(None, None, "clang", False, []))
+		self.assertEqual(ninja_target.macro_state(command, "A"), (True, "1"))
+		forced = self.parse(
+			consumer.replace("-Winvalid-pch ", ""),
+			["/src/a.cpp", "x/cmake_pch_x86_64.hxx", "x/cmake_pch_arm64.hxx"])
+		self.assertEqual(forced.arch_pchs, {})
+		self.assertEqual(
+			forced.forced_includes,
+			["x/cmake_pch_x86_64.hxx", "x/cmake_pch_arm64.hxx"])
+		self.assertIsNone(forced.pch_dialect)
+		with self.assertRaisesRegex(
+				ninja_target.NinjaTargetError,
+				"forced include may change requested macro"):
+			ninja_target.macro_state(forced, "A")
+		ignored = self.parse(
+			"c++ -arch x86_64 -arch arm64 -Xarch_x86_64 -fno-typed-cxx-delete "
+			"-Xarch_arm64 -ftyped-cxx-delete -DA -o o.o -c a.cpp")
+		self.assertEqual(ignored.definitions, [("D", "A", "1")])
+		self.assertEqual(ignored.arch_pchs, {})
+		self.assertEqual(ignored.forced_includes, [])
+
 	def test_ordered_definitions(self):
 		command = self.parse(
 			"c++ -DX -DE= -DZ=0 -D S -US -DV=1 -UV -DV=2 -U W -DW "
@@ -490,6 +555,32 @@ class CompileGrammarTests(unittest.TestCase):
 			("c++ -Wp,-DX -o o.o -c a.cpp", "'-Wp,-DX'"),
 			("c++ --define-macro=X -o o.o -c a.cpp", "'--define-macro=X'"),
 			("c++ -includem.h -o o.o -c a.cpp", "unsupported include form"),
+			("c++ -arch x86_64 -arch arm64 -Xarch_x86_64 -fx -include/h -o o.o "
+				"-c a.cpp", "unsupported include form '-include/h'"),
+			("c++ -arch arm64 -Xarch_arm64 -DX -o o.o -c a.cpp",
+				"unsupported per-architecture option '-Xarch_arm64 -DX'"),
+			("c++ -arch arm64 -Xarch_arm64 -UX -o o.o -c a.cpp",
+				"unsupported per-architecture option '-Xarch_arm64 -UX'"),
+			("c++ -arch x86_64 -arch arm64 -Xarch_x86_64 -include/h1 "
+				"-Xarch_x86_64 -include/h2 -o o.o -c a.cpp",
+				"per-architecture includes for ['x86_64', 'x86_64'] do not match "
+				"the -arch values ['x86_64', 'arm64'] of o.o"),
+			("c++ -arch x86_64 -arch arm64 -Xarch_arm64 -include/h -o o.o "
+				"-c a.cpp",
+				"per-architecture includes for ['arm64'] do not match the -arch "
+				"values ['x86_64', 'arm64'] of o.o"),
+			("c++ -arch x86_64 -Xarch_x86_64 -include/h1 -Xarch_arm64 "
+				"-include/h2 -o o.o -c a.cpp",
+				"per-architecture includes for ['x86_64', 'arm64'] do not match "
+				"the -arch values ['x86_64'] of o.o"),
+			("c++ -arch arm64 -Xarch_arm64 -include/h -Xclang -include-pch "
+				"-Xclang /p.pch -Xclang -include -Xclang /h -o o.o -c a.cpp",
+				"per-architecture PCH include mixed with another include or PCH "
+				"form in compile command for o.o"),
+			("c++ -arch arm64 -include /f.h -Xarch_arm64 -include/h -o o.o "
+				"-c a.cpp",
+				"per-architecture PCH include mixed with another include or PCH "
+				"form in compile command for o.o"),
 			("c++ @flags.rsp -o o.o -c a.cpp", "unexpanded response file"),
 			("c++ -Xclang -include-pch -Xclang /p1.pch -Xclang -include-pch "
 				"-Xclang /p2.pch -Xclang -include -Xclang /h -o o.o -c a.cpp",
@@ -1035,6 +1126,109 @@ class HandwrittenManifestTests(unittest.TestCase):
 						re.escape(message)):
 					resolve_tree(tree, *args)
 
+	def test_multi_arch_pch_resolves(self):
+		tree = self.tree()
+		tree.use_arch_pchs(LIB_UTIL, LIB_ARCH_HEADERS, LIB_RULE, LIB_DEFINES)
+		tree.write()
+		result = resolve_tree(
+			tree,
+			*base_args(tree),
+			"--select-object", LIB_UTIL)
+		self.assertEqual(result["verdict"], "PASS")
+		expected = {
+			"object": LIB_UTIL,
+			"edge": "explicit",
+			"rule": LIB_RULE,
+			"source": tree.source("lib dir/util.cpp"),
+			"pch": None,
+			"pch_rule": None,
+			"external": False,
+			"arch_pchs": {
+				"arm64": {"pch": LIB_ARM64_PCH, "pch_rule": LIB_RULE},
+				"x86_64": {"pch": LIB_X86_64_PCH, "pch_rule": LIB_RULE},
+			},
+		}
+		records = {item["object"]: item for item in result["objects"]["list"]}
+		self.assertEqual(records[LIB_UTIL], expected)
+		self.assertEqual(result["selections"][0], expected)
+		self.assertEqual(records[APP_MAIN]["pch"], tree.pch(APP_HEADER))
+		self.assertNotIn("arch_pchs", records[APP_MAIN])
+		self.assertEqual(
+			{
+				item["path"]: (item["rule"], item["header"], item["dialect"],
+					item["consumers"])
+				for item in result["pchs"]
+			},
+			{
+				tree.pch(APP_HEADER): (APP_RULE, APP_HEADER, "clang", 2),
+				LIB_ARM64_PCH: (LIB_RULE, LIB_ARCH_HEADERS["arm64"], "clang", 1),
+				LIB_X86_64_PCH: (LIB_RULE, LIB_ARCH_HEADERS["x86_64"], "clang", 1),
+			})
+		cohort = resolve_tree(
+			tree,
+			"--policy-target", "objlib",
+			"--expect-defined", "FX_OBJLIB_POLICY",
+			"--expect-undefined", "FX_APP_POLICY")["cohort"]
+		self.assertEqual(cohort["pchs"], [LIB_ARM64_PCH, LIB_X86_64_PCH])
+		self.assertEqual(cohort["objects"], 1)
+		self.assertEqual([item["pchs"] for item in cohort["macros"]], [2, 2])
+
+	def test_multi_arch_pch_negatives(self):
+		def drop_arm64_input(tree):
+			tree.edges[LIB_UTIL]["implicit"].remove(LIB_ARM64_PCH)
+
+		def arm64_edge(key, value):
+			def mutate(tree):
+				edge = tree.edges[LIB_ARM64_PCH]
+				if key == "rule":
+					edge["rule"] = value
+				else:
+					edge["vars"][key] = value(tree)
+			return mutate
+
+		def unused_input(tree):
+			tree.edges[LIB_UTIL]["implicit"].append(tree.pch(APP_HEADER))
+
+		cases = (
+			("per-arch PCH not a graph input", drop_arm64_input, None,
+				f"incoherent PCH for {LIB_UTIL}: {LIB_ARM64_PCH} is used on the "
+				"command line but is not an implicit graph input (-Winvalid-pch "
+				"without a .pch input)"),
+			("per-arch PCH produced by another target rule",
+				arm64_edge("rule", APP_RULE), None,
+				f"incoherent PCH: {LIB_ARM64_PCH} is produced by rule {APP_RULE} "
+				f"but used by {LIB_UTIL} compiled by rule {LIB_RULE}"),
+			("per-arch object with an unused PCH input", unused_input, None,
+				f"incoherent PCH for {LIB_UTIL}: graph input {APP_HEADER}.pch is "
+				"not used on the command line"),
+			("per-arch PCH built from another header",
+				arm64_edge("FLAGS", lambda tree: "-arch arm64 "
+					+ tree.emit_flags(LIB_ARCH_HEADERS["x86_64"])), None,
+				f"incoherent PCH: {LIB_UTIL} includes {LIB_ARCH_HEADERS['arm64']} "
+				f"(clang) with {LIB_ARM64_PCH} built from "
+				f"{LIB_ARCH_HEADERS['x86_64']} (clang)"),
+			("macro differs between object and per-arch PCH",
+				arm64_edge("DEFINES", lambda tree: '-DCMAKE_INTDIR=\\"Debug\\"'),
+				lambda tree: [
+					"--policy-target", "objlib",
+					"--expect-defined", "FX_OBJLIB_POLICY",
+				],
+				"requested macro FX_OBJLIB_POLICY differs between object and PCH: "
+				f"{LIB_UTIL} (defined=1) vs {LIB_ARM64_PCH} (undefined)"),
+		)
+		for number, (name, mutate, args, message) in enumerate(cases):
+			with self.subTest(name=name):
+				tree = self.tree(name=f"case {number}")
+				tree.use_arch_pchs(LIB_UTIL, LIB_ARCH_HEADERS, LIB_RULE,
+					LIB_DEFINES)
+				mutate(tree)
+				tree.write()
+				args = base_args(tree) if args is None else args(tree)
+				with self.assertRaisesRegex(
+						ninja_target.NinjaTargetError,
+						re.escape(message)):
+					resolve_tree(tree, *args)
+
 	def test_manifest_argument_refusals(self):
 		tree = self.tree()
 		tree.write()
@@ -1193,13 +1387,23 @@ FX_APP_COMMON = "CMakeFiles/fx_app.dir/Debug/shared/common.cpp.o"
 FX_TOOL_COMMON = "CMakeFiles/fx_tool.dir/Debug/shared/common.cpp.o"
 FX_APP_PCH = "CMakeFiles/fx_app.dir/Debug/cmake_pch.hxx.pch"
 FX_OBJLIB_PCH = "lib dir/CMakeFiles/fx_objlib.dir/Debug/cmake_pch.hxx.pch"
+FX_APP_ARM64_PCH = "CMakeFiles/fx_app.dir/Debug/cmake_pch_arm64.hxx.pch"
+FX_APP_X86_64_PCH = "CMakeFiles/fx_app.dir/Debug/cmake_pch_x86_64.hxx.pch"
+FX_OBJLIB_ARM64_PCH = (
+	"lib dir/CMakeFiles/fx_objlib.dir/Debug/cmake_pch_arm64.hxx.pch")
+FX_OBJLIB_X86_64_PCH = (
+	"lib dir/CMakeFiles/fx_objlib.dir/Debug/cmake_pch_x86_64.hxx.pch")
 FX_PLUGIN_INIT = "plugin/CMakeFiles/fx_plugin_init.dir/Debug/init.cpp.o"
 FX_SINGLE_PLUGIN_INIT = "plugin/CMakeFiles/fx_plugin_init.dir/init.cpp.o"
 FX_SINGLE_PLUGIN_OPERAND = "plugin/CMakeFiles/fx_plugin_init.dir/./init.cpp.o"
 
 
 class CompiledFixtureTests(unittest.TestCase):
-	"""fx_app and fx_tool compile the same shared/common.cpp."""
+	"""fx_app and fx_tool compile the same shared/common.cpp.
+
+	On macOS a configure-only universal variant configures every target for
+	x86_64;arm64.
+	"""
 
 	@classmethod
 	def setUpClass(cls):
@@ -1239,6 +1443,11 @@ class CompiledFixtureTests(unittest.TestCase):
 			("duplicate", multi, ["-DFX_DUPLICATE_OBJECT=ON"], False),
 			("single", "Ninja", ["-DCMAKE_BUILD_TYPE=Debug"], False),
 		)
+		if sys.platform == "darwin":
+			variants += (
+				("universal", multi, ["-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64"],
+					False),
+			)
 		try:
 			for name, generator, arguments, build in variants:
 				build_dir = os.path.join(root, f"build {name}")
@@ -1400,6 +1609,36 @@ class CompiledFixtureTests(unittest.TestCase):
 			(FX_SINGLE_PLUGIN_INIT, "implicit",
 				"CXX_COMPILER__fx_plugin_init_unscanned_Debug",
 				os.path.join(self.source_dir, "plugin/init.cpp")))
+
+	@unittest.skipUnless(
+		sys.platform == "darwin",
+		"CMAKE_OSX_ARCHITECTURES applies to macOS only")
+	def test_universal_objects_use_both_arch_pchs(self):
+		result = self.resolve("universal", *self.app_args())
+		app_rule = "CXX_COMPILER__fx_app_unscanned_Debug"
+		objlib_rule = "CXX_COMPILER__fx_objlib_unscanned_Debug"
+		selection = result["selections"][0]
+		self.assertEqual(
+			(selection["object"], selection["rule"], selection["pch"],
+				selection["pch_rule"], selection["arch_pchs"]),
+			(FX_APP_COMMON, app_rule, None, None, {
+				"arm64": {"pch": FX_APP_ARM64_PCH, "pch_rule": app_rule},
+				"x86_64": {"pch": FX_APP_X86_64_PCH, "pch_rule": app_rule},
+			}))
+		self.assertEqual(
+			{
+				item["path"]: (item["rule"], item["dialect"])
+				for item in result["pchs"]
+			},
+			{
+				FX_APP_ARM64_PCH: (app_rule, "clang"),
+				FX_APP_X86_64_PCH: (app_rule, "clang"),
+				FX_OBJLIB_ARM64_PCH: (objlib_rule, "clang"),
+				FX_OBJLIB_X86_64_PCH: (objlib_rule, "clang"),
+			})
+		self.assertEqual(
+			result["cohort"]["pchs"],
+			[FX_APP_ARM64_PCH, FX_APP_X86_64_PCH])
 
 	def test_duplicate_object_variant_refuses(self):
 		with self.assertRaisesRegex(
