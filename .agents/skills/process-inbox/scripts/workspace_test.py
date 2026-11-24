@@ -9334,6 +9334,78 @@ class ProjectBranchTest(unittest.TestCase):
 		self.push(second, second_slot, "xps-second", TASK_B)
 		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
 
+	def leave_absorbed_module_branch(self, genuine=False):
+		"""An earlier cycle's dep project branch the base took in under new hashes."""
+		work = self.root / "leftover"
+		git(self.root, "clone", "--quiet", str(self.dep), str(work))
+		write_file(work, "earlier.txt", "earlier\n")
+		git(work, "add", "earlier.txt")
+		git(work, "commit", "-m", "Earlier cycle fix")
+		earlier = git(work, "rev-parse", "HEAD")
+		if genuine:
+			write_file(work, "unpublished.txt", "unpublished\n")
+			git(work, "add", "unpublished.txt")
+			git(work, "commit", "-m", "Unpublished work")
+		git(work, "push", "--quiet", "origin", f"HEAD:refs/heads/{PROJECT}")
+		leftover = git(work, "rev-parse", "HEAD")
+		git(work, "checkout", "--quiet", "--detach", "origin/master")
+		write_file(work, "master.txt", "master\n")
+		git(work, "add", "master.txt")
+		git(work, "commit", "-m", "Advance module master")
+		git(work, "cherry-pick", earlier)
+		git(work, "push", "--quiet", "origin", "HEAD:refs/heads/master")
+		absorbed = git(work, "rev-parse", "HEAD")
+		base = self.clone("absorb")
+		git(base / "dep", "fetch", "--quiet", "origin")
+		git(base / "dep", "checkout", "--quiet", "--detach", absorbed)
+		git(base, "add", "dep")
+		git(base, "commit", "-m", "Absorb the earlier cycle")
+		for branch in ("alpha", PROJECT):
+			git(base, "push", "--quiet", "private", f"HEAD:refs/heads/{branch}")
+		return leftover, absorbed
+
+	def test_push_rebases_an_absorbed_module_branch_onto_the_pin(self):
+		leftover, absorbed = self.leave_absorbed_module_branch()
+		first = self.clone("first")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		begin_task(first, TASK_A)
+		commit_task(first, TASK_A, "first.txt")
+		self.sync(first, slot, "xps-first", TASK_A)
+		pushed = self.push(first, slot, "xps-first", TASK_A)
+		self.assertEqual(pushed["submodules"], ["dep"])
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), absorbed)
+		self.assertEqual(
+			git(self.private, "rev-parse", f"refs/heads/{PROJECT}"),
+			git(first, "rev-parse", "HEAD"),
+		)
+
+	def test_push_keeps_a_module_branch_with_work_the_pin_lacks(self):
+		leftover, _ = self.leave_absorbed_module_branch(genuine=True)
+		first = self.clone("first")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		begin_task(first, TASK_A)
+		commit_task(first, TASK_A, "first.txt")
+		self.sync(first, slot, "xps-first", TASK_A)
+		with self.assertRaisesRegex(workspace.WorkspaceError, "moved since project-sync"):
+			self.push(first, slot, "xps-first", TASK_A)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), leftover)
+
+	def test_sync_builds_module_work_on_the_pin_not_an_absorbed_branch(self):
+		_, absorbed = self.leave_absorbed_module_branch()
+		first = self.clone("first")
+		git(self.private, "update-ref", "-d", f"refs/heads/{PROJECT}")
+		git(first, "fetch", "--quiet", "--prune", "private")
+		slot = project_slot(self.root, TASK_A, "xps-first")
+		begin_task(first, TASK_A)
+		commit_task(first, TASK_A, "first.txt", "first-module.txt")
+		pin = git(first, "rev-parse", "HEAD:dep")
+		result = self.sync(first, slot, "xps-first", TASK_A)
+		self.assertFalse(result["synced"])
+		self.assertEqual(git(first, "rev-parse", "HEAD:dep"), pin)
+		self.assertEqual(git(first / "dep", "rev-parse", f"{pin}^"), absorbed)
+		self.push(first, slot, "xps-first", TASK_A)
+		self.assertEqual(git(self.dep, "rev-parse", f"refs/heads/{PROJECT}"), pin)
+
 	def test_a_base_fix_survives_an_incoming_sync(self):
 		first, first_slot, second, second_slot = self.two_checkouts()
 		self.push(first, first_slot, "xps-first", TASK_A)

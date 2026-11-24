@@ -1087,7 +1087,11 @@ project skips these steps):
 3. Run `workspace.py project-push --task <TASK_ID>`, with `--rewritten` after
    a base rebase, and `--base-fix <base_fix> --base <remote>/<branch>` when a
    base fix exists: that fix is fast-forwarded onto the base branch first.
-   Submodule branches are pushed before tdesktop. After a base rebase the
+   Submodule branches are pushed before tdesktop. A submodule project
+   branch left from an earlier cycle, whose every commit the pin already
+   carries under another hash, is rebased onto the pin, which drops them:
+   the push moves it to the pin under a lease, and a sync builds on the pin
+   instead of it. After a base rebase the
    new submodule commits go first to this checkout's own staging branch
    `_staging/<slug>/<checkout-tag>`, so every pin is fetchable, then tdesktop
    moves under its lease, then the submodule project branches; if one of

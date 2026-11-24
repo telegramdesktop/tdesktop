@@ -2712,6 +2712,10 @@ def command_project_sync(args):
 		module = source / path
 		pinned = gitlink_at(source, remote_tip, path) if remote_tip else None
 		tip = tips[path]
+		if absorbed_branch(module, pin, tip):
+			# A leftover whose commits the pin carries is no work to build on;
+			# project-push moves it to the pin.
+			tip = None
 		targets[path] = (
 			tip
 			if tip is not None and (pinned is None or is_ancestor(module, pinned, tip))
@@ -2823,6 +2827,19 @@ def live_branch_tip(repo, remote, branch):
 	return listed[0] if listed else None
 
 
+def absorbed_branch(repo, pin, tip):
+	"""Whether every commit of a submodule project branch is already in pin.
+
+	A project branch left over from an earlier cycle, whose commits the base
+	took in under new hashes, rebases onto pin as pin itself. A tip that is
+	pin's ancestor is not a leftover; callers handle it first.
+	"""
+	return tip is not None and not is_ancestor(repo, tip, pin) and not any(
+		line.startswith("+")
+		for line in run_git(repo, "cherry", pin, tip).stdout.splitlines()
+	)
+
+
 def module_publications(source, head, project):
 	"""Top-level submodules whose pinned commit the project branch publishes.
 
@@ -2918,6 +2935,9 @@ def command_project_push(args):
 			# unpublished half, which that checkout replays at its next sync.
 			or live_branch_tip(source, MIRROR_REMOTE, project) == head
 		):
+			push_branch(module, "origin", pin, project, lease=tip)
+		elif absorbed_branch(module, pin, tip):
+			# Rebasing the leftover onto the pin drops all of its commits.
 			push_branch(module, "origin", pin, project, lease=tip)
 		else:
 			raise WorkspaceError(
