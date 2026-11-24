@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <rpl/producer.h>
-#include "ui/rp_widget.h"
 #include "boxes/peer_list_box.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class Show;

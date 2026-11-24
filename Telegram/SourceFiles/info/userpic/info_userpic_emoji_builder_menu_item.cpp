@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "base/timer.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "info/userpic/info_userpic_emoji_builder.h"
 #include "info/userpic/info_userpic_emoji_builder_common.h"
 #include "info/userpic/info_userpic_emoji_builder_widget.h"
@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_menu_icons.h"
 #include "styles/style_userpic_button.h"
 

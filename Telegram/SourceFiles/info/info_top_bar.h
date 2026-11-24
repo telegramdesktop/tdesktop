@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/round_rect.h"
-#include "ui/wrap/fade_wrap.h"
+#include "info/info_wrap_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/numbers_animation.h"
-#include "info/info_wrap_widget.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/round_rect.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct InfoTopBar;

@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/members/info_members_widget.h"
 
+#include "data/data_channel.h"
+#include "data/data_peer.h"
 #include "info/profile/info_profile_members.h"
 #include "info/info_controller.h"
+#include "lang/lang_keys.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
-#include "data/data_peer.h"
-#include "data/data_channel.h"
-#include "lang/lang_keys.h"
 
 namespace Info {
 namespace Members {

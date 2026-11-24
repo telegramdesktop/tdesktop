@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "data/data_boosts.h"
-#include "info/info_controller.h" // Key
-#include "info/profile/info_profile_badge.h"
 #include "info/profile/tabs/info_profile_tab_top_bar_bindings.h"
+#include "info/profile/info_profile_badge.h"
+#include "info/info_controller.h" // Key
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"

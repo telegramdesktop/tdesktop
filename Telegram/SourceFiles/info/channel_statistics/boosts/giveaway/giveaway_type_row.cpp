@@ -10,10 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/text/text_options.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_color_indices.h"

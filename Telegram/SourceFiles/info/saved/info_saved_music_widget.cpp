@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_list_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -21,8 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "lang/lang_keys.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_credits.h" // giftListAbout
 #include "styles/style_info.h"
 

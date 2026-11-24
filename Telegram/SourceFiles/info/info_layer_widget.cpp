@@ -7,19 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_layer_widget.h"
 
+#include "core/application.h"
 #include "info/info_content_widget.h"
-#include "info/info_top_bar.h"
 #include "info/info_memento.h"
-#include "ui/rp_widget.h"
-#include "ui/focus_persister.h"
+#include "info/info_top_bar.h"
+#include "main/main_session.h"
 #include "ui/widgets/buttons.h"
 #include "ui/cached_round_corners.h"
+#include "ui/focus_persister.h"
+#include "ui/rp_widget.h"
+#include "window/main_window.h"
 #include "window/section_widget.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "window/main_window.h"
-#include "main/main_session.h"
-#include "core/application.h"
+
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 

@@ -9,9 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "menu/menu_check_item.h"
-#include "ui/widgets/checkbox.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
+
 #include "styles/style_widgets.h"
 
 namespace Info::Media {

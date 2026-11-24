@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 #include "storage/storage_shared_media.h"
+
 #include "styles/style_info.h"
 #include "styles/style_overview.h"
 

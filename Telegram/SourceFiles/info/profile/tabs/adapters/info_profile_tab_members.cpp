@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_members.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/scroll_area.h"
 
 namespace Info::Profile {
 namespace {

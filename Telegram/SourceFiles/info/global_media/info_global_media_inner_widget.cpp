@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_empty_widget.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/info_controller.h"
+#include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/search_field_controller.h"
-#include "lang/lang_keys.h"
 
 namespace Info::GlobalMedia {
 

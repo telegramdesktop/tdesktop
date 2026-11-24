@@ -15,16 +15,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_saved_music.h"
 #include "data/data_session.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "history/history.h"
-#include "info/media/info_media_widget.h"
 #include "info/media/info_media_list_section.h"
+#include "info/media/info_media_widget.h"
 #include "info/info_controller.h"
+#include "layout/layout_selection.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
-#include "layout/layout_selection.h"
 #include "storage/storage_shared_media.h"
+
 #include "styles/style_overview.h"
 
 namespace Info::Saved {

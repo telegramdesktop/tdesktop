@@ -17,13 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
-#include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Saved {

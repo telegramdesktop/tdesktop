@@ -11,13 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/weak_qptr.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "data/stickers/data_stickers.h"
+#include "data/stickers/data_stickers_set.h"
 #include "data/data_birthday.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/stickers/data_stickers.h"
-#include "data/stickers/data_stickers_set.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lottie/lottie_common.h"
 #include "main/main_session.h"
@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/qt_object_factory.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Profile {

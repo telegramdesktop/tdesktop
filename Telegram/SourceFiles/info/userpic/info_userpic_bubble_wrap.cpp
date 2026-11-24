@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/userpic/info_userpic_bubble_wrap.h"
 
-#include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_info_userpic_builder.h"
 

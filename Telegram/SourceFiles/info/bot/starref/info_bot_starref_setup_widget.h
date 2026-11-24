@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "info/info_content_widget.h"
 #include "info/bot/starref/info_bot_starref_common.h"
+#include "info/info_content_widget.h"
 
 namespace Ui::Premium {
 class TopBarAbstract;

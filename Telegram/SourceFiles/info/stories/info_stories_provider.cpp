@@ -7,9 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/stories/info_stories_provider.h"
 
-#include "info/media/info_media_widget.h"
-#include "info/media/info_media_list_section.h"
-#include "info/info_controller.h"
+#include "core/application.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
@@ -17,13 +15,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "data/data_stories_ids.h"
-#include "main/main_account.h"
-#include "main/main_session.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "history/history.h"
-#include "core/application.h"
+#include "info/media/info_media_list_section.h"
+#include "info/media/info_media_widget.h"
+#include "info/info_controller.h"
 #include "layout/layout_selection.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Stories {

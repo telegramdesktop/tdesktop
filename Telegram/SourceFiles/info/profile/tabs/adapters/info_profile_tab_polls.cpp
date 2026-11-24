@@ -11,15 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
 #include "info/polls/info_polls_list_widget.h"
-#include "info/profile/info_profile_values.h"
 #include "info/profile/tabs/adapters/info_profile_tab_sub_controller.h"
 #include "info/profile/tabs/info_profile_tab_skeleton.h"
+#include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/menu/menu_add_action_callback.h"
+
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
 

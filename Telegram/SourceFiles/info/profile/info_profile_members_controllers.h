@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/peer_list_box.h"
 #include "base/flat_map.h"
+#include "boxes/peer_list_box.h"
 #include "ui/effects/animations.h"
 #include "ui/unread_badge.h"
 

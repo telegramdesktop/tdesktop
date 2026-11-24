@@ -10,10 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt/qt_compare.h"
 #include "base/timer.h"
 #include "data/data_star_gift.h"
-#include "ui/abstract_button.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/text/custom_emoji_helper.h"
 #include "ui/text/text.h"
+#include "ui/abstract_button.h"
 
 class StickerPremiumMark;
 

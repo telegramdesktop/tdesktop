@@ -18,11 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
-#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 

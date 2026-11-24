@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/scroll_area.h"
 #include "ui/effects/animations.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/rp_widget.h"
 
 namespace Info {

@@ -24,8 +24,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/peer_gifts/info_peer_gifts_common.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "lang/lang_keys.h"
+#include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "mtproto/sender.h"
+#include "settings/settings_credits_graphics.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/sub_tabs.h"
+#include "ui/effects/animations.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
@@ -37,18 +43,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/ui_utility.h"
-#include "ui/effects/animations.h"
-#include "lang/lang_keys.h"
-#include "main/main_app_config.h"
-#include "main/main_session.h"
-#include "mtproto/sender.h"
 #include "window/window_session_controller.h"
-#include "settings/settings_credits_graphics.h"
+
+#include "styles/style_credits.h" // giftBoxPadding
 #include "styles/style_info.h"
 #include "styles/style_layers.h" // boxRadius
 #include "styles/style_media_player.h" // mediaPlayerMenuCheck
 #include "styles/style_menu_icons.h"
-#include "styles/style_credits.h" // giftBoxPadding
 
 #include <QtWidgets/QApplication>
 

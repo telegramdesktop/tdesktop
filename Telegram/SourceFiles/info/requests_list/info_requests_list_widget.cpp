@@ -9,10 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peers/edit_peer_requests_box.h"
 #include "info/info_controller.h"
+#include "lang/lang_keys.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
 #include "ui/ui_utility.h"
-#include "lang/lang_keys.h"
+
 #include "styles/style_info.h"
 
 namespace Info::RequestsList {

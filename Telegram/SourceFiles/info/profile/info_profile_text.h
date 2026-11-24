@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+
 #include "styles/style_widgets.h"
 
 #include <rpl/producer.h>

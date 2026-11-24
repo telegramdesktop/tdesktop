@@ -7,23 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/media/info_media_widget.h"
 
+#include "data/data_channel.h"
+#include "data/data_forum_topic.h"
+#include "data/data_peer.h"
+#include "data/data_saved_sublist.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "info/media/info_media_inner_widget.h"
 #include "info/media/info_media_voice_filter.h"
 #include "info/info_controller.h"
-#include "data/data_session.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/search_field_controller.h"
 #include "ui/ui_utility.h"
-#include "data/data_peer.h"
-#include "data/data_user.h"
-#include "data/data_channel.h"
-#include "data/data_forum_topic.h"
-#include "data/data_saved_sublist.h"
-#include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_menu_icons.h"
 
 namespace Info::Media {

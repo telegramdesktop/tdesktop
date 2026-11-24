@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "info/media/info_media_common.h"
 #include "base/weak_ptr.h"
+#include "info/media/info_media_common.h"
 
 namespace Data {
 struct DownloadedId;

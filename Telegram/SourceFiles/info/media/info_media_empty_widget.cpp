@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/media/info_media_empty_widget.h"
 
-#include "ui/widgets/labels.h"
-#include "styles/style_info.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/labels.h"
+
+#include "styles/style_info.h"
 
 namespace Info {
 namespace Media {

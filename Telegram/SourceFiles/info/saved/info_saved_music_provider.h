@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 #include "data/data_saved_music.h"
+#include "history/history_item.h"
 #include "info/media/info_media_common.h"
 #include "info/saved/info_saved_music_common.h"
-#include "history/history_item.h"
 
 class DocumentData;
 class HistoryItem;

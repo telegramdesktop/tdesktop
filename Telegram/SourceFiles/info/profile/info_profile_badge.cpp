@@ -7,20 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_badge.h"
 
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
-#include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
+#include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
-#include "ui/text/text_custom_emoji.h"
-#include "main/main_session.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Profile {

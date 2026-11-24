@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/channel_statistics/boosts/giveaway/boost_badge.h"
 
 #include "ui/effects/radial_animation.h"
+#include "ui/widgets/labels.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
-#include "ui/widgets/labels.h"
+
 #include "styles/style_giveaway.h"
 #include "styles/style_statistics.h"
 #include "styles/style_widgets.h"

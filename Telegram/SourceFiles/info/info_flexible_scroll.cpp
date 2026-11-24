@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_flexible_scroll.h"
 
-#include "ui/effects/animation_value.h"
-#include "ui/widgets/scroll_area.h"
 #include "base/event_filter.h"
 #include "base/options.h"
+#include "ui/effects/animation_value.h"
+#include "ui/widgets/scroll_area.h"
+
 #include "styles/style_info.h"
 
 #include <QtWidgets/QApplication>

@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/abstract_button.h"
 #include "ui/text/format_song_name.h"
 #include "ui/text/text.h"
+#include "ui/abstract_button.h"
 
 namespace Info::Profile {
 

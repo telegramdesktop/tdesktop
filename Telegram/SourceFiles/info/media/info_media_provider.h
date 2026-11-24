@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "info/media/info_media_common.h"
-#include "data/data_shared_media.h"
 #include "base/weak_ptr.h"
+#include "data/data_shared_media.h"
+#include "info/media/info_media_common.h"
 
 namespace Info {
 class AbstractController;

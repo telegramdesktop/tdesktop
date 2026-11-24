@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "info/statistics/info_statistics_tag.h"
 #include "info/info_flexible_scroll.h"
 #include "info/info_wrap_widget.h"
-#include "info/statistics/info_statistics_tag.h"
 #include "ui/controls/swipe_handler.h"
 #include "ui/controls/swipe_handler_data.h"
 

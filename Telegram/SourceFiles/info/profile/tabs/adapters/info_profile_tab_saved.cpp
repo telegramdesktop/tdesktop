@@ -11,15 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
-#include "info/info_controller.h"
-#include "info/profile/info_profile_values.h"
 #include "info/profile/tabs/info_profile_tab_skeleton.h"
+#include "info/profile/info_profile_values.h"
 #include "info/saved/info_saved_sublist_inline.h"
+#include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Profile {

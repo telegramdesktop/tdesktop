@@ -15,9 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "menu/menu_checked_action.h"
 #include "ui/text/text_utilities.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/menu/menu_action.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
+
 #include "styles/style_chat.h" // expandedMenuSeparator.
 #include "styles/style_chat_helpers.h"
 #include "styles/style_menu_icons.h"

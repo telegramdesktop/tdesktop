@@ -7,22 +7,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_widget.h"
 
-#include "dialogs/ui/dialogs_stories_content.h"
-#include "history/history.h"
-#include "info/profile/info_profile_inner_widget.h"
-#include "info/profile/info_profile_members.h"
-#include "info/profile/tabs/info_profile_tabs_host.h"
-#include "info/settings/info_settings_widget.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/ui_utility.h"
-#include "data/data_peer.h"
+#include "base/event_filter.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_user.h"
-#include "lang/lang_keys.h"
+#include "dialogs/ui/dialogs_stories_content.h"
+#include "history/history.h"
+#include "info/profile/tabs/info_profile_tabs_host.h"
+#include "info/profile/info_profile_inner_widget.h"
+#include "info/profile/info_profile_members.h"
+#include "info/settings/info_settings_widget.h"
 #include "info/info_controller.h"
-#include "base/event_filter.h"
+#include "lang/lang_keys.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/ui_utility.h"
 
 #include <QtWidgets/QApplication>
 #include <QtWidgets/QScrollBar>

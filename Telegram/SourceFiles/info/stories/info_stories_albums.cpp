@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/stories/info_stories_albums.h"
+
 #include "apiwrap.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/fields/input_field.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Stories {

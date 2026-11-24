@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "info/info_wrap_widget.h"
-#include "dialogs/dialogs_key.h"
-#include "window/section_memento.h"
 #include "base/object_ptr.h"
+#include "dialogs/dialogs_key.h"
+#include "info/info_wrap_widget.h"
+#include "ui/rp_widget.h"
+#include "window/section_memento.h"
 
 namespace Api {
 struct WhoReadList;

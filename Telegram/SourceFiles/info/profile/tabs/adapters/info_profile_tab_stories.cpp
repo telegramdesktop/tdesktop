@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_stories.h"
 #include "data/data_stories_ids.h"
-#include "info/info_controller.h"
 #include "info/media/info_media_list_widget.h"
 #include "info/stories/info_stories_common.h"
+#include "info/info_controller.h"
 #include "lang/lang_keys.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Profile {

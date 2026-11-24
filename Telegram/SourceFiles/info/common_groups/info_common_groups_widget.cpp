@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/common_groups/info_common_groups_widget.h"
 
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "info/common_groups/info_common_groups_inner_widget.h"
 #include "info/info_controller.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
-#include "lang/lang_keys.h"
-#include "data/data_user.h"
-#include "data/data_session.h"
-#include "main/main_session.h"
 
 namespace Info {
 namespace CommonGroups {

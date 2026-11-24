@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/ui_integration.h"
 #include "data/components/recent_shared_media_gifts.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_forum_topic.h"
@@ -17,21 +18,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories_ids.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "history/view/history_view_chat_section.h"
-#include "info/info_controller.h"
-#include "info/info_memento.h"
 #include "info/media/info_media_buttons.h"
 #include "info/peer_gifts/info_peer_gifts_widget.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
 #include "info/stories/info_stories_widget.h"
+#include "info/info_controller.h"
+#include "info/info_memento.h"
 #include "main/main_session.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_info.h"
 
 namespace Info::Profile {

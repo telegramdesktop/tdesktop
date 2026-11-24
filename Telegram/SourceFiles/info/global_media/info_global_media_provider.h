@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "data/data_messages.h"
 #include "info/media/info_media_common.h"
-#include "base/weak_ptr.h"
 
 namespace Main {
 class Session;

@@ -7,16 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/global_media/info_global_media_widget.h"
 
+#include "data/data_user.h"
 #include "info/downloads/info_downloads_widget.h"
 #include "info/global_media/info_global_media_inner_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
-#include "main/main_session.h"
-#include "ui/search_field_controller.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/ui_utility.h"
-#include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/search_field_controller.h"
+#include "ui/ui_utility.h"
 
 namespace Info::GlobalMedia {
 

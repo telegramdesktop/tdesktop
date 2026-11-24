@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/empty_userpic.h"
 #include "ui/widgets/buttons.h"
+#include "ui/empty_userpic.h"
 
 namespace Ui {
 template <typename Enum>

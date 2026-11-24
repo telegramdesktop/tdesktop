@@ -11,10 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/text/custom_emoji_instance.h"
 #include "ui/rect.h"
+
 #include "styles/style_credits.h"
+#include "styles/style_info.h" // infoIconReport.
 #include "styles/style_menu_icons.h"
 #include "styles/style_widgets.h"
-#include "styles/style_info.h" // infoIconReport.
 
 #include <QFile>
 #include <QtSvg/QSvgRenderer>

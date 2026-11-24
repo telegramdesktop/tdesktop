@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/layers/layer_widget.h"
-
 #include "ui/cached_round_corners.h"
 
 namespace Ui {

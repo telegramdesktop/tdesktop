@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/layer_widget.h"
 #include "media/player/media_player_float.h"
+#include "ui/layers/layer_widget.h"
 
 namespace Window {
 class SessionController;

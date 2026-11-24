@@ -9,16 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "countries/countries_instance.h"
 #include "lang/lang_keys.h"
-#include "ui/emoji_config.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
-#include "ui/vertical_list.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/emoji_config.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_giveaway.h"
 

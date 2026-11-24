@@ -25,20 +25,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/controls/emoji_button.h"
-#include "ui/empty_userpic.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/empty_userpic.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info_userpic_builder.h"
 #include "styles/style_layers.h"
-#include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_settings.h"
 
 namespace UserpicBuilder {
 namespace {

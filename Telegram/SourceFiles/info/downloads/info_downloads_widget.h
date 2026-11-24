@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "info/info_content_widget.h"
 #include "info/media/info_media_widget.h"
+#include "info/info_content_widget.h"
 
 namespace Ui {
 class SearchFieldController;

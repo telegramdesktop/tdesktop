@@ -16,15 +16,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "info/info_controller.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "settings/sections/settings_premium.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/ui_utility.h"
-#include "lang/lang_keys.h"
-#include "settings/sections/settings_premium.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_info.h"
 
 namespace Info::SimilarPeers {

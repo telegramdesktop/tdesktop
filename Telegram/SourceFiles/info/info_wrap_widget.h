@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/section_widget.h"
 #include "ui/effects/animations.h"
+#include "window/section_widget.h"
 
 namespace Storage {
 enum class SharedMediaType : signed char;

@@ -15,9 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "statistics/statistics_sheets.h"
 #include "ui/layers/show.h"
-#include "ui/rp_widget.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/rp_widget.h"
 
 namespace Info::Statistics {
 namespace {

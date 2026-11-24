@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_search_controller.h"
 #include "info/info_content_widget.h"
 #include "storage/storage_shared_media.h"
-#include "data/data_search_controller.h"
 
 namespace tr {
 template <typename ...Tags>

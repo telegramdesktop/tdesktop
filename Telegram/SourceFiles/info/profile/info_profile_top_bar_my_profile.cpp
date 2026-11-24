@@ -6,7 +6,6 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_top_bar.h"
-
 #include "info/profile/info_profile_top_bar_action_button.h"
 #include "lang/lang_keys.h"
 #include "media/stories/media_stories_post.h"

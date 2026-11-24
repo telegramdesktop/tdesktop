@@ -8,16 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/userpic/info_userpic_colors_editor.h"
 
 #include "base/random.h"
-#include "ui/wrap/fade_wrap.h"
-#include "info/userpic/info_userpic_emoji_builder_preview.h"
 #include "info/userpic/info_userpic_color_circle_button.h"
 #include "info/userpic/info_userpic_emoji_builder_common.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/widgets/color_editor.h"
-#include "ui/wrap/padding_wrap.h"
+#include "info/userpic/info_userpic_emoji_builder_preview.h"
 #include "ui/widgets/buttons.h"
-#include "ui/vertical_list.h"
+#include "ui/widgets/color_editor.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/rect.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_info_userpic_builder.h"
 #include "styles/style_userpic_button.h"
 
