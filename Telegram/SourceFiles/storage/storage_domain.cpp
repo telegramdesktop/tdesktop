@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/storage_domain.h"
 
-#include "core/version.h"
-#include "storage/details/storage_file_utilities.h"
-#include "storage/serialize_common.h"
-#include "mtproto/mtproto_config.h"
-#include "main/main_domain.h"
-#include "main/main_account.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
+#include "core/version.h"
+#include "main/main_account.h"
+#include "main/main_domain.h"
+#include "mtproto/mtproto_config.h"
+#include "storage/details/storage_file_utilities.h"
+#include "storage/serialize_common.h"
 #include "tgw/tgw_storage.h"
 
 namespace Storage {

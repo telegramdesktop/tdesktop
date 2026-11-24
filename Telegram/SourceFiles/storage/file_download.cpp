@@ -7,21 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/file_download.h"
 
+#include "apiwrap.h"
+#include "base/bytes.h"
+#include "core/application.h"
+#include "core/crash_reports.h"
+#include "core/file_location.h"
 #include "data/data_document.h"
-#include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "core/application.h"
-#include "core/file_location.h"
-#include "storage/storage_account.h"
+#include "platform/platform_file_utilities.h"
 #include "storage/file_download_mtproto.h"
 #include "storage/file_download_web.h"
-#include "platform/platform_file_utilities.h"
-#include "main/main_session.h"
-#include "apiwrap.h"
-#include "core/crash_reports.h"
-#include "base/bytes.h"
+#include "storage/storage_account.h"
 
 namespace {
 

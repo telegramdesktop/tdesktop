@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/file_download_web.h"
 
-#include "storage/cache/storage_cache_types.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "storage/cache/storage_cache_types.h"
 
 #include <QtNetwork/QAuthenticator>
 

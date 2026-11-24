@@ -7,20 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/details/storage_settings_scheme.h"
 
-#include "storage/details/storage_file_utilities.h"
-#include "storage/cache/storage_cache_database.h"
-#include "storage/serialize_common.h"
-#include "storage/storage_media_prepare.h"
+#include "boxes/send_files_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/update_checker.h"
 #include "mtproto/mtproto_config.h"
-#include "ui/widgets/fields/input_field.h"
+#include "platform/platform_specific.h"
+#include "storage/cache/storage_cache_database.h"
+#include "storage/details/storage_file_utilities.h"
+#include "storage/serialize_common.h"
+#include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/widgets/fields/input_field.h"
 #include "ui/power_saving.h"
 #include "window/themes/window_theme.h"
-#include "core/update_checker.h"
-#include "platform/platform_specific.h"
-#include "boxes/send_files_box.h"
 
 namespace Storage {
 namespace details {

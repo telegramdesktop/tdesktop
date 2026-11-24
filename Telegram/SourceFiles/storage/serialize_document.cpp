@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/serialize_document.h"
 
+#include "data/stickers/data_stickers.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 #include "storage/serialize_common.h"
 #include "storage/serialize_peer.h"
-#include "data/data_session.h"
-#include "data/stickers/data_stickers.h"
 #include "ui/image/image.h"
-#include "main/main_session.h"
 
 namespace Serialize {
 namespace {

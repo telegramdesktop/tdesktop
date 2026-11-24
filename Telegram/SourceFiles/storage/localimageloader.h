@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/variant.h"
 #include "api/api_common.h"
+#include "base/variant.h"
 
 #include <memory>
 

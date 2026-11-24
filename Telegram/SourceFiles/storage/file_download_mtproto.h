@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "storage/file_download.h"
 #include "storage/download_manager_mtproto.h"
+#include "storage/file_download.h"
 
 class mtpFileLoader final
 	: public FileLoader
