@@ -17,7 +17,7 @@ class InnerWidget;
 class Memento final : public ContentMemento {
 public:
 	Memento(not_null<Controller*> controller);
-	Memento(not_null<PeerData*> peer);
+	Memento(not_null<PeerData*> peer, bool storyBoostsRequired = false);
 	~Memento();
 
 	object_ptr<ContentWidget> createWidget(
@@ -31,9 +31,11 @@ public:
 
 	void setState(SavedState states);
 	[[nodiscard]] SavedState state();
+	[[nodiscard]] bool takeStoryBoostsRequired();
 
 private:
 	SavedState _state;
+	bool _storyBoostsRequired = false;
 
 };
 
@@ -55,10 +57,12 @@ public:
 private:
 	void saveState(not_null<Memento*> memento);
 	void restoreState(not_null<Memento*> memento);
+	void showStoryBoostsRequired();
 
 	std::shared_ptr<ContentMemento> doCreateMemento() override;
 
 	const not_null<InnerWidget*> _inner;
+	bool _storyBoostsRequired = false;
 
 };
 
@@ -66,5 +70,8 @@ private:
 [[nodiscard]] std::shared_ptr<Info::Memento> Make(
 	not_null<PeerData*> peer,
 	Data::BoostStatus status);
+[[nodiscard]] std::shared_ptr<Info::Memento> MakeForStory(
+	not_null<PeerData*> peer,
+	Data::BoostStatus status = {});
 
 } // namespace Info::Boosts

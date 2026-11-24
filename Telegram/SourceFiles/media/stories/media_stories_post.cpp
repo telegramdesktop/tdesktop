@@ -1906,15 +1906,17 @@ void ShowCanSendStoryError(
 		ShowPremiumPreviewBox(controller, PremiumFeature::Stories);
 		return;
 	case Type::BoostsRequired:
-		controller->showToast(tr::lng_story_boosts_required(tr::now));
 		if (peer->isChannel()) {
 			if (ctx.openBoosts) {
 				ctx.openBoosts();
 			} else {
-				controller->showSection(Info::Boosts::Make(peer));
+				controller->showSection(
+					Info::Boosts::MakeForStory(peer));
 			}
 		} else {
 			stopLoading();
+			controller->showToast(
+				tr::lng_story_boosts_required(tr::now));
 		}
 		return;
 	case Type::CountLimit:

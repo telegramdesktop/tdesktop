@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
+#include "ui/toast/toast.h"
 #include "ui/ui_utility.h"
 
 namespace Info::Boosts {
@@ -19,8 +20,9 @@ Memento::Memento(not_null<Controller*> controller)
 : ContentMemento(controller->statisticsTag()) {
 }
 
-Memento::Memento(not_null<PeerData*> peer)
-: ContentMemento(Info::Statistics::Tag{ peer, {}, {} }) {
+Memento::Memento(not_null<PeerData*> peer, bool storyBoostsRequired)
+: ContentMemento(Info::Statistics::Tag{ peer, {}, {} })
+, _storyBoostsRequired(storyBoostsRequired) {
 }
 
 Memento::~Memento() = default;
@@ -35,6 +37,10 @@ void Memento::setState(SavedState state) {
 
 Memento::SavedState Memento::state() {
 	return base::take(_state);
+}
+
+bool Memento::takeStoryBoostsRequired() {
+	return base::take(_storyBoostsRequired);
 }
 
 object_ptr<ContentWidget> Memento::createWidget(
@@ -69,7 +75,18 @@ not_null<PeerData*> Widget::peer() const {
 }
 
 bool Widget::showInternal(not_null<ContentMemento*> memento) {
-	return (memento->statisticsTag().peer == peer());
+	if (memento->statisticsTag().peer != peer()) {
+		return false;
+	}
+	if (const auto boosts = dynamic_cast<Memento*>(memento.get())) {
+		if (boosts->takeStoryBoostsRequired()) {
+			_storyBoostsRequired = true;
+			if (isVisible()) {
+				showStoryBoostsRequired();
+			}
+		}
+	}
+	return true;
 }
 
 rpl::producer<QString> Widget::title() {
@@ -90,6 +107,13 @@ rpl::producer<bool> Widget::desiredShadowVisibility() const {
 
 void Widget::showFinished() {
 	_inner->showFinished();
+	showStoryBoostsRequired();
+}
+
+void Widget::showStoryBoostsRequired() {
+	if (base::take(_storyBoostsRequired)) {
+		Ui::Toast::Show(this, tr::lng_story_boosts_required(tr::now));
+	}
 }
 
 std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
@@ -104,6 +128,7 @@ void Widget::saveState(not_null<Memento*> memento) {
 }
 
 void Widget::restoreState(not_null<Memento*> memento) {
+	_storyBoostsRequired = memento->takeStoryBoostsRequired();
 	_inner->restoreState(memento);
 	scrollTopRestore(memento->scrollTop());
 }
@@ -122,6 +147,17 @@ std::shared_ptr<Info::Memento> Make(
 	memento->setState(std::move(status));
 	return std::make_shared<Info::Memento>(
 		std::vector<std::shared_ptr<ContentMemento>>(1, std::move(memento)));
+}
+
+std::shared_ptr<Info::Memento> MakeForStory(
+		not_null<PeerData*> peer,
+		Data::BoostStatus status) {
+	auto memento = std::make_shared<Memento>(peer, true);
+	memento->setState(std::move(status));
+	return std::make_shared<Info::Memento>(
+		std::vector<std::shared_ptr<ContentMemento>>(
+			1,
+			std::move(memento)));
 }
 
 } // namespace Info::Boosts

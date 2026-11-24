@@ -1018,24 +1018,31 @@ void TopBar::openBoostsSectionForStory(
 	const auto peer = _peer;
 	if (_boostsStatus) {
 		_storyBoostsLoading = false;
-		controller->showSection(Info::Boosts::Make(peer, *_boostsStatus));
+		controller->showSection(
+			Info::Boosts::MakeForStory(peer, *_boostsStatus));
 		return;
 	}
 	_boostsApi->request(
-	) | rpl::on_error_done([=](const QString &) {
-		_storyBoostsLoading = false;
-		controller->showSection(Info::Boosts::Make(peer));
-	}, [=] {
-		auto status = _boostsApi->boostStatus();
-		const auto complete = !status.link.isEmpty();
-		if (complete) {
-			_boostsStatus = std::move(status);
-		}
-		_storyBoostsLoading = false;
-		controller->showSection(complete
-			? Info::Boosts::Make(peer, *_boostsStatus)
-			: Info::Boosts::Make(peer));
-	}, lifetime());
+	) | rpl::on_error_done(
+		[=](const QString &) {
+			_storyBoostsLoading = false;
+			controller->showSection(
+				Info::Boosts::MakeForStory(peer));
+		},
+		[=] {
+			auto status = _boostsApi->boostStatus();
+			const auto complete = !status.link.isEmpty();
+			if (complete) {
+				_boostsStatus = std::move(status);
+			}
+			_storyBoostsLoading = false;
+			controller->showSection(complete
+				? Info::Boosts::MakeForStory(
+					peer,
+					*_boostsStatus)
+				: Info::Boosts::MakeForStory(peer));
+		},
+		lifetime());
 }
 
 void TopBar::searchInCommunity(
