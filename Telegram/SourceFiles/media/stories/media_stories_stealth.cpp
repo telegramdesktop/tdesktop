@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/painter.h"
-#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "styles/style_media_view.h"
 #include "styles/style_media_stories.h"
@@ -334,10 +333,9 @@ struct State {
 				box->closeBox();
 			} else if (!now.premium) {
 				data->requested = false;
-				if (const auto window = show->resolveWindow()) {
-					ShowPremiumPreviewBox(window, PremiumFeature::Stories);
-					window->window().activate();
-				}
+				ShowPremiumPreviewBox(
+					show,
+					PremiumFeature::Stories);
 			} else if (now.mode.cooldownTill > now.now) {
 				show->showToast(ToastCooldown());
 				box->closeBox();
