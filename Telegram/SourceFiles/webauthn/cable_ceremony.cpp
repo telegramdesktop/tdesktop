@@ -5,16 +5,15 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "webauthn/cable.h"
-
-#include "core/websocket_client.h"
-#include "webauthn/cable_box.h"
-#include "webauthn/cable_scanner.h"
-#include "webauthn/webauthn_common.h"
-#include "lang/lang_keys.h"
 #include "base/algorithm.h"
 #include "base/timer.h"
 #include "base/unixtime.h"
+#include "core/websocket_client.h"
+#include "lang/lang_keys.h"
+#include "webauthn/cable.h"
+#include "webauthn/cable_box.h"
+#include "webauthn/cable_scanner.h"
+#include "webauthn/webauthn_common.h"
 
 #include <crl/crl.h>
 

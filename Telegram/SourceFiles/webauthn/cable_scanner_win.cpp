@@ -5,13 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "webauthn/cable_scanner.h"
-
-#include "webauthn/cable_core.h"
-#include "base/algorithm.h"
-#include "base/basic_types.h"
 #include "base/platform/win/base_windows_safe_library.h"
 #include "base/platform/win/base_windows_winrt.h"
+#include "base/algorithm.h"
+#include "base/basic_types.h"
+#include "webauthn/cable_core.h"
+#include "webauthn/cable_scanner.h"
 
 #include <winrt/Windows.Foundation.Collections.h>
 #include <winrt/Windows.Devices.Bluetooth.Advertisement.h>
