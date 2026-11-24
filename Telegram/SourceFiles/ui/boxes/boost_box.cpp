@@ -573,7 +573,7 @@ void BoostBox(
 		} else {
 			box->closeBox();
 		}
-	});
+	})->setFullRadius(true);
 }
 
 object_ptr<Ui::RpWidget> MakeLinkLabel(

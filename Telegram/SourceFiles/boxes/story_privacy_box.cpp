@@ -179,6 +179,30 @@ object_ptr<Ui::BoxContent> ChooseStoryPostAsBox(StoryPostAsArgs &&args) {
 		box->setWidth(st::boxWideWidth);
 		const auto content = box->verticalLayout();
 		const auto session = &controller->session();
+		const auto weak = base::make_weak(box);
+		const auto checked = [=](
+				not_null<PeerData*> peer,
+				const Api::CanSendStory &result) {
+			const auto strong = weak.get();
+			if (!strong || !strong->isBoxShown()) {
+				return;
+			}
+			if (!result.allowed()) {
+				Media::Stories::ShowCanSendStoryError(
+					controller,
+					peer,
+					result,
+					{ .openBoosts = [=] {
+						controller->resolveBoostState(
+							peer->asChannel());
+					} });
+			} else {
+				done(peer);
+			}
+			if (const auto strong = weak.get()) {
+				strong->closeBox();
+			}
+		};
 		for (const auto &peer : peers) {
 			const auto row = content->add(object_ptr<SendStoryRow>(
 				content,
@@ -196,26 +220,13 @@ object_ptr<Ui::BoxContent> ChooseStoryPostAsBox(StoryPostAsArgs &&args) {
 					box->closeBox();
 					return;
 				}
-				const auto weak = base::make_weak(box);
-				session->api().stories().checkCanSend(peer, crl::guard(
-					controller,
-					[=](Api::CanSendStory result) {
-						const auto strong = weak.get();
-						if (!strong || !strong->isBoxShown()) {
-							return;
-						}
-						if (!result.allowed()) {
-							Media::Stories::ShowCanSendStoryError(
-								controller,
-								peer,
-								result);
-						} else {
-							done(peer);
-						}
-						if (const auto strong = weak.get()) {
-							strong->closeBox();
-						}
-					}));
+				const auto ready = [=](
+						Api::CanSendStory result) {
+					checked(peer, result);
+				};
+				session->api().stories().checkCanSend(
+					peer,
+					crl::guard(controller, ready));
 			});
 		}
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
