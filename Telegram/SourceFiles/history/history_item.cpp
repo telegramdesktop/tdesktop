@@ -2652,6 +2652,7 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 	const auto wasActionTaken = wasNfr && wasNfr->actionTaken;
 	const auto wasSublist = savedSublist();
 	const auto wasTopic = topic();
+	const auto wasNotificationThread = maybeNotificationThread();
 	if (message.vaction().type() == mtpc_messageActionHistoryClear) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup({}, true);
@@ -2744,6 +2745,10 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		if (nowTopic) {
 			nowTopic->applyMaybeLast(this);
 		}
+	}
+	if (wasNotificationThread
+		&& maybeNotificationThread() != wasNotificationThread) {
+		wasNotificationThread->removeNotification(this);
 	}
 }
 
