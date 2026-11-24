@@ -737,14 +737,16 @@ void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
 }
 
 void Instance::Private::reInitConnection(DcId dcId) {
+	const auto dc = findDc(dcId);
 	auto selected = std::vector<not_null<Session*>>();
 	for (const auto &[shiftedDcId, session] : _sessions) {
 		if (BareDcId(shiftedDcId) == dcId) {
+			session->prepareReInitConnection();
 			selected.push_back(session.get());
+		} else if (dc && getDcById(shiftedDcId).get() == dc) {
+			// Shares the flag, keeps its connection for its config request.
+			session->prepareReInitConnection();
 		}
-	}
-	for (const auto session : selected) {
-		session->prepareReInitConnection();
 	}
 	for (const auto session : selected) {
 		session->setConnectionNotInited();
