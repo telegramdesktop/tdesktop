@@ -3689,7 +3689,8 @@ void StickersListWidget::refreshSearchIndex() {
 }
 
 void StickersListWidget::refreshSettingsVisibility() {
-	const auto visible = (_section == Section::Stickers)
+	const auto visible = _features.stickersSettings
+		&& (_section == Section::Stickers)
 		&& _mySets.empty()
 		&& !_isMasks;
 	_settings->setVisible(visible);
