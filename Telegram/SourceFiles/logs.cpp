@@ -63,11 +63,11 @@ QString _logsFilePath(LogDataType type, const QString &postfix = QString()) {
 int32 LogsStartIndexChosen = -1;
 QString _logsEntryStart() {
 	static thread_local auto threadId = ThreadCounter++;
-	static auto index = 0;
+	static auto index = std::atomic<uint64>(1);
 
 	const auto tm = QDateTime::currentDateTime();
 
-	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz"), QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
+	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz"), QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(index.fetch_add(1, std::memory_order_relaxed), 7, 10, QChar('0'));
 }
 
 class LogsDataFields {
