@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_toggling_media.h"
 
 #include "apiwrap.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
-#include "data/stickers/data_stickers.h"
-#include "window/window_session_controller.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 
 namespace Api {
 namespace {

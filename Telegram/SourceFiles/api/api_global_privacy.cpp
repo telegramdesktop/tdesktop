@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "data/components/promo_suggestions.h"
 #include "data/data_user.h"
-#include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "main/main_session.h"
 
 namespace Api {
 

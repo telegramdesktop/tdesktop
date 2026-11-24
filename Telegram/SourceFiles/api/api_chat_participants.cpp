@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 
 #include "apiwrap.h"
-#include "boxes/add_contact_box.h" // ShowAddParticipantsError
 #include "boxes/peers/add_participants_box.h" // ChatInviteForbidden
+#include "boxes/add_contact_box.h" // ShowAddParticipantsError
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_channel_admins.h"

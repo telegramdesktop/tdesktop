@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_text_entities.h"
 
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers_set.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "data/stickers/data_custom_emoji.h"
-#include "data/stickers/data_stickers_set.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"

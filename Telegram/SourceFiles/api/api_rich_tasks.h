@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/timer.h"
 #include "base/flat_map.h"
+#include "base/timer.h"
 
 class ApiWrap;
 class HistoryItem;

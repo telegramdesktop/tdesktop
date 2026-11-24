@@ -11,9 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "base/weak_ptr.h"
+#include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
 #include "boxes/peer_list_box.h"
 #include "boxes/premium_limits_box.h"
-#include "boxes/filters/edit_filter_links.h" // FilterChatStatusText
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/ui_integration.h"
@@ -35,10 +35,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/filter_icons.h"
 #include "ui/painter.h"
-#include "ui/vertical_list.h"
 #include "ui/ui_utility.h"
-#include "window/window_session_controller.h"
+#include "ui/vertical_list.h"
 #include "window/window_separate_id.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"

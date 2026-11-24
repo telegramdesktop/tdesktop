@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_user_privacy.h"
 
 #include "apiwrap.h"
-#include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_peer_id.h"
 #include "data/data_session.h"

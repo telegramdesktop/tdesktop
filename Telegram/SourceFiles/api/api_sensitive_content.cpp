@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sensitive_content.h"
 
 #include "apiwrap.h"
-#include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "main/main_session.h"
 
 namespace Api {
 namespace {

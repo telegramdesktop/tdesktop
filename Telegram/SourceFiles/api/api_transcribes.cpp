@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_transcribes.h"
 
-#include "apiwrap.h"
 #include "api/api_text_entities.h"
+#include "apiwrap.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_peer.h"

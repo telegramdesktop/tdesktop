@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_attached_stickers.h"
 
 #include "apiwrap.h"
-#include "ui/boxes/confirm_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "data/data_document.h"
 #include "data/data_photo.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/confirm_box.h"
 #include "window/window_session_controller.h"
 
 namespace Api {

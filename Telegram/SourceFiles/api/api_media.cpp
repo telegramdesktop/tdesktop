@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_media.h"
 
 #include "api/api_common.h"
-#include "data/data_document.h"
 #include "data/stickers/data_stickers_set.h"
+#include "data/data_document.h"
 #include "history/history_item.h"
 
 namespace Api {

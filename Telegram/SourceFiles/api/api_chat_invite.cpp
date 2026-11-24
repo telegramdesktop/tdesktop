@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_chat_invite.h"
 
-#include "apiwrap.h"
 #include "api/api_credits.h"
+#include "apiwrap.h"
 #include "boxes/premium_limits_box.h"
 #include "core/application.h"
 #include "data/components/credits.h"
@@ -30,14 +30,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/credits_graphics.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
-#include "ui/empty_userpic.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/empty_userpic.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_api_chat_invite.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_color_indices.h"

@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_report.h"
 
 #include "apiwrap.h"
-#include "data/data_session.h"
-#include "data/data_peer.h"
 #include "data/data_channel.h"
+#include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_report.h"
+#include "data/data_session.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"

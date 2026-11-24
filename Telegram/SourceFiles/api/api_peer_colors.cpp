@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "data/data_peer.h"
-#include "window/themes/window_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/color_int_conversion.h"
+#include "window/themes/window_theme.h"
 
 namespace Api {
 namespace {

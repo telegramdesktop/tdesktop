@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_pts_waiter.h"
 #include "base/timer.h"
+#include "data/data_pts_waiter.h"
 
 class ApiWrap;
 class History;

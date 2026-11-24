@@ -7,33 +7,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_stories.h"
 
-#include "data/data_stories.h"
-
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/random.h"
+#include "core/application.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_message_reaction_id.h"
 #include "data/data_photo.h"
 #include "data/data_premium_limits.h"
-#include "data/data_story.h"
 #include "data/data_session.h"
+#include "data/data_stories.h"
+#include "data/data_story.h"
 #include "data/data_user.h"
-#include "main/main_app_config.h"
 #include "lang/lang_keys.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
-#include "styles/style_layers.h"
-#include "window/window_controller.h"
-#include "ui/boxes/confirm_box.h"
-#include "ui/color_int_conversion.h"
-#include "core/application.h"
 #include "media/media_video_encode.h"
 #include "storage/file_upload.h"
 #include "storage/localimageloader.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/text_utilities.h"
+#include "ui/color_int_conversion.h"
+#include "window/window_controller.h"
+
+#include "styles/style_layers.h"
 
 #include <QtCore/QDir>
 #include <QtCore/QFile>

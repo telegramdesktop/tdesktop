@@ -13,8 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_updates.h"
 #include "apiwrap.h"
-#include "base/call_delayed.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/call_delayed.h"
 #include "base/random.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/data_changes.h"
@@ -26,9 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "styles/style_polls.h"
 #include "ui/toast/toast.h"
 #include "window/window_session_controller.h"
+
+#include "styles/style_polls.h"
 
 namespace {
 

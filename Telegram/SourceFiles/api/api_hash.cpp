@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_hash.h"
 
+#include "data/stickers/data_stickers.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
-#include "data/stickers/data_stickers.h"
 #include "main/main_session.h"
 
 namespace Api {

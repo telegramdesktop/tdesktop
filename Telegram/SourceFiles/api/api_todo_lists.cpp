@@ -14,8 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_shortcut_messages.h" // ShortcutIdToMTP
 #include "data/data_changes.h"
 #include "data/data_histories.h"
-#include "data/data_todo_list.h"
 #include "data/data_session.h"
+#include "data/data_todo_list.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"

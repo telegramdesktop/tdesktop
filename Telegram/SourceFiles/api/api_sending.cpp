@@ -8,35 +8,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 
 #include "api/api_text_entities.h"
+#include "apiwrap.h"
 #include "base/random.h"
 #include "base/unixtime.h"
+#include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
+#include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
 #include "data/business/data_shortcut_messages.h"
-#include "data/data_document.h"
-#include "data/data_photo.h"
-#include "data/data_channel.h" // ChannelData::addsSignature.
-#include "data/data_user.h" // UserData::name
-#include "data/data_session.h"
-#include "data/data_file_origin.h"
-#include "data/data_forum.h"
-#include "data/data_histories.h"
-#include "data/data_changes.h"
 #include "data/components/ephemeral_messages.h"
 #include "data/components/welcome_messages.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_changes.h"
+#include "data/data_channel.h" // ChannelData::addsSignature.
+#include "data/data_document.h"
+#include "data/data_file_origin.h"
+#include "data/data_forum.h"
+#include "data/data_histories.h"
+#include "data/data_photo.h"
+#include "data/data_session.h"
+#include "data/data_user.h" // UserData::name
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h" // NewMessageFlags.
-#include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
-#include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
+#include "main/main_app_config.h"
+#include "main/main_session.h"
+#include "mainwidget.h"
+#include "storage/file_upload.h"
+#include "storage/localimageloader.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/text_entity.h" // TextWithEntities.
 #include "ui/item_text_options.h" // Ui::ItemTextOptions.
-#include "ui/chat/attach/attach_prepare.h"
-#include "main/main_session.h"
-#include "main/main_app_config.h"
-#include "storage/localimageloader.h"
-#include "storage/file_upload.h"
-#include "mainwidget.h"
-#include "apiwrap.h"
 
 namespace Api {
 namespace {
