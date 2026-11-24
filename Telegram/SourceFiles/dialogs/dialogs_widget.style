@@ -37,9 +37,7 @@ dialogsAddStory: IconButton {
 
 	rippleAreaPosition: point(0px, 0px);
 	rippleAreaSize: 26px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgRipple;
-	}
+	ripple: defaultRippleAnimation;
 }
 dialogsAddStoryRight: 4px;
 dialogsAddStoryMenuSkip: 4px;
