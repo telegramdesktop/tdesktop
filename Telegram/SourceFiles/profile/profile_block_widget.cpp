@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "profile/profile_block_widget.h"
 
 #include "ui/painter.h"
+
 #include "styles/style_profile.h"
 
 namespace Profile {
