@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_mute.h"
 
 #include "boxes/ringtones_box.h"
-#include "data/data_session.h"
-#include "data/data_thread.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/notify/data_peer_notify_settings.h"
+#include "data/data_session.h"
+#include "data/data_thread.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -22,10 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
-#include "ui/widgets/checkbox.h"
 #include "ui/widgets/menu/menu_action.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
+
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_menu_icons.h"
 

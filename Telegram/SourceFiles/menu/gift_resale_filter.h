@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/menu/menu_action.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/widgets/menu/menu_action.h"
 
 namespace Ui {
 

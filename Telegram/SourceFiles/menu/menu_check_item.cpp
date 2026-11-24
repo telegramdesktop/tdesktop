@@ -9,8 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_haptic.h"
 #include "ui/effects/shake_animation.h"
-#include "ui/painter.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/painter.h"
+
 #include "styles/style_media_player.h"
 
 namespace Menu {

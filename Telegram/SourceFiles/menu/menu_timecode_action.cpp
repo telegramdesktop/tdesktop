@@ -9,12 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 #include "lang/lang_keys.h"
-#include "ui/painter.h"
 #include "ui/text/format_values.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_common.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
 
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"

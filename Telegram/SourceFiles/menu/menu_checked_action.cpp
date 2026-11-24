@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_checked_action.h"
 
 #include "base/unique_qptr.h"
+#include "styles/palette.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/menu/menu_common.h"
@@ -16,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
-#include "styles/palette.h"
 
 #include <QtSvg/QSvgRenderer>
 
