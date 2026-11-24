@@ -2581,6 +2581,9 @@ void InnerWidget::processGlobalForceClick(QPoint globalPosition) {
 }
 
 void InnerWidget::mousePressEvent(QMouseEvent *e) {
+	if (activeMiddleQuickAction()) {
+		clearPressed();
+	}
 	selectByMouse(e->globalPos());
 
 	_pressButton = e->button();
@@ -2712,6 +2715,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	}
 	ClickHandler::pressed();
 	if (anim::Disabled()
+		&& !activeMiddleQuickAction()
 		&& !_chatPreviewScheduled
 		&& (!_pressed || !_pressed->entry()->isPinnedDialog(_filterId))) {
 		mousePressReleased(e->globalPos(), e->button(), e->modifiers());
@@ -2771,10 +2775,9 @@ bool InnerWidget::addQuickActionRipple(
 		return false;
 	}
 	const auto key = history->peer->id.value;
-	const auto context = ensureQuickAction(key);
-	if (context->data) {
-		return false;
-	}
+	const auto context = ensureQuickAction(
+		key,
+		Ui::QuickActionTrigger::MiddleButton);
 
 	auto name = ResolveQuickDialogLottieIconName(type);
 	const auto rowHeight = row->height();
@@ -2784,7 +2787,17 @@ bool InnerWidget::addQuickActionRipple(
 	});
 	context->action = action;
 	context->label = type;
-	context->icon->jumpTo(context->icon->framesCount() - 1, [=] {
+	const auto frame = context->icon->framesCount() - 1;
+	if (anim::Disabled()) {
+		context->staticFeedback = true;
+		context->icon->jumpTo(frame, std::move(updateCallback));
+		updateQuickActionRow(key);
+		return true;
+	}
+	auto ready = [=] {
+		if (_activeQuickAction.get() != context) {
+			return;
+		}
 		const auto size = QSize(
 			st::dialogsQuickActionRippleSize,
 			rowHeight);
@@ -2814,7 +2827,10 @@ bool InnerWidget::addQuickActionRipple(
 		}
 		context->ripple->add(QPoint(size.width() / 2, size.height() / 2));
 		context->rippleFg->add(QPoint(size.width() / 2, size.height() / 2));
-	});
+	};
+	context->icon->jumpTo(
+		frame,
+		crl::guard(this, std::move(ready)));
 
 	return true;
 }
@@ -3137,6 +3153,17 @@ void InnerWidget::mousePressReleased(
 	const auto pressedTopicJump = _pressedTopicJump;
 	const auto pressedRightButton = _pressedRightButton;
 	auto pressed = _pressed;
+	const auto quick = activeMiddleQuickAction();
+	const auto quickHistory = (quick
+		&& pressButton == Qt::MiddleButton
+		&& button == Qt::MiddleButton
+		&& pressed
+		&& pressed == _selected)
+		? pressed->history()
+		: nullptr;
+	const auto quickAction = quickHistory
+		? quick->action
+		: Ui::QuickDialogAction::Disabled;
 	clearPressed();
 	auto hashtagPressed = _hashtagPressed;
 	setHashtagPressed(-1);
@@ -3162,28 +3189,12 @@ void InnerWidget::mousePressReleased(
 	if (_pressedRightButtonData && _pressedRightButtonData->ripple) {
 		_pressedRightButtonData->ripple->lastStop();
 	}
-	if ((pressButton == Qt::MiddleButton)
-		&& _activeQuickAction
-		&& pressed
-		&& !_activeQuickAction->data) {
-		if (const auto history = pressed->history()) {
-			const auto raw = _activeQuickAction.get();
-			if (raw->ripple) {
-				raw->ripple->lastStop();
-			}
-			if (raw->rippleFg) {
-				raw->rippleFg->lastStop();
-			}
-
-			if (pressed == _selected) {
-				PerformQuickDialogAction(
-					_controller,
-					history->peer,
-					raw->action,
-					_filterId);
-			}
-			deactivateQuickAction();
-		}
+	if (quickHistory) {
+		PerformQuickDialogAction(
+			_controller,
+			quickHistory->peer,
+			quickAction,
+			_filterId);
 	}
 	updateSelectedRow();
 	if (!wasDragging && button == Qt::LeftButton) {
@@ -3284,6 +3295,9 @@ void InnerWidget::setPressed(
 }
 
 void InnerWidget::clearPressed() {
+	if (activeMiddleQuickAction()) {
+		deactivateQuickAction();
+	}
 	setPressed(nullptr, false, false);
 }
 
@@ -4222,7 +4236,10 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 
 	_menuRow = row;
 	if (_pressButton != Qt::LeftButton) {
-		mousePressReleased(e->globalPos(), _pressButton, e->modifiers());
+		const auto button = (_pressButton == Qt::MiddleButton)
+			? Qt::NoButton
+			: _pressButton;
+		mousePressReleased(e->globalPos(), button, e->modifiers());
 	}
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
@@ -6712,10 +6729,17 @@ void InnerWidget::setSwipeContextData(
 		return;
 	}
 	if (!data) {
-		_activeQuickAction = nullptr;
+		if (const auto active = _activeQuickAction.get()) {
+			if ((active->trigger == Ui::QuickActionTrigger::Swipe)
+				&& (active->data.msgBareId == key)) {
+				_activeQuickAction = nullptr;
+			}
+		}
 		return;
 	}
-	const auto context = ensureQuickAction(key);
+	const auto context = ensureQuickAction(
+		key,
+		Ui::QuickActionTrigger::Swipe);
 	if (!context->icon) {
 		prepareQuickAction(key, Core::App().settings().quickDialogAction());
 	}
@@ -6745,11 +6769,14 @@ void InnerWidget::setSwipeContextData(
 	}
 }
 
-not_null<Ui::QuickActionContext*> InnerWidget::ensureQuickAction(int64 key) {
+not_null<Ui::QuickActionContext*> InnerWidget::ensureQuickAction(
+		int64 key,
+		Ui::QuickActionTrigger trigger) {
 	Expects(key != 0);
 
 	if (_activeQuickAction) {
-		if (_activeQuickAction->data.msgBareId == key) {
+		if (_activeQuickAction->data.msgBareId == key
+			&& _activeQuickAction->trigger == trigger) {
 			return _activeQuickAction.get();
 		} else {
 			deactivateQuickAction();
@@ -6757,6 +6784,7 @@ not_null<Ui::QuickActionContext*> InnerWidget::ensureQuickAction(int64 key) {
 	}
 	_activeQuickAction = std::make_unique<Ui::QuickActionContext>();
 	_activeQuickAction->data.msgBareId = key;
+	_activeQuickAction->trigger = trigger;
 	return _activeQuickAction.get();
 }
 
@@ -6791,7 +6819,9 @@ bool InnerWidget::prepareQuickAction(
 	if (type == Dialogs::Ui::QuickDialogActionLabel::Disabled) {
 		return false;
 	}
-	const auto context = ensureQuickAction(key);
+	const auto context = ensureQuickAction(
+		key,
+		Ui::QuickActionTrigger::Swipe);
 	context->icon = Lottie::MakeIcon({
 		.name = ResolveQuickDialogLottieIconName(type),
 		.sizeOverride = Size(st::dialogsQuickActionSize),
@@ -6805,11 +6835,29 @@ void InnerWidget::clearQuickActions() {
 	_inactiveQuickActions.clear();
 }
 
+Ui::QuickActionContext *InnerWidget::activeMiddleQuickAction() const {
+	const auto active = _activeQuickAction.get();
+	return (active
+		&& active->trigger == Ui::QuickActionTrigger::MiddleButton)
+		? active
+		: nullptr;
+}
+
 void InnerWidget::deactivateQuickAction() {
 	if (_activeQuickAction) {
-		_activeQuickAction->finishedAt = crl::now();
-		_inactiveQuickActions.push_back(
-			QuickActionPtr{ _activeQuickAction.release() });
+		auto context = std::move(_activeQuickAction);
+		const auto key = context->data.msgBareId;
+		if (context->ripple) {
+			context->ripple->lastStop();
+		}
+		if (context->rippleFg) {
+			context->rippleFg->lastStop();
+		}
+		if (!context->staticFeedback) {
+			context->finishedAt = crl::now();
+			_inactiveQuickActions.push_back(std::move(context));
+		}
+		updateQuickActionRow(key);
 	}
 }
 

@@ -625,7 +625,9 @@ private:
 	bool restoreChatsFilterScrollState(FilterId filterId);
 
 	[[nodiscard]] not_null<Ui::QuickActionContext*> ensureQuickAction(
-		int64 key);
+		int64 key,
+		Ui::QuickActionTrigger trigger);
+	[[nodiscard]] Ui::QuickActionContext *activeMiddleQuickAction() const;
 	void deactivateQuickAction();
 	void updateQuickActionRow(int64 key);
 

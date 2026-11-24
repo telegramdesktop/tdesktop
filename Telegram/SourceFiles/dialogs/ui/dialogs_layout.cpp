@@ -1088,8 +1088,16 @@ void PaintRow(
 		}
 		p.setClipping(false);
 	}
-	if (const auto quick = context.quickActionContext;
-			quick && quick->ripple && quick->rippleFg) {
+	const auto quick = context.quickActionContext;
+	if (quick && quick->staticFeedback && quick->icon) {
+		const auto size = st::dialogsQuickActionRippleSize;
+		const auto x = style::RightToLeft()
+			? 0
+			: geometry.width() - size;
+		const auto rect = QRect(x, 0, size, geometry.height());
+		p.fillRect(rect, ResolveQuickActionBg(quick->label));
+		DrawQuickAction(p, rect, quick->icon.get(), quick->label);
+	} else if (quick && quick->ripple && quick->rippleFg) {
 		const auto ripple = ResolveQuickActionBg(quick->label);
 		const auto size = st::dialogsQuickActionRippleSize;
 		const auto x = geometry.width() - size;
