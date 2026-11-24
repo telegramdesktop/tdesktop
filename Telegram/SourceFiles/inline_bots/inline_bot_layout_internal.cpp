@@ -7,35 +7,37 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_bot_layout_internal.h"
 
-#include "data/data_photo.h"
-#include "data/data_document.h"
-#include "data/data_session.h"
-#include "data/data_file_origin.h"
-#include "data/data_photo_media.h"
-#include "data/data_document_media.h"
-#include "data/stickers/data_stickers.h"
 #include "chat_helpers/gifs_list_widget.h" // ChatHelpers::AddGifAction.
 #include "chat_helpers/stickers_lottie.h"
+#include "data/stickers/data_stickers.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_file_origin.h"
+#include "data/data_photo.h"
+#include "data/data_photo_media.h"
+#include "data/data_session.h"
+// DrawThumbnailAsSongCover
+#include "history/view/media/history_view_document.h"
+#include "history/view/media/history_view_media_common.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/history_location_manager.h"
 #include "inline_bots/inline_bot_result.h"
+#include "lang/lang_keys.h"
 #include "lottie/lottie_single_player.h"
+#include "main/main_session.h"
 #include "media/audio/media_audio.h"
 #include "media/clip/media_clip_reader.h"
-#include "media/media_common.h"
 #include "media/player/media_player_instance.h"
-#include "history/history_location_manager.h"
-#include "history/view/history_view_cursor_state.h"
-#include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
-#include "history/view/media/history_view_media_common.h"
+#include "media/media_common.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
-#include "main/main_session.h"
-#include "lang/lang_keys.h"
-#include "styles/style_chat_style.h"
-#include "styles/style_overview.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_chat_style.h"
+#include "styles/style_overview.h"
 
 namespace InlineBots {
 namespace Layout {

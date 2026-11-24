@@ -7,17 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "inline_bots/inline_results_widget.h"
 
-#include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_results_inner.h"
 #include "main/main_session.h"
-#include "window/window_session_controller.h"
-#include "ui/widgets/shadow.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/image/image_prepare.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/shadow.h"
 #include "ui/cached_round_corners.h"
 #include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace InlineBots {

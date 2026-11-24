@@ -8,14 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_send_data.h"
 
 #include "api/api_text_entities.h"
+#include "data/data_channel.h"
 #include "data/data_document.h"
-#include "inline_bots/inline_bot_result.h"
-#include "iv/iv_rich_page.h"
-#include "storage/localstorage.h"
-#include "lang/lang_keys.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "data/data_channel.h"
+#include "inline_bots/inline_bot_result.h"
+#include "iv/iv_rich_page.h"
+#include "lang/lang_keys.h"
+#include "storage/localstorage.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 
 namespace InlineBots {

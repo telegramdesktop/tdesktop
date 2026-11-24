@@ -7,16 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/abstract_button.h"
-#include "ui/cached_round_corners.h"
-#include "ui/widgets/tooltip.h"
+#include "base/timer.h"
+#include "inline_bots/inline_bot_layout_item.h"
+#include "mtproto/sender.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/widgets/shadow.h"
-#include "base/timer.h"
-#include "mtproto/sender.h"
-#include "inline_bots/inline_bot_layout_item.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/abstract_button.h"
+#include "ui/cached_round_corners.h"
+#include "ui/rp_widget.h"
 
 namespace Api {
 struct SendOptions;
