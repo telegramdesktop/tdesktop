@@ -348,7 +348,9 @@ Instance::Private::Private(
 		_customDeviceModel = value;
 		lock.unlock();
 
-		reInitConnection(mainDcId());
+		if (hasMainDcId()) {
+			reInitConnection(mainDcId());
+		}
 	}, _lifetime);
 
 	for (auto &key : fields.keys) {
