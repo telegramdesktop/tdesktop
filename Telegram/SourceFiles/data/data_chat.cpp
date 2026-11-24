@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_chat.h"
 
+#include "api/api_invite_links.h"
+#include "apiwrap.h"
 #include "core/application.h"
-#include "data/data_user.h"
-#include "data/data_channel.h"
-#include "data/data_session.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
-#include "data/notify/data_notify_settings.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "main/main_session.h"
-#include "apiwrap.h"
-#include "api/api_invite_links.h"
 
 namespace {
 

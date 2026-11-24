@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_photo.h"
 
+#include "core/application.h"
 #include "data/data_document.h"
-#include "data/data_session.h"
-#include "data/data_reply_preview.h"
 #include "data/data_photo_media.h"
-#include "main/main_session.h"
+#include "data/data_reply_preview.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "main/main_session.h"
 #include "media/streaming/media_streaming_loader_local.h"
 #include "media/streaming/media_streaming_loader_mtproto.h"
-#include "storage/storage_account.h"
 #include "storage/file_download.h"
-#include "core/application.h"
+#include "storage/storage_account.h"
 
 namespace {
 

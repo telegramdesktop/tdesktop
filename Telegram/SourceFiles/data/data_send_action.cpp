@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_send_action.h"
 
 #include "data/data_user.h"
-#include "history/history.h"
 #include "history/view/history_view_send_action.h"
+#include "history/history.h"
 
 namespace Data {
 

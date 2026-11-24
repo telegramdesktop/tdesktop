@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_forum_icons.h"
 
-#include "main/main_session.h"
-#include "data/data_session.h"
+#include "apiwrap.h"
 #include "data/data_document.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
-#include "apiwrap.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 
 namespace Data {
 

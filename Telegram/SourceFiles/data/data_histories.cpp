@@ -8,6 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 
 #include "api/api_text_entities.h"
+#include "apiwrap.h"
+#include "base/random.h"
+#include "base/unixtime.h"
+#include "core/application.h"
 #include "data/business/data_shortcut_messages.h"
 #include "data/components/ephemeral_messages.h"
 #include "data/components/scheduled_messages.h"
@@ -23,18 +27,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "base/unixtime.h"
-#include "base/random.h"
-#include "main/main_session.h"
-#include "window/notifications_manager.h"
+#include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
-#include "history/view/history_view_element.h"
 #include "iv/iv_rich_page.h"
-#include "core/application.h"
-#include "apiwrap.h"
+#include "main/main_session.h"
+#include "window/notifications_manager.h"
 
 namespace Data {
 namespace {

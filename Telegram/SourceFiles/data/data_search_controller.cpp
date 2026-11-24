@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_search_controller.h"
 
-#include "main/main_session.h"
-#include "data/data_session.h"
-#include "data/data_messages.h"
+#include "apiwrap.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
+#include "data/data_messages.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "apiwrap.h"
+#include "main/main_session.h"
 
 namespace Api {
 namespace {

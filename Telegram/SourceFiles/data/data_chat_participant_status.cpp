@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_permissions_box.h"
 #include "boxes/premium_limits_box.h" // FileSizeLimitBox.
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_chat.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 #include "data/data_user.h"

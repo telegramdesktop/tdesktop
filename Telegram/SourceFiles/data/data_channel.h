@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_peer.h"
-#include "data/data_pts_waiter.h"
-#include "data/data_location.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_community.h"
+#include "data/data_location.h"
+#include "data/data_peer.h"
 #include "data/data_peer_bot_commands.h"
+#include "data/data_pts_waiter.h"
 #include "data/data_user_names.h"
 
 class ChannelData;

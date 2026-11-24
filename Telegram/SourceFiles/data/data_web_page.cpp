@@ -7,17 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_web_page.h"
 
-#include "main/main_session.h"
 #include "apiwrap.h"
-#include "mainwidget.h"
-#include "data/data_session.h"
-#include "data/data_photo.h"
+#include "core/local_url_handlers.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
+#include "data/data_photo.h"
+#include "data/data_session.h"
 #include "data/data_star_gift.h"
-#include "core/local_url_handlers.h"
-#include "lang/lang_keys.h"
 #include "iv/iv_data.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "mainwidget.h"
 #include "ui/image/image.h"
 #include "ui/text/text_entity.h"
 

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h"
 #include "ui/text/text_utilities.h"
+
 #include "styles/style_credits.h"
 
 namespace Data {

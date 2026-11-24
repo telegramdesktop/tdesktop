@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_types.h"
-#include "data/data_cloud_file.h"
 #include "core/file_location.h"
+#include "data/data_cloud_file.h"
+#include "data/data_types.h"
 
 namespace Main {
 class Session;

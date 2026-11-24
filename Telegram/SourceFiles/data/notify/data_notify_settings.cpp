@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/notify/data_notify_settings.h"
 
-#include "apiwrap.h"
 #include "api/api_ringtones.h"
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "data/data_changes.h"
@@ -17,13 +17,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_community.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
-#include "data/data_peer.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "main/main_session.h"
 #include "history/history.h"
+#include "main/main_session.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 

@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/text/text.h" // Ui::kQFixedMax.
-#include "data/data_peer_id.h"
-#include "data/data_msg_id.h"
 #include "base/qt/qt_compare.h"
+#include "data/data_msg_id.h"
+#include "data/data_peer_id.h"
+#include "ui/text/text.h" // Ui::kQFixedMax.
 
 struct AudioAlbumThumbLocation;
 class HistoryItem;

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
+
 #include "styles/style_dialogs.h"
 
 namespace Data {

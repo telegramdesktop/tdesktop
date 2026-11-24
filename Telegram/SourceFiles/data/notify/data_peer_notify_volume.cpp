@@ -7,19 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/notify/data_peer_notify_volume.h"
 
+#include "core/application.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "data/data_peer.h"
 #include "data/data_thread.h"
-#include "data/notify/data_peer_notify_settings.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
-#include "core/application.h"
-#include "window/notifications_manager.h"
 #include "settings/settings_common.h"
-#include "ui/vertical_list.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/vertical_list.h"
+#include "window/notifications_manager.h"
+
 #include "styles/style_settings.h"
 
 namespace Data {

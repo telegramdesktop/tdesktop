@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_poll_messages.h"
 
+#include "data/data_chat.h"
 #include "data/data_messages.h"
 #include "data/data_shared_media.h"
 #include "data/data_sparse_ids.h"
-#include "data/data_chat.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "storage/storage_shared_media.h"

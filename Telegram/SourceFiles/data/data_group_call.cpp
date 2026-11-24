@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_group_call.h"
 
+#include "apiwrap.h"
 #include "base/unixtime.h"
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_common.h"
+#include "calls/calls_instance.h"
+#include "core/application.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
-#include "calls/calls_instance.h"
-#include "calls/group/calls_group_call.h"
-#include "calls/group/calls_group_common.h"
-#include "core/application.h"
-#include "apiwrap.h"
 
 namespace Data {
 namespace {

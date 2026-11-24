@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_peer.h"
 #include "data/data_peer_values.h"
+
 #include "data/data_chat_participant_status.h"
+#include "data/data_peer.h"
 
 enum class ImageRoundRadius;
 

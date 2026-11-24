@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/stickers/data_stickers_set.h"
 
-#include "main/main_session.h"
-#include "data/data_session.h"
-#include "data/data_file_origin.h"
-#include "data/data_document.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_document.h"
+#include "data/data_file_origin.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
 

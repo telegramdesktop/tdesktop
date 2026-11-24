@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_todo_list.h"
 
 #include "api/api_text_entities.h"
-#include "data/data_user.h"
-#include "data/data_session.h"
+#include "api/api_text_entities.h"
 #include "base/call_delayed.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
-#include "api/api_text_entities.h"
 #include "ui/text/text_options.h"
 
 namespace {

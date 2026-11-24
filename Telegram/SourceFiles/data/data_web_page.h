@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
-#include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_photo.h"
 
 class ChannelData;
 

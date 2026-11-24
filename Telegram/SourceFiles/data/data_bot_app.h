@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_photo.h"
 #include "data/data_document.h"
+#include "data/data_photo.h"
 
 struct BotAppData {
 	BotAppData(not_null<Data::Session*> owner, const BotAppId &id);

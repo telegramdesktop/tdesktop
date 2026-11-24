@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/flags.h"
 #include "base/binary_guard.h"
-#include "data/data_types.h"
-#include "data/data_cloud_file.h"
+#include "base/flags.h"
 #include "core/file_location.h"
+#include "data/data_cloud_file.h"
+#include "data/data_types.h"
 
 class HistoryItem;
 class PhotoData;

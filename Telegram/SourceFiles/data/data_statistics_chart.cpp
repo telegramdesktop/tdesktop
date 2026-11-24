@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_statistics_chart.h"
 
 #include "statistics/statistics_format_values.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_statistics.h"
 

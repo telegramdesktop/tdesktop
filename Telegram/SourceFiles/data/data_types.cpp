@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_types.h"
 
-#include "media/media_common.h"
-#include "ui/widgets/fields/input_field.h"
-#include "storage/cache/storage_cache_types.h"
 #include "base/openssl_help.h"
+#include "media/media_common.h"
+#include "storage/cache/storage_cache_types.h"
+#include "ui/widgets/fields/input_field.h"
 
 #include <QtCore/QtEndian>
 

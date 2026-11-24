@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_sparse_ids.h"
-#include "storage/storage_sparse_ids_list.h"
-#include "storage/storage_shared_media.h"
-#include "base/timer.h"
 #include "base/qt/qt_compare.h"
+#include "base/timer.h"
+#include "data/data_sparse_ids.h"
+#include "storage/storage_shared_media.h"
+#include "storage/storage_sparse_ids_list.h"
 
 namespace Main {
 class Session;

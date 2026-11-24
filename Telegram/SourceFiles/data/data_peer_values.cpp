@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_peer_values.h"
 
-#include "lang/lang_keys.h"
+#include "base/unixtime.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
-#include "data/data_user.h"
-#include "data/data_changes.h"
 #include "data/data_forum_topic.h"
-#include "data/data_session.h"
 #include "data/data_message_reactions.h"
-#include "main/main_session.h"
+#include "data/data_session.h"
+#include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "main/main_app_config.h"
+#include "main/main_session.h"
 #include "ui/image/image_prepare.h"
-#include "base/unixtime.h"
 
 namespace Data {
 namespace {

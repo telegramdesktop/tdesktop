@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_thread.h"
-#include "data/notify/data_peer_notify_settings.h"
 #include "base/flags.h"
+#include "data/notify/data_peer_notify_settings.h"
+#include "data/data_thread.h"
 
 class ChannelData;
 enum class ChatRestriction;

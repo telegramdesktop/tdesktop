@@ -8,17 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/business/data_shortcut_messages.h"
 
 #include "api/api_hash.h"
+#include "api/api_text_entities.h"
+#include "apiwrap.h"
 #include "apiwrap.h"
 #include "base/unixtime.h"
 #include "data/data_messages.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "api/api_text_entities.h"
-#include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "history/history_item_helpers.h"
-#include "apiwrap.h"
+#include "main/main_session.h"
 
 namespace Data {
 namespace {

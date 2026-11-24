@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
-#include "data/data_message_reaction_id.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_message_reaction_id.h"
 
 namespace Calls {
 class GroupCall;

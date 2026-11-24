@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_user_photos.h"
 
-#include "main/main_session.h"
-#include "apiwrap.h"
 #include "api/api_peer_photo.h"
+#include "apiwrap.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "main/main_session.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_user_photos.h"
 

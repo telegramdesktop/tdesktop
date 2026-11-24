@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_abstract_sparse_ids.h"
-
 #include "history/history_item.h"
 
 class PeerData;

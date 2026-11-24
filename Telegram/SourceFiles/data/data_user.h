@@ -7,16 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
+#include "base/weak_ptr.h"
 #include "core/credits_amount.h"
 #include "data/components/credits.h"
 #include "data/data_birthday.h"
-#include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_lastseen_status.h"
+#include "data/data_peer.h"
 #include "data/data_user_names.h"
 #include "dialogs/dialogs_key.h"
-#include "base/flags.h"
-#include "base/weak_ptr.h"
 
 namespace Data {
 class Forum;

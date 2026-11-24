@@ -7,23 +7,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_folder.h"
 
-#include "data/data_session.h"
+#include "apiwrap.h"
+#include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_histories.h"
-#include "data/data_changes.h"
-#include "dialogs/dialogs_key.h"
+#include "data/data_session.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/dialogs_key.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "ui/painter.h"
-#include "ui/text/text_options.h"
-#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
-#include "storage/storage_facade.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
-#include "apiwrap.h"
+#include "storage/storage_facade.h"
+#include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
+#include "ui/painter.h"
+
 #include "styles/style_dialogs.h"
 
 namespace Data {

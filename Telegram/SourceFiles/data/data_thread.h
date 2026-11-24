@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flags.h"
-#include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_message_view.h"
+#include "dialogs/dialogs_entry.h"
 #include "ui/text/text.h"
 
 #include <deque>

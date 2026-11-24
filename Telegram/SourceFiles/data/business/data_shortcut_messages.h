@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/history_item.h"
 #include "base/timer.h"
+#include "history/history_item.h"
 
 class History;
 

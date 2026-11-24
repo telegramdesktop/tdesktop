@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/notify/data_peer_notify_settings.h"
-
 #include "base/timer.h"
+#include "data/notify/data_peer_notify_settings.h"
 
 class PeerData;
 class ChannelData;

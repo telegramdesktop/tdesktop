@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/weak_ptr.h"
 
 class History;
 

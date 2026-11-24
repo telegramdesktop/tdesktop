@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_file_click_handler.h"
 
+#include "core/application.h"
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"
-#include "core/application.h"
 #include "data/data_document.h"
 #include "data/data_document_resolver.h"
-#include "data/data_session.h"
 #include "data/data_download_manager.h"
 #include "data/data_photo.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 
 FileClickHandler::FileClickHandler(FullMsgId context)

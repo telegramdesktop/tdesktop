@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_thread.h"
 
-#include "data/data_forum.h"
-#include "data/data_forum_topic.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_peer.h"
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"

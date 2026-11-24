@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
+#include "main/main_session.h"
 #include "storage/cache/storage_cache_database.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
-#include "main/main_session.h"
 
 namespace Data {
 

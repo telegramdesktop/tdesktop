@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_emoji_statuses.h"
 
-#include "main/main_session.h"
+#include "apiwrap.h"
+#include "base/call_delayed.h"
+#include "base/timer_rpl.h"
+#include "base/unixtime.h"
+#include "data/stickers/data_stickers.h"
 #include "data/data_channel.h"
-#include "data/data_user.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_star_gift.h"
-#include "data/data_document.h"
+#include "data/data_user.h"
 #include "data/data_wall_paper.h"
-#include "data/stickers/data_stickers.h"
-#include "base/unixtime.h"
-#include "base/timer_rpl.h"
-#include "base/call_delayed.h"
-#include "apiwrap.h"
+#include "main/main_session.h"
 #include "ui/controls/tabbed_search.h"
 
 namespace Data {

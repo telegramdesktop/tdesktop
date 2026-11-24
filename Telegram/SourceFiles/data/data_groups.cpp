@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_groups.h"
 
-#include "history/history.h"
-#include "history/history_item.h"
-#include "dialogs/ui/dialogs_message_view.h"
-#include "data/data_media_types.h"
-#include "data/data_session.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_media_types.h"
+#include "data/data_session.h"
+#include "dialogs/ui/dialogs_message_view.h"
+#include "history/history.h"
+#include "history/history_item.h"
 
 namespace Data {
 namespace {
