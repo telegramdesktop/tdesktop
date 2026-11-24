@@ -1674,6 +1674,11 @@ void Widget::setupStories() {
 		FillSourceMenu(controller(), request);
 	}, lifetime());
 
+	_stories->cancelUploadRequests(
+	) | rpl::on_next([=](uint64 uploadId) {
+		Stories::ConfirmCancelUpload(controller(), uploadId);
+	}, lifetime());
+
 	_stories->loadMoreRequests(
 	) | rpl::on_next([=] {
 		session().data().stories().loadMore(currentSource());

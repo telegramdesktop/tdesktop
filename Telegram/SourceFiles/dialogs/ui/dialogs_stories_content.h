@@ -47,6 +47,7 @@ struct Element {
 	uint32 uploading : 1 = 0;
 	uint32 uploadFailed : 1 = 0;
 	uint32 uploadProgress : 7 = 0;
+	uint64 uploadId = 0;
 
 	[[nodiscard]] bool canAddFirstStory() const {
 		return mine && !count && !uploading;
@@ -92,6 +93,10 @@ struct ShowMenuRequest;
 void FillSourceMenu(
 	not_null<Window::SessionController*> controller,
 	const ShowMenuRequest &request);
+
+void ConfirmCancelUpload(
+	not_null<Window::SessionController*> controller,
+	uint64 uploadId);
 
 [[nodiscard]] bool AddStoryButtonHidden();
 void SetAddStoryButtonHidden(bool hidden);

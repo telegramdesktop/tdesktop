@@ -138,6 +138,8 @@ void State::applyUploads(Content &result, Userpics &userpics) {
 	for (const auto &upload : uploads) {
 		const auto peer = upload.peer;
 		const auto id = uint64(peer->id.value);
+		const auto failed = !upload.error.isEmpty();
+		const auto uploadId = failed ? 0 : upload.id;
 		const auto i = ranges::find(result.elements, id, &Element::id);
 		const auto progress = uint32(std::clamp(
 			int(std::round(upload.progress * 100)),
@@ -146,8 +148,9 @@ void State::applyUploads(Content &result, Userpics &userpics) {
 		if (i != end(result.elements)) {
 			i->uploading = 1;
 			i->mineUnread = 1;
-			i->uploadFailed = upload.error.isEmpty() ? 0U : 1U;
+			i->uploadFailed = failed ? 1U : 0U;
 			i->uploadProgress = progress;
+			i->uploadId = uploadId;
 			continue;
 		}
 		result.elements.insert(
@@ -162,10 +165,9 @@ void State::applyUploads(Content &result, Userpics &userpics) {
 				.mine = peer->isSelf() ? 1U : 0U,
 				.mineUnread = 1U,
 				.uploading = 1,
-				.uploadFailed = upload.error.isEmpty()
-					? 0U
-					: 1U,
+				.uploadFailed = failed ? 1U : 0U,
 				.uploadProgress = progress,
+				.uploadId = uploadId,
 			});
 		++result.total;
 	}
@@ -317,23 +319,9 @@ void FillSourceMenu(
 		});
 	if (uploading != end(uploads)) {
 		const auto id = uploading->id;
-		auto confirm = [=] {
-			const auto &active = api->uploads();
-			const auto current = ranges::find(
-				active,
-				id,
-				&Api::StoryUpload::id);
-			if (current == end(active)
-				|| !current->error.isEmpty()) {
-				return;
-			}
-			api->stopPostingWithConfirmation(
-				crl::guard(api, [=] { api->remove(id); }),
-				&controller->window());
-		};
 		add(
 			tr::lng_story_sure_stop_title(tr::now),
-			std::move(confirm),
+			[=] { ConfirmCancelUpload(controller, id); },
 			&st::menuIconCancel);
 	}
 	for (const auto &upload : api->uploads()) {
@@ -417,6 +405,23 @@ void FillSourceMenu(
 			}, &st::menuIconUnarchive);
 		}
 	}
+}
+
+void ConfirmCancelUpload(
+		not_null<Window::SessionController*> controller,
+		uint64 uploadId) {
+	const auto api = &controller->session().api().stories();
+	const auto &uploads = api->uploads();
+	const auto upload = ranges::find(
+		uploads,
+		uploadId,
+		&Api::StoryUpload::id);
+	if (upload == end(uploads) || !upload->error.isEmpty()) {
+		return;
+	}
+	api->stopPostingWithConfirmation(
+		crl::guard(api, [=] { api->remove(uploadId); }),
+		&controller->window());
 }
 
 bool AddStoryButtonHidden() {

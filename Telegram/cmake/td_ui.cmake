@@ -186,6 +186,8 @@ PRIVATE
     dialogs/ui/dialogs_quick_action.h
     dialogs/ui/dialogs_stories_list.cpp
     dialogs/ui/dialogs_stories_list.h
+    dialogs/ui/dialogs_story_upload_cancel.cpp
+    dialogs/ui/dialogs_story_upload_cancel.h
     dialogs/ui/dialogs_top_bar_suggestion_content.cpp
     dialogs/ui/dialogs_top_bar_suggestion_content.h
     dialogs/ui/posts_search_intro.cpp

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "dialogs/ui/dialogs_stories_content.h"
+#include "dialogs/ui/dialogs_story_upload_cancel.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/widgets/menu/menu_add_action_callback.h"
@@ -72,6 +73,7 @@ public:
 	void setShowTitle(bool shown);
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
 	[[nodiscard]] rpl::producer<uint64> addStoryClicks() const;
+	[[nodiscard]] rpl::producer<uint64> cancelUploadRequests() const;
 	[[nodiscard]] rpl::producer<ShowMenuRequest> showMenuRequests() const;
 	[[nodiscard]] rpl::producer<bool> toggleExpandedRequests() const;
 	//[[nodiscard]] rpl::producer<> entered() const;
@@ -127,6 +129,7 @@ private:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void paint(
@@ -140,6 +143,7 @@ private:
 	void validateName(not_null<Item*> item);
 	void updateScrollMax();
 	void updateSelected();
+	void updateUploadCancel(const Layout &layout, QPoint point);
 	void checkDragging();
 	bool finishDragging();
 	void checkLoadMore();
@@ -170,6 +174,8 @@ private:
 	Data _data;
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<uint64> _addStoryClicks;
+	rpl::event_stream<uint64> _cancelUploadRequests;
+	UploadCancelOverlay _uploadCancel;
 	mutable std::optional<std::pair<uint64, QRectF>> _addBadge;
 	rpl::event_stream<ShowMenuRequest> _showMenuRequests;
 	rpl::event_stream<bool> _toggleExpandedRequests;
@@ -225,6 +231,7 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+	uint64 _pressedUpload = 0;
 	bool _dragOverBadge = false;
 
 	rpl::event_stream<not_null<QWheelEvent*>> _verticalScrollEvents;
