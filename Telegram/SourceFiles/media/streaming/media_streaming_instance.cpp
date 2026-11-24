@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_instance.h"
 
-#include "media/streaming/media_streaming_document.h"
+#include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_photo.h"
-#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
+#include "media/streaming/media_streaming_document.h"
 
 namespace Media {
 namespace Streaming {

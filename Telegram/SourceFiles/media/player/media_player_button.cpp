@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/media_common.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
+
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 

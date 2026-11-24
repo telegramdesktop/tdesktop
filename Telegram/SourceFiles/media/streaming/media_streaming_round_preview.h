@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/dynamic_image.h"
-
 #include "media/clip/media_clip_reader.h"
+#include "ui/dynamic_image.h"
 
 namespace Media::Streaming {
 

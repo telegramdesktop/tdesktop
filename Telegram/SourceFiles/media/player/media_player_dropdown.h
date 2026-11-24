@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "media/media_common.h"
-#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct MediaSpeedMenu;

@@ -9,10 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
+#include "base/platform/base_platform_info.h"
+#include "media/streaming/media_streaming_common.h"
 #include "ui/rhi/rhi_shader.h"
 #include "ui/widgets/shadow.h"
-#include "media/streaming/media_streaming_common.h"
-#include "base/platform/base_platform_info.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_media_view.h"
 #include "styles/style_widgets.h"

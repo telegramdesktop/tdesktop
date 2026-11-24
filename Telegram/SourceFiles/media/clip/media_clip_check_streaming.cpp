@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/clip/media_clip_check_streaming.h"
 
-#include "core/file_location.h"
 #include "base/bytes.h"
+#include "core/file_location.h"
 #include "logs.h"
 
 #include <QtCore/QtEndian>

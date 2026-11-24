@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "ui/painter.h"
+
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {

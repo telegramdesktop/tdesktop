@@ -11,14 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "lang/lang_keys.h"
 #include "media/player/media_player_button.h"
-#include "ui/cached_round_corners.h"
 #include "ui/widgets/menu/menu.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
 

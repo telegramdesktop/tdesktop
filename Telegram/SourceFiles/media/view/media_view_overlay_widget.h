@@ -8,21 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
-#include "ui/rp_widget.h"
-#include "ui/gl/gl_surface.h"
-#include "ui/effects/animations.h"
-#include "ui/effects/radial_animation.h"
+#include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "data/data_shared_media.h"
 #include "data/data_user_photos.h"
 #include "data/data_web_page.h"
-#include "data/data_cloud_themes.h" // Data::CloudTheme.
 #include "media/stories/media_stories_delegate.h"
-#include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_open_common.h"
+#include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_recognition_selection.h"
 #include "media/media_common.h"
 #include "media/system_media_controls_video.h"
 #include "platform/platform_text_recognition.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/radial_animation.h"
+#include "ui/gl/gl_surface.h"
+#include "ui/rp_widget.h"
 
 class History;
 struct PollAnswer;

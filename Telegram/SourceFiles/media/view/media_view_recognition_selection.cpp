@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_recognition_selection.h"
 
-#include "ui/rect.h"
 #include "ui/style/style_core.h"
+#include "ui/rect.h"
 
 namespace Media::View {
 namespace {

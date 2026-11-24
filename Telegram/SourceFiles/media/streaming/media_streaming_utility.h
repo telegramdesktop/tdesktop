@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/streaming/media_streaming_common.h"
 #include "ffmpeg/ffmpeg_utility.h"
+#include "media/streaming/media_streaming_common.h"
 
 namespace Media {
 namespace Streaming {

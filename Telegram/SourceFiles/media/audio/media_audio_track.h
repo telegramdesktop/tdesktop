@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/timer.h"
 #include "base/bytes.h"
+#include "base/timer.h"
 #include "webrtc/webrtc_device_resolver.h"
 
 namespace Core {

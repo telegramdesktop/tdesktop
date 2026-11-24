@@ -7,26 +7,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_float.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "history/view/media/history_view_media.h"
-#include "history/history_item.h"
-#include "history/history.h"
 #include "history/view/history_view_element.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "media/audio/media_audio.h"
+#include "media/player/media_player_instance.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/view/media_view_playback_progress.h"
-#include "media/player/media_player_instance.h"
-#include "window/window_session_controller.h"
-#include "window/section_widget.h"
-#include "core/application.h"
-#include "core/core_settings.h"
-#include "main/main_session.h"
-#include "main/main_account.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "styles/style_media_player.h"
+#include "window/section_widget.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
+#include "styles/style_media_player.h"
 
 #include <QtWidgets/QApplication>
 

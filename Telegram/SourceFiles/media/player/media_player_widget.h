@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
 #include "data/data_audio_msg_id.h"
 #include "ui/rp_widget.h"
-#include "base/object_ptr.h"
 
 class AudioMsgId;
 

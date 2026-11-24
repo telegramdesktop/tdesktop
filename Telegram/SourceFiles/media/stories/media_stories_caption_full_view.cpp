@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_caption_full_view.h"
 
 #include "base/event_filter.h"
-#include "core/ui_integration.h"
 #include "chat_helpers/compose/compose_show.h"
+#include "core/ui_integration.h"
 #include "media/stories/media_stories_controller.h"
 #include "media/stories/media_stories_view.h"
 #include "media/view/media_view_open_common.h"
@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/click_handler.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_media_view.h"
 
 namespace Media::Stories {

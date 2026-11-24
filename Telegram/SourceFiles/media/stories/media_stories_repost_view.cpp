@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_media_view.h"
 

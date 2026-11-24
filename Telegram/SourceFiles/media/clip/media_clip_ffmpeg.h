@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "media/clip/media_clip_implementation.h"
 #include "ffmpeg/ffmpeg_utility.h"
+#include "media/clip/media_clip_implementation.h"
 
 extern "C" {
 #include <libswscale/swscale.h>

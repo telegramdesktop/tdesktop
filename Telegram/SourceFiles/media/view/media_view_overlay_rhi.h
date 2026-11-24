@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "media/view/media_view_overlay_renderer.h"
-#include "ui/rhi/rhi_renderer.h"
 #include "ui/rhi/rhi_image.h"
+#include "ui/rhi/rhi_renderer.h"
 #ifdef Q_OS_MACOS
 #include "media/view/media_view_metal_texture.h"
 #endif

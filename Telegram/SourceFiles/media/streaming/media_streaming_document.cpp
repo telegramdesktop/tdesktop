@@ -7,16 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/streaming/media_streaming_document.h"
 
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_file_origin.h"
+#include "data/data_photo.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_loader.h"
 #include "media/streaming/media_streaming_reader.h"
-#include "data/data_session.h"
-#include "data/data_document.h"
-#include "data/data_photo.h"
-#include "data/data_document_media.h"
-#include "data/data_file_origin.h"
-#include "main/main_session.h"
 #include "storage/file_download.h" // Storage::kMaxFileInMemory.
+
 #include "styles/style_widgets.h"
 
 #include <QtCore/QBuffer>

@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_file_origin.h"
 #include "media/streaming/media_streaming_loader.h"
 #include "mtproto/sender.h"
-#include "data/data_file_origin.h"
 #include "storage/download_manager_mtproto.h"
 
 namespace Media {

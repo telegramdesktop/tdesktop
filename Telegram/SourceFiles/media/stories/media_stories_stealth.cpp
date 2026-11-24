@@ -22,14 +22,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
-#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
-#include "styles/style_media_view.h"
-#include "styles/style_media_stories.h"
+
 #include "styles/style_layers.h"
+#include "styles/style_media_stories.h"
+#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 
 namespace Media::Stories {

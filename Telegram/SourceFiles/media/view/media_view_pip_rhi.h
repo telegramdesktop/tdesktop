@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "media/view/media_view_pip_renderer.h"
-#include "ui/rhi/rhi_renderer.h"
-#include "ui/rhi/rhi_image.h"
 #include "ui/gl/gl_math.h"
+#include "ui/rhi/rhi_image.h"
+#include "ui/rhi/rhi_renderer.h"
 
 #ifdef Q_OS_MACOS
 #include "media/view/media_view_metal_texture.h"

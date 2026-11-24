@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 #include "media/media_common.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class CrossFadeLabel;

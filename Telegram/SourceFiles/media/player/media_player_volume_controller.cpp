@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_volume_controller.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
+#include "main/main_session.h"
+#include "mainwindow.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_dropdown.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"
-#include "ui/ui_utility.h"
+#include "ui/widgets/shadow.h"
 #include "ui/cached_round_corners.h"
-#include "mainwindow.h"
-#include "main/main_session.h"
+#include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
-#include "core/application.h"
-#include "core/core_settings.h"
+
 #include "styles/style_media_player.h"
 
 #include <QtGui/QGuiApplication>

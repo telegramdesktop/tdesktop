@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_ffmpeg.h"
 
 #include "core/file_location.h"
-#include "media/media_common.h"
 #include "logs.h"
+#include "media/media_common.h"
 
 namespace Media {
 namespace Clip {

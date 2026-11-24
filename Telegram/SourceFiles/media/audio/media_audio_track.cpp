@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/audio/media_audio_track.h"
 
-#include "media/audio/media_audio_ffmpeg_loader.h"
-#include "media/audio/media_audio.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/file_location.h"
+#include "media/audio/media_audio.h"
+#include "media/audio/media_audio_ffmpeg_loader.h"
 
 #include <al.h>
 #include <alc.h>

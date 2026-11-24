@@ -25,9 +25,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "ui/cached_round_corners.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_media_view.h"
 

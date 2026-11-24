@@ -15,9 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_stories.h"
 #include "history/history_item.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_controller.h"
-#include "lang/lang_keys.h"
 #include "ui/chat/group_call_userpics.h"
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/layers/box_content.h"
@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_media_view.h"
 

@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "history/history_item_components.h"
 #include "ui/effects/animations.h"
-#include "base/weak_ptr.h"
 
 class SharedMediaWithLastSlice;
 class UserPhotosSlice;

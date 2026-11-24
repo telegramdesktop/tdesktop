@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/clip/media_clip_reader.h"
 
-#include "media/clip/media_clip_ffmpeg.h"
+#include "base/invoke_queued.h"
+#include "base/random.h"
+#include "core/file_location.h"
+#include "logs.h"
 #include "media/clip/media_clip_check_streaming.h"
+#include "media/clip/media_clip_ffmpeg.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/painter.h"
-#include "core/file_location.h"
-#include "base/random.h"
-#include "base/invoke_queued.h"
-#include "logs.h"
 
 #include <QtCore/QBuffer>
 #include <QtCore/QAbstractEventDispatcher>

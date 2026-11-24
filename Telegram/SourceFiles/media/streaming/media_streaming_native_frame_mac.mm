@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifdef Q_OS_MACOS
 
-#include "media/streaming/media_streaming_common.h"
 #include "ffmpeg/ffmpeg_utility.h"
+#include "media/streaming/media_streaming_common.h"
 
 #include <CoreVideo/CoreVideo.h>
 

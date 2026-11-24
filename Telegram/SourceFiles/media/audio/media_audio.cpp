@@ -7,20 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/audio/media_audio.h"
 
-#include "media/audio/media_audio_ffmpeg_loader.h"
-#include "media/audio/media_child_ffmpeg_loader.h"
-#include "media/audio/media_audio_loaders.h"
-#include "media/audio/media_audio_track.h"
-#include "media/media_common.h"
-#include "media/streaming/media_streaming_utility.h"
-#include "webrtc/webrtc_environment.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
-#include "core/application.h"
-#include "core/core_settings.h"
 #include "main/main_session.h"
+#include "media/audio/media_audio_ffmpeg_loader.h"
+#include "media/audio/media_audio_loaders.h"
+#include "media/audio/media_audio_track.h"
+#include "media/audio/media_child_ffmpeg_loader.h"
+#include "media/streaming/media_streaming_utility.h"
+#include "media/media_common.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "webrtc/webrtc_environment.h"
 
 #include <al.h>
 #include <alc.h>
