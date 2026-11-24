@@ -278,8 +278,17 @@ python3 .agents/skills/process-inbox/scripts/video.py sheet "$V" --frames 118-14
   holds, compare the `probe` output and the frames with the committed ones,
   and record in the receipt whether it replaces the reference, and why.
 
-Keep acceptance criteria to what actually proves the requested behavior. Never
-write a test-data integrity criterion: the live `TelegramForcePortable` folder
+Keep acceptance criteria to what actually proves the requested behavior.
+Write a bug fix's acceptance as the requested behavior, failing on the base and
+passing with the fix, plus at most a control. Give the shared machinery the fix
+passes through only "no regression against the base". Write no absolute
+robustness criterion over code the request does not set out to change:
+"missing or deleted targets without crashes or stale pointers", "no effect
+on another message". Such a criterion makes every existing defect of that
+code this task's acceptance, and its review never ends. When a request
+written by an agent (a code-health survey, an investigation or a follow-up)
+carries one, rewrite it here and record the change under "Wording changes".
+An owner's words stay as written. Never write a test-data integrity criterion: the live `TelegramForcePortable` folder
 is a disposable copy, so a task must not ask a performer to hash, back up,
 compare, or restore the account, to verify any setting or folder is unchanged,
 or to leave the account as it was found. A run may leave templates, theme,

@@ -429,6 +429,49 @@ a recall checklist for their initial applicability scan. Assessment rejects
 ceremony as well as under-testing: it removes evidence checks that cannot be
 affected by the task.
 
+### Review scope
+
+Review judges this task's change, with the same revert test that bounds its
+evidence and its `Unverified:` line. Every reviewer, the synthesis, every
+focused re-review, every fix, every convergence assessment and every split
+applies it. A blocking finding must be one of:
+
+- **INTRODUCED** — the failure comes from code this task wrote, including
+  earlier fix rounds: on the base it does not happen, and no equivalent
+  existing caller of the same mechanism suffers it there.
+- **REQUESTED** — the behavior the task asks for is not achieved in a
+  scenario its acceptance names.
+
+Everything else is **PRE-EXISTING**, including:
+
+- a defect the change passes by, in the same file or function;
+- a defect of shared machinery that the change routes one more caller
+  through, when the base already shows that defect for an equivalent caller
+  (a sibling action, the same mechanism, the same input). Joining a
+  mechanism the way its existing clients use it inherits its known
+  behavior, not its debt;
+- a scenario that needs input no producer is known to send, unless the
+  change itself parses it.
+
+Acceptance wording about shared machinery ("without crashes", "no stale
+pointers", "no effect on another message") means no regression against the
+base. It never makes an existing defect of that machinery a requirement of
+this task.
+
+A pre-existing defect is still reported, under `## Pre-existing` with base
+evidence, and the performer lists the worthwhile ones as discovered
+follow-ups. A crash or data loss there is a follow-up with that severity.
+It never requests a fix, never counts toward a review verdict, and never
+enters a split replacement's acceptance. The exception is a change that
+materially widens exposure, such as turning a rare path into a common one,
+or reaching the defect through a path no base caller can take. That is
+INTRODUCED, and the finding must name the new trigger.
+
+The reason is the same as for evidence. The codebase is far larger than
+any task. A review that follows attention rather than the diff has no
+natural stopping point. Every repair past the boundary is new code that
+needs its own review, so the loop regrows from its own fixes.
+
 ### Harness tasks
 
 A harness task changes test or workflow infrastructure, not the product. Every
@@ -500,8 +543,11 @@ ends where it began — with the code unchanged and the behaviour confirmed.
 
 The general reviewer reads every changed file in full and owns correctness,
 completeness, adjacent integration, unintended regressions, proportionality,
-repository conventions, and evidence adequacy. It cannot defer a concern to a
-specialist. This is the mandatory safety net.
+repository conventions, and evidence adequacy, all of the change under
+[review scope](#review-scope). It cannot defer a concern to a specialist.
+This is the mandatory safety net. Synthesis checks each blocking finding's
+attribution against the base, and moves a pre-existing one to
+`## Pre-existing`.
 
 Each lens first reads the task specification and complete task diff — every
 hunk, not necessarily every changed file in full — and chooses one result:
@@ -587,10 +633,16 @@ assessment when any of these holds:
   assessed plan did not include; or
 - the reviewer can no longer state which prior approvals remain valid.
 
-The assessor reads the whole loop: which findings were new, which recur or
-reopen earlier ones, which fixes introduced the next round's defects, and
-whether the open set is narrowing. It writes `review-convergence<C>.md` with
-exactly one disposition:
+The assessor first applies [review scope](#review-scope) to every open
+blocker and every earlier ruling. It checks each against the base, not
+against acceptance wording. A pre-existing finding is ruled out of the
+task. Fix code that exists only to repair such findings is itself out of
+scope. When earlier rounds added it, the disposition is `REPLAN_CURRENT`
+back to the last diff that holds only attributable work. Then the assessor
+reads the whole loop: which findings were new, which recur or reopen
+earlier ones, which fixes introduced the next round's defects, and whether
+the open set is narrowing. It writes `review-convergence<C>.md` with exactly
+one disposition:
 
 - `CONTINUE` — convergence is real but slow, such as a mechanism with many
   special cases where each round finds new, narrower defects and resolved
@@ -602,8 +654,10 @@ exactly one disposition:
   validated boundary and a replacement plan for that mechanism. The replanned
   code gets a focused general review plus the lenses it touches, approvals
   outside it carry forward, and the verdict count restarts.
-- `RESCOPE_REQUIRED` — the task contains independently testable product
-  boundaries; write or update `split-proposal.md` and stop automatic work.
+- `RESCOPE_REQUIRED` — the task's requested behavior contains independently
+  testable product boundaries; write or update `split-proposal.md` and stop
+  automatic work. Pre-existing findings never justify a split, and never
+  become a replacement's acceptance.
 - `HARD_STOP` — an exact unsafe or unavailable condition needs human action,
   such as a fix that needs funded value, credentials or a server change. Slow
   convergence, a round count or a hard design is never a hard stop. The task

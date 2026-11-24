@@ -54,6 +54,9 @@ Saved in `health_state` as `surveys/<area>/<date>/` and published with
 - `map.md`: the draft or amended area map (see `maps.md`), for approval.
 - `proposals.md`: task proposals in the format of `SKILL.md`, at most ten.
 - `defects.md`: defects found in passing, each with evidence, as ordinary
-  task requests.
+  task requests. Each request's acceptance is that defect's own oracle,
+  failing on the base and passing with the fix, plus at most a control. It
+  carries no absolute robustness criterion over the shared code the fix
+  passes through (see `process-inbox`, acceptance).
 
 A survey changes no source code and creates no queue records itself.

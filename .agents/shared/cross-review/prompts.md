@@ -30,7 +30,10 @@ Read changed files in their current working-tree state. Use git only for
 read-only commands, as `git -C <SOURCE_ROOT> ...`.
 
 Review only this change. Report a pre-existing problem only when the change
-makes it reachable or worse. Do not read anything under <SESSION> except the
+makes it worse. Routing one more caller through shared code that already fails
+the same way for an equivalent caller does not make it worse. A rare path made
+common, or a path no earlier caller could take, does; name that trigger. List
+other pre-existing problems under `## Pre-existing`, as NON_BLOCKING. Do not read anything under <SESSION> except the
 files named in this prompt.
 
 Extra focus from the human: <FOCUS>
