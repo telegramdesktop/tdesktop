@@ -8,12 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_discard_prompt.h"
 
 #include "lang/lang_keys.h"
-#include "ui/painter.h"
-#include "ui/vertical_list.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
+#include "ui/ui_utility.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_media_stories.h"
 #include "styles/style_widgets.h"
@@ -36,6 +38,7 @@ private:
 	void closeWith(Fn<void()> after);
 
 	DiscardStoryArgs _args;
+	QPointer<QWidget> _previousFocus;
 	not_null<Ui::RpWidget*> _panel;
 	bool _handled = false;
 
@@ -46,6 +49,7 @@ DiscardPrompt::DiscardPrompt(
 	DiscardStoryArgs args)
 : Ui::RpWidget(parent)
 , _args(std::move(args))
+, _previousFocus(parent->window()->focusWidget())
 , _panel(Ui::CreateChild<Ui::RpWidget>(this)) {
 	setFocusPolicy(Qt::StrongFocus);
 
@@ -147,6 +151,15 @@ void DiscardPrompt::closeWith(Fn<void()> after) {
 	}
 	_handled = true;
 	deleteLater();
+	if (Ui::InFocusChain(this)) {
+		const auto previous = _previousFocus.data();
+		const auto parent = parentWidget();
+		const auto target = (previous
+			&& parent->isAncestorOf(previous))
+			? previous
+			: parent;
+		target->setFocus();
+	}
 	if (!after) {
 		return;
 	}
