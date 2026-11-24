@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tray_accounts_menu.h"
 
-#include "base/weak_ptr.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/weak_ptr.h"
 #include "core/application.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
@@ -16,8 +16,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
-#include "styles/style_window.h"
 #include "ui/dynamic_thumbnails.h"
+
+#include "styles/style_window.h"
 
 namespace Core::TrayAccountsMenu {
 

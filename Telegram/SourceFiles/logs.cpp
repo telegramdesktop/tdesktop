@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "logs.h"
 
-#include "platform/platform_specific.h"
 #include "core/crash_reports.h"
 #include "core/launcher.h"
 #include "core/update_channel.h"
 #include "core/version.h"
 #include "mtproto/facade.h"
+#include "platform/platform_specific.h"
 
 namespace {
 

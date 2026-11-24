@@ -6,14 +6,14 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "tray.h"
-#include "tray_accounts_menu.h"
 
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/version.h"
+#include "lang/lang_keys.h"
 #include "platform/platform_notifications_manager.h"
 #include "platform/platform_specific.h"
-#include "lang/lang_keys.h"
+#include "tray_accounts_menu.h"
 
 #include <QtWidgets/QApplication>
 

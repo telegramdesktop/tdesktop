@@ -113,17 +113,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/basic_types.h"
 #include "base/const_string.h"
 #include "base/debug_destroy_informer.h" // _DEBUG only.
-#include "base/flat_set.h"
 #include "base/flat_map.h"
+#include "base/flat_set.h"
 #include "base/invoke_queued.h"
 #include "base/optional.h"
 #include "base/variant.h"
 #include "base/weak_ptr.h"
 #include "base/weak_qptr.h"
 
+// The generated scheme depends on the base headers above.
 #include "scheme.h"
-#include "mtproto/type_utils.h"
 
+// The headers below use types from the generated scheme.
+#include "config.h"
+#include "core/credits_amount.h"
+#include "core/utils.h"
+#include "data/data_types.h"
+#include "logs.h"
+#include "mtproto/type_utils.h"
+#include "styles/palette.h"
 #include "ui/image/image_location.h"
 #include "ui/style/style_core.h"
 #include "ui/text/text.h"
@@ -132,14 +140,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/qt_object_factory.h"
 #include "ui/ui_rpl_filter.h"
 
-#include "styles/palette.h"
 #include "styles/style_basic.h"
-
-#include "core/credits_amount.h"
-#include "core/utils.h"
-#include "logs.h"
-#include "config.h"
-
-#include "data/data_types.h"
 
 #endif // __cplusplus
