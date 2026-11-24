@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "base/unixtime.h"
-#include "data/data_session.h"
 #include "data/data_peer_values.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "main/main_session.h"
 

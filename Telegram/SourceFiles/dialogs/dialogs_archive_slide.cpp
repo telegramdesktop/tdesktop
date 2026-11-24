@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/ui/dialogs_layout.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"

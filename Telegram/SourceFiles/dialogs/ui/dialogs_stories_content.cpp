@@ -9,9 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_stories.h"
 #include "apiwrap.h"
-#include "boxes/story_drafts_box.h"
-
 #include "base/unixtime.h"
+#include "boxes/story_drafts_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
@@ -28,15 +27,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/stories/info_stories_widget.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
+#include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "media/stories/media_stories_post.h"
 #include "media/stories/media_stories_stealth.h"
-#include "lang/lang_keys.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_menu_icons.h"
 
 namespace Dialogs::Stories {

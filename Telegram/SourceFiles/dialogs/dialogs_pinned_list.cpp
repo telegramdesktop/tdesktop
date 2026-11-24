@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_pinned_list.h"
 
-#include "data/data_saved_messages.h"
-#include "dialogs/dialogs_key.h"
-#include "dialogs/dialogs_entry.h"
-#include "history/history.h"
 #include "data/data_channel.h"
-#include "data/data_session.h"
 #include "data/data_forum.h"
+#include "data/data_saved_messages.h"
+#include "data/data_session.h"
+#include "dialogs/dialogs_entry.h"
+#include "dialogs/dialogs_key.h"
+#include "history/history.h"
 
 namespace Dialogs {
 

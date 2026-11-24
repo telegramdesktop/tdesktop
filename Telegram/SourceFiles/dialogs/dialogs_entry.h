@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
-#include "base/flags.h"
 #include "dialogs/dialogs_common.h"
 #include "ui/unread_badge.h"
 

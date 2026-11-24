@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_indexed_list.h"
 
-#include "main/main_session.h"
 #include "data/data_session.h"
 #include "history/history.h"
+#include "main/main_session.h"
 
 namespace Dialogs {
 

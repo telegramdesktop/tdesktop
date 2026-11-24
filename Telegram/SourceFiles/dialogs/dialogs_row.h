@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "dialogs/ui/dialogs_message_view.h"
+#include "dialogs/dialogs_entry.h"
+#include "dialogs/dialogs_key.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
 #include "ui/unread_badge.h"
 #include "ui/userpic_view.h"
-#include "dialogs/dialogs_entry.h"
-#include "dialogs/dialogs_key.h"
-#include "dialogs/ui/dialogs_message_view.h"
 
 class History;
 class HistoryItem;

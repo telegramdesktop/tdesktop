@@ -154,8 +154,8 @@ struct RightButton final {
 	QImage bg;
 	QImage selectedBg;
 	QImage activeBg;
-	Ui::Text::String text;
-	std::unique_ptr<Ui::RippleAnimation> ripple;
+	::Ui::Text::String text;
+	std::unique_ptr<::Ui::RippleAnimation> ripple;
 
 	// The ripple is created once per peer and then reused, while the row it
 	// repaints changes with every filter. So the callback is kept here and

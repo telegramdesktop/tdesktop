@@ -11,15 +11,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
 #include "ui/unread_badge_paint.h"
 #include "ui/unread_counter_format.h"
+
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 

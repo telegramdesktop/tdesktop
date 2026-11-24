@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_bottom_button.h"
 
-#include "ui/color_contrast.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_dialogs.h"
 #include "styles/style_dialogs_widget.h"
 #include "styles/style_widgets.h"

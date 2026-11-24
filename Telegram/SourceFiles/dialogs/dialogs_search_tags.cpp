@@ -17,13 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "history/view/reactions/history_view_reactions.h"
-#include "main/main_session.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/effects/animation_value.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 

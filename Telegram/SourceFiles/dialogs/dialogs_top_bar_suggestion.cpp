@@ -18,11 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
-#include "ui/ui_utility.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/ui_utility.h"
 #include "window/window_columns.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_window.h"
 

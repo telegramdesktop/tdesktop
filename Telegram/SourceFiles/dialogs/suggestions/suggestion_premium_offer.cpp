@@ -5,11 +5,10 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "dialogs/suggestions/suggestion.h"
-
 #include "api/api_premium.h"
 #include "apiwrap.h"
 #include "data/components/promo_suggestions.h"
+#include "dialogs/suggestions/suggestion.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"

@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_topics_view.h"
 
-#include "dialogs/ui/dialogs_layout.h"
+#include "core/ui_integration.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
@@ -15,14 +15,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_saved_messages.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
-#include "core/ui_integration.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "ui/painter.h"
-#include "ui/power_saving.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
-#include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
+#include "ui/power_saving.h"
+
 #include "styles/style_dialogs.h"
 
 namespace Dialogs::Ui {

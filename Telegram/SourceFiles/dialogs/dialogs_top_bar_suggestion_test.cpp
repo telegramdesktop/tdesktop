@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_widget.h"
+
 #include "styles/style_userpic_button.h"
 
 #ifdef _DEBUG
@@ -17,17 +18,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "dialogs/dialogs_top_bar_suggestion.h"
-#include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/painter.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 
 #include <QShortcut>
 

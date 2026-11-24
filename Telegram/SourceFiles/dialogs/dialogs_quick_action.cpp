@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_quick_action.h"
 
-#include "dialogs/ui/dialogs_quick_action_context.h"
 #include "apiwrap.h"
 #include "data/data_channel.h"
 #include "data/data_community.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "dialogs/ui/dialogs_quick_action_context.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 #include "lang/lang_instance.h"
@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_dialogs.h"
 

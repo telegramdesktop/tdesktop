@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_pill.h"
 #include "dialogs/ui/dialogs_top_bar_suggestion_content.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/buttons.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/buttons.h"
+
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"

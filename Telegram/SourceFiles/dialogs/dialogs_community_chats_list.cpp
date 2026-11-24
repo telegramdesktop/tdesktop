@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {

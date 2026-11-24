@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/shadow.h"
 #include "ui/painter.h"
+
 #include "styles/style_basic.h"
 
 namespace Dialogs {
