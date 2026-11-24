@@ -523,6 +523,46 @@ class CompileGrammarTests(unittest.TestCase):
 		self.assertEqual(ignored.arch_pchs, {})
 		self.assertEqual(ignored.forced_includes, [])
 
+	def test_joined_forced_include(self):
+		helper = self.parse(
+			"c++ -DA -ftyped-memory-operations "
+			"-include/work/out/Telegram/gen/widget_helper_typed_malloc.h "
+			"-o o.o -c /src/a.cpp")
+		self.assertEqual(
+			helper.forced_includes,
+			["Telegram/gen/widget_helper_typed_malloc.h"])
+		self.assertIsNone(helper.pch)
+		self.assertIsNone(helper.pch_dialect)
+		self.assertEqual(helper.arch_pchs, {})
+		with self.assertRaisesRegex(
+				ninja_target.NinjaTargetError,
+				"forced include may change requested macro"):
+			ninja_target.macro_state(helper, "A")
+		after_arch = self.parse(
+			"c++ -arch x86_64 -arch arm64 -Xarch_x86_64 "
+			"-fno-typed-cxx-new-delete -Xarch_arm64 -ftyped-cxx-new-delete "
+			"-ftyped-memory-operations -include/work/out/g.h -o o.o -c a.cpp")
+		self.assertEqual(after_arch.forced_includes, ["g.h"])
+		self.assertEqual(after_arch.arch_pchs, {})
+		gcc_inputs = ["/src/a.cpp", "x/cmake_pch.hxx", "x/cmake_pch.hxx.gch"]
+		pairs = (
+			("c++ -include/work/out/g.h -o o.o -c /src/a.cpp",
+				"c++ -include /work/out/g.h -o o.o -c /src/a.cpp",
+				[]),
+			("c++ -Winvalid-pch -include/work/out/x/cmake_pch.hxx -o o.o "
+				"-c /src/a.cpp",
+				"c++ -Winvalid-pch -include /work/out/x/cmake_pch.hxx -o o.o "
+				"-c /src/a.cpp",
+				gcc_inputs),
+		)
+		for joined, separate, inputs in pairs:
+			with self.subTest(command=joined):
+				self.assertEqual(
+					self.parse(joined, inputs),
+					self.parse(separate, inputs))
+		gcc = self.parse(pairs[1][0], gcc_inputs)
+		self.assertEqual(gcc.pch, "x/cmake_pch.hxx.gch")
+
 	def test_ordered_definitions(self):
 		command = self.parse(
 			"c++ -DX -DE= -DZ=0 -D S -US -DV=1 -UV -DV=2 -U W -DW "
@@ -554,9 +594,10 @@ class CompileGrammarTests(unittest.TestCase):
 			("c++ -imacros m.h -o o.o -c a.cpp", "'-imacros'"),
 			("c++ -Wp,-DX -o o.o -c a.cpp", "'-Wp,-DX'"),
 			("c++ --define-macro=X -o o.o -c a.cpp", "'--define-macro=X'"),
-			("c++ -includem.h -o o.o -c a.cpp", "unsupported include form"),
-			("c++ -arch x86_64 -arch arm64 -Xarch_x86_64 -fx -include/h -o o.o "
-				"-c a.cpp", "unsupported include form '-include/h'"),
+			("c++ -include-pch/p.pch -o o.o -c a.cpp",
+				"unsupported include form '-include-pch/p.pch'"),
+			("c++ --include=m.h -o o.o -c a.cpp",
+				"unsupported include form '--include=m.h'"),
 			("c++ -arch arm64 -Xarch_arm64 -DX -o o.o -c a.cpp",
 				"unsupported per-architecture option '-Xarch_arm64 -DX'"),
 			("c++ -arch arm64 -Xarch_arm64 -UX -o o.o -c a.cpp",
@@ -578,6 +619,10 @@ class CompileGrammarTests(unittest.TestCase):
 				"per-architecture PCH include mixed with another include or PCH "
 				"form in compile command for o.o"),
 			("c++ -arch arm64 -include /f.h -Xarch_arm64 -include/h -o o.o "
+				"-c a.cpp",
+				"per-architecture PCH include mixed with another include or PCH "
+				"form in compile command for o.o"),
+			("c++ -include/f.h -Xarch_arm64 -include/h -arch arm64 -o o.o "
 				"-c a.cpp",
 				"per-architecture PCH include mixed with another include or PCH "
 				"form in compile command for o.o"),
@@ -903,6 +948,24 @@ class HandwrittenManifestTests(unittest.TestCase):
 		with self.assertRaisesRegex(
 				ninja_target.NinjaTargetError,
 				"forced include may change requested macro"):
+			resolve_tree(tree, *base_args(tree))
+
+	def test_joined_forced_include_object(self):
+		tree = self.tree()
+		tree.edges[APP_PLAIN]["vars"]["FLAGS"] += " " + shlex.quote(
+			"-include" + tree.absolute("gen/guard.h"))
+		tree.write()
+		result = resolve_tree(tree, "--list-objects")
+		self.assertEqual(result["verdict"], "PASS")
+		records = {item["object"]: item for item in result["objects"]["list"]}
+		self.assertEqual(records[APP_PLAIN]["rule"], APP_C_RULE)
+		self.assertIsNone(records[APP_PLAIN]["pch"])
+		self.assertIsNone(records[APP_PLAIN]["pch_rule"])
+		with self.assertRaisesRegex(
+				ninja_target.NinjaTargetError,
+				re.escape(
+					"forced include may change requested macro FX_APP_POLICY in "
+					f"{APP_PLAIN}: ['gen/guard.h']")):
 			resolve_tree(tree, *base_args(tree))
 
 	def test_response_file_link_expands(self):

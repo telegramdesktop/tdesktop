@@ -118,7 +118,13 @@ build directory); GCC/Clang drivers with an optional `ccache`/`sccache`
 launcher; clang `-Xclang -include-pch`/`-emit-pch` and GCC `-include` + `.gch`
 PCH dialects and CMake's multi-architecture PCH form; response files expanded
 by `ninja -t compdb -x`; ordered `-DNAME[=V]`, `-D NAME`, `-UNAME`, `-U NAME`
-(later wins, `-DX=0` is defined). A link object operand may have `.`
+(later wins, `-DX=0` is defined). A bare joined `-include<path>` (not the
+value of `-Xarch_<arch>`) is read like the separate `-include <path>`: a GCC
+PCH when `<path>.gch` is a graph input, otherwise a non-PCH forced include.
+The macOS widget helper carries this form:
+`Telegram/cmake/widget_helper_hardening.cmake` adds
+`-include<build>/Telegram/gen/widget_helper_typed_malloc.h` as a guard
+include. A link object operand may have `.`
 components, which a single-config `Ninja` tree writes for a
 `$<TARGET_OBJECTS:...>` item of a link library list
 (`<dir>/CMakeFiles/<target>.dir/./<source>.o`; the macOS `Telegram` link
@@ -150,8 +156,8 @@ inputs missing from the link line; producer output/source mismatches;
 non-compile producers; PCHs used but not graph inputs (a GCC or
 per-architecture `-Winvalid-pch` command counts as PCH use), or graph inputs
 not used, or produced by another target's rule (`REUSE_FROM`); `-imacros`,
-`-Wp,-D`, `-Xpreprocessor`, `-Xclang -D`; a joined `-include<path>` that is
-not the value of `-Xarch_<arch>` (`unsupported include form`); a definition
+`-Wp,-D`, `-Xpreprocessor`, `-Xclang -D`; a joined `-include-pch<path>` and
+any `--include` form (`unsupported include form`); a definition
 passed through `-Xarch_<arch>` (it holds for one architecture only);
 per-architecture includes mixed with another include or PCH form (clang then
 ignores the implicit PCH or another one wins), repeated, or not one per

@@ -680,9 +680,8 @@ def refuse_define_channel(token):
 	if token == "-Xpreprocessor" or token.startswith(
 			("--define-macro", "--undefine-macro")):
 		raise NinjaTargetError(f"unsupported definition channel {token!r}")
-	if token.startswith(("-include", "--include")) and token not in (
-			"-include",
-			"-include-pch"):
+	if token.startswith("--include") or (
+			token.startswith("-include-pch") and token != "-include-pch"):
 		raise NinjaTargetError(f"unsupported include form {token!r}")
 
 
@@ -775,6 +774,8 @@ def parse_compile(entry, build, graph_inputs):
 			claims_pch = True
 		elif token.startswith(("-D", "-U")):
 			definitions.append(parse_definition(token[1], token[2:]))
+		elif token.startswith("-include"):
+			includes.append(build.identity(token[len("-include"):]))
 		elif not token.startswith("-"):
 			raise NinjaTargetError(
 				f"unexpected compile operand {token!r} for {entry.output}")
