@@ -94,6 +94,12 @@ void CreateCacheFilePath() {
 	return internal::CacheFileFolder() + u"/keywords/"_q + id;
 }
 
+[[nodiscard]] QStringList CachedKeywordLanguageIds() {
+	return QDir(
+		internal::CacheFileFolder() + u"/keywords"_q
+	).entryList(QDir::Files, QDir::Name);
+}
+
 [[nodiscard]] LangPackData ReadLocalCache(const QString &id) {
 	auto file = QFile(CacheFilePath(id));
 	if (!file.open(QIODevice::ReadOnly)) {
@@ -577,6 +583,7 @@ std::vector<QString> EmojiKeywords::languages() {
 	yield(Lang::CurrentCloudManager().suggestedLanguage());
 	yield(Platform::SystemLanguage());
 	yieldList(QLocale::system().uiLanguages());
+	yieldList(CachedKeywordLanguageIds());
 	for (const auto &list : _inputLanguages) {
 		yieldList(list);
 	}
