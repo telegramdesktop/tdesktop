@@ -10,13 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
 #include "ui/effects/panel_animation.h"
-#include "ui/painter.h"
-#include "ui/qt_object_factory.h"
-#include "ui/rect.h"
 #include "ui/text/text.h"
 #include "ui/widgets/menu/menu.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
+#include "ui/qt_object_factory.h"
+#include "ui/rect.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QScreen>

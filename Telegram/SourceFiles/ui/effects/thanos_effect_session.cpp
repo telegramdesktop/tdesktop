@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/thanos_effect_session.h"
 
-#include "ui/effects/thanos_effect.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "ui/effects/thanos_effect.h"
 
 namespace Ui {
 

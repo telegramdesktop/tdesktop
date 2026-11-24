@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/unique_qptr.h"
 #include "ui/effects/animations.h"
-#include "ui/rp_widget.h"
 #include "ui/text/text.h"
+#include "ui/rp_widget.h"
 
 class Painter;
 

@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/more_chats_bar.h"
 
+#include "lang/lang_keys.h"
+#include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "ui/text/text_options.h"
 #include "ui/painter.h"
-#include "lang/lang_keys.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h" // st::columnMinimalWidthLeft
 

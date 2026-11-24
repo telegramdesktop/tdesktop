@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/chat_filters_tabs_slider_reorder.h"
 
 #include "ui/widgets/scroll_area.h"
+
 #include "styles/style_basic.h"
 
 #include <QScrollBar>

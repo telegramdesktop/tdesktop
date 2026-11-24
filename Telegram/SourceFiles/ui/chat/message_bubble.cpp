@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/message_bubble.h"
 
-#include "ui/cached_round_corners.h"
-#include "ui/image/image_prepare.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/torn_edge.h"
+#include "ui/image/image_prepare.h"
+#include "ui/cached_round_corners.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_style.h"
 

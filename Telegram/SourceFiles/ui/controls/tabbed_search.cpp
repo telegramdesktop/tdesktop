@@ -10,13 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "base/qt_signal_producer.h"
 #include "lang/lang_keys.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/widgets/fields/input_field.h"
-#include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/buttons.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/text_custom_emoji.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_chat_helpers.h"
 
 #include <QtGui/QStyleHints>

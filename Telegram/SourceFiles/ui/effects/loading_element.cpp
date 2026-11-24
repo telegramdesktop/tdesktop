@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"

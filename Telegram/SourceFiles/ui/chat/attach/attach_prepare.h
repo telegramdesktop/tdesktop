@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "editor/photo_editor_common.h"
 #include "editor/video/video_editor_common.h"
+#include "editor/photo_editor_common.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/rect_part.h"
 

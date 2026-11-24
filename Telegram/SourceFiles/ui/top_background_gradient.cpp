@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/top_background_gradient.h"
 
-#include "apiwrap.h"
 #include "api/api_peer_colors.h"
-#include "data/data_emoji_statuses.h"
+#include "apiwrap.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_credits.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
 #include "data/data_star_gift.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
 #include "ui/image/image_prepare.h"
+#include "ui/text/custom_emoji_helper.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/custom_emoji_helper.h"
+
 #include "styles/style_layers.h"
 
 namespace Ui {

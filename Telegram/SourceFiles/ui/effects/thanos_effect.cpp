@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/thanos_effect.h"
 
+#include "base/event_filter.h"
+#include "base/qt_signal_producer.h"
 #include "ui/effects/thanos_effect_renderer.h"
 #include "ui/gl/gl_detection.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/power_saving.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
-#include "base/event_filter.h"
-#include "base/qt_signal_producer.h"
 
 #include <QtGui/QWindow>
 

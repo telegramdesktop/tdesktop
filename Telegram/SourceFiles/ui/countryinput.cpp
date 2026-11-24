@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/countryinput.h"
 
-#include "lang/lang_keys.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/multi_select.h"
-#include "ui/effects/ripple_animation.h"
-#include "ui/boxes/country_select_box.h"
-#include "ui/painter.h"
 #include "countries/countries_instance.h"
+#include "lang/lang_keys.h"
+#include "ui/boxes/country_select_box.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/widgets/multi_select.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_intro.h"
 #include "styles/style_widgets.h"
 

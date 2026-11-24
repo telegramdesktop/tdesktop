@@ -10,9 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "info/profile/info_profile_values.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/widgets/labels.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/widgets/labels.h"
+
 #include "styles/style_channel_earn.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"

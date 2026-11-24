@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
-#include "ui/effects/premium_star_model.h"
-#include "ui/effects/premium_3d_mesh.h"
 #include "base/debug_log.h"
+#include "ui/effects/premium_3d_mesh.h"
+#include "ui/effects/premium_star_model.h"
 
 #include <rhi/qrhi.h>
 #include <QtGui/QImage>

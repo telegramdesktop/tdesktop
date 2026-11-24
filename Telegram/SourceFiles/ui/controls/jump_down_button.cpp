@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/unread_badge_paint.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {

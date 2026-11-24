@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
-#include "ui/rect_part.h"
 #include "ui/text/text_entity.h"
+#include "ui/rect_part.h"
 
 #include <QtCore/QPointer>
 

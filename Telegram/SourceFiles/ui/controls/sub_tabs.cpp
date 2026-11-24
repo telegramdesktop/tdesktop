@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/sub_tabs.h"
 
+#include "ui/effects/animation_value_f.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "ui/effects/animation_value_f.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"

@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/fields/special_fields.h"
 
-#include "lang/lang_keys.h"
 #include "countries/countries_instance.h" // Countries::ValidPhoneCode
+#include "lang/lang_keys.h"
+
 #include "styles/style_widgets.h"
 
 #include <QtCore/QRegularExpression>

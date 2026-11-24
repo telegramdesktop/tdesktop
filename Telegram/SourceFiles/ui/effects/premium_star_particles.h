@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/animations.h"
 #include "base/random.h"
+#include "ui/effects/animations.h"
 
 namespace Ui::Premium {
 

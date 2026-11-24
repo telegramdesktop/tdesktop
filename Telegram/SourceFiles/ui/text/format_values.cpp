@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 
 #include "base/unixtime.h"
-#include "lang/lang_keys.h"
 #include "countries/countries_instance.h"
+#include "lang/lang_keys.h"
 
 #include <QtCore/QLocale>
 #include <locale>

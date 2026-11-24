@@ -9,9 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "core/file_utilities.h"
+#include "info/channel_statistics/earn/earn_format.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
-#include "info/channel_statistics/earn/earn_format.h"
+#include "settings/settings_common.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -20,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
-#include "settings/settings_common.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_collectible_info_box.h"

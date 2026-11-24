@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_bot_webview_linux_shell.h"
 
 #include "ui/style/style_core_palette.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_payments.h"
 

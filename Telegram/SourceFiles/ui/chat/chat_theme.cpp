@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/chat_theme.h"
 
+#include "ui/chat/chat_style.h"
+#include "ui/chat/chat_theme_readability.h"
+#include "ui/chat/message_bubble.h"
+#include "ui/image/image_prepare.h"
+#include "ui/style/style_core_palette.h"
+#include "ui/style/style_palette_colorizer.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/color_contrast.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
 #include "ui/ui_utility.h"
-#include "ui/chat/message_bubble.h"
-#include "ui/chat/chat_style.h"
-#include "ui/chat/chat_theme_readability.h"
-#include "ui/image/image_prepare.h"
-#include "ui/text/text_custom_emoji.h"
-#include "ui/style/style_core_palette.h"
-#include "ui/style/style_palette_colorizer.h"
 
 #include <crl/crl_async.h>
 #include <QtGui/QGuiApplication>

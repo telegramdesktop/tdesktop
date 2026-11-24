@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/checkbox.h"
 #include "ui/painter.h"
+
 #include "styles/style_layers.h"
 
 #include <QCoreApplication>

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/numbers_animation.h"
 #include "ui/effects/ministar_particles.h"
+#include "ui/effects/numbers_animation.h"
 #include "ui/abstract_button.h"
 #include "ui/rp_widget.h"
 

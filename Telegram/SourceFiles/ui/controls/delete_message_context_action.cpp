@@ -7,13 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/delete_message_context_action.h"
 
-#include "ui/widgets/menu/menu_action.h"
-#include "ui/effects/ripple_animation.h"
-#include "ui/painter.h"
-#include "lang/lang_keys.h"
 #include "base/call_delayed.h"
-#include "base/unixtime.h"
 #include "base/timer.h"
+#include "base/unixtime.h"
+#include "lang/lang_keys.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/widgets/menu/menu_action.h"
+#include "ui/painter.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 

@@ -15,9 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "ui/effects/fade_animation.h"
 #include "ui/layers/box_content.h"
-#include "ui/rect.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/rect.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat_helpers.h" // defaultComposeFiles.
 
 namespace Ui {

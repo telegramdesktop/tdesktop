@@ -9,12 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/painter.h"
-#include "ui/rp_widget.h"
-#include "ui/screen_reader_mode.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
+#include "ui/painter.h"
+#include "ui/rp_widget.h"
+#include "ui/screen_reader_mode.h"
+
 #include "styles/style_window.h"
 
 namespace Ui {

@@ -7,9 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/fields/time_part_input.h"
-
 #include "lang_auto.h"
+#include "ui/widgets/fields/time_part_input.h"
 
 namespace Ui {
 

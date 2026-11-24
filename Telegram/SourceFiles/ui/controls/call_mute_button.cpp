@@ -8,18 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/call_mute_button.h"
 
 #include "base/flat_map.h"
-#include "ui/abstract_button.h"
-#include "ui/effects/shake_animation.h"
-#include "ui/paint/blobs.h"
-#include "ui/painter.h"
-#include "ui/power_saving.h"
-#include "ui/controls/call_button.h"
-#include "ui/widgets/labels.h"
-#include "ui/ui_utility.h"
 #include "base/random.h"
 #include "styles/palette.h"
-#include "styles/style_widgets.h"
+#include "ui/controls/call_button.h"
+#include "ui/effects/shake_animation.h"
+#include "ui/paint/blobs.h"
+#include "ui/widgets/labels.h"
+#include "ui/abstract_button.h"
+#include "ui/painter.h"
+#include "ui/power_saving.h"
+#include "ui/ui_utility.h"
+
 #include "styles/style_calls.h"
+#include "styles/style_widgets.h"
 
 #include <QtCore/QtMath>
 #include <QtCore/QCoreApplication>

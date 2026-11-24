@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
-#include "ui/rp_widget.h"
 #include "ui/effects/premium_stars_colored.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct PremiumCover;

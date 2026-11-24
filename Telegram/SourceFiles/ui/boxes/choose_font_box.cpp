@@ -20,11 +20,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_style.h"
-#include "styles/style_settings.h"
 #include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 #include <QtGui/QFontDatabase>
 

@@ -9,28 +9,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/ui_integration.h" // TextContext
 #include "data/components/credits.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "lang/lang_keys.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "ui/boxes/edit_invite_link.h" // InviteLinkSubscriptionToggle
 #include "ui/effects/credits_graphics.h"
 #include "ui/layers/generic_box.h"
-#include "ui/rect.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
-#include "ui/vertical_list.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/number_input.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/rect.h"
+#include "ui/vertical_list.h"
+
 #include "styles/style_chat.h"
-#include "styles/style_settings.h"
-#include "styles/style_layers.h"
 #include "styles/style_info.h"
+#include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 namespace Ui {
 

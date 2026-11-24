@@ -10,14 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
-#include "history/history_item.h"
 #include "history/view/media/history_view_document.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_song_name.h"
 #include "ui/text/format_values.h"
 #include "ui/painter.h"
+
 #include "styles/style_chat.h"
 
 namespace Ui {

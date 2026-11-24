@@ -7,26 +7,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/calendar_box.h"
 
+#include "base/flat_map.h"
+#include "base/flat_set.h"
+#include "lang/lang_keys.h"
+#include "ui/chat/chat_style.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/ripple_animation.h"
+#include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/vertical_drum_picker.h"
-#include "ui/effects/ripple_animation.h"
-#include "ui/effects/animations.h"
-#include "ui/chat/chat_style.h"
-#include "ui/ui_utility.h"
-#include "ui/painter.h"
 #include "ui/cached_round_corners.h"
-#include "ui/layers/generic_box.h"
 #include "ui/dynamic_image.h"
-#include "ui/text/text_utilities.h"
-#include "lang/lang_keys.h"
-#include "base/flat_map.h"
-#include "base/flat_set.h"
+#include "ui/painter.h"
+#include "ui/ui_utility.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_calendar_box.h"
 #include "styles/style_chat.h"
-#include "styles/style_settings.h"
 #include "styles/style_layers.h"
+#include "styles/style_settings.h"
 
 #include <QtCore/QLocale>
 

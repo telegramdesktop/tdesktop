@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/skeleton_animation.h"
 
-#include "ui/painter.h"
 #include "ui/widgets/labels.h"
+#include "ui/painter.h"
 
 namespace Ui {
 namespace {

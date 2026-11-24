@@ -9,12 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/event_filter.h"
 #include "base/invoke_queued.h"
-#include "ui/inactive_press.h"
-#include "ui/integration.h"
-#include "ui/painter.h"
 #include "ui/text/text_entity.h"
 #include "ui/text/text_options.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/inactive_press.h"
+#include "ui/integration.h"
+#include "ui/painter.h"
+
 #include "styles/style_marquee_label.h"
 #include "styles/style_widgets.h"
 

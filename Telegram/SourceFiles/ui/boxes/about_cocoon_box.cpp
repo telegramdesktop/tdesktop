@@ -13,12 +13,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
 #include "ui/layers/generic_box.h"
-#include "ui/painter.h"
 #include "ui/text/text_utilities.h"
-#include "ui/top_background_gradient.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/shadow.h"
+#include "ui/painter.h"
+#include "ui/top_background_gradient.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_info.h" // infoStarsUnderstood

@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
 #include "ui/chat/attach/attach_controls.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/grouped_layout.h"
 #include "ui/round_rect.h"
-#include "base/object_ptr.h"
 
 namespace style {
 struct ComposeControls;

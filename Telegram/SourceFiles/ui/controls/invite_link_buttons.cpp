@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/invite_link_buttons.h"
 
+#include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
-#include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
-#include "lang/lang_keys.h"
+#include "ui/wrap/vertical_layout.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 

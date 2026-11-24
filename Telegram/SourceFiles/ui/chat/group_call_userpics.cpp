@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/group_call_userpics.h"
 
+#include "base/random.h"
 #include "ui/paint/blobs.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
-#include "base/random.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 

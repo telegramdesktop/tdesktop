@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/chat/attach/attach_abstract_single_media_preview.h"
 #include "media/clip/media_clip_reader.h"
+#include "ui/chat/attach/attach_abstract_single_media_preview.h"
 
 namespace Lottie {
 class SinglePlayer;

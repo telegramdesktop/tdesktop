@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/generic_box.h"
 #include "base/required.h"
+#include "ui/layers/generic_box.h"
 
 namespace style {
 struct Checkbox;

@@ -6,10 +6,10 @@
 //
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/ui_touch_forward.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_area_with_shadow.h"
+#include "ui/rp_widget.h"
+#include "ui/ui_touch_forward.h"
 
 namespace Ui {
 

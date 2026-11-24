@@ -8,13 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/expected.h"
+#include "base/flags.h"
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
-#include "base/flags.h"
 #include "ui/platform/ui_platform_utility.h"
-#include "ui/rect_part.h"
 #include "ui/text/text_entity.h"
 #include "ui/widgets/separate_panel.h"
+#include "ui/rect_part.h"
 #include "webview/webview_common.h"
 #include <crl/crl_time.h>
 #include <QtCore/QRect>

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/drifting_particles.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_premium.h"
 
 #include <QtCore/QtMath>

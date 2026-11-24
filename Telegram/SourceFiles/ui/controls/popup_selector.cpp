@@ -6,10 +6,11 @@
 //
 #include "ui/controls/popup_selector.h"
 
-#include "ui/painter.h"
-#include "ui/style/style_core.h"
 #include "ui/effects/animation_value.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/style/style_core.h"
+#include "ui/painter.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 

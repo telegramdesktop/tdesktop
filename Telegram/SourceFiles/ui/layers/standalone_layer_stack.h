@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/unique_qptr.h"
 #include "base/weak_ptr.h"
-#include "ui/platform/ui_platform_utility.h"
 #include "ui/layers/layer_widget.h"
+#include "ui/platform/ui_platform_utility.h"
 
 #include <QtCore/QRect>
 #include <QtCore/QSize>

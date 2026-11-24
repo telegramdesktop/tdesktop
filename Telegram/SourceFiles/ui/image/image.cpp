@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/image/image.h"
 
-#include "storage/cache/storage_cache_database.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
+#include "storage/cache/storage_cache_database.h"
 #include "ui/ui_utility.h"
 
 using namespace Images;

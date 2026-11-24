@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/middle_click_autoscroll.h"
 
-#include "styles/style_chat.h"
 #include "ui/effects/animation_value.h"
 #include "ui/rect.h"
+
+#include "styles/style_chat.h"
 
 namespace Ui {
 namespace {

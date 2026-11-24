@@ -11,8 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/never_freed_pointer.h"
 #include "ui/effects/animation_value.h"
 #include "ui/painter.h"
-#include "styles/style_widgets.h"
+
 #include "styles/style_dialogs.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 namespace {

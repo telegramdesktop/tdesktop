@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/sliding_tabs.h"
 
 #include "ui/effects/slide_animation.h"
-#include "ui/ui_utility.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/ui_utility.h"
+
 #include "styles/style_basic.h"
 
 namespace Ui {

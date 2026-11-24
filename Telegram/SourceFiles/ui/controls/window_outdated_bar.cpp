@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/window_outdated_bar.h"
 
-#include "ui/widgets/labels.h" // Ui::FlatLabel
-#include "ui/widgets/buttons.h" // Ui::IconButton
-#include "ui/wrap/slide_wrap.h" // Ui::SlideWrap
 #include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/buttons.h" // Ui::IconButton
+#include "ui/widgets/labels.h" // Ui::FlatLabel
+#include "ui/wrap/slide_wrap.h" // Ui::SlideWrap
+
 #include "styles/style_window.h"
 
 #include <QtCore/QFile>

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/dynamic_thumbnails.h"
 
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_cloud_file.h"
 #include "data/data_document.h"
@@ -16,16 +17,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "data/data_story.h"
 #include "layout/layout_document_generic_preview.h"
 #include "main/main_session.h"
-#include "ui/empty_userpic.h"
-#include "ui/dynamic_image.h"
 #include "ui/image/image_prepare.h"
-#include "ui/painter.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/dynamic_image.h"
+#include "ui/empty_userpic.h"
+#include "ui/painter.h"
 #include "ui/userpic_view.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_overview.h"
 

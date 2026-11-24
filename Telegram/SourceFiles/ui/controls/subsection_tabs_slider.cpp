@@ -11,10 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/dynamic_image.h"
-#include "ui/unread_badge_paint.h"
-#include "ui/unread_counter_format.h"
 #include "ui/painter.h"
 #include "ui/round_rect.h"
+#include "ui/unread_badge_paint.h"
+#include "ui/unread_counter_format.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_filter_icons.h"

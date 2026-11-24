@@ -8,13 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_bot_downloads.h"
 
 #include "lang/lang_keys.h"
-#include "ui/widgets/menu/menu_item_base.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_item_base.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/painter.h"
+
 #include "styles/style_chat.h"
 
 namespace Ui::BotWebView {

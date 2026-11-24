@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/labeled_emoji_tabs.h"
 
 #include "base/object_ptr.h"
-#include "ui/abstract_button.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/painter.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/abstract_button.h"
+#include "ui/painter.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_compose_ai_box.h"
 #include "styles/style_labeled_emoji_tabs.h"

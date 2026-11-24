@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/algorithm.h"
 #include "ui/effects/animation_value.h"
+#include "ui/style/style_core.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/style/style_core.h"
 
 #include <QtMath>
 #include <QtSvg/QSvgRenderer>

@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/box_content.h"
-#include "ui/widgets/tooltip.h"
 #include "base/required.h"
 #include "base/timer.h"
+#include "ui/layers/box_content.h"
+#include "ui/widgets/tooltip.h"
 
 #include <QtCore/QDate>
 

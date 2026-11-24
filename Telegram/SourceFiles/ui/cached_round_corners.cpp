@@ -6,15 +6,17 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/cached_round_corners.h"
+
 #include "ui/chat/chat_style.h"
+#include "ui/image/image_prepare.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "ui/image/image_prepare.h"
+
 #include "styles/style_chat.h"
-#include "styles/style_layers.h"
-#include "styles/style_overview.h"
-#include "styles/style_media_view.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_layers.h"
+#include "styles/style_media_view.h"
+#include "styles/style_overview.h"
 
 namespace Ui {
 namespace {

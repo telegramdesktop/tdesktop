@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/call_button.h"
 
+#include "styles/palette.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/painter.h"
 #include "ui/widgets/labels.h"
+#include "ui/painter.h"
 #include "ui/qt_object_factory.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_calls.h"
 #include "styles/style_widgets.h"
-#include "styles/palette.h"
 
 namespace Ui {
 namespace {

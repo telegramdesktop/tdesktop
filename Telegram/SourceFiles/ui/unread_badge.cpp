@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/unread_badge.h"
 
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
-#include "data/data_user.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
-#include "main/main_session.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
-#include "ui/power_saving.h"
+#include "main/main_session.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/painter.h"
+#include "ui/power_saving.h"
+#include "ui/rect.h"
 #include "ui/unread_badge_paint.h"
+
 #include "styles/style_dialogs.h"
 
 namespace Ui {

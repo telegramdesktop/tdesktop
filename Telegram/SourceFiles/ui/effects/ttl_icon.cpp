@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/arc_angles.h"
 #include "ui/painter.h"
+
 #include "styles/style_dialogs.h"
 
 namespace Ui {

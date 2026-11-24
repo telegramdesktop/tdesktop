@@ -7,15 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/filter_icon_panel.h"
 
-#include "ui/widgets/shadow.h"
-#include "ui/image/image_prepare.h"
+#include "core/application.h"
+#include "lang/lang_keys.h"
 #include "ui/effects/panel_animation.h"
-#include "ui/ui_utility.h"
+#include "ui/image/image_prepare.h"
+#include "ui/widgets/shadow.h"
+#include "ui/cached_round_corners.h"
 #include "ui/filter_icons.h"
 #include "ui/painter.h"
-#include "ui/cached_round_corners.h"
-#include "lang/lang_keys.h"
-#include "core/application.h"
+#include "ui/ui_utility.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 

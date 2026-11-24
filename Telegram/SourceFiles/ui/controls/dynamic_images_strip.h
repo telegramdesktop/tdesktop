@@ -6,8 +6,8 @@
 //
 #pragma once
 
-#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 

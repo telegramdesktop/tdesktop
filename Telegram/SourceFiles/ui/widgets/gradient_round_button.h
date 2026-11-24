@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/buttons.h"
 #include "ui/effects/glare.h"
+#include "ui/widgets/buttons.h"
 
 namespace Ui {
 

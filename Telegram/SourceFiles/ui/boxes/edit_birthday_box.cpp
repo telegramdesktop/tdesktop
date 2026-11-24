@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/vertical_drum_picker.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 

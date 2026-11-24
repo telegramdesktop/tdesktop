@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/boxes/choose_language_box.h"
 
+#include "base/debug_log.h"
 #include "lang/lang_keys.h"
 #include "spellcheck/spellcheck_types.h"
 #include "ui/layers/generic_box.h"
@@ -14,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/painter.h"
-#include "base/debug_log.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"

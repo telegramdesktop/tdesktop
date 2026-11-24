@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_giveaway.h"
 #include "styles/style_layers.h"

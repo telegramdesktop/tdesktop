@@ -9,11 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/labels.h"
 #include "ui/arc_angles.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
-#include "ui/widgets/labels.h"
+
 #include "styles/style_ttl_media.h"
 
 #include <QSvgRenderer>

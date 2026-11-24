@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
+#include "base/timer.h"
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/text/text.h"
-#include "base/timer.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct ComposeControls;

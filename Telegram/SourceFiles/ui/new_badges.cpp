@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/new_badges.h"
 
 #include "lang/lang_keys.h"
-#include "ui/painter.h"
 #include "ui/widgets/labels.h"
+#include "ui/painter.h"
+
 #include "styles/style_info.h"
-#include "styles/style_window.h"
 #include "styles/style_settings.h"
+#include "styles/style_window.h"
 
 namespace Ui {
 

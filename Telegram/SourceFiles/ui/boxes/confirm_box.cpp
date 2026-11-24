@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 
 #include "lang/lang_keys.h"
-#include "ui/rect.h"
 #include "ui/widgets/buttons.h"
+#include "ui/rect.h"
+
 #include "styles/style_layers.h"
 
 namespace Ui {

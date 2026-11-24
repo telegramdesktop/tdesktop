@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include <rpl/variable.h>
-#include "ui/rp_widget.h"
 #include "base/unique_qptr.h"
+#include "ui/rp_widget.h"
 
 namespace style {
 struct SearchFieldRow;

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/radial_animation.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/radial_animation.h"
 
 namespace Ui {
 

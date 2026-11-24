@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "ui/effects/animation_value.h"
 #include "ui/painter.h"
+
 #include "styles/style_basic.h"
 
 namespace Ui {

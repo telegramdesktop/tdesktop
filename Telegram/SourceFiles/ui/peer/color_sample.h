@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/buttons.h"
-#include "ui/text/text.h"
-#include "ui/effects/animations.h"
-#include "ui/rp_widget.h"
 #include "data/data_peer_colors.h"
+#include "ui/effects/animations.h"
+#include "ui/text/text.h"
+#include "ui/widgets/buttons.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 namespace Text {

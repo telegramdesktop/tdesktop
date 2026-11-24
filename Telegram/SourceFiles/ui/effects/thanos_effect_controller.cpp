@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/thanos_effect_controller.h"
 
-#include "ui/effects/thanos_effect.h"
-#include "ui/chat/chat_style.h"
-#include "ui/painter.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
-#include "main/main_session.h"
-#include "history/history_item.h"
 #include "history/view/history_view_element.h"
+#include "history/history_item.h"
+#include "main/main_session.h"
+#include "ui/chat/chat_style.h"
+#include "ui/effects/thanos_effect.h"
+#include "ui/painter.h"
 
 namespace Ui {
 namespace {

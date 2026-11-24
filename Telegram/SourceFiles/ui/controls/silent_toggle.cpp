@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/silent_toggle.h"
 
-#include "ui/effects/ripple_animation.h"
 #include "data/notify/data_notify_settings.h"
-#include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace Ui {

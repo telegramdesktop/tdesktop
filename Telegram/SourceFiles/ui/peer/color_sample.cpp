@@ -9,11 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/algorithm.h"
 #include "ui/chat/chat_style.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/buttons.h"
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/text_utilities.h"
-#include "ui/widgets/buttons.h"
+
 #include "styles/style_settings.h"
 
 #include <QtMath>

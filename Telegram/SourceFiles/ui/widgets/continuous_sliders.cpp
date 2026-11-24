@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/widgets/continuous_sliders.h"
 
-#include "ui/painter.h"
-#include "ui/rect.h"
+#include "base/platform/base_platform_info.h"
 #include "base/timer.h"
 #include "base/weak_qptr.h"
-#include "base/platform/base_platform_info.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+
 #include "styles/style_widgets.h"
 
 namespace Ui {

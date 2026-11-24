@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/scroll_content_shadow.h"
 
-#include "ui/rp_widget.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 
 namespace Ui {

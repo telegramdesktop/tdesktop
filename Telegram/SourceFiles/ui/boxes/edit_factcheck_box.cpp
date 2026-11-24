@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "ui/widgets/fields/input_field.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 

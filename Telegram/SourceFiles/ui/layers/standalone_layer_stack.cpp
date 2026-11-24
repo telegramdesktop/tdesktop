@@ -7,12 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/layers/standalone_layer_stack.h"
 
+#include "base/debug_log.h"
 #include "base/event_filter.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/box_layer_widget.h"
 #include "ui/layers/show.h"
 #include "ui/widgets/separate_panel.h"
-#include "base/debug_log.h"
+
 #include "styles/style_layers.h"
 
 #include <QtGui/QGuiApplication>

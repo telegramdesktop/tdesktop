@@ -13,10 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
-#include "styles/style_widgets.h" // style::IconButton
 #include "styles/style_info.h" // st::topBarCall
+#include "styles/style_widgets.h" // style::IconButton
 
 #include <QtCore/QMutex>
 #include <QtSvg/QSvgRenderer>

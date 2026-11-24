@@ -8,8 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/subsection_tabs_slider_reorder.h"
 
 #include "ui/controls/subsection_tabs_slider.h"
-#include "ui/widgets/scroll_area.h"
 #include "ui/controls/subsection_tabs_slider.h"
+#include "ui/widgets/scroll_area.h"
+
 #include "styles/style_basic.h"
 
 #include <QtWidgets/QApplication>

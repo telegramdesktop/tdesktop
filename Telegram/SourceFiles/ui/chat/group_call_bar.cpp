@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/group_call_bar.h"
 
-#include "ui/chat/group_call_userpics.h"
-#include "ui/widgets/shadow.h"
-#include "ui/widgets/buttons.h"
-#include "ui/painter.h"
-#include "lang/lang_keys.h"
 #include "base/unixtime.h"
+#include "lang/lang_keys.h"
+#include "styles/palette.h"
+#include "ui/chat/group_call_userpics.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/shadow.h"
+#include "ui/painter.h"
+
+#include "styles/style_calls.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_calls.h"
 #include "styles/style_info.h" // st::topBarArrowPadding, like TopBarWidget.
 #include "styles/style_window.h" // st::columnMinimalWidthLeft
-#include "styles/palette.h"
 
 #include <QtGui/QtEvents>
 #include <QtCore/QLocale>

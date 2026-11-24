@@ -9,11 +9,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "lang/lang_keys.h"
+#include "ui/widgets/fields/masked_input_field.h"
+#include "ui/widgets/shadow.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
-#include "ui/widgets/fields/masked_input_field.h"
-#include "ui/widgets/shadow.h"
+
 #include "styles/style_color_editor.h"
 #include "styles/style_widgets.h"
 

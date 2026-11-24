@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/animations.h"
 #include "base/flat_map.h"
 #include "base/flat_set.h"
+#include "ui/effects/animations.h"
 
 namespace Main {
 class Session;

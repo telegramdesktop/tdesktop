@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/animations.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
+#include "ui/effects/animations.h"
 
 namespace style {
 class palette;

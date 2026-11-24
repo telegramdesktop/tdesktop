@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/reaction_fly_animation.h"
 
+#include "base/random.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_message_reactions.h"
+#include "data/data_session.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
-#include "data/data_message_reactions.h"
-#include "data/data_session.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
-#include "base/random.h"
+
 #include "styles/style_chat.h"
 
 namespace Ui {

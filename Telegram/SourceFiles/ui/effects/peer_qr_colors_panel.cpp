@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
+
 #include "styles/style_boxes.h"
 
 namespace Ui {

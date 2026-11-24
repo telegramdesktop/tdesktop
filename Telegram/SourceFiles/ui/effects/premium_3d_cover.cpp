@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/premium_3d_cover.h"
 
+#include "base/call_delayed.h"
+#include "base/debug_log.h"
+#include "base/random.h"
 #include "ui/effects/premium_3d_support.h"
 #include "ui/gl/gl_surface.h"
-#include "base/call_delayed.h"
-#include "base/random.h"
-#include "base/debug_log.h"
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include <QRhiWidget>

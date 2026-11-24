@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/image/image_location.h"
 
-#include "ui/image/image.h"
+#include "base/overload.h"
+#include "data/data_file_origin.h"
+#include "data/data_location.h"
+#include "main/main_session.h"
 #include "platform/platform_specific.h"
 #include "storage/cache/storage_cache_types.h"
 #include "storage/serialize_common.h"
-#include "data/data_file_origin.h"
-#include "data/data_location.h"
-#include "base/overload.h"
-#include "main/main_session.h"
+#include "ui/image/image.h"
 
 #include <QtCore/QBuffer>
 

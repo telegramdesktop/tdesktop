@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/wrap/slide_wrap.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/widgets/shadow.h"
 #include "ui/text/text.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/slide_wrap.h"
 
 namespace Ui {
 

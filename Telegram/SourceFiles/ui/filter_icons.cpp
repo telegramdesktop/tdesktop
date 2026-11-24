@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/filter_icons.h"
 
-#include "ui/emoji_config.h"
 #include "data/data_chat_filters.h"
+#include "ui/emoji_config.h"
+
 #include "styles/style_filter_icons.h"
 
 namespace Ui {

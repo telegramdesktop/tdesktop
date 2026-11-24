@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
-#include "ui/rhi/rhi_shader.h"
-#include "ui/rp_widget.h"
-#include "ui/painter.h"
 #include "base/debug_log.h"
+#include "ui/rhi/rhi_shader.h"
+#include "ui/painter.h"
+#include "ui/rp_widget.h"
 
 #include <rhi/qrhi.h>
 

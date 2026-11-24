@@ -14,13 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
-#include "history/history_item.h"
 #include "history/view/media/history_view_document.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 #include "media/streaming/media_streaming_document.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_loader_local.h"
 #include "media/streaming/media_streaming_player.h"
+
 #include "styles/style_boxes.h"
 
 namespace Ui {

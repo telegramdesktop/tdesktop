@@ -7,16 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/send_button.h"
 
+#include "lang/lang_keys.h"
 #include "lang/lang_tag.h"
 #include "lottie/lottie_icon.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_credits.h"
-#include "lang/lang_keys.h"
-#include "ui/text/format_values.h"
 
 namespace Ui {
 namespace {

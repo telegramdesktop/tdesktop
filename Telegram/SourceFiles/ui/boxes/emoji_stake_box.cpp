@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/vertical_list.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h" // confcallLinkFooterOr
 #include "styles/style_chat.h"

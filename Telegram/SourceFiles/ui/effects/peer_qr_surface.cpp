@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/color_contrast.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 

@@ -8,13 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/weak_ptr.h"
-#include "ui/cached_round_corners.h"
+#include "layout/layout_selection.h"
 #include "ui/chat/chat_style_radius.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/style/style_core_palette.h"
-#include "layout/layout_selection.h"
-#include "styles/style_iv.h"
+#include "ui/cached_round_corners.h"
+
 #include "styles/style_basic.h"
+#include "styles/style_iv.h"
 
 #include <memory>
 #include <vector>

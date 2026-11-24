@@ -8,16 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_top_bar.h"
 
 #include "lottie/lottie_icon.h"
-#include "ui/color_contrast.h"
-#include "ui/painter.h"
+#include "ui/effects/premium_coin.h"
+#include "ui/effects/premium_diamond.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_star.h"
 #include "ui/effects/premium_star_particles.h"
-#include "ui/effects/premium_diamond.h"
-#include "ui/effects/premium_coin.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/color_contrast.h"
+#include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_premium.h"
 

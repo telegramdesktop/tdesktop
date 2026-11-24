@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rhi/rhi_renderer.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/rhi/rhi_renderer.h"
 
 #include <QImage>
 

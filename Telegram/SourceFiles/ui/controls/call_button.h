@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
-#include "ui/widgets/buttons.h"
 #include "ui/effects/animations.h"
+#include "ui/widgets/buttons.h"
 
 namespace style {
 struct CallButton;

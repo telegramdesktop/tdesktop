@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "data/data_session.h"
-#include "history/history_item.h"
-#include "history/view/history_view_element.h"
 #include "history/view/media/history_view_media.h"
+#include "history/view/history_view_element.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
 #include "ui/chat/chat_style.h"
@@ -20,12 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_text_flight.h"
+#include "ui/text/text_isolated_emoji.h"
 #include "ui/painter.h"
+#include "ui/power_saving.h"
 #include "ui/rect.h"
 #include "ui/rp_widget.h"
-#include "ui/power_saving.h"
-#include "ui/text/text_isolated_emoji.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_style.h"
 

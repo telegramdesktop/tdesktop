@@ -9,9 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/toggle_arrow.h"
+#include "ui/text/text.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/text/text.h"
+
 #include "styles/style_boxes.h"
 
 namespace Ui {

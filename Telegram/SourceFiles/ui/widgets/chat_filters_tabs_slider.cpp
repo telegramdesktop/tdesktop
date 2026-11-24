@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/side_bar_button.h"
+
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 

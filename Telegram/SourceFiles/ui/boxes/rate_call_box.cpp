@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/rate_call_box.h"
 
 #include "lang/lang_keys.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
-#include "styles/style_layers.h"
+#include "ui/widgets/buttons.h"
+
 #include "styles/style_calls.h"
+#include "styles/style_layers.h"
 
 namespace Ui {
 

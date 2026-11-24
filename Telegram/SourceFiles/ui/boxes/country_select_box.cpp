@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/screen_reader_mode.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_country_select_box.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h"

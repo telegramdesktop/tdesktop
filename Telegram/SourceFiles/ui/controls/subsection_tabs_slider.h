@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "dialogs/dialogs_common.h"
+#include "ui/widgets/buttons.h"
 #include "ui/round_rect.h"
 #include "ui/rp_widget.h"
-#include "ui/widgets/buttons.h"
 
 namespace style {
 struct ChatTabsVertical;
