@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport_tile.h"
 
 #include "calls/group/calls_group_members_row.h"
-#include "webrtc/webrtc_video_track.h"
 #include "lang/lang_keys.h"
-#include "ui/round_rect.h"
-#include "ui/painter.h"
 #include "ui/effects/cross_line.h"
+#include "ui/painter.h"
+#include "ui/round_rect.h"
+#include "webrtc/webrtc_video_track.h"
+
 #include "styles/style_calls.h"
 
 #include <QtGui/QOpenGLFunctions>

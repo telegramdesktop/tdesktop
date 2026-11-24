@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "calls/calls_call.h"
 #include "calls/calls_signal_bars.h"
-#include "lang/lang_keys.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
+
 #include "styles/style_calls.h"
 
 namespace Calls {

@@ -9,14 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 
-#include "calls/group/calls_group_viewport_tile.h"
 #include "calls/group/calls_group_members_row.h"
-#include "webrtc/webrtc_video_track.h"
+#include "calls/group/calls_group_viewport_tile.h"
+#include "data/data_peer.h"
+#include "lang/lang_keys.h"
 #include "media/view/media_view_pip.h"
 #include "ui/rhi/rhi_shader.h"
 #include "ui/painter.h"
-#include "data/data_peer.h"
-#include "lang/lang_keys.h"
+#include "webrtc/webrtc_video_track.h"
+
 #include "styles/style_calls.h"
 #include "styles/style_media_view.h"
 

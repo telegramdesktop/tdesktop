@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "calls/group/calls_group_viewport.h"
 #include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_viewport.h"
 #include "ui/effects/animations.h"
 
 class Painter;

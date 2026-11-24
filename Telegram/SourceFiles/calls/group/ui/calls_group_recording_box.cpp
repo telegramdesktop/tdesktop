@@ -11,9 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/image/image_prepare.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/checkbox.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_calls.h"
 #include "styles/style_layers.h"

@@ -8,14 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_volume_item.h"
 
 #include "calls/group/calls_group_common.h"
-#include "ui/color_int_conversion.h"
 #include "ui/effects/animation_value.h"
 #include "ui/effects/cross_line.h"
-#include "ui/widgets/continuous_sliders.h"
-#include "ui/rect.h"
-#include "styles/style_calls.h"
-
 #include "ui/paint/arcs.h"
+#include "ui/widgets/continuous_sliders.h"
+#include "ui/color_int_conversion.h"
+#include "ui/rect.h"
+
+#include "styles/style_calls.h"
 
 namespace Calls {
 namespace {

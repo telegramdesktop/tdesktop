@@ -7,15 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_video_incoming.h"
 
-#include "ui/gl/gl_surface.h"
-#include "ui/gl/gl_shader.h"
+#include "media/view/media_view_pip.h"
 #include "ui/gl/gl_image.h"
 #include "ui/gl/gl_primitives.h"
+#include "ui/gl/gl_shader.h"
+#include "ui/gl/gl_surface.h"
 #include "ui/rhi/rhi_renderer.h"
 #include "ui/rhi/rhi_shader.h"
 #include "ui/painter.h"
-#include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
+
 #include "styles/style_calls.h"
 
 #include <QOpenGLShader>

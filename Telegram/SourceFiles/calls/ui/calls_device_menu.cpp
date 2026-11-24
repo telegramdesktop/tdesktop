@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "webrtc/webrtc_device_common.h"
 #include "webrtc/webrtc_environment.h"
+
 #include "styles/style_calls.h"
 
 namespace Calls {

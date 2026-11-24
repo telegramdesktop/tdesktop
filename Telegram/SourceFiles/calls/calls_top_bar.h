@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/weak_ptr.h"
-#include "base/timer.h"
 #include "base/object_ptr.h"
+#include "base/timer.h"
 #include "base/unique_qptr.h"
+#include "base/weak_ptr.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/gradient.h"
 #include "ui/rp_widget.h"

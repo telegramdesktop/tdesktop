@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_call.h"
 
 #include "apiwrap.h"
-#include "base/openssl_help.h"
 #include "base/platform/base_platform_info.h"
+#include "base/openssl_help.h"
 #include "base/random.h"
 #include "boxes/abstract_box.h"
 #include "calls/group/calls_group_common.h"

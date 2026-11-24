@@ -8,16 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport_raster.h"
 
 #include "calls/group/calls_group_common.h"
-#include "calls/group/calls_group_viewport_tile.h"
 #include "calls/group/calls_group_members_row.h"
+#include "calls/group/calls_group_viewport_tile.h"
 #include "data/data_peer.h"
+#include "lang/lang_keys.h"
 #include "media/view/media_view_pip.h"
-#include "webrtc/webrtc_video_track.h"
+#include "styles/palette.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
-#include "lang/lang_keys.h"
+#include "webrtc/webrtc_video_track.h"
+
 #include "styles/style_calls.h"
-#include "styles/palette.h"
 
 namespace Calls::Group {
 namespace {

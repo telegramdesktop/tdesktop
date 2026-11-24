@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "calls/group/calls_group_viewport.h"
-#include "ui/gl/gl_surface.h"
-#include "ui/rhi/rhi_renderer.h"
-#include "ui/rhi/rhi_image.h"
-#include "ui/round_rect.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
+#include "ui/gl/gl_surface.h"
+#include "ui/rhi/rhi_image.h"
+#include "ui/rhi/rhi_renderer.h"
+#include "ui/round_rect.h"
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 

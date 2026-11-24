@@ -7,33 +7,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_top_bar.h"
 
-#include "ui/effects/cross_line.h"
-#include "ui/paint/blobs_linear.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
-#include "ui/chat/group_call_userpics.h" // Ui::GroupCallUser.
-#include "ui/chat/group_call_bar.h" // Ui::GroupCallBarContent.
-#include "ui/layers/generic_box.h"
-#include "ui/wrap/padding_wrap.h"
-#include "ui/text/format_values.h"
-#include "ui/toast/toast.h"
-#include "ui/power_saving.h"
-#include "lang/lang_keys.h"
-#include "core/application.h"
+#include "base/timer.h"
+#include "boxes/abstract_box.h"
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_menu.h" // Group::LeaveBox.
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
 #include "calls/calls_signal_bars.h"
-#include "calls/group/calls_group_call.h"
-#include "calls/group/calls_group_menu.h" // Group::LeaveBox.
-#include "history/view/history_view_group_call_bar.h" // ContentByCall.
-#include "data/data_user.h"
+#include "core/application.h"
+#include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_peer.h"
-#include "data/data_changes.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
+#include "history/view/history_view_group_call_bar.h" // ContentByCall.
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "boxes/abstract_box.h"
-#include "base/timer.h"
+#include "ui/chat/group_call_bar.h" // Ui::GroupCallBarContent.
+#include "ui/chat/group_call_userpics.h" // Ui::GroupCallUser.
+#include "ui/effects/cross_line.h"
+#include "ui/layers/generic_box.h"
+#include "ui/paint/blobs_linear.h"
+#include "ui/text/format_values.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/power_saving.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat_helpers.h" // style::GroupCallUserpics

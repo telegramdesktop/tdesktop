@@ -8,12 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "calls/group/calls_group_viewport.h"
-#include "ui/round_rect.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
+#include "ui/gl/gl_image.h"
 #include "ui/gl/gl_primitives.h"
 #include "ui/gl/gl_surface.h"
-#include "ui/gl/gl_image.h"
+#include "ui/round_rect.h"
 
 #include <QOpenGLBuffer>
 #include <QOpenGLShaderProgram>

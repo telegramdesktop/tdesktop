@@ -11,12 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_common.h"
 #include "calls/group/calls_group_panel.h"
 #include "chat_helpers/compose/compose_show.h"
-#include "data/data_peer.h"
 #include "data/data_group_call.h"
+#include "data/data_peer.h"
+#include "lang/lang_keys.h"
 #include "ui/layers/show.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
-#include "lang/lang_keys.h"
 
 namespace Calls::Group {
 namespace {

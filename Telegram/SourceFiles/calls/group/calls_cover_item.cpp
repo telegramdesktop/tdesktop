@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_cover_item.h"
 
 #include "boxes/peers/prepare_short_info_box.h"
+
 #include "styles/style_calls.h"
 #include "styles/style_info.h"
 

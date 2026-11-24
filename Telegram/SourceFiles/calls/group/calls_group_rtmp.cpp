@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/vertical_list.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_calls.h"
 #include "styles/style_chat_helpers.h"

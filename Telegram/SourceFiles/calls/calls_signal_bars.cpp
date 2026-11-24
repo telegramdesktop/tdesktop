@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/calls_call.h"
 #include "ui/painter.h"
+
 #include "styles/style_calls.h"
 
 namespace Calls {

@@ -7,17 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_userpic.h"
 
-#include "data/data_peer.h"
-#include "main/main_session.h"
+#include "apiwrap.h" // requestFullPeer.
 #include "data/data_changes.h"
-#include "data/data_peer.h"
-#include "data/data_session.h"
 #include "data/data_cloud_file.h"
-#include "data/data_photo_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer.h"
+#include "data/data_peer.h"
+#include "data/data_photo_media.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 #include "ui/empty_userpic.h"
 #include "ui/painter.h"
-#include "apiwrap.h" // requestFullPeer.
+
 #include "styles/style_calls.h"
 
 namespace Calls {

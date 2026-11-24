@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_messages.h"
 
-#include "apiwrap.h"
 #include "api/api_blocked_peers.h"
 #include "api/api_chat_participants.h"
 #include "api/api_text_entities.h"
+#include "apiwrap.h"
 #include "base/random.h"
 #include "base/unixtime.h"
 #include "calls/group/ui/calls_group_stars_coloring.h"

@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/ui/desktop_capture_choose_source.h"
 
-#include "ui/widgets/rp_window.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/checkbox.h"
+#include "base/platform/base_platform_info.h"
+#include "lang/lang_keys.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/platform/ui_platform_window_title.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/rp_window.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/painter.h"
-#include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_video_track.h"
-#include "lang/lang_keys.h"
+
 #include "styles/style_calls.h"
 
 #include <tgcalls/desktop_capturer/DesktopCaptureSourceManager.h>

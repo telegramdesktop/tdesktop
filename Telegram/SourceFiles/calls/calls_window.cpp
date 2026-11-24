@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_window.h"
 
 #include "base/power_save_blocker.h"
-#include "ui/platform/ui_platform_window_title.h"
-#include "ui/widgets/rp_window.h"
 #include "ui/layers/layer_manager.h"
 #include "ui/layers/show.h"
+#include "ui/platform/ui_platform_window_title.h"
+#include "ui/widgets/rp_window.h"
+
 #include "styles/style_calls.h"
 
 #include <QtGui/QWindow>

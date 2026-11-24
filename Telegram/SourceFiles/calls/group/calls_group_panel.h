@@ -8,10 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "calls/group/ui/desktop_capture_choose_source.h"
+#include "calls/group/calls_choose_join_as.h"
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_common.h"
-#include "calls/group/calls_choose_join_as.h"
-#include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
 
 class Image;

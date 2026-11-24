@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/weak_ptr.h"
 #include "base/object_ptr.h"
+#include "base/weak_ptr.h"
 #include "calls/group/calls_group_common.h"
 
 class PeerData;

@@ -9,15 +9,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "calls/group/calls_group_call.h"
 #include "calls/group/calls_group_common.h"
-#include "data/data_peer.h"
 #include "data/data_group_call.h"
+#include "data/data_peer.h"
+#include "lang/lang_keys.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/paint/arcs.h"
 #include "ui/paint/blobs.h"
 #include "ui/text/text_options.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
-#include "lang/lang_keys.h"
 #include "webrtc/webrtc_video_track.h"
+
 #include "styles/style_calls.h"
 
 namespace Calls::Group {

@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/peer_list_box.h"
-#include "ui/layers/generic_box.h"
 #include "mtproto/sender.h"
+#include "ui/layers/generic_box.h"
 
 namespace Window {
 class SessionController;

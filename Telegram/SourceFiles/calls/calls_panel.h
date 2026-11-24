@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
-#include "calls/calls_call.h"
 #include "calls/group/ui/desktop_capture_choose_source.h"
+#include "calls/calls_call.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
 

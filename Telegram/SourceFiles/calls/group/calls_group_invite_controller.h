@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/add_participants_box.h"
+#include "boxes/peers/edit_participants_box.h"
 
 namespace Calls {
 class Call;

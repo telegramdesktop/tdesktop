@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
-#include "ui/rp_widget.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
+#include "ui/rp_widget.h"
 
 namespace Lottie {
 class Icon;

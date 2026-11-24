@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/calls_panel_background.h"
 
-#include "apiwrap.h"
 #include "api/api_peer_colors.h"
+#include "apiwrap.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
 #include "ui/color_contrast.h"
 #include "ui/top_background_gradient.h"

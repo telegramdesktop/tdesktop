@@ -7,28 +7,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "calls/group/calls_group_viewport.h"
 
-#include "calls/group/calls_group_viewport_tile.h"
 #include "calls/group/calls_group_viewport_opengl.h"
 #include "calls/group/calls_group_viewport_raster.h"
+#include "calls/group/calls_group_viewport_tile.h"
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0) && !defined DESKTOP_APP_DISABLE_PRIVATE_QT_API
 #include "calls/group/calls_group_viewport_rhi.h"
 #include "ui/rhi/rhi_renderer.h"
 #include <rhi/qrhi.h>
 #endif
-#include "calls/group/calls_group_common.h"
-#include "calls/group/calls_group_call.h"
-#include "calls/group/calls_group_members_row.h"
-#include "media/view/media_view_pip.h"
 #include "base/platform/base_platform_info.h"
-#include "webrtc/webrtc_video_track.h"
-#include "ui/integration.h"
-#include "ui/painter.h"
-#include "ui/abstract_button.h"
-#include "ui/gl/gl_surface.h"
-#include "ui/effects/animations.h"
-#include "ui/effects/cross_line.h"
+#include "calls/group/calls_group_call.h"
+#include "calls/group/calls_group_common.h"
+#include "calls/group/calls_group_members_row.h"
 #include "data/data_group_call.h" // MuteButtonTooltip.
 #include "lang/lang_keys.h"
+#include "media/view/media_view_pip.h"
+#include "ui/effects/animations.h"
+#include "ui/effects/cross_line.h"
+#include "ui/gl/gl_surface.h"
+#include "ui/abstract_button.h"
+#include "ui/integration.h"
+#include "ui/painter.h"
+#include "webrtc/webrtc_video_track.h"
+
 #include "styles/style_calls.h"
 
 #include <QOpenGLShader>
