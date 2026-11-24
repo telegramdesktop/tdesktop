@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/wrap/padding_wrap.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class BoxContent;

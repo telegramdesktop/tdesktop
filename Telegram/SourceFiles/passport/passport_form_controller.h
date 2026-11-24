@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/sender.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 #include "core/core_cloud_password.h"
+#include "mtproto/sender.h"
 
 class mtpFileLoader;
 

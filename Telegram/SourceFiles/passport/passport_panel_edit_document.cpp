@@ -7,27 +7,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_panel_edit_document.h"
 
-#include "passport/passport_panel_controller.h"
-#include "passport/passport_panel_edit_scans.h"
-#include "passport/ui/passport_details_row.h"
-#include "ui/effects/scroll_content_shadow.h"
-#include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/scroll_area.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/checkbox.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/fade_wrap.h"
-#include "ui/wrap/slide_wrap.h"
+#include "boxes/abstract_box.h"
 #include "countries/countries_instance.h"
 #include "data/data_user.h" // ->bot()->session()
-#include "main/main_session.h" // ->session().user()
-#include "boxes/abstract_box.h"
-#include "ui/boxes/confirm_box.h"
 #include "lang/lang_keys.h"
-#include "styles/style_widgets.h"
+#include "main/main_session.h" // ->session().user()
+#include "passport/ui/passport_details_row.h"
+#include "passport/passport_panel_controller.h"
+#include "passport/passport_panel_edit_scans.h"
+#include "ui/boxes/confirm_box.h"
+#include "ui/effects/scroll_content_shadow.h"
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
+#include "styles/style_widgets.h"
 
 namespace Passport {
 namespace {

@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_form_view_controller.h"
 
-#include "passport/passport_form_controller.h"
-#include "passport/passport_panel_edit_document.h"
-#include "passport/passport_panel_edit_contact.h"
-#include "passport/passport_panel_controller.h"
 #include "lang/lang_keys.h"
+#include "passport/passport_form_controller.h"
+#include "passport/passport_panel_controller.h"
+#include "passport/passport_panel_edit_contact.h"
+#include "passport/passport_panel_edit_document.h"
 
 namespace Passport {
 namespace {

@@ -7,22 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/ui/passport_details_row.h"
 
-#include "lang/lang_keys.h"
-#include "base/invoke_queued.h"
 #include "base/platform/base_platform_info.h"
+#include "base/qt/qt_common_adapters.h"
+#include "base/invoke_queued.h"
+#include "countries/countries_instance.h"
+#include "lang/lang_keys.h"
+#include "ui/boxes/country_select_box.h"
+#include "ui/layers/box_content.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/masked_input_field.h"
-#include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/layers/box_content.h"
-#include "ui/boxes/country_select_box.h"
 #include "ui/painter.h"
-#include "countries/countries_instance.h"
+
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"
-#include "base/qt/qt_common_adapters.h"
 
 #include <QtCore/QRegularExpression>
 

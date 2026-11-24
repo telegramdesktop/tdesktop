@@ -7,19 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_panel_password.h"
 
-#include "passport/passport_panel_controller.h"
-#include "ui/controls/userpic_button.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/fields/password_input.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/padding_wrap.h"
 #include "boxes/passcode_box.h"
 #include "data/data_user.h"
-#include "lang/lang_keys.h"
 #include "info/profile/info_profile_icon.h"
-#include "styles/style_passport.h"
+#include "lang/lang_keys.h"
+#include "passport/passport_panel_controller.h"
+#include "ui/controls/userpic_button.h"
+#include "ui/widgets/fields/password_input.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+
 #include "styles/style_layers.h"
+#include "styles/style_passport.h"
 
 namespace Passport {
 

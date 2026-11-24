@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "passport/passport_form_view_controller.h"
 #include "passport/passport_form_controller.h"
+#include "passport/passport_form_view_controller.h"
 #include "ui/layers/layer_widget.h"
 
 namespace Ui {

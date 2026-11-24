@@ -7,28 +7,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_panel_edit_contact.h"
 
-#include "core/file_utilities.h"
-#include "passport/passport_panel_controller.h"
-#include "passport/ui/passport_details_row.h"
-#include "ui/widgets/fields/input_field.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/shadow.h"
-#include "ui/widgets/box_content_divider.h"
-#include "ui/widgets/sent_code_field.h"
-#include "ui/wrap/vertical_layout.h"
-#include "ui/wrap/slide_wrap.h"
-#include "ui/wrap/fade_wrap.h"
-#include "ui/text/format_values.h" // Ui::FormatPhone
-#include "ui/widgets/fields/special_fields.h"
 #include "boxes/abstract_box.h"
-#include "data/data_user.h"
+#include "core/file_utilities.h"
 #include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
-#include "main/main_session.h"
+#include "data/data_user.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "passport/ui/passport_details_row.h"
+#include "passport/passport_panel_controller.h"
+#include "ui/text/format_values.h" // Ui::FormatPhone
+#include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/fields/special_fields.h"
+#include "ui/widgets/box_content_divider.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/sent_code_field.h"
+#include "ui/widgets/shadow.h"
+#include "ui/wrap/fade_wrap.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/wrap/vertical_layout.h"
+
 #include "styles/style_boxes.h"
-#include "styles/style_passport.h"
 #include "styles/style_layers.h"
+#include "styles/style_passport.h"
 
 namespace Passport {
 namespace {
