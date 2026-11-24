@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_translate_bar.h"
 
 #include "boxes/translate_box.h"
-#include "ui/boxes/about_cocoon_box.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -20,20 +19,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_credits_graphics.h" // CreditsEntryBoxStyleOverrides
-#include "ui/widgets/labels.h"
-#include "ui/widgets/shadow.h"
-#include "ui/effects/ripple_animation.h"
+#include "ui/boxes/about_cocoon_box.h"
 #include "ui/boxes/choose_language_box.h" // EditSkipTranslationLanguages.
+#include "ui/effects/ripple_animation.h"
 #include "ui/layers/box_content.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/widgets/menu/menu_multiline_action.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
 #include "ui/painter.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 

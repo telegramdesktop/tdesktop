@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_premium_gift.h"
 
-#include "apiwrap.h"
 #include "api/api_credits.h" // InputSavedStarGiftId
 #include "api/api_premium.h"
+#include "apiwrap.h"
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h" // ResolveGiftCode
 #include "boxes/star_gift_box.h" // GiftReleasedByHandler
@@ -22,19 +22,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_element.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/sections/settings_credits.h" // Settings::CreditsId
-#include "settings/settings_credits_graphics.h" // GiftedCreditsBox
 #include "settings/sections/settings_premium.h" // Settings::ShowGiftPremium
+#include "settings/settings_credits_graphics.h" // GiftedCreditsBox
 #include "ui/chat/chat_style.h"
 #include "ui/controls/ton_common.h" // kNanosInOne
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

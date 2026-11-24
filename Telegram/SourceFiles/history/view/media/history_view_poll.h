@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+#include "base/weak_ptr.h"
+#include "data/data_poll.h"
 #include "history/view/media/history_view_media.h"
 #include "ui/effects/animations.h"
-#include "data/data_poll.h"
-#include "base/weak_ptr.h"
-#include "base/timer.h"
 
 namespace Ui {
 class RippleAnimation;

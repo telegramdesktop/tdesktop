@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "base/unique_qptr.h"
-#include "ui/effects/animations.h"
-#include "ui/effects/round_area_with_shadow.h"
 #include "history/view/reactions/history_view_reactions_strip.h"
 #include "ui/chat/chat_style.h" // Ui::ReactionPaintInfo
+#include "ui/effects/animations.h"
+#include "ui/effects/round_area_with_shadow.h"
 
 namespace Ui {
 struct ChatPaintContext;

@@ -9,10 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_message_reaction_id.h"
 #include "lang/lang_tag.h"
-#include "ui/abstract_button.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/abstract_button.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 

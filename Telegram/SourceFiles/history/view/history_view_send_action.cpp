@@ -7,17 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_send_action.h"
 
-#include "data/data_user.h"
-#include "data/data_send_action.h"
 #include "data/data_forum_topic.h"
+#include "data/data_send_action.h"
 #include "data/data_session.h"
-#include "main/main_session.h"
+#include "data/data_user.h"
 #include "history/history.h"
 #include "lang/lang_instance.h" // Instance::supportChoosingStickerReplacement
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
+
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {

@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_element.h"
-#include "ui/effects/ministar_particles.h"
 #include "lottie/lottie_icon.h"
+#include "ui/effects/ministar_particles.h"
 
 namespace HistoryView {
 

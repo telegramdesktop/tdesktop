@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/history_view_element.h"
 #include "history/view/history_view_bottom_info.h"
+#include "history/view/history_view_element.h"
 #include "iv/markdown/iv_markdown_article.h"
 #include "ui/effects/animations.h"
 

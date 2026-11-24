@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/section_widget.h"
-#include "window/section_memento.h"
-#include "history/view/history_view_list_widget.h"
-#include "history/view/history_view_corner_buttons.h"
-#include "data/data_messages.h"
-#include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/weak_ptr.h"
+#include "data/data_messages.h"
+#include "history/view/history_view_corner_buttons.h"
+#include "history/view/history_view_list_widget.h"
+#include "window/section_memento.h"
+#include "window/section_widget.h"
 
 class History;
 

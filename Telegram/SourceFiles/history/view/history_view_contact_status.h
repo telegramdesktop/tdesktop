@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/shadow.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/rp_widget.h"
 
 namespace Data {
 class ForumTopic;

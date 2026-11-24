@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/animations.h"
-#include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 #include "base/unique_qptr.h"
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
 
 class History;
 class HistoryItem;

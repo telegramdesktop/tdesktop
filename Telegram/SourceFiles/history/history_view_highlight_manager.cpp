@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_highlight_manager.h"
 
 #include "data/data_session.h"
+#include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_element.h"
 #include "ui/chat/chat_style.h"
 
 namespace HistoryView {

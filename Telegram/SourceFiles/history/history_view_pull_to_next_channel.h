@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/unique_qptr.h"
 #include "base/timer.h"
+#include "base/unique_qptr.h"
 #include "base/weak_ptr.h"
 #include "ui/effects/animations.h"
 

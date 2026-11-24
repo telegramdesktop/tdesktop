@@ -12,10 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "history/history_item.h"
 #include "spellcheck/spellcheck_types.h" // LanguageId.
-#include "ui/empty_userpic.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/chat/message_bubble.h"
+#include "ui/empty_userpic.h"
 
 #include <memory>
 

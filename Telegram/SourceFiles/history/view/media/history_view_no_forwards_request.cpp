@@ -8,14 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_no_forwards_request.h"
 
 #include "data/data_peer.h"
+#include "history/view/media/history_view_media_generic.h"
+#include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_element.h"
-#include "history/view/media/history_view_media_generic.h"
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
-#include "ui/painter.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

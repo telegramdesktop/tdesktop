@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_types.h"
-#include "data/data_peer.h"
-#include "data/data_drafts.h"
-#include "data/data_thread.h"
-#include "history/view/history_view_send_action.h"
-#include "base/variant.h"
-#include "base/flat_set.h"
 #include "base/flags.h"
+#include "base/flat_set.h"
+#include "base/variant.h"
+#include "data/data_drafts.h"
+#include "data/data_peer.h"
+#include "data/data_thread.h"
+#include "data/data_types.h"
+#include "history/view/history_view_send_action.h"
 
 class History;
 class HistoryBlock;

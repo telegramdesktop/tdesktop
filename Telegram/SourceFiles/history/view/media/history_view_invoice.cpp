@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_invoice.h"
 
-#include "lang/lang_keys.h"
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_cursor_state.h"
-#include "history/view/media/history_view_photo.h"
+#include "data/data_media_types.h"
 #include "history/view/media/history_view_media_common.h"
-#include "ui/item_text_options.h"
+#include "history/view/media/history_view_photo.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
+#include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
+#include "ui/item_text_options.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
-#include "data/data_media_types.h"
+
 #include "styles/style_chat.h"
 
 namespace {

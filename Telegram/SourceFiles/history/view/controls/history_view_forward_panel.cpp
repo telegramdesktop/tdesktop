@@ -7,17 +7,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/controls/history_view_forward_panel.h"
 
-#include "history/history.h"
-#include "history/history_item.h"
-#include "history/history_item_helpers.h"
-#include "history/history_item_components.h"
-#include "history/view/history_view_item_preview.h"
+#include "apiwrap.h"
+#include "boxes/peer_list_controllers.h"
+#include "core/ui_integration.h"
+#include "data/data_changes.h"
+#include "data/data_forum_topic.h"
+#include "data/data_media_types.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
-#include "data/data_media_types.h"
-#include "data/data_forum_topic.h"
 #include "data/data_user.h"
+#include "history/view/history_view_item_preview.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "iv/editor/iv_editor_session.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/forward_options_box.h"
 #include "ui/effects/spoiler_mess.h"
@@ -25,16 +30,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
 #include "ui/power_saving.h"
-#include "core/ui_integration.h"
-#include "lang/lang_keys.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-
-#include "apiwrap.h"
-#include "boxes/peer_list_controllers.h"
-#include "data/data_changes.h"
 
 namespace HistoryView::Controls {
 namespace {

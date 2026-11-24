@@ -7,10 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_video_message_seek.h"
 
-#include "ui/arc_angles.h"
 #include "ui/chat/chat_style.h"
+#include "ui/arc_angles.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

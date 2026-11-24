@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/wrap/slide_wrap.h"
 #include "spellcheck/spellcheck_types.h"
+#include "ui/wrap/slide_wrap.h"
 
 class History;
 struct LanguageId;

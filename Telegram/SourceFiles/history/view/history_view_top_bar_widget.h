@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/unread_badge.h"
-#include "ui/effects/animations.h"
-#include "base/timer.h"
 #include "base/object_ptr.h"
+#include "base/timer.h"
 #include "base/weak_qptr.h"
 #include "data/data_report.h"
 #include "dialogs/dialogs_key.h"
+#include "ui/effects/animations.h"
+#include "ui/rp_widget.h"
+#include "ui/unread_badge.h"
 
 namespace style {
 struct UserpicButton;

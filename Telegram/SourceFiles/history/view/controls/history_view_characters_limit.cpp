@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_characters_limit.h"
 
 #include "ui/rect.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace {

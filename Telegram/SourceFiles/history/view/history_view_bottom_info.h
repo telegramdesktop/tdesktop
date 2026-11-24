@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
 #include "history/view/history_view_object.h"
 #include "ui/text/text.h"
-#include "base/flags.h"
 
 namespace Ui {
 struct ChatPaintContext;

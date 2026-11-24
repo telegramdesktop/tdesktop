@@ -7,23 +7,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "chat_helpers/field_characters_count_manager.h"
+#include "chat_helpers/rich_paste_toast.h"
+#include "data/data_report.h"
+#include "history/view/controls/history_view_bot_menu_button.h"
 #include "history/view/controls/history_view_compose_media_edit_manager.h"
 #include "history/view/history_view_corner_buttons.h"
+#include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_helpers.h"
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
-#include "history/history.h"
-#include "chat_helpers/field_characters_count_manager.h"
-#include "chat_helpers/rich_paste_toast.h"
-#include "data/data_report.h"
-#include "window/section_widget.h"
-#include "window/window_session_controller.h"
-#include "history/view/controls/history_view_bot_menu_button.h"
-#include "ui/effects/message_sending_history.h"
-#include "ui/widgets/fields/input_field.h"
 #include "mtproto/sender.h"
 #include "tgw/tgw_scroll.h"
+#include "ui/effects/message_sending_history.h"
+#include "ui/widgets/fields/input_field.h"
+#include "window/section_widget.h"
+#include "window/window_session_controller.h"
 
 enum class SendMediaType;
 class MessageLinksParser;

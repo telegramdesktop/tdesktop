@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_drafts.h"
 #include "chat_helpers/message_field.h"
+#include "data/data_drafts.h"
 #include "mtproto/sender.h"
 
 class History;

@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_translate_tracker.h"
 
-#include "apiwrap.h"
 #include "api/api_transcribes.h"
+#include "apiwrap.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_changes.h"
@@ -17,10 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_session.h"
+#include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_element.h"
 #include "iv/iv_rich_page.h"
 #include "lang/translate_provider.h"
 #include "main/main_session.h"

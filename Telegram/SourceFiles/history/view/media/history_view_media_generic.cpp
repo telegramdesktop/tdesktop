@@ -10,11 +10,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_cursor_state.h"
 #include "ui/chat/chat_style.h"
 #include "ui/dynamic_image.h"
 #include "ui/dynamic_thumbnails.h"
@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/round_rect.h"
 #include "ui/userpic_view.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

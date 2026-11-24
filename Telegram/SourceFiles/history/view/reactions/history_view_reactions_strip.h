@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_message_reaction_id.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/round_area_with_shadow.h"
-#include "data/data_message_reaction_id.h"
 
 namespace style {
 struct EmojiPan;

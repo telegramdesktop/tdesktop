@@ -10,12 +10,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/algorithm.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
-#include "ui/emoji_config.h"
-#include "ui/painter.h"
-#include "ui/rect.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/text/text_lottie_custom_emoji.h"
 #include "ui/text/text_utilities.h"
+#include "ui/emoji_config.h"
+#include "ui/painter.h"
+#include "ui/rect.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

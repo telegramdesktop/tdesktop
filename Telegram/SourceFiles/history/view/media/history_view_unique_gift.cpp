@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rect.h"
 #include "ui/top_background_gradient.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_credits.h"
 #include "styles/style_polls.h"

@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/media/history_view_media_unwrapped.h"
-#include "data/stickers/data_custom_emoji.h"
 #include "base/weak_ptr.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "history/view/media/history_view_media_unwrapped.h"
 
 namespace Ui::Text {
 struct OnlyCustomEmoji;

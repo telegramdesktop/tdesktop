@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
 #include "history/history.h"
 #include "ui/text/text.h"
-#include "base/weak_ptr.h"
 
 class Painter;
 class HistoryItem;

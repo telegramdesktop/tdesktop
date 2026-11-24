@@ -8,19 +8,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_unwrapped.h"
 
 #include "data/data_session.h"
-#include "history/history.h"
 #include "history/view/media/history_view_ephemeral_plate.h"
 #include "history/view/media/history_view_media_common.h"
 #include "history/view/media/history_view_sticker.h"
-#include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
 #include "history/view/history_view_reply.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "lottie/lottie_single_player.h"
-#include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style.h"
+#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

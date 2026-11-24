@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_pull_to_next_channel.h"
 
 #include "apiwrap.h"
-#include "base/call_delayed.h"
 #include "base/platform/base_platform_haptic.h"
+#include "base/call_delayed.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/components/sponsored_messages.h"
@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/userpic_view.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 

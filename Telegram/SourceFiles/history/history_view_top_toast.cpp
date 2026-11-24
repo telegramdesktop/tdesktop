@@ -7,13 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_view_top_toast.h"
 
-#include "ui/rect.h"
+#include "core/ui_integration.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/elastic_scroll.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/tooltip.h"
-#include "core/ui_integration.h"
+#include "ui/rect.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"

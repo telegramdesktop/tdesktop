@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/history_view_object.h"
-#include "base/runtime_composer.h"
 #include "base/flags.h"
+#include "base/runtime_composer.h"
 #include "base/weak_ptr.h"
+#include "history/view/history_view_object.h"
 #include "ui/userpic_view.h"
 
 class History;

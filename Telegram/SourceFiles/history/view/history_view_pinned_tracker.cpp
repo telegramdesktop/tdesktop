@@ -8,16 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_pinned_tracker.h"
 
 #include "data/data_changes.h"
-#include "data/data_peer.h"
-#include "data/data_chat.h"
 #include "data/data_channel.h"
-#include "data/data_shared_media.h"
+#include "data/data_chat.h"
+#include "data/data_peer.h"
 #include "data/data_session.h"
+#include "data/data_shared_media.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "main/main_session.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-#include "history/history.h"
-#include "history/history_item.h"
 
 namespace HistoryView {
 namespace{

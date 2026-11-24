@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/peers/edit_participants_box.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

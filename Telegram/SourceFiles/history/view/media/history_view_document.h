@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/media/history_view_file.h"
 #include "base/runtime_composer.h"
+#include "history/view/media/history_view_file.h"
 
 struct HistoryDocumentNamed;
 struct HistoryDocumentThumbed;

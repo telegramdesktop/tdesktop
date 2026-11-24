@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/effects/send_action_animations.h"
 #include "api/api_send_progress.h"
+#include "ui/effects/send_action_animations.h"
 
 class UserData;
 

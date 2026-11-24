@@ -7,14 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/reactions/history_view_reactions_strip.h"
 
-#include "data/data_message_reactions.h"
-#include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_message_reactions.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 #include "ui/effects/frame_generator.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 

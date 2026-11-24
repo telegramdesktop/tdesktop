@@ -10,18 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h" // ClickHandlerContext
 #include "data/data_changes.h"
 #include "data/data_channel.h"
-#include "history/history.h"
-#include "history/history_item.h"
-#include "history/view/history_view_element.h"
 #include "history/view/media/history_view_media_generic.h"
 #include "history/view/media/history_view_unique_gift.h" // MakeGenericButtonPart
+#include "history/view/history_view_element.h"
+#include "history/history.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "ui/text/text_utilities.h"
 #include "ui/dynamic_image.h"
 #include "ui/painter.h"
-#include "ui/text/text_utilities.h"
 #include "ui/userpic_view.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"

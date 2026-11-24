@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_location_manager.h"
 
-#include "mainwidget.h"
 #include "core/file_utilities.h"
-#include "lang/lang_keys.h"
-#include "ui/image/image.h"
 #include "data/data_file_origin.h"
+#include "lang/lang_keys.h"
+#include "mainwidget.h"
 #include "platform/platform_specific.h"
+#include "ui/image/image.h"
 
 QString LocationClickHandler::copyToClipboardText() const {
 	return _text;

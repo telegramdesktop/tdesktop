@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "lottie/lottie_single_player.h"
 #include "ui/effects/numbers_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -25,7 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/painter.h"
-#include "lottie/lottie_single_player.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_premium.h"
 

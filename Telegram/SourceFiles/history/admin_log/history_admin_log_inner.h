@@ -7,20 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_cursor_state.h"
-#include "history/admin_log/history_admin_log_item.h"
+#include "base/timer.h"
 #include "history/admin_log/history_admin_log_filter_value.h"
+#include "history/admin_log/history_admin_log_item.h"
+#include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_element.h"
 #include "history/history_view_highlight_manager.h"
 #include "menu/menu_antispam_validator.h"
+#include "mtproto/sender.h"
 #include "tgw/tgw_scroll.h"
 #include "ui/controls/swipe_handler.h"
-#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
-#include "mtproto/sender.h"
-#include "base/timer.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/rp_widget.h"
 
 struct ChatRestrictionsInfo;
 

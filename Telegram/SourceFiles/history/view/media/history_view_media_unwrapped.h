@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/media/history_view_media.h"
-#include "base/weak_ptr.h"
 #include "base/timer.h"
+#include "base/weak_ptr.h"
+#include "history/view/media/history_view_media.h"
 #include "ui/text/text.h"
 
 struct HistoryMessageVia;

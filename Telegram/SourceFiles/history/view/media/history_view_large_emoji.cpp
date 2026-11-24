@@ -7,17 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_large_emoji.h"
 
-#include "main/main_session.h"
 #include "chat_helpers/stickers_emoji_pack.h"
-#include "history/view/history_view_element.h"
-#include "history/history_item.h"
-#include "history/history.h"
-#include "ui/image/image.h"
-#include "ui/chat/chat_style.h"
-#include "ui/painter.h"
-#include "data/data_session.h"
-#include "data/data_file_origin.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "data/data_file_origin.h"
+#include "data/data_session.h"
+#include "history/view/history_view_element.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "main/main_session.h"
+#include "ui/chat/chat_style.h"
+#include "ui/image/image.h"
+#include "ui/painter.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {

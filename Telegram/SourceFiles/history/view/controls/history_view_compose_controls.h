@@ -10,18 +10,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_common.h"
 #include "base/object_ptr.h"
 #include "base/required.h"
-#include "base/unique_qptr.h"
 #include "base/timer.h"
+#include "base/unique_qptr.h"
 #include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/field_characters_count_manager.h"
 #include "chat_helpers/rich_paste_toast.h"
 #include "dialogs/dialogs_key.h"
 #include "history/view/controls/compose_controls_common.h"
 #include "history/view/controls/history_view_bot_menu_button.h"
-#include "ui/round_rect.h"
-#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/round_rect.h"
+#include "ui/rp_widget.h"
 
 class History;
 class DocumentData;

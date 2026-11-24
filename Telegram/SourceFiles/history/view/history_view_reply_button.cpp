@@ -8,9 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_reply_button.h"
 
 #include "history/view/history_view_cursor_state.h"
+#include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/ripple_animation.h"
-#include "lang/lang_keys.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 

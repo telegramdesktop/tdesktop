@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_sticker_player_abstract.h"
-
 #include "lottie/lottie_single_player.h"
 #include "media/clip/media_clip_reader.h"
 

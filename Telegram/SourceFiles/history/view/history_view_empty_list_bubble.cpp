@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_empty_list_bubble.h"
 
+#include "history/view/history_view_service_message.h"
 #include "ui/chat/chat_style.h"
 #include "ui/painter.h"
-#include "history/view/history_view_service_message.h"
 
 namespace HistoryView {
 

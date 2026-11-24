@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "history/view/media/history_view_media.h"
 #include "data/data_location.h"
+#include "history/view/media/history_view_media.h"
 
 namespace Data {
 class CloudImage;

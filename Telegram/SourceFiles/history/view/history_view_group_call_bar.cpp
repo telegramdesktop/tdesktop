@@ -7,18 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_group_call_bar.h"
 
-#include "data/data_channel.h"
-#include "data/data_user.h"
+#include "calls/group/calls_group_call.h"
+#include "calls/calls_instance.h"
+#include "core/application.h"
 #include "data/data_changes.h"
+#include "data/data_channel.h"
 #include "data/data_group_call.h"
 #include "data/data_peer_values.h"
+#include "data/data_user.h"
 #include "main/main_session.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/group_call_userpics.h"
 #include "ui/painter.h"
-#include "calls/group/calls_group_call.h"
-#include "calls/calls_instance.h"
-#include "core/application.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {

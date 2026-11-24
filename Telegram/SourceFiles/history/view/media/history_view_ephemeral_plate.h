@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/text/text.h"
 #include "history/view/history_view_cursor_state.h"
+#include "ui/text/text.h"
 
 class Painter;
 

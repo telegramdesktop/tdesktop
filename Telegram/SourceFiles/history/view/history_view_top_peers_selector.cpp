@@ -20,17 +20,18 @@
 #include "history/history.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
 #include "main/session/session_show.h"
+#include "main/main_session.h"
 #include "ui/controls/dynamic_images_strip.h"
 #include "ui/controls/popup_selector.h"
-#include "ui/dynamic_image.h"
-#include "ui/dynamic_thumbnails.h"
 #include "ui/effects/animations.h"
-#include "ui/rect.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/dynamic_image.h"
+#include "ui/dynamic_thumbnails.h"
+#include "ui/rect.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace HistoryView {

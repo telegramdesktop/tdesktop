@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_prepare.h"
 #include "ui/painter.h"
+
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 

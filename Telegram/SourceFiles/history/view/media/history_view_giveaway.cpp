@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "boxes/gift_premium_box.h"
-#include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_dice_pack.h"
+#include "chat_helpers/stickers_gift_box_pack.h"
 #include "countries/countries_instance.h"
 #include "data/data_channel.h"
 #include "data/data_media_types.h"
@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/effects/credits_graphics.h"
 #include "ui/text/text_utilities.h"
+
 #include "styles/style_chat.h"
 
 namespace HistoryView {
