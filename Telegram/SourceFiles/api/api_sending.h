@@ -38,7 +38,8 @@ void SendExistingDocument(
 
 void SendMusicSelection(
 	MessageToSend &&message,
-	std::vector<MusicSelectionItem> items);
+	std::vector<MusicSelectionItem> items,
+	Fn<void()> done = nullptr);
 
 void SendExistingPhoto(
 	MessageToSend &&message,

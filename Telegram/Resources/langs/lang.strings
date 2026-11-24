@@ -9472,5 +9472,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_story_save_file_done" = "Story saved to file.";
 "lng_story_save_file_failed" = "Failed to save story.";
 "lng_story_preparing_video" = "Preparing video...";
+"lng_story_music_add_to_saved" = "Add to Saved Messages";
+"lng_story_music_add_to_profile" = "Add to Profile";
 
 // Keys finished

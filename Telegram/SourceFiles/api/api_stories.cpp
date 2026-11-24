@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/random.h"
 #include "core/application.h"
+#include "core/mime_type.h"
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
@@ -42,6 +43,7 @@ namespace Api {
 namespace {
 
 constexpr auto kTranscodeShare = 0.3;
+constexpr auto kMusicUploadShare = 0.1;
 constexpr auto kPreviewSide = 160;
 constexpr auto kBlocklistPerPage = 100;
 
@@ -239,12 +241,14 @@ struct Stories::Upload {
 	StoryToSend story;
 	std::shared_ptr<std::atomic<bool>> cancelPreparing;
 	std::shared_ptr<FilePrepareResult> prepared;
+	std::optional<MTPInputDocument> music;
 	FullMsgId uploadId;
 	QString tempPath;
 	uint64 id = 0;
 	uint64 generation = 0;
 	mtpRequestId requestId = 0;
 	bool hasAudio = false;
+	bool uploadingMusic = false;
 	bool refreshedReference = false;
 	bool uploading = false;
 };
@@ -467,6 +471,7 @@ void Stories::retry(uint64 uploadId) {
 	info.error = QString();
 	info.progress = 0.;
 	info.preparing = true;
+	upload->refreshedReference = false;
 	if (upload->prepared) {
 		prepared(upload->id, upload->prepared);
 	} else {
@@ -722,7 +727,15 @@ void Stories::start(not_null<Upload*> upload) {
 			preparePhotoFile(upload, data.path);
 		}
 	}, [&](SendStoryVideo &data) {
-		if (data.path.isEmpty()) {
+		if (data.music && !upload->music) {
+			upload->uploadingMusic = true;
+			prepareFile(
+				upload,
+				data.music->path,
+				QImage(),
+				&*data.music);
+			return;
+		} else if (data.path.isEmpty()) {
 			transcodeVideo(upload);
 			return;
 		}
@@ -938,12 +951,25 @@ void Stories::videoTranscoded(
 void Stories::prepareFile(
 		not_null<Upload*> upload,
 		const QString &path,
-		QImage &&image) {
+		QImage &&image,
+		const StoryMusicFile *music) {
 	const auto id = upload->id;
 	const auto generation = upload->generation;
-	const auto photo = path.isEmpty();
+	const auto photo = !music && path.isEmpty();
 	auto information = std::unique_ptr<Ui::PreparedFileInformation>();
-	if (photo) {
+	if (music) {
+		const auto mime = path.isEmpty()
+			? Core::MimeTypeForData(music->content)
+			: Core::MimeTypeForFile(QFileInfo(path));
+		information = std::make_unique<Ui::PreparedFileInformation>();
+		information->filemime = mime.name();
+		information->media = Ui::PreparedFileInformation::Song{
+			.duration = music->duration,
+			.title = music->title,
+			.performer = music->performer,
+			.cover = music->cover,
+		};
+	} else if (photo) {
 		information = std::make_unique<Ui::PreparedFileInformation>();
 		information->filemime = u"image/jpeg"_q;
 		information->media = Ui::PreparedFileInformation::Image{
@@ -958,6 +984,7 @@ void Stories::prepareFile(
 		FileLoadTask::Args{
 			.session = _session,
 			.filepath = path,
+			.content = music ? music->content : QByteArray(),
 			.information = std::move(information),
 			.type = (photo ? SendMediaType::Photo : SendMediaType::File),
 			.to = FileLoadTo(
@@ -1032,21 +1059,65 @@ void Stories::uploaded(
 			MTP_vector<MTPDocumentAttribute>());
 	});
 	using Flag = MTPDinputMediaUploadedDocument::Flag;
+	const auto music = upload->uploadingMusic;
+	const auto silent = !upload->hasAudio && !music;
 	const auto flags = (data.info.thumb ? Flag::f_thumb : Flag())
-		| (upload->hasAudio ? Flag() : Flag::f_nosound_video);
-	sendRequest(
-		upload,
-		MTP_inputMediaUploadedDocument(
-			MTP_flags(flags),
-			data.info.file,
-			data.info.thumb.value_or(MTPInputFile()),
-			MTP_string(u"video/mp4"_q),
-			attributes,
-			MTP_vector<MTPInputDocument>(),
-			MTPInputPhoto(),
-			MTP_int(0),
-			MTP_int(0)),
-		false);
+		| (silent ? Flag::f_nosound_video : Flag());
+	auto media = MTP_inputMediaUploadedDocument(
+		MTP_flags(flags),
+		data.info.file,
+		data.info.thumb.value_or(MTPInputFile()),
+		MTP_string(music ? prepared->filemime : u"video/mp4"_q),
+		attributes,
+		MTP_vector<MTPInputDocument>(),
+		MTPInputPhoto(),
+		MTP_int(0),
+		MTP_int(0));
+	if (music) {
+		registerMusic(upload, std::move(media));
+	} else {
+		sendRequest(upload, std::move(media), false);
+	}
+}
+
+void Stories::registerMusic(
+		not_null<Upload*> upload,
+		MTPInputMedia media) {
+	const auto id = upload->id;
+	auto request = MTPmessages_UploadMedia(
+		MTP_flags(0),
+		MTPstring(),
+		MTP_inputPeerSelf(),
+		media);
+	upload->requestId = _api.request(std::move(request)).done([=](
+			const MTPMessageMedia &result) {
+		const auto upload = find(id);
+		if (!upload) {
+			return;
+		}
+		upload->requestId = 0;
+		if (result.type() == mtpc_messageMediaDocument) {
+			const auto &media = result.c_messageMediaDocument();
+			const auto document = media.vdocument();
+			if (document && document->type() == mtpc_document) {
+				auto &owner = _session->data();
+				const auto music = owner.processDocument(
+					*document);
+				upload->music = music->mtpInput();
+				upload->prepared = nullptr;
+				upload->uploadingMusic = false;
+				infoFor(upload).preparing = true;
+				start(upload);
+				return;
+			}
+		}
+		failed(upload, u"MUSIC_UPLOAD_FAILED"_q);
+	}).fail([=](const MTP::Error &error) {
+		if (const auto upload = find(id)) {
+			upload->requestId = 0;
+			failed(upload, error.type());
+		}
+	}).send();
 }
 
 void Stories::updateProgress(
@@ -1059,9 +1130,14 @@ void Stories::updateProgress(
 		}, [](const auto &) {
 			return false;
 		});
-	const auto value = (video && !info.preparing)
+	const auto stage = (video && !info.preparing)
 		? (kTranscodeShare + (1. - kTranscodeShare) * progress)
 		: progress;
+	const auto value = upload->uploadingMusic
+		? (progress * kMusicUploadShare)
+		: upload->music
+		? (kMusicUploadShare + (1. - kMusicUploadShare) * stage)
+		: stage;
 	if (info.progress != value) {
 		info.progress = value;
 		notifyChanges();
@@ -1126,12 +1202,24 @@ void Stories::sendRequest(
 			return;
 		}
 		upload->requestId = 0;
+		const auto expired = error.type().startsWith(
+			u"FILE_REFERENCE_"_q);
+		if (upload->music && expired) {
+			upload->music.reset();
+			upload->prepared.reset();
+			auto &refreshed = upload->refreshedReference;
+			if (!std::exchange(refreshed, true)) {
+				infoFor(upload).preparing = true;
+				start(upload);
+				return;
+			}
+		}
 		const auto reposting = upload->story.media
 			? std::get_if<SendStoryRepost>(&*upload->story.media)
 			: nullptr;
 		if (reposting
 			&& !upload->refreshedReference
-			&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
+			&& expired) {
 			upload->refreshedReference = true;
 			_session->api().refreshFileReference(
 				Data::FileOrigin(Data::FileOriginStory{
@@ -1150,10 +1238,12 @@ void Stories::sendRequest(
 	const auto areas = MediaAreasToMTP(story);
 	if (story.editId) {
 		using Flag = MTPstories_EditStory::Flag;
+		const auto editMusic = upload->music || story.removeMusic;
 		const auto flags = (media ? Flag::f_media : Flag())
 			| (media ? Flag::f_media_areas : Flag())
 			| (story.editCaption ? Flag::f_caption : Flag())
-			| (story.editPrivacy ? Flag::f_privacy_rules : Flag());
+			| (story.editPrivacy ? Flag::f_privacy_rules : Flag())
+			| (editMusic ? Flag::f_music : Flag());
 		upload->requestId = _api.request(MTPstories_EditStory(
 			MTP_flags(flags),
 			peer->input(),
@@ -1163,7 +1253,7 @@ void Stories::sendRequest(
 			MTP_string(caption.text),
 			entities,
 			MTP_vector<MTPInputPrivacyRule>(rules),
-			MTPInputDocument()
+			upload->music.value_or(MTP_inputDocumentEmpty())
 		)).done(done).fail(fail).send();
 		return;
 	}
@@ -1179,6 +1269,7 @@ void Stories::sendRequest(
 		| (repost ? Flag::f_fwd_from_id : Flag())
 		| ((repost && !sameMediaAsRepost) ? Flag::f_fwd_modified : Flag())
 		| (story.albums.empty() ? Flag() : Flag::f_albums)
+		| (upload->music ? Flag::f_music : Flag())
 		| (areas.v.isEmpty() ? Flag() : Flag::f_media_areas);
 	auto albums = QVector<MTPint>();
 	albums.reserve(story.albums.size());
@@ -1198,7 +1289,7 @@ void Stories::sendRequest(
 		(repost ? repost->peer->input() : MTPInputPeer()),
 		MTP_int(repost ? repost->id : 0),
 		MTP_vector<MTPint>(albums),
-		MTPInputDocument()
+		upload->music.value_or(MTPInputDocument())
 	)).done(done).fail(fail).send();
 }
 

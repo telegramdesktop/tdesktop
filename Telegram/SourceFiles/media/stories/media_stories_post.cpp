@@ -415,6 +415,12 @@ void SetupStoryEditorClose(
 	};
 }
 
+[[nodiscard]] QString StoryAudioTitle(const Editor::AudioTrack &audio) {
+	return (audio.title.isEmpty() && audio.performer.isEmpty())
+		? QFileInfo(audio.path).completeBaseName()
+		: audio.title;
+}
+
 [[nodiscard]] Api::SendStoryMedia StoryPhotoMedia(
 		QImage composed,
 		const QImage &image,
@@ -475,9 +481,23 @@ void SetupStoryEditorClose(
 			.maxDuration = Api::kStoryVideoMaxDuration,
 		});
 	job.silentLoop = false;
+	auto music = std::optional<Api::StoryMusicFile>();
+	if (const auto audio = mods.paint ? mods.paint->audio() : nullptr) {
+		if (!audio->empty() && audio->volume > 0.) {
+			music = Api::StoryMusicFile{
+				.path = audio->path,
+				.content = audio->content,
+				.title = StoryAudioTitle(*audio),
+				.performer = audio->performer,
+				.cover = audio->cover,
+				.duration = audio->duration,
+			};
+		}
+	}
 	return Api::SendStoryVideo{
 		.cover = std::move(composed),
 		.job = std::make_shared<Media::Encode::Job>(std::move(job)),
+		.music = std::move(music),
 	};
 }
 
@@ -767,7 +787,7 @@ struct CollectedStoryDraft {
 		if (const auto audio = mods.paint->audio()) {
 			if (!audio->empty()) {
 				auto &to = draft.audio;
-				to.title = audio->title;
+				to.title = StoryAudioTitle(*audio);
 				to.performer = audio->performer;
 				to.duration = audio->duration;
 				to.from = audio->from;
@@ -1574,6 +1594,7 @@ void EditStory(
 				.path = source.draft.audioPath,
 				.title = source.draft.audio.title,
 				.performer = source.draft.audio.performer,
+				.cover = source.draft.audioCover,
 				.duration = source.draft.audio.duration,
 				.from = source.draft.audio.from,
 				.till = source.draft.audio.till,
@@ -1600,6 +1621,23 @@ void EditStory(
 					source.send);
 			}
 			if (captionChanged || result.mediaChanged) {
+				using Video = Api::SendStoryVideo;
+				auto &media = result.media;
+				const auto video = std::get_if<Video>(&media);
+				const auto removeMusic = result.mediaChanged
+					&& fromSource
+					&& !setup.storyAudio.empty()
+					&& (*found)->music()
+					&& (!video || !video->music);
+				const auto &original = setup.storyAudio.path;
+				if (fromSource
+					&& video
+					&& video->music
+					&& (*found)->music()
+					&& !original.isEmpty()
+					&& video->music->path == original) {
+					video->music.reset();
+				}
 				session->api().stories().send({
 					.peer = (*found)->peer(),
 					.media = (result.mediaChanged
@@ -1613,6 +1651,7 @@ void EditStory(
 					.channelPosts = std::move(result.channelPosts),
 					.editId = (*found)->id(),
 					.editCaption = captionChanged,
+					.removeMusic = removeMusic,
 					.sent = pending
 						? Fn<void(StoryId, TimeId)>(
 							[=](StoryId, TimeId expiresAt) {

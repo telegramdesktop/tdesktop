@@ -389,6 +389,10 @@ DocumentData *Story::document() const {
 	return result ? result->get() : nullptr;
 }
 
+DocumentData *Story::music() const {
+	return _music;
+}
+
 const std::shared_ptr<GroupCall> &Story::call() const {
 	const auto result = std::get_if<std::shared_ptr<GroupCall>>(
 		&_media.data);
@@ -784,6 +788,13 @@ void Story::applyFields(
 		bool initial) {
 	_lastUpdateTime = now;
 
+	const auto music = data.vmusic();
+	const auto previousMusic = _music;
+	if (music || !data.is_min()) {
+		_music = (music && music->type() == mtpc_document)
+			? owner().processDocument(*music).get()
+			: nullptr;
+	}
 	const auto reaction = data.is_min()
 		? _sentReactionId
 		: data.vsent_reaction()
@@ -913,6 +924,7 @@ void Story::applyFields(
 
 	const auto changed = editedChanged
 		|| captionChanged
+		|| (previousMusic != _music)
 		|| mediaChanged
 		|| locationsChanged
 		|| channelPostsChanged

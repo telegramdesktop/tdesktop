@@ -80,6 +80,7 @@ struct SiblingView;
 enum class SiblingType;
 struct ContentLayout;
 class CaptionFullView;
+class MusicDisc;
 class RepostView;
 enum class ReactionsMode;
 class StoryAreaView;
@@ -339,6 +340,7 @@ private:
 
 	FullStoryId _shown;
 	TextWithEntities _captionText;
+	std::unique_ptr<MusicDisc> _musicDisc;
 	Data::StoriesContext _context;
 	std::optional<Data::StoriesSource> _source;
 	std::optional<StoriesList> _list;

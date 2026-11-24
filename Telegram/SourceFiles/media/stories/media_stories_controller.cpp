@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/stories/media_stories_caption_full_view.h"
 #include "media/stories/media_stories_delegate.h"
 #include "media/stories/media_stories_header.h"
+#include "media/stories/media_stories_music.h"
 #include "media/stories/media_stories_reactions.h"
 #include "media/stories/media_stories_recent_views.h"
 #include "media/stories/media_stories_reply.h"
@@ -360,6 +361,7 @@ Controller::Controller(not_null<Delegate*> delegate)
 }
 
 Controller::~Controller() {
+	_musicDisc = nullptr;
 	_captionFullView = nullptr;
 	_repostView = nullptr;
 	changeShown(nullptr);
@@ -911,6 +913,10 @@ void Controller::show(
 	captionClosed();
 	_repostView = validateRepostView(story);
 	_captionText = story->caption();
+	const auto music = story->music();
+	_musicDisc = (!unsupported && music && music->song())
+		? std::make_unique<MusicDisc>(this, music, storyId)
+		: nullptr;
 	_contentFaded = false;
 	_contentFadeAnimation.stop();
 	const auto document = story->document();
@@ -1261,6 +1267,9 @@ void Controller::updatePhotoPlayback(const Player::TrackState &state) {
 
 void Controller::updatePlayback(const Player::TrackState &state) {
 	_slider->updatePlayback(state);
+	if (_musicDisc) {
+		_musicDisc->setPlaying(Player::ShowPauseIcon(state.state));
+	}
 	updatePowerSaveBlocker(state);
 	if (!_previewCount) {
 		maybeMarkAsRead(state);

@@ -52,12 +52,22 @@ struct SendStoryPhoto {
 	QString path;
 };
 
+struct StoryMusicFile {
+	QString path;
+	QByteArray content;
+	QString title;
+	QString performer;
+	QImage cover;
+	crl::time duration = 0;
+};
+
 struct SendStoryVideo {
 	std::shared_ptr<Media::Encode::VideoSource> source;
 	QImage cover;
 	QString path;
 	bool hasAudio = false;
 	std::shared_ptr<Media::Encode::Job> job;
+	std::optional<StoryMusicFile> music;
 };
 
 struct SendStoryRepost {
@@ -89,6 +99,7 @@ struct StoryToSend {
 	bool noForwards = false;
 	bool editCaption = false;
 	bool editPrivacy = false;
+	bool removeMusic = false;
 
 	Fn<void(StoryId id, TimeId expiresAt)> sent;
 	Fn<void(const QString &error)> failed;
@@ -198,11 +209,13 @@ private:
 	void prepareFile(
 		not_null<Upload*> upload,
 		const QString &path,
-		QImage &&image);
+		QImage &&image,
+		const StoryMusicFile *music = nullptr);
 	void prepared(uint64 id, std::shared_ptr<FilePrepareResult> result);
 	void uploaded(
 		not_null<Upload*> upload,
 		const Storage::UploadedMedia &data);
+	void registerMusic(not_null<Upload*> upload, MTPInputMedia media);
 	void updateProgress(not_null<Upload*> upload, float64 progress);
 	void sendRequest(
 		not_null<Upload*> upload,

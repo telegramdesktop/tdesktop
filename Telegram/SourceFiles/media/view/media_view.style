@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 
 using "ui/basic.style";
+using "ui/chat/chat.style";
 using "ui/widgets/widgets.style";
 using "ui/menu_icons.style";
 using "media/player/media_player.style";
@@ -590,6 +591,9 @@ storiesMenuWithIcons: mediaviewMenu;
 storiesPopupMenuWithIcons: PopupMenu(storiesPopupMenu) {
 	scrollPadding: margins(0px, 5px, 0px, 5px);
 	menu: storiesMenuWithIcons;
+}
+storiesMusicMenuTitle: FlatLabel(historyHasCustomEmoji) {
+	textFg: groupCallMemberNotJoinedStatus;
 }
 storiesMenuWithIconsAttention: Menu(storiesMenuWithIcons) {
 	itemFg: attentionButtonFg;

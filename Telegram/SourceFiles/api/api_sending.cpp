@@ -718,7 +718,8 @@ void SendExistingDocument(
 
 void SendMusicSelection(
 		MessageToSend &&message,
-		std::vector<MusicSelectionItem> items) {
+		std::vector<MusicSelectionItem> items,
+		Fn<void()> done) {
 	if (items.empty()) {
 		return;
 	}
@@ -744,6 +745,9 @@ void SendMusicSelection(
 		const auto count = int(state->items.size());
 		if (state->offset == count) {
 			api->finishForwarding(state->action);
+			if (done) {
+				done();
+			}
 			return;
 		}
 		const auto optionsRequireSingle = state->action.options.price

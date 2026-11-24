@@ -184,6 +184,7 @@ struct FileReferenceAccumulator {
 	void push(const MTPStoryItem &data) {
 		data.match([&](const MTPDstoryItem &data) {
 			push(data.vmedia());
+			push(data.vmusic());
 		}, [](const MTPDstoryItemDeleted &) {
 		}, [](const MTPDstoryItemSkipped &) {
 		});

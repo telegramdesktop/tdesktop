@@ -25,6 +25,7 @@ public:
 	~AudioDiscButton();
 
 	void setTrack(std::shared_ptr<AudioTrack> track);
+	void setCover(const QImage &cover);
 	void setActive(bool active);
 
 	[[nodiscard]] rpl::producer<> volumeChanges() const;
@@ -44,6 +45,7 @@ private:
 	std::shared_ptr<AudioTrack> _track;
 	QImage _cover;
 	Ui::Animations::Basic _spin;
+	Ui::Animations::Simple _ringAnimation;
 	crl::time _spinStarted = 0;
 	float64 _spinBase = 0.;
 	bool _active = false;

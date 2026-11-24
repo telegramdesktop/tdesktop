@@ -1680,6 +1680,8 @@ PRIVATE
     media/stories/media_stories_delegate.h
     media/stories/media_stories_header.cpp
     media/stories/media_stories_header.h
+    media/stories/media_stories_music.cpp
+    media/stories/media_stories_music.h
     media/stories/media_stories_post.cpp
     media/stories/media_stories_post.h
     media/stories/media_stories_reactions.cpp

@@ -22,6 +22,7 @@ namespace Editor {
 namespace {
 
 constexpr auto kSpinDuration = crl::time(4000);
+constexpr auto kFallbackArc = 90 * 16;
 
 } // namespace
 
@@ -41,12 +42,16 @@ void AudioDiscButton::setTrack(std::shared_ptr<AudioTrack> track) {
 		return;
 	}
 	_track = std::move(track);
-	if (!_track || _track->cover.isNull()) {
+	setCover(_track ? _track->cover : QImage());
+}
+
+void AudioDiscButton::setCover(const QImage &cover) {
+	if (cover.isNull()) {
 		_cover = QImage();
 	} else {
 		const auto ratio = style::DevicePixelRatio();
 		const auto side = st::photoEditorAudioDiscCoverSize * ratio;
-		auto scaled = _track->cover.scaled(
+		auto scaled = cover.scaled(
 			side,
 			side,
 			Qt::KeepAspectRatioByExpanding,
@@ -66,6 +71,7 @@ void AudioDiscButton::setActive(bool active) {
 	if (_active == active) {
 		return;
 	}
+	const auto ring = _ringAnimation.value(_active ? 1. : 0.);
 	_spinBase = angle();
 	_active = active;
 	_spinStarted = crl::now();
@@ -73,6 +79,15 @@ void AudioDiscButton::setActive(bool active) {
 		_spin.start();
 	} else {
 		_spin.stop();
+	}
+	if (anim::Disabled()) {
+		_ringAnimation.stop();
+	} else {
+		_ringAnimation.start(
+			[=] { update(); },
+			ring,
+			_active ? 1. : 0.,
+			st::photoEditorToolButtonSelectDuration);
 	}
 	update();
 }
@@ -101,14 +116,23 @@ void AudioDiscButton::paintEvent(QPaintEvent *e) {
 	p.setBrush(st::roundedBg);
 	p.drawEllipse(full);
 	paintRipple(p, QPoint());
-	if (_active) {
+	const auto progress = _ringAnimation.value(_active ? 1. : 0.);
+	if (progress > 0.) {
 		const auto ring = float64(st::photoEditorAudioDiscRing);
-		auto pen = QPen(st::photoEditorAudioDiscRingFg->c);
+		auto color = st::photoEditorAudioDiscRingFg->c;
+		color.setAlphaF(color.alphaF() * progress);
+		auto pen = QPen(color);
 		pen.setWidthF(ring);
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);
-		p.drawEllipse(full.marginsRemoved(
-			{ ring / 2., ring / 2., ring / 2., ring / 2. }));
+		const auto inset = ring / 2.;
+		const auto margins = QMarginsF(inset, inset, inset, inset);
+		const auto bounds = full.marginsRemoved(margins);
+		if (!_track && _cover.isNull()) {
+			p.drawArc(bounds, -int(angle() * 16), kFallbackArc);
+		} else {
+			p.drawEllipse(bounds);
+		}
 		p.setPen(Qt::NoPen);
 	}
 	if (_cover.isNull()) {

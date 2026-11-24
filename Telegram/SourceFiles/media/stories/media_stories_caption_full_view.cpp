@@ -30,7 +30,8 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>>(
 		_scroll.get(),
 		object_ptr<Ui::FlatLabel>(_scroll.get(), st::storiesCaptionFull),
-		st::mediaviewCaptionPadding + _controller->repostCaptionPadding())))
+		(st::mediaviewCaptionPadding
+			+ _controller->repostCaptionPadding()))))
 , _text(_wrap->entity()) {
 	using namespace Media::View;
 	const auto text = StripQuoteEntities(controller->captionText());
@@ -72,36 +73,41 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 		return base::EventFilterResult::Continue;
 	};
 	base::install_event_filter(_text.get(), filter);
+	const auto padding = _controller->repostCaptionPadding();
+	const auto top = padding.top();
+	const auto left = st::mediaviewCaptionPadding.left();
+	const auto mouseFilter = [=](not_null<QEvent*> e) {
+		const auto mouse = [&] {
+			return static_cast<QMouseEvent*>(e.get());
+		};
+		const auto type = e->type();
+		if (type == QEvent::MouseMove) {
+			const auto y = _wrap->padding().top() - top;
+			const auto pos = mouse()->pos() - QPoint(left, y);
+			const auto handler = _controller->lookupRepostHandler(
+				pos);
+			ClickHandler::setActive(handler.link, handler.host);
+			_wrap->setCursor(handler.link
+				? style::cur_pointer
+				: style::cur_default);
+		} else if (type == QEvent::MouseButtonPress
+			&& mouse()->button() == Qt::LeftButton
+			&& ClickHandler::getActive()) {
+			ClickHandler::pressed();
+		} else if (type == QEvent::MouseButtonRelease) {
+			const auto activated = ClickHandler::unpressed();
+			if (activated) {
+				ActivateClickHandler(
+					_wrap.get(),
+					activated,
+					mouse()->button());
+			}
+		}
+		return base::EventFilterResult::Continue;
+	};
 	if (_controller->repost()) {
 		_wrap->setMouseTracking(true);
-		base::install_event_filter(_wrap.get(), [=](not_null<QEvent*> e) {
-			const auto mouse = [&] {
-				return static_cast<QMouseEvent*>(e.get());
-			};
-			const auto type = e->type();
-			if (type == QEvent::MouseMove) {
-				const auto handler = _controller->lookupRepostHandler(
-					mouse()->pos() - QPoint(
-						st::mediaviewCaptionPadding.left(),
-						(_wrap->padding().top()
-							- _controller->repostCaptionPadding().top())));
-				ClickHandler::setActive(handler.link, handler.host);
-				_wrap->setCursor(handler.link
-					? style::cur_pointer
-					: style::cur_default);
-			} else if (type == QEvent::MouseButtonPress
-				&& mouse()->button() == Qt::LeftButton
-				&& ClickHandler::getActive()) {
-				ClickHandler::pressed();
-			} else if (type == QEvent::MouseButtonRelease) {
-				if (const auto activated = ClickHandler::unpressed()) {
-					ActivateClickHandler(_wrap.get(), activated, {
-						mouse()->button(), QVariant(),
-					});
-				}
-			}
-			return base::EventFilterResult::Continue;
-		});
+		base::install_event_filter(_wrap.get(), mouseFilter);
 	}
 	base::install_event_filter(_wrap.get(), filter);
 
@@ -142,8 +148,7 @@ CaptionFullView::CaptionFullView(not_null<Controller*> controller)
 			_controller->drawRepostInfo(
 				p,
 				st::mediaviewCaptionPadding.left(),
-				(_wrap->padding().top()
-					- _controller->repostCaptionPadding().top()),
+				_wrap->padding().top() - padding.top(),
 				_wrap->width());
 		}
 	}, _wrap->lifetime());

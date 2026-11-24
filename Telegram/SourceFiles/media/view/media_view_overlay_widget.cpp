@@ -8632,8 +8632,9 @@ void OverlayWidget::updateOver(QPoint pos) {
 		&& captionShown
 		&& captionGeometry().contains(pos)) {
 		const auto padding = st::mediaviewCaptionPadding;
+		const auto inner = captionGeometry().marginsRemoved(padding);
 		const auto handler = _stories->lookupRepostHandler(
-			pos - captionGeometry().marginsRemoved(padding).topLeft());
+			pos - inner.topLeft());
 		if (handler) {
 			lnk = handler.link;
 			lnkhost = handler.host;

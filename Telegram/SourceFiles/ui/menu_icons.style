@@ -249,6 +249,8 @@ mediaMenuIconDownloadLocked: icon {{ "menu/download_locked", mediaviewMenuFg }};
 mediaMenuIconCopy: icon {{ "menu/copy", mediaviewMenuFg }};
 mediaMenuIconForward: icon {{ "menu/forward", mediaviewMenuFg }};
 mediaMenuIconShare: icon {{ "menu/share2", mediaviewMenuFg }};
+mediaMenuIconSavedMessages: icon {{ "menu/saved_messages", mediaviewMenuFg }};
+mediaMenuIconSoundAdd: icon {{ "menu/sound_add", mediaviewMenuFg }};
 mediaMenuIconDelete: icon {{ "menu/delete", mediaviewMenuFg }};
 mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
 mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};
