@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_document.h"
 #include "lang/lang_keys.h"
+
 #include "styles/style_media_view.h"
 
 namespace Layout {
