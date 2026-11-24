@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "support/support_preload.h"
 
-#include "history/history.h"
+#include "apiwrap.h"
+#include "data/data_histories.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
-#include "data/data_histories.h"
+#include "history/history.h"
 #include "main/main_session.h"
-#include "apiwrap.h"
 
 namespace Support {
 namespace {

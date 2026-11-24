@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "support/support_templates.h"
 
-#include "ui/toast/toast.h"
-#include "data/data_session.h"
 #include "core/shortcuts.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
+#include "ui/toast/toast.h"
 
 #include <QtNetwork/QNetworkAccessManager>
 
