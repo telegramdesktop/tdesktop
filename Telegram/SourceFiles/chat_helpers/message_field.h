@@ -74,6 +74,17 @@ Fn<bool(
 Fn<void(QString now, Fn<void(QString)> save)> DefaultEditLanguageCallback(
 	std::shared_ptr<Ui::Show> show);
 
+struct OpenLinkOptions {
+	bool inAppLinks = false;
+	bool dark = false;
+};
+Fn<bool(
+	EntityLinkData link,
+	Ui::InputField::OpenLinkAction action)> DefaultOpenLinkCallback(
+		std::shared_ptr<Main::SessionShow> show,
+		not_null<Ui::InputField*> field,
+		OpenLinkOptions options = {});
+
 struct MessageFieldHandlersArgs {
 	not_null<Main::Session*> session;
 	std::shared_ptr<Main::SessionShow> show; // may be null
@@ -87,6 +98,7 @@ struct MessageFieldHandlersArgs {
 	base::flat_set<QString> allowMarkdownTags;
 	bool allowTypedMarkdown = true;
 	bool instantMarkdown = false;
+	OpenLinkOptions openLinks;
 };
 auto InitMessageFieldHandlers(MessageFieldHandlersArgs &&args)
 -> std::shared_ptr<Ui::ChatStyle>;
