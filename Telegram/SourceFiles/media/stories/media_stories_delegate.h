@@ -40,6 +40,7 @@ enum class SiblingType {
 class Delegate {
 public:
 	[[nodiscard]] virtual not_null<Ui::RpWidget*> storiesWrap() = 0;
+	[[nodiscard]] virtual not_null<Ui::RpWidget*> storiesAreaWrap() = 0;
 	[[nodiscard]] virtual auto storiesShow()
 		-> std::shared_ptr<ChatHelpers::Show> = 0;
 	[[nodiscard]] virtual auto storiesStickerOrEmojiChosen()

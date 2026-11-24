@@ -1090,7 +1090,7 @@ auto Reactions::makeSuggestedReactionWidget(
 	const Data::SuggestedReaction &reaction)
 -> std::unique_ptr<StoryAreaView> {
 	return std::make_unique<ReactionView>(
-		_controller->wrap(),
+		_controller->areaWrap(),
 		&_controller->uiShow()->session(),
 		reaction);
 }
@@ -1100,7 +1100,7 @@ auto Reactions::makeWeatherAreaWidget(
 	rpl::producer<bool> weatherInCelsius)
 -> std::unique_ptr<StoryAreaView> {
 	return std::make_unique<WeatherView>(
-		_controller->wrap(),
+		_controller->areaWrap(),
 		&_controller->uiShow()->session(),
 		data,
 		std::move(weatherInCelsius));

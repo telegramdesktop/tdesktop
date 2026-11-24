@@ -1731,6 +1731,7 @@ PRIVATE
     media/media_video_frames.h
     media/view/media_view_group_thumbs.cpp
     media/view/media_view_group_thumbs.h
+    media/view/media_view_story_caption.cpp
     media/view/media_view_open_common.cpp
     media/view/media_view_open_common.h
     media/view/media_view_overlay_opengl.cpp

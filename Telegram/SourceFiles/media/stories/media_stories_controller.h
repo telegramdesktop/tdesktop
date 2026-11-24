@@ -133,6 +133,7 @@ public:
 
 	[[nodiscard]] Data::Story *story() const;
 	[[nodiscard]] not_null<Ui::RpWidget*> wrap() const;
+	[[nodiscard]] not_null<Ui::RpWidget*> areaWrap() const;
 	[[nodiscard]] Layout layout() const;
 	[[nodiscard]] rpl::producer<Layout> layoutValue() const;
 	[[nodiscard]] ContentLayout contentLayout() const;

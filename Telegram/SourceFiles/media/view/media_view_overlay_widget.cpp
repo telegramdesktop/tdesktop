@@ -672,6 +672,8 @@ OverlayWidget::OverlayWidget()
 , _surface(
 	Ui::GL::CreateSurface(_body, chooseRenderer(_wrap->backend())))
 , _widget(_surface->rpWidget())
+, _storyAreaLayer(std::make_unique<Ui::RpWidget>(_body))
+, _storyCaptionLayer(std::make_unique<Ui::RpWidget>(_body))
 , _fullscreen(Core::App().settings().mediaViewPosition().maximized == 2)
 , _windowed(Core::App().settings().mediaViewPosition().maximized == 0)
 , _quality(Core::App().settings().videoQuality())
@@ -688,6 +690,7 @@ OverlayWidget::OverlayWidget()
 	return isSpeedBoostShown();
 }) {
 	_layerBg->setStyleOverrides(&st::groupCallBox, &st::groupCallLayerBox);
+	setupStoryCaptionLayer();
 	_layerBg->setHideByBackgroundClick(true);
 	_layerBg->layerShownValue(
 	) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
@@ -2782,10 +2785,11 @@ OverlayWidget::ContentGeometry OverlayWidget::contentGeometry() const {
 	if (_stories) {
 		auto result = storiesContentGeometry(_stories->contentLayout());
 		if (!_caption.isEmpty()) {
-			result.bottomShadowSkip = _widget->height()
-				- _captionRect.y()
-				+ st::mediaviewCaptionStyle.font->height
-				- st::storiesShadowBottom.height();
+			const auto hidden = _storyCaptionLayer->isHidden();
+			const auto shadow = storyCaptionShadow();
+			result.bottomShadowSkip = hidden
+				? height() - rect::bottom(shadow)
+				: -st::storiesShadowBottom.height();
 		}
 		return result;
 	}
@@ -4616,10 +4620,12 @@ int OverlayWidget::height() const {
 }
 
 void OverlayWidget::update() {
+	updateStoryCaptionLayer();
 	_widget->update();
 }
 
 void OverlayWidget::update(const QRegion &region) {
+	updateStoryCaptionLayer();
 	_widget->update(region);
 }
 
@@ -6036,6 +6042,10 @@ not_null<Ui::RpWidget*> OverlayWidget::storiesWrap() {
 	return _body;
 }
 
+not_null<Ui::RpWidget*> OverlayWidget::storiesAreaWrap() {
+	return _storyAreaLayer.get();
+}
+
 std::shared_ptr<ChatHelpers::Show> OverlayWidget::storiesShow() {
 	return uiShow();
 }
@@ -6697,7 +6707,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 		if (!_stories) {
 			renderer->paintFooter(footerGeometry(), opacity);
 		}
-		if (!(_stories ? _stories->skipCaption() : _caption.isEmpty())) {
+		if (!_stories && !_caption.isEmpty()) {
 			renderer->paintCaption(captionGeometry(), opacity);
 		}
 		if (_groupThumbs) {
@@ -8059,6 +8069,7 @@ void OverlayWidget::setStoriesPeer(PeerData *peer) {
 		_videoStream = nullptr;
 		_stories = nullptr;
 		_storiesSession = nullptr;
+		updateStoryCaptionLayer();
 		_storiesChanged.fire({});
 		updateNavigationControlsGeometry();
 	} else if (_storiesSession != session) {
@@ -8571,11 +8582,15 @@ bool OverlayWidget::updateOverState(Over newState) {
 void OverlayWidget::updateOver(QPoint pos) {
 	ClickHandlerPtr lnk;
 	auto lnkhost = (ClickHandlerHost*)nullptr;
+	const auto captionShown = !_stories
+		|| !_storyCaptionLayer->isHidden();
 	if (isSaveMsgShown() && _saveMsg.contains(pos)) {
 		auto textState = _saveMsgText.getState(pos - _saveMsg.topLeft() - QPoint(st::mediaviewSaveMsgPadding.left(), st::mediaviewSaveMsgPadding.top()), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
 		lnk = textState.link;
 		lnkhost = this;
-	} else if (_captionRect.contains(pos) && !_fullScreenVideo) {
+	} else if (captionShown
+		&& _captionRect.contains(pos)
+		&& !_fullScreenVideo) {
 		auto request = Ui::Text::StateRequestElided();
 		const auto lineHeight = st::mediaviewCaptionStyle.font->height;
 		request.lines = _captionRect.height() / lineHeight;
@@ -8586,7 +8601,9 @@ void OverlayWidget::updateOver(QPoint pos) {
 			lnk = ensureCaptionExpandLink();
 		}
 		lnkhost = this;
-	} else if (_stories && captionGeometry().contains(pos)) {
+	} else if (_stories
+		&& captionShown
+		&& captionGeometry().contains(pos)) {
 		const auto padding = st::mediaviewCaptionPadding;
 		const auto handler = _stories->lookupRepostHandler(
 			pos - captionGeometry().marginsRemoved(padding).topLeft());

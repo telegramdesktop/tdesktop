@@ -579,6 +579,10 @@ not_null<Ui::RpWidget*> Controller::wrap() const {
 	return _wrap;
 }
 
+not_null<Ui::RpWidget*> Controller::areaWrap() const {
+	return _delegate->storiesAreaWrap();
+}
+
 Layout Controller::layout() const {
 	Expects(_layout.current().has_value());
 
@@ -689,6 +693,7 @@ void Controller::showFullCaption() {
 	}
 	_captionFullView = std::make_unique<CaptionFullView>(this);
 	updateContentFaded();
+	_delegate->storiesRepaint();
 }
 
 void Controller::captionClosing() {
@@ -702,6 +707,7 @@ void Controller::captionClosed() {
 		_wrap->setFocus();
 	}
 	_captionFullView = nullptr;
+	_delegate->storiesRepaint();
 }
 
 std::shared_ptr<ChatHelpers::Show> Controller::uiShow() const {

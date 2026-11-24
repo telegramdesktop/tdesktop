@@ -281,6 +281,7 @@ private:
 	[[nodiscard]] std::shared_ptr<ChatHelpers::Show> uiShow();
 
 	not_null<Ui::RpWidget*> storiesWrap() override;
+	not_null<Ui::RpWidget*> storiesAreaWrap() override;
 	std::shared_ptr<ChatHelpers::Show> storiesShow() override;
 	auto storiesStickerOrEmojiChosen()
 		-> rpl::producer<ChatHelpers::FileChosen> override;
@@ -554,6 +555,9 @@ private:
 		QRect clip,
 		float64 opacity);
 	[[nodiscard]] QRect captionGeometry() const;
+	void setupStoryCaptionLayer();
+	void updateStoryCaptionLayer();
+	[[nodiscard]] QRect storyCaptionShadow() const;
 	void paintGroupThumbsContent(
 		Painter &p,
 		QRect outer,
@@ -636,6 +640,8 @@ private:
 	const std::unique_ptr<Ui::RpWidget> _titleBugWorkaround;
 	const std::unique_ptr<Ui::RpWidgetWrap> _surface;
 	const not_null<QWidget*> _widget;
+	const std::unique_ptr<Ui::RpWidget> _storyAreaLayer;
+	const std::unique_ptr<Ui::RpWidget> _storyCaptionLayer;
 	QRect _normalGeometry;
 	bool _wasWindowedMode = false;
 	bool _restoreFromSystemNormal = false;
