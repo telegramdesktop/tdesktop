@@ -1004,7 +1004,9 @@ void TrimTimeline::paintEvent(QPaintEvent *e) {
 	p.setClipping(false);
 
 	paintSelection(p, strip);
-	p.setClipPath(path);
+	if (!_trimOnly) {
+		p.setClipPath(path);
+	}
 	paintOverview(p, strip);
 	p.setClipping(false);
 	paintHead(p, strip);
@@ -1086,10 +1088,11 @@ void TrimTimeline::paintOverview(QPainter &p, const QRect &strip) {
 	}
 	const auto span = visibleSpan();
 	const auto height = st::videoTimelineScrollHeight;
-	const auto top = strip.y()
-		+ strip.height()
-		- st::videoTimelineScrollSkip
-		- height;
+	const auto bottom = rect::bottom(strip);
+	const auto skip = st::videoTimelineScrollSkip;
+	const auto top = _trimOnly
+		? (bottom + skip)
+		: (bottom - skip - height);
 	const auto radius = height / 2.;
 	p.setPen(Qt::NoPen);
 
@@ -1115,6 +1118,9 @@ void TrimTimeline::paintOverview(QPainter &p, const QRect &strip) {
 	p.setBrush(thumb);
 	p.drawRoundedRect(QRectF(left, top, width, height), radius, radius);
 
+	if (_trimOnly && _from == 0 && _till == _duration) {
+		return;
+	}
 	const auto scale = strip.width() / float64(_duration);
 	const auto selectionHeight = st::videoTimelineOverviewSelectionHeight;
 	const auto selectionLeft = strip.x() + _from * scale;
