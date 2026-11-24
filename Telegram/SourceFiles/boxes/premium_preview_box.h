@@ -43,7 +43,8 @@ void DoubledLimitsPreviewBox(
 
 void UpgradedStoriesPreviewBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Main::Session*> session);
+	not_null<Main::Session*> session,
+	bool dark = false);
 
 void TelegramBusinessPreviewBox(
 	not_null<Ui::GenericBox*> box,
@@ -102,6 +103,10 @@ void ShowPremiumPreviewBox(
 	PremiumFeature section,
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr,
 	bool hideSubscriptionButton = false);
+
+void ShowStoriesPremiumPreviewBox(
+	std::shared_ptr<ChatHelpers::Show> show,
+	bool dark);
 
 void ShowPremiumPreviewToBuy(
 	not_null<Window::SessionController*> controller,

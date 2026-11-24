@@ -742,7 +742,6 @@ void ShowListBox(
 		std::vector<ListEntry> entries) {
 	box->setWidth(st::boxWideWidth);
 
-	const auto &stLabel = st::defaultFlatLabel;
 	const auto &titlePadding = st::settingsPremiumPreviewTitlePadding;
 	const auto &aboutPadding = st::settingsPremiumPreviewAboutPadding;
 	const auto iconTitlePadding = st::settingsPremiumPreviewIconTitlePadding;
@@ -759,13 +758,13 @@ void ShowListBox(
 			object_ptr<Ui::FlatLabel>(
 				content,
 				base::take(entry.title) | rpl::map(tr::bold),
-				stLabel),
+				st.listTitle),
 			entry.icon ? iconTitlePadding : titlePadding);
 		content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
 				base::take(entry.about),
-				st::boxDividerLabel),
+				st.listAbout),
 			entry.icon ? iconAboutPadding : aboutPadding);
 		if (const auto outlined = entry.icon) {
 			if (!icons) {

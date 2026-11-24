@@ -1195,6 +1195,7 @@ storiesStealthToast: Toast(defaultMultilineToast) {
 
 storiesStealthStyle: StealthBoxStyle {
 	box: storiesStealthBox;
+	dark: true;
 	buttonLabel: FlatLabel(defaultFlatLabel) {
 		style: semiboldTextStyle;
 		textFg: storiesComposeWhiteText;
@@ -1218,6 +1219,21 @@ storiesStealthStyle: StealthBoxStyle {
 	featureNextIcon: icon{{ "stories/stealth_25m", storiesComposeBlue }};
 	logoIcon: icon{{ "stories/stealth_logo", storiesComposeWhiteText }};
 	logoBg: storiesComposeBlue;
+}
+
+storiesPremiumPreviewBox: Box(groupCallBox) {
+	buttonPadding: margins(12px, 12px, 12px, 12px);
+	buttonHeight: 44px;
+}
+storiesPremiumPreviewLimits: PremiumLimits(defaultPremiumLimits) {
+	listTitle: FlatLabel(defaultFlatLabel) {
+		textFg: groupCallMembersFg;
+		palette: groupCallTextPalette;
+	}
+	listAbout: FlatLabel(boxDividerLabel) {
+		textFg: groupCallMemberNotJoinedStatus;
+		palette: groupCallTextPalette;
+	}
 }
 
 storiesSendStoryRadio: Radio(defaultRadio) {

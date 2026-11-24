@@ -9,6 +9,8 @@ using "ui/widgets/widgets.style";
 
 PremiumLimits {
 	boxLabel: FlatLabel;
+	listTitle: FlatLabel;
+	listAbout: FlatLabel;
 	nonPremiumBg: color;
 	nonPremiumFg: color;
 	gradientFromLeft: bool;

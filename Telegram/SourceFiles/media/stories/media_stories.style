@@ -11,6 +11,7 @@ using "boxes/boxes.style";
 
 StealthBoxStyle {
 	box: Box;
+	dark: bool;
 	buttonLabel: FlatLabel;
 	lockIcon: icon;
 	boxClose: IconButton;
@@ -47,6 +48,7 @@ storiesDiscardPromptAttention: RoundButton(attentionBoxButton) {
 }
 
 storiesStealthStyleDefault: StealthBoxStyle {
+	dark: false;
 	box: Box(defaultBox) {
 		buttonPadding: margins(10px, 10px, 10px, 10px);
 		buttonHeight: 42px;

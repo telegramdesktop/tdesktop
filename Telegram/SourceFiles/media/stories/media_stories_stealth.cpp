@@ -241,6 +241,7 @@ struct State {
 		rpl::single(QString()),
 		st.box.button);
 	const auto raw = result.data();
+	raw->setFullRadius(true);
 	raw->setTextTransform(Ui::RoundButtonTextTransform::ToUpper);
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
@@ -326,16 +327,14 @@ struct State {
 		button->resizeToWidth(st::boxWideWidth
 			- st.box.buttonPadding.left()
 			- st.box.buttonPadding.right());
-		button->setClickedCallback([=] {
+		button->setClickedCallback([=, dark = st.dark] {
 			const auto now = data->state.current();
 			if (now.mode.enabledTill > now.now) {
 				show->showToast(ToastActivated());
 				box->closeBox();
 			} else if (!now.premium) {
 				data->requested = false;
-				ShowPremiumPreviewBox(
-					show,
-					PremiumFeature::Stories);
+				ShowStoriesPremiumPreviewBox(show, dark);
 			} else if (now.mode.cooldownTill > now.now) {
 				show->showToast(ToastCooldown());
 				box->closeBox();

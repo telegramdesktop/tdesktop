@@ -7,49 +7,52 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/premium_preview_box.h"
 
-#include "chat_helpers/stickers_lottie.h"
+#include "api/api_premium.h"
+#include "apiwrap.h"
 #include "chat_helpers/stickers_emoji_pack.h"
-#include "data/data_file_origin.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "data/data_document.h"
-#include "data/data_session.h"
 #include "data/data_document_media.h"
-#include "data/data_streaming.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
+#include "data/data_session.h"
+#include "data/data_streaming.h"
+#include "history/view/media/history_view_sticker.h"
+#include "history/view/history_view_element.h"
 #include "info/profile/info_profile_icon.h"
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
+#include "lottie/lottie_single_player.h"
 #include "main/main_domain.h" // kMaxAccounts
-#include "ui/chat/chat_theme.h"
+#include "main/main_session.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_player.h"
+#include "settings/sections/settings_business.h"
+#include "settings/sections/settings_premium.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/chat_theme.h"
 #include "ui/controls/feature_list.h"
-#include "ui/layers/generic_box.h"
+#include "ui/effects/gradient.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_promo_particles.h"
-#include "ui/rect.h"
-#include "ui/effects/gradient.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
-#include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
+#include "ui/rect.h"
 #include "ui/vertical_list.h"
-#include "settings/sections/settings_business.h"
-#include "settings/sections/settings_premium.h"
-#include "lottie/lottie_single_player.h"
-#include "history/view/media/history_view_sticker.h"
-#include "history/view/history_view_element.h"
-#include "media/streaming/media_streaming_instance.h"
-#include "media/streaming/media_streaming_player.h"
 #include "window/window_session_controller.h"
-#include "api/api_premium.h"
-#include "apiwrap.h"
+
+#include "styles/style_calls.h"
 #include "styles/style_credits.h" // upgradeGiftSubtext
 #include "styles/style_info.h" // infoStarsUnderstood
 #include "styles/style_layers.h"
+#include "styles/style_media_view.h"
 #include "styles/style_menu_icons.h"
 #include "styles/style_premium.h"
 #include "styles/style_settings.h"
@@ -73,6 +76,7 @@ struct Descriptor {
 	Fn<void()> hiddenCallback;
 	Fn<void(not_null<Ui::BoxContent*>)> shownCallback;
 	bool hideSubscriptionButton = false;
+	bool dark = false;
 };
 
 bool operator==(const Descriptor &a, const Descriptor &b) {
@@ -1356,10 +1360,19 @@ void DecorateListPromoBox(
 		std::shared_ptr<ChatHelpers::Show> show,
 		const Descriptor &descriptor) {
 	const auto session = &show->session();
+	const auto subscribe = !session->premium()
+		&& !descriptor.hideSubscriptionButton;
+	const auto &boxStyle = descriptor.dark
+		? st::storiesPremiumPreviewBox
+		: st::premiumPreviewDoubledLimitsBox;
+	if (descriptor.dark || subscribe) {
+		box->setStyle(boxStyle);
+	}
 
-	box->addTopButton(st::boxTitleClose, [=] {
-		box->closeBox();
-	});
+	const auto &closeStyle = descriptor.dark
+		? st::storiesStealthBoxClose
+		: st::boxTitleClose;
+	box->addTopButton(closeStyle, [=] { box->closeBox(); });
 
 	if (!descriptor.hideSubscriptionButton) {
 		Data::AmPremiumValue(
@@ -1373,7 +1386,7 @@ void DecorateListPromoBox(
 		box->boxClosing() | rpl::on_next(hidden, box->lifetime());
 	}
 
-	if (session->premium() || descriptor.hideSubscriptionButton) {
+	if (!subscribe) {
 		box->addButton(tr::lng_close(), [=] {
 			box->closeBox();
 		});
@@ -1388,11 +1401,9 @@ void DecorateListPromoBox(
 			button->startGlareAnimation();
 		});
 
-		box->setStyle(st::premiumPreviewDoubledLimitsBox);
+		const auto padding = boxStyle.buttonPadding;
 		box->widthValue(
 		) | rpl::on_next([=](int width) {
-			const auto &padding
-				= st::premiumPreviewDoubledLimitsBox.buttonPadding;
 			button->resizeToWidth(width
 				- padding.left()
 				- padding.right());
@@ -1422,7 +1433,10 @@ void Show(
 		return;
 	} else if (descriptor.section == PremiumFeature::Stories) {
 		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
-			UpgradedStoriesPreviewBox(box, &show->session());
+			UpgradedStoriesPreviewBox(
+				box,
+				&show->session(),
+				descriptor.dark);
 			DecorateListPromoBox(box, show, descriptor);
 		}));
 		return;
@@ -1523,6 +1537,17 @@ void ShowPremiumPreviewBox(
 		.shownCallback = std::move(shown),
 		.hideSubscriptionButton = hideSubscriptionButton,
 	});
+}
+
+void ShowStoriesPremiumPreviewBox(
+		std::shared_ptr<ChatHelpers::Show> show,
+		bool dark) {
+	Show(
+		std::move(show),
+		Descriptor{
+			.section = PremiumFeature::Stories,
+			.dark = dark,
+		});
 }
 
 void ShowPremiumPreviewToBuy(
@@ -1703,7 +1728,8 @@ void DoubledLimitsPreviewBox(
 
 void UpgradedStoriesPreviewBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session,
+		bool dark) {
 	using namespace Ui::Text;
 
 	box->setTitle(tr::lng_premium_summary_subtitle_stories());
@@ -1745,14 +1771,16 @@ void UpgradedStoriesPreviewBox(
 		.icon = &st::settingsStoriesIconLinks,
 	});
 
-	Ui::Premium::ShowListBox(
-		box,
-		st::defaultPremiumLimits,
-		std::move(entries));
+	const auto &listStyle = dark
+		? st::storiesPremiumPreviewLimits
+		: st::defaultPremiumLimits;
+	Ui::Premium::ShowListBox(box, listStyle, std::move(entries));
 
 	Ui::AddDividerText(
 		box->verticalLayout(),
-		tr::lng_premium_stories_about_mobile());
+		tr::lng_premium_stories_about_mobile(),
+		st::defaultBoxDividerLabelPadding,
+		dark ? st::groupCallDividerLabel : st::defaultDividerLabel);
 }
 
 void TelegramBusinessPreviewBox(

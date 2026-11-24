@@ -79,6 +79,8 @@ defaultPremiumBoxLabel: FlatLabel(defaultFlatLabel) {
 }
 defaultPremiumLimits: PremiumLimits {
 	boxLabel: defaultPremiumBoxLabel;
+	listTitle: defaultFlatLabel;
+	listAbout: boxDividerLabel;
 	nonPremiumBg: windowBgOver;
 	nonPremiumFg: windowFg;
 	gradientFromLeft: false;
