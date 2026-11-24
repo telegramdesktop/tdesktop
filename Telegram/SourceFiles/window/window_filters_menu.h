@@ -11,8 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_qptr.h"
 #include "ui/effects/animations.h"
-#include "ui/widgets/side_bar_button.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/side_bar_button.h"
 
 namespace Data {
 struct ChatFilterTitle;

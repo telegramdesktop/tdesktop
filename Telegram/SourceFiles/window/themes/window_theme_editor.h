@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
 #include "data/data_cloud_themes.h"
 #include "ui/rp_widget.h"
-#include "base/object_ptr.h"
 
 namespace style {
 struct colorizer;

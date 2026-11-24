@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/binary_guard.h"
+#include "base/unique_qptr.h"
 #include "data/data_cloud_themes.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/checkbox.h"
-#include "base/unique_qptr.h"
-#include "base/binary_guard.h"
 
 namespace style {
 struct colorizer;

@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
-#include "ui/effects/animations.h"
-#include "ui/layers/box_content.h"
 #include "base/bytes.h"
 #include "base/timer.h"
+#include "ui/effects/animations.h"
+#include "ui/layers/box_content.h"
+#include "ui/rp_widget.h"
 
 namespace base {
 enum class SystemUnlockResult;

@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "data/data_message_reaction_id.h"
 #include "base/timer.h"
 #include "base/type_traits.h"
+#include "data/data_message_reaction_id.h"
 #include "media/audio/media_audio_local_cache.h"
 
 class History;

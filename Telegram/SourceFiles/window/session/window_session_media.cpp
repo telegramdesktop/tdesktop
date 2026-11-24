@@ -5,27 +5,27 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "window/window_session_controller.h"
-
 #include "apiwrap.h"
 #include "boxes/send_files_box.h"
 #include "data/components/ephemeral_messages.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
+#include "data/data_session.h"
+#include "data/data_thread.h"
+#include "history/view/history_view_draw_to_reply.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_helpers.h"
-#include "history/view/history_view_draw_to_reply.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
-#include "data/data_session.h"
-#include "data/data_thread.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
-#include "styles/style_boxes.h"
 #include "window/window_separate_id.h"
+#include "window/window_session_controller.h"
+
+#include "styles/style_boxes.h"
 
 namespace Window {
 

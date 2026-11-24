@@ -13,10 +13,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_main_window.h"
 #include "settings.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/painter.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/rp_window.h"
+#include "ui/painter.h"
 #include "window/main_window.h"
+
 #include "styles/style_window.h"
 
 #include <QtGui/QGuiApplication>

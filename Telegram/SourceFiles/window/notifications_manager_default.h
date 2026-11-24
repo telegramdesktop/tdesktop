@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/notifications_manager.h"
+#include "base/binary_guard.h"
+#include "base/object_ptr.h"
+#include "base/timer.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
 #include "ui/rp_widget.h"
 #include "ui/userpic_view.h"
-#include "base/timer.h"
-#include "base/binary_guard.h"
-#include "base/object_ptr.h"
+#include "window/notifications_manager.h"
 
 #include <QtCore/QTimer>
 

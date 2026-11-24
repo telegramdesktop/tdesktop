@@ -7,19 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_connecting_widget.h"
 
-#include "ui/widgets/buttons.h"
-#include "ui/effects/radial_animation.h"
-#include "ui/painter.h"
-#include "ui/ui_utility.h"
-#include "mtproto/mtp_instance.h"
-#include "mtproto/facade.h"
-#include "main/main_account.h"
+#include "boxes/abstract_box.h"
+#include "boxes/connection_box.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/update_checker.h"
-#include "boxes/connection_box.h"
-#include "boxes/abstract_box.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "mtproto/facade.h"
+#include "mtproto/mtp_instance.h"
+#include "ui/effects/radial_animation.h"
+#include "ui/widgets/buttons.h"
+#include "ui/painter.h"
+#include "ui/ui_utility.h"
+
 #include "styles/style_window.h"
 
 #include <QtGui/QWindow>

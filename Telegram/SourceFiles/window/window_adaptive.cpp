@@ -7,11 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_adaptive.h"
 
-#include "history/history_item.h"
-#include "data/data_media_types.h"
-#include "data/data_session.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_media_types.h"
+#include "data/data_session.h"
+#include "history/history_item.h"
 
 namespace Window {
 

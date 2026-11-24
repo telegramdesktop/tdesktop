@@ -9,23 +9,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_lottie.h"
-#include "data/data_document_media.h"
-#include "data/data_document.h"
-#include "data/data_photo_media.h"
-#include "data/data_photo.h"
-#include "data/data_session.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_photo.h"
+#include "data/data_photo_media.h"
+#include "data/data_session.h"
 #include "history/view/media/history_view_sticker.h"
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
-#include "ui/emoji_config.h"
 #include "ui/image/image.h"
+#include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
-#include "styles/style_chat_helpers.h"
+
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Window {
 namespace {

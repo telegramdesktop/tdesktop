@@ -5,13 +5,12 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "window/window_session_controller.h"
-
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_peer.h"
 #include "data/data_replies_list.h"
 #include "history/history.h"
+#include "window/window_session_controller.h"
 
 namespace Window {
 

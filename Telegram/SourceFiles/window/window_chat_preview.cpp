@@ -7,16 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_chat_preview.h"
 
-#include "menu/menu_mark_as_read.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
 #include "data/data_histories.h"
 #include "data/data_peer.h"
 #include "data/data_saved_sublist.h"
 #include "data/data_session.h"
-#include "history/history.h"
 #include "history/view/history_view_chat_preview.h"
+#include "history/history.h"
 #include "mainwidget.h"
+#include "menu/menu_mark_as_read.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_peer_menu.h"
 #include "window/window_session_controller.h"

@@ -7,15 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/themes/window_theme_warning.h"
 
+#include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
-#include "ui/cached_round_corners.h"
 #include "window/themes/window_theme.h"
-#include "lang/lang_keys.h"
-#include "styles/style_layers.h"
+
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace Window {
 namespace Theme {

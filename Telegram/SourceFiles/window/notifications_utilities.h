@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/notifications_manager.h"
 #include "base/timer.h"
+#include "window/notifications_manager.h"
 
 namespace Ui {
 struct PeerUserpicView;

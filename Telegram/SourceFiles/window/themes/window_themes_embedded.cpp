@@ -8,11 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_themes_embedded.h"
 
 #include "base/platform/base_platform_info.h"
-#include "lang/lang_keys.h"
-#include "storage/serialize_common.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "data/data_wall_paper.h"
+#include "lang/lang_keys.h"
+#include "storage/serialize_common.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/style/style_palette_colorizer.h"
 #include "window/themes/window_theme.h"

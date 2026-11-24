@@ -8,12 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_history_hider.h"
 
 #include "lang/lang_keys.h"
+#include "mainwidget.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/cached_round_corners.h"
-#include "mainwidget.h"
-#include "styles/style_layers.h"
+
 #include "styles/style_chat.h"
+#include "styles/style_layers.h"
 
 namespace Window {
 
