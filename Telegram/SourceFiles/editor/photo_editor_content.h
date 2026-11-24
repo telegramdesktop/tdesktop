@@ -74,6 +74,7 @@ public:
 	void setDurationsLinked(bool linked);
 	[[nodiscard]] rpl::producer<> durationsLinkChanges() const;
 	void applyAspectRatio(float64 ratio);
+	[[nodiscard]] bool transformBackgroundVideo(int angle, bool flip);
 	void setExpansionRoom(bool room);
 	void save(PhotoModifications &modifications);
 

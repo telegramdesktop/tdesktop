@@ -761,6 +761,33 @@ void PhotoEditorContent::applyModifications(
 	update();
 }
 
+bool PhotoEditorContent::transformBackgroundVideo(int angle, bool flip) {
+	const auto video = _paint->backgroundVideo();
+	if (!video) {
+		return false;
+	}
+	auto placement = video->placement();
+	const auto rotated = std::remainder(placement.rotation + angle, 360.);
+	const auto canvas = _canvas.current().size();
+	const auto media = video->contentRect();
+	if (angle && !media.isEmpty() && !canvas.isEmpty()) {
+		const auto fit = [&](float64 rotation) {
+			const auto bounds = QTransform()
+				.rotate(rotation)
+				.mapRect(media);
+			return std::min(
+				canvas.width() / bounds.width(),
+				canvas.height() / bounds.height());
+		};
+		placement.scale *= fit(rotated) / fit(placement.rotation);
+	}
+	placement.rotation = flip ? -rotated : rotated;
+	placement.flipped = placement.flipped != flip;
+	video->applyPlacement(placement);
+	_paint->keepResult();
+	return true;
+}
+
 void PhotoEditorContent::save(PhotoModifications &modifications) {
 	if (canvasMode()) {
 		const auto moved = canvasMoved();

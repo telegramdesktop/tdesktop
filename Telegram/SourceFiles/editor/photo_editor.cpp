@@ -505,7 +505,10 @@ PhotoEditor::PhotoEditor(
 
 	_controls->rotateRequests(
 	) | rpl::on_next([=](int angle) {
-		_modifications.angle += 90;
+		if (_content->transformBackgroundVideo(angle, false)) {
+			return;
+		}
+		_modifications.angle += angle;
 		if (_modifications.angle >= 360) {
 			_modifications.angle -= 360;
 		}
@@ -514,6 +517,9 @@ PhotoEditor::PhotoEditor(
 
 	_controls->flipRequests(
 	) | rpl::on_next([=] {
+		if (_content->transformBackgroundVideo(0, true)) {
+			return;
+		}
 		_modifications.flipped = !_modifications.flipped;
 		_content->applyModifications(_modifications);
 	}, lifetime());
