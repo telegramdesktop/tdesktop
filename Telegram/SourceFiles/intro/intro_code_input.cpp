@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_code_input.h"
 
 #include "lang/lang_keys.h"
-#include "ui/abstract_button.h"
 #include "ui/effects/shake_animation.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/abstract_button.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
-#include "ui/widgets/popup_menu.h"
+
 #include "styles/style_basic.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h" // boxRadius

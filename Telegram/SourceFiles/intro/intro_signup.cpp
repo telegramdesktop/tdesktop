@@ -8,14 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_signup.h"
 
 #include "boxes/abstract_box.h"
-#include "intro/intro_widget.h"
 #include "core/file_utilities.h"
-#include "ui/boxes/confirm_box.h"
+#include "intro/intro_widget.h"
 #include "lang/lang_keys.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/userpic_button.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+
 #include "styles/style_intro.h"
 #include "styles/style_userpic_button.h"
 

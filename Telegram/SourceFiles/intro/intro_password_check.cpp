@@ -7,19 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "intro/intro_password_check.h"
 
-#include "intro/intro_widget.h"
-#include "core/core_cloud_password.h"
-#include "ui/boxes/confirm_box.h"
+#include "base/random.h"
 #include "boxes/abstract_box.h"
 #include "boxes/passcode_box.h"
-#include "lang/lang_keys.h"
+#include "core/core_cloud_password.h"
 #include "intro/intro_signup.h"
+#include "intro/intro_widget.h"
+#include "lang/lang_keys.h"
+#include "main/main_account.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
-#include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/input_field.h"
 #include "ui/widgets/fields/password_input.h"
-#include "main/main_account.h"
-#include "base/random.h"
+#include "ui/widgets/buttons.h"
+
 #include "styles/style_intro.h"
 #include "styles/style_widgets.h"
 
