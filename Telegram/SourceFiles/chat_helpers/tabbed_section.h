@@ -7,8 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "window/section_widget.h"
+#include "base/object_ptr.h"
 #include "window/section_memento.h"
+#include "window/section_widget.h"
 
 namespace ChatHelpers {
 

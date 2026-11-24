@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_dice_pack.h"
 
-#include "main/main_session.h"
+#include "apiwrap.h"
+#include "base/unixtime.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
-#include "data/data_document.h"
-#include "base/unixtime.h"
-#include "apiwrap.h"
+#include "main/main_session.h"
 
 #include <QtCore/QFile>
 #include <QtCore/QFileInfo>

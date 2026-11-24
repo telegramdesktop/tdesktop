@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef TDESKTOP_DISABLE_SPELLCHECK
 
-#include "storage/storage_cloud_blob.h"
 #include "base/unique_qptr.h"
+#include "storage/storage_cloud_blob.h"
 
 namespace Main {
 class Session;

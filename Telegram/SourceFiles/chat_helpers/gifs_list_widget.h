@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "chat_helpers/tabbed_selector.h"
 #include "base/timer.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "inline_bots/inline_bot_layout_item.h"
 #include "layout/layout_mosaic.h"
 

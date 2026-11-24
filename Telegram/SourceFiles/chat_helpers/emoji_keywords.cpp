@@ -7,18 +7,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_keywords.h"
 
-#include "emoji_suggestions_helper.h"
-#include "lang/lang_instance.h"
-#include "lang/lang_cloud_manager.h"
-#include "lang/lang_keys.h"
-#include "core/application.h"
-#include "base/platform/base_platform_info.h"
-#include "ui/emoji_config.h"
-#include "main/main_domain.h"
-#include "main/main_session.h"
 #include "apiwrap.h"
+#include "base/platform/base_platform_info.h"
+#include "core/application.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "emoji_suggestions_helper.h"
+#include "lang/lang_cloud_manager.h"
+#include "lang/lang_instance.h"
+#include "lang/lang_keys.h"
+#include "main/main_domain.h"
+#include "main/main_session.h"
+#include "ui/emoji_config.h"
 
 #include <QtGui/QGuiApplication>
 

@@ -14,12 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
-#include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style_radius.h"
+#include "ui/cached_round_corners.h"
 #include "ui/painter.h"
 #include "ui/round_rect.h"
 #include "ui/ui_utility.h"
 #include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_widgets.h"
 

@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+#include "base/variant.h"
 #include "chat_helpers/compose/compose_features.h"
 #include "chat_helpers/tabbed_selector.h"
-#include "data/data_message_reaction_id.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_message_reaction_id.h"
 #include "ui/effects/animations.h"
 #include "ui/round_rect.h"
-#include "base/variant.h"
-#include "base/timer.h"
 
 class StickerPremiumMark;
 

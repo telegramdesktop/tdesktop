@@ -7,22 +7,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/stickers_lottie.h"
 
-#include "lottie/lottie_single_player.h"
-#include "lottie/lottie_multi_player.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
-#include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_session.h"
+#include "history/view/media/history_view_media_common.h"
+#include "lottie/lottie_multi_player.h"
+#include "lottie/lottie_single_player.h"
+#include "main/main_session.h"
+#include "media/clip/media_clip_reader.h"
 #include "storage/cache/storage_cache_database.h"
 #include "storage/localimageloader.h"
-#include "history/view/media/history_view_media_common.h"
-#include "media/clip/media_clip_reader.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/image/image_location_factory.h"
 #include "ui/painter.h"
-#include "main/main_session.h"
 
 #include <xxhash.h>
 

@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/zlib_help.h"
 #include "chat_helpers/spellchecker_locale_ids.h"
+#include "core/application.h"
+#include "core/core_settings.h"
+#include "core/version.h"
 #include "data/data_session.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
@@ -24,9 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "spellcheck/platform/platform_spellcheck.h"
 #include "spellcheck/spellcheck_utils.h"
 #include "spellcheck/spellcheck_value.h"
-#include "core/application.h"
-#include "core/core_settings.h"
-#include "core/version.h"
 
 #include <QtCore/QFileInfo>
 #include <QtCore/QJsonArray>

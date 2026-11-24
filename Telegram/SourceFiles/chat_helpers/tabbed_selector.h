@@ -8,16 +8,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
+#include "base/object_ptr.h"
 #include "chat_helpers/compose/compose_features.h"
 #include "data/data_message_reaction_id.h"
-#include "ui/rp_widget.h"
+#include "emoji.h"
+#include "mtproto/sender.h"
 #include "ui/controls/swipe_handler_data.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/panel_animation.h"
 #include "ui/cached_round_corners.h"
-#include "mtproto/sender.h"
-#include "base/object_ptr.h"
+#include "ui/rp_widget.h"
 
 namespace InlineBots {
 struct ResultSelected;

@@ -7,16 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/tabbed_panel.h"
 
-#include "ui/widgets/shadow.h"
-#include "ui/image/image_prepare.h"
-#include "ui/ui_utility.h"
-#include "chat_helpers/tabbed_selector.h"
-#include "window/window_session_controller.h"
-#include "main/main_session.h"
-#include "data/data_session.h"
-#include "data/stickers/data_stickers.h"
-#include "core/application.h"
 #include "base/options.h"
+#include "chat_helpers/tabbed_selector.h"
+#include "core/application.h"
+#include "data/stickers/data_stickers.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
+#include "ui/image/image_prepare.h"
+#include "ui/widgets/shadow.h"
+#include "ui/ui_utility.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {

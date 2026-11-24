@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/widgets/tooltip.h"
 #include "chat_helpers/bot_command.h"
+#include "ui/widgets/tooltip.h"
 
 class ReplyKeyboard;
 

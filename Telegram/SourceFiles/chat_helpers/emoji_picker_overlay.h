@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/emoji_config.h"
 #include "ui/widgets/shadow.h"
+#include "ui/emoji_config.h"
+#include "ui/rp_widget.h"
 
 namespace Ui {
 class AbstractButton;

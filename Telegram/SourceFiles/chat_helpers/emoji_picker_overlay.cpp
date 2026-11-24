@@ -11,12 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_list_footer.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
-#include "ui/abstract_button.h"
 #include "ui/controls/tabbed_search.h"
-#include "ui/emoji_config.h"
-#include "ui/painter.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/abstract_button.h"
+#include "ui/emoji_config.h"
+#include "ui/painter.h"
+
 #include "styles/style_chat_helpers.h"
 #include "styles/style_emoji_picker_overlay.h"
 

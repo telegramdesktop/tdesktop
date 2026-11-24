@@ -7,12 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+#include "base/timer.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
-#include "ui/rp_widget.h"
 #include "ui/widgets/shadow.h"
-#include "base/timer.h"
-#include "base/object_ptr.h"
+#include "ui/rp_widget.h"
 
 namespace Window {
 class SessionController;

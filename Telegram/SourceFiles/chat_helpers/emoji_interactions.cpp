@@ -7,20 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_interactions.h"
 
+#include "apiwrap.h"
+#include "base/random.h"
 #include "chat_helpers/stickers_emoji_pack.h"
-#include "history/history_item.h"
-#include "history/history.h"
-#include "history/view/history_view_element.h"
-#include "history/view/media/history_view_sticker.h"
-#include "main/main_session.h"
-#include "data/data_session.h"
 #include "data/data_changes.h"
-#include "data/data_peer.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_peer.h"
+#include "data/data_session.h"
+#include "history/view/media/history_view_sticker.h"
+#include "history/view/history_view_element.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "main/main_session.h"
 #include "ui/emoji_config.h"
-#include "base/random.h"
-#include "apiwrap.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonArray>

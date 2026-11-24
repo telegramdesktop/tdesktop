@@ -16,11 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "iv/iv_rich_page.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
-#include "window/window_session_controller.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/toast/toast_widget.h"
 #include "ui/widgets/buttons.h"
+#include "window/window_session_controller.h"
+
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
 
