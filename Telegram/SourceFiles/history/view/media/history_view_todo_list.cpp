@@ -388,7 +388,10 @@ void TodoList::toggleCompletion(int id) {
 		const auto j = ranges::find(baseList->items, id, &TodoListItem::id);
 		if (j != end(baseList->items)) {
 			j->completionDate = i->completionDate;
-			j->completedBy = i->completedBy;
+			j->completedBy = selected ? nullptr : i->completedBy;
+			++baseList->version;
+			history()->owner().notifyTodoListUpdateDelayed(baseList);
+			updateCompletionStatus();
 		}
 		history()->owner().updateDependentMessages(_parent->data());
 	}
