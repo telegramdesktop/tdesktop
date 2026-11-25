@@ -6505,7 +6505,11 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 		}
 	};
 	const auto replyFirst = [&] {
-		reply(next ? nullptr : _items.back().get());
+		if (next) {
+			reply(nullptr);
+		} else if (!_items.empty()) {
+			reply(_items.back().get());
+		}
 	};
 	if (!fullId) {
 		replyFirst();
