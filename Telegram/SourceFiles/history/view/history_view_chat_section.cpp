@@ -1633,11 +1633,12 @@ void ChatWidget::setupComposeControls() {
 		listCancelRequest();
 	}, lifetime());
 
+	// Ends in ~ListWidget, before a child popup's close refocuses the field.
 	_composeControls->focusedValue(
 	) | rpl::skip(1) | rpl::filter(rpl::mappers::_1) | rpl::on_next([=] {
 		_inner->clearTextSelection();
 		_inner->hideElementOverlay();
-	}, lifetime());
+	}, _inner->lifetime());
 
 	_composeControls->replyingToMessageValue(
 	) | rpl::skip(1) | rpl::on_next([=](FullReplyTo) {
