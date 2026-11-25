@@ -88,9 +88,11 @@ public:
 
 	SerializedRequest after;
 	crl::time lastSentTime = 0;
+	crl::time lastStateCheckTime = 0;
 	mtpRequestId requestId = 0;
 	bool needsLayer = false;
 	bool forceSendInContainer = false;
+	bool delivered = false;
 
 };
 

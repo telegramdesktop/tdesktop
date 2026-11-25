@@ -80,7 +80,7 @@ private:
 		qint32 errorCode);
 	void onConnected(not_null<AbstractConnection*> connection);
 	void onDisconnected(not_null<AbstractConnection*> connection);
-	void onSentSome(uint64 size);
+	void onSentSome(uint64 size, bool behindUnanswered);
 	void onReceivedSome();
 
 	void handleReceived();
@@ -115,7 +115,9 @@ private:
 
 	bool sendSecureRequest(
 		SerializedRequest &&request,
-		bool needAnyResponse);
+		bool needAnyResponse,
+		bool behindUnanswered);
+	[[nodiscard]] uint64 haveSentBytes() const;
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
 	struct OuterInfo {
