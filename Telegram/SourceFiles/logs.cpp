@@ -111,18 +111,23 @@ public:
 	}
 
 	void write(LogDataType type, const QString &msg) {
-		QMutexLocker lock(_logsMutex(type));
-		WritingEntryScope scope;
+		auto failures = QStringList();
+		{
+			QMutexLocker lock(_logsMutex(type));
+			WritingEntryScope scope;
 
-		if (type != LogDataMain) {
-			reopenDebug();
+			if (type != LogDataMain) {
+				failures = reopenDebug();
+			}
+			const auto file = files[type].get();
+			if (file && file->isOpen()) {
+				file->write(msg.toUtf8());
+				file->flush();
+			}
 		}
-		const auto file = files[type].get();
-		if (!file || !file->isOpen()) {
-			return;
+		for (const auto &failure : failures) {
+			LOG((failure));
 		}
-		file->write(msg.toUtf8());
-		file->flush();
 	}
 
 private:
@@ -236,28 +241,33 @@ NEW LOGGING INSTANCE STARTED!!!\n\
 			}
 
 			return true;
-		} else if (type != LogDataMain) {
-			LOG(("Could not open debug log '%1': %2").arg(files[type]->fileName(), files[type]->errorString()));
 		}
 		return false;
 	}
 
-	void reopenDebug() {
+	[[nodiscard]] QStringList reopenDebug() {
 		time_t t = time(NULL);
 		struct tm tm;
 		mylocaltime(&tm, &t);
 
 		static const int switchEach = 15; // minutes
 		int32 newPart = (tm.tm_min + tm.tm_hour * 60) / switchEach;
-		if (newPart == part) return;
+		if (newPart == part) return {};
 
 		part = newPart;
 
 		int32 dayIndex = (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
 		QString postfix = QString("_%4_%5").arg((part * switchEach) / 60, 2, 10, QChar('0')).arg((part * switchEach) % 60, 2, 10, QChar('0'));
 
-		reopen(LogDataDebug, dayIndex, postfix);
-		reopen(LogDataMtp, dayIndex, postfix);
+		auto failures = QStringList();
+		for (const auto type : { LogDataDebug, LogDataMtp }) {
+			if (!reopen(type, dayIndex, postfix)) {
+				failures.push_back(u"Could not open debug log '%1': %2"_q.arg(
+					files[type]->fileName(),
+					files[type]->errorString()));
+			}
+		}
+		return failures;
 	}
 
 };
