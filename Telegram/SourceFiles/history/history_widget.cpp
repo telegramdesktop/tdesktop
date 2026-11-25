@@ -1972,6 +1972,26 @@ Ui::ChatPaintHighlight HistoryWidget::itemHighlight(
 	return _highlighter.state(item);
 }
 
+HistoryView::Element *HistoryWidget::closestLoadedView(MsgId id) const {
+	const auto migrated = _migrated && (id < 0) && (-id < ServerMaxMsgId);
+	const auto history = migrated ? _migrated : _history;
+	const auto target = migrated ? MsgId(-id) : id;
+	auto result = (HistoryView::Element*)nullptr;
+	for (const auto &block : history->blocks) {
+		for (const auto &view : block->messages) {
+			if (!view->data()->isRegular()
+				|| (_list->itemTop(view.get()) < 0)) {
+				continue;
+			}
+			result = view.get();
+			if (view->data()->id >= target) {
+				return result;
+			}
+		}
+	}
+	return result;
+}
+
 int HistoryWidget::itemTopForHighlight(
 		not_null<HistoryView::Element*> view) const {
 	if (const auto group = session().data().groups().find(view->data())) {
@@ -8555,8 +8575,16 @@ int HistoryWidget::countInitialScrollTop() {
 		const auto item = getItemFromHistoryOrMigrated(_showAtMsgId);
 		const auto itemTop = _list->itemTop(item);
 		if (itemTop < 0) {
+			if (_showAtMsgParams.silentMissingMessage) {
+				const auto id = _showAtMsgId;
+				if (const auto view = closestLoadedView(id)) {
+					return itemTopForHighlight(view);
+				}
+			} else {
+				controller()->showToast(
+					tr::lng_message_not_found(tr::now));
+			}
 			setMsgId(ShowAtUnreadMsgId);
-			controller()->showToast(tr::lng_message_not_found(tr::now));
 			return countInitialScrollTop();
 		} else {
 			const auto view = item->mainView();

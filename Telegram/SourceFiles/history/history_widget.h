@@ -712,6 +712,7 @@ private:
 	// messages bar, choosing from _history and _migrated unreadBar.
 	std::optional<int> unreadBarTop() const;
 	int itemTopForHighlight(not_null<HistoryView::Element*> view) const;
+	[[nodiscard]] HistoryView::Element *closestLoadedView(MsgId id) const;
 	void scrollToCurrentVoiceMessage(FullMsgId fromId, FullMsgId toId);
 
 	void writeDrafts();

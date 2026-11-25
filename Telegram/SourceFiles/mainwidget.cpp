@@ -1562,6 +1562,7 @@ void MainWidget::showHistory(
 			ChatViewId{ .history = history },
 			showAtMsgId,
 			params.highlight);
+		memento->setSilentMissingMessage(params.silentMissingMessage);
 		using OriginMessage = SectionShow::OriginMessage;
 		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
 			if (origin->id && origin->id.peer == peerId) {

@@ -3986,8 +3986,9 @@ void ChatWidget::showAtPosition(
 	}
 	_lastShownAt = position.fullId;
 	controller()->setActiveChatEntry(activeChat());
-	const auto ignore = _repliesRootId
-		&& (position.fullId.msg == _repliesRootId);
+	const auto ignore = params.silentMissingMessage
+		|| (_repliesRootId
+			&& (position.fullId.msg == _repliesRootId));
 	_inner->showAtPosition(
 		position,
 		params,
@@ -4001,7 +4002,8 @@ void ChatWidget::updateAdaptiveLayout() {
 }
 
 Dialogs::RowDescriptor ChatWidget::activeChat() const {
-	const auto messageId = _lastShownAt
+	// Min, Max and Unread positions have no peer and name no message.
+	const auto messageId = _lastShownAt.peer
 		? _lastShownAt
 		: FullMsgId(_peer->id, ShowAtUnreadMsgId);
 	if (_sublist) {
@@ -4513,6 +4515,7 @@ void ChatWidget::restoreState(not_null<ChatMemento*> memento) {
 			Window::SectionShow::Way::Forward,
 			anim::type::instant);
 		params.highlight = memento->highlight();
+		params.silentMissingMessage = memento->silentMissingMessage();
 		showAtPosition(Data::MessagePosition{
 			.fullId = ResolveHighlightId(_history, highlight),
 			.date = TimeId(0),

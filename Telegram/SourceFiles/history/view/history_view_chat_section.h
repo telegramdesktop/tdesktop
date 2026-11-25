@@ -694,6 +694,13 @@ public:
 		return _originId;
 	}
 
+	void setSilentMissingMessage(bool silent) {
+		_silentMissingMessage = silent;
+	}
+	[[nodiscard]] bool silentMissingMessage() const {
+		return _silentMissingMessage;
+	}
+
 	Data::ForumTopic *topicForRemoveRequests() const override;
 	Data::SavedSublist *sublistForRemoveRequests() const override;
 
@@ -726,6 +733,7 @@ private:
 	std::shared_ptr<Data::RepliesList> _replies;
 	QVector<FullMsgId> _replyReturns;
 	FullMsgId _originId;
+	bool _silentMissingMessage = false;
 	bool _activateChooseForReport = false;
 	bool _sendBotStart = false;
 	bool _maybeSendBotStart = false;

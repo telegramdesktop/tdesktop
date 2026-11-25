@@ -217,6 +217,7 @@ struct SectionShow {
 	bool dropSameFromStack = false;
 	bool allowDuplicateInStack = false;
 	bool slideFromBottom = false;
+	bool silentMissingMessage = false;
 	Origin origin;
 
 };
