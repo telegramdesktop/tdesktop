@@ -737,13 +737,8 @@ void MoveToMyGiftsBox(
 	if (!address.isEmpty()) {
 		return address;
 	}
-	for (const auto &item : wallet->collectibles()) {
-		if (item.kind == Gram::NftKind::TelegramGift
-			&& !item.key.compare(unique.slug, Qt::CaseInsensitive)) {
-			return CanonicalAddress(item.address);
-		}
-	}
-	return QString();
+	const auto record = FindListedGift(wallet->collectibles(), unique);
+	return record ? record->address : QString();
 }
 
 void OpenHeldGiftTransfer(
@@ -754,11 +749,25 @@ void OpenHeldGiftTransfer(
 	const auto wallet = &session->wallet();
 	const auto own = wallet->address();
 	const auto owner = CanonicalAddress(unique->ownerAddress);
-	const auto item = HeldGiftAddress(wallet, *unique);
-	if (!own
-		|| owner.isEmpty()
-		|| item.isEmpty()
-		|| owner.compare(CanonicalAddress(*own), Qt::CaseInsensitive) != 0) {
+	const auto listed = (own && owner.isEmpty())
+		? FindListedGift(wallet->collectibles(), *unique)
+		: nullptr;
+	if (listed && (unique->mySale || OnOwnSale(*listed))) {
+		show->showToast(
+			tr::lng_wallet_collectible_transfer_on_sale(tr::now));
+		return;
+	}
+	const auto ownAddress = own ? CanonicalAddress(*own) : QString();
+	const auto mine = own
+		&& (owner.isEmpty()
+			? (listed != nullptr)
+			: !owner.compare(ownAddress, Qt::CaseInsensitive));
+	const auto item = !mine
+		? QString()
+		: listed
+		? listed->address
+		: HeldGiftAddress(wallet, *unique);
+	if (item.isEmpty()) {
 		locked();
 		return;
 	}

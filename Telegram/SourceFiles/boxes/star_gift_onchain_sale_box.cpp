@@ -162,7 +162,16 @@ private:
 	}
 	const auto owner = Wallet::CanonicalAddress(gift.ownerAddress);
 	if (owner.isEmpty()) {
-		return Ownership::Other;
+		// A TON DNS name is served instead of the owner address.
+		const auto wallet = &session->wallet();
+		if (!wallet->address()) {
+			return Ownership::Other;
+		}
+		const auto &list = wallet->collectibles();
+		const auto record = Wallet::FindListedGift(list, gift);
+		return (record && !Wallet::OnOwnSale(*record))
+			? Ownership::Own
+			: Ownership::Other;
 	}
 	const auto own = session->wallet().address();
 	if (!own) {

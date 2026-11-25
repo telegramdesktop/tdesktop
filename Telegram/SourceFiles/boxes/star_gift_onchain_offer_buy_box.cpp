@@ -585,6 +585,7 @@ bool CanOfferOnchainGift(
 		not_null<Main::Session*> session,
 		const Data::UniqueGift &gift) {
 	return !gift.ownerId
+		&& (gift.hostId != session->userPeerId())
 		&& !gift.ownerAddress.isEmpty()
 		&& !gift.giftAddress.isEmpty()
 		&& !gift.slug.isEmpty()
