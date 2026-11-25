@@ -143,6 +143,16 @@ void WrapInvokeAfter(
 	return different;
 }
 
+void WakeKeyWaiters(not_null<Instance*> instance, ShiftedDcId shiftedDcId) {
+	const auto bareDcId = BareDcId(shiftedDcId);
+	const auto dcId = isTemporaryDcId(bareDcId)
+		? getRealIdFromTemporaryDcId(bareDcId)
+		: bareDcId;
+	InvokeQueued(instance, [instance, dcId] {
+		instance->dcTemporaryKeyChanged(dcId);
+	});
+}
+
 base::options::toggle OptionPreferIPv6({
 	.id = kOptionPreferIPv6,
 	.name = "Prefer IPv6",
@@ -195,13 +205,7 @@ SessionPrivate::~SessionPrivate() {
 	Expects(_testConnections.empty());
 
 	if (hadKeyCreator) {
-		const auto bareDcId = BareDcId(_shiftedDcId);
-		const auto dcId = isTemporaryDcId(bareDcId)
-			? getRealIdFromTemporaryDcId(bareDcId)
-			: bareDcId;
-		InvokeQueued(_instance, [instance = _instance, dcId] {
-			instance->dcTemporaryKeyChanged(dcId);
-		});
+		WakeKeyWaiters(_instance, _shiftedDcId);
 	}
 }
 
@@ -2627,6 +2631,7 @@ DcType SessionPrivate::tryAcquireKeyCreation() {
 				}
 				LOG(("AuthKey Error: could not choose public RSA key"));
 			}
+			WakeKeyWaiters(_instance, _shiftedDcId);
 			restart();
 			return;
 		}
@@ -2651,6 +2656,7 @@ DcType SessionPrivate::tryAcquireKeyCreation() {
 				: _sessionData->getPersistentKey();
 			if (!key) {
 				releaseKeyCreationOnFail();
+				WakeKeyWaiters(_instance, _shiftedDcId);
 				restart();
 				return;
 			}
