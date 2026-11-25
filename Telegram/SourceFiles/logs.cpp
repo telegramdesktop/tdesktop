@@ -16,8 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+constexpr auto kLogPartMinutes = 15;
+
 std::atomic<int> ThreadCounter/* = 0*/;
 thread_local bool WritingEntryFlag/* = false*/;
+thread_local bool LockingPartsFlag = false;
 
 class WritingEntryScope final {
 public:
@@ -28,6 +31,12 @@ public:
 		WritingEntryFlag = false;
 	}
 };
+
+[[nodiscard]] int32 CurrentLogPart(tm &local) {
+	const auto now = time(nullptr);
+	mylocaltime(&local, &now);
+	return (local.tm_hour * 60 + local.tm_min) / kLogPartMinutes;
+}
 
 } // namespace
 
@@ -111,22 +120,32 @@ public:
 	}
 
 	void write(LogDataType type, const QString &msg) {
-		auto failures = QStringList();
-		{
-			QMutexLocker lock(_logsMutex(type));
-			WritingEntryScope scope;
-
-			if (type != LogDataMain) {
-				failures = reopenDebug();
-			}
-			const auto file = files[type].get();
-			if (file && file->isOpen()) {
-				file->write(msg.toUtf8());
-				file->flush();
-			}
+		if (type != LogDataMain && LockingPartsFlag) {
+			return; // a fatal report raised while locking parts can't wait for their locks
 		}
-		for (const auto &failure : failures) {
-			LOG((failure));
+		const auto locking = gsl::finally([=] {
+			if (type != LogDataMain) {
+				LockingPartsFlag = false;
+			}
+		});
+		auto lock = QMutexLocker(_logsMutex(type));
+		if (type != LogDataMain) {
+			auto local = tm();
+			if (CurrentLogPart(local) != part) {
+				lock.unlock(); // reopenDebug() and LOG() must run with no log mutex held
+				for (const auto &failure : reopenDebug()) {
+					LOG((failure));
+				}
+				lock.relock();
+			}
+			LockingPartsFlag = true;
+		}
+		WritingEntryScope scope;
+
+		const auto file = files[type].get();
+		if (file && file->isOpen()) {
+			file->write(msg.toUtf8());
+			file->flush();
 		}
 	}
 
@@ -246,18 +265,26 @@ NEW LOGGING INSTANCE STARTED!!!\n\
 	}
 
 	[[nodiscard]] QStringList reopenDebug() {
-		time_t t = time(NULL);
-		struct tm tm;
-		mylocaltime(&tm, &t);
+		LockingPartsFlag = true;
+		const auto locking = gsl::finally([] { LockingPartsFlag = false; });
+		WritingEntryScope scope;
+		const auto debugLock = QMutexLocker(_logsMutex(LogDataDebug));
+		const auto mtpLock = QMutexLocker(_logsMutex(LogDataMtp));
 
-		static const int switchEach = 15; // minutes
-		int32 newPart = (tm.tm_min + tm.tm_hour * 60) / switchEach;
-		if (newPart == part) return {};
-
+		auto local = tm();
+		const auto newPart = CurrentLogPart(local);
+		if (newPart == part) {
+			return {};
+		}
 		part = newPart;
 
-		int32 dayIndex = (tm.tm_year + 1900) * 10000 + (tm.tm_mon + 1) * 100 + tm.tm_mday;
-		QString postfix = QString("_%4_%5").arg((part * switchEach) / 60, 2, 10, QChar('0')).arg((part * switchEach) % 60, 2, 10, QChar('0'));
+		const auto dayIndex = (local.tm_year + 1900) * 10000
+			+ (local.tm_mon + 1) * 100
+			+ local.tm_mday;
+		const auto minutes = part * kLogPartMinutes;
+		const auto postfix = u"_%1_%2"_q
+			.arg(minutes / 60, 2, 10, QChar('0'))
+			.arg(minutes % 60, 2, 10, QChar('0'));
 
 		auto failures = QStringList();
 		for (const auto type : { LogDataDebug, LogDataMtp }) {
