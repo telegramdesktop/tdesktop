@@ -3260,10 +3260,10 @@ void MainWidget::activate() {
 		Assert(_dialogs != nullptr);
 		_dialogs->setInnerFocus();
 	} else if (!_controller->isLayerShown()) {
+		// A window without a chats list can be empty while its topic loads.
 		if (_history->peer()) {
 			_history->activate();
-		} else {
-			Assert(_dialogs != nullptr);
+		} else if (_dialogs) {
 			_dialogs->setInnerFocus();
 		}
 	}
