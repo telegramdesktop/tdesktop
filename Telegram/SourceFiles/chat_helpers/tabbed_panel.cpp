@@ -373,7 +373,12 @@ void TabbedPanel::startOpacityAnimation(bool hiding) {
 
 void TabbedPanel::startShowAnimation() {
 	if (!_a_show.animating()) {
+		const auto ratio = style::DevicePixelRatio();
 		auto image = grabForAnimation();
+		if (image.size() != size() * ratio) {
+			// Rendering the selector can relayout the window and resize us.
+			image = grabForAnimation();
+		}
 
 		const auto origin = _showAnimationOrigin.value_or(_dropDown
 			? Ui::PanelAnimation::Origin::TopRight
@@ -381,12 +386,11 @@ void TabbedPanel::startShowAnimation() {
 		_showAnimation = std::make_unique<Ui::PanelAnimation>(
 			_selector->st().showAnimation,
 			origin);
-		auto inner = rect().marginsRemoved(st::emojiPanMargins);
+		const auto full = QRect(QPoint(), image.size() / ratio);
+		const auto inner = full.marginsRemoved(st::emojiPanMargins);
 		_showAnimation->setFinalImage(
 			std::move(image),
-			QRect(
-				inner.topLeft() * style::DevicePixelRatio(),
-				inner.size() * style::DevicePixelRatio()),
+			QRect(inner.topLeft() * ratio, inner.size() * ratio),
 			st::emojiPanRadius);
 		_showAnimation->setCornerMasks(Images::CornersMask(st::emojiPanRadius));
 		_showAnimation->start();
