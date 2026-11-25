@@ -228,6 +228,26 @@ struct EditableTextEmptyOverride {
 	bool empty = true;
 };
 
+struct WidthAnalysisNode {
+	std::vector<WidthAnalysisNode> children;
+	int contentMinimumWidth = 1;
+	int contentPreferredWidth = 1;
+	int outerMinimumWidth = 1;
+	int outerPreferredWidth = 1;
+	int scrollOwnerMinimumWidth = 1;
+	int scrollOwnerOverflowWidth = 1;
+	int scrollViewportMinimumWidth = 1;
+	int outerScrollViewportMinimumWidth = 1;
+	int inlineButtonWidthCap = 0;
+	bool ownerEligible = false;
+	bool chosenScrollOwner = false;
+	bool subtreeNeedsScrollOwner = false;
+	bool subtreeHasChildMovingScrollOwner = false;
+	bool subtreeHasScrollOwner = false;
+	bool foldZeroLines = false;
+	bool foldBarrier = false;
+};
+
 enum class QuoteFoldState : uchar {
 	Counting,
 	Ended,
@@ -399,11 +419,23 @@ void ResetBlockGeometryFields(LaidOutBlock *block);
 	const style::QuoteStyle &style);
 [[nodiscard]] int ConsumeQuoteFoldLines(
 	QuoteFold *fold,
-	const Ui::Text::String &leaf,
-	int width);
+	const std::vector<Ui::Text::LineLayoutInfo> &lines);
 [[nodiscard]] bool QuoteFoldHidesBlock(
-	QuoteFold *fold,
-	const PreparedBlock &block);
+	const LayoutContext &context,
+	const PreparedBlock &block,
+	bool anchorOnly,
+	const WidthAnalysisNode &analysis);
+void SummarizeQuoteFoldOpening(
+	const PreparedBlock &prepared,
+	WidthAnalysisNode *analysis);
+[[nodiscard]] int TightenQuoteFoldBand(
+	const PreparedBlock &prepared,
+	const WidthAnalysisNode &analysis,
+	LaidOutBlock *block,
+	const style::QuoteStyle &quoteStyle,
+	int band,
+	int excess,
+	const LayoutContext &context);
 void AppendPreparedBlocksText(
 	std::span<const PreparedBlock> blocks,
 	QString *to);
@@ -442,7 +474,8 @@ void CollectQuoteFoldHiddenRanges(
 	InlineFormulaObjectCache *inlineFormulaObjects,
 	const std::shared_ptr<MediaRuntime> &mediaRuntime,
 	const style::Markdown &st,
-	LayoutContext context = {});
+	LayoutContext context = {},
+	bool *empty = nullptr);
 [[nodiscard]] int CodeBlockMinimumWidth(const style::Markdown &st);
 [[nodiscard]] int CodeTextMinResizeWidth(const style::Markdown &st);
 [[nodiscard]] int CodeBlockPreferredWidth(
