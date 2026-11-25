@@ -40,6 +40,8 @@ parts:
     source: .
     source-type: git
     parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
+    build-environment:
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     build-packages:
       - libboost-regex-dev
       - libheif-dev
@@ -133,6 +135,27 @@ parts:
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-util.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxcb-xkb.so*
       - ./usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libxkbcommon-x11.so*
+
+  implib:
+    source: https://github.com/yugr/Implib.so.git
+    source-depth: 1
+    source-commit: ecf7bb51a92a0fb16834c5b698570ab25f9f1d21
+    plugin: nil
+    override-build: |
+      LIBDIR="$CRAFT_PART_INSTALL/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR"
+      mkdir -p build "$LIBDIR/pkgconfig"
+      cd build
+      implib() {
+        ../implib-gen.py -q "$(pkg-config --variable=libdir $1)/lib$2.so"
+        gcc $CFLAGS -c -o lib$2.so.tramp.o lib$2.so.tramp.S
+        gcc $CFLAGS -c -o lib$2.so.init.o lib$2.so.init.c
+        ar rcs "$LIBDIR/lib$2.a" lib$2.so.tramp.o lib$2.so.init.o
+        sed "s,^prefix=.*,prefix=/usr,;s,^includedir=.*,includedir=$(pkg-config --variable=includedir $1)," \
+          "$(pkg-config --variable=pcfiledir $1)/$1.pc" > "$LIBDIR/pkgconfig/$1.pc"
+      }
+      implib gtk+-3.0 gtk-3
+      implib gdk-3.0 gdk-3
+    prime: [-./*]
 
   patches:
     source: https://github.com/desktop-app/patches.git
@@ -397,6 +420,8 @@ parts:
       - qtsvg
       - qtwayland
     plugin: cmake
+    build-environment:
+      - PKG_CONFIG_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
     build-packages:
       - libgl-dev
       - libssl-dev
@@ -430,6 +455,7 @@ parts:
       find $CRAFT_STAGE/patches/qtwayland_${QT} -type f -print0 | sort -z | xargs -r0 git -C qtwayland apply
     prime: [-./*]
     after:
+      - implib
       - mozjpeg
       - patches
 
