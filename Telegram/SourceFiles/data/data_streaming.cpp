@@ -231,6 +231,20 @@ void Streaming::keepAlive(not_null<PhotoData*> photo) {
 	keepAlive(_photoDocuments, photo);
 }
 
+void Streaming::forgetFailed(
+		not_null<DocumentData*> document,
+		not_null<const Document*> shared,
+		not_null<const Reader*> reader) {
+	const auto i = _fileDocuments.find(document);
+	if (i != end(_fileDocuments) && i->second.lock().get() == shared) {
+		_fileDocuments.erase(i);
+	}
+	const auto j = _fileReaders.find(document);
+	if (j != end(_fileReaders) && j->second.lock().get() == reader) {
+		_fileReaders.erase(j);
+	}
+}
+
 void Streaming::clearKeptAlive() {
 	const auto now = crl::now();
 	auto min = std::numeric_limits<crl::time>::max();

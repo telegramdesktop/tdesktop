@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
+#include "data/data_streaming.h"
 #include "main/main_session.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_loader.h"
@@ -64,6 +65,7 @@ Document::Document(
 	std::vector<QualityDescriptor> otherQualities)
 : _document(document)
 , _photo(photo)
+, _reader(reader.get())
 , _player(std::move(reader))
 , _radial(
 	[=] { waitingCallback(); },
@@ -251,6 +253,12 @@ void Document::handleError(Error &&error) {
 			_document->setNotSupportsStreaming();
 		} else if (error == Error::OpenFailed) {
 			_document->setInappPlaybackFailed();
+		} else if (error == Error::LoadFailed) {
+			// The reader keeps its error, so a retry needs a new one.
+			_document->owner().streaming().forgetFailed(
+				_document,
+				this,
+				_reader);
 		}
 	} else if (_photo) {
 		if (error == Error::NotStreamable || error == Error::OpenFailed) {

@@ -56,6 +56,11 @@ public:
 	void keepAlive(not_null<DocumentData*> document);
 	void keepAlive(not_null<PhotoData*> photo);
 
+	void forgetFailed(
+		not_null<DocumentData*> document,
+		not_null<const Document*> shared,
+		not_null<const Reader*> reader);
+
 private:
 	void clearKeptAlive();
 

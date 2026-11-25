@@ -79,6 +79,7 @@ private:
 
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
+	const not_null<Reader*> _reader;
 	Player _player;
 	Information _info;
 
