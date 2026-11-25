@@ -495,11 +495,10 @@ bool Session::releaseGenericKeyCreationOnDone(
 		DEBUG_LOG(("AuthKey Info: Persistent key changed "
 			"while binding temporary, dcWithShift %1"
 			).arg(_shiftedDcId));
-		return false;
+	} else {
+		DEBUG_LOG(("AuthKey Info: Session key bound, setting, dcWithShift %1"
+			).arg(_shiftedDcId));
 	}
-
-	DEBUG_LOG(("AuthKey Info: Session key bound, setting, dcWithShift %1"
-		).arg(_shiftedDcId));
 
 	const auto dcId = _dc->id();
 	const auto instance = _instance;
@@ -510,7 +509,7 @@ bool Session::releaseGenericKeyCreationOnDone(
 			instance->dcTemporaryKeyChanged(dcId);
 		}
 	});
-	return true;
+	return result;
 }
 
 void Session::releaseKeyCreationOnFail() {
