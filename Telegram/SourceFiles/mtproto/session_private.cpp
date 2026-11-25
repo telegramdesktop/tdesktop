@@ -2744,11 +2744,15 @@ void SessionPrivate::destroyTemporaryKey() {
 		return;
 	}
 	LOG(("MTP Info: -404 error received in %1 with temporary key, assuming it was destroyed.").arg(_shiftedDcId));
+	const auto hadKeyCreator = (_keyCreator != nullptr);
 	releaseKeyCreationOnFail();
 	if (_encryptionKey) {
 		_sessionData->destroyTemporaryKey(_encryptionKey->keyId());
 	}
 	applyAuthKey(nullptr);
+	if (hadKeyCreator) {
+		WakeKeyWaiters(_instance, _shiftedDcId);
+	}
 	restart();
 }
 
