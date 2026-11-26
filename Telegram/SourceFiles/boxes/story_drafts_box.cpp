@@ -182,7 +182,10 @@ void StoryDraftsBox(
 				.text = tr::lng_story_delete_draft_sure(),
 				.confirmed = crl::guard(
 					box,
-					[=] { drafts->remove(id); }),
+					[=](Fn<void()> close) {
+						drafts->remove(id);
+						close();
+					}),
 				.confirmText = tr::lng_story_delete_draft(),
 				.confirmStyle = &st::attentionBoxButton,
 			}));
