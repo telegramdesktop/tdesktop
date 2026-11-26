@@ -5166,7 +5166,33 @@ bool OverlayWidget::initStreaming(const StartStreaming &startStreaming) {
 
 	if (_streamed) {
 		return true;
+	} else if (!prepareStreaming()) {
+		return false;
 	}
+
+	const auto continuing = startStreaming.continueStreaming
+		&& _pip
+		&& (_pip->wrapped.shared().get()
+			== _streamed->instance.shared().get());
+	if (startStreaming.continueStreaming) {
+		_pip = nullptr;
+	}
+	if (!continuing
+		|| (!_streamed->instance.player().active()
+			&& !_streamed->instance.player().finished())) {
+		startStreamingPlayer(startStreaming);
+	} else {
+		if (_streamed->instance.player().ready()) {
+			markStreamedReady();
+		} else {
+			_streamed->ready = false;
+		}
+		updatePlaybackState();
+	}
+	return true;
+}
+
+bool OverlayWidget::prepareStreaming() {
 	initStreamingThumbnail();
 	if (!createStreamingObjects()) {
 		if (_document) {
@@ -5195,26 +5221,6 @@ bool OverlayWidget::initStreaming(const StartStreaming &startStreaming) {
 			.height = uint32(quality),
 		});
 	}, _streamed->instance.lifetime());
-
-	const auto continuing = startStreaming.continueStreaming
-		&& _pip
-		&& (_pip->wrapped.shared().get()
-			== _streamed->instance.shared().get());
-	if (startStreaming.continueStreaming) {
-		_pip = nullptr;
-	}
-	if (!continuing
-		|| (!_streamed->instance.player().active()
-			&& !_streamed->instance.player().finished())) {
-		startStreamingPlayer(startStreaming);
-	} else {
-		if (_streamed->instance.player().ready()) {
-			markStreamedReady();
-		} else {
-			_streamed->ready = false;
-		}
-		updatePlaybackState();
-	}
 	return true;
 }
 
@@ -5822,7 +5828,9 @@ void OverlayWidget::playbackControlsSeekProgress(crl::time position) {
 	Expects(_streamed != nullptr);
 
 	if (!_streamed->instance.player().paused()
-		&& !_streamed->instance.player().finished()) {
+		&& !_streamed->instance.player().finished()
+		&& (_streamed->instance.player().failed()
+			!= Streaming::Error::LoadFailed)) {
 		_streamed->pausedBySeek = true;
 		playbackPauseResume();
 	}
@@ -5831,9 +5839,14 @@ void OverlayWidget::playbackControlsSeekProgress(crl::time position) {
 void OverlayWidget::playbackControlsSeekFinished(crl::time position) {
 	Expects(_streamed != nullptr);
 
-	_streamingStartPaused = !_streamed->pausedBySeek
-		&& !_streamed->instance.player().finished();
-	restartAtSeekPosition(position);
+	if (_streamed->instance.player().failed()
+		== Streaming::Error::LoadFailed) {
+		restartFailedStreamingAt(position);
+	} else {
+		_streamingStartPaused = !_streamed->pausedBySeek
+			&& !_streamed->instance.player().finished();
+		restartAtSeekPosition(position);
+	}
 	activateControls();
 }
 
@@ -5973,14 +5986,18 @@ void OverlayWidget::applyVideoQuality(VideoQuality value) {
 	if (!canInitStreaming() || !initStreaming(startStreaming)) {
 		redisplayContent();
 	} else {
-		if (_fullScreenVideo != wasFullScreen) {
-			_fullScreenVideo = wasFullScreen;
-			if (_streamed->controls) {
-				_streamed->controls->setInFullScreen(_fullScreenVideo);
-			}
-		}
-		refreshCaption();
+		restoreReplacedStreaming(wasFullScreen);
 	}
+}
+
+void OverlayWidget::restoreReplacedStreaming(bool wasFullScreen) {
+	if (_fullScreenVideo != wasFullScreen) {
+		_fullScreenVideo = wasFullScreen;
+		if (_streamed->controls) {
+			_streamed->controls->setInFullScreen(_fullScreenVideo);
+		}
+	}
+	refreshCaption();
 }
 
 void OverlayWidget::switchToPip() {

@@ -921,7 +921,7 @@ void Reader::stopStreaming(bool stillActive) {
 
 	_stopStreamingAsync = false;
 	_waiting.store(nullptr, std::memory_order_release);
-	if (_cacheHelper && _cacheHelper->waiting != nullptr) {
+	if (_cacheHelper) {
 		QMutexLocker lock(&_cacheHelper->mutex);
 		_cacheHelper->waiting.store(nullptr, std::memory_order_release);
 	}
@@ -929,6 +929,7 @@ void Reader::stopStreaming(bool stillActive) {
 		_streamingActive = false;
 		refreshLoaderPriority();
 		_loadingOffsets.clear();
+		_loadedParts.take();
 		processDownloaderRequests();
 	}
 }

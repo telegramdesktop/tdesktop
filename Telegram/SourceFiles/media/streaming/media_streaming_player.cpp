@@ -540,7 +540,7 @@ void Player::play(const PlaybackOptions &options) {
 
 	const auto previous = getCurrentReceivedTill(computeTotalDuration());
 
-	stop(true);
+	stop(!finished());
 	_lastFailure = std::nullopt;
 
 	savePreviousReceivedTill(options, previous);

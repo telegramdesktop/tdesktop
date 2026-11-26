@@ -1743,6 +1743,7 @@ PRIVATE
     media/view/media_view_overlay_opengl.h
     media/view/media_view_overlay_raster.cpp
     media/view/media_view_overlay_raster.h
+    media/view/media_view_overlay_restart.cpp
     media/view/media_view_overlay_rhi.cpp
     media/view/media_view_overlay_rhi.h
     media/view/media_view_metal_texture.h

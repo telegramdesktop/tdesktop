@@ -215,6 +215,8 @@ private:
 	virtual void cancelOnFail() = 0;
 
 	void cancelRequest(mtpRequestId requestId);
+	void failRequest(mtpRequestId requestId);
+	void failFinishedRequest(const RequestData &requestData, bool hashes);
 	void makeRequest(const RequestData &requestData);
 	void normalPartLoaded(
 		const MTPupload_File &result,

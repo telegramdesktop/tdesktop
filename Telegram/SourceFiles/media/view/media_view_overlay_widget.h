@@ -472,6 +472,8 @@ private:
 
 	bool initStreaming(
 		const StartStreaming &startStreaming = StartStreaming());
+	bool prepareStreaming();
+	void restartFailedStreamingAt(crl::time position);
 	void startStreamingPlayer(const StartStreaming &startStreaming);
 	void initStreamingThumbnail();
 	void markStreamedReady();
@@ -623,6 +625,7 @@ private:
 	[[nodiscard]] bool canInitStreaming() const;
 	[[nodiscard]] bool saveControlLocked() const;
 	void applyVideoQuality(VideoQuality value);
+	void restoreReplacedStreaming(bool wasFullScreen);
 
 	[[nodiscard]] bool topShadowOnTheRight() const;
 	void applyHideWindowWorkaround();

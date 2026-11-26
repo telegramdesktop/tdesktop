@@ -477,11 +477,11 @@ void DownloadMtprotoTask::refreshFileReferenceFrom(
 	if (const auto v = std::get_if<StorageFileLocation>(&_location.data)) {
 		v->refreshFileReference(updates);
 		if (v->fileReference() == current) {
-			cancelOnFail();
+			failRequest(requestId);
 			return;
 		}
 	} else {
-		cancelOnFail();
+		failRequest(requestId);
 		return;
 	}
 	if (_sentRequests.contains(requestId)) {
@@ -784,7 +784,7 @@ void DownloadMtprotoTask::getCdnFileHashesDone(
 		case CheckCdnHashResult::Invalid: {
 			LOG(("API Error: Wrong cdnFileHash for offset %1."
 				).arg(uncheckedData.offset));
-			cancelOnFail();
+			failFinishedRequest(requestData, true);
 			return;
 		} break;
 
@@ -807,7 +807,7 @@ void DownloadMtprotoTask::getCdnFileHashesDone(
 			"Could not find cdnFileHash for offset %1 "
 			"after getCdnFileHashes request."
 			).arg(requestData.offset));
-		cancelOnFail();
+		failFinishedRequest(requestData, true);
 		return;
 	}
 	requestMoreCdnFileHashes();
@@ -924,6 +924,34 @@ void DownloadMtprotoTask::cancelRequest(mtpRequestId requestId) {
 	}
 }
 
+void DownloadMtprotoTask::failRequest(mtpRequestId requestId) {
+	if (!_sentRequests.contains(requestId)) {
+		cancelOnFail();
+		return;
+	}
+	const auto hashes = (_cdnHashesRequestId == requestId);
+	const auto requestData = finishSentRequest(
+		requestId,
+		FinishRequestReason::Cancel);
+	const auto owner = _owner;
+	const auto dcId = this->dcId();
+	failFinishedRequest(requestData, hashes);
+
+	// 'this' may be deleted at this point.
+	owner->checkSendNextAfterSuccess(dcId);
+}
+
+void DownloadMtprotoTask::failFinishedRequest(
+		const RequestData &requestData,
+		bool hashes) {
+	if (hashes) {
+		_cdnUncheckedParts.clear();
+	} else {
+		_cdnUncheckedParts.remove(requestData);
+	}
+	cancelOnFail();
+}
+
 void DownloadMtprotoTask::addToQueue(int priority) {
 	_owner->enqueue(this, priority);
 }
@@ -967,7 +995,7 @@ bool DownloadMtprotoTask::partFailed(
 	if (MTP::IsDefaultHandledError(error)) {
 		return false;
 	}
-	cancelOnFail();
+	failRequest(requestId);
 	return true;
 }
 
