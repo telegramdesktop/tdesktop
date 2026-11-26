@@ -895,7 +895,7 @@ QT=6.12.0
 git clone -b v$QT --depth=1 https://github.com/qt/qt5.git
 cd qt5
 git submodule update --init --recursive --depth=1 \
-	qtbase qtdeclarative qtwayland qtimageformats qtsvg qtshadertools
+	qtbase qtwayland qtimageformats qtsvg qtshadertools
 find $PWD/../patches/qtbase_$QT -type f -print0 | sort -z | xargs -r0 git -C qtbase apply
 find $PWD/../patches/qtsvg_$QT -type f -print0 | sort -z | xargs -r0 git -C qtsvg apply
 find $PWD/../patches/qtwayland_$QT -type f -print0 | sort -z | xargs -r0 git -C qtwayland apply

@@ -414,7 +414,6 @@ parts:
     source-tag: v6.12.0
     source-submodules:
       - qtbase
-      - qtdeclarative
       - qtimageformats
       - qtshadertools
       - qtsvg
