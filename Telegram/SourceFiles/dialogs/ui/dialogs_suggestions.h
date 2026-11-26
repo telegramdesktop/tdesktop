@@ -370,6 +370,8 @@ private:
 	bool _persist = false;
 	bool _tabsOnly = false;
 	QPixmap _cache;
+	QRect _cachedTopPeers;
+	QRegion _dirtyTopPeers;
 
 	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 

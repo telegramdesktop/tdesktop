@@ -1848,6 +1848,15 @@ void Suggestions::setupChats() {
 		_emptyRecent->toggle(count == 0, anim::type::instant);
 	}, _recent->wrap->lifetime());
 
+	_topPeers->userpicUpdates() | rpl::on_next([=](QRect rect) {
+		const auto scroll = _chatsScroll.get();
+		rect.moveTopLeft(_topPeers->mapTo(scroll, rect.topLeft()));
+		rect = rect.intersected(_cachedTopPeers);
+		if (!rect.isEmpty()) {
+			_dirtyTopPeers += rect;
+		}
+	}, _topPeers->lifetime());
+
 	_topPeers->emptyValue() | rpl::on_next([=](bool empty) {
 		_topPeersWrap->toggle(!empty, anim::type::instant);
 	}, _topPeers->lifetime());
@@ -3114,6 +3123,12 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 		if (now < st::columnMinimalWidthLeft) {
 			resize(st::columnMinimalWidthLeft, height());
 		}
+		const auto scroll = _chatsScroll.get();
+		const auto pos = _topPeers->mapTo(scroll, QPoint());
+		_cachedTopPeers = _topPeers->isVisibleTo(this)
+			? QRect(pos, _topPeers->size())
+				.intersected(_chatsScroll->rect())
+			: QRect();
 		_cache = Ui::GrabWidget(this);
 		if (now < st::columnMinimalWidthLeft) {
 			resize(now, height());
@@ -3138,6 +3153,8 @@ void Suggestions::finishShow() {
 
 	_shownAnimation.stop();
 	_cache = QPixmap();
+	_cachedTopPeers = QRect();
+	_dirtyTopPeers = QRegion();
 
 	_tabsScroll->show();
 	const auto key = _key.current();
@@ -3204,6 +3221,18 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	p.fillRect(e->rect(), color);
 	if (!_cache.isNull()) {
+		if (!_dirtyTopPeers.isEmpty()) {
+			const auto dirty = std::exchange(
+				_dirtyTopPeers,
+				QRegion());
+			const auto pos = dirty.boundingRect().topLeft();
+			auto painter = QPainter(&_cache);
+			Ui::RenderWidget(
+				painter,
+				_chatsScroll.get(),
+				_chatsScroll->mapTo(this, pos),
+				dirty);
+		}
 		const auto slide = st::topPeers.height + st::searchedBarHeight;
 		p.setOpacity(opacity);
 		p.drawPixmap(0, (opacity - 1.) * slide, _cache);

@@ -47,6 +47,7 @@ public:
 		rpl::producer<TopPeersList> content);
 	~TopPeersStrip();
 
+	[[nodiscard]] rpl::producer<QRect> userpicUpdates() const;
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] rpl::producer<bool> emptyValue() const;
 	[[nodiscard]] rpl::producer<uint64> clicks() const;
@@ -117,6 +118,7 @@ private:
 	base::flat_set<uint64> _removed;
 	rpl::variable<Ui::LinkButton*> _toggleExpanded = nullptr;
 
+	rpl::event_stream<QRect> _userpicUpdates;
 	rpl::event_stream<uint64> _clicks;
 	rpl::event_stream<uint64> _presses;
 	rpl::event_stream<> _pressCancelled;
