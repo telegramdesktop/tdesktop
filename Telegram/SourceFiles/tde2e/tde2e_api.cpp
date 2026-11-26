@@ -530,30 +530,9 @@ void Call::checkWaitingBlocks(int subchain, bool waited) {
 			}
 			return;
 		} else if (index == entry.height) {
-			const auto slice = Slice(waiting.begin()->second.data);
-			if (subchain) {
-				LOG_APPLY(1, slice);
-				auto result = tde2e_api::call_receive_inbound_message(
-					libId(),
-					slice);
-				if (!result.is_ok()) {
-					LOG_AND_FAIL(result.error(), CallFailure::Unknown);
-					return;
-				}
-				_emojiHash = result.value().emoji_hash.has_value()
-					? QByteArray::fromStdString(*result.value().emoji_hash)
-					: QByteArray();
-				checkForOutboundMessages();
-			} else {
-				LOG_APPLY(0, slice);
-				const auto result = tde2e_api::call_apply_block(
-					libId(),
-					slice);
-				if (!result.is_ok()) {
-					LOG_AND_FAIL(result.error(), CallFailure::Unknown);
-					return;
-				}
-				_participantsSet = ParseParticipantsSet(result.value());
+			apply(subchain, waiting.begin()->second);
+			if (failed()) {
+				return;
 			}
 			entry.height = std::max(entry.height, index + 1);
 		}
