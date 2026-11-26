@@ -1848,12 +1848,29 @@ void Suggestions::setupChats() {
 		_emptyRecent->toggle(count == 0, anim::type::instant);
 	}, _recent->wrap->lifetime());
 
+	const auto refreshRecent = [=] {
+		if (_cachedRecent.isEmpty()) {
+			return;
+		}
+		const auto list = _recent->wrap->entity();
+		const auto pos = list->mapTo(_chatsScroll.get(), QPoint());
+		const auto clip = _cachedRecent.translated(-pos);
+		const auto dirty = list->changedUserpicRows(clip);
+		_dirtyChatRows += dirty.translated(pos);
+	};
+	auto &session = _controller->session();
+	session.downloaderTaskFinished(
+	) | rpl::on_next(refreshRecent, lifetime());
+	session.changes().peerUpdates(
+		Data::PeerUpdate::Flag::Photo
+	) | rpl::on_next(refreshRecent, lifetime());
+
 	_topPeers->userpicUpdates() | rpl::on_next([=](QRect rect) {
 		const auto scroll = _chatsScroll.get();
 		rect.moveTopLeft(_topPeers->mapTo(scroll, rect.topLeft()));
 		rect = rect.intersected(_cachedTopPeers);
 		if (!rect.isEmpty()) {
-			_dirtyTopPeers += rect;
+			_dirtyChatRows += rect;
 		}
 	}, _topPeers->lifetime());
 
@@ -3124,11 +3141,14 @@ void Suggestions::startShownAnimation(bool shown, Fn<void()> finish) {
 			resize(st::columnMinimalWidthLeft, height());
 		}
 		const auto scroll = _chatsScroll.get();
-		const auto pos = _topPeers->mapTo(scroll, QPoint());
-		_cachedTopPeers = _topPeers->isVisibleTo(this)
-			? QRect(pos, _topPeers->size())
-				.intersected(_chatsScroll->rect())
-			: QRect();
+		const auto visibleRect = [&](QWidget *widget) {
+			const auto pos = widget->mapTo(scroll, QPoint());
+			return widget->isVisibleTo(this)
+				? QRect(pos, widget->size()) & scroll->rect()
+				: QRect();
+		};
+		_cachedTopPeers = visibleRect(_topPeers);
+		_cachedRecent = visibleRect(_recent->wrap->entity());
 		_cache = Ui::GrabWidget(this);
 		if (now < st::columnMinimalWidthLeft) {
 			resize(now, height());
@@ -3154,7 +3174,8 @@ void Suggestions::finishShow() {
 	_shownAnimation.stop();
 	_cache = QPixmap();
 	_cachedTopPeers = QRect();
-	_dirtyTopPeers = QRegion();
+	_cachedRecent = QRect();
+	_dirtyChatRows = QRegion();
 
 	_tabsScroll->show();
 	const auto key = _key.current();
@@ -3221,9 +3242,9 @@ void Suggestions::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	p.fillRect(e->rect(), color);
 	if (!_cache.isNull()) {
-		if (!_dirtyTopPeers.isEmpty()) {
+		if (!_dirtyChatRows.isEmpty()) {
 			const auto dirty = std::exchange(
-				_dirtyTopPeers,
+				_dirtyChatRows,
 				QRegion());
 			const auto pos = dirty.boundingRect().topLeft();
 			auto painter = QPainter(&_cache);

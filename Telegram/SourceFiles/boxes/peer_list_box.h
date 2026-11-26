@@ -745,6 +745,7 @@ public:
 	void prependRowFromSearchResult(not_null<PeerListRow*> row);
 	PeerListRow *findRow(PeerListRowId id);
 	std::optional<QPoint> lastRowMousePosition() const;
+	[[nodiscard]] QRegion changedUserpicRows(QRect clip);
 	void updateRow(not_null<PeerListRow*> row) {
 		updateRow(row, RowIndex());
 	}

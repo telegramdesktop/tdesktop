@@ -371,7 +371,8 @@ private:
 	bool _tabsOnly = false;
 	QPixmap _cache;
 	QRect _cachedTopPeers;
-	QRegion _dirtyTopPeers;
+	QRect _cachedRecent;
+	QRegion _dirtyChatRows;
 
 	std::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 

@@ -2463,6 +2463,25 @@ void PeerListContent::loadProfilePhotos() {
 	}
 }
 
+QRegion PeerListContent::changedUserpicRows(QRect clip) {
+	auto result = QRegion();
+	for (auto i = 0, count = shownRowsCount(); i != count; ++i) {
+		const auto index = RowIndex(i);
+		const auto top = getRowTop(index);
+		if (top > clip.bottom()) {
+			break;
+		} else if (top + _rowHeight <= clip.top()) {
+			continue;
+		}
+		const auto row = getRow(index);
+		if (row->userpicKeyChanged()) {
+			_rowsScrollCache.invalidate(row->id());
+			result += QRect(0, top, width(), _rowHeight) & clip;
+		}
+	}
+	return result;
+}
+
 void PeerListContent::invalidateLoadedUserpics() {
 	if (!_rowsScrollCache.scrolling() || _visibleTop >= _visibleBottom) {
 		return;
