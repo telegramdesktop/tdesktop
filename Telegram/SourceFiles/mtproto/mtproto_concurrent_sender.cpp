@@ -59,6 +59,10 @@ FailHandler ConcurrentSender::HandlerMaker::MakeFail(
 			if (IsDefaultHandledError(error) && !IsFloodError(error)) {
 				return false;
 			}
+		} else if (skipPolicy == FailSkipPolicy::HandleNonFlood) {
+			if (IsFloodError(error)) {
+				return false;
+			}
 		}
 		runner([=, requestId = response.requestId]() mutable {
 			if (const auto strong = weak.get()) {

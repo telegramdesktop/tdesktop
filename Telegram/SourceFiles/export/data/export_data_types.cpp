@@ -1316,7 +1316,8 @@ bool RefreshFileReference(FileLocation &to, const FileLocation &from) {
 		const auto &toData = to.data.c_inputPhotoFileLocation();
 		const auto &fromData = from.data.c_inputPhotoFileLocation();
 		if (toData.vid().v != fromData.vid().v
-			|| toData.vthumb_size().v != fromData.vthumb_size().v) {
+			|| toData.vthumb_size().v != fromData.vthumb_size().v
+			|| toData.vfile_reference().v == fromData.vfile_reference().v) {
 			return false;
 		}
 		to = from;
@@ -1325,7 +1326,8 @@ bool RefreshFileReference(FileLocation &to, const FileLocation &from) {
 		const auto &toData = to.data.c_inputDocumentFileLocation();
 		const auto &fromData = from.data.c_inputDocumentFileLocation();
 		if (toData.vid().v != fromData.vid().v
-			|| toData.vthumb_size().v != fromData.vthumb_size().v) {
+			|| toData.vthumb_size().v != fromData.vthumb_size().v
+			|| toData.vfile_reference().v == fromData.vfile_reference().v) {
 			return false;
 		}
 		to = from;

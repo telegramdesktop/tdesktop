@@ -44,6 +44,7 @@ class ConcurrentSender : public base::has_weak_ptr {
 	enum class FailSkipPolicy {
 		Simple,
 		HandleFlood,
+		HandleNonFlood,
 		HandleAll,
 	};
 
@@ -126,6 +127,7 @@ public:
 #endif // MTP_SENDER_USE_GENERIC_HANDLERS
 
 		[[nodiscard]] SpecificRequestBuilder &handleFloodErrors() noexcept;
+		[[nodiscard]] SpecificRequestBuilder &handleNonFloodErrors() noexcept;
 		[[nodiscard]] SpecificRequestBuilder &handleAllErrors() noexcept;
 		[[nodiscard]] SpecificRequestBuilder &afterRequest(
 			mtpRequestId requestId) noexcept;
@@ -380,6 +382,13 @@ template <typename Request>
 auto ConcurrentSender::SpecificRequestBuilder<Request>::handleFloodErrors(
 ) noexcept -> SpecificRequestBuilder & {
 	setFailSkipPolicy(FailSkipPolicy::HandleFlood);
+	return *this;
+}
+
+template <typename Request>
+auto ConcurrentSender::SpecificRequestBuilder<Request>::handleNonFloodErrors(
+) noexcept -> SpecificRequestBuilder & {
+	setFailSkipPolicy(FailSkipPolicy::HandleNonFlood);
 	return *this;
 }
 

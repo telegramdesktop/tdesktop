@@ -524,6 +524,8 @@ struct ApiWrap::FileProcess {
 	Data::FileOrigin origin;
 	int64 offset = 0;
 	int64 size = 0;
+	int refreshReferenceCount = 0;
+	int temporaryErrorCount = 0;
 
 	struct Request {
 		int64 offset = 0;
@@ -781,10 +783,20 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int64 offset) {
 		} else if (result.code() == 400
 			&& result.type().startsWith(u"FILE_REFERENCE_"_q)) {
 			filePartRefreshReference(offset);
+		} else if (result.code() == 400 && _otherDataProcess == nullptr) {
+			filePartUnavailable();
+		} else if ((result.code() < 0 || result.code() >= 500)
+			&& _otherDataProcess == nullptr) {
+			if (++_fileProcess->temporaryErrorCount <= 1) {
+				filePartRetryReference(offset, _fileProcess->location);
+			} else {
+				filePartUnavailable();
+			}
 		} else {
 			error(std::move(result));
 		}
-	}).toDC(MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
+	}).handleNonFloodErrors().toDC(
+		MTP::ShiftDcId(location.dcId, MTP::kExportMediaDcShift)));
 }
 
 ApiWrap::ApiWrap(
@@ -3547,6 +3559,9 @@ void ApiWrap::filePartDone(int64 offset, const MTPupload_File &result) {
 	Expects(_fileProcess != nullptr);
 	Expects(!_fileProcess->requests.empty());
 
+	_fileProcess->refreshReferenceCount = 0;
+	_fileProcess->temporaryErrorCount = 0;
+
 	if (result.type() == mtpc_upload_fileCdnRedirect) {
 		error("Cdn redirect is not supported.");
 		return;
@@ -3631,6 +3646,11 @@ void ApiWrap::filePartRetryReference(
 void ApiWrap::filePartRefreshReference(int64 offset) {
 	Expects(_fileProcess != nullptr);
 	Expects(_fileProcess->requestId == 0);
+
+	if (++_fileProcess->refreshReferenceCount > 1) {
+		filePartUnavailable();
+		return;
+	}
 
 	const auto origin = _fileProcess->origin;
 	if (origin.storyId) {
