@@ -762,7 +762,7 @@ void Instance::Private::reInitConnection(DcId dcId) {
 			session->prepareReInitConnection();
 		}
 	}
-	for (const auto session : selected) {
+	for (const auto &session : selected) {
 		session->setConnectionNotInited();
 		session->restart();
 	}
