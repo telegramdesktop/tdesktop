@@ -569,7 +569,10 @@ bool MusicMixer::init(
 		return false;
 	}
 	const auto stream = _input->streams[_streamIndex];
-	_decoder = MakeCodecPointer({ .stream = stream });
+	_decoder = MakeCodecPointer({
+		.parameters = stream->codecpar,
+		.timeBase = stream->time_base,
+	});
 	if (!_decoder) {
 		return false;
 	}
@@ -955,7 +958,10 @@ void AudioTranscoder::addMusic(const MusicTrack &track) {
 bool AudioTranscoder::init(
 		not_null<AVFormatContext*> output,
 		not_null<AVStream*> inStream) {
-	_decoder = MakeCodecPointer({ .stream = inStream });
+	_decoder = MakeCodecPointer({
+		.parameters = inStream->codecpar,
+		.timeBase = inStream->time_base,
+	});
 	if (!_decoder) {
 		return false;
 	}
@@ -2243,7 +2249,8 @@ struct TranscodeAttempt {
 	auto decoder = CodecPointer();
 	if (!copyVideo) {
 		decoder = MakeCodecPointer({
-			.stream = inVideoStream,
+			.parameters = inVideoStream->codecpar,
+			.timeBase = inVideoStream->time_base,
 			.videoMaxArea = kMaxTranscodeArea,
 		});
 		if (!decoder) {

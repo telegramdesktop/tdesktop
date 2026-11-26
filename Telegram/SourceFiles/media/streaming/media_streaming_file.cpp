@@ -164,24 +164,26 @@ Stream File::Context::initStream(
 	}
 
 	const auto info = format->streams[index];
+	result.parameters = FFmpeg::CopyCodecParameters(info->codecpar);
+	if (!result.parameters) {
+		return result;
+	}
 	if (type == AVMEDIA_TYPE_VIDEO) {
 		if (info->disposition & AV_DISPOSITION_ATTACHED_PIC) {
 			// ignore cover streams
 			return Stream();
 		}
-		auto descriptor = FFmpeg::CodecDescriptor{
-			.stream = info,
+		result.codec = FFmpeg::MakeCodecPointer({
+			.parameters = result.parameters.get(),
+			.timeBase = info->time_base,
 			.hwAllowed = options.hwAllow,
 			.videoMaxArea = kMaxFrameArea,
-		};
-		result.codec = FFmpeg::MakeCodecPointer(descriptor);
+		});
 		if (!result.codec) {
 			return result;
-		} else if (result.codec->codec
-			!= FFmpeg::FindDecoder(result.codec.get())) {
-			descriptor.hwAllowed = false;
-			result.softwareFallback = descriptor;
 		}
+		result.softwareFallback = (result.codec->codec
+			!= FFmpeg::FindDecoder(result.codec.get()));
 		result.rotation = FFmpeg::ReadRotationFromMetadata(info);
 		result.aspect = FFmpeg::ValidateAspectRatio(
 			info->sample_aspect_ratio);
@@ -194,7 +196,10 @@ Stream File::Context::initStream(
 		if (!result.frequency) {
 			return result;
 		}
-		result.codec = FFmpeg::MakeCodecPointer({ .stream = info });
+		result.codec = FFmpeg::MakeCodecPointer({
+			.parameters = result.parameters.get(),
+			.timeBase = info->time_base,
+		});
 		if (!result.codec) {
 			return result;
 		}

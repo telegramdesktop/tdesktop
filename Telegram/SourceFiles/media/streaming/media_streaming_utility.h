@@ -29,6 +29,7 @@ struct Stream {
 	int index = -1;
 	crl::time duration = kTimeUnknown;
 	AVRational timeBase = FFmpeg::kUniversalTimeBase;
+	FFmpeg::CodecParametersPointer parameters;
 	FFmpeg::CodecPointer codec;
 	FFmpeg::FramePointer decodedFrame;
 	FFmpeg::FramePointer transferredFrame;
@@ -43,7 +44,7 @@ struct Stream {
 	AVRational aspect = FFmpeg::kNormalAspect;
 	float64 fps = 0.;
 	FFmpeg::SwscalePointer swscale;
-	std::optional<FFmpeg::CodecDescriptor> softwareFallback;
+	bool softwareFallback = false;
 };
 
 [[nodiscard]] crl::time FramePosition(const Stream &stream);

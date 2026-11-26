@@ -513,13 +513,12 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 		LogError(u"avcodec_alloc_context3"_q);
 		return {};
 	}
-	const auto stream = descriptor.stream;
-	error = avcodec_parameters_to_context(context, stream->codecpar);
+	error = avcodec_parameters_to_context(context, descriptor.parameters);
 	if (error) {
 		LogError(u"avcodec_parameters_to_context"_q, error);
 		return {};
 	}
-	context->pkt_timebase = stream->time_base;
+	context->pkt_timebase = descriptor.timeBase;
 	if ((descriptor.videoMaxArea > 0)
 		&& (context->codec_type == AVMEDIA_TYPE_VIDEO)) {
 		context->max_pixels = MaxPixelsForAreaLimit(
@@ -550,6 +549,29 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 
 	if ((error = avcodec_open2(context, codec, nullptr))) {
 		LogError(u"avcodec_open2"_q, error);
+		return {};
+	}
+	return result;
+}
+
+void CodecParametersDeleter::operator()(AVCodecParameters *value) {
+	if (value) {
+		avcodec_parameters_free(&value);
+	}
+}
+
+CodecParametersPointer CopyCodecParameters(
+		not_null<const AVCodecParameters*> parameters) {
+	CodecParametersPointer result(avcodec_parameters_alloc());
+	if (!result) {
+		LogError(u"avcodec_parameters_alloc"_q);
+		return {};
+	}
+	const AvErrorWrap error(avcodec_parameters_copy(
+		result.get(),
+		parameters));
+	if (error) {
+		LogError(u"avcodec_parameters_copy"_q, error);
 		return {};
 	}
 	return result;

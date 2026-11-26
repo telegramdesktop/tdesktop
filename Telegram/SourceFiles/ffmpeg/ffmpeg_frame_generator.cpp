@@ -213,7 +213,8 @@ bool FrameGenerator::Impl::initFormat() {
 	_rotation = ReadRotationFromMetadata(info);
 	//_aspect = ValidateAspectRatio(info->sample_aspect_ratio);
 	_codec = MakeCodecPointer({
-		.stream = info,
+		.parameters = info->codecpar,
+		.timeBase = info->time_base,
 		.hwAllowed = false,
 		.videoMaxArea = kMaxArea,
 	});

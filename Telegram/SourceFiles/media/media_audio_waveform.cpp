@@ -85,7 +85,11 @@ bool Decoder::open(const QString &path, const QByteArray &bytes) {
 	if (_streamIndex < 0) {
 		return false;
 	}
-	_decoder = MakeCodecPointer({ .stream = _input->streams[_streamIndex] });
+	const auto stream = _input->streams[_streamIndex];
+	_decoder = MakeCodecPointer({
+		.parameters = stream->codecpar,
+		.timeBase = stream->time_base,
+	});
 	if (!_decoder) {
 		return false;
 	}

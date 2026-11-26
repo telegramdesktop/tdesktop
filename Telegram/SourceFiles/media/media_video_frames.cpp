@@ -83,7 +83,8 @@ struct Source {
 	source.rotation = ReadRotationFromMetadata(source.videoStream);
 	if (withDecoder) {
 		source.codec = MakeCodecPointer({
-			.stream = source.videoStream,
+			.parameters = source.videoStream->codecpar,
+			.timeBase = source.videoStream->time_base,
 			.videoMaxArea = kMaxDecodeArea,
 		});
 		if (!source.codec) {
