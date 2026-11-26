@@ -23,6 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #import <AppKit/NSMenu.h>
 #import <AppKit/NSStatusItem.h>
 
+#if __MAC_OS_X_VERSION_MAX_ALLOWED < 270000
+@interface NSMenuItem (TrayImageVisibility)
+- (void)setPreferredImageVisibility:(NSInteger)visibility;
+@end
+constexpr auto NSMenuItemImageVisibilityVisible = 1;
+#endif
+
 @interface CommonDelegate : NSObject<NSMenuDelegate> {
 }
 
@@ -84,6 +91,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 
 namespace {
+
+void ShowMenuImages(NSMenu *nativeMenu) {
+	if (@available(macOS 27.0, *)) {
+		for (NSMenuItem *item in nativeMenu.itemArray) {
+			if (item.image) {
+				[item setPreferredImageVisibility:
+					NSMenuItemImageVisibilityVisible];
+			}
+		}
+	}
+}
 
 [[nodiscard]] bool IsAnyActiveForTrayMenu() {
 	for (const NSWindow *w in [[NSApplication sharedApplication] windows]) {
@@ -337,7 +355,9 @@ void NativeIcon::prepareMenuForClick(bool rightButton) {
 			? _menuProvider(rightButton)
 			: nullptr;
 		if (menu) {
-			_status.menu = menu->toNSMenu();
+			const auto nativeMenu = menu->toNSMenu();
+			ShowMenuImages(nativeMenu);
+			_status.menu = nativeMenu;
 			_status.menu.delegate = _delegate;
 		} else {
 			_status.menu = nil;
