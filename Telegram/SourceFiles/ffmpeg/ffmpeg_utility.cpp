@@ -538,6 +538,9 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 		LogError(u"avcodec_find_decoder"_q, context->codec_id);
 		return {};
 	}
+	const auto software = descriptor.hwAllowed
+		? FindDecoder(context)
+		: codec;
 
 	if (descriptor.hwAllowed) {
 		context->get_format = GetHwFormat;
@@ -549,6 +552,10 @@ CodecPointer MakeCodecPointer(CodecDescriptor descriptor) {
 
 	if ((error = avcodec_open2(context, codec, nullptr))) {
 		LogError(u"avcodec_open2"_q, error);
+		if (software && software != codec) {
+			descriptor.hwAllowed = false;
+			return MakeCodecPointer(descriptor);
+		}
 		return {};
 	}
 	return result;
