@@ -2342,6 +2342,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 				});
 			}
 		}, _webview->lifetime);
+		raw->widget()->show();
 	}
 
 	raw->setMessageHandler([=](Webview::Message message) {

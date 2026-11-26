@@ -314,7 +314,6 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 		showWebviewError();
 		return;
 	}
-	widget->show();
 
 	QObject::connect(widget, &QObject::destroyed, [=] {
 		if (!_webview) {
@@ -332,6 +331,7 @@ void Controller::createWebview(const Webview::StorageId &storageId) {
 			widget->setGeometry(QRect(QPoint(), size));
 		}
 	}, _container->lifetime());
+	widget->show();
 
 	raw->setNavigationPolicyHandler([=](const QString &uri, bool newWindow) {
 		Q_UNUSED(newWindow);

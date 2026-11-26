@@ -605,6 +605,7 @@ bool Panel::createWebview(const Webview::ThemeParams &params) {
 			view->setGeometry(geometry.marginsRemoved({ 0, 0, 0, footer }));
 		}
 	}, _webview->lifetime);
+	raw->widget()->show();
 
 	raw->setMessageHandler([=](const QJsonDocument &message) {
 		if (_webviewMode != WebviewMode::PaymentMethod) {

@@ -474,12 +474,12 @@ void LocationPicker::setupWebview() {
 			}
 		}
 	}, window->lifetime());
-	raw->widget()->show();
 
 	_container->sizeValue(
 	) | rpl::on_next([=](QSize size) {
 		raw->widget()->setGeometry(QRect(QPoint(), size));
 	}, _container->lifetime());
+	raw->widget()->show();
 
 	raw->setNavigationPolicyHandler([=](const QString &uri, bool newWindow) {
 		return true;
