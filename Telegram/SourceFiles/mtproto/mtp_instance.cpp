@@ -195,6 +195,10 @@ private:
 	void sendAuthExport(DcId dcId);
 	void failOverAuthImports(ShiftedDcId shiftedDcId);
 	void restartAuthImport(DcId dcId, mtpRequestId requestId);
+	void authImportFailed(DcId dcId, const Error &error);
+	void failAuthWaiters(
+		const std::vector<mtpRequestId> &waiters,
+		const Error &error);
 	bool onErrorDefault(const Error &error, const Response &response);
 
 	void unpaused();
@@ -220,6 +224,7 @@ private:
 		mtpRequestId requestId) const;
 	std::optional<ShiftedDcId> changeRequestByDc(
 		mtpRequestId requestId, DcId newdc);
+	[[nodiscard]] ResponseHandler takeResponseHandler(mtpRequestId requestId);
 
 	void checkDelayedRequests();
 
@@ -1179,20 +1184,24 @@ bool Instance::Private::hasCallback(mtpRequestId requestId) const {
 	return (it != _parserMap.cend());
 }
 
+ResponseHandler Instance::Private::takeResponseHandler(
+		mtpRequestId requestId) {
+	QMutexLocker locker(&_parserMapLock);
+	const auto i = _parserMap.find(requestId);
+	if (i == end(_parserMap)) {
+		return ResponseHandler();
+	}
+	auto result = std::move(i->second);
+	_parserMap.erase(i);
+	return result;
+}
+
 void Instance::Private::processCallback(const Response &response) {
 	const auto requestId = response.requestId;
-	ResponseHandler handler;
-	{
-		QMutexLocker locker(&_parserMapLock);
-		auto it = _parserMap.find(requestId);
-		if (it != _parserMap.cend()) {
-			handler = std::move(it->second);
-			_parserMap.erase(it);
-
-			DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response...").arg(requestId));
-		}
-	}
+	auto handler = takeResponseHandler(requestId);
 	if (handler.done || handler.fail) {
+		DEBUG_LOG(("RPC Info: found parser for request %1, trying to parse response...").arg(requestId));
+
 		const auto handleError = [&](const Error &error) {
 			DEBUG_LOG(("RPC Info: "
 				"error received, code %1, type %2, description: %3").arg(
@@ -1347,7 +1356,7 @@ bool Instance::Private::importFail(
 
 	auto it = _authImportRequests.find(response.requestId);
 	if (it != _authImportRequests.cend()) {
-		_authWaiters[it->second].clear();
+		authImportFailed(it->second, error);
 		_authImportRequests.erase(it);
 	}
 	//
@@ -1424,7 +1433,8 @@ bool Instance::Private::exportFail(
 
 	auto it = _authExportRequests.find(response.requestId);
 	if (it != _authExportRequests.cend()) {
-		_authWaiters[it->second].clear();
+		authImportFailed(it->second, error);
+		_authExportRequests.erase(it);
 	}
 	//
 	// Don't log out on export/import problems, perhaps this is a server side error.
@@ -1495,6 +1505,38 @@ void Instance::Private::restartAuthImport(
 	const auto i = _authWaiters.find(dcId);
 	if (i != end(_authWaiters) && !i->second.empty()) {
 		sendAuthExport(dcId);
+	}
+}
+
+void Instance::Private::authImportFailed(DcId dcId, const Error &error) {
+	auto waiters = base::take(_authWaiters[dcId]);
+	if (waiters.empty()) {
+		return;
+	}
+	LOG(("MTP Error: auth transfer to dc %1 failed with %2, "
+		"%3 waiting requests fail."
+		).arg(dcId
+		).arg(error.type()
+		).arg(waiters.size()));
+	InvokeQueued(_instance, [=, waiters = std::move(waiters)] {
+		failAuthWaiters(waiters, error);
+	});
+}
+
+void Instance::Private::failAuthWaiters(
+		const std::vector<mtpRequestId> &waiters,
+		const Error &error) {
+	const auto guard = QPointer<Instance>(_instance);
+	for (const auto requestId : waiters) {
+		const auto handler = takeResponseHandler(requestId);
+		_badGuestDcRequests.erase(requestId);
+		if (handler.fail) {
+			handler.fail(error, Response{ .requestId = requestId });
+			if (!guard) {
+				return;
+			}
+		}
+		unregisterRequest(requestId);
 	}
 }
 
