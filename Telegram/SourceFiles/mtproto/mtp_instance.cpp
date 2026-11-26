@@ -112,7 +112,7 @@ public:
 	[[nodiscard]] int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
 	void killSession(ShiftedDcId shiftedDcId);
 	void killSessionsByShift(int shift);
-	void stopSession(ShiftedDcId shiftedDcId);
+	[[nodiscard]] bool killSessionIfIdle(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
 	void logout(Fn<void()> done);
 
@@ -733,12 +733,21 @@ void Instance::Private::killSessionsByShift(int shift) {
 	}
 }
 
-void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
-	if (const auto session = findSession(shiftedDcId)) {
-		if (session != _mainSession) { // don't stop main session
-			session->stop();
+bool Instance::Private::killSessionIfIdle(ShiftedDcId shiftedDcId) {
+	if (!findSession(shiftedDcId)) {
+		return true;
+	}
+	{
+		QMutexLocker locker(&_requestByDcLock);
+		for (const auto &[requestId, registered] : _requestsByDc) {
+			if (std::abs(registered) == shiftedDcId
+				&& !_authImportRequests.contains(requestId)) {
+				return false;
+			}
 		}
 	}
+	killSession(shiftedDcId);
+	return true;
 }
 
 void Instance::Private::reInitConnection(DcId dcId) {
@@ -2147,8 +2156,8 @@ void Instance::killSessionsByShift(int shift) {
 	_private->killSessionsByShift(shift);
 }
 
-void Instance::stopSession(ShiftedDcId shiftedDcId) {
-	_private->stopSession(shiftedDcId);
+bool Instance::killSessionIfIdle(ShiftedDcId shiftedDcId) {
+	return _private->killSessionIfIdle(shiftedDcId);
 }
 
 void Instance::reInitConnection(DcId dcId) {

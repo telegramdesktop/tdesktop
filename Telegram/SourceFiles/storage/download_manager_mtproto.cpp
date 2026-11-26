@@ -362,7 +362,9 @@ void DownloadManagerMtproto::removeSession(MTP::DcId dcId) {
 
 void DownloadManagerMtproto::killSessionsSchedule(MTP::DcId dcId) {
 	if (!_killSessionsWhen.contains(dcId)) {
-		_killSessionsWhen.emplace(dcId, crl::now() + kKillSessionTimeout);
+		_killSessionsWhen.emplace(dcId, KillSessionsWhen{
+			.when = crl::now() + kKillSessionTimeout,
+		});
 	}
 	if (!_killSessionsTimer.isActive()) {
 		_killSessionsTimer.callOnce(kKillSessionTimeout + 5);
@@ -380,35 +382,49 @@ void DownloadManagerMtproto::killSessions() {
 	const auto now = crl::now();
 	auto left = kKillSessionTimeout;
 	for (auto i = begin(_killSessionsWhen); i != end(_killSessionsWhen); ) {
-		if (i->second <= now) {
-			killSessions(i->first);
-			i = _killSessionsWhen.erase(i);
-		} else {
-			if (i->second - now < left) {
-				left = i->second - now;
+		auto &entry = i->second;
+		if (entry.when <= now) {
+			if (killSessions(i->first, entry.retry)) {
+				i = _killSessionsWhen.erase(i);
+				continue;
 			}
-			++i;
+			entry.when = now + kKillSessionTimeout;
+			entry.retry = true;
 		}
+		if (entry.when - now < left) {
+			left = entry.when - now;
+		}
+		++i;
 	}
 	if (!_killSessionsWhen.empty()) {
 		_killSessionsTimer.callOnce(left);
 	}
 }
 
-void DownloadManagerMtproto::killSessions(MTP::DcId dcId) {
+bool DownloadManagerMtproto::killSessions(MTP::DcId dcId, bool retry) {
 	const auto i = _balanceData.find(dcId);
-	if (i != end(_balanceData)) {
-		auto &dc = i->second;
-		Assert(dc.totalRequested == 0);
+	if (i == end(_balanceData)) {
+		return true;
+	}
+	auto &dc = i->second;
+	Assert(dc.totalRequested == 0);
+	if (!retry) {
 		auto sessions = base::take(dc.sessions);
 		dc = DcBalanceData();
-		for (auto j = 0; j != int(sessions.size()); ++j) {
-			Assert(sessions[j].requested == 0);
-			sessions[j] = DcSessionBalanceData();
-			api().instance().stopSession(MTP::downloadDcId(dcId, j));
+		for (auto &session : sessions) {
+			Assert(session.requested == 0);
+			session = DcSessionBalanceData();
 		}
 		dc.sessions = base::take(sessions);
 	}
+	auto &instance = api().instance();
+	auto allRetired = true;
+	for (auto j = 0; j != kMaxSessionsCount; ++j) {
+		if (!instance.killSessionIfIdle(MTP::downloadDcId(dcId, j))) {
+			allRetired = false;
+		}
+	}
+	return allRetired;
 }
 
 DownloadMtprotoTask::DownloadMtprotoTask(

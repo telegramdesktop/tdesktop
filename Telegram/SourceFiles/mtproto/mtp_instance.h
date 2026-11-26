@@ -101,7 +101,7 @@ public:
 	// Main thread.
 	void killSession(ShiftedDcId shiftedDcId);
 	void killSessionsByShift(int shift);
-	void stopSession(ShiftedDcId shiftedDcId);
+	[[nodiscard]] bool killSessionIfIdle(ShiftedDcId shiftedDcId);
 	void reInitConnection(DcId dcId);
 	void logout(Fn<void()> done);
 

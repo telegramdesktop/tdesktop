@@ -99,6 +99,10 @@ private:
 		int timeouts = 0; // Since all sessions had successes >= required.
 		int totalRequested = 0;
 	};
+	struct KillSessionsWhen {
+		crl::time when = 0;
+		bool retry = false;
+	};
 
 	void checkSendNext();
 	void checkSendNext(MTP::DcId dcId, Queue &queue);
@@ -107,7 +111,7 @@ private:
 	void killSessionsSchedule(MTP::DcId dcId);
 	void killSessionsCancel(MTP::DcId dcId);
 	void killSessions();
-	void killSessions(MTP::DcId dcId);
+	[[nodiscard]] bool killSessions(MTP::DcId dcId, bool retry);
 
 	void resetGeneration();
 	void sessionTimedOut(MTP::DcId dcId, int index);
@@ -121,7 +125,7 @@ private:
 	base::flat_map<MTP::DcId, DcBalanceData> _balanceData;
 	base::Timer _resetGenerationTimer;
 
-	base::flat_map<MTP::DcId, crl::time> _killSessionsWhen;
+	base::flat_map<MTP::DcId, KillSessionsWhen> _killSessionsWhen;
 	base::Timer _killSessionsTimer;
 
 	base::flat_map<MTP::DcId, Queue> _queues;
