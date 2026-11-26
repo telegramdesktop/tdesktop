@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/platform/base_platform_info.h"
 #include "core/cached_webview_availability.h"
+#include "core/core_webview_proxy.h"
 #include "core/current_geo_location.h"
 #include "core/file_utilities.h"
 #include "data/data_location.h"
@@ -412,6 +413,7 @@ void LocationPicker::setupWebview() {
 	delete base::take(_mapPlaceholder);
 
 	const auto window = _window.get();
+	const auto proxySettings = Core::CurrentWebviewProxy();
 	_webview = std::make_unique<Webview::Window>(
 		_container,
 		Webview::WindowConfig{
@@ -419,6 +421,7 @@ void LocationPicker::setupWebview() {
 			.storageId = _webviewStorageId,
 			.dataRequestRedirectHost = u"api.mapbox.com"_q,
 			.safe = true,
+			.proxySettings = proxySettings,
 		});
 	const auto raw = _webview.get();
 	if (!raw->widget()) {
@@ -426,6 +429,12 @@ void LocationPicker::setupWebview() {
 		showWebviewError();
 		return;
 	}
+
+	Core::WebviewProxyChangesFrom(
+		proxySettings
+	) | rpl::on_next([=] {
+		close();
+	}, _webview->lifetime());
 
 	window->lifetime().add([=] {
 		_webview = nullptr;
