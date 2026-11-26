@@ -47,7 +47,7 @@ jobs:
 
   snap:
     name: Ubuntu
-    runs-on: ${{ (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/nightly') && 'depot-ubuntu-latest-16' || 'ubuntu-latest' }}
+    runs-on: ${{ (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/nightly' || github.ref == 'refs/heads/ready') && 'depot-ubuntu-latest-16' || 'ubuntu-latest' }}
 
     env:
       UPLOAD_ARTIFACT: "true"
