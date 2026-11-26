@@ -741,7 +741,9 @@ QString MentionClickHandler::copyToClipboardContextItemText() const {
 
 void MentionClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
-	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+	if (Core::App().passcodeLocked()) {
+		return;
+	} else if (button == Qt::LeftButton || button == Qt::MiddleButton) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		const auto controller = my.sessionWindow.get();
 		const auto use = controller

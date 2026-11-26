@@ -306,7 +306,9 @@ void ActivateButton(
 		}, [&](const MTPDurlAuthResultDefault &data) {
 			HiddenUrlClickHandler::Open(url, context);
 		}, [&](const MTPDurlAuthResultRequest &data) {
-			if (const auto item = session->data().message(itemId)) {
+			if (Core::App().passcodeLocked()) {
+				return;
+			} else if (const auto item = session->data().message(itemId)) {
 				RequestButton(show, data, item, lookup);
 			}
 		});
@@ -341,7 +343,9 @@ void ActivateUrl(
 		}, [&](const MTPDurlAuthResultDefault &data) {
 			HiddenUrlClickHandler::Open(url, context);
 		}, [&](const MTPDurlAuthResultRequest &data) {
-			RequestUrl(show, data, session, url, context);
+			if (!Core::App().passcodeLocked()) {
+				RequestUrl(show, data, session, url, context);
+			}
 		});
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == u"URL_EXPIRED"_q) {
