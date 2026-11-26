@@ -59,7 +59,22 @@ Read these before planning:
 
 - source checkout `AGENTS.md`;
 - `ai_main/AGENTS.md`;
+- [keep it simple](../../shared/keep-it-simple.md), the owner's rule for
+  every requirement this planning writes;
 - the transaction's `inbox.md` and every file it references.
+
+**DON'T OVERENGINEER THE TASK.**
+- A task asks for what the request needs and no more: no extra features,
+  options or criteria, and no mechanism the plan should choose.
+- It describes the normal-path behavior and names the never-happen outcomes
+  the change can reach.
+- Rare cases (interruptions, concurrent requests, failures, unusual input)
+  only need to recover by the next use or restart. A task says no more than
+  that about them.
+- When a guide or another client's code handles something elaborately, route
+  its behavior, not its machinery.
+- Point the task at the closest shipped feature of this client as the level
+  to match.
 
 For each request, start with explicit task/project lineage and relevant task
 metadata from `<inbox_worktree>`. Use project names/titles and targeted search

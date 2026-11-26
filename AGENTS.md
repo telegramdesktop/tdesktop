@@ -413,6 +413,23 @@ Both app-level (`Core::Settings`) and session-level (`Main::SessionSettings`) us
 
 # Development Guidelines
 
+## Keep it simple
+
+**DON'T OVERENGINEER.**
+- Do the simplest thing that fully does what was asked, as good and fast as
+  possible on the normal path.
+- Add no abstraction, option, generality, defensive check or guarantee that
+  nothing requires, and reuse what the codebase already has.
+- Keep rare cases correct in principle with the simplest handling that heals
+  by the next use, retry or restart.
+- Go further only to prevent a crash, a logout, irreversible data loss, a
+  security failure, wrong data presented as right, or a state that never
+  recovers.
+- Match the closest shipped feature.
+
+The owner's rule, with examples and how each role applies it, is in
+`.agents/shared/keep-it-simple.md`.
+
 ## Area maps
 
 `Telegram/SourceFiles/AGENTS.md` is the source atlas: every area of the

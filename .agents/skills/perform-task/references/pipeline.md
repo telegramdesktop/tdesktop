@@ -313,7 +313,12 @@ Run sequentially:
    duplication, edge cases, repository conventions, and phase sizing; weigh
    the approach against the closest repository precedent and its containment
    against the shared modules it touches, and reject over-engineering rather
-   than refining it. Before approving the plan, apply the intrinsic-scope gate:
+   than refining it. [Keep it simple](../../../shared/keep-it-simple.md) is the
+   owner's rule for this judgement. The simplest design that fully does the
+   task wins. Structure, generality, options, checks or rare-case guarantees
+   beyond what the task and its shipped analogue need are over-engineering,
+   unless a never-happen outcome requires them.
+   Before approving the plan, apply the intrinsic-scope gate:
    if one fresh reviewer and one coherent evidence campaign cannot judge the
    retained result, because it spans materially different subsystems and
    failure analysis, fixtures or platforms, write `work/split-proposal.md`
@@ -471,6 +476,25 @@ The reason is the same as for evidence. The codebase is far larger than
 any task. A review that follows attention rather than the diff has no
 natural stopping point. Every repair past the boundary is new code that
 needs its own review, so the loop regrows from its own fixes.
+
+Severity follows [keep it simple](../../../shared/keep-it-simple.md), the
+owner's rule. An INTRODUCED finding in a rare order is blocking only when it
+reaches a never-happen outcome:
+- a crash or UB;
+- a logout;
+- irreversible loss of user data;
+- a security failure;
+- data that claims to be what it is not;
+- a state that never recovers by the next use, retry or restart;
+- a slower normal path.
+Rare orders include an interrupted operation, concurrent or reentrant calls,
+a crash window, a timing no user produces on purpose, and input no producer
+sends. Anything else is listed under `## Dropped` with how it heals. Needless
+machinery the task added is a valid finding, and its fix is deletion.
+
+New code has no base to compare against, so every one of its rare orders is
+INTRODUCED. Without this bar, each guarantee a plan promises becomes a review
+surface, and each fix that adds machinery creates the next round's findings.
 
 ### Harness tasks
 
@@ -651,7 +675,11 @@ one disposition:
   five. The ordinary loop resumes with no final-round limit.
 - `REPLAN_CURRENT` — the loop cycles, or each fix breaks the same mechanism,
   so the mechanism is wrong. Implementation returns to an explicitly named
-  validated boundary and a replacement plan for that mechanism. The replanned
+  validated boundary and a replacement plan for that mechanism. The
+  replacement is simpler than what it replaces
+  ([keep it simple](../../../shared/keep-it-simple.md)). It rules
+  self-healing rare cases non-blocking and takes the shipped analogue's
+  shape. It never adds another layer to cover rare cases. The replanned
   code gets a focused general review plus the lenses it touches, approvals
   outside it carry forward, and the verdict count restarts.
 - `RESCOPE_REQUIRED` — the task's requested behavior contains independently

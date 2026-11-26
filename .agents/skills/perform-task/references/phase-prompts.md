@@ -172,6 +172,12 @@ Steps:
    `<PROJECT_FILE>` is not `none`, read its title and first paragraph to know
    the area; expand only concretely relevant dependencies and references under
    that policy. Current task requirements and source govern the plan.
+   Read `.agents/shared/keep-it-simple.md` too. It is the owner's rule for
+   the plan: DON'T OVERENGINEER. Plan the simplest design that fully does the
+   task, as good and fast as possible on the normal path. Add no structure,
+   generality, options, checks or guarantees the task does not need. Rare
+   cases heal by the next use, retry or restart, unless a never-happen outcome
+   it lists is at stake.
 3. Search the codebase for files, classes, functions, and patterns related to the task.
 4. Read the relevant source and adjacent behavior needed to resolve the task's
    requirements and risks. Use targeted lookups for remaining ambiguities.
@@ -229,7 +235,12 @@ plan introduces: the role boundary or constraint that requires it — and for a
 new entry point, switch, or hook, which existing ones were checked and why
 none fits. State where the change is contained: the fewest insertion points
 into existing shared modules, with platform-specific work behind the
-`Platform::` seam rather than inline conditional blocks.>
+`Platform::` seam rather than inline conditional blocks.
+Then state the guarantee level (keep-it-simple.md): the never-happen
+outcomes this change can reach and how each is prevented, and in one line
+each, how the edge cases it meets heal themselves. Promise nothing more than
+the closest shipped analogue gives unless a never-happen outcome requires
+it.>
 
 ## Files to Modify
 <list of files that will be created or modified>
@@ -308,8 +319,14 @@ Read these files:
 
 Assess the plan:
 
+First read `.agents/shared/keep-it-simple.md`, the owner's rule: DON'T
+OVERENGINEER. Every item below is judged under it.
+
 1. Correctness: Are the file paths and line references accurate? Does the plan reference real functions and types?
-2. Completeness: Are there missing steps? Edge cases not handled?
+2. Completeness: Are there missing steps? Is every never-happen outcome the
+   change can reach prevented, and does every edge case it meets recover by
+   the next use, retry or restart? Handling beyond that is not completeness;
+   it comes out of the plan.
 3. Code quality: Will the plan minimize code duplication? Does it follow existing codebase patterns from AGENTS.md?
 4. Approach fit — judge this adversarially, as the reviewer who must later
    defend the diff. Anchor on precedent: find the closest existing feature of
@@ -334,6 +351,14 @@ Assess the plan:
      implementation and no second user, a state machine over a linear flow, a
      wrapper around a single call, and scaffolding for a testing style this
      repository does not practice serve no purpose and come out of the plan.
+   - Guarantee budget: compare what the plan promises in rare cases
+     (interruptions, concurrency, failures, unusual input) with what its
+     shipped analogue gives. Remove every promise that no never-happen
+     outcome of keep-it-simple.md requires. That file lists the simpler
+     shapes to use instead. Each extra promise is a review surface that keeps
+     the loop open. A plan whose promises are the bulk of its machinery is
+     `Approach: rejected`, with the simpler self-healing shape as its
+     direction.
    - New files are not the problem: a focused file bounding a coherent role
      beats both growing a mega-module and scattering through one; judge
      whether the boundary does work, not whether it is new.
@@ -618,6 +643,24 @@ calling a finding INTRODUCED. Give every BLOCKING finding a line
 acceptance line>`, with the base evidence. Report PRE-EXISTING defects under
 `## Pre-existing`, each with base evidence and severity. They are
 follow-up candidates: they never request a fix and never decide a verdict.
+KEEP IT SIMPLE (owner rule, `.agents/shared/keep-it-simple.md`). An
+INTRODUCED finding in a rare order is BLOCKING only when it reaches a
+never-happen outcome:
+- a crash, UB, deadlock or frozen UI;
+- a logout;
+- irreversible loss or corruption of user data;
+- a security or privacy failure;
+- data that claims to be what it is not;
+- a state that never recovers by the next use, retry or restart;
+- a slower normal path.
+Rare orders include an interrupted operation, concurrent or reentrant
+calls, a crash window, a timing no user produces on purpose, and input no
+producer sends in practice. Any other such finding goes under `## Dropped`,
+with the way it heals. A broken normal path stays BLOCKING. A fix repairs with
+the smallest change and prefers removing machinery to adding it. Never
+demand stronger guarantees or more structure than the closest shipped
+feature has. Needless machinery the task added is a valid finding, and its
+fix is deletion.
 ~~~
 
 ### Harness tasks
@@ -952,6 +995,8 @@ Write <WORK_DIR>/review<R>-focused.md and <WORK_DIR>/review<R>.md with:
 ## Verdict: APPROVED | NEEDS_CHANGES | MISSING_SPECIALIST | CONVERGENCE_REQUIRED
 ## Changes Required
 <blocking findings only, each with its Attribution>
+## Dropped
+<self-healing rare-order findings under keep it simple, each with how it heals; omit when none>
 ## Pre-existing
 <new pre-existing defects, with base evidence; omit when none>
 
@@ -1003,6 +1048,13 @@ exactly one verdict:
   why the task remains cohesive, and name the mechanism, the exact validated
   source boundary to preserve or restore, and the replacement approach. Do not
   use this to disguise multiple independent product outcomes as phases.
+  The replacement must be SIMPLER than the mechanism it replaces, per
+  `.agents/shared/keep-it-simple.md`. When the open set is rare-case
+  defects, the cure is fewer guarantees, not another layer:
+  - rule the cases that heal by themselves non-blocking under `## Rulings`;
+  - give the mechanism the closest shipped feature's shape, or one of the
+    simpler shapes that file lists.
+  A replacement larger than the code it replaces needs a never-happen reason.
 - RESCOPE_REQUIRED: why one review/evidence campaign is incoherent and a
   split-proposal.md containing independently buildable/testable replacement
   tasks, acceptance oracles, dependencies, and salvageable work. Split only
@@ -1099,7 +1151,10 @@ Read context.md, plan.md, review<R>.md, AGENTS.md, REVIEW.md, the `## Rulings`
 of every review-convergence<C>.md, and every source file named by a blocking
 finding. Implement only "Changes Required", following those rulings.
 Do not implement Dropped, Pre-existing or non-blocking notes. Make the
-narrowest change that removes the attributed failure. Change shared
+narrowest change that removes the attributed failure. DON'T OVERENGINEER
+(`.agents/shared/keep-it-simple.md`). Prefer removing a guarantee, branch or
+mechanism to adding one. Prefer letting a rare case fail cleanly and heal on
+the next try to preserving every outcome. Change shared
 machinery only where that failure lives, never to repair its other callers. Stay inside owned-paths.txt and
 do not edit AI artifacts.
 
