@@ -1115,6 +1115,7 @@ private:
 	void clearNetworkState();
 	void pollTick();
 	void updatePollingState();
+	void updateStream();
 	void applyStreamRefresh(StreamRefresh wanted);
 	void requestEngineRefresh();
 	void applyEngineUpdate(

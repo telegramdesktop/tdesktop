@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/openssl_help.h"
 #include "base/random.h"
 #include "base/unixtime.h"
+#include "core/application.h"
 #include "core/version.h"
 #include "data/components/recent_money_recipients.h"
 #include "data/data_peer_id.h"
@@ -2217,6 +2218,11 @@ Session::Session(not_null<Main::Session*> session)
 , _servedClaims(std::make_unique<ServedClaims>()) {
 	vault().protectionChanges() | rpl::on_next([=] {
 		updateDeviceCustodyState(true);
+	}, _lifetime);
+	Core::App().proxyChanges(
+	) | rpl::on_next([=](const Core::Application::ProxyChange &) {
+		_stream->stop();
+		updateStream();
 	}, _lifetime);
 	rpl::merge(
 		_transferWalletIdentityChanges.events(),
@@ -8037,7 +8043,13 @@ void Session::updatePollingState() {
 		_pollTimer.callEach(kPollInterval);
 		pollTick();
 	}
-	if (wanted && (_presence.current() == Presence::Ready)) {
+	updateStream();
+}
+
+void Session::updateStream() {
+	if (_pollTimer.isActive()
+		&& (_presence.current() == Presence::Ready)
+		&& StreamMayConnect()) {
 		_stream->start(_address);
 	} else {
 		_stream->stop();

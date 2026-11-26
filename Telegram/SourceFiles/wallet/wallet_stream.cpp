@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "wallet/wallet_stream.h"
 
 #include "base/unixtime.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "core/websocket_client.h"
+#include "mtproto/mtproto_proxy_data.h"
 #include "wallet/wallet_address.h"
 #include "wallet/wallet_api.h"
 
@@ -35,6 +38,17 @@ constexpr auto kRetryDelays = std::array{
 constexpr auto kAbsoluteExpiresThreshold = TimeId(1'000'000'000);
 
 } // namespace
+
+bool StreamMayConnect() {
+	const auto &proxy = Core::App().settings().proxy();
+	if (!proxy.isEnabled()) {
+		return true;
+	}
+	// Any other proxy carries MTProto only, the stream would go around it.
+	const auto type = proxy.selected().type;
+	return (type == MTP::ProxyData::Type::Socks5)
+		|| (type == MTP::ProxyData::Type::Http);
+}
 
 Stream::Stream(not_null<Api*> api, Fn<void(StreamRefresh)> refresh)
 : _api(api)
@@ -110,7 +124,7 @@ void Stream::acquire() {
 
 void Stream::applyUrl(const QString &url, TimeId expires) {
 	const auto endpoint = Gram::ParseStreamEndpoint(url);
-	if (!endpoint) {
+	if (!endpoint || !StreamMayConnect()) {
 		failed();
 		return;
 	}
@@ -162,6 +176,10 @@ void Stream::openSocket(const Gram::StreamEndpoint &endpoint) {
 }
 
 void Stream::handleUpgraded() {
+	if (!StreamMayConnect()) {
+		failed();
+		return;
+	}
 	const auto now = crl::now();
 	_state = State::Live;
 	_liveSince = now;

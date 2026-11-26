@@ -24,6 +24,8 @@ struct StreamRefresh {
 	bool collectibles = false;
 };
 
+[[nodiscard]] bool StreamMayConnect();
+
 class Stream final {
 public:
 	Stream(not_null<Api*> api, Fn<void(StreamRefresh)> refresh);
