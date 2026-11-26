@@ -706,7 +706,7 @@ jobs:
           mv $UPDATE artifact/update/
           mv $PORTABLE artifact/portable/
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         name: Upload the update.
         with:
           name: canary-win64
@@ -716,7 +716,7 @@ jobs:
       # The portable is its own artifact so its link can be handed to a
       # user in an issue; on the private lane it is transport to the
       # publish job only.
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         name: Upload the portable.
         with:
           name: canary-win64-portable
@@ -930,7 +930,7 @@ jobs:
           cp ../../../MACOS_TOOLCHAIN.txt macos-toolchain.txt
           tar -cf transport/mac-${{ matrix.arch }}.tar Telegram.app Packer macos-toolchain.txt
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         name: Upload the half.
         with:
           name: canary-mac-build-${{ matrix.arch }}
@@ -1169,14 +1169,14 @@ jobs:
           mv td-update-mac-*-$BASE$CANARY_SUFFIX* artifact/update/
           mv $PORTABLE artifact/portable/
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         name: Upload the updates.
         with:
           name: canary-mac
           path: ${{ env.REPO_NAME }}/out/Release/artifact/update/
           retention-days: 7
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         name: Upload the portable.
         with:
           name: canary-mac-portable
@@ -1428,14 +1428,14 @@ jobs:
           mv $UPDATE artifact/update/
           mv $PORTABLE artifact/portable/
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         name: Upload the update.
         with:
           name: canary-linux
           path: out/Release/artifact/update/
           retention-days: 7
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         name: Upload the portable.
         with:
           name: canary-linux-portable
