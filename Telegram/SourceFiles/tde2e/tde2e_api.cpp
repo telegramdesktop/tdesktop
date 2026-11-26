@@ -496,6 +496,9 @@ void Call::apply(
 		for (const auto &block : blocks) {
 			if (!_id || (entry.height == index)) {
 				apply(subchain, block);
+				if (failed()) {
+					return;
+				}
 			}
 			entry.height = std::max(entry.height, ++index);
 		}
