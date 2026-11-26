@@ -108,7 +108,7 @@ private:
 	void checkSendNext(MTP::DcId dcId, Queue &queue);
 	bool trySendNextPart(MTP::DcId dcId, Queue &queue);
 
-	void killSessionsSchedule(MTP::DcId dcId);
+	void killSessionsSchedule(MTP::DcId dcId, bool retry = false);
 	void killSessionsCancel(MTP::DcId dcId);
 	void killSessions();
 	[[nodiscard]] bool killSessions(MTP::DcId dcId, bool retry);

@@ -355,15 +355,20 @@ void DownloadManagerMtproto::removeSession(MTP::DcId dcId) {
 	Assert(session.requested == kMaxWaitedInSession * kMaxSessionsCount);
 
 	dc.sessions.pop_back();
-	api().instance().killSession(MTP::downloadDcId(dcId, index));
+	// A part migrated here from another datacenter keeps the session alive.
+	if (!api().instance().killSessionIfIdle(MTP::downloadDcId(dcId, index))
+		&& !dc.totalRequested) {
+		killSessionsSchedule(dcId, true);
+	}
 
 	dc.lastSessionRemove = crl::now();
 }
 
-void DownloadManagerMtproto::killSessionsSchedule(MTP::DcId dcId) {
+void DownloadManagerMtproto::killSessionsSchedule(MTP::DcId dcId, bool retry) {
 	if (!_killSessionsWhen.contains(dcId)) {
 		_killSessionsWhen.emplace(dcId, KillSessionsWhen{
 			.when = crl::now() + kKillSessionTimeout,
+			.retry = retry,
 		});
 	}
 	if (!_killSessionsTimer.isActive()) {
