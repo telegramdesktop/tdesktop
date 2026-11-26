@@ -621,7 +621,7 @@ bool MarkdownPreviewRoot::showEmbed(const MediaActivation &activation) {
 		|| !activation.placeholderId) {
 		return false;
 	}
-	if (Platform::IsLinux()) {
+	if (Platform::IsWayland()) {
 		closeEmbed();
 		return _embedOverlay
 			? _embedOverlay->showExternalEmbed(activation.embed)
