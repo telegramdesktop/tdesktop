@@ -307,7 +307,6 @@ private:
 	void startWaitingTrack();
 	void sendSignalingData(const QByteArray &data);
 
-	void generateModExpFirst(bytes::const_span randomSeed);
 	void handleControllerStateChange(tgcalls::State state);
 	void handleControllerBarCountChange(int count);
 	void createAndStartController(const MTPDphoneCall &call);
@@ -320,7 +319,7 @@ private:
 	void actuallyAnswer();
 	void acceptConferenceInvite();
 	void confirmAcceptedCall(const MTPDphoneCallAccepted &call);
-	void startConfirmedCall(const MTPDphoneCall &call);
+	void startConfirmedCall(MTPPhoneCall call);
 	void setState(State state);
 	void setSignalBarCount(int count);
 	void destroyController();
