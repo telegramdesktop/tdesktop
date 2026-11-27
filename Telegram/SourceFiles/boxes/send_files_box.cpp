@@ -943,6 +943,14 @@ void SendFilesBox::prepare() {
 		}
 	}, lifetime());
 
+	// Stash the pending media before the passcode lock destroys the layer.
+	Core::App().passcodeLockChanges(
+	) | rpl::filter([=](bool locked) {
+		return locked && !_confirmed && !_stashed && !_textTaken;
+	}) | rpl::on_next([=] {
+		stash();
+	}, lifetime());
+
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
 		return _stashCallback
