@@ -175,6 +175,7 @@ private:
 	void paintStickyGuide(QPainter &p, Qt::Orientation orientation) const;
 	void capturePlacements();
 	void refreshVideoClipSelection();
+	[[nodiscard]] VideoClip *activeSoundClip() const;
 	void updateVideoClipsSound();
 	void checkDurationsLink();
 	void commitPlacements();

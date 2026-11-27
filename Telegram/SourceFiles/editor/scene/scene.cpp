@@ -380,8 +380,10 @@ Scene::Scene(const QRectF &rect)
 		&QGraphicsScene::selectionChanged,
 		[=] {
 			const auto selected = selectedItems();
-			if (!selected.empty()) {
-				setAudioSelected(false);
+			const auto deselectAudio = !selected.empty() && _audioSelected;
+			if (deselectAudio) {
+				_audioSelected = false;
+				_audioSelectedChanges.fire_copy(false);
 			}
 			auto *textItem = (ItemText*)(nullptr);
 			auto *shapeItem = (ItemShape*)(nullptr);
@@ -409,6 +411,9 @@ Scene::Scene(const QRectF &rect)
 				}
 			}
 			refreshVideoClipSelection();
+			if (deselectAudio) {
+				updateVideoClipsSound();
+			}
 		});
 }
 
@@ -452,6 +457,7 @@ void Scene::addItem(ItemPtr item) {
 	}
 	if (raw->videoClip()) {
 		checkDurationsLink();
+		updateVideoClipsSound();
 	}
 	_addsItem.fire({});
 }
@@ -470,6 +476,7 @@ void Scene::removeItem(const ItemPtr &item) {
 	item->setStatus(NumberedItem::Status::Removed);
 	if (item->videoClip()) {
 		checkDurationsLink();
+		updateVideoClipsSound();
 	}
 	_removesItem.fire({});
 }
@@ -478,6 +485,8 @@ void Scene::videoClipChanged(not_null<NumberedItem*> item) {
 	checkDurationsLink();
 	if (item->isSelected()) {
 		refreshVideoClipSelection();
+	} else {
+		updateVideoClipsSound();
 	}
 }
 
@@ -984,11 +993,37 @@ bool Scene::hasAnimatedResult() const {
 	return (_audio != nullptr) || hasAnimatedItems();
 }
 
+VideoClip *Scene::activeSoundClip() const {
+	if (_audioSelected) {
+		return nullptr;
+	}
+	auto background = (VideoClip*)nullptr;
+	for (const auto &item : _items) {
+		if (!item->isNormalStatus()) {
+			continue;
+		}
+		const auto clip = item->videoClip();
+		if (!clip || !clip->hasAudio()) {
+			continue;
+		}
+		if (clip == _selectedVideoClip) {
+			return clip;
+		}
+		if (!background
+			&& (item->type() >= ItemBase::Type)
+			&& static_cast<const ItemBase*>(item.get())->isBackground()) {
+			background = clip;
+		}
+	}
+	return background;
+}
+
 void Scene::updateVideoClipsSound() {
+	const auto active = activeSoundClip();
 	const auto apply = [&](bool enabled) {
 		for (const auto &item : _items) {
 			const auto clip = item->videoClip();
-			if (clip && ((clip == _selectedVideoClip) == enabled)) {
+			if (clip && ((clip == active) == enabled)) {
 				clip->setSoundEnabled(enabled);
 			}
 		}
@@ -1050,14 +1085,18 @@ void Scene::setAudioSelected(bool selected) {
 	} else if (_audioSelected == selected) {
 		return;
 	}
+	_audioSelected = selected;
 	if (selected) {
 		setPendingShape(std::nullopt);
 		_textEdit->finishEditing(true);
 		clearSelection();
 		clearFocus();
+		updateVideoClipsSound();
+		_audioSelectedChanges.fire_copy(true);
+	} else {
+		_audioSelectedChanges.fire_copy(false);
+		updateVideoClipsSound();
 	}
-	_audioSelected = selected;
-	_audioSelectedChanges.fire_copy(selected);
 }
 
 bool Scene::audioSelected() const {
@@ -1198,6 +1237,7 @@ void Scene::performUndo() {
 		(*it)->setStatus(NumberedItem::Status::Undid);
 		if ((*it)->videoClip()) {
 			checkDurationsLink();
+			updateVideoClipsSound();
 		}
 	}
 }
@@ -1213,6 +1253,7 @@ void Scene::performRedo() {
 		(*it)->setStatus(NumberedItem::Status::Normal);
 		if ((*it)->videoClip()) {
 			checkDurationsLink();
+			updateVideoClipsSound();
 		}
 	}
 }
@@ -1385,6 +1426,7 @@ void Scene::restore(SaveState state) {
 	checkDurationsLink();
 	clearSelection();
 	cancelDrawing();
+	updateVideoClipsSound();
 }
 
 void Scene::createTextAtCenter(int rotation, bool flipped) {
