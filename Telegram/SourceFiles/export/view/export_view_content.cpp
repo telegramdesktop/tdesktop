@@ -126,6 +126,8 @@ Content ContentFromState(
 				? (QString::number(state.itemIndex)
 					+ " / "
 					+ QString::number(state.itemCount))
+				: (state.itemIndex > 0)
+				? tr::lng_forum_messages(tr::now, lt_count, state.itemIndex)
 				: QString()),
 			(state.itemCount > 0
 				? (state.itemIndex / float64(state.itemCount))
