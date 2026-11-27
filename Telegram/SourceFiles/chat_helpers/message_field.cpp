@@ -285,9 +285,15 @@ void EditLinkBox(
 		}
 	};
 
+	// Tab switches between the link and its text. A request for the
+	// default order is left alone: the buttons of the box are Tab stops
+	// then.
 	using TabbedRequest = Ui::InputField::TabbedRequest;
 	url->tabbed(
 	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			return;
+		}
 		clearFullSelection(url);
 		text->setFocus();
 		request->handled = true;
@@ -295,6 +301,9 @@ void EditLinkBox(
 
 	text->tabbed(
 	) | rpl::on_next([=](not_null<TabbedRequest*> request) {
+		if (request->defaultOrder) {
+			return;
+		}
 		if (!url->empty()) {
 			url->selectAll();
 		}

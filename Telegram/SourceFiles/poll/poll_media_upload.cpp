@@ -175,6 +175,7 @@ PollMediaButton::PollMediaButton(
 	};
 	resize(_st.width, _st.height);
 	setPointerCursor(true);
+	setAccessibleName(tr::lng_attach(tr::now));
 	updateMediaSubscription();
 }
 
