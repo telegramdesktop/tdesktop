@@ -296,6 +296,12 @@ rpl::producer<uint64> Stickers::emojiSetInstalled() const {
 }
 
 void Stickers::incrementSticker(not_null<DocumentData*> document) {
+	if (session().local().stickerCacheLoading()) {
+		session().local().afterStickerCacheLoaded(crl::guard(&session(), [=] {
+			incrementSticker(document);
+		}));
+		return;
+	}
 	if (!document->sticker() || !document->sticker()->set) {
 		return;
 	}
@@ -507,6 +513,12 @@ void Stickers::applyArchivedResult(
 }
 
 void Stickers::installLocally(uint64 setId) {
+	if (session().local().stickerCacheLoading()) {
+		session().local().afterStickerCacheLoaded(crl::guard(&session(), [=] {
+			installLocally(setId);
+		}));
+		return;
+	}
 	auto &sets = setsRef();
 	auto it = sets.find(setId);
 	if (it == sets.end()) {
@@ -572,6 +584,12 @@ void Stickers::installLocally(uint64 setId) {
 }
 
 void Stickers::undoInstallLocally(uint64 setId) {
+	if (session().local().stickerCacheLoading()) {
+		session().local().afterStickerCacheLoaded(crl::guard(&session(), [=] {
+			undoInstallLocally(setId);
+		}));
+		return;
+	}
 	const auto &sets = this->sets();
 	const auto it = sets.find(setId);
 	if (it == sets.end()) {
@@ -672,6 +690,12 @@ void Stickers::setIsFaved(
 		std::shared_ptr<ChatHelpers::Show> show,
 		not_null<DocumentData*> document,
 		std::optional<std::vector<not_null<EmojiPtr>>> emojiList) {
+	if (session().local().stickerCacheLoading()) {
+		session().local().afterStickerCacheLoaded(crl::guard(&session(), [=] {
+			setIsFaved(show, document, emojiList);
+		}));
+		return;
+	}
 	auto &sets = setsRef();
 	auto it = sets.find(FavedSetId);
 	if (it == sets.end()) {
@@ -748,12 +772,24 @@ void Stickers::requestSetToPushFaved(
 }
 
 void Stickers::removeFromRecentSet(not_null<DocumentData*> document) {
+	if (session().local().stickerCacheLoading()) {
+		session().local().afterStickerCacheLoaded(crl::guard(&session(), [=] {
+			removeFromRecentSet(document);
+		}));
+		return;
+	}
 	RemoveFromSet(setsRef(), document, CloudRecentSetId);
 	session().local().writeRecentStickers();
 	notifyRecentUpdated(StickersType::Stickers);
 }
 
 void Stickers::setIsNotFaved(not_null<DocumentData*> document) {
+	if (session().local().stickerCacheLoading()) {
+		session().local().afterStickerCacheLoaded(crl::guard(&session(), [=] {
+			setIsNotFaved(document);
+		}));
+		return;
+	}
 	RemoveFromSet(setsRef(), document, FavedSetId);
 	session().local().writeFavedStickers();
 	notifyUpdated(StickersType::Stickers);
@@ -1765,6 +1801,14 @@ void Stickers::feedSetCovers(
 }
 
 void Stickers::newSetReceived(const MTPDmessages_stickerSet &set) {
+	if (session().local().stickerCacheLoading()) {
+		const auto saved = MTP_messages_stickerSet(
+			set.vset(), set.vpacks(), set.vkeywords(), set.vdocuments());
+		session().local().afterStickerCacheLoaded(crl::guard(&session(), [=] {
+			newSetReceived(saved.c_messages_stickerSet());
+		}));
+		return;
+	}
 	const auto &s = set.vset().c_stickerSet();
 	if (!s.vinstalled_date()) {
 		LOG(("API Error: "
@@ -1801,7 +1845,9 @@ QString Stickers::getSetTitle(const MTPDstickerSet &s) {
 }
 
 RecentStickerPack &Stickers::getRecentPack() const {
-	if (cRecentStickers().isEmpty() && !cRecentStickersPreload().isEmpty()) {
+	if (!session().local().stickerCacheLoading()
+		&& cRecentStickers().isEmpty()
+		&& !cRecentStickersPreload().isEmpty()) {
 		const auto p = cRecentStickersPreload();
 		cSetRecentStickersPreload(RecentStickerPreload());
 

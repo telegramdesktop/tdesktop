@@ -24,24 +24,34 @@ public:
 		QString shortName;
 	};
 
+	struct Fields {
+		DocumentId id = 0;
+		uint64 access = 0;
+		QByteArray fileReference;
+		TimeId date = 0;
+		QVector<MTPDocumentAttribute> attributes;
+		QString mime;
+		InlineImageLocation inlineThumbnail;
+		ImageWithLocation thumbnail;
+		ImageWithLocation videoThumbnail;
+		bool premium = false;
+		int dc = 0;
+		int64 size = 0;
+
+		[[nodiscard]] DocumentData *apply(
+			not_null<Main::Session*> session) const;
+	};
+
 	static void writeToStream(QDataStream &stream, DocumentData *document);
-	static DocumentData *readStickerFromStream(
-		not_null<Main::Session*> session,
+	[[nodiscard]] static std::optional<Fields> readFields(
 		int streamAppVersion,
 		QDataStream &stream,
-		const StickerSetInfo &info);
+		const StickerSetInfo *info = nullptr);
 	static DocumentData *readFromStream(
 		not_null<Main::Session*> session,
 		int streamAppVersion,
 		QDataStream &stream);
 	static int sizeInStream(DocumentData *document);
-
-private:
-	static DocumentData *readFromStreamHelper(
-		not_null<Main::Session*> session,
-		int streamAppVersion,
-		QDataStream &stream,
-		const StickerSetInfo *info);
 
 };
 

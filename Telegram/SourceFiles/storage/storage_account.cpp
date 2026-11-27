@@ -817,6 +817,9 @@ void Account::writeMap() {
 }
 
 void Account::reset() {
+	_stickerCacheLoading = true;
+	_afterStickerCacheLoad.clear();
+	_pendingStickerReads.clear();
 	_writeSearchSuggestionsTimer.cancel();
 
 	auto names = collectGoodNames();
@@ -1998,6 +2001,8 @@ void Account::writeStickerSets(
 		const Data::StickersSetsOrder &order) {
 	using SetFlag = Data::StickersSetFlag;
 
+	_pendingStickerReads.remove(&stickersKey);
+
 	const auto &sets = _owner->session().data().stickers().sets();
 	if (sets.empty()) {
 		if (stickersKey) {
@@ -2094,275 +2099,294 @@ void Account::writeStickerSets(
 	file.writeEncrypted(data, _localKey);
 }
 
-void Account::readStickerSets(
-		FileKey &stickersKey,
+namespace {
+
+struct CachedStickerSet {
+	quint64 id = 0;
+	quint64 accessHash = 0;
+	quint64 hash = 0;
+	quint64 thumbnailDocumentId = 0;
+	QString title;
+	QString shortName;
+	qint32 count = 0;
+	qint32 installDate = 0;
+	qint32 flags = 0;
+	qint32 thumbnailType = qint32(StickerType::Webp);
+	ImageLocation thumbnail;
+	std::vector<Serialize::Document::Fields> documents;
+	std::vector<TimeId> dates;
+	std::vector<std::pair<QString, std::vector<DocumentId>>> packs;
+};
+
+struct StickerCache {
+	qint32 version = 0;
+	std::vector<CachedStickerSet> sets;
+	Data::StickersSetsOrder order;
+};
+
+[[nodiscard]] std::optional<StickerCache> ParseStickerCache(
+		FileReadDescriptor &file,
+		bool hasOrder) {
+	auto result = StickerCache();
+	auto &stream = file.stream;
+	auto tag = quint32();
+	auto count = qint32();
+	stream >> tag >> result.version >> count;
+	if (!CheckStreamStatus(stream)
+		|| tag != kStickersVersionTag
+		|| result.version < 2
+		|| count < 0
+		|| count > kMaxSavedStickerSetsCount) {
+		return std::nullopt;
+	}
+
+	result.sets.reserve(count);
+	for (auto i = 0; i != count; ++i) {
+		auto &set = result.sets.emplace_back();
+		stream
+			>> set.id
+			>> set.accessHash
+			>> set.hash
+			>> set.title
+			>> set.shortName
+			>> set.count
+			>> set.flags
+			>> set.installDate;
+		if (result.version > 2) {
+			stream >> set.thumbnailDocumentId;
+			if (result.version > 3) {
+				stream >> set.thumbnailType;
+			}
+		}
+		const auto thumbnail = Serialize::readImageLocation(
+			file.version,
+			stream);
+		if (!thumbnail || (thumbnail->valid() && thumbnail->isLegacy())
+			|| !CheckStreamStatus(stream)
+			|| set.count == std::numeric_limits<qint32>::min()) {
+			return std::nullopt;
+		}
+		set.thumbnail = *thumbnail;
+		if (set.count < 0) {
+			continue;
+		}
+
+		const auto info = Serialize::Document::StickerSetInfo(
+			set.id, set.accessHash, set.shortName);
+		for (auto j = 0; j != set.count; ++j) {
+			auto fields = Serialize::Document::readFields(
+				file.version,
+				stream,
+				&info);
+			if (!fields) {
+				return std::nullopt;
+			}
+			set.documents.push_back(std::move(*fields));
+		}
+
+		auto datesCount = qint32();
+		stream >> datesCount;
+		if (datesCount < 0 || (datesCount && datesCount != set.count)) {
+			return std::nullopt;
+		}
+		for (auto j = 0; j != datesCount; ++j) {
+			auto date = qint32();
+			stream >> date;
+			if (!CheckStreamStatus(stream)) {
+				return std::nullopt;
+			}
+			set.dates.push_back(date);
+		}
+
+		auto packCount = qint32();
+		stream >> packCount;
+		if (packCount < 0 || !CheckStreamStatus(stream)) {
+			return std::nullopt;
+		}
+		for (auto j = 0; j != packCount; ++j) {
+			auto &[emoji, ids] = set.packs.emplace_back();
+			auto idsCount = qint32();
+			stream >> emoji >> idsCount;
+			if (idsCount < 0 || !CheckStreamStatus(stream)) {
+				return std::nullopt;
+			}
+			for (auto k = 0; k != idsCount; ++k) {
+				auto id = quint64();
+				stream >> id;
+				if (!CheckStreamStatus(stream)) {
+					return std::nullopt;
+				}
+				ids.push_back(id);
+			}
+		}
+	}
+
+	if (hasOrder) {
+		auto count = quint32();
+		stream >> count;
+		if (!CheckStreamStatus(stream) || count > kMaxSavedStickerSetsCount) {
+			return std::nullopt;
+		}
+		result.order.reserve(count);
+		for (auto i = quint32(); i != count; ++i) {
+			auto id = quint64();
+			stream >> id;
+			result.order.push_back(id);
+		}
+	}
+	return CheckStreamStatus(stream)
+		? std::optional<StickerCache>(std::move(result))
+		: std::nullopt;
+}
+
+[[nodiscard]] StickerType CachedThumbnailType(
+		const CachedStickerSet &cached,
+		const Data::StickersSet &set,
+		int version) {
+	constexpr auto kLegacyFlagWebm = (1 << 8);
+	if (version < 4) {
+		if (cached.flags & kLegacyFlagWebm) {
+			return StickerType::Webm;
+		}
+		if (!set.stickers.empty()) {
+			return set.stickers.front()->sticker()->type;
+		}
+	}
+	switch (cached.thumbnailType) {
+	case qint32(StickerType::Tgs): return StickerType::Tgs;
+	case qint32(StickerType::Webm): return StickerType::Webm;
+	default: return StickerType::Webp;
+	}
+}
+
+void ApplyStickerCache(
+		not_null<Main::Session*> session,
+		StickerCache &&cache,
 		Data::StickersSetsOrder *outOrder,
 		Data::StickersSetFlags readingFlags) {
 	using SetFlag = Data::StickersSetFlag;
 
-	if (!stickersKey) {
-		return;
-	}
-
-	FileReadDescriptor stickers;
-	if (!ReadEncryptedFile(stickers, stickersKey, _basePath, _localKey)) {
-		ClearKey(stickersKey, _basePath);
-		stickersKey = 0;
-		writeMapDelayed();
-		return;
-	}
-
-	const auto failed = [&] {
-		ClearKey(stickersKey, _basePath);
-		stickersKey = 0;
-	};
-
-	auto &sets = _owner->session().data().stickers().setsRef();
-	if (outOrder) outOrder->clear();
-
-	quint32 versionTag = 0;
-	qint32 version = 0;
-	stickers.stream >> versionTag >> version;
-	if (versionTag != kStickersVersionTag || version < 2) {
-		// Old data, without sticker set thumbnails.
-		return failed();
-	}
-	qint32 count = 0;
-	stickers.stream >> count;
-	if (!CheckStreamStatus(stickers.stream)
-		|| (count < 0)
-		|| (count > kMaxSavedStickerSetsCount)) {
-		return failed();
-	}
-	for (auto i = 0; i != count; ++i) {
-		quint64 setId = 0, setAccessHash = 0, setHash = 0;
-		quint64 setThumbnailDocumentId = 0;
-		QString setTitle, setShortName;
-		qint32 scnt = 0;
-		qint32 setInstallDate = 0;
-		Data::StickersSetFlags setFlags = 0;
-		qint32 setFlagsValue = 0;
-		qint32 setThumbnailType = qint32(StickerType::Webp);
-		ImageLocation setThumbnail;
-
-		stickers.stream
-			>> setId
-			>> setAccessHash
-			>> setHash
-			>> setTitle
-			>> setShortName
-			>> scnt
-			>> setFlagsValue
-			>> setInstallDate;
-		if (version > 2) {
-			stickers.stream >> setThumbnailDocumentId;
-			if (version > 3) {
-				stickers.stream >> setThumbnailType;
-			}
+	auto &data = session->data();
+	auto &sets = data.stickers().setsRef();
+	for (auto &cached : cache.sets) {
+		auto flags = Data::StickersSetFlags::from_raw(cached.flags);
+		const auto id = cached.id;
+		if (id == Data::Stickers::DefaultSetId) {
+			cached.title = tr::lng_stickers_default_set(tr::now);
+			flags |= SetFlag::Official | SetFlag::Special;
+		} else if (id == Data::Stickers::CustomSetId) {
+			cached.title = u"Custom stickers"_q;
+			flags |= SetFlag::Special;
+		} else if (id == Data::Stickers::CloudRecentSetId
+				|| id == Data::Stickers::CloudRecentAttachedSetId) {
+			cached.title = tr::lng_recent_stickers(tr::now);
+			flags |= SetFlag::Special;
+		} else if (id == Data::Stickers::FavedSetId) {
+			cached.title = Lang::Hard::FavedSetTitle();
+			flags |= SetFlag::Special;
 		}
 
-		constexpr auto kLegacyFlagWebm = (1 << 8);
-		if ((version < 4) && (setFlagsValue & kLegacyFlagWebm)) {
-			setThumbnailType = qint32(StickerType::Webm);
-		}
-		const auto thumbnail = Serialize::readImageLocation(
-			stickers.version,
-			stickers.stream);
-		if (!thumbnail || !CheckStreamStatus(stickers.stream)) {
-			return failed();
-		} else if (thumbnail->valid() && thumbnail->isLegacy()) {
-			// No thumb_version information in legacy location.
-			return failed();
-		} else {
-			setThumbnail = *thumbnail;
-		}
-
-		setFlags = Data::StickersSetFlags::from_raw(setFlagsValue);
-		if (setId == Data::Stickers::DefaultSetId) {
-			setTitle = tr::lng_stickers_default_set(tr::now);
-			setFlags |= SetFlag::Official | SetFlag::Special;
-		} else if (setId == Data::Stickers::CustomSetId) {
-			setTitle = u"Custom stickers"_q;
-			setFlags |= SetFlag::Special;
-		} else if ((setId == Data::Stickers::CloudRecentSetId)
-				|| (setId == Data::Stickers::CloudRecentAttachedSetId)) {
-			setTitle = tr::lng_recent_stickers(tr::now);
-			setFlags |= SetFlag::Special;
-		} else if (setId == Data::Stickers::FavedSetId) {
-			setTitle = Lang::Hard::FavedSetTitle();
-			setFlags |= SetFlag::Special;
-		} else if (!setId) {
-			continue;
-		}
-
-		auto it = sets.find(setId);
-		auto settingSet = (it == sets.cend());
-		if (settingSet) {
-			// We will set this flags from order lists when reading those stickers.
-			setFlags &= ~(SetFlag::Installed | SetFlag::Featured);
-			it = sets.emplace(setId, std::make_unique<Data::StickersSet>(
-				&_owner->session().data(),
-				setId,
-				setAccessHash,
-				setHash,
-				setTitle,
-				setShortName,
+		auto it = sets.find(id);
+		const auto added = (it == sets.end());
+		if (added) {
+			flags &= ~(SetFlag::Installed | SetFlag::Featured);
+			it = sets.emplace(id, std::make_unique<Data::StickersSet>(
+				&data,
+				id,
+				cached.accessHash,
+				cached.hash,
+				cached.title,
+				cached.shortName,
 				0,
-				setFlags,
-				setInstallDate)).first;
-			it->second->thumbnailDocumentId = setThumbnailDocumentId;
+				flags,
+				cached.installDate)).first;
+			it->second->thumbnailDocumentId = cached.thumbnailDocumentId;
 		}
 		const auto set = it->second.get();
-		const auto inputSet = set->identifier();
-		const auto fillStickers = set->stickers.isEmpty();
-
-		if (scnt < 0) { // disabled not loaded set
-			if (!set->count || fillStickers) {
-				set->count = -scnt;
-			}
+		if (set->hash != cached.hash || !set->stickers.isEmpty()) {
+			continue;
+		}
+		if (cached.count < 0) {
+			set->count = -cached.count;
 			continue;
 		}
 
-		if (fillStickers) {
-			set->stickers.reserve(scnt);
-			set->count = 0;
-		}
-
-		Serialize::Document::StickerSetInfo info(
-			setId,
-			setAccessHash,
-			setShortName);
-		base::flat_set<DocumentId> read;
-		for (int32 j = 0; j < scnt; ++j) {
-			auto document = Serialize::Document::readStickerFromStream(
-				&_owner->session(),
-				stickers.version,
-				stickers.stream, info);
-			if (!CheckStreamStatus(stickers.stream)) {
-				return failed();
-			} else if (!document
-				|| !document->sticker()
-				|| read.contains(document->id)) {
+		set->stickers.reserve(cached.documents.size());
+		const auto identifier = set->identifier();
+		auto seen = base::flat_set<DocumentId>();
+		for (const auto &fields : cached.documents) {
+			if (!seen.emplace(fields.id).second) {
 				continue;
 			}
-			read.emplace(document->id);
-			if (fillStickers) {
+			auto document = data.document(fields.id).get();
+			if (!document->date) {
+				document = fields.apply(session);
+			}
+			if (const auto sticker = document->sticker()) {
 				set->stickers.push_back(document);
-				if (!(set->flags & SetFlag::Special)) {
-					if (!document->sticker()->set.id) {
-						document->sticker()->set = inputSet;
+				if (!(set->flags & SetFlag::Special) && !sticker->set.id) {
+					sticker->set = identifier;
+				}
+			}
+		}
+		set->count = set->stickers.size();
+		if ((id == Data::Stickers::CloudRecentSetId
+				|| id == Data::Stickers::CloudRecentAttachedSetId)
+			&& cached.dates.size() == size_t(set->stickers.size())) {
+			set->dates = std::move(cached.dates);
+		}
+		for (const auto &[emojiString, ids] : cached.packs) {
+			if (const auto emoji = Ui::Emoji::Find(emojiString)) {
+				auto pack = Data::StickersPack();
+				pack.reserve(ids.size());
+				for (const auto id : ids) {
+					const auto document = data.document(id);
+					if (document->sticker()) {
+						pack.push_back(document);
 					}
 				}
-				++set->count;
+				set->emoji[emoji->original()] = std::move(pack);
 			}
 		}
-
-		qint32 datesCount = 0;
-		stickers.stream >> datesCount;
-		if (datesCount > 0) {
-			if (datesCount != scnt) {
-				return failed();
-			}
-			const auto fillDates
-				= ((set->id == Data::Stickers::CloudRecentSetId)
-					|| (set->id == Data::Stickers::CloudRecentAttachedSetId))
-				&& (set->stickers.size() == datesCount);
-			if (fillDates) {
-				set->dates.clear();
-				set->dates.reserve(datesCount);
-			}
-			for (auto i = 0; i != datesCount; ++i) {
-				qint32 date = 0;
-				stickers.stream >> date;
-				if (fillDates) {
-					set->dates.push_back(TimeId(date));
-				}
-			}
-		}
-
-		qint32 emojiCount = 0;
-		stickers.stream >> emojiCount;
-		if (!CheckStreamStatus(stickers.stream) || emojiCount < 0) {
-			return failed();
-		}
-		for (int32 j = 0; j < emojiCount; ++j) {
-			QString emojiString;
-			qint32 stickersCount;
-			stickers.stream >> emojiString >> stickersCount;
-			Data::StickersPack pack;
-			pack.reserve(stickersCount);
-			for (int32 k = 0; k < stickersCount; ++k) {
-				quint64 id;
-				stickers.stream >> id;
-				const auto doc = _owner->session().data().document(id);
-				if (!doc->sticker()) continue;
-
-				pack.push_back(doc);
-			}
-			if (fillStickers) {
-				if (auto emoji = Ui::Emoji::Find(emojiString)) {
-					emoji = emoji->original();
-					set->emoji[emoji] = std::move(pack);
-				}
-			}
-		}
-
-		if (settingSet) {
-			if (version < 4
-				&& setThumbnailType == qint32(StickerType::Webp)
-				&& !set->stickers.empty()
-				&& set->stickers.front()->sticker()) {
-				const auto first = set->stickers.front();
-				setThumbnailType = qint32(first->sticker()->type);
-			}
-			const auto thumbType = [&] {
-				switch (setThumbnailType) {
-				case qint32(StickerType::Webp): return StickerType::Webp;
-				case qint32(StickerType::Tgs): return StickerType::Tgs;
-				case qint32(StickerType::Webm): return StickerType::Webm;
-				}
-				return StickerType::Webp;
-			}();
+		if (added) {
 			set->setThumbnail(
-				ImageWithLocation{ .location = setThumbnail }, thumbType);
+				ImageWithLocation{ .location = cached.thumbnail },
+				CachedThumbnailType(cached, *set, cache.version));
 		}
 	}
 
-	// Read orders of installed and featured stickers.
 	if (outOrder) {
-		auto outOrderCount = quint32();
-		stickers.stream >> outOrderCount;
-		if (!CheckStreamStatus(stickers.stream) || outOrderCount > 1000) {
-			return failed();
-		}
-		outOrder->reserve(outOrderCount);
-		for (auto i = 0; i != outOrderCount; ++i) {
-			auto value = uint64();
-			stickers.stream >> value;
-			if (!CheckStreamStatus(stickers.stream)) {
-				outOrder->clear();
-				return failed();
-			}
-			outOrder->push_back(value);
-		}
-	}
-	if (!CheckStreamStatus(stickers.stream)) {
-		return failed();
-	}
-
-	// Set flags that we dropped above from the order.
-	if (readingFlags && outOrder) {
-		for (const auto setId : std::as_const(*outOrder)) {
-			auto it = sets.find(setId);
-			if (it != sets.cend()) {
+		*outOrder = std::move(cache.order);
+		for (const auto id : std::as_const(*outOrder)) {
+			const auto it = sets.find(id);
+			if (it != sets.end()) {
 				const auto set = it->second.get();
 				set->flags |= readingFlags;
-				if ((readingFlags == SetFlag::Installed)
-					&& !set->installDate) {
+				if (readingFlags == SetFlag::Installed && !set->installDate) {
 					set->installDate = kDefaultStickerInstallDate;
 				}
 			}
 		}
+	}
+}
+
+} // namespace
+
+void Account::readArchivedStickerSets(
+		FileKey &key,
+		Data::StickersSetsOrder &order) {
+	if (!key) {
+		return;
+	}
+	auto file = FileReadDescriptor();
+	const auto read = ReadEncryptedFile(file, key, _basePath, _localKey);
+	auto cache = read ? ParseStickerCache(file, true) : std::nullopt;
+	if (cache) {
+		ApplyStickerCache(&_owner->session(), std::move(*cache), &order, 0);
+	} else {
+		ClearKey(key, _basePath);
+		key = 0;
+		writeMapDelayed();
 	}
 }
 
@@ -2640,66 +2664,142 @@ void Account::importOldRecentStickers() {
 	writeMapDelayed();
 }
 
-void Account::readInstalledStickers() {
-	DEBUG_LOG(("Init: Read installed sticker sets."));
-
-	if (!_installedStickersKey) {
-		return importOldRecentStickers();
-	}
-
-	_owner->session().data().stickers().setsRef().clear();
-	readStickerSets(
-		_installedStickersKey,
-		&_owner->session().data().stickers().setsOrderRef(),
-		Data::StickersSetFlag::Installed);
+bool Account::stickerCacheLoading() const {
+	return _stickerCacheLoading;
 }
 
-void Account::readFeaturedStickers() {
-	DEBUG_LOG(("Init: Read featured sticker sets."));
+void Account::afterStickerCacheLoaded(FnMut<void()> callback) {
+	Expects(_stickerCacheLoading);
 
-	readStickerSets(
-		_featuredStickersKey,
-		&_owner->session().data().stickers().featuredSetsOrderRef(),
-		Data::StickersSetFlag::Featured);
+	_afterStickerCacheLoad.push_back(std::move(callback));
+}
 
-	const auto &sets = _owner->session().data().stickers().sets();
-	const auto &order = _owner->session().data().stickers().featuredSetsOrder();
-	int unreadCount = 0;
-	for (const auto setId : order) {
-		auto it = sets.find(setId);
-		if (it != sets.cend()
-			&& (it->second->flags & Data::StickersSetFlag::Unread)) {
-			++unreadCount;
+void Account::readStickerCache(not_null<Main::Session*> session) {
+	using SetFlag = Data::StickersSetFlag;
+	using Order = Data::StickersSetsOrder &(Data::Stickers::*)();
+
+	struct File {
+		FileKey Account::*key;
+		Order order = nullptr;
+		Data::StickersSetFlags flags = 0;
+	};
+	constexpr auto files = std::array{
+		File{
+			&Account::_installedStickersKey,
+			&Data::Stickers::setsOrderRef,
+			SetFlag::Installed,
+		},
+		File{
+			&Account::_installedMasksKey,
+			&Data::Stickers::maskSetsOrderRef,
+			SetFlag::Installed,
+		},
+		File{
+			&Account::_installedCustomEmojiKey,
+			&Data::Stickers::emojiSetsOrderRef,
+			SetFlag::Installed,
+		},
+		File{
+			&Account::_featuredStickersKey,
+			&Data::Stickers::featuredSetsOrderRef,
+			SetFlag::Featured,
+		},
+		File{
+			&Account::_featuredCustomEmojiKey,
+			&Data::Stickers::featuredEmojiSetsOrderRef,
+			SetFlag::Featured,
+		},
+		File{ &Account::_recentStickersKey },
+		File{ &Account::_recentMasksKey },
+		File{ &Account::_favedStickersKey },
+	};
+	auto keys = std::array<FileKey, files.size()>();
+	for (auto i = size_t(); i != files.size(); ++i) {
+		auto &key = this->*files[i].key;
+		keys[i] = key;
+		if (key) {
+			_pendingStickerReads.emplace(&key);
 		}
 	}
-	_owner->session().data().stickers().setFeaturedSetsUnreadCount(unreadCount);
-}
 
-void Account::readFeaturedCustomEmoji() {
-	DEBUG_LOG(("Init: Read featured emoji sets."));
-
-	readStickerSets(
-		_featuredCustomEmojiKey,
-		&_owner->session().data().stickers().featuredEmojiSetsOrderRef(),
-		Data::StickersSetFlag::Featured);
-}
-
-void Account::readRecentStickers() {
-	DEBUG_LOG(("Init: Read recent stickers."));
-
-	readStickerSets(_recentStickersKey);
-}
-
-void Account::readRecentMasks() {
-	DEBUG_LOG(("Init: Read recent masks."));
-
-	readStickerSets(_recentMasksKey);
-}
-
-void Account::readFavedStickers() {
-	DEBUG_LOG(("Init: Read faved masks."));
-
-	readStickerSets(_favedStickersKey);
+	const auto owner = base::make_weak(_owner);
+	const auto finish = crl::guard(session, [=] {
+		if (!owner || owner->maybeSession() != session.get()) {
+			return;
+		}
+		_stickerCacheLoading = false;
+		auto callbacks = base::take(_afterStickerCacheLoad);
+		for (auto &callback : callbacks) {
+			callback();
+			if (!owner || owner->maybeSession() != session.get()) {
+				return;
+			}
+		}
+		auto &stickers = session->data().stickers();
+		stickers.notifyUpdated(Data::StickersType::Stickers);
+		stickers.notifyUpdated(Data::StickersType::Masks);
+		stickers.notifyUpdated(Data::StickersType::Emoji);
+		DEBUG_LOG(("Init: Account sticker cache load finished."));
+	});
+	const auto apply = crl::guard(session, [=](
+			size_t index,
+			std::optional<StickerCache> cache) {
+		if (!owner || owner->maybeSession() != session.get()) {
+			return;
+		}
+		const auto file = files[index];
+		auto &key = this->*file.key;
+		if (!_pendingStickerReads.remove(&key) || key != keys[index]) {
+			return;
+		}
+		if (!cache) {
+			ClearKey(key, _basePath);
+			key = 0;
+			writeMapDelayed();
+			return;
+		}
+		auto &stickers = session->data().stickers();
+		ApplyStickerCache(
+			session,
+			std::move(*cache),
+			file.order ? &(stickers.*file.order)() : nullptr,
+			file.flags);
+		if (file.key == &Account::_featuredStickersKey) {
+			auto unreadCount = 0;
+			for (const auto id : stickers.featuredSetsOrder()) {
+				const auto it = stickers.sets().find(id);
+				if (it != stickers.sets().end()
+					&& (it->second->flags & SetFlag::Unread)) {
+					++unreadCount;
+				}
+			}
+			stickers.setFeaturedSetsUnreadCount(unreadCount);
+		}
+	});
+	if (!_installedStickersKey) {
+		importOldRecentStickers();
+	}
+	crl::async([=, path = _basePath, localKey = _localKey] {
+		for (auto i = size_t(); i != files.size(); ++i) {
+			if (!keys[i]) {
+				continue;
+			}
+			auto file = FileReadDescriptor();
+			const auto read = ReadEncryptedFile(
+				file,
+				keys[i],
+				path,
+				localKey,
+				ReadFileCleanup::KeepAlternate);
+			auto cache = read
+				? ParseStickerCache(file, files[i].order != nullptr)
+				: std::nullopt;
+			crl::on_main([apply, i, cache = std::move(cache)]() mutable {
+				apply(i, std::move(cache));
+			});
+		}
+		crl::on_main(finish);
+	});
 }
 
 void Account::readArchivedStickers() {
@@ -2708,9 +2808,9 @@ void Account::readArchivedStickers() {
 	// TODO: refactor to support for multiple accounts.
 	static bool archivedStickersRead = false;
 	if (!archivedStickersRead) {
-		readStickerSets(
+		readArchivedStickerSets(
 			_archivedStickersKey,
-			&_owner->session().data().stickers().archivedSetsOrderRef());
+			_owner->session().data().stickers().archivedSetsOrderRef());
 		archivedStickersRead = true;
 	}
 }
@@ -2721,29 +2821,11 @@ void Account::readArchivedMasks() {
 	// TODO: refactor to support for multiple accounts.
 	static bool archivedMasksRead = false;
 	if (!archivedMasksRead) {
-		readStickerSets(
+		readArchivedStickerSets(
 			_archivedMasksKey,
-			&_owner->session().data().stickers().archivedMaskSetsOrderRef());
+			_owner->session().data().stickers().archivedMaskSetsOrderRef());
 		archivedMasksRead = true;
 	}
-}
-
-void Account::readInstalledMasks() {
-	DEBUG_LOG(("Init: Read installed masks."));
-
-	readStickerSets(
-		_installedMasksKey,
-		&_owner->session().data().stickers().maskSetsOrderRef(),
-		Data::StickersSetFlag::Installed);
-}
-
-void Account::readInstalledCustomEmoji() {
-	DEBUG_LOG(("Init: Read installed emoji sets."));
-
-	readStickerSets(
-		_installedCustomEmojiKey,
-		&_owner->session().data().stickers().emojiSetsOrderRef(),
-		Data::StickersSetFlag::Installed);
 }
 
 void Account::writeSavedGifs() {
