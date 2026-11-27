@@ -523,7 +523,10 @@ void ActivateBotButton(ClickHandlerContext context, BotButtonLookup lookup) {
 				.bot = bot,
 				.context = { .controller = controller },
 				.button = { .text = button->text, .url = button->data },
-				.source = InlineBots::WebViewSourceButton{ .simple = false },
+				.source = InlineBots::WebViewSourceButton{
+					.url = button->data,
+					.simple = false,
+				},
 			});
 		}
 	} break;
@@ -534,7 +537,10 @@ void ActivateBotButton(ClickHandlerContext context, BotButtonLookup lookup) {
 				.bot = bot,
 				.context = { .controller = controller },
 				.button = { .text = button->text, .url = button->data },
-				.source = InlineBots::WebViewSourceButton{ .simple = true },
+				.source = InlineBots::WebViewSourceButton{
+					.url = button->data,
+					.simple = true,
+				},
 			});
 		}
 	} break;
