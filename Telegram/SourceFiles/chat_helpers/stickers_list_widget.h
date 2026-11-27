@@ -292,6 +292,7 @@ private:
 	void displaySet(uint64 setId);
 	void removeMegagroupSet(bool locally);
 	void removeSet(uint64 setId);
+	void clearRecentStickers();
 	[[nodiscard]] base::unique_qptr<Ui::PopupMenu> fillSetContextMenu(
 		const Set &set);
 	void refreshMySets();
