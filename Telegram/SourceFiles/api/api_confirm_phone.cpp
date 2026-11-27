@@ -89,7 +89,7 @@ void ConfirmPhone::resolve(
 				timeout);
 			const auto boxWeak = base::make_weak(box.data());
 			using LoginCode = rpl::event_stream<QString>;
-			const auto codeHandles = box->lifetime().make_state<LoginCode>();
+			const auto codeHandles = box->lifetime().template make_state<LoginCode>();
 			controller->session().account().setHandleLoginCode([=](
 					const QString &code) {
 				codeHandles->fire_copy(code);
