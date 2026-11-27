@@ -27,8 +27,8 @@ The latest version is available for
 
 Version **4.9.9** was the last that supports older systems
 
-* [macOS 10.12](https://updates.tdesktop.com/tmac/tsetup.4.9.9.dmg)
-* [Linux with glibc < 2.28 static build](https://updates.tdesktop.com/tlinux/tsetup.4.9.9.tar.xz)
+* [macOS 10.12](https://github.com/telegramdesktop/tdesktop/releases/tag/v4.9.9)
+* [Linux with glibc < 2.28 static build](https://github.com/telegramdesktop/tdesktop/releases/tag/v4.9.9)
 
 Version **2.4.4** was the last that supports older systems
 
