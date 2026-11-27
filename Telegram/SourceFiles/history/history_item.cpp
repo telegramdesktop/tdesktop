@@ -3884,6 +3884,7 @@ void HistoryItem::toggleReaction(
 	Expects(!reaction.paid());
 
 	const auto addToRecent = (source == HistoryReactionSource::Selector);
+	const auto big = (source == HistoryReactionSource::Big);
 	if (_reactions
 		&& ranges::contains(_reactions->chosen(), reaction)) {
 		_reactions->remove(reaction);
@@ -3900,9 +3901,9 @@ void HistoryItem::toggleReaction(
 		if (canViewReactions) {
 			_flags |= MessageFlag::CanViewReactions;
 		}
-		_reactions->add(reaction, addToRecent);
+		_reactions->add(reaction, addToRecent, big);
 	} else {
-		_reactions->add(reaction, addToRecent);
+		_reactions->add(reaction, addToRecent, big);
 	}
 	_history->owner().notifyItemDataChange(this);
 }

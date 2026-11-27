@@ -138,6 +138,7 @@ public:
 	void showSet(uint64 setId);
 	[[nodiscard]] uint64 currentSet(int yOffset) const;
 	void setAllowWithoutPremium(bool allow);
+	void setRightClickSelects(bool value);
 	void showMegagroupSet(ChannelData *megagroup);
 
 	// Ui::AbstractTooltipShower interface.
@@ -539,6 +540,8 @@ private:
 	Fn<QColor()> _customTextColor;
 	int _customSingleSize = 0;
 	bool _allowWithoutPremium = false;
+	bool _rightClickSelects = false;
+	bool _rightClick = false;
 	Ui::RoundRect _overBg;
 	Ui::RoundRect _markedBg;
 	base::flat_set<DocumentId> _markedCustomIds;

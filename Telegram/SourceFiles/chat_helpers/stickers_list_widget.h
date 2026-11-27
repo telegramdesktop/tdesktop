@@ -105,6 +105,7 @@ public:
 		StickersListDescriptor &&descriptor);
 
 	rpl::producer<FileChosen> chosen() const;
+	void setRightClickSelects(bool value);
 	[[nodiscard]] rpl::producer<> photoRequests() const;
 	[[nodiscard]] auto reactionRequests() const
 		-> rpl::producer<Data::ReactionId>;
@@ -517,6 +518,8 @@ private:
 
 	bool _paintAsPremium = false;
 	bool _showingSetById = false;
+	bool _rightClickSelects = false;
+	bool _rightClick = false;
 	crl::time _lastScrolledAt = 0;
 	crl::time _lastFullUpdatedAt = 0;
 

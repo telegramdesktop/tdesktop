@@ -2907,10 +2907,14 @@ FileChosen EmojiListWidget::lookupChosen(
 void EmojiListWidget::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateSelected();
-	if (checkPickerHide() || e->button() != Qt::LeftButton) {
+	_rightClick = _rightClickSelects && e->button() == Qt::RightButton;
+	if (checkPickerHide() || (e->button() != Qt::LeftButton && !_rightClick)) {
 		return;
 	}
 	setPressed(_selected);
+	if (_rightClick) {
+		return;
+	}
 	if (std::get_if<OverSearchShortcut>(&_selected)) {
 		_searchShortcutsMouseDown = _lastMousePos;
 		_searchShortcutsDragStart = _searchShortcutsScroll;
@@ -3116,10 +3120,12 @@ void EmojiListWidget::removeSet(uint64 setId) {
 
 void EmojiListWidget::selectEmoji(EmojiChosen data) {
 	Core::App().settings().incrementRecentEmoji({ data.emoji });
+	data.rightClick = _rightClick;
 	_chosen.fire(std::move(data));
 }
 
 void EmojiListWidget::selectCustom(FileChosen data) {
+	data.rightClick = _rightClick;
 	const auto document = data.document;
 	const auto skip = (document->isPremiumEmoji() && !session().premium());
 	if (!skip && _mode == Mode::Full) {
@@ -3481,6 +3487,10 @@ void EmojiListWidget::setAllowWithoutPremium(bool allow) {
 	_allowWithoutPremium = allow;
 	refreshCustom();
 	resizeToWidth(width());
+}
+
+void EmojiListWidget::setRightClickSelects(bool value) {
+	_rightClickSelects = value;
 }
 
 void EmojiListWidget::showMegagroupSet(ChannelData *megagroup) {

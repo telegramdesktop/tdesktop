@@ -4650,7 +4650,11 @@ void ListWidget::reactionChosen(ChosenReaction reaction) {
 		}
 		return;
 	}
-	item->toggleReaction(reaction.id, HistoryReactionSource::Selector);
+	item->toggleReaction(
+		reaction.id,
+		reaction.big
+			? HistoryReactionSource::Big
+			: HistoryReactionSource::Selector);
 	if (!ranges::contains(item->chosenReactions(), reaction.id)) {
 		return;
 	} else if (const auto view = viewForItem(item)) {

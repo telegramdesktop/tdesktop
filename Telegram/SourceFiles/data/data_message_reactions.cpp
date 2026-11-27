@@ -1478,7 +1478,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableEffect &entry) {
 	});
 }
 
-void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
+void Reactions::send(not_null<HistoryItem*> item, bool addToRecent, bool big) {
 	const auto id = item->fullId();
 	auto &api = _owner->session().api();
 	auto i = _sentRequests.find(id);
@@ -1490,7 +1490,8 @@ void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 	const auto chosen = item->chosenReactions();
 	using Flag = MTPmessages_SendReaction::Flag;
 	const auto flags = (chosen.empty() ? Flag(0) : Flag::f_reaction)
-		| (addToRecent ? Flag::f_add_to_recent : Flag(0));
+		| (addToRecent ? Flag::f_add_to_recent : Flag(0))
+		| (big ? Flag::f_big : Flag(0));
 	i->second = api.request(MTPmessages_SendReaction(
 		MTP_flags(flags),
 		item->history()->peer->input(),
@@ -1923,7 +1924,7 @@ MessageReactions::~MessageReactions() {
 	}
 }
 
-void MessageReactions::add(const ReactionId &id, bool addToRecent) {
+void MessageReactions::add(const ReactionId &id, bool addToRecent, bool big) {
 	Expects(!id.empty());
 	Expects(!id.paid());
 
@@ -1986,7 +1987,7 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 		_list.push_back({ .id = id, .count = 1, .my = true });
 	}
 	auto &owner = history->owner();
-	owner.reactions().send(_item, addToRecent);
+	owner.reactions().send(_item, addToRecent, big);
 	owner.notifyItemDataChange(_item);
 }
 
