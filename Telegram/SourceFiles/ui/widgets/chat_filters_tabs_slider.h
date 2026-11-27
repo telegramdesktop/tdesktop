@@ -26,6 +26,11 @@ class SettingsSlider;
 
 class ChatsFiltersTabsReorder;
 
+struct ChatsFiltersTabMenuRequest {
+	int index = 0;
+	QPoint position; // Global coordinates for showing the menu.
+};
+
 class ChatsFiltersTabs final : public Ui::SettingsSlider {
 public:
 	ChatsFiltersTabs(
@@ -50,7 +55,8 @@ public:
 		return _lockedFrom;
 	}
 
-	[[nodiscard]] rpl::producer<int> contextMenuRequested() const;
+	[[nodiscard]] auto contextMenuRequested() const
+		-> rpl::producer<ChatsFiltersTabMenuRequest>;
 	[[nodiscard]] rpl::producer<> lockedClicked() const;
 
 	void setHorizontalShift(int index, int shift);
@@ -62,6 +68,10 @@ public:
 	[[nodiscard]] int reordering() const;
 
 	void stopAnimation();
+
+	QString accessibilityChildName(int index) const override;
+	QString accessibilityChildDescription(int index) const override;
+	QAccessible::State accessibilityChildState(int index) const override;
 
 protected:
 	struct ShiftedSection {
@@ -76,6 +86,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
+	void activateSectionByAccessibility(int index) override;
 
 	std::vector<ShiftedSection> _sections;
 
@@ -115,7 +126,7 @@ private:
 	int _reordering = 0;
 
 	rpl::lifetime _paletteLifetime;
-	rpl::event_stream<int> _contextMenuRequested;
+	rpl::event_stream<ChatsFiltersTabMenuRequest> _contextMenuRequested;
 	rpl::event_stream<> _lockedClicked;
 
 };
