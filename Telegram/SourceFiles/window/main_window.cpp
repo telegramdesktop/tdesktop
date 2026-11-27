@@ -668,6 +668,9 @@ void MainWindow::quitFromTray() {
 
 void MainWindow::activate() {
 	bool wasHidden = !isVisible();
+	if (wasHidden) {
+		placeOnScreenIfLost();
+	}
 	setWindowState(windowState() & ~Qt::WindowMinimized);
 	setVisible(true);
 	Platform::ActivateThisProcess();
@@ -679,6 +682,18 @@ void MainWindow::activate() {
 			session->content()->windowShown();
 		}
 	}
+}
+
+void MainWindow::placeOnScreenIfLost() {
+	if (!Platform::IsWindows() || !positionInited()) {
+		return;
+	}
+	const auto inner = body()->mapToGlobal(body()->rect());
+	if (inner.isEmpty() || QGuiApplication::screenAt(inner.center())) {
+		return;
+	}
+	DEBUG_LOG(("Window Pos: Hidden window is off screen, moving it."));
+	applySavedPosition(countPositionForSave());
 }
 
 void MainWindow::updatePalette() {
