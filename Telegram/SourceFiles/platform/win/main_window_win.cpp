@@ -205,7 +205,18 @@ bool EventFilter::mainWindowEvent(
 			_window->shadowsDeactivate();
 		}
 	} return false;
-
+	case WM_ERASEBKGND: {
+		if (!Window::Theme::IsNightMode()) {
+			return false;
+		}
+		const auto c = st::windowBg->c;
+		const auto brush = CreateSolidBrush(RGB(c.red(), c.green(), c.blue()));
+		auto rect = RECT();
+		GetClientRect(hWnd, &rect);
+		FillRect((HDC)wParam, &rect, brush);
+		DeleteObject(brush);
+		*result = 1;
+	} return true;
 	case WM_SIZE: {
 		if (wParam == SIZE_MAXIMIZED || wParam == SIZE_RESTORED || wParam == SIZE_MINIMIZED) {
 			if (wParam == SIZE_RESTORED && _window->windowState() == Qt::WindowNoState) {
