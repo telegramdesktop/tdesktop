@@ -278,6 +278,7 @@ struct EidComponents {
 	const std::string &rpId,
 	ByteSpan clientDataHash32,
 	const std::vector<Bytes> &allowCredentialIds);
+[[nodiscard]] Bytes BuildGetNextAssertionRequest();
 
 struct MakeCredentialResponse {
 	Bytes authData;
@@ -288,6 +289,9 @@ struct GetAssertionResponse {
 	Bytes authData;
 	Bytes signature;
 	Bytes userHandle;
+	std::string userName;
+	std::string userDisplayName;
+	std::optional<size_t> numberOfCredentials;
 };
 
 inline constexpr auto kCtapSuccess = uint8_t(0);
