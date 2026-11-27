@@ -1562,11 +1562,22 @@ void ListWidget::showContextMenu(
 		? _overLayout->getDocument()
 		: nullptr;
 	const auto document = rowDocument ? rowDocument : lnkDocument;
-	using ExternalState = Data::DownloadManager::ExternalLoadingState;
-	const auto externalState = _controller->isDownloads()
-		? Core::App().downloadManager().loadingExternalState(item)
-		: std::optional<ExternalState>();
-	if (externalState && !externalState->done) {
+	const auto isDownloads = _controller->isDownloads();
+	const auto isLoadingExternal = [isDownloads](
+			not_null<const HistoryItem*> item) {
+		if (!isDownloads) {
+			return false;
+		}
+		const auto state = Core::App().downloadManager()
+			.loadingExternalState(item);
+		return state && !state->done;
+	};
+	const auto externalLoading = isLoadingExternal(item);
+	const auto documentLoading = document && document->loading();
+	const auto documentReady = document
+		&& !externalLoading
+		&& !documentLoading;
+	if (externalLoading) {
 		_contextMenu->addAction(
 			tr::lng_context_cancel_download(tr::now),
 			[globalId] {
@@ -1575,39 +1586,14 @@ void ListWidget::showContextMenu(
 				}
 			},
 			&st::menuIconCancel);
-	} else if (document) {
-		if (document->loading()) {
-			_contextMenu->addAction(
-				tr::lng_context_cancel_download(tr::now),
-				[document] {
-					document->cancel();
-				},
-				&st::menuIconCancel);
-		} else {
-			const auto filepath = _provider->showInFolderPath(item, document);
-			if (!filepath.isEmpty()) {
-				const auto handler = base::fn_delayed(
-					st::defaultDropdownMenu.menu.ripple.hideDuration,
-					this,
-					[filepath] {
-						File::ShowInFolder(filepath);
-					});
-				_contextMenu->addAction(
-					(Platform::IsMac()
-						? tr::lng_context_show_in_finder(tr::now)
-						: tr::lng_context_show_in_folder(tr::now)),
-					std::move(handler),
-					&st::menuIconShowInFolder);
-			}
-			if (_provider->allowSaveFileAs(item, document)) {
-				HistoryView::AddSaveDocumentAction(
-					Ui::Menu::CreateAddActionCallback(_contextMenu),
-					item,
-					document,
-					_controller->parentController());
-			}
-		}
-	} else if (link && !lnkPhoto) {
+	} else if (documentLoading) {
+		_contextMenu->addAction(
+			tr::lng_context_cancel_download(tr::now),
+			[document] {
+				document->cancel();
+			},
+			&st::menuIconCancel);
+	} else if (!document && link && !lnkPhoto) {
 		const auto actionText = link->copyToClipboardContextItemText();
 		if (!actionText.isEmpty()) {
 			_contextMenu->addAction(
@@ -1617,6 +1603,45 @@ void ListWidget::showContextMenu(
 				},
 				&st::menuIconCopy);
 		}
+	}
+	auto paths = QStringList();
+	if (overSelected == SelectionState::OverSelectedItems
+		&& _selected.size() > 1) {
+		for (const auto &[selected, data] : _selected) {
+			const auto media = selected->media();
+			const auto file = media ? media->document() : nullptr;
+			if (!file || file->loading() || isLoadingExternal(selected)) {
+				continue;
+			}
+			auto path = _provider->showInFolderPath(selected, file);
+			if (!path.isEmpty()) {
+				paths.push_back(std::move(path));
+			}
+		}
+	}
+	if (paths.isEmpty() && documentReady) {
+		auto path = _provider->showInFolderPath(item, document);
+		if (!path.isEmpty()) {
+			paths.push_back(std::move(path));
+		}
+	}
+	if (!paths.isEmpty()) {
+		_contextMenu->addAction(
+			(Platform::IsMac()
+				? tr::lng_context_show_in_finder(tr::now)
+				: tr::lng_context_show_in_folder(tr::now)),
+			base::fn_delayed(
+				st::defaultDropdownMenu.menu.ripple.hideDuration,
+				this,
+				[paths = std::move(paths)] { File::ShowInFolder(paths); }),
+			&st::menuIconShowInFolder);
+	}
+	if (documentReady && _provider->allowSaveFileAs(item, document)) {
+		HistoryView::AddSaveDocumentAction(
+			Ui::Menu::CreateAddActionCallback(_contextMenu),
+			item,
+			document,
+			_controller->parentController());
 	}
 	if (overSelected == SelectionState::OverSelectedItems) {
 		if (canToggleStoryPinAll()) {

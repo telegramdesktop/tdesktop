@@ -44,6 +44,7 @@ void OpenEmailLink(const QString &email);
 void OpenWith(const QString &filepath, Fn<void()> fallback);
 void Launch(const QString &filepath);
 void ShowInFolder(const QString &filepath);
+void ShowInFolder(const QStringList &filepaths);
 
 [[nodiscard]] QString DefaultDownloadPathFolder(
 	not_null<Main::Session*> session);

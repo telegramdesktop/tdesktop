@@ -437,7 +437,8 @@ void AddDocumentActions(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<DocumentData*> document,
 		HistoryItem *item,
-		not_null<ListWidget*> list) {
+		not_null<ListWidget*> list,
+		bool showInFolder = true) {
 	if (document->loading()) {
 		menu->addAction(tr::lng_context_cancel_download(tr::now), [=] {
 			document->cancel();
@@ -490,7 +491,7 @@ void AddDocumentActions(
 			[=] { ToggleFavedSticker(controller, document, contextId); },
 			isFaved ? &st::menuIconUnfave : &st::menuIconFave);
 	}
-	if (!document->filepath(true).isEmpty()) {
+	if (showInFolder && !document->filepath(true).isEmpty()) {
 		menu->addAction(
 			(Platform::IsMac()
 				? tr::lng_context_show_in_finder(tr::now)
@@ -1397,12 +1398,14 @@ void AddTopMessageActions(
 void AddMessageActions(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
-		not_null<ListWidget*> list) {
+		not_null<ListWidget*> list,
+		QStringList selectedFilePaths) {
 	AddPostLinkAction(menu, request);
 	AddForwardAction(menu, request, list);
 	AddOfferAction(menu, request, list);
 	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
+	Menu::AddShowInFolderAction(menu, std::move(selectedFilePaths));
 	AddDownloadFilesAction(menu, request, list);
 	AddSaveRichHtmlAction(menu, request, list);
 	AddReportAction(menu, request, list);
@@ -1787,6 +1790,20 @@ void FillContextMenuItems(
 		|| !request.selectedText.empty();
 	const auto hasWhoReactedItem = item
 		&& Api::WhoReactedExists(item, Api::WhoReactedList::All);
+	auto selectedFilePaths = QStringList();
+	if (request.overSelection
+		&& !request.selectedItems.empty()
+		&& !list->hasCopyRestrictionForSelected()) {
+		const auto &owner = request.navigation->session().data();
+		auto items = HistoryItemsList();
+		items.reserve(request.selectedItems.size());
+		for (const auto &selected : request.selectedItems) {
+			if (const auto message = owner.message(selected.msgId)) {
+				items.push_back(message);
+			}
+		}
+		selectedFilePaths = Menu::DownloadedDocumentPaths(items);
+	}
 
 	AddReplyToMessageAction(result, request, list);
 	if (item) {
@@ -1854,7 +1871,12 @@ void FillContextMenuItems(
 	if (lnkPhoto && request.selectedItems.empty()) {
 		AddPhotoActions(result, lnkPhoto, item, list);
 	} else if (lnkDocument) {
-		AddDocumentActions(result, lnkDocument, item, list);
+		AddDocumentActions(
+			result,
+			lnkDocument,
+			item,
+			list,
+			selectedFilePaths.isEmpty());
 	} else if (poll) {
 		const auto context = list->elementContext();
 		AddPollActions(
@@ -1938,7 +1960,7 @@ void FillContextMenuItems(
 	}
 
 	AddCopyLinkAction(result, link);
-	AddMessageActions(result, request, list);
+	AddMessageActions(result, request, list, std::move(selectedFilePaths));
 
 	const auto wasAmount = result->actions().size();
 	if (const auto textItem = view ? view->textItem() : item) {

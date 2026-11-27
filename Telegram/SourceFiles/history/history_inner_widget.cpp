@@ -3422,6 +3422,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			&st::menuIconUnpin);
 	};
 
+	const auto addSelectedFileActions = [&] {
+		if (selectedState.count <= 0 || hasCopyRestrictionForSelected()) {
+			return;
+		}
+		const auto items = selectedItemsForExport();
+		Menu::AddShowInFolderAction(_menu, Menu::DownloadedDocumentPaths(items));
+		Menu::AddDownloadFilesAction(_menu, controller, items, this);
+		Iv::AddSaveRichMessageHtmlAction(_menu, controller, items, this);
+	};
+
 	const auto addTodoListAction = [&](HistoryItem *item) {
 		if (!item || !Window::PeerMenuShowAddTodoListTasks(item)) {
 			return;
@@ -3506,18 +3516,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}, &st::menuIconDelete);
 			}
 			addUnpinSelectedAction();
-			if (selectedState.count > 0 && !hasCopyRestrictionForSelected()) {
-				Menu::AddDownloadFilesAction(
-					_menu,
-					controller,
-					selectedItemsForExport(),
-					this);
-				Iv::AddSaveRichMessageHtmlAction(
-					_menu,
-					controller,
-					selectedItemsForExport(),
-					this);
-			}
+			addSelectedFileActions();
 			_menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
 				_widget->clearSelected();
 			}, &st::menuIconSelect);
@@ -3818,18 +3817,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}, &st::menuIconDelete);
 			}
 			addUnpinSelectedAction();
-			if (selectedState.count > 0 && !hasCopyRestrictionForSelected()) {
-				Menu::AddDownloadFilesAction(
-					_menu,
-					controller,
-					selectedItemsForExport(),
-					this);
-				Iv::AddSaveRichMessageHtmlAction(
-					_menu,
-					controller,
-					selectedItemsForExport(),
-					this);
-			}
+			addSelectedFileActions();
 			_menu->addAction(tr::lng_context_clear_selection(tr::now), [=] {
 				_widget->clearSelected();
 			}, &st::menuIconSelect);
