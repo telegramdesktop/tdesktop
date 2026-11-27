@@ -44,11 +44,14 @@ inline bool CanReadDirectory(const QString &path) {
 
 static const int32 ScrollMax = INT_MAX;
 
-extern uint64 _SharedMemoryLocation[];
+// For general-purpose storage, only the types “array of N unsigned char” or “array of N std::byte” are allowed.
+// https://eel.is/c++draft/intro.object#3
+alignas(uint64) extern std::byte _SharedMemoryLocation[];
 template <typename T, unsigned int N>
 T *SharedMemoryLocation() {
 	static_assert(N < 4, "Only 4 shared memory locations!");
-	return reinterpret_cast<T*>(_SharedMemoryLocation + N);
+	static_assert(alignof(T) <= alignof(uint64), "Storage or type alignment is invalid!");
+	return reinterpret_cast<T*>(_SharedMemoryLocation + N*sizeof(uint64));
 }
 
 inline void mylocaltime(struct tm * _Tm, const time_t * _Time) {
