@@ -34,6 +34,7 @@ struct ChosenReaction {
 	QImage icon;
 	QRect localGeometry;
 	QRect globalGeometry;
+	bool big = false;
 
 	explicit operator bool() const {
 		return context && !id.empty();

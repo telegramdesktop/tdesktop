@@ -141,7 +141,7 @@ public:
 
 	void preloadAnimationsFor(const ReactionId &emoji);
 
-	void send(not_null<HistoryItem*> item, bool addToRecent);
+	void send(not_null<HistoryItem*> item, bool addToRecent, bool big = false);
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
 
 	void poll(not_null<HistoryItem*> item, crl::time now);
@@ -400,7 +400,7 @@ public:
 
 	using TopPaid = MessageReactionsTopPaid;
 
-	void add(const ReactionId &id, bool addToRecent);
+	void add(const ReactionId &id, bool addToRecent, bool big = false);
 	void remove(const ReactionId &id);
 	bool removeFromParticipant(
 		not_null<PeerData*> participant,
