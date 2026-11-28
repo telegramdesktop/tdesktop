@@ -296,11 +296,6 @@ void DiscreteSlider::focusInEvent(QFocusEvent *e) {
 			Announce::No);
 	}
 	RpWidget::focusInEvent(e);
-	// The focus event of the widget names the browsed section where the
-	// platform resolves it to focusChild(); the helper covers where not.
-	if (count > 0 && _accessibilitySelected >= 0) {
-		accessibilityChildFocusedByEntry(_accessibilitySelected);
-	}
 }
 
 void DiscreteSlider::keyPressEvent(QKeyEvent *e) {
