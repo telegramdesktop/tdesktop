@@ -50,7 +50,7 @@ void SegmentPlayer::start() {
 	auto loader = _path.isEmpty()
 		? MakeBytesLoader(_content)
 		: MakeFileLoader(_path);
-	if (!loader) {
+	if (!loader || loader->size() <= 0) {
 		return;
 	}
 	_instance = std::make_unique<Instance>(
